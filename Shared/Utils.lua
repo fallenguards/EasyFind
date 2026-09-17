@@ -2125,6 +2125,8 @@ ns.COPIED_COLOR = {0.48, 1.0, 0.62}
 ns.SNIPPET_ICON_TEX    = "Interface\\AddOns\\EasyFind\\textures\\snippet-icon"
 ns.CLIPBOARD_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\clipboard-icon"
 ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
+-- GPS extension glyph: a map pin in the same white line-art family.
+ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.
@@ -7831,6 +7833,11 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
     end
     if onGuide then
         rows[#rows + 1] = { text = L["CTX_GUIDE"], icon = ns.EYE_ICON_TEX, chromeIcon = true, onClick = onGuide }
+    end
+    if extra and extra.onGPS then
+        -- Turn-by-turn directions from the GPS extension, the same custom
+        -- line-art treatment as Guide's eye.
+        rows[#rows + 1] = { text = L["CTX_GPS"], icon = ns.GPS_ICON_TEX, chromeIcon = true, onClick = extra.onGPS }
     end
     if extra and extra.wowheadUrl then
         -- Our own chain-link glyph (textures/link.tga), the same custom

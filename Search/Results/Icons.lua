@@ -186,6 +186,8 @@ local FLAT_CATEGORY_ICONS = {
     -- Icon Search's own glyph: rounded action-slot square with a lens,
     -- same custom line-art family as the calculator.
     iconSearch    = { tex = ICON_SEARCH_ICON_TEX, chromeTint = true },
+    -- GPS: the map pin, same family.
+    gps           = { tex = ns.GPS_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
@@ -202,6 +204,7 @@ function Icons:GetAppGlyphIcon(data)
     if data.calculatorLauncher or data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     if data.iconSearchLauncher then return FLAT_CATEGORY_ICONS.iconSearch end
     if data.clipboardLauncher then return FLAT_CATEGORY_ICONS.clipboard end
+    if data.gpsLauncher then return FLAT_CATEGORY_ICONS.gps end
     return nil
 end
 

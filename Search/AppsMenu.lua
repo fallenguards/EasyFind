@@ -75,6 +75,19 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    -- GPS opens its own page under the map search tab. Hidden when the GPS
+    -- companion is disabled in the AddOns list.
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
+        apps[#apps + 1] = {
+            name = L["APP_GPS"],
+            gpsLauncher = true,
+            noPin = true,
+            icon = ns.GPS_ICON_TEX,
+            nativeRun = function()
+                if ns.GPS and ns.GPS.Open then ns.GPS:Open() end
+            end,
+        }
+    end
     return apps
 end
 
@@ -85,6 +98,7 @@ local APP_ID_FLAGS = {
     { "icons", "iconSearchLauncher" },
     { "snippets", "snippetsLauncher" },
     { "clipboard", "clipboardLauncher" },
+    { "gps", "gpsLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end

@@ -133,6 +133,17 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
             end
         end
     end
+    -- Zones and points of interest can be navigated to by the GPS extension.
+    if ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(pinData) then
+        -- From the search bar the directions open in the GPS window, and
+        -- the bar steps aside as it does after any chosen result (hidden
+        -- outright when it auto-hides).
+        extra.onGPS = function()
+            if ns.GPS:NavigateTo(pinData, { popout = true }) and Handlers.FinishResultSelection then
+                Handlers:FinishResultSelection()
+            end
+        end
+    end
     extra.wowheadUrl = ns.GetWowheadLink and ns.GetWowheadLink(pinData)
     if ns.ResultLinks then
         extra.easyFindLinkRows, extra.easyFindLinkText = ns.ResultLinks:BuildSendRows(pinData)

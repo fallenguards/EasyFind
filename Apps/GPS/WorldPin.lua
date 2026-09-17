@@ -1,0 +1,619 @@
+-- EasyFind GPS: the beacon in the world.
+--
+-- While the arrow follows a route, the game's own floating waypoint marker
+-- carries our beacon instead of its icon: a column of light rising from
+-- the spot, wisps streaming down it, the addon's emblem in flames where it
+-- lands, and a small plate under it naming the step and how far it is.
+-- Our own art, in the companion's textures folder. The game keeps placing
+-- and fading its marker; only its face changes. Off the screen, our arrow
+-- at the edge points the way.
+--
+-- Colors come from the active UI theme: the Flame theme is the fire it
+-- was drawn as; every other theme lends its accent, so a Midnight beacon
+-- burns blue. The wisps move on animation groups, not Lua: the engine
+-- runs those at full rate while the camera moves. The column fades in at
+-- its top and out at its foot through one gradient mask.
+local ns = EasyFind and EasyFind._ns
+if not ns then return end
+local WorldPin = {}
+ns.GPSWorldPin = WorldPin
+
+local mfloor, mmax, mmin, mabs, matan2, mpi = math.floor, math.max, math.min, math.abs, math.atan2, math.pi
+local sformat = string.format
+
+local MEDIA = "Interface\\AddOns\\EasyFind_GPS\\textures\\"
+local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
+local TEX_CORE, TEX_HELIX, TEX_FLARE, TEX_MASK = MEDIA .. "beam_core", MEDIA .. "beam_helix", MEDIA .. "beam_flare", MEDIA .. "beam_mask"
+local TEX_EMBLEM = MEDIA .. "emblem_mask"      -- the ring and glass, torn and warped
+local TEX_FLAMES = MEDIA .. "emblem_flames"    -- the air around and above its lines
+local WHITE = "Interface\\Buttons\\WHITE8x8"
+
+local THROTTLE = 0.05
+local PLATE_MAX_W = 240
+local BEAM_H = 520
+local CORE_W, GLOW_W, HELIX_W = 18, 34, 60
+local EMBLEM = 64
+-- The wisps are stacked copies of the art (128 by 1024, made to wrap),
+-- each drawn at a set height, and the stack slides by exactly one copy per
+-- loop, so the loop point cannot show.
+local SCROLL = HELIX_W * 8
+local COPIES = 3
+-- Wisp layers: loop seconds, alpha, width as a multiple of the column, a
+-- sideways offset and a sway, so some drift wide and it is no clean tube.
+local HELIX = {
+    { secs = 5.0, a = 1.0, w = 1.0, x = 0, sway = 0 },
+    { secs = 8.0, a = 0.6, w = 1.6, x = -9, sway = 7 },
+    { secs = 3.6, a = 0.55, w = 1.2, x = 7, sway = 4 },
+    { secs = 6.6, a = 0.35, w = 2.2, x = 3, sway = 12 },
+}
+local SCALE_DIST = 1000             -- the beam is full size this far away
+
+local frame, beam, plate, edge, driver
+local styled          -- the game's own face is hidden under ours
+local since = 0
+local sizeMult = 1
+local paint = {}      -- every tinted texture with its role, for a repaint
+
+local function DB() return EasyFind and EasyFind.db end
+local function Route() local g = ns and ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
+local function Enabled() local db = DB() return not (db and db.gpsWorldPin == false) end
+local function Tracked()
+    return C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint() or false
+end
+-- The engine's own navigation region carries the screen position and the
+-- clamping; the game's drawn face (icon, range, arrow) is a separate frame
+-- it anchors there. Ours is anchored the same way, never parented to the
+-- engine's region, which it creates and destroys as it likes.
+local function Host()
+    return C_Navigation and C_Navigation.GetFrame and C_Navigation.GetFrame() or nil
+end
+local function Face()
+    return _G.SuperTrackedFrame
+end
+
+-- ---------------------------------------------------------------------------
+-- Colors from the theme
+-- ---------------------------------------------------------------------------
+
+local function mix(c, t, w)   -- c toward t by w
+    return { c[1] + (t[1] - c[1]) * w, c[2] + (t[2] - c[2]) * w, c[3] + (t[3] - c[3]) * w }
+end
+local function dim(c, f) return { c[1] * f, c[2] * f, c[3] * f } end
+local WHITE_C = { 1, 1, 1 }
+
+-- The base is the theme's own beacon color, or its accent; the hot color
+-- is the base pushed most of the way to white.
+local function Colors()
+    local pal = ns.ACTIVE_UI_PALETTE or (ns.UI_THEME_PALETTES and ns.UI_THEME_PALETTES.Black)
+    local base, hot
+    if pal and pal.beacon then
+        base, hot = pal.beacon.base, pal.beacon.hot
+    elseif pal and pal.accent then
+        base = { pal.accent[1], pal.accent[2], pal.accent[3] }
+    end
+    base = base or { 1, 0.5, 0.08 }
+    hot = hot or mix(base, WHITE_C, 0.7)
+    return {
+        body = dim(base, 0.5),            -- plain paint under the light
+        core = hot,
+        glow = mix(base, WHITE_C, 0.3),
+        wispBody = dim(base, 0.55),
+        wisp = base,
+        extrude = dim(base, 0.42),
+        face = dim(base, 0.55),
+        rim = mix(base, WHITE_C, 0.55),
+        shine = mix(base, WHITE_C, 0.45),
+        fire = base,
+        fire2 = mix(base, WHITE_C, 0.45),
+        halo = base,
+        halo2 = mix(base, WHITE_C, 0.25),
+        arrow = mix(base, WHITE_C, 0.35),
+        edgeGlow = base,
+    }
+end
+
+-- A texture tinted by role, remembered so a theme change repaints it.
+-- Alpha and an optional darkening factor are the texture's own.
+local function Tint(tex, role, a, f)
+    paint[#paint + 1] = { tex = tex, role = role, a = a, f = f }
+    local c = Colors()[role]
+    if f then c = dim(c, f) end
+    tex:SetVertexColor(c[1], c[2], c[3], a)
+end
+
+-- The plate reads on any theme: on a light theme the menu look is pale
+-- and its light text vanishes, so the plate takes the darker fill the
+-- settings columns use on light themes, with the theme's dark text.
+local function PaintPlate()
+    if not plate then return end
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    local light = theme and theme.lightTheme
+    if light then
+        local fill = ns.PANEL_CARD_FILL or { 0.5, 0.5, 0.45 }
+        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(plate, fill[1], fill[2], fill[3], 0.96) end
+        local main = theme.leafColor or { 0.2, 0.2, 0.1 }
+        local faint = theme.textFaint or main
+        plate.text:SetTextColor(main[1], main[2], main[3], 1)
+        plate.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
+    else
+        if ns.TEXT_PRIMARY then plate.text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
+        if ns.TEXT_DIM then plate.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
+    end
+end
+
+local function Repaint()
+    local colors = Colors()
+    for i = 1, #paint do
+        local p = paint[i]
+        local c = colors[p.role]
+        if p.f then c = dim(c, p.f) end
+        p.tex:SetVertexColor(c[1], c[2], c[3], p.a)
+    end
+    PaintPlate()
+end
+
+-- ---------------------------------------------------------------------------
+-- Building it
+-- ---------------------------------------------------------------------------
+
+local anchoredTo
+
+-- On the spot the marker marks: the face's icon when there is one, else
+-- the engine's region itself. Re-anchored whenever that object changes.
+local function Anchor(host)
+    local face = Face()
+    local spot = (face and face.Icon) or host
+    if spot == anchoredTo then return end
+    anchoredTo = spot
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER", spot, "CENTER", 0, 0)
+end
+
+-- Stacked copies of the wisp art rising through a mask: each texture
+-- slides on its own, so the mask, which belongs to the frame, stays put.
+local function RisingFire(parent, mask, w, h, layers, sub)
+    for i, fl in ipairs(layers) do
+        for k = 1, COPIES do
+            local tex = parent:CreateTexture(nil, "ARTWORK", nil, sub + i)
+            tex:SetTexture(TEX_HELIX)
+            tex:SetBlendMode("ADD")
+            tex:SetSize(w, h)
+            tex:SetPoint("TOP", parent, "TOP", 0, -(k - 1) * h)
+            Tint(tex, fl.role, fl.a)
+            tex:AddMaskTexture(mask)
+            local g = tex:CreateAnimationGroup()
+            g:SetLooping("REPEAT")
+            local slide = g:CreateAnimation("Translation")
+            slide:SetOffset(0, h)
+            slide:SetDuration(fl.secs)
+            g:Play()
+        end
+    end
+end
+
+local function Build(host)
+    frame = CreateFrame("Frame", "EasyFindGPSWorldPin", UIParent)
+    frame:SetSize(1, 1)
+    frame:SetFrameStrata("LOW")
+    frame:SetFrameLevel(10)
+    Anchor(host)
+
+    -- The beam, on its own frame so distance can scale it without the plate.
+    beam = CreateFrame("Frame", nil, frame)
+    beam:SetSize(HELIX_W, BEAM_H)
+    beam:SetPoint("BOTTOM", frame, "CENTER", 0, 0)
+
+    -- One mask for every layer of the column: nothing at the top, full in
+    -- the middle, gone again at the foot; wide enough for the wisps that
+    -- drift out past the column.
+    local mask = beam:CreateMaskTexture()
+    mask:SetTexture(TEX_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetPoint("TOPLEFT", beam, "TOPLEFT", -HELIX_W, 0)
+    mask:SetPoint("BOTTOMRIGHT", beam, "BOTTOMRIGHT", HELIX_W, 0)
+
+    local function column(width, sub, role, a, blend)
+        local tex = beam:CreateTexture(nil, "ARTWORK", nil, sub)
+        tex:SetTexture(TEX_CORE)
+        tex:SetBlendMode(blend or "ADD")
+        tex:SetSize(width, BEAM_H)
+        tex:SetPoint("BOTTOM")
+        Tint(tex, role, a)
+        tex:AddMaskTexture(mask)
+        return tex
+    end
+    -- Added light alone washes out against a bright sky, so a body is
+    -- painted first, plainly, and the light adds onto it.
+    column(GLOW_W + 6, 0, "body", 0.95, "BLEND")
+    column(CORE_W, 7, "core", 0.85)
+    column(GLOW_W, 1, "glow", 0.4)
+
+    -- The wisps: stacked copies sliding down inside a clipped box. Two
+    -- motions, two frames: a holder drifts sideways, the strip inside it
+    -- falls; two translations on one frame fight each other.
+    local clip = CreateFrame("Frame", nil, beam)
+    clip:SetPoint("TOPLEFT", beam, "TOPLEFT", -HELIX_W, 0)
+    clip:SetPoint("BOTTOMRIGHT", beam, "BOTTOMRIGHT", HELIX_W, 0)
+    clip:SetClipsChildren(true)
+    for i, L in ipairs(HELIX) do
+        local w = HELIX_W * L.w
+        local holder = CreateFrame("Frame", nil, clip)
+        holder:SetSize(w, SCROLL * COPIES)
+        holder:SetPoint("BOTTOM", clip, "BOTTOM", L.x, 0)
+        local strip = CreateFrame("Frame", nil, holder)
+        strip:SetAllPoints(holder)
+        for k = 1, COPIES do
+            local body = strip:CreateTexture(nil, "ARTWORK", nil, 1)
+            body:SetTexture(TEX_HELIX)
+            body:SetBlendMode("BLEND")
+            body:SetSize(w, SCROLL)
+            body:SetPoint("BOTTOM", strip, "BOTTOM", 0, (k - 1) * SCROLL)
+            Tint(body, "wispBody", L.a * 0.9)
+            body:AddMaskTexture(mask)
+            local tex = strip:CreateTexture(nil, "ARTWORK", nil, 2 + i)
+            tex:SetTexture(TEX_HELIX)
+            tex:SetBlendMode("ADD")
+            tex:SetSize(w, SCROLL)
+            tex:SetPoint("BOTTOM", strip, "BOTTOM", 0, (k - 1) * SCROLL)
+            Tint(tex, "wisp", L.a)
+            tex:AddMaskTexture(mask)
+        end
+        local g = strip:CreateAnimationGroup()
+        g:SetLooping("REPEAT")
+        local slide = g:CreateAnimation("Translation")
+        slide:SetOffset(0, -SCROLL)
+        slide:SetDuration(L.secs)
+        g:Play()
+        if L.sway > 0 then
+            local s = holder:CreateAnimationGroup()
+            s:SetLooping("BOUNCE")
+            local drift = s:CreateAnimation("Translation")
+            drift:SetOffset(L.sway, 0)
+            drift:SetDuration(2.2 + i * 0.7)
+            drift:SetSmoothing("IN_OUT")
+            s:Play()
+        end
+    end
+
+    -- The emblem in flames where the beam lands: the addon's mark as a
+    -- mask over moving fire, in relief, with flames licking off its lines.
+    local orb = CreateFrame("Frame", nil, beam)
+    orb:SetFrameLevel(beam:GetFrameLevel() + 3)
+    orb:SetSize(EMBLEM, EMBLEM)
+    orb:SetPoint("CENTER", beam, "BOTTOM", 0, 0)
+    -- Two slow halos turning behind it for the beam to land in.
+    local function halo(size, role, a, x, y, secs, dir)
+        local t = orb:CreateTexture(nil, "ARTWORK", nil, 1)
+        t:SetTexture(TEX_FLARE)
+        t:SetBlendMode("ADD")
+        t:SetSize(size, size)
+        t:SetPoint("CENTER", orb, "CENTER", x, y)
+        Tint(t, role, a)
+        local spin = t:CreateAnimationGroup()
+        spin:SetLooping("REPEAT")
+        local rot = spin:CreateAnimation("Rotation")
+        rot:SetDegrees(360 * dir)
+        rot:SetDuration(secs)
+        spin:Play()
+    end
+    halo(EMBLEM * 1.7, "halo", 0.28, 3, -2, 9, 1)
+    halo(EMBLEM * 1.4, "halo2", 0.24, -4, 3, 13, -1)
+
+    -- The emblem's shape as a flat fill at an offset: each needs a mask of
+    -- its own anchored where it sits.
+    local function shaped(dx, dy, sub, role, a, f, blend)
+        local m = orb:CreateMaskTexture()
+        m:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetPoint("TOPLEFT", orb, "TOPLEFT", dx, dy)
+        m:SetPoint("BOTTOMRIGHT", orb, "BOTTOMRIGHT", dx, dy)
+        local t = orb:CreateTexture(nil, "ARTWORK", nil, sub)
+        t:SetTexture(WHITE)
+        t:SetPoint("TOPLEFT", orb, "TOPLEFT", dx, dy)
+        t:SetPoint("BOTTOMRIGHT", orb, "BOTTOMRIGHT", dx, dy)
+        t:SetBlendMode(blend or "BLEND")
+        Tint(t, role, a, f)
+        t:AddMaskTexture(m)
+        return t, m
+    end
+    -- Depth: the shape repeated below and to the right, darker each step,
+    -- an extrusion the face sits on.
+    for k = 4, 1, -1 do
+        shaped(k * 0.7, -k * 1.0, 3, "extrude", 1, 1 - k * 0.14)
+    end
+    local _, faceMask = shaped(0, 0, 4, "face", 1)
+
+    -- The fire inside the shape.
+    local fire = CreateFrame("Frame", nil, orb)
+    fire:SetFrameLevel(orb:GetFrameLevel() + 1)
+    fire:SetAllPoints(orb)
+    fire:SetClipsChildren(true)
+    local fireMask = fire:CreateMaskTexture()
+    fireMask:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    fireMask:SetAllPoints(orb)
+    RisingFire(fire, fireMask, EMBLEM, EMBLEM * 2,
+        { { secs = 2.4, role = "fire", a = 1 }, { secs = 3.6, role = "fire2", a = 0.75 } }, 5)
+
+    -- The lit edge of the relief, and the shape's own light, flickering.
+    shaped(-1, 1, 7, "rim", 0.45, nil, "ADD")
+    local shine = orb:CreateTexture(nil, "ARTWORK", nil, 7)
+    shine:SetTexture(WHITE)
+    shine:SetAllPoints(orb)
+    shine:SetBlendMode("ADD")
+    Tint(shine, "shine", 0.4)
+    shine:AddMaskTexture(faceMask)
+    local flicker = shine:CreateAnimationGroup()
+    flicker:SetLooping("BOUNCE")
+    local dimmer = flicker:CreateAnimation("Alpha")
+    dimmer:SetFromAlpha(1)
+    dimmer:SetToAlpha(0.4)
+    dimmer:SetDuration(0.35)
+    flicker:Play()
+
+    -- Flames coming off the shapes: rising fire through a mask that covers
+    -- a band around every line and the air above it, on a wider frame so
+    -- the tongues reach past the emblem's bounds.
+    local FRINGE = EMBLEM / 0.62
+    local fringe = CreateFrame("Frame", nil, orb)
+    fringe:SetFrameLevel(orb:GetFrameLevel() + 2)
+    fringe:SetSize(FRINGE, FRINGE)
+    fringe:SetPoint("CENTER", orb, "CENTER", 0, 0)
+    fringe:SetClipsChildren(true)
+    local fringeMask = fringe:CreateMaskTexture()
+    fringeMask:SetTexture(TEX_FLAMES, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    fringeMask:SetAllPoints(fringe)
+    RisingFire(fringe, fringeMask, FRINGE, FRINGE * 2,
+        { { secs = 2.2, role = "fire", a = 0.95 }, { secs = 3.4, role = "fire2", a = 0.65 } }, 3)
+
+    -- The pointer for when the spot is off the screen: the game clamps its
+    -- marker to the screen edge on the line from the screen's middle, so
+    -- our arrow at that spot, turned along that line, points the way.
+    edge = CreateFrame("Frame", nil, frame)
+    edge:SetSize(48, 48)
+    edge:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    local edgeGlow = edge:CreateTexture(nil, "ARTWORK", nil, 1)
+    edgeGlow:SetTexture(TEX_FLARE)
+    edgeGlow:SetBlendMode("ADD")
+    edgeGlow:SetSize(96, 96)
+    edgeGlow:SetPoint("CENTER")
+    Tint(edgeGlow, "edgeGlow", 0.5)
+    local arrow = edge:CreateTexture(nil, "ARTWORK", nil, 3)
+    arrow:SetTexture(TEX_ARROW)
+    arrow:SetAllPoints(edge)
+    Tint(arrow, "arrow", 1)
+    edge.arrow = arrow
+    local pulse = edge:CreateAnimationGroup()
+    pulse:SetLooping("BOUNCE")
+    local grow = pulse:CreateAnimation("Scale")
+    grow:SetScaleFrom(1, 1)
+    grow:SetScaleTo(1.2, 1.2)
+    grow:SetDuration(0.6)
+    grow:SetSmoothing("IN_OUT")
+    pulse:Play()
+    edge:Hide()
+
+    -- The plate under it all, in the addon's menu look: the step, then the
+    -- distance and the time left.
+    plate = CreateFrame("Frame", nil, frame)
+    if ns.StyleMenuPanel then ns.StyleMenuPanel(plate) end
+    plate:SetPoint("TOP", frame, "CENTER", 0, -44)
+    local font = (ns.LEAF_FONT and _G[ns.LEAF_FONT]) and ns.LEAF_FONT or "GameFontHighlight"
+    local text = plate:CreateFontString(nil, "OVERLAY", font)
+    text:SetPoint("TOP", plate, "TOP", 0, -6)
+    text:SetJustifyH("CENTER")
+    text:SetWordWrap(false)
+    if ns.TEXT_PRIMARY then text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
+    text._efOwnColor = true
+    plate.text = text
+    local sub = plate:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    sub:SetPoint("TOP", text, "BOTTOM", 0, -2)
+    sub:SetJustifyH("CENTER")
+    sub:SetWordWrap(false)
+    if ns.TEXT_DIM then sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
+    sub._efOwnColor = true
+    plate.sub = sub
+    -- The menu styling refills the plate each time it shows; paint ours
+    -- after it, every time.
+    plate:HookScript("OnShow", PaintPlate)
+    PaintPlate()
+    -- A right-click on the plate: clear the route, or bring the window up
+    -- when nothing on screen shows the route yet. The menu at the cursor.
+    local menuAnchor = CreateFrame("Frame", nil, plate)
+    menuAnchor:SetSize(1, 1)
+    plate:EnableMouse(true)
+    plate:SetScript("OnMouseUp", function(_, button)
+        if button ~= "RightButton" or not (ns.ShowTogglePopup and ns.GPS) then return end
+        local L = ns.L
+        local cx, cy = GetCursorPosition()
+        local scale = UIParent:GetEffectiveScale()
+        menuAnchor:ClearAllPoints()
+        menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
+        local defs = {}
+        if not (ns.GPS.IsWindowOpen and ns.GPS:IsWindowOpen()) then
+            defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:TogglePopout(true) end }
+        end
+        defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
+        ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})
+    end)
+    frame:Hide()
+
+    -- A theme change repaints every tinted part.
+    if ns.ApplyUITheme and not ns._efGPSBeaconThemeHook then
+        ns._efGPSBeaconThemeHook = true
+        hooksecurefunc(ns, "ApplyUITheme", Repaint)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- The game's own face, hidden under ours
+-- ---------------------------------------------------------------------------
+
+-- Hidden outright, and kept hidden through hooks on Show and SetShown,
+-- since the game shows its icon and range again as it updates them.
+local function Keep(obj, hidden)
+    if hidden then
+        if not obj._efGPSHook then
+            obj._efGPSHook = true
+            hooksecurefunc(obj, "Show", function(self) if self._efGPSHidden then self:Hide() end end)
+            if obj.SetShown then
+                hooksecurefunc(obj, "SetShown", function(self, shown) if shown and self._efGPSHidden then self:Hide() end end)
+            end
+        end
+        obj._efGPSHidden = true
+        if obj:IsShown() then obj:Hide() end
+    else
+        obj._efGPSHidden = nil
+        if not obj:IsShown() then obj:Show() end
+    end
+end
+
+local function StyleTree(owner, on, depth)
+    if owner.GetRegions then
+        for i = 1, select("#", owner:GetRegions()) do
+            local r = select(i, owner:GetRegions())
+            if r then Keep(r, on) end
+        end
+    end
+    if depth > 0 and owner.GetChildren then
+        for i = 1, select("#", owner:GetChildren()) do
+            local c = select(i, owner:GetChildren())
+            if c and c ~= frame then Keep(c, on) end
+        end
+    end
+end
+
+local function StyleHost(host, on)
+    local face = Face()
+    if face then StyleTree(face, on, 3) end
+    if host and host ~= face then StyleTree(host, on, 3) end
+    styled = on
+end
+
+-- ---------------------------------------------------------------------------
+-- Every pass
+-- ---------------------------------------------------------------------------
+
+local function Layout()
+    local text, sub = plate.text, plate.sub
+    local w = mmax(text:GetStringWidth() or 0, sub:GetStringWidth() or 0)
+    local inner = mmin(PLATE_MAX_W, mmax(60, w))
+    text:SetWidth(inner)
+    sub:SetWidth(inner)
+    local h = 6 + (text:GetStringHeight() or 12) + 2 + (sub:GetStringHeight() or 10) + 6
+    plate:SetSize(inner + 20, h)
+end
+
+-- Far away the beam stands full height; close by it shrinks, so it never
+-- fills the screen over the spot you are standing on. Eased a little on
+-- every pass, never stepped.
+local function Resize(dist, dt)
+    local target = 1
+    if dist and dist > 0 then target = mmax(0.3, mmin(1.2, 0.5 * (SCALE_DIST / dist))) end
+    if mabs(target - sizeMult) > 0.003 then
+        sizeMult = sizeMult + (target - sizeMult) * mmin(1, (dt or THROTTLE) * 2)
+        beam:SetScale(sizeMult)
+    end
+end
+
+local function Update(dt)
+    local host = Host()
+    local route = Route()
+    local on = Enabled() and route ~= nil and not route.arrived and Tracked() and host ~= nil and host:IsShown()
+    if not on then
+        if frame then frame:Hide() end
+        if styled then StyleHost(host, false) end
+        return
+    end
+    if not frame then Build(host) end
+    -- A step that is a spell or an item has nowhere to walk to: no beacon,
+    -- and the game's own marker stays hidden too.
+    local current = route.steps and route.steps[route.active or 1]
+    if current and current.kind == "teleport" then
+        frame:Hide()
+        StyleHost(host, true)
+        return
+    end
+    Anchor(host)
+    StyleHost(host, true)
+    -- The game fades its own face under the cursor and as the spot comes
+    -- close; the beacon does not follow that, it stays as it is.
+    if (beam:GetAlpha() or 1) ~= 1 then beam:SetAlpha(1) end
+    frame:Show()
+    local clamped = C_Navigation and C_Navigation.WasClampedToScreen and C_Navigation.WasClampedToScreen()
+    beam:SetShown(not clamped)
+    edge:SetShown(clamped and true or false)
+    plate:ClearAllPoints()
+    if clamped then
+        local cx, cy = host:GetCenter()
+        local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
+        if cx and cy then
+            -- The art points down at rest, the angle -pi/2; turn it by the
+            -- difference to the line's angle.
+            local ang = matan2(cy - sh / 2, cx - sw / 2)
+            edge.arrow:SetRotation(ang + mpi / 2)
+            if cy < sh / 2 then plate:SetPoint("BOTTOM", frame, "CENTER", 0, 34)
+            else plate:SetPoint("TOP", frame, "CENTER", 0, -34) end
+        else
+            plate:SetPoint("TOP", frame, "CENTER", 0, -34)
+        end
+    else
+        plate:SetPoint("TOP", frame, "CENTER", 0, -44)
+    end
+    plate:Show()
+    local step = route.steps and route.steps[route.active or 1]
+    plate.text:SetText((ns.GPS and ns.GPS.StepText) and ns.GPS.StepText(step, true) or (step and step.text or ""))
+    local d = C_Navigation and C_Navigation.GetDistance and C_Navigation.GetDistance() or 0
+    local range = ""
+    if d and d > 0 then
+        range = IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, mfloor(d)) or (mfloor(d) .. " yd")
+    end
+    local eta = ""
+    if route.eta and route.eta > 0 then eta = (ns.GPS and ns.GPS.EtaText) and ns.GPS.EtaText(route.eta) or (mfloor(route.eta) .. " s") end
+    if range ~= "" and eta ~= "" then plate.sub:SetText(range .. "   " .. eta)
+    else plate.sub:SetText(range ~= "" and range or eta) end
+    Layout()
+    Resize(d, dt or THROTTLE)
+end
+
+-- One line for the dev status: why the beacon shows or not, and what the
+-- game's marker is made of.
+function WorldPin:Status()
+    local host = Host()
+    local route = Route()
+    local parts = {}
+    local face = Face()
+    for _, owner in ipairs({ face, host }) do
+        if owner and owner.GetRegions then
+            for i = 1, select("#", owner:GetRegions()) do
+                local r = select(i, owner:GetRegions())
+                parts[#parts + 1] = sformat("%s(%s %s)", r:GetObjectType(), tostring((r.GetAtlas and r:GetAtlas()) or (r.GetTexture and r:GetTexture()) or "?"), r:IsShown() and "shown" or "hidden")
+            end
+        end
+        if owner and owner.GetChildren then
+            for i = 1, select("#", owner:GetChildren()) do
+                local c = select(i, owner:GetChildren())
+                if c ~= frame then parts[#parts + 1] = sformat("child %s %s", c:GetName() or c:GetObjectType(), c:IsShown() and "shown" or "hidden") end
+            end
+        end
+    end
+    return sformat("world pin: enabled %s route %s arrived %s tracked %s host %s shown %s clamped %s distance %s | ours %s scale %.2f | marker: %s",
+        tostring(Enabled()), tostring(route ~= nil), tostring(route and route.arrived == true), tostring(Tracked()),
+        host and (host:GetName() or "frame") or "none", tostring(host and host:IsShown()),
+        tostring(C_Navigation and C_Navigation.WasClampedToScreen and C_Navigation.WasClampedToScreen()),
+        tostring(C_Navigation and C_Navigation.GetDistance and C_Navigation.GetDistance()),
+        frame and (frame:IsShown() and "shown" or "hidden") or "not built", sizeMult, table.concat(parts, ", "))
+end
+
+-- A route change, the arrow letting go, the option flipped: look now.
+function WorldPin:Refresh()
+    since = THROTTLE
+    if not driver then return end
+    Update(THROTTLE)
+end
+
+driver = CreateFrame("Frame")
+driver:SetScript("OnUpdate", function(_, dt)
+    since = since + dt
+    if since < THROTTLE then return end
+    local elapsed = since
+    since = 0
+    Update(elapsed)
+end)

@@ -75,7 +75,7 @@ end
 -- every consumer unpacks them at paint time, so the repaint rides the two
 -- existing full passes (Search:UpdateFontSize + RefreshResults) with no
 -- per-consumer wiring. Theme names are product names and stay untranslated.
-ns.UI_THEME_ORDER = { "Black", "Midnight", "Ocean", "Amethyst", "Crimson", "Forever", "Classic", "Sky", "Linen", "Mint", "Rose" }
+ns.UI_THEME_ORDER = { "Black", "Midnight", "Ocean", "Amethyst", "Crimson", "Flame", "Forever", "Classic", "Sky", "Linen", "Mint", "Rose" }
 -- Forever's bronze: the Alt shortcut hint on every row (mutedGlyph), and
 -- the bar's glyphs share this one table.
 local FOREVER_GLYPH = {0.80, 0.66, 0.30, 0.90}
@@ -220,6 +220,26 @@ ns.UI_THEME_PALETTES = {
         backdropColor = {0.05, 0.05, 0.10, 0.95},
         -- The border art carries its own tan; no tint on it.
         backdropBorder = {1.0, 1.0, 1.0, 1.0},
+    },
+    -- Embers: charcoal-brown rising into the orange of a fire. The GPS
+    -- beacon in the world takes its colors from the theme; this is the
+    -- one it was drawn as, so it names them outright.
+    Flame = {
+        windowFill = {0.110, 0.055, 0.030},
+        windowFillBottom = {0.050, 0.020, 0.010},
+        windowFillTop = {0.260, 0.100, 0.030},
+        pathColor = {0.82, 0.62, 0.46, 1.0},
+        pathColorHover = {1.0, 1.0, 1.0, 1.0},
+        leafColor = {0.98, 0.93, 0.86},
+        chromeGlyph = {1.0, 1.0, 1.0},
+        mutedGlyph = {0.64, 0.54, 0.46, 0.85},
+        textFaint = {0.62, 0.46, 0.33},
+        accent = {1.0, 0.55, 0.10, 0.80},
+        selection = {1.0, 0.50, 0.10, 0.30},
+        separator = {0.66, 0.40, 0.20, 0.35},
+        backdropColor = {0.16, 0.08, 0.05, 0.95},
+        backdropBorder = {0.60, 0.40, 0.28, 1.0},
+        beacon = { base = {1.0, 0.50, 0.08}, hot = {1.0, 0.95, 0.75} },
     },
     Sky = {
         light = true,

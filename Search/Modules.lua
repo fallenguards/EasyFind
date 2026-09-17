@@ -362,6 +362,7 @@ function ns.IsCompanionLoadable(name)
     if name == "EasyFind_Guide" and ns.Highlight then return true end
     if name == "EasyFind_Onboarding" and ns.Wizard then return true end
     if name == "EasyFind_Snippets" and ns.Snippets then return true end
+    if name == "EasyFind_GPS" and ns.GPS then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)
     return ok and (tonumber(state) or 0) > 0

@@ -68,7 +68,7 @@ read_globals = {
     "ChatFrameUtil", "NUM_CHAT_WINDOWS", "STATICPOPUP_NUMDIALOGS",
     "SELECTED_CHAT_FRAME", "COMBATLOG", "CombatLogClearEntries",
     "ChatFrame_OpenChat", "DEFAULT_CHAT_FRAME",
-    "UnitFactionGroup", "UnitPosition",
+    "UnitFactionGroup", "IsSpellKnown", "PlayerHasToy", "IsFlyableArea", "IsPlayerMoving", "IsFalling", "UnitPosition",
     "StaticPopup_Show", "GameTooltip_Hide", "PlaySound", "ReloadUI",
     "GetSpellInfo", "GetItemInfo", "UseToyByItemID", "GetItemClassInfo", "CreateAtlasMarkup",
     "GetSpellLink", "GetAchievementLink",
