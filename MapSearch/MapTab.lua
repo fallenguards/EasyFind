@@ -25,7 +25,7 @@ local GetMapInfo = C_Map and C_Map.GetMapInfo
 local function NameLess(a, b) return a.name < b.name end
 local function ZoneMapIDDesc(a, b) return (a.zoneMapID or 0) > (b.zoneMapID or 0) end
 
-local TAB_W, TAB_H       = 42, 55
+local TAB_W, TAB_H       = 43, 55
 local TAB_ICON_SIZE      = 20
 local TAB_ICON_GOLD      = {1.00, 0.82, 0.00}
 local TAB_ICON_DIM       = {0.55, 0.45, 0.10}
@@ -119,6 +119,13 @@ end
 local panel
 local selectedIsOurs = false
 local lastSelectedWasOurs = false
+-- Extra side pages (an extension's own tab under the search tab): the
+-- search widgets hide and the page's frame shows in the same panel.
+local activePage
+local pages = {}
+local pageOrder = {}
+local extraTabs = {}
+local PlaceTab   -- defined with the tab layout below, used by RegisterPage above it
 local restoringBlizzardDisplayMode = false
 local function IsMapSearchEnabled()
     return not (EasyFind and EasyFind.db and EasyFind.db.enableMapSearch == false)
@@ -219,31 +226,106 @@ local function RefreshSelectGlows()
     if not qmf then return end
     local function setGlow(tab, shown)
         if not tab then return end
-        local glow = tab._efSelectGlow or FindAtlasTexture(tab, "QuestLog-Tab-side-Glow-Select")
+        local glow = tab._efSelectGlow or tab.SelectedTexture or FindAtlasTexture(tab, "common-sidetab-selected")
         if glow then
             tab._efSelectGlow = glow
             glow:SetShown(shown)
         end
     end
+    local searchSelected = selectedIsOurs and activePage == nil
     if selectedIsOurs then
         setGlow(qmf.QuestsTab, false)
         setGlow(qmf.MapLegendTab, false)
         setGlow(qmf.EventsTab, false)
-        setGlow(tabFrame, true)
-    else
-        setGlow(tabFrame, false)
     end
+    setGlow(tabFrame, searchSelected)
     if backTab then
         setGlow(backTab, not selectedIsOurs)
         if backTab._efIcon then backTab._efIcon:SetVertexColor(Utils.RGB(selectedIsOurs and TAB_ICON_DIM or TAB_ICON_GOLD)) end
     end
     if tabFrame and tabFrame._efIcon then
-        local c = selectedIsOurs and TAB_ICON_GOLD or TAB_ICON_DIM
+        local c = searchSelected and TAB_ICON_GOLD or TAB_ICON_DIM
         tabFrame._efIcon:SetVertexColor(Utils.RGB(c))
+    end
+    for id, tab in pairs(extraTabs) do
+        local on = selectedIsOurs and activePage == id
+        setGlow(tab, on)
+        if tab._efIcon then tab._efIcon:SetVertexColor(Utils.RGB(on and TAB_ICON_GOLD or TAB_ICON_DIM)) end
     end
 end
 
-local function ShowOurPanel()
+-- Show one registered page in the panel: an id selects that page, false
+-- selects the search page, nil keeps whichever was showing last.
+local SEARCH_WIDGETS = { "searchBox", "cog", "scrollFrame", "scrollBar", "emptyMsg", "recentCheck", "expandCheck" }
+local SEARCH_BAR_WIDGETS = { searchBox = true, cog = true }
+
+-- The directions bar: one themed line above the results, shown while a
+-- search is up and a keepSearch page has content, leading back to it.
+local function UpdatePageBar()
+    if not (panel and panel.pageBar) then return end
+    local bar = panel.pageBar
+    local def
+    if activePage == nil then
+        for i = 1, #pageOrder do
+            local d = pages[pageOrder[i]]
+            if d and d.keepSearch and d.hasContent and d.hasContent() then def = d break end
+        end
+    end
+    local scrollFrame = panel.scrollFrame
+    if def then
+        bar.pageID = def.id
+        bar:SetText((def.barText and def.barText()) or def.title or def.id)
+        bar:Show()
+        if scrollFrame then
+            scrollFrame:ClearAllPoints()
+            scrollFrame:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -4)
+            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 28)
+        end
+    else
+        bar:Hide()
+        if scrollFrame then
+            scrollFrame:ClearAllPoints()
+            scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
+            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 28)
+        end
+    end
+    if panel.emptyMsg then
+        panel.emptyMsg:ClearAllPoints()
+        panel.emptyMsg:SetPoint("TOP", scrollFrame or panel, "TOP", 0, -24)
+    end
+end
+
+local function SelectPage(id)
+    if not panel then return end
+    if id == false then id = nil elseif id == nil then id = activePage end
+    if id and not pages[id] then id = nil end
+    activePage = id
+    local keepSearch = id and pages[id].keepSearch
+    for i = 1, #SEARCH_WIDGETS do
+        local name = SEARCH_WIDGETS[i]
+        local w = panel[name]
+        if w then w:SetShown(id == nil or (keepSearch and SEARCH_BAR_WIDGETS[name]) or false) end
+    end
+    if id and panel.filterDropdown then panel.filterDropdown:Hide() end
+    UpdatePageBar()
+    for pid, def in pairs(pages) do
+        if pid == id then
+            if not def.frame then
+                local f = CreateFrame("Frame", nil, panel)
+                f:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
+                f:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 4)
+                def.frame = f
+                if def.build then def.build(f) end
+            end
+            def.frame:Show()
+            if def.onShow then def.onShow(def.frame) end
+        elseif def.frame then
+            def.frame:Hide()
+        end
+    end
+end
+
+local function ShowOurPanel(pageID)
     if not IsMapSearchEnabled() then return end
     local qmf = _G["QuestMapFrame"]
     if not qmf or not panel then return end
@@ -282,9 +364,12 @@ local function ShowOurPanel()
     end
     if panel.outer then panel.outer:Show() else panel:Show() end
     if panel.AlignToBlizzardSearch then panel.AlignToBlizzardSearch() end
+    SelectPage(pageID)
     RefreshSelectGlows()
-    local sb = panel.searchBox
-    MapTab:RunSearch(sb and (sb.GetTypedText and sb:GetTypedText() or sb:GetText()) or "")
+    if activePage == nil then
+        local sb = panel.searchBox
+        MapTab:RunSearch(sb and (sb.GetTypedText and sb:GetTypedText() or sb:GetText()) or "")
+    end
 end
 
 -- restoreBlizzardMode: true only when our panel is going away with no
@@ -332,7 +417,78 @@ local function PromptAlias(data)
     end
 end
 
-local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data)
+-- A link to copy, in a box: the game's menus have no copy rows.
+local function CopyBox(title, text)
+    if not ns.ShowThemedDialog then return end
+    ns.ShowThemedDialog({
+        text = title,
+        messageColor = ns.GOLD_COLOR,
+        hasEditBox = true,
+        editBoxDefault = text,
+        acceptText = _G["OKAY"] or "OK",
+        onAccept = function() end,
+    })
+end
+
+-- The right-click menu as the game draws its own (the tracker's quest
+-- menu): the map tab is the game's look throughout. The row stays lit
+-- while the menu is up, as the main search rows do, and lets go when the
+-- menu closes.
+local currentRelease
+local function ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, extra)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return false end
+    local name = data and data.name
+    if row and row.LockHighlight then row:LockHighlight() end
+    local released = false
+    local function Release()
+        if released then return end
+        released = true
+        if row and row.UnlockHighlight then row:UnlockHighlight() end
+    end
+    local ok, menu = pcall(MenuUtil.CreateContextMenu, row or panel or UIParent, function(_, root)
+        if name and name ~= "" then root:CreateTitle(name) end
+        if extra.onGPS then root:CreateButton(L["CTX_GPS"], extra.onGPS) end
+        if onGuide then root:CreateButton(L["CTX_GUIDE"], onGuide) end
+        root:CreateButton(isPinned and (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_UNPIN"] or "Unpin")
+            or (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_PIN"] or "Pin"), onPin)
+        if onAddAlias then root:CreateButton(L["CTX_ADD_ALIAS"], onAddAlias) end
+        if extra.sendLink and ns.BuildSendLinkRows then
+            local rows = ns.BuildSendLinkRows(extra.sendLink.link)
+            if rows then
+                local sub = root:CreateButton(L["CTX_SEND_LINK"])
+                for i = 1, #rows do
+                    local r = rows[i]
+                    if r.isSeparator then
+                        sub:CreateDivider()
+                    elseif r.copy then
+                        sub:CreateButton(r.text, function() CopyBox(r.text, r.copy) end)
+                    else
+                        local b = sub:CreateButton(r.text, r.onClick or function() end)
+                        if r.disabled and b.SetEnabled then b:SetEnabled(false) end
+                    end
+                end
+            end
+        end
+        if extra.wowheadUrl then
+            root:CreateButton(L["CTX_WOWHEAD"], function() CopyBox(L["CTX_WOWHEAD"], extra.wowheadUrl) end)
+        end
+        if root.AddMenuReleasedCallback then root:AddMenuReleasedCallback(Release) end
+    end)
+    if not ok then
+        Release()
+        return false
+    end
+    -- The menu frames are pooled: one hide hook each, releasing whichever
+    -- row opened the menu last.
+    currentRelease = Release
+    if menu and menu.HookScript and not menu._efReleaseHooked then
+        menu._efReleaseHooked = true
+        menu:HookScript("OnHide", function() if currentRelease then currentRelease() end end)
+    end
+    return true
+end
+
+local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data, row)
     local extra
     local wowheadUrl = data and ns.GetWowheadLink and ns.GetWowheadLink(data)
     if wowheadUrl then
@@ -346,6 +502,11 @@ local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data)
         extra = extra or {}
         extra.sendLink = { link = mapPinLink }
     end
+    if data and ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(data) then
+        extra = extra or {}
+        extra.onGPS = function() ns.GPS:NavigateTo(data) end
+    end
+    if ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, extra or {}) then return end
     Utils.ShowPinMenu("EasyFindPinPopup", isPinned, onPin, onGuide, onAddAlias, {
         strata = "TOOLTIP",
         level = 100,
@@ -469,6 +630,26 @@ local function TriggerResultSelect(data, directOverride)
     -- the "This Zone" label refresh.
 end
 
+-- A second left click on the same place within the double-click window
+-- starts GPS directions to it: the right-click menu's Navigate row, one
+-- gesture shorter. Rows are pooled and the list may re-render between the
+-- two clicks, so the place is matched by name and map, not by table.
+local DOUBLE_CLICK_WINDOW = 0.35
+local lastClickKey, lastClickAt = nil, 0
+local function DoubleClickNavigate(data)
+    if not data then return false end
+    local key = tostring(data.name) .. "|" .. tostring(data.zoneMapID or data.mapID) .. "|" .. tostring(data.x)
+    local now = GetTime()
+    local double = lastClickKey == key and (now - lastClickAt) < DOUBLE_CLICK_WINDOW
+    lastClickKey, lastClickAt = key, now
+    if double and ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(data) then
+        lastClickKey = nil
+        ns.GPS:NavigateTo(data)
+        return true
+    end
+    return false
+end
+
 local function RowOnClick(row, button)
     local data = row.data
     if not data then return end
@@ -487,10 +668,11 @@ local function RowOnClick(row, button)
         ShowPopup(isPinned, function()
             if isPinned then MapSearch:UnpinMapItem(data) else MapSearch:PinMapItem(data) end
             RefreshCurrentSearch()
-        end, function() TriggerResultSelect(data, false) end, function() PromptAlias(data) end, data)
+        end, function() TriggerResultSelect(data, false) end, function() PromptAlias(data) end, data, row)
         return
     end
 
+    if DoubleClickNavigate(data) then return end
     MapTab:PushRecentSearch(currentQuery)
     TriggerResultSelect(data)
 end
@@ -700,6 +882,7 @@ local function AcquireGroupHeader(parent, labelText, groupKey, count, collapsed,
             return
         end
         if self.navigateData then
+            if DoubleClickNavigate(self.navigateData) then return end
             TriggerResultSelect(self.navigateData)
         end
     end)
@@ -890,6 +1073,12 @@ end
 local function RenderRows(scrollChild, pinned, localEntries, globalEntries, recentList)
     ReleaseAllRows()
     ReleaseAllHeaders()
+    -- Rows on screen mean the "no matches" line is stale: a later pass can
+    -- fill a list that an earlier one found empty.
+    if panel and panel.emptyMsg and ((pinned and #pinned > 0) or (localEntries and #localEntries > 0)
+        or (globalEntries and #globalEntries > 0) or (recentList and #recentList > 0)) then
+        panel.emptyMsg:Hide()
+    end
     -- Reset nav selection: row pool is recycled so a stale frame ref in
     -- visibleNavRows would point at a repositioned/released frame.
     navRowIndex = 0
@@ -1248,8 +1437,18 @@ local function FilterAndDedupe(results, seen, isLocal)
     for i = 1, #results do
         local r = results[i]
         if r and not r.isPinHeader then
-            local excludeLocal = isLocal and r.isZone and r.zoneMapType
-                and EXCLUDE_FROM_LOCAL_MAPTYPES[r.zoneMapType]
+            -- A zone row from a source that carried no map type is looked
+            -- up: a continent nested inside a continent (Quel'Thalas
+            -- under the Eastern Kingdoms) must fall out of "This Zone"
+            -- here, unmarked, or the global pass drops it as a duplicate
+            -- and it shows nowhere.
+            local zoneType = r.zoneMapType
+            if isLocal and r.isZone and zoneType == nil and r.zoneMapID and GetMapInfo then
+                local info = GetMapInfo(r.zoneMapID)
+                zoneType = info and info.mapType
+            end
+            local excludeLocal = isLocal and r.isZone and zoneType
+                and EXCLUDE_FROM_LOCAL_MAPTYPES[zoneType]
                 and r.zoneMapID ~= viewedMapID
             if not excludeLocal then
                 -- FMs are scanned both locally and globally with different
@@ -1341,6 +1540,10 @@ end
 function MapTab:RunSearch(text)
     if not panel then return end
     text = text or ""
+    if activePage and pages[activePage] and pages[activePage].keepSearch and text ~= currentQuery then
+        SelectPage(false)
+        RefreshSelectGlows()
+    end
     currentQuery = text
     lastQueryGen = lastQueryGen + 1
     local myGen = lastQueryGen
@@ -2157,7 +2360,8 @@ end
 
 local function CreateTabFrame(qmf)
     local tab = CreateFrame("Frame", "EasyFindMapSearchTab", qmf)
-    -- Match Blizzard's side-tab size by copying MapLegendTab; the
+    -- Match the side tabs it stacks under: their size copied from
+    -- MapLegendTab and the same shared tab art, so the two line up; the
     -- template-inheritance path would override our custom icon.
     local refW, refH = qmf.MapLegendTab:GetSize()
     if not refW or refW == 0 then refW, refH = TAB_W, TAB_H end
@@ -2168,29 +2372,33 @@ local function CreateTabFrame(qmf)
     tab:EnableMouse(true)
 
     local bg = tab:CreateTexture(nil, "BACKGROUND")
-    bg:SetAtlas("QuestLog-tab-side", true)
+    bg:SetAtlas("common-sidetab", true)
     bg:SetPoint("CENTER", tab, "CENTER", 0, 0)
 
     local icon = tab:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(ns.SEARCH_ICON_TEX)
-    icon:SetTexCoord(unpack(ns.SEARCH_ICON_COORDS))
-    icon:SetSize(TAB_ICON_SIZE, TAB_ICON_SIZE)
-    icon:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    -- The map pin: this tab is where a place is found and where the
+    -- directions to it live.
+    icon:SetTexture(ns.GPS_ICON_TEX)
+    icon:SetTexCoord(0, 1, 0, 1)
+    icon:SetSize(TAB_ICON_SIZE + 2, TAB_ICON_SIZE + 2)
+    -- The tab art tucks under the map edge on its left, so the icon sits
+    -- 2px left of center, as on the side tabs it stacks under.
+    icon:SetPoint("CENTER", tab, "CENTER", -2, 0)
     icon:SetVertexColor(Utils.RGB(TAB_ICON_DIM))
     tab._efIcon = icon
 
     local selectGlow = tab:CreateTexture(nil, "OVERLAY")
-    selectGlow:SetAtlas("QuestLog-Tab-side-Glow-Select", true)
+    selectGlow:SetAtlas("common-sidetab-selected", true)
     selectGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
     selectGlow:Hide()
     tab._efSelectGlow = selectGlow
 
     local hoverGlow = tab:CreateTexture(nil, "HIGHLIGHT")
-    hoverGlow:SetAtlas("QuestLog-Tab-side-Glow-hover", true)
+    hoverGlow:SetAtlas("common-sidetab-hover", true)
     hoverGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
 
     tab:SetScript("OnMouseUp", function(_, button)
-        if button == "LeftButton" then ShowOurPanel() end
+        if button == "LeftButton" then ShowOurPanel(false) end
     end)
     tab:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -2274,6 +2482,65 @@ local function CreateBackTab(qmf)
     end)
     tab:SetScript("OnLeave", GameTooltip_Hide)
     return tab
+end
+
+-- A registered page's own side tab, stacked under the search tab with
+-- the same art; its click shows that page in the shared panel.
+local function CreateExtraTab(qmf, def)
+    local tab = CreateFrame("Frame", "EasyFindMapTab_" .. def.id, qmf)
+    local refW, refH = qmf.MapLegendTab:GetSize()
+    if not refW or refW == 0 then refW, refH = TAB_W, TAB_H end
+    tab:SetSize(refW, refH)
+    tab:SetFrameStrata("HIGH")
+    tab:SetFrameLevel(qmf.MapLegendTab:GetFrameLevel())
+    tab.displayMode = "EasyFindPage_" .. def.id
+    tab._efExtraTab = true
+    tab:EnableMouse(true)
+
+    local bg = tab:CreateTexture(nil, "BACKGROUND")
+    bg:SetAtlas("common-sidetab", true)
+    bg:SetPoint("CENTER", tab, "CENTER", 0, 0)
+
+    local icon = tab:CreateTexture(nil, "ARTWORK")
+    icon:SetTexture(def.icon)
+    if def.coords then icon:SetTexCoord(unpack(def.coords)) end
+    local size = def.iconSize or TAB_ICON_SIZE
+    icon:SetSize(size, size)
+    -- The tab art tucks under the map edge on its left, so the icon sits
+    -- 2px left of center, as on the side tabs it stacks under.
+    icon:SetPoint("CENTER", tab, "CENTER", -2, 0)
+    icon:SetVertexColor(Utils.RGB(TAB_ICON_DIM))
+    tab._efIcon = icon
+
+    local selectGlow = tab:CreateTexture(nil, "OVERLAY")
+    selectGlow:SetAtlas("common-sidetab-selected", true)
+    selectGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
+    selectGlow:Hide()
+    tab._efSelectGlow = selectGlow
+
+    local hoverGlow = tab:CreateTexture(nil, "HIGHLIGHT")
+    hoverGlow:SetAtlas("common-sidetab-hover", true)
+    hoverGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
+
+    tab:SetScript("OnMouseUp", function(_, button)
+        if button == "LeftButton" then ShowOurPanel(def.id) end
+    end)
+    tab:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(def.title or def.id)
+        if def.tooltip then GameTooltip:AddLine(def.tooltip, 1, 1, 1, true) end
+        GameTooltip:Show()
+    end)
+    tab:SetScript("OnLeave", GameTooltip_Hide)
+    return tab
+end
+
+local function EnsureExtraTab(id)
+    local def = pages[id]
+    if not def or def.noTab or extraTabs[id] then return end
+    local qmf = _G["QuestMapFrame"]
+    if not qmf or not qmf.MapLegendTab then return end
+    extraTabs[id] = CreateExtraTab(qmf, def)
 end
 
 -- Sibling content panel: paper backdrop, gold border, search + cog at
@@ -2433,6 +2700,24 @@ local function CreatePanel(qmf)
     hooksecurefunc(scrollChild, "SetHeight", SyncScrollBar)
     p.SyncScrollBar = SyncScrollBar
 
+    -- The directions bar above the results (see UpdatePageBar).
+    local pageBar = ns.CreateModernButton(p, "", 100, 20)
+    pageBar:ClearAllPoints()
+    pageBar:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -4)
+    pageBar:SetPoint("TOPRIGHT", p, "TOPRIGHT", -4, -4)
+    pageBar:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    pageBar:SetScript("OnClick", function(self, button)
+        local def = self.pageID and pages[self.pageID]
+        if not def then return end
+        if button == "RightButton" then
+            if def.onBarMenu then def.onBarMenu(self) end
+            return
+        end
+        ShowOurPanel(self.pageID)
+    end)
+    pageBar:Hide()
+    p.pageBar = pageBar
+
     local emptyMsg = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     emptyMsg:SetPoint("TOP", scrollFrame, "TOP", 0, -24)
     emptyMsg:SetWidth(260)
@@ -2482,6 +2767,60 @@ local function CreatePanel(qmf)
     p.expandCheck = expandCheck
 
     return p
+end
+
+-- A page under the search tab, registered by an extension:
+-- { id, icon, coords, iconSize, title, tooltip, build(frame), onShow(frame) }.
+-- build fills the frame once; onShow runs every time the page comes up.
+function MapTab:RegisterPage(def)
+    if not (def and def.id) then return end
+    if not pages[def.id] then pageOrder[#pageOrder + 1] = def.id end
+    pages[def.id] = def
+    if initialized then
+        EnsureExtraTab(def.id)
+        PlaceTab()
+    end
+end
+
+-- Re-derive the directions bar (a page's content changed).
+function MapTab:RefreshPageBar()
+    UpdatePageBar()
+end
+
+-- Back to the results with the current text, if the panel is up.
+function MapTab:ShowSearchView()
+    if not (panel and selectedIsOurs) then return end
+    SelectPage(false)
+    RefreshSelectGlows()
+    local sb = panel.searchBox
+    self:RunSearch(sb and (sb.GetTypedText and sb:GetTypedText() or sb:GetText()) or "")
+end
+
+function MapTab:GetPageFrame(id)
+    local def = pages[id]
+    return def and def.frame
+end
+
+function MapTab:IsPageShowing(id)
+    return selectedIsOurs and activePage == id and panel ~= nil and (panel.outer or panel):IsShown()
+end
+
+-- Open the map if needed and show a registered page.
+function MapTab:ShowPage(id)
+    if not IsMapSearchEnabled() or not pages[id] then return false end
+    if not initialized then self:Initialize() end
+    if not WorldMapFrame or not WorldMapFrame:IsShown() then
+        if ToggleWorldMap then ToggleWorldMap() end
+        if not initialized then self:Initialize() end
+    end
+    if not panel or not tabFrame then return false end
+    ShowOurPanel(id)
+    SafeAfter(0, function()
+        if panel and not (panel.outer or panel):IsVisible() and WorldMapFrame and WorldMapFrame:IsShown() then
+            ShowOurPanel(id)
+        end
+    end)
+    return true
 end
 
 function MapTab:Focus()
@@ -2554,13 +2893,13 @@ end
 -- Anchors our tab below the lowest shown sibling tab on QuestMapFrame.
 -- Discovers tabs by the `displayMode` field so it works across Blizzard
 -- and third-party tab additions.
-local function PlaceTab()
+function PlaceTab()
     if not tabFrame then return end
     local qmf = _G["QuestMapFrame"]
     if not qmf then return end
     local lowest, lowestBottom
     for _, child in ipairs({ qmf:GetChildren() }) do
-        if child ~= tabFrame and child.displayMode and child.OnEnter and child:IsShown() then
+        if child ~= tabFrame and not child._efExtraTab and child.displayMode and child.OnEnter and child:IsShown() then
             local b = child:GetBottom()
             if b and (not lowestBottom or b < lowestBottom) then
                 lowest, lowestBottom = child, b
@@ -2591,12 +2930,24 @@ local function PlaceTab()
     else
         tabFrame:SetPoint("LEFT", qmf, "RIGHT", 0, 0)
     end
+    -- Page tabs hang under the search tab in registration order.
+    local above = tabFrame
+    for i = 1, #pageOrder do
+        local tab = extraTabs[pageOrder[i]]
+        if tab then
+            tab:ClearAllPoints()
+            tab:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, TAB_STACK_GAP)
+            tab:SetShown(tabFrame:IsShown())
+            above = tab
+        end
+    end
 end
 
 function MapTab:Initialize()
     if not IsMapSearchEnabled() then
         lastSelectedWasOurs = false
         if initialized and tabFrame then tabFrame:Hide() end
+        for _, extraTab in pairs(extraTabs) do extraTab:Hide() end
         if initialized and panel then
             if panel.outer then panel.outer:Hide() else panel:Hide() end
         end
@@ -2609,6 +2960,7 @@ function MapTab:Initialize()
 
     tabFrame = CreateTabFrame(qmf)
     panel = CreatePanel(qmf)
+    for i = 1, #pageOrder do EnsureExtraTab(pageOrder[i]) end
     PlaceTab()
 
     -- Hook both qmf and the third-party tab framework's SetDisplayMode

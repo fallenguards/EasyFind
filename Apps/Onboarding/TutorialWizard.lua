@@ -761,32 +761,32 @@ function RepaintFeatureTiles()
 end
 
 -- The Map feature tile mirrors the world-map side tab players actually click:
--- the QuestLog-tab-side silhouette with the gold search glyph centered on it
--- (see MapSearch/MapTab.lua CreateTabFrame). Rendered at the atlas's native
+-- the shared side-tab silhouette with the gold map pin 2px left of center on
+-- it (see MapSearch/MapTab.lua CreateTabFrame). Rendered at the atlas's native
 -- proportions, scaled into the tile's icon slot; the glyph keeps the live tab's
--- ~20/55 glyph-to-tab height ratio and its active gold tint.
+-- ~22/55 glyph-to-tab height ratio and its active gold tint.
 local MAP_TAB_TILE_H = 44
 local function BuildMapSideTabReplica(tile, anchor)
     local silo = tile:CreateTexture(nil, "BACKGROUND")
-    silo:SetAtlas("QuestLog-tab-side", true)
+    silo:SetAtlas("common-sidetab", true)
     local nw, nh = silo:GetSize()
     local scale = (nh and nh > 0) and (MAP_TAB_TILE_H / nh) or 1
     silo:SetSize((nw or 34) * scale, (nh or MAP_TAB_TILE_H) * scale)
     silo:SetPoint("CENTER", anchor, "CENTER", 0, 0)
 
     local mag = tile:CreateTexture(nil, "ARTWORK")
-    mag:SetTexture(ns.SEARCH_ICON_TEX)
-    mag:SetTexCoord(unpack(ns.SEARCH_ICON_COORDS))
-    local magSize = MAP_TAB_TILE_H * 20 / 55
+    mag:SetTexture(ns.GPS_ICON_TEX)
+    mag:SetTexCoord(0, 1, 0, 1)
+    local magSize = MAP_TAB_TILE_H * 22 / 55
     mag:SetSize(magSize, magSize)
-    mag:SetPoint("CENTER", silo, "CENTER", 0, 0)
+    mag:SetPoint("CENTER", silo, "CENTER", -2 * scale, 0)
     mag:SetVertexColor(Utils.RGB(GOLD))
 
     -- Show the tab as selected, mirroring CreateTabFrame's setGlow(tab, true):
     -- the same select-glow atlas, scaled with the silhouette so the halo sits
     -- around the tab exactly as it does live.
     local glow = tile:CreateTexture(nil, "OVERLAY")
-    glow:SetAtlas("QuestLog-Tab-side-Glow-Select", true)
+    glow:SetAtlas("common-sidetab-selected", true)
     local gw, gh = glow:GetSize()
     glow:SetSize((gw or 44) * scale, (gh or 55) * scale)
     glow:SetPoint("CENTER", silo, "CENTER", 0, 0)
