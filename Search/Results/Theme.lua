@@ -200,17 +200,17 @@ ns.UI_THEME_PALETTES = {
         windowFill = {0.055, 0.055, 0.105},
         windowFillBottom = {0.035, 0.035, 0.075},
         windowFillTop = {0.075, 0.075, 0.135},
-        -- White text as the old tooltips had; gold stays on the subtext,
-        -- the line and the glyphs.
-        pathColor = {0.86, 0.74, 0.46, 1.0},
+        -- White text as the old tooltips had, gray chrome glyphs like the
+        -- old buttons, a light tan for subtext and lines: no gold wash.
+        pathColor = {0.80, 0.76, 0.66, 1.0},
         pathColorHover = {1.0, 1.0, 1.0, 1.0},
         leafColor = {0.96, 0.96, 0.96},
-        chromeGlyph = {1.0, 0.82, 0.0},
-        mutedGlyph = {0.78, 0.68, 0.42, 0.90},
-        textFaint = {0.56, 0.52, 0.42},
-        accent = {1.0, 0.82, 0.0, 0.70},
-        selection = {1.0, 0.82, 0.0, 0.16},
-        separator = {0.62, 0.54, 0.30, 0.35},
+        chromeGlyph = {0.82, 0.82, 0.82},
+        mutedGlyph = {0.64, 0.64, 0.64, 0.90},
+        textFaint = {0.52, 0.52, 0.50},
+        accent = {0.72, 0.68, 0.58, 0.65},
+        selection = {0.80, 0.78, 0.70, 0.16},
+        separator = {0.58, 0.55, 0.46, 0.35},
         backdropColor = {0.05, 0.05, 0.10, 0.95},
         -- The border art carries its own tan; no tint on it.
         backdropBorder = {1.0, 1.0, 1.0, 1.0},
