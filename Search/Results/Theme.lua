@@ -178,21 +178,25 @@ ns.UI_THEME_PALETTES = {
         -- the pre-relaunch fallback.
         windowFillBottom = {0.070, 0.066, 0.062},
         windowFillTop = {0.215, 0.190, 0.155},
-        pathColor = {0.78, 0.63, 0.38, 1.0},
-        pathColorHover = {1.0, 0.93, 0.74, 1.0},
-        leafColor = {0.95, 0.91, 0.83},
-        chromeGlyph = {0.96, 0.80, 0.42},
-        mutedGlyph = {0.66, 0.58, 0.46, 0.85},
-        textFaint = {0.56, 0.50, 0.41},
-        accent = {0.88, 0.65, 0.24, 0.80},
-        selection = {0.88, 0.65, 0.24, 0.28},
-        separator = {0.62, 0.49, 0.28, 0.35},
-        backdropColor = {0.11, 0.105, 0.098, 0.95},
-        backdropBorder = {0.74, 0.55, 0.25, 1.0},
+        -- Strong gold on the chrome: subtext, the line, the glyphs.
+        pathColor = {1.0, 0.80, 0.22, 1.0},
+        pathColorHover = {1.0, 0.95, 0.70, 1.0},
+        leafColor = {0.96, 0.93, 0.86},
+        chromeGlyph = {1.0, 0.82, 0.20},
+        mutedGlyph = {0.80, 0.66, 0.30, 0.90},
+        textFaint = {0.62, 0.53, 0.32},
+        accent = {1.0, 0.78, 0.16, 0.90},
+        selection = {1.0, 0.78, 0.16, 0.26},
+        separator = {0.78, 0.60, 0.24, 0.40},
+        backdropColor = {0.10, 0.098, 0.094, 0.95},
+        backdropBorder = {0.86, 0.66, 0.24, 1.0},
     },
-    -- Classic: the original game's tooltip and frame colors. Navy-black
-    -- fill, gold main text, tan border, white on hover.
+    -- Classic: the original game's own frames, not a recolor. chrome =
+    -- "classic" switches the bar and the results to the dialog border
+    -- over a navy fill (ApplyUITheme flips the layout flags), with gold
+    -- main text and white on hover as the 1.x menus had.
     Classic = {
+        chrome = "classic",
         windowFill = {0.060, 0.060, 0.115},
         windowFillBottom = {0.030, 0.030, 0.070},
         windowFillTop = {0.095, 0.095, 0.175},
@@ -303,6 +307,12 @@ function ns.ApplyUITheme(themeName, skipRepaint)
         CopySlot(modern.indentColors[i], palette.accent)
     end
     modern.lightTheme = palette.light or nil
+    -- The classic skin trades the rounded silhouette for the game's own
+    -- dialog frames and drops the parchment behind results; every other
+    -- palette restores the rounded look.
+    local classic = palette.chrome == "classic"
+    modern.searchBarRounded = not classic
+    modern.resultsBgAtlas = classic and nil or "QuestLog-main-background"
     -- Shared control colors (tab text, button/table fills) are LIVE ns
     -- tables consumed by creation paints, state handlers, and hover
     -- closures alike; mutating them here rethemes all three uniformly.

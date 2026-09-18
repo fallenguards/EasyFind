@@ -320,6 +320,16 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if rowIconSize > maxIconSize then rowIconSize = maxIconSize end
 
     resultsFrame:SetBackdrop(theme.resultsBackdrop)
+    -- Rounded mode clears the dropdown's own backdrop (the container
+    -- draws it); the classic skin needs it back.
+    if not theme.searchBarRounded and not resultsFrame:GetBackdrop() then
+        resultsFrame:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true, tileSize = 32, edgeSize = 20,
+            insets = { left = 5, right = 5, top = 5, bottom = 5 }
+        })
+    end
     if theme.resultsBackdropColor then
         resultsFrame:SetBackdropColor(unpack(theme.resultsBackdropColor))
     end

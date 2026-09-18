@@ -2686,6 +2686,7 @@ function Search:UpdateFontSize()
     if theme.searchBarRounded then
         searchFrame:SetBackdrop(nil)
         if containerFrame then
+            ns.SetRoundedRectBorderShown(containerFrame, true)
             ns.SetRoundedRectBarHeight(containerFrame, barH)
             self:ApplySearchWindowFill(containerFrame)
             ns.SetRoundedRectBorderBgAlpha(containerFrame, alpha)
@@ -2696,6 +2697,14 @@ function Search:UpdateFontSize()
             end
         end
     else
+        -- The classic skin: the game's dialog border over the fill; the
+        -- rounded container's chrome and art step aside.
+        if containerFrame then
+            ns.SetRoundedRectBorderShown(containerFrame, false)
+            if containerFrame._efArtCells then
+                for _, cell in pairs(containerFrame._efArtCells) do cell:Hide() end
+            end
+        end
         searchFrame:SetBackdrop({
             bgFile = WHITE8x8,
             edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
