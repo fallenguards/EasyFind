@@ -2705,7 +2705,7 @@ function Search:UpdateFontSize()
             end
         end
         searchFrame:SetBackdrop(ns.CLASSIC_BACKDROP)
-        searchFrame:SetBackdropColor(Utils.RGB(ns.SEARCH_WINDOW_FILL_COLOR, alpha))
+        searchFrame:SetBackdropColor(1, 1, 1, alpha)
         searchFrame:SetBackdropBorderColor(1, 1, 1, 1)
     end
 

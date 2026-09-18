@@ -4797,6 +4797,7 @@ function Options:Initialize()
     function optionsFrame:RepaintTheme()
         if self.bgTex then
             ns.StyleWizardPanel(self.bgTex, 1)
+            if ns.ApplyClassicHeader then ns.ApplyClassicHeader(self.bgTex, "EasyFind") end
             local theme = ns.Results and ns.Results:GetActiveTheme()
             self.bgTex:SetAlpha((theme and theme.lightTheme) and 1 or OPTIONS_PANEL_ALPHA)
         end

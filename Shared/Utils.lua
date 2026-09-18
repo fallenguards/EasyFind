@@ -1737,17 +1737,31 @@ end
 -- surface. Border art in its own tan, the theme's navy underneath, the
 -- rounded nine-slice and any art viewport hidden. Undone by the same call
 -- when a rounded theme returns.
-ns.CLASSIC_BACKDROP = {
-    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+-- The 1.x dialog art, as the game shipped it and as ClassicUI Forever
+-- draws its own windows: the dark dialog stone untinted, the ornate
+-- dialog border on windows, the thin tooltip border on the bar, the
+-- results and the menus, and the header plate with a gold title on top
+-- of a window.
+local CLASSIC_DIALOG_BG = "Interface\\DialogFrame\\UI-DialogBox-Background"
+ns.CLASSIC_BACKDROP = {            -- bar, results, menus
+    bgFile = CLASSIC_DIALOG_BG,
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true, tileSize = 16, edgeSize = 16,
+    tile = true, tileSize = 32, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
+ns.CLASSIC_DIALOG = {              -- windows
+    bgFile = CLASSIC_DIALOG_BG,
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 },
+}
+ns.CLASSIC_HEADER = "Interface\\DialogFrame\\UI-DialogBox-Header"
 function ns.IsClassicChrome()
     local p = ns.ACTIVE_UI_PALETTE
     return p ~= nil and p.chrome == "classic"
 end
-function ns.ApplyClassicChrome(frame, alpha)
+-- style: "dialog" for a window, anything else the thin tooltip frame.
+function ns.ApplyClassicChrome(frame, alpha, style)
     if not frame then return false end
     if ns.IsClassicChrome() then
         if not frame.SetBackdrop and BackdropTemplateMixin then
@@ -1755,12 +1769,13 @@ function ns.ApplyClassicChrome(frame, alpha)
             if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
         end
         if not frame.SetBackdrop then return false end
-        if not frame._efClassicChrome then
-            frame:SetBackdrop(ns.CLASSIC_BACKDROP)
-            frame._efClassicChrome = true
+        local want = style == "dialog" and "dialog" or "tooltip"
+        if frame._efClassicChrome ~= want then
+            frame:SetBackdrop(want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP)
+            frame._efClassicChrome = want
         end
-        local fill = ns.SEARCH_WINDOW_FILL_COLOR
-        frame:SetBackdropColor(fill[1], fill[2], fill[3], alpha or ns.GetSearchWindowAlpha())
+        -- The stone is its own color; only the window opacity applies.
+        frame:SetBackdropColor(1, 1, 1, alpha or ns.GetSearchWindowAlpha())
         frame:SetBackdropBorderColor(1, 1, 1, 1)
         if frame.combinedBorder then ns.SetRoundedRectBorderShown(frame, false) end
         if frame._efArtCells then
@@ -2892,12 +2907,33 @@ end
 -- relaxed pixel snapping, gloss gradient, border ring hidden (its corner
 -- cells band against the gradient fill). The alpha lands on the fill cells;
 -- callers that dim the whole frame instead pass 1.
+-- The header plate with a gold title on a classic window, or nothing.
+function ns.ApplyClassicHeader(frame, title)
+    if not frame then return end
+    local on = ns.IsClassicChrome()
+    if on and not frame._efClassicHeader then
+        local header = frame:CreateTexture(nil, "ARTWORK")
+        header:SetTexture(ns.CLASSIC_HEADER)
+        header:SetSize(256, 64)
+        header:SetPoint("TOP", frame, "TOP", 0, 12)
+        local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("TOP", header, "TOP", 0, -14)
+        frame._efClassicHeader = { plate = header, text = text }
+    end
+    local h = frame._efClassicHeader
+    if h then
+        h.plate:SetShown(on)
+        h.text:SetShown(on)
+        if on then h.text:SetText(title or "") end
+    end
+end
+
 function ns.StyleWizardPanel(frame, alpha)
     if not frame.combinedBorder then
         ns.CreateRoundedRectBorder(frame)
     end
     frame._efWizardAlpha = alpha or 1
-    if ns.ApplyClassicChrome(frame, frame._efWizardAlpha) then return end
+    if ns.ApplyClassicChrome(frame, frame._efWizardAlpha, "dialog") then return end
     ns.SetRoundedRectBarHeight(frame, 16)
     ns.SetRoundedRectBorderEdgeShown(frame, false)
     local base = ns.SEARCH_WINDOW_FILL_COLOR

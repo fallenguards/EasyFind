@@ -325,7 +325,10 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if not theme.searchBarRounded and not resultsFrame:GetBackdrop() then
         resultsFrame:SetBackdrop(ns.CLASSIC_BACKDROP)
     end
-    if theme.resultsBackdropColor then
+    if not theme.searchBarRounded then
+        local a = theme.resultsBackdropColor and theme.resultsBackdropColor[4] or 0.95
+        resultsFrame:SetBackdropColor(1, 1, 1, a)
+    elseif theme.resultsBackdropColor then
         resultsFrame:SetBackdropColor(unpack(theme.resultsBackdropColor))
     end
     if theme.resultsBackdropBorderColor then
