@@ -163,7 +163,7 @@ read_globals = {
     "InterfaceOptionsFrame",
 
     -- Constants, Enums, Mixins
-    "Enum", "Settings", "BackdropTemplateMixin",
+    "Enum", "Settings", "BackdropTemplateMixin", "Mixin",
     "SOUNDKIT", "UIDROPDOWNMENU_OPEN_MENU", "UISpecialFrames",
     "FACTION_BAR_COLORS", "ITEM_QUALITY_COLORS",
     "LE_PET_JOURNAL_FILTER_COLLECTED", "LE_PET_JOURNAL_FILTER_NOT_COLLECTED",

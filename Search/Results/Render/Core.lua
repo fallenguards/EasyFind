@@ -323,12 +323,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     -- Rounded mode clears the dropdown's own backdrop (the container
     -- draws it); the classic skin needs it back.
     if not theme.searchBarRounded and not resultsFrame:GetBackdrop() then
-        resultsFrame:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 20,
-            insets = { left = 5, right = 5, top = 5, bottom = 5 }
-        })
+        resultsFrame:SetBackdrop(ns.CLASSIC_BACKDROP)
     end
     if theme.resultsBackdropColor then
         resultsFrame:SetBackdropColor(unpack(theme.resultsBackdropColor))
@@ -338,8 +333,9 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     end
     -- Rounded search/results use one shared silhouette whether results
     -- open above or below, so the dropdown must match the bar width.
-    local roundedDocked = theme.searchBarRounded
-    if roundedDocked and Search:GetSearchFrame() then
+    -- The dropdown is the bar's width whatever the skin: it reads as one
+    -- window continuing below the bar.
+    if Search:GetSearchFrame() then
         resultsFrame:SetWidth(Search:GetSearchFrame():GetWidth())
     else
         local customW = EasyFind.db.uiResultsWidth

@@ -2607,7 +2607,6 @@ function Search:UpdateFontSize()
     end
 
     local theme = Results:GetActiveTheme()
-    local WHITE8x8 = "Interface\\BUTTONS\\WHITE8x8"
     local alpha = ns.GetSearchWindowAlpha()
     -- Input text follows the theme's primary text color; the EditBox
     -- default is white, which vanishes on the light palettes. Shadow off
@@ -2697,7 +2696,7 @@ function Search:UpdateFontSize()
             end
         end
     else
-        -- The classic skin: the game's dialog border over the fill; the
+        -- The classic skin: the game's tooltip frame over the fill; the
         -- rounded container's chrome and art step aside.
         if containerFrame then
             ns.SetRoundedRectBorderShown(containerFrame, false)
@@ -2705,13 +2704,9 @@ function Search:UpdateFontSize()
                 for _, cell in pairs(containerFrame._efArtCells) do cell:Hide() end
             end
         end
-        searchFrame:SetBackdrop({
-            bgFile = WHITE8x8,
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            edgeSize = 20,
-            insets = { left = 5, right = 5, top = 5, bottom = 5 }
-        })
+        searchFrame:SetBackdrop(ns.CLASSIC_BACKDROP)
         searchFrame:SetBackdropColor(Utils.RGB(ns.SEARCH_WINDOW_FILL_COLOR, alpha))
+        searchFrame:SetBackdropBorderColor(1, 1, 1, 1)
     end
 
     for i = 1, #resultButtons do

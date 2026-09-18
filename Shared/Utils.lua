@@ -1733,6 +1733,48 @@ function ns.GetSearchWindowAlpha()
     end
     return ns.SEARCH_WINDOW_ALPHA
 end
+-- The classic skin: the game's own tooltip frame on any rounded-chrome
+-- surface. Border art in its own tan, the theme's navy underneath, the
+-- rounded nine-slice and any art viewport hidden. Undone by the same call
+-- when a rounded theme returns.
+ns.CLASSIC_BACKDROP = {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+}
+function ns.IsClassicChrome()
+    local p = ns.ACTIVE_UI_PALETTE
+    return p ~= nil and p.chrome == "classic"
+end
+function ns.ApplyClassicChrome(frame, alpha)
+    if not frame then return false end
+    if ns.IsClassicChrome() then
+        if not frame.SetBackdrop and BackdropTemplateMixin then
+            Mixin(frame, BackdropTemplateMixin)
+            if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
+        end
+        if not frame.SetBackdrop then return false end
+        if not frame._efClassicChrome then
+            frame:SetBackdrop(ns.CLASSIC_BACKDROP)
+            frame._efClassicChrome = true
+        end
+        local fill = ns.SEARCH_WINDOW_FILL_COLOR
+        frame:SetBackdropColor(fill[1], fill[2], fill[3], alpha or ns.GetSearchWindowAlpha())
+        frame:SetBackdropBorderColor(1, 1, 1, 1)
+        if frame.combinedBorder then ns.SetRoundedRectBorderShown(frame, false) end
+        if frame._efArtCells then
+            for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+        end
+        return true
+    elseif frame._efClassicChrome then
+        frame._efClassicChrome = nil
+        frame:SetBackdrop(nil)
+        if frame.combinedBorder then ns.SetRoundedRectBorderShown(frame, true) end
+    end
+    return false
+end
+
 -- The filter dropdown and row context menus reuse the results window's
 -- rounded-rect panel object so they match it exactly (fill + border) and track
 -- the opacity setting, going fully solid at 100%.
@@ -1741,6 +1783,7 @@ function ns.StyleMenuPanel(frame)
         ns.CreateRoundedRectBorder(frame)
         ns.SetRoundedRectBorderShown(frame, true)
     end
+    ns.ApplyClassicChrome(frame)
     -- Registry (weak keys) so a theme flip can restyle menus that are
     -- OPEN at that moment; their OnShow refill never refires for them.
     ns._menuPanels = ns._menuPanels or setmetatable({}, { __mode = "k" })
@@ -2854,6 +2897,7 @@ function ns.StyleWizardPanel(frame, alpha)
         ns.CreateRoundedRectBorder(frame)
     end
     frame._efWizardAlpha = alpha or 1
+    if ns.ApplyClassicChrome(frame, frame._efWizardAlpha) then return end
     ns.SetRoundedRectBarHeight(frame, 16)
     ns.SetRoundedRectBorderEdgeShown(frame, false)
     local base = ns.SEARCH_WINDOW_FILL_COLOR
