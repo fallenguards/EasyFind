@@ -824,7 +824,7 @@ local function BuildSearchBarReplica(parent, w, h)
         local glyph = theme and theme.chromeGlyph
         if glyph then
             icon:SetVertexColor(glyph[1], glyph[2], glyph[3], 1)
-            arrow:SetBlendMode(theme.lightTheme and "BLEND" or "ADD")
+            arrow:SetBlendMode(ns.ChromeGlyphBlend(theme))
             arrow:SetVertexColor(glyph[1], glyph[2], glyph[3], 1)
         end
     end

@@ -76,6 +76,10 @@ end
 -- existing full passes (Search:UpdateFontSize + RefreshResults) with no
 -- per-consumer wiring. Theme names are product names and stay untranslated.
 ns.UI_THEME_ORDER = { "Black", "Midnight", "Ocean", "Amethyst", "Crimson", "Forever", "Classic", "Sky", "Linen", "Mint", "Rose" }
+-- Forever's bronze: the Alt shortcut hint on every row (mutedGlyph), and
+-- the bar's glyphs share this one table.
+local FOREVER_GLYPH = {0.80, 0.66, 0.30, 0.90}
+
 ns.UI_THEME_PALETTES = {
     Black = {
         windowFill = {0.052, 0.052, 0.060},
@@ -167,9 +171,10 @@ ns.UI_THEME_PALETTES = {
         backdropColor = {0.17, 0.08, 0.10, 0.95},
         backdropBorder = {0.55, 0.35, 0.36, 1.0},
     },
-    -- WoW Forever: the client's own menus. chrome = "forever" puts the game
-    -- menu's border around the bar and results (a thin bronze line between
-    -- them) over the quest log background; windowFill is that art's average.
+    -- WoW Forever: the client's own frames. chrome = "forever" puts the
+    -- spellbook's bronze border around the bar and results (a thin bronze
+    -- line between them) over the quest log background; windowFill is that
+    -- art's average.
     Forever = {
         chrome = "forever",
         windowFill = {0.104, 0.089, 0.073},
@@ -177,12 +182,14 @@ ns.UI_THEME_PALETTES = {
         -- Fallback gradient for a client without the atlas.
         windowFillBottom = {0.050, 0.046, 0.042},
         windowFillTop = {0.150, 0.128, 0.100},
-        -- Strong gold on the chrome: subtext, the line, the glyphs.
+        -- Gold text; the glyphs are bronze and blend normally so they read
+        -- exactly as the Alt hint does.
         pathColor = {1.0, 0.80, 0.22, 1.0},
         pathColorHover = {1.0, 0.95, 0.70, 1.0},
         leafColor = {0.96, 0.93, 0.86},
-        chromeGlyph = {1.0, 0.82, 0.20},
-        mutedGlyph = {0.80, 0.66, 0.30, 0.90},
+        chromeGlyph = FOREVER_GLYPH,
+        mutedGlyph = FOREVER_GLYPH,
+        flatGlyphs = true,
         textFaint = {0.62, 0.53, 0.32},
         accent = {1.0, 0.78, 0.16, 0.90},
         selection = {1.0, 0.78, 0.16, 0.26},
@@ -309,6 +316,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
         CopySlot(modern.indentColors[i], palette.accent)
     end
     modern.lightTheme = palette.light or nil
+    modern.flatGlyphs = palette.flatGlyphs or nil
     -- The classic skin trades the rounded silhouette for the game's own
     -- dialog frames and drops the parchment behind results; every other
     -- palette restores the rounded look.

@@ -2173,6 +2173,13 @@ function ns.ChromeGlyphColor()
     return (theme and theme.chromeGlyph) or ns.GOLD_COLOR or { 1.0, 0.82, 0.0 }
 end
 
+-- ADD brightens a glyph on dark fills; light themes, and themes whose glyph
+-- color must read exactly (flatGlyphs), blend normally.
+function ns.ChromeGlyphBlend(theme)
+    theme = theme or (ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme())
+    return (theme and (theme.lightTheme or theme.flatGlyphs)) and "BLEND" or "ADD"
+end
+
 function ns.RowWashColor()
     local pal = ns.ACTIVE_UI_PALETTE
     if not pal or (ns.UI_THEME_PALETTES and pal == ns.UI_THEME_PALETTES.Black) then return nil end
@@ -2370,16 +2377,31 @@ end
 local function AtlasU(info, f) return info.leftTexCoord + (info.rightTexCoord - info.leftTexCoord) * f end
 local function AtlasV(info, f) return info.topTexCoord + (info.bottomTexCoord - info.topTexCoord) * f end
 
--- The WoW Forever skin: the game menu's own border (the client's "Dialog"
--- nine-slice layout) around a square window filled with the quest log
--- background. Surfaces opt in with frame._efForeverSurface.
-local FOREVER_BORDER_LAYOUT = "Dialog"
+-- The WoW Forever skin: the spellbook frame's own bronze border (its
+-- UI-Frame-Metal atlases, which the client serves as Forever art) around a
+-- square window filled with the quest log background. Each piece is a crop
+-- of that atlas at the spellbook's size: the chamfered corner, and the band
+-- without the title strip or the soft inner shadow. Surfaces opt in with
+-- frame._efForeverSurface.
 local FOREVER_FILL_ATLAS = "QuestLog-main-background"
-local FOREVER_CORNER = 64       -- the layout's corner size, in its own units
-local FOREVER_OUTSET = 16       -- art edge to the middle of its metal band
-local FOREVER_MAX_SCALE = 0.36
-local FOREVER_LEVEL = 12        -- the frame sits over rows and bar content
-local FOREVER_DIVIDER_INSET = 2
+-- name, then the crop as fractions of the piece: left, right, top, bottom.
+local FOREVER_PIECES = {
+    tl = { "UI-Frame-Metal-CornerTopLeft",     20 / 190, 50 / 190, 21 / 190, 38 / 190 },
+    tr = { "UI-Frame-Metal-CornerTopRight",   160 / 190, 1,        21 / 190, 38 / 190 },
+    bl = { "UI-Frame-Metal-CornerBottomLeft",  20 / 190, 50 / 190, 173 / 200, 197 / 200 },
+    br = { "UI-Frame-Metal-CornerBottomRight", 160 / 190, 1,       173 / 200, 197 / 200 },
+    top = { "_UI-Frame-Metal-EdgeTop",         0, 1, 21 / 190, 38 / 190 },
+    bottom = { "_UI-Frame-Metal-EdgeBottom",   0, 1, 173 / 200, 197 / 200 },
+    left = { "!UI-Frame-Metal-EdgeLeft",       20 / 190, 37 / 190, 0, 1 },
+    right = { "!UI-Frame-Metal-EdgeRight",    173 / 190, 1,        0, 1 },
+}
+-- Art pixels (the pieces are 2x art): crop sizes, and how far each crop runs
+-- past the window, whose edge sits on the middle of the metal band.
+local FOREVER_PX = { cornerW = 30, topH = 17, bottomH = 24, sideW = 17, edgeLen = 256,
+                     outLeft = 10, outRight = 10, outTop = 10, outBottom = 17, fillIn = 3 }
+local FOREVER_UNIT = 0.5        -- UI units per art pixel: the spellbook's own size
+local FOREVER_LEVEL = 12        -- the border sits over rows and bar content
+local FOREVER_DIVIDER_INSET = 2 -- the divider runs under the band's inner edge
 ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
 
 function ns.IsForeverChrome()
@@ -2387,21 +2409,24 @@ function ns.IsForeverChrome()
     return p ~= nil and p.chrome == "forever"
 end
 
--- Scale that lets the four corners meet on a bar-high window.
-local function ForeverScale(frame)
-    local h = frame.cbBarHeight or frame:GetHeight() or 0
-    local s = h / (2 * (FOREVER_CORNER - FOREVER_OUTSET))
-    if s <= 0 or s > FOREVER_MAX_SCALE then s = FOREVER_MAX_SCALE end
-    return s
-end
-
 local function LayoutForever(frame)
     local f = frame._efForever
     if not (f and frame._efForeverOn) then return end
-    local w, h = frame:GetWidth() or 0, frame:GetHeight() or 0
+    local u, px = FOREVER_UNIT, FOREVER_PX
+    local fw, fh = frame:GetWidth() or 0, frame:GetHeight() or 0
+    local inset = px.fillIn * u
+    local w, h = fw - 2 * inset, fh - 2 * inset
     if w <= 0 or h <= 0 then return end
-    f.border:SetScale(ForeverScale(frame))
     f.border:SetFrameLevel(frame:GetFrameLevel() + FOREVER_LEVEL)
+    -- Edges tile at the art's own length.
+    local tile = px.edgeLen * u
+    local across = mmax(fw + (px.outLeft + px.outRight - 2 * px.cornerW) * u, 1) / tile
+    local down = mmax(fh + (px.outTop + px.outBottom - px.topH - px.bottomH) * u, 1) / tile
+    local p = f.pieces
+    p.top:SetTexCoord(0, across, p.top._efV0, p.top._efV1)
+    p.bottom:SetTexCoord(0, across, p.bottom._efV0, p.bottom._efV1)
+    p.left:SetTexCoord(p.left._efU0, p.left._efU1, 0, down)
+    p.right:SetTexCoord(p.right._efU0, p.right._efU1, 0, down)
     local info = f.info
     local _, sy = AtlasSteps(info, w, h)
     local ve = h * sy
@@ -2409,27 +2434,82 @@ local function LayoutForever(frame)
     f.fill:SetTexCoord(AtlasU(info, 0), AtlasU(info, 1), AtlasV(info, 0), AtlasV(info, ve))
 end
 
--- Nil when the client lacks the layout or the atlas: the rounded look stays.
+-- The spellbook's pieces as this client serves them, or nil when that art
+-- is not Forever's (another client draws the frame with other geometry).
+local function ForeverPieceInfo()
+    if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
+    local out = {}
+    for key, def in pairs(FOREVER_PIECES) do
+        local info = C_Texture.GetAtlasInfo(def[1])
+        if not (info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0) then return nil end
+        out[key] = info
+    end
+    -- Forever's band art is wider than tall; the other clients' is not.
+    if out.bottom.width <= out.bottom.height then return nil end
+    return out
+end
+
+local function ForeverPiece(holder, key, info, tiled)
+    local def = FOREVER_PIECES[key]
+    local t = holder:CreateTexture(nil, "OVERLAY")
+    local u0, u1 = AtlasU(info, def[2]), AtlasU(info, def[3])
+    local v0, v1 = AtlasV(info, def[4]), AtlasV(info, def[5])
+    if tiled == "h" then
+        if not t:SetTexture(info.file, "REPEAT", "CLAMP") then return nil end
+    elseif tiled == "v" then
+        if not t:SetTexture(info.file, "CLAMP", "REPEAT") then return nil end
+    else
+        if not t:SetTexture(info.file) then return nil end
+        t:SetTexCoord(u0, u1, v0, v1)
+    end
+    t._efU0, t._efU1, t._efV0, t._efV1 = u0, u1, v0, v1
+    return t
+end
+
+-- Nil when the client lacks the art: the rounded look stays.
 local function EnsureForever(frame)
     if frame._efForever or frame._efForeverFailed then return frame._efForever end
     frame._efForeverFailed = true
-    if not (NineSliceUtil and NineSliceUtil.ApplyLayoutByName and NineSliceUtil.GetLayout
-        and NineSliceUtil.GetLayout(FOREVER_BORDER_LAYOUT)) then return nil end
-    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(FOREVER_FILL_ATLAS)
-    if not (info and info.file and info.width and info.width > 0 and info.height > 0) then return nil end
+    local fillInfo = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(FOREVER_FILL_ATLAS)
+    if not (fillInfo and fillInfo.file and (fillInfo.width or 0) > 0 and (fillInfo.height or 0) > 0) then return nil end
+    local infos = ForeverPieceInfo()
+    if not infos then return nil end
     local border = CreateFrame("Frame", nil, frame)
-    border.layoutType = FOREVER_BORDER_LAYOUT
+    border:SetAllPoints(frame)
     border:Hide()
-    -- Offsets are in the border's own scaled units, so the band's middle
-    -- lands on the window edge at any scale.
-    border:SetPoint("TOPLEFT", frame, "TOPLEFT", -FOREVER_OUTSET, FOREVER_OUTSET)
-    border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", FOREVER_OUTSET, -FOREVER_OUTSET)
-    if not pcall(NineSliceUtil.ApplyLayoutByName, border, FOREVER_BORDER_LAYOUT) then return nil end
+    local p = {}
+    for key in pairs(FOREVER_PIECES) do
+        local tiled = (key == "top" or key == "bottom") and "h" or (key == "left" or key == "right") and "v" or nil
+        p[key] = ForeverPiece(border, key, infos[key], tiled)
+        if not p[key] then return nil end
+    end
+    local u, px = FOREVER_UNIT, FOREVER_PX
+    p.tl:SetSize(px.cornerW * u, px.topH * u)
+    p.tl:SetPoint("TOPLEFT", frame, "TOPLEFT", -px.outLeft * u, px.outTop * u)
+    p.tr:SetSize(px.cornerW * u, px.topH * u)
+    p.tr:SetPoint("TOPRIGHT", frame, "TOPRIGHT", px.outRight * u, px.outTop * u)
+    p.bl:SetSize(px.cornerW * u, px.bottomH * u)
+    p.bl:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", -px.outLeft * u, -px.outBottom * u)
+    p.br:SetSize(px.cornerW * u, px.bottomH * u)
+    p.br:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", px.outRight * u, -px.outBottom * u)
+    p.top:SetPoint("TOPLEFT", p.tl, "TOPRIGHT")
+    p.top:SetPoint("BOTTOMRIGHT", p.tr, "BOTTOMLEFT")
+    p.bottom:SetPoint("TOPLEFT", p.bl, "TOPRIGHT")
+    p.bottom:SetPoint("BOTTOMRIGHT", p.br, "BOTTOMLEFT")
+    p.left:SetWidth(px.sideW * u)
+    p.left:SetPoint("TOPLEFT", p.tl, "BOTTOMLEFT")
+    p.left:SetPoint("BOTTOMLEFT", p.bl, "TOPLEFT")
+    p.right:SetWidth(px.sideW * u)
+    p.right:SetPoint("TOPRIGHT", p.tr, "BOTTOMRIGHT")
+    p.right:SetPoint("BOTTOMRIGHT", p.br, "TOPRIGHT")
+    -- The fill runs under the metal, short of the chamfer's cut.
     local fill = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
-    if not fill:SetTexture(info.file) then return nil end
-    fill:SetAllPoints(frame)
+    if not fill:SetTexture(fillInfo.file) then return nil end
+    local inset = px.fillIn * u
+    fill:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
+    fill:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -inset, inset)
     fill:Hide()
-    frame._efForever = { border = border, fill = fill, info = info }
+    frame._efForever = { border = border, pieces = p, fill = fill, info = fillInfo }
     frame._efForeverFailed = nil
     frame:HookScript("OnSizeChanged", LayoutForever)
     return frame._efForever
@@ -5574,13 +5654,17 @@ function ns.SetRoundedRectDivider(frame, yOffset, shown)
     local d = frame.combinedDivider
     if not d then return end
     local inset = (frame.cbBarHeight or frame:GetHeight() or 0) / 4
-    -- The Forever skin: a thin bronze line from band to band.
+    -- The Forever skin: a bronze line one screen pixel tall, band to band.
     if frame._efForeverOn then
         local b = ns.FOREVER_BRONZE
         d:SetColorTexture(b[1], b[2], b[3], b[4])
         inset = FOREVER_DIVIDER_INSET
+        local physH = GetPhysicalScreenSize and select(2, GetPhysicalScreenSize())
+        local scale = d.GetEffectiveScale and d:GetEffectiveScale()
+        d:SetHeight((physH and physH > 0 and scale and scale > 0) and 768 / physH / scale or 1)
     else
         d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1)
+        d:SetHeight(1)
     end
     d:ClearAllPoints()
     d:SetPoint("TOPLEFT",  frame, "TOPLEFT",  inset, -yOffset)

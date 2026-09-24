@@ -38,7 +38,7 @@ read_globals = {
     "MenuUtil",
 
     -- Core API
-    "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight",
+    "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight", "GetPhysicalScreenSize",
     "CreateFrame", "CreateFont", "CreateVector2D", "CreateColor",
     "GetTime", "GetLocale", "GetCVar", "SetCVar", "GetCursorPosition", "GetRealmName",
     "SecondsToTime", "MacroFrameText", "ChatFrame1EditBox", "strlenutf8", "AddonCompartmentFrame",
@@ -163,7 +163,7 @@ read_globals = {
     "InterfaceOptionsFrame",
 
     -- Constants, Enums, Mixins
-    "Enum", "Settings", "BackdropTemplateMixin", "Mixin", "NineSliceUtil",
+    "Enum", "Settings", "BackdropTemplateMixin", "Mixin",
     "SOUNDKIT", "UIDROPDOWNMENU_OPEN_MENU", "UISpecialFrames",
     "FACTION_BAR_COLORS", "ITEM_QUALITY_COLORS",
     "LE_PET_JOURNAL_FILTER_COLLECTED", "LE_PET_JOURNAL_FILTER_NOT_COLLECTED",

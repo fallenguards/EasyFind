@@ -2646,7 +2646,7 @@ function Search:UpdateFontSize()
         local filterBtn = searchFrame.filterBtn
         if filterBtn and filterBtn.arrow then
             filterBtn.arrow:SetVertexColor(glyph[1], glyph[2], glyph[3], 1)
-            filterBtn.arrow:SetBlendMode(theme.lightTheme and "BLEND" or "ADD")
+            filterBtn.arrow:SetBlendMode(ns.ChromeGlyphBlend(theme))
         end
         -- Apps 3x3 dots track the same chrome-glyph color flip as the filter
         -- arrow, so they stay readable on light themes.
@@ -2655,12 +2655,16 @@ function Search:UpdateFontSize()
         end
         -- Toolbar focus ring (the circle around the filter button): gold
         -- ADD glow on dark themes; light themes tint it with their main
-        -- text color and blend normally (ADD cannot darken a light fill).
+        -- text color and blend normally (ADD cannot darken a light fill);
+        -- flat-glyph themes wear the glyph color.
         local tbTex = searchFrame.toolbarHighlight and searchFrame.toolbarHighlight.tex
         if tbTex then
             if theme.lightTheme then
                 tbTex:SetBlendMode("BLEND")
                 tbTex:SetVertexColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3], 0.35)
+            elseif theme.flatGlyphs then
+                tbTex:SetBlendMode("BLEND")
+                tbTex:SetVertexColor(glyph[1], glyph[2], glyph[3], 0.5)
             else
                 tbTex:SetBlendMode("ADD")
                 tbTex:SetVertexColor(Utils.RGB(GOLD_COLOR, 0.5))
