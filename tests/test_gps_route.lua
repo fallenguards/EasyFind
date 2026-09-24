@@ -49,11 +49,24 @@ local function data()
     }
 end
 
-local function build(Route, startPoint, dest, extra)
+-- Every step, the ways to a flight master, dock or portal included.
+local function buildAll(Route, startPoint, dest, extra)
     local opts = { data = data(), start = startPoint, faction = "Alliance", canFly = false,
                    owns = function() return false end, cooldown = function() return 0 end }
     for k, v in pairs(extra or {}) do opts[k] = v end
     return Route:Build(dest, opts)
+end
+
+-- The steps that do something: the ways to them left out, so a test about
+-- a crossing reads its crossing.
+local function build(Route, startPoint, dest, extra)
+    local steps, total, advice = buildAll(Route, startPoint, dest, extra)
+    if not steps then return nil end
+    local out = {}
+    for i = 1, #steps do
+        if not steps[i].approach then out[#out + 1] = steps[i] end
+    end
+    return out, total, advice
 end
 
 local tests = {}
@@ -70,7 +83,7 @@ end
 function tests.flightLegs_foldIntoOneFlight()
     local _, _, Route = fresh()
     local steps, total = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 })
-    H.assertEq(#steps, 2, "reaching the flight master is part of the flight")
+    H.assertEq(#steps, 2, "the flight and the last leg")
     H.assertEq(steps[1].kind, "taxi")
     H.assertEq(steps[1].arrive.wx, 9000)
     H.assertEq(steps[1].arrive.wy, 9000)
@@ -82,11 +95,10 @@ end
 function tests.crossContinent_usesThePortal()
     local _, _, Route = fresh()
     local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 })
-    H.assertEq(#steps, 2, "reaching the portal is part of taking it")
+    H.assertEq(#steps, 2, "the portal and the last leg")
     H.assertEq(steps[1].kind, "portal")
     H.assertEq(steps[1].go.wx, 5000, "the portal step is pinned at the portal spot")
     H.assertEq(steps[1].arrive.ci, 2)
-    H.assertTrue(steps[1].sec > 400, "the step's time includes the walk to the portal: " .. tostring(steps[1].sec))
     H.assertEq(steps[2].kind, "travel")
     H.assertEq(steps[2].arrive.ci, 2)
 end
@@ -262,6 +274,21 @@ function tests.crossing_namesItsDockWhileFar()
     H.assertEq(steps[1].reachText, "Go to the dock for the boat to Harbor")
 end
 
+-- On the 1.x game, a client that cannot say which flight masters are
+-- learned means none are, except those seen at a flight master.
+function tests.classic_unknownFlightsAreNotAssumed()
+    local _, _, Route = fresh()
+    local d = data()
+    d.classic = true
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local steps = build(Route, P(1, 0.1, 0.11), dest, { data = d, known = nil })
+    for i = 1, #steps do H.assertTrue(steps[i].kind ~= "taxi", "nothing learned, nothing flown") end
+    Route.recordedKnown = { [1] = true, [2] = true, [3] = true }
+    local seen = build(Route, P(1, 0.1, 0.11), dest, { data = d, known = nil })
+    Route.recordedKnown = nil
+    H.assertEq(seen[1].kind, "taxi", "the ones seen at a flight master fly")
+end
+
 -- A hearth lands in the town this character is bound to.
 function tests.hearth_landsInTheBoundTown()
     local env, _, Route = fresh()
@@ -341,29 +368,37 @@ function tests.stackedPortals_nameTheFloor()
     H.assertTrue(far[1].text:find("upper", 1, true) ~= nil or far[1].text:find("GPS_FLOOR_UPPER", 1, true) ~= nil, "the text names the floor: " .. far[1].text)
 end
 
--- A portal in another zone, minutes away: the haul there is its own step
--- naming that zone, then the portal step. Only a portal in this zone, or
--- a minute away, folds its approach into taking it.
-function tests.farPortalInAnotherZone_isTravelThenPortal()
+-- The way to a portal, dock or flight master is its own step, named by
+-- what is taken there and pinned at it, near or far; the crossing follows.
+function tests.wayToACrossing_isItsOwnStep()
     local _, ns, Route = fresh()
-    ns.L.GPS_STEP_TRAVEL_FMT = "Travel to %s"
+    ns.L.GPS_REACH_PORTAL_FMT = "Go to the portal to %s"
+    ns.L.GPS_REACH_FLIGHT_FMT = "Go to the flight master at %s"
     local d = data()
     d.edges = {
-        { kind = "portal", n = "Portal to Map 2", from = P(3, 0.5, 0.5), to = P(2, 0.5, 0.5), sec = 14 },
+        { kind = "portal", n = "Portal to Map 2", dest = "Map 2", from = P(3, 0.5, 0.5), to = P(2, 0.5, 0.5), sec = 14 },
     }
     d.abilities = {}
-    local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
-    H.assertEq(#steps, 3, "travel there, take it, finish: " .. #steps .. " steps")
-    H.assertEq(steps[1].kind, "travel")
-    H.assertEq(steps[1].text, "Travel to Map 3", "the haul names the portal's zone")
-    H.assertEq(steps[1].mapID, 3)
+    local steps = buildAll(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(#steps, 3, "go there, take it, finish: " .. #steps .. " steps")
+    H.assertTrue(steps[1].approach, "the way there")
+    H.assertEq(steps[1].text, "Go to the portal to Map 2")
+    H.assertEq(steps[1].arrive.wx, 5000, "it ends at the portal")
+    H.assertTrue(steps[1].sec > 400, "the walk is priced on the way step: " .. tostring(steps[1].sec))
     H.assertEq(steps[2].kind, "portal")
-    H.assertEq(steps[2].go.wx, 5000, "the portal step is pinned at the portal spot")
-    -- The same portal a short ride away in this zone: reaching it is part
-    -- of taking it.
+    H.assertEq(steps[2].sec, 14, "the portal step is the portal alone")
+    -- A portal a short ride away still gets its way step.
     d.edges[1].from = P(1, 0.12, 0.1)
-    local near = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
-    H.assertEq(near[1].kind, "portal", "a portal 200 yd away folds its approach")
+    local near = buildAll(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
+    H.assertTrue(near[1].approach, "200 yd away is still a step")
+    H.assertEq(near[2].kind, "portal")
+    -- A flight: go to the master, then fly.
+    local flown = buildAll(Route, P(1, 0.1, 0.13), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 })
+    H.assertEq(flown[1].text, "Go to the flight master at Alpha")
+    H.assertEq(flown[2].kind, "taxi")
+    -- Standing on the spot: no way step at all.
+    local here = buildAll(Route, P(1, 0.1, 0.1), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 })
+    H.assertEq(here[1].kind, "taxi")
 end
 
 function tests.noData_returnsNil()

@@ -381,10 +381,6 @@ local function WithFloor(text, floor)
     return text .. " (" .. tostring(word) .. ")"
 end
 
--- The approach to a portal, dock or flight master folds into taking it
--- when it is this short, whatever zone it starts in.
-local FOLD_SECONDS = 60
-
 -- A requirement table on an edge or an ability, as the data writes it:
 -- quest = id, anyQuest = { ids }, notQuest = id, minLevel, maxLevel,
 -- covenant = id, reputation = { id, standing }, art = { map, artID }.
@@ -468,21 +464,21 @@ local function Steps(g, path, goalName)
     path = folded
     local steps = {}
     local i = 1
-    carry = 0   -- travel seconds folded into the crossing that follows
-    -- Reaching a portal, dock or flight master is part of taking it when
-    -- it is in this zone or a minute away. A long haul from another zone
-    -- is its own step, so the route says where the portal is before it
-    -- says to take it.
-    local function leadsInto(at, el, nxt)
+    -- The way to a flight master, dock or portal is its own step, named by
+    -- what is taken there ("Go to the flight master at Auberdine"); the
+    -- step after it takes it. Seconds of that way while it is pending.
+    local approach
+    local function leadsInto(el, nxt)
         if not nxt or el.edge.kind ~= "travel" then return false end
         local node = g.nodes[el.node]
-        local into
-        if node.kind == "taxi" then into = nxt.edge.kind == "taxi"
-        else into = node.edge ~= nil and nxt.edge.edge == node.edge end
-        if not into then return false end
-        if el.edge.sec <= FOLD_SECONDS then return true end
-        local from = g.nodes[at > 1 and path[at - 1].node or g.start]
-        return from ~= nil and from.p ~= nil and node.p ~= nil and from.p.m == node.p.m
+        if node.kind == "taxi" then return nxt.edge.kind == "taxi" end
+        return node.edge ~= nil and nxt.edge.edge == node.edge
+    end
+    local function Approach(spot, text)
+        if not (approach and spot) then return end
+        tinsert(steps, { kind = "travel", approach = true, text = text,
+                         mapID = spot.m, x = spot.x, y = spot.y, go = spot, arrive = spot, sec = approach })
+        approach = nil
     end
     while i <= #path do
         local el = path[i]
@@ -491,8 +487,8 @@ local function Steps(g, path, goalName)
         if e.kind == "travel" and e.sec == 0 and #steps > 0 then
             -- Already there: the previous step ends on this spot.
             i = i + 1
-        elseif leadsInto(i, el, path[i + 1]) then
-            carry = carry + e.sec
+        elseif leadsInto(el, path[i + 1]) then
+            if e.sec > 0 then approach = e.sec end
             i = i + 1
         elseif e.kind == "travel" then
             local name
@@ -533,12 +529,13 @@ local function Steps(g, path, goalName)
             -- step says to learn it there first.
             local learn = fromNode and fromNode.unknown or nil
             local key = learn and "GPS_STEP_FLY_NEW_FMT" or "GPS_STEP_FLY_FMT"
+            local reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(fromName)
+            Approach(fromNode and fromNode.p, reachText)
             tinsert(steps, { kind = "taxi", text = (L[key]):format(fromName, last.name or "?"),
                              mapID = fromNode and fromNode.p.m, x = fromNode and fromNode.p.x, y = fromNode and fromNode.p.y,
-                             go = fromNode and fromNode.p, arrive = last.p, sec = sec + carry, edgeSec = sec,
+                             go = fromNode and fromNode.p, arrive = last.p, sec = sec, edgeSec = sec,
                              reach = fromNode and fromNode.name, learn = learn, nodeID = fromNode and fromNode.id,
-                             reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(fromName) })
-            carry = 0
+                             reachText = reachText })
             i = j
         elseif e.kind == "teleport" then
             tinsert(steps, { kind = "teleport", text = (L["GPS_STEP_USE_FMT"]):format(e.ability.n or "?"),
@@ -553,13 +550,13 @@ local function Steps(g, path, goalName)
             local wait = e.edge.wait
             local dest = EdgeDestName(e.edge, e.reverse)
             local reachKey = REACH_KEY[e.kind]
+            local reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil
+            Approach(from.p, reachText or (L["GPS_STEP_TRAVEL_FMT"]):format(AreaName(from.p.area) or MapName(from.p.m)))
             tinsert(steps, { kind = e.kind, text = WithFloor((L[key]):format(dest), floor),
-                             mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p, sec = e.sec + carry,
+                             mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p, sec = e.sec,
                              edgeSec = e.sec - (wait or 0), wait = wait,
-                             reach = e.edge.n,
-                             reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil,
+                             reach = e.edge.n, reachText = reachText,
                              floor = floor })
-            carry = 0
             i = i + 1
         end
     end
@@ -789,15 +786,17 @@ function Route:Build(dest, opts)
         known, listed = opts.known or nil, opts.listed
     else
         known, listed, names = KnownFlightNodes(data)
-        if Route.recordedKnown and next(Route.recordedKnown) then
-            if known then
-                local merged = {}
-                for k in pairs(known) do merged[k] = true end
-                for k in pairs(Route.recordedKnown) do merged[k] = true end
-                known = merged
-            elseif data.classic then
-                known = Route.recordedKnown
-            end
+        local recorded = Route.recordedKnown
+        if known and recorded and next(recorded) then
+            local merged = {}
+            for k in pairs(known) do merged[k] = true end
+            for k in pairs(recorded) do merged[k] = true end
+            known = merged
+        elseif not known and data.classic then
+            -- The 1.x game learns flight masters one by one: when the client
+            -- cannot say, only those seen at a flight master count, never all.
+            known = {}
+            for k in pairs(recorded or {}) do known[k] = true end
         end
     end
     local ctx = {

@@ -1341,7 +1341,7 @@ end
 local dockFrame
 local RenderDock            -- defined below; the ghost helpers above it call it
 local PopoutSize            -- defined with the pop-out below; the floating section uses it
-local DOCK_REACH = 40
+local DOCK_REACH = 24
 local DOCK_HEADER_H = 25
 local DOCK_INDENT = 20
 local DOCK_LINE_GAP = 4
@@ -1411,17 +1411,30 @@ local function PopoutStyle()
     return (db and db.gpsPopoutStyle) or "easyfind"
 end
 
--- The tracker's rectangle counts even while the tracker hides itself for
--- want of content (a character tracking nothing): a drop there docks.
+local VisibleModules   -- defined below; the drop zone reads the sections
+
+-- Where a drop docks: the tracker's width, from its top down to the end of
+-- what it shows (its frame can run far below its sections; on Forever it
+-- spans most of the screen), or a header's height when it shows nothing.
 local function NearTracker(f)
     local t = Tracker()
-    if not (t and f:GetLeft() and t:GetLeft()) then return false end
+    if not (t and f:GetLeft() and t:GetLeft() and t:GetTop()) then return false end
+    local top = t:GetTop()
+    local bottom = top - DOCK_HEADER_H * 2
+    local mods = VisibleModules(t)
+    for i = 1, #mods do
+        local b = mods[i]:GetBottom()
+        if b and b < bottom then bottom = b end
+    end
+    if dockFrame and dockFrame.docked and dockFrame:GetBottom() and dockFrame:GetBottom() < bottom then
+        bottom = dockFrame:GetBottom()
+    end
     return f:GetLeft() < t:GetRight() + DOCK_REACH and f:GetRight() > t:GetLeft() - DOCK_REACH
-        and f:GetTop() > t:GetBottom() - DOCK_REACH and f:GetBottom() < t:GetTop() + DOCK_REACH
+        and f:GetTop() > bottom - DOCK_REACH and f:GetBottom() < top + DOCK_REACH
 end
 
 -- The tracker's shown sections, top to bottom.
-local function VisibleModules(t)
+VisibleModules = function(t)
     local out = {}
     for i = 1, #t.modules do
         local m = t.modules[i]
