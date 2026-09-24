@@ -289,6 +289,21 @@ function tests.classic_unknownFlightsAreNotAssumed()
     H.assertEq(seen[1].kind, "taxi", "the ones seen at a flight master fly")
 end
 
+-- The other faction's boat is a last resort: taken when nothing else gets
+-- there, and said so on the step.
+function tests.otherFactionBoat_isALastResort()
+    local _, _, Route = fresh()
+    local d = data()
+    d.legs, d.abilities = {}, {}
+    d.edges = { { kind = "boat", n = "Horde boat", dest = "Isle", from = P(1, 0.1, 0.12), to = P(1, 0.5, 0.55), sec = 60, faction = "Horde" } }
+    d.edges[1].to.m = 3
+    d.landmass = { zones = { [3] = "isle" } }
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "On the isle", mapID = 3, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(steps[1].kind, "boat", "the only way there")
+    H.assertTrue(steps[1].hostile, "marked as the other side's")
+    H.assertEq(steps[1].sec, 60, "the step shows the ride, not the penalty")
+end
+
 -- A hearth lands in the town this character is bound to.
 function tests.hearth_landsInTheBoundTown()
     local env, _, Route = fresh()
@@ -307,6 +322,7 @@ function tests.gatedMarker_isNotOffered()
     local _, _, Route = fresh()
     local d = data()
     d.edges[1].poi = true
+    d.edges[2] = nil   -- the portal alone: no other way across
     local dest = { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }
     local asked = {}
     local none = build(Route, P(1, 0.1, 0.1), dest, { data = d, hasMarker = function(m, name) asked[#asked + 1] = name return false end })

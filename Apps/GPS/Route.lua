@@ -22,6 +22,7 @@ local MOUNT_UP = 2          -- seconds to get on a mount
 local BOARD_TAXI = 4        -- seconds at the flight master
 local ABILITY_WAIT_MAX = 600 -- a cooldown longer than this is not worth waiting for
 local TELEPORT_MIN_YARDS = 1000 -- a teleport landing closer than this to the start is no trip
+local HOSTILE_SECONDS = 1800 -- the other faction's boat or zeppelin: a last resort, never banned
 local WALK_DETOUR = 1.2     -- roads wind where nobody flies: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
 local SUGGEST_MIN_SECONDS = 60
@@ -183,7 +184,10 @@ local function BuildGraph(ctx)
     local hops = {}           -- node index -> { { to = idx, sec, edge }, ... }
     for i = 1, #(data.edges or {}) do
         local e = data.edges[i]
-        if FactionOK(e.faction, ctx.faction) and ctx.meets(e.req) then
+        -- Anyone may ride the other side's transport past its guards: kept,
+        -- priced so it is only taken when nothing else gets there.
+        local hostile = not FactionOK(e.faction, ctx.faction)
+        if ctx.meets(e.req) then
             local f, t = Resolve(e.from), Resolve(e.to)
             -- A scanned map marker exists only for a character who can use
             -- the transport (unlocked, right phase): ask the client.
@@ -193,12 +197,12 @@ local function BuildGraph(ctx)
             if f and t then
                 local fi = AddNode(f, "edgeFrom", { edge = e })
                 local ti = AddNode(t, "edgeTo", { edge = e })
-                local sec = (e.sec or 10) + (e.wait or 0)
+                local sec = (e.sec or 10) + (e.wait or 0) + (hostile and HOSTILE_SECONDS or 0)
                 hops[fi] = hops[fi] or {}
-                tinsert(hops[fi], { to = ti, sec = sec, edge = e })
+                tinsert(hops[fi], { to = ti, sec = sec, edge = e, hostile = hostile or nil })
                 if e.bidir then
                     hops[ti] = hops[ti] or {}
-                    tinsert(hops[ti], { to = fi, sec = sec, edge = e, reverse = true })
+                    tinsert(hops[ti], { to = fi, sec = sec, edge = e, reverse = true, hostile = hostile or nil })
                 end
             end
         end
@@ -286,7 +290,8 @@ local function Neighbors(g, i, out)
     if hops then
         for j = 1, #hops do
             k = k + 1
-            out[k] = { to = hops[j].to, sec = hops[j].sec, kind = hops[j].edge.kind, edge = hops[j].edge, reverse = hops[j].reverse }
+            out[k] = { to = hops[j].to, sec = hops[j].sec, kind = hops[j].edge.kind, edge = hops[j].edge, reverse = hops[j].reverse,
+                       hostile = hops[j].hostile }
         end
     end
     if i == g.start then
@@ -552,9 +557,13 @@ local function Steps(g, path, goalName)
             local reachKey = REACH_KEY[e.kind]
             local reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil
             Approach(from.p, reachText or (L["GPS_STEP_TRAVEL_FMT"]):format(AreaName(from.p.area) or MapName(from.p.m)))
-            tinsert(steps, { kind = e.kind, text = WithFloor((L[key]):format(dest), floor),
-                             mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p, sec = e.sec,
-                             edgeSec = e.sec - (wait or 0), wait = wait,
+            local text = WithFloor((L[key]):format(dest), floor)
+            -- The other faction's transport: said so on the step.
+            if e.hostile then text = text .. " (" .. (_G["HOSTILE"] or "Hostile") .. ")" end
+            tinsert(steps, { kind = e.kind, text = text, hostile = e.hostile,
+                             mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p,
+                             sec = e.sec - (e.hostile and HOSTILE_SECONDS or 0),
+                             edgeSec = e.sec - (wait or 0) - (e.hostile and HOSTILE_SECONDS or 0), wait = wait,
                              reach = e.edge.n, reachText = reachText,
                              floor = floor })
             i = i + 1
