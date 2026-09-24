@@ -72,7 +72,8 @@ local DB_DEFAULTS = {
     accountKeybinds = {},
     resultsTheme = "Modern",
     font = "Default",
-    uiTheme = "Midnight",
+    -- WoW Forever opens in its own look; retail in Midnight.
+    uiTheme = (ns.Caps and ns.Caps.forever) and "Forever" or "Midnight",
     iconVisibility = "all",
     indicatorStyle = "EasyFind Arrow",
     indicatorColor = "Yellow",
