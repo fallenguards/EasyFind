@@ -2662,6 +2662,36 @@ SampleGroundSpeed = function()
     end
 end
 
+-- The GPS page in the options' Extensions tab: how the beacon looks, or
+-- no beacon (the same switch as the beacon row in the GPS menu).
+local function BuildOptionsPage(ctx, page)
+    local WorldPin = ns.GPSWorldPin
+    local choices = {
+        { label = L["GPS_BEACON_CALM"], value = "calm" },
+        { label = L["GPS_BEACON_FLAME"], value = "flame" },
+        { label = _G["OFF"] or "Off", value = "off" },
+    }
+    local row = ctx.CreateFlyoutPresetRow(page, L["GPS_BEACON_STYLE"], choices,
+        function()
+            local db = DB()
+            if db and db.gpsWorldPin == false then return "off" end
+            return WorldPin and WorldPin.Style() or "calm"
+        end,
+        function(v)
+            local db = DB()
+            if not db then return end
+            db.gpsWorldPin = (v == "off") and false or nil
+            if v ~= "off" then db.gpsBeaconStyle = v end
+            Refresh()
+        end,
+        "EasyFindGPSBeaconStyle", WorldPin and WorldPin.DefaultStyle() or "calm", L["GPS_BEACON_STYLE_TT"])
+    row:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
+end
+
+if ns.RegisterExtensionPage then
+    ns.RegisterExtensionPage({ id = "gps", name = L["APP_GPS"], icon = ns.GPS_ICON_TEX, companion = "EasyFind_GPS", build = BuildOptionsPage })
+end
+
 local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("TAXIMAP_OPENED")
 loginFrame:RegisterEvent("PLAYER_LOGIN")

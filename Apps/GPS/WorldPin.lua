@@ -8,7 +8,9 @@
 -- and fading its marker; only its face changes. Off the screen, our arrow
 -- at the edge points the way.
 --
--- Colors come from the active UI theme: the Flame theme is the fire it
+-- Two looks, picked in the GPS settings page: calm, a still funnel of
+-- light narrowing onto the emblem (the default on WoW Forever), and flame,
+-- below. Colors come from the active UI theme: the Flame theme is the fire it
 -- was drawn as; every other theme lends its accent, so a Midnight beacon
 -- burns blue. The wisps move on animation groups, not Lua: the engine
 -- runs those at full rate while the camera moves. The column fades in at
@@ -47,8 +49,12 @@ local HELIX = {
     { secs = 6.6, a = 0.35, w = 2.2, x = 3, sway = 12 },
 }
 local SCALE_DIST = 1000             -- the beam is full size this far away
+-- The calm funnel: wide and faint at the top, narrowing onto the emblem.
+local CALM_H, CALM_TOP_W, CALM_FOOT_W = 380, 96, 10
+local CALM_CORE_TOP_W, CALM_CORE_FOOT_W = 30, 4
+local CALM_EMBLEM = 44
 
-local frame, beam, plate, edge, driver
+local frame, beam, calm, plate, edge, driver
 local styled          -- the game's own face is hidden under ours
 local since = 0
 local sizeMult = 1
@@ -57,6 +63,18 @@ local paint = {}      -- every tinted texture with its role, for a repaint
 local function DB() return EasyFind and EasyFind.db end
 local function Route() local g = ns and ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
 local function Enabled() local db = DB() return not (db and db.gpsWorldPin == false) end
+
+-- The look: "calm", a still funnel of light onto the emblem, or "flame",
+-- the moving fire. Calm is the default on WoW Forever, flame on retail.
+local function DefaultStyle() return (ns.Caps and ns.Caps.forever) and "calm" or "flame" end
+local function Style()
+    local db = DB()
+    local s = db and db.gpsBeaconStyle
+    if s == "calm" or s == "flame" then return s end
+    return DefaultStyle()
+end
+WorldPin.Style = Style
+WorldPin.DefaultStyle = DefaultStyle
 local function Tracked()
     return C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint() or false
 end
@@ -363,6 +381,59 @@ local function Build(host)
     RisingFire(fringe, fringeMask, FRINGE, FRINGE * 2,
         { { secs = 2.2, role = "fire", a = 0.95 }, { secs = 3.4, role = "fire2", a = 0.65 } }, 3)
 
+    -- The calm look: a still funnel of light narrowing onto the emblem,
+    -- nothing moving. The funnel is a strip whose foot corners are pulled
+    -- in; the emblem is the flat shape with its lit rim over a soft glow.
+    calm = CreateFrame("Frame", nil, frame)
+    calm:SetSize(CALM_TOP_W, CALM_H)
+    calm:SetPoint("BOTTOM", frame, "CENTER", 0, 0)
+    local calmMask = calm:CreateMaskTexture()
+    calmMask:SetTexture(TEX_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    calmMask:SetPoint("TOPLEFT", calm, "TOPLEFT", -CALM_TOP_W, 0)
+    calmMask:SetPoint("BOTTOMRIGHT", calm, "BOTTOMRIGHT", CALM_TOP_W, CALM_EMBLEM * 0.35)
+    local function funnel(topW, footW, sub, role, a)
+        local tex = calm:CreateTexture(nil, "ARTWORK", nil, sub)
+        tex:SetTexture(TEX_CORE)
+        tex:SetBlendMode("ADD")
+        tex:SetSize(topW, CALM_H)
+        tex:SetPoint("BOTTOM")
+        local pull = (topW - footW) / 2
+        tex:SetVertexOffset(2, pull, 0)     -- lower left
+        tex:SetVertexOffset(4, -pull, 0)    -- lower right
+        Tint(tex, role, a)
+        tex:AddMaskTexture(calmMask)
+        return tex
+    end
+    funnel(CALM_TOP_W, CALM_FOOT_W, 1, "glow", 0.32)
+    funnel(CALM_CORE_TOP_W, CALM_CORE_FOOT_W, 2, "core", 0.55)
+    local seat = CreateFrame("Frame", nil, calm)
+    seat:SetFrameLevel(calm:GetFrameLevel() + 2)
+    seat:SetSize(CALM_EMBLEM, CALM_EMBLEM)
+    seat:SetPoint("CENTER", calm, "BOTTOM", 0, 0)
+    local glow = seat:CreateTexture(nil, "ARTWORK", nil, 1)
+    glow:SetTexture(TEX_FLARE)
+    glow:SetBlendMode("ADD")
+    glow:SetSize(CALM_EMBLEM * 1.6, CALM_EMBLEM * 1.6)
+    glow:SetPoint("CENTER")
+    Tint(glow, "halo", 0.3)
+    local function calmShape(dx, dy, sub, role, a, blend)
+        local m = seat:CreateMaskTexture()
+        m:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetPoint("TOPLEFT", seat, "TOPLEFT", dx, dy)
+        m:SetPoint("BOTTOMRIGHT", seat, "BOTTOMRIGHT", dx, dy)
+        local t = seat:CreateTexture(nil, "ARTWORK", nil, sub)
+        t:SetTexture(WHITE)
+        t:SetPoint("TOPLEFT", seat, "TOPLEFT", dx, dy)
+        t:SetPoint("BOTTOMRIGHT", seat, "BOTTOMRIGHT", dx, dy)
+        t:SetBlendMode(blend or "BLEND")
+        Tint(t, role, a)
+        t:AddMaskTexture(m)
+    end
+    calmShape(0.8, -1.2, 3, "extrude", 1)
+    calmShape(0, 0, 4, "face", 1)
+    calmShape(-1, 1, 5, "rim", 0.5, "ADD")
+    calm:Hide()
+
     -- The pointer for when the spot is off the screen: the game clamps its
     -- marker to the screen edge on the line from the screen's middle, so
     -- our arrow at that spot, turned along that line, points the way.
@@ -387,7 +458,7 @@ local function Build(host)
     grow:SetScaleTo(1.2, 1.2)
     grow:SetDuration(0.6)
     grow:SetSmoothing("IN_OUT")
-    pulse:Play()
+    edge.pulse = pulse
     edge:Hide()
 
     -- The plate under it all, in the addon's menu look: the step, then the
@@ -510,6 +581,7 @@ local function Resize(dist, dt)
     if mabs(target - sizeMult) > 0.003 then
         sizeMult = sizeMult + (target - sizeMult) * mmin(1, (dt or THROTTLE) * 2)
         beam:SetScale(sizeMult)
+        calm:SetScale(sizeMult)
     end
 end
 
@@ -536,10 +608,18 @@ local function Update(dt)
     -- The game fades its own face under the cursor and as the spot comes
     -- close; the beacon does not follow that, it stays as it is.
     if (beam:GetAlpha() or 1) ~= 1 then beam:SetAlpha(1) end
+    local still = Style() == "calm"
     frame:Show()
     local clamped = C_Navigation and C_Navigation.WasClampedToScreen and C_Navigation.WasClampedToScreen()
-    beam:SetShown(not clamped)
+    beam:SetShown(not clamped and not still)
+    calm:SetShown(not clamped and still)
     edge:SetShown(clamped and true or false)
+    -- The off-screen arrow breathes only with the moving look.
+    if still then
+        if edge.pulse:IsPlaying() then edge.pulse:Stop() end
+    elseif not edge.pulse:IsPlaying() then
+        edge.pulse:Play()
+    end
     plate:ClearAllPoints()
     if clamped then
         local cx, cy = host:GetCenter()
