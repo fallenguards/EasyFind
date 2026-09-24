@@ -29,7 +29,7 @@ local function newRegion(w, h)
     function r:SetWidth(v) self.w = v end
     function r:SetHeight(v) self.h = v end
     function r:SetSize(a, b) self.w, self.h = a, b end
-    function r:GetEffectiveScale() return 1 end
+    function r:GetEffectiveScale() return self.effScale or 1 end
     function r:SetTexCoord(...) self.coords = { ... } end
     function r:SetTexture(t, wh, wv) self.tex, self.wrapH, self.wrapV = t, wh, wv return true end
     function r:SetColorTexture(...) self.color = { ... } end
@@ -50,7 +50,7 @@ local factory = fakeWidget
 env.CreateFrame = function(...) return factory(...) end
 env.CreateFont = fakeWidget
 env.CreateColor = function(r, g, b, a) return { GetRGBA = function() return r, g, b, a end } end
-env.UIParent = fakeWidget()
+env.UIParent = newRegion()
 env.WorldFrame = fakeWidget()
 env.GameTooltip = fakeWidget()
 env.hooksecurefunc = function() end
@@ -136,6 +136,18 @@ function tests.fill_runsUnderTheMetal()
     H.assertEq(f._efForever.pieces.tl.points[1][4], -5, "the band's middle sits on the window edge")
 end
 
+-- The filter menu is zoomed 1.5x; its band is drawn at the bar's size.
+function tests.zoomedMenu_wearsTheBandAtTheSpellbookSize()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    local f = surface(true)
+    f.effScale = 1.5
+    ns.ApplyThemeFill(f)
+    local tl = f._efForever.pieces.tl
+    H.assertTrue(near(tl.w, 30 * 0.5 / 1.5), "corner width in the menu's own units: " .. tostring(tl.w))
+    H.assertTrue(near(tl.points[1][4], -10 * 0.5 / 1.5))
+end
+
 function tests.fill_isFittedToWidthAndCroppedFromTop()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = FOREVER
@@ -146,13 +158,25 @@ function tests.fill_isFittedToWidthAndCroppedFromTop()
     H.assertTrue(near(c[3], 0) and near(c[4], 51 / 510), "the top slice: " .. tostring(c[4]))
 end
 
+-- The window border option hides the rounded ring only: the filter menu
+-- asks for no ring by default and must still wear the Forever frame.
+function tests.ringOff_keepsTheForeverBorder()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = PLAIN
+    local f = surface(true)
+    ns.SetRoundedRectRingShown(f, false)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    ns.ApplyThemeFill(f)
+    H.assertTrue(f._efForever.border.shown and f._efForever.fill.shown, "a ring-off menu keeps the border")
+end
+
 function tests.ringAndPanelRequests_areKeptWhileOn()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = FOREVER
     local f = surface(true)
     ns.ApplyThemeFill(f)
     ns.SetRoundedRectRingShown(f, false)
-    H.assertTrue(not f._efForever.border.shown and f._efForever.fill.shown, "border off, fill stays")
+    H.assertTrue(f._efForever.border.shown and f._efForever.fill.shown, "the Forever frame stays")
     H.assertTrue(not roundedShown(f, "border"), "the rounded ring stays hidden")
     ns.SetRoundedRectBorderShown(f, false)
     H.assertTrue(not f._efForever.fill.shown, "panel off hides the fill")
