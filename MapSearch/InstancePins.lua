@@ -133,9 +133,14 @@ local function Build()
     Utils.SafeOnUpdate(overlay, Watch)
 end
 
+-- The world map may load after us: build at login or when it arrives.
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("PLAYER_LOGIN")
-loader:SetScript("OnEvent", function(self)
-    self:UnregisterAllEvents()
-    Utils.SafeAfter(0, Build)
+loader:RegisterEvent("ADDON_LOADED")
+loader:SetScript("OnEvent", function(self, event, name)
+    if event == "ADDON_LOADED" and name ~= "Blizzard_WorldMap" then return end
+    Utils.SafeAfter(0, function()
+        Build()
+        if overlay then self:UnregisterAllEvents() end
+    end)
 end)
