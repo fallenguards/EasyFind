@@ -116,18 +116,126 @@ function tests.factionEdge_onlyForItsFaction()
     H.assertEq(horde[1].kind, "boat")
 end
 
--- What this character can use: only discovered flight points fly, and a
--- scanned transport marker the client does not show this character (not
--- unlocked, wrong phase) is not offered.
-function tests.undiscoveredFlightPoint_isNotUsed()
+-- What this character can use: a flight lands only at a discovered flight
+-- point, and a flight master not met yet can start a flight (talking to
+-- it teaches it), so the route may walk there, learn it and fly on.
+function tests.undiscoveredFlightPoint_isNeverFlownThrough()
     local _, _, Route = fresh()
     local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
     local steps = build(Route, P(1, 0.1, 0.11), dest, { known = { [1] = true, [3] = true } })
     for i = 1, #steps do
-        H.assertTrue(steps[i].kind ~= "taxi", "no flight through the undiscovered middle point")
+        if steps[i].kind == "taxi" then
+            H.assertEq(steps[i].nodeID, 2, "a flight here can only start at the undiscovered middle point")
+            H.assertTrue(steps[i].learn, "and says to learn it first")
+        end
     end
     local flown = build(Route, P(1, 0.1, 0.11), dest, { known = { [1] = true, [2] = true, [3] = true } })
     H.assertEq(flown[1].kind, "taxi", "all three discovered: the flight is back")
+    H.assertEq(flown[1].nodeID, 1)
+    H.assertNil(flown[1].learn)
+end
+
+function tests.flightNeverLandsAtUndiscovered()
+    local _, _, Route = fresh()
+    local steps = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }, { known = { [1] = true } })
+    for i = 1, #steps do
+        H.assertTrue(steps[i].kind ~= "taxi", "neither the middle nor the far point is learned: no flight lands")
+    end
+end
+
+function tests.undiscoveredStart_learnsAndFlies()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_FLY_NEW_FMT = "Learn the flight path at %s, then fly to %s"
+    local steps = build(Route, P(1, 0.9, 0.1), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }, { known = { [3] = true } })
+    H.assertEq(steps[1].kind, "taxi")
+    H.assertTrue(steps[1].learn, "the flight starts at a master this character has not met")
+    H.assertEq(steps[1].text, "Learn the flight path at Beta, then fly to Gamma")
+end
+
+-- Advice: the flight path whose discovery would shorten this trip next
+-- time, and the undiscovered masters a ride passes on the way.
+function tests.advice_namesTheFlightPathWorthLearning()
+    local _, _, Route = fresh()
+    local steps, total, advice = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.9 },
+        { known = { [1] = true, [2] = true } })
+    H.assertEq(steps[1].kind, "taxi", "fly to the discovered middle point")
+    H.assertNotNil(advice and advice.learn, "the far point would save the long ride")
+    H.assertEq(advice.learn.id, 3)
+    H.assertTrue(advice.learn.save > 500, "8000 yd on a mount against a 200 s flight: " .. tostring(advice.learn.save))
+    H.assertTrue(advice.learn.total < total, "the trip with it learned is shorter")
+end
+
+function tests.advice_listsMastersOnTheWay()
+    local _, _, Route = fresh()
+    local d = data()
+    d.nodes[4] = { n = "Delta", m = 1, x = 0.5, y = 0.105, ci = 1, wx = 5000, wy = 1050 }
+    d.legs = {}
+    d.edges = {}
+    d.abilities = {}
+    local _, _, advice = build(Route, P(1, 0.1, 0.1), { name = "Along the road", mapID = 1, x = 0.9, y = 0.11 },
+        { data = d, known = {} })
+    H.assertNotNil(advice, "undiscovered masters lie on the road")
+    local names = {}
+    for i = 1, #advice.pickups do names[advice.pickups[i].name] = true end
+    H.assertTrue(names.Delta, "the one a few yards off the road is on the way")
+    H.assertNil(names.Gamma, "the one 8000 yd off the road is not")
+end
+
+function tests.noAdvice_whenTheClientCannotSay()
+    local _, _, Route = fresh()
+    local _, _, advice = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.9 }, { known = false })
+    H.assertNil(advice, "every point counts as learned: nothing to suggest")
+end
+
+-- A boat's cost is the ride plus the average wait for it.
+function tests.transportWait_isPartOfTheCost()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_BOAT_FMT = "Board the boat to %s"
+    local d = data()
+    d.edges = { { kind = "boat", n = "Boat to Map 2", dest = "Harbor", from = P(1, 0.1, 0.12), to = P(2, 0.5, 0.59), sec = 60, wait = 120 } }
+    d.abilities = {}
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(steps[1].kind, "boat")
+    H.assertEq(steps[1].wait, 120)
+    H.assertEq(steps[1].edgeSec, 60, "the ride alone")
+    H.assertTrue(steps[1].sec >= 180, "the step counts the wait: " .. tostring(steps[1].sec))
+    H.assertTrue(steps[1].text:find("Harbor", 1, true) ~= nil, "the dock's name: " .. steps[1].text)
+end
+
+-- The recorder stores Enum.FlightPathFaction: 1 Horde, 2 Alliance.
+function tests.factionDigits_areFactions()
+    local _, _, Route = fresh()
+    local d = data()
+    d.nodes[1].faction, d.nodes[2].faction, d.nodes[3].faction = "2", "2", "2"
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local alliance = build(Route, P(1, 0.1, 0.11), dest, { data = d })
+    H.assertEq(alliance[1].kind, "taxi", "Alliance flies Alliance flight masters")
+    local horde = build(Route, P(1, 0.1, 0.11), dest, { data = d, faction = "Horde" })
+    for i = 1, #horde do H.assertTrue(horde[i].kind ~= "taxi", "Horde never does") end
+end
+
+-- The 1.x game: no flying, the character's own pace, roads that wind.
+function tests.classic_groundPace()
+    local _, _, Route = fresh()
+    local d = data()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local _, total = build(Route, P(1, 0.1, 0.1), { name = "Nearby", mapID = 1, x = 0.2, y = 0.1 }, { data = d, groundSpeed = 7 })
+    H.assertTrue(math.abs(total - 1000 * 1.2 / 7) < 0.5, "on foot, no mounting, 1.2 yards walked per yard: " .. tostring(total))
+end
+
+-- A hearth lands in the town this character is bound to.
+function tests.hearth_landsInTheBoundTown()
+    local env, _, Route = fresh()
+    env.C_Map.GetAreaInfo = function(area) return area == 87 and "Goldshire" or nil end
+    local d = data()
+    d.edges = {}
+    d.binds = { [87] = P(2, 0.5, 0.55) }
+    d.abilities = { { id = 8690, n = "Hearthstone", item = 6948, cd = 1800, cast = 10, bind = "hearth" } }
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 },
+        { data = d, bindName = "Goldshire", owns = function() return true end })
+    H.assertEq(steps[1].kind, "teleport")
+    H.assertEq(steps[1].arrive.wx, 5000, "lands at the bound town's spot")
 end
 
 function tests.gatedMarker_isNotOffered()

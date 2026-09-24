@@ -10,6 +10,8 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
+-- Retail only: Data_Forever.lua serves WoW Forever.
+if ns.Caps and ns.Caps.forever then return end
 
 ns.GPSData = {
     build = "69814",

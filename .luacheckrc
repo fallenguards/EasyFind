@@ -40,6 +40,11 @@ read_globals = {
     -- ClassicUI Forever's public API (nil when that addon is not loaded)
     "ClassicUIForeverAPI",
 
+    -- GPS: travel, taxi, character state
+    "GetBindLocation", "UnitOnTaxi", "GetTaxiMapID", "IsMounted", "IsFlying", "IsSwimming",
+    "UnitLevel", "UnitRace", "C_QuestLog", "C_Covenants", "MenuResponse",
+    "SEARCH", "QUEST_DASH", "IN_GAME_NAVIGATION_RANGE",
+
     -- Core API
     "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight", "GetPhysicalScreenSize",
     "CreateFrame", "CreateFont", "CreateVector2D", "CreateColor",

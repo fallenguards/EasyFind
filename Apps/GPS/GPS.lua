@@ -36,7 +36,6 @@ local CROSS_ARRIVE_YARDS = 300   -- a crossing's far spot is where it drops you,
 local ROUTE_MAX_AGE = 2 * 60 * 60
 local ARRIVED_LINGER = 20
 local ROW_H = 22
-local POPOUT_W = 280
 local HIT_ROWS = 8            -- results shown under the pop-out's search box
 -- Pop-out sizes on offer: the cog's radio rows. A nil height fits the steps.
 local SIZE_WIDTHS = { { 240, "GPS_SIZE_NARROW" }, { 300, "GPS_SIZE_NORMAL" }, { 380, "GPS_SIZE_WIDE" }, { 460, "GPS_SIZE_WIDER" } }
@@ -44,6 +43,8 @@ local SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" }, { 160, "GPS_SIZE_SHORT" }, { 240
 
 local ticker
 local surfaces = {}     -- every container that renders the route
+local SampleGroundSpeed -- defined with the recorders at the end
+local popoutFrame       -- built on first use by the pop-out below
 
 local function DB()
     return EasyFind and EasyFind.db
@@ -167,10 +168,10 @@ function GPS:BuildRoute(dest)
     local Route = ns.GPSRoute
     if Route and ns.GPSData then
         local h = HearthPoint()
-        local ok, steps, total = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil })
+        local ok, steps, total, advice = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil })
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
-            return steps, total
+            return steps, total, advice
         end
     end
     -- No way through the data: a plain leg, priced as the crow flies when
@@ -426,6 +427,7 @@ local function Tick()
     if not route or route.arrived then StopTicker() return end
     local step = route.steps[route.active or 1]
     if not step then StopTicker() return end
+    SampleGroundSpeed()
     -- The estimate follows the player: the way still ahead, every second.
     route.eta = RemainingSeconds(route)
     UpdateEtaText(route)
@@ -475,8 +477,8 @@ function GPS:NavigateTo(data, opts)
     local db = DB()
     if not db then return false end
     local dest = Destination(data)
-    local steps, total = self:BuildRoute(dest)
-    CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total }
+    local steps, total, advice = self:BuildRoute(dest)
+    CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice }
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -539,7 +541,6 @@ function GPS:Status()
 end
 
 function GPS:Clear()
-    local db = DB()
     local c = CharDB()
     if c then c.route = nil end
     StopTicker()
@@ -768,6 +769,62 @@ local function StepRow(container, i)
     return row
 end
 
+-- Advice under the steps: flight paths worth learning. A click routes
+-- to that flight master.
+local function TipRow(container, i)
+    container.tips = container.tips or {}
+    local row = container.tips[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, container.list)
+    row:SetHeight(ROW_H)
+    Utils.InstallMenuRowHighlight(row)
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.text._efOwnColor = true
+    row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 30, -4)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(true)
+    row:SetScript("OnClick", function(self)
+        local tip = self.tip
+        if not (tip and tip.p) then return end
+        GPS:NavigateTo({ name = tip.name, mapID = tip.p.m, x = tip.p.x, y = tip.p.y }, { quiet = true })
+    end)
+    row:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
+        GameTooltip:AddLine(L["GPS_ADVICE_TT"], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    container.tips[i] = row
+    return row
+end
+
+-- The advice as lines: masters on the way first (with what learning one
+-- saves when the engine priced it), then the best one elsewhere.
+local function AdviceLines(route)
+    local a = route and route.advice
+    if not a then return nil end
+    local out = {}
+    local learn = a.learn
+    for i = 1, #(a.pickups or {}) do
+        local p = a.pickups[i]
+        local text
+        if learn and learn.id == p.id then
+            text = sformat(L["GPS_ADVICE_PICKUP_SAVE_FMT"], p.name or "?", EtaText(learn.save))
+            learn = nil
+        else
+            text = sformat(L["GPS_ADVICE_PICKUP_FMT"], p.name or "?")
+        end
+        out[#out + 1] = { text = text, name = p.name, p = p.p }
+    end
+    if learn then
+        out[#out + 1] = { text = sformat(L["GPS_ADVICE_LEARN_FMT"], learn.name or "?", EtaText(learn.total), EtaText(route.total or route.eta)),
+                          name = learn.name, p = learn.p }
+    end
+    return #out > 0 and out or nil
+end
+
 local StyleTrackButton, RouteTracked   -- defined with the tracking toggle below; the surfaces render before it
 
 local function Render(container)
@@ -782,6 +839,7 @@ local function Render(container)
         if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
         container.title:SetText("")
         for i = 1, #rows do rows[i]:Hide() end
+        for i = 1, #(container.tips or {}) do container.tips[i]:Hide() end
         container.list:SetHeight(1)
         container.contentHeight = 0
         if container.search then
@@ -846,6 +904,22 @@ local function Render(container)
         y = y + rowH
     end
     for i = shown + 1, #rows do rows[i]:Hide() end
+    local tips = not route.arrived and AdviceLines(route) or nil
+    local nTips = tips and #tips or 0
+    for t = 1, nTips do
+        local row = TipRow(container, t)
+        row.tip = tips[t]
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
+        row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
+        row.text:SetText(tips[t].text)
+        row.text:SetTextColor(unpack(ns.TEXT_DIM))
+        local rowH = mmax(ROW_H, (row.text:GetStringHeight() or 0) + 8)
+        row:SetHeight(rowH)
+        row:Show()
+        y = y + rowH
+    end
+    for t = nTips + 1, #(container.tips or {}) do container.tips[t]:Hide() end
     container.contentHeight = y
     container.list:SetHeight(mmax(1, y))
     if container.OnRouteChanged then container:OnRouteChanged(true) end
@@ -1259,7 +1333,6 @@ end
 -- tracker to get the window back. The section under it hangs off its
 -- bottom, so the tracker flows around it.
 
-local popoutFrame
 local dockFrame
 local RenderDock            -- defined below; the ghost helpers above it call it
 local PopoutSize            -- defined with the pop-out below; the floating section uses it
@@ -1853,7 +1926,6 @@ local function BuildDock()
                     -- Closing the section ends the route with it.
                     GPS:Clear()
                     GPS:Undock()
-                    local db = DB()
                     local c = CharDB()
                     if c then c.popoutOpen = nil end
                 end }
@@ -2154,7 +2226,6 @@ end
 -- The cog's popup: width and height as radio rows, the menu convention.
 local function ShowSizePopup(anchor)
     if not ns.ShowTogglePopup then return end
-    local w, h = PopoutSize()
     local defs = {}
     for _, d in ipairs(GPS.StyleRows()) do defs[#defs + 1] = d end
     defs[#defs + 1] = { kind = "separator" }
@@ -2516,7 +2587,6 @@ function GPS:TogglePopout(show)
             dockFrame.floating = nil
             dockFrame:Hide()
         end
-        local db = DB()
         local c = CharDB()
         if c then c.popoutOpen = show or nil end
         return
@@ -2529,7 +2599,6 @@ function GPS:TogglePopout(show)
     if show and popoutFrame.SyncFold then popoutFrame:SyncFold() end
     if show then popoutFrame:Render() end
     -- Open or closed survives a reload, like the route does.
-    local db = DB()
     local c = CharDB()
     if c then c.popoutOpen = show or nil end
 end
@@ -2553,7 +2622,43 @@ local function IsHearthSpell(spellID)
 end
 local hearthCastAt
 
+-- Flight masters this character was seen to know at a flight master: the
+-- world map's listing is the main answer, this covers a client where it
+-- cannot say.
+local function RecordKnownFlights()
+    local c = CharDB()
+    local mapID = GetTaxiMapID and GetTaxiMapID()
+    if not (c and mapID and C_TaxiMap and C_TaxiMap.GetAllTaxiNodes and Enum and Enum.FlightPathState) then return end
+    local ok, list = pcall(C_TaxiMap.GetAllTaxiNodes, mapID)
+    if not (ok and list) then return end
+    local state = Enum.FlightPathState
+    c.flights = c.flights or {}
+    for i = 1, #list do
+        local n = list[i]
+        if n.nodeID and (n.state == state.Current or n.state == state.Reachable) then c.flights[n.nodeID] = true end
+    end
+    local Engine = ns.GPSRoute
+    if Engine then
+        Engine.recordedKnown = c.flights
+        Engine.ForgetKnown()
+    end
+end
+
+-- This character's mounted pace on the ground, the fastest seen.
+SampleGroundSpeed = function()
+    if not (IsMounted and IsMounted()) or (UnitOnTaxi and UnitOnTaxi("player")) then return end
+    if (IsFlying and IsFlying()) or (IsSwimming and IsSwimming()) then return end
+    local ok, speed = pcall(GetUnitSpeed, "player")
+    if not (ok and speed) or speed <= 7.5 or speed > 40 then return end
+    local c = CharDB()
+    if c and (not c.groundSpeed or speed > c.groundSpeed + 0.05) then
+        c.groundSpeed = speed
+        if ns.GPSRoute then ns.GPSRoute.seenGroundSpeed = speed end
+    end
+end
+
 local loginFrame = CreateFrame("Frame")
+loginFrame:RegisterEvent("TAXIMAP_OPENED")
 loginFrame:RegisterEvent("PLAYER_LOGIN")
 loginFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 loginFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -2576,6 +2681,10 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
         if IsHearthSpell(spellID) then hearthCastAt = GetTime() end
         return
     end
+    if event == "TAXIMAP_OPENED" then
+        Utils.SafeAfter(0, RecordKnownFlights)
+        return
+    end
     if event == "PLAYER_ENTERING_WORLD" then
         if hearthCastAt and GetTime() - hearthCastAt < 90 then
             hearthCastAt = nil
@@ -2585,6 +2694,11 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     end
     self:UnregisterEvent("PLAYER_LOGIN")
     local db = DB()
+    local cc = CharDB()
+    if cc and ns.GPSRoute then
+        ns.GPSRoute.recordedKnown = cc.flights
+        ns.GPSRoute.seenGroundSpeed = cc.groundSpeed
+    end
     -- Routes once lived on the account; one left there is dropped, not
     -- handed to whichever character logs in next.
     if db then db.gpsRoute, db.gpsPopoutOpen = nil, nil end

@@ -10,7 +10,7 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local mabs, matan2, msqrt = math.abs, math.atan2, math.sqrt
+local matan2, msqrt = math.atan2, math.sqrt
 local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
@@ -30,7 +30,6 @@ local overlay, pool, marks
 local shownMap, shownIndex
 local since = 0
 
-local function DB() return EasyFind and EasyFind.db end
 local function Route() local g = ns and ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
 
 local function Canvas()

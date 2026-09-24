@@ -1,4 +1,4 @@
-## Interface: 120100, 120007, 120001, 120000
+## Interface: 16001, 120100, 120007, 120001, 120000
 ## Title: EasyFind [GPS]
 ## Notes: GPS companion for EasyFind: step by step directions to any zone or point of interest
 ## Author: justawower
@@ -10,6 +10,7 @@
 ## DefaultState: enabled
 
 Data.lua
+Data_Forever.lua
 Route.lua
 WorldPin.lua
 Preview.lua
