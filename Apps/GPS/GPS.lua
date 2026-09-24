@@ -1413,7 +1413,7 @@ end
 
 local VisibleModules   -- defined below; the drop zone reads the sections
 
--- Where a drop docks: the tracker's width, from its top down to the end of
+-- Where a drop docks: over the tracker, from its top down to the end of
 -- what it shows (its frame can run far below its sections; on Forever it
 -- spans most of the screen), or a header's height when it shows nothing.
 local function NearTracker(f)
@@ -1429,7 +1429,10 @@ local function NearTracker(f)
     if dockFrame and dockFrame.docked and dockFrame:GetBottom() and dockFrame:GetBottom() < bottom then
         bottom = dockFrame:GetBottom()
     end
-    return f:GetLeft() < t:GetRight() + DOCK_REACH and f:GetRight() > t:GetLeft() - DOCK_REACH
+    -- Onto it, not beside it: the frame's middle over the tracker's columns,
+    -- so a window can sit right next to the tracker without docking.
+    local cx = (f:GetLeft() + f:GetRight()) / 2
+    return cx > t:GetLeft() and cx < t:GetRight()
         and f:GetTop() > bottom - DOCK_REACH and f:GetBottom() < top + DOCK_REACH
 end
 
