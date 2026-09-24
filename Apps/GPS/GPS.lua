@@ -283,6 +283,9 @@ TrackStep = function(index)
     if not step then return end
     route.active = index
     route.arrived = nil
+    -- A teleport counts as taken only once cast, or once off this continent.
+    route.castAt = nil
+    route.stepCi = PlayerWorldPos()
     local MapSearch = ns.MapSearch
     local mapID, x, y = WaypointPoint(step)
     if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
@@ -452,6 +455,8 @@ local function Tick()
     elseif arrive then sci, sx, sy = WorldPos(arrive.m, arrive.x, arrive.y)
     else sci, sx, sy = WorldPos(step.mapID, step.x, step.y) end
     if not sci or sci ~= ci then return end
+    if step.kind == "teleport" and ci == route.stepCi
+        and not (route.castAt and GetTime() - route.castAt < 300) then return end
     local crossing = step.kind ~= "travel"
     -- A crossing to another continent is done the moment you are on it;
     -- one that stays on this continent is done near its far spot.
@@ -2679,6 +2684,9 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     end
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
         if IsHearthSpell(spellID) then hearthCastAt = GetTime() end
+        local route = Route()
+        local step = route and not route.arrived and route.steps[route.active or 1]
+        if step and step.kind == "teleport" and step.spellID == spellID then route.castAt = GetTime() end
         return
     end
     if event == "TAXIMAP_OPENED" then

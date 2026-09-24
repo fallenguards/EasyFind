@@ -21,6 +21,7 @@ local tinsert, tsort = table.insert, table.sort
 local MOUNT_UP = 2          -- seconds to get on a mount
 local BOARD_TAXI = 4        -- seconds at the flight master
 local ABILITY_WAIT_MAX = 600 -- a cooldown longer than this is not worth waiting for
+local TELEPORT_MIN_YARDS = 1000 -- a teleport landing closer than this to the start is no trip
 local WALK_DETOUR = 1.2     -- roads wind where nobody flies: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
 local SUGGEST_MIN_SECONDS = 60
@@ -205,6 +206,9 @@ local function BuildGraph(ctx)
         else
             dest = a.to and Resolve(a.to)
         end
+        -- A landing a short ride from here is never worth a cast: the
+        -- step would count as done before it was taken.
+        if dest and dest.ci == ctx.start.ci and Dist(dest, ctx.start) < TELEPORT_MIN_YARDS then dest = nil end
         if dest and (not a.class or a.class == ctx.class) and (not a.faction or a.faction == ctx.faction)
             and (not a.race or a.race == ctx.race) and ctx.meets(a.req) and ctx.owns(a) then
             local wait = ctx.cooldown and ctx.cooldown(a) or 0

@@ -224,6 +224,18 @@ function tests.classic_groundPace()
     H.assertTrue(math.abs(total - 1000 * 1.2 / 7) < 0.5, "on foot, no mounting, 1.2 yards walked per yard: " .. tostring(total))
 end
 
+-- A teleport landing a short ride from the start is never offered, even
+-- when it lands a little nearer the goal.
+function tests.teleport_notTakenWhenItLandsNearby()
+    local _, _, Route = fresh()
+    local d = data()
+    d.edges, d.legs = {}, {}
+    d.abilities = { { id = 8690, n = "Hearthstone", item = 6948, cd = 1800, cast = 10, to = P(1, 0.15, 0.1) } }
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Down the road", mapID = 1, x = 0.4, y = 0.1 },
+        { data = d, owns = function() return true end })
+    for i = 1, #steps do H.assertTrue(steps[i].kind ~= "teleport", "a hearth 500 yd away is not a trip") end
+end
+
 -- A hearth lands in the town this character is bound to.
 function tests.hearth_landsInTheBoundTown()
     local env, _, Route = fresh()
