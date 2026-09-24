@@ -23,7 +23,7 @@ local GetMapRectOnMap = C_Map.GetMapRectOnMap
 local SetUserWaypoint = C_Map.SetUserWaypoint
 local HasUserWaypoint = C_Map.HasUserWaypoint
 local ClearUserWaypoint = C_Map.ClearUserWaypoint
-local GetDungeonEntrancesForMap = C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap
+local GetDungeonEntrancesForMap = ns.GetDungeonEntrancesForMap
 local SetSuperTrackedVignette = C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette
 local IsOrphanZone = MapUtils.IsOrphanZone
 

@@ -423,6 +423,7 @@ L["GPS_ADVICE_PICKUP_FMT"]              = "Lungo la strada: impara la rotta di v
 L["GPS_ADVICE_PICKUP_SAVE_FMT"]         = "Lungo la strada: impara la rotta di volo di %s (%s più veloce la prossima volta)"
 L["GPS_ADVICE_LEARN_FMT"]               = "Impara la rotta di volo di %s: questo viaggio durerebbe %s invece di %s"
 L["GPS_ADVICE_TT"]                      = "Clic per andare da questo maestro di volo."
+L["INSTANCE_PIN_TT"]                    = "Clic per raggiungere questo punto."
 L["GPS_STEP_TRAM_FMT"]                  = "Prendi il tram per %s"
 L["GPS_STEP_USE_FMT"]                   = "Usa %s"
 L["FILTER_EXTENSIONS"]                  = "Estensioni"

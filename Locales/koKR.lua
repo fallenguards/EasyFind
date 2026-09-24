@@ -423,6 +423,7 @@ L["GPS_ADVICE_PICKUP_FMT"]              = "가는 길에: %s 비행 경로 익�
 L["GPS_ADVICE_PICKUP_SAVE_FMT"]         = "가는 길에: %s 비행 경로 익히기 (다음에 %s 단축)"
 L["GPS_ADVICE_LEARN_FMT"]               = "%s 비행 경로를 익히면 이 여정이 %s 걸립니다 (현재 %s)"
 L["GPS_ADVICE_TT"]                      = "클릭하면 이 비행 조련사까지 경로를 안내합니다."
+L["INSTANCE_PIN_TT"]                    = "클릭하면 이곳까지 경로를 안내합니다."
 L["GPS_STEP_TRAM_FMT"]                  = "%s(으)로 가는 지하철 탑승"
 L["GPS_STEP_USE_FMT"]                   = "%s 사용"
 L["FILTER_EXTENSIONS"]                  = "확장 기능"

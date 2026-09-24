@@ -44,6 +44,7 @@ Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua
 Database/StaticLocations_Forever.lua
+Database/Instances_Forever.lua
 Database/StaticLocations.lua
 Shared/Aliases.lua
 Shared/Shortkeys.lua
@@ -135,6 +136,7 @@ MapSearch/Zones/Navigation.lua
 MapSearch/Zones/Breadcrumbs.lua
 MapSearch/Navigation.lua
 MapSearch/Pins.lua
+MapSearch/InstancePins.lua
 MapSearch/Preview.lua
 MapSearch/UINavigation.lua
 MapSearch/Search/Core.lua

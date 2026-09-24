@@ -26,7 +26,7 @@ local GetMapChildrenInfo = C_Map.GetMapChildrenInfo
 local GetBestMapForUnit = C_Map.GetBestMapForUnit
 local GetAreaPOIInfo = C_AreaPoiInfo and C_AreaPoiInfo.GetAreaPOIInfo
 local GetDelvesForMap = C_AreaPoiInfo and C_AreaPoiInfo.GetDelvesForMap
-local GetDungeonEntrancesForMap = C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap
+local GetDungeonEntrancesForMap = ns.GetDungeonEntrancesForMap
 local GetMapRectOnMap = C_Map.GetMapRectOnMap
 
 local normalizeName = Search.NormalizeName
@@ -80,6 +80,7 @@ local function GetContinentInstanceOwners(continentID)
 end
 
 local function ClassifyDungeonEntrance(entrance)
+    if entrance.isRaid ~= nil then return entrance.isRaid and "raid" or "dungeon" end
     if entrance.journalInstanceID and EJ_GetInstanceInfo then
         local _, _, _, _, _, _, _, _, _, _, _, isRaid = EJ_GetInstanceInfo(entrance.journalInstanceID)
         if isRaid then return "raid" end
