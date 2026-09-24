@@ -26,6 +26,14 @@ local function NameLess(a, b) return a.name < b.name end
 local function ZoneMapIDDesc(a, b) return (a.zoneMapID or 0) > (b.zoneMapID or 0) end
 
 local TAB_W, TAB_H       = 43, 55
+-- Side-tab art: retail's quest log draws the shared side tabs, whose
+-- edge tucks under the map frame; Forever's draws none, so ours match
+-- the quest log's own tab art there (the Quests tab we add is the same).
+local FOREVER_TABS = ns.Caps and ns.Caps.forever
+local SIDE_TAB = FOREVER_TABS and "QuestLog-tab-side" or "common-sidetab"
+local SIDE_TAB_SELECT = FOREVER_TABS and "QuestLog-Tab-side-Glow-Select" or "common-sidetab-selected"
+local SIDE_TAB_HOVER = FOREVER_TABS and "QuestLog-Tab-side-Glow-hover" or "common-sidetab-hover"
+local SIDE_TAB_ICON_X = FOREVER_TABS and 0 or -2
 local TAB_ICON_SIZE      = 20
 local TAB_ICON_GOLD      = {1.00, 0.82, 0.00}
 local TAB_ICON_DIM       = {0.55, 0.45, 0.10}
@@ -226,7 +234,7 @@ local function RefreshSelectGlows()
     if not qmf then return end
     local function setGlow(tab, shown)
         if not tab then return end
-        local glow = tab._efSelectGlow or tab.SelectedTexture or FindAtlasTexture(tab, "common-sidetab-selected")
+        local glow = tab._efSelectGlow or tab.SelectedTexture or FindAtlasTexture(tab, SIDE_TAB_SELECT)
         if glow then
             tab._efSelectGlow = glow
             glow:SetShown(shown)
@@ -2372,7 +2380,7 @@ local function CreateTabFrame(qmf)
     tab:EnableMouse(true)
 
     local bg = tab:CreateTexture(nil, "BACKGROUND")
-    bg:SetAtlas("common-sidetab", true)
+    bg:SetAtlas(SIDE_TAB, true)
     bg:SetPoint("CENTER", tab, "CENTER", 0, 0)
 
     local icon = tab:CreateTexture(nil, "ARTWORK")
@@ -2381,20 +2389,20 @@ local function CreateTabFrame(qmf)
     icon:SetTexture(ns.GPS_ICON_TEX)
     icon:SetTexCoord(0, 1, 0, 1)
     icon:SetSize(TAB_ICON_SIZE + 2, TAB_ICON_SIZE + 2)
-    -- The tab art tucks under the map edge on its left, so the icon sits
-    -- 2px left of center, as on the side tabs it stacks under.
-    icon:SetPoint("CENTER", tab, "CENTER", -2, 0)
+    -- Retail's tab art tucks under the map edge on its left, so there the
+    -- icon sits 2px left of center, as on the side tabs it stacks under.
+    icon:SetPoint("CENTER", tab, "CENTER", SIDE_TAB_ICON_X, 0)
     icon:SetVertexColor(Utils.RGB(TAB_ICON_DIM))
     tab._efIcon = icon
 
     local selectGlow = tab:CreateTexture(nil, "OVERLAY")
-    selectGlow:SetAtlas("common-sidetab-selected", true)
+    selectGlow:SetAtlas(SIDE_TAB_SELECT, true)
     selectGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
     selectGlow:Hide()
     tab._efSelectGlow = selectGlow
 
     local hoverGlow = tab:CreateTexture(nil, "HIGHLIGHT")
-    hoverGlow:SetAtlas("common-sidetab-hover", true)
+    hoverGlow:SetAtlas(SIDE_TAB_HOVER, true)
     hoverGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
 
     tab:SetScript("OnMouseUp", function(_, button)
@@ -2498,7 +2506,7 @@ local function CreateExtraTab(qmf, def)
     tab:EnableMouse(true)
 
     local bg = tab:CreateTexture(nil, "BACKGROUND")
-    bg:SetAtlas("common-sidetab", true)
+    bg:SetAtlas(SIDE_TAB, true)
     bg:SetPoint("CENTER", tab, "CENTER", 0, 0)
 
     local icon = tab:CreateTexture(nil, "ARTWORK")
@@ -2506,20 +2514,20 @@ local function CreateExtraTab(qmf, def)
     if def.coords then icon:SetTexCoord(unpack(def.coords)) end
     local size = def.iconSize or TAB_ICON_SIZE
     icon:SetSize(size, size)
-    -- The tab art tucks under the map edge on its left, so the icon sits
-    -- 2px left of center, as on the side tabs it stacks under.
-    icon:SetPoint("CENTER", tab, "CENTER", -2, 0)
+    -- Retail's tab art tucks under the map edge on its left, so there the
+    -- icon sits 2px left of center, as on the side tabs it stacks under.
+    icon:SetPoint("CENTER", tab, "CENTER", SIDE_TAB_ICON_X, 0)
     icon:SetVertexColor(Utils.RGB(TAB_ICON_DIM))
     tab._efIcon = icon
 
     local selectGlow = tab:CreateTexture(nil, "OVERLAY")
-    selectGlow:SetAtlas("common-sidetab-selected", true)
+    selectGlow:SetAtlas(SIDE_TAB_SELECT, true)
     selectGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
     selectGlow:Hide()
     tab._efSelectGlow = selectGlow
 
     local hoverGlow = tab:CreateTexture(nil, "HIGHLIGHT")
-    hoverGlow:SetAtlas("common-sidetab-hover", true)
+    hoverGlow:SetAtlas(SIDE_TAB_HOVER, true)
     hoverGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
 
     tab:SetScript("OnMouseUp", function(_, button)
