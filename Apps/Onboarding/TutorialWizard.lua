@@ -761,14 +761,15 @@ function RepaintFeatureTiles()
 end
 
 -- The Map feature tile mirrors the world-map side tab players actually click:
--- the shared side-tab silhouette with the gold map pin 2px left of center on
--- it (see MapSearch/MapTab.lua CreateTabFrame). Rendered at the atlas's native
+-- the side-tab silhouette with the gold map pin on it, in the art the client
+-- draws there (see MapSearch/MapTab.lua SIDE_TAB). Rendered at the atlas's native
 -- proportions, scaled into the tile's icon slot; the glyph keeps the live tab's
 -- ~22/55 glyph-to-tab height ratio and its active gold tint.
 local MAP_TAB_TILE_H = 44
+local FOREVER_TABS = ns.Caps and ns.Caps.forever
 local function BuildMapSideTabReplica(tile, anchor)
     local silo = tile:CreateTexture(nil, "BACKGROUND")
-    silo:SetAtlas("common-sidetab", true)
+    silo:SetAtlas(FOREVER_TABS and "QuestLog-tab-side" or "common-sidetab", true)
     local nw, nh = silo:GetSize()
     local scale = (nh and nh > 0) and (MAP_TAB_TILE_H / nh) or 1
     silo:SetSize((nw or 34) * scale, (nh or MAP_TAB_TILE_H) * scale)
@@ -779,14 +780,14 @@ local function BuildMapSideTabReplica(tile, anchor)
     mag:SetTexCoord(0, 1, 0, 1)
     local magSize = MAP_TAB_TILE_H * 22 / 55
     mag:SetSize(magSize, magSize)
-    mag:SetPoint("CENTER", silo, "CENTER", -2 * scale, 0)
+    mag:SetPoint("CENTER", silo, "CENTER", (FOREVER_TABS and 0 or -2) * scale, 0)
     mag:SetVertexColor(Utils.RGB(GOLD))
 
     -- Show the tab as selected, mirroring CreateTabFrame's setGlow(tab, true):
     -- the same select-glow atlas, scaled with the silhouette so the halo sits
     -- around the tab exactly as it does live.
     local glow = tile:CreateTexture(nil, "OVERLAY")
-    glow:SetAtlas("common-sidetab-selected", true)
+    glow:SetAtlas(FOREVER_TABS and "QuestLog-Tab-side-Glow-Select" or "common-sidetab-selected", true)
     local gw, gh = glow:GetSize()
     glow:SetSize((gw or 44) * scale, (gh or 55) * scale)
     glow:SetPoint("CENTER", silo, "CENTER", 0, 0)
