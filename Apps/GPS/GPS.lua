@@ -1482,13 +1482,43 @@ end
 -- both, so nothing of ours ever fights them.
 local INSERT_KEY = "EasyFindGPS"
 
+-- WoW Forever's tracker recomputes its top padding on every update from
+-- registered providers, so the room at the top slot is ours through a
+-- provider. Each update asks twice in one frame: first for the room above
+-- its first section, then for its header's place. Answering 0 the second
+-- time keeps the header put, so the room opens between it and Quests.
+-- seen is what the first answer put in the padding until the next update.
+local topPad = { height = 0, seen = 0 }
+function topPad:GetTopPadding()
+    local now = GetTime()
+    if self.headerAsk == now then
+        self.headerAsk = nil
+        return 0
+    end
+    self.headerAsk = now
+    self.seen = self.height
+    return self.height
+end
+local topPadAdded
+local function TopPadProvider(t)
+    if topPadAdded then return true end
+    if not (t and type(t.topPaddingProviders) == "table" and EventRegistry and EventRegistry.TriggerEvent) then return false end
+    EventRegistry:TriggerEvent("ObjectiveTrackerContainerMixin.AddTopPaddingProvider", topPad)
+    topPadAdded = t.topPaddingProviders[topPad] == true
+    return topPadAdded
+end
+
 local function ClearInsert(t)
     if not dockFrame then return end
     local ins = dockFrame.insert
     dockFrame.insert = nil
     if not ins then return end
     if ins.module and ins.module.ClearHeightModifier then ins.module:ClearHeightModifier(INSERT_KEY) end
-    if ins.pad ~= nil and t then t.topModulePadding = ins.pad end
+    if ins.provider then
+        topPad.height = 0
+    elseif ins.pad ~= nil and t then
+        t.topModulePadding = ins.pad
+    end
 end
 
 local function ApplyInsert(t, slot, height)
@@ -1505,8 +1535,13 @@ local function ApplyInsert(t, slot, height)
         if above then
             if above.SetHeightModifier then above:SetHeightModifier(INSERT_KEY, height + spacing) end
         else
-            ins.pad = t.topModulePadding or 0
-            t.topModulePadding = ins.pad + height + spacing
+            ins.pad = (t.topModulePadding or 0) - topPad.seen
+            if TopPadProvider(t) then
+                ins.provider = true
+                topPad.height = height + spacing
+            else
+                t.topModulePadding = ins.pad + height + spacing
+            end
         end
         dockFrame.insert = ins
         TrackerRelayout(t)
@@ -1544,7 +1579,8 @@ local function PlaceDock()
         -- is its extended bottom, and the next section hangs off that.
         dockFrame:SetPoint("TOP", above, "BOTTOM", 0, height)
     else
-        dockFrame:SetPoint("TOP", t, "TOP", 0, -(ins.pad or 0))
+        local pad = ins.provider and ((t.topModulePadding or 0) - topPad.seen) or ins.pad or 0
+        dockFrame:SetPoint("TOP", t, "TOP", 0, -pad)
     end
     -- The tracker's own sections are inset by their left margin on both
     -- sides (anchored by center and left); the same width here.
