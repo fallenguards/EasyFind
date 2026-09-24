@@ -26,6 +26,7 @@ local sformat = string.format
 local MEDIA = "Interface\\AddOns\\EasyFind_GPS\\textures\\"
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 local TEX_CORE, TEX_HELIX, TEX_FLARE, TEX_MASK = MEDIA .. "beam_core", MEDIA .. "beam_helix", MEDIA .. "beam_flare", MEDIA .. "beam_mask"
+local TEX_FUNNEL = MEDIA .. "beam_funnel"    -- the calm look's light, narrowing to its foot
 local TEX_EMBLEM = MEDIA .. "emblem_mask"      -- the ring and glass, torn and warped
 local TEX_FLAMES = MEDIA .. "emblem_flames"    -- the air around and above its lines
 local WHITE = "Interface\\Buttons\\WHITE8x8"
@@ -50,8 +51,7 @@ local HELIX = {
 }
 local SCALE_DIST = 1000             -- the beam is full size this far away
 -- The calm funnel: wide and faint at the top, narrowing onto the emblem.
-local CALM_H, CALM_TOP_W, CALM_FOOT_W = 380, 96, 10
-local CALM_CORE_TOP_W, CALM_CORE_FOOT_W = 30, 4
+local CALM_H, CALM_TOP_W, CALM_CORE_W = 380, 110, 36
 local CALM_EMBLEM = 44
 
 local frame, beam, calm, plate, edge, driver
@@ -382,30 +382,22 @@ local function Build(host)
         { { secs = 2.2, role = "fire", a = 0.95 }, { secs = 3.4, role = "fire2", a = 0.65 } }, 3)
 
     -- The calm look: a still funnel of light narrowing onto the emblem,
-    -- nothing moving. The funnel is a strip whose foot corners are pulled
-    -- in; the emblem is the flat shape with its lit rim over a soft glow.
+    -- nothing moving; drawn symmetric in its own art (stretching a strip's
+    -- corners warps it unevenly). The emblem: flat shape, lit rim, soft glow.
     calm = CreateFrame("Frame", nil, frame)
     calm:SetSize(CALM_TOP_W, CALM_H)
     calm:SetPoint("BOTTOM", frame, "CENTER", 0, 0)
-    local calmMask = calm:CreateMaskTexture()
-    calmMask:SetTexture(TEX_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    calmMask:SetPoint("TOPLEFT", calm, "TOPLEFT", -CALM_TOP_W, 0)
-    calmMask:SetPoint("BOTTOMRIGHT", calm, "BOTTOMRIGHT", CALM_TOP_W, CALM_EMBLEM * 0.35)
-    local function funnel(topW, footW, sub, role, a)
+    local function funnel(w, sub, role, a)
         local tex = calm:CreateTexture(nil, "ARTWORK", nil, sub)
-        tex:SetTexture(TEX_CORE)
+        tex:SetTexture(TEX_FUNNEL)
         tex:SetBlendMode("ADD")
-        tex:SetSize(topW, CALM_H)
+        tex:SetSize(w, CALM_H)
         tex:SetPoint("BOTTOM")
-        local pull = (topW - footW) / 2
-        tex:SetVertexOffset(2, pull, 0)     -- lower left
-        tex:SetVertexOffset(4, -pull, 0)    -- lower right
         Tint(tex, role, a)
-        tex:AddMaskTexture(calmMask)
         return tex
     end
-    funnel(CALM_TOP_W, CALM_FOOT_W, 1, "glow", 0.32)
-    funnel(CALM_CORE_TOP_W, CALM_CORE_FOOT_W, 2, "core", 0.55)
+    funnel(CALM_TOP_W, 1, "glow", 0.55)
+    funnel(CALM_CORE_W, 2, "core", 0.7)
     local seat = CreateFrame("Frame", nil, calm)
     seat:SetFrameLevel(calm:GetFrameLevel() + 2)
     seat:SetSize(CALM_EMBLEM, CALM_EMBLEM)
