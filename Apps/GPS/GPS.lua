@@ -270,7 +270,7 @@ local function StepText(step, active)
     else tci, tx, ty = WorldPos(step.go.m, step.go.x, step.go.y) end
     if ci and tci == ci and tx then
         local d = ((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5
-        if d > REACH_YARDS then return sformat(L["GPS_STEP_REACH_FMT"], step.reach) end
+        if d > REACH_YARDS then return step.reachText or sformat(L["GPS_STEP_REACH_FMT"], step.reach) end
     end
     return step.text or ""
 end

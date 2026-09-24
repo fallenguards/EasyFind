@@ -236,6 +236,32 @@ function tests.teleport_notTakenWhenItLandsNearby()
     for i = 1, #steps do H.assertTrue(steps[i].kind ~= "teleport", "a hearth 500 yd away is not a trip") end
 end
 
+-- An island is not walked to: the route takes the boat even when the
+-- straight line across the water is shorter.
+function tests.island_isReachedByBoatNotOnFoot()
+    local _, _, Route = fresh()
+    local d = data()
+    d.legs, d.abilities = {}, {}
+    d.edges = { { kind = "boat", n = "Boat to the island", dest = "Isle", from = P(1, 0.1, 0.12), to = P(1, 0.5, 0.55), sec = 300, wait = 120 } }
+    d.edges[1].to.m = 3
+    d.landmass = { zones = { [3] = "isle" } }
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "On the isle", mapID = 3, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(steps[1].kind, "boat", "no walking across to the isle")
+    local nodata = build(Route, P(1, 0.1, 0.1), { name = "On the isle", mapID = 3, x = 0.5, y = 0.6 }, { data = data() })
+    H.assertTrue(nodata ~= nil, "without landmass data every spot on a continent is walkable, as before")
+end
+
+-- A crossing still a way off says which dock to head for.
+function tests.crossing_namesItsDockWhileFar()
+    local _, ns, Route = fresh()
+    ns.L.GPS_REACH_BOAT_FMT = "Go to the dock for the boat to %s"
+    local d = data()
+    d.edges = { { kind = "boat", n = "Boat to Map 2", dest = "Harbor", from = P(1, 0.1, 0.12), to = P(2, 0.5, 0.59), sec = 60, wait = 120 } }
+    d.abilities = {}
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(steps[1].reachText, "Go to the dock for the boat to Harbor")
+end
+
 -- A hearth lands in the town this character is bound to.
 function tests.hearth_landsInTheBoundTown()
     local env, _, Route = fresh()

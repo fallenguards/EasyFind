@@ -100,6 +100,24 @@ end
 -- The graph
 -- ---------------------------------------------------------------------------
 
+-- Which landmass a point stands on, when the data names one: walking never
+-- crosses between two (an island is reached by boat, flight or portal).
+-- A spot (a circle) wins over its zone, for ground that shares a zone with
+-- land it cannot walk to.
+local function Landmass(data, p)
+    local lm = data.landmass
+    if not (lm and p) then return nil end
+    local spots = lm.spots
+    for i = 1, spots and #spots or 0 do
+        local sp = spots[i]
+        if sp.ci == p.ci then
+            local dx, dy = p.wx - sp.wx, p.wy - sp.wy
+            if dx * dx + dy * dy <= sp.r * sp.r then return sp.name end
+        end
+    end
+    return lm.zones and p.m and lm.zones[p.m] or nil
+end
+
 -- ctx: { start = point, goal = point, faction = "Alliance"|"Horde", canFly = bool,
 --        data = ns.GPSData, cooldown = function(ability) -> seconds remaining,
 --        known = { nodeID = true } | nil (nil: every node counts as learned),
@@ -112,7 +130,7 @@ local function BuildGraph(ctx)
     local byCi = {}           -- continent -> array of node indexes
 
     local function AddNode(p, kind, extra)
-        local n = { p = p, kind = kind }
+        local n = { p = p, kind = kind, land = Landmass(data, p) }
         if extra then for k, v in pairs(extra) do n[k] = v end end
         nodes[#nodes + 1] = n
         local list = byCi[p.ci]
@@ -244,12 +262,12 @@ end
 local function Neighbors(g, i, out)
     local n = g.nodes[i]
     local k = 0
-    -- Straight-line travel to everything on the same continent.
+    -- Straight-line travel to everything on the same continent and landmass.
     local same = g.byCi[n.p.ci]
     if same then
         for j = 1, #same do
             local idx = same[j]
-            if idx ~= i then
+            if idx ~= i and g.nodes[idx].land == n.land then
                 k = k + 1
                 -- Two points within a few yards are the same spot: free,
                 -- no mounting (a portal's arrival that is the goal).
@@ -322,6 +340,12 @@ local KIND_KEY = {
     portal = "GPS_STEP_PORTAL_FMT", boat = "GPS_STEP_BOAT_FMT", zeppelin = "GPS_STEP_ZEPPELIN_FMT",
     tram = "GPS_STEP_TRAM_FMT", ferry = "GPS_STEP_BOAT_FMT", skyship = "GPS_STEP_SKYSHIP_FMT",
     seam = "GPS_STEP_TRAVEL_FMT",
+}
+-- What a crossing's step says while its spot is still a way off: which
+-- dock, tower or portal to head for, named by where it goes.
+local REACH_KEY = {
+    boat = "GPS_REACH_BOAT_FMT", ferry = "GPS_REACH_BOAT_FMT", zeppelin = "GPS_REACH_ZEPPELIN_FMT",
+    skyship = "GPS_REACH_SKYSHIP_FMT", tram = "GPS_REACH_TRAM_FMT", portal = "GPS_REACH_PORTAL_FMT",
 }
 
 -- Where a crossing leads: the client's own name for the dock's area when
@@ -512,7 +536,8 @@ local function Steps(g, path, goalName)
             tinsert(steps, { kind = "taxi", text = (L[key]):format(fromName, last.name or "?"),
                              mapID = fromNode and fromNode.p.m, x = fromNode and fromNode.p.x, y = fromNode and fromNode.p.y,
                              go = fromNode and fromNode.p, arrive = last.p, sec = sec + carry, edgeSec = sec,
-                             reach = fromNode and fromNode.name, learn = learn, nodeID = fromNode and fromNode.id })
+                             reach = fromNode and fromNode.name, learn = learn, nodeID = fromNode and fromNode.id,
+                             reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(fromName) })
             carry = 0
             i = j
         elseif e.kind == "teleport" then
@@ -526,10 +551,13 @@ local function Steps(g, path, goalName)
             local from = g.nodes[i > 1 and path[i - 1].node or g.start]
             local floor = FloorHint(g, from.p)
             local wait = e.edge.wait
-            tinsert(steps, { kind = e.kind, text = WithFloor((L[key]):format(EdgeDestName(e.edge, e.reverse)), floor),
+            local dest = EdgeDestName(e.edge, e.reverse)
+            local reachKey = REACH_KEY[e.kind]
+            tinsert(steps, { kind = e.kind, text = WithFloor((L[key]):format(dest), floor),
                              mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p, sec = e.sec + carry,
                              edgeSec = e.sec - (wait or 0), wait = wait,
-                             reach = AreaName(from.p.area) or e.edge.n,
+                             reach = e.edge.n,
+                             reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil,
                              floor = floor })
             carry = 0
             i = i + 1
