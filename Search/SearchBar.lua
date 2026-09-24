@@ -416,6 +416,7 @@ function Search:CreateSearchFrame()
     containerFrame:SetPoint("BOTTOM",   searchFrame, "BOTTOM",   0, 0)
     ns.CreateRoundedRectBorder(containerFrame)
     ns.CreateRoundedRectDivider(containerFrame)
+    containerFrame._efForeverSurface = true
     ns.SetRoundedRectBarHeight(containerFrame, searchFrame:GetHeight())
     self:ApplySearchWindowFill(containerFrame)
 

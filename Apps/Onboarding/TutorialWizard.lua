@@ -796,6 +796,7 @@ local function BuildSearchBarReplica(parent, w, h)
     local bar = CreateFrame("Frame", nil, parent)
     bar:SetSize(w, h)
     ns.CreateRoundedRectBorder(bar)
+    bar._efForeverSurface = true
     ns.SetRoundedRectBarHeight(bar, h)
 
     -- Same art and sizing math as the real bar (SearchBar.lua), so the

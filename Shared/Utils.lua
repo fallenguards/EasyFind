@@ -1798,6 +1798,7 @@ function ns.StyleMenuPanel(frame)
         ns.CreateRoundedRectBorder(frame)
         ns.SetRoundedRectBorderShown(frame, true)
     end
+    frame._efForeverSurface = true
     ns.ApplyClassicChrome(frame)
     -- Registry (weak keys) so a theme flip can restyle menus that are
     -- OPEN at that moment; their OnShow refill never refires for them.
@@ -2358,8 +2359,123 @@ local function AnchorNineSlice(frame, n, cornerSize)
     n.mm:SetPoint("BOTTOMRIGHT", n.br, "TOPLEFT")
 end
 
+-- An atlas shown as window art: fitted to the window's width, cropped from
+-- the top, stretched only when the window is taller than the fitted image.
+-- Returns the texcoord steps per UI unit across and down, as fractions.
+local function AtlasSteps(info, w, h)
+    local shownH = w * info.height / info.width
+    if shownH < h then shownH = h end
+    return 1 / w, 1 / shownH
+end
+local function AtlasU(info, f) return info.leftTexCoord + (info.rightTexCoord - info.leftTexCoord) * f end
+local function AtlasV(info, f) return info.topTexCoord + (info.bottomTexCoord - info.topTexCoord) * f end
+
+-- The WoW Forever skin: the game menu's own border (the client's "Dialog"
+-- nine-slice layout) around a square window filled with the quest log
+-- background. Surfaces opt in with frame._efForeverSurface.
+local FOREVER_BORDER_LAYOUT = "Dialog"
+local FOREVER_FILL_ATLAS = "QuestLog-main-background"
+local FOREVER_CORNER = 64       -- the layout's corner size, in its own units
+local FOREVER_OUTSET = 16       -- art edge to the middle of its metal band
+local FOREVER_MAX_SCALE = 0.36
+local FOREVER_LEVEL = 12        -- the frame sits over rows and bar content
+local FOREVER_DIVIDER_INSET = 2
+ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
+
+function ns.IsForeverChrome()
+    local p = ns.ACTIVE_UI_PALETTE
+    return p ~= nil and p.chrome == "forever"
+end
+
+-- Scale that lets the four corners meet on a bar-high window.
+local function ForeverScale(frame)
+    local h = frame.cbBarHeight or frame:GetHeight() or 0
+    local s = h / (2 * (FOREVER_CORNER - FOREVER_OUTSET))
+    if s <= 0 or s > FOREVER_MAX_SCALE then s = FOREVER_MAX_SCALE end
+    return s
+end
+
+local function LayoutForever(frame)
+    local f = frame._efForever
+    if not (f and frame._efForeverOn) then return end
+    local w, h = frame:GetWidth() or 0, frame:GetHeight() or 0
+    if w <= 0 or h <= 0 then return end
+    f.border:SetScale(ForeverScale(frame))
+    f.border:SetFrameLevel(frame:GetFrameLevel() + FOREVER_LEVEL)
+    local info = f.info
+    local _, sy = AtlasSteps(info, w, h)
+    local ve = h * sy
+    if ve > 1 then ve = 1 end
+    f.fill:SetTexCoord(AtlasU(info, 0), AtlasU(info, 1), AtlasV(info, 0), AtlasV(info, ve))
+end
+
+-- Nil when the client lacks the layout or the atlas: the rounded look stays.
+local function EnsureForever(frame)
+    if frame._efForever or frame._efForeverFailed then return frame._efForever end
+    frame._efForeverFailed = true
+    if not (NineSliceUtil and NineSliceUtil.ApplyLayoutByName and NineSliceUtil.GetLayout
+        and NineSliceUtil.GetLayout(FOREVER_BORDER_LAYOUT)) then return nil end
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(FOREVER_FILL_ATLAS)
+    if not (info and info.file and info.width and info.width > 0 and info.height > 0) then return nil end
+    local border = CreateFrame("Frame", nil, frame)
+    border.layoutType = FOREVER_BORDER_LAYOUT
+    border:Hide()
+    -- Offsets are in the border's own scaled units, so the band's middle
+    -- lands on the window edge at any scale.
+    border:SetPoint("TOPLEFT", frame, "TOPLEFT", -FOREVER_OUTSET, FOREVER_OUTSET)
+    border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", FOREVER_OUTSET, -FOREVER_OUTSET)
+    if not pcall(NineSliceUtil.ApplyLayoutByName, border, FOREVER_BORDER_LAYOUT) then return nil end
+    local fill = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+    if not fill:SetTexture(info.file) then return nil end
+    fill:SetAllPoints(frame)
+    fill:Hide()
+    frame._efForever = { border = border, fill = fill, info = info }
+    frame._efForeverFailed = nil
+    frame:HookScript("OnSizeChanged", LayoutForever)
+    return frame._efForever
+end
+
+-- Shows the skin's pieces as the rounded panel and ring were last asked to be.
+local function ShowForeverPieces(frame)
+    local f = frame._efForever
+    if not f then return end
+    local panel = frame._efPanelWanted ~= false
+    f.fill:SetShown(panel)
+    f.border:SetShown(panel and frame._efRingWanted ~= false)
+end
+
+-- True when the Forever skin now dresses this frame; switching it off
+-- hands the frame back to its rounded pieces.
+function ns.ApplyForeverChrome(frame)
+    if not (frame and frame.combinedBorder) then return false end
+    local f = frame._efForeverSurface and ns.IsForeverChrome() and EnsureForever(frame)
+    if f then
+        frame._efForeverOn = true
+        for _, t in pairs(frame.combinedBorder.fill) do t:Hide() end
+        for _, t in pairs(frame.combinedBorder.border) do t:Hide() end
+        if frame._efArtCells then
+            for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+        end
+        f.fill:SetVertexColor(1, 1, 1, 1)
+        f.fill:SetAlpha(frame._efBgAlpha or 1)
+        LayoutForever(frame)
+        ShowForeverPieces(frame)
+        return true
+    end
+    if frame._efForeverOn then
+        frame._efForeverOn = nil
+        frame._efForever.fill:Hide()
+        frame._efForever.border:Hide()
+        local panel = frame._efPanelWanted ~= false
+        for _, t in pairs(frame.combinedBorder.fill) do t:SetShown(panel) end
+        for _, t in pairs(frame.combinedBorder.border) do t:SetShown(panel and frame._efRingWanted ~= false) end
+    end
+    return false
+end
+
 local function ApplyContainerCornerSize(frame)
     if not frame.combinedBorder then return end
+    LayoutForever(frame)
     local h = frame.cbBarHeight or frame:GetHeight() or 0
     if h <= 0 then return end
     local cornerSize = h / 2
@@ -2398,6 +2514,9 @@ end
 
 function ns.SetRoundedRectBorderShown(frame, shown)
     if not frame.combinedBorder then return end
+    frame._efPanelWanted = shown and true or false
+    frame._efRingWanted = frame._efPanelWanted
+    if frame._efForeverOn then ShowForeverPieces(frame) return end
     for _, t in pairs(frame.combinedBorder.fill)   do t:SetShown(shown) end
     for _, t in pairs(frame.combinedBorder.border) do t:SetShown(shown) end
 end
@@ -2406,12 +2525,15 @@ end
 -- is panel on/off -- using it for "borderless" removed the background too.
 function ns.SetRoundedRectRingShown(frame, shown)
     if not (frame.combinedBorder and frame.combinedBorder.border) then return end
+    frame._efRingWanted = shown and true or false
+    if frame._efForeverOn then ShowForeverPieces(frame) return end
     for _, t in pairs(frame.combinedBorder.border) do t:SetShown(shown) end
 end
 
 function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if not frame.combinedBorder then return end
     frame._efBgAlpha = alpha
+    if frame._efForever then frame._efForever.fill:SetAlpha(alpha) end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end
@@ -2637,7 +2759,8 @@ end
 -- to the frame (1:1, never stretched): the bar alone shows the top slice
 -- and opening results reveals more of the same picture. Only the four
 -- corner cells carry a mask (one each, under the per-texture mask cap)
--- to round the silhouette; edge and center cells are plain crops.
+-- to round the silhouette; edge and center cells are plain crops. An atlas
+-- art (palette.fillAtlas) is fitted to the window width instead.
 local ART_TEXTURE_SIZE = 1024
 
 function ns.UpdateThemeArtCrop(frame)
@@ -2648,23 +2771,30 @@ function ns.UpdateThemeArtCrop(frame)
     local barH = frame.cbBarHeight or fh
     if w <= 0 or fh <= 0 then return end
     local c = barH / 2
-    local S = 1 / ART_TEXTURE_SIZE
-    local x1, x2 = c * S, (w - c) * S
-    local y1, y2 = c * S, (fh - c) * S
-    local xe, ye = w * S, fh * S
+    local atlas = frame._efArtAtlas
+    local sx, sy = 1 / ART_TEXTURE_SIZE, 1 / ART_TEXTURE_SIZE
+    if atlas then sx, sy = AtlasSteps(atlas, w, fh) end
+    local x1, x2 = c * sx, (w - c) * sx
+    local y1, y2 = c * sy, (fh - c) * sy
+    local xe, ye = w * sx, fh * sy
     if xe > 1 then xe = 1 end
     if ye > 1 then ye = 1 end
     if x1 > xe then x1 = xe end
     if x2 > xe then x2 = xe end
     if y1 > ye then y1 = ye end
     if y2 > ye then y2 = ye end
-    cells.tl:SetTexCoord(0, x1, 0, y1)
-    cells.tm:SetTexCoord(x1, x2, 0, y1)
-    cells.tr:SetTexCoord(x2, xe, 0, y1)
-    cells.ml:SetTexCoord(0, x1, y1, y2)
+    local x0, y0 = 0, 0
+    if atlas then
+        x0, x1, x2, xe = AtlasU(atlas, 0), AtlasU(atlas, x1), AtlasU(atlas, x2), AtlasU(atlas, xe)
+        y0, y1, y2, ye = AtlasV(atlas, 0), AtlasV(atlas, y1), AtlasV(atlas, y2), AtlasV(atlas, ye)
+    end
+    cells.tl:SetTexCoord(x0, x1, y0, y1)
+    cells.tm:SetTexCoord(x1, x2, y0, y1)
+    cells.tr:SetTexCoord(x2, xe, y0, y1)
+    cells.ml:SetTexCoord(x0, x1, y1, y2)
     cells.mm:SetTexCoord(x1, x2, y1, y2)
     cells.mr:SetTexCoord(x2, xe, y1, y2)
-    cells.bl:SetTexCoord(0, x1, y2, ye)
+    cells.bl:SetTexCoord(x0, x1, y2, ye)
     cells.bm:SetTexCoord(x1, x2, y2, ye)
     cells.br:SetTexCoord(x2, xe, y2, ye)
 end
@@ -2775,13 +2905,21 @@ function ns.ApplyThemeFill(frame)
     -- Marks this frame as a window-fill surface: UpdateThemeFillGradient
     -- refuses to ramp anything without this flag.
     frame._efThemeFillTarget = true
+    if ns.ApplyForeverChrome(frame) then return end
     local fill = frame.combinedBorder.fill
     local palette = ns.ACTIVE_UI_PALETTE
     local cWhite = CreateColor and CreateColor(1, 1, 1, 1)
 
     local artPath = palette and palette.fillTexture
+    local atlasInfo = palette and palette.fillAtlas and C_Texture and C_Texture.GetAtlasInfo
+        and C_Texture.GetAtlasInfo(palette.fillAtlas)
+    if atlasInfo and not (atlasInfo.file and (atlasInfo.width or 0) > 0 and (atlasInfo.height or 0) > 0) then
+        atlasInfo = nil
+    end
+    if atlasInfo then artPath = atlasInfo.file end
     if artPath then
         local cells = EnsureThemeArtOverlay(frame)
+        frame._efArtAtlas = atlasInfo
         if cells.mm:SetTexture(artPath) then
             for name, cell in pairs(cells) do
                 cell:SetTexture(artPath)
@@ -5435,10 +5573,18 @@ end
 function ns.SetRoundedRectDivider(frame, yOffset, shown)
     local d = frame.combinedDivider
     if not d then return end
-    local cornerSize = (frame.cbBarHeight or frame:GetHeight() or 0) / 2
+    local inset = (frame.cbBarHeight or frame:GetHeight() or 0) / 4
+    -- The Forever skin: a thin bronze line from band to band.
+    if frame._efForeverOn then
+        local b = ns.FOREVER_BRONZE
+        d:SetColorTexture(b[1], b[2], b[3], b[4])
+        inset = FOREVER_DIVIDER_INSET
+    else
+        d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1)
+    end
     d:ClearAllPoints()
-    d:SetPoint("TOPLEFT",  frame, "TOPLEFT",  cornerSize * 0.5, -yOffset)
-    d:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -cornerSize * 0.5, -yOffset)
+    d:SetPoint("TOPLEFT",  frame, "TOPLEFT",  inset, -yOffset)
+    d:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -inset, -yOffset)
     d:SetShown(shown and true or false)
 end
 
