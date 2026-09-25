@@ -7,7 +7,9 @@ local H = require("Harness")
 local function fakeApi(on)
     local api = { version = 1, opened = {}, lookups = 0, shown = false }
     local book = { IsShown = function() return api.shown end }
-    api.button = { slot = 7, IsVisible = function() return true end }
+    api.button = { IsVisible = function() return true end }
+    api.showing = { [api.button] = 133 }
+    function api.SpellOnButton(button) return api.showing[button] end
     function api.IsOn(name) return on[name] == true end
     function api.Open(name, arg)
         api.opened[#api.opened + 1] = { name = name, arg = arg }
@@ -83,8 +85,11 @@ function tests.spellRow_validatorIsSideEffectFree()
     local before = api.lookups
     local validator = lit[#lit].validator
     H.assertTrue(validator(api.button))
-    H.assertFalse(validator({ slot = 8, IsVisible = function() return true end }), "paged away")
-    H.assertEq(api.lookups, before, "the check never asks the book again (its lookup types into the search box)")
+    api.showing[api.button] = 116
+    H.assertFalse(validator(api.button), "paged away: the button shows another spell")
+    api.showing[api.button] = nil
+    H.assertFalse(validator(api.button), "book shut or slot empty")
+    H.assertEq(api.lookups, before, "the check never calls GetFrame again (its lookup types into the search box)")
 end
 
 function tests.petSpell_opensThePetBook()

@@ -660,10 +660,11 @@ function Handlers:OpenAbilityInReplacementBook(api, data, stepGuide)
         wasShown = true
         local ok, btn = pcall(api.GetFrame, "spellBook", "spell:" .. tostring(spellID))
         if ok and btn and highlight then
-            -- Paging reuses buttons: the slot says whether it still shows the spell.
-            local slot = btn.slot
+            -- Paging reuses buttons; SpellOnButton is the book's cheap read of what one shows now.
             local function stillRepresentsTarget(f)
-                return f.slot == slot and f:IsVisible()
+                if not api.SpellOnButton then return f:IsVisible() end
+                local okSpell, shows = pcall(api.SpellOnButton, f)
+                return okSpell and shows == spellID
             end
             if highlight.HighlightSpellbookSpell then
                 highlight:HighlightSpellbookSpell(btn, stillRepresentsTarget)
