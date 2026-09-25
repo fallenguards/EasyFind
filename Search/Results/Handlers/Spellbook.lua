@@ -623,7 +623,66 @@ local function FindSpellbookButton(root, target, scroll, candidate)
     return nil
 end
 
+-- ClassicUI Forever's own spellbook: its API opens the book and hands over
+-- the button showing the spell (its own search brings the spell up).
+function Handlers:OpenAbilityInReplacementBook(api, data, stepGuide)
+    local highlight = ns.RequestGuide()
+    local spellID = data.spellBookSpellID or data.spellID
+    local petBank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Pet
+    local which = (petBank ~= nil and data.spellBookBank == petBank) and "pet" or nil
+    local wasShown, opened, humanWaits = false, false, 0
+
+    local function bookShown()
+        local ok, book = pcall(api.GetFrame, "spellBook")
+        return ok and book and book:IsShown()
+    end
+
+    local function reveal(attempt)
+        if not bookShown() then
+            if wasShown then return end   -- the user closed it
+            if stepGuide then
+                -- Guide never opens the book: its micro button waits for the user's click.
+                local micro = _G["SpellbookMicroButton"]
+                if micro and micro:IsShown() and highlight and highlight.HighlightFrame then
+                    highlight:HighlightFrame(micro, nil, nil, true)
+                end
+                humanWaits = humanWaits + 1
+                if humanWaits < 150 then Utils.SafeAfter(0.2, function() reveal(attempt) end) end
+                return
+            end
+            if not opened then
+                opened = true
+                pcall(api.Open, "spellBook", which)
+            end
+            if attempt < 36 then Utils.SafeAfter(0.05, function() reveal(attempt + 1) end) end
+            return
+        end
+        wasShown = true
+        local ok, btn = pcall(api.GetFrame, "spellBook", "spell:" .. tostring(spellID))
+        if ok and btn and highlight then
+            -- Paging reuses buttons: the slot says whether it still shows the spell.
+            local slot = btn.slot
+            local function stillRepresentsTarget(f)
+                return f.slot == slot and f:IsVisible()
+            end
+            if highlight.HighlightSpellbookSpell then
+                highlight:HighlightSpellbookSpell(btn, stillRepresentsTarget)
+            else
+                highlight:HighlightFrame(btn, nil, stillRepresentsTarget)
+            end
+            return
+        end
+        if attempt < 36 then Utils.SafeAfter(0.1, function() reveal(attempt + 1) end) end
+    end
+
+    Utils.SafeAfter(0.05, function() reveal(1) end)
+end
+
 function Handlers:OpenAbilityInSpellbook(data, stepGuide)
+    local replacement = Openers.ReplacementAPI and Openers.ReplacementAPI("spellBook")
+    if replacement and replacement.GetFrame then
+        return self:OpenAbilityInReplacementBook(replacement, data, stepGuide)
+    end
     local highlight = ns.RequestGuide()
     local targetElement
 

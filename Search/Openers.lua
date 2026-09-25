@@ -131,20 +131,34 @@ end
 
 -- ClassicUI Forever replaces some client windows with its own. When its
 -- public API says one is replaced, its version opens through the API (its
--- own taint handling) and the client's button is never pressed; nil means
+-- own taint handling) and the client's window is never touched; nil means
 -- not replaced, so the usual path runs.
+local function ReplacementAPI(name)
+    local api = ClassicUIForeverAPI
+    if not (api and (api.version or 0) >= 1 and api.IsOn and api.Open) then return nil end
+    local ok, on = pcall(api.IsOn, name)
+    return (ok and on) and api or nil
+end
+Openers.ReplacementAPI = ReplacementAPI
+
+local function OpenReplaced(name, arg)
+    local api = ReplacementAPI(name)
+    if not api then return nil end
+    local ok, opened = pcall(api.Open, name, arg)
+    return (ok and opened) and true or false
+end
+Openers.OpenReplaced = OpenReplaced
+
 local REPLACED_BY = {
     GuildMicroButton = "guildRoster",
     QuestLogMicroButton = "questLog",
+    SpellbookMicroButton = "spellBook",
+    TalentMicroButton = "talents",
 }
 local function OpenReplacement(buttonFrame)
     local name = REPLACED_BY[buttonFrame]
-    local api = name and ClassicUIForeverAPI
-    if not (api and (api.version or 0) >= 1 and api.IsOn and api.Open) then return nil end
-    local ok, on = pcall(api.IsOn, name)
-    if not (ok and on) then return nil end
-    local okOpen, opened = pcall(api.Open, name)
-    return (okOpen and opened) and true or false
+    if not name then return nil end
+    return OpenReplaced(name)
 end
 Openers.OpenReplacement = OpenReplacement
 
