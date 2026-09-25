@@ -129,7 +129,28 @@ local function OpenCharacterFrame(tabIndex)
     return ClickButton(_G["CharacterMicroButton"])
 end
 
+-- ClassicUI Forever replaces some client windows with its own. When its
+-- public API says one is replaced, its version opens through the API (its
+-- own taint handling) and the client's button is never pressed; nil means
+-- not replaced, so the usual path runs.
+local REPLACED_BY = {
+    GuildMicroButton = "guildRoster",
+    QuestLogMicroButton = "questLog",
+}
+local function OpenReplacement(buttonFrame)
+    local name = REPLACED_BY[buttonFrame]
+    local api = name and ClassicUIForeverAPI
+    if not (api and (api.version or 0) >= 1 and api.IsOn and api.Open) then return nil end
+    local ok, on = pcall(api.IsOn, name)
+    if not (ok and on) then return nil end
+    local okOpen, opened = pcall(api.Open, name)
+    return (okOpen and opened) and true or false
+end
+Openers.OpenReplacement = OpenReplacement
+
 local function OpenButtonFrame(buttonFrame, nextStep)
+    local replaced = OpenReplacement(buttonFrame)
+    if replaced ~= nil then return replaced end
     if buttonFrame == "PlayerSpellsMicroButton" then
         local tabIndex = nextStep and nextStep.waitForFrame == "PlayerSpellsFrame"
             and nextStep.tabIndex or nil

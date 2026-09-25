@@ -37,6 +37,9 @@ read_globals = {
     -- Menus
     "MenuUtil",
 
+    -- ClassicUI Forever's public API (nil when that addon is not loaded)
+    "ClassicUIForeverAPI",
+
     -- Core API
     "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight", "GetPhysicalScreenSize",
     "CreateFrame", "CreateFont", "CreateVector2D", "CreateColor",
