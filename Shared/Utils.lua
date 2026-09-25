@@ -1734,9 +1734,9 @@ function ns.GetSearchWindowAlpha()
     return ns.SEARCH_WINDOW_ALPHA
 end
 -- The classic skin: the game's own tooltip frame on any rounded-chrome
--- surface. Border art in its own tan, the theme's navy underneath, the
--- rounded nine-slice and any art viewport hidden. Undone by the same call
--- when a rounded theme returns.
+-- surface while the window border option is on. Border art in its own tan,
+-- the theme's navy underneath, the rounded pieces hidden; ns.ApplySkin
+-- owns the switch and hands the rounded look back.
 -- The 1.x dialog art, as the game shipped it and as ClassicUI Forever
 -- draws its own windows: the dark dialog stone untinted, the ornate
 -- dialog border on windows, the thin tooltip border on the bar, the
@@ -1756,38 +1756,24 @@ ns.CLASSIC_DIALOG = {              -- windows
     insets = { left = 11, right = 12, top = 12, bottom = 11 },
 }
 ns.CLASSIC_HEADER = "Interface\\DialogFrame\\UI-DialogBox-Header"
+-- The window border option: on, the Classic and Forever themes wear their
+-- frame art everywhere; off, every surface takes the rounded shape.
+function ns.WindowBorderOn()
+    local db = EasyFind and EasyFind.db
+    return not (db and db.windowBorder == false)
+end
+
 function ns.IsClassicChrome()
     local p = ns.ACTIVE_UI_PALETTE
-    return p ~= nil and p.chrome == "classic"
+    return p ~= nil and p.chrome == "classic" and ns.WindowBorderOn()
 end
 -- style: "dialog" for a window, anything else the thin tooltip frame.
 function ns.ApplyClassicChrome(frame, alpha, style)
-    if not frame then return false end
-    if ns.IsClassicChrome() then
-        if not frame.SetBackdrop and BackdropTemplateMixin then
-            Mixin(frame, BackdropTemplateMixin)
-            if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
-        end
-        if not frame.SetBackdrop then return false end
-        local want = style == "dialog" and "dialog" or "tooltip"
-        if frame._efClassicChrome ~= want then
-            frame:SetBackdrop(want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP)
-            frame._efClassicChrome = want
-        end
-        -- The stone is its own color; only the window opacity applies.
-        frame:SetBackdropColor(1, 1, 1, alpha or ns.GetSearchWindowAlpha())
-        frame:SetBackdropBorderColor(1, 1, 1, 1)
-        if frame.combinedBorder then ns.SetRoundedRectBorderShown(frame, false) end
-        if frame._efArtCells then
-            for _, cell in pairs(frame._efArtCells) do cell:Hide() end
-        end
-        return true
-    elseif frame._efClassicChrome then
-        frame._efClassicChrome = nil
-        frame:SetBackdrop(nil)
-        if frame.combinedBorder then ns.SetRoundedRectBorderShown(frame, true) end
-    end
-    return false
+    if not (frame and frame.combinedBorder and ns.ApplySkin) then return false end
+    frame._efClassicSurface = true
+    frame._efClassicStyle = style
+    frame._efClassicAlpha = alpha
+    return ns.ApplySkin(frame)
 end
 
 -- The filter dropdown and row context menus reuse the results window's
@@ -1799,7 +1785,7 @@ function ns.StyleMenuPanel(frame)
         ns.SetRoundedRectBorderShown(frame, true)
     end
     frame._efForeverSurface = true
-    ns.ApplyClassicChrome(frame)
+    frame._efClassicSurface = true
     -- Registry (weak keys) so a theme flip can restyle menus that are
     -- OPEN at that moment; their OnShow refill never refires for them.
     ns._menuPanels = ns._menuPanels or setmetatable({}, { __mode = "k" })
@@ -2408,7 +2394,7 @@ ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
 
 function ns.IsForeverChrome()
     local p = ns.ACTIVE_UI_PALETTE
-    return p ~= nil and p.chrome == "forever"
+    return p ~= nil and p.chrome == "forever" and ns.WindowBorderOn()
 end
 
 local LayoutForever, EnsureForever
@@ -2536,8 +2522,7 @@ do
     end
 end
 
--- Shows the skin with the panel. The border is the theme's frame, as the
--- Classic skin's is: the window border option only hides the rounded ring.
+-- Shows the Forever pieces with the panel; the art is the border here.
 local function ShowForeverPieces(frame)
     local f = frame._efForever
     if not f then return end
@@ -2546,33 +2531,69 @@ local function ShowForeverPieces(frame)
     f.border:SetShown(panel)
 end
 
--- True when the Forever skin now dresses this frame; switching it off
--- hands the frame back to its rounded pieces.
-function ns.ApplyForeverChrome(frame)
-    if not (frame and frame.combinedBorder) then return false end
-    local f = frame._efForeverSurface and ns.IsForeverChrome() and EnsureForever(frame)
-    if f then
-        frame._efForeverOn = true
-        for _, t in pairs(frame.combinedBorder.fill) do t:Hide() end
-        for _, t in pairs(frame.combinedBorder.border) do t:Hide() end
-        if frame._efArtCells then
-            for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+do
+    local function DressClassic(frame)
+        if not frame.SetBackdrop and BackdropTemplateMixin then
+            Mixin(frame, BackdropTemplateMixin)
+            if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
         end
-        f.fill:SetVertexColor(1, 1, 1, 1)
-        f.fill:SetAlpha(frame._efBgAlpha or 1)
-        LayoutForever(frame)
-        ShowForeverPieces(frame)
+        if not frame.SetBackdrop then return false end
+        local want = frame._efClassicStyle == "dialog" and "dialog" or "tooltip"
+        if frame._efClassicChrome ~= want then
+            frame:SetBackdrop(want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP)
+            frame._efClassicChrome = want
+        end
+        -- The stone is its own color; only the window opacity applies.
+        frame:SetBackdropColor(1, 1, 1, frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha())
+        frame:SetBackdropBorderColor(1, 1, 1, 1)
         return true
     end
-    if frame._efForeverOn then
-        frame._efForeverOn = nil
-        frame._efForever.fill:Hide()
-        frame._efForever.border:Hide()
-        local panel = frame._efPanelWanted ~= false
-        for _, t in pairs(frame.combinedBorder.fill) do t:SetShown(panel) end
-        for _, t in pairs(frame.combinedBorder.border) do t:SetShown(panel and frame._efRingWanted ~= false) end
+
+    -- One owner for a surface's frame art: the Forever border or the Classic
+    -- frames while the window border option is on, else the rounded pieces
+    -- as they were last asked to show. True while a skin dresses the frame.
+    function ns.ApplySkin(frame)
+        if not (frame and frame.combinedBorder) then return false end
+        local want
+        if frame._efForeverSurface and ns.IsForeverChrome() and EnsureForever(frame) then
+            want = "forever"
+        elseif frame._efClassicSurface and ns.IsClassicChrome() then
+            want = "classic"
+        end
+        local was = frame._efSkin
+        if was == "forever" and want ~= "forever" then
+            frame._efForeverOn = nil
+            frame._efForever.fill:Hide()
+            frame._efForever.border:Hide()
+        elseif was == "classic" and want ~= "classic" then
+            frame._efClassicChrome = nil
+            if frame.SetBackdrop then frame:SetBackdrop(nil) end
+        end
+        if want == "classic" and not DressClassic(frame) then want = nil end
+        frame._efSkin = want
+        if want then
+            for _, t in pairs(frame.combinedBorder.fill) do t:Hide() end
+            for _, t in pairs(frame.combinedBorder.border) do t:Hide() end
+            if frame._efArtCells then
+                for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+            end
+            if want == "forever" then
+                local f = frame._efForever
+                frame._efForeverOn = true
+                f.fill:SetVertexColor(1, 1, 1, 1)
+                f.fill:SetAlpha(frame._efBgAlpha or 1)
+                LayoutForever(frame)
+                ShowForeverPieces(frame)
+            end
+            return true
+        end
+        if was then
+            local panel = frame._efPanelWanted ~= false
+            for _, t in pairs(frame.combinedBorder.fill) do t:SetShown(panel) end
+            for _, t in pairs(frame.combinedBorder.border) do t:SetShown(panel and frame._efRingWanted ~= false) end
+        end
+        return false
     end
-    return false
 end
 
 local function ApplyContainerCornerSize(frame)
@@ -2618,7 +2639,10 @@ function ns.SetRoundedRectBorderShown(frame, shown)
     if not frame.combinedBorder then return end
     frame._efPanelWanted = shown and true or false
     frame._efRingWanted = frame._efPanelWanted
-    if frame._efForeverOn then ShowForeverPieces(frame) return end
+    if frame._efSkin then
+        if frame._efSkin == "forever" then ShowForeverPieces(frame) end
+        return
+    end
     for _, t in pairs(frame.combinedBorder.fill)   do t:SetShown(shown) end
     for _, t in pairs(frame.combinedBorder.border) do t:SetShown(shown) end
 end
@@ -2628,7 +2652,7 @@ end
 function ns.SetRoundedRectRingShown(frame, shown)
     if not (frame.combinedBorder and frame.combinedBorder.border) then return end
     frame._efRingWanted = shown and true or false
-    if frame._efForeverOn then ShowForeverPieces(frame) return end
+    if frame._efSkin then return end
     for _, t in pairs(frame.combinedBorder.border) do t:SetShown(shown) end
 end
 
@@ -2636,6 +2660,7 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if not frame.combinedBorder then return end
     frame._efBgAlpha = alpha
     if frame._efForever then frame._efForever.fill:SetAlpha(alpha) end
+    if frame._efSkin == "classic" then frame:SetBackdropColor(1, 1, 1, frame._efClassicAlpha or alpha) end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end
@@ -3007,7 +3032,7 @@ function ns.ApplyThemeFill(frame)
     -- Marks this frame as a window-fill surface: UpdateThemeFillGradient
     -- refuses to ramp anything without this flag.
     frame._efThemeFillTarget = true
-    if ns.ApplyForeverChrome(frame) then return end
+    if ns.ApplySkin(frame) then return end
     local fill = frame.combinedBorder.fill
     local palette = ns.ACTIVE_UI_PALETTE
     local cWhite = CreateColor and CreateColor(1, 1, 1, 1)

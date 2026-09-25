@@ -318,9 +318,9 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     modern.lightTheme = palette.light or nil
     modern.flatGlyphs = palette.flatGlyphs or nil
     -- The classic skin trades the rounded silhouette for the game's own
-    -- dialog frames and drops the parchment behind results; every other
-    -- palette restores the rounded look.
-    local classic = palette.chrome == "classic"
+    -- dialog frames and drops the parchment behind results, while the
+    -- window border option is on; otherwise it is rounded like the rest.
+    local classic = palette.chrome == "classic" and ns.WindowBorderOn()
     modern.searchBarRounded = not classic
     modern.resultsBgAtlas = classic and nil or "QuestLog-main-background"
     -- Shared control colors (tab text, button/table fills) are LIVE ns

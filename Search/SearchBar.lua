@@ -2487,7 +2487,7 @@ end
 -- every filter-menu surface (the dropdown and all registered guard
 -- popups; frames without a rounded-rect border no-op).
 function Search:UpdateWindowBorders()
-    local shown = EasyFind.db.windowBorder ~= false
+    local shown = ns.WindowBorderOn()
     if containerFrame then ns.SetRoundedRectRingShown(containerFrame, shown) end
     local dropdown = searchFrame and searchFrame.filterDropdown
     if dropdown then
@@ -2496,6 +2496,14 @@ function Search:UpdateWindowBorders()
             for i = 1, #dropdown.guardFrames do
                 ns.SetRoundedRectRingShown(dropdown.guardFrames[i], shown)
             end
+        end
+    end
+    -- A theme with frame art (Classic, Forever) swaps it for the rounded
+    -- shape on every surface: re-run the whole theme.
+    local pal = ns.ACTIVE_UI_PALETTE
+    if pal and pal.chrome and ns.ApplyUITheme then
+        for name, p in pairs(ns.UI_THEME_PALETTES) do
+            if p == pal then ns.ApplyUITheme(name) break end
         end
     end
 end
@@ -2690,7 +2698,9 @@ function Search:UpdateFontSize()
     if theme.searchBarRounded then
         searchFrame:SetBackdrop(nil)
         if containerFrame then
+            -- Panel on shows the ring too: the ring follows the option after it.
             ns.SetRoundedRectBorderShown(containerFrame, true)
+            ns.SetRoundedRectRingShown(containerFrame, ns.WindowBorderOn())
             ns.SetRoundedRectBarHeight(containerFrame, barH)
             self:ApplySearchWindowFill(containerFrame)
             ns.SetRoundedRectBorderBgAlpha(containerFrame, alpha)
@@ -2704,6 +2714,7 @@ function Search:UpdateFontSize()
         -- The classic skin: the game's tooltip frame over the fill; the
         -- rounded container's chrome and art step aside.
         if containerFrame then
+            self:ApplySearchWindowFill(containerFrame)
             ns.SetRoundedRectBorderShown(containerFrame, false)
             if containerFrame._efArtCells then
                 for _, cell in pairs(containerFrame._efArtCells) do cell:Hide() end

@@ -797,6 +797,7 @@ local function BuildSearchBarReplica(parent, w, h)
     bar:SetSize(w, h)
     ns.CreateRoundedRectBorder(bar)
     bar._efForeverSurface = true
+    bar._efClassicSurface = true
     ns.SetRoundedRectBarHeight(bar, h)
 
     -- Same art and sizing math as the real bar (SearchBar.lua), so the
@@ -1427,6 +1428,7 @@ local function BuildPageTheme(parent)
         if ns.Search and ns.Search.UpdateWindowBorders then
             ns.Search:UpdateWindowBorders()
         end
+        if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
         RepaintReplicas()
         SyncBorderCheck()
     end)

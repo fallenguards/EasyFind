@@ -1,9 +1,8 @@
--- Tests for the Forever skin (Shared/Utils.lua): a surface that opts in
--- wears the spellbook frame's bronze border, cut from the client's own
--- UI-Frame-Metal atlases, over the quest log background while the Forever
--- palette is active; keeps the panel and ring requests the rounded helpers
--- made meanwhile; and hands back its rounded pieces when another palette
--- returns or the client serves other art. Loads the REAL Shared/Utils.lua.
+-- Tests for the frame-art skins (Shared/Utils.lua, ns.ApplySkin): while the
+-- window border option is on, a surface that opts in wears the Forever
+-- spellbook border over the quest log background, or the Classic tooltip
+-- frame; off, every surface is rounded again with the ring it last asked
+-- for. Loads the REAL Shared/Utils.lua.
 
 local H = require("Harness")
 local env = H.newEnv()
@@ -33,6 +32,9 @@ local function newRegion(w, h)
     function r:SetTexCoord(...) self.coords = { ... } end
     function r:SetTexture(t, wh, wv) self.tex, self.wrapH, self.wrapV = t, wh, wv return true end
     function r:SetColorTexture(...) self.color = { ... } end
+    function r:SetBackdrop(b) self.backdrop = b end
+    function r:SetBackdropColor(...) self.bdColor = { ... } end
+    function r:SetBackdropBorderColor() end
     function r:SetAlpha(a) self.alpha = a end
     function r:HookScript(name, fn) self.hooks[name] = fn end
     function r:CreateTexture() return newRegion() end
@@ -87,6 +89,9 @@ OTHER_ART["_UI-Frame-Metal-EdgeBottom"] = info(6, 16, 32)
 
 local FOREVER = { chrome = "forever", fillAtlas = "QuestLog-main-background", windowFill = { 0.1, 0.1, 0.1 } }
 local PLAIN = { windowFill = { 0.1, 0.1, 0.1 } }
+local CLASSIC = { chrome = "classic", windowFill = { 0.05, 0.05, 0.1 } }
+
+local function borderOption(on) env.EasyFind.db.windowBorder = on end
 
 local function surface(optIn, w, h)
     factory = function() return newRegion() end
@@ -158,8 +163,8 @@ function tests.fill_isFittedToWidthAndCroppedFromTop()
     H.assertTrue(near(c[3], 0) and near(c[4], 51 / 510), "the top slice: " .. tostring(c[4]))
 end
 
--- The window border option hides the rounded ring only: the filter menu
--- asks for no ring by default and must still wear the Forever frame.
+-- Option on: the filter menu, which asks for no rounded ring, still wears
+-- the Forever frame the bar wears.
 function tests.ringOff_keepsTheForeverBorder()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = PLAIN
@@ -233,6 +238,108 @@ function tests.glyphBlend_isNormalForFlatGlyphThemes()
     H.assertEq(ns.ChromeGlyphBlend({ flatGlyphs = true }), "BLEND")
     H.assertEq(ns.ChromeGlyphBlend({ lightTheme = true }), "BLEND")
     H.assertEq(ns.ChromeGlyphBlend({}), "ADD")
+end
+
+-- Window border off: the Forever theme is rounded everywhere, with its
+-- quest log fill, and the bar and the filter menu agree on no ring.
+function tests.forever_borderOff_isRoundedEverywhere()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    borderOption(false)
+    local bar, menu = surface(true), surface(true)
+    ns.SetRoundedRectRingShown(bar, false)
+    ns.SetRoundedRectRingShown(menu, false)
+    ns.ApplyThemeFill(bar)
+    ns.ApplyThemeFill(menu)
+    for _, f in ipairs({ bar, menu }) do
+        H.assertTrue(not f._efSkin and f._efForever == nil, "no frame art")
+        H.assertTrue(f._efArtCells and f._efArtCells.mm.shown, "the quest log fill in the rounded shape")
+        H.assertTrue(not roundedShown(f, "border"), "no ring, as the option asks")
+    end
+    borderOption(nil)
+end
+
+-- Toggling the option flips a dressed surface both ways.
+function tests.forever_toggle_flipsBothWays()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    borderOption(true)
+    local menu = surface(true)
+    ns.SetRoundedRectRingShown(menu, false)
+    ns.ApplyThemeFill(menu)
+    H.assertTrue(menu._efForever.border.shown, "on: the spellbook border, ring request aside")
+    borderOption(false)
+    ns.ApplyThemeFill(menu)
+    H.assertTrue(not menu._efForever.border.shown and not menu._efForever.fill.shown, "off: the art is gone")
+    H.assertTrue(roundedShown(menu, "fill") and not roundedShown(menu, "border"), "rounded, ring still off")
+    borderOption(true)
+    ns.ApplyThemeFill(menu)
+    H.assertTrue(menu._efForever.border.shown and not roundedShown(menu, "fill"), "on again")
+    borderOption(nil)
+end
+
+local function classicSurface()
+    local f = surface(true)
+    f._efClassicSurface = true
+    return f
+end
+
+function tests.classic_borderOn_wearsTheTooltipFrame()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = classicSurface()
+    ns.ApplyThemeFill(f)
+    H.assertEq(f._efSkin, "classic")
+    H.assertEq(f.backdrop, ns.CLASSIC_BACKDROP)
+    H.assertTrue(not roundedShown(f, "fill") and not roundedShown(f, "border"), "rounded pieces step aside")
+    ns.SetRoundedRectRingShown(f, true)
+    H.assertTrue(not roundedShown(f, "border"), "a ring request cannot show the rounded ring over the frame")
+    borderOption(nil)
+end
+
+function tests.classic_borderOff_isRounded()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = classicSurface()
+    ns.SetRoundedRectRingShown(f, false)
+    ns.ApplyThemeFill(f)
+    borderOption(false)
+    H.assertTrue(not ns.IsClassicChrome(), "the classic layout flags follow the option")
+    ns.ApplyThemeFill(f)
+    H.assertTrue(f.backdrop == nil and not f._efSkin, "the frame art is gone")
+    H.assertTrue(roundedShown(f, "fill") and not roundedShown(f, "border"), "rounded, ring as asked")
+    borderOption(nil)
+end
+
+function tests.classicWindow_usesTheDialogFrame()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = surface(false)
+    H.assertTrue(ns.ApplyClassicChrome(f, 0.9, "dialog"))
+    H.assertEq(f.backdrop, ns.CLASSIC_DIALOG)
+    H.assertEq(f.bdColor[4], 0.9)
+    borderOption(false)
+    H.assertTrue(not ns.ApplyClassicChrome(f, 0.9, "dialog"), "off: the window is rounded")
+    H.assertTrue(f.backdrop == nil)
+    borderOption(nil)
+end
+
+function tests.switchingThemes_leavesOnlyOneSkin()
+    installClient(FOREVER_ART)
+    borderOption(true)
+    local f = classicSurface()
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    ns.ApplyThemeFill(f)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    ns.ApplyThemeFill(f)
+    H.assertTrue(f.backdrop == nil and f._efSkin == "forever", "classic frame removed for the Forever border")
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    ns.ApplyThemeFill(f)
+    H.assertTrue(not f._efForever.border.shown and f.backdrop == ns.CLASSIC_BACKDROP, "and back")
+    borderOption(nil)
 end
 
 local pass, fail, failures = H.runSuite("ForeverChrome", tests)

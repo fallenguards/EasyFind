@@ -1931,6 +1931,8 @@ local function BuildSearchTab(ctx)
             if ns.Search and ns.Search.UpdateWindowBorders then
                 ns.Search:UpdateWindowBorders()
             end
+            -- Frame-art themes swap this window's frame too.
+            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
         end)
     end)
     optionsFrame.windowBorderCheckbox = windowBorderCheckbox

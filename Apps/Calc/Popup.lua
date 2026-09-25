@@ -348,6 +348,7 @@ function Calculator:EnsureCalculatorFrame()
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     ns.CreateRoundedRectBorder(frame)
     frame._efForeverSurface = true
+    frame._efClassicSurface = true
     ns.SetRoundedRectBarHeight(frame, 14)
     ns.SetRoundedRectBorderBgAlpha(frame, 0.98)
     -- Full themed (galaxy) fill like the search window, not a flat colour, so the
