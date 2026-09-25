@@ -48,8 +48,8 @@ local DB_DEFAULTS = {
     -- Always Show only: dim the kept-shown bar in combat / while moving.
     combatDim = false,
     moveDim = false,
-    -- Border ring on the search window and its filter menus.
-    windowBorder = false,
+    -- Border on the search window and its menus: on for a new install; saved choices stay.
+    windowBorder = true,
     lockPosition = false,
     tutorialDone = false,
     updateNotify = true,
