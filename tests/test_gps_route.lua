@@ -304,6 +304,21 @@ function tests.otherFactionBoat_isALastResort()
     H.assertEq(steps[1].sec, 60, "the step shows the ride, not the penalty")
 end
 
+-- A race-locked route is offered to that race alone.
+function tests.raceLockedRoute_isForThatRaceOnly()
+    local _, _, Route = fresh()
+    local d = data()
+    d.legs, d.abilities = {}, {}
+    d.edges = { { kind = "skyship", n = "Skyship", dest = "Isle", from = P(1, 0.1, 0.12), to = P(1, 0.5, 0.55), sec = 60, race = "Skyborne" } }
+    d.edges[1].to.m = 3
+    d.landmass = { zones = { [3] = "isle" } }
+    local dest = { name = "On the isle", mapID = 3, x = 0.5, y = 0.6 }
+    local sky = build(Route, P(1, 0.1, 0.1), dest, { data = d, race = "Skyborne" })
+    H.assertEq(sky[1].kind, "skyship")
+    local human = build(Route, P(1, 0.1, 0.1), dest, { data = d, race = "Human" })
+    H.assertNil(human, "no way there for anyone else")
+end
+
 -- A hearth lands in the town this character is bound to.
 function tests.hearth_landsInTheBoundTown()
     local env, _, Route = fresh()

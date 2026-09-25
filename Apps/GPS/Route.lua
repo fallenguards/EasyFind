@@ -187,7 +187,8 @@ local function BuildGraph(ctx)
         -- Anyone may ride the other side's transport past its guards: kept,
         -- priced so it is only taken when nothing else gets there.
         local hostile = not FactionOK(e.faction, ctx.faction)
-        if ctx.meets(e.req) then
+        -- A race-locked route (the Skyborne skyships) is for that race only.
+        if (not e.race or e.race == ctx.race) and ctx.meets(e.req) then
             local f, t = Resolve(e.from), Resolve(e.to)
             -- A scanned map marker exists only for a character who can use
             -- the transport (unlocked, right phase): ask the client.
