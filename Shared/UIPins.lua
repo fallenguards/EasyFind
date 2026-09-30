@@ -125,9 +125,7 @@ end
 
 function UIPins.GetCharKey()
     if not charKey then
-        local name = UnitName("player")
-        local realm = GetRealmName()
-        charKey = name and realm and (name .. "-" .. realm) or "Unknown"
+        charKey = ns.PlayerName() and ns.CurrentCharacterKey() or "Unknown"
     end
     return charKey
 end

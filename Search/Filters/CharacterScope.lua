@@ -33,7 +33,7 @@ local function CollectDefs(getChars)
     local playerClass = select(2, UnitClass("player"))
     local defs = {
         { value = "all", label = _G["ALL"] or ns.L["BANK_SCOPE_ALL"] },
-        { value = "current", label = UnitName("player") or "?", class = playerClass },
+        { value = "current", label = ns.PlayerName() or "?", class = playerClass },
     }
 
     local chars = getChars and getChars()
@@ -214,7 +214,7 @@ function Filters:BuildCharacterScopeSelector(opts)
             return
         end
         if value == "current" then
-            setLabel(Colored(UnitName("player") or "?", select(2, UnitClass("player"))))
+            setLabel(Colored(ns.PlayerName() or "?", select(2, UnitClass("player"))))
             return
         end
         local chars = getChars and getChars()
@@ -225,7 +225,7 @@ function Filters:BuildCharacterScopeSelector(opts)
         end
         -- The chosen character's cache is gone (wiped, or a fresh install
         -- reading an old setting): fall back rather than showing a raw key.
-        setLabel(Colored(UnitName("player") or "?", select(2, UnitClass("player"))))
+        setLabel(Colored(ns.PlayerName() or "?", select(2, UnitClass("player"))))
     end
     Refresh()
 

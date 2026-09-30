@@ -124,9 +124,7 @@ end
 -- "Name-Realm", the key the per-character records use (the same one the
 -- shortkey and pin stores use). nil before the player is known.
 function Profiles:CharKey()
-    local name = UnitName and UnitName("player")
-    local realm = GetRealmName and GetRealmName()
-    return (name and realm) and (name .. "-" .. realm) or nil
+    return ns.PlayerName() and ns.CurrentCharacterKey() or nil
 end
 
 -- The picker's suggestions: a profile for just this character and one for
@@ -136,7 +134,7 @@ function Profiles:Suggestions()
     local out = {}
     local db = Ready(self)
     if not db then return out end
-    local name = UnitName and UnitName("player")
+    local name = ns.PlayerName()
     local realm = GetRealmName and GetRealmName()
     local char = (name and realm) and (name .. " - " .. realm) or nil
     if char and not db.profiles[char] then out[#out + 1] = char end
@@ -417,6 +415,7 @@ function Profiles:OnInitialize()
     if type(db.profiles) ~= "table" then db.profiles = {} end
     if type(db.profileKeys) ~= "table" then db.profileKeys = {} end
     if type(db.profileSpecs) ~= "table" then db.profileSpecs = {} end
+    ns.MigrateCharacterKeys(db)
     if type(db.profileActive) ~= "string" then db.profileActive = self.DEFAULT end
     -- One slot carries the live marker; the active name follows it, so a
     -- saved file whose name went stale can never load a marker over the

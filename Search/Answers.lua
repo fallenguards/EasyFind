@@ -37,12 +37,12 @@ local function GoldLedger()
     return EasyFindDB.charGold
 end
 
+-- The ledger's own shape, normalized realm; UnitFullName's second value
+-- is the surname on Forever, never the realm.
 local function CharKey()
-    local name, realm = UnitFullName("player")
-    if not name then return nil end
-    if not realm or realm == "" then
-        realm = GetNormalizedRealmName and GetNormalizedRealmName() or ""
-    end
+    local name = ns.PlayerName()
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+    if not (name and realm and realm ~= "") then return nil end
     return name .. "-" .. realm
 end
 

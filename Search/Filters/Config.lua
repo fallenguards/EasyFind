@@ -132,9 +132,9 @@ local UI_FILTER_OPTIONS = {
           dbKey = "currencyFilterMode",
           options = {
               { value = "warband", label = CURRENCY_FILTER_TYPE_TRANSFERABLE or "All Warband Transferable" },
-              { value = "all",     label = (CURRENCY_FILTER_TYPE_CHARACTER and UnitName and UnitName("player")
-                                           and CURRENCY_FILTER_TYPE_CHARACTER:format(UnitName("player")))
-                                          or ((UnitName and UnitName("player") or "This Character") .. " Only") },
+              { value = "all",     label = (CURRENCY_FILTER_TYPE_CHARACTER and ns.PlayerName()
+                                           and CURRENCY_FILTER_TYPE_CHARACTER:format(ns.PlayerName()))
+                                          or ((ns.PlayerName() or "This Character") .. " Only") },
           },
           onChange = function(v) if Search.ApplyTokenFrameFilter then Search:ApplyTokenFrameFilter(v) end end,
           checkboxes = {
@@ -199,7 +199,7 @@ local UI_FILTER_OPTIONS = {
           options = {
               { value = "all",     label = _G["ALL"] or "All" },
               { value = "warband", label = _G["WARBAND"] or "Warband", caps = "warbandRep" },
-              { value = "char",    label = (UnitName and UnitName("player")) or "This Character" },
+              { value = "char",    label = ns.PlayerName() or "This Character" },
           },
           onChange = function(v) if Search.ApplyReputationFilter then Search:ApplyReputationFilter(v) end end,
           checkboxes = {

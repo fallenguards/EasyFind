@@ -2032,7 +2032,50 @@ ns.STAT_CATEGORY_ICON_COORDS = { 0.2680, 0.3043, 0.2666, 0.2943 }
 -- Deliberately not memoized -- a call before the unit exists would pin a
 -- placeholder for the session.
 function ns.CurrentCharacterKey()
-    return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+    return (ns.PlayerName() or "?") .. "-" .. (GetRealmName() or "?")
+end
+
+-- The player's name as the game shows it. On Forever, UnitName and
+-- UnitFullName return the surname as a second value ("Test", "Addons");
+-- GetUnitName joins them. On retail it is UnitName's name.
+function ns.PlayerName()
+    return GetUnitName and GetUnitName("player", false) or UnitName("player")
+end
+
+-- Forever surnames: per-character slots once keyed by the first name
+-- alone are copied to the full name's key, not moved, since every
+-- character sharing that first name used the old slot.
+function ns.MigrateCharacterKeys(db)
+    local first, surname = UnitName("player")
+    local full = ns.PlayerName()
+    if not (db and first and full and full ~= first) then return end
+    local realm = GetRealmName() or "?"
+    local old, new = first .. "-" .. realm, full .. "-" .. realm
+    local holders = { db }
+    for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
+        if type(slot) == "table" then holders[#holders + 1] = slot end
+    end
+    for _, holder in ipairs(holders) do
+        for _, field in ipairs({ "profileKeys", "profileSpecs", "shortkeysPerChar", "pinnedUIItemsPerChar", "learnedStepLocks" }) do
+            local t = holder[field]
+            if type(t) == "table" and t[old] ~= nil then
+                local cur = t[new]
+                -- A slot already under the full name wins, unless empty.
+                if cur == nil or (type(cur) == "table" and next(cur) == nil) then
+                    t[new] = type(t[old]) == "table" and CopyTable(t[old]) or t[old]
+                end
+            end
+        end
+    end
+    -- Bags are rescanned at each login: the old slot is only a ghost now.
+    local bags = type(db.bagCache) == "table" and db.bagCache.chars
+    if type(bags) == "table" then bags[old] = nil end
+    -- The gold ledger read the surname as the realm ("Test-Addons").
+    local ledger = type(EasyFindDB) == "table" and EasyFindDB.charGold
+    if type(ledger) == "table" and surname then
+        ledger[first .. "-" .. surname] = nil
+        ledger[full .. "-"] = nil
+    end
 end
 
 -- A statistic's live value, plus whether anything is recorded. Shared so the
