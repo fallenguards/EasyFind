@@ -1362,6 +1362,18 @@ function GPS.WorldPinRow()
         end }
 end
 
+-- The menu row for snapping into the tracker (on unless turned off); off
+-- while snapped in, the section leaves for the window.
+function GPS.SnapRow()
+    return { kind = "check", label = L["GPS_SNAP_TRACKER"],
+        get = function() local db = DB() return not (db and db.gpsNeverDock) end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsNeverDock = (not v) or nil end
+            if not v and GPS:IsDocked() then GPS:TogglePopout(true) end
+        end }
+end
+
 -- Our menu rows (action, check, radio, separator, title) on the game's
 -- own context menu, for the surfaces that wear the game's look. False
 -- when the game's menu API is missing, so the caller can fall back.
@@ -1416,6 +1428,8 @@ local VisibleModules   -- defined below; the drop zone reads the sections
 -- spans most of the screen), or a header's height when it shows nothing.
 local function NearTracker(f)
     local t = Tracker()
+    local db = DB()
+    if db and db.gpsNeverDock then return false end
     if not (t and f:GetLeft() and t:GetLeft() and t:GetTop()) then return false end
     local top = t:GetTop()
     local bottom = top - DOCK_HEADER_H * 2
@@ -1987,6 +2001,7 @@ local function BuildDock()
             end
             defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end }
             defs[#defs + 1] = GPS.WorldPinRow()
+            defs[#defs + 1] = GPS.SnapRow()
             -- The style is for the window outside the tracker; snapped in,
             -- the section has one look.
             if not f.docked then
@@ -2313,6 +2328,7 @@ local function ShowSizePopup(anchor)
             Refresh()
         end }
     defs[#defs + 1] = GPS.WorldPinRow()
+    defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_HEIGHT"] }
     for i = 1, #SIZE_HEIGHTS do
