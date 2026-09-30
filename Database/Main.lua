@@ -5066,7 +5066,7 @@ end
 
 function Stored.StoredCharRecord(packed, tabs)
     return {
-        name = UnitName("player") or "?",
+        name = ns.PlayerName() or "?",
         realm = GetRealmName() or "?",
         class = select(2, UnitClass("player")),
         scannedAt = time and time() or 0,
@@ -5424,7 +5424,7 @@ function Stored.AppendOtherCharacterBagRows(liveItemMap)
         if live and live.searchEntry then
             local holders = { {
                 charKey = currentKey,
-                name = UnitName("player") or "?",
+                name = ns.PlayerName() or "?",
                 class = select(2, UnitClass("player")),
                 count = live.totalCount or 1,
             } }

@@ -190,7 +190,7 @@ end
 local PLACEHOLDERS = {
     date = function() return date("%Y-%m-%d") end,
     time = function() return date("%H:%M") end,
-    player = function() return UnitName and UnitName("player") or "" end,
+    player = function() return ns.PlayerName() or "" end,
     target = function() return UnitName and UnitName("target") or "" end,
     zone = ZoneName,
 }

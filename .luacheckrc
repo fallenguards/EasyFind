@@ -135,7 +135,7 @@ read_globals = {
     "GetMoney", "GetCoinTextureString", "GetAverageItemLevel",
     "COPPER_PER_SILVER", "COPPER_PER_GOLD",
     "GetInventoryItemDurability", "C_MythicPlus", "C_ChallengeMode",
-    "UnitFullName", "GetNormalizedRealmName",
+    "UnitFullName", "GetNormalizedRealmName", "GetUnitName", "CopyTable",
     "GetProfessions", "GetProfessionInfo", "C_TradeSkillUI", "EnumerateFrames",
     "IsPlayerSpell",
     "EJ_GetCurrentTier", "EJ_SelectTier", "EJ_GetInstanceByIndex",

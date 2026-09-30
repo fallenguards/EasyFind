@@ -376,7 +376,21 @@ function Harness.newNs(env)
     -- Shared constants that some modules reference.
     ns.GOLD_COLOR = { 1.0, 0.82, 0.0 }
     ns.TEXT_PRIMARY = { 1.00, 0.97, 0.86 }
+    Harness.loadCharKeyCode(env, ns)
     return ns
+end
+
+-- The real per-character key code, cut from Shared/Utils.lua (the rest of
+-- that file needs the whole client); its globals resolve through env.
+function Harness.loadCharKeyCode(env, ns)
+    local f = assert(io.open(resolvePath("Shared/Utils.lua"), "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function ns.CurrentCharacterKey()", 1, true), "CurrentCharacterKey not in Utils.lua")
+    local m = assert(src:find("function ns.MigrateCharacterKeys", s, true), "MigrateCharacterKeys not in Utils.lua")
+    local _, e = assert(src:find("\r?\nend\r?\n", m))
+    local chunkEnv = setmetatable({ ns = ns }, { __index = env or _G })
+    assert(load(src:sub(s, e), "=Utils.lua character key", "t", chunkEnv))()
 end
 
 -- ============================================================================

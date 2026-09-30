@@ -23,9 +23,7 @@ local pairs = pairs
 local wipe = wipe
 
 local function CharKey()
-    local name = UnitName and UnitName("player")
-    local realm = GetRealmName and GetRealmName()
-    return (name or "?") .. "-" .. (realm or "?")
+    return ns.CurrentCharacterKey()
 end
 
 -- Class/spec-specific rows must not carry across characters; everything else
