@@ -307,41 +307,6 @@ function tests.classic_listingSaysAllDiscovered_onlyRecordedFly()
     for i = 1, #steps do H.assertTrue(steps[i].kind ~= "taxi", "no flight lands at a master never met") end
 end
 
--- Roads: world x is north, y is west. A road runs west from A to the
--- junction B (which goes on west to D) and turns north to C.
-local function roadData()
-    local d = data()
-    d.roads = { [1] = { nodes = { 0, 0, 0, 1000, 1000, 1000, 0, 2000 },
-                        edges = { 1, 2, 1000, 2, 3, 1000, 2, 4, 1000 }, shapes = {} } }
-    return d
-end
-
-function tests.roads_followTheRoadAndTurnAtTheJunction()
-    local _, _, Route = fresh()
-    local path = Route.RoadPath(roadData(), 1, 0, -50, 1050, 1000)
-    H.assertTrue(path ~= nil, "the roads beat the diagonal")
-    H.assertEq(#path.pts / 2, 5, "start, A, B, C, end")
-    H.assertEq(math.floor(path.len + 0.5), 2100)
-    local first = Route.NextTurn(path, 0)
-    H.assertEq(first.kind, "head", "off the road to begin with")
-    H.assertEq(first.dir, "W", "the road is west")
-    local turn = Route.NextTurn(path, 100)
-    H.assertEq(turn.kind, "turn")
-    H.assertEq(turn.side, "right", "heading west, north is to the right")
-    H.assertEq(math.floor(turn.dist + 0.5), 950)
-    local leave = Route.NextTurn(path, 1100)
-    H.assertEq(leave.kind, "leave", "the road ends short of the goal")
-    local at, off = Route.PathProgress(path, 20, 500)
-    H.assertEq(math.floor(at + 0.5), 550, "halfway from A to B")
-    H.assertEq(math.floor(off + 0.5), 20)
-end
-
-function tests.roads_noneOrNoHelpGivesNoPath()
-    local _, _, Route = fresh()
-    H.assertNil(Route.RoadPath(data(), 1, 0, 0, 500, 500), "no roads in the data")
-    H.assertNil(Route.RoadPath(roadData(), 1, 5000, 5000, 5000, 5100), "a short hop needs no road")
-end
-
 -- The other faction's boat is a last resort: taken when nothing else gets
 -- there, and said so on the step.
 function tests.otherFactionBoat_isALastResort()

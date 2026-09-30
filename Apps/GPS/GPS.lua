@@ -45,7 +45,6 @@ local ticker
 local surfaces = {}     -- every container that renders the route
 local SampleGroundSpeed -- defined with the recorders at the end
 local popoutFrame       -- built on first use by the pop-out below
-local roadGuide = {}    -- the way over the roads for the active step; never saved
 
 local function DB()
     return EasyFind and EasyFind.db
@@ -280,7 +279,6 @@ end
 -- reads as reaching it first (the portal, the dock, the flight master),
 -- then as taking it once you are there.
 local function StepText(step, active)
-    if active and roadGuide.step == step and roadGuide.text then return roadGuide.text end
     if not (active and step and step.reach and step.go) then return step and step.text or "" end
     local ci, px, py = PlayerWorldPos()
     local tci, tx, ty
@@ -295,119 +293,6 @@ end
 GPS.StepText = StepText
 GPS.PlayerWorldPos = function() return PlayerWorldPos() end
 
--- The step's own waypoint, tracked: navigation is explicit tracking.
-local function PlaceStepWaypoint(step)
-    local MapSearch = ns.MapSearch
-    local mapID, x, y = WaypointPoint(step)
-    if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
-        MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
-        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-        end
-        if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
-    end
-end
-
--- A waypoint at a world spot, on the player's map or the nearest parent
--- that holds it and takes waypoints; the arrow stays as tracked as it was.
-local function PlaceWorldWaypoint(ci, wx, wy)
-    local MapSearch = ns.MapSearch
-    if not (MapSearch and MapSearch.PlaceUserWaypoint and UiMapPoint and CreateVector2D and C_Map.GetMapPosFromWorldPos) then return false end
-    local can = C_Map.CanSetUserWaypointOnMap
-    local cur, depth = C_Map.GetBestMapForUnit("player"), 0
-    while cur and depth < 6 do
-        if not can or can(cur) then
-            local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), cur)
-            local x, y
-            if ok and pos then x, y = pos:GetXY() end
-            if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
-                local tracked = C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint()
-                MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(cur, x, y))
-                if tracked then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
-                return true
-            end
-        end
-        local info = C_Map.GetMapInfo(cur)
-        cur = info and info.parentMapID
-        depth = depth + 1
-    end
-    return false
-end
-
-local ROAD_AHEAD = 100    -- the waypoint rides this far ahead along the way
-local ROAD_REPLAN = 70    -- farther than this off the way plans it again
-
-local function RoadText(m)
-    local yd = m.dist >= 500 and mfloor(m.dist / 50 + 0.5) * 50 or mfloor(m.dist / 10 + 0.5) * 10
-    local d = sformat(L["GPS_YARDS_FMT"], mmax(10, yd))
-    if m.kind == "turn" then
-        local key = m.side == "left" and (m.bear and "GPS_ROAD_BEAR_LEFT_FMT" or "GPS_ROAD_LEFT_FMT")
-            or (m.bear and "GPS_ROAD_BEAR_RIGHT_FMT" or "GPS_ROAD_RIGHT_FMT")
-        return sformat(L[key], d)
-    elseif m.kind == "leave" then
-        return sformat(L["GPS_ROAD_LEAVE_FMT"], d)
-    elseif m.kind == "head" then
-        return sformat(L["GPS_ROAD_HEAD_FMT"], L["GPS_DIR_" .. m.dir], d)
-    end
-    return sformat(L["GPS_ROAD_FOLLOW_FMT"], d)
-end
-
-local function ResetRoadGuide()
-    roadGuide.step, roadGuide.path, roadGuide.text, roadGuide.placed, roadGuide.tried = nil, nil, nil, nil, nil
-end
-
--- The walking part of the active step over the roads: the waypoint rides
--- along the way ahead of the player and the step says what comes next.
--- Where no road helps (or on a flight), the step's own waypoint stands.
-local function UpdateRoadGuide(step, ci, px, py)
-    local g, Engine, data = roadGuide, ns.GPSRoute, ns.GPSData
-    local target = step.kind ~= "teleport" and (step.kind == "travel" and step.arrive or step.go) or nil
-    local text = g.text
-    -- A crossing's walk ends at its dock or master: once there, the ride
-    -- carries the player away from it and no road leads back.
-    if target and step.kind ~= "travel" and target.ci == ci
-        and (px - target.wx) ^ 2 + (py - target.wy) ^ 2 <= REACH_YARDS * REACH_YARDS then
-        g.reached = step
-    end
-    if not (target and target.wx and target.ci == ci and Engine and Engine.RoadPath and data and data.roads)
-        or g.reached == step or (UnitOnTaxi and UnitOnTaxi("player")) then
-        if g.placed then PlaceStepWaypoint(step) end
-        ResetRoadGuide()
-        if text then Refresh() end
-        return
-    end
-    if g.step ~= step or g.tx ~= target.wx or g.ty ~= target.wy then
-        ResetRoadGuide()
-        g.step, g.tx, g.ty = step, target.wx, target.wy
-    end
-    local at, off
-    if g.path then
-        at, off = Engine.PathProgress(g.path, px, py)
-        if off > ROAD_REPLAN then g.path = nil end
-    end
-    if not g.path then
-        local now = GetTime()
-        if g.tried and now - g.tried < 5 then return end
-        g.tried = now
-        g.path = Engine.RoadPath(data, ci, px, py, target.wx, target.wy)
-        if not g.path then
-            if g.placed then PlaceStepWaypoint(step) end
-            g.placed, g.text = nil, nil
-            if text then Refresh() end
-            return
-        end
-        at = 0
-    end
-    local ax, ay = Engine.PathPoint(g.path, at + ROAD_AHEAD)
-    if not g.placed or (ax - g.ax) ^ 2 + (ay - g.ay) ^ 2 > 25 * 25 then
-        if PlaceWorldWaypoint(ci, ax, ay) then g.placed, g.ax, g.ay = true, ax, ay end
-    end
-    -- Close to the spot, the step's own words take over.
-    local near = (px - target.wx) ^ 2 + (py - target.wy) ^ 2 <= REACH_YARDS * REACH_YARDS
-    g.text = not near and RoadText(Engine.NextTurn(g.path, at)) or nil
-    if g.text ~= text then Refresh() end
-end
-
 TrackStep = function(index)
     local route = Route()
     local step = route and route.steps[index]
@@ -417,7 +302,17 @@ TrackStep = function(index)
     -- A teleport counts as taken only once cast, or once off this continent.
     route.castAt = nil
     route.stepCi = PlayerWorldPos()
-    PlaceStepWaypoint(step)
+    local MapSearch = ns.MapSearch
+    local mapID, x, y = WaypointPoint(step)
+    if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
+        MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
+        -- Navigation is explicit tracking: the arrow is on whatever the
+        -- general auto-track option says.
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+        end
+        if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
+    end
     Refresh()
 end
 
@@ -444,7 +339,6 @@ end
 
 local function Arrive(route)
     route.arrived = true
-    ResetRoadGuide()
     StopTicker()
     -- The arrow lets go and the pin comes off the map: there is nowhere
     -- left to point.
@@ -569,7 +463,6 @@ local function Tick()
     end
     local ci, px, py = PlayerWorldPos()
     if not ci then return end
-    UpdateRoadGuide(step, ci, px, py)
     -- A step is done where it lands you (the far side of a portal or a
     -- flight), which is not always where it starts.
     local arrive = step.arrive
@@ -606,7 +499,6 @@ function GPS:NavigateTo(data, opts)
     if not db then return false end
     local dest = Destination(data)
     local steps, total, advice = self:BuildRoute(dest)
-    ResetRoadGuide()
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice }
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
@@ -670,7 +562,6 @@ function GPS:Status()
 end
 
 function GPS:Clear()
-    ResetRoadGuide()
     local c = CharDB()
     if c then c.route = nil end
     StopTicker()
