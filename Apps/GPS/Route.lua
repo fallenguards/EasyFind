@@ -797,16 +797,16 @@ function Route:Build(dest, opts)
     else
         known, listed, names = KnownFlightNodes(data)
         local recorded = Route.recordedKnown
-        if known and recorded and next(recorded) then
+        if data.classic then
+            -- Forever's map listing marks every point discovered, learned
+            -- or not: only what a flight master's own map showed counts.
+            known = {}
+            for k in pairs(recorded or {}) do known[k] = true end
+        elseif known and recorded and next(recorded) then
             local merged = {}
             for k in pairs(known) do merged[k] = true end
             for k in pairs(recorded) do merged[k] = true end
             known = merged
-        elseif not known and data.classic then
-            -- The 1.x game learns flight masters one by one: when the client
-            -- cannot say, only those seen at a flight master count, never all.
-            known = {}
-            for k in pairs(recorded or {}) do known[k] = true end
         end
     end
     local ctx = {

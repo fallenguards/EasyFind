@@ -289,6 +289,24 @@ function tests.classic_unknownFlightsAreNotAssumed()
     H.assertEq(seen[1].kind, "taxi", "the ones seen at a flight master fly")
 end
 
+-- Forever's map listing marks every point discovered, learned or not: a
+-- flight lands only where a flight master's own map showed it learned.
+function tests.classic_listingSaysAllDiscovered_onlyRecordedFly()
+    local env, _, Route = fresh()
+    local d = data()
+    d.classic = true
+    env.C_TaxiMap = { GetTaxiNodesForMap = function(m)
+        if m ~= 1 then return {} end
+        return { { nodeID = 1, name = "Alpha", isUndiscovered = false }, { nodeID = 2, name = "Beta", isUndiscovered = false },
+                 { nodeID = 3, name = "Gamma", isUndiscovered = false } }
+    end }
+    Route.ForgetKnown()
+    Route.recordedKnown = { [1] = true }
+    local steps = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }, { data = d, known = nil })
+    Route.recordedKnown = nil
+    for i = 1, #steps do H.assertTrue(steps[i].kind ~= "taxi", "no flight lands at a master never met") end
+end
+
 -- The other faction's boat is a last resort: taken when nothing else gets
 -- there, and said so on the step.
 function tests.otherFactionBoat_isALastResort()
