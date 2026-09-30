@@ -777,6 +777,40 @@ end
 -- Public
 -- ---------------------------------------------------------------------------
 
+local LEARN_SECONDS = 8   -- talking to a flight master to learn its path
+
+local function Copy(t)
+    local c = {}
+    for k, v in pairs(t) do c[k] = v end
+    return c
+end
+
+-- The trip with a stop to learn the flight master via = { id, name, p }:
+-- the way there, a step to learn it, then on with its flight path known.
+local function ViaStop(route, dest, opts, start, known, listed)
+    local L = ns.L
+    local via = opts.via
+    local here = Resolve(via.p)
+    if not here then return nil end
+    local o = Copy(opts)
+    o.via, o.advise, o.start, o.known, o.listed = nil, false, start, known or false, listed
+    local s1, t1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y }, o)
+    if not s1 then return nil end
+    local learned = {}
+    for id in pairs(known or {}) do learned[id] = true end
+    learned[via.id] = true
+    o.start, o.known = here, known and learned or false
+    local s2, t2 = route:Build(dest, o)
+    if not s2 then return nil end
+    local steps = {}
+    for i = 1, #s1 do steps[#steps + 1] = s1[i] end
+    steps[#steps + 1] = { kind = "learn", text = (L["GPS_STEP_LEARN_FMT"]):format(via.name or "?"),
+                          mapID = here.m, x = here.x, y = here.y, go = here, arrive = here, sec = LEARN_SECONDS,
+                          nodeID = via.id, reach = via.name, reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(via.name or "?") }
+    for i = 1, #s2 do steps[#steps + 1] = s2[i] end
+    return steps, t1 + LEARN_SECONDS + t2
+end
+
 -- Build a route from the player's position to dest { name, mapID, x, y }.
 -- Returns steps (array), total seconds and advice
 -- ({ pickups = { ... }, learn = { id, name, p, save, total } | nil }), or
@@ -816,6 +850,7 @@ function Route:Build(dest, opts)
             known = merged
         end
     end
+    if opts.via then return ViaStop(self, dest, opts, start, known, listed) end
     local ctx = {
         start = start, goal = goal, data = data,
         faction = opts.faction or (UnitFactionGroup and UnitFactionGroup("player")) or "Neutral",
@@ -886,6 +921,31 @@ function Route:Build(dest, opts)
             if steps[i].learn and steps[i].nodeID then used[steps[i].nodeID] = true end
         end
         advice = { pickups = Pickups(g, path, used), learn = BestToLearn(ctx, g, cost, used) }
+        -- What each stop really costs: this trip built with it.
+        local priced = Copy(opts)
+        priced.advise, priced.start, priced.known, priced.listed = false, start, known or false, listed
+        local function Price(item)
+            priced.via = item
+            local _, t = self:Build(dest, priced)
+            item.viaTotal = t
+            item.extra = t and (t - total) or nil
+        end
+        for i = 1, #advice.pickups do Price(advice.pickups[i]) end
+        local learn = advice.learn
+        if learn then Price(learn) end
+        -- A stop that costs nothing is simply taken.
+        if learn and learn.extra and learn.extra <= 0 then
+            priced.via = learn
+            local viaSteps, viaTotal = self:Build(dest, priced)
+            if viaSteps then
+                steps, total, advice.learn = viaSteps, viaTotal, nil
+                local keep = {}
+                for i = 1, #advice.pickups do
+                    if advice.pickups[i].id ~= learn.id then keep[#keep + 1] = advice.pickups[i] end
+                end
+                advice.pickups = keep
+            end
+        end
         if #advice.pickups == 0 and not advice.learn then advice = nil end
     end
     return steps, total, advice

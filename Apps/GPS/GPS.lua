@@ -180,15 +180,16 @@ local function LearnHearth()
 end
 GPS.LearnHearth = LearnHearth
 
-function GPS:BuildRoute(dest)
+function GPS:BuildRoute(dest, via)
     local Route = ns.GPSRoute
     if Route and ns.GPSData then
         local h = HearthPoint()
-        local ok, steps, total, advice = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil })
+        local ok, steps, total, advice = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil, via = via })
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
             return steps, total, advice
         end
+        if via then return nil end   -- no way with that stop: the route stays as it was
     end
     -- No way through the data: a plain leg, priced as the crow flies when
     -- the spot is on this continent, unpriced when it is not.
@@ -473,6 +474,9 @@ local function Tick()
     if not sci or sci ~= ci then return end
     if step.kind == "teleport" and ci == route.stepCi
         and not (route.castAt and GetTime() - route.castAt < 300) then return end
+    -- A stop to learn a flight path is done when the flight master's map
+    -- shows it learned, not on arriving.
+    if step.kind == "learn" then return end
     local crossing = step.kind ~= "travel"
     -- A crossing to another continent is done the moment you are on it;
     -- one that stays on this continent is done near its far spot.
@@ -515,6 +519,20 @@ function GPS:NavigateTo(data, opts)
         self:Open()
     end
     return true
+end
+
+-- The trip again with a stop to learn a flight master on it.
+function GPS:AddStop(tip)
+    local route = Route()
+    local Engine = ns.GPSRoute
+    if not (route and route.dest and Engine and tip and tip.id) then return end
+    local via = { id = tip.id, name = tip.name, p = tip.p }
+    local steps, total, advice = self:BuildRoute(route.dest, via)
+    if not steps then return end
+    route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+    route.via = via
+    closing.step = nil
+    TrackStep(1)
 end
 
 -- What the navigation is doing right now, for the dev command.
@@ -805,15 +823,21 @@ local function TipRow(container, i)
     row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
+    -- A click could be an accident: the stop is added only once confirmed,
+    -- with what it does to this trip spelled out.
     row:SetScript("OnClick", function(self)
         local tip = self.tip
-        if not (tip and tip.p) then return end
-        GPS:NavigateTo({ name = tip.name, mapID = tip.p.m, x = tip.p.x, y = tip.p.y }, { quiet = true })
+        local route = Route()
+        if not (tip and tip.p and tip.viaTotal and route) then return end
+        local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
+        if tip.after then text = text .. " " .. sformat(L["GPS_STOP_AFTER_FMT"], EtaText(tip.after)) end
+        ns.ShowThemedDialog({ text = text, acceptText = L["GPS_STOP_ADD"], cancelText = _G["CANCEL"],
+                              onAccept = function() GPS:AddStop(tip) end })
     end)
     row:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
-        GameTooltip:AddLine(L["GPS_ADVICE_TT"], 1, 1, 1, true)
+        GameTooltip:AddLine(L[self.tip and self.tip.detour and "GPS_ADVICE_DETOUR_TT" or "GPS_ADVICE_TT"], 1, 1, 1, true)
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
@@ -831,17 +855,20 @@ local function AdviceLines(route)
     for i = 1, #(a.pickups or {}) do
         local p = a.pickups[i]
         local text
+        local after
         if learn and learn.id == p.id then
             text = sformat(L["GPS_ADVICE_PICKUP_SAVE_FMT"], p.name or "?", EtaText(learn.save))
+            after = learn.total
             learn = nil
         else
             text = sformat(L["GPS_ADVICE_PICKUP_FMT"], p.name or "?")
         end
-        out[#out + 1] = { text = text, name = p.name, p = p.p }
+        out[#out + 1] = { text = text, id = p.id, name = p.name, p = p.p, viaTotal = p.viaTotal, after = after }
     end
-    if learn then
-        out[#out + 1] = { text = sformat(L["GPS_ADVICE_LEARN_FMT"], learn.name or "?", EtaText(learn.total), EtaText(route.total or route.eta)),
-                          name = learn.name, p = learn.p }
+    if learn and learn.extra then
+        -- Out of the way: what it costs now, what it saves every time after.
+        out[#out + 1] = { text = sformat(L["GPS_ADVICE_DETOUR_FMT"], learn.name or "?", EtaText(learn.extra), EtaText(learn.save)),
+                          id = learn.id, name = learn.name, p = learn.p, viaTotal = learn.viaTotal, after = learn.total, detour = true }
     end
     return #out > 0 and out or nil
 end
@@ -2811,7 +2838,12 @@ local function RecordKnownFlights()
         if s.kind == "taxi" and s.nodeID == here and not (s.toID and open[s.toID]) then stale = true end
     end
     if not stale then return end
-    local steps, total, advice = GPS:BuildRoute(route.dest)
+    if route.via and c.flights[route.via.id] then route.via = nil end
+    local steps, total, advice = GPS:BuildRoute(route.dest, route.via)
+    if not steps then
+        route.via = nil
+        steps, total, advice = GPS:BuildRoute(route.dest)
+    end
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
     closing.step = nil
     TrackStep(1)

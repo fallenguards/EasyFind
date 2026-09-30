@@ -177,6 +177,39 @@ function tests.advice_namesTheFlightPathWorthLearning()
     H.assertTrue(advice.learn.total < total, "the trip with it learned is shorter")
 end
 
+-- A stop to learn a flight master: there, learn it, then fly on from it.
+function tests.stop_learnsThereThenFliesOn()
+    local _, _, Route = fresh()
+    local d = data()
+    d.edges, d.abilities = {}, {}
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local via = { id = 2, name = "Beta", p = P(1, 0.9, 0.1) }
+    local steps, total = buildAll(Route, P(1, 0.1, 0.11), dest, { data = d, known = { [1] = true, [3] = true }, via = via })
+    H.assertTrue(steps ~= nil, "a route with the stop")
+    local learnAt, flyAfter
+    for i = 1, #steps do
+        if steps[i].kind == "learn" then learnAt = i end
+        if learnAt and i > learnAt and steps[i].kind == "taxi" then flyAfter = steps[i] end
+    end
+    H.assertTrue(learnAt ~= nil, "a step to learn Beta")
+    H.assertEq(steps[learnAt].nodeID, 2)
+    H.assertTrue(flyAfter ~= nil and flyAfter.nodeID == 2, "then a flight from Beta, now learned")
+    local sum = 0
+    for i = 1, #steps do sum = sum + (steps[i].sec or 0) end
+    H.assertEq(math.floor(sum + 0.5), math.floor(total + 0.5), "the total is its steps")
+end
+
+-- The tip for a flight path elsewhere carries what the stop costs now.
+function tests.advice_pricesTheDetour()
+    local _, _, Route = fresh()
+    local _, total, advice = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.9 },
+        { known = { [1] = true, [2] = true } })
+    local learn = advice and advice.learn
+    H.assertTrue(learn ~= nil and learn.extra ~= nil, "the detour is priced")
+    H.assertTrue(math.abs(learn.viaTotal - (total + learn.extra)) < 0.01, "extra is the trip with the stop, less the trip")
+    H.assertTrue(learn.extra > 0, "Gamma is out of the way")
+end
+
 function tests.advice_listsMastersOnTheWay()
     local _, _, Route = fresh()
     local d = data()
