@@ -540,7 +540,7 @@ local function Steps(g, path, goalName)
             tinsert(steps, { kind = "taxi", text = (L[key]):format(fromName, last.name or "?"),
                              mapID = fromNode and fromNode.p.m, x = fromNode and fromNode.p.x, y = fromNode and fromNode.p.y,
                              go = fromNode and fromNode.p, arrive = last.p, sec = sec, edgeSec = sec,
-                             reach = fromNode and fromNode.name, learn = learn, nodeID = fromNode and fromNode.id,
+                             reach = fromNode and fromNode.name, learn = learn, nodeID = fromNode and fromNode.id, toID = last.id,
                              reachText = reachText })
             i = j
         elseif e.kind == "teleport" then

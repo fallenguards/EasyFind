@@ -2690,15 +2690,36 @@ local function RecordKnownFlights()
     if not (ok and list) then return end
     local state = Enum.FlightPathState
     c.flights = c.flights or {}
+    local here, open, learned = nil, {}, false
     for i = 1, #list do
         local n = list[i]
-        if n.nodeID and (n.state == state.Current or n.state == state.Reachable) then c.flights[n.nodeID] = true end
+        if n.nodeID and (n.state == state.Current or n.state == state.Reachable) then
+            if not c.flights[n.nodeID] then learned = true end
+            c.flights[n.nodeID] = true
+            open[n.nodeID] = true
+            if n.state == state.Current then here = n.nodeID end
+        end
     end
     local Engine = ns.GPSRoute
     if Engine then
         Engine.recordedKnown = c.flights
         Engine.ForgetKnown()
     end
+    -- The trip is planned again from here when this master's answer differs
+    -- from the plan: a master newly learned, or a planned flight from here
+    -- it does not offer.
+    local route = c.route
+    if not (route and route.dest and not route.arrived) then return end
+    local stale = learned
+    for i = route.active or 1, #route.steps do
+        local s = route.steps[i]
+        if s.kind == "taxi" and s.nodeID == here and not (s.toID and open[s.toID]) then stale = true end
+    end
+    if not stale then return end
+    local steps, total, advice = GPS:BuildRoute(route.dest)
+    route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+    closing.step = nil
+    TrackStep(1)
 end
 
 -- This character's mounted pace on the ground, the fastest seen.
