@@ -952,7 +952,7 @@ end
 local function HitRow(frame, i)
     local rows = frame.hits
     if rows[i] then return rows[i] end
-    local row = CreateFrame("Button", nil, frame.hitList)
+    local row = CreateFrame("Button", nil, frame.hitChild)
     row:SetHeight(ROW_H)
     Utils.InstallMenuRowHighlight(row)
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -1043,25 +1043,41 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     box:SetScript("OnDragStop", function() if frame.EndWindowDrag then frame:EndWindowDrag() end end)
     frame.search = box
 
-    local hitList = CreateFrame("Frame", nil, frame)
+    -- The hits scroll inside whatever height the window gives them, as the
+    -- search results do: a scroll frame, the rows on its child, the thin bar.
+    local hitList = CreateFrame("ScrollFrame", nil, frame)
     hitList:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6, -8)
     hitList:SetPoint("RIGHT", frame, "RIGHT", -(bodyPad - 4), 0)
     hitList:SetHeight(1)
-    frame.hitList = hitList
+    local hitChild = CreateFrame("Frame", nil, hitList)
+    hitChild:SetSize(1, 1)
+    hitList:SetScrollChild(hitChild)
+    hitList:SetScript("OnSizeChanged", function(_, w) hitChild:SetWidth(w) end)
+    frame.hitList, frame.hitChild = hitList, hitChild
+    frame.hitBar = Utils.CreateMinimalScrollBar(hitList, hitList)
+
+    -- The hits' visible height: at most what they need, the rest scrolls.
+    function frame:SetHitView(h)
+        local content = (self.hitCount or 0) * ROW_H
+        h = math.min(h, content)
+        hitList:SetHeight(mmax(1, h))
+        local scrolls = content > h + 0.5
+        self.hitBar:SetShown(scrolls)
+        if scrolls then self.hitBar:UpdateThumb(content, h) end
+    end
 
     function frame:ShowHits(results)
         local n = 0
         if results then
             for i = 1, #results do
-                if n >= HIT_ROWS then break end
                 local r = results[i]
                 if GPS:CanNavigate(r) then
                     n = n + 1
                     local row = HitRow(self, n)
                     row.data = r
                     row:ClearAllPoints()
-                    row:SetPoint("TOPLEFT", hitList, "TOPLEFT", 0, -(n - 1) * ROW_H)
-                    row:SetPoint("RIGHT", hitList, "RIGHT", 0, 0)
+                    row:SetPoint("TOPLEFT", hitChild, "TOPLEFT", 0, -(n - 1) * ROW_H)
+                    row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
                     local where = r.zoneName or r.parentName or r.category
                     row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
                     row:Show()
@@ -1069,8 +1085,10 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             end
         end
         for i = n + 1, #self.hits do self.hits[i]:Hide() end
-        hitList:SetHeight(mmax(1, n * ROW_H))
+        hitChild:SetHeight(mmax(1, n * ROW_H))
+        hitList:SetVerticalScroll(0)
         self.hitCount = n
+        self:SetHitView(HIT_ROWS * ROW_H)
         if self.OnRouteChanged then self:OnRouteChanged(Route() ~= nil) end
     end
 
@@ -1853,7 +1871,8 @@ RenderDock = function(f)
             -- The search box, and the places it finds, in the steps' place.
             f.search:Show()
             f.hitList:Show()
-            local n = f.hitCount or 0
+            local n = math.min(f.hitCount or 0, HIT_ROWS)
+            f:SetHitView(n * ROW_H)
             y = -DOCK_HEADER_H - (n > 0 and (4 + n * ROW_H + 4) or 0)
         end
     end
@@ -2638,20 +2657,22 @@ local function BuildPopout()
             if Route() then
                 h = head + line + (self.contentHeight or 0) + 4   -- the last row carries its own padding
             elseif (self.hitCount or 0) > 0 then
-                h = head + (self.hitCount * ROW_H) + 12
+                h = head + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
             elseif self.search then
                 h = head + 4   -- the search box alone, in the header row
             else
                 h = head + 2 + (self.empty:GetStringHeight() or 24) + 14
             end
             if fixed then
-                -- A fixed height: the step list scrolls inside it.
+                -- A fixed height: the step list, or the hits, scroll inside it.
                 self:SetHeight(fixed)
+                if not Route() and (self.hitCount or 0) > 0 then self:SetHitView(fixed - head - 12) end
                 local avail = fixed - (head + line + 12)
                 self.list:SetHeight(mmax(1, math.min(self.contentHeight or 0, avail)))
                 self.list:SetClipsChildren(true)
             else
                 self:SetHeight(mmax(60, h))
+                if not Route() and (self.hitCount or 0) > 0 then self:SetHitView(HIT_ROWS * ROW_H) end
                 self.list:SetClipsChildren(false)
                 self.scrollOffset = 0
             end
