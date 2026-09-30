@@ -93,6 +93,13 @@ local function BindPoint(data, bindName)
             return p
         end
     end
+    -- Bound at an inn in a town's district: the town's spot.
+    for area, town in pairs(data.bindAreas or {}) do
+        if AreaName(area) == bindName and data.binds[town] then
+            bindCache[bindName] = data.binds[town]
+            return data.binds[town]
+        end
+    end
     bindCache[bindName] = false
     return nil
 end

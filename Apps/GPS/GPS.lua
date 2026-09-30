@@ -2781,6 +2781,7 @@ end
 
 local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("TAXIMAP_OPENED")
+loginFrame:RegisterEvent("HEARTHSTONE_BOUND")
 loginFrame:RegisterEvent("PLAYER_LOGIN")
 loginFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 loginFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -2808,6 +2809,11 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     end
     if event == "TAXIMAP_OPENED" then
         Utils.SafeAfter(0, RecordKnownFlights)
+        return
+    end
+    -- Bound at an innkeeper: where the character stands is where a hearth lands.
+    if event == "HEARTHSTONE_BOUND" then
+        Utils.SafeAfter(0.5, LearnHearth)
         return
     end
     if event == "PLAYER_ENTERING_WORLD" then

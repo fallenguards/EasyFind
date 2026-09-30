@@ -351,6 +351,23 @@ function tests.hearth_landsInTheBoundTown()
     H.assertEq(steps[1].arrive.wx, 5000, "lands at the bound town's spot")
 end
 
+-- Bound at Darnassus' inn, the game names the district (Craftsmen's
+-- Terrace), not the town: the town's spot through its district.
+function tests.hearth_boundInADistrictLandsInItsTown()
+    local env, _, Route = fresh()
+    local names = { [1657] = "Darnassus", [1659] = "Craftsmen's Terrace" }
+    env.C_Map.GetAreaInfo = function(area) return names[area] end
+    local d = data()
+    d.edges = {}
+    d.binds = { [1657] = P(2, 0.5, 0.55) }
+    d.bindAreas = { [1659] = 1657 }
+    d.abilities = { { id = 8690, n = "Hearthstone", item = 6948, cd = 1800, cast = 10, bind = "hearth" } }
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Darnassus", mapID = 2, x = 0.5, y = 0.6 },
+        { data = d, bindName = "Craftsmen's Terrace", owns = function() return true end })
+    H.assertEq(steps[1].kind, "teleport", "the hearth, not the long way")
+    H.assertEq(steps[1].arrive.wx, 5000, "lands at the town's spot")
+end
+
 function tests.gatedMarker_isNotOffered()
     local _, _, Route = fresh()
     local d = data()
