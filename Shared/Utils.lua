@@ -2056,7 +2056,7 @@ function ns.MigrateCharacterKeys(db)
         if type(slot) == "table" then holders[#holders + 1] = slot end
     end
     for _, holder in ipairs(holders) do
-        for _, field in ipairs({ "profileKeys", "profileSpecs", "shortkeysPerChar", "pinnedUIItemsPerChar", "learnedStepLocks" }) do
+        for _, field in ipairs({ "profileKeys", "profileSpecs", "shortkeysPerChar", "pinnedUIItemsPerChar", "learnedStepLocks", "gpsChar", "gpsHearth" }) do
             local t = holder[field]
             if type(t) == "table" and t[old] ~= nil then
                 local cur = t[new]

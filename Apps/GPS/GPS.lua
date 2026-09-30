@@ -54,9 +54,7 @@ end
 -- pop-out was open. A trip is one character's; the rest of the GPS
 -- settings (style, dock slot, size) are shared like any other setting.
 local function CharKey()
-    if ns.Profiles and ns.Profiles.CharKey then return ns.Profiles:CharKey() end
-    local name, realm = UnitName("player"), GetRealmName()
-    return (name or "?") .. "-" .. (realm or "?")
+    return ns.CurrentCharacterKey()
 end
 
 local function CharDB()
