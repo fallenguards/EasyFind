@@ -121,9 +121,27 @@ end
 -- Where a result row points: a point of interest at its coordinates, a
 -- zone at its marker on the parent map when the row carries one, else the
 -- middle of the zone's own map.
+-- A dungeon row from the map search names its continent, not its door:
+-- the door comes from the entrance list the map pins use.
+local function EntranceOf(data)
+    local list = ns.GetDungeonEntrancesForMap and ns.GetDungeonEntrancesForMap(data.entranceMapID or data.mapID)
+    for i = 1, list and #list or 0 do
+        local e = list[i]
+        if e.name == data.name then
+            if e.zoneMapID and e.zoneX then return e.zoneMapID, e.zoneX, e.zoneY end
+            if e.position then return data.entranceMapID or data.mapID, e.position.x, e.position.y end
+        end
+    end
+    return nil
+end
+
 local function Destination(data)
     local dest = { name = data.name, icon = data.icon, category = data.category, zone = data.isZone and true or nil }
-    if data.x and data.y and data.mapID then
+    local em, ex, ey
+    if data.isDungeonEntrance and not (data.x and data.y) then em, ex, ey = EntranceOf(data) end
+    if em then
+        dest.mapID, dest.x, dest.y, dest.zone = em, ex, ey, nil
+    elseif data.x and data.y and data.mapID then
         dest.mapID, dest.x, dest.y = data.mapID, data.x, data.y
     else
         dest.mapID, dest.x, dest.y = data.zoneMapID or data.mapID, 0.5, 0.5
@@ -953,6 +971,48 @@ local function HitRow(frame, i)
     return row
 end
 
+-- Towns and landmarks the map search does not list on Forever (Menethil
+-- Harbor, Auberdine): the labeled places in the GPS data, named by the
+-- game. One starting with the query goes above the map search's rows,
+-- one containing it below; a name already listed is skipped.
+local towns
+local mergedHits = {}
+
+local function Listed(results, name)
+    for i = 1, results and #results or 0 do
+        if results[i].name == name then return true end
+    end
+    return false
+end
+
+local function WithTowns(q, results)
+    if not towns then
+        towns = {}
+        local data = ns.GPSData
+        for area, p in pairs(data and data.binds or {}) do
+            local name = C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
+            local info = name and C_Map.GetMapInfo(p.m)
+            if info then
+                towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = p.m, x = p.x, y = p.y, zoneName = info.name } }
+            end
+        end
+    end
+    wipe(mergedHits)
+    local lq = q:lower()
+    for i = 1, #towns do
+        local t = towns[i]
+        if t.lower:sub(1, #lq) == lq and not Listed(results, t.row.name) then mergedHits[#mergedHits + 1] = t.row end
+    end
+    for i = 1, results and #results or 0 do mergedHits[#mergedHits + 1] = results[i] end
+    for i = 1, #towns do
+        local t = towns[i]
+        if t.lower:sub(1, #lq) ~= lq and t.lower:find(lq, 1, true) and not Listed(results, t.row.name) then
+            mergedHits[#mergedHits + 1] = t.row
+        end
+    end
+    return mergedHits
+end
+
 local function BuildSearch(frame, glyph, padRight, bodyPad)
     frame.hits = {}
     local box = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
@@ -1027,7 +1087,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             local q = box:GetText() or ""
             if q == "" or Route() or not (MapSearch and MapSearch.BuildResults) then return end
             local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
-            frame:ShowHits(ok and results or nil)
+            frame:ShowHits(WithTowns(q, ok and results or nil))
         end)
     end)
 end
