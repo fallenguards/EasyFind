@@ -15,7 +15,7 @@ if not ns then return end
 local Route = {}
 ns.GPSRoute = Route
 
-local msqrt, mmax, mhuge = math.sqrt, math.max, math.huge
+local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
 local tinsert, tsort = table.insert, table.sort
 
 local MOUNT_UP = 2          -- seconds to get on a mount
@@ -771,6 +771,284 @@ function Route:TravelSeconds(yards, opts)
     local speed = (opts and opts.groundSpeed) or Route.GroundSpeed(data)
     local mountUp = speed <= (speeds.run or 7) + 0.5 and 0 or MOUNT_UP
     return mountUp + yards * ((data and data.classic) and WALK_DETOUR or 1) / speed
+end
+
+-- ---------------------------------------------------------------------------
+-- Roads: the walking network (data.roads, from dev/tools/roads/walkgraph.py)
+-- ---------------------------------------------------------------------------
+
+local ROAD_CELL = 300     -- yards per lookup cell
+local ROAD_HOP = 300      -- off the road between two pieces of road, at most
+local ROAD_REACH = 800    -- the start and the end join a road this close
+local OFF_ROAD = 2        -- an off-road yard weighs this many road yards
+local TURN_DEG = 30       -- a bend at a junction sharper than this is a turn
+local BEAR_DEG = 60       -- up to this, a turn is a bear
+local MIN_LEG = 40        -- off the road for less than this is no instruction
+local GAP_LEG = 150       -- between two pieces of road, less than this is the road going on
+local roadNets = {}
+local atan2 = math.atan2 or math.atan   -- 5.1 in game, 5.4 in the tests
+
+local function RoadNet(data, ci)
+    local net = roadNets[ci]
+    if net ~= nil then return net or nil end
+    local g = data and data.roads and data.roads[ci]
+    if not g then
+        roadNets[ci] = false
+        return nil
+    end
+    local xy, edges = g.nodes, g.edges
+    local n = #xy / 2
+    local adj, cells = {}, {}
+    for i = 1, n do adj[i] = {} end
+    for e = 1, #edges / 3 do
+        local a, b, len = edges[3 * e - 2], edges[3 * e - 1], edges[3 * e]
+        local la, lb = adj[a], adj[b]
+        local ka, kb = #la, #lb
+        la[ka + 1], la[ka + 2], la[ka + 3] = b, len, e
+        lb[kb + 1], lb[kb + 2], lb[kb + 3] = a, len, -e
+    end
+    for i = 1, n do
+        local key = (mfloor(xy[2 * i - 1] / ROAD_CELL) + 500) * 1000 + mfloor(xy[2 * i] / ROAD_CELL) + 500
+        local c = cells[key]
+        if not c then
+            c = {}
+            cells[key] = c
+        end
+        c[#c + 1] = i
+    end
+    net = { xy = xy, n = n, adj = adj, cells = cells, shapes = g.shapes or {} }
+    roadNets[ci] = net
+    return net
+end
+
+-- Road nodes within r yards of (x, y): each id and its distance, in pairs.
+local function NodesNear(net, x, y, r, out)
+    local k = 0
+    local cx, cy, span = mfloor(x / ROAD_CELL), mfloor(y / ROAD_CELL), math.ceil(r / ROAD_CELL)
+    local xy = net.xy
+    for i = cx - span, cx + span do
+        for j = cy - span, cy + span do
+            local c = net.cells[(i + 500) * 1000 + j + 500]
+            for m = 1, c and #c or 0 do
+                local id = c[m]
+                local dx, dy = xy[2 * id - 1] - x, xy[2 * id] - y
+                local d = msqrt(dx * dx + dy * dy)
+                if d <= r then
+                    out[k + 1], out[k + 2] = id, d
+                    k = k + 2
+                end
+            end
+        end
+    end
+    return k
+end
+
+-- The way from (sx, sy) to (tx, ty) on continent ci, over the roads where
+-- they help: { pts = { x, y, ... } in world yards, node = { [vertex] = road
+-- node }, off = { [vertex] = true when the leg from it is off the road },
+-- cum = { [vertex] = yards from the start }, len, net }. Nil when the
+-- continent has no roads or no road beats the straight line.
+function Route.RoadPath(data, ci, sx, sy, tx, ty)
+    local net = RoadNet(data, ci)
+    if not net then return nil end
+    local n, xy, adj = net.n, net.xy, net.adj
+    local S, T = n + 1, n + 2
+    local function Pos(u)
+        if u == S then return sx, sy elseif u == T then return tx, ty end
+        return xy[2 * u - 1], xy[2 * u]
+    end
+    local function H(u)
+        local x, y = Pos(u)
+        return msqrt((x - tx) ^ 2 + (y - ty) ^ 2)
+    end
+    local g, prev, via, done = { [S] = 0 }, {}, {}, {}
+    local hk, hv, hn = {}, {}, 0
+    local function Push(v, f)
+        hn = hn + 1
+        local i = hn
+        while i > 1 do
+            local p = mfloor(i / 2)
+            if hk[p] <= f then break end
+            hk[i], hv[i] = hk[p], hv[p]
+            i = p
+        end
+        hk[i], hv[i] = f, v
+    end
+    local function Pop()
+        local v, lastK, lastV = hv[1], hk[hn], hv[hn]
+        hk[hn], hv[hn] = nil, nil
+        hn = hn - 1
+        local i = 1
+        while true do
+            local c = i * 2
+            if c > hn then break end
+            if c < hn and hk[c + 1] < hk[c] then c = c + 1 end
+            if hk[c] >= lastK then break end
+            hk[i], hv[i] = hk[c], hv[c]
+            i = c
+        end
+        if hn > 0 then hk[i], hv[i] = lastK, lastV end
+        return v
+    end
+    local function Relax(u, v, cost, e)
+        local ng = g[u] + cost
+        if not done[v] and (g[v] == nil or ng < g[v]) then
+            g[v], prev[v], via[v] = ng, u, e
+            Push(v, ng + H(v))
+        end
+    end
+    local near = {}
+    Push(S, H(S))
+    while hn > 0 do
+        local u = Pop()
+        if not done[u] then
+            done[u] = true
+            if u == T then break end
+            local ux, uy = Pos(u)
+            local dT = msqrt((ux - tx) ^ 2 + (uy - ty) ^ 2)
+            if u == S then
+                Relax(u, T, dT * OFF_ROAD, 0)
+                local k = NodesNear(net, ux, uy, ROAD_REACH, near)
+                for m = 1, k, 2 do Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
+            else
+                local a = adj[u]
+                for m = 1, #a, 3 do Relax(u, a[m], a[m + 1], a[m + 2]) end
+                local k = NodesNear(net, ux, uy, ROAD_HOP, near)
+                for m = 1, k, 2 do
+                    if near[m] ~= u then Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
+                end
+                if dT <= ROAD_REACH then Relax(u, T, dT * OFF_ROAD, 0) end
+            end
+        end
+    end
+    if not done[T] or prev[T] == S then return nil end
+    local chain = {}
+    local v = T
+    while v do
+        chain[#chain + 1] = v
+        v = prev[v]
+    end
+    local pts, node, off, cum = {}, {}, {}, {}
+    local function Add(x, y)
+        local k = #pts
+        local d = 0
+        if k > 0 then d = cum[k / 2] + msqrt((x - pts[k - 1]) ^ 2 + (y - pts[k]) ^ 2) end
+        pts[k + 1], pts[k + 2] = x, y
+        cum[k / 2 + 1] = d
+        return k / 2 + 1
+    end
+    Add(sx, sy)
+    for c = #chain - 1, 1, -1 do
+        local w = chain[c]
+        local e = via[w]
+        local from = #pts / 2
+        if e == 0 then
+            off[from] = true
+        else
+            local shape = net.shapes[e < 0 and -e or e]
+            if shape then
+                local m = #shape / 2
+                for s = 1, m do
+                    local j = e > 0 and s or (m - s + 1)
+                    Add(shape[2 * j - 1], shape[2 * j])
+                end
+            end
+        end
+        local wx, wy = Pos(w)
+        local idx = Add(wx, wy)
+        if w <= n then node[idx] = w end
+    end
+    return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
+end
+
+-- Where along the way (yards from its start) the point (x, y) is, and how
+-- far off the way it stands.
+function Route.PathProgress(path, x, y)
+    local pts, cum = path.pts, path.cum
+    local bestD, bestAt = mhuge, 0
+    for i = 1, #pts / 2 - 1 do
+        local ax, ay, bx, by = pts[2 * i - 1], pts[2 * i], pts[2 * i + 1], pts[2 * i + 2]
+        local dx, dy = bx - ax, by - ay
+        local L2 = dx * dx + dy * dy
+        local t = L2 > 0 and mmax(0, math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)) or 0
+        local px, py = ax + t * dx, ay + t * dy
+        local d = msqrt((x - px) ^ 2 + (y - py) ^ 2)
+        if d < bestD then bestD, bestAt = d, cum[i] + t * msqrt(L2) end
+    end
+    return bestAt, bestD
+end
+
+-- The point this many yards along the way.
+function Route.PathPoint(path, at)
+    local pts, cum = path.pts, path.cum
+    local last = #pts / 2
+    if at <= 0 then return pts[1], pts[2] end
+    for i = 1, last - 1 do
+        if cum[i + 1] >= at then
+            local seg = cum[i + 1] - cum[i]
+            local t = seg > 0 and (at - cum[i]) / seg or 0
+            return pts[2 * i - 1] + t * (pts[2 * i + 1] - pts[2 * i - 1]), pts[2 * i] + t * (pts[2 * i + 2] - pts[2 * i])
+        end
+    end
+    return pts[2 * last - 1], pts[2 * last]
+end
+
+-- The compass point of a heading in world yards (x north, y west).
+local COMPASS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
+local function Compass(dx, dy)
+    local deg = math.deg(atan2(-dy, dx)) % 360   -- clockwise from north
+    return COMPASS[mfloor((deg + 22.5) / 45) % 8 + 1]
+end
+
+-- What comes next from yards `at` along the way: { kind = "follow" |
+-- "turn" | "leave" | "head", dist = yards to it, side = "left" | "right",
+-- bear = true for a gentle turn, dir = compass point off the road }.
+function Route.NextTurn(path, at)
+    local pts, cum, node, off, adj = path.pts, path.cum, path.node, path.off, path.net.adj
+    local last = #pts / 2
+    local seg = 1
+    while seg < last - 1 and cum[seg + 1] <= at do seg = seg + 1 end
+    -- The end of the off-road stretch that starts at vertex i.
+    local function StretchEnd(i)
+        local stop = i + 1
+        while off[stop] and stop < last do stop = stop + 1 end
+        return stop
+    end
+    if off[seg] then
+        -- Across country to the next piece of road, or to the end; a few
+        -- yards off the road is no instruction of its own.
+        local stop = StretchEnd(seg)
+        local between = seg > 1 and stop < last
+        if cum[stop] - at < (between and GAP_LEG or MIN_LEG) then
+            if stop >= last then return { kind = "follow", dist = mmax(0, cum[last] - at) } end
+            local nxt = Route.NextTurn(path, cum[stop])
+            nxt.dist = nxt.dist + (cum[stop] - at)
+            return nxt
+        end
+        local tx, ty = pts[2 * stop - 1], pts[2 * stop]
+        local x, y = Route.PathPoint(path, at)
+        return { kind = "head", dist = cum[stop] - at, dir = Compass(tx - x, ty - y) }
+    end
+    for i = seg + 1, last - 1 do
+        if off[i] then
+            local stop = StretchEnd(i)
+            if cum[stop] - cum[i] >= (stop < last and GAP_LEG or MIN_LEG) then return { kind = "leave", dist = cum[i] - at } end
+        end
+        local id = node[i]
+        if id and #adj[id] >= 9 then
+            local ax, ay = Route.PathPoint(path, cum[i] - 30)
+            local bx, by = Route.PathPoint(path, cum[i] + 30)
+            local ix, iy = pts[2 * i - 1], pts[2 * i]
+            -- Headings as (east, north): east is -y.
+            local ie, inn = -(iy - ay), ix - ax
+            local oe, on = -(by - iy), bx - ix
+            local turn = math.deg(atan2(ie * on - inn * oe, ie * oe + inn * on))
+            if math.abs(turn) >= TURN_DEG then
+                return { kind = "turn", dist = cum[i] - at, side = turn > 0 and "left" or "right", bear = math.abs(turn) <= BEAR_DEG or nil }
+            end
+        end
+    end
+    return { kind = "follow", dist = mmax(0, cum[last] - at) }
 end
 
 -- ---------------------------------------------------------------------------
