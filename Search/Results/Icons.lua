@@ -166,15 +166,15 @@ local FLAT_CATEGORY_ICONS = {
     talent        = { atlas = "UI-HUD-MicroMenu-SpecTalents-Up" },
     achievement   = { atlas = "UI-HUD-MicroMenu-Achievements-Up" },
     macro         = { tex = "Interface\\MacroFrame\\MacroFrame-Icon" },
-    bag           = { atlas = "bag-main" },
+    bag           = { atlas = ns.BAG_ICON_ATLAS, tex = ns.BAG_ICON_TEX },
     bank          = { tex = ns.BANK_CATEGORY_ICON_TEX, coords = ns.BANK_CATEGORY_ICON_COORDS },
     loot          = { tex = 522972, coords = { 0.730, 0.824, 0.618, 0.660 } },
     menuBar       = { tex = "Interface\\AddOns\\EasyFind\\Search\\Images\\menu-bar" },
-    setting       = { atlas = "QuestLog-icon-setting" },
+    setting       = ns.SETTING_ICON,
     command       = { tex = ns.COMMANDS_ICON_TEX },
     -- Addon settings get a warm tint so they're distinguishable at a
     -- glance from the silvery-grey game-settings cogwheel.
-    settingAddon  = { atlas = "QuestLog-icon-setting", color = { 1.0, 0.78, 0.35 } },
+    settingAddon  = { atlas = ns.SETTING_ICON.atlas, tex = ns.SETTING_ICON.tex, color = { 1.0, 0.78, 0.35 } },
     title         = { tex = 514608, coords = { 0.016, 0.531, 0.324, 0.461 } },
     snippet       = { tex = ns.SNIPPET_ICON_TEX, coords = ns.SNIPPET_ICON_COORDS },
     clipboard     = { tex = ns.CLIPBOARD_ICON_TEX, coords = ns.CLIPBOARD_ICON_COORDS },

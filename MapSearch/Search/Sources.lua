@@ -16,6 +16,8 @@ local GLOBAL_SEARCH_CATEGORIES = MapSearchData.GLOBAL_SEARCH_CATEGORIES
 local STATIC_LOCATIONS = ns.STATIC_LOCATIONS or MapSearchData.STATIC_LOCATIONS or {}
 local GLOBAL_INSTANCE_CACHE_JOB = "map:global-instances"
 local GLOBAL_INSTANCE_CACHE_BUDGET_MS = 2
+-- Zone rows' map icon; TBC Anniversary lacks retail's.
+local ZONE_ICON = (ns.Caps and ns.Caps.classic) and "Interface\\Icons\\INV_Misc_Map_01" or 237382
 
 local CreateFrame = CreateFrame
 local hooksecurefunc = hooksecurefunc
@@ -664,7 +666,7 @@ local function AppendZoneSearchResults(out, zoneNames, groupedZones, existingNam
                     nameLower = zone.nameLower,
                     nameNorm = zone.nameNorm,
                     category = "zone",
-                    icon = 237382,
+                    icon = ZONE_ICON,
                     isZone = true,
                     zoneMapID = zone.mapID,
                     zoneMapType = zone.mapType,

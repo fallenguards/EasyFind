@@ -1972,12 +1972,47 @@ end
 ns.BANK_CATEGORY_ICON_TEX = 4675621
 ns.BANK_CATEGORY_ICON_COORDS = { 0, 1, 0, 1 }
 
+-- Classic lacks retail's cursor sheets: its own sack and purse glyphs.
+local classicArt = ns.Caps and ns.Caps.classic
+local questLogAtlas = not (ns.Caps and ns.Caps.questLogAtlas == false)
+if classicArt then
+    ns.ITEMS_CATEGORY_ICON_TEX = "Interface\\Minimap\\Tracking\\Banker"
+    ns.ITEMS_CATEGORY_ICON_COORDS = { 0, 1, 0, 1 }
+    ns.ITEMS_CATEGORY_ICON_ASPECT = 1
+    ns.BANK_CATEGORY_ICON_TEX = "Interface\\GossipFrame\\BankerGossipIcon"
+end
+
+-- The settings cog. Era has no quest log sheet: its options cog, greyed
+-- like retail's silver one.
+ns.SETTING_ICON = questLogAtlas and { atlas = "QuestLog-icon-setting" }
+    or { tex = "Interface\\Buttons\\UI-OptionsButton", desaturate = true }
+-- Classic's gold options cog stands in for retail's interact cursor.
+ns.OPTIONS_CATEGORY_ICON_TEX = classicArt and "Interface\\Buttons\\UI-OptionsButton" or 4675635
+-- The quest log's expand/collapse glyph; Era's own buttons lacking its sheet.
+function ns.SetQuestLogToggle(tex, collapsed, theme)
+    if questLogAtlas then
+        tex:SetAtlas(collapsed and (theme and theme.expandAtlas or "QuestLog-icon-expand")
+            or (theme and theme.collapseAtlas or "QuestLog-icon-shrink"))
+    else
+        tex:SetTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+    end
+end
+
+-- The backpack button: classic draws its own, retail's is an atlas.
+ns.BAG_ICON_ATLAS = not classicArt and "bag-main" or nil
+ns.BAG_ICON_TEX = classicArt and "Interface\\Buttons\\Button-Backpack-Up" or nil
+
 -- Map-search and Statistics category glyphs (12.1 moved both on the shared
 -- sheet), shared by the filter-menu rows and the result-row category icons.
 ns.MAP_CATEGORY_ICON_TEX = 1121272
 ns.MAP_CATEGORY_ICON_COORDS = (ns.Caps and ns.Caps.forever)
     and { 0.2513, 0.2932, 0.2533, 0.2982 }   -- Forever's sheet
     or  { 0.7443, 0.7840, 0.2548, 0.2961 }   -- retail's sheet
+-- Classic's copy of the sheet is an older layout with no map glyph.
+if classicArt then
+    ns.MAP_CATEGORY_ICON_TEX = "Interface\\Icons\\INV_Misc_Map_01"
+    ns.MAP_CATEGORY_ICON_COORDS = { 0.08, 0.92, 0.08, 0.92 }
+end
 ns.STAT_CATEGORY_ICON_TEX = 1121272
 ns.STAT_CATEGORY_ICON_COORDS = { 0.2680, 0.3043, 0.2666, 0.2943 }
 
@@ -2422,7 +2457,12 @@ function ns.CreateCogButton(parent)
     local tex = cog:CreateTexture(nil, "ARTWORK")
     tex:SetPoint("CENTER")
     tex:SetSize(15, 15)
-    tex:SetAtlas("QuestLog-icon-setting")
+    if ns.SETTING_ICON.atlas then
+        tex:SetAtlas(ns.SETTING_ICON.atlas)
+    else
+        tex:SetTexture(ns.SETTING_ICON.tex)
+        tex:SetDesaturated(true)
+    end
     cog:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     return cog
 end

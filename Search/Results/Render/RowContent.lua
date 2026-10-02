@@ -185,7 +185,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             else
                 resultRow.flatCatIcon:SetTexture(catIconDef.tex)
             end
-            resultRow.flatCatIcon:SetDesaturated(false)
+            resultRow.flatCatIcon:SetDesaturated(catIconDef.desaturate or false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, catIconDef and catIconDef.aspect)
             resultRow.flatCatIcon:ClearAllPoints()
@@ -248,7 +248,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             else
                 resultRow.flatCatIcon:SetTexture(catIconDef.tex)
             end
-            resultRow.flatCatIcon:SetDesaturated(false)
+            resultRow.flatCatIcon:SetDesaturated(catIconDef.desaturate or false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, catIconDef and catIconDef.aspect)
             resultRow.flatCatIcon:ClearAllPoints()
@@ -295,7 +295,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             else
                 resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
             end
-            resultRow.flatCatIcon:SetDesaturated(false)
+            resultRow.flatCatIcon:SetDesaturated(catIconDef.desaturate or false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, catIconDef and catIconDef.aspect)
             resultRow.flatCatIcon:ClearAllPoints()
@@ -589,7 +589,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
                     resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
                 end
             end
-            resultRow.flatCatIcon:SetDesaturated(false)
+            resultRow.flatCatIcon:SetDesaturated(catIconDef.desaturate or false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, catIconDef and catIconDef.aspect)
             resultRow.flatCatIcon:ClearAllPoints()
@@ -752,7 +752,9 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     -- Game Settings: cogwheel atlas in non-flat mode (flat mode
     -- uses flatCatIcon via GetFlatCategoryIcon).
     if not iconSet and data and data.category == "Game Settings" then
-        Icons:SetRowIcon(resultRow, "atlas", "QuestLog-icon-setting", rowIconSize)
+        local cog = ns.SETTING_ICON
+        Icons:SetRowIcon(resultRow, cog.atlas and "atlas" or "file", cog.atlas or cog.tex, rowIconSize)
+        resultRow.icon:SetDesaturated(cog.desaturate or false)
         iconSet = true
     end
 

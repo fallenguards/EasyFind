@@ -43,6 +43,11 @@ end
 
 local CURSOR_TEX = 4489300          -- the HD gauntlet, natural orientation
 local CURSOR_COORDS = { 0, 0.2315, 0, 0.4104 }
+-- Classic clients lack the HD sheet; their own gauntlet is the whole file.
+if ns.Caps.classic then
+    CURSOR_TEX = "Interface\\CURSOR\\Point"
+    CURSOR_COORDS = { 0, 1, 0, 1 }
+end
 local CURSOR_SIZE = 36
 local HINT_NAME = "EasyFindShowMeHint"
 local HINT_PAD_X, HINT_PAD_Y = 12, 7

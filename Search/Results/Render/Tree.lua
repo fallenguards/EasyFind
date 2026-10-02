@@ -68,7 +68,7 @@ function Render.ResultHeader(resultRow, entry, state, depth)
     if entry.isPinHeader then
         if resultRow.headerTab then resultRow.headerTab:Hide() end
         if resultRow.headerGrad then resultRow.headerGrad:Hide() end
-        resultRow.pinToggle:SetAtlas(theme.collapseAtlas or "QuestLog-icon-shrink")
+        ns.SetQuestLogToggle(resultRow.pinToggle, false, theme)
         resultRow.pinToggle:Show()
         resultRow.pinHeaderLine:Show()
         resultRow.text:ClearAllPoints()
@@ -103,10 +103,7 @@ function Render.ResultHeader(resultRow, entry, state, depth)
 
         local key = entry.name .. "_" .. depth
         local isCollapsed = collapsedNodes[key]
-        local toggleAtlas = isCollapsed
-            and (theme.expandAtlas or "QuestLog-icon-expand")
-            or (theme.collapseAtlas or "QuestLog-icon-shrink")
-        resultRow.toggleIcon:SetAtlas(toggleAtlas)
+        ns.SetQuestLogToggle(resultRow.toggleIcon, isCollapsed, theme)
         resultRow.tabText:ClearAllPoints()
         resultRow.tabText:SetPoint("LEFT", resultRow.headerTab, "LEFT", 10, 0)
         resultRow.tabText:SetPoint("RIGHT", resultRow.toggleBtn, "LEFT", -4, 0)

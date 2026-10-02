@@ -6949,6 +6949,7 @@ function Database:BuildUIDatabase()
             name = _G["TRANSMOGRIFICATION"] or "Transmogrification",
             keywords = {"transmogrification", "transmog", "tmog", "xmog", "mog", "wardrobe", "appearance"},
             category = "Transmogrification",
+            caps = "transmog",
             icon = { file = 6119963, coords = { 0.0183, 0.2629, 0.0131, 0.5152 } },
             steps = {{ loadTransmog = true }},
         },
@@ -7047,7 +7048,8 @@ function Database:BuildUIDatabase()
             name = _G["BAGSLOT"] or _G["INVENTORY_TOOLTIP"] or "Bags / Inventory",
             keywords = {"bags", "bag", "inventory", "backpack", "items", "storage"},
             category = "Inventory",
-            iconAtlas = "bag-main",
+            iconAtlas = ns.BAG_ICON_ATLAS,
+            icon = ns.BAG_ICON_TEX,
             steps = {{ buttonFrame = "MainMenuBarBackpackButton" }},
         },
         {

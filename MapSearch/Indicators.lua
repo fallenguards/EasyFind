@@ -39,6 +39,8 @@ local INDICATOR_STYLES = {
         offsetY = 0,
     },
 }
+-- Classic clients lack the HD cursor sheet.
+if ns.Caps.classic then INDICATOR_STYLES["HD Gauntlet"] = nil end
 
 local INDICATOR_COLORS = {
     ["Yellow"]  = {1.0, 1.0, 0.0},
