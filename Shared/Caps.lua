@@ -35,8 +35,25 @@ end
 -- so on the classic-rules client the load itself is the test, once per
 -- panel and cached; retail, where every panel loads, is never asked.
 local panelKnown = {}
-local forever = (tonumber((select(4, GetBuildInfo()))) or 0) < 20000
+-- Which game this is, by its project: retail, Forever (the 1.x game on the
+-- mainline UI), or Classic Era and TBC Anniversary on the classic UI.
+local project = WOW_PROJECT_ID
+local interface = tonumber((select(4, GetBuildInfo()))) or 0
+local forever = (WOW_PROJECT_CAMELOT ~= nil and project == WOW_PROJECT_CAMELOT)
+    or (project == nil and interface >= 16000 and interface < 20000)
+local classic = project ~= nil and (project == WOW_PROJECT_CLASSIC or project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
 function Caps.PanelEnabled(addonName)
+    if classic then
+        -- The classic UI ships different panels: one that is not an addon
+        -- there is not there at all.
+        local known = panelKnown[addonName]
+        if known == nil then
+            local ok, _, _, _, _, reason = pcall(C_AddOns.GetAddOnInfo, addonName)
+            known = ok and reason ~= "MISSING" and reason ~= "DISABLED" and reason ~= "INCOMPATIBLE"
+            panelKnown[addonName] = known and true or false
+        end
+        return known
+    end
     if not forever then return true end
     local known = panelKnown[addonName]
     if known ~= nil then return known end
@@ -72,8 +89,13 @@ Caps.version = version
 Caps.build = tonumber(build)
 Caps.interface = tonumber(toc) or 0
 -- Forever: the 1.x game on the mainline codebase (interface 16001).
-Caps.forever = Caps.interface < 20000
-Caps.retail = not Caps.forever
+Caps.forever = forever
+-- Classic Era and TBC Anniversary: the classic UI codebase, where most of
+-- retail's systems and windows do not exist.
+Caps.classic = classic
+Caps.era = project == WOW_PROJECT_CLASSIC
+Caps.tbc = project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
+Caps.retail = not forever and not classic
 
 -- Systems. Each is a plain boolean, decided once at load.
 Caps.specs = type(GetNumSpecializationsForClassID) == "function"
@@ -98,30 +120,32 @@ Caps.achievements = rule("AchievementsPanelDisabled") ~= true
 -- wardrobe on that client, so the whole system is off.
 Caps.transmog = rule("TransmogEnabled") ~= false
     and C_TransmogCollection ~= nil
-    and not Caps.forever
+    and not Caps.forever and not classic
 -- Forever's collections journal hides the mount, pet, toy and heirloom
 -- tabs (only Appearances shows), so the journal rows have nowhere to go.
-Caps.mounts = C_MountJournal ~= nil and C_MountJournal.GetMountIDs ~= nil and not Caps.forever
+Caps.mounts = C_MountJournal ~= nil and C_MountJournal.GetMountIDs ~= nil and not Caps.forever and not classic
 -- Pets, toys, heirlooms, currencies: the API stays even when the game has
 -- none, so the count of everything the game knows is the answer.
 do
     local total = C_PetJournal and C_PetJournal.GetNumPets and select(2, call(C_PetJournal.GetNumPets))
-    Caps.pets = rule("PetBattlesDisabled") ~= true and C_PetJournal ~= nil and not Caps.forever
+    Caps.pets = rule("PetBattlesDisabled") ~= true and C_PetJournal ~= nil and not Caps.forever and not classic
     Caps.petCountKnown = total
 end
-Caps.toys = C_ToyBox ~= nil and not Caps.forever
-Caps.heirlooms = C_Heirloom ~= nil and not Caps.forever
-Caps.currencies = C_CurrencyInfo ~= nil and not Caps.forever
+-- On Classic Era and TBC Anniversary these namespaces exist only in part,
+-- so the API being there says nothing: off there.
+Caps.toys = C_ToyBox ~= nil and not Caps.forever and not classic
+Caps.heirlooms = C_Heirloom ~= nil and not Caps.forever and not classic
+Caps.currencies = C_CurrencyInfo ~= nil and not Caps.forever and not classic
 Caps.warbandBank = C_Bank ~= nil and C_Bank.FetchPurchasedBankTabData ~= nil and not Caps.forever
 Caps.classTalents = C_ClassTalents ~= nil and C_Traits ~= nil
 Caps.oldTalents = type(GetTalentInfo) == "function" and type(GetNumTalentTabs) == "function"
-Caps.talents = rule("TalentsPanelDisabled") ~= true and (Caps.classTalents or Caps.oldTalents)
+Caps.talents = rule("TalentsPanelDisabled") ~= true and (Caps.classTalents or Caps.oldTalents) and not classic
 Caps.delves = C_DelvesUI ~= nil and not Caps.forever
 Caps.mythicPlus = C_MythicPlus ~= nil and not Caps.forever
 Caps.perks = C_PerksProgram ~= nil and not Caps.forever
 Caps.editMode = rule("EditModeDisabled") ~= true and C_EditMode ~= nil
 Caps.macros = rule("MacrosDisabled") ~= true
-Caps.professions = rule("ProfessionsPanelDisabled") ~= true
+Caps.professions = rule("ProfessionsPanelDisabled") ~= true and not classic
 Caps.gearSets = C_EquipmentSet ~= nil
 Caps.outfits = Caps.transmog
 Caps.ammo = rule("EnableAmmoSystem") == true
@@ -129,6 +153,10 @@ Caps.campsites = C_WarbandScene ~= nil and not Caps.forever
 -- Warband-wide reputations and legacy reputation headers: retail's
 -- account-wide reputation system, absent on Forever.
 Caps.warbandRep = C_Reputation ~= nil and C_Reputation.IsAccountWideReputation ~= nil and not Caps.forever
+-- Reputation reads C_Reputation, which the classic UI does not have.
+Caps.reputation = C_Reputation ~= nil and C_Reputation.GetFactionDataByIndex ~= nil
+-- Native map waypoints and the arrow that follows them.
+Caps.waypoints = C_Map ~= nil and C_Map.SetUserWaypoint ~= nil and C_SuperTrack ~= nil and UiMapPoint ~= nil
 Caps.pvpUI = Caps.PanelEnabled("Blizzard_PVPUI")
 Caps.groupFinder = Caps.PanelEnabled("Blizzard_GroupFinder")
 Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
@@ -282,6 +310,7 @@ local NEEDS = {
     talents = "talents", outfits = "outfits", appearances = "transmog",
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
+    reputations = "reputation",
 }
 Caps.NEEDS = NEEDS
 

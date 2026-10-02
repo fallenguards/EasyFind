@@ -50,7 +50,7 @@ read_globals = {
     "ToggleCharacter", "ToggleAchievementFrame", "ToggleQuestLog", "ToggleFriendsFrame",
     "ToggleCollectionsJournal", "ToggleEncounterJournal", "ToggleGuildFrame",
     "TogglePVPUI", "PVEFrame_ToggleFrame", "C_VoiceChat",
-    "GetBuildInfo",
+    "GetBuildInfo", "WOW_PROJECT_ID", "WOW_PROJECT_CAMELOT", "WOW_PROJECT_CLASSIC", "WOW_PROJECT_BURNING_CRUSADE_CLASSIC",
     "ToggleMinimap", "ToggleBattlefieldMap", "Sound_ToggleMusic", "Sound_ToggleSound",
     "ToggleChannelFrame", "ToggleQuickJoinPanel", "ToggleRaidFrame", "HousingFramesUtil",
     "VoiceChat_ToggleMutedFromUserAction", "VoiceChat_ToggleDeafenedFromUserAction",

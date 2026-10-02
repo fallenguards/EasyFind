@@ -60,8 +60,8 @@ function MapSearch:TrackActivePin()
     if not mapID or not x or not y then return end
     if x < 0 or x > 1 or y < 0 or y > 1 then return end
 
-    self:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
-    C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+    self:PlaceUserWaypointAt(mapID, x, y)
+    self.TrackWaypoint(true)
 end
 
 function MapSearch:UpdateBlinkingPins()

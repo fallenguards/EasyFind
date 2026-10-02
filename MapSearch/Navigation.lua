@@ -25,6 +25,9 @@ local HasUserWaypoint = C_Map.HasUserWaypoint
 local ClearUserWaypoint = C_Map.ClearUserWaypoint
 local GetDungeonEntrancesForMap = C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap
 local SetSuperTrackedVignette = C_SuperTrack and C_SuperTrack.SetSuperTrackedVignette
+-- The native waypoint and its arrow, where the client has them; Classic
+-- Era and TBC Anniversary draw only EasyFind's own map pin.
+local WAYPOINTS = SetUserWaypoint ~= nil and C_SuperTrack ~= nil and UiMapPoint ~= nil
 local IsOrphanZone = MapUtils.IsOrphanZone
 
 local function PinYAsc(a, b)
@@ -50,17 +53,31 @@ local efSettingWaypoint = false
 -- The flags are set BEFORE SetUserWaypoint because it fires the update event
 -- synchronously and the handler reads them during that call.
 local function EFPlaceWaypoint(point)
+    if not WAYPOINTS then return end
     efSettingWaypoint = true
     efPlacedWaypoint = true
     SetUserWaypoint(point)
     efSettingWaypoint = false
 end
 
+local function EFPlaceWaypointAt(mapID, x, y)
+    if WAYPOINTS then EFPlaceWaypointAt(mapID, x, y) end
+end
+
+local function TrackWaypoint(on)
+    if WAYPOINTS then C_SuperTrack.SetSuperTrackedUserWaypoint(on) end
+end
+MapSearch.TrackWaypoint = TrackWaypoint
+
 -- Exposed so other modules (Pins) place EasyFind-owned waypoints through the
 -- same ownership guard instead of calling SetUserWaypoint directly, which would
 -- momentarily read as a player placement.
 function MapSearch:PlaceUserWaypoint(point)
     EFPlaceWaypoint(point)
+end
+
+function MapSearch:PlaceUserWaypointAt(mapID, x, y)
+    EFPlaceWaypointAt(mapID, x, y)
 end
 
 -- Drop a native user waypoint at a map point and, when auto-track is on,
@@ -73,9 +90,9 @@ end
 local function PlaceTrackedWaypoint(mapID, x, y)
     if not (mapID and x and y) then return end
     if x < 0 or x > 1 or y < 0 or y > 1 then return end
-    EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
+    EFPlaceWaypointAt(mapID, x, y)
     if EasyFind.db.autoTrackPins ~= false then
-        C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+        TrackWaypoint(true)
     end
     MapSearch:RefreshAllClearButtons()
 end
@@ -98,9 +115,11 @@ function MapSearch:ClearActivePinState()
 end
 local loadingScreenFrame = CreateFrame("Frame")
 loadingScreenFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-loadingScreenFrame:RegisterEvent("USER_WAYPOINT_UPDATED")
-loadingScreenFrame:RegisterEvent("SUPER_TRACKING_CHANGED")
-loadingScreenFrame:RegisterEvent("NAVIGATION_DESTINATION_REACHED")
+if WAYPOINTS then
+    loadingScreenFrame:RegisterEvent("USER_WAYPOINT_UPDATED")
+    loadingScreenFrame:RegisterEvent("SUPER_TRACKING_CHANGED")
+    loadingScreenFrame:RegisterEvent("NAVIGATION_DESTINATION_REACHED")
+end
 loadingScreenFrame:SetScript("OnEvent", function(_, event, isInitialLogin, isReloadingUI)
     if event == "NAVIGATION_DESTINATION_REACHED" then
         -- Only clear EasyFind's own arrival waypoint. The player's default
@@ -133,14 +152,14 @@ loadingScreenFrame:SetScript("OnEvent", function(_, event, isInitialLogin, isRel
            and EasyFind.db.autoTrackPins ~= false
            and HasUserWaypoint() and not C_SuperTrack.IsSuperTrackingUserWaypoint() then
             if event == "USER_WAYPOINT_UPDATED" then
-                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+                TrackWaypoint(true)
                 return
             end
             local isTrackingPin = C_SuperTrack.IsSuperTrackingMapPin and C_SuperTrack.IsSuperTrackingMapPin()
             local isTrackingVignette = C_SuperTrack.GetSuperTrackedVignette and C_SuperTrack.GetSuperTrackedVignette() ~= nil
             local isTrackingQuest = C_SuperTrack.IsSuperTrackingQuest and C_SuperTrack.IsSuperTrackingQuest()
             if not isTrackingPin and not isTrackingVignette and not isTrackingQuest then
-                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+                TrackWaypoint(true)
                 return
             end
         end
@@ -265,8 +284,8 @@ function MapSearch:CreateHighlightFrame()
             local playerMapID = GetBestMapForUnit("player")
             local viewingMapID = WorldMapFrame:GetMapID()
             if viewingMapID and playerMapID == viewingMapID then
-                EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(viewingMapID, x, y))
-                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+                EFPlaceWaypointAt(viewingMapID, x, y)
+                TrackWaypoint(true)
                 MapSearch:RefreshAllClearButtons()
             end
         end
@@ -432,6 +451,8 @@ local function HookMapModeChanges(self)
 end
 
 local function RegisterVignetteRefresh()
+    -- Classic has no vignettes: the event is unknown there and raises.
+    if not C_VignetteInfo then return end
     local vignetteFrame = CreateFrame("Frame")
     vignetteFrame:RegisterEvent("VIGNETTES_UPDATED")
     vignetteFrame:SetScript("OnEvent", function()
@@ -749,8 +770,8 @@ function MapSearch:ShowMultipleWaypoints(instances)
                             MapSearch:ShowWaypointAt(x, y, nil, cat)
                             local viewingMapID = WorldMapFrame:GetMapID()
                             if viewingMapID then
-                                EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(viewingMapID, x, y))
-                                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+                                EFPlaceWaypointAt(viewingMapID, x, y)
+                                TrackWaypoint(true)
                             end
                         end
                         if button == "RightButton" then
@@ -1012,8 +1033,8 @@ function MapSearch:ClearAll()
     -- Only clear Blizzard waypoint if EasyFind placed it
     if efPlacedWaypoint then
         efPlacedWaypoint = false
-        C_SuperTrack.SetSuperTrackedUserWaypoint(false)
-        if HasUserWaypoint() then
+        TrackWaypoint(false)
+        if WAYPOINTS and HasUserWaypoint() then
             ClearUserWaypoint()
         end
     end
