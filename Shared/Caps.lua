@@ -297,6 +297,13 @@ function Caps.CharacterSidebarSlot(sidebarIndex)
     return sidebarIndex
 end
 
+-- Era lacks the quest log atlas sheet (cog, plus, minus, row glow).
+Caps.questLogAtlas = not Caps.era
+
+-- The item catalog and icon list are built from retail's files.
+Caps.itemCatalog = not classic
+Caps.iconSearch = not classic
+
 -- Spell ranks: Forever has them; retail's spells carry no rank text.
 Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~= nil
 
@@ -310,7 +317,8 @@ local NEEDS = {
     talents = "talents", outfits = "outfits", appearances = "transmog",
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
-    reputations = "reputation",
+    reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
+    collections = "collectionsUI",
 }
 Caps.NEEDS = NEEDS
 
@@ -331,7 +339,11 @@ function Caps.PruneRows(rows)
         if type(row) == "table" and row.key and not Caps.Has(row.key) then
             table.remove(rows, i)
         elseif type(row) == "table" then
-            if row.flyoutSubFilters then Caps.PruneRows(row.flyoutSubFilters) end
+            -- A group whose every member is gone goes with them.
+            if row.flyoutSubFilters and #row.flyoutSubFilters > 0
+               and #Caps.PruneRows(row.flyoutSubFilters) == 0 then
+                table.remove(rows, i)
+            end
             -- Choices inside a flyout may name a system too (caps = "warbandRep").
             local radio = row.flyoutRadio
             if radio then

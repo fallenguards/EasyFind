@@ -531,10 +531,12 @@ local RETAIL_LOCATIONS = {
 }
 
 -- The hand-recorded places belong to the client they were recorded on:
--- map ids and layouts differ between retail and WoW Forever, so each
--- client gets its own table and the other's is never shown.
+-- map ids and layouts differ between retail, WoW Forever and Classic, so
+-- each client gets its own table and the other's is never shown.
 if ns.Caps and ns.Caps.forever then
     ns.STATIC_LOCATIONS = ns.STATIC_LOCATIONS_FOREVER or {}
+elseif ns.Caps and ns.Caps.classic then
+    ns.STATIC_LOCATIONS = {}
 else
     ns.STATIC_LOCATIONS = RETAIL_LOCATIONS
 end
