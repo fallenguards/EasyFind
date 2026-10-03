@@ -24,8 +24,8 @@ end
 local UI_FILTER_OPTIONS = {
     -- Abilities: boss-skull icon from the Encounter Journal boss tab
     -- spritesheet (texture 522972).
-    { key = "abilities",   label = _G["ABILITIES"] or "Abilities",   iconTex = 522972,
-      iconCoords = { 0.904, 0.996, 0.707, 0.748 },
+    { key = "abilities",   label = _G["ABILITIES"] or "Abilities",   iconTex = ns.ART.ability.tex,
+      iconCoords = ns.ART.ability.coords,
       flyoutRadio = {
           checkboxes = {
               { dbKey = "abilityHidePassives", label = L["FILTER_HIDE_PASSIVES"],
@@ -77,8 +77,8 @@ local UI_FILTER_OPTIONS = {
           { key = "bank", label = _G["BANK"] or "Bank", iconTex = ns.BANK_CATEGORY_ICON_TEX, iconCoords = ns.BANK_CATEGORY_ICON_COORDS, hasOptions = true },
       } },
     -- Bosses: EJ overview tab icon from texture 522972.
-    { key = "bosses",      label = _G["RAID_BOSSES"] or "Bosses",      iconTex = 522972,
-      iconCoords = { 0.855, 0.949, 0.524, 0.566 },
+    { key = "bosses",      label = _G["RAID_BOSSES"] or "Bosses",      iconTex = ns.ART.boss.tex,
+      iconCoords = ns.ART.boss.coords,
       flyoutRadio = {
           checkboxes = {
               { dbKey = "bossFilterDungeon", label = _G["LFG_TYPE_DUNGEON"] or "Dungeon" },
@@ -107,8 +107,8 @@ local UI_FILTER_OPTIONS = {
     -- Options build lazily (a function, not a literal) because spec info is
     -- not readable when this file loads. Values are spec INDEXes, matching
     -- what C_EquipmentSet.GetEquipmentSetAssignedSpec returns.
-    { key = "gearSets",    label = _G["EQUIPMENT_MANAGER"] or "Gear Sets",   iconTex = 514608,
-      iconCoords = { 0.01562, 0.53125, 0.46875, 0.60547 },
+    { key = "gearSets",    label = _G["EQUIPMENT_MANAGER"] or "Gear Sets",   iconTex = ns.ART.gear_set.tex,
+      iconCoords = ns.ART.gear_set.coords,
       flyoutRadio = {
           dbKey = "gearSetSpecFilter",
           options = function()
@@ -146,8 +146,8 @@ local UI_FILTER_OPTIONS = {
     -- in-game loot Search. hasFlyout flags the row to draw the chevron --
     -- the actual flyout (difficulty, spec, iLvl) is built inline below
     -- via lootOptionsPopup, not via flyoutSubFilters.
-    { key = "loot",        label = _G["LOOT"] or "Loot",        iconTex = 522972,
-      iconCoords = { 0.730, 0.824, 0.618, 0.660 }, hasFlyout = true },
+    { key = "loot",        label = _G["LOOT"] or "Loot",        iconTex = ns.ART.loot.tex,
+      iconCoords = ns.ART.loot.coords, hasFlyout = true },
     { key = "map",         label = L["FILTER_MAP_SEARCH"],  iconTex = ns.MAP_CATEGORY_ICON_TEX,
       iconCoords = ns.MAP_CATEGORY_ICON_COORDS,
       flyoutSubFilters = {
@@ -194,8 +194,8 @@ local UI_FILTER_OPTIONS = {
           local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
           return (prof1 or prof2 or archaeology or fishing or cooking) ~= nil
       end },
-    { key = "reputations", label = _G["REPUTATION"] or "Reputations", iconTex = ns.REP_CATEGORY_ICON_TEX,
-      iconCoords = ns.PlayerRepCategoryIconCoords(),
+    { key = "reputations", label = _G["REPUTATION"] or "Reputations", iconTex = ns.PlayerRepCategoryIcon().tex,
+      iconCoords = ns.PlayerRepCategoryIcon().coords,
       flyoutRadio = {
           dbKey = "reputationFilterMode",
           options = {
@@ -297,8 +297,8 @@ local UI_FILTER_OPTIONS = {
     -- times over, so the default stays Earned and the other modes are a
     -- deliberate "show me what I am missing". Same three-way shape, and the
     -- same localized labels, as the achievements filter.
-    { key = "titles",      label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = 514608,
-      iconCoords = { 0.016, 0.531, 0.324, 0.461 },
+    { key = "titles",      label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = ns.ART.title.tex,
+      iconCoords = ns.ART.title.coords,
       flyoutRadio = {
           dbKey = "titleFilterMode",
           options = {

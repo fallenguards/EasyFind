@@ -41,8 +41,8 @@ local function Report(err)
     if handler then handler(err) end
 end
 
-local CURSOR_TEX = 4489300          -- the HD gauntlet, natural orientation
-local CURSOR_COORDS = { 0, 0.2315, 0, 0.4104 }
+local CURSOR_TEX = ns.ART.gauntlet.tex
+local CURSOR_COORDS = ns.ART.gauntlet.coords
 local CURSOR_SIZE = 36
 local HINT_NAME = "EasyFindShowMeHint"
 local HINT_PAD_X, HINT_PAD_Y = 12, 7

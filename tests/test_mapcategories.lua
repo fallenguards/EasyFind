@@ -3,6 +3,7 @@
 local H = require("Harness")
 local env = H.newEnv()
 local ns = H.newNs(env)
+ns.ART = setmetatable({}, { __index = function() return { tex = "art", coords = { 0, 1, 0, 1 } } end })
 H.loadModule("MapSearch/Categories.lua", env, ns)
 
 local tests = {}
