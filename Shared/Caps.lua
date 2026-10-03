@@ -1,11 +1,5 @@
--- Shared/Caps.lua
--- What this client has. EasyFind ships one zip for retail and WoW Forever,
--- and Forever runs the same UI codebase with whole systems switched off:
--- no pets, no toys, no currencies, no encounter journal, no housing, no
--- class specializations. Each answer is read once here, from the game's
--- own rules where it states them and from the API otherwise, and every
--- provider, filter row, quick filter, and options page asks this table
--- instead of probing on its own.
+-- What this client has: each system answered once, from game rules or the API.
+-- Providers, filters and options ask this table instead of probing.
 local _, ns = ...
 
 local Caps = {}
@@ -30,10 +24,8 @@ local function call(fn, ...)
     return nil
 end
 
--- A Blizzard panel is there when its addon loads. The addon info call
--- says "loadable" for panels Forever then refuses with WRONG_GAME_TYPE,
--- so on the classic-rules client the load itself is the test, once per
--- panel and cached; retail, where every panel loads, is never asked.
+-- A Blizzard panel is there when its addon loads. The info call says "loadable" for
+-- panels Forever then refuses (WRONG_GAME_TYPE): there the load is the test, cached.
 local panelKnown = {}
 -- Which game this is, by its project: retail, Forever (the 1.x game on the
 -- mainline UI), or Classic Era and TBC Anniversary on the classic UI.
@@ -50,7 +42,14 @@ function Caps.PanelEnabled(addonName)
         if known == nil then
             local ok, _, _, _, _, reason = pcall(C_AddOns.GetAddOnInfo, addonName)
             known = ok and reason ~= "MISSING" and reason ~= "DISABLED" and reason ~= "INCOMPATIBLE"
-            panelKnown[addonName] = known and true or false
+            -- The info call can answer "loadable" for another game type's
+            -- panel; the load itself is the test.
+            if known and not C_AddOns.IsAddOnLoaded(addonName) then
+                local okL, loaded = pcall(C_AddOns.LoadAddOn, addonName)
+                known = okL and loaded
+            end
+            known = known and true or false
+            panelKnown[addonName] = known
         end
         return known
     end
@@ -66,9 +65,8 @@ function Caps.PanelEnabled(addonName)
     return panelKnown[addonName]
 end
 
--- A toggle binding exists only for a feature the client has: Forever
--- defines no TOGGLEACHIEVEMENT, and its achievement panel is a shell.
--- Read on first use, since the binding list is empty while files load.
+-- A toggle binding exists only for a feature the client has (Forever: no
+-- TOGGLEACHIEVEMENT). Read on first use: the list is empty while files load.
 local bindingSet
 function Caps.HasBinding(name)
     if not bindingSet or next(bindingSet) == nil then
@@ -93,8 +91,8 @@ Caps.forever = forever
 -- Classic Era and TBC Anniversary: the classic UI codebase, where most of
 -- retail's systems and windows do not exist.
 Caps.classic = classic
-Caps.era = project == WOW_PROJECT_CLASSIC
-Caps.tbc = project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
+Caps.era = classic and project == WOW_PROJECT_CLASSIC
+Caps.tbc = classic and project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
 Caps.retail = not forever and not classic
 
 -- Systems. Each is a plain boolean, decided once at load.
@@ -112,12 +110,8 @@ Caps.achievements = rule("AchievementsPanelDisabled") ~= true
     and type(GetCategoryList) == "function"
     and Caps.PanelEnabled("Blizzard_AchievementUI")
     and not Caps.forever   -- the panel loads and is a shell; no toggle binding exists
--- Forever draws the Appearances tab over a wardrobe that holds nothing,
--- and asking it for a category does not fail, it takes the client down:
--- GetCategoryAppearances aborts on BC_ASSERT(m_has_value), a C++ assert
--- that pcall cannot catch (measured 2026-09-18, crash 1FC77402, and the
--- same assert behind a player report). Nothing here may touch the
--- wardrobe on that client, so the whole system is off.
+-- Forever's wardrobe aborts the client: GetCategoryAppearances hits a C++ assert
+-- pcall cannot catch. Nothing may touch it there, so the whole system is off.
 Caps.transmog = rule("TransmogEnabled") ~= false
     and C_TransmogCollection ~= nil
     and not Caps.forever and not classic
@@ -161,9 +155,8 @@ Caps.pvpUI = Caps.PanelEnabled("Blizzard_PVPUI")
 Caps.groupFinder = Caps.PanelEnabled("Blizzard_GroupFinder")
 Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
 
--- Which panel a UI entry's steps open, by the frame they wait for, and
--- which micro button stands for which binding: a UI entry is offered only
--- when both are there.
+-- The panel a UI entry's steps open, by the frame they wait for, and the binding
+-- behind each micro button: an entry is offered only when both are there.
 Caps.FRAME_PANEL = {
     PVEFrame = "Blizzard_GroupFinder", GroupFinderFrame = "Blizzard_GroupFinder", PVPQueueFrame = "Blizzard_PVPUI",
     EncounterJournal = "Blizzard_EncounterJournal", AchievementFrame = "Blizzard_AchievementUI",
@@ -177,9 +170,8 @@ Caps.BUTTON_BINDING = {
     GuildMicroButton = "TOGGLEGUILDTAB", TalentMicroButton = "TOGGLETALENTS", QuestLogMicroButton = "TOGGLEQUESTLOG",
 }
 
--- Why a UI entry (micro button plus steps) cannot be reached on this
--- client, or nil when it can. Cheap: table lookups and one cached
--- binding scan.
+-- Why a UI entry cannot be reached on this client, or nil.
+-- Cheap: table lookups and one cached binding scan.
 function Caps.UIEntryBlocked(entry)
     -- A node may name the system it needs outright (caps = "pets").
     if entry.caps and Caps[entry.caps] == false then return "no " .. entry.caps end
@@ -191,9 +183,9 @@ function Caps.UIEntryBlocked(entry)
         if binding and not Caps.HasBinding(binding) then return "no " .. binding end
         local b = _G[bf]
         if not b then return "no " .. bf end
-        -- A hidden micro button counts only on the classic-rules client;
-        -- retail hides Help too and its entry has always worked.
-        if Caps.forever and b.IsShown and not b:IsShown() then return bf .. " hidden" end
+        -- A hidden micro button counts only off retail: Classic keeps every
+        -- flavor's buttons as hidden frames, and retail hides Help.
+        if (Caps.forever or Caps.classic) and b.IsShown and not b:IsShown() then return bf .. " hidden" end
     end
     local steps = entry.steps
     if steps then
@@ -201,6 +193,12 @@ function Caps.UIEntryBlocked(entry)
             local s = steps[i]
             local panel = s.waitForFrame and Caps.FRAME_PANEL[s.waitForFrame]
             if panel and not Caps.PanelEnabled(panel) then return panel .. " disabled" end
+            -- Classic: a frame still missing once its addon is in is not
+            -- on this client (PVEFrame loads for Wrath and later only).
+            if Caps.classic and s.waitForFrame then
+                local root = s.waitForFrame:match("^[^.]+")
+                if not _G[root] and (not panel or C_AddOns.IsAddOnLoaded(panel)) then return "no " .. root end
+            end
             if s.waitForFrame == "CharacterFrame" and CharacterFrame and (s.tabIndex or s.tabFrame)
                 and not Caps.CharacterTab(s.tabFrame or s.tabIndex) then
                 return "no character tab " .. tostring(s.tabFrame or s.tabIndex)
@@ -229,6 +227,23 @@ local SIDEBAR_FRAME = { [1] = "CharacterStatsPane", [2] = "PaperDollTitlesPane",
 -- strings on both clients.
 local SIDEBAR_NAME = { [1] = "PAPERDOLL_SIDEBAR_STATS", [2] = "PAPERDOLL_SIDEBAR_TITLES", [3] = "PAPERDOLL_SIDEBAR_EQUIPMENT" }
 
+-- Classic's own names for subframes the entries name Forever's way.
+local CLASSIC_SUBFRAME = { SkillsFrame = { "SkillFrame" }, PVPRankFrame = { "HonorFrame", "PVPFrame" } }
+
+-- This client's name for a character subframe, or nil when it has none.
+function Caps.CharacterSubframe(name)
+    local subs = _G["CHARACTERFRAME_SUBFRAMES"]
+    if not (Caps.classic and type(subs) == "table") then return name end
+    local own = CLASSIC_SUBFRAME[name]
+    for i = 1, #subs do
+        if subs[i] == name then return name end
+        for j = 1, own and #own or 0 do
+            if subs[i] == own[j] then return own[j] end
+        end
+    end
+    return nil
+end
+
 -- The live tab control for a retail tab number or a subframe name
 -- ("SkillsFrame"), or nil.
 function Caps.CharacterTab(tabIndex)
@@ -245,16 +260,24 @@ function Caps.CharacterTab(tabIndex)
         end
         return nil
     end
+    -- Classic lists its tabs by the frame each opens, in its own order
+    -- (Character, Pet, Reputation, Skills, Honor or PvP).
+    local subs = _G["CHARACTERFRAME_SUBFRAMES"]
+    if Caps.classic and type(subs) == "table" then
+        want = want and Caps.CharacterSubframe(want)
+        for i = 1, #subs do
+            if subs[i] == want then return _G["CharacterFrameTab" .. i] end
+        end
+        return nil
+    end
     if type(tabIndex) ~= "number" then return nil end
     local tab = _G["CharacterFrameTab" .. tabIndex]
     if not tab and CharacterFrame and CharacterFrame.Tabs then tab = CharacterFrame.Tabs[tabIndex] end
     return tab
 end
 
--- Collections tabs by what they hold rather than by retail's number.
--- Forever draws one tab, Appearances, where retail draws six, so a retail
--- number can name a different tab there or none at all. The tab's own
--- label is the identity: both clients take it from the same global.
+-- Collections tabs by their label, not retail's number: Forever draws one
+-- tab (Appearances) where retail draws six. Both read the same global.
 local COLLECTIONS_TAB_LABEL = {
     [1] = "MOUNTS", [2] = "PET_JOURNAL", [3] = "TOY_BOX",
     [4] = "HEIRLOOMS", [5] = "WARDROBE", [6] = "WARBAND_SCENES",
@@ -282,6 +305,8 @@ end
 -- The live sidebar slot for a retail sidebar number, or nil. Blizzard
 -- lists the sidebars in PAPERDOLL_SIDEBARS with the pane each opens.
 function Caps.CharacterSidebarSlot(sidebarIndex)
+    -- Classic's character window has no sidebar.
+    if Caps.classic then return nil end
     local want = SIDEBAR_FRAME[sidebarIndex]
     local wantName = SIDEBAR_NAME[sidebarIndex] and _G[SIDEBAR_NAME[sidebarIndex]]
     local list = _G["PAPERDOLL_SIDEBARS"]
@@ -297,6 +322,14 @@ function Caps.CharacterSidebarSlot(sidebarIndex)
     return sidebarIndex
 end
 
+-- Classic's portrait menu has no Self Highlight entry, and the calendar
+-- arrived with Wrath.
+Caps.selfHighlight = not classic
+Caps.calendar = not classic
+-- Era has no titles to pick: a PvP rank shows by the name on its own.
+-- TBC picks one from a dropdown on the character sheet.
+Caps.titles = not Caps.era
+
 -- Era lacks the quest log atlas sheet (cog, plus, minus, row glow).
 Caps.questLogAtlas = not Caps.era
 
@@ -307,9 +340,8 @@ Caps.iconSearch = not classic
 -- Spell ranks: Forever has them; retail's spells carry no rank text.
 Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~= nil
 
--- Dynamic providers and filter keys that need a system this client lacks.
--- A key listed here is dropped from the provider table, the filter tree,
--- and the quick filters at load, so nothing advertises a dead feature.
+-- Providers and filter keys by the system they need: a key whose system is
+-- missing is dropped from providers, filters and quick filters at load.
 local NEEDS = {
     pets = "pets", toys = "toys", heirlooms = "heirlooms", currencies = "currencies",
     housing = "housing", loot = "journal", bosses = "journal", delves = "delves",
@@ -318,7 +350,7 @@ local NEEDS = {
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
     reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
-    collections = "collectionsUI",
+    collections = "collectionsUI", titles = "titles",
 }
 Caps.NEEDS = NEEDS
 

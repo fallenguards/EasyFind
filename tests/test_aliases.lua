@@ -374,6 +374,43 @@ function tests.learned_recordAndBoost()
     ns.Database.uiSearchData = nil
 end
 
+-- Era kept showing "Titles" after the entry was blocked there: the pick
+-- remembered for the query brought it back by key.
+function tests.learned_unavailableEntryStaysOut()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local here = true
+    local titles = { name = "Titles", path = { "Character Info" }, available = function() return here end }
+    local stats = { name = "Title Stats", path = { "Character Info" } }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { titles, stats }
+    ns.Learned:RecordPick(stats, "titles")
+    ns.Learned:RecordPick(titles, "titles")
+    H.assertEq(ns.Learned:GetBoost("titles"), titles, "offered while the client has it")
+    here = false
+    H.assertEq(ns.Learned:GetBoost("titles"), stats, "the next pick takes the lead")
+    env.EasyFind.db.queryLearn = {}
+    ns.Learned:RecordPick(titles, "titles")
+    H.assertNil(ns.Learned:GetBoost("titles"), "a lone unavailable pick stays out")
+    ns.Database.uiSearchData = nil
+end
+
+function tests.alias_unavailableEntryStaysOut()
+    env.EasyFind.db.aliases = {}
+    local here = true
+    local titles = { name = "Titles", path = { "Character Info" }, available = function() return here end }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { titles }
+    H.assertTrue(Aliases:Add("tt", titles), "alias saved")
+    local hits = Aliases:GetMatches("tt")
+    H.assertEq(hits and hits[1].data, titles, "offered while the client has it")
+    here = false
+    H.assertNil(Aliases:GetMatches("tt"), "gone with its entry")
+    ns.Database.uiSearchData = nil
+    env.EasyFind.db.aliases = {}
+end
+
 function tests.entryKey_catalogItem()
     H.assertEq(Aliases:GetEntryKey({ catalogItem = true, itemID = 2077, category = "Item" }),
         "catalogitem:2077")

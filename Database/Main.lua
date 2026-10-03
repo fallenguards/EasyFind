@@ -6740,7 +6740,7 @@ function Database:BuildUIDatabase()
                     },
                 },
                 {
-                    name = _G["PVP"] or "PvP",
+                    name = ns.Caps.era and _G["HONOR"] or _G["PVP"] or "PvP",
                     keywords = {"pvp", "honor", "rank", "player vs player", "battlegrounds"},
                     category = "Character Info",
                     steps = {
@@ -7022,9 +7022,9 @@ function Database:BuildUIDatabase()
             steps = {{ portraitMenu = true }},
             children = {
                 { name = _G["SET_FOCUS"] or "Set Focus", keywords = {"set focus", "focus target", "focus frame", "focus"}, steps = {{ portraitMenuOption = _G["SET_FOCUS"] or "Set Focus" }} },
-                { name = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight", keywords = {"self highlight", "highlight self", "outline", "self outline"}, steps = {{ portraitMenuOption = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight" }} },
+                { name = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight", caps = "selfHighlight", keywords = {"self highlight", "highlight self", "outline", "self outline"}, steps = {{ portraitMenuOption = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight" }} },
                 { name = _G["RAID_TARGET_ICON"] or "Target Marker Icon", keywords = {"target marker", "raid marker", "skull", "cross", "star", "moon", "marker icon", "raid icon", "world marker"}, steps = {{ portraitMenuOption = _G["RAID_TARGET_ICON"] or "Target Marker Icon" }} },
-                { name = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization", keywords = {"loot spec", "loot specialization", "loot preference"}, steps = {{ portraitMenuOption = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization" }} },
+                { name = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization", caps = "specs", keywords = {"loot spec", "loot specialization", "loot preference"}, steps = {{ portraitMenuOption = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization" }} },
                 { name = _G["DUNGEON_DIFFICULTY"] or "Dungeon Difficulty", keywords = {"dungeon difficulty", "normal dungeon", "heroic dungeon", "mythic dungeon", "instance difficulty"}, steps = {{ portraitMenuOption = _G["DUNGEON_DIFFICULTY"] or "Dungeon Difficulty" }} },
                 { name = _G["RAID_DIFFICULTY"] or "Raid Difficulty", keywords = {"raid difficulty", "normal raid", "heroic raid", "mythic raid", "raid size"}, steps = {{ portraitMenuOption = _G["RAID_DIFFICULTY"] or "Raid Difficulty" }} },
                 {
@@ -7038,7 +7038,7 @@ function Database:BuildUIDatabase()
                     end,
                     steps = {{ portraitMenuOption = _G["RESET_INSTANCES"] or "Reset All Instances" }},
                 },
-                { name = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode", keywords = {"edit mode", "ui layout", "customize ui", "move frames", "hud edit", "ui editor"}, steps = {{ portraitMenuOption = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode" }} },
+                { name = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode", caps = "editMode", keywords = {"edit mode", "ui layout", "customize ui", "move frames", "hud edit", "ui editor"}, steps = {{ portraitMenuOption = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode" }} },
                 { name = _G["VOICE_CHAT"] or "Voice Chat", keywords = {"voice chat", "voice", "voip", "talk", "microphone", "mic"}, steps = {{ portraitMenuOption = _G["VOICE_CHAT"] or "Voice Chat" }} },
                 { name = _G["PVP_FLAG"] or "PvP Flag", isPvP = true, keywords = {"pvp flag", "pvp toggle", "player vs player flag", "pvp enable", "war mode"}, steps = {{ portraitMenuOption = _G["PVP_FLAG"] or "PvP Flag" }} },
             },
@@ -7057,6 +7057,8 @@ function Database:BuildUIDatabase()
             keywords = {"calendar", "events", "holidays", "schedule"},
             category = "Social",
             icon = 134939,
+            -- Era and TBC have no calendar behind the clock.
+            available = function() return ns.Caps.calendar end,
             slashCommand = "/click GameTimeFrame",
         },
 
