@@ -15,7 +15,7 @@ if not ns then return end
 local Route = {}
 ns.GPSRoute = Route
 
-local msqrt, mmax, mhuge = math.sqrt, math.max, math.huge
+local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
 local tinsert, tsort = table.insert, table.sort
 
 local MOUNT_UP = 2          -- seconds to get on a mount
@@ -949,4 +949,187 @@ function Route:Build(dest, opts)
         if #advice.pickups == 0 and not advice.learn then advice = nil end
     end
     return steps, total, advice
+end
+
+-- ---------------------------------------------------------------------------
+-- Roads: the walking network (data.roads, from dev/tools/roads/walkgraph.py)
+-- ---------------------------------------------------------------------------
+
+local ROAD_CELL = 300     -- yards per lookup cell
+local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
+local ROAD_REACH = 1000   -- the start and the end join a road this close
+local OFF_ROAD = 4        -- an off-road yard weighs this many road yards
+local roadNets = {}
+
+local function RoadNet(data, ci)
+    local net = roadNets[ci]
+    if net ~= nil then return net or nil end
+    local g = data and data.roads and data.roads[ci]
+    if not g then
+        roadNets[ci] = false
+        return nil
+    end
+    local xy, edges = g.nodes, g.edges
+    local n = #xy / 2
+    local adj, cells = {}, {}
+    for i = 1, n do adj[i] = {} end
+    for e = 1, #edges / 3 do
+        local a, b, len = edges[3 * e - 2], edges[3 * e - 1], edges[3 * e]
+        local la, lb = adj[a], adj[b]
+        local ka, kb = #la, #lb
+        la[ka + 1], la[ka + 2], la[ka + 3] = b, len, e
+        lb[kb + 1], lb[kb + 2], lb[kb + 3] = a, len, -e
+    end
+    for i = 1, n do
+        local key = (mfloor(xy[2 * i - 1] / ROAD_CELL) + 500) * 1000 + mfloor(xy[2 * i] / ROAD_CELL) + 500
+        local c = cells[key]
+        if not c then
+            c = {}
+            cells[key] = c
+        end
+        c[#c + 1] = i
+    end
+    net = { xy = xy, n = n, adj = adj, cells = cells, shapes = g.shapes or {} }
+    roadNets[ci] = net
+    return net
+end
+
+-- Road nodes within r yards of (x, y): each id and its distance, in pairs.
+local function NodesNear(net, x, y, r, out)
+    local k = 0
+    local cx, cy, span = mfloor(x / ROAD_CELL), mfloor(y / ROAD_CELL), math.ceil(r / ROAD_CELL)
+    local xy = net.xy
+    for i = cx - span, cx + span do
+        for j = cy - span, cy + span do
+            local c = net.cells[(i + 500) * 1000 + j + 500]
+            for m = 1, c and #c or 0 do
+                local id = c[m]
+                local dx, dy = xy[2 * id - 1] - x, xy[2 * id] - y
+                local d = msqrt(dx * dx + dy * dy)
+                if d <= r then
+                    out[k + 1], out[k + 2] = id, d
+                    k = k + 2
+                end
+            end
+        end
+    end
+    return k
+end
+
+-- The way from (sx, sy) to (tx, ty) on continent ci, over the roads where
+-- they help: { pts = { x, y, ... } in world yards, node = { [vertex] = road
+-- node }, off = { [vertex] = true when the leg from it is off the road },
+-- cum = { [vertex] = yards from the start }, len, net }. Nil when the
+-- continent has no roads or no road beats the straight line.
+function Route.RoadPath(data, ci, sx, sy, tx, ty)
+    local net = RoadNet(data, ci)
+    if not net then return nil end
+    local n, xy, adj = net.n, net.xy, net.adj
+    local S, T = n + 1, n + 2
+    local function Pos(u)
+        if u == S then return sx, sy elseif u == T then return tx, ty end
+        return xy[2 * u - 1], xy[2 * u]
+    end
+    local function H(u)
+        local x, y = Pos(u)
+        return msqrt((x - tx) ^ 2 + (y - ty) ^ 2)
+    end
+    local g, prev, via, done = { [S] = 0 }, {}, {}, {}
+    local hk, hv, hn = {}, {}, 0
+    local function Push(v, f)
+        hn = hn + 1
+        local i = hn
+        while i > 1 do
+            local p = mfloor(i / 2)
+            if hk[p] <= f then break end
+            hk[i], hv[i] = hk[p], hv[p]
+            i = p
+        end
+        hk[i], hv[i] = f, v
+    end
+    local function Pop()
+        local v, lastK, lastV = hv[1], hk[hn], hv[hn]
+        hk[hn], hv[hn] = nil, nil
+        hn = hn - 1
+        local i = 1
+        while true do
+            local c = i * 2
+            if c > hn then break end
+            if c < hn and hk[c + 1] < hk[c] then c = c + 1 end
+            if hk[c] >= lastK then break end
+            hk[i], hv[i] = hk[c], hv[c]
+            i = c
+        end
+        if hn > 0 then hk[i], hv[i] = lastK, lastV end
+        return v
+    end
+    local function Relax(u, v, cost, e)
+        local ng = g[u] + cost
+        if not done[v] and (g[v] == nil or ng < g[v]) then
+            g[v], prev[v], via[v] = ng, u, e
+            Push(v, ng + H(v))
+        end
+    end
+    local near = {}
+    Push(S, H(S))
+    while hn > 0 do
+        local u = Pop()
+        if not done[u] then
+            done[u] = true
+            if u == T then break end
+            local ux, uy = Pos(u)
+            local dT = msqrt((ux - tx) ^ 2 + (uy - ty) ^ 2)
+            if u == S then
+                Relax(u, T, dT * OFF_ROAD, 0)
+                local k = NodesNear(net, ux, uy, ROAD_REACH, near)
+                for m = 1, k, 2 do Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
+            else
+                local a = adj[u]
+                for m = 1, #a, 3 do Relax(u, a[m], a[m + 1], a[m + 2]) end
+                local k = NodesNear(net, ux, uy, ROAD_HOP, near)
+                for m = 1, k, 2 do
+                    if near[m] ~= u then Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
+                end
+                if dT <= ROAD_REACH then Relax(u, T, dT * OFF_ROAD, 0) end
+            end
+        end
+    end
+    if not done[T] or prev[T] == S then return nil end
+    local chain = {}
+    local v = T
+    while v do
+        chain[#chain + 1] = v
+        v = prev[v]
+    end
+    local pts, node, off, cum = {}, {}, {}, {}
+    local function Add(x, y)
+        local k = #pts
+        local d = 0
+        if k > 0 then d = cum[k / 2] + msqrt((x - pts[k - 1]) ^ 2 + (y - pts[k]) ^ 2) end
+        pts[k + 1], pts[k + 2] = x, y
+        cum[k / 2 + 1] = d
+        return k / 2 + 1
+    end
+    Add(sx, sy)
+    for c = #chain - 1, 1, -1 do
+        local w = chain[c]
+        local e = via[w]
+        local from = #pts / 2
+        if e == 0 then
+            off[from] = true
+        else
+            local shape = net.shapes[e < 0 and -e or e]
+            if shape then
+                local m = #shape / 2
+                for s = 1, m do
+                    local j = e > 0 and s or (m - s + 1)
+                    Add(shape[2 * j - 1], shape[2 * j])
+                end
+            end
+        end
+        local wx, wy = Pos(w)
+        local idx = Add(wx, wy)
+        if w <= n then node[idx] = w end
+    end
+    return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
 end

@@ -26,7 +26,7 @@ local RED = { 1, 0.22, 0.16 }
 local WHITE = "Interface\\Buttons\\WHITE8x8"
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 
-local overlay, pool, marks
+local overlay, pool, solids, marks
 local shownMap, shownIndex
 local since = 0
 
@@ -50,6 +50,7 @@ local function Build()
     overlay:SetFrameLevel(300)
     overlay:EnableMouse(false)
     pool = {}
+    solids = {}
     marks = { start = overlay:CreateTexture(nil, "OVERLAY", nil, 2), stop = overlay:CreateTexture(nil, "OVERLAY", nil, 3) }
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
     marks.start:SetBlendMode("ADD")
@@ -86,6 +87,15 @@ local function Line(i)
     return t
 end
 
+local function Solid(i)
+    local s = solids[i]
+    if not s then
+        s = overlay:CreateLine(nil, "OVERLAY", nil, 1)
+        solids[i] = s
+    end
+    return s
+end
+
 -- A step's point on the shown map, in canvas pixels, or nothing when it
 -- is not on that map.
 local function OnCanvas(p, mapID)
@@ -114,6 +124,45 @@ local function StartOf(route, i)
     return nil
 end
 
+local function World(p)
+    if p.wx and p.ci then return p.ci, p.wx, p.wy end
+    local toWorld = ns.GPSRoute and ns.GPSRoute.WorldPos
+    if p.m and toWorld then return toWorld(p.m, p.x, p.y) end
+    return nil
+end
+
+-- A walked leg's way over the roads as map points (x, y in pairs), or
+-- nothing when no road helps. Kept per step until its start moves.
+local roads = {}
+local function RoadPoints(route, i, start, target, mapID)
+    local find = ns.GPSRoute and ns.GPSRoute.RoadPath
+    if not (find and ns.GPSData and start and target) then return nil end
+    local ci, sx, sy = World(start)
+    local ci2, tx, ty = World(target)
+    if not (ci and ci2 and ci == ci2) then return nil end
+    local key = mapID * 1e6 + math.floor(sx / 25) * 1e3 + math.floor(sy / 25)
+    local c = roads[i]
+    if c and c.route == route and c.key == key then return c.pts or nil end
+    c = { route = route, key = key, pts = false }
+    roads[i] = c
+    local path = find(ns.GPSData, ci, sx, sy, tx, ty)
+    if not path then return nil end
+    local pts, k = {}, 0
+    for v = 1, #path.pts / 2 do
+        local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(path.pts[2 * v - 1], path.pts[2 * v]), mapID)
+        if ok and pos then
+            local x, y = pos:GetXY()
+            if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+                pts[k + 1], pts[k + 2] = x, y
+                k = k + 2
+            end
+        end
+    end
+    if k < 4 then return nil end
+    c.pts = pts
+    return pts
+end
+
 local function Draw()
     local route = Route()
     if not (route and overlay and shownMap) then return end
@@ -123,52 +172,101 @@ local function Draw()
         return
     end
     local accent = Accent()
-    local n = 0
+    local n, nSolid = 0, 0
     local hovered
     local lineW, dash, gap, arrow = px(LINE_W), px(DASH), px(GAP), px(ARROW)
+    local cw, ch = canvas:GetWidth(), canvas:GetHeight()
+    local poly = {}
     for i = 1, #route.steps do
         local step = route.steps[i]
         -- A teleport draws nothing: nothing is walked, and the legs after
         -- it start from where it lands.
         local teleport = step.kind == "teleport"
-        local a = (not teleport) and OnCanvas(StartOf(route, i), shownMap) or nil
+        local start = StartOf(route, i)
+        local a = (not teleport) and OnCanvas(start, shownMap) or nil
         local target = step.go or step.arrive
         local b = (not teleport) and OnCanvas(target, shownMap) or nil
+        local lastDx, lastDy
         if a and b then
-            local dx, dy = b[1] - a[1], b[2] - a[2]
-            local len = msqrt(dx * dx + dy * dy)
-            if len > 2 then
-                -- Dashes laid along the leg, each a short rotated bar; the
-                -- last one stops short of the arrowhead.
-                local ux, uy = dx / len, dy / len
-                local angle = matan2(dy, dx)
+            -- The leg's line: along the roads for a walk, straight otherwise.
+            local road = step.kind == "travel" and RoadPoints(route, i, start, target, shownMap)
+            local m = 0
+            if road then
+                -- Points closer together than the line is wide add nothing.
+                local last = #road - 1
+                for v = 1, last, 2 do
+                    local x, y = road[v] * cw, -road[v + 1] * ch
+                    if m == 0 or v == last or msqrt((x - poly[m - 1]) ^ 2 + (y - poly[m]) ^ 2) >= lineW then
+                        poly[m + 1], poly[m + 2] = x, y
+                        m = m + 2
+                    end
+                end
+            else
+                poly[1], poly[2], poly[3], poly[4] = a[1], a[2], b[1], b[2]
+                m = 4
+            end
+            local total = 0
+            for v = 1, m - 3, 2 do
+                total = total + msqrt((poly[v + 2] - poly[v]) ^ 2 + (poly[v + 3] - poly[v + 1]) ^ 2)
+            end
+            if total > 2 then
                 local bright = i == shownIndex
                 local alpha = bright and 0.95 or 0.4
-                -- The last dash stops short of the arrowhead; a portal's
-                -- symbol sits on its spot, so the dashes run to it.
-                local usable = len - ((bright and step.kind ~= "portal") and arrow * 0.9 or 0)
-                local pos = 0
-                while pos < usable do
-                    local d = dash
-                    if pos + d > usable then d = usable - pos end
-                    if d > 1 then
-                        n = n + 1
-                        local t = Line(n)
-                        t:ClearAllPoints()
-                        t:SetSize(d, lineW)
-                        local cx, cy = a[1] + ux * (pos + d / 2), a[2] + uy * (pos + d / 2)
-                        t:SetPoint("CENTER", overlay, "TOPLEFT", cx, cy)
-                        t:SetRotation(angle)
-                        t:SetVertexColor(accent[1], accent[2], accent[3], alpha)
-                        t:Show()
+                -- The line stops short of the arrowhead; a portal's symbol
+                -- sits on its spot, so the line runs to it.
+                local usable = total - ((bright and step.kind ~= "portal") and arrow * 0.9 or 0)
+                if step.kind == "travel" then
+                    -- A walk: one solid line, stretch by stretch.
+                    local walked = 0
+                    for v = 1, m - 3, 2 do
+                        local x1, y1, x2, y2 = poly[v], poly[v + 1], poly[v + 2], poly[v + 3]
+                        local dx, dy = x2 - x1, y2 - y1
+                        local len = msqrt(dx * dx + dy * dy)
+                        if len > 0 and walked < usable then
+                            lastDx, lastDy = dx, dy
+                            if walked + len > usable then
+                                local f = (usable - walked) / len
+                                x2, y2 = x1 + dx * f, y1 + dy * f
+                            end
+                            nSolid = nSolid + 1
+                            local s = Solid(nSolid)
+                            s:SetThickness(lineW * 0.8)
+                            s:SetStartPoint("TOPLEFT", overlay, x1, y1)
+                            s:SetEndPoint("TOPLEFT", overlay, x2, y2)
+                            s:SetColorTexture(accent[1], accent[2], accent[3], alpha)
+                            s:Show()
+                        end
+                        walked = walked + len
                     end
-                    pos = pos + dash + gap
+                else
+                    -- A flight or a crossing: dashes along the straight leg.
+                    local x1, y1, dx, dy = poly[1], poly[2], poly[3] - poly[1], poly[4] - poly[2]
+                    local ux, uy = dx / total, dy / total
+                    local angle = matan2(dy, dx)
+                    lastDx, lastDy = dx, dy
+                    local pos = 0
+                    while pos < usable do
+                        local d = dash
+                        if pos + d > usable then d = usable - pos end
+                        if d > 1 then
+                            n = n + 1
+                            local t = Line(n)
+                            t:ClearAllPoints()
+                            t:SetSize(d, lineW)
+                            t:SetPoint("CENTER", overlay, "TOPLEFT", x1 + ux * (pos + d / 2), y1 + uy * (pos + d / 2))
+                            t:SetRotation(angle)
+                            t:SetVertexColor(accent[1], accent[2], accent[3], alpha)
+                            t:Show()
+                        end
+                        pos = pos + dash + gap
+                    end
                 end
             end
         end
-        if i == shownIndex then hovered = { a = a, b = b, target = target, step = step } end
+        if i == shownIndex then hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy } end
     end
     for i = n + 1, #pool do pool[i]:Hide() end
+    for i = nSolid + 1, #solids do solids[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
     -- it ends; a crossing shows its spot alone when the start is elsewhere.
     if hovered and hovered.a then
@@ -199,7 +297,9 @@ local function Draw()
         if hovered.a then
             -- The art's tip is at its edge: set the head back along the
             -- leg by half its size so the tip lands on the spot itself.
-            local dx, dy = hovered.b[1] - hovered.a[1], hovered.b[2] - hovered.a[2]
+            -- Turned along the line's last stretch, which a road bends.
+            local dx = hovered.dx or (hovered.b[1] - hovered.a[1])
+            local dy = hovered.dy or (hovered.b[2] - hovered.a[2])
             local len = msqrt(dx * dx + dy * dy)
             local ux, uy = (len > 0) and dx / len or 0, (len > 0) and dy / len or 0
             marks.stop:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1] - ux * arrow * 0.45, hovered.b[2] - uy * arrow * 0.45)

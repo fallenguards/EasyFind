@@ -505,5 +505,29 @@ function tests.noData_returnsNil()
     H.assertNil(Route:Build({ name = "x", mapID = 1, x = 0.5, y = 0.5 }, { data = nil, start = P(1, 0.1, 0.1) }))
 end
 
+-- Roads: world x is north, y is west. A road runs west from A to the
+-- junction B (which goes on west to D) and turns north to C.
+local function roadData()
+    local d = data()
+    d.roads = { [1] = { nodes = { 0, 0, 0, 1000, 1000, 1000, 0, 2000 },
+                        edges = { 1, 2, 1000, 2, 3, 1000, 2, 4, 1000 }, shapes = {} } }
+    return d
+end
+
+function tests.roads_followTheRoadThroughTheJunction()
+    local _, _, Route = fresh()
+    local path = Route.RoadPath(roadData(), 1, 0, -50, 1050, 1000)
+    H.assertTrue(path ~= nil, "the roads beat the diagonal")
+    H.assertEq(#path.pts / 2, 5, "start, A, B, C, end")
+    H.assertEq(math.floor(path.len + 0.5), 2100)
+    H.assertDeepEq({ path.pts[5], path.pts[6] }, { 0, 1000 }, "through the junction B")
+end
+
+function tests.roads_noneOrNoHelpGivesNoPath()
+    local _, _, Route = fresh()
+    H.assertNil(Route.RoadPath(data(), 1, 0, 0, 500, 500), "no roads in the data")
+    H.assertNil(Route.RoadPath(roadData(), 1, 5000, 5000, 5000, 5100), "a short hop needs no road")
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }
