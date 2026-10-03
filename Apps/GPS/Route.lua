@@ -1080,7 +1080,9 @@ function Route.RoadPath(data, ci, sx, sy, tx, ty)
             local ux, uy = Pos(u)
             local dT = msqrt((ux - tx) ^ 2 + (uy - ty) ^ 2)
             if u == S then
-                Relax(u, T, dT * OFF_ROAD, 0)
+                -- Straight there only when it is close: a long line crosses
+                -- what cannot be walked.
+                if dT <= ROAD_REACH then Relax(u, T, dT * OFF_ROAD, 0) end
                 local k = NodesNear(net, ux, uy, ROAD_REACH, near)
                 for m = 1, k, 2 do Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
             else
@@ -1132,4 +1134,131 @@ function Route.RoadPath(data, ci, sx, sy, tx, ty)
         if w <= n then node[idx] = w end
     end
     return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
+end
+
+-- ---------------------------------------------------------------------------
+-- Walks, zone by zone
+-- ---------------------------------------------------------------------------
+
+local WALK_SAMPLE = 100    -- yards between zone readings along a walk
+local WALK_MIN_RUN = 150   -- a zone crossed for less than this is no step
+
+local function PointWorld(p)
+    if not p then return nil end
+    if p.wx and p.ci then return p.ci, p.wx, p.wy end
+    return WorldPos(p.m, p.x, p.y)
+end
+
+-- One walked step as a step per zone its road way crosses, or nil when it
+-- stays in one zone or no road leads there.
+local function WalkPieces(step, from, data, env, first)
+    local target = step.go or step.arrive
+    local ci, fx, fy = PointWorld(from)
+    local ci2, tx, ty = PointWorld(target)
+    if not (ci and ci == ci2) then return nil end
+    local path = Route.RoadPath(data, ci, fx, fy, tx, ty)
+    if not path then return nil end
+    local pts, cum = path.pts, path.cum
+    local runs = {}
+    local function Read(x, y, at)
+        local map, name = env.zoneAt(ci, x, y)
+        local run = runs[#runs]
+        if map and (not run or run.map ~= map) then
+            runs[#runs + 1] = { map = map, name = name or "?", at = at, x = x, y = y }
+        end
+    end
+    for v = 1, #pts / 2 do
+        if v > 1 then
+            local ax, ay, seg = pts[2 * v - 3], pts[2 * v - 2], cum[v] - cum[v - 1]
+            local extra = mfloor(seg / WALK_SAMPLE)
+            for s = 1, extra do
+                local t = s / (extra + 1)
+                Read(ax + t * (pts[2 * v - 1] - ax), ay + t * (pts[2 * v] - ay), cum[v - 1] + t * seg)
+            end
+        end
+        Read(pts[2 * v - 1], pts[2 * v], cum[v])
+    end
+    -- A zone clipped for a few yards (a border the road runs along) is
+    -- no step; its stretch joins the zone before it.
+    local r = 1
+    while r <= #runs and #runs > 1 do
+        local stop = runs[r + 1] and runs[r + 1].at or path.len
+        if stop - runs[r].at < WALK_MIN_RUN then
+            table.remove(runs, r)
+            if r == 1 then
+                runs[1].at, runs[1].x, runs[1].y = 0, fx, fy
+            elseif runs[r] and runs[r].map == runs[r - 1].map then
+                table.remove(runs, r)
+            end
+        else
+            r = r + 1
+        end
+    end
+    -- Setting out from inside a city: getting out of it is the first
+    -- step, up to where the way meets its first road.
+    local city = first and env.startCity
+    if city and runs[1] and runs[1].map ~= city.map and #pts >= 4
+       and cum[2] < (runs[2] and runs[2].at or path.len) then
+        runs[1].at, runs[1].x, runs[1].y = cum[2], pts[3], pts[4]
+        table.insert(runs, 1, { map = city.map, name = city.name or "?", at = 0, x = fx, y = fy })
+    end
+    -- A zone goal is reached on entering it: the stretch inside it is
+    -- the end of the step before.
+    local count = #runs
+    local intoGoal = env.goalZone and count > 1 and runs[count].map == env.goalZone
+    if intoGoal then count = count - 1 end
+    if count < 2 and not intoGoal then return nil end
+    local L = ns.L
+    local out = {}
+    for k = 1, count do
+        local run, nxt = runs[k], runs[k + 1]
+        local piece = {}
+        for key, value in pairs(step) do piece[key] = value end
+        local stop = (k < count or intoGoal) and nxt and nxt.at or path.len
+        if step.sec then piece.sec = step.sec * (stop - run.at) / path.len end
+        piece.walkZone = run.map
+        if k < count then
+            -- Up to the border: done on entering the next zone.
+            local mx, my
+            if env.mapPos then mx, my = env.mapPos(ci, nxt.x, nxt.y, run.map) end
+            -- A border the zone's own map cannot place: the walk stays whole.
+            if env.mapPos and not mx then return nil end
+            local spot = { ci = ci, wx = nxt.x, wy = nxt.y, m = run.map, x = mx, y = my }
+            piece.mapID, piece.x, piece.y, piece.go, piece.arrive = run.map, mx, my, spot, spot
+            piece.enter = nxt.map
+            if env.isCity and env.isCity(run.map) then
+                piece.text = (L["GPS_STEP_EXIT_FMT"]):format(run.name)
+            else
+                piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, nxt.name)
+            end
+        elseif intoGoal then
+            piece.enter = nxt.map
+            piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, nxt.name)
+        end
+        out[k] = piece
+    end
+    return out
+end
+
+-- The route with each long walk as one step per zone crossed. env:
+-- zoneAt(ci, wx, wy) answers the zone's map id and name there,
+-- mapPos(ci, wx, wy, mapID) the spot on that map, isCity(mapID) whether
+-- leaving it reads "Exit", startCity = { map, name } when the route sets
+-- out from inside one, goalZone the destination's map when the
+-- destination is a zone.
+function Route.SplitWalks(steps, start, data, env)
+    local out = {}
+    for i = 1, #steps do
+        local step = steps[i]
+        local pieces
+        if step.kind == "travel" then
+            pieces = WalkPieces(step, i == 1 and start or steps[i - 1].arrive, data, env, i == 1)
+        end
+        if pieces then
+            for k = 1, #pieces do out[#out + 1] = pieces[k] end
+        else
+            out[#out + 1] = step
+        end
+    end
+    return out
 end

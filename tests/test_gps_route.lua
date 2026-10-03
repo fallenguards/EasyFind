@@ -529,5 +529,62 @@ function tests.roads_noneOrNoHelpGivesNoPath()
     H.assertNil(Route.RoadPath(roadData(), 1, 5000, 5000, 5000, 5100), "a short hop needs no road")
 end
 
+-- The road above crosses three zones: Alpha until 500 yd west, Bravo up
+-- to 500 yd north of the junction, Charlie beyond.
+local function zoneAt(_, x, y)
+    if y < 500 then return 10, "Alpha" end
+    if x < 500 then return 11, "Bravo" end
+    return 12, "Charlie"
+end
+
+local function walk()
+    local target = { ci = 1, wx = 1050, wy = 1000, m = 12, x = 0.1, y = 0.1 }
+    return { { kind = "travel", text = "Travel to Spot", mapID = 12, go = target, arrive = target, sec = 210 } },
+        { ci = 1, wx = 0, wy = -50 }, target
+end
+
+function tests.walk_splitsIntoAStepPerZone()
+    local _, _, Route = fresh()
+    local steps, start, target = walk()
+    local out = Route.SplitWalks(steps, start, roadData(), { zoneAt = zoneAt })
+    H.assertEq(#out, 3, "Alpha, Bravo, Charlie")
+    H.assertEq(out[1].enter, 11, "the first ends on entering Bravo")
+    H.assertEq(out[1].walkZone, 10)
+    H.assertEq(out[2].enter, 12)
+    H.assertNil(out[3].enter, "the last ends at the spot")
+    H.assertEq(out[3].arrive, target)
+    H.assertEq(out[3].text, "Travel to Spot", "the last keeps what the step said")
+    H.assertTrue(math.abs(out[1].sec + out[2].sec + out[3].sec - 210) < 0.01, "the time is shared out")
+    H.assertTrue(out[1].arrive.wy >= 500 and out[1].arrive.wy <= 600, "the border on the road west")
+end
+
+function tests.walk_toAZoneEndsOnEnteringIt()
+    local _, _, Route = fresh()
+    local steps, start, target = walk()
+    local out = Route.SplitWalks(steps, start, roadData(), { zoneAt = zoneAt, goalZone = 12 })
+    H.assertEq(#out, 2, "no step inside the goal zone")
+    H.assertEq(out[2].enter, 12)
+    H.assertEq(out[2].arrive, target)
+end
+
+function tests.walk_fromInsideACityStartsWithLeavingIt()
+    local _, _, Route = fresh()
+    local steps, start = walk()
+    local out = Route.SplitWalks(steps, start, roadData(), {
+        zoneAt = zoneAt, isCity = function(m) return m == 99 end, startCity = { map = 99, name = "City" } })
+    H.assertEq(#out, 4)
+    H.assertEq(out[1].walkZone, 99, "the city first")
+    H.assertEq(out[1].enter, 10, "done on entering the zone around it")
+end
+
+function tests.walk_inOneZoneOrWithoutRoadsStaysOneStep()
+    local _, _, Route = fresh()
+    local steps, start = walk()
+    H.assertEq(#Route.SplitWalks(steps, start, roadData(), { zoneAt = function() return 10, "Alpha" end }), 1)
+    -- The engine keeps a continent's roads once read: a fresh one for none.
+    local _, _, Bare = fresh()
+    H.assertEq(#Bare.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "no roads in the data")
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

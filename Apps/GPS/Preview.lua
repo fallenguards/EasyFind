@@ -177,6 +177,8 @@ local function Draw()
     local lineW, dash, gap, arrow = px(LINE_W), px(DASH), px(GAP), px(ARROW)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
     local poly = {}
+    -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
+    local all = shownIndex == 0
     for i = 1, #route.steps do
         local step = route.steps[i]
         -- A teleport draws nothing: nothing is walked, and the legs after
@@ -210,11 +212,12 @@ local function Draw()
                 total = total + msqrt((poly[v + 2] - poly[v]) ^ 2 + (poly[v + 3] - poly[v + 1]) ^ 2)
             end
             if total > 2 then
-                local bright = i == shownIndex
+                local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
                 -- The line stops short of the arrowhead; a portal's symbol
                 -- sits on its spot, so the line runs to it.
-                local usable = total - ((bright and step.kind ~= "portal") and arrow * 0.9 or 0)
+                local headed = (all and i == #route.steps) or (i == shownIndex and step.kind ~= "portal")
+                local usable = total - (headed and arrow * 0.9 or 0)
                 if step.kind == "travel" then
                     -- A walk: one solid line, stretch by stretch.
                     local walked = 0
@@ -263,7 +266,13 @@ local function Draw()
                 end
             end
         end
-        if i == shownIndex then hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy } end
+        if all and a and b then
+            -- From where the first leg starts to where the last one ends.
+            hovered = hovered or { a = a }
+            hovered.b, hovered.target, hovered.step, hovered.dx, hovered.dy = b, target, step, lastDx, lastDy
+        elseif i == shownIndex then
+            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy }
+        end
     end
     for i = n + 1, #pool do pool[i]:Hide() end
     for i = nSolid + 1, #solids do solids[i]:Hide() end
@@ -363,6 +372,34 @@ function Preview:Show(index)
     local mapID = MapOf(route, index)
     if not mapID then return end
     shownMap, shownIndex = mapID, index
+    if WorldMapFrame.GetMapID and WorldMapFrame:GetMapID() ~= mapID and WorldMapFrame.SetMapID then
+        pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID)
+    end
+    Draw()
+end
+
+-- The whole route, on the smallest map that holds its start and its end.
+function Preview:ShowAll()
+    local route = Route()
+    local last = route and route.steps and route.steps[#route.steps]
+    if not (last and WorldMapFrame and WorldMapFrame:IsShown()) then return end
+    if not overlay and not Build() then return end
+    local target = last.go or last.arrive
+    local mapID = last.mapID or (target and target.m)
+    if not mapID then return end
+    local start = StartOf(route, 1)
+    local m, depth = mapID, 0
+    while start and m and depth < 8 do
+        if Falls(start, m) and Falls(target, m) then
+            mapID = m
+            break
+        end
+        local info = C_Map.GetMapInfo and C_Map.GetMapInfo(m)
+        if not info or not info.parentMapID or info.parentMapID == 0 or (info.mapType and info.mapType <= 1) then break end
+        m = info.parentMapID
+        depth = depth + 1
+    end
+    shownMap, shownIndex = mapID, 0
     if WorldMapFrame.GetMapID and WorldMapFrame:GetMapID() ~= mapID and WorldMapFrame.SetMapID then
         pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID)
     end

@@ -180,6 +180,68 @@ local function LearnHearth()
 end
 GPS.LearnHearth = LearnHearth
 
+-- A long walk reads as one step per zone it crosses ("Walk through Dun
+-- Morogh to Loch Modan"), each previewed on its own map.
+local CONTINENT = Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2
+local ZONE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
+local continentOf = {}
+
+local function ContinentAbove(mapID)
+    local depth = 0
+    while mapID and depth < 8 do
+        local info = C_Map.GetMapInfo(mapID)
+        if not info then return nil end
+        if info.mapType == CONTINENT then return mapID end
+        mapID = info.parentMapID
+        depth = depth + 1
+    end
+    return nil
+end
+
+local function ZoneAt(ci, wx, wy)
+    local cont = continentOf[ci]
+    if not (cont and C_Map.GetMapInfoAtPosition) then return nil end
+    local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), cont)
+    if not (ok and pos) then return nil end
+    local x, y = pos:GetXY()
+    local info = x and C_Map.GetMapInfoAtPosition(cont, x, y)
+    if info and info.mapID and info.mapID ~= cont then return info.mapID, info.name end
+    return nil
+end
+
+local function MapPos(ci, wx, wy, mapID)
+    local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), mapID)
+    if ok and pos then return pos:GetXY() end
+    return nil
+end
+
+-- A city is a zone map without exploration to uncover.
+local function IsCity(mapID)
+    local info = C_Map.GetMapInfo(mapID)
+    return info ~= nil and info.mapType == ZONE and info.flags ~= nil and bit.band(info.flags, 2) == 0
+end
+
+local function SplitWalks(steps, dest)
+    local Route = ns.GPSRoute
+    local ci, wx, wy = PlayerWorldPos()
+    if not (Route and Route.SplitWalks and ci and C_Map.GetMapPosFromWorldPos) then return steps end
+    continentOf[ci] = continentOf[ci] or ContinentAbove(C_Map.GetBestMapForUnit("player"))
+    for i = 1, #steps do
+        local p = steps[i].arrive
+        if p and p.ci and p.m and not continentOf[p.ci] then continentOf[p.ci] = ContinentAbove(p.m) end
+    end
+    local start = { ci = ci, wx = wx, wy = wy }
+    local here = C_Map.GetBestMapForUnit("player")
+    local hereInfo = here and IsCity(here) and C_Map.GetMapInfo(here)
+    local ok, out = pcall(Route.SplitWalks, steps, start, ns.GPSData, {
+        zoneAt = ZoneAt, mapPos = MapPos, isCity = IsCity,
+        startCity = hereInfo and { map = here, name = hereInfo.name } or nil,
+        goalZone = dest.zone and dest.mapID or nil,
+    })
+    if ok and out and #out > 0 then return out end
+    return steps
+end
+
 function GPS:BuildRoute(dest, via)
     local Route = ns.GPSRoute
     if Route and ns.GPSData then
@@ -187,7 +249,7 @@ function GPS:BuildRoute(dest, via)
         local ok, steps, total, advice = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil, via = via })
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
-            return steps, total, advice
+            return SplitWalks(steps, dest), total, advice
         end
         if via then return nil end   -- no way with that stop: the route stays as it was
     end
@@ -460,6 +522,16 @@ local function Tick()
     -- A zone is reached when you are in it, wherever its map's middle is.
     if route.dest and route.dest.zone and route.dest.mapID and OnMap(route.dest.mapID) then
         Arrive(route)
+        return
+    end
+    -- A walk through a zone ends on entering the next one, wherever the
+    -- border is crossed; leaving a city ends its step the same way.
+    if step.enter and OnMap(step.enter) then
+        if route.steps[(route.active or 1) + 1] then
+            TrackStep((route.active or 1) + 1)
+        else
+            Arrive(route)
+        end
         return
     end
     local ci, px, py = PlayerWorldPos()
@@ -1268,6 +1340,19 @@ local function BuildSurface(frame, opts)
     title:SetTextColor(unpack(ns.TEXT_PRIMARY))
     title._efOwnColor = true
     frame.title = title
+    if not opts.titleOpensMap then
+        -- Resting on the destination line shows the whole route on the map.
+        local over = CreateFrame("Frame", nil, frame)
+        over:SetAllPoints(title)
+        over:EnableMouse(true)
+        if over.SetMouseClickEnabled then over:SetMouseClickEnabled(false) end
+        over:SetScript("OnEnter", function()
+            if frame.previewOnHover and ns.GPSPreview then ns.GPSPreview:ShowAll() end
+        end)
+        over:SetScript("OnLeave", function()
+            if frame.previewOnHover and ns.GPSPreview then ns.GPSPreview:Hide() end
+        end)
+    end
     if opts.titleOpensMap then
         -- The destination line opens the map's GPS page, as a quest in
         -- the tracker opens its log entry; the steps keep their own click.
