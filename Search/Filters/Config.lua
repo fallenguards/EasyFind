@@ -194,6 +194,7 @@ local UI_FILTER_OPTIONS = {
           local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
           return (prof1 or prof2 or archaeology or fishing or cooking) ~= nil
       end },
+    { key = "skills",      label = _G["SKILLS"] or "Skills",       iconTex = 133741 },
     { key = "reputations", label = _G["REPUTATION"] or "Reputations", iconTex = ns.REP_CATEGORY_ICON_TEX,
       iconCoords = ns.PlayerRepCategoryIconCoords(),
       flyoutRadio = {

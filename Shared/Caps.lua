@@ -140,7 +140,10 @@ Caps.perks = C_PerksProgram ~= nil and not Caps.forever
 Caps.editMode = rule("EditModeDisabled") ~= true and C_EditMode ~= nil
 Caps.macros = rule("MacrosDisabled") ~= true
 Caps.professions = rule("ProfessionsPanelDisabled") ~= true and not classic
-Caps.gearSets = C_EquipmentSet ~= nil
+-- Classic keeps the API and has no Equipment Manager.
+Caps.gearSets = C_EquipmentSet ~= nil and not classic
+-- The classic character window lists skills (weapons, languages, class skills).
+Caps.skills = classic and type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function"
 Caps.outfits = Caps.transmog
 Caps.ammo = rule("EnableAmmoSystem") == true
 Caps.campsites = C_WarbandScene ~= nil and not Caps.forever
@@ -350,7 +353,7 @@ local NEEDS = {
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
     reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
-    collections = "collectionsUI", titles = "titles",
+    collections = "collectionsUI", titles = "titles", skills = "skills",
 }
 Caps.NEEDS = NEEDS
 

@@ -389,6 +389,62 @@ function Database:PopulateDynamicCurrencies()
     return true
 end
 
+-- Classic's skill list (character window, Skills tab): one entry per skill.
+function Database:PopulateDynamicSkills()
+    if not (GetNumSkillLines and GetSkillLineInfo) then return false end
+    if GetNumSkillLines() == 0 then return false end
+
+    RemoveEntriesByCategory("Skill")
+
+    -- Skills under a folded header are not listed: unfold, read, fold back.
+    local folded
+    for i = GetNumSkillLines(), 1, -1 do
+        local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
+        if isHeader and not isExpanded then
+            folded = folded or {}
+            folded[headerName] = true
+            ns.skillHeadersToggledAt = GetTime()
+            ExpandSkillHeader(i)
+        end
+    end
+
+    local characterLabel = _G["CHARACTER_BUTTON"] or "Character Info"
+    local skillsLabel = _G["SKILLS"] or "Skills"
+    local header, headerLower
+    for i = 1, GetNumSkillLines() do
+        local skillName, isHeader = GetSkillLineInfo(i)
+        if isHeader then
+            header, headerLower = skillName, slower(skillName or "")
+        elseif skillName and skillName ~= "" then
+            local nameLower = slower(skillName)
+            local keywords = { nameLower, "skill", headerLower }
+            uiSearchData[#uiSearchData + 1] = {
+                name = skillName,
+                nameLower = nameLower,
+                keywords = keywords,
+                keywordsLower = keywords,
+                category = "Skill",
+                buttonFrame = "CharacterMicroButton",
+                path = { characterLabel, skillsLabel, header },
+                skillLine = skillName,
+                steps = {
+                    { buttonFrame = "CharacterMicroButton" },
+                    { waitForFrame = "CharacterFrame", tabFrame = "SkillsFrame" },
+                    { waitForFrame = "CharacterFrame", skillLine = skillName, skillHeader = header },
+                },
+            }
+        end
+    end
+
+    if folded then
+        for i = GetNumSkillLines(), 1, -1 do
+            local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
+            if isHeader and isExpanded and folded[headerName] then CollapseSkillHeader(i) end
+        end
+    end
+    return true
+end
+
 function Database:PopulateDynamicReputations()
     if not C_Reputation or not C_Reputation.GetNumFactions then return false end
     local liveFactions = C_Reputation.GetNumFactions()

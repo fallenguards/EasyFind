@@ -88,7 +88,7 @@ local DEFAULT_UI_FILTERS = {
     appearanceSets = true,
     bags = true, macros = true, options = true, abilities = true,
     bosses = true, gearSets = true, talents = true, titles = true,
-    map = true,
+    skills = true, map = true,
 }
 local UI_DEFAULTS = {
     smartShow = false,

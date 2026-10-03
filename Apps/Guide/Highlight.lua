@@ -1245,6 +1245,41 @@ local function HandleWaitFactionID(self, step)
     return true
 end
 
+-- A character tab named by the frame it opens (Skills, Honor).
+local function HandleWaitTabFrame(self, step)
+    local own = ns.Caps.CharacterSubframe(step.tabFrame)
+    local sub = own and _G[own]
+    if sub and sub:IsShown() then
+        self:AdvanceStep()
+        return true
+    end
+    local tabBtn = ns.Caps.CharacterTab(step.tabFrame)
+    if tabBtn then
+        self:HighlightFrame(tabBtn)
+    else
+        self:HideHighlight()
+    end
+    return true
+end
+
+local function HandleWaitSkillLine(self, step)
+    local list = _G["SkillFrame"]
+    if not (list and list:IsVisible()) then
+        self:Cancel()
+        return true
+    end
+    local row = self:RevealSkillRow(step.skillLine, step.skillHeader)
+    if row then
+        self:HighlightFrame(row)
+        if canHoverDismiss() and row:IsMouseOver() then
+            self:Cancel()
+        end
+    else
+        self:HideHighlight()
+    end
+    return true
+end
+
 local function HandleWaitDestinationPrereqs(self)
     if ValidateDestinationPrereqs(self) then return true end
     return false
@@ -1865,6 +1900,8 @@ local WAIT_STEP_HANDLERS = {
     { condition = function(step) return step.currencyHeader or step.currencyID end, fn = HandleWaitCurrency },
     { key = "factionHeader", fn = HandleWaitFactionHeader },
     { key = "factionID", fn = HandleWaitFactionID },
+    { key = "tabFrame", fn = HandleWaitTabFrame },
+    { key = "skillLine", fn = HandleWaitSkillLine },
     { condition = function() return true end, fn = HandleWaitDestinationPrereqs, continueOnFalse = true },
     { key = "macroIndex", fn = HandleWaitMacroIndex },
     { key = "ejInstance", fn = HandleWaitEJInstance },
@@ -3761,6 +3798,42 @@ function Highlight:GetFactionRowButton(factionID)
         end
         return false
     end)
+end
+
+-- Classic's skill list is twelve rows over a faux scroll frame: unfolds the
+-- skill's header, scrolls it into view and returns its row, or nil.
+function Highlight:RevealSkillRow(skillName, headerName)
+    local list, scroll = _G["SkillFrame"], _G["SkillListScrollFrame"]
+    if not (list and list:IsVisible() and scroll and GetNumSkillLines) then return nil end
+    local target
+    for _ = 1, 2 do
+        local headerIndex, headerOpen
+        for i = 1, GetNumSkillLines() do
+            local lineName, isHeader, isExpanded = GetSkillLineInfo(i)
+            if isHeader then
+                if lineName == headerName then headerIndex, headerOpen = i, isExpanded end
+            elseif lineName == skillName then
+                target = i
+                break
+            end
+        end
+        if target or not headerIndex or headerOpen then break end
+        ExpandSkillHeader(headerIndex)
+    end
+    if not target then return nil end
+    local rows = SKILLS_TO_DISPLAY or 12
+    local offset = FauxScrollFrame_GetOffset(scroll)
+    if target <= offset or target > offset + rows then
+        local bar = _G["SkillListScrollFrameScrollBar"]
+        if not bar then return nil end
+        local top = mmax(0, mmin(target - mceil(rows / 2), GetNumSkillLines() - rows))
+        bar:SetValue(top * (SKILLFRAME_SKILL_HEIGHT or 15))
+        offset = FauxScrollFrame_GetOffset(scroll)
+    end
+    -- The list redraws a frame after a header unfolds: the row must name the skill.
+    local label = _G["SkillRankFrame" .. (target - offset) .. "SkillName"]
+    if not (label and label:GetText() == skillName) then return nil end
+    return _G["SkillRankFrame" .. (target - offset) .. "Border"]
 end
 
 function Highlight:Cancel()

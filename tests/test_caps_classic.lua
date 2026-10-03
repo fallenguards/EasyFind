@@ -31,6 +31,8 @@ env.CharacterFrame = frame(false)
 for i = 1, 5 do env["CharacterFrameTab" .. i] = frame(true) end
 env.CharacterMicroButton = frame(true)
 env.StoreMicroButton = frame(false)
+env.GetNumSkillLines = function() return 0 end
+env.GetSkillLineInfo = function() end
 
 H.loadModule("Shared/Caps.lua", env, ns)
 local Caps = ns.Caps
@@ -93,6 +95,16 @@ function tests.taggedEntries_areOff()
     for _, cap in ipairs({ "selfHighlight", "editMode", "specs", "calendar", "transmog", "titles" }) do
         H.assertFalse(Caps[cap] and true or false, cap)
     end
+end
+
+function tests.gearSets_areOffOnClassic()
+    H.assertFalse(Caps.Has("gearSets"), "no Equipment Manager: provider, filter and quick filter")
+    H.assertEq(#Caps.PruneRows({ { key = "gearSets" }, { key = "bags" } }), 1, "the filter row is pruned")
+end
+
+function tests.skills_areSearchedOnClassic()
+    H.assertTrue(Caps.Has("skills"), "skills provider, filter and quick filter")
+    H.assertEq(#Caps.PruneRows({ { key = "skills" } }), 1, "the row stays")
 end
 
 function tests.titles_areOffOnEra()

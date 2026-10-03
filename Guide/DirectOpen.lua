@@ -133,6 +133,7 @@ function Guide:DirectOpen(data)
         if step.currencyID then return true end
         if step.factionHeader then return true end
         if step.factionID then return true end
+        if step.skillLine then return true end
         if step.searchButtonText then return true end
         if step.portraitMenuOption then return true end
         if step.ejInstance then return true end
@@ -703,6 +704,34 @@ function Guide:DirectOpen(data)
                         end
                     end)
                 end
+            end
+
+            if step.skillLine and i == executeCount then
+                -- The list redraws a frame after its header unfolds: a few tries.
+                local skillName, headerName, tries = step.skillLine, step.skillHeader, 0
+                local reveal
+                reveal = function()
+                    tries = tries + 1
+                    local skillRow = Highlight:RevealSkillRow(skillName, headerName)
+                    if not skillRow then
+                        if tries < 6 then Utils.SafeAfter(0.05, reveal) end
+                        return
+                    end
+                    local label = _G[skillRow:GetParent():GetName() .. "SkillName"]
+                    Highlight:HighlightFrame(skillRow, nil, function()
+                        return label ~= nil and label:GetText() == skillName
+                    end)
+                    local checkHover
+                    checkHover = function()
+                        if skillRow:IsMouseOver() then
+                            Highlight:HideHighlight()
+                        else
+                            Utils.SafeAfter(0.1, checkHover)
+                        end
+                    end
+                    Utils.SafeAfter(0.3, checkHover)
+                end
+                Utils.SafeAfter(0.05, reveal)
             end
 
             if step.lfgCategoryID then

@@ -189,6 +189,7 @@ local FLAT_CATEGORY_ICONS = {
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
+    skill         = { tex = 133741 },
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
 }
@@ -249,6 +250,7 @@ function Icons:GetFlatCategoryIcon(data)
         if key == "pets" then return FLAT_CATEGORY_ICONS.pet end
         if key == "toys" then return FLAT_CATEGORY_ICONS.toy end
         if key == "gearSets" then return FLAT_CATEGORY_ICONS.gearSet end
+        if key == "skills" then return FLAT_CATEGORY_ICONS.skill end
         if key == "currencies" then return FLAT_CATEGORY_ICONS.currency end
         if key == "items" then return FLAT_CATEGORY_ICONS.item end
         if key == "catalog" then return FLAT_CATEGORY_ICONS.item end
@@ -287,6 +289,7 @@ function Icons:GetFlatCategoryIcon(data)
     if data.statisticID or data.category == "Statistic" then return FLAT_CATEGORY_ICONS.statistic end
     if data.titleID then return FLAT_CATEGORY_ICONS.title end
     if data.gearSetID then return FLAT_CATEGORY_ICONS.gearSet end
+    if data.skillLine then return FLAT_CATEGORY_ICONS.skill end
     if data.category == "Reputation" and data.factionID then
         return REP_FACTION_ICONS[data.factionSide or "either"]
     end

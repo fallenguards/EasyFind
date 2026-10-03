@@ -34,6 +34,7 @@ local ENTRIES = {
     { key = "bank",            parent = "items", categories = { "Bank", "Warband" } },
     { key = "titles",          categories = { "Title" } },
     { key = "gearSets",        categories = { "Gear Set" } },
+    { key = "skills",          categories = { "Skill" } },
     { key = "commands",        categories = { "Command" } },
     -- extensions is the umbrella gate for the extension apps; its children
     -- carry the real categories.

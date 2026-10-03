@@ -124,6 +124,8 @@ read_globals = {
     "C_SpecializationInfo", "SetSpecialization",
     "GetNumSpecializations",
     "GetNumTitles", "GetTitleName", "IsTitleKnown", "GetCurrentTitle", "SetCurrentTitle",
+    "GetNumSkillLines", "GetSkillLineInfo", "ExpandSkillHeader", "CollapseSkillHeader",
+    "FauxScrollFrame_GetOffset", "SKILLS_TO_DISPLAY", "SKILLFRAME_SKILL_HEIGHT",
     "UnitClass", "UnitGUID", "GetLootSpecialization", "DressUpItemLink", "DressUpTransmogSet",
     "GetNumClasses", "GetClassInfo", "GetNumSpecializationsForClassID",
     "GetSpecializationInfoForClassID", "RAID_CLASS_COLORS", "GetNumExpansions",
