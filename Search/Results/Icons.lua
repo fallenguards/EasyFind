@@ -155,27 +155,27 @@ local FLAT_CATEGORY_ICONS = {
     item          = { tex = ns.ITEMS_CATEGORY_ICON_TEX, coords = ns.ITEMS_CATEGORY_ICON_COORDS,
                       aspect = ns.ITEMS_CATEGORY_ICON_ASPECT },
     -- Reputation category shows the player's own faction crest.
-    reputation    = { tex = ns.REP_CATEGORY_ICON_TEX, coords = ns.PlayerRepCategoryIconCoords() },
+    reputation    = ns.PlayerRepCategoryIcon(),
     statistic     = { tex = ns.STAT_CATEGORY_ICON_TEX, coords = ns.STAT_CATEGORY_ICON_COORDS },
     map           = { tex = ns.MAP_CATEGORY_ICON_TEX, coords = ns.MAP_CATEGORY_ICON_COORDS },
     -- Ability / boss: matches the filter-menu icons (boss tab + overview tab
     -- glyphs from the Encounter Journal spritesheet). The row's per-entry
     -- icon (spell icon / boss portrait) is pushed to the RIGHT side.
-    ability       = { tex = 522972, coords = { 0.904, 0.996, 0.707, 0.748 } },
-    boss          = { tex = 522972, coords = { 0.855, 0.949, 0.524, 0.566 } },
+    ability       = ns.ART.ability,
+    boss          = ns.ART.boss,
     talent        = { atlas = "UI-HUD-MicroMenu-SpecTalents-Up" },
     achievement   = { atlas = "UI-HUD-MicroMenu-Achievements-Up" },
     macro         = { tex = "Interface\\MacroFrame\\MacroFrame-Icon" },
     bag           = { atlas = "bag-main" },
     bank          = { tex = ns.BANK_CATEGORY_ICON_TEX, coords = ns.BANK_CATEGORY_ICON_COORDS },
-    loot          = { tex = 522972, coords = { 0.730, 0.824, 0.618, 0.660 } },
+    loot          = ns.ART.loot,
     menuBar       = { tex = "Interface\\AddOns\\EasyFind\\Search\\Images\\menu-bar" },
     setting       = { atlas = "QuestLog-icon-setting" },
     command       = { tex = ns.COMMANDS_ICON_TEX },
     -- Addon settings get a warm tint so they're distinguishable at a
     -- glance from the silvery-grey game-settings cogwheel.
     settingAddon  = { atlas = "QuestLog-icon-setting", color = { 1.0, 0.78, 0.35 } },
-    title         = { tex = 514608, coords = { 0.016, 0.531, 0.324, 0.461 } },
+    title         = ns.ART.title,
     snippet       = { tex = ns.SNIPPET_ICON_TEX, coords = ns.SNIPPET_ICON_COORDS },
     clipboard     = { tex = ns.CLIPBOARD_ICON_TEX, coords = ns.CLIPBOARD_ICON_COORDS },
     -- chromeTint: white line art tinted with the theme's chrome-glyph color
@@ -188,7 +188,7 @@ local FLAT_CATEGORY_ICONS = {
     iconSearch    = { tex = ICON_SEARCH_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
-    gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
+    gearSet       = ns.ART.gear_set,
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
 }
@@ -214,9 +214,9 @@ end
 -- and flat category glyph. All from the one shared source in Utils.lua so the
 -- filter icon, the flat category glyph, and these rows can never diverge.
 local REP_FACTION_ICONS = {
-    alliance = { tex = ns.REP_CATEGORY_ICON_TEX, coords = ns.REP_CATEGORY_ICON_COORDS.Alliance },
-    horde    = { tex = ns.REP_CATEGORY_ICON_TEX, coords = ns.REP_CATEGORY_ICON_COORDS.Horde },
-    either   = { tex = ns.REP_CATEGORY_ICON_TEX, coords = ns.PlayerRepCategoryIconCoords() },
+    alliance = ns.REP_CATEGORY_ICONS.Alliance,
+    horde    = ns.REP_CATEGORY_ICONS.Horde,
+    either   = ns.PlayerRepCategoryIcon(),
 }
 
 function Icons:GetFlatCategoryIcon(data)

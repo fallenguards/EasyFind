@@ -1928,43 +1928,44 @@ ns.COMMANDS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\commands-icon"
 ns.RADIO_OFF_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-off"
 ns.RADIO_ON_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-on"
 ns.FILTER_ARROW_TEX = "Interface\\AddOns\\EasyFind\\textures\\filter-arrow"
--- Reputation category icon: the player's own faction crest, cropped from the
--- shared UI glyph sheet (1121272). Defined once so the reputation filter row
--- and the flat category glyph stay in sync. Neutral (unchosen Pandaren) falls
--- back to the Alliance crest.
-ns.REP_CATEGORY_ICON_TEX = 1121272
-ns.REP_CATEGORY_ICON_COORDS = {
-    Horde    = { 0.8479, 0.8744, 0.7144, 0.7415 },
-    Alliance = { 0.7154, 0.7402, 0.8141, 0.8400 },
+-- Glyphs cut from the game's sheets into files of our own: their coords
+-- never move with a patch or a client. Each file is square, art top left.
+local ART = "Interface\\AddOns\\EasyFind\\textures\\art\\"
+ns.ART = {
+    delve = { tex = ART .. "delve", coords = { 0, 0.98438, 0, 0.96875 } },
+    great_vault = { tex = ART .. "great-vault", coords = { 0, 0.57812, 0, 0.57812 } },
+    crest_horde = { tex = ART .. "crest-horde", coords = { 0, 0.84375, 0, 0.84375 } },
+    crest_alliance = { tex = ART .. "crest-alliance", coords = { 0, 0.78125, 0, 0.8125 } },
+    map = { tex = ART .. "map", coords = { 0, 0.64062, 0, 0.65625 } },
+    statistic = { tex = ART .. "statistic", coords = { 0, 0.59375, 0, 0.875 } },
+    ability = { tex = ART .. "ability", coords = { 0, 0.73438, 0, 0.65625 } },
+    boss = { tex = ART .. "boss", coords = { 0, 0.75, 0, 0.67188 } },
+    loot = { tex = ART .. "loot", coords = { 0, 0.75, 0, 0.67188 } },
+    title = { tex = ART .. "title", coords = { 0, 0.51562, 0, 0.54688 } },
+    gear_set = { tex = ART .. "gear-set", coords = { 0, 0.51562, 0, 0.54688 } },
+    transmog = { tex = ART .. "transmog", coords = { 0, 0.98438, 0, 0.50391 } },
+    items = { tex = ART .. "items", coords = { 0, 0.86719, 0, 0.83594 } },
+    gauntlet = { tex = ART .. "gauntlet", coords = { 0, 0.92969, 0, 0.82031 } },
+    quartermaster = { tex = ART .. "quartermaster", coords = { 0, 0.96875, 0, 0.9375 } },
+    rare = { tex = ART .. "rare", coords = { 0, 0.9375, 0, 0.95312 } },
+    catalyst = { tex = ART .. "catalyst", coords = { 0, 0.9375, 0, 0.90625 } },
+    decor = { tex = ART .. "decor", coords = { 0, 0.96875, 0, 0.53125 } },
+    lorewalker = { tex = ART .. "lorewalker", coords = { 0, 0.59375, 0, 0.9375 } },
+    crafting_orders = { tex = ART .. "crafting-orders", coords = { 0, 0.90625, 0, 0.84375 } },
+    rostrum = { tex = ART .. "rostrum", coords = { 0, 0.96875, 0, 0.53125 } },
 }
--- WoW Forever ships a different layout of sheet 1121272: the crests sit
--- elsewhere and the retail cells come up blank. One reputation glyph and
--- one map glyph there, read off the beta's sheet by hand.
-if ns.Caps and ns.Caps.forever then
-    ns.REP_CATEGORY_ICON_COORDS.Horde    = { 0.3732, 0.3991, 0.5033, 0.5310 }
-    ns.REP_CATEGORY_ICON_COORDS.Alliance = { 0.3732, 0.3991, 0.5033, 0.5310 }
-end
-function ns.PlayerRepCategoryIconCoords()
+
+-- Reputation glyph: the player's faction crest; neutral gets the Alliance one.
+ns.REP_CATEGORY_ICONS = { Horde = ns.ART.crest_horde, Alliance = ns.ART.crest_alliance }
+function ns.PlayerRepCategoryIcon()
     local faction = UnitFactionGroup and UnitFactionGroup("player")
-    return ns.REP_CATEGORY_ICON_COORDS[faction] or ns.REP_CATEGORY_ICON_COORDS.Alliance
+    return ns.REP_CATEGORY_ICONS[faction] or ns.REP_CATEGORY_ICONS.Alliance
 end
 
--- Items category / General catalog icon, defined ONCE so the filter-menu icon
--- (Items category + General catalog sub-row) and the catalog result-row general
--- icon are always the same texture -- they can never drift apart.
--- Cropped from a NON-square source texture, so the crop's true aspect must fold
--- in the texel ratio (TEX_W/TEX_H), not just the normalized crop w/h -- WoW does
--- not report a texture's pixel size, so the dimensions are recorded here from the
--- file's BLP header (read via wago.tools). 6116514 is 512x256; the crop below is
--- ~111x107 px, i.e. nearly square, so it fills the slot undistorted. If you swap
--- the texture/coords, update TEX_W/TEX_H to that file's real dimensions.
-ns.ITEMS_CATEGORY_ICON_TEX = 6116514
-ns.ITEMS_CATEGORY_ICON_COORDS = { 0.0395, 0.2563, 0.0667, 0.4845 }
-do
-    local TEX_W, TEX_H = 512, 256
-    local c = ns.ITEMS_CATEGORY_ICON_COORDS
-    ns.ITEMS_CATEGORY_ICON_ASPECT = ((c[2] - c[1]) * TEX_W) / ((c[4] - c[3]) * TEX_H)
-end
+-- Items glyph, shared by the filter rows and the catalog result row.
+ns.ITEMS_CATEGORY_ICON_TEX = ns.ART.items.tex
+ns.ITEMS_CATEGORY_ICON_COORDS = ns.ART.items.coords
+ns.ITEMS_CATEGORY_ICON_ASPECT = ns.ART.items.coords[2] / ns.ART.items.coords[4]
 
 -- Bank glyph (the Buy crosshair cursor file, used whole -- not a sheet crop),
 -- shared by the filter-menu row and the result-row category icon so the two
@@ -1974,12 +1975,10 @@ ns.BANK_CATEGORY_ICON_COORDS = { 0, 1, 0, 1 }
 
 -- Map-search and Statistics category glyphs (12.1 moved both on the shared
 -- sheet), shared by the filter-menu rows and the result-row category icons.
-ns.MAP_CATEGORY_ICON_TEX = 1121272
-ns.MAP_CATEGORY_ICON_COORDS = (ns.Caps and ns.Caps.forever)
-    and { 0.2513, 0.2932, 0.2533, 0.2982 }   -- Forever's sheet
-    or  { 0.7443, 0.7840, 0.2548, 0.2961 }   -- retail's sheet
-ns.STAT_CATEGORY_ICON_TEX = 1121272
-ns.STAT_CATEGORY_ICON_COORDS = { 0.2680, 0.3043, 0.2666, 0.2943 }
+ns.MAP_CATEGORY_ICON_TEX = ns.ART.map.tex
+ns.MAP_CATEGORY_ICON_COORDS = ns.ART.map.coords
+ns.STAT_CATEGORY_ICON_TEX = ns.ART.statistic.tex
+ns.STAT_CATEGORY_ICON_COORDS = ns.ART.statistic.coords
 
 -- The key the per-character stored-item caches are filed under. ONE owner:
 -- the provider writes db.bagCache.chars[key] with it and the scope picker
