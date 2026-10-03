@@ -41,8 +41,8 @@ local function Report(err)
     if handler then handler(err) end
 end
 
-local CURSOR_TEX = 4489300          -- the HD gauntlet, natural orientation
-local CURSOR_COORDS = { 0, 0.2315, 0, 0.4104 }
+local CURSOR_TEX = ns.ART.gauntlet.tex
+local CURSOR_COORDS = ns.ART.gauntlet.coords
 -- Classic clients lack the HD sheet; their own gauntlet is the whole file.
 if ns.Caps.classic then
     CURSOR_TEX = "Interface\\CURSOR\\Point"
