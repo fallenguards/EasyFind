@@ -8,6 +8,14 @@ local function POIName(english)
     local key = "POI_" .. english:upper():gsub("&", "AND"):gsub("[^%w]+", "_"):gsub("^_+", ""):gsub("_+$", "")
     return L and L[key] or english
 end
+ns.POIName = POIName
+
+-- Recorded places belong to the client they were recorded on: map ids
+-- and layouts differ. Each client builds only its own list; Forever's
+-- loads next (StaticLocations_Forever.lua).
+ns.STATIC_LOCATIONS = {}
+EasyFind.staticLocations = ns.STATIC_LOCATIONS
+if ns.Caps and ns.Caps.forever then return end
 
 -- Retail's map ids and coordinates, recorded on retail.
 local RETAIL_LOCATIONS = {
@@ -530,14 +538,6 @@ local RETAIL_LOCATIONS = {
     },
 }
 
--- The hand-recorded places belong to the client they were recorded on:
--- map ids and layouts differ between retail and WoW Forever, so each
--- client gets its own table and the other's is never shown.
-if ns.Caps and ns.Caps.forever then
-    ns.STATIC_LOCATIONS = ns.STATIC_LOCATIONS_FOREVER or {}
-else
-    ns.STATIC_LOCATIONS = RETAIL_LOCATIONS
-end
-
--- Expose for cross-addon access (the dev tools read this)
+ns.STATIC_LOCATIONS = RETAIL_LOCATIONS
+-- The dev tools read this.
 EasyFind.staticLocations = ns.STATIC_LOCATIONS
