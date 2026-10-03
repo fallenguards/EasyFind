@@ -1,6 +1,5 @@
--- Tests for Apps/GPS/Route.lua: straight travel, flight legs folding into
--- one flight, a portal across continents, a teleport from the start, and
--- faction-locked transport.
+-- Route engine tests: straight travel, folded flight legs, a portal across
+-- continents, a teleport from the start, faction-locked transport.
 local H = require("Harness")
 
 -- Two continents: map 1 is continent 1, map 2 is continent 2. Map units
@@ -128,9 +127,8 @@ function tests.factionEdge_onlyForItsFaction()
     H.assertEq(horde[1].kind, "boat")
 end
 
--- What this character can use: a flight lands only at a discovered flight
--- point, and a flight master not met yet can start a flight (talking to
--- it teaches it), so the route may walk there, learn it and fly on.
+-- A flight lands only at a discovered point; an unmet flight master can
+-- start one, so the route may walk there, learn it and fly on.
 function tests.undiscoveredFlightPoint_isNeverFlownThrough()
     local _, _, Route = fresh()
     local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
@@ -417,9 +415,8 @@ function tests.gatedMarker_isNotOffered()
     H.assertEq(unknown[1].kind, "portal", "when the client cannot say, the crossing is offered")
 end
 
--- A seam (the continent id changes with no loading screen, as in Khaz
--- Algar's Coreway) is free passage: the route crosses it as plain travel,
--- one step, no portal wording.
+-- A seam (Khaz Algar's Coreway: the continent id changes, no loading screen)
+-- is plain travel: one step, no portal wording.
 function tests.seam_isPlainTravel()
     local _, _, Route = fresh()
     local d = data()
@@ -529,6 +526,31 @@ function tests.roads_noneOrNoHelpGivesNoPath()
     H.assertNil(Route.RoadPath(roadData(), 1, 5000, 5000, 5000, 5100), "a short hop needs no road")
 end
 
+-- A walk takes as long as its road, not the straight line across.
+function tests.roads_priceTheWalk()
+    local _, _, Route = fresh()
+    local d = roadData()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local steps, total = build(Route, P(1, 0, -0.005), { name = "Spot", mapID = 1, x = 0.105, y = 0.1 }, { data = d, groundSpeed = 7 })
+    H.assertEq(#steps, 1)
+    H.assertTrue(math.abs(total - 2100 / 7) < 0.5, "2100 yd of road on foot: " .. tostring(total))
+    H.assertTrue(math.abs(steps[1].wind - 2100 / 1484.6) < 0.01, "road yards per straight yard: " .. tostring(steps[1].wind))
+    local left = Route:TravelSeconds(500, { data = d, canFly = false, groundSpeed = 7, wind = steps[1].wind })
+    H.assertTrue(math.abs(left - 500 * steps[1].wind / 7) < 0.01, "the way left winds as the whole walk does")
+end
+
+-- Where no road leads, the straight line stands, with the 1.x detour.
+function tests.roads_noRoadKeepsTheStraightPrice()
+    local _, _, Route = fresh()
+    local d = roadData()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local steps, total = build(Route, P(1, 0.5, 0.5), { name = "Far off", mapID = 1, x = 0.6, y = 0.5 }, { data = d, groundSpeed = 7 })
+    H.assertTrue(math.abs(total - 1000 * 1.2 / 7) < 0.5, tostring(total))
+    H.assertNil(steps[1].wind)
+end
+
 -- The road above crosses three zones: Alpha until 500 yd west, Bravo up
 -- to 500 yd north of the junction, Charlie beyond.
 local function zoneAt(_, x, y)
@@ -556,6 +578,8 @@ function tests.walk_splitsIntoAStepPerZone()
     H.assertEq(out[3].text, "Travel to Spot", "the last keeps what the step said")
     H.assertTrue(math.abs(out[1].sec + out[2].sec + out[3].sec - 210) < 0.01, "the time is shared out")
     H.assertTrue(out[1].arrive.wy >= 500 and out[1].arrive.wy <= 600, "the border on the road west")
+    H.assertTrue(math.abs(out[1].wind - 1) < 0.01, "Alpha is a straight stretch")
+    H.assertTrue(out[2].wind > 1.3, "Bravo turns at the junction: " .. tostring(out[2].wind))
 end
 
 function tests.walk_toAZoneEndsOnEnteringIt()

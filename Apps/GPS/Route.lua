@@ -1,12 +1,5 @@
--- EasyFind GPS: the route engine.
---
--- A route is the cheapest path in seconds from where you stand to a point,
--- over: travel inside a continent in a straight line at your speed, flight
--- paths between adjacent flight nodes, portals, boats, zeppelins and trams
--- from their exact spots, and teleports you own, with their cooldowns.
--- Dijkstra over a small graph whose nodes are every place a mode change
--- can happen; the straight-line travel edges are generated on the fly, so
--- the data ships only the places, never the pairs.
+-- Route engine: cheapest path in seconds over walks, flights, crossings and teleports.
+-- Walk edges are made on the fly; the data ships places, never pairs.
 
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
@@ -35,9 +28,7 @@ local function FactionOK(f, faction)
     return (FACTION_OF[f] or f) == faction
 end
 
--- ---------------------------------------------------------------------------
 -- World coordinates
--- ---------------------------------------------------------------------------
 
 local function WorldPos(m, x, y)
     if not (m and x and y and C_Map and C_Map.GetWorldPosFromMapPos and CreateVector2D) then return nil end
@@ -104,14 +95,10 @@ local function BindPoint(data, bindName)
     return nil
 end
 
--- ---------------------------------------------------------------------------
 -- The graph
--- ---------------------------------------------------------------------------
 
--- Which landmass a point stands on, when the data names one: walking never
--- crosses between two (an island is reached by boat, flight or portal).
--- A spot (a circle) wins over its zone, for ground that shares a zone with
--- land it cannot walk to.
+-- Landmass of a point: walking never crosses between two.
+-- A spot (a circle) wins over its zone.
 local function Landmass(data, p)
     local lm = data.landmass
     if not (lm and p) then return nil end
@@ -126,10 +113,8 @@ local function Landmass(data, p)
     return lm.zones and p.m and lm.zones[p.m] or nil
 end
 
--- ctx: { start = point, goal = point, faction = "Alliance"|"Horde", canFly = bool,
---        data = ns.GPSData, cooldown = function(ability) -> seconds remaining,
---        known = { nodeID = true } | nil (nil: every node counts as learned),
---        listed = { nodeID = true } | nil (nil: every node exists for this character) }
+-- ctx: start, goal, faction, canFly, data, cooldown(ability) -> seconds left,
+-- known and listed { nodeID = true } (nil: every node learned / exists)
 local function BuildGraph(ctx)
     local data = ctx.data
     local speeds = data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
@@ -153,9 +138,7 @@ local function BuildGraph(ctx)
     local startIdx = AddNode(ctx.start, "start")
     local goalIdx = AddNode(ctx.goal, "goal")
 
-    -- Flight nodes and legs. An undiscovered flight master is learned by
-    -- talking to it, so it can start a flight; a flight can never land at
-    -- or pass through one.
+    -- Flight nodes and legs. An unlearned master can start a flight, never end or relay one.
     local taxiIdx = {}
     for id, n in pairs(data.nodes or {}) do
         if n.wx and n.ci and FactionOK(n.faction, ctx.faction) and (not ctx.listed or ctx.listed[id]) then
@@ -222,10 +205,8 @@ local function BuildGraph(ctx)
         local a = data.abilities[i]
         local dest
         if a.bind then
-            -- A hearth lands where this character is bound: the landing
-            -- learned from its last hearth, else the bound town's spot in
-            -- the data, else the data's point when the bind is the inn the
-            -- data was recorded at.
+            -- Hearth landing: learned from the last hearth, else the bound town's
+            -- spot, else the data's point when the bind is its inn.
             if ctx.hearth and ctx.hearth.point then
                 dest = Resolve(ctx.hearth.point)
             elseif BindPoint(data, ctx.bindName) then
@@ -262,6 +243,7 @@ local function BuildGraph(ctx)
         legs = legs, hops = hops, teleports = teleports, taxiIdx = taxiIdx,
         travelSpeed = travelSpeed, mountUp = mountUp,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
+        roads = data.roads and not ctx.canFly or nil,
         data = data,
     }
 end
@@ -345,9 +327,24 @@ local function Dijkstra(g)
     return path, dist[g.goal]
 end
 
--- ---------------------------------------------------------------------------
+-- Path seconds, each walk priced by its road where one leads there.
+-- The path is chosen on straight lines; e.wind = road yards per straight yard.
+local function RoadSeconds(g, path)
+    local total = 0
+    for i = 1, #path do
+        local e = path[i].edge
+        if g.roads and e.kind == "travel" and not e.wind then
+            local a, b = g.nodes[i > 1 and path[i - 1].node or g.start].p, g.nodes[path[i].node].p
+            local straight = Dist(a, b)
+            local road = straight > 5 and Route.RoadPath(g.data, a.ci, a.wx, a.wy, b.wx, b.wy)
+            if road then e.sec, e.wind = g.mountUp + road.len / g.travelSpeed, road.len / straight end
+        end
+        total = total + e.sec
+    end
+    return total
+end
+
 -- Steps
--- ---------------------------------------------------------------------------
 
 local KIND_KEY = {
     portal = "GPS_STEP_PORTAL_FMT", boat = "GPS_STEP_BOAT_FMT", zeppelin = "GPS_STEP_ZEPPELIN_FMT",
@@ -361,10 +358,8 @@ local REACH_KEY = {
     skyship = "GPS_REACH_SKYSHIP_FMT", tram = "GPS_REACH_TRAM_FMT", portal = "GPS_REACH_PORTAL_FMT",
 }
 
--- Where a crossing leads: the client's own name for the dock's area when
--- the data carries one, else the crossing's label ("Portal to Shattrath",
--- "Boat to Booty Bay, Stranglethorn Vale"); the far map's name only for a
--- crossing ridden backwards or one without either.
+-- Where a crossing leads: the dock area's own name, else its label;
+-- the far map's name when ridden backwards or with neither.
 local function EdgeDestName(e, reverse)
     local p = reverse and e.from or e.to
     local named = p and AreaName(p.area)
@@ -378,9 +373,8 @@ local function EdgeDestName(e, reverse)
     return MapName(p and p.m)
 end
 
--- Which floor a crossing's spot is on: "upper" or "lower" when the spot
--- was recorded with one (the den's two levels), else nil. The client
--- zeroes the player's height, so the floor is recorded by hand.
+-- Floor of a crossing's spot ("upper"/"lower"), recorded by hand:
+-- the client zeroes the player's height.
 local function FloorHint(_, p)
     local fl = p and p.fl
     if fl == "upper" or fl == "lower" then return fl end
@@ -394,10 +388,8 @@ local function WithFloor(text, floor)
     return text .. " (" .. tostring(word) .. ")"
 end
 
--- A requirement table on an edge or an ability, as the data writes it:
--- quest = id, anyQuest = { ids }, notQuest = id, minLevel, maxLevel,
--- covenant = id, reputation = { id, standing }, art = { map, artID }.
--- Anything the client cannot answer counts as met.
+-- Requirement table: quest, anyQuest, notQuest, minLevel, maxLevel, covenant,
+-- reputation { id, standing }, art { map, artID }. Unanswerable counts as met.
 local function Meets(req)
     if not req then return true end
     if req.quest and C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted then
@@ -452,9 +444,8 @@ end
 -- One step per path element; consecutive flight legs fold into one flight.
 local function Steps(g, path, goalName)
     local L = ns.L
-    -- A seam is free passage between continent ids with no loading screen
-    -- (Khaz Algar's Coreway): the travel to it, the crossing and the travel
-    -- after it are one travel step to wherever that leads.
+    -- A seam (Khaz Algar's Coreway) joins continent ids with no loading screen:
+    -- the travel to it, the crossing and the travel after fold into one step.
     local folded, carry, k = {}, 0, 1
     while k <= #path do
         local el = path[k]
@@ -477,10 +468,9 @@ local function Steps(g, path, goalName)
     path = folded
     local steps = {}
     local i = 1
-    -- The way to a flight master, dock or portal is its own step, named by
-    -- what is taken there ("Go to the flight master at Auberdine"); the
-    -- step after it takes it. Seconds of that way while it is pending.
-    local approach
+    -- The way to a flight master, dock or portal is its own step, named by what
+    -- is taken there. approach = that way's seconds while pending.
+    local approach, approachWind
     local function leadsInto(el, nxt)
         if not nxt or el.edge.kind ~= "travel" then return false end
         local node = g.nodes[el.node]
@@ -490,8 +480,9 @@ local function Steps(g, path, goalName)
     local function Approach(spot, text)
         if not (approach and spot) then return end
         tinsert(steps, { kind = "travel", approach = true, text = text,
-                         mapID = spot.m, x = spot.x, y = spot.y, go = spot, arrive = spot, sec = approach })
-        approach = nil
+                         mapID = spot.m, x = spot.x, y = spot.y, go = spot, arrive = spot, sec = approach,
+                         wind = approachWind })
+        approach, approachWind = nil, nil
     end
     while i <= #path do
         local el = path[i]
@@ -501,7 +492,7 @@ local function Steps(g, path, goalName)
             -- Already there: the previous step ends on this spot.
             i = i + 1
         elseif leadsInto(el, path[i + 1]) then
-            if e.sec > 0 then approach = e.sec end
+            if e.sec > 0 then approach, approachWind = e.sec, e.wind end
             i = i + 1
         elseif e.kind == "travel" then
             local name
@@ -514,10 +505,8 @@ local function Steps(g, path, goalName)
                 else name = AreaName(node.p.area) or node.edge.n end
             elseif node.kind == "goal" then name = goalName
             else name = MapName(node.p.m) end
-            -- A zone is reached on entering it: when the step before this
-            -- one already lands inside the destination's map (a portal to
-            -- Dalaran for a route to Northrend), there is no last leg at
-            -- all; that crossing ends the route.
+            -- A zone goal is reached on entering it: a step that already lands
+            -- inside the destination's map ends the route.
             local skip = false
             if node.kind == "goal" and g.zoneGoal and #steps > 0 then
                 local from = g.nodes[i > 1 and path[i - 1].node or g.start]
@@ -525,7 +514,8 @@ local function Steps(g, path, goalName)
             end
             if not skip then
                 tinsert(steps, { kind = "travel", text = (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
-                                 mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec })
+                                 mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
+                                 wind = e.wind })
             end
             i = i + 1
         elseif e.kind == "taxi" then
@@ -580,13 +570,10 @@ local function Steps(g, path, goalName)
     return steps
 end
 
--- ---------------------------------------------------------------------------
 -- Advice: flight paths worth learning
--- ---------------------------------------------------------------------------
 
--- Undiscovered flight masters that lie on the way: within a short detour
--- of a ride the route already makes, and not the one it already starts a
--- flight from. Ordered along the route.
+-- Unlearned flight masters a short detour off a ride the route makes,
+-- in route order; never the one a flight already starts from.
 local function Pickups(g, path, used)
     local out, seen = {}, {}
     for i = 1, #path do
@@ -611,9 +598,10 @@ local function Pickups(g, path, used)
     return out
 end
 
--- The one undiscovered flight master whose flight path would shorten
--- this same trip the most next time, tried among those nearest the start
--- and the goal; nil when none saves a minute and a sixth of the trip.
+local function MostSavedFirst(a, b) return a.most > b.most end
+
+-- The unlearned flight master that would shorten this trip most, among those
+-- nearest the start and goal; nil unless it saves a minute and a sixth.
 local function BestToLearn(ctx, g, total, usedAsOrigin)
     if not ctx.known then return nil end
     local cands = {}
@@ -627,42 +615,47 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         end
     end
     tsort(cands, function(a, b) return a.d < b.d end)
-    local best
     local known = {}
     for k, v in pairs(ctx.known) do known[k] = v end
     local trial = {}
     for k, v in pairs(ctx) do trial[k] = v end
     trial.known = known
+    -- Each trip on straight lines first: the most it could save.
+    local trips = {}
     for i = 1, mmax(0, math.min(#cands, SUGGEST_CANDIDATES)) do
         local c = cands[i]
         known[c.id] = true
         local g2 = BuildGraph(trial)
         g2.zoneGoal = g.zoneGoal
-        local _, t2 = Dijkstra(g2)
+        local path2, t2 = Dijkstra(g2)
         known[c.id] = nil
-        if t2 then
-            local save = total - t2
-            if save >= SUGGEST_MIN_SECONDS and save >= total / 6 and (not best or save > best.save) then
-                best = { id = c.id, name = c.n.name, p = c.n.p, save = save, total = t2 }
-            end
+        if path2 and total - t2 >= SUGGEST_MIN_SECONDS then
+            trips[#trips + 1] = { c = c, g = g2, path = path2, most = total - t2 }
+        end
+    end
+    tsort(trips, MostSavedFirst)
+    -- Then by road, until no trip left could beat the best found.
+    local best
+    for i = 1, #trips do
+        local trip = trips[i]
+        if best and trip.most <= best.save then break end
+        local t2 = RoadSeconds(trip.g, trip.path)
+        local save = total - t2
+        if save >= SUGGEST_MIN_SECONDS and save >= total / 6 and (not best or save > best.save) then
+            best = { id = trip.c.id, name = trip.c.n.name, p = trip.c.n.p, save = save, total = t2 }
         end
     end
     return best
 end
 
--- ---------------------------------------------------------------------------
 -- What this character can use, from the client
--- ---------------------------------------------------------------------------
 
 local knownCache          -- { at = GetTime(), set, listed, names }
 local markerCache = {}    -- mapID -> { at = GetTime(), names = { name = true } }
 local CACHE_SECONDS = 120
 
--- Flight points discovered by this character: the client lists a map's
--- points with an undiscovered flag, and leaves out points the character
--- cannot see at all (not unlocked, wrong phase). Also returns the points
--- listed at all and their names in the client's language. Nil when the
--- client cannot say, so every point counts.
+-- Learned flight points, the points listed at all, and their client names.
+-- Nil when the client cannot say: every point counts.
 local function KnownFlightNodes(data)
     if not (C_TaxiMap and C_TaxiMap.GetTaxiNodesForMap) then return nil end
     local now = GetTime and GetTime() or 0
@@ -710,10 +703,8 @@ local function MarkerPresent(m, name)
         c = { at = now, names = names, count = count }
         markerCache[m] = c
     end
-    -- No markers at all for the map from here is no verdict: the client
-    -- lists a distant map's markers only sometimes. A verdict of "absent"
-    -- needs the map to have shown its markers and not this one, matched
-    -- loosely (the label may carry a zone qualifier the marker lacks).
+    -- No markers listed is no verdict: far maps list theirs only sometimes.
+    -- "Absent" needs other markers shown; names match loosely.
     if c.count == 0 then return nil end
     local lname = name:lower()
     if c.names[lname] then return true end
@@ -726,9 +717,8 @@ end
 Route.MarkerPresent = MarkerPresent
 Route.KnownFlightNodes = KnownFlightNodes
 
--- Flight masters this character was seen to know at a flight master
--- (the GPS surface fills it from the saved variables): counted as known
--- even when the map listing says otherwise or cannot say.
+-- Flight masters seen as known at a flight master (filled from saved
+-- variables): known whatever the map listing says.
 Route.recordedKnown = nil
 -- This character's mounted ground speed as last seen (the GPS surface
 -- fills it); nil until seen.
@@ -754,9 +744,8 @@ function Route.GroundSpeed(data)
     return speeds.mount or 14
 end
 
--- Seconds to cover this many yards from a standstill, priced as the
--- engine prices travel: on a mount, or flying where this character can;
--- at taxi speed when opts.taxi (the player is on a flight).
+-- Seconds for this many yards from a standstill, as the engine prices travel.
+-- opts.taxi: on a flight. opts.wind: a walk's road yards per straight yard.
 function Route:TravelSeconds(yards, opts)
     local data = (opts and opts.data) or ns.GPSData
     local speeds = data and data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
@@ -770,12 +759,10 @@ function Route:TravelSeconds(yards, opts)
     if canFly then return MOUNT_UP + yards / (speeds.fly or 30) end
     local speed = (opts and opts.groundSpeed) or Route.GroundSpeed(data)
     local mountUp = speed <= (speeds.run or 7) + 0.5 and 0 or MOUNT_UP
-    return mountUp + yards * ((data and data.classic) and WALK_DETOUR or 1) / speed
+    return mountUp + yards * ((opts and opts.wind) or ((data and data.classic) and WALK_DETOUR or 1)) / speed
 end
 
--- ---------------------------------------------------------------------------
 -- Public
--- ---------------------------------------------------------------------------
 
 local LEARN_SECONDS = 8   -- talking to a flight master to learn its path
 
@@ -811,10 +798,8 @@ local function ViaStop(route, dest, opts, start, known, listed)
     return steps, t1 + LEARN_SECONDS + t2
 end
 
--- Build a route from the player's position to dest { name, mapID, x, y }.
--- Returns steps (array), total seconds and advice
--- ({ pickups = { ... }, learn = { id, name, p, save, total } | nil }), or
--- nil when no data covers it.
+-- Route from the player to dest { name, mapID, x, y }: steps, total seconds,
+-- advice { pickups, learn = { id, name, p, save, total } }; nil without data.
 function Route:Build(dest, opts)
     opts = opts or {}
     local data = opts.data or ns.GPSData
@@ -877,9 +862,7 @@ function Route:Build(dest, opts)
         end,
         owns = opts.owns or function(a)
             if a.toy and PlayerHasToy then
-                -- Owned, and usable by this character: the engineering
-                -- rippers and wormholes sit in every toy box but only
-                -- an engineer can pull the lever.
+                -- Engineering toys sit in every toy box: owned is not usable.
                 if not PlayerHasToy(a.item) then return false end
                 if C_ToyBox and C_ToyBox.IsToyUsable then
                     local ok, usable = pcall(C_ToyBox.IsToyUsable, a.item)
@@ -909,8 +892,9 @@ function Route:Build(dest, opts)
     if not ctx.groundSpeed and not ctx.canFly then ctx.groundSpeed = Route.GroundSpeed(data) end
     local g = BuildGraph(ctx)
     g.zoneGoal = dest.zone and true or nil
-    local path, cost = Dijkstra(g)
+    local path = Dijkstra(g)
     if not path then return nil end
+    local cost = RoadSeconds(g, path)
     local steps = Steps(g, path, dest.name)
     local total = 0
     for i = 1, #steps do total = total + (steps[i].sec or 0) end
@@ -951,9 +935,7 @@ function Route:Build(dest, opts)
     return steps, total, advice
 end
 
--- ---------------------------------------------------------------------------
--- Roads: the walking network (data.roads, from dev/tools/roads/walkgraph.py)
--- ---------------------------------------------------------------------------
+-- Roads: the walking network (data.roads)
 
 local ROAD_CELL = 300     -- yards per lookup cell
 local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
@@ -1016,14 +998,9 @@ local function NodesNear(net, x, y, r, out)
     return k
 end
 
--- The way from (sx, sy) to (tx, ty) on continent ci, over the roads where
--- they help: { pts = { x, y, ... } in world yards, node = { [vertex] = road
--- node }, off = { [vertex] = true when the leg from it is off the road },
--- cum = { [vertex] = yards from the start }, len, net }. Nil when the
--- continent has no roads or no road beats the straight line.
-function Route.RoadPath(data, ci, sx, sy, tx, ty)
-    local net = RoadNet(data, ci)
-    if not net then return nil end
+-- Way over the roads: { pts (world yards), node[vertex], off[vertex] (leg leaves
+-- the road), cum[vertex] (yards so far), len, net }; nil when no road helps.
+local function RoadSearch(net, sx, sy, tx, ty)
     local n, xy, adj = net.n, net.xy, net.adj
     local S, T = n + 1, n + 2
     local function Pos(u)
@@ -1136,9 +1113,25 @@ function Route.RoadPath(data, ci, sx, sy, tx, ty)
     return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
 end
 
--- ---------------------------------------------------------------------------
+-- The last ways searched are kept: pricing a walk, splitting it by zone
+-- and pricing each stop tried all ask for the same one.
+local ROAD_PATHS_KEPT = 48
+local roadPaths, roadPathCount = {}, 0
+
+function Route.RoadPath(data, ci, sx, sy, tx, ty)
+    local net = RoadNet(data, ci)
+    if not net then return nil end
+    local key = ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
+    local path = roadPaths[key]
+    if path == nil then
+        if roadPathCount >= ROAD_PATHS_KEPT then roadPaths, roadPathCount = {}, 0 end
+        path = RoadSearch(net, sx, sy, tx, ty) or false
+        roadPaths[key], roadPathCount = path, roadPathCount + 1
+    end
+    return path or nil
+end
+
 -- Walks, zone by zone
--- ---------------------------------------------------------------------------
 
 local WALK_SAMPLE = 100    -- yards between zone readings along a walk
 local WALK_MIN_RUN = 150   -- a zone crossed for less than this is no step
@@ -1216,6 +1209,10 @@ local function WalkPieces(step, from, data, env, first)
         for key, value in pairs(step) do piece[key] = value end
         local stop = (k < count or intoGoal) and nxt and nxt.at or path.len
         if step.sec then piece.sec = step.sec * (stop - run.at) / path.len end
+        local ex, ey = tx, ty
+        if (k < count or intoGoal) and nxt then ex, ey = nxt.x, nxt.y end
+        local straight = msqrt((ex - run.x) ^ 2 + (ey - run.y) ^ 2)
+        piece.wind = straight > 5 and mmax(1, (stop - run.at) / straight) or nil
         piece.walkZone = run.map
         if k < count then
             -- Up to the border: done on entering the next zone.
@@ -1240,12 +1237,8 @@ local function WalkPieces(step, from, data, env, first)
     return out
 end
 
--- The route with each long walk as one step per zone crossed. env:
--- zoneAt(ci, wx, wy) answers the zone's map id and name there,
--- mapPos(ci, wx, wy, mapID) the spot on that map, isCity(mapID) whether
--- leaving it reads "Exit", startCity = { map, name } when the route sets
--- out from inside one, goalZone the destination's map when the
--- destination is a zone.
+-- Each long walk as a step per zone crossed. env: zoneAt(ci, wx, wy) -> map, name;
+-- mapPos(ci, wx, wy, mapID); isCity(mapID); startCity { map, name }; goalZone.
 function Route.SplitWalks(steps, start, data, env)
     local out = {}
     for i = 1, #steps do

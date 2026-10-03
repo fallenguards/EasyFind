@@ -1,15 +1,5 @@
--- EasyFind GPS: step by step directions to a zone or point of interest.
---
--- The route lives in one place (this character's slot in EasyFind.db.gpsChar,
--- so a reload keeps it and another character never sees it) and shows on
--- two surfaces fed from it: the GPS page under the map
--- search tab, and a small pop-out window that stays while the map is
--- closed. Every step is a waypoint; clicking one tracks it, and arriving
--- at the tracked step advances to the next.
---
--- BuildRoute is the seam for the travel graph: today a route is the one
--- step of traveling to the destination, and the routing engine replaces
--- that function without touching the surfaces.
+-- GPS: step by step directions to a zone or point of interest.
+-- The route is per character (EasyFind.db.gpsChar); the map page and the pop-out both render it.
 
 -- A companion: it lives in EasyFind's namespace, never its own.
 local EasyFind = EasyFind
@@ -50,9 +40,8 @@ local function DB()
     return EasyFind and EasyFind.db
 end
 
--- This character's own slot: the route in progress and whether its
--- pop-out was open. A trip is one character's; the rest of the GPS
--- settings (style, dock slot, size) are shared like any other setting.
+-- This character's slot: the route in progress and whether its pop-out was open.
+-- Style, dock slot and size are shared settings.
 local function CharKey()
     return ns.CurrentCharacterKey()
 end
@@ -72,16 +61,12 @@ local function Route()
 end
 GPS.CurrentRoute = Route
 
--- ---------------------------------------------------------------------------
 -- Route model
--- ---------------------------------------------------------------------------
 
 local WorldPos   -- defined below with the position helpers
 
--- Battlegrounds and arenas are orphan maps in the game's own atlas, and
--- their newer versions sit as zones that share an orphan's name; a
--- dungeon's inside is a dungeon map; the world and the cosmos are no
--- place to go. Everything else is a place in the world.
+-- Not places: battlegrounds and arenas (orphan maps, and newer zones sharing
+-- an orphan's name), dungeon insides, the world and the cosmos.
 local orphanNames
 local function IsOrphanName(name)
     if not orphanNames then
@@ -107,10 +92,8 @@ function GPS:CanNavigate(data)
     local mt = info.mapType
     if mt == Enum.UIMapType.Cosmic or mt == Enum.UIMapType.World or mt == Enum.UIMapType.Orphan then return false end
     if mt == Enum.UIMapType.Dungeon and not data.isDungeonEntrance then return false end
-    -- A zone tucked under another zone that shares a battleground's name
-    -- is that battleground's newer edition (Warsong Gulch under the
-    -- Barrens). A real zone that merely shares a name with a scenario
-    -- (Nazjatar, under the world map itself) stays.
+    -- A zone under another zone that shares a battleground's name is its newer
+    -- edition (Warsong Gulch under the Barrens); Nazjatar, under the world map, stays.
     if data.isZone and IsOrphanName(info.name) then
         local parent = info.parentMapID and C_Map.GetMapInfo(info.parentMapID)
         if parent and parent.mapType == Enum.UIMapType.Zone then return false end
@@ -118,11 +101,8 @@ function GPS:CanNavigate(data)
     return WorldPos(mapID, data.x or 0.5, data.y or 0.5) ~= nil
 end
 
--- Where a result row points: a point of interest at its coordinates, a
--- zone at its marker on the parent map when the row carries one, else the
--- middle of the zone's own map.
--- A dungeon row from the map search names its continent, not its door:
--- the door comes from the entrance list the map pins use.
+-- Where a row points: a POI's coordinates, a zone's marker on the parent map, else
+-- the zone's middle. A dungeon row names its continent: the door is in the entrance list.
 local function EntranceOf(data)
     local list = ns.GetDungeonEntrancesForMap and ns.GetDungeonEntrancesForMap(data.entranceMapID or data.mapID)
     for i = 1, list and #list or 0 do
@@ -149,9 +129,8 @@ local function Destination(data)
     return dest
 end
 
--- The engine plans over the recorded travel graph; without data, or when
--- nothing covers the destination, the route is the one step of traveling
--- there.
+-- The engine plans over the recorded travel graph; with no data or no cover,
+-- the route is one step of traveling there.
 local PlayerWorldPos   -- defined below with the position helpers
 
 -- Where this character's hearth lands, learned from its last hearth and
@@ -298,9 +277,8 @@ local function Refresh()
     if ns.GPSWorldPin then ns.GPSWorldPin:Refresh() end
 end
 
--- The map point a step's waypoint goes on. Some maps refuse user
--- waypoints (dungeon-type city maps, a continent's underground map); the
--- same world spot on the nearest ancestor that accepts one is used then.
+-- The map point for a step's waypoint. A map that refuses user waypoints
+-- (dungeon-type cities, underground continents) hands it to the nearest ancestor that takes one.
 local function WaypointPoint(step)
     local mapID, x, y = step.mapID, step.x, step.y
     if not (mapID and x and y) then return nil end
@@ -338,9 +316,8 @@ function GPS.GoToStep(index)
 end
 
 
--- The text a step shows now: a crossing whose spot is still a way off
--- reads as reaching it first (the portal, the dock, the flight master),
--- then as taking it once you are there.
+-- A crossing still a way off reads as reaching it (portal, dock, flight master),
+-- then as taking it once there.
 local function StepText(step, active)
     if not (active and step and step.reach and step.go) then return step and step.text or "" end
     local ci, px, py = PlayerWorldPos()
@@ -423,6 +400,7 @@ end
 
 -- The pace toward the current step's spot, from the last ticks.
 local closing = {}
+local walkOpts = {}
 
 -- The time still to go: the way from where the player stands to the
 -- current step's spot, that step's crossing, and every step after it.
@@ -443,13 +421,8 @@ local function RemainingSeconds(route)
         elseif target then tci, tx, ty = WorldPos(target.m, target.x, target.y) end
         if ci and tci == ci and tx then
             local d = ((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5
-            -- The pace actually made toward the spot beats any model of
-            -- it: a mount, a flight, a taxi, a walk all price themselves.
-            -- It is learned over the whole step so far (ground closed over
-            -- the time spent moving), not read off the last second, which
-            -- swings with every turn; the model stands in until enough of
-            -- the step has been seen. Standing still holds the estimate
-            -- where it was: a stop is a pause, not a slower trip.
+            -- Pace learned over the whole step (ground closed over time moving) beats the
+            -- model; the last second swings with every turn. Standing still holds the estimate.
             local now = GetTime and GetTime() or 0
             if closing.step ~= i or not closing.at then
                 closing.step, closing.d0, closing.moving, closing.pace = i, d, 0, nil
@@ -463,7 +436,10 @@ local function RemainingSeconds(route)
             if closing.pace and closing.pace > 1 then
                 total = d / closing.pace + (step.edgeSec or 0)
             elseif onTaxi then total = Engine:TravelSeconds(d, { taxi = true })
-            else total = Engine:TravelSeconds(d) + (step.edgeSec or 0) end
+            else
+                walkOpts.wind = step.wind
+                total = Engine:TravelSeconds(d, walkOpts) + (step.edgeSec or 0)
+            end
             if not moved and closing.held then total = closing.held end
             closing.held = total
         else
@@ -666,13 +642,10 @@ function GPS:Open()
     return false
 end
 
--- ---------------------------------------------------------------------------
 -- Rendering, shared by the page and the pop-out
--- ---------------------------------------------------------------------------
 
--- A teleport step's icon: a secure button that casts the spell, uses the
--- toy or uses the item on click. Attributes only change out of combat;
--- in combat the button hides and returns after.
+-- Teleport step icon: a secure button for the spell, toy or item.
+-- Attributes change only out of combat; in combat it hides.
 local CAST_MASK_SCALE = 64 / 45
 
 -- Where an item sits in the bags, for its own tooltip.
@@ -702,10 +675,8 @@ end
 
 local castButtons = {}   -- every cast button, hidden as a fight begins
 
--- A secure button makes every frame it hangs from or is pinned to protected
--- in a fight, so it belongs to UIParent: pinned onto its row only out of
--- combat, hidden and unpinned as a fight begins. The window and the tracker
--- section stay free to move and resize in combat.
+-- A secure button protects every frame it hangs from in a fight, so it belongs to
+-- UIParent: pinned to its row out of combat, hidden and unpinned as a fight begins.
 local function CastButton(row, inset)
     local btn = CreateFrame("Button", nil, UIParent, "SecureActionButtonTemplate")
     btn.row, btn.inset = row, inset
@@ -722,9 +693,8 @@ local function CastButton(row, inset)
     -- rounded mask, the frame sitting on the icon's edge, not outside it.
     btn.icon = btn:CreateTexture(nil, "ARTWORK")
     btn.icon:SetAllPoints()
-    -- The mask file keeps its rounded square in the middle 45/64 of the
-    -- texture, so the mask is drawn larger than the icon for the square
-    -- to cover the icon exactly; a same-size mask hides the outer third.
+    -- The mask's rounded square fills the middle 45/64 of its texture:
+    -- drawn larger than the icon so the square covers it.
     local mask = btn:CreateMaskTexture()
     mask:SetPoint("CENTER", btn.icon, "CENTER", 0, 0)
     mask:SetTexture("Interface\\HUD\\UIActionBarIconFrameMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
@@ -745,9 +715,7 @@ local function CastButton(row, inset)
     btn.cd:SetHideCountdownNumbers(true)
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        -- The tooltip of the thing itself, with its cooldown line: the toy
-        -- box's for a toy, the bag's for an item in the bags; the plain
-        -- item tooltip carries no cooldown.
+        -- Toy box or bag tooltip: they carry the cooldown line, the plain item tooltip does not.
         if self.spellID and not self.itemID then GameTooltip:SetSpellByID(self.spellID)
         elseif self.itemID and self.toy and GameTooltip.SetToyByItemID then GameTooltip:SetToyByItemID(self.itemID)
         elseif self.itemID then
@@ -773,9 +741,8 @@ local function CastButton(row, inset)
     return btn
 end
 
--- Only the step that is up now offers its button: a teleport later in
--- the route, or one already taken, shows no icon, or it reads as a
--- thing to press.
+-- Only the step that is up offers its button: a later or taken teleport
+-- shows no icon, or it reads as a thing to press.
 local function SetupCast(btn, step, active)
     if not btn then return false end
     -- In a fight a secure button can be neither hidden nor changed: it was
@@ -1045,9 +1012,8 @@ local function Render(container)
     if container.OnRouteChanged then container:OnRouteChanged(true) end
 end
 
--- A search box beside the glyph while there is no route: the map search's
--- results, the ones a route can lead to, listed underneath; a click on
--- one starts navigation. Nothing is focused on open.
+-- With no route, a search box beside the glyph lists the map search's routable
+-- results underneath; a click starts navigation. Nothing is focused on open.
 local function HitRow(frame, i)
     local rows = frame.hits
     if rows[i] then return rows[i] end
@@ -1070,10 +1036,8 @@ local function HitRow(frame, i)
     return row
 end
 
--- Towns and landmarks the map search does not list on Forever (Menethil
--- Harbor, Auberdine): the labeled places in the GPS data, named by the
--- game. One starting with the query goes above the map search's rows,
--- one containing it below; a name already listed is skipped.
+-- Forever towns the map search lacks (Menethil Harbor, Auberdine): labeled places in the
+-- GPS data. A name starting with the query goes above the map rows, one containing it below.
 local towns
 local mergedHits = {}
 
@@ -1209,13 +1173,8 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     end)
 end
 
--- Title, the buttons, the empty hint and the step list, laid into any
--- frame on the addon's own chrome. The frame gains Render() and joins the
--- surfaces. opts: padX, padY, padRight, popoutButton, search, onRouteChanged.
--- The tracking toggle is the game's own quest POI button, face for face:
--- its normal, super-tracked, pressed and highlight atlases at their own
--- sizes on a 20-pixel button, the outer glow when on. Only the display in
--- the middle is ours: the pin, gold on the dark face, dark on the gold.
+-- Title, buttons, empty hint and step list laid into any frame; it gains Render().
+-- opts: padX, padY, padRight, popoutButton, search, onRouteChanged.
 local POI_NORMAL, POI_NORMAL_ON = "UI-QuestPoi-QuestNumber", "UI-QuestPoi-QuestNumber-SuperTracked"
 local POI_PUSHED, POI_PUSHED_ON = "UI-QuestPoi-QuestNumber-Pressed", "UI-QuestPoi-QuestNumber-Pressed-SuperTracked"
 local POI_HIGHLIGHT, POI_GLOW = "UI-QuestPoi-InnerGlow", "UI-QuestPoi-OuterGlow"
@@ -1249,10 +1208,8 @@ local function ToggleRouteTracking()
     Refresh()
 end
 
--- The toggle as the game's POI button: 32-pixel faces centered on a
--- 20-pixel button, the inner glow added on hover, the outer glow behind
--- when on at the atlas's own size (a smaller glow reads dimmer), and our
--- pin where the number or compass would be. Hidden until placed.
+-- The toggle as the game's POI button: 32-pixel faces on a 20-pixel button, hover and
+-- on glows at the atlas's own size (smaller reads dimmer), our pin in the middle. Hidden until placed.
 local function BuildTrackButton(parent)
     local track = CreateFrame("Button", nil, parent)
     track:SetSize(20, 20)
@@ -1302,9 +1259,8 @@ local function BuildSurface(frame, opts)
     -- clears the edge.
     local bodyPad = opts.bodyPadRight or padRight
 
-    -- On its own frame above the panel's gloss (a child frame, so no
-    -- layer on the panel itself gets over it); its gold is re-applied on
-    -- every render in case a theme pass touches it.
+    -- On a child frame above the panel's gloss; its gold is re-applied every
+    -- render in case a theme pass touches it.
     local head, glyph
     if opts.trackGlyph then
         -- The window's icon is the tracking toggle the section has, so it
@@ -1451,11 +1407,8 @@ local function BuildSurface(frame, opts)
         empty:Hide()
     end
 
-    -- The list hangs from the glyph's frame, not the time line: the rows
-    -- carry secure cast buttons, and the game refuses to position a
-    -- secure frame through a FontString or Texture anywhere in its
-    -- anchor chain. The time line gets a fixed height so the list lands
-    -- where it did under the text.
+    -- The list hangs from the glyph's frame: rows carry secure buttons, and a secure frame
+    -- cannot be positioned through a FontString or Texture. The time line gets a fixed height.
     local etaH = math.ceil((eta.GetLineHeight and eta:GetLineHeight()) or 12)
     eta:SetHeight(etaH)
     local list = CreateFrame("Frame", nil, frame)
@@ -1480,9 +1433,7 @@ local function BuildSurface(frame, opts)
     frame:HookScript("OnShow", function(self) self:Render() end)
 end
 
--- ---------------------------------------------------------------------------
 -- The page under the map search tab
--- ---------------------------------------------------------------------------
 
 local function BuildPage(frame)
     BuildSurface(frame, { popoutButton = true })
@@ -1490,9 +1441,8 @@ local function BuildPage(frame)
 end
 
 if ns.MapTab and ns.MapTab.RegisterPage then
-    -- The route view lives inside the Map search tab, under its search
-    -- bar; no tab of its own. The directions bar above the results leads
-    -- back to it while a search is showing.
+    -- The route view lives inside the Map search tab, under its search bar;
+    -- the directions bar above the results leads back to it.
     ns.MapTab:RegisterPage({
         id = "gps",
         noTab = true,
@@ -1516,15 +1466,8 @@ if ns.MapTab and ns.MapTab.RegisterPage then
     })
 end
 
--- ---------------------------------------------------------------------------
--- The objective tracker dock
--- ---------------------------------------------------------------------------
--- A section in the tracker's own look (its secondary header art, its
--- fonts, its collapse button), placed among the tracker's sections at a
--- slot you pick by dragging: drop the window on the tracker to dock at
--- that spot, drag the section up or down to move it, drag it clear of the
--- tracker to get the window back. The section under it hangs off its
--- bottom, so the tracker flows around it.
+-- The objective tracker dock: a section in the tracker's own look at a slot picked by
+-- dragging. Drop the window on the tracker to dock, drag the section clear to float.
 
 local dockFrame
 local RenderDock            -- defined below; the ghost helpers above it call it
@@ -1564,9 +1507,8 @@ function GPS.SnapRow()
         end }
 end
 
--- Our menu rows (action, check, radio, separator, title) on the game's
--- own context menu, for the surfaces that wear the game's look. False
--- when the game's menu API is missing, so the caller can fall back.
+-- Our menu rows on the game's own context menu, for surfaces in the game's look.
+-- False when the game's menu API is missing.
 ShowGameMenu = function(owner, defs)
     if not (MenuUtil and MenuUtil.CreateContextMenu) then return false end
     local ok = pcall(MenuUtil.CreateContextMenu, owner, function(_, root)
@@ -1613,9 +1555,8 @@ end
 
 local VisibleModules   -- defined below; the drop zone reads the sections
 
--- Where a drop docks: over the tracker, from its top down to the end of
--- what it shows (its frame can run far below its sections; on Forever it
--- spans most of the screen), or a header's height when it shows nothing.
+-- A drop docks over the tracker, from its top to the end of what it shows (its frame
+-- runs far lower; on Forever most of the screen), or a header's height when empty.
 local function NearTracker(f)
     local t = Tracker()
     local db = DB()
@@ -1689,23 +1630,12 @@ local function SlotNeighbors(t, slot)
     return mods[#mods], nil
 end
 
--- Anchor the section at its slot and hang the next section off it. While
--- something is being dragged toward a slot (the section itself, or the
--- window), the section below that slot moves down by the dragged height
--- instead, so the tracker shows where the drop will land.
--- Room in the tracker for a height at a slot, through the tracker's own
--- means: the section above the slot gets a height modifier (the tracker
--- anchors the next section under a module's frame bottom), or the
--- tracker's top padding grows for the top slot. Blizzard's relayouts keep
--- both, so nothing of ours ever fights them.
+-- Room for a height at a slot by the tracker's own means: a height modifier on the
+-- section above, or top padding for the top slot. A drag toward a slot opens it there.
 local INSERT_KEY = "EasyFindGPS"
 
--- WoW Forever's tracker recomputes its top padding on every update from
--- registered providers, so the room at the top slot is ours through a
--- provider. Each update asks twice in one frame: first for the room above
--- its first section, then for its header's place. Answering 0 the second
--- time keeps the header put, so the room opens between it and Quests.
--- seen is what the first answer put in the padding until the next update.
+-- Forever recomputes top padding from providers on every update, asking twice a frame:
+-- room above the first section, then the header's place. 0 the second time keeps the header put.
 local topPad = { height = 0, seen = 0 }
 function topPad:GetTopPadding()
     local now = GetTime()
@@ -1800,10 +1730,8 @@ local function PlaceDock()
         local pad = ins.provider and ((t.topModulePadding or 0) - topPad.seen) or ins.pad or 0
         dockFrame:SetPoint("TOP", t, "TOP", 0, -pad)
     end
-    -- The tracker's own sections are inset by their left margin on both
-    -- sides (anchored by center and left); the same width here.
-    -- A neighbor with content is the reference for inset and width: at
-    -- the top slot that is the section below, not the list's first entry.
+    -- Inset by the left margin on both sides, as the tracker's sections. A neighbor
+    -- with content is the reference: at the top slot, the section below.
     local ref = above or below or (VisibleModules(t))[1] or t.modules[1]
     local margin = ref and ref.leftMargin or 0
     local refW = ref and ref.GetWidth and ref:GetWidth() or 0
@@ -2046,9 +1974,8 @@ local function BuildDock()
     f:SetClampedToScreen(true)
     f.lines = {}
 
-    -- The header as the tracker's sections have it: a 260-pixel strip at
-    -- the top left, the secondary header art at its native size centered
-    -- on it, the text 7 in from the left, the fold button at its right.
+    -- Header as the tracker's sections: 260-pixel strip, secondary header art centered
+    -- at native size, text 7 from the left, fold button at its right.
     local head = CreateFrame("Frame", nil, f)
     head:SetSize(260, DOCK_HEADER_H)
     head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
@@ -2179,9 +2106,8 @@ local function BuildDock()
                 defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE"], onClick = function() GPS:TogglePopout(false) end }
             else
                 defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() GPS:Undock() GPS:TogglePopout(true) end }
-                -- The section leaves the tracker and nothing takes its place;
-                -- the route stays, and the window or the section returns
-                -- through the map page or the app.
+                -- The section leaves the tracker; the route stays, and the window
+                -- or section returns through the map page or the app.
                 defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE_SECTION"], onClick = function()
                     -- Closing the section ends the route with it.
                     GPS:Clear()
@@ -2217,9 +2143,8 @@ local function BuildDock()
     title:SetWordWrap(true)
     title:SetTextColor(1, 0.82, 0)
     f.title = title
-    -- The destination line opens the map's GPS page, as a quest opens its
-    -- log entry, and lights up under the cursor as the tracker's quest
-    -- headers do. The steps keep their own click.
+    -- The destination line opens the map's GPS page and lights up under the
+    -- cursor, as a quest header does. Steps keep their own click.
     local titleBtn = CreateFrame("Button", nil, f)
     titleBtn:SetAllPoints(title)
     titleBtn:SetScript("OnEnter", function() title:SetTextColor(1, 1, 1) end)
@@ -2227,17 +2152,15 @@ local function BuildDock()
     titleBtn:SetScript("OnClick", function() GPS:Open() end)
     titleBtn:Hide()
     f.titleBtn = titleBtn
-    -- With no route, a search box in the banner itself, right of the
-    -- name, as the window's folded row has: the same builder, hung from
-    -- an anchor beside the header text. The places it finds list below.
+    -- With no route, a search box in the banner right of the name, from the
+    -- same builder as the window's folded row. Its finds list below.
     local searchAnchor = CreateFrame("Frame", nil, f)
     searchAnchor:SetSize(1, 20)
     searchAnchor:SetPoint("LEFT", header, "RIGHT", -2, 0)
     BuildSearch(f, searchAnchor, 10, 8)
     f.search:SetFrameLevel(head:GetFrameLevel() + 5)   -- above the header's grip
-    -- Dressed for the banner: shorter, the template's inset chrome off and
-    -- no field of its own, just the magnifier, a gray hint and the typed
-    -- text in the banner's gold.
+    -- Dressed for the banner: shorter, no inset chrome or field, just the
+    -- magnifier, a gray hint and the typed text in gold.
     do
         local box = f.search
         box:SetHeight(16)
@@ -2268,11 +2191,8 @@ local function BuildDock()
     f.hitList:SetPoint("RIGHT", head, "RIGHT", 0, 0)
     f.OnRouteChanged = function(self) RenderDock(self) end
 
-    -- The tracking toggle: the compass beside the title, where a quest's
-    -- POI button sits, with the POI button's glow while it is on.
-    -- In the 20-pixel indent left of the title, a little outside the
-    -- section's left edge, as the tracker's own POI buttons sit beside
-    -- their quest titles.
+    -- Tracking toggle where a quest's POI button sits: in the 20-pixel indent
+    -- left of the title, a little outside the section's left edge.
     local track = BuildTrackButton(f)
     track:SetPoint("TOPRIGHT", title, "TOPLEFT", -7, 4)
     f.track = track
@@ -2420,10 +2340,8 @@ function GPS:Dock(slot)
     return true
 end
 
--- keepShown: the section stays on screen (it is about to float, or it is
--- the frame being dragged: hiding a frame inside its own drag-stop
--- handler re-fires the handler and leaves its grip unable to take the
--- mouse until a reload).
+-- keepShown: the section stays on screen (about to float, or being dragged).
+-- Hiding a frame in its own drag-stop re-fires the handler and kills its grip until reload.
 function GPS:Undock(keepShown)
     HideMenus()
     local db = DB()
@@ -2463,9 +2381,7 @@ function GPS.DockStatus()
     return out
 end
 
--- ---------------------------------------------------------------------------
 -- The pop-out
--- ---------------------------------------------------------------------------
 
 PopoutSize = function()
     local db = DB()
@@ -2580,11 +2496,8 @@ local function BuildPopout()
     border:ClearAllPoints()
     border:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 4)
     border:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 4, -4)
-    -- The template stretches its one atlas over the frame, which squashes
-    -- the bands and corners on a short window. Drawn as a nine-slice
-    -- instead: bands and corners at their own size, sides stretched.
-    -- A thin band: the rim only, not the inner shadow the atlas paints
-    -- beside it, which read as a dark strip over the panel's fill.
+    -- Nine-slice instead of the template's one stretched atlas (squashed on a short
+    -- window). A thin band: the rim only, the atlas's inner shadow read as a dark strip.
     local BAND = 8
     local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("questlog-frame")
     if info and info.file and info.width and info.height and border.Border then
@@ -2609,10 +2522,8 @@ local function BuildPopout()
         right:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); right:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
     end
     f.border = border
-    -- With the square quest-log border on, the panel's fill is square too
-    -- (a 1-pixel corner); rounded corners curve away from the border's
-    -- straight edges, badly so on a folded row. Without it, the rounded
-    -- panel as everywhere else.
+    -- With the square quest-log border the fill is square too (1-pixel corner):
+    -- rounded corners curve away from its straight edges.
     function f:ApplyBorderShape(on)
         if self.border then self.border:SetShown(on) end
         if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(self, on) end
@@ -2645,9 +2556,8 @@ local function BuildPopout()
     close:SetScript("OnClick", function() GPS:TogglePopout(false) end)
     f.closeBtn = close
 
-    -- The header's top padding: 9 open, 5 folded, so a folded window is
-    -- one tight title row. Everything else in the header hangs off the
-    -- glyph and the close.
+    -- Header top padding: 9 open, 5 folded (one tight title row).
+    -- The rest of the header hangs off the glyph and the close.
     function f:SetHeaderPad(pad)
         self.glyph:ClearAllPoints()
         self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 12, -pad)
@@ -2723,9 +2633,8 @@ local function BuildPopout()
         post:SetShown(self.collapsed == true)
     end
 
-    -- The window's settings (style, size, border, wrapping, the pin in the
-    -- world) on a right-click anywhere on it, the menu at the cursor; no
-    -- cog in the header.
+    -- Settings on a right-click anywhere on the window, the menu at the cursor;
+    -- no cog in the header.
     local menuAnchor = CreateFrame("Frame", nil, f)
     menuAnchor:SetSize(1, 1)
     local function ShowWindowMenu()
@@ -2748,9 +2657,8 @@ local function BuildPopout()
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
             local tight = (not Route() and (self.hitCount or 0) == 0) or (self.collapsed and Route())
             if tight then
-                -- One tight title row: a folded route, or no route at all,
-                -- where the row holds the search box and typed results
-                -- unfold the window below.
+                -- One tight title row: a folded route, or no route, where the row
+                -- holds the search box and typed results unfold below.
                 self:SetHeaderPad(8)
                 self:SetHeight(8 + 20 + 8)   -- the icon's 20 pixels, padded
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
@@ -2867,9 +2775,7 @@ function GPS:TogglePopout(show)
     if c then c.popoutOpen = show or nil end
 end
 
--- ---------------------------------------------------------------------------
 -- Login: a route saved before a reload picks up where it was
--- ---------------------------------------------------------------------------
 
 -- A hearth is learned as it happens: the cast of any bind-based ability
 -- in the data, then the loading screen, then where the character stands.
@@ -2886,9 +2792,8 @@ local function IsHearthSpell(spellID)
 end
 local hearthCastAt
 
--- Flight masters this character was seen to know at a flight master: the
--- world map's listing is the main answer, this covers a client where it
--- cannot say.
+-- Flight masters seen as known at a flight master: covers a client whose
+-- world map listing cannot say.
 local function RecordKnownFlights()
     local c = CharDB()
     local mapID = GetTaxiMapID and GetTaxiMapID()
@@ -2912,9 +2817,8 @@ local function RecordKnownFlights()
         Engine.recordedKnown = c.flights
         Engine.ForgetKnown()
     end
-    -- The trip is planned again from here when this master's answer differs
-    -- from the plan: a master newly learned, or a planned flight from here
-    -- it does not offer.
+    -- Replan from here when this master's answer differs from the plan:
+    -- newly learned, or a planned flight it does not offer.
     local route = c.route
     if not (route and route.dest and not route.arrived) then return end
     local stale = learned
