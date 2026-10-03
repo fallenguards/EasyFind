@@ -5188,6 +5188,8 @@ local TALENT_SPEC_KW = { "spec", "specialization", "swap", "switch", "talents" }
 local TALENT_LOADOUT_KW = { "loadout", "loadouts", "build", "talents", "swap", "switch" }
 
 function Database:InjectTalentSwapRows()
+    -- Forever answers one "specialization" named after the class.
+    if ns.Caps and ns.Caps.specs == false then return end
     local specPath = { _G["TALENTS"] or "Talents" }
     local getNumSpecs = (C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializations)
         or GetNumSpecializations
