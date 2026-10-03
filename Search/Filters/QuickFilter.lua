@@ -72,7 +72,7 @@ Filters.quickFilterOptions = {
     { key = "addonOptions",   canonical = "addon-options",   label = L["FILTER_ADDON_OPTIONS"],   categories = { "AddOn Settings" }, aliases = { "ao", "addon", "addons", "addon-option", "addon-options", "addon-setting", "addon-settings" }, companion = "EasyFind_Settings" },
     { key = "reputations",    canonical = "reputations",     label = _G["REPUTATION"] or "Reputations",     categories = { "Reputation" }, aliases = { "r", "rep", "reps", "reputation", "reputations" } },
     { key = "talents",        canonical = "talents",         label = _G["TALENTS"] or "Talents",         categories = { "Talent" }, aliases = { "ta", "tal", "talent", "talents" } },
-    { key = "titles",         canonical = "titles",          label = _G["TITLES"] or "Titles",          categories = { "Title" }, aliases = { "ti", "title", "titles" } },
+    { key = "titles",         canonical = "titles",          label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",          categories = { "Title" }, aliases = { "ti", "title", "titles" } },
 }
 
 Filters.quickFilterByAlias = {}

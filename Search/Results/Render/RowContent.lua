@@ -786,7 +786,10 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     if not iconSet and data and data.steps then
         for _, step in ipairs(data.steps) do
             if step.sidebarIndex then
-                local tab = _G["PaperDollSidebarTab" .. step.sidebarIndex]
+                -- Retail's number names a different tab on Forever.
+                local slot = ns.Caps and ns.Caps.CharacterSidebarSlot
+                    and ns.Caps.CharacterSidebarSlot(step.sidebarIndex) or step.sidebarIndex
+                local tab = _G["PaperDollSidebarTab" .. slot]
                 if tab then
                     for ri = 1, select("#", tab:GetRegions()) do
                         local region = select(ri, tab:GetRegions())

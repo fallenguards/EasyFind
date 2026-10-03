@@ -2517,6 +2517,8 @@ function Database:PopulateDynamicTitles()
     -- 7:1 (615 vs 88 on a mature character), so they are opt-in: the default
     -- stays earned-only and every search behaves as it always did.
     local mode = (EasyFind and EasyFind.db and EasyFind.db.titleFilterMode) or "earned"
+    -- Unearned titles are listed by source achievement; none without them.
+    if ns.Caps and ns.Caps.achievements == false then mode = "earned" end
     local wantEarned = mode ~= "incomplete"
     local wantUnearned = mode == "incomplete" or mode == "all"
     local needSources = false
@@ -6696,7 +6698,7 @@ function Database:BuildUIDatabase()
                     },
                 },
                 {
-                    name = _G["PAPERDOLL_SIDEBAR_TITLES"] or _G["TITLES"] or "Titles",
+                    name = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",
                     keywords = {"titles", "title", "name title"},
                     category = "Character Info",
                     steps = {

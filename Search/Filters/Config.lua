@@ -263,14 +263,15 @@ local UI_FILTER_OPTIONS = {
     -- times over, so the default stays Earned and the other modes are a
     -- deliberate "show me what I am missing". Same three-way shape, and the
     -- same localized labels, as the achievements filter.
-    { key = "titles",      label = _G["TITLES"] or _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = 514608,
+    { key = "titles",      label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = 514608,
       iconCoords = { 0.016, 0.531, 0.324, 0.461 },
       flyoutRadio = {
           dbKey = "titleFilterMode",
           options = {
               { value = "earned",     label = ACHIEVEMENT_FILTER_LABELS.earned },
-              { value = "incomplete", label = ACHIEVEMENT_FILTER_LABELS.incomplete },
-              { value = "all",        label = ACHIEVEMENT_FILTER_LABELS.all },
+              -- Unearned titles are listed by their source achievement.
+              { value = "incomplete", label = ACHIEVEMENT_FILTER_LABELS.incomplete, caps = "achievements" },
+              { value = "all",        label = ACHIEVEMENT_FILTER_LABELS.all, caps = "achievements" },
           },
           onChange = function() Filters:ApplyFilterSelection("titles") end,
       } },

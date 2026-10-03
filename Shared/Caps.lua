@@ -193,13 +193,14 @@ end
 -- number. Entries carry retail's numbers: tab 1 Character, 2 Reputation,
 -- 3 Currency; sidebar 1 Stats, 2 Titles, 3 Equipment Manager. Forever
 -- draws mode tabs that name their frame (CharacterFrameModeTab<n> with a
--- frameName field) and a sidebar with no Titles, so the number is looked
--- up here and nil means "not on this client".
+-- frameName field) and orders its sidebar Stats, Equipment Manager,
+-- Titles, Pet (Titles since build 70170), so the number is looked up
+-- here and nil means "not on this client".
 local CHARACTER_TAB_FRAME = { [1] = "PaperDollFrame", [2] = "ReputationFrame", [3] = "TokenFrame" }
 local SIDEBAR_FRAME = { [1] = "CharacterStatsPane", [2] = "PaperDollTitlesPane", [3] = "PaperDollEquipmentManagerPane" }
 -- Forever's sidebar list carries names, not frames: the same global
 -- strings on both clients.
-local SIDEBAR_NAME = { [1] = "PAPERDOLL_SIDEBAR_STATS", [2] = "PAPERDOLL_SIDEBAR_TITLES", [3] = "PAPERDOLL_SIDEBAR_EQUIPMENT" }
+local SIDEBAR_NAME = { [1] = "PAPERDOLL_SIDEBAR_STATS", [2] = "PAPERDOLL_SIDEBAR_TITLES", [3] = "PAPERDOLL_EQUIPMENTMANAGER" }
 
 -- The live tab control for a retail tab number or a subframe name
 -- ("SkillsFrame"), or nil.
@@ -306,13 +307,22 @@ function Caps.PruneRows(rows)
             -- Choices inside a flyout may name a system too (caps = "warbandRep").
             local radio = row.flyoutRadio
             if radio then
+                local pruned = false
                 for _, list in ipairs({ radio.options, radio.checkboxes }) do
                     if type(list) == "table" then
                         for j = #list, 1, -1 do
                             local opt = list[j]
-                            if type(opt) == "table" and opt.caps and Caps[opt.caps] == false then table.remove(list, j) end
+                            if type(opt) == "table" and opt.caps and Caps[opt.caps] == false then
+                                table.remove(list, j)
+                                pruned = true
+                            end
                         end
                     end
+                end
+                -- One choice left is no choice: the row becomes a plain toggle.
+                if pruned and type(radio.options) == "table" and #radio.options < 2
+                   and not (radio.checkboxes and #radio.checkboxes > 0) then
+                    row.flyoutRadio = nil
                 end
             end
         end
