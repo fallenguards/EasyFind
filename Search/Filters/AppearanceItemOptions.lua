@@ -286,8 +286,8 @@ function Filters:BuildAppearanceItemOptionsPopup(StylePopup, CHECK_SIZE, dropdow
     local toggleDefs = {
         { dbKey = "appearanceItemCollected",    label = _G["COLLECTED"] or "Collected",        default = true },
         { dbKey = "appearanceItemNotCollected", label = _G["NOT_COLLECTED"] or "Not Collected", default = false },
-        { dbKey = "appearanceItemAllFactions",  label = _G["ALL_FACTIONS"] or "All Factions",   default = true },
-        { dbKey = "appearanceItemAllRaces",     label = _G["ALL_RACES"] or "All Races",         default = true },
+        { dbKey = "appearanceItemAllFactions",  label = _G["TRANSMOG_SHOW_ALL_FACTIONS"] or "All Factions",   default = true },
+        { dbKey = "appearanceItemAllRaces",     label = _G["TRANSMOG_SHOW_ALL_RACES"] or "All Races",         default = true },
     }
     local toggleRows = {}
     for i, def in ipairs(toggleDefs) do

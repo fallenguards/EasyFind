@@ -116,7 +116,7 @@ function Filters:BuildPetOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrame
 
     local sourcesRow = CreateFlyoutRow(_G["SOURCES"] or "Sources", y)
     y = y - ROW_H
-    local typesRow = CreateFlyoutRow(_G["PET_TYPE"] or _G["TYPE"] or "Type", y)
+    local typesRow = CreateFlyoutRow(_G["TYPE"] or "Type", y)
 
     local contentW = 0
     for i = 1, #rows do

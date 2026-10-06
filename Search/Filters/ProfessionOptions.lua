@@ -788,13 +788,12 @@ local function AttachRecipeFilterFlyout(row)
 
     local SEP_H = 8
     local function Layout()
-        -- Label keys pending a locale lookup pass; English fallbacks match the
-        -- window's own captured menu rows.
-        checkRows[1]._label:SetText(_G["PROFESSIONS_FILTER_LEARNED"] or "Show Learned")
-        checkRows[2]._label:SetText(_G["PROFESSIONS_FILTER_UNLEARNED"] or "Show Unlearned")
-        checkRows[3]._label:SetText(_G["PROFESSIONS_FILTER_HAS_SKILL_UP"] or "Has skill up")
-        checkRows[4]._label:SetText(_G["PROFESSIONS_FILTER_FIRST_CRAFT"] or "First Craft Bonus")
-        checkRows[5]._label:SetText(_G["PROFESSIONS_FILTER_HAS_MATERIALS"] or "Have Materials")
+        -- The profession window's own filter rows
+        checkRows[1]._label:SetText(_G["PROFESSION_RECIPES_SHOW_LEARNED"] or "Show Learned")
+        checkRows[2]._label:SetText(_G["PROFESSION_RECIPES_SHOW_UNLEARNED"] or "Show Unlearned")
+        checkRows[3]._label:SetText(_G["TRADESKILL_FILTER_HAS_SKILL_UP"] or "Has skill up")
+        checkRows[4]._label:SetText(_G["PROFESSION_RECIPES_IS_FIRST_CRAFT"] or "First Craft Bonus")
+        checkRows[5]._label:SetText(_G["CRAFT_IS_MAKEABLE"] or "Have Materials")
         local profData = ns.PROFESSION_RECIPES and ns.PROFESSION_RECIPES[row._skillLine]
         local state = RecipeFilterState()
         PullRecipeFilters(state)
@@ -837,7 +836,7 @@ local function AttachRecipeFilterFlyout(row)
             local w2 = Utils.FlyoutRowContentWidth(sourcesOpener, 8, nil, CHECK - 2)
             if w2 > contentW then contentW = w2 end
             if hasSlots then
-                slLabel:SetText(_G["PROFESSIONS_FILTER_SLOTS"] or "Slots")
+                slLabel:SetText(_G["TRADESKILL_FILTER_SLOTS"] or "Slots")
                 slotsOpener:ClearAllPoints()
                 slotsOpener:SetPoint("TOPLEFT", PAD, y)
                 slotsOpener:Show()
