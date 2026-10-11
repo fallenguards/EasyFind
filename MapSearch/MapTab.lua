@@ -2700,22 +2700,25 @@ local function CreatePanel(qmf)
         p.filterDropdown = dropdown
     end
 
-    -- Blizzard's box uses fixed 301x20 SetSize; re-apply it after
-    -- ClearAllPoints or the last flex-anchored width lingers.
     p.AlignToBlizzardSearch = function()
         local qsb = _G["QuestScrollFrame"] and QuestScrollFrame.SearchBox
         if not qsb then return end
         local n = qsb:GetNumPoints() or 0
         if n == 0 then return end
+        -- Its left edge and height, then on to the cog: a wider pane than
+        -- the client's leaves the client's fixed width short of it.
         searchBox:ClearAllPoints()
         for i = 1, n do
             local point, relTo, relPoint, x, y = qsb:GetPoint(i)
-            if point then
+            if point and not point:find("RIGHT") then
                 searchBox:SetPoint(point, relTo, relPoint, x, y)
             end
         end
         local w, h = qsb:GetSize()
-        if w and w > 0 and h and h > 0 then
+        if p.cog then
+            searchBox:SetPoint("RIGHT", p.cog, "LEFT", -6, 0)
+            if h and h > 0 then searchBox:SetHeight(h) end
+        elseif w and w > 0 and h and h > 0 then
             searchBox:SetSize(w, h)
         end
     end
