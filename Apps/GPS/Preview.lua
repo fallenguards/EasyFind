@@ -55,10 +55,10 @@ local function Build()
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
     marks.start:SetBlendMode("ADD")
     marks.stop:SetTexture(TEX_ARROW)
-    -- A portal's spot: the map's own portal symbol, pulsing.
-    local portal = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
-    marks.portal = portal
-    local pulse = portal:CreateAnimationGroup()
+    -- A portal's, flight master's or dock's spot: the map's own symbol, pulsing.
+    local symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
+    marks.symbol = symbol
+    local pulse = symbol:CreateAnimationGroup()
     pulse:SetLooping("BOUNCE")
     local grow = pulse:CreateAnimation("Scale")
     grow:SetScaleFrom(1, 1)
@@ -66,7 +66,7 @@ local function Build()
     grow:SetDuration(0.5)
     grow:SetSmoothing("IN_OUT")
     pulse:Play()
-    portal:Hide()
+    symbol:Hide()
     overlay:Hide()
     return true
 end
@@ -122,6 +122,28 @@ local function StartOf(route, i)
         if ci and wx then return { ci = ci, wx = wx, wy = wy } end
     end
     return nil
+end
+
+-- A flight or a crossing runs from where it is boarded to where it lands;
+-- any other leg from the step before to the step's own spot.
+local CROSSING = { taxi = true, boat = true, ferry = true, zeppelin = true, skyship = true, tram = true }
+local function Ends(route, i)
+    local step = route.steps[i]
+    if CROSSING[step.kind] then return step.go or StartOf(route, i), step.arrive end
+    return StartOf(route, i), step.go or step.arrive
+end
+
+-- The map's own symbol for what a leg ends at; a way to a flight master or
+-- a dock takes the symbol of the step it leads into.
+local SYMBOL_KEY = { taxi = "flightmaster", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
+                     tram = "tram" }
+local function SymbolOf(route, i)
+    local step = route.steps[i]
+    local nxt = route.steps[i + 1]
+    local kind = (step.approach and nxt) and nxt.kind or step.kind
+    if kind == "portal" then return "atlas:" .. PortalAtlas() end
+    local icons = ns.MapSearchData and ns.MapSearchData.CATEGORY_ICONS
+    return icons and SYMBOL_KEY[kind] and icons[SYMBOL_KEY[kind]] or nil
 end
 
 local function World(p)
@@ -184,9 +206,8 @@ local function Draw()
         -- A teleport draws nothing: nothing is walked, and the legs after
         -- it start from where it lands.
         local teleport = step.kind == "teleport"
-        local start = StartOf(route, i)
+        local start, target = Ends(route, i)
         local a = (not teleport) and OnCanvas(start, shownMap) or nil
-        local target = step.go or step.arrive
         local b = (not teleport) and OnCanvas(target, shownMap) or nil
         local lastDx, lastDy
         if a and b then
@@ -214,9 +235,9 @@ local function Draw()
             if total > 2 then
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
-                -- The line stops short of the arrowhead; a portal's symbol
-                -- sits on its spot, so the line runs to it.
-                local headed = (all and i == #route.steps) or (i == shownIndex and step.kind ~= "portal")
+                -- The line stops short of the arrowhead; a symbol sits on
+                -- its spot, so the line runs to it.
+                local headed = (all and i == #route.steps) or (i == shownIndex and not SymbolOf(route, i))
                 local usable = total - (headed and arrow * 0.9 or 0)
                 if step.kind == "travel" then
                     -- A walk: one solid line, stretch by stretch.
@@ -271,7 +292,7 @@ local function Draw()
             hovered = hovered or { a = a }
             hovered.b, hovered.target, hovered.step, hovered.dx, hovered.dy = b, target, step, lastDx, lastDy
         elseif i == shownIndex then
-            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy }
+            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i) }
         end
     end
     for i = n + 1, #pool do pool[i]:Hide() end
@@ -287,18 +308,19 @@ local function Draw()
     else
         marks.start:Hide()
     end
-    local portalStep = hovered and hovered.step and hovered.step.kind == "portal"
-    if hovered and hovered.b and portalStep then
-        -- A portal: the map's portal symbol pulsing on its spot, no arrow.
+    local symbol = hovered and hovered.symbol
+    if hovered and hovered.b and symbol then
+        -- A portal, flight master or dock: the map's symbol pulsing on its spot, no arrow.
         marks.stop:Hide()
         local size = px(ARROW) * 1.2
-        marks.portal:SetAtlas(PortalAtlas())
-        marks.portal:ClearAllPoints()
-        marks.portal:SetSize(size, size)
-        marks.portal:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
-        marks.portal:Show()
+        local atlas = type(symbol) == "string" and symbol:match("^atlas:(.+)$")
+        if atlas then marks.symbol:SetAtlas(atlas) else marks.symbol:SetTexture(symbol) end
+        marks.symbol:ClearAllPoints()
+        marks.symbol:SetSize(size, size)
+        marks.symbol:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
+        marks.symbol:Show()
     elseif hovered and hovered.b then
-        marks.portal:Hide()
+        marks.symbol:Hide()
         -- The arrowhead at the end, turned along the leg; pointing down
         -- when there is no leg to turn along.
         marks.stop:ClearAllPoints()
@@ -321,7 +343,7 @@ local function Draw()
         marks.stop:Show()
     else
         marks.stop:Hide()
-        marks.portal:Hide()
+        marks.symbol:Hide()
     end
     overlay:Show()
 end
@@ -346,10 +368,9 @@ end
 local function MapOf(route, index)
     local step = route.steps[index]
     if step.kind == "teleport" then return step.arrive and step.arrive.m end
-    local target = step.go or step.arrive
+    local start, target = Ends(route, index)
     local mapID = step.mapID or (target and target.m)
     if not mapID then return nil end
-    local start = StartOf(route, index)
     if not start then return mapID end
     local m, depth = mapID, 0
     while m and depth < 8 do
@@ -467,7 +488,7 @@ function Preview:Status(index)
         out[#out + 1] = "no step " .. tostring(index)
         return out
     end
-    local start, target = StartOf(route, index), step.go or step.arrive
+    local start, target = Ends(route, index)
     local mapID = MapOf(route, index)
     out[#out + 1] = string.format("step %d %s: start %s | target %s", index, tostring(step.kind), P(start), P(target))
     local a, b = mapID and OnCanvas(start, mapID), mapID and OnCanvas(target, mapID)
