@@ -551,6 +551,25 @@ function tests.roads_noRoadKeepsTheStraightPrice()
     H.assertNil(steps[1].wind)
 end
 
+-- The road from Alpha to the spot is a U of 6000 yd round a 2000 yd line;
+-- a portal's dock halfway along the line would split it into two short walks.
+function tests.roads_windingWalkLosesToTheFlight()
+    local _, _, Route = fresh()
+    local d = data()
+    d.classic = true
+    d.abilities = {}
+    d.nodes = { [1] = { n = "Alpha", m = 1, x = 0.1, y = 0.1, ci = 1, wx = 1000, wy = 1000 },
+                [2] = { n = "Delta", m = 1, x = 0.3, y = 0.11, ci = 1, wx = 3000, wy = 1100 } }
+    d.legs = { { 1, 2, 2000, 300 } }
+    d.edges = { { kind = "portal", n = "Portal to Map 2", from = P(1, 0.2, 0.1), to = P(2, 0.5, 0.5), sec = 14 } }
+    d.roads = { [1] = { nodes = { 1000, 1000, 1000, 3000, 3000, 3000, 3000, 1000 },
+                        edges = { 1, 2, 2000, 2, 3, 2000, 3, 4, 2000 }, shapes = {} } }
+    local steps, total = build(Route, P(1, 0.1, 0.1), { name = "Spot", mapID = 1, x = 0.3, y = 0.1 },
+                               { data = d, groundSpeed = 10, known = false })
+    H.assertEq(steps[1].kind, "taxi", "the 300 s flight beats 6000 yd of road and the walk past the dock")
+    H.assertTrue(math.abs(total - 318) < 1, "board, fly, then 100 yd on: " .. tostring(total))
+end
+
 -- The road above crosses three zones: Alpha until 500 yd west, Bravo up
 -- to 500 yd north of the junction, Charlie beyond.
 local function zoneAt(_, x, y)

@@ -244,28 +244,50 @@ local function BuildGraph(ctx)
         travelSpeed = travelSpeed, mountUp = mountUp,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         roads = data.roads and not ctx.canFly or nil,
+        walkSec = {}, walkWind = {},
         data = data,
     }
 end
 
-local function TravelCost(g, d)
+-- Two points within a few yards are the same spot: free, no mounting.
+local function TravelCost(g, d, detour)
     if d <= 5 then return 0 end
-    return g.mountUp + d * g.detour / g.travelSpeed
+    return g.mountUp + d * (detour or g.detour) / g.travelSpeed
 end
 
-local function Neighbors(g, i, out)
+local WALK_KEY = 65536
+
+-- A walk's seconds by its road, and its wind (road yards per straight yard).
+local function PriceWalk(g, i, j)
+    local key = i * WALK_KEY + j
+    local sec = g.walkSec[key]
+    if sec then return sec, g.walkWind[key] end
+    local a, b = g.nodes[i].p, g.nodes[j].p
+    local straight = Dist(a, b)
+    local road = straight > 5 and Route.RoadPath(g.data, a.ci, a.wx, a.wy, b.wx, b.wy)
+    local wind = road and road.len / straight or nil
+    sec = road and g.mountUp + road.len / g.travelSpeed or TravelCost(g, straight)
+    g.walkSec[key], g.walkWind[key] = sec, wind
+    return sec, wind
+end
+
+-- noWalk: arrived on foot, so no walk on from here.
+local function Neighbors(g, i, out, noWalk)
     local n = g.nodes[i]
     local k = 0
-    -- Straight-line travel to everything on the same continent and landmass.
-    local same = g.byCi[n.p.ci]
+    -- Travel to everything on the same continent and landmass; a walk not
+    -- yet priced by its road costs its straight line, its least.
+    local same = not noWalk and g.byCi[n.p.ci]
     if same then
+        local walkSec, bound = g.walkSec, g.roads and 1
         for j = 1, #same do
             local idx = same[j]
             if idx ~= i and g.nodes[idx].land == n.land then
                 k = k + 1
-                -- Two points within a few yards are the same spot: free,
-                -- no mounting (a portal's arrival that is the goal).
-                out[k] = { to = idx, sec = TravelCost(g, Dist(n.p, g.nodes[idx].p)), kind = "travel" }
+                local key = i * WALK_KEY + idx
+                local sec = walkSec[key]
+                out[k] = { to = idx, sec = sec or TravelCost(g, Dist(n.p, g.nodes[idx].p), bound), kind = "travel",
+                           wind = sec and g.walkWind[key] or nil }
             end
         end
     end
@@ -293,51 +315,76 @@ local function Neighbors(g, i, out)
     return k
 end
 
+-- State s is node s reached any way but on foot, s + n node s reached on
+-- foot: no walk follows a walk, so stops never chain across a mountain.
 local function Dijkstra(g)
     local n = #g.nodes
     local dist, prev, prevEdge, done = {}, {}, {}, {}
-    for i = 1, n do dist[i] = mhuge end
+    for s = 1, 2 * n do dist[s] = mhuge end
     dist[g.start] = 0
     local scratch = {}
-    for _ = 1, n do
+    local reached
+    while true do
         local best, bestD = nil, mhuge
-        for i = 1, n do
-            if not done[i] and dist[i] < bestD then best, bestD = i, dist[i] end
+        for s = 1, 2 * n do
+            if not done[s] and dist[s] < bestD then best, bestD = s, dist[s] end
         end
-        if not best or best == g.goal then break end
+        if not best then break end
+        local onFoot = best > n
+        local i = onFoot and best - n or best
+        if i == g.goal then
+            reached = best
+            break
+        end
         done[best] = true
-        local count = Neighbors(g, best, scratch)
+        local count = Neighbors(g, i, scratch, onFoot)
         for j = 1, count do
             local e = scratch[j]
+            local to = e.kind == "travel" and e.to + n or e.to
             local nd = bestD + e.sec
-            if nd < dist[e.to] then
-                dist[e.to] = nd
-                prev[e.to] = best
-                prevEdge[e.to] = e
+            if nd < dist[to] then
+                dist[to], prev[to], prevEdge[to] = nd, best, e
             end
         end
     end
-    if dist[g.goal] == mhuge then return nil end
+    if not reached then return nil end
     local path = {}
-    local i = g.goal
-    while i and i ~= g.start do
-        tinsert(path, 1, { node = i, edge = prevEdge[i] })
-        i = prev[i]
+    local s = reached
+    while s and s ~= g.start do
+        tinsert(path, 1, { node = s > n and s - n or s, edge = prevEdge[s] })
+        s = prev[s]
     end
-    return path, dist[g.goal]
+    return path, dist[reached]
+end
+
+local SOLVE_ROUNDS = 8
+
+-- The shortest path with its walks priced by road: only walks a best path
+-- takes are looked up, then the path is found again until it holds.
+local function Solve(g)
+    for _ = 1, SOLVE_ROUNDS do
+        local path, cost = Dijkstra(g)
+        if not (path and g.roads) then return path, cost end
+        local fresh = false
+        for i = 1, #path do
+            local from = i > 1 and path[i - 1].node or g.start
+            if path[i].edge.kind == "travel" and not g.walkSec[from * WALK_KEY + path[i].node] then
+                PriceWalk(g, from, path[i].node)
+                fresh = true
+            end
+        end
+        if not fresh then return path, cost end
+    end
+    return Dijkstra(g)
 end
 
 -- Path seconds, each walk priced by its road where one leads there.
--- The path is chosen on straight lines; e.wind = road yards per straight yard.
 local function RoadSeconds(g, path)
     local total = 0
     for i = 1, #path do
         local e = path[i].edge
-        if g.roads and e.kind == "travel" and not e.wind then
-            local a, b = g.nodes[i > 1 and path[i - 1].node or g.start].p, g.nodes[path[i].node].p
-            local straight = Dist(a, b)
-            local road = straight > 5 and Route.RoadPath(g.data, a.ci, a.wx, a.wy, b.wx, b.wy)
-            if road then e.sec, e.wind = g.mountUp + road.len / g.travelSpeed, road.len / straight end
+        if g.roads and e.kind == "travel" then
+            e.sec, e.wind = PriceWalk(g, i > 1 and path[i - 1].node or g.start, path[i].node)
         end
         total = total + e.sec
     end
@@ -620,7 +667,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
     local trial = {}
     for k, v in pairs(ctx) do trial[k] = v end
     trial.known = known
-    -- Each trip on straight lines first: the most it could save.
+    -- Each trip with unpriced walks first: the most it could save.
     local trips = {}
     for i = 1, mmax(0, math.min(#cands, SUGGEST_CANDIDATES)) do
         local c = cands[i]
@@ -630,7 +677,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         local path2, t2 = Dijkstra(g2)
         known[c.id] = nil
         if path2 and total - t2 >= SUGGEST_MIN_SECONDS then
-            trips[#trips + 1] = { c = c, g = g2, path = path2, most = total - t2 }
+            trips[#trips + 1] = { c = c, g = g2, most = total - t2 }
         end
     end
     tsort(trips, MostSavedFirst)
@@ -639,7 +686,8 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
     for i = 1, #trips do
         local trip = trips[i]
         if best and trip.most <= best.save then break end
-        local t2 = RoadSeconds(trip.g, trip.path)
+        local path2 = Solve(trip.g)
+        local t2 = path2 and RoadSeconds(trip.g, path2) or mhuge
         local save = total - t2
         if save >= SUGGEST_MIN_SECONDS and save >= total / 6 and (not best or save > best.save) then
             best = { id = trip.c.id, name = trip.c.n.name, p = trip.c.n.p, save = save, total = t2 }
@@ -892,7 +940,7 @@ function Route:Build(dest, opts)
     if not ctx.groundSpeed and not ctx.canFly then ctx.groundSpeed = Route.GroundSpeed(data) end
     local g = BuildGraph(ctx)
     g.zoneGoal = dest.zone and true or nil
-    local path = Dijkstra(g)
+    local path = Solve(g)
     if not path then return nil end
     local cost = RoadSeconds(g, path)
     local steps = Steps(g, path, dest.name)
@@ -1115,7 +1163,7 @@ end
 
 -- The last ways searched are kept: pricing a walk, splitting it by zone
 -- and pricing each stop tried all ask for the same one.
-local ROAD_PATHS_KEPT = 48
+local ROAD_PATHS_KEPT = 128
 local roadPaths, roadPathCount = {}, 0
 
 function Route.RoadPath(data, ci, sx, sy, tx, ty)
