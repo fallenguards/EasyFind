@@ -10,13 +10,13 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local matan2, msqrt = math.atan2, math.sqrt
+local msqrt = math.sqrt
 local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
 -- and shrinks with the zoom, so each is converted at draw time.
 local LINE_W = 5
-local ARROW, START = 32, 36
+local START = 36
 local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at each change of ride
 
 local function px(v)
@@ -29,7 +29,6 @@ local ROUTE_BLUE = { 0.25, 0.6, 1 }
 local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry = { 0.1, 0.8, 0.72 },
                      zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
-local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 local DEST = 26                    -- the destination's pin
 
@@ -59,7 +58,11 @@ local function Build()
     marks = { start = overlay:CreateTexture(nil, "OVERLAY", nil, 2), stop = overlay:CreateTexture(nil, "OVERLAY", nil, 3) }
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
     marks.start:SetBlendMode("ADD")
-    marks.stop:SetTexture(TEX_ARROW)
+    -- A step's end: a round stop on its own casing, the line running into it.
+    marks.stop:SetTexture(TEX_DISC)
+    marks.stopCasing = overlay:CreateTexture(nil, "OVERLAY", nil, 2)
+    marks.stopCasing:SetTexture(TEX_DISC)
+    marks.stopCasing:Hide()
     -- A portal's, flight master's or dock's spot: the map's own symbol.
     marks.symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
     marks.symbol:Hide()
@@ -212,7 +215,7 @@ local function Draw()
     local accent = Accent()
     local nSolid, nSym = 0, 0
     local hovered
-    local lineW, arrow = px(LINE_W), px(ARROW)
+    local lineW = px(LINE_W)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
     local poly = {}
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
@@ -225,7 +228,6 @@ local function Draw()
         local start, target = Ends(route, i)
         local a = (not teleport) and OnCanvas(start, shownMap) or nil
         local b = (not teleport) and OnCanvas(target, shownMap) or nil
-        local lastDx, lastDy
         if a and b then
             -- The leg's line: along the roads for a walk, straight otherwise.
             local road = step.kind == "travel" and RoadPoints(route, i, start, target, shownMap)
@@ -252,10 +254,7 @@ local function Draw()
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
                 local color = MODE_COLOR[step.kind] or accent
-                -- The line stops short of the arrowhead; a symbol or the
-                -- destination's pin sits on its spot, so the line runs to it.
-                local headed = i ~= #route.steps and i == shownIndex and not all and not SymbolOf(route, i)
-                local usable = total - (headed and arrow * 0.9 or 0)
+                local usable = total
                 -- One solid line, stretch by stretch: a walk follows its
                 -- road, a ride runs straight; each in its mode's color.
                 local walked = 0
@@ -264,7 +263,6 @@ local function Draw()
                     local dx, dy = x2 - x1, y2 - y1
                     local len = msqrt(dx * dx + dy * dy)
                     if len > 0 and walked < usable then
-                        lastDx, lastDy = dx, dy
                         if walked + len > usable then
                             local f = (usable - walked) / len
                             x2, y2 = x1 + dx * f, y1 + dy * f
@@ -313,11 +311,11 @@ local function Draw()
         if all and a and b then
             -- From where the first leg starts to where the last one ends.
             hovered = hovered or { a = a }
-            hovered.b, hovered.target, hovered.step, hovered.dx, hovered.dy = b, target, step, lastDx, lastDy
+            hovered.b, hovered.target, hovered.step = b, target, step
             hovered.final = i == #route.steps
         elseif i == shownIndex then
-            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i),
-                        final = i == #route.steps }
+            hovered = { a = a, b = b, target = target, step = step, symbol = SymbolOf(route, i),
+                        final = i == #route.steps, color = MODE_COLOR[step.kind] or accent }
         end
     end
     for i = nSolid + 1, #solids do
@@ -340,6 +338,7 @@ local function Draw()
     end
     local symbol = hovered and hovered.symbol
     marks.dest:Hide()
+    marks.stopCasing:Hide()
     if hovered and hovered.b and hovered.final then
         -- The journey's end: the GPS pin with its tip on the spot.
         marks.stop:Hide()
@@ -355,26 +354,17 @@ local function Draw()
         SetSymbol(marks.symbol, symbol, hovered.b[1], hovered.b[2], px(SYMBOL))
     elseif hovered and hovered.b then
         marks.symbol:Hide()
-        -- The arrowhead at the end, turned along the leg; pointing down
-        -- when there is no leg to turn along.
+        local c, d = hovered.color or accent, lineW * 2.2
         marks.stop:ClearAllPoints()
-        marks.stop:SetSize(arrow, arrow)
-        if hovered.a then
-            -- The art's tip is at its edge: set the head back along the
-            -- leg by half its size so the tip lands on the spot itself.
-            -- Turned along the line's last stretch, which a road bends.
-            local dx = hovered.dx or (hovered.b[1] - hovered.a[1])
-            local dy = hovered.dy or (hovered.b[2] - hovered.a[2])
-            local len = msqrt(dx * dx + dy * dy)
-            local ux, uy = (len > 0) and dx / len or 0, (len > 0) and dy / len or 0
-            marks.stop:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1] - ux * arrow * 0.45, hovered.b[2] - uy * arrow * 0.45)
-            marks.stop:SetRotation(matan2(dy, dx) + math.pi / 2)
-        else
-            marks.stop:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2] + arrow * 0.45)
-            marks.stop:SetRotation(0)
-        end
-        marks.stop:SetVertexColor(accent[1], accent[2], accent[3], 1)
+        marks.stop:SetSize(d, d)
+        marks.stop:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
+        marks.stop:SetVertexColor(c[1], c[2], c[3], 1)
         marks.stop:Show()
+        marks.stopCasing:ClearAllPoints()
+        marks.stopCasing:SetSize(d + 2 * px(CASING), d + 2 * px(CASING))
+        marks.stopCasing:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
+        marks.stopCasing:SetVertexColor(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], 0.9)
+        marks.stopCasing:Show()
     else
         marks.stop:Hide()
         marks.symbol:Hide()
