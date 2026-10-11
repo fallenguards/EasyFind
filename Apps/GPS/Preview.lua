@@ -30,6 +30,8 @@ local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry =
                      zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
+local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
+local DEST = 26                    -- the destination's pin
 
 local overlay, solids, marks, syms
 local shownMap, shownIndex
@@ -61,6 +63,10 @@ local function Build()
     -- A portal's, flight master's or dock's spot: the map's own symbol.
     marks.symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
     marks.symbol:Hide()
+    -- The journey's end: the GPS pin standing on it.
+    marks.dest = overlay:CreateTexture(nil, "OVERLAY", nil, 5)
+    marks.dest:SetTexture(ns.GPS_ICON_TEX)
+    marks.dest:Hide()
     syms = {}
     overlay:Hide()
     return true
@@ -95,6 +101,12 @@ local function Solid(i)
     if not s then
         s = overlay:CreateLine(nil, "OVERLAY", nil, 1)
         s.casing = overlay:CreateLine(nil, "OVERLAY", nil, 0)
+        -- Round joints where a stretch meets the one before: the square
+        -- line ends leave a notch on the outside of every bend.
+        s.joint = overlay:CreateTexture(nil, "OVERLAY", nil, 1)
+        s.joint:SetTexture(TEX_DISC)
+        s.jointCasing = overlay:CreateTexture(nil, "OVERLAY", nil, 0)
+        s.jointCasing:SetTexture(TEX_DISC)
         solids[i] = s
     end
     return s
@@ -240,9 +252,9 @@ local function Draw()
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
                 local color = MODE_COLOR[step.kind] or accent
-                -- The line stops short of the arrowhead; a symbol sits on
-                -- its spot, so the line runs to it.
-                local headed = (all and i == #route.steps) or (i == shownIndex and not SymbolOf(route, i))
+                -- The line stops short of the arrowhead; a symbol or the
+                -- destination's pin sits on its spot, so the line runs to it.
+                local headed = i ~= #route.steps and i == shownIndex and not all and not SymbolOf(route, i)
                 local usable = total - (headed and arrow * 0.9 or 0)
                 -- One solid line, stretch by stretch: a walk follows its
                 -- road, a ride runs straight; each in its mode's color.
@@ -270,6 +282,22 @@ local function Draw()
                         c:SetEndPoint("TOPLEFT", overlay, x2, y2)
                         c:SetColorTexture(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], alpha * 0.85)
                         c:Show()
+                        if v > 1 then
+                            local d, dc = lineW * 0.8, lineW * 0.8 + 2 * px(CASING)
+                            sl.joint:SetSize(d, d)
+                            sl.joint:ClearAllPoints()
+                            sl.joint:SetPoint("CENTER", overlay, "TOPLEFT", x1, y1)
+                            sl.joint:SetVertexColor(color[1], color[2], color[3], alpha)
+                            sl.joint:Show()
+                            sl.jointCasing:SetSize(dc, dc)
+                            sl.jointCasing:ClearAllPoints()
+                            sl.jointCasing:SetPoint("CENTER", overlay, "TOPLEFT", x1, y1)
+                            sl.jointCasing:SetVertexColor(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], alpha * 0.85)
+                            sl.jointCasing:Show()
+                        else
+                            sl.joint:Hide()
+                            sl.jointCasing:Hide()
+                        end
                     end
                     walked = walked + len
                 end
@@ -286,13 +314,17 @@ local function Draw()
             -- From where the first leg starts to where the last one ends.
             hovered = hovered or { a = a }
             hovered.b, hovered.target, hovered.step, hovered.dx, hovered.dy = b, target, step, lastDx, lastDy
+            hovered.final = i == #route.steps
         elseif i == shownIndex then
-            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i) }
+            hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i),
+                        final = i == #route.steps }
         end
     end
     for i = nSolid + 1, #solids do
         solids[i]:Hide()
         solids[i].casing:Hide()
+        solids[i].joint:Hide()
+        solids[i].jointCasing:Hide()
     end
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
@@ -307,7 +339,17 @@ local function Draw()
         marks.start:Hide()
     end
     local symbol = hovered and hovered.symbol
-    if hovered and hovered.b and symbol then
+    marks.dest:Hide()
+    if hovered and hovered.b and hovered.final then
+        -- The journey's end: the GPS pin with its tip on the spot.
+        marks.stop:Hide()
+        marks.symbol:Hide()
+        marks.dest:ClearAllPoints()
+        marks.dest:SetSize(px(DEST), px(DEST))
+        marks.dest:SetPoint("BOTTOM", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
+        marks.dest:SetVertexColor(unpack(ns.GOLD_COLOR))
+        marks.dest:Show()
+    elseif hovered and hovered.b and symbol then
         -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
         marks.stop:Hide()
         SetSymbol(marks.symbol, symbol, hovered.b[1], hovered.b[2], px(SYMBOL))
