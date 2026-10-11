@@ -22,10 +22,13 @@ local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at
 local function px(v)
     return ns.UIToCanvas and ns.UIToCanvas(v) or v
 end
-local RED = { 1, 0.22, 0.16 }
--- Each ride in its own color; a walk is red.
-local MODE_COLOR = { taxi = { 1, 0.78, 0.1 }, boat = { 0.3, 0.68, 1 }, ferry = { 0.3, 0.68, 1 },
-                     zeppelin = { 0.45, 0.85, 0.35 }, skyship = { 0.45, 0.85, 0.35 }, tram = { 0.78, 0.78, 0.78 } }
+-- Blue, as routing maps draw a route (red reads as traffic or danger); each
+-- ride in a hue the parchment does not use. Every line sits on a dark casing
+-- so it reads over land and sea alike.
+local ROUTE_BLUE = { 0.25, 0.6, 1 }
+local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry = { 0.1, 0.8, 0.72 },
+                     zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
+local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 
 local overlay, solids, marks, syms
@@ -38,9 +41,8 @@ local function Canvas()
     return WorldMapFrame and WorldMapFrame.ScrollContainer and WorldMapFrame.ScrollContainer.Child
 end
 
--- Red, as a route is drawn on a map.
 local function Accent()
-    return RED
+    return ROUTE_BLUE
 end
 
 local function Build()
@@ -92,6 +94,7 @@ local function Solid(i)
     local s = solids[i]
     if not s then
         s = overlay:CreateLine(nil, "OVERLAY", nil, 1)
+        s.casing = overlay:CreateLine(nil, "OVERLAY", nil, 0)
         solids[i] = s
     end
     return s
@@ -261,6 +264,12 @@ local function Draw()
                         sl:SetEndPoint("TOPLEFT", overlay, x2, y2)
                         sl:SetColorTexture(color[1], color[2], color[3], alpha)
                         sl:Show()
+                        local c = sl.casing
+                        c:SetThickness(lineW * 0.8 + 2 * px(CASING))
+                        c:SetStartPoint("TOPLEFT", overlay, x1, y1)
+                        c:SetEndPoint("TOPLEFT", overlay, x2, y2)
+                        c:SetColorTexture(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], alpha * 0.85)
+                        c:Show()
                     end
                     walked = walked + len
                 end
@@ -281,7 +290,10 @@ local function Draw()
             hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i) }
         end
     end
-    for i = nSolid + 1, #solids do solids[i]:Hide() end
+    for i = nSolid + 1, #solids do
+        solids[i]:Hide()
+        solids[i].casing:Hide()
+    end
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
     -- it ends; a crossing shows its spot alone when the start is elsewhere.
