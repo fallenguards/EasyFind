@@ -480,6 +480,59 @@ local function UpdateEtaText(route)
     end
 end
 
+local OFF_ROUTE_YARDS = 250   -- this far from a walk's way, the route starts over from here
+local OFF_ROUTE_TICKS = 3     -- seconds off it first: a loading screen or a jump is no detour
+local REROUTE_EVERY = 10
+local offRoute = { ticks = 0, at = 0 }
+
+local function PointWorld(p)
+    if not p then return nil end
+    if p.wx then return p.ci, p.wx, p.wy end
+    return WorldPos(p.m, p.x, p.y)
+end
+
+local function ToSegment(px, py, ax, ay, bx, by)
+    local dx, dy = bx - ax, by - ay
+    local len2 = dx * dx + dy * dy
+    local t = len2 > 0 and mmax(0, math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) or 0
+    return ((px - ax - t * dx) ^ 2 + (py - ay - t * dy) ^ 2) ^ 0.5
+end
+
+-- Whether the player has left the current walk's way: off its straight
+-- line and off its road, or on another continent.
+local function OffRoute(route, ci, px, py)
+    local i = route.active or 1
+    local step = route.steps[i]
+    if step.kind ~= "travel" then return false end
+    local fci, fx, fy = PointWorld(i > 1 and route.steps[i - 1].arrive or route.from)
+    local tci, tx, ty = PointWorld(step.go or step.arrive)
+    if not (fci and tci and fci == tci) then return false end
+    if ci ~= tci then return true end
+    if ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
+    local Engine = ns.GPSRoute
+    local road = Engine and Engine.RoadPath and ns.GPSData and Engine.RoadPath(ns.GPSData, tci, fx, fy, tx, ty)
+    local pts = road and road.pts or {}
+    for v = 1, #pts - 3, 2 do
+        if ToSegment(px, py, pts[v], pts[v + 1], pts[v + 2], pts[v + 3]) <= OFF_ROUTE_YARDS then return false end
+    end
+    return true
+end
+
+-- The route again from where the player stands, to the same place. A stop
+-- to learn a flight master stays until that master is learned.
+local function Reroute(route)
+    local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
+    local via = route.via and not (known and known[route.via.id]) and route.via or nil
+    local steps, total, advice = GPS:BuildRoute(route.dest, via)
+    if not steps then return end
+    local ci, wx, wy = PlayerWorldPos()
+    CharDB().route = { dest = route.dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
+                       via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil }
+    closing.step = nil
+    if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
+    TrackStep(1)
+end
+
 local function Tick()
     local route = Route()
     if not route or route.arrived then StopTicker() return end
@@ -512,6 +565,18 @@ local function Tick()
     end
     local ci, px, py = PlayerWorldPos()
     if not ci then return end
+    -- Backtracked or wandered off: the route starts over from here.
+    if not (UnitOnTaxi and UnitOnTaxi("player")) and OffRoute(route, ci, px, py) then
+        offRoute.ticks = offRoute.ticks + 1
+        local now = GetTime()
+        if offRoute.ticks >= OFF_ROUTE_TICKS and now - offRoute.at >= REROUTE_EVERY then
+            offRoute.ticks, offRoute.at = 0, now
+            Reroute(route)
+            return
+        end
+    else
+        offRoute.ticks = 0
+    end
     -- A step is done where it lands you (the far side of a portal or a
     -- flight), which is not always where it starts.
     local arrive = step.arrive
@@ -551,7 +616,9 @@ function GPS:NavigateTo(data, opts)
     if not db then return false end
     local dest = Destination(data)
     local steps, total, advice = self:BuildRoute(dest)
-    CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice }
+    local ci, wx, wy = PlayerWorldPos()
+    CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
+                       from = ci and { ci = ci, wx = wx, wy = wy } or nil }
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -579,6 +646,8 @@ function GPS:AddStop(tip)
     if not steps then return end
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
     route.via = via
+    local ci, wx, wy = PlayerWorldPos()
+    route.from = ci and { ci = ci, wx = wx, wy = wy } or nil
     closing.step = nil
     TrackStep(1)
 end
