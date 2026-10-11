@@ -8,7 +8,7 @@ if not ns then return end
 local Route = {}
 ns.GPSRoute = Route
 
-local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
+local msqrt, mmax, mmin, mhuge, mfloor = math.sqrt, math.max, math.min, math.huge, math.floor
 local tinsert, tsort = table.insert, table.sort
 
 local MOUNT_UP = 2          -- seconds to get on a mount
@@ -989,6 +989,7 @@ local ROAD_CELL = 300     -- yards per lookup cell
 local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
 local ROAD_REACH = 1000   -- the start and the end join a road this close
 local OFF_ROAD = 4        -- an off-road yard weighs this many road yards
+local END_TRIM = 50       -- road this close to either end is left for the straight line
 local roadNets = {}
 
 local function RoadNet(data, ci)
@@ -1157,6 +1158,30 @@ local function RoadSearch(net, sx, sy, tx, ty)
         local wx, wy = Pos(w)
         local idx = Add(wx, wy)
         if w <= n then node[idx] = w end
+    end
+    -- Near either end the way cuts straight across, never round a bend
+    -- or past the spot and back.
+    local last = #pts / 2
+    local function Near(k, x, y) return (pts[2 * k - 1] - x) ^ 2 + (pts[2 * k] - y) ^ 2 <= END_TRIM * END_TRIM end
+    local a, b = 1, last
+    for k = last - 1, 2, -1 do
+        if Near(k, sx, sy) then a = k break end
+    end
+    for k = a + 1, last - 1 do
+        if Near(k, tx, ty) then b = k break end
+    end
+    if a > 2 or b < last - 1 then
+        local kept = { 1 }
+        for k = mmax(a, 2), mmin(b, last - 1) do kept[#kept + 1] = k end
+        kept[#kept + 1] = last
+        local was, wasNode, wasOff = pts, node, off
+        pts, node, off, cum = {}, {}, {}, {}
+        for i = 1, #kept do
+            local k, after = kept[i], kept[i + 1]
+            local idx = Add(was[2 * k - 1], was[2 * k])
+            node[idx] = wasNode[k]
+            if after and (after ~= k + 1 or wasOff[k]) then off[idx] = true end
+        end
     end
     return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
 end

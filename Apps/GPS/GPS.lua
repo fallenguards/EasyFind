@@ -833,14 +833,11 @@ local function StepRow(container, i)
         GameTooltip:SetText(self.text:GetText() or "")
         GameTooltip:AddLine(L["GPS_STEP_TT"], 1, 1, 1, true)
         GameTooltip:Show()
-        -- Beside the map, a step previews itself on it; a spell or an item
-        -- pulses its own icon instead.
-        if container.previewOnHover and ns.GPSPreview and self.index then ns.GPSPreview:Show(self.index) end
+        -- A spell or an item pulses its own icon.
         if self.cast and self.cast:IsShown() and self.cast.pulse then self.cast.pulse:Play() end
     end)
     row:SetScript("OnLeave", function(self)
         GameTooltip_Hide()
-        if container.previewOnHover and ns.GPSPreview then ns.GPSPreview:Hide() end
         if self.cast and self.cast.pulse then self.cast.pulse:Stop() end
     end)
     rows[i] = row

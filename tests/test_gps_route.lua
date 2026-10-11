@@ -520,6 +520,19 @@ function tests.roads_followTheRoadThroughTheJunction()
     H.assertDeepEq({ path.pts[5], path.pts[6] }, { 0, 1000 }, "through the junction B")
 end
 
+-- The spot sits 40 yd past the road's bend B, nearer a point C off to the
+-- side: the way leaves the road at B, never runs on to C and back.
+function tests.roads_endCutsStraightNotRoundTheBend()
+    local _, _, Route = fresh()
+    local d = data()
+    d.roads = { [1] = { nodes = { 0, 0, 0, 1000, -20, 1045 }, edges = { 1, 2, 1000, 2, 3, 49 }, shapes = {} } }
+    local path = Route.RoadPath(d, 1, 0, -50, 0, 1040)
+    H.assertTrue(path ~= nil)
+    H.assertEq(#path.pts / 2, 4, "start, A, B, end")
+    H.assertDeepEq({ path.pts[5], path.pts[6] }, { 0, 1000 }, "leaves the road at B")
+    H.assertEq(math.floor(path.len + 0.5), 1090)
+end
+
 function tests.roads_noneOrNoHelpGivesNoPath()
     local _, _, Route = fresh()
     H.assertNil(Route.RoadPath(data(), 1, 0, 0, 500, 500), "no roads in the data")
