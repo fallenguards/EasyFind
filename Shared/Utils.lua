@@ -3026,13 +3026,16 @@ function ns.UpdateThemeArtCrop(frame)
     if w <= 0 or fh <= 0 then return end
     local c = barH / 2
     local atlas = frame._efArtAtlas
-    local sx, sy = 1 / ART_TEXTURE_SIZE, 1 / ART_TEXTURE_SIZE
+    local tile = frame._efArtTile
+    local sx, sy = 1 / (tile or ART_TEXTURE_SIZE), 1 / (tile or ART_TEXTURE_SIZE)
     if atlas then sx, sy = AtlasSteps(atlas, w, fh) end
     local x1, x2 = c * sx, (w - c) * sx
     local y1, y2 = c * sy, (fh - c) * sy
     local xe, ye = w * sx, fh * sy
-    if xe > 1 then xe = 1 end
-    if ye > 1 then ye = 1 end
+    if not tile then
+        if xe > 1 then xe = 1 end
+        if ye > 1 then ye = 1 end
+    end
     if x1 > xe then x1 = xe end
     if x2 > xe then x2 = xe end
     if y1 > ye then y1 = ye end
@@ -3174,9 +3177,13 @@ function ns.ApplyThemeFill(frame)
     if artPath then
         local cells = EnsureThemeArtOverlay(frame)
         frame._efArtAtlas = atlasInfo
-        if cells.mm:SetTexture(artPath) then
+        -- A tiling texture repeats at its own size instead of one stretched crop.
+        local tile = not atlasInfo and palette.fillTile or nil
+        frame._efArtTile = tile
+        local wrap = tile and "REPEAT" or nil
+        if cells.mm:SetTexture(artPath, wrap, wrap) then
             for name, cell in pairs(cells) do
-                cell:SetTexture(artPath)
+                cell:SetTexture(artPath, wrap, wrap)
                 cell:SetVertexColor(1, 1, 1, 1)
                 cell:Show()
             end
@@ -3328,10 +3335,21 @@ function ns.StyleWizardPanel(frame, alpha)
     if ns.ApplyClassicChrome(frame, frame._efWizardAlpha, "dialog") then return end
     ns.SetRoundedRectBarHeight(frame, 16)
     ns.SetRoundedRectBorderEdgeShown(frame, false)
-    local base = ns.SEARCH_WINDOW_FILL_COLOR
-    ns.SetRoundedRectFill(frame, base[1] * 0.8, base[2] * 0.8, base[3] * 0.8, 1, true)
-    ns.SetRoundedRectBorderBgAlpha(frame, frame._efWizardAlpha)
-    ns.ApplyWizardPanelGloss(frame)
+    -- A theme with background art (Forever's quest log page, Classic's
+    -- marble) wears it here as the search window does; the rest the gloss.
+    local pal = ns.ACTIVE_UI_PALETTE
+    if pal and (pal.fillAtlas or pal.fillTexture) then
+        ns.ApplyThemeFill(frame)
+        ns.SetRoundedRectBorderBgAlpha(frame, frame._efWizardAlpha)
+    else
+        if frame._efArtCells then
+            for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+        end
+        local base = ns.SEARCH_WINDOW_FILL_COLOR
+        ns.SetRoundedRectFill(frame, base[1] * 0.8, base[2] * 0.8, base[3] * 0.8, 1, true)
+        ns.SetRoundedRectBorderBgAlpha(frame, frame._efWizardAlpha)
+        ns.ApplyWizardPanelGloss(frame)
+    end
     if not frame._efWizardGlossHooked then
         frame._efWizardGlossHooked = true
         frame:HookScript("OnSizeChanged", ns.ApplyWizardPanelGloss)

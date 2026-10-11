@@ -203,6 +203,10 @@ ns.UI_THEME_PALETTES = {
     -- main text and white on hover as the 1.x menus had.
     Classic = {
         chrome = "classic",
+        -- The black marble behind the client's lists, tiled at its own size:
+        -- the background with or without the frame art.
+        fillTexture = "Interface\\FrameGeneral\\UI-Background-Marble",
+        fillTile = 256,
         windowFill = {0.055, 0.055, 0.105},
         windowFillBottom = {0.035, 0.035, 0.075},
         windowFillTop = {0.075, 0.075, 0.135},
