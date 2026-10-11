@@ -987,7 +987,7 @@ end
 
 local ROAD_CELL = 300     -- yards per lookup cell
 local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
-local ROAD_REACH = 1000   -- the start and the end join a road this close
+local ROAD_REACH = 2000   -- the start and the end join a road this close (a city has none)
 local OFF_ROAD = 4        -- an off-road yard weighs this many road yards
 local END_TRIM = 50       -- road this close to either end is left for the straight line
 local roadNets = {}

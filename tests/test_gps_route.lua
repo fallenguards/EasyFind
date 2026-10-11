@@ -533,6 +533,14 @@ function tests.roads_endCutsStraightNotRoundTheBend()
     H.assertEq(math.floor(path.len + 0.5), 1090)
 end
 
+-- A walk from inside a city (no roads in it) joins the road 1500 yd off.
+function tests.roads_farStartStillReachesTheRoad()
+    local _, _, Route = fresh()
+    local path = Route.RoadPath(roadData(), 1, -1500, 0, 1050, 1000)
+    H.assertTrue(path ~= nil, "the road 1500 yd away is taken")
+    H.assertDeepEq({ path.pts[3], path.pts[4] }, { 0, 0 }, "joins at A")
+end
+
 function tests.roads_noneOrNoHelpGivesNoPath()
     local _, _, Route = fresh()
     H.assertNil(Route.RoadPath(data(), 1, 0, 0, 500, 500), "no roads in the data")
