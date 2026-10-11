@@ -1485,6 +1485,7 @@ local function BuildPage3(parent)
 end
 
 local BANNER_H = 29
+local CLASSIC_EDGE = 14   -- clear of the Classic dialog border (11 to 12 px thick)
 
 local function CreateFrameOnce()
     if frame then return frame end
@@ -1534,19 +1535,30 @@ local function CreateFrameOnce()
 
     local BANNER_INSET = 5
     local footer = CreateFrame("Frame", nil, f)
-    footer:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  BANNER_INSET, BANNER_INSET)
-    footer:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -BANNER_INSET, BANNER_INSET)
     footer:SetHeight(BANNER_H)
     ns.CreateRoundedRectBorder(footer)
     ns.SetRoundedRectBarHeight(footer, 12)
     ns.SetRoundedRectBorderBgAlpha(footer, 1)
     ns.SetRoundedRectFill(footer, ns.SECTION_TABLE_FILL[1], ns.SECTION_TABLE_FILL[2], ns.SECTION_TABLE_FILL[3], 1, true)
-    ns.SetRoundedRectBorderEdgeShown(footer, false)
+    -- Ring off as a wish, so leaving the Classic frame keeps it off.
+    ns.SetRoundedRectRingShown(footer, false)
     footer._efControlFillKind = "SECTION_TABLE_FILL"
     footer._efControlFillAlpha = 1
     RepaintFooter = function()
         local fr, fg, fb = ThemeBandFill()
         ns.SetRoundedRectFill(footer, fr, fg, fb, 1, true)
+        -- Classic: the band wears the 1.x frame too, and it, the pages and
+        -- the X sit inside the window's thick dialog border.
+        ns.ApplyClassicChrome(footer, 1)
+        local classic = ns.IsClassicChrome()
+        local inset = classic and CLASSIC_EDGE or BANNER_INSET
+        footer:ClearAllPoints()
+        footer:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  inset, inset)
+        footer:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -inset, inset)
+        pageHost:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, inset + BANNER_H + 4)
+        local xPad = classic and CLASSIC_EDGE or 10
+        closeBtn:ClearAllPoints()
+        closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -xPad, -xPad)
     end
     RepaintFooter()
 

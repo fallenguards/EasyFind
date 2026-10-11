@@ -2212,6 +2212,8 @@ local function BuildSearchTab(ctx)
     -- Bottom rides the panel inset the sidebar uses (10), so the reset
     -- row's bottom lines up with the sidebar's bottom edge.
     resetUIBtn:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, 10)
+    optionsFrame.resetButtons = optionsFrame.resetButtons or {}
+    optionsFrame.resetButtons[#optionsFrame.resetButtons + 1] = resetUIBtn
     resetUIBtn:SetText(L["OPT_RESET_SETTINGS"])
     resetUIBtn:SetScript("OnClick", function()
         ShowResetConfirm(L["POPUP_RESET_UI_SEARCH_SETTINGS"], function() Options:DoResetUI() end)
@@ -3582,6 +3584,8 @@ local function BuildAliasesTab(ctx)
     -- Bottom rides the panel inset the sidebar uses (10), so the reset
     -- row's bottom lines up with the sidebar's bottom edge.
     resetAllBtn:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, 10)
+    optionsFrame.resetButtons = optionsFrame.resetButtons or {}
+    optionsFrame.resetButtons[#optionsFrame.resetButtons + 1] = resetAllBtn
     resetAllBtn:SetText(L["OPT_RESET_ALL_SETTINGS"])
     resetAllBtn:SetScript("OnClick", function()
         Options:ConfirmResetAll()
@@ -4734,6 +4738,7 @@ function Options:Initialize()
     local FRAME_W    = WINDOW_W - SIDEBAR_W - 46
     local COL_LEFT   = 4
     local SIDEBAR_BOTTOM_INSET = 10
+    local CLASSIC_EDGE = 14   -- clear of the Classic dialog border (11 to 12 px thick)
     local CONTENT_BOTTOM_INSET = 14
     local LIST_CARD_SIDE_INSET = 8
     -- ONE owner for the tab list-card bottom edge (aliases, blacklist,
@@ -4800,6 +4805,7 @@ function Options:Initialize()
         if self.bgTex then
             ns.StyleWizardPanel(self.bgTex, 1)
             if ns.ApplyClassicHeader then ns.ApplyClassicHeader(self.bgTex, "EasyFind") end
+            if self.PlaceFrameEdges then self.PlaceFrameEdges() end
             local theme = ns.Results and ns.Results:GetActiveTheme()
             self.bgTex:SetAlpha((theme and theme.lightTheme) and 1 or OPTIONS_PANEL_ALPHA)
         end
@@ -4910,6 +4916,20 @@ function Options:Initialize()
     closeBtn:SetPoint("TOPRIGHT", -10, -10)
     closeBtn:SetScript("OnClick", function() optionsFrame:Hide() end)
     optionsFrame.closeBtn = closeBtn
+
+    -- The Classic dialog border is thicker than the rounded edge: the X,
+    -- the sidebar and the reset row step in clear of it.
+    function optionsFrame.PlaceFrameEdges()
+        local pad = ns.IsClassicChrome() and CLASSIC_EDGE or 10
+        closeBtn:ClearAllPoints()
+        closeBtn:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -pad, -pad)
+        sidebar:ClearAllPoints()
+        sidebar:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", pad, -pad)
+        sidebar:SetPoint("BOTTOMLEFT", optionsFrame, "BOTTOMLEFT", pad, pad)
+        for _, btn in ipairs(optionsFrame.resetButtons or {}) do
+            btn:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, pad)
+        end
+    end
 
     local contentBorder = CreateFrame("Frame", nil, optionsFrame)
     -- Every tab's content fills this frame, so this TOP offset IS the shared
