@@ -447,3 +447,33 @@ driver:SetScript("OnUpdate", function(_, dt)
     since = 0
     Draw()
 end)
+
+-- For the dev tools: what a step's preview would draw, and where it stops.
+function Preview:Status(index)
+    local out = {}
+    local function P(p)
+        if not p then return "nil" end
+        return string.format("m %s %.3f,%.3f ci %s world %s,%s", tostring(p.m), p.x or -1, p.y or -1, tostring(p.ci),
+            tostring(p.wx and math.floor(p.wx)), tostring(p.wy and math.floor(p.wy)))
+    end
+    local route = Route()
+    local frameMap = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
+    out[#out + 1] = string.format("route %s, %s steps | shown index %s pinned %s map %s | world map shown %s on map %s | overlay %s",
+        tostring(route ~= nil), tostring(route and route.steps and #route.steps), tostring(shownIndex), tostring(pinned),
+        tostring(shownMap), tostring(WorldMapFrame and WorldMapFrame:IsShown()), tostring(frameMap),
+        tostring(overlay and overlay:IsShown()))
+    local step = route and route.steps and index and route.steps[index]
+    if not step then
+        out[#out + 1] = "no step " .. tostring(index)
+        return out
+    end
+    local start, target = StartOf(route, index), step.go or step.arrive
+    local mapID = MapOf(route, index)
+    out[#out + 1] = string.format("step %d %s: start %s | target %s", index, tostring(step.kind), P(start), P(target))
+    local a, b = mapID and OnCanvas(start, mapID), mapID and OnCanvas(target, mapID)
+    local road = mapID and step.kind == "travel" and RoadPoints(route, index, start, target, mapID)
+    out[#out + 1] = string.format("map %s: start on it %s, target on it %s, road points %s", tostring(mapID),
+        a and string.format("%.0f,%.0f", a[1], a[2]) or "no", b and string.format("%.0f,%.0f", b[1], b[2]) or "no",
+        road and tostring(#road / 2) or "none")
+    return out
+end
