@@ -660,5 +660,29 @@ function tests.walk_inOneZoneOrWithoutAGridStaysOneStep()
     H.assertEq(#Bare.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "no walking grid")
 end
 
+-- Avoiding flights: the route walks instead, its time the walk's own.
+function tests.avoid_flightsWalksInstead()
+    local _, _, Route = fresh()
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local flown = build(Route, P(1, 0.1, 0.1), dest)
+    H.assertEq(flown[1].kind, "taxi", "flying is fastest")
+    local steps, total = build(Route, P(1, 0.1, 0.1), dest, { avoid = { taxi = true } })
+    H.assertEq(steps[1].kind, "travel", "walks when flights are avoided")
+    H.assertTrue(total < 3600, "no penalty in the time shown: " .. tostring(total))
+end
+
+-- With nothing else that gets there, an avoided way is still taken, and
+-- its time is its own.
+function tests.avoid_stillTakenWhenNothingElseGetsThere()
+    local _, ns, Route = fresh()
+    withNav(ns, function() return nil end)
+    local d = data()
+    d.edges, d.abilities = {}, {}
+    local steps, total = build(Route, P(1, 0.1, 0.1), { name = "Far corner", mapID = 1, x = 0.9, y = 0.9 },
+                               { data = d, avoid = { taxi = true } })
+    H.assertEq(steps[1].kind, "taxi", "the flight is the only way")
+    H.assertTrue(total < 3600, "no penalty in the time shown: " .. tostring(total))
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -235,7 +235,9 @@ function GPS:BuildRoute(dest, via)
     local Route = ns.GPSRoute
     if Route and ns.GPSData then
         local h = HearthPoint()
-        local ok, steps, total, advice = pcall(Route.Build, Route, dest, { hearth = h and { point = h } or nil, via = via })
+        local db = DB()
+        local ok, steps, total, advice = pcall(Route.Build, Route, dest,
+            { hearth = h and { point = h } or nil, via = via, avoid = db and db.gpsAvoid or nil })
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
             return SplitWalks(steps, dest), total, advice
@@ -3023,6 +3025,29 @@ local function BuildOptionsPage(ctx, page)
         end,
         "EasyFindGPSBeaconStyle", WorldPin and WorldPin.DefaultStyle() or "calm", L["GPS_BEACON_STYLE_TT"])
     row:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
+    if not ctx.CreateCheckbox then return end
+    -- Ways of travel a route leaves out unless nothing else gets there.
+    local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    head:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -14)
+    head:SetText(L["GPS_AVOID"])
+    local prev = head
+    for _, kind in ipairs({ "taxi", "boat", "zeppelin", "portal", "teleport" }) do
+        local box = ctx.CreateCheckbox(page, "GPSAvoid" .. kind, L["GPS_AVOID_" .. kind:upper()], L["GPS_AVOID_TT"], true)
+        box:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, prev == head and -4 or 0)
+        local db = DB()
+        box:SetChecked(db and db.gpsAvoid and db.gpsAvoid[kind] or false)
+        if box.RefreshVisual then box:RefreshVisual() end
+        box:SetScript("OnClick", function(self)
+            local d = DB()
+            if not d then return end
+            d.gpsAvoid = d.gpsAvoid or {}
+            d.gpsAvoid[kind] = self:GetChecked() or nil
+            if self.RefreshVisual then self:RefreshVisual() end
+            local route = Route()
+            if route and not route.arrived then Reroute(route) end
+        end)
+        prev = box
+    end
 end
 
 if ns.RegisterExtensionPage then

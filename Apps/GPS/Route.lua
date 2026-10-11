@@ -16,6 +16,10 @@ local BOARD_TAXI = 4        -- seconds at the flight master
 local ABILITY_WAIT_MAX = 600 -- a cooldown longer than this is not worth waiting for
 local TELEPORT_MIN_YARDS = 1000 -- a teleport landing closer than this to the start is no trip
 local HOSTILE_SECONDS = 1800 -- the other faction's boat or zeppelin: a last resort, never banned
+local AVOID_SECONDS = 3600  -- a way the player chose to avoid: taken only when nothing else gets there
+-- Which avoid setting each way of travel answers to.
+local AVOID_KIND = { taxi = "taxi", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
+                     portal = "portal", tram = "portal", teleport = "teleport" }
 local WALK_DETOUR = 1.2     -- without the walking grid: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
 local SUGGEST_MIN_SECONDS = 60
@@ -114,8 +118,11 @@ local function Landmass(data, p)
 end
 
 -- ctx: start, goal, faction, canFly, data, cooldown(ability) -> seconds left,
--- known and listed { nodeID = true } (nil: every node learned / exists)
+-- known and listed { nodeID = true } (nil: every node learned / exists),
+-- avoid { taxi, boat, zeppelin, portal, teleport = true }
 local function BuildGraph(ctx)
+    local avoid = ctx.avoid or {}
+    local function Avoided(kind) return avoid[AVOID_KIND[kind] or kind] and AVOID_SECONDS or 0 end
     local data = ctx.data
     local speeds = data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
     local travelSpeed = ctx.canFly and speeds.fly or (ctx.groundSpeed or speeds.mount or 14)
@@ -158,13 +165,14 @@ local function BuildGraph(ctx)
             -- taxi speed; else the global one.
             local ci = nodes[ia].p.ci
             local sec = flown or ((yd or 0) / (taxiByCi[ci] or speeds.taxi or 32))
+            local pen = Avoided("taxi")
             if not nodes[ib].unknown then
                 legs[ia] = legs[ia] or {}
-                tinsert(legs[ia], { to = ib, sec = sec })
+                tinsert(legs[ia], { to = ib, sec = sec, pen = pen })
             end
             if not nodes[ia].unknown then
                 legs[ib] = legs[ib] or {}
-                tinsert(legs[ib], { to = ia, sec = sec })
+                tinsert(legs[ib], { to = ia, sec = sec, pen = pen })
             end
         end
     end
@@ -189,11 +197,12 @@ local function BuildGraph(ctx)
                 local fi = AddNode(f, "edgeFrom", { edge = e })
                 local ti = AddNode(t, "edgeTo", { edge = e })
                 local sec = (e.sec or 10) + (e.wait or 0) + (hostile and HOSTILE_SECONDS or 0)
+                local pen = Avoided(e.kind)
                 hops[fi] = hops[fi] or {}
-                tinsert(hops[fi], { to = ti, sec = sec, edge = e, hostile = hostile or nil })
+                tinsert(hops[fi], { to = ti, sec = sec, pen = pen, edge = e, hostile = hostile or nil })
                 if e.bidir then
                     hops[ti] = hops[ti] or {}
-                    tinsert(hops[ti], { to = fi, sec = sec, edge = e, reverse = true, hostile = hostile or nil })
+                    tinsert(hops[ti], { to = fi, sec = sec, pen = pen, edge = e, reverse = true, hostile = hostile or nil })
                 end
             end
         end
@@ -232,7 +241,8 @@ local function BuildGraph(ctx)
                     if ok and info and info.castTime and info.castTime > 0 then cast = info.castTime / 1000 end
                 end
                 local ti = AddNode(dest, "teleportTo", { ability = a })
-                tinsert(teleports, { to = ti, sec = wait + cast + 8 + ((a.guess or a.approx) and 20 or 0), ability = a })
+                tinsert(teleports, { to = ti, sec = wait + cast + 8 + ((a.guess or a.approx) and 20 or 0),
+                                     pen = Avoided("teleport"), ability = a })
             end
         end
     end
@@ -307,21 +317,22 @@ local function Neighbors(g, i, out, noWalk)
     if legs then
         for j = 1, #legs do
             k = k + 1
-            out[k] = { to = legs[j].to, sec = BOARD_TAXI + legs[j].sec, kind = "taxi" }
+            out[k] = { to = legs[j].to, sec = BOARD_TAXI + legs[j].sec, pen = legs[j].pen, kind = "taxi" }
         end
     end
     local hops = g.hops[i]
     if hops then
         for j = 1, #hops do
             k = k + 1
-            out[k] = { to = hops[j].to, sec = hops[j].sec, kind = hops[j].edge.kind, edge = hops[j].edge, reverse = hops[j].reverse,
-                       hostile = hops[j].hostile }
+            out[k] = { to = hops[j].to, sec = hops[j].sec, pen = hops[j].pen, kind = hops[j].edge.kind, edge = hops[j].edge,
+                       reverse = hops[j].reverse, hostile = hops[j].hostile }
         end
     end
     if i == g.start then
         for j = 1, #g.teleports do
             k = k + 1
-            out[k] = { to = g.teleports[j].to, sec = g.teleports[j].sec, kind = "teleport", ability = g.teleports[j].ability }
+            out[k] = { to = g.teleports[j].to, sec = g.teleports[j].sec, pen = g.teleports[j].pen, kind = "teleport",
+                       ability = g.teleports[j].ability }
         end
     end
     return k
@@ -353,7 +364,7 @@ local function Dijkstra(g)
         for j = 1, count do
             local e = scratch[j]
             local to = e.kind == "travel" and e.to + n or e.to
-            local nd = bestD + e.sec
+            local nd = bestD + e.sec + (e.pen or 0)
             if nd < dist[to] then
                 dist[to], prev[to], prevEdge[to] = nd, best, e
             end
@@ -390,15 +401,16 @@ local function Solve(g)
     return Dijkstra(g)
 end
 
--- Path seconds, each walk priced on the walking grid where it has one.
-local function RoadSeconds(g, path)
+-- Path cost in seconds (avoided ways' penalties in), each walk priced on
+-- the walking grid where it has one.
+local function PathSeconds(g, path)
     local total = 0
     for i = 1, #path do
         local e = path[i].edge
         if g.nav and e.kind == "travel" then
             e.sec, e.wind = PriceWalk(g, i > 1 and path[i - 1].node or g.start, path[i].node)
         end
-        total = total + e.sec
+        total = total + e.sec + (e.pen or 0)
     end
     return total
 end
@@ -699,7 +711,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         local trip = trips[i]
         if best and trip.most <= best.save then break end
         local path2 = Solve(trip.g)
-        local t2 = path2 and RoadSeconds(trip.g, path2) or mhuge
+        local t2 = path2 and PathSeconds(trip.g, path2) or mhuge
         local save = total - t2
         if save >= SUGGEST_MIN_SECONDS and save >= total / 6 and (not best or save > best.save) then
             best = { id = trip.c.id, name = trip.c.n.name, p = trip.c.n.p, save = save, total = t2 }
@@ -905,6 +917,7 @@ function Route:Build(dest, opts)
         canFly = opts.canFly,
         groundSpeed = opts.groundSpeed,
         hearth = opts.hearth,
+        avoid = opts.avoid,
         bindName = opts.bindName or (GetBindLocation and GetBindLocation()) or nil,
         known = known,
         listed = listed,
@@ -954,7 +967,7 @@ function Route:Build(dest, opts)
     g.zoneGoal = dest.zone and true or nil
     local path = Solve(g)
     if not path then return nil end
-    local cost = RoadSeconds(g, path)
+    local cost = PathSeconds(g, path)
     local steps = Steps(g, path, dest.name)
     local total = 0
     for i = 1, #steps do total = total + (steps[i].sec or 0) end

@@ -5287,6 +5287,7 @@ function Options:Initialize()
         MakeKeybindTooltip = MakeKeybindTooltip, StartCapture = StartCapture,
         SELECTOR_ROW_W = SELECTOR_ROW_W, SELECTOR_BTN_W = SELECTOR_BTN_W,
         CreateFlyoutPresetRow = CreateFlyoutPresetRow,
+        CreateCheckbox = CreateCheckbox,
         RESET_BTN_W = RESET_BTN_W,
         AnchorListCardBottom = AnchorListCardBottom,
     }
