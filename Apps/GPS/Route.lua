@@ -271,7 +271,7 @@ local function PriceWalk(g, i, j)
     else
         local way = Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
         if way then
-            sec, wind = g.mountUp + way.cost / g.travelSpeed, way.len / straight
+            sec, wind = g.mountUp + way.time / g.travelSpeed, way.len / straight
         elseif way == false then
             sec = mhuge
         else
@@ -1001,7 +1001,7 @@ local WALK_PATHS_KEPT = 128
 local walkPaths, walkPathCount = {}, 0
 
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
--- so far), len (yards walked), cost (running yards: swimming counts more) },
+-- so far), len (yards walked), time (running yards: swimming takes longer) },
 -- false when no way leads there, nil without walking data for ci.
 function Route.WalkPath(ci, sx, sy, tx, ty)
     local Nav = ns.GPSNav
@@ -1010,13 +1010,13 @@ function Route.WalkPath(ci, sx, sy, tx, ty)
     local path = walkPaths[key]
     if path == nil then
         if walkPathCount >= WALK_PATHS_KEPT then walkPaths, walkPathCount = {}, 0 end
-        local pts, cost = Nav.Path(ci, sx, sy, tx, ty)
+        local pts, _, time = Nav.Path(ci, sx, sy, tx, ty)
         if pts then
             local cum = { 0 }
             for v = 2, #pts / 2 do
                 cum[v] = cum[v - 1] + msqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
             end
-            path = { pts = pts, cum = cum, len = cum[#cum], cost = cost }
+            path = { pts = pts, cum = cum, len = cum[#cum], time = time or cum[#cum] }
         else
             path = false
         end

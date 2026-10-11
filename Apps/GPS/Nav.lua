@@ -17,7 +17,11 @@ local TILE = 1600 / 3
 local ORIGIN = 32 * TILE
 local TILES_KEPT = 12              -- unpacked tiles held at once
 local SNAP_CELLS = 6               -- a point off the grid takes a floor this many cells away
-local SWIM_WEIGHT = 7.0 / 4.72     -- swimming against running: the game's swim and run speeds
+-- Walking weights, the same in dev/tools/navmesh/grid.py: swimming at the
+-- game's swim speed against running, and off the road a quarter more, so a
+-- walk leaves a road only to save over a fifth.
+local SWIM_WEIGHT = 7.0 / 4.72
+local OFF_ROAD_WEIGHT = 1.25
 local DIAG = 1.41421356
 
 -- Unpacking -----------------------------------------------------------------
@@ -89,9 +93,15 @@ local function DecodeTile(w, key)
             nc[f] = mfloor(b / 32)
         end
     end
+    -- Road cells: a bit each after the floors, low bit first.
+    local road = {}
+    for c = 0, N * N - 1 do
+        local b = sbyte(raw, pos + mfloor(c / 8))
+        if b and mfloor(b / 2 ^ (c % 8)) % 2 == 1 then road[c] = true end
+    end
     local tx, ty = mfloor(key / 64), key % 64
     local t = { key = key, tx = tx, ty = ty, N = N, nf = f, cellFirst = cellFirst, cellN = cellN,
-                fcell = fcell, flag = flag, wc = wc, nc = nc,
+                fcell = fcell, flag = flag, wc = wc, nc = nc, road = road,
                 sx = ORIGIN - ty * TILE - TILE, sy = ORIGIN - tx * TILE - TILE }
     -- Links inside the tile, all four ways: west and north from the data,
     -- east and south their reverse (the lowest floor first; when several
@@ -186,7 +196,9 @@ local function Step(w, t, g, d)
     return nil
 end
 
-local function Weight(t, g) return t.flag[g] % 2 == 1 and SWIM_WEIGHT or 1 end
+-- What a yard on floor g costs to choose; Swim what it costs in time.
+local function Swim(t, g) return t.flag[g] % 2 == 1 and SWIM_WEIGHT or 1 end
+local function Weight(t, g) return Swim(t, g) * (t.road[t.fcell[g]] and 1 or OFF_ROAD_WEIGHT) end
 
 -- The floor under (x, y): indoors an indoor one, else one outdoors, else
 -- the highest; off the grid the nearest within SNAP_CELLS (or snap).
@@ -487,8 +499,8 @@ local function Clear(w, t, a, b)
 end
 
 -- Floor path inside tile t from a to b, pulled straight: world points
--- appended to out.
-local function TilePath(w, t, a, b, out)
+-- appended to out; acc gains the cell walk's yards (len) and time (time).
+local function TilePath(w, t, a, b, out, acc)
     local _, prev = TileSearch(w, t, a, b)
     if a ~= b and not prev[b] then return false end
     local cells = {}
@@ -497,6 +509,13 @@ local function TilePath(w, t, a, b, out)
         tinsert(cells, 1, g)
         if g == a then break end
         g = prev[g]
+    end
+    local N, cell = w.N, w.cell
+    for k = 2, #cells do
+        local c1, c2 = t.fcell[cells[k - 1]], t.fcell[cells[k]]
+        local step = (mfloor(c1 / N) ~= mfloor(c2 / N) and c1 % N ~= c2 % N) and DIAG * cell or cell
+        acc.len = acc.len + step
+        acc.time = acc.time + step * (Swim(t, cells[k - 1]) + Swim(t, cells[k])) / 2
     end
     local i = 1
     local function emit(f)
@@ -513,7 +532,8 @@ local function TilePath(w, t, a, b, out)
     return true
 end
 
--- The walk's points { x1, y1, x2, y2, ... } from a to b and its cost, or nil.
+-- The walk's points { x1, y1, x2, y2, ... } from a to b, its cost (the
+-- yards it was chosen by) and its time in running yards, or nil.
 function Nav.Path(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
@@ -521,13 +541,14 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     if not cost then return nil end
     local ents = Entrances(w)
     local out = { ax, ay }
+    local acc = { len = 0, time = 0 }
     local t, g = ta, ga
     local k = 1
     while chain and k <= #chain do
         local node = chain[k]
         local key = ents.key[node]
         if key ~= t.key then return nil end
-        if not TilePath(w, t, g, ents.floor[node], out) then return nil end
+        if not TilePath(w, t, g, ents.floor[node], out, acc) then return nil end
         -- Across: the next node is the other side when the walk crosses here.
         local nxt = chain[k + 1]
         if nxt == Other(node) then
@@ -542,9 +563,11 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     end
     if t.key ~= tb.key then return nil end
     t = Tile(w, tb.key)
-    if not TilePath(w, t, g, gb, out) then return nil end
+    if not TilePath(w, t, g, gb, out, acc) then return nil end
     out[#out + 1], out[#out + 2] = bx, by
-    return out, cost
+    local len = 0
+    for v = 3, #out, 2 do len = len + msqrt((out[v] - out[v - 2]) ^ 2 + (out[v + 1] - out[v - 1]) ^ 2) end
+    return out, cost, acc.len > 0 and len * acc.time / acc.len or len
 end
 
 -- Probe (dev tools, tests): the tile and floor under a point (exact: its
