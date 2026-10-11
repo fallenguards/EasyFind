@@ -10,13 +10,12 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local matan2, msqrt, mfloor, mmax = math.atan2, math.sqrt, math.floor, math.max
+local matan2, msqrt = math.atan2, math.sqrt
 local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
 -- and shrinks with the zoom, so each is converted at draw time.
 local LINE_W = 5
-local DASH, GAP = 18, 10           -- a dashed line: dash length and the gap after it
 local ARROW, START = 32, 36
 local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at each change of ride
 
@@ -27,10 +26,9 @@ local RED = { 1, 0.22, 0.16 }
 -- Each ride in its own color; a walk is red.
 local MODE_COLOR = { taxi = { 1, 0.78, 0.1 }, boat = { 0.3, 0.68, 1 }, ferry = { 0.3, 0.68, 1 },
                      zeppelin = { 0.45, 0.85, 0.35 }, skyship = { 0.45, 0.85, 0.35 }, tram = { 0.78, 0.78, 0.78 } }
-local WHITE = "Interface\\Buttons\\WHITE8x8"
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 
-local overlay, pool, solids, marks, syms
+local overlay, solids, marks, syms
 local shownMap, shownIndex
 local since = 0
 
@@ -53,7 +51,6 @@ local function Build()
     overlay:SetFrameStrata("HIGH")
     overlay:SetFrameLevel(300)
     overlay:EnableMouse(false)
-    pool = {}
     solids = {}
     marks = { start = overlay:CreateTexture(nil, "OVERLAY", nil, 2), stop = overlay:CreateTexture(nil, "OVERLAY", nil, 3) }
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
@@ -72,16 +69,6 @@ local function PortalAtlas()
     return faction == "Horde" and "MagePortalHorde" or "MagePortalAlliance"
 end
 
-
-local function Line(i)
-    local t = pool[i]
-    if not t then
-        t = overlay:CreateTexture(nil, "OVERLAY", nil, 1)
-        t:SetTexture(WHITE)
-        pool[i] = t
-    end
-    return t
-end
 
 local function Sym(i)
     local t = syms[i]
@@ -208,9 +195,9 @@ local function Draw()
         return
     end
     local accent = Accent()
-    local n, nSolid, nSym = 0, 0, 0
+    local nSolid, nSym = 0, 0
     local hovered
-    local lineW, dash, gap, arrow = px(LINE_W), px(DASH), px(GAP), px(ARROW)
+    local lineW, arrow = px(LINE_W), px(ARROW)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
     local poly = {}
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
@@ -254,50 +241,28 @@ local function Draw()
                 -- its spot, so the line runs to it.
                 local headed = (all and i == #route.steps) or (i == shownIndex and not SymbolOf(route, i))
                 local usable = total - (headed and arrow * 0.9 or 0)
-                if step.kind == "travel" then
-                    -- A walk: one solid line, stretch by stretch.
-                    local walked = 0
-                    for v = 1, m - 3, 2 do
-                        local x1, y1, x2, y2 = poly[v], poly[v + 1], poly[v + 2], poly[v + 3]
-                        local dx, dy = x2 - x1, y2 - y1
-                        local len = msqrt(dx * dx + dy * dy)
-                        if len > 0 and walked < usable then
-                            lastDx, lastDy = dx, dy
-                            if walked + len > usable then
-                                local f = (usable - walked) / len
-                                x2, y2 = x1 + dx * f, y1 + dy * f
-                            end
-                            nSolid = nSolid + 1
-                            local s = Solid(nSolid)
-                            s:SetThickness(lineW * 0.8)
-                            s:SetStartPoint("TOPLEFT", overlay, x1, y1)
-                            s:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                            s:SetColorTexture(color[1], color[2], color[3], alpha)
-                            s:Show()
+                -- One solid line, stretch by stretch: a walk follows its
+                -- road, a ride runs straight; each in its mode's color.
+                local walked = 0
+                for v = 1, m - 3, 2 do
+                    local x1, y1, x2, y2 = poly[v], poly[v + 1], poly[v + 2], poly[v + 3]
+                    local dx, dy = x2 - x1, y2 - y1
+                    local len = msqrt(dx * dx + dy * dy)
+                    if len > 0 and walked < usable then
+                        lastDx, lastDy = dx, dy
+                        if walked + len > usable then
+                            local f = (usable - walked) / len
+                            x2, y2 = x1 + dx * f, y1 + dy * f
                         end
-                        walked = walked + len
+                        nSolid = nSolid + 1
+                        local sl = Solid(nSolid)
+                        sl:SetThickness(lineW * 0.8)
+                        sl:SetStartPoint("TOPLEFT", overlay, x1, y1)
+                        sl:SetEndPoint("TOPLEFT", overlay, x2, y2)
+                        sl:SetColorTexture(color[1], color[2], color[3], alpha)
+                        sl:Show()
                     end
-                else
-                    -- A flight or a crossing: dashes along the straight leg,
-                    -- stretched a little so the last one ends at the end.
-                    local x1, y1, dx, dy = poly[1], poly[2], poly[3] - poly[1], poly[4] - poly[2]
-                    local ux, uy = dx / total, dy / total
-                    local angle = matan2(dy, dx)
-                    lastDx, lastDy = dx, dy
-                    local count = usable > 1 and mmax(1, mfloor((usable + gap) / (dash + gap) + 0.5)) or 0
-                    local fit = count > 0 and usable / (count * dash + (count - 1) * gap) or 0
-                    local d, g = dash * fit, gap * fit
-                    for k = 0, count - 1 do
-                        local pos = k * (d + g)
-                        n = n + 1
-                        local t = Line(n)
-                        t:ClearAllPoints()
-                        t:SetSize(d, lineW)
-                        t:SetPoint("CENTER", overlay, "TOPLEFT", x1 + ux * (pos + d / 2), y1 + uy * (pos + d / 2))
-                        t:SetRotation(angle)
-                        t:SetVertexColor(color[1], color[2], color[3], alpha)
-                        t:Show()
-                    end
+                    walked = walked + len
                 end
             end
         end
@@ -316,7 +281,6 @@ local function Draw()
             hovered = { a = a, b = b, target = target, step = step, dx = lastDx, dy = lastDy, symbol = SymbolOf(route, i) }
         end
     end
-    for i = n + 1, #pool do pool[i]:Hide() end
     for i = nSolid + 1, #solids do solids[i]:Hide() end
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
