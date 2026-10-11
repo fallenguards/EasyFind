@@ -3101,8 +3101,12 @@ local function BuildOptionsPage(ctx, page)
     head:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
-    for _, kind in ipairs({ "taxi", "boat", "zeppelin", "portal", "teleport" }) do
-        local box = ctx.CreateCheckbox(page, "GPSAvoid" .. kind, L["GPS_AVOID_" .. kind:upper()], L["GPS_AVOID_TT"], true)
+    local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }
+    -- Danger needs the creature catalog (WoW Forever).
+    if ns.NPC_DATA and ns.NPC_DATA.danger then kinds[#kinds + 1] = "danger" end
+    for _, kind in ipairs(kinds) do
+        local tip = kind == "danger" and L["GPS_AVOID_DANGER_TT"] or L["GPS_AVOID_TT"]
+        local box = ctx.CreateCheckbox(page, "GPSAvoid" .. kind, L["GPS_AVOID_" .. kind:upper()], tip, true)
         box:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, prev == head and -4 or 0)
         local db = DB()
         box:SetChecked(db and db.gpsAvoid and db.gpsAvoid[kind] or false)

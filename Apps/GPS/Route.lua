@@ -982,6 +982,14 @@ function Route:Build(dest, opts)
     else
         known, listed, names = KnownSet(data)
     end
+    -- Walks go around what this character should not walk through
+    -- (opts.level: the character's level, the player's by default).
+    local Nav, Npcs = ns.GPSNav, ns.GPSNpcs
+    if Nav and Nav.SetDanger then
+        local on = opts.avoid and opts.avoid.danger and Npcs and Npcs.DangerTiles
+        Nav.SetDanger(on and Npcs.DangerTiles(opts.level or (UnitLevel and UnitLevel("player")),
+            opts.faction or (UnitFactionGroup and UnitFactionGroup("player"))) or nil)
+    end
     if opts.via then return ViaStop(self, dest, opts, start, known, listed) end
     local ctx = {
         start = start, goal = goal, data = data,
@@ -1057,7 +1065,7 @@ end
 -- Walks on WoW Forever's walking grid (Nav.lua)
 
 local WALK_PATHS_KEPT = 128
-local walkPaths, walkPathCount = {}, 0
+local walkPaths, walkPathCount, walkEpoch = {}, 0, nil
 
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
 -- so far), len (yards walked), time (running yards: swimming takes longer) },
@@ -1065,6 +1073,7 @@ local walkPaths, walkPathCount = {}, 0
 function Route.WalkPath(ci, sx, sy, tx, ty)
     local Nav = ns.GPSNav
     if not (Nav and Nav.Ensure(ci)) then return nil end
+    if walkEpoch ~= Nav.epoch then walkPaths, walkPathCount, walkEpoch = {}, 0, Nav.epoch end
     local key = ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
     local path = walkPaths[key]
     if path == nil then

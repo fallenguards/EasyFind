@@ -25,6 +25,11 @@ local WALKS_KEPT = 512             -- walk costs kept
 local SWIM_WEIGHT = 7.0 / 4.72
 local OFF_ROAD_WEIGHT = 1.25
 local DIAG = 1.41421356
+-- A tile to go around (Nav.SetDanger) costs this many times as much to
+-- choose; the time a walk through it takes stays the same.
+local DANGER_WEIGHT = 2
+local dangerSet          -- { [continent] = { [tile] = true } }
+Nav.epoch = 0            -- bumped whenever walks would come out differently
 
 -- Unpacking -----------------------------------------------------------------
 
@@ -61,7 +66,7 @@ local function World(ci)
     if w then return w end
     local data = ns.GPSNavData and ns.GPSNavData[ci]
     if not data then return nil end
-    w = { data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
+    w = { ci = ci, data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
           reach = {}, reachN = 0, walks = {}, walksN = 0 }
     worlds[ci] = w
     return w
@@ -199,6 +204,23 @@ local function Step(w, t, g, d)
     return nil
 end
 
+-- How much more a yard in tile key costs to choose: DANGER_WEIGHT in a
+-- tile to go around, else 1.
+local function Danger(w, key)
+    local set = dangerSet and dangerSet[w.ci]
+    return set and set[key] and DANGER_WEIGHT or 1
+end
+
+-- The tiles walks go around, or nil for none; the walks kept are dropped.
+function Nav.SetDanger(set)
+    if set == dangerSet then return end
+    dangerSet = set
+    Nav.epoch = Nav.epoch + 1
+    for _, w in pairs(worlds) do
+        w.walks, w.walksN, w.reach, w.reachN = {}, 0, {}, 0
+    end
+end
+
 -- What a yard on floor g costs to choose; Swim what it costs in time.
 local function Swim(t, g) return t.flag[g] % 2 == 1 and SWIM_WEIGHT or 1 end
 local function Weight(t, g) return Swim(t, g) * (t.road[t.fcell[g]] and 1 or OFF_ROAD_WEIGHT) end
@@ -298,7 +320,7 @@ local function TileSearch(w, t, g0, goal)
     heap:Push(0, g0)
     local gx, gy
     if goal then gx, gy = FloorXY(w, t, goal) end
-    local cell = w.cell
+    local cell = w.cell * Danger(w, t.key)
     while true do
         local g = heap:Pop()
         if not g then break end
@@ -434,10 +456,12 @@ local function Walk(w, ax, ay, bx, by, opts)
                 heap:Push(here + cell + msqrt((bx - ents.x[o]) ^ 2 + (by - ents.y[o]) ^ 2), o)
             end
             local tc = TileCosts(w, ents.key[node])
+            local df = Danger(w, ents.key[node])
             for k = 1, tc and tc.n or 0 do
                 o = tc.side[k]
                 if o ~= node and not closed[o] then
                     local c = PairCost(tc, ents, node, o)
+                    c = c and c * df
                     if c and (not g[o] or here + c < g[o]) then
                         g[o], prev[o] = here + c, node
                         heap:Push(here + c + msqrt((bx - ents.x[o]) ^ 2 + (by - ents.y[o]) ^ 2), o)

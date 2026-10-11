@@ -17,6 +17,7 @@ local PreparePOI = Search.PreparePOI
 local MIN_QUERY = 3
 local MAX_ROWS = 60     -- candidates handed to the map search's scoring
 local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the map
+local DANGER_LEVELS = 3 -- the client's orange: three levels above
 
 -- Everything unpacked, in one table: per creature (index i) its id, levels,
 -- flags, title, display and search names, and its spots (index k).
@@ -35,6 +36,20 @@ local function Unpack(s)
     local E = C_EncodingUtil
     local method = Enum and Enum.CompressionMethod and Enum.CompressionMethod.Deflate or 0
     return E.DecompressString(E.DecodeBase64(s), method)
+end
+
+local function Reader(s)
+    local pos = 1
+    return function()
+        local v, mul = 0, 1
+        while true do
+            local b = sbyte(s, pos)
+            pos = pos + 1
+            if b < 128 then return v + b * mul end
+            v = v + (b - 128) * mul
+            mul = mul * 128
+        end
+    end
 end
 
 local function Lines(blob, out)
@@ -65,17 +80,7 @@ local function Load()
     if not (data and C_EncodingUtil and C_EncodingUtil.DecompressString) then return false end
     local ok, raw = pcall(Unpack, data.rows)
     if not (ok and raw) then return false end
-    local pos = 1
-    local function u()
-        local v, mul = 0, 1
-        while true do
-            local b = sbyte(raw, pos)
-            pos = pos + 1
-            if b < 128 then return v + b * mul end
-            v = v + (b - 128) * mul
-            mul = mul * 128
-        end
-    end
+    local u = Reader(raw)
     local count, last, k = u(), 0, 0
     for i = 1, count do
         last = last + u()
@@ -274,6 +279,33 @@ function N.Append(out, nameSet, query, onlyMap)
         if poi and not (nameSet and nameSet[poi.nameLower]) then out[#out + 1] = poi end
     end
     return n > MAX_ROWS
+end
+
+-- The walking tiles a character of this level and faction goes around:
+-- those whose hostile creatures con orange or red to it (DANGER_LEVELS
+-- or more above). { [continent] = { [tile] = true } }, or nil.
+function N.DangerTiles(level, faction)
+    local data = ns.NPC_DATA
+    if not (data and data.danger and level) then return nil end
+    local key = level .. (faction or "")
+    if N.dangerKey == key then return N.dangerSet end
+    local horde = faction == "Horde"
+    local set = {}
+    for ci, blob in pairs(data.danger) do
+        local ok, raw = pcall(Unpack, blob)
+        if ok and raw then
+            local u = Reader(raw)
+            local tiles, last = {}, 0
+            for _ = 1, u() do
+                last = last + u()
+                local alliance, hordeLevel = u(), u()
+                if (horde and hordeLevel or alliance) >= level + DANGER_LEVELS then tiles[last] = true end
+            end
+            set[ci] = tiles
+        end
+    end
+    N.dangerKey, N.dangerSet = key, set
+    return set
 end
 
 MapSearch.AppendNpcRows = N.Append

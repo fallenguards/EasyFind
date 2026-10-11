@@ -25,6 +25,10 @@ local ROWS = varints({
     437, 30, 0, 0, 1, 1, 1426, xy(0.2, 0.3), 1,                         -- Brog Hamfist, General Supplies
 })
 
+-- Two tiles on continent 0: tile 3100 hostile from level 20 to the
+-- Alliance and 0 (none) to the Horde, tile 3105 from level 60 to both.
+local DANGER = varints({ 2, 3100, 20, 0, 5, 60, 60 })
+
 local function fresh(localNames)
     local env = H.newEnv()
     local ns = H.newNs(env)
@@ -42,9 +46,9 @@ local function fresh(localNames)
     ns.MapSearchSearch = { PreparePOI = function(p) p.nameLower = string.lower(p.name) return p end }
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
     ns.NPC_DATA = { rows = ROWS, names = "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
-                    titles = "General Supplies", localNames = localNames }
+                    titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER } }
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
-    return ns.MapSearch.AppendNpcRows
+    return ns.MapSearch.AppendNpcRows, ns.GPSNpcs
 end
 
 local function find(append, query, onlyMap)
@@ -91,6 +95,17 @@ function tests.localNamesShow_andEnglishStillFinds()
     H.assertEq(rows[1].name, "Koboldungeziefer", "the client's language shows")
     H.assertEq(find(append, "ungez")[1].name, "Koboldungeziefer")
     H.assertEq(find(append, "hogger")[1].name, "Hogger", "a blank line falls back to English")
+end
+
+function tests.dangerTiles_byLevelAndFaction()
+    local _, Npcs = fresh()
+    local low = Npcs.DangerTiles(15, "Alliance")[0]
+    H.assertTrue(low[3100] and low[3105], "level 15: both tiles con orange or red")
+    local mid = Npcs.DangerTiles(18, "Alliance")[0]
+    H.assertNil(mid[3100], "level 18: 20 is only yellow")
+    H.assertTrue(mid[3105])
+    H.assertNil(Npcs.DangerTiles(15, "Horde")[0][3100], "nothing there is hostile to the Horde")
+    H.assertNil(Npcs.DangerTiles(60, "Horde")[0][3105], "at 60 nothing is")
 end
 
 function tests.shortQueriesFindNothing()

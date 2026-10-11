@@ -75,6 +75,24 @@ function tests.path_noLongerThanItsCost()
     H.assertTrue(len >= Straight(GOLDSHIRE, EAST) - 1)
 end
 
+-- A tile to go around costs more to choose; the walk keeps out of it where
+-- it can, its time the walk's own, and all is as before once no tile is.
+function tests.danger_weighsTheChoiceNotTheTime()
+    local Nav = fresh()
+    local cost = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local _, _, time = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local key = Nav.TileOf(EAST[1], EAST[2])
+    Nav.SetDanger({ [0] = { [key] = true } })
+    local wary = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local _, waryCost, waryTime = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    H.assertTrue(wary > cost * 1.2, "the dangerous tile weighs: " .. wary .. " vs " .. cost)
+    H.assertTrue(math.abs(waryCost - wary) < 1, "the drawn walk is the one chosen")
+    H.assertTrue(waryTime >= time - 1 and waryTime < wary / 2,
+        "the time is the walk's own, not its weight: " .. waryTime .. " (was " .. time .. ", weight " .. wary .. ")")
+    Nav.SetDanger(nil)
+    H.assertTrue(math.abs(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]) - cost) < 0.01, "and back")
+end
+
 function tests.walk_noDataNoWalk()
     local Nav = fresh()
     H.assertNil(Nav.Walk(0, -5000, 0, GOLDSHIRE[1], GOLDSHIRE[2]), "a point outside the data")
