@@ -11,4 +11,5 @@
 ## DefaultState: enabled
 
 Data.lua
+Data_Forever.lua
 ItemSearch.lua

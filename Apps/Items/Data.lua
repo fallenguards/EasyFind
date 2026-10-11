@@ -3,6 +3,8 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
+-- WoW Forever loads its own catalog (Data_Forever.lua).
+if ns.Caps and ns.Caps.forever then return end
 
 ns.ITEM_SEARCH_BLOB = [[
 worn shortsword	25	1	0	1	2	0
