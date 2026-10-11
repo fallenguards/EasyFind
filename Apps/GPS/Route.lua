@@ -8,7 +8,7 @@ if not ns then return end
 local Route = {}
 ns.GPSRoute = Route
 
-local msqrt, mmax, mmin, mhuge, mfloor = math.sqrt, math.max, math.min, math.huge, math.floor
+local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
 local tinsert, tsort = table.insert, table.sort
 
 local MOUNT_UP = 2          -- seconds to get on a mount
@@ -16,7 +16,7 @@ local BOARD_TAXI = 4        -- seconds at the flight master
 local ABILITY_WAIT_MAX = 600 -- a cooldown longer than this is not worth waiting for
 local TELEPORT_MIN_YARDS = 1000 -- a teleport landing closer than this to the start is no trip
 local HOSTILE_SECONDS = 1800 -- the other faction's boat or zeppelin: a last resort, never banned
-local WALK_DETOUR = 1.2     -- roads wind where nobody flies: ground yards per straight yard
+local WALK_DETOUR = 1.2     -- without the walking grid: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
 local SUGGEST_MIN_SECONDS = 60
 local SUGGEST_CANDIDATES = 12
@@ -243,7 +243,7 @@ local function BuildGraph(ctx)
         legs = legs, hops = hops, teleports = teleports, taxiIdx = taxiIdx,
         travelSpeed = travelSpeed, mountUp = mountUp,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
-        roads = data.roads and not ctx.canFly or nil,
+        nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
         walkSec = {}, walkWind = {},
         data = data,
     }
@@ -257,16 +257,27 @@ end
 
 local WALK_KEY = 65536
 
--- A walk's seconds by its road, and its wind (road yards per straight yard).
+-- A walk's seconds on the walking grid, and its wind (yards walked per
+-- straight yard); no way on foot costs forever.
 local function PriceWalk(g, i, j)
     local key = i * WALK_KEY + j
     local sec = g.walkSec[key]
     if sec then return sec, g.walkWind[key] end
     local a, b = g.nodes[i].p, g.nodes[j].p
     local straight = Dist(a, b)
-    local road = straight > 5 and Route.RoadPath(g.data, a.ci, a.wx, a.wy, b.wx, b.wy)
-    local wind = road and road.len / straight or nil
-    sec = road and g.mountUp + road.len / g.travelSpeed or TravelCost(g, straight)
+    local wind
+    if straight <= 5 then
+        sec = TravelCost(g, straight)
+    else
+        local way = Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
+        if way then
+            sec, wind = g.mountUp + way.cost / g.travelSpeed, way.len / straight
+        elseif way == false then
+            sec = mhuge
+        else
+            sec = TravelCost(g, straight)
+        end
+    end
     g.walkSec[key], g.walkWind[key] = sec, wind
     return sec, wind
 end
@@ -276,13 +287,14 @@ local function Neighbors(g, i, out, noWalk)
     local n = g.nodes[i]
     local k = 0
     -- Travel to everything on the same continent and landmass; a walk not
-    -- yet priced by its road costs its straight line, its least.
+    -- yet priced on the walking grid costs its straight line, its least.
     local same = not noWalk and g.byCi[n.p.ci]
     if same then
-        local walkSec, bound = g.walkSec, g.roads and 1
+        local walkSec, bound = g.walkSec, g.nav and 1
         for j = 1, #same do
             local idx = same[j]
-            if idx ~= i and g.nodes[idx].land == n.land then
+            -- The walking grid knows what joins; without it, the landmass.
+            if idx ~= i and (g.nav or g.nodes[idx].land == n.land) then
                 k = k + 1
                 local key = i * WALK_KEY + idx
                 local sec = walkSec[key]
@@ -359,12 +371,12 @@ end
 
 local SOLVE_ROUNDS = 8
 
--- The shortest path with its walks priced by road: only walks a best path
--- takes are looked up, then the path is found again until it holds.
+-- The shortest path with its walks priced on the walking grid: only walks a
+-- best path takes are looked up, then the path is found again until it holds.
 local function Solve(g)
     for _ = 1, SOLVE_ROUNDS do
         local path, cost = Dijkstra(g)
-        if not (path and g.roads) then return path, cost end
+        if not (path and g.nav) then return path, cost end
         local fresh = false
         for i = 1, #path do
             local from = i > 1 and path[i - 1].node or g.start
@@ -378,12 +390,12 @@ local function Solve(g)
     return Dijkstra(g)
 end
 
--- Path seconds, each walk priced by its road where one leads there.
+-- Path seconds, each walk priced on the walking grid where it has one.
 local function RoadSeconds(g, path)
     local total = 0
     for i = 1, #path do
         local e = path[i].edge
-        if g.roads and e.kind == "travel" then
+        if g.nav and e.kind == "travel" then
             e.sec, e.wind = PriceWalk(g, i > 1 and path[i - 1].node or g.start, path[i].node)
         end
         total = total + e.sec
@@ -681,7 +693,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         end
     end
     tsort(trips, MostSavedFirst)
-    -- Then by road, until no trip left could beat the best found.
+    -- Then priced on the walking grid, until no trip left could beat the best found.
     local best
     for i = 1, #trips do
         local trip = trips[i]
@@ -793,7 +805,7 @@ function Route.GroundSpeed(data)
 end
 
 -- Seconds for this many yards from a standstill, as the engine prices travel.
--- opts.taxi: on a flight. opts.wind: a walk's road yards per straight yard.
+-- opts.taxi: on a flight. opts.wind: a walk's yards walked per straight yard.
 function Route:TravelSeconds(yards, opts)
     local data = (opts and opts.data) or ns.GPSData
     local speeds = data and data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
@@ -983,314 +995,34 @@ function Route:Build(dest, opts)
     return steps, total, advice
 end
 
--- Roads: the walking network (data.roads)
+-- Walks on WoW Forever's walking grid (Nav.lua)
 
-local ROAD_CELL = 300     -- yards per lookup cell
-local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
-local ROAD_REACH = 2000   -- the start and the end join the nearest road this close (a city has none)
-local OFF_ROAD = 4        -- an off-road yard weighs this many road yards
-local END_TRIM = 50       -- road this close to either end is left for the straight line
-local roadNets = {}
+local WALK_PATHS_KEPT = 128
+local walkPaths, walkPathCount = {}, 0
 
-local function RoadNet(data, ci)
-    local net = roadNets[ci]
-    if net ~= nil then return net or nil end
-    local g = data and data.roads and data.roads[ci]
-    if not g then
-        roadNets[ci] = false
-        return nil
-    end
-    local xy, edges = g.nodes, g.edges
-    local n = #xy / 2
-    local adj, cells = {}, {}
-    for i = 1, n do adj[i] = {} end
-    for e = 1, #edges / 3 do
-        local a, b, len = edges[3 * e - 2], edges[3 * e - 1], edges[3 * e]
-        local la, lb = adj[a], adj[b]
-        local ka, kb = #la, #lb
-        la[ka + 1], la[ka + 2], la[ka + 3] = b, len, e
-        lb[kb + 1], lb[kb + 2], lb[kb + 3] = a, len, -e
-    end
-    for i = 1, n do
-        local key = (mfloor(xy[2 * i - 1] / ROAD_CELL) + 500) * 1000 + mfloor(xy[2 * i] / ROAD_CELL) + 500
-        local c = cells[key]
-        if not c then
-            c = {}
-            cells[key] = c
-        end
-        c[#c + 1] = i
-    end
-    -- Each road's whole line, end to end, with its yards so far, and its
-    -- stretches filed by cell: a walk joins a road anywhere along it.
-    local shapes = g.shapes or {}
-    local lines, cums, segCells = {}, {}, {}
-    for e = 1, #edges / 3 do
-        local a, b = edges[3 * e - 2], edges[3 * e - 1]
-        local line = { xy[2 * a - 1], xy[2 * a] }
-        local shape = shapes[e]
-        for s = 1, shape and #shape or 0 do line[#line + 1] = shape[s] end
-        line[#line + 1], line[#line + 2] = xy[2 * b - 1], xy[2 * b]
-        local cum = { 0 }
-        for v = 2, #line / 2 do
-            local dx, dy = line[2 * v - 1] - line[2 * v - 3], line[2 * v] - line[2 * v - 2]
-            cum[v] = cum[v - 1] + msqrt(dx * dx + dy * dy)
-            local x0, x1 = mfloor(math.min(line[2 * v - 3], line[2 * v - 1]) / ROAD_CELL), mfloor(mmax(line[2 * v - 3], line[2 * v - 1]) / ROAD_CELL)
-            local y0, y1 = mfloor(math.min(line[2 * v - 2], line[2 * v]) / ROAD_CELL), mfloor(mmax(line[2 * v - 2], line[2 * v]) / ROAD_CELL)
-            for cx = x0, x1 do
-                for cy = y0, y1 do
-                    local key = (cx + 500) * 1000 + cy + 500
-                    local c = segCells[key]
-                    if not c then
-                        c = {}
-                        segCells[key] = c
-                    end
-                    c[#c + 1] = e * 65536 + v - 1
-                end
-            end
-        end
-        lines[e], cums[e] = line, cum
-    end
-    net = { xy = xy, n = n, adj = adj, cells = cells, shapes = shapes, ends = edges, lines = lines, cums = cums,
-            segCells = segCells }
-    roadNets[ci] = net
-    return net
-end
-
--- The nearest point on any road within r yards: { e, x, y, d, at (yards
--- from the road's first end), len }, or nil.
-local function Project(net, x, y, r)
-    local best
-    local cx, cy, span = mfloor(x / ROAD_CELL), mfloor(y / ROAD_CELL), math.ceil(r / ROAD_CELL)
-    for i = cx - span, cx + span do
-        for j = cy - span, cy + span do
-            local c = net.segCells[(i + 500) * 1000 + j + 500]
-            for m = 1, c and #c or 0 do
-                local id = c[m]
-                local e, v = mfloor(id / 65536), id % 65536
-                local line = net.lines[e]
-                local ax, ay, bx, by = line[2 * v - 1], line[2 * v], line[2 * v + 1], line[2 * v + 2]
-                local dx, dy = bx - ax, by - ay
-                local len2 = dx * dx + dy * dy
-                local t = len2 > 0 and mmax(0, math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) or 0
-                local px, py = ax + t * dx, ay + t * dy
-                local d = msqrt((x - px) ^ 2 + (y - py) ^ 2)
-                if d <= r and (not best or d < best.d) then
-                    local cum = net.cums[e]
-                    best = { e = e, x = px, y = py, d = d, at = cum[v] + t * (cum[v + 1] - cum[v]), len = cum[#cum] }
-                end
-            end
-        end
-    end
-    return best
-end
-
--- Road nodes within r yards of (x, y): each id and its distance, in pairs.
-local function NodesNear(net, x, y, r, out)
-    local k = 0
-    local cx, cy, span = mfloor(x / ROAD_CELL), mfloor(y / ROAD_CELL), math.ceil(r / ROAD_CELL)
-    local xy = net.xy
-    for i = cx - span, cx + span do
-        for j = cy - span, cy + span do
-            local c = net.cells[(i + 500) * 1000 + j + 500]
-            for m = 1, c and #c or 0 do
-                local id = c[m]
-                local dx, dy = xy[2 * id - 1] - x, xy[2 * id] - y
-                local d = msqrt(dx * dx + dy * dy)
-                if d <= r then
-                    out[k + 1], out[k + 2] = id, d
-                    k = k + 2
-                end
-            end
-        end
-    end
-    return k
-end
-
--- Way over the roads: { pts (world yards), node[vertex], off[vertex] (leg leaves
--- the road), cum[vertex] (yards so far), len, net }; nil when no road helps.
-local function RoadSearch(net, sx, sy, tx, ty)
-    local n, xy, adj, ends = net.n, net.xy, net.adj, net.ends
-    -- S and T the walk's ends; SP and TP where each joins its nearest road.
-    local S, T, SP, TP = n + 1, n + 2, n + 3, n + 4
-    local sj, tj = Project(net, sx, sy, ROAD_REACH), Project(net, tx, ty, ROAD_REACH)
-    local function Pos(u)
-        if u == S then return sx, sy elseif u == T then return tx, ty
-        elseif u == SP then return sj.x, sj.y elseif u == TP then return tj.x, tj.y end
-        return xy[2 * u - 1], xy[2 * u]
-    end
-    local function H(u)
-        local x, y = Pos(u)
-        return msqrt((x - tx) ^ 2 + (y - ty) ^ 2)
-    end
-    local g, prev, via, done = { [S] = 0 }, {}, {}, {}
-    local hk, hv, hn = {}, {}, 0
-    local function Push(v, f)
-        hn = hn + 1
-        local i = hn
-        while i > 1 do
-            local p = mfloor(i / 2)
-            if hk[p] <= f then break end
-            hk[i], hv[i] = hk[p], hv[p]
-            i = p
-        end
-        hk[i], hv[i] = f, v
-    end
-    local function Pop()
-        local v, lastK, lastV = hv[1], hk[hn], hv[hn]
-        hk[hn], hv[hn] = nil, nil
-        hn = hn - 1
-        local i = 1
-        while true do
-            local c = i * 2
-            if c > hn then break end
-            if c < hn and hk[c + 1] < hk[c] then c = c + 1 end
-            if hk[c] >= lastK then break end
-            hk[i], hv[i] = hk[c], hv[c]
-            i = c
-        end
-        if hn > 0 then hk[i], hv[i] = lastK, lastV end
-        return v
-    end
-    local function Relax(u, v, cost, e)
-        local ng = g[u] + cost
-        if not done[v] and (g[v] == nil or ng < g[v]) then
-            g[v], prev[v], via[v] = ng, u, e
-            Push(v, ng + H(v))
-        end
-    end
-    local near = {}
-    Push(S, H(S))
-    while hn > 0 do
-        local u = Pop()
-        if not done[u] then
-            done[u] = true
-            if u == T then break end
-            local ux, uy = Pos(u)
-            local dT = msqrt((ux - tx) ^ 2 + (uy - ty) ^ 2)
-            if u == S then
-                -- Straight there only when it is close: a long line crosses
-                -- what cannot be walked.
-                if dT <= ROAD_HOP then Relax(u, T, dT * OFF_ROAD, 0) end
-                local k = NodesNear(net, ux, uy, ROAD_HOP, near)
-                for m = 1, k, 2 do Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
-                if sj then Relax(u, SP, sj.d * OFF_ROAD, 0) end
-            elseif u == SP then
-                -- Along the joined road to either end, or to T's join on it.
-                Relax(u, ends[3 * sj.e - 2], sj.at, "sa")
-                Relax(u, ends[3 * sj.e - 1], sj.len - sj.at, "sb")
-                if tj and tj.e == sj.e then Relax(u, TP, math.abs(tj.at - sj.at), "st") end
-            elseif u == TP then
-                Relax(u, T, tj.d * OFF_ROAD, 0)
-            else
-                if tj and u == ends[3 * tj.e - 2] then Relax(u, TP, tj.at, "at") end
-                if tj and u == ends[3 * tj.e - 1] then Relax(u, TP, tj.len - tj.at, "bt") end
-                local a = adj[u]
-                for m = 1, #a, 3 do Relax(u, a[m], a[m + 1], a[m + 2]) end
-                local k = NodesNear(net, ux, uy, ROAD_HOP, near)
-                for m = 1, k, 2 do
-                    if near[m] ~= u then Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
-                end
-                if dT <= ROAD_HOP then Relax(u, T, dT * OFF_ROAD, 0) end
-            end
-        end
-    end
-    if not done[T] or prev[T] == S then return nil end
-    local chain = {}
-    local v = T
-    while v do
-        chain[#chain + 1] = v
-        v = prev[v]
-    end
-    local pts, node, off, cum = {}, {}, {}, {}
-    local function Add(x, y)
-        local k = #pts
-        local d = 0
-        if k > 0 then d = cum[k / 2] + msqrt((x - pts[k - 1]) ^ 2 + (y - pts[k]) ^ 2) end
-        pts[k + 1], pts[k + 2] = x, y
-        cum[k / 2 + 1] = d
-        return k / 2 + 1
-    end
-    Add(sx, sy)
-    for c = #chain - 1, 1, -1 do
-        local w = chain[c]
-        local e = via[w]
-        local from = #pts / 2
-        if e == 0 then
-            off[from] = true
-        elseif type(e) == "string" then
-            -- A stretch of a joined road: its vertices between the two
-            -- points, in walking order.
-            local j = (e == "at" or e == "bt") and tj or sj
-            local line, along = net.lines[j.e], net.cums[j.e]
-            local s0 = (e == "sa" or e == "sb" or e == "st") and sj.at or (e == "at" and 0 or j.len)
-            local s1 = (e == "sa" and 0) or (e == "sb" and j.len) or tj.at
-            local m = #along
-            if s1 > s0 then
-                for k = 1, m do
-                    if along[k] > s0 and along[k] < s1 then Add(line[2 * k - 1], line[2 * k]) end
-                end
-            else
-                for k = m, 1, -1 do
-                    if along[k] < s0 and along[k] > s1 then Add(line[2 * k - 1], line[2 * k]) end
-                end
-            end
-        else
-            local shape = net.shapes[e < 0 and -e or e]
-            if shape then
-                local m = #shape / 2
-                for s = 1, m do
-                    local j = e > 0 and s or (m - s + 1)
-                    Add(shape[2 * j - 1], shape[2 * j])
-                end
-            end
-        end
-        local wx, wy = Pos(w)
-        local idx = Add(wx, wy)
-        if w <= n then node[idx] = w end
-    end
-    -- Near either end the way cuts straight across, never round a bend
-    -- or past the spot and back.
-    local last = #pts / 2
-    local function Near(k, x, y) return (pts[2 * k - 1] - x) ^ 2 + (pts[2 * k] - y) ^ 2 <= END_TRIM * END_TRIM end
-    local a, b = 1, last
-    for k = last - 1, 2, -1 do
-        if Near(k, sx, sy) then a = k break end
-    end
-    for k = a + 1, last - 1 do
-        if Near(k, tx, ty) then b = k break end
-    end
-    if a > 2 or b < last - 1 then
-        local kept = { 1 }
-        for k = mmax(a, 2), mmin(b, last - 1) do kept[#kept + 1] = k end
-        kept[#kept + 1] = last
-        local was, wasNode, wasOff = pts, node, off
-        pts, node, off, cum = {}, {}, {}, {}
-        for i = 1, #kept do
-            local k, after = kept[i], kept[i + 1]
-            local idx = Add(was[2 * k - 1], was[2 * k])
-            node[idx] = wasNode[k]
-            if after and (after ~= k + 1 or wasOff[k]) then off[idx] = true end
-        end
-    end
-    return { pts = pts, node = node, off = off, cum = cum, len = cum[#pts / 2], net = net }
-end
-
--- The last ways searched are kept: pricing a walk, splitting it by zone
--- and pricing each stop tried all ask for the same one.
-local ROAD_PATHS_KEPT = 128
-local roadPaths, roadPathCount = {}, 0
-
-function Route.RoadPath(data, ci, sx, sy, tx, ty)
-    local net = RoadNet(data, ci)
-    if not net then return nil end
+-- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
+-- so far), len (yards walked), cost (running yards: swimming counts more) },
+-- false when no way leads there, nil without walking data for ci.
+function Route.WalkPath(ci, sx, sy, tx, ty)
+    local Nav = ns.GPSNav
+    if not (Nav and Nav.Ensure(ci)) then return nil end
     local key = ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
-    local path = roadPaths[key]
+    local path = walkPaths[key]
     if path == nil then
-        if roadPathCount >= ROAD_PATHS_KEPT then roadPaths, roadPathCount = {}, 0 end
-        path = RoadSearch(net, sx, sy, tx, ty) or false
-        roadPaths[key], roadPathCount = path, roadPathCount + 1
+        if walkPathCount >= WALK_PATHS_KEPT then walkPaths, walkPathCount = {}, 0 end
+        local pts, cost = Nav.Path(ci, sx, sy, tx, ty)
+        if pts then
+            local cum = { 0 }
+            for v = 2, #pts / 2 do
+                cum[v] = cum[v - 1] + msqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
+            end
+            path = { pts = pts, cum = cum, len = cum[#cum], cost = cost }
+        else
+            path = false
+        end
+        walkPaths[key], walkPathCount = path, walkPathCount + 1
     end
-    return path or nil
+    return path
 end
 
 -- Walks, zone by zone
@@ -1304,14 +1036,14 @@ local function PointWorld(p)
     return WorldPos(p.m, p.x, p.y)
 end
 
--- One walked step as a step per zone its road way crosses, or nil when it
--- stays in one zone or no road leads there.
+-- One walked step as a step per zone its way crosses, or nil when it stays
+-- in one zone or no way on foot leads there.
 local function WalkPieces(step, from, data, env, first)
     local target = step.go or step.arrive
     local ci, fx, fy = PointWorld(from)
     local ci2, tx, ty = PointWorld(target)
     if not (ci and ci == ci2) then return nil end
-    local path = Route.RoadPath(data, ci, fx, fy, tx, ty)
+    local path = Route.WalkPath(ci, fx, fy, tx, ty)
     if not path then return nil end
     local pts, cum = path.pts, path.cum
     local runs = {}
@@ -1333,7 +1065,7 @@ local function WalkPieces(step, from, data, env, first)
         end
         Read(pts[2 * v - 1], pts[2 * v], cum[v])
     end
-    -- A zone clipped for a few yards (a border the road runs along) is
+    -- A zone clipped for a few yards (a border the way runs along) is
     -- no step; its stretch joins the zone before it.
     local r = 1
     while r <= #runs and #runs > 1 do
@@ -1350,7 +1082,7 @@ local function WalkPieces(step, from, data, env, first)
         end
     end
     -- Setting out from inside a city: getting out of it is the first
-    -- step, up to where the way meets its first road.
+    -- step, up to the way's first turn.
     local city = first and env.startCity
     if city and runs[1] and runs[1].map ~= city.map and #pts >= 4
        and cum[2] < (runs[2] and runs[2].at or path.len) then

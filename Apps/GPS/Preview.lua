@@ -172,21 +172,21 @@ local function World(p)
     return nil
 end
 
--- A walked leg's way over the roads as map points (x, y in pairs), or
--- nothing when no road helps. Kept per step until its start moves.
-local roads = {}
-local function RoadPoints(route, i, start, target, mapID)
-    local find = ns.GPSRoute and ns.GPSRoute.RoadPath
-    if not (find and ns.GPSData and start and target) then return nil end
+-- A walked leg's way on foot as map points (x, y in pairs), or nothing
+-- without one. Kept per step until its start moves.
+local walks = {}
+local function WalkPoints(route, i, start, target, mapID)
+    local find = ns.GPSRoute and ns.GPSRoute.WalkPath
+    if not (find and start and target) then return nil end
     local ci, sx, sy = World(start)
     local ci2, tx, ty = World(target)
     if not (ci and ci2 and ci == ci2) then return nil end
     local key = mapID * 1e6 + math.floor(sx / 25) * 1e3 + math.floor(sy / 25)
-    local c = roads[i]
+    local c = walks[i]
     if c and c.route == route and c.key == key then return c.pts or nil end
     c = { route = route, key = key, pts = false }
-    roads[i] = c
-    local path = find(ns.GPSData, ci, sx, sy, tx, ty)
+    walks[i] = c
+    local path = find(ci, sx, sy, tx, ty)
     if not path then return nil end
     local pts, k = {}, 0
     for v = 1, #path.pts / 2 do
@@ -229,14 +229,14 @@ local function Draw()
         local a = (not teleport) and OnCanvas(start, shownMap) or nil
         local b = (not teleport) and OnCanvas(target, shownMap) or nil
         if a and b then
-            -- The leg's line: along the roads for a walk, straight otherwise.
-            local road = step.kind == "travel" and RoadPoints(route, i, start, target, shownMap)
+            -- The leg's line: its way on foot for a walk, straight otherwise.
+            local way = step.kind == "travel" and WalkPoints(route, i, start, target, shownMap)
             local m = 0
-            if road then
+            if way then
                 -- Points closer together than the line is wide add nothing.
-                local last = #road - 1
+                local last = #way - 1
                 for v = 1, last, 2 do
-                    local x, y = road[v] * cw, -road[v + 1] * ch
+                    local x, y = way[v] * cw, -way[v + 1] * ch
                     if m == 0 or v == last or msqrt((x - poly[m - 1]) ^ 2 + (y - poly[m]) ^ 2) >= lineW then
                         poly[m + 1], poly[m + 2] = x, y
                         m = m + 2
@@ -256,7 +256,7 @@ local function Draw()
                 local color = MODE_COLOR[step.kind] or accent
                 local usable = total
                 -- One solid line, stretch by stretch: a walk follows its
-                -- road, a ride runs straight; each in its mode's color.
+                -- way, a ride runs straight; each in its mode's color.
                 local walked = 0
                 for v = 1, m - 3, 2 do
                     local x1, y1, x2, y2 = poly[v], poly[v + 1], poly[v + 2], poly[v + 3]
@@ -520,9 +520,9 @@ function Preview:Status(index)
     local mapID = MapOf(route, index)
     out[#out + 1] = string.format("step %d %s: start %s | target %s", index, tostring(step.kind), P(start), P(target))
     local a, b = mapID and OnCanvas(start, mapID), mapID and OnCanvas(target, mapID)
-    local road = mapID and step.kind == "travel" and RoadPoints(route, index, start, target, mapID)
-    out[#out + 1] = string.format("map %s: start on it %s, target on it %s, road points %s", tostring(mapID),
+    local way = mapID and step.kind == "travel" and WalkPoints(route, index, start, target, mapID)
+    out[#out + 1] = string.format("map %s: start on it %s, target on it %s, walk points %s", tostring(mapID),
         a and string.format("%.0f,%.0f", a[1], a[2]) or "no", b and string.format("%.0f,%.0f", b[1], b[2]) or "no",
-        road and tostring(#road / 2) or "none")
+        way and tostring(#way / 2) or "none")
     return out
 end

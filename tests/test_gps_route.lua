@@ -502,79 +502,60 @@ function tests.noData_returnsNil()
     H.assertNil(Route:Build({ name = "x", mapID = 1, x = 0.5, y = 0.5 }, { data = nil, start = P(1, 0.1, 0.1) }))
 end
 
--- Roads: world x is north, y is west. A road runs west from A to the
--- junction B (which goes on west to D) and turns north to C.
-local function roadData()
-    local d = data()
-    d.roads = { [1] = { nodes = { 0, 0, 0, 1000, 1000, 1000, 0, 2000 },
-                        edges = { 1, 2, 1000, 2, 3, 1000, 2, 4, 1000 }, shapes = {} } }
-    return d
+-- A stand-in walking grid (Nav.lua): way(sx, sy, tx, ty) gives the walk's
+-- points (world x north, y west), or nil where no way on foot leads.
+local function withNav(ns, way)
+    ns.GPSNav = {
+        Ensure = function() return true end,
+        Has = function() return true end,
+        Path = function(_, sx, sy, tx, ty)
+            local pts = way(sx, sy, tx, ty)
+            if not pts then return nil end
+            local len = 0
+            for v = 3, #pts, 2 do len = len + math.sqrt((pts[v] - pts[v - 2]) ^ 2 + (pts[v + 1] - pts[v - 1]) ^ 2) end
+            return pts, len
+        end,
+    }
 end
 
-function tests.roads_followTheRoadThroughTheJunction()
-    local _, _, Route = fresh()
-    local path = Route.RoadPath(roadData(), 1, 0, -50, 1050, 1000)
-    H.assertTrue(path ~= nil, "the roads beat the diagonal")
+-- West from A (0, 0) to the junction B (0, 1000), then north to C (1000, 1000).
+local function junction(sx, sy, tx, ty) return { sx, sy, 0, 0, 0, 1000, 1000, 1000, tx, ty } end
+
+function tests.walk_followsTheWayOnFoot()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local path = Route.WalkPath(1, 0, -50, 1050, 1000)
     H.assertEq(#path.pts / 2, 5, "start, A, B, C, end")
     H.assertEq(math.floor(path.len + 0.5), 2100)
-    H.assertDeepEq({ path.pts[5], path.pts[6] }, { 0, 1000 }, "through the junction B")
+    H.assertEq(math.floor(path.cum[3] + 0.5), 1050, "yards so far at B")
 end
 
--- The spot sits 40 yd past the road's bend B, nearer a point C off to the
--- side: the way leaves the road at B, never runs on to C and back.
-function tests.roads_endCutsStraightNotRoundTheBend()
-    local _, _, Route = fresh()
+function tests.walk_noGridOrNoWay()
+    local _, ns, Route = fresh()
+    H.assertNil(Route.WalkPath(1, 0, 0, 500, 500), "no walking grid: nothing known")
+    withNav(ns, function() return nil end)
+    H.assertEq(Route.WalkPath(1, 0, 0, 500, 500), false, "the grid says no way on foot")
+end
+
+-- A walk takes as long as its way on foot, not the straight line across.
+function tests.walk_priceTheWalk()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
     local d = data()
-    d.roads = { [1] = { nodes = { 0, 0, 0, 1000, -20, 1045 }, edges = { 1, 2, 1000, 2, 3, 49 }, shapes = {} } }
-    local path = Route.RoadPath(d, 1, 0, -50, 0, 1040)
-    H.assertTrue(path ~= nil)
-    H.assertEq(#path.pts / 2, 4, "start, A, B, end")
-    H.assertDeepEq({ path.pts[5], path.pts[6] }, { 0, 1000 }, "leaves the road at B")
-    H.assertEq(math.floor(path.len + 0.5), 1090)
-end
-
--- A start beside the middle of the road from A to B joins it there, not at
--- either end: a town on a long road is on the road.
-function tests.roads_joinPartwayAlongARoad()
-    local _, _, Route = fresh()
-    local path = Route.RoadPath(roadData(), 1, 300, 500, 1050, 1000)
-    H.assertTrue(path ~= nil)
-    H.assertDeepEq({ path.pts[3], path.pts[4] }, { 0, 500 }, "joins halfway from A to B")
-    H.assertEq(math.floor(path.len + 0.5), 1850)
-end
-
--- A walk from inside a city (no roads in it) joins the road 1500 yd off.
-function tests.roads_farStartStillReachesTheRoad()
-    local _, _, Route = fresh()
-    local path = Route.RoadPath(roadData(), 1, -1500, 0, 1050, 1000)
-    H.assertTrue(path ~= nil, "the road 1500 yd away is taken")
-    H.assertDeepEq({ path.pts[3], path.pts[4] }, { 0, 0 }, "joins at A")
-end
-
-function tests.roads_noneOrNoHelpGivesNoPath()
-    local _, _, Route = fresh()
-    H.assertNil(Route.RoadPath(data(), 1, 0, 0, 500, 500), "no roads in the data")
-    H.assertNil(Route.RoadPath(roadData(), 1, 5000, 5000, 5000, 5100), "a short hop needs no road")
-end
-
--- A walk takes as long as its road, not the straight line across.
-function tests.roads_priceTheWalk()
-    local _, _, Route = fresh()
-    local d = roadData()
     d.classic = true
     d.edges, d.abilities, d.legs = {}, {}, {}
     local steps, total = build(Route, P(1, 0, -0.005), { name = "Spot", mapID = 1, x = 0.105, y = 0.1 }, { data = d, groundSpeed = 7 })
     H.assertEq(#steps, 1)
-    H.assertTrue(math.abs(total - 2100 / 7) < 0.5, "2100 yd of road on foot: " .. tostring(total))
-    H.assertTrue(math.abs(steps[1].wind - 2100 / 1484.6) < 0.01, "road yards per straight yard: " .. tostring(steps[1].wind))
+    H.assertTrue(math.abs(total - 2100 / 7) < 0.5, "2100 yd on foot: " .. tostring(total))
+    H.assertTrue(math.abs(steps[1].wind - 2100 / 1484.6) < 0.01, "yards walked per straight yard: " .. tostring(steps[1].wind))
     local left = Route:TravelSeconds(500, { data = d, canFly = false, groundSpeed = 7, wind = steps[1].wind })
     H.assertTrue(math.abs(left - 500 * steps[1].wind / 7) < 0.01, "the way left winds as the whole walk does")
 end
 
--- Where no road leads, the straight line stands, with the 1.x detour.
-function tests.roads_noRoadKeepsTheStraightPrice()
+-- Without a walking grid, the straight line stands, with the 1.x detour.
+function tests.walk_noGridKeepsTheStraightPrice()
     local _, _, Route = fresh()
-    local d = roadData()
+    local d = data()
     d.classic = true
     d.edges, d.abilities, d.legs = {}, {}, {}
     local steps, total = build(Route, P(1, 0.5, 0.5), { name = "Far off", mapID = 1, x = 0.6, y = 0.5 }, { data = d, groundSpeed = 7 })
@@ -582,10 +563,28 @@ function tests.roads_noRoadKeepsTheStraightPrice()
     H.assertNil(steps[1].wind)
 end
 
--- The road from Alpha to the spot is a U of 6000 yd round a 2000 yd line;
--- a portal's dock halfway along the line would split it into two short walks.
-function tests.roads_windingWalkLosesToTheFlight()
-    local _, _, Route = fresh()
+-- No way on foot: the walk is shut, not priced as the straight line.
+function tests.walk_noWayOnFootTakesAnotherWay()
+    local _, ns, Route = fresh()
+    withNav(ns, function() return nil end)
+    local d = data()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local steps = build(Route, P(1, 0.5, 0.5), { name = "Far off", mapID = 1, x = 0.6, y = 0.5 }, { data = d, groundSpeed = 7 })
+    H.assertNil(steps, "nothing gets there")
+end
+
+-- From Alpha to the spot the way on foot goes round a U of 6000 yd past a
+-- 2000 yd line; a dock halfway along the line splits nothing, as walking
+-- from it goes round too.
+local function aroundTheU(sx, sy, tx, ty)
+    if (sx < 2500) ~= (tx < 2500) then return { sx, sy, sx, 3000, tx, 3000, tx, ty } end
+    return { sx, sy, tx, ty }
+end
+
+function tests.walk_windingWalkLosesToTheFlight()
+    local _, ns, Route = fresh()
+    withNav(ns, aroundTheU)
     local d = data()
     d.classic = true
     d.abilities = {}
@@ -593,15 +592,13 @@ function tests.roads_windingWalkLosesToTheFlight()
                 [2] = { n = "Delta", m = 1, x = 0.3, y = 0.11, ci = 1, wx = 3000, wy = 1100 } }
     d.legs = { { 1, 2, 2000, 300 } }
     d.edges = { { kind = "portal", n = "Portal to Map 2", from = P(1, 0.2, 0.1), to = P(2, 0.5, 0.5), sec = 14 } }
-    d.roads = { [1] = { nodes = { 1000, 1000, 1000, 3000, 3000, 3000, 3000, 1000 },
-                        edges = { 1, 2, 2000, 2, 3, 2000, 3, 4, 2000 }, shapes = {} } }
     local steps, total = build(Route, P(1, 0.1, 0.1), { name = "Spot", mapID = 1, x = 0.3, y = 0.1 },
                                { data = d, groundSpeed = 10, known = false })
-    H.assertEq(steps[1].kind, "taxi", "the 300 s flight beats 6000 yd of road and the walk past the dock")
-    H.assertTrue(math.abs(total - 316) < 1, "board, fly, then 100 yd of road: " .. tostring(total))
+    H.assertEq(steps[1].kind, "taxi", "the 300 s flight beats 6000 yd round the U")
+    H.assertTrue(math.abs(total - 316) < 1, "board, fly, then 100 yd on foot: " .. tostring(total))
 end
 
--- The road above crosses three zones: Alpha until 500 yd west, Bravo up
+-- The junction walk crosses three zones: Alpha until 500 yd west, Bravo up
 -- to 500 yd north of the junction, Charlie beyond.
 local function zoneAt(_, x, y)
     if y < 500 then return 10, "Alpha" end
@@ -616,9 +613,10 @@ local function walk()
 end
 
 function tests.walk_splitsIntoAStepPerZone()
-    local _, _, Route = fresh()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
     local steps, start, target = walk()
-    local out = Route.SplitWalks(steps, start, roadData(), { zoneAt = zoneAt })
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt })
     H.assertEq(#out, 3, "Alpha, Bravo, Charlie")
     H.assertEq(out[1].enter, 11, "the first ends on entering Bravo")
     H.assertEq(out[1].walkZone, 10)
@@ -627,37 +625,39 @@ function tests.walk_splitsIntoAStepPerZone()
     H.assertEq(out[3].arrive, target)
     H.assertEq(out[3].text, "Travel to Spot", "the last keeps what the step said")
     H.assertTrue(math.abs(out[1].sec + out[2].sec + out[3].sec - 210) < 0.01, "the time is shared out")
-    H.assertTrue(out[1].arrive.wy >= 500 and out[1].arrive.wy <= 600, "the border on the road west")
+    H.assertTrue(out[1].arrive.wy >= 500 and out[1].arrive.wy <= 600, "the border on the way west")
     H.assertTrue(math.abs(out[1].wind - 1) < 0.01, "Alpha is a straight stretch")
     H.assertTrue(out[2].wind > 1.3, "Bravo turns at the junction: " .. tostring(out[2].wind))
 end
 
 function tests.walk_toAZoneEndsOnEnteringIt()
-    local _, _, Route = fresh()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
     local steps, start, target = walk()
-    local out = Route.SplitWalks(steps, start, roadData(), { zoneAt = zoneAt, goalZone = 12 })
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt, goalZone = 12 })
     H.assertEq(#out, 2, "no step inside the goal zone")
     H.assertEq(out[2].enter, 12)
     H.assertEq(out[2].arrive, target)
 end
 
 function tests.walk_fromInsideACityStartsWithLeavingIt()
-    local _, _, Route = fresh()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
     local steps, start = walk()
-    local out = Route.SplitWalks(steps, start, roadData(), {
+    local out = Route.SplitWalks(steps, start, data(), {
         zoneAt = zoneAt, isCity = function(m) return m == 99 end, startCity = { map = 99, name = "City" } })
     H.assertEq(#out, 4)
     H.assertEq(out[1].walkZone, 99, "the city first")
     H.assertEq(out[1].enter, 10, "done on entering the zone around it")
 end
 
-function tests.walk_inOneZoneOrWithoutRoadsStaysOneStep()
-    local _, _, Route = fresh()
+function tests.walk_inOneZoneOrWithoutAGridStaysOneStep()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
     local steps, start = walk()
-    H.assertEq(#Route.SplitWalks(steps, start, roadData(), { zoneAt = function() return 10, "Alpha" end }), 1)
-    -- The engine keeps a continent's roads once read: a fresh one for none.
+    H.assertEq(#Route.SplitWalks(steps, start, data(), { zoneAt = function() return 10, "Alpha" end }), 1)
     local _, _, Bare = fresh()
-    H.assertEq(#Bare.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "no roads in the data")
+    H.assertEq(#Bare.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "no walking grid")
 end
 
 local pass, fail, failures = H.runSuite("GPSRoute", tests)

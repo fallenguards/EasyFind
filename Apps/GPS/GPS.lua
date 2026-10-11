@@ -510,7 +510,7 @@ local function ToSegment(px, py, ax, ay, bx, by)
 end
 
 -- Whether the player has left the current walk's way: off its straight
--- line and off its road, or on another continent.
+-- line and off its way on foot, or on another continent.
 local function OffRoute(route, ci, px, py)
     local i = route.active or 1
     local step = route.steps[i]
@@ -521,8 +521,8 @@ local function OffRoute(route, ci, px, py)
     if ci ~= tci then return true end
     if ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
     local Engine = ns.GPSRoute
-    local road = Engine and Engine.RoadPath and ns.GPSData and Engine.RoadPath(ns.GPSData, tci, fx, fy, tx, ty)
-    local pts = road and road.pts or {}
+    local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty)
+    local pts = way and way.pts or {}
     for v = 1, #pts - 3, 2 do
         if ToSegment(px, py, pts[v], pts[v + 1], pts[v + 2], pts[v + 3]) <= OFF_ROUTE_YARDS then return false end
     end
