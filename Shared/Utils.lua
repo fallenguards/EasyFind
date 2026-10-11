@@ -1738,13 +1738,13 @@ end
 -- the theme's navy underneath, the rounded pieces hidden; ns.ApplySkin
 -- owns the switch and hands the rounded look back.
 -- The 1.x frame art: the black marble behind the client's own lists, the
--- ornate dialog border on windows, the thin tooltip border on the bar,
+-- ornate dialog border on windows and at half its weight on the bar,
 -- results and menus, and the header plate with a gold title on top of a
 -- window.
 local CLASSIC_DIALOG_BG = "Interface\\FrameGeneral\\UI-Background-Marble"
 ns.CLASSIC_BACKDROP = {            -- bar, results, menus
     bgFile = CLASSIC_DIALOG_BG,
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tile = true, tileSize = 256, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
@@ -5829,7 +5829,7 @@ function ns.SetRoundedRectDivider(frame, yOffset, shown)
         local scale = d.GetEffectiveScale and d:GetEffectiveScale()
         d:SetHeight((physH and physH > 0 and scale and scale > 0) and 768 / physH / scale or 1)
     elseif frame._efSkin == "classic" then
-        -- The Classic skin: a line in the tooltip border's grey, edge to edge.
+        -- The Classic skin: a line in the metal border's gray, edge to edge.
         d:SetColorTexture(0.62, 0.62, 0.62, 0.9)
         d:SetHeight(1)
         inset = ns.CLASSIC_BACKDROP.insets.left
