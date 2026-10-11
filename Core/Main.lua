@@ -162,6 +162,7 @@ local DB_DEFAULTS = {
     mapTabRecentSearches = {},
     mapTabShowRecent = true,
     mapTabRecentCount = 3,
+    mapTabFontSize = 1,
     mapTabAutoExpand = true,
     alwaysShowRares = false,
     housingCollection = "collected",

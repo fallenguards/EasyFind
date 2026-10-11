@@ -171,7 +171,7 @@ local MAP_RESET_KEYS = {
     "iconScale", "mapPinHighlight", "blinkingPins", "autoPinClear",
     "autoTrackPins", "globalSearchFilters", "localSearchFilters",
     "mapTabFilters", "alwaysShowRares", "mapTabShowRecent",
-    "mapTabAutoExpand", "mapTabRecentCount",
+    "mapTabAutoExpand", "mapTabRecentCount", "mapTabFontSize",
 }
 
 local UI_POSITION_DEFAULTS = {

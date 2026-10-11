@@ -47,6 +47,16 @@ local ExpandZoneAbbrev = MapUtils.ExpandZoneAbbrev
 local ROW_HEIGHT       = 22
 local ROW_ICON_SIZE    = 17
 local SECTION_HEADER_H = 22
+local GROUP_HEADER_H   = 28
+
+-- The list's text size, picked in its settings menu; rows grow with it.
+local FONT_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
+local function FontScale() return EasyFind.db and EasyFind.db.mapTabFontSize or 1 end
+local function Scaled(h) return math.floor(h * FontScale() + 0.5) end
+local function ScaleFont(fs, template, scale)
+    local file, size, flags = _G[template]:GetFont()
+    if file then fs:SetFont(file, size * scale, flags) end
+end
 local MAX_ROW_POOL     = 300
 local ROW_POOL_RETAIN  = 80
 local HEADER_POOL_RETAIN = 40
@@ -586,7 +596,7 @@ end
 local function SetRowIcon(row, data)
     -- Pooled rows carry their last occupant's size (recent-search rows
     -- shrink to text height). Reset on every placement.
-    row.icon:SetSize(ROW_ICON_SIZE, ROW_ICON_SIZE)
+    row.icon:SetSize(Scaled(ROW_ICON_SIZE), Scaled(ROW_ICON_SIZE))
     local icon = data.icon
     -- Dungeon/raid/delve/rare entries leave data.icon nil and rely on
     -- the category icon; resolve it so SetRowIcon matches the MapSearch
@@ -706,16 +716,21 @@ local function AcquireRow(parent)
     local row = rowPool[rowPoolCursor]
     if row then
         row:SetParent(parent)
-        rowPoolCursor = rowPoolCursor + 1
-        return row
+    else
+        if #rowPool >= MAX_ROW_POOL then return nil end
+        row = CreateResultRow(parent)
+        row:SetScript("OnClick", RowOnClick)
+        row:SetScript("OnEnter", RowOnEnter)
+        row:SetScript("OnLeave", RowOnLeave)
+        tinsert(rowPool, row)
     end
-    if #rowPool >= MAX_ROW_POOL then return nil end
-    row = CreateResultRow(parent)
-    row:SetScript("OnClick", RowOnClick)
-    row:SetScript("OnEnter", RowOnEnter)
-    row:SetScript("OnLeave", RowOnLeave)
-    tinsert(rowPool, row)
     rowPoolCursor = rowPoolCursor + 1
+    local s = FontScale()
+    if row.fontScale ~= s then
+        row.fontScale = s
+        ScaleFont(row.text, "GameFontNormal", s)
+        row:SetHeight(Scaled(ROW_HEIGHT))
+    end
     return row
 end
 
@@ -757,6 +772,11 @@ local function AcquireSectionLabel(parent, labelText)
     end
     sectionLabelPoolCursor = sectionLabelPoolCursor + 1
     hdr.label:SetText(labelText or "")
+    if hdr.fontScale ~= FontScale() then
+        hdr.fontScale = FontScale()
+        ScaleFont(hdr.label, "GameFontNormalSmall", hdr.fontScale)
+        hdr:SetHeight(Scaled(SECTION_HEADER_H))
+    end
     return hdr
 end
 
@@ -764,8 +784,6 @@ local function ReleaseAllSectionLabels()
     sectionLabelPoolCursor = 1
     for i = 1, #sectionLabelPool do sectionLabelPool[i]:Hide() end
 end
-
-local GROUP_HEADER_H = 28
 
 local function CreateGroupHeader(parent)
     local hdr = CreateFrame("Button", nil, parent)
@@ -865,6 +883,11 @@ local function AcquireGroupHeader(parent, labelText, groupKey, count, collapsed,
     end
     headerPoolCursor = headerPoolCursor + 1
     hdr.label:SetText(labelText or "")
+    if hdr.fontScale ~= FontScale() then
+        hdr.fontScale = FontScale()
+        ScaleFont(hdr.label, "Game15Font_Shadow", hdr.fontScale)
+        hdr:SetHeight(Scaled(GROUP_HEADER_H))
+    end
     hdr.toggleBtn.icon:SetAtlas(collapsed and "QuestLog-icon-expand" or "QuestLog-icon-shrink")
     hdr.toggleBtn:SetShown(hasChildren and true or false)
     hdr.groupKey = groupKey
@@ -1138,7 +1161,7 @@ local function RenderRows(scrollChild, pinned, localEntries, globalEntries, rece
             end
         end
         row:Show()
-        y = y + ROW_HEIGHT
+        y = y + Scaled(ROW_HEIGHT)
     end
 
     local function placeSectionLabel(text)
@@ -1147,7 +1170,7 @@ local function RenderRows(scrollChild, pinned, localEntries, globalEntries, rece
         hdr:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, -y)
         hdr:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -4, -y)
         hdr:Show()
-        y = y + SECTION_HEADER_H
+        y = y + Scaled(SECTION_HEADER_H)
     end
 
     local function placeGroupHeader(name, groupKey, count, collapsed, navigateData, hasChildren, onToggle, onRightClick, indent)
@@ -1159,7 +1182,7 @@ local function RenderRows(scrollChild, pinned, localEntries, globalEntries, rece
         if hdr.hoverOverlay then hdr.hoverOverlay:Hide() end
         visibleNavRows[#visibleNavRows + 1] = hdr
         hdr:Show()
-        y = y + GROUP_HEADER_H
+        y = y + Scaled(GROUP_HEADER_H)
     end
 
     -- Pinning a parent here promotes it into the Pinned section,
@@ -1336,7 +1359,7 @@ local function RenderRows(scrollChild, pinned, localEntries, globalEntries, rece
                 if textH < 8 then textH = 12 end
                 row.icon:SetSize(textH, textH)
                 row:Show()
-                y = y + ROW_HEIGHT
+                y = y + Scaled(ROW_HEIGHT)
             end
         end
     end
@@ -2346,6 +2369,45 @@ local function AttachAutoTrackRow(dropdown)
     dropdown:UpdateAutoTrackRow()
 end
 
+-- The text size choices under the filters, one checked at a time.
+local FONT_ROW_H, FONT_HEADER_H = 20, 19
+local function AttachFontSizeRows(dropdown, onPick)
+    local sec = CreateFrame("Frame", nil, dropdown)
+    local h = FONT_HEADER_H + #FONT_SIZES * FONT_ROW_H
+    sec:SetHeight(h)
+    sec:SetPoint("BOTTOMLEFT", dropdown, "BOTTOMLEFT", 8, 8)
+    sec:SetPoint("BOTTOMRIGHT", dropdown, "BOTTOMRIGHT", -8, 8)
+    local header = sec:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    header:SetPoint("TOPLEFT", sec, "TOPLEFT", 4, 0)
+    header:SetText(L["OPT_FONT_SIZE"] .. ":")
+    header:SetTextColor(Utils.RGB(GOLD_COLOR, 1))
+    local rows = {}
+    for i, choice in ipairs(FONT_SIZES) do
+        local row = CreateFrame("CheckButton", nil, sec)
+        row:SetHeight(FONT_ROW_H)
+        row:SetPoint("TOPLEFT", sec, "TOPLEFT", 0, -FONT_HEADER_H - (i - 1) * FONT_ROW_H)
+        row:SetPoint("RIGHT", sec, "RIGHT", 0, 0)
+        Utils.SetCheckboxTextures(row, 16)
+        local label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        label:SetPoint("LEFT", row:GetNormalTexture(), "RIGHT", 4, 0)
+        label:SetText(L[choice[1]])
+        local hl = row:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, 0.1)
+        row:SetScript("OnClick", function(self)
+            EasyFind.db.mapTabFontSize = choice[2]
+            for _, r in ipairs(rows) do r:SetChecked(r == self) end
+            onPick()
+        end)
+        rows[i] = row
+    end
+    dropdown:HookScript("OnShow", function()
+        local cur = FontScale()
+        for i, r in ipairs(rows) do r:SetChecked(math.abs(FONT_SIZES[i][2] - cur) < 0.01) end
+    end)
+    dropdown:SetHeight(dropdown:GetHeight() + h + 6)
+end
+
 local function CreateFilterCog(parent)
     local cog = CreateFrame("Button", nil, parent)
     cog:SetSize(14, 16)
@@ -2358,7 +2420,7 @@ local function CreateFilterCog(parent)
     hoverTex:SetAlpha(0.4)
     cog:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(L["FILTER_RESULTS"])
+        GameTooltip:SetText(_G["SETTINGS"] or "Settings")
         GameTooltip:AddLine(L["MAP_FILTER_TT"], 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
@@ -2623,6 +2685,7 @@ local function CreatePanel(qmf)
                 end
             end
         )
+        AttachFontSizeRows(dropdown, RefreshCurrentSearch)
         AttachAutoTrackRow(dropdown)
         cog:SetScript("OnClick", function()
             if dropdown:IsShown() then
