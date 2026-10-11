@@ -417,6 +417,7 @@ function Search:CreateSearchFrame()
     ns.CreateRoundedRectBorder(containerFrame)
     ns.CreateRoundedRectDivider(containerFrame)
     containerFrame._efForeverSurface = true
+    containerFrame._efClassicSurface = true
     ns.SetRoundedRectBarHeight(containerFrame, searchFrame:GetHeight())
     self:ApplySearchWindowFill(containerFrame)
 
@@ -2710,19 +2711,6 @@ function Search:UpdateFontSize()
                 ns.SetRoundedRectDivider(containerFrame, barH, true)
             end
         end
-    else
-        -- The classic skin: the game's tooltip frame over the fill; the
-        -- rounded container's chrome and art step aside.
-        if containerFrame then
-            self:ApplySearchWindowFill(containerFrame)
-            ns.SetRoundedRectBorderShown(containerFrame, false)
-            if containerFrame._efArtCells then
-                for _, cell in pairs(containerFrame._efArtCells) do cell:Hide() end
-            end
-        end
-        searchFrame:SetBackdrop(ns.CLASSIC_BACKDROP)
-        searchFrame:SetBackdropColor(1, 1, 1, alpha)
-        searchFrame:SetBackdropBorderColor(1, 1, 1, 1)
     end
 
     for i = 1, #resultButtons do

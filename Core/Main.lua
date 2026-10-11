@@ -50,6 +50,7 @@ local DB_DEFAULTS = {
     moveDim = false,
     -- Border on the search window and its menus: on for a new install; saved choices stay.
     windowBorder = true,
+    themeFrameArt = true,
     lockPosition = false,
     tutorialDone = false,
     updateNotify = true,

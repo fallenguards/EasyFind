@@ -1737,22 +1737,21 @@ end
 -- surface while the window border option is on. Border art in its own tan,
 -- the theme's navy underneath, the rounded pieces hidden; ns.ApplySkin
 -- owns the switch and hands the rounded look back.
--- The 1.x dialog art, as the game shipped it and as ClassicUI Forever
--- draws its own windows: the dark dialog stone untinted, the ornate
--- dialog border on windows, the thin tooltip border on the bar, the
--- results and the menus, and the header plate with a gold title on top
--- of a window.
-local CLASSIC_DIALOG_BG = "Interface\\DialogFrame\\UI-DialogBox-Background"
+-- The 1.x frame art: the black marble behind the client's own lists, the
+-- ornate dialog border on windows, the thin tooltip border on the bar,
+-- results and menus, and the header plate with a gold title on top of a
+-- window.
+local CLASSIC_DIALOG_BG = "Interface\\FrameGeneral\\UI-Background-Marble"
 ns.CLASSIC_BACKDROP = {            -- bar, results, menus
     bgFile = CLASSIC_DIALOG_BG,
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true, tileSize = 32, edgeSize = 16,
+    tile = true, tileSize = 256, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
 ns.CLASSIC_DIALOG = {              -- windows
     bgFile = CLASSIC_DIALOG_BG,
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-    tile = true, tileSize = 32, edgeSize = 32,
+    tile = true, tileSize = 256, edgeSize = 32,
     insets = { left = 11, right = 12, top = 12, bottom = 11 },
 }
 ns.CLASSIC_HEADER = "Interface\\DialogFrame\\UI-DialogBox-Header"
@@ -1763,9 +1762,16 @@ function ns.WindowBorderOn()
     return not (db and db.windowBorder == false)
 end
 
+-- The Classic and Forever themes' own frame art; off, they wear the line
+-- border the other themes do. Only while the window border option is on.
+function ns.FrameArtOn()
+    local db = EasyFind and EasyFind.db
+    return ns.WindowBorderOn() and not (db and db.themeFrameArt == false)
+end
+
 function ns.IsClassicChrome()
     local p = ns.ACTIVE_UI_PALETTE
-    return p ~= nil and p.chrome == "classic" and ns.WindowBorderOn()
+    return p ~= nil and p.chrome == "classic" and ns.FrameArtOn()
 end
 -- style: "dialog" for a window, anything else the thin tooltip frame.
 function ns.ApplyClassicChrome(frame, alpha, style)
@@ -2439,7 +2445,7 @@ ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
 
 function ns.IsForeverChrome()
     local p = ns.ACTIVE_UI_PALETTE
-    return p ~= nil and p.chrome == "forever" and ns.WindowBorderOn()
+    return p ~= nil and p.chrome == "forever" and ns.FrameArtOn()
 end
 
 local LayoutForever, EnsureForever
@@ -5754,6 +5760,11 @@ function ns.SetRoundedRectDivider(frame, yOffset, shown)
         local physH = GetPhysicalScreenSize and select(2, GetPhysicalScreenSize())
         local scale = d.GetEffectiveScale and d:GetEffectiveScale()
         d:SetHeight((physH and physH > 0 and scale and scale > 0) and 768 / physH / scale or 1)
+    elseif frame._efSkin == "classic" then
+        -- The Classic skin: a line in the tooltip border's grey, edge to edge.
+        d:SetColorTexture(0.62, 0.62, 0.62, 0.9)
+        d:SetHeight(1)
+        inset = ns.CLASSIC_BACKDROP.insets.left
     else
         d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1)
         d:SetHeight(1)
