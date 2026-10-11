@@ -2989,14 +2989,16 @@ function PlaceTab()
         -- floating under two invisible tabs with no way back.
         if not backTab then backTab = CreateBackTab(qmf) end
         backTab:ClearAllPoints()
-        -- Against the map window's right edge, not the quest pane's, so a
-        -- frame that insets the pane keeps the tabs on its border. On the
-        -- beta the pane ends 3 inside the window and the tab art carries
-        -- transparent padding on its left; down from the pane's top.
+        -- Against the visible border's outer edge, down from the pane's top.
+        -- The game's border art ends 9 inside the window (the tab art has
+        -- 3 of padding); a frame drawn round the window with the game's
+        -- faded out ends 4 inside (measured with /efd maptabs).
         local wmf = _G["WorldMapFrame"]
+        local nine = wmf and wmf.BorderFrame and wmf.BorderFrame.NineSlice
+        local inset = (nine and nine:GetAlpha() < 0.01) and -4 or -12
         local qTop, wTop = qmf:GetTop(), wmf and wmf:GetTop()
         if qTop and wTop then
-            backTab:SetPoint("TOPLEFT", wmf, "TOPRIGHT", -12, qTop - wTop - 28)
+            backTab:SetPoint("TOPLEFT", wmf, "TOPRIGHT", inset, qTop - wTop - 28)
         else
             backTab:SetPoint("TOPLEFT", qmf, "TOPRIGHT", -9, -28)
         end
