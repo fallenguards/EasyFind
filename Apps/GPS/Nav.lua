@@ -456,21 +456,8 @@ function Nav.Walk(ci, ax, ay, bx, by, opts)
     return (Walk(w, ax, ay, bx, by, opts))
 end
 
--- Each continent's walking grid ships as its own add-on, loaded the first
--- time a walk there needs it.
-local ADDONS = { [0] = "EasyFind_Walk_EasternKingdoms", [1] = "EasyFind_Walk_Kalimdor", [2991] = "EasyFind_Walk_ZephrasIsle" }
-local tried = {}
-
 function Nav.Has(ci) return ns.GPSNavData ~= nil and ns.GPSNavData[ci] ~= nil end
-
-function Nav.Ensure(ci)
-    if Nav.Has(ci) then return true end
-    local name = ADDONS[ci]
-    if not name or tried[ci] or not (C_AddOns and C_AddOns.LoadAddOn) then return false end
-    tried[ci] = true
-    C_AddOns.LoadAddOn(name)
-    return Nav.Has(ci)
-end
+Nav.Ensure = Nav.Has
 
 -- Drawing ---------------------------------------------------------------------
 

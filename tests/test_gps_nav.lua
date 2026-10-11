@@ -9,6 +9,7 @@ local function fresh()
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
     env.C_EncodingUtil = { DecodeBase64 = Inflate.DecodeBase64, DecompressString = function(s) return Inflate.Raw(s) end }
     H.loadModule("tests/fixtures/nav_elwynn.lua", env, ns)
     H.loadModule("Apps/GPS/Nav.lua", env, ns)
