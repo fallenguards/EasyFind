@@ -418,6 +418,7 @@ function Search:CreateSearchFrame()
     ns.CreateRoundedRectDivider(containerFrame)
     containerFrame._efForeverSurface = true
     containerFrame._efClassicSurface = true
+    containerFrame._efWearsTree = true
     ns.SetRoundedRectBarHeight(containerFrame, searchFrame:GetHeight())
     self:ApplySearchWindowFill(containerFrame)
 

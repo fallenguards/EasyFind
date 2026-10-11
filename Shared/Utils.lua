@@ -2582,6 +2582,67 @@ local function ShowForeverPieces(frame)
     f.border:SetShown(panel)
 end
 
+-- The 1.x talent trees a Classic window may wear over its marble, as their
+-- tabs list them; drawn at their own size from the top right, cropped.
+ns.CLASSIC_TREES = { "DruidBalance", "DruidFeralCombat", "DruidRestoration", "HunterBeastMastery", "HunterMarksmanship",
+    "HunterSurvival", "MageArcane", "MageFire", "MageFrost", "PaladinHoly", "PaladinProtection", "PaladinCombat",
+    "PriestDiscipline", "PriestHoly", "PriestShadow", "RogueAssassination", "RogueCombat", "RogueSubtlety",
+    "ShamanElementalCombat", "ShamanEnhancement", "ShamanRestoration", "WarlockCurses", "WarlockSummoning",
+    "WarlockDestruction", "WarriorArms", "WarriorFury", "WarriorProtection" }
+local TREE_ART = "Interface\\TalentFrame\\"
+-- The painted part is 300 x 331 of the four files; their right 20 columns are blank.
+local TREE_W, TREE_H, TREE_BLANK_RIGHT = 300, 331, 20
+local TREE_PIECES = {
+    { key = "TopRight", w = 64, h = 256 }, { key = "TopLeft", w = 256, h = 256 },
+    { key = "BottomRight", w = 64, h = 75, v1 = 75 / 128 }, { key = "BottomLeft", w = 256, h = 75, v1 = 75 / 128 },
+}
+
+local function PlaceTree(art)
+    local w, h = art.clip:GetWidth() or 0, art.clip:GetHeight() or 0
+    local k = mmax(1, w / TREE_W, h / TREE_H)
+    for i, piece in ipairs(TREE_PIECES) do art.tex[i]:SetSize(piece.w * k, piece.h * k) end
+    art.tex[1]:ClearAllPoints()
+    art.tex[1]:SetPoint("TOPRIGHT", art.clip, "TOPRIGHT", TREE_BLANK_RIGHT * k, 0)
+end
+
+-- The picked tree inside the frame's border, or none for the marble alone.
+local function DressTree(frame, inset, alpha)
+    local db = EasyFind and EasyFind.db
+    local name = db and db.classicArt
+    if name == "marble" then name = nil end
+    local art = frame._efTree
+    if not name then
+        if art then art.clip:Hide() end
+        return
+    end
+    if not art then
+        local clip = CreateFrame("Frame", nil, frame)
+        clip:SetFrameLevel(frame:GetFrameLevel())
+        clip:SetClipsChildren(true)
+        local tex = {}
+        for i, piece in ipairs(TREE_PIECES) do
+            tex[i] = clip:CreateTexture(nil, "BACKGROUND")
+            tex[i]:SetTexCoord(0, 1, 0, piece.v1 or 1)
+        end
+        tex[2]:SetPoint("TOPRIGHT", tex[1], "TOPLEFT")
+        tex[3]:SetPoint("TOPRIGHT", tex[1], "BOTTOMRIGHT")
+        tex[4]:SetPoint("TOPRIGHT", tex[3], "TOPLEFT")
+        art = { clip = clip, tex = tex }
+        frame._efTree = art
+        clip:SetScript("OnSizeChanged", function() PlaceTree(art) end)
+    end
+    art.clip:ClearAllPoints()
+    art.clip:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
+    art.clip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -inset, inset)
+    if art.name ~= name then
+        art.name = name
+        for i, piece in ipairs(TREE_PIECES) do art.tex[i]:SetTexture(TREE_ART .. name .. "-" .. piece.key) end
+    end
+    art.clip:SetAlpha(alpha)
+    PlaceTree(art)
+    art.clip:Show()
+end
+
 do
     local function DressClassic(frame)
         if not frame.SetBackdrop and BackdropTemplateMixin then
@@ -2595,8 +2656,14 @@ do
             frame._efClassicChrome = want
         end
         -- The stone is its own color; only the window opacity applies.
-        frame:SetBackdropColor(1, 1, 1, frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha())
+        local alpha = frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha()
+        frame:SetBackdropColor(1, 1, 1, alpha)
         frame:SetBackdropBorderColor(1, 1, 1, 1)
+        -- Windows and the search window may wear a talent tree; menus never.
+        if want == "dialog" or frame._efWearsTree then
+            local insets = (want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP).insets
+            DressTree(frame, insets.left, alpha)
+        end
         return true
     end
 
@@ -2619,6 +2686,7 @@ do
         elseif was == "classic" and want ~= "classic" then
             frame._efClassicChrome = nil
             if frame.SetBackdrop then frame:SetBackdrop(nil) end
+            if frame._efTree then frame._efTree.clip:Hide() end
         end
         if want == "classic" and not DressClassic(frame) then want = nil end
         frame._efSkin = want

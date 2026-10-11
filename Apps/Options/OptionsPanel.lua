@@ -271,6 +271,7 @@ local function SyncOptionControls()
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
     if optionsFrame.windowBorderCheckbox then optionsFrame.windowBorderCheckbox:SetChecked(EasyFind.db.windowBorder ~= false) end
     if optionsFrame.frameArtCheckbox then optionsFrame.frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false) end
+    if optionsFrame.classicBgRow then optionsFrame.classicBgRow:SetValue(EasyFind.db.classicArt or "marble") end
     if optionsFrame.searchAutocompleteCheckbox then optionsFrame.searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false) end
     if optionsFrame.showAppsButtonCheckbox then optionsFrame.showAppsButtonCheckbox:SetChecked(EasyFind.db.showAppsButton ~= false) end
     if optionsFrame.showFilterButtonCheckbox then optionsFrame.showFilterButtonCheckbox:SetChecked(EasyFind.db.showFilterButton ~= false) end
@@ -1955,6 +1956,25 @@ local function BuildSearchTab(ctx)
     end)
     optionsFrame.frameArtCheckbox = frameArtCheckbox
 
+    -- The Classic theme's window background: the marble, or a talent tree
+    -- named as its class's tab reads.
+    local classicBgChoices = { { label = L["CLASSIC_BG_MARBLE"], value = "marble" } }
+    local classNames = _G["LOCALIZED_CLASS_NAMES_MALE"] or {}
+    for _, tree in ipairs(ns.CLASSIC_TREES or {}) do
+        local class = tree:match("^%u%l+")
+        classicBgChoices[#classicBgChoices + 1] = {
+            label = (classNames[class:upper()] or class) .. ": " .. L["TREE_" .. tree], value = tree }
+    end
+    local classicBgRow = CreateFlyoutPresetRow(sec1, L["OPT_CLASSIC_BG"], classicBgChoices,
+        function() return EasyFind.db.classicArt or "marble" end,
+        function(value)
+            EasyFind.db.classicArt = value ~= "marble" and value or nil
+            if ns.Search and ns.Search.UpdateWindowBorders then ns.Search:UpdateWindowBorders() end
+            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
+            if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
+        end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"])
+    optionsFrame.classicBgRow = classicBgRow
+
     local searchAutocompleteCheckbox = CreateCheckbox(sec1, "SearchAutocomplete",
         L["OPT_INLINE_AUTOCOMPLETE"], L["OPT_INLINE_AUTOCOMPLETE_TT"], true, CHECK_COL_W)
     searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false)
@@ -2214,6 +2234,7 @@ local function BuildSearchTab(ctx)
     learnPicksCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "BOTTOMLEFT", 0, -2)
     macroPickerSearchCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     frameArtCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
+    classicBgRow:SetPoint("TOPLEFT", frameArtCheckbox, "BOTTOMLEFT", 0, -4)
 
     local function RefreshUIPresetRows()
         if optionsFrame.uiFontPresetRow then
