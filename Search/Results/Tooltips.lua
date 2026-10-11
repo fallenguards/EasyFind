@@ -8,6 +8,7 @@ local CreateFrame = CreateFrame
 local BattlePetTooltip = BattlePetTooltip
 local GameTooltip = GameTooltip
 local UIParent = UIParent
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 
 local unearnedTooltip
 
