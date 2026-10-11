@@ -491,6 +491,19 @@ function Handlers:SelectResult(data, forceGuide)
             end
         end
 
+        -- No journal (WoW Forever): directions to the instance that drops it.
+        if not (ns.Caps and ns.Caps.journal) then
+            for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
+                if e.id == data.instanceID and ns.GPS and ns.GPS.NavigateTo then
+                    ns.GPS:NavigateTo({ name = data.lootInstanceName or e.n, mapID = e.m, x = e.x, y = e.y,
+                                        isDungeonEntrance = true, category = e.raid and "raid" or "dungeon" })
+                    return
+                end
+            end
+            if lootLink and ChatEdit_InsertLink then ChatEdit_InsertLink(lootLink) end
+            return
+        end
+
         -- Sync EJ loot filter so the item is visible when we navigate there
         if ns.Database then ns.Database:SyncEJLootFilter() end
 

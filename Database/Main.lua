@@ -1405,17 +1405,18 @@ local function RebuildLootSearchData()
 
     local wantDiff = EasyFind.db.lootDifficulty or "normal"
 
+    -- "*" is every spec or difficulty: WoW Forever's shipped loot.
     local function wanted(specs, diffs)
         local specMatch = wantAll
         if not specMatch and specs then
             for i = 1, #specs do
-                if wantSpec[specs[i]] then specMatch = true; break end
+                if specs[i] == "*" or wantSpec[specs[i]] then specMatch = true; break end
             end
         end
         if not specMatch then return false end
         if diffs then
             for i = 1, #diffs do
-                if diffs[i] == wantDiff then return true end
+                if diffs[i] == "*" or diffs[i] == wantDiff then return true end
             end
         end
         return false
@@ -1520,11 +1521,14 @@ function Database:GetLootItemLink(entry)
         local live = lootItemCache[entry.itemID]
         if live then links = live.lootItemLinks end
     end
-    if not links then return nil end
     local selected = EasyFind.db.lootDifficulty or "normal"
-    if links[selected] then return links[selected] end
-    for _, dk in ipairs(DIFF_PRIORITY) do
+    if links and links[selected] then return links[selected] end
+    for _, dk in ipairs(links and DIFF_PRIORITY or {}) do
         if links[dk] then return links[dk] end
+    end
+    -- Loot with no journal link (WoW Forever's shipped table): the item's own.
+    if entry.itemID and C_Item and C_Item.GetItemInfo then
+        return (select(2, C_Item.GetItemInfo(entry.itemID)))
     end
     return nil
 end
@@ -3553,8 +3557,33 @@ function Database:CancelDynamicScans(includeBosses)
 end
 
 -- scanAllSpecs=true pre-caches every class/spec combo (loading screen path).
+-- WoW Forever has no encounter journal: its loot comes from Loot_Forever.lua,
+-- every item for every class and difficulty, named by the client when cached.
+local function PopulateForeverLoot(database)
+    local names = ns.FOREVER_LOOT_NAMES or {}
+    local insts = {}
+    for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do insts[e.id] = insts[e.id] or e end
+    local diff = { key = "*" }
+    local GetName = C_Item and C_Item.GetItemNameByID
+    for _, boss in ipairs(ns.FOREVER_LOOT) do
+        local e = insts[boss.inst]
+        local zone = GetRealZoneText and GetRealZoneText(boss.inst)
+        local inst = { id = boss.inst, name = (zone and zone ~= "") and zone or (e and e.n), isRaid = e and e.raid or false }
+        for _, itemID in ipairs(boss.items) do
+            local name = (GetName and GetName(itemID)) or names[itemID]
+            CacheLootInfo(database, { itemID = itemID, name = name }, inst, boss.boss, boss.enc, diff, nil, "*",
+                GetItemInfoInstant)
+        end
+    end
+    RebuildLootSearchData()
+end
+
 function Database:PopulateDynamicLoot(scanAllSpecs)
     if InCombatLockdown() then return false end
+    if ns.FOREVER_LOOT and not (ns.Caps and ns.Caps.journal) then
+        PopulateForeverLoot(self)
+        return
+    end
     HydratePersistedLootCache()
 
     local specPairs = BuildLootSpecPairs(scanAllSpecs)
@@ -3680,6 +3709,11 @@ end
 
 function Database:PopulateDynamicLootAsync(done, scanAllSpecs)
     if InCombatLockdown() then done(false, "cancelled"); return end
+    if ns.FOREVER_LOOT and not (ns.Caps and ns.Caps.journal) then
+        PopulateForeverLoot(self)
+        done(true)
+        return
+    end
     HydratePersistedLootCache()
     if not Utils.SafeAfter then
         local ready = self:PopulateDynamicLoot(scanAllSpecs)

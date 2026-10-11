@@ -81,6 +81,8 @@ Caps.specs = type(GetNumSpecializationsForClassID) == "function"
 Caps.journal = rule("EncounterJournalDisabled") ~= true
     and type(EncounterJournal_LoadUI) == "function"
     and Caps.PanelEnabled("Blizzard_EncounterJournal")
+-- Loot from the journal, or on WoW Forever from its shipped table.
+Caps.loot = Caps.journal or Caps.forever
 Caps.housing = rule("HousingDashboardDisabled") ~= true
     and rule("HousingEnabled") ~= false
     and Caps.PanelEnabled("Blizzard_HousingDashboard")
@@ -278,7 +280,7 @@ Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~=
 -- and the quick filters at load, so nothing advertises a dead feature.
 local NEEDS = {
     pets = "pets", toys = "toys", heirlooms = "heirlooms", currencies = "currencies",
-    housing = "housing", loot = "journal", bosses = "journal", delves = "delves",
+    housing = "housing", loot = "loot", bosses = "journal", delves = "delves",
     warband = "warbandBank", achievements = "achievements", statistics = "achievements",
     talents = "talents", outfits = "outfits", appearances = "transmog",
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",

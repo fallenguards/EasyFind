@@ -44,6 +44,7 @@ Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua
 Database/Instances_Forever.lua
+Database/Loot_Forever.lua
 Database/StaticLocations.lua
 Database/StaticLocations_Forever.lua
 Shared/Aliases.lua
