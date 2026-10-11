@@ -683,11 +683,28 @@ end
 local SetModernButtonFill = ns.SetRoundedRectBorderFillColor
 local SetModernButtonAlpha = ns.SetRoundedRectBorderBgAlpha
 
+-- Under the Classic skin a tab is a 1.x list row: no pill, the old title
+-- highlight behind the picked one, fainter under the cursor.
+local CLASSIC_LIST_HL = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
+
 local function SetNavButtonBg(btn, color)
+    local classic = ns.IsClassicChrome()
+    local hl = btn._efListHL
+    if classic and not hl then
+        hl = btn:CreateTexture(nil, "BACKGROUND")
+        hl:SetTexture(CLASSIC_LIST_HL)
+        hl:SetBlendMode("ADD")
+        hl:SetAllPoints(btn)
+        btn._efListHL = hl
+    end
+    if hl then
+        hl:SetShown(classic and color ~= NAV_CLEAR)
+        hl:SetAlpha(color == NAV_HOVER and 0.5 or 1)
+    end
     -- Clear means HIDDEN, not alpha-zero: with the textures hidden, no
     -- stray repaint can ever leave a visible background on an inactive
     -- nav button.
-    if color == NAV_CLEAR then
+    if color == NAV_CLEAR or classic then
         ns.SetRoundedRectBorderShown(btn, false)
         return
     end
@@ -4881,6 +4898,8 @@ function Options:Initialize()
     optionsFrame.sidebar = sidebar
     sidebar._efNoAutoRetint = true
     ns.CreateRoundedRectBorder(sidebar)
+    -- Under Classic the column is a sunken list: marble in the metal edge.
+    sidebar._efClassicSurface = true
     ns.SetRoundedRectBarHeight(sidebar, 14)
     ns.SetRoundedRectBorderBgAlpha(sidebar, 0.72)
     HideRoundedBorder(sidebar)
@@ -4986,7 +5005,10 @@ function Options:Initialize()
     -- plain white on it (the tinted window fill was harder to read).
     local function PaintTabLabel(label, hovered)
         local pal = ns.ACTIVE_UI_PALETTE
-        if pal and pal.light then
+        if ns.IsClassicChrome() then
+            -- The 1.x lists: gold names, white under the cursor.
+            if hovered then label:SetTextColor(1, 1, 1, 1) else label:SetTextColor(1, 0.82, 0, 1) end
+        elseif pal and pal.light then
             label:SetTextColor(1, 1, 1, 1)
         else
             label:SetTextColor(Utils.RGB(hovered and TEXT_PRIMARY or TEXT_BODY, 1))
@@ -5000,7 +5022,9 @@ function Options:Initialize()
             -- Light themes: window-fill pill on the card-colored column,
             -- so the label inverts to the column color.
             local pal = ns.ACTIVE_UI_PALETTE
-            if pal and pal.light then
+            if ns.IsClassicChrome() then
+                btn.label:SetTextColor(1, 1, 1, 1)
+            elseif pal and pal.light then
                 local card = ns.SECTION_TABLE_FILL
                 btn.label:SetTextColor(card[1], card[2], card[3], 1)
             else
