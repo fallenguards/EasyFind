@@ -80,6 +80,7 @@ function ns.BuildApplicationEntries()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
         apps[#apps + 1] = {
             name = L["APP_GPS"],
+            experimental = L["GPS_EXP_TT"],
             gpsLauncher = true,
             noPin = true,
             icon = ns.GPS_ICON_TEX,
@@ -449,11 +450,21 @@ local function BuildRows(dropdown)
         -- Same font as result-row titles (pathFont), like every menu.
         local theme = Results.GetActiveTheme and Results:GetActiveTheme()
         Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
+        -- An experimental app wears the EXP badge after its name.
+        if app.experimental and not row.expTag then
+            row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], app.experimental)
+        end
+        if row.expTag then
+            row.expTag:ClearAllPoints()
+            row.expTag:SetPoint("LEFT", row.label, "LEFT", (row.label:GetStringWidth() or 0) + 4, 0)
+            row.expTag:SetShown(app.experimental ~= nil)
+        end
         row:Show()
     end
 
     for i = #apps + 1, #dropdown.rows do
         dropdown.rows[i]:Hide()
+        if dropdown.rows[i].expTag then dropdown.rows[i].expTag:Hide() end
     end
 
     -- Wash mode and tint follow the active theme; re-run per build so rows
@@ -465,7 +476,8 @@ local function BuildRows(dropdown)
     -- padding, clamped to a sane range.
     local widest = 0
     for i = 1, #apps do
-        local w = dropdown.rows[i].label:GetStringWidth() or 0
+        local row = dropdown.rows[i]
+        local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 4 or 0)
         if w > widest then widest = w end
     end
     local menuW = ICON + 8 + widest + PAD * 2 + 6
