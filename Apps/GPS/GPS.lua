@@ -1363,16 +1363,17 @@ local function BuildSurface(frame, opts)
     title._efOwnColor = true
     frame.title = title
     if not opts.titleOpensMap then
-        -- Resting on the destination line shows the whole route on the map.
-        local over = CreateFrame("Frame", nil, frame)
+        -- A click on the destination line holds the whole route on the
+        -- map, as a click on a step holds that step; right-click is the menu.
+        local over = CreateFrame("Button", nil, frame)
         over:SetAllPoints(title)
-        over:EnableMouse(true)
-        if over.SetMouseClickEnabled then over:SetMouseClickEnabled(false) end
-        over:SetScript("OnEnter", function()
-            if frame.previewOnHover and ns.GPSPreview then ns.GPSPreview:ShowAll() end
-        end)
-        over:SetScript("OnLeave", function()
-            if frame.previewOnHover and ns.GPSPreview then ns.GPSPreview:Hide() end
+        over:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        over:SetScript("OnClick", function(_, button)
+            if button == "RightButton" then
+                if frame.ShowMenu then frame.ShowMenu() end
+            elseif frame.previewOnHover and ns.GPSPreview then
+                ns.GPSPreview:Toggle(0)
+            end
         end)
     end
     if opts.titleOpensMap then

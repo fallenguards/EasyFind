@@ -423,6 +423,7 @@ end
 -- while the cursor is on it, then the clicked one returns.
 local pinned
 
+-- Index 0 is the whole route.
 function Preview:Toggle(index)
     if pinned == index then
         pinned = nil
@@ -430,14 +431,17 @@ function Preview:Toggle(index)
         if overlay then overlay:Hide() end
     else
         pinned = index
-        self:Show(index)
+        if index == 0 then self:ShowAll() else self:Show(index) end
     end
 end
 
 function Preview:Hide()
     shownIndex = nil
     local route = Route()
-    if pinned and route and route.steps and route.steps[pinned] then
+    if pinned == 0 and route then
+        self:ShowAll()
+        return
+    elseif pinned and route and route.steps and route.steps[pinned] then
         self:Show(pinned)
         return
     end
