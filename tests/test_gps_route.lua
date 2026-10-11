@@ -686,5 +686,14 @@ function tests.avoid_stillTakenWhenNothingElseGetsThere()
     H.assertTrue(total < 3600, "no penalty in the time shown: " .. tostring(total))
 end
 
+-- Hops this account has flown count over the estimate from their length.
+function tests.flown_hopsCountOverTheEstimate()
+    local _, _, Route = fresh()
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local _, estimated = build(Route, P(1, 0.1, 0.1), dest)
+    local _, flown = build(Route, P(1, 0.1, 0.1), dest, { flown = function() return 30 end })
+    H.assertTrue(flown < estimated - 200, "two 30 s hops beat two 200 s estimates: " .. flown .. " vs " .. estimated)
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

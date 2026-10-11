@@ -157,6 +157,8 @@ local function BuildGraph(ctx)
     end
     local legs = {}           -- node index -> { { to = idx, sec = s }, ... }
     local taxiByCi = data.taxiByCi or {}
+    -- Hops this account has flown, each way, over the estimate.
+    local measured = ctx.flown or (ns.GPSFlights and ns.GPSFlights.Seconds)
     for i = 1, #(data.legs or {}) do
         local a, b, yd, flown = data.legs[i][1], data.legs[i][2], data.legs[i][3], data.legs[i][4]
         local ia, ib = taxiIdx[a], taxiIdx[b]
@@ -168,11 +170,11 @@ local function BuildGraph(ctx)
             local pen = Avoided("taxi")
             if not nodes[ib].unknown then
                 legs[ia] = legs[ia] or {}
-                tinsert(legs[ia], { to = ib, sec = sec, pen = pen })
+                tinsert(legs[ia], { to = ib, sec = measured and measured(a, b) or sec, pen = pen })
             end
             if not nodes[ia].unknown then
                 legs[ib] = legs[ib] or {}
-                tinsert(legs[ib], { to = ia, sec = sec, pen = pen })
+                tinsert(legs[ib], { to = ia, sec = measured and measured(b, a) or sec, pen = pen })
             end
         end
     end
@@ -933,6 +935,7 @@ function Route:Build(dest, opts)
         groundSpeed = opts.groundSpeed,
         hearth = opts.hearth,
         avoid = opts.avoid,
+        flown = opts.flown,
         bindName = opts.bindName or (GetBindLocation and GetBindLocation()) or nil,
         known = known,
         listed = listed,

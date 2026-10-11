@@ -16,6 +16,7 @@ Walk_Kalimdor.lua
 Walk_ZephrasIsle.lua
 Nav.lua
 Route.lua
+Flights.lua
 WorldPin.lua
 Preview.lua
 GPS.lua
