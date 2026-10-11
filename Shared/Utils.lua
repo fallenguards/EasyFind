@@ -1748,6 +1748,13 @@ ns.CLASSIC_BACKDROP = {            -- bar, results, menus
     tile = true, tileSize = 256, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
+-- Panes inside a window: the thin tooltip edge, so no metal nests in metal.
+ns.CLASSIC_THIN = {
+    bgFile = CLASSIC_DIALOG_BG,
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 256, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+}
 ns.CLASSIC_DIALOG = {              -- windows
     bgFile = CLASSIC_DIALOG_BG,
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -2650,9 +2657,11 @@ do
             if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
         end
         if not frame.SetBackdrop then return false end
-        local want = frame._efClassicStyle == "dialog" and "dialog" or "tooltip"
+        local style = frame._efClassicStyle
+        local want = (style == "dialog" or style == "thin") and style or "tooltip"
+        local backdrop = (want == "dialog" and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN) or ns.CLASSIC_BACKDROP
         if frame._efClassicChrome ~= want then
-            frame:SetBackdrop(want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP)
+            frame:SetBackdrop(backdrop)
             frame._efClassicChrome = want
         end
         -- The stone is its own color; only the window opacity applies.
@@ -2661,8 +2670,7 @@ do
         frame:SetBackdropBorderColor(1, 1, 1, 1)
         -- Windows and the search window may wear a talent tree; menus never.
         if want == "dialog" or frame._efWearsTree then
-            local insets = (want == "dialog" and ns.CLASSIC_DIALOG or ns.CLASSIC_BACKDROP).insets
-            DressTree(frame, insets.left, alpha)
+            DressTree(frame, backdrop.insets.left, alpha)
         end
         return true
     end

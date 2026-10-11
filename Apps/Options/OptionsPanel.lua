@@ -4898,8 +4898,9 @@ function Options:Initialize()
     optionsFrame.sidebar = sidebar
     sidebar._efNoAutoRetint = true
     ns.CreateRoundedRectBorder(sidebar)
-    -- Under Classic the column is a sunken list: marble in the metal edge.
+    -- Under Classic the column is a sunken list: marble in the thin edge.
     sidebar._efClassicSurface = true
+    sidebar._efClassicStyle = "thin"
     ns.SetRoundedRectBarHeight(sidebar, 14)
     ns.SetRoundedRectBorderBgAlpha(sidebar, 0.72)
     HideRoundedBorder(sidebar)
