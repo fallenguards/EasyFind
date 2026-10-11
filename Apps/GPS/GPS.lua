@@ -26,6 +26,16 @@ local CROSS_ARRIVE_YARDS = 300   -- a crossing's far spot is where it drops you,
 local ROUTE_MAX_AGE = 2 * 60 * 60
 local ARRIVED_LINGER = 20
 local ROW_H = 22
+-- Beside the map the steps read at the quest log's size and follow the map
+-- search's font size choice; the windows keep their small type.
+local MAP_STEP_PX = 13
+local function MapScale(container)
+    return container.mapFont and ((EasyFind.db and EasyFind.db.mapTabFontSize) or 1) or nil
+end
+local function SizeFont(fs, px)
+    local file, _, flags = fs:GetFont()
+    if file then fs:SetFont(file, px, flags) end
+end
 local HIT_ROWS = 8            -- results shown under the pop-out's search box
 -- Pop-out sizes on offer: the cog's radio rows. A nil height fits the steps.
 local SIZE_WIDTHS = { { 240, "GPS_SIZE_NARROW" }, { 300, "GPS_SIZE_NORMAL" }, { 380, "GPS_SIZE_WIDE" }, { 460, "GPS_SIZE_WIDER" } }
@@ -276,6 +286,7 @@ local function Refresh()
     if ns.MapTab and ns.MapTab.RefreshPageBar then ns.MapTab:RefreshPageBar() end
     if ns.GPSWorldPin then ns.GPSWorldPin:Refresh() end
 end
+GPS.RefreshSurfaces = Refresh
 
 -- The map point for a step's waypoint. A map that refuses user waypoints
 -- (dungeon-type cities, underground continents) hands it to the nearest ancestor that takes one.
@@ -1024,10 +1035,18 @@ local function Render(container)
     local y = 0
     local offset = container.scrollOffset or 0
     local shown = route.arrived and 0 or #route.steps
+    local scale = MapScale(container)
+    local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
     for i = 1, shown do
         local step = route.steps[i]
         local row = StepRow(container, i)
         row.index = i
+        if scale and row.fontScale ~= scale then
+            row.fontScale = scale
+            SizeFont(row.text, MAP_STEP_PX * scale)
+            SizeFont(row.num, MAP_STEP_PX * scale)
+            row.num:SetWidth(mfloor(24 * scale + 0.5))
+        end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
         row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
@@ -1040,8 +1059,8 @@ local function Render(container)
         row.text:SetText(StepText(step, active))
         local cast = SetupCast(row.cast, step, active)
         row.text:SetPoint("RIGHT", row, "RIGHT", cast and -32 or -6, 0)
-        local rowH = ROW_H
-        if wrap then rowH = mmax(ROW_H, (row.text:GetStringHeight() or 0) + 8) end
+        local rowH = rowBase
+        if wrap then rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8) end
         row:SetHeight(rowH)
         if active then
             row.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
@@ -1065,9 +1084,13 @@ local function Render(container)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
         row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
+        if scale and row.fontScale ~= scale then
+            row.fontScale = scale
+            SizeFont(row.text, (MAP_STEP_PX - 1) * scale)
+        end
         row.text:SetText(tips[t].text)
         row.text:SetTextColor(unpack(ns.TEXT_DIM))
-        local rowH = mmax(ROW_H, (row.text:GetStringHeight() or 0) + 8)
+        local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
         row:SetHeight(rowH)
         row:Show()
         y = y + rowH
@@ -1505,6 +1528,17 @@ end
 local function BuildPage(frame)
     BuildSurface(frame, { popoutButton = true })
     frame.previewOnHover = true   -- this surface sits beside the map
+    frame.mapFont = true          -- its steps follow the map search's font size
+    -- At its foot: GPS is experimental, and where to say so.
+    local note = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local exp = ns.CreateFeatureTag(frame, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"])
+    note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12 + exp:GetWidth() + 6, 10)
+    note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
+    note:SetJustifyH("LEFT")
+    note:SetText(L["GPS_EXP_TT"])
+    note:SetTextColor(unpack(ns.TEXT_DIM))
+    note._efOwnColor = true
+    exp:SetPoint("TOPRIGHT", note, "TOPLEFT", -6, 1)
 end
 
 if ns.MapTab and ns.MapTab.RegisterPage then

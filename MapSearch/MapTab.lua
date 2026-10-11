@@ -2686,7 +2686,11 @@ local function CreatePanel(qmf)
                 end
             end
         )
-        AttachFontSizeRows(dropdown, RefreshCurrentSearch)
+        AttachFontSizeRows(dropdown, function()
+            RefreshCurrentSearch()
+            -- The GPS page's steps follow the same size.
+            if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
+        end)
         AttachAutoTrackRow(dropdown)
         cog:SetScript("OnClick", function()
             if dropdown:IsShown() then
