@@ -8110,6 +8110,9 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
         -- line-art treatment as Guide's eye.
         rows[#rows + 1] = { text = L["CTX_GPS"], icon = ns.GPS_ICON_TEX, chromeIcon = true, onClick = extra.onGPS }
     end
+    if extra and extra.onGPSFrom then
+        rows[#rows + 1] = { text = L["CTX_GPS_FROM"], icon = ns.GPS_ICON_TEX, chromeIcon = true, onClick = extra.onGPSFrom }
+    end
     if extra and extra.wowheadUrl then
         -- Our own chain-link glyph (textures/link.tga), the same custom
         -- treatment as Guide's eye and Pin's diamond. A copy row: the URL

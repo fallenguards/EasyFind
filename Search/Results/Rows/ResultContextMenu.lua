@@ -143,6 +143,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
                 Handlers:FinishResultSelection()
             end
         end
+        if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(pinData) end end
     end
     extra.wowheadUrl = ns.GetWowheadLink and ns.GetWowheadLink(pinData)
     if ns.ResultLinks then

@@ -25,6 +25,7 @@ local ARRIVE_YARDS = 40
 local CROSS_ARRIVE_YARDS = 300   -- a crossing's far spot is where it drops you, give or take
 local ROUTE_MAX_AGE = 2 * 60 * 60
 local ARRIVED_LINGER = 20
+local START_YARDS = 60      -- this close to a planned route's start, the player is on it
 local ROW_H = 22
 -- Beside the map the steps read at the quest log's size and follow the map
 -- search's font size choice; the windows keep their small type.
@@ -70,6 +71,27 @@ local function Route()
     return c and c.route
 end
 GPS.CurrentRoute = Route
+
+-- A start other than where the player stands ({ name, mapID, x, y }), set
+-- from the From line or a result's Route from here; nil: the player's spot.
+local function Start()
+    local c = CharDB()
+    return c and c.start
+end
+
+-- The search box's hint: picking a start, where to from a start, or plain.
+local function SearchHint(frame)
+    local box = frame.search
+    if not (box and box.Instructions) then return end
+    local s = Start()
+    if GPS.picking == frame then
+        box.Instructions:SetText(L["GPS_FROM_PLACEHOLDER"])
+    elseif s and not Route() then
+        box.Instructions:SetText(sformat(L["GPS_SEARCH_FROM_FMT"], s.name or "?"))
+    else
+        box.Instructions:SetText(L["GPS_SEARCH_PLACEHOLDER"] or SEARCH or "Search")
+    end
+end
 
 -- Route model
 
@@ -210,17 +232,18 @@ local function IsCity(mapID)
     return info ~= nil and info.mapType == ZONE and info.flags ~= nil and bit.band(info.flags, 2) == 0
 end
 
-local function SplitWalks(steps, dest)
+local function SplitWalks(steps, dest, origin)
     local Route = ns.GPSRoute
-    local ci, wx, wy = PlayerWorldPos()
+    local ci, wx, wy
+    if origin then ci, wx, wy = origin.ci, origin.wx, origin.wy else ci, wx, wy = PlayerWorldPos() end
     if not (Route and Route.SplitWalks and ci and C_Map.GetMapPosFromWorldPos) then return steps end
-    continentOf[ci] = continentOf[ci] or ContinentAbove(C_Map.GetBestMapForUnit("player"))
+    local here = origin and origin.m or C_Map.GetBestMapForUnit("player")
+    continentOf[ci] = continentOf[ci] or ContinentAbove(here)
     for i = 1, #steps do
         local p = steps[i].arrive
         if p and p.ci and p.m and not continentOf[p.ci] then continentOf[p.ci] = ContinentAbove(p.m) end
     end
     local start = { ci = ci, wx = wx, wy = wy }
-    local here = C_Map.GetBestMapForUnit("player")
     local hereInfo = here and IsCity(here) and C_Map.GetMapInfo(here)
     local ok, out = pcall(Route.SplitWalks, steps, start, ns.GPSData, {
         zoneAt = ZoneAt, mapPos = MapPos, isCity = IsCity,
@@ -231,16 +254,26 @@ local function SplitWalks(steps, dest)
     return steps
 end
 
+-- The start as a world point { m, x, y, ci, wx, wy }, or nil for the player.
+local function StartPoint()
+    local s = Start()
+    if not s then return nil end
+    local ci, wx, wy = WorldPos(s.mapID, s.x, s.y)
+    if not ci then return nil end
+    return { m = s.mapID, x = s.x, y = s.y, ci = ci, wx = wx, wy = wy }
+end
+
 function GPS:BuildRoute(dest, via)
     local Route = ns.GPSRoute
+    local origin = StartPoint()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
         local ok, steps, total, advice = pcall(Route.Build, Route, dest,
-            { hearth = h and { point = h } or nil, via = via, avoid = db and db.gpsAvoid or nil })
+            { hearth = h and { point = h } or nil, via = via, avoid = db and db.gpsAvoid or nil, start = origin })
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
-            return SplitWalks(steps, dest), total, advice
+            return SplitWalks(steps, dest, origin), total, advice
         end
         if via then return nil end   -- no way with that stop: the route stays as it was
     end
@@ -248,7 +281,8 @@ function GPS:BuildRoute(dest, via)
     -- the spot is on this continent, unpriced when it is not.
     local sec
     local Engine = ns.GPSRoute
-    local ci, px, py = PlayerWorldPos()
+    local ci, px, py
+    if origin then ci, px, py = origin.ci, origin.wx, origin.wy else ci, px, py = PlayerWorldPos() end
     local tci, tx, ty = WorldPos(dest.mapID, dest.x or 0.5, dest.y or 0.5)
     if ci and tci == ci and tx and Engine and Engine.TravelSeconds then
         sec = Engine:TravelSeconds(((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5)
@@ -566,9 +600,21 @@ local function Tick()
     local step = route.steps[route.active or 1]
     if not step then StopTicker() return end
     SampleGroundSpeed()
+    -- Planned from elsewhere: no countdown and no starting over until the
+    -- player reaches the start.
+    local planned = route.origin and not route.joined
+    if planned then
+        local pci, ppx, ppy = PlayerWorldPos()
+        local o = route.origin
+        if pci == o.ci and ppx and (ppx - o.wx) ^ 2 + (ppy - o.wy) ^ 2 <= START_YARDS * START_YARDS then
+            route.joined, planned = true, false
+        end
+    end
     -- The estimate follows the player: the way still ahead, every second.
-    route.eta = RemainingSeconds(route)
-    UpdateEtaText(route)
+    if not planned then
+        route.eta = RemainingSeconds(route)
+        UpdateEtaText(route)
+    end
     -- Reaching a crossing's spot changes what its step says: redraw then.
     local there = StepText(step, true) == (step.text or "")
     if route.there ~= there then
@@ -593,7 +639,7 @@ local function Tick()
     local ci, px, py = PlayerWorldPos()
     if not ci then return end
     -- Backtracked or wandered off: the route starts over from here.
-    if not (UnitOnTaxi and UnitOnTaxi("player")) and OffRoute(route, ci, px, py) then
+    if not planned and not (UnitOnTaxi and UnitOnTaxi("player")) and OffRoute(route, ci, px, py) then
         offRoute.ticks = offRoute.ticks + 1
         local now = GetTime()
         if offRoute.ticks >= OFF_ROUTE_TICKS and now - offRoute.at >= REROUTE_EVERY then
@@ -643,17 +689,24 @@ function GPS:NavigateTo(data, opts)
     if not db then return false end
     local dest = Destination(data)
     local steps, total, advice = self:BuildRoute(dest)
-    local ci, wx, wy = PlayerWorldPos()
+    -- Planned from elsewhere: the route waits there until the player comes.
+    local origin = StartPoint()
+    local ci, wx, wy
+    if origin then ci, wx, wy = origin.ci, origin.wx, origin.wy else ci, wx, wy = PlayerWorldPos() end
     local from = ci and { ci = ci, wx = wx, wy = wy } or nil
     local okFly, fly = pcall(IsFlyableArea)
     local Engine = ns.GPSRoute
     -- The report's start: the world spot and the map spot it was on.
     local start = from and { ci = ci, wx = wx, wy = wy } or nil
-    local hereMap = C_Map.GetBestMapForUnit("player")
-    local okPos, herePos = pcall(C_Map.GetPlayerMapPosition, hereMap, "player")
-    if start and okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
+    if start and origin then
+        start.m, start.x, start.y = origin.m, origin.x, origin.y
+    elseif start then
+        local hereMap = C_Map.GetBestMapForUnit("player")
+        local okPos, herePos = pcall(C_Map.GetPlayerMapPosition, hereMap, "player")
+        if okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
+    end
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = from,
+                       from = from, origin = origin,
                        report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     -- A new route opens up, whatever the last one was folded to.
@@ -734,6 +787,55 @@ function GPS:Status()
     return out
 end
 
+-- Picking a start in a surface's search box: its hits set the start.
+function GPS:PickStart(frame)
+    GPS.picking = frame
+    Refresh()
+    local box = frame and frame.search
+    if box then
+        box:Show()
+        box._blockAutoFocus = nil
+        box:SetFocus()
+    end
+end
+
+function GPS:EndPick()
+    if not GPS.picking then return end
+    GPS.picking = nil
+    Refresh()
+end
+
+-- Starts routes at data's place ({ name, mapID, x, y }), or at the player
+-- again with nil. A route on screen is planned again from there; with none,
+-- the GPS window asks where to.
+function GPS:SetStart(data)
+    local c = CharDB()
+    if not c then return end
+    c.start = data and { name = data.name, mapID = data.zoneMapID or data.mapID, x = data.x or 0.5, y = data.y or 0.5 } or nil
+    GPS.picking = nil
+    for i = 1, #surfaces do
+        local box = surfaces[i].search
+        if box then
+            box:SetText("")
+            box:ClearFocus()
+        end
+    end
+    local route = Route()
+    local dest = route and route.dest
+    if dest and not route.arrived then
+        GPS:NavigateTo({ name = dest.name, icon = dest.icon, category = dest.category, isZone = dest.zone,
+                         mapID = dest.mapID, x = dest.x, y = dest.y }, { quiet = true })
+    elseif data then
+        GPS:TogglePopout(true)
+        local box = popoutFrame and popoutFrame.search
+        if box then
+            box._blockAutoFocus = nil
+            box:SetFocus()
+        end
+    end
+    Refresh()
+end
+
 -- A route that went wrong: the issue form, filled in with the route.
 function GPS:ReportRoute()
     local route = Route()
@@ -746,7 +848,8 @@ end
 
 function GPS:Clear()
     local c = CharDB()
-    if c then c.route = nil end
+    if c then c.route, c.start = nil, nil end
+    GPS.picking = nil
     StopTicker()
     Refresh()
     if ns.MapTab and ns.MapTab.ShowSearchView then ns.MapTab:ShowSearchView() end
@@ -1039,8 +1142,49 @@ end
 
 local StyleTrackButton, RouteTracked   -- defined with the tracking toggle below; the surfaces render before it
 
+-- The route's start in the panel: where the player stands or the place
+-- picked; a click picks another, Reset goes back to the player's spot.
+local function FromRow(container)
+    local row = container.fromRow
+    if row then return row end
+    row = CreateFrame("Button", nil, container.list)
+    row:SetHeight(ROW_H)
+    Utils.InstallMenuRowHighlight(row)
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.text._efOwnColor = true
+    row.text:SetPoint("LEFT", row, "LEFT", 30, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    local reset = CreateFrame("Button", nil, row)
+    reset:SetHeight(14)
+    local label = reset:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("RIGHT", reset, "RIGHT", 0, 0)
+    label:SetText(_G["RESET"] or "Reset")
+    label:SetTextColor(unpack(ns.TEXT_DIM))
+    label._efOwnColor = true
+    reset:SetWidth((label:GetStringWidth() or 40) + 4)
+    reset:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    reset:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1) end)
+    reset:SetScript("OnLeave", function() label:SetTextColor(unpack(ns.TEXT_DIM)) end)
+    reset:SetScript("OnClick", function() GPS:SetStart(nil) end)
+    row.reset = reset
+    row.text:SetPoint("RIGHT", reset, "LEFT", -6, 0)
+    row:SetScript("OnClick", function() GPS:PickStart(container) end)
+    row:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L["GPS_FROM_TT"], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    container.fromRow = row
+    return row
+end
+
 local function Render(container)
     local route = Route()
+    SearchHint(container)
+    -- Picking a start: the search and its hits in the steps' place.
+    if GPS.picking == container then route = nil end
     local rows = container.rows
     if container.glyphTex then
         container.glyphTex:SetVertexColor(unpack(ns.GOLD_COLOR))
@@ -1052,6 +1196,7 @@ local function Render(container)
         container.title:SetText("")
         for i = 1, #rows do rows[i]:Hide() end
         for i = 1, #(container.tips or {}) do container.tips[i]:Hide() end
+        if container.fromRow then container.fromRow:Hide() end
         container.list:SetHeight(1)
         container.contentHeight = 0
         if container.search then
@@ -1085,6 +1230,21 @@ local function Render(container)
     local shown = route.arrived and 0 or #route.steps
     local scale = MapScale(container)
     local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
+    local from = FromRow(container)
+    if route.arrived then
+        from:Hide()
+    else
+        local s = Start()
+        from:ClearAllPoints()
+        from:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
+        from:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
+        from.text:SetText(sformat(L["GPS_FROM_FMT"], s and s.name or L["GPS_FROM_HERE"]))
+        from.text:SetTextColor(unpack(ns.TEXT_DIM))
+        from.reset:SetShown(s ~= nil)
+        from:SetHeight(rowBase)
+        from:Show()
+        y = y + rowBase
+    end
     for i = 1, shown do
         local step = route.steps[i]
         local row = StepRow(container, i)
@@ -1168,11 +1328,14 @@ local function HitRow(frame, i)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
     row:SetScript("OnClick", function(self)
-        if self.data then
-            frame.search:SetText("")
-            frame.search:ClearFocus()
-            GPS:NavigateTo(self.data, { quiet = true })
+        if not self.data then return end
+        if GPS.picking == frame then
+            GPS:SetStart(self.data)
+            return
         end
+        frame.search:SetText("")
+        frame.search:ClearFocus()
+        GPS:NavigateTo(self.data, { quiet = true })
     end)
     rows[i] = row
     return row
@@ -1241,7 +1404,15 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     box:HookScript("OnEditFocusGained", function(self) if self._blockAutoFocus then self:ClearFocus() end end)
     box:HookScript("OnMouseDown", function(self) self._blockAutoFocus = nil end)
     Utils.SafeAfter(0, function() Utils.SafeAfter(0, function() box._blockAutoFocus = nil; box:ClearFocus() end) end)
-    box:HookScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
+    box:HookScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+        -- Escape leaves a start being picked; with no route, drops a start set.
+        if GPS.picking == frame then GPS:EndPick() elseif Start() and not Route() then GPS:SetStart(nil) end
+    end)
+    box:HookScript("OnEditFocusLost", function(self)
+        if GPS.picking == frame and (self:GetText() or "") == "" then GPS:EndPick() end
+    end)
     -- The box covers most of a folded window: dragging it moves the window.
     box:RegisterForDrag("LeftButton")
     box:SetScript("OnDragStart", function() if frame.BeginWindowDrag then frame:BeginWindowDrag() end end)
@@ -1294,12 +1465,12 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         hitList:SetVerticalScroll(0)
         self.hitCount = n
         self:SetHitView(HIT_ROWS * ROW_H)
-        if self.OnRouteChanged then self:OnRouteChanged(Route() ~= nil) end
+        if self.OnRouteChanged then self:OnRouteChanged(Route() ~= nil and GPS.picking ~= self) end
     end
 
     local pending
     box:HookScript("OnTextChanged", function(self, userInput)
-        if Route() then return end
+        if Route() and GPS.picking ~= frame then return end
         local text = self:GetText() or ""
         if text == "" then frame:ShowHits(nil) return end
         if pending then return end
@@ -1308,7 +1479,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             pending = nil
             local MapSearch = ns.MapSearch
             local q = box:GetText() or ""
-            if q == "" or Route() or not (MapSearch and MapSearch.BuildResults) then return end
+            if q == "" or (Route() and GPS.picking ~= frame) or not (MapSearch and MapSearch.BuildResults) then return end
             local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
             frame:ShowHits(WithTowns(q, ok and results or nil))
         end)
@@ -2026,11 +2197,48 @@ local function DockTipLine(f, i)
     return row
 end
 
+-- The section's line for a start picked, with Reset back to the player.
+local function DockFromLine(f)
+    if f.fromLine then return f.fromLine end
+    local row = CreateFrame("Button", nil, f)
+    row.dash = row:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
+    row.dash:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.dash:SetText(QUEST_DASH or "- ")
+    row.text = row:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
+    row.text:SetPoint("TOPLEFT", row.dash, "TOPRIGHT", 0, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    local reset = CreateFrame("Button", nil, row)
+    reset:SetHeight(12)
+    local label = reset:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
+    label:SetPoint("RIGHT", reset, "RIGHT", 0, 0)
+    label:SetText(_G["RESET"] or "Reset")
+    label:SetTextColor(unpack(ns.TEXT_DIM))
+    reset:SetWidth((label:GetStringWidth() or 40) + 4)
+    reset:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    reset:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1) end)
+    reset:SetScript("OnLeave", function() label:SetTextColor(unpack(ns.TEXT_DIM)) end)
+    reset:SetScript("OnClick", function() GPS:SetStart(nil) end)
+    row.reset = reset
+    row:SetScript("OnClick", function() GPS:PickStart(f) end)
+    row:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L["GPS_FROM_TT"], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    f.fromLine = row
+    return row
+end
+
 RenderDock = function(f)
     if not (f.docked or f.floating) then return end
     local route = Route()
     local y = -(DOCK_HEADER_H + 8)
     local nTips = 0
+    SearchHint(f)
+    if GPS.picking == f then route = nil end
+    if f.fromLine then f.fromLine:Hide() end
     if route then
         if f.search then
             if f.search:GetText() ~= "" then f.search:SetText("") end
@@ -2040,6 +2248,7 @@ RenderDock = function(f)
         f.title:SetText(sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
         f.title:Show()
         f.titleBtn:Show()
+        local start = not route.arrived and Start()
         local eta = ""
         if not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
         f.time:SetText(eta)
@@ -2067,6 +2276,21 @@ RenderDock = function(f)
             f.track:Hide()
             y = -DOCK_HEADER_H
         else
+            -- A start picked: its line first; a click picks another.
+            if start then
+                local line = DockFromLine(f)
+                line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
+                line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
+                line.text:SetTextColor(unpack(ns.TEXT_DIM))
+                line.dash:SetTextColor(unpack(ns.TEXT_DIM))
+                line:ClearAllPoints()
+                line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
+                line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+                local h = mmax(12, line.text:GetStringHeight() or 12)
+                line:SetHeight(h)
+                line:Show()
+                y = y - h - DOCK_LINE_GAP
+            end
             -- Arrived: one line with the announcement in the steps' place.
             local items = route.steps
             if route.arrived then
@@ -2331,6 +2555,7 @@ local function BuildDock()
                 end }
             end
             defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end }
+            defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
             -- The route as a link another EasyFind user clicks to be routed there too.
             local route = Route()
             local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText

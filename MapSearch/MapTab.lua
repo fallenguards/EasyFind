@@ -466,6 +466,7 @@ local function ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, ext
     local ok, menu = pcall(MenuUtil.CreateContextMenu, row or panel or UIParent, function(_, root)
         if name and name ~= "" then root:CreateTitle(name) end
         if extra.onGPS then root:CreateButton(L["CTX_GPS"], extra.onGPS) end
+        if extra.onGPSFrom then root:CreateButton(L["CTX_GPS_FROM"], extra.onGPSFrom) end
         if onGuide then root:CreateButton(L["CTX_GUIDE"], onGuide) end
         root:CreateButton(isPinned and (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_UNPIN"] or "Unpin")
             or (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_PIN"] or "Pin"), onPin)
@@ -523,6 +524,7 @@ local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data, row)
     if data and ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(data) then
         extra = extra or {}
         extra.onGPS = function() ns.GPS:NavigateTo(data) end
+        if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(data) end end
     end
     if ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, extra or {}) then return end
     Utils.ShowPinMenu("EasyFindPinPopup", isPinned, onPin, onGuide, onAddAlias, {
