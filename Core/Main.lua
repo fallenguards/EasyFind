@@ -565,6 +565,12 @@ local function OpenFeatureRequest()
 end
 
 function EasyFind:OpenBugReport() OpenBugReport() end
+
+-- A GPS route report: the issue form with the route's line filled in.
+function EasyFind:OpenRouteReport(code)
+    ShowFeedbackURL(GITHUB_ISSUES_URL .. "?template=route_report.yml&version=" .. UrlEncode(ns.version or "unknown")
+        .. "&route=" .. UrlEncode(code))
+end
 function EasyFind:OpenFeatureRequest() OpenFeatureRequest() end
 
 -- Account-wide binds a brand-new install starts with; seeded once at login.

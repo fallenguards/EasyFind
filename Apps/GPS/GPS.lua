@@ -402,6 +402,7 @@ end
 
 local function Arrive(route)
     route.arrived = true
+    if route.report and route.report.t then route.tookSec = time() - route.report.t end
     StopTicker()
     -- The arrow lets go and the pin comes off the map: there is nowhere
     -- left to point.
@@ -549,8 +550,11 @@ local function Reroute(route)
     local steps, total, advice = GPS:BuildRoute(route.dest, via)
     if not steps then return end
     local ci, wx, wy = PlayerWorldPos()
+    -- The report keeps the first plan, and counts the starts over.
+    local report = route.report
+    if report then report.re = (report.re or 0) + 1 end
     CharDB().route = { dest = route.dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil }
+                       via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil, report = report }
     closing.step = nil
     if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
     TrackStep(1)
@@ -640,8 +644,18 @@ function GPS:NavigateTo(data, opts)
     local dest = Destination(data)
     local steps, total, advice = self:BuildRoute(dest)
     local ci, wx, wy = PlayerWorldPos()
+    local from = ci and { ci = ci, wx = wx, wy = wy } or nil
+    local okFly, fly = pcall(IsFlyableArea)
+    local Engine = ns.GPSRoute
+    -- The report's start: the world spot and the map spot it was on.
+    local start = from and { ci = ci, wx = wx, wy = wy } or nil
+    local hereMap = C_Map.GetBestMapForUnit("player")
+    local okPos, herePos = pcall(C_Map.GetPlayerMapPosition, hereMap, "player")
+    if start and okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = ci and { ci = ci, wx = wx, wy = wy } or nil }
+                       from = from,
+                       report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
+                                  steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -669,6 +683,7 @@ function GPS:AddStop(tip)
     if not steps then return end
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
     route.via = via
+    if route.report then route.report.via = tip.id end
     local ci, wx, wy = PlayerWorldPos()
     route.from = ci and { ci = ci, wx = wx, wy = wy } or nil
     closing.step = nil
@@ -717,6 +732,16 @@ function GPS:Status()
     out[#out + 1] = sformat("native waypoint: %s | super-tracked: %s", wp and sformat("map %s %.3f,%.3f", tostring(wp.uiMapID), wp.position.x, wp.position.y) or "none",
         tostring(C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint()))
     return out
+end
+
+-- A route that went wrong: the issue form, filled in with the route.
+function GPS:ReportRoute()
+    local route = Route()
+    local Engine = ns.GPSRoute
+    if not (route and Engine and Engine.ReportCode and EasyFind.OpenRouteReport) then return end
+    local db = DB()
+    local code = Engine.ReportCode(route, { version = ns.version, avoid = db and db.gpsAvoid, hearth = HearthPoint() })
+    if code then EasyFind:OpenRouteReport(code) end
 end
 
 function GPS:Clear()
@@ -940,6 +965,10 @@ end
 -- confirmed, with what it does to this trip spelled out.
 local function TipClick(self)
     local tip = self.tip
+    if tip and tip.report then
+        GPS:ReportRoute()
+        return
+    end
     local route = Route()
     if not (tip and tip.p and tip.viaTotal and route) then return end
     local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
@@ -951,7 +980,9 @@ end
 local function TipEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
-    GameTooltip:AddLine(L[self.tip and self.tip.detour and "GPS_ADVICE_DETOUR_TT" or "GPS_ADVICE_TT"], 1, 1, 1, true)
+    local tip = self.tip
+    local key = tip and tip.report and "GPS_REPORT_TT" or (tip and tip.detour and "GPS_ADVICE_DETOUR_TT") or "GPS_ADVICE_TT"
+    GameTooltip:AddLine(L[key], 1, 1, 1, true)
     GameTooltip:Show()
 end
 
@@ -980,6 +1011,7 @@ end
 -- The advice as lines: masters on the way first (with what learning one
 -- saves when the engine priced it), then the best one elsewhere.
 local function AdviceLines(route)
+    if route and route.arrived then return { { text = L["GPS_REPORT"], report = true } } end
     local a = route and route.advice
     if not a then return nil end
     local out = {}
@@ -1092,8 +1124,13 @@ local function Render(container)
         y = y + rowH
     end
     for i = shown + 1, #rows do rows[i]:Hide() end
-    local tips = not route.arrived and AdviceLines(route) or nil
+    local tips = AdviceLines(route)
     local nTips = tips and #tips or 0
+    -- Arrived: the report line goes under the announcement.
+    if route.arrived and container.empty:IsShown() then
+        local eb, lt = container.empty:GetBottom(), container.list:GetTop()
+        y = (eb and lt) and mmax(0, lt - eb + 4) or ((container.empty:GetStringHeight() or 12) + 8)
+    end
     for t = 1, nTips do
         local row = TipRow(container, t)
         row.tip = tips[t]
@@ -2055,7 +2092,7 @@ RenderDock = function(f)
                 row:Show()
                 y = y - h - DOCK_LINE_GAP
             end
-            local tips = not route.arrived and AdviceLines(route) or nil
+            local tips = AdviceLines(route)
             for t = 1, tips and #tips or 0 do
                 nTips = t
                 local row = DockTipLine(f, t)
@@ -2299,6 +2336,7 @@ local function BuildDock()
             local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
                 and ns.ResultLinks:BuildRouteText(route.dest)
             if share then defs[#defs + 1] = { kind = "send", label = L["CTX_SEND_LINK"], link = share } end
+            defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end }
             defs[#defs + 1] = GPS.WorldPinRow()
             defs[#defs + 1] = GPS.SnapRow()
             -- The style is for the window outside the tracker; snapped in,

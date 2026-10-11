@@ -713,5 +713,34 @@ function tests.boat_timedWaitsForItsNextDeparture()
     H.assertTrue(boat.live, "the step says its wait is live")
 end
 
+-- A report: one line the dev replay reads back, every field in its place.
+function tests.report_isOneLineOfEveryField()
+    local env, ns, Route = fresh()
+    local d = data()
+    d.classic = true
+    ns.GPSData = d
+    Route.recordedKnown = { [1] = true, [2] = true, [3] = true, [7] = true }
+    env.GetBuildInfo = function() return "1.60.1", "70170" end
+    env.UnitFactionGroup = function() return "Alliance" end
+    env.UnitRace = function() return "Human", "Human" end
+    env.UnitClass = function() return "Warrior", "WARRIOR" end
+    env.UnitLevel = function() return 60 end
+    env.C_Item = { GetItemCount = function(id) return id == 6948 and 1 or 0 end }
+    local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
+    local steps, total = buildAll(Route, P(1, 0.1, 0.11), dest, { data = d })
+    local route = { dest = dest, steps = steps, tookSec = 300,
+                    report = { from = { ci = 1, wx = 1000, wy = 1100, m = 1, x = 0.1, y = 0.11 }, total = total, fly = false, re = 1,
+                               steps = Route.StepsCode(steps) } }
+    local code = Route.ReportCode(route, { version = "3.5.0", avoid = { boat = true, taxi = false },
+                                           hearth = { m = 1, x = 0.5, y = 0.5 } })
+    local function has(part) H.assertTrue(code:find(part, 1, true) ~= nil, part .. " in " .. code) end
+    has("efgps1 v=3.5.0 g=forever b=70170 f=Alliance r=Human c=WARRIOR lvl=60 fly=0 spd=10.0 ")
+    has(" from=1:0.1000:0.1100 at=1:1000.0:1100.0 to=1:0.9000:0.9100 av=boat hs=1:0.5000:0.5000 kn=1-3.7 ")
+    has(" eta=" .. math.floor(total + 0.5) .. " took=300 re=1 ")
+    H.assertTrue(code:find(" st=travel>1/%d+,taxi:1%-3>1/%d+,travel>1/%d+ ") ~= nil, "the steps in " .. code)
+    H.assertEq(code:sub(-13), " n=Far corner", "the name comes last")
+    has(" own=i6948 ")
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

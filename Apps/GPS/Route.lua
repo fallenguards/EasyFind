@@ -9,7 +9,8 @@ local Route = {}
 ns.GPSRoute = Route
 
 local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
-local tinsert, tsort = table.insert, table.sort
+local tinsert, tsort, tconcat = table.insert, table.sort, table.concat
+local sformat = string.format
 
 local MOUNT_UP = 2          -- seconds to get on a mount
 local BOARD_TAXI = 4        -- seconds at the flight master
@@ -899,6 +900,63 @@ local function ViaStop(route, dest, opts, start, known, listed)
     return steps, t1 + LEARN_SECONDS + t2
 end
 
+local function Cooldown(a)
+    if a.item and C_Item and C_Item.GetItemCooldown then
+        local ok, s, d = pcall(C_Item.GetItemCooldown, a.item)
+        if ok and d and d > 5 then return mmax(0, s + d - GetTime()) end
+    elseif a.id and C_Spell and C_Spell.GetSpellCooldown then
+        local ok, cd = pcall(C_Spell.GetSpellCooldown, a.id)
+        if ok and cd and cd.duration and cd.duration > 5 then return mmax(0, cd.startTime + cd.duration - GetTime()) end
+    end
+    return 0
+end
+
+-- Whether this character can use a teleport now.
+local function Owns(a)
+    if a.toy and PlayerHasToy then
+        -- Engineering toys sit in every toy box: owned is not usable.
+        if not PlayerHasToy(a.item) then return false end
+        if C_ToyBox and C_ToyBox.IsToyUsable then
+            local ok, usable = pcall(C_ToyBox.IsToyUsable, a.item)
+            if ok and usable == false then return false end
+        end
+        return true
+    end
+    if a.item and C_Item and C_Item.GetItemCount then
+        if (C_Item.GetItemCount(a.item) or 0) == 0 then return false end
+        if C_Item.IsUsableItem then
+            local ok, usable = pcall(C_Item.IsUsableItem, a.item)
+            if ok and usable == false then return false end
+        end
+        return true
+    end
+    -- A spell this character can cast now: IsPlayerSpell sees
+    -- through overrides and talent swaps where IsSpellKnown misses.
+    if a.id and IsPlayerSpell then return IsPlayerSpell(a.id) end
+    if a.id and IsSpellKnown then return IsSpellKnown(a.id) end
+    return true
+end
+Route.Owns = Owns
+
+-- The flight masters this character knows: known, listed, names.
+local function KnownSet(data)
+    local known, listed, names = KnownFlightNodes(data)
+    local recorded = Route.recordedKnown
+    if data.classic then
+        -- Forever's map listing marks every point discovered, learned
+        -- or not: only what a flight master's own map showed counts.
+        known = {}
+        for k in pairs(recorded or {}) do known[k] = true end
+    elseif known and recorded and next(recorded) then
+        local merged = {}
+        for k in pairs(known) do merged[k] = true end
+        for k in pairs(recorded) do merged[k] = true end
+        known = merged
+    end
+    return known, listed, names
+end
+Route.KnownSet = KnownSet
+
 -- Route from the player to dest { name, mapID, x, y }: steps, total seconds,
 -- advice { pickups, learn = { id, name, p, save, total } }; nil without data.
 function Route:Build(dest, opts)
@@ -922,19 +980,7 @@ function Route:Build(dest, opts)
     if opts.known ~= nil then
         known, listed = opts.known or nil, opts.listed
     else
-        known, listed, names = KnownFlightNodes(data)
-        local recorded = Route.recordedKnown
-        if data.classic then
-            -- Forever's map listing marks every point discovered, learned
-            -- or not: only what a flight master's own map showed counts.
-            known = {}
-            for k in pairs(recorded or {}) do known[k] = true end
-        elseif known and recorded and next(recorded) then
-            local merged = {}
-            for k in pairs(known) do merged[k] = true end
-            for k in pairs(recorded) do merged[k] = true end
-            known = merged
-        end
+        known, listed, names = KnownSet(data)
     end
     if opts.via then return ViaStop(self, dest, opts, start, known, listed) end
     local ctx = {
@@ -954,40 +1000,8 @@ function Route:Build(dest, opts)
         listed = listed,
         nodeName = names and function(id) return names[id] end or nil,
         hasMarker = opts.hasMarker or MarkerPresent,
-        cooldown = opts.cooldown or function(a)
-            if a.item and C_Item and C_Item.GetItemCooldown then
-                local ok, s, d = pcall(C_Item.GetItemCooldown, a.item)
-                if ok and d and d > 5 then return mmax(0, s + d - GetTime()) end
-            elseif a.id and C_Spell and C_Spell.GetSpellCooldown then
-                local ok, cd = pcall(C_Spell.GetSpellCooldown, a.id)
-                if ok and cd and cd.duration and cd.duration > 5 then return mmax(0, cd.startTime + cd.duration - GetTime()) end
-            end
-            return 0
-        end,
-        owns = opts.owns or function(a)
-            if a.toy and PlayerHasToy then
-                -- Engineering toys sit in every toy box: owned is not usable.
-                if not PlayerHasToy(a.item) then return false end
-                if C_ToyBox and C_ToyBox.IsToyUsable then
-                    local ok, usable = pcall(C_ToyBox.IsToyUsable, a.item)
-                    if ok and usable == false then return false end
-                end
-                return true
-            end
-            if a.item and C_Item and C_Item.GetItemCount then
-                if (C_Item.GetItemCount(a.item) or 0) == 0 then return false end
-                if C_Item.IsUsableItem then
-                    local ok, usable = pcall(C_Item.IsUsableItem, a.item)
-                    if ok and usable == false then return false end
-                end
-                return true
-            end
-            -- A spell this character can cast now: IsPlayerSpell sees
-            -- through overrides and talent swaps where IsSpellKnown misses.
-            if a.id and IsPlayerSpell then return IsPlayerSpell(a.id) end
-            if a.id and IsSpellKnown then return IsSpellKnown(a.id) end
-            return true
-        end,
+        cooldown = opts.cooldown or Cooldown,
+        owns = opts.owns or Owns,
     }
     if ctx.canFly == nil then
         local ok, fly = pcall(IsFlyableArea)
@@ -1193,4 +1207,96 @@ function Route.SplitWalks(steps, start, data, env)
         end
     end
     return out
+end
+
+-- Feedback: a route as one line of text, which the dev replay reads back.
+
+-- The steps as kind[:id]>map/seconds; a walk split by zone is one walk.
+function Route.StepsCode(steps)
+    local out = {}
+    for i = 1, #steps do
+        local s = steps[i]
+        local a = s.arrive
+        local sec = mfloor((s.sec or 0) + 0.5)
+        local prev = out[#out]
+        if s.kind == "travel" and prev and prev.kind == "travel" then
+            prev.sec, prev.m = prev.sec + sec, a and a.m or prev.m
+        else
+            local id
+            if s.kind == "taxi" then id = sformat("%s-%s", tostring(s.nodeID), tostring(s.toID))
+            elseif s.kind == "teleport" then id = s.itemID and ("i" .. s.itemID) or tostring(s.spellID)
+            elseif s.route then id = s.route .. "." .. (s.stop or 0) end
+            out[#out + 1] = { kind = s.kind, id = id, m = a and a.m, sec = sec }
+        end
+    end
+    for i = 1, #out do
+        local o = out[i]
+        out[i] = sformat("%s%s>%s/%d", o.kind, o.id and (":" .. o.id) or "", tostring(o.m or "?"), o.sec)
+    end
+    return tconcat(out, ",")
+end
+
+-- Sorted ids as 2-6.12 runs.
+local function Runs(ids)
+    tsort(ids)
+    local out, i = {}, 1
+    while i <= #ids do
+        local j = i
+        while ids[j + 1] == ids[j] + 1 do j = j + 1 end
+        out[#out + 1] = j > i and (ids[i] .. "-" .. ids[j]) or tostring(ids[i])
+        i = j + 1
+    end
+    return tconcat(out, ".")
+end
+
+-- The report line: who planned the route, from where to where, with what,
+-- and how it went. extra: { version, avoid, hearth }.
+function Route.ReportCode(route, extra)
+    local data = ns.GPSData
+    local r = route and route.report or {}
+    local from, dest = r.from or (route and route.from), route and route.dest
+    if not (data and from and dest and dest.mapID) then return nil end
+    extra = extra or {}
+    local parts = { "efgps1" }
+    local function Add(k, v)
+        if v ~= nil and v ~= "" then parts[#parts + 1] = k .. "=" .. tostring(v) end
+    end
+    Add("v", extra.version)
+    Add("g", data.classic and "forever" or "retail")
+    Add("b", GetBuildInfo and select(2, GetBuildInfo()))
+    Add("f", UnitFactionGroup and UnitFactionGroup("player"))
+    Add("r", UnitRace and select(2, UnitRace("player")))
+    Add("c", UnitClass and select(2, UnitClass("player")))
+    Add("lvl", UnitLevel and UnitLevel("player"))
+    if r.fly ~= nil then Add("fly", r.fly and 1 or 0) end
+    Add("spd", sformat("%.1f", Route.GroundSpeed(data)))
+    if from.m and from.x then Add("from", sformat("%d:%.4f:%.4f", from.m, from.x, from.y)) end
+    Add("at", sformat("%d:%.1f:%.1f", from.ci, from.wx, from.wy))
+    Add("to", sformat("%d:%.4f:%.4f", dest.mapID, dest.x or 0.5, dest.y or 0.5))
+    local avoided = {}
+    for k, on in pairs(extra.avoid or {}) do
+        if on then avoided[#avoided + 1] = k end
+    end
+    tsort(avoided)
+    Add("av", tconcat(avoided, "."))
+    local h = extra.hearth
+    if h and h.m then Add("hs", sformat("%d:%.4f:%.4f", h.m, h.x or 0.5, h.y or 0.5)) end
+    local ids = {}
+    for id in pairs(KnownSet(data) or {}) do
+        if type(id) == "number" then ids[#ids + 1] = id end
+    end
+    Add("kn", Runs(ids))
+    local own = {}
+    for i = 1, #(data.abilities or {}) do
+        local a = data.abilities[i]
+        if (a.item or a.id) and Owns(a) then own[#own + 1] = a.item and ("i" .. a.item) or tostring(a.id) end
+    end
+    Add("own", tconcat(own, "."))
+    Add("eta", r.total and mfloor(r.total + 0.5))
+    Add("took", route.tookSec)
+    Add("re", r.re)
+    Add("via", r.via)
+    Add("st", r.steps or Route.StepsCode(route.steps or {}))
+    Add("n", dest.name)   -- last: the name may hold spaces
+    return tconcat(parts, " ")
 end
