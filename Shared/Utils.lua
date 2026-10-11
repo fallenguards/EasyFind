@@ -3623,6 +3623,9 @@ local themeCards = setmetatable({}, { __mode = "k" })
 function ns.ApplyCardFill(frame)
     if not (frame and frame.combinedBorder) then return end
     themeCards[frame] = true
+    -- Under the Classic skin a card is a pane: marble in the thin edge.
+    frame._efClassicSurface = true
+    frame._efClassicStyle = frame._efClassicStyle or "thin"
     frame._efNoAutoRetint = true
     local sectionAlpha = ns.SECTION_TABLE_FILL[4] or 0.92
     local pal = ns.ACTIVE_UI_PALETTE
@@ -3846,8 +3849,88 @@ function Utils.Base64Decode(data)
     end))
 end
 
+do
+-- Under the Classic skin every button is the 1.x red panel button: caps and
+-- middle cut from the old art, its highlight on hover, gold text.
+local RED_ART = "Interface\\Buttons\\UI-Panel-Button-"
+local modernButtons = setmetatable({}, { __mode = "k" })
+
+local function RedButton(btn)
+    local red = btn._efRed
+    if red then return red end
+    red = { l = btn:CreateTexture(nil, "BACKGROUND", nil, 1), m = btn:CreateTexture(nil, "BACKGROUND", nil, 1),
+            r = btn:CreateTexture(nil, "BACKGROUND", nil, 1), hl = btn:CreateTexture(nil, "ARTWORK") }
+    red.l:SetPoint("TOPLEFT")
+    red.l:SetPoint("BOTTOMLEFT")
+    red.r:SetPoint("TOPRIGHT")
+    red.r:SetPoint("BOTTOMRIGHT")
+    red.m:SetPoint("TOPLEFT", red.l, "TOPRIGHT")
+    red.m:SetPoint("BOTTOMRIGHT", red.r, "BOTTOMLEFT")
+    red.hl:SetTexture(RED_ART .. "Highlight")
+    red.hl:SetTexCoord(0, 0.625, 0, 0.6875)
+    red.hl:SetBlendMode("ADD")
+    red.hl:SetAllPoints(btn)
+    btn._efRed = red
+    return red
+end
+
+local function PaintRed(btn, fillTable)
+    local red = RedButton(btn)
+    local state = (fillTable == ns.BTN_FILL_PRESSED and "Down") or (fillTable == ns.BTN_FILL_DISABLED and "Disabled") or "Up"
+    -- The caps keep the art's 12 to 22 proportion, never past half the width.
+    local cap = mmin((btn:GetHeight() or 22) * 12 / 22, (btn:GetWidth() or 24) / 2)
+    red.l:SetWidth(cap)
+    red.r:SetWidth(cap)
+    red.l:SetTexture(RED_ART .. state)
+    red.l:SetTexCoord(0, 0.09375, 0, 0.6875)
+    red.m:SetTexture(RED_ART .. state)
+    red.m:SetTexCoord(0.09375, 0.53125, 0, 0.6875)
+    red.r:SetTexture(RED_ART .. state)
+    red.r:SetTexCoord(0.53125, 0.625, 0, 0.6875)
+    red.l:Show()
+    red.m:Show()
+    red.r:Show()
+    red.hl:SetShown(fillTable == ns.BTN_FILL_HOVER)
+    btn._efRedOn = true
+    if btn._label then
+        if state == "Disabled" then
+            btn._label:SetTextColor(0.5, 0.5, 0.5, 1)
+        elseif state == "Down" or fillTable == ns.BTN_FILL_HOVER then
+            btn._label:SetTextColor(1, 1, 1, 1)
+        else
+            btn._label:SetTextColor(1, 0.82, 0, 1)
+        end
+    end
+end
+
+-- Back to the rounded pill after the Classic skin.
+local function DropRed(btn)
+    for _, t in pairs(btn._efRed) do t:Hide() end
+    btn._efRedOn = nil
+    ns.SetRoundedRectBorderShown(btn, true)
+    ns.SetRoundedRectBorderEdgeShown(btn, false)
+    if btn._label then
+        local theme = btn._efLeafLabel and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local c = theme and theme.leafColor
+        if c then btn._label:SetTextColor(c[1], c[2], c[3], 1) else btn._label:SetTextColor(1, 1, 1, 1) end
+    end
+end
+
+-- A theme flip repaints every button that enters or leaves the Classic skin.
+function ns.RestyleModernButtons()
+    local classic = ns.IsClassicChrome()
+    for btn in pairs(modernButtons) do
+        if btn._efPaintState and (classic or btn._efRedOn) then
+            local fill = not btn:IsEnabled() and ns.BTN_FILL_DISABLED
+                or (btn:IsMouseOver() and ns.BTN_FILL_HOVER) or ns.BTN_FILL_NORMAL
+            btn._efPaintState(btn, fill)
+        end
+    end
+end
+
 function ns.CreateModernButton(parent, text, width, height)
     local btn = CreateFrame("Button", nil, parent)
+    modernButtons[btn] = true
     local rawSetSize = btn.SetSize
     rawSetSize(btn, width or 120, height or 22)
 
@@ -3960,6 +4043,14 @@ function ns.CreateModernButton(parent, text, width, height)
     end
 
     local function PaintState(self, fillTable)
+        if ns.IsClassicChrome() then
+            ns.SetRoundedRectBorderShown(self, false)
+            PaintRed(self, fillTable)
+            self._efControlFillKind = false
+            return
+        elseif self._efRedOn then
+            DropRed(self)
+        end
         -- Window-fill styled buttons (stepper +/-) rest on the row-wash
         -- tint (a step off the window color; the plain fill blended into
         -- the panel on flat themes); hover/pressed keep the shared states.
@@ -4017,11 +4108,11 @@ function ns.CreateModernButton(parent, text, width, height)
         PaintState(self, ns.BTN_FILL_DISABLED)
         -- A touch lighter than TEXT_DIM: disabled labels on the dark
         -- disabled pill were near-unreadable.
-        if self._label then self._label:SetTextColor(0.72, 0.72, 0.72, 1) end
+        if self._label and not self._efRedOn then self._label:SetTextColor(0.72, 0.72, 0.72, 1) end
     end)
     btn:SetScript("OnEnable", function(self)
         PaintState(self, ns.BTN_FILL_NORMAL)
-        if self._label then
+        if self._label and not self._efRedOn then
             local theme = self._efLeafLabel and ns.Results and ns.Results.GetActiveTheme
                 and ns.Results:GetActiveTheme()
             if theme and theme.leafColor then
@@ -4034,6 +4125,7 @@ function ns.CreateModernButton(parent, text, width, height)
 
     if text then btn:SetText(text) end
     return btn
+end
 end
 
 -- Thin two-stroke "X" close button (dim by default, white on hover), matching

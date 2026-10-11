@@ -411,6 +411,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     if ns.Utils and ns.Utils.RetintChevrons then
         ns.Utils.RetintChevrons()
     end
+    if ns.RestyleModernButtons then ns.RestyleModernButtons() end
     if ns.RestyleCardFills then
         ns.RestyleCardFills()
     end

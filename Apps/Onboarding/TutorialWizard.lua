@@ -747,6 +747,10 @@ function RepaintFeatureTiles()
     local br, bg, bb = ThemeBandFill()
     for i = 1, #featureTiles do
         local entry = featureTiles[i]
+        -- Under the Classic skin a tile is a pane: marble in the thin edge.
+        entry.tile._efClassicSurface = true
+        entry.tile._efClassicStyle = "thin"
+        if ns.ApplySkin then ns.ApplySkin(entry.tile) end
         ns.SetRoundedRectBorderFillColor(entry.tile, br, bg, bb, 1)
         if light then
             -- Dark band under a light theme: match the white tab font;
