@@ -10,7 +10,7 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local matan2, msqrt = math.atan2, math.sqrt
+local matan2, msqrt, mfloor, mmax = math.atan2, math.sqrt, math.floor, math.max
 local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
@@ -18,15 +18,19 @@ local CreateVector2D = CreateVector2D
 local LINE_W = 5
 local DASH, GAP = 18, 10           -- a dashed line: dash length and the gap after it
 local ARROW, START = 32, 36
+local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at each change of ride
 
 local function px(v)
     return ns.UIToCanvas and ns.UIToCanvas(v) or v
 end
 local RED = { 1, 0.22, 0.16 }
+-- Each ride in its own color; a walk is red.
+local MODE_COLOR = { taxi = { 1, 0.78, 0.1 }, boat = { 0.3, 0.68, 1 }, ferry = { 0.3, 0.68, 1 },
+                     zeppelin = { 0.45, 0.85, 0.35 }, skyship = { 0.45, 0.85, 0.35 }, tram = { 0.78, 0.78, 0.78 } }
 local WHITE = "Interface\\Buttons\\WHITE8x8"
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 
-local overlay, pool, solids, marks
+local overlay, pool, solids, marks, syms
 local shownMap, shownIndex
 local since = 0
 
@@ -55,18 +59,10 @@ local function Build()
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
     marks.start:SetBlendMode("ADD")
     marks.stop:SetTexture(TEX_ARROW)
-    -- A portal's, flight master's or dock's spot: the map's own symbol, pulsing.
-    local symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
-    marks.symbol = symbol
-    local pulse = symbol:CreateAnimationGroup()
-    pulse:SetLooping("BOUNCE")
-    local grow = pulse:CreateAnimation("Scale")
-    grow:SetScaleFrom(1, 1)
-    grow:SetScaleTo(1.3, 1.3)
-    grow:SetDuration(0.5)
-    grow:SetSmoothing("IN_OUT")
-    pulse:Play()
-    symbol:Hide()
+    -- A portal's, flight master's or dock's spot: the map's own symbol.
+    marks.symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
+    marks.symbol:Hide()
+    syms = {}
     overlay:Hide()
     return true
 end
@@ -85,6 +81,24 @@ local function Line(i)
         pool[i] = t
     end
     return t
+end
+
+local function Sym(i)
+    local t = syms[i]
+    if not t then
+        t = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
+        syms[i] = t
+    end
+    return t
+end
+
+local function SetSymbol(t, symbol, x, y, size)
+    local atlas = type(symbol) == "string" and symbol:match("^atlas:(.+)$")
+    if atlas then t:SetAtlas(atlas) else t:SetTexture(symbol) end
+    t:ClearAllPoints()
+    t:SetSize(size, size)
+    t:SetPoint("CENTER", overlay, "TOPLEFT", x, y)
+    t:Show()
 end
 
 local function Solid(i)
@@ -194,7 +208,7 @@ local function Draw()
         return
     end
     local accent = Accent()
-    local n, nSolid = 0, 0
+    local n, nSolid, nSym = 0, 0, 0
     local hovered
     local lineW, dash, gap, arrow = px(LINE_W), px(DASH), px(GAP), px(ARROW)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
@@ -235,6 +249,7 @@ local function Draw()
             if total > 2 then
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
+                local color = MODE_COLOR[step.kind] or accent
                 -- The line stops short of the arrowhead; a symbol sits on
                 -- its spot, so the line runs to it.
                 local headed = (all and i == #route.steps) or (i == shownIndex and not SymbolOf(route, i))
@@ -257,35 +272,41 @@ local function Draw()
                             s:SetThickness(lineW * 0.8)
                             s:SetStartPoint("TOPLEFT", overlay, x1, y1)
                             s:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                            s:SetColorTexture(accent[1], accent[2], accent[3], alpha)
+                            s:SetColorTexture(color[1], color[2], color[3], alpha)
                             s:Show()
                         end
                         walked = walked + len
                     end
                 else
-                    -- A flight or a crossing: dashes along the straight leg.
+                    -- A flight or a crossing: dashes along the straight leg,
+                    -- stretched a little so the last one ends at the end.
                     local x1, y1, dx, dy = poly[1], poly[2], poly[3] - poly[1], poly[4] - poly[2]
                     local ux, uy = dx / total, dy / total
                     local angle = matan2(dy, dx)
                     lastDx, lastDy = dx, dy
-                    local pos = 0
-                    while pos < usable do
-                        local d = dash
-                        if pos + d > usable then d = usable - pos end
-                        if d > 1 then
-                            n = n + 1
-                            local t = Line(n)
-                            t:ClearAllPoints()
-                            t:SetSize(d, lineW)
-                            t:SetPoint("CENTER", overlay, "TOPLEFT", x1 + ux * (pos + d / 2), y1 + uy * (pos + d / 2))
-                            t:SetRotation(angle)
-                            t:SetVertexColor(accent[1], accent[2], accent[3], alpha)
-                            t:Show()
-                        end
-                        pos = pos + dash + gap
+                    local count = usable > 1 and mmax(1, mfloor((usable + gap) / (dash + gap) + 0.5)) or 0
+                    local fit = count > 0 and usable / (count * dash + (count - 1) * gap) or 0
+                    local d, g = dash * fit, gap * fit
+                    for k = 0, count - 1 do
+                        local pos = k * (d + g)
+                        n = n + 1
+                        local t = Line(n)
+                        t:ClearAllPoints()
+                        t:SetSize(d, lineW)
+                        t:SetPoint("CENTER", overlay, "TOPLEFT", x1 + ux * (pos + d / 2), y1 + uy * (pos + d / 2))
+                        t:SetRotation(angle)
+                        t:SetVertexColor(color[1], color[2], color[3], alpha)
+                        t:Show()
                     end
                 end
             end
+        end
+        -- The whole route marks each change of ride with its symbol.
+        local wayStop = all and not step.approach and SymbolOf(route, i)
+        local at = wayStop and (CROSSING[step.kind] and a or b)
+        if at then
+            nSym = nSym + 1
+            SetSymbol(Sym(nSym), wayStop, at[1], at[2], px(WAY_SYMBOL))
         end
         if all and a and b then
             -- From where the first leg starts to where the last one ends.
@@ -297,6 +318,7 @@ local function Draw()
     end
     for i = n + 1, #pool do pool[i]:Hide() end
     for i = nSolid + 1, #solids do solids[i]:Hide() end
+    for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
     -- it ends; a crossing shows its spot alone when the start is elsewhere.
     if hovered and hovered.a then
@@ -310,15 +332,9 @@ local function Draw()
     end
     local symbol = hovered and hovered.symbol
     if hovered and hovered.b and symbol then
-        -- A portal, flight master or dock: the map's symbol pulsing on its spot, no arrow.
+        -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
         marks.stop:Hide()
-        local size = px(ARROW) * 1.2
-        local atlas = type(symbol) == "string" and symbol:match("^atlas:(.+)$")
-        if atlas then marks.symbol:SetAtlas(atlas) else marks.symbol:SetTexture(symbol) end
-        marks.symbol:ClearAllPoints()
-        marks.symbol:SetSize(size, size)
-        marks.symbol:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
-        marks.symbol:Show()
+        SetSymbol(marks.symbol, symbol, hovered.b[1], hovered.b[2], px(SYMBOL))
     elseif hovered and hovered.b then
         marks.symbol:Hide()
         -- The arrowhead at the end, turned along the leg; pointing down
