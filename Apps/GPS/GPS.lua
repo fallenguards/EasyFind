@@ -924,6 +924,25 @@ local function StepRow(container, i)
     return row
 end
 
+-- A tip's click could be an accident: the stop is added only once
+-- confirmed, with what it does to this trip spelled out.
+local function TipClick(self)
+    local tip = self.tip
+    local route = Route()
+    if not (tip and tip.p and tip.viaTotal and route) then return end
+    local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
+    if tip.after then text = text .. " " .. sformat(L["GPS_STOP_AFTER_FMT"], EtaText(tip.after)) end
+    ns.ShowThemedDialog({ text = text, acceptText = L["GPS_STOP_ADD"], cancelText = _G["CANCEL"],
+                          onAccept = function() GPS:AddStop(tip) end })
+end
+
+local function TipEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
+    GameTooltip:AddLine(L[self.tip and self.tip.detour and "GPS_ADVICE_DETOUR_TT" or "GPS_ADVICE_TT"], 1, 1, 1, true)
+    GameTooltip:Show()
+end
+
 -- Advice under the steps: flight paths worth learning. A click routes
 -- to that flight master.
 local function TipRow(container, i)
@@ -939,23 +958,8 @@ local function TipRow(container, i)
     row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
-    -- A click could be an accident: the stop is added only once confirmed,
-    -- with what it does to this trip spelled out.
-    row:SetScript("OnClick", function(self)
-        local tip = self.tip
-        local route = Route()
-        if not (tip and tip.p and tip.viaTotal and route) then return end
-        local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
-        if tip.after then text = text .. " " .. sformat(L["GPS_STOP_AFTER_FMT"], EtaText(tip.after)) end
-        ns.ShowThemedDialog({ text = text, acceptText = L["GPS_STOP_ADD"], cancelText = _G["CANCEL"],
-                              onAccept = function() GPS:AddStop(tip) end })
-    end)
-    row:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
-        GameTooltip:AddLine(L[self.tip and self.tip.detour and "GPS_ADVICE_DETOUR_TT" or "GPS_ADVICE_TT"], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
+    row:SetScript("OnClick", TipClick)
+    row:SetScript("OnEnter", TipEnter)
     row:SetScript("OnLeave", GameTooltip_Hide)
     container.tips[i] = row
     return row
@@ -1936,10 +1940,31 @@ local function DockLine(f, i)
     return row
 end
 
+-- The window's flight path advice, as tracker lines under the steps.
+local function DockTipLine(f, i)
+    f.tipLines = f.tipLines or {}
+    local row = f.tipLines[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, f)
+    row.dash = row:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
+    row.dash:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.dash:SetText(QUEST_DASH or "- ")
+    row.text = row:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
+    row.text:SetPoint("TOPLEFT", row.dash, "TOPRIGHT", 0, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(true)
+    row:SetScript("OnClick", TipClick)
+    row:SetScript("OnEnter", TipEnter)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    f.tipLines[i] = row
+    return row
+end
+
 RenderDock = function(f)
     if not (f.docked or f.floating) then return end
     local route = Route()
     local y = -(DOCK_HEADER_H + 8)
+    local nTips = 0
     if route then
         if f.search then
             if f.search:GetText() ~= "" then f.search:SetText("") end
@@ -2001,6 +2026,23 @@ RenderDock = function(f)
                 row:Show()
                 y = y - h - DOCK_LINE_GAP
             end
+            local tips = not route.arrived and AdviceLines(route) or nil
+            for t = 1, tips and #tips or 0 do
+                nTips = t
+                local row = DockTipLine(f, t)
+                row.tip = tips[t]
+                row.text:SetText(tips[t].text)
+                row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
+                row.text:SetTextColor(unpack(ns.TEXT_DIM))
+                row.dash:SetTextColor(unpack(ns.TEXT_DIM))
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
+                row:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+                local h = mmax(12, row.text:GetStringHeight() or 12)
+                row:SetHeight(h)
+                row:Show()
+                y = y - h - DOCK_LINE_GAP
+            end
         end
         for i = n + 1, #f.lines do f.lines[i]:Hide() end
         y = y + DOCK_LINE_GAP   -- no gap after the last line
@@ -2019,6 +2061,7 @@ RenderDock = function(f)
             y = -DOCK_HEADER_H - (n > 0 and (4 + n * ROW_H + 4) or 0)
         end
     end
+    for t = nTips + 1, #(f.tipLines or {}) do f.tipLines[t]:Hide() end
     -- Nothing to fold without a route.
     f.fold:SetShown(route ~= nil)
     f.fold:SetNormalAtlas(f.expanded ~= false and "UI-QuestTrackerButton-Secondary-Collapse" or "UI-QuestTrackerButton-Secondary-Expand")
