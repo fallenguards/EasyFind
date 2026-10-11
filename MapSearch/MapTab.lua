@@ -1795,7 +1795,8 @@ function MapTab:RunSearch(text)
 
     RenderRows(scrollChild, pinned, localEntries, globalEntries)
 
-    if (not pinned or #pinned == 0)
+    -- Behind a page (the GPS) the results are hidden, and so is their empty line.
+    if activePage == nil and (not pinned or #pinned == 0)
        and (not localFiltered or #localFiltered == 0) and #globalFiltered == 0 then
         panel.emptyMsg:SetText("|cff999999" .. L["MAP_NO_MATCHES"] .. "|r")
         panel.emptyMsg:Show()
