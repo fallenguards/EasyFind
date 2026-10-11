@@ -7167,5 +7167,5 @@ end
 -- uiSearchData during their own init. Not routed through SafeInit, so wrap.
 local initOk, initErr = xpcall(Database.Initialize, Utils.ErrorHandler, Database)
 if not initOk then
-    print("|cffff4444" .. L["ERR_DATABASE_INIT_FAILED"] .. tostring(initErr) .. "|r")
+    print((ns.CHAT_LOGO or "") .. "|cffff4444" .. L["ERR_DATABASE_INIT_FAILED"] .. tostring(initErr) .. "|r")
 end

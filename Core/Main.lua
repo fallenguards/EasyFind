@@ -625,7 +625,7 @@ end
 -- lost saved variables between sessions, and a wizard that opens on every
 -- login is worse than none. One line, one link; nothing else changes.
 function ns.OfferTutorialInChat()
-    print(sformat(L["TUTORIAL_CHAT_OFFER"], BlueChatLink(TUTORIAL_LINK_PREFIX, L["WHATSNEW_CHAT_HERE"])))
+    print(ns.CHAT_LOGO .. sformat(L["TUTORIAL_CHAT_OFFER"], BlueChatLink(TUTORIAL_LINK_PREFIX, L["WHATSNEW_CHAT_HERE"])))
 end
 
 -- Whether the wizard may open on its own on this client.
@@ -639,7 +639,7 @@ local function ShowWhatsNewChatMessage(version)
     local msg = sformat(L["WHATSNEW_CHAT_HELLO"], v, link)
     -- Plain print: the hello already carries the green brand, so the
     -- usual "EasyFind:" Print prefix would say the name twice.
-    print(msg)
+    print(ns.CHAT_LOGO .. msg)
 end
 
 -- Compare two dotted version strings numerically: -1 / 0 / 1 for a<b, a==b, a>b.
@@ -1582,15 +1582,18 @@ function EasyFind:StartGuide(guideData)
     end
 end
 
-function EasyFind:Print(msg)
-    print(sformat("|cFF00FF00EasyFind:|r %s", msg))
-end
-
 -- Shared by the minimap button and the data broker launcher, and mirrored by
 -- the TOC's IconTexture: one icon identifies the addon wherever it is hosted.
 local LAUNCHER_ICON = "Interface\\AddOns\\EasyFind\\textures\\SpyglassMinimap"
 -- The brand name, never localized, shown wherever the addon names itself.
 local ADDON_LABEL = "EasyFind"
+-- The logo opening every chat line: the launcher icon cropped to the
+-- spyglass, at the chat font's height.
+ns.CHAT_LOGO = "|T" .. LAUNCHER_ICON .. ":0:0:0:0:64:64:2:63:1:64|t "
+
+function EasyFind:Print(msg)
+    print(sformat("%s|cFF00FF00EasyFind:|r %s", ns.CHAT_LOGO, msg))
+end
 
 -- Display-owned buttons our data broker launcher has been clicked through.
 -- The search bar's outside-click close consults this so clicking a launcher
