@@ -83,6 +83,7 @@ Search/Filters/MountOptions.lua
 Search/Filters/HeirloomOptions.lua
 Search/Filters/CheckboxOptions.lua
 Search/Filters/ToyOptions.lua
+Search/Filters/NpcOptions.lua
 Search/Filters/PetOptions.lua
 Search/Filters/CharacterScope.lua
 Search/Filters/BankOptions.lua

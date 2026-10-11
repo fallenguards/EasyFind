@@ -176,6 +176,8 @@ local UI_FILTER_OPTIONS = {
                 { key = "otherservices", label = L["MAP_FILTER_OTHER_SERVICES"], dbTable = "uiMapFilters" },
             } },
           { key = "rares",      label = L["FILTER_RARES"],        dbTable = "uiMapFilters" },
+          { key = "npcs",       label = L["FILTER_NPCS"],         dbTable = "uiMapFilters", hasOptions = true,
+            companion = "EasyFind_GPS" },
       } },
     { key = "housing",     label = _G["HOUSING_SETTINGS_LABEL"] or _G["BINDING_HEADER_HOUSING_SYSTEM"] or "Housing",
       iconAtlas = "UI-HUD-MicroMenu-Housing-Up", hasFlyout = true },

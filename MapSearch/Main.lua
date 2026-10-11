@@ -88,6 +88,7 @@ local function GetFilterBucket(data)
     if data.isZone then return "zones" end
     if not cat then return "other" end
     if cat == "rare" then return "rares" end
+    if cat == "npc" then return "npcs" end
     local parent = CATEGORIES[cat] and CATEGORIES[cat].parent
     if parent == "instance" then return "instances" end
     if parent == "travel" then return "travel" end

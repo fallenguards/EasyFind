@@ -623,6 +623,32 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     dropdown:HookScript("OnHide", function() optionsPopup:Hide() end)
                 end
 
+                -- Map search NPC rows: reaction, role, type and expansion.
+                if sub.hasOptions and sub.key == "npcs" then
+                    local optionsPopup, syncOptions, flyouts =
+                        Filters:BuildNpcOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
+                    optionsPopup._efSync = syncOptions
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup._owningRow = subRow
+                    popup._npcOptionsPopup = optionsPopup
+                    RegisterSubBranchPopup(optionsPopup)
+                    for fi = 1, #flyouts do RegisterSubBranchPopup(flyouts[fi]) end
+                    dropdownGuardFrames[#dropdownGuardFrames + 1] = optionsPopup
+
+                    Utils.AttachHoverPopup(subRow, optionsPopup, {
+                        extraGuards = flyouts,
+                        onShow = function()
+                            syncOptions()
+                            optionsPopup:SetScale(EasyFind.db.uiSearchScale or 1.0)
+                            Utils.OpenFlyoutBeside(optionsPopup, subRow, 4)
+                            optionsPopup:Show()
+                        end,
+                    })
+
+                    popup:HookScript("OnHide", function() optionsPopup:Hide() end)
+                    dropdown:HookScript("OnHide", function() optionsPopup:Hide() end)
+                end
+
                 if sub.hasOptions and sub.key == "pets" then
                     local optionsPopup, syncOptions, sourcePopup, typePopup =
                         Search:BuildPetOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
