@@ -2989,12 +2989,17 @@ function PlaceTab()
         -- floating under two invisible tabs with no way back.
         if not backTab then backTab = CreateBackTab(qmf) end
         backTab:ClearAllPoints()
-        -- Measured on the beta: the drawn border ends at the quest
-        -- list's scrollbar, nine pixels inside the frame's own edge, and
-        -- the tab art carries transparent padding on its left. Blizzard's
-        -- hidden tab sits five pixels past the edge and would float out
-        -- in the world; ours tucks in against the border as retail's does.
-        backTab:SetPoint("TOPLEFT", qmf, "TOPRIGHT", -9, -28)
+        -- Against the map window's right edge, not the quest pane's, so a
+        -- frame that insets the pane keeps the tabs on its border. On the
+        -- beta the pane ends 3 inside the window and the tab art carries
+        -- transparent padding on its left; down from the pane's top.
+        local wmf = _G["WorldMapFrame"]
+        local qTop, wTop = qmf:GetTop(), wmf and wmf:GetTop()
+        if qTop and wTop then
+            backTab:SetPoint("TOPLEFT", wmf, "TOPRIGHT", -12, qTop - wTop - 28)
+        else
+            backTab:SetPoint("TOPLEFT", qmf, "TOPRIGHT", -9, -28)
+        end
         backTab:Show()
         tabFrame:SetPoint("TOPLEFT", backTab, "BOTTOMLEFT", 0, TAB_STACK_GAP)
     elseif qmf.MapLegendTab then
