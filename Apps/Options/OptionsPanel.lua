@@ -97,6 +97,7 @@ local UI_DEFAULTS = {
     combatDim = false,
     moveDim = false,
     windowBorder = false,
+    themeFrameArt = true,
     showAppsButton = true,
     showFilterButton = true,
     learnFromPicks = true,
@@ -269,6 +270,7 @@ local function SyncOptionControls()
     if optionsFrame.resultsDirectionRow then optionsFrame.resultsDirectionRow:SetValue(GetResultsDirectionValue()) end
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
     if optionsFrame.windowBorderCheckbox then optionsFrame.windowBorderCheckbox:SetChecked(EasyFind.db.windowBorder ~= false) end
+    if optionsFrame.frameArtCheckbox then optionsFrame.frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false) end
     if optionsFrame.searchAutocompleteCheckbox then optionsFrame.searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false) end
     if optionsFrame.showAppsButtonCheckbox then optionsFrame.showAppsButtonCheckbox:SetChecked(EasyFind.db.showAppsButton ~= false) end
     if optionsFrame.showFilterButtonCheckbox then optionsFrame.showFilterButtonCheckbox:SetChecked(EasyFind.db.showFilterButton ~= false) end
@@ -1937,6 +1939,22 @@ local function BuildSearchTab(ctx)
     end)
     optionsFrame.windowBorderCheckbox = windowBorderCheckbox
 
+    local frameArtCheckbox = CreateCheckbox(sec1, "ThemeFrameArt", L["OPT_THEME_FRAME_ART"],
+        L["OPT_THEME_FRAME_ART_TT"], true, CHECK_COL_W)
+    frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false)
+    frameArtCheckbox:SetScript("OnClick", function(self)
+        EasyFind.db.themeFrameArt = self:GetChecked() and true or false
+        if self.RefreshVisual then self:RefreshVisual() end
+        RunSoon(function()
+            if ns.Search and ns.Search.UpdateWindowBorders then
+                ns.Search:UpdateWindowBorders()
+            end
+            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
+            if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
+        end)
+    end)
+    optionsFrame.frameArtCheckbox = frameArtCheckbox
+
     local searchAutocompleteCheckbox = CreateCheckbox(sec1, "SearchAutocomplete",
         L["OPT_INLINE_AUTOCOMPLETE"], L["OPT_INLINE_AUTOCOMPLETE_TT"], true, CHECK_COL_W)
     searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false)
@@ -2195,6 +2213,7 @@ local function BuildSearchTab(ctx)
     showFilterButtonCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     learnPicksCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "BOTTOMLEFT", 0, -2)
     macroPickerSearchCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
+    frameArtCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
 
     local function RefreshUIPresetRows()
         if optionsFrame.uiFontPresetRow then

@@ -1378,6 +1378,7 @@ local function BuildPageTheme(parent)
             EasyFind.db.uiTheme = self._themeName
             if ns.ApplyUITheme then ns.ApplyUITheme(self._themeName) end
             RepaintWizardTheme()
+            if p.SyncArtCheck then p.SyncArtCheck() end
             -- A pick here also lands in the options panel if it's open.
             if ns.RepaintOptionsPanelTheme then pcall(ns.RepaintOptionsPanelTheme) end
         end)
@@ -1432,17 +1433,59 @@ local function BuildPageTheme(parent)
         if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
         RepaintReplicas()
         SyncBorderCheck()
+        if p.SyncArtCheck then p.SyncArtCheck() end
     end)
 
+    -- The Classic and Forever themes' own frame art, or the line border the
+    -- rest wear: shown only while one of those two is picked.
+    local artLine = CreateFrame("Button", nil, p)
+    artLine:SetSize(220, 18)
+    artLine:SetPoint("TOP", borderLine, "BOTTOM", 0, -6)
+    local artBox = artLine:CreateTexture(nil, "ARTWORK")
+    artBox:SetSize(14, 14)
+    artBox:SetPoint("LEFT", artLine, "LEFT", 0, 0)
+    artBox:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
+    artBox:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local artCheck = artLine:CreateTexture(nil, "OVERLAY")
+    artCheck:SetSize(14, 14)
+    artCheck:SetPoint("CENTER", artBox, "CENTER", 0, 0)
+    artCheck:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+    artCheck:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    local artLbl = artLine:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ApplyInter(artLbl, "regular")
+    artLbl:SetPoint("LEFT", artBox, "RIGHT", 5, 0)
+    artLbl:SetText(L["OPT_THEME_FRAME_ART"])
+    artLine:SetWidth(19 + artLbl:GetStringWidth() + 4)
+    local function SyncArtCheck()
+        local pal = ns.ACTIVE_UI_PALETTE
+        artLine:SetShown(pal ~= nil and pal.chrome ~= nil and EasyFind.db.windowBorder ~= false)
+        artCheck:SetShown(EasyFind.db.themeFrameArt ~= false)
+    end
+    artLine:SetScript("OnClick", function()
+        EasyFind.db.themeFrameArt = EasyFind.db.themeFrameArt == false
+        if ns.Search and ns.Search.UpdateWindowBorders then
+            ns.Search:UpdateWindowBorders()
+        end
+        if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
+        RepaintReplicas()
+        SyncArtCheck()
+        if ns.optionsFrame and ns.optionsFrame.frameArtCheckbox then
+            ns.optionsFrame.frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false)
+        end
+    end)
+    p.SyncArtCheck = SyncArtCheck
+
     local note = BodyText(p, L["TUT_THEME_RESIZE_NOTE"])
-    note:SetPoint("TOP", borderLine, "BOTTOM", 0, -20)
+    note:SetPoint("TOP", artLine, "BOTTOM", 0, -14)
     note:SetWidth(WIZ_W - 100)
 
     p.OnEnter = function()
         RefreshSelection()
         SyncBorderCheck()
+        SyncArtCheck()
     end
     SyncBorderCheck()
+    SyncArtCheck()
 
     return p
 end
