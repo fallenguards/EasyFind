@@ -987,7 +987,7 @@ end
 
 local ROAD_CELL = 300     -- yards per lookup cell
 local ROAD_HOP = 1000     -- off the road between two pieces of road, at most
-local ROAD_REACH = 2000   -- the start and the end join a road this close (a city has none)
+local ROAD_REACH = 2000   -- the start and the end join the nearest road this close (a city has none)
 local OFF_ROAD = 4        -- an off-road yard weighs this many road yards
 local END_TRIM = 50       -- road this close to either end is left for the straight line
 local roadNets = {}
@@ -1020,9 +1020,68 @@ local function RoadNet(data, ci)
         end
         c[#c + 1] = i
     end
-    net = { xy = xy, n = n, adj = adj, cells = cells, shapes = g.shapes or {} }
+    -- Each road's whole line, end to end, with its yards so far, and its
+    -- stretches filed by cell: a walk joins a road anywhere along it.
+    local shapes = g.shapes or {}
+    local lines, cums, segCells = {}, {}, {}
+    for e = 1, #edges / 3 do
+        local a, b = edges[3 * e - 2], edges[3 * e - 1]
+        local line = { xy[2 * a - 1], xy[2 * a] }
+        local shape = shapes[e]
+        for s = 1, shape and #shape or 0 do line[#line + 1] = shape[s] end
+        line[#line + 1], line[#line + 2] = xy[2 * b - 1], xy[2 * b]
+        local cum = { 0 }
+        for v = 2, #line / 2 do
+            local dx, dy = line[2 * v - 1] - line[2 * v - 3], line[2 * v] - line[2 * v - 2]
+            cum[v] = cum[v - 1] + msqrt(dx * dx + dy * dy)
+            local x0, x1 = mfloor(math.min(line[2 * v - 3], line[2 * v - 1]) / ROAD_CELL), mfloor(mmax(line[2 * v - 3], line[2 * v - 1]) / ROAD_CELL)
+            local y0, y1 = mfloor(math.min(line[2 * v - 2], line[2 * v]) / ROAD_CELL), mfloor(mmax(line[2 * v - 2], line[2 * v]) / ROAD_CELL)
+            for cx = x0, x1 do
+                for cy = y0, y1 do
+                    local key = (cx + 500) * 1000 + cy + 500
+                    local c = segCells[key]
+                    if not c then
+                        c = {}
+                        segCells[key] = c
+                    end
+                    c[#c + 1] = e * 65536 + v - 1
+                end
+            end
+        end
+        lines[e], cums[e] = line, cum
+    end
+    net = { xy = xy, n = n, adj = adj, cells = cells, shapes = shapes, ends = edges, lines = lines, cums = cums,
+            segCells = segCells }
     roadNets[ci] = net
     return net
+end
+
+-- The nearest point on any road within r yards: { e, x, y, d, at (yards
+-- from the road's first end), len }, or nil.
+local function Project(net, x, y, r)
+    local best
+    local cx, cy, span = mfloor(x / ROAD_CELL), mfloor(y / ROAD_CELL), math.ceil(r / ROAD_CELL)
+    for i = cx - span, cx + span do
+        for j = cy - span, cy + span do
+            local c = net.segCells[(i + 500) * 1000 + j + 500]
+            for m = 1, c and #c or 0 do
+                local id = c[m]
+                local e, v = mfloor(id / 65536), id % 65536
+                local line = net.lines[e]
+                local ax, ay, bx, by = line[2 * v - 1], line[2 * v], line[2 * v + 1], line[2 * v + 2]
+                local dx, dy = bx - ax, by - ay
+                local len2 = dx * dx + dy * dy
+                local t = len2 > 0 and mmax(0, math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) or 0
+                local px, py = ax + t * dx, ay + t * dy
+                local d = msqrt((x - px) ^ 2 + (y - py) ^ 2)
+                if d <= r and (not best or d < best.d) then
+                    local cum = net.cums[e]
+                    best = { e = e, x = px, y = py, d = d, at = cum[v] + t * (cum[v + 1] - cum[v]), len = cum[#cum] }
+                end
+            end
+        end
+    end
+    return best
 end
 
 -- Road nodes within r yards of (x, y): each id and its distance, in pairs.
@@ -1050,10 +1109,13 @@ end
 -- Way over the roads: { pts (world yards), node[vertex], off[vertex] (leg leaves
 -- the road), cum[vertex] (yards so far), len, net }; nil when no road helps.
 local function RoadSearch(net, sx, sy, tx, ty)
-    local n, xy, adj = net.n, net.xy, net.adj
-    local S, T = n + 1, n + 2
+    local n, xy, adj, ends = net.n, net.xy, net.adj, net.ends
+    -- S and T the walk's ends; SP and TP where each joins its nearest road.
+    local S, T, SP, TP = n + 1, n + 2, n + 3, n + 4
+    local sj, tj = Project(net, sx, sy, ROAD_REACH), Project(net, tx, ty, ROAD_REACH)
     local function Pos(u)
-        if u == S then return sx, sy elseif u == T then return tx, ty end
+        if u == S then return sx, sy elseif u == T then return tx, ty
+        elseif u == SP then return sj.x, sj.y elseif u == TP then return tj.x, tj.y end
         return xy[2 * u - 1], xy[2 * u]
     end
     local function H(u)
@@ -1108,17 +1170,27 @@ local function RoadSearch(net, sx, sy, tx, ty)
             if u == S then
                 -- Straight there only when it is close: a long line crosses
                 -- what cannot be walked.
-                if dT <= ROAD_REACH then Relax(u, T, dT * OFF_ROAD, 0) end
-                local k = NodesNear(net, ux, uy, ROAD_REACH, near)
+                if dT <= ROAD_HOP then Relax(u, T, dT * OFF_ROAD, 0) end
+                local k = NodesNear(net, ux, uy, ROAD_HOP, near)
                 for m = 1, k, 2 do Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
+                if sj then Relax(u, SP, sj.d * OFF_ROAD, 0) end
+            elseif u == SP then
+                -- Along the joined road to either end, or to T's join on it.
+                Relax(u, ends[3 * sj.e - 2], sj.at, "sa")
+                Relax(u, ends[3 * sj.e - 1], sj.len - sj.at, "sb")
+                if tj and tj.e == sj.e then Relax(u, TP, math.abs(tj.at - sj.at), "st") end
+            elseif u == TP then
+                Relax(u, T, tj.d * OFF_ROAD, 0)
             else
+                if tj and u == ends[3 * tj.e - 2] then Relax(u, TP, tj.at, "at") end
+                if tj and u == ends[3 * tj.e - 1] then Relax(u, TP, tj.len - tj.at, "bt") end
                 local a = adj[u]
                 for m = 1, #a, 3 do Relax(u, a[m], a[m + 1], a[m + 2]) end
                 local k = NodesNear(net, ux, uy, ROAD_HOP, near)
                 for m = 1, k, 2 do
                     if near[m] ~= u then Relax(u, near[m], near[m + 1] * OFF_ROAD, 0) end
                 end
-                if dT <= ROAD_REACH then Relax(u, T, dT * OFF_ROAD, 0) end
+                if dT <= ROAD_HOP then Relax(u, T, dT * OFF_ROAD, 0) end
             end
         end
     end
@@ -1145,6 +1217,23 @@ local function RoadSearch(net, sx, sy, tx, ty)
         local from = #pts / 2
         if e == 0 then
             off[from] = true
+        elseif type(e) == "string" then
+            -- A stretch of a joined road: its vertices between the two
+            -- points, in walking order.
+            local j = (e == "at" or e == "bt") and tj or sj
+            local line, along = net.lines[j.e], net.cums[j.e]
+            local s0 = (e == "sa" or e == "sb" or e == "st") and sj.at or (e == "at" and 0 or j.len)
+            local s1 = (e == "sa" and 0) or (e == "sb" and j.len) or tj.at
+            local m = #along
+            if s1 > s0 then
+                for k = 1, m do
+                    if along[k] > s0 and along[k] < s1 then Add(line[2 * k - 1], line[2 * k]) end
+                end
+            else
+                for k = m, 1, -1 do
+                    if along[k] < s0 and along[k] > s1 then Add(line[2 * k - 1], line[2 * k]) end
+                end
+            end
         else
             local shape = net.shapes[e < 0 and -e or e]
             if shape then

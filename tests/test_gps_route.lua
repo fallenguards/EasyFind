@@ -533,6 +533,16 @@ function tests.roads_endCutsStraightNotRoundTheBend()
     H.assertEq(math.floor(path.len + 0.5), 1090)
 end
 
+-- A start beside the middle of the road from A to B joins it there, not at
+-- either end: a town on a long road is on the road.
+function tests.roads_joinPartwayAlongARoad()
+    local _, _, Route = fresh()
+    local path = Route.RoadPath(roadData(), 1, 300, 500, 1050, 1000)
+    H.assertTrue(path ~= nil)
+    H.assertDeepEq({ path.pts[3], path.pts[4] }, { 0, 500 }, "joins halfway from A to B")
+    H.assertEq(math.floor(path.len + 0.5), 1850)
+end
+
 -- A walk from inside a city (no roads in it) joins the road 1500 yd off.
 function tests.roads_farStartStillReachesTheRoad()
     local _, _, Route = fresh()
@@ -588,7 +598,7 @@ function tests.roads_windingWalkLosesToTheFlight()
     local steps, total = build(Route, P(1, 0.1, 0.1), { name = "Spot", mapID = 1, x = 0.3, y = 0.1 },
                                { data = d, groundSpeed = 10, known = false })
     H.assertEq(steps[1].kind, "taxi", "the 300 s flight beats 6000 yd of road and the walk past the dock")
-    H.assertTrue(math.abs(total - 318) < 1, "board, fly, then 100 yd on: " .. tostring(total))
+    H.assertTrue(math.abs(total - 316) < 1, "board, fly, then 100 yd of road: " .. tostring(total))
 end
 
 -- The road above crosses three zones: Alpha until 500 yd west, Bravo up
