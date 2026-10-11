@@ -695,5 +695,23 @@ function tests.flown_hopsCountOverTheEstimate()
     H.assertTrue(flown < estimated - 200, "two 30 s hops beat two 200 s estimates: " .. flown .. " vs " .. estimated)
 end
 
+-- A boat whose route a ride has timed waits for its next departure, not
+-- half its loop; one not timed keeps the average.
+function tests.boat_timedWaitsForItsNextDeparture()
+    local _, _, Route = fresh()
+    local d = data()
+    d.abilities, d.legs = {}, {}
+    d.edges = { { kind = "boat", n = "Boat to Map 2", dest = "Map 2", from = P(1, 0.1, 0.12), to = P(2, 0.5, 0.59),
+                  sec = 60, wait = 150, route = 7, stop = 1 } }
+    local dest = { name = "Pier", mapID = 2, x = 0.5, y = 0.6 }
+    local _, average = build(Route, P(1, 0.1, 0.12), dest, { data = d })
+    local steps, timed = build(Route, P(1, 0.1, 0.12), dest, { data = d, waitAt = function() return 20 end })
+    H.assertTrue(math.abs((average - timed) - 130) < 2, "20 s instead of 150: " .. average .. " vs " .. timed)
+    local boat
+    for i = 1, #steps do if steps[i].kind == "boat" then boat = steps[i] end end
+    H.assertEq(boat.wait, 20)
+    H.assertTrue(boat.live, "the step says its wait is live")
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

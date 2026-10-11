@@ -17,6 +17,7 @@ Walk_ZephrasIsle.lua
 Nav.lua
 Route.lua
 Flights.lua
+Boats.lua
 WorldPin.lua
 Preview.lua
 GPS.lua

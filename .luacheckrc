@@ -44,7 +44,7 @@ read_globals = {
     "GetBindLocation", "UnitOnTaxi", "GetTaxiMapID", "IsMounted", "IsFlying", "IsSwimming",
     "UnitLevel", "UnitRace", "C_QuestLog", "C_Covenants", "MenuResponse",
     "SEARCH", "QUEST_DASH", "IN_GAME_NAVIGATION_RANGE",
-    "GetRealZoneText", "EventRegistry", "C_EncodingUtil",
+    "GetRealZoneText", "EventRegistry", "C_EncodingUtil", "GetServerTime",
 
     -- Core API
     "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight", "GetPhysicalScreenSize",

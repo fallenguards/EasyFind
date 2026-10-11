@@ -200,8 +200,11 @@ local function BuildGraph(ctx)
                 local ti = AddNode(t, "edgeTo", { edge = e })
                 local sec = (e.sec or 10) + (e.wait or 0) + (hostile and HOSTILE_SECONDS or 0)
                 local pen = Avoided(e.kind)
+                -- A timed route waits as long as its next departure; an
+                -- untimed one, half its loop.
+                local timed = e.route and e.stop and ctx.waitAt and true or nil
                 hops[fi] = hops[fi] or {}
-                tinsert(hops[fi], { to = ti, sec = sec, pen = pen, edge = e, hostile = hostile or nil })
+                tinsert(hops[fi], { to = ti, sec = sec, pen = pen, edge = e, hostile = hostile or nil, timed = timed })
                 if e.bidir then
                     hops[ti] = hops[ti] or {}
                     tinsert(hops[ti], { to = fi, sec = sec, pen = pen, edge = e, reverse = true, hostile = hostile or nil })
@@ -253,7 +256,7 @@ local function BuildGraph(ctx)
     return {
         nodes = nodes, byCi = byCi, start = startIdx, goal = goalIdx,
         legs = legs, hops = hops, teleports = teleports, taxiIdx = taxiIdx,
-        travelSpeed = travelSpeed, mountUp = mountUp,
+        travelSpeed = travelSpeed, mountUp = mountUp, waitAt = ctx.waitAt,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
         walkSec = {}, walkWind = {},
@@ -309,8 +312,9 @@ local function TimeWalks(g, steps, start)
     end
 end
 
--- noWalk: arrived on foot, so no walk on from here.
-local function Neighbors(g, i, out, noWalk)
+-- noWalk: arrived on foot, so no walk on from here; t: seconds from now
+-- when node i is reached (a timed boat's wait hangs on it).
+local function Neighbors(g, i, out, noWalk, t)
     local n = g.nodes[i]
     local k = 0
     -- Travel to everything on the same continent and landmass; a walk not
@@ -341,8 +345,14 @@ local function Neighbors(g, i, out, noWalk)
     if hops then
         for j = 1, #hops do
             k = k + 1
-            out[k] = { to = hops[j].to, sec = hops[j].sec, pen = hops[j].pen, kind = hops[j].edge.kind, edge = hops[j].edge,
-                       reverse = hops[j].reverse, hostile = hops[j].hostile }
+            local h = hops[j]
+            local sec, wait = h.sec, nil
+            if h.timed and not h.reverse then
+                wait = g.waitAt(h.edge.route, h.edge.stop, t or 0)
+                if wait then sec = h.sec - (h.edge.wait or 0) + wait end
+            end
+            out[k] = { to = h.to, sec = sec, pen = h.pen, kind = h.edge.kind, edge = h.edge,
+                       reverse = h.reverse, hostile = h.hostile, liveWait = wait }
         end
     end
     if i == g.start then
@@ -377,7 +387,7 @@ local function Dijkstra(g)
             break
         end
         done[best] = true
-        local count = Neighbors(g, i, scratch, onFoot)
+        local count = Neighbors(g, i, scratch, onFoot, bestD)
         for j = 1, count do
             local e = scratch[j]
             local to = e.kind == "travel" and e.to + n or e.to
@@ -638,7 +648,7 @@ local function Steps(g, path, goalName)
             local key = KIND_KEY[e.kind] or "GPS_STEP_PORTAL_FMT"
             local from = g.nodes[i > 1 and path[i - 1].node or g.start]
             local floor = FloorHint(g, from.p)
-            local wait = e.edge.wait
+            local wait = e.liveWait or e.edge.wait
             local dest = EdgeDestName(e.edge, e.reverse)
             local reachKey = REACH_KEY[e.kind]
             local reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil
@@ -650,6 +660,8 @@ local function Steps(g, path, goalName)
                              mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = node.p,
                              sec = e.sec - (e.hostile and HOSTILE_SECONDS or 0),
                              edgeSec = e.sec - (wait or 0) - (e.hostile and HOSTILE_SECONDS or 0), wait = wait,
+                             live = e.liveWait and true or nil,
+                             route = not e.reverse and e.edge.route or nil, stop = not e.reverse and e.edge.stop or nil,
                              reach = e.edge.n, reachText = reachText,
                              floor = floor })
             i = i + 1
@@ -936,6 +948,7 @@ function Route:Build(dest, opts)
         hearth = opts.hearth,
         avoid = opts.avoid,
         flown = opts.flown,
+        waitAt = opts.waitAt or (ns.GPSBoats and ns.GPSBoats.WaitAt),
         bindName = opts.bindName or (GetBindLocation and GetBindLocation()) or nil,
         known = known,
         listed = listed,

@@ -331,7 +331,17 @@ end
 
 -- A crossing still a way off reads as reaching it (portal, dock, flight master),
 -- then as taking it once there.
+-- A timed boat's next departure from its stop, as "leaves in 1:20".
+local function DepartureText(step)
+    local Boats = ns.GPSBoats
+    local wait = Boats and step.route and step.stop and Boats.WaitAt(step.route, step.stop, 0)
+    if not wait then return nil end
+    return sformat(L["GPS_LEAVES_IN_FMT"], sformat("%d:%02d", math.floor(wait / 60), math.floor(wait % 60)))
+end
+
 local function StepText(step, active)
+    local departs = active and step and step.route and DepartureText(step)
+    if departs then return (step.text or "") .. " " .. departs end
     if not (active and step and step.reach and step.go) then return step and step.text or "" end
     local ci, px, py = PlayerWorldPos()
     local tci, tx, ty
