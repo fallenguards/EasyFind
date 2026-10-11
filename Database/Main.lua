@@ -23,6 +23,8 @@ local C_MountJournal = C_MountJournal
 local C_ToyBox = C_ToyBox
 local C_PetJournal = C_PetJournal
 local C_EncounterJournal = C_EncounterJournal
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 local band, lshift = bit.band, bit.lshift
 
 local uiSearchData = {}
@@ -3645,8 +3647,6 @@ function Database:PopulateDynamicLoot(scanAllSpecs)
     end
     collectInstances(false)
     collectInstances(true)
-
-    local GetItemInfoInstant = GetItemInfoInstant
 
     for _, inst in ipairs(instances) do
         if myGen ~= lootScanGeneration then break end

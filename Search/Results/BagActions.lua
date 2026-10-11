@@ -4,6 +4,10 @@ local Search = ns.Search
 local Handlers = ns.ResultHandlers
 local Utils = ns.Utils
 
+local GetItemSpell = (C_Item and C_Item.GetItemSpell) or GetItemSpell
+local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+
 local select, ipairs = Utils.select, Utils.ipairs
 
 function Handlers:OpenContainerBag(bag)
@@ -143,8 +147,7 @@ function Handlers:GetBagItemActionKind(data)
         return "equip"
     end
 
-    local hasUseEffect = (C_Item and C_Item.GetItemSpell and C_Item.GetItemSpell(data.itemID))
-        or (GetItemSpell and GetItemSpell(data.itemID))
+    local hasUseEffect = GetItemSpell and GetItemSpell(data.itemID)
     if hasUseEffect then return "use" end
 
     -- Compare against the numeric itemClassID rather than the localized
