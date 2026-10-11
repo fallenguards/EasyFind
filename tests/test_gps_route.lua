@@ -505,16 +505,18 @@ end
 -- A stand-in walking grid (Nav.lua): way(sx, sy, tx, ty) gives the walk's
 -- points (world x north, y west), or nil where no way on foot leads.
 local function withNav(ns, way)
+    local function path(_, sx, sy, tx, ty)
+        local pts = way(sx, sy, tx, ty)
+        if not pts then return nil end
+        local len = 0
+        for v = 3, #pts, 2 do len = len + math.sqrt((pts[v] - pts[v - 2]) ^ 2 + (pts[v + 1] - pts[v - 1]) ^ 2) end
+        return pts, len
+    end
     ns.GPSNav = {
         Ensure = function() return true end,
         Has = function() return true end,
-        Path = function(_, sx, sy, tx, ty)
-            local pts = way(sx, sy, tx, ty)
-            if not pts then return nil end
-            local len = 0
-            for v = 3, #pts, 2 do len = len + math.sqrt((pts[v] - pts[v - 2]) ^ 2 + (pts[v + 1] - pts[v - 1]) ^ 2) end
-            return pts, len
-        end,
+        Path = path,
+        Walk = function(...) return select(2, path(...)) end,
     }
 end
 

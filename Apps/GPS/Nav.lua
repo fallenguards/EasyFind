@@ -17,6 +17,8 @@ local TILE = 1600 / 3
 local ORIGIN = 32 * TILE
 local TILES_KEPT = 12              -- unpacked tiles held at once
 local SNAP_CELLS = 6               -- a point off the grid takes a floor this many cells away
+local REACH_KEPT = 64              -- end points whose tile search is kept
+local WALKS_KEPT = 512             -- walk costs kept
 -- Walking weights, the same in dev/tools/navmesh/grid.py: swimming at the
 -- game's swim speed against running, and off the road a quarter more, so a
 -- walk leaves a road only to save over a fifth.
@@ -59,7 +61,8 @@ local function World(ci)
     if w then return w end
     local data = ns.GPSNavData and ns.GPSNavData[ci]
     if not data then return nil end
-    w = { data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {} }
+    w = { data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
+          reach = {}, reachN = 0, walks = {}, walksN = 0 }
     worlds[ci] = w
     return w
 end
@@ -373,8 +376,13 @@ local function PairCost(tc, ents, a, b)
     return msqrt((ents.x[a] - ents.x[b]) ^ 2 + (ents.y[a] - ents.y[b]) ^ 2) + (code - 1) / 2
 end
 
--- Costs from floor g of tile t to each entrance side in that tile.
+-- Costs from floor g of tile t to each entrance side in that tile; kept
+-- per floor, as every walk from one spot asks the same.
 local function ToEntrances(w, t, g)
+    local rk = t.key * 131072 + g
+    local kept = w.reach[rk]
+    if kept then return kept end
+    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
     local cost = TileSearch(w, t, g)
     local tc = TileCosts(w, t.key)
     local ents = Entrances(w)
@@ -384,6 +392,7 @@ local function ToEntrances(w, t, g)
         local c = cost[ents.floor[node]]
         if c then out[node] = c end
     end
+    w.reach[rk], w.reachN = out, w.reachN + 1
     return out
 end
 
@@ -453,7 +462,15 @@ end
 function Nav.Walk(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
-    return (Walk(w, ax, ay, bx, by, opts))
+    local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
+        .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
+    local cost = w.walks[key]
+    if cost == nil then
+        if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
+        cost = Walk(w, ax, ay, bx, by, opts) or false
+        w.walks[key], w.walksN = cost, w.walksN + 1
+    end
+    return cost or nil
 end
 
 function Nav.Has(ci) return ns.GPSNavData ~= nil and ns.GPSNavData[ci] ~= nil end

@@ -267,8 +267,9 @@ end
 
 local WALK_KEY = 65536
 
--- A walk's seconds on the walking grid, and its wind (yards walked per
--- straight yard); no way on foot costs forever.
+-- A walk's seconds on the walking grid by the cost it is chosen by (the
+-- chosen route's walks are timed by their real path afterwards), and its
+-- wind (yards per straight yard); no way on foot costs forever.
 local function PriceWalk(g, i, j)
     local key = i * WALK_KEY + j
     local sec = g.walkSec[key]
@@ -276,20 +277,34 @@ local function PriceWalk(g, i, j)
     local a, b = g.nodes[i].p, g.nodes[j].p
     local straight = Dist(a, b)
     local wind
+    local Nav = ns.GPSNav
     if straight <= 5 then
         sec = TravelCost(g, straight)
-    else
-        local way = Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
-        if way then
-            sec, wind = g.mountUp + way.time / g.travelSpeed, way.len / straight
-        elseif way == false then
-            sec = mhuge
+    elseif Nav and Nav.Ensure(a.ci) then
+        local cost = Nav.Walk(a.ci, a.wx, a.wy, b.wx, b.wy)
+        if cost then
+            sec, wind = g.mountUp + cost / g.travelSpeed, cost / straight
         else
-            sec = TravelCost(g, straight)
+            sec = mhuge
         end
+    else
+        sec = TravelCost(g, straight)
     end
     g.walkSec[key], g.walkWind[key] = sec, wind
     return sec, wind
+end
+
+-- The chosen route's walks timed by their real path.
+local function TimeWalks(g, steps, start)
+    for i = 1, #steps do
+        local s = steps[i]
+        local a, b = i > 1 and steps[i - 1].arrive or start, s.go or s.arrive
+        if s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci then
+            local straight = Dist(a, b)
+            local way = straight > 5 and Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
+            if way then s.sec, s.wind = g.mountUp + way.time / g.travelSpeed, way.len / straight end
+        end
+    end
 end
 
 -- noWalk: arrived on foot, so no walk on from here.
@@ -969,6 +984,7 @@ function Route:Build(dest, opts)
     if not path then return nil end
     local cost = PathSeconds(g, path)
     local steps = Steps(g, path, dest.name)
+    if g.nav then TimeWalks(g, steps, start) end
     local total = 0
     for i = 1, #steps do total = total + (steps[i].sec or 0) end
     local advice
