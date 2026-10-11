@@ -1816,7 +1816,6 @@ local function DockLine(f, i)
     row.dash:SetText(QUEST_DASH or "- ")
     row.text = row:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
     row.text:SetPoint("TOPLEFT", row.dash, "TOPRIGHT", 0, 0)
-    row.text:SetPoint("RIGHT", row, "RIGHT", 0, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -1849,9 +1848,12 @@ RenderDock = function(f)
         local eta = ""
         if not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
         f.time:SetText(eta)
+        -- Widths are set, not anchored: a fresh line's anchors are not
+        -- resolved yet when its height is read, and it would read as one line.
+        local lineW = (f.head:GetWidth() or 260) - DOCK_INDENT
         f.title:ClearAllPoints()
         f.title:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
-        f.title:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+        f.title:SetWidth(lineW)
         -- The tracking toggle in the quest POI button's spot, lit while the
         -- arrow follows the route.
         local on = RouteTracked()
@@ -1881,7 +1883,7 @@ RenderDock = function(f)
                 row.index = (not route.arrived) and i or nil
                 row.text:SetText(StepText(items[i], (route.active or 1) == i and not route.arrived))
                 local cast = SetupCast(row.cast, items[i], (route.active or 1) == i and not route.arrived)
-                row.text:SetPoint("RIGHT", row, "RIGHT", cast and -24 or 0, 0)
+                row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8) - (cast and 24 or 0)))
                 local active = (route.active or 1) == i and not route.arrived
                 local done = i < (route.active or 1)
                 local c = (active or route.arrived) and 1 or (done and 0.5 or 0.8)
