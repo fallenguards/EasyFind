@@ -21,6 +21,7 @@ local AVOID_SECONDS = 3600  -- a way the player chose to avoid: taken only when 
 -- Which avoid setting each way of travel answers to.
 local AVOID_KIND = { taxi = "taxi", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
                      portal = "portal", tram = "portal", teleport = "teleport" }
+Route.AVOID_KIND = AVOID_KIND
 local WALK_DETOUR = 1.2     -- without the walking grid: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
 local SUGGEST_MIN_SECONDS = 60

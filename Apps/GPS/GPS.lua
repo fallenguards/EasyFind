@@ -263,14 +263,17 @@ local function StartPoint()
     return { m = s.mapID, x = s.x, y = s.y, ci = ci, wx = wx, wy = wy }
 end
 
-function GPS:BuildRoute(dest, via)
+-- avoid: ways to leave out, the settings' by default; quick: no advice.
+function GPS:BuildRoute(dest, via, avoid, quick)
     local Route = ns.GPSRoute
     local origin = StartPoint()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
-        local ok, steps, total, advice = pcall(Route.Build, Route, dest,
-            { hearth = h and { point = h } or nil, via = via, avoid = db and db.gpsAvoid or nil, start = origin })
+        local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
+                       start = origin }
+        if quick then opts.advise = false end
+        local ok, steps, total, advice = pcall(Route.Build, Route, dest, opts)
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
             return SplitWalks(steps, dest, origin), total, advice
@@ -581,15 +584,17 @@ end
 local function Reroute(route)
     local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
     local via = route.via and not (known and known[route.via.id]) and route.via or nil
-    local steps, total, advice = GPS:BuildRoute(route.dest, via)
+    local steps, total, advice = GPS:BuildRoute(route.dest, via, route.wayAvoid)
     if not steps then return end
     local ci, wx, wy = PlayerWorldPos()
     -- The report keeps the first plan, and counts the starts over.
     local report = route.report
     if report then report.re = (report.re or 0) + 1 end
     CharDB().route = { dest = route.dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil, report = report }
+                       via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil, report = report,
+                       wayAvoid = route.wayAvoid }
     closing.step = nil
+    if GPS.PlanOtherWays then GPS.PlanOtherWays() end
     if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
     TrackStep(1)
 end
@@ -709,6 +714,7 @@ function GPS:NavigateTo(data, opts)
                        from = from, origin = origin,
                        report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
+    if GPS.PlanOtherWays then GPS.PlanOtherWays() end
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -785,6 +791,73 @@ function GPS:Status()
     out[#out + 1] = sformat("native waypoint: %s | super-tracked: %s", wp and sformat("map %s %.3f,%.3f", tostring(wp.uiMapID), wp.position.x, wp.position.y) or "none",
         tostring(C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint()))
     return out
+end
+
+-- Other ways: the route planned again without its main way of travel,
+-- and with no transport at all; up to OTHER_WAYS that differ from it.
+local OTHER_WAYS = 2
+local WAY_ORDER = { "teleport", "portal", "boat", "zeppelin", "taxi" }
+local NO_TRANSPORT = { "taxi", "boat", "zeppelin", "portal", "teleport" }
+
+-- The main way a route travels: its first transport by WAY_ORDER, else "walk".
+local function WayOf(steps)
+    local kinds = ns.GPSRoute and ns.GPSRoute.AVOID_KIND or {}
+    local seen = {}
+    for i = 1, #steps do
+        local k = kinds[steps[i].kind]
+        if k then seen[k] = true end
+    end
+    for _, k in ipairs(WAY_ORDER) do
+        if seen[k] then return k end
+    end
+    return "walk"
+end
+
+local function OtherWays(route)
+    local db = DB()
+    local base = route.wayAvoid or (db and db.gpsAvoid) or {}
+    local best = WayOf(route.steps)
+    local found, ways = { [best] = true }, {}
+    local function Try(extra)
+        local avoid = {}
+        for k, v in pairs(base) do avoid[k] = v end
+        for i = 1, #extra do avoid[extra[i]] = true end
+        local steps, total = GPS:BuildRoute(route.dest, nil, avoid, true)
+        if not (steps and total and total > 0) then return end
+        local way = WayOf(steps)
+        if found[way] then return end
+        found[way] = true
+        ways[#ways + 1] = { way = way, total = total, avoid = avoid }
+    end
+    if best ~= "walk" then Try({ best }) end
+    Try(NO_TRANSPORT)
+    table.sort(ways, function(a, b) return a.total < b.total end)
+    for i = #ways, OTHER_WAYS + 1, -1 do ways[i] = nil end
+    return ways
+end
+
+-- Planned once the route is on screen, never in the way of showing it.
+local function PlanOtherWays()
+    Utils.SafeAfter(0, function()
+        local route = Route()
+        if not (route and route.dest and not route.arrived) then return end
+        route.others = OtherWays(route)
+        Refresh()
+    end)
+end
+GPS.PlanOtherWays = PlanOtherWays
+
+-- Takes one of the other ways: the route keeps to it, starting over too.
+function GPS:TakeOtherWay(other)
+    local route = Route()
+    if not (route and route.dest and other) then return end
+    local steps, total, advice = self:BuildRoute(route.dest, nil, other.avoid)
+    if not steps then return end
+    route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+    route.wayAvoid, route.others = other.avoid, nil
+    closing.step = nil
+    TrackStep(1)
+    PlanOtherWays()
 end
 
 -- Picking a start in a surface's search box: its hits set the start.
@@ -1072,6 +1145,10 @@ local function TipClick(self)
         GPS:ReportRoute()
         return
     end
+    if tip and tip.other then
+        GPS:TakeOtherWay(tip.other)
+        return
+    end
     local route = Route()
     if not (tip and tip.p and tip.viaTotal and route) then return end
     local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
@@ -1084,7 +1161,8 @@ local function TipEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
     local tip = self.tip
-    local key = tip and tip.report and "GPS_REPORT_TT" or (tip and tip.detour and "GPS_ADVICE_DETOUR_TT") or "GPS_ADVICE_TT"
+    local key = tip and (tip.report and "GPS_REPORT_TT" or tip.other and "GPS_OTHER_WAY_TT"
+        or tip.detour and "GPS_ADVICE_DETOUR_TT") or "GPS_ADVICE_TT"
     GameTooltip:AddLine(L[key], 1, 1, 1, true)
     GameTooltip:Show()
 end
@@ -1115,8 +1193,8 @@ end
 -- saves when the engine priced it), then the best one elsewhere.
 local function AdviceLines(route)
     if route and route.arrived then return { { text = L["GPS_REPORT"], report = true } } end
-    local a = route and route.advice
-    if not a then return nil end
+    if not route then return nil end
+    local a = route.advice or {}
     local out = {}
     local learn = a.learn
     for i = 1, #(a.pickups or {}) do
@@ -1136,6 +1214,10 @@ local function AdviceLines(route)
         -- Out of the way: what it costs now, what it saves every time after.
         out[#out + 1] = { text = sformat(L["GPS_ADVICE_DETOUR_FMT"], learn.name or "?", EtaText(learn.extra), EtaText(learn.save)),
                           id = learn.id, name = learn.name, p = learn.p, viaTotal = learn.viaTotal, after = learn.total, detour = true }
+    end
+    for _, other in ipairs(route.others or {}) do
+        local way = sformat(L["GPS_WAY_" .. other.way:upper() .. "_FMT"], EtaText(other.total))
+        out[#out + 1] = { text = sformat(L["GPS_OTHER_WAY_FMT"], way), other = other }
     end
     return #out > 0 and out or nil
 end
