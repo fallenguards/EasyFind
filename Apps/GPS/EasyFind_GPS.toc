@@ -15,6 +15,7 @@ Walk_EasternKingdoms.lua
 Walk_Kalimdor.lua
 Walk_ZephrasIsle.lua
 Npcs_Forever.lua
+Npcs_Retail.lua
 Nav.lua
 Route.lua
 Flights.lua

@@ -12,23 +12,28 @@ if not (MapSearch and Search and Search.PreparePOI) then return end
 local sbyte, sfind, slower, sgmatch, ssub = string.byte, string.find, string.lower, string.gmatch, string.sub
 local mfloor, mmin = math.floor, math.min
 local tsort = table.sort
+local band = bit.band
 local PreparePOI = Search.PreparePOI
 
 local MIN_QUERY = 3
 local MAX_ROWS = 60     -- candidates handed to the map search's scoring
 local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the map
 local DANGER_LEVELS = 3 -- the client's orange: three levels above
+-- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
+-- the filter offers; a creature with none is "other".
+local ROLE_GROUP = { quest = 1, vendor = 2 + 256, trainer = 4, flight = 8, services = 16 + 32 + 64 + 128 }
 
 -- Everything unpacked, in one table: per creature (index i) its id, levels,
 -- flags, title, display and search names, and its spots (index k).
 local N = {
     n = nil,
-    id = {}, lo = {}, span = {}, flags = {}, title = {}, first = {}, count = {},
+    id = {}, lo = {}, span = {}, flags = {}, kind = {}, title = {}, first = {}, count = {},
     name = {}, low = {}, english = {}, lowEnglish = {},
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
-    hits = {}, score = {}, words = {},
+    hits = {}, score = {}, words = {}, retailEntrance = {},
+    ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
 
@@ -84,7 +89,7 @@ local function Load()
     local count, last, k = u(), 0, 0
     for i = 1, count do
         last = last + u()
-        N.id[i], N.lo[i], N.span[i], N.flags[i], N.title[i] = last, u(), u(), u(), u()
+        N.id[i], N.lo[i], N.span[i], N.flags[i], N.kind[i], N.title[i] = last, u(), u(), u(), u(), u()
         local c = u()
         N.first[i], N.count[i] = k + 1, c
         for _ = 1, c do
@@ -127,11 +132,36 @@ local function Entrance(id)
     return entrances[id]
 end
 
+-- Retail: an instance's entrance, from its journal page and the map
+-- search's entrance list (once that list is built).
+local function RetailEntrance(mapID)
+    local kept = N.retailEntrance[mapID]
+    if kept ~= nil then return kept or nil end
+    local EJ = C_EncounterJournal
+    if not (EJ and EJ.GetInstanceForGameMap and EJ_GetInstanceInfo and MapSearch.HasGlobalInstanceCache
+            and MapSearch:HasGlobalInstanceCache()) then
+        return nil
+    end
+    N.retailEntrance[mapID] = false
+    local jid = EJ.GetInstanceForGameMap(mapID)
+    local name = jid and EJ_GetInstanceInfo(jid)
+    if not name then return nil end
+    for _, e in ipairs(MapSearch:GetGlobalInstanceCache() or {}) do
+        if e.name == name and e.entranceMapID and e.x then
+            local found = { m = e.entranceMapID, x = e.x, y = e.y, n = name }
+            N.retailEntrance[mapID] = found
+            return found
+        end
+    end
+    return nil
+end
+
 -- A spot's zone map, x and y; an instance spot is its entrance.
 local function SpotPoint(k)
     local m = N.spotMap[k]
     if m == 0 then
-        local e = Entrance(N.spotXY[k])
+        local e
+        if ns.Caps and ns.Caps.forever then e = Entrance(N.spotXY[k]) else e = RetailEntrance(N.spotXY[k]) end
         if e then return e.m, e.x, e.y, e end
         return nil
     end
@@ -249,6 +279,34 @@ local function Row(i, k)
     return poi
 end
 
+-- Whether creature i passes the NPC filters (EasyFind.db.npcFilters):
+-- per facet a table where false leaves that value out, missing keeps it.
+-- type[id], expansion[id] (-1: unknown), role[group], reaction[0 friendly,
+-- 1 neutral, 2 hostile] to the player's faction.
+local function Passes(i, f, horde)
+    local kind = N.kind[i]
+    if f.type and f.type[kind % 16] == false then return false end
+    if f.expansion and f.expansion[mfloor(kind / 16) % 16 - 1] == false then return false end
+    local roleF = f.role
+    if roleF then
+        local roles = mfloor(kind / 256)
+        if roles == 0 then
+            if roleF.other == false then return false end
+        else
+            local any = false
+            for group, bits in pairs(ROLE_GROUP) do
+                if roleF[group] ~= false and band(roles, bits) ~= 0 then
+                    any = true
+                    break
+                end
+            end
+            if not any then return false end
+        end
+    end
+    if f.reaction and f.reaction[mfloor(N.flags[i] / (horde and 32 or 8)) % 4] == false then return false end
+    return true
+end
+
 -- Appends the creatures matching query to out (map POIs); onlyMap keeps
 -- those standing on that map. True when more matched than were handed over.
 function N.Append(out, nameSet, query, onlyMap)
@@ -258,9 +316,12 @@ function N.Append(out, nameSet, query, onlyMap)
     for word in sgmatch(slower(query), "%S+") do words[#words + 1] = word end
     if #words == 0 then return false end
     local hits, score, n = N.hits, N.score, 0
+    local f = EasyFind.db and EasyFind.db.npcFilters
+    local horde = f and f.reaction and UnitFactionGroup and UnitFactionGroup("player") == "Horde"
     for i = 1, N.n do
         local s = Score(i)
         if s > 0 and onlyMap and not StandsOn(i, onlyMap) then s = 0 end
+        if s > 0 and f and not Passes(i, f, horde) then s = 0 end
         if s > 0 then
             n = n + 1
             hits[n] = i
@@ -279,6 +340,26 @@ function N.Append(out, nameSet, query, onlyMap)
         if poi and not (nameSet and nameSet[poi.nameLower]) then out[#out + 1] = poi end
     end
     return n > MAX_ROWS
+end
+
+-- What the filter menu offers: the creature types by id with the client's
+-- names, and the expansions this catalog holds (-1: unknown), in order.
+function N.FilterChoices()
+    if not Load() then return nil end
+    local present, types, expansions = {}, {}, {}
+    for i = 1, N.n do
+        present[N.kind[i] % 16] = true
+        expansions[mfloor(N.kind[i] / 16) % 16 - 1] = true
+    end
+    local names = ns.NPC_DATA.types or {}
+    for id in pairs(present) do
+        if names[id] then types[#types + 1] = { id = id, name = names[id] } end
+    end
+    tsort(types, function(a, b) return a.name < b.name end)
+    local list = {}
+    for e in pairs(expansions) do list[#list + 1] = e end
+    tsort(list, function(a, b) return (a < 0 and 99 or a) < (b < 0 and 99 or b) end)
+    return { types = types, expansions = list }
 end
 
 -- The walking tiles a character of this level and faction goes around:

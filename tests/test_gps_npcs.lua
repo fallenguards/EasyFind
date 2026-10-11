@@ -19,10 +19,11 @@ local function xy(x, y) return math.floor(x * 4095 + 0.5) * 4096 + math.floor(y 
 -- Four creatures in id order (6, 448, 639, 1076), each id as a delta.
 local ROWS = varints({
     4,
-    6, 1, 1, 80, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, 1-2, hostile to both
-    442, 11, 0, 17, 0, 1, 1429, xy(0.3, 0.4), 1,                        -- Hogger, 11 elite, hostile to the Alliance
-    191, 25, 0, 0, 0, 1, 0, 36, 1,                                      -- Edwin VanCleef, in the Deadmines
-    437, 30, 0, 0, 1, 1, 1426, xy(0.2, 0.3), 1,                         -- Brog Hamfist, General Supplies
+    -- id, level, span, flags, kind (type | expansion + 1 << 4 | roles << 8), title, spots
+    6, 1, 1, 80, 7 + 16, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, hostile to both
+    442, 11, 0, 17, 1 + 16, 0, 1, 1429, xy(0.3, 0.4), 1,                       -- Hogger, beast, elite
+    191, 25, 0, 0, 7 + 16 + 256, 0, 1, 0, 36, 1,                               -- Edwin VanCleef, quests
+    437, 30, 0, 0, 7 + 32 + 512, 1, 1, 1426, xy(0.2, 0.3), 1,                  -- Brog Hamfist, vendor, TBC
 })
 
 -- Two tiles on continent 0: tile 3100 hostile from level 20 to the
@@ -33,6 +34,7 @@ local function fresh(localNames)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
     local function vec(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
     env.CreateVector2D = vec
     env.C_EncodingUtil = { DecodeBase64 = function(s) return s end, DecompressString = function(s) return s end }
@@ -46,9 +48,11 @@ local function fresh(localNames)
     ns.MapSearchSearch = { PreparePOI = function(p) p.nameLower = string.lower(p.name) return p end }
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
     ns.NPC_DATA = { rows = ROWS, names = "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
-                    titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER } }
+                    titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER },
+                    types = { [1] = "Beast", [7] = "Humanoid" } }
+    env.EasyFind.db = {}
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
-    return ns.MapSearch.AppendNpcRows, ns.GPSNpcs
+    return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
 end
 
 local function find(append, query, onlyMap)
@@ -106,6 +110,37 @@ function tests.dangerTiles_byLevelAndFaction()
     H.assertTrue(mid[3105])
     H.assertNil(Npcs.DangerTiles(15, "Horde")[0][3100], "nothing there is hostile to the Horde")
     H.assertNil(Npcs.DangerTiles(60, "Horde")[0][3105], "at 60 nothing is")
+end
+
+function tests.filtersLeaveOutWhatIsUnchecked()
+    local append, _, env = fresh()
+    local f = {}
+    env.EasyFind.db.npcFilters = f
+    env.UnitFactionGroup = function() return "Alliance" end
+    f.type = { [1] = false }
+    H.assertEq(#find(append, "hogger"), 0, "beasts off")
+    f.type = nil
+    f.expansion = { [1] = false }
+    H.assertEq(#find(append, "brog"), 0, "the second expansion off")
+    H.assertEq(#find(append, "hogger"), 1, "the first stays")
+    f.expansion = nil
+    f.role = { other = false }
+    H.assertEq(#find(append, "kobold"), 0, "creatures with no role off")
+    H.assertEq(#find(append, "brog"), 1, "a vendor stays")
+    f.role = { vendor = false }
+    H.assertEq(#find(append, "brog"), 0, "vendors off")
+    f.role = nil
+    f.reaction = { [2] = false }
+    H.assertEq(#find(append, "hogger"), 0, "hostile off")
+    H.assertEq(#find(append, "brog"), 1, "friendly stays")
+end
+
+function tests.filterChoicesListWhatTheCatalogHolds()
+    local _, Npcs = fresh()
+    local c = Npcs.FilterChoices()
+    H.assertEq(#c.types, 2)
+    H.assertEq(c.types[1].name, "Beast")
+    H.assertDeepEq(c.expansions, { 0, 1 })
 end
 
 function tests.shortQueriesFindNothing()
