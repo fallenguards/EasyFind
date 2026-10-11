@@ -1649,6 +1649,23 @@ ShowGameMenu = function(owner, defs)
                 end)
             elseif d.kind == "action" and d.onClick then
                 root:CreateButton(d.label, d.onClick)
+            elseif d.kind == "send" and ns.BuildSendLinkRows then
+                -- The channels, whisper and copy rows a shared result has.
+                local rows = ns.BuildSendLinkRows(d.link)
+                local sub = rows and root:CreateButton(d.label)
+                for i = 1, rows and #rows or 0 do
+                    local r = rows[i]
+                    if r.isSeparator then
+                        sub:CreateDivider()
+                    else
+                        local onClick = r.onClick
+                        if r.copy and ns.CopyToClipboard then
+                            onClick = function() ns.CopyToClipboard(r.copy, r.copyLink) end
+                        end
+                        local b = sub:CreateButton(r.text, onClick or function() end)
+                        if r.disabled and b.SetEnabled then b:SetEnabled(false) end
+                    end
+                end
             end
         end
     end)
@@ -2277,6 +2294,11 @@ local function BuildDock()
                 end }
             end
             defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end }
+            -- The route as a link another EasyFind user clicks to be routed there too.
+            local route = Route()
+            local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
+                and ns.ResultLinks:BuildRouteText(route.dest)
+            if share then defs[#defs + 1] = { kind = "send", label = L["CTX_SEND_LINK"], link = share } end
             defs[#defs + 1] = GPS.WorldPinRow()
             defs[#defs + 1] = GPS.SnapRow()
             -- The style is for the window outside the tracker; snapped in,

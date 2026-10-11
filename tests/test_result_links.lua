@@ -46,5 +46,35 @@ function tests.rowsWithAnEasyFindActionKeepTheirLinkEvenWithAChatLink()
     H.assertNotNil(ResultLinks:BuildShareText(ability), "share text for a spell")
 end
 
+-- A shared GPS route: plain text over chat, a link on arrival, and a click
+-- that routes the reader to the same place.
+function tests.routeLinkRoutesTheReaderThere()
+    local e = H.newEnv()
+    local n = H.newNs(e)
+    e._G = e
+    local hooks, filters = {}, {}
+    e.hooksecurefunc = function(name, fn) hooks[name] = fn end
+    e.ChatFrame_AddMessageEventFilter = function(_, fn) filters[#filters + 1] = fn end
+    e.SetItemRef = function() end
+    H.loadModule("Shared/SearchText.lua", e, n)
+    H.loadModule("Shared/Aliases.lua", e, n)
+    local RL = H.loadModule("Shared/ResultLinks.lua", e, n)
+    n.L.GPS_TO_FMT = "To %s"
+    n.LINK_COLOR = { 0, 1, 1 }
+    local went
+    n.GPS = { NavigateTo = function(_, dest) went = dest end }
+    RL:Install()
+    local text = RL:BuildRouteText({ name = "Booty Bay", mapID = 210, x = 0.4123, y = 0.7712 })
+    H.assertEq(text, "[EasyFind: To Booty Bay] {ef:route:210:0.4123:0.7712:Booty Bay}")
+    local _, shown = filters[1](nil, nil, text)
+    local link = shown and shown:match("|H(.-)|h")
+    H.assertTrue(link ~= nil, "the reader sees a link")
+    hooks.SetItemRef(link, shown, "LeftButton")
+    H.assertTrue(went ~= nil, "a click starts the GPS")
+    H.assertEq(went.name, "Booty Bay")
+    H.assertEq(went.mapID, 210)
+    H.assertTrue(math.abs(went.x - 0.4123) < 1e-6 and math.abs(went.y - 0.7712) < 1e-6)
+end
+
 local pass, fail, failures = H.runSuite("ResultLinks", tests)
 return { pass = pass, fail = fail, failures = failures }

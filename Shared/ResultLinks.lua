@@ -177,6 +177,27 @@ function ResultLinks:BuildShareText(data)
     return text
 end
 
+-- A GPS route as share text: whoever clicks it is routed to the same
+-- place from where they stand. Nil when it would not fit a message.
+function ResultLinks:BuildRouteText(dest)
+    if not (dest and dest.mapID and dest.x and dest.y) then return nil end
+    local name = PlainName({ name = dest.name }) or "?"
+    local label = sformat(L["GPS_TO_FMT"], name)
+    local text = sformat("[%s: %s] {ef:route:%d:%.4f:%.4f:%s}", MARKER, label, dest.mapID, dest.x, dest.y, name)
+    if #text > MAX_MESSAGE then return nil end
+    return text
+end
+
+-- A route key opens the GPS there; any other key is a result row.
+local function OpenRoute(key)
+    local m, x, y, name = smatch(key, "^route:(%d+):([%d.]+):([%d.]+):(.*)$")
+    if not m then return false end
+    if ns.GPS and ns.GPS.NavigateTo then
+        ns.GPS:NavigateTo({ name = name, mapID = tonumber(m), x = tonumber(x), y = tonumber(y) })
+    end
+    return true
+end
+
 -- Send-menu rows (channels, whisper, clipboard) for the share text.
 function ResultLinks:BuildSendRows(data)
     local text = self:BuildShareText(data)
@@ -615,7 +636,7 @@ end
 
 local warmed = {}
 Prewarm = function(key)
-    if warmed[key] then return end
+    if warmed[key] or smatch(key, "^route:") then return end
     warmed[key] = true
     if not Resolve(key) then RequestFor(key) end
 end
@@ -630,6 +651,7 @@ local function ShowItemInstead(key)
 end
 
 local function OpenKey(key, attempt)
+    if OpenRoute(key) then return end
     attempt = attempt or 0
     local data = Resolve(key)
     if data then
