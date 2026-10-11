@@ -14,10 +14,12 @@ Data_Forever.lua
 Walk_EasternKingdoms.lua
 Walk_Kalimdor.lua
 Walk_ZephrasIsle.lua
+Npcs_Forever.lua
 Nav.lua
 Route.lua
 Flights.lua
 Boats.lua
 WorldPin.lua
 Preview.lua
+Npcs.lua
 GPS.lua

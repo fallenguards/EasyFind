@@ -92,9 +92,13 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
     -- Dungeon-type zone results from SearchZones are suppressed when the
     -- cache covers them. Cache entries are promoted to zone-style display
     -- (with full breadcrumb paths) using a mapID-to-path lookup.
+    -- Named creatures (the GPS package's catalog); past its cap the narrowing
+    -- cache would miss the ones left out, so this query is not cached.
+    local npcsCapped = false
     if isGlobal then
         AppendGlobalInstanceSearchSources(self, allPOIs, zoneNames)
         AppendAlwaysFindableLocations(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
+        if self.AppendNpcRows then npcsCapped = self.AppendNpcRows(allPOIs, zoneNames, text) end
 
         if FlightPathsEnabledAnywhere() then
             local allFMs = self:ScanAllFlightMasters()
@@ -112,6 +116,9 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         wipe(reuseExistingNames)
         local existingNames = reuseExistingNames
         local dungeonEntrances = AppendLocalSearchSources(self, allPOIs, existingNames, zoneNames, nil, false)
+        if self.AppendNpcRows then
+            npcsCapped = self.AppendNpcRows(allPOIs, existingNames, text, WorldMapFrame and WorldMapFrame:GetMapID())
+        end
 
         local entranceLookup = BuildEntranceLookup(dungeonEntrances)
         for _, poi in ipairs(allPOIs) do
@@ -133,7 +140,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         -- current zone. They still get scored alongside local POIs.
     end
 
-    local results = self:SearchPOIs(allPOIs, text)
+    local results = self:SearchPOIs(allPOIs, text, npcsCapped)
 
     -- Blacklist rides the existing filter copy-loops in both branches:
     -- same single suppression predicate as main search (ns.Blacklist).
@@ -475,6 +482,7 @@ function MapSearch:SearchForUI(query)
             RequestUISearchGlobalInstances(self)
         end
         AppendAlwaysFindableLocations(self, pois, existingNames, searchMapID)
+        if self.AppendNpcRows then self.AppendNpcRows(pois, existingNames, query) end
     end
 
     if #pois == 0 then return nil end

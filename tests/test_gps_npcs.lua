@@ -1,0 +1,101 @@
+-- Tests for Apps/GPS/Npcs.lua: the creature catalog read back, matched by
+-- name or title in either language, each row on the right spot.
+local H = require("Harness")
+
+local function varints(list)
+    local out = {}
+    for _, v in ipairs(list) do
+        while v >= 128 do
+            out[#out + 1] = string.char(v % 128 + 128)
+            v = math.floor(v / 128)
+        end
+        out[#out + 1] = string.char(v)
+    end
+    return table.concat(out)
+end
+
+local function xy(x, y) return math.floor(x * 4095 + 0.5) * 4096 + math.floor(y * 4095 + 0.5) end
+
+-- Four creatures in id order (6, 448, 639, 1076), each id as a delta.
+local ROWS = varints({
+    4,
+    6, 1, 1, 80, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, 1-2, hostile to both
+    442, 11, 0, 17, 0, 1, 1429, xy(0.3, 0.4), 1,                        -- Hogger, 11 elite, hostile to the Alliance
+    191, 25, 0, 0, 0, 1, 0, 36, 1,                                      -- Edwin VanCleef, in the Deadmines
+    437, 30, 0, 0, 1, 1, 1426, xy(0.2, 0.3), 1,                         -- Brog Hamfist, General Supplies
+})
+
+local function fresh(localNames)
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    local function vec(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
+    env.CreateVector2D = vec
+    env.C_EncodingUtil = { DecodeBase64 = function(s) return s end, DecompressString = function(s) return s end }
+    env.C_Map = {
+        GetBestMapForUnit = function() return 1429 end,
+        GetPlayerMapPosition = function() return vec(0.31, 0.41) end,
+        GetWorldPosFromMapPos = function(m, v) return (m == 1433 or m == 1429 or m == 1426) and 0 or 1, vec(v.x * 1000 + m, v.y * 1000) end,
+        GetMapInfo = function(m) return { name = "Map " .. m } end,
+    }
+    ns.MapSearch = {}
+    ns.MapSearchSearch = { PreparePOI = function(p) p.nameLower = string.lower(p.name) return p end }
+    ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
+    ns.NPC_DATA = { rows = ROWS, names = "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
+                    titles = "General Supplies", localNames = localNames }
+    H.loadModule("Apps/GPS/Npcs.lua", env, ns)
+    return ns.MapSearch.AppendNpcRows
+end
+
+local function find(append, query, onlyMap)
+    local out = {}
+    append(out, {}, query, onlyMap)
+    return out
+end
+
+local tests = {}
+
+function tests.nameFindsTheCreatureOnItsSpot()
+    local rows = find(fresh(), "hog")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Hogger")
+    H.assertEq(rows[1].category, "npc")
+    H.assertEq(rows[1].mapID, 1429)
+    H.assertTrue(math.abs(rows[1].x - 0.3) < 0.001 and math.abs(rows[1].y - 0.4) < 0.001)
+    H.assertEq(rows[1].npcID, 448)
+end
+
+function tests.dungeonCreatureStandsAtTheEntrance()
+    local rows = find(fresh(), "vancleef")
+    H.assertEq(rows[1].mapID, 1436)
+    H.assertEq(rows[1].zoneName, "Deadmines")
+end
+
+function tests.titleMatchesToo()
+    local rows = find(fresh(), "general supplies")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Brog Hamfist")
+end
+
+function tests.nearestSpotOnThisContinent_orTheZoneAsked()
+    local append = fresh()
+    H.assertEq(find(append, "kobold")[1].mapID, 1429, "the player's zone holds the nearest")
+    local there = find(append, "kobold", 1433)[1]
+    H.assertEq(there.mapID, 1433, "a zone's own search shows its spot")
+    H.assertEq(#find(append, "hogger", 1433), 0, "a creature not on that map is left out")
+end
+
+function tests.localNamesShow_andEnglishStillFinds()
+    local append = fresh("Koboldungeziefer\n\n\n")
+    local rows = find(append, "vermin")
+    H.assertEq(rows[1].name, "Koboldungeziefer", "the client's language shows")
+    H.assertEq(find(append, "ungez")[1].name, "Koboldungeziefer")
+    H.assertEq(find(append, "hogger")[1].name, "Hogger", "a blank line falls back to English")
+end
+
+function tests.shortQueriesFindNothing()
+    H.assertEq(#find(fresh(), "ho"), 0)
+end
+
+local pass, fail, failures = H.runSuite("GPSNpcs", tests)
+return { pass = pass, fail = fail, failures = failures }
