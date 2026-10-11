@@ -11,4 +11,7 @@ ns.GPSNavData[0] = { cells = 133, cell = 4.010025, tiles = {
 }, costs = {
     [2033] = "dY+9SoJhAIXPc75BHJqcHL61riDou4wGuwFnF+egoaWWJoVCKAzMoRz8CRfph0DQEgwHpyiQEAXxAlp6t4LomQ7n4QwnI/8hs5NI+kRL7ui4QpcJa1R325tbQU3QlBsufUyNR95Q2VWng+mjIeeUvH9KhzE6csmhn6E5PVo+45ZXVqjmliP9T+pX3hiE7RVPvPOF2r73j1vxwTNzDn1hTT1z19nt3YIeeKHspkdeWNWoEcVJTtfhSpzohAqxigfay0vZbw==",
     [2097] = "E2ZgwgDCag4MYJDEUDGZcT3jacbfjB8Zu5hE9CDCAQxpjYxzGXcyvmS8z/iD0QYiGsdQ0s+4mvE4UOQdYxsTRNCKISC7nXEx4xXGU4yPGBlYGRjUGXAATQYigYZzfPU6xiWMexihArKWoRMY2xjnMcpalmQ1McpG+KXZGHkJakoCAA==",
+}, roads = {
+    [2033] = "dc9NR0RhGMbx637u+37eTi3SJ5lF9PGaRWddzGKYTRlmhoZJkekQ0+sQKeldUmcxQxRDhinRaVWk/+rit7pmYf60TF3zYAAMFKk9k233yD1ddeWA63iRNOmECrwSjKXHLXtq1mXJjhz64SDOF7LLeOI1U9GMavwh9xYbvhMKWBCsyLM51wndcaY1h5F/DTP4v9KvPbclN3zIDU3d0GMnZsmPjaUqizLQI9cM+IzvSctuUoXf5NLiOLzErlbdxN9GdKba0zntcV1R9/3wPbFvhy4n5JJalLkhxQP6Ag==",
+    [2097] = "E2ZgwgATGb8znmBiAIMfLAyr2R6wX+e4y3mZ6z3XDc70HYwQmRfMDLNZL7AdZz/DcYjzPucJjmqI+Gpmhnssk9m62CdwtHEu4uzmgAjvZWL4yLyUdS7bIvYZHFs55rEzKDIwTIWahQmaccqgg/uMU5i7WSaytrMtZuthhQo+YmwDCjayzmNtZ3nEeIh5Jetr1s2sjxhPMHexnGZ9zriK6RVzI+MhpoOMAA==",
 }, ents = "E94osJR1ButH/l/MU1g2CpzhO8r3kb+L9yDvRoFNoi9EP/JvEnkislHgp0SbzEf+C1JN0hsF+mRmKXzk/yQ3TX6jwB+Z+Yof+ZsVZitsFHguu0TpI/8sxQWKGwUuya1U/si/Qmmp0kaBBQqbVT/yn1BZr7JRYCGYfRLMvqtyTecj/z3tS9obBRaDxU+DxY8azbH+yL/DYobVRoEOx0eeH/kfuN3z2Ciw039FBNA9oUvCNwo8jXmX9pG/N/lV6kaBX8nT8j/yN2ZPytso8Dl7X/lH/rtFu8o2Cvwr/9XM+JF/dc23JkYA" }

@@ -989,6 +989,7 @@ function Route:Build(dest, opts)
         local on = opts.avoid and opts.avoid.danger and Npcs and Npcs.DangerTiles
         Nav.SetDanger(on and Npcs.DangerTiles(opts.level or (UnitLevel and UnitLevel("player")),
             opts.faction or (UnitFactionGroup and UnitFactionGroup("player"))) or nil)
+        Nav.SetRoads(opts.avoid and opts.avoid.offroad)
     end
     if opts.via then return ViaStop(self, dest, opts, start, known, listed) end
     local ctx = {

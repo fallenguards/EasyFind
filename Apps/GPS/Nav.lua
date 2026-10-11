@@ -24,7 +24,11 @@ local WALKS_KEPT = 512             -- walk costs kept
 -- walk leaves a road only to save over a fifth.
 local SWIM_WEIGHT = 7.0 / 4.72
 local OFF_ROAD_WEIGHT = 1.25
+-- Staying on roads (Nav.SetRoads): a road up to this many times longer than
+-- the way off it is still the way; the data carries tile costs for it.
+local OFF_ROAD_STRICT = 3.0
 local DIAG = 1.41421356
+local offRoad, roadsOnly = OFF_ROAD_WEIGHT, false
 -- A tile to go around (Nav.SetDanger) costs this many times as much to
 -- choose; the time a walk through it takes stays the same.
 local DANGER_WEIGHT = 2
@@ -211,19 +215,39 @@ local function Danger(w, key)
     return set and set[key] and DANGER_WEIGHT or 1
 end
 
--- The tiles walks go around, or nil for none; the walks kept are dropped.
+-- Walks come out differently from now on: the ones kept are dropped.
+local function Reset()
+    Nav.epoch = Nav.epoch + 1
+    for _, w in pairs(worlds) do
+        w.walks, w.walksN, w.reach, w.reachN, w.costs = {}, 0, {}, 0, {}
+    end
+end
+
+-- The tiles walks go around, or nil for none.
 function Nav.SetDanger(set)
     if set == dangerSet then return end
     dangerSet = set
-    Nav.epoch = Nav.epoch + 1
-    for _, w in pairs(worlds) do
-        w.walks, w.walksN, w.reach, w.reachN = {}, 0, {}, 0
-    end
+    Reset()
+end
+
+-- Whether walks keep to roads.
+function Nav.SetRoads(on)
+    on = on and true or false
+    if on == roadsOnly then return end
+    roadsOnly = on
+    offRoad = on and OFF_ROAD_STRICT or OFF_ROAD_WEIGHT
+    Reset()
+end
+
+-- Whether continent ci's data can keep walks to roads.
+function Nav.HasRoads(ci)
+    local data = ns.GPSNavData and ns.GPSNavData[ci]
+    return data ~= nil and data.roads ~= nil
 end
 
 -- What a yard on floor g costs to choose; Swim what it costs in time.
 local function Swim(t, g) return t.flag[g] % 2 == 1 and SWIM_WEIGHT or 1 end
-local function Weight(t, g) return Swim(t, g) * (t.road[t.fcell[g]] and 1 or OFF_ROAD_WEIGHT) end
+local function Weight(t, g) return Swim(t, g) * (t.road[t.fcell[g]] and 1 or offRoad) end
 
 -- The floor under (x, y): indoors an indoor one, else one outdoors, else
 -- the highest; off the grid the nearest within SNAP_CELLS (or snap).
@@ -371,7 +395,7 @@ end
 local function TileCosts(w, key)
     local tc = w.costs[key]
     if tc ~= nil then return tc or nil end
-    local s = w.data.costs[key]
+    local s = (roadsOnly and w.data.roads or w.data.costs)[key]
     if not s then w.costs[key] = false return nil end
     local u, i = Reader(Unpack(s))
     local n = u()

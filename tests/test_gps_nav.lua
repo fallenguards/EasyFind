@@ -93,6 +93,21 @@ function tests.danger_weighsTheChoiceNotTheTime()
     H.assertTrue(math.abs(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]) - cost) < 0.01, "and back")
 end
 
+-- Staying on roads: its own tile costs and weights; ground off a road
+-- costs more to choose, and all is as before once it is off again.
+function tests.roads_weighOffRoadGround()
+    local Nav = fresh()
+    H.assertTrue(Nav.HasRoads(0), "the data carries the roads costs")
+    local cost = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    Nav.SetRoads(true)
+    local roads = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local pts, pathCost = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    H.assertTrue(roads > cost, "off-road ground weighs more: " .. roads .. " vs " .. cost)
+    H.assertTrue(pts ~= nil and math.abs(pathCost - roads) < 1, "the drawn walk is the one chosen")
+    Nav.SetRoads(false)
+    H.assertTrue(math.abs(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]) - cost) < 0.01, "and back")
+end
+
 function tests.walk_noDataNoWalk()
     local Nav = fresh()
     H.assertNil(Nav.Walk(0, -5000, 0, GOLDSHIRE[1], GOLDSHIRE[2]), "a point outside the data")
