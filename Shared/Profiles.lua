@@ -60,7 +60,7 @@ local STATE_KEYS = {
     visible = true, tutorialDone = true, spotlightsDone = true, learnedStepLocks = true,
     lastSeenVersion = true, revampedTutorialVersion = true, setupComplete = true,
     uiSearchHistory = true, mapTabRecentSearches = true,
-    clipboard = true, charGold = true,
+    clipboard = true, charGold = true, clockActive = true,
     nativeKeybindsImported = true, suggestedKeybindsSeeded = true, suggestedKeybindsApplied = true,
 }
 

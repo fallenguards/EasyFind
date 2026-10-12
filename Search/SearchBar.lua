@@ -874,6 +874,10 @@ function Search:CreateSearchFrame()
             if row and row.data and row.data.calculatorResult then
                 Calculator:ArmCalculatorResultFromRow(row, "key")
             end
+            -- A typed clock command starts on the first Enter.
+            if row and row.data and row.data.clockCommand then
+                Results:ActivateSelected("key")
+            end
             return
         end
         Results:ActivateSelected("key")
@@ -901,6 +905,8 @@ function Search:CreateSearchFrame()
         enabled = function() return EasyFind.db.searchAutocomplete ~= false end,
         findCandidate = function(typed)
             if not typed or typed == "" then return nil end
+            -- A clock command ("pom 15 5") completes to nothing.
+            if ns.ClockGrammar.Parse(typed) then return nil end
             local lower = typed:lower()
             for i = 1, MAX_BUTTON_POOL do
                 local row = resultButtons[i]

@@ -189,12 +189,18 @@ local FLAT_CATEGORY_ICONS = {
     -- GPS: the map pin, same family.
     gps           = { tex = ns.GPS_ICON_TEX, chromeTint = true },
     notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
+    clock         = { tex = ns.CLOCK_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
 }
+
+local CLOCK_COMMAND_ICONS = {}
+for tool, tex in pairs(ns.CLOCK_TOOL_ICONS) do
+    CLOCK_COMMAND_ICONS[tool] = { tex = tex, chromeTint = true }
+end
 
 local BOSS_PORTRAIT_TEXCOORD = { 0.22, 0.78, 0, 1 }
 
@@ -207,6 +213,7 @@ function Icons:GetAppGlyphIcon(data)
     if data.clipboardLauncher then return FLAT_CATEGORY_ICONS.clipboard end
     if data.gpsLauncher then return FLAT_CATEGORY_ICONS.gps end
     if data.notesLauncher then return FLAT_CATEGORY_ICONS.notes end
+    if data.clockLauncher then return FLAT_CATEGORY_ICONS.clock end
     return nil
 end
 
@@ -229,9 +236,10 @@ function Icons:GetFlatCategoryIcon(data)
     if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     -- App launcher rows wear the apps-button waffle as their general glyph;
     -- the app's own glyph renders on the row's right via GetAppGlyphIcon.
-    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher then
+    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher then
         return FLAT_CATEGORY_ICONS.apps
     end
+    if data.clockCommand then return CLOCK_COMMAND_ICONS[data.clockTool] or FLAT_CATEGORY_ICONS.clock end
     -- Category, not nativeRun: nativeRun rows that belong to a real
     -- category (the snippet create row, the snippets app) must fall
     -- through to their own category glyph below.

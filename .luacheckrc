@@ -12,6 +12,7 @@ globals = {
     "EasyFind",
     "EasyFindDB",
     "EasyNotesDB",
+    "EasyClockDB",
     "EasyFind_OnAddonCompartmentClick",
     "SlashCmdList",
     "StaticPopupDialogs",
@@ -40,6 +41,9 @@ read_globals = {
     "MenuUtil",
     "ColorPickerFrame", "TooltipDataProcessor", "tContains", "GetInstanceInfo",
     "UnitIsUnit", "C_PvP", "C_ChallengeMode", "GetNumClasses", "GetClassInfo", "GetNormalizedRealmName",
+
+    -- Clock
+    "FlashClientIcon", "GameTime_GetFormattedTime", "UnitAffectingCombat",
 
     -- ClassicUI Forever's public API (nil when that addon is not loaded)
     "ClassicUIForeverAPI",

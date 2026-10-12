@@ -69,6 +69,14 @@ local DB_DEFAULTS = {
     clipboardKindUrl = true, clipboardKindCommand = true, clipboardKindNumber = true,
     clipboardKindText = true,
     clipboardOldestFirst = false,
+    -- Clock: what the end of a run does, the pomodoro lengths, and the
+    -- unit a bare number means in each slot ("s", "m" or "h").
+    clockSound = true, clockBigText = true, clockChat = true, clockFlash = true,
+    clockBreakDim = false,
+    clockFocusSeconds = 1500, clockBreakSeconds = 300,
+    clockFocusUnit = "m", clockBreakUnit = "m", clockTimerUnit = "m", clockStopwatchUnit = "m",
+    -- True while a run exists, so login loads the clock to keep it going.
+    clockActive = false,
     snippetTriggerChar = "\\",
     accountKeybinds = {},
     resultsTheme = "Modern",
@@ -394,6 +402,7 @@ local INTERACTIVE_RESET_PRESERVE = {
     statisticCache = true,
     statisticCacheVer = true,
     optionsSearchCache = true,
+    clockActive = true,
 }
 for key in pairs(PRESERVED_KEYS) do
     INTERACTIVE_RESET_PRESERVE[key] = true
@@ -1091,6 +1100,8 @@ local function OnPlayerLogin()
        or not (spotlightsDone and spotlightsDone.snippets31) then
         ns.RequestOnboarding()
     end
+    -- A clock run is going: load the clock so it keeps time.
+    if EasyFind.db.clockActive and ns.IsCompanionLoadable("EasyFind_Clock") then ns.RequestClock() end
 
     if EasyFind.db.enableMapSearch ~= false then
         SafeInit(ns.MapSearch,  "MapSearch")

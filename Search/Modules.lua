@@ -381,6 +381,22 @@ function ns.RequestOnboarding()
     return false
 end
 
+-- Clock: LoadOnDemand companion (EasyFind_Clock). Loaded by a clock
+-- command, its launcher, and at login while a run is going.
+local clockModuleWarned = false
+function ns.RequestClock()
+    if ns.Clock then return true end
+    if C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, "EasyFind_Clock")
+    end
+    if ns.Clock then return true end
+    if not clockModuleWarned then
+        clockModuleWarned = true
+        EasyFind:Print(ns.L["CLOCK_MODULE_DISABLED"])
+    end
+    return false
+end
+
 -- Can a LoadOnDemand companion load (or is it already in)? Entry-point UI
 -- (filter rows, quick filter suggestions, app rows, launchers) hides when
 -- the companion is disabled in the AddOns list, instead of advertising a
@@ -395,6 +411,7 @@ function ns.IsCompanionLoadable(name)
     if name == "EasyFind_Snippets" and ns.Snippets then return true end
     if name == "EasyFind_GPS" and ns.GPS then return true end
     if name == "EasyFind_Notes" and ns.Notes then return true end
+    if name == "EasyFind_Clock" and ns.Clock then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)
     return ok and (tonumber(state) or 0) > 0

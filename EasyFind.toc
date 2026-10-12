@@ -61,6 +61,7 @@ Search/Focus.lua
 Search/Openers.lua
 Options/SurfaceGuard.lua
 Search/Commands.lua
+Search/ClockCommands.lua
 Search/Results/ResultState.lua
 Search/Results/Handlers/Utils.lua
 Search/Results/Handlers/Spellbook.lua

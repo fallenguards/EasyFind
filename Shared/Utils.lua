@@ -2184,6 +2184,16 @@ ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
 -- GPS extension glyph: a map pin in the same white line-art family.
 ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
+-- Clock extension: the stopwatch, plus one glyph per kind of run.
+ns.CLOCK_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\clock-icon"
+ns.CLOCK_ICON_COORDS   = { 0, 1, 0, 1 }
+ns.CLOCK_TOOL_ICONS = {
+    pomodoro  = "Interface\\AddOns\\EasyFind\\textures\\clock-pomodoro",
+    timer     = "Interface\\AddOns\\EasyFind\\textures\\clock-timer",
+    stopwatch = ns.CLOCK_ICON_TEX,
+    alarm     = "Interface\\AddOns\\EasyFind\\textures\\clock-alarm",
+}
+ns.CLOCK_NAME = _G["TIMEMANAGER_TITLE"] or "Clock"
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.

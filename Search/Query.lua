@@ -311,6 +311,9 @@ function Search:OnSearchTextChangedNow(text, force)
     local answerEntry = (not quickFilter and not calculatorData) and ns.Answers
         and ns.Answers.GetAnswerEntry
         and ns.Answers:GetAnswerEntry(text) or nil
+    -- Clock commands ("pom 15 5", "timer 10") ride on top the same way.
+    local clockCommand = (not quickFilter and not calculatorData)
+        and self:GetClockCommandEntry(text) or nil
     -- Build skip set from filters so SearchUI avoids scoring/copying filtered categories.
     -- Collection items (mounts/toys/pets/outfits/appearance sets) are
     -- skipped when their own filter is off OR the parent Collections
@@ -763,6 +766,9 @@ function Search:OnSearchTextChangedNow(text, force)
     if answerEntry then
         combined[#combined + 1] = { data = answerEntry, score = math.huge }
     end
+    if clockCommand then
+        combined[#combined + 1] = { data = clockCommand, score = math.huge }
+    end
     -- Skip the natural copy of any alias-promoted row (see the alias
     -- injection above); the isAlias wrapper at the front is the one shown.
     local promoted = SCRATCH.aliasSeen
@@ -836,6 +842,13 @@ function Search:OnSearchTextChangedNow(text, force)
         local notesLauncher = Results:GetNotesLauncherMatch(text)
         if notesLauncher then
             combined[#combined + 1] = { data = notesLauncher, score = 2e6 }
+        end
+    end
+    if not quickFilter and not calculatorData and not calculatorLauncher
+       and Results.GetClockLauncherMatch then
+        local clockLauncher = Results:GetClockLauncherMatch(text)
+        if clockLauncher then
+            combined[#combined + 1] = { data = clockLauncher, score = 2e6 }
         end
     end
     if #combined > 1 then tsort(combined, FlatNameLess) end

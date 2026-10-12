@@ -87,6 +87,9 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
+        apps[#apps + 1] = ns.ClockLauncherEntry()
+    end
     -- GPS opens its own page under the map search tab. Hidden when the GPS
     -- companion is disabled in the AddOns list.
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
@@ -113,6 +116,7 @@ local APP_ID_FLAGS = {
     { "clipboard", "clipboardLauncher" },
     { "notes", "notesLauncher" },
     { "gps", "gpsLauncher" },
+    { "clock", "clockLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end
@@ -165,6 +169,9 @@ function ns.IsApplicationOpen(app)
         return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
             and ns.Options:CurrentExtensionPage() == "snippets"
     end
+    if app.clockLauncher then
+        return ns.Clock ~= nil and ns.Clock.IsOpen() or false
+    end
     return false
 end
 
@@ -187,6 +194,7 @@ function ns.CloseApplication(app)
     if app.snippetsLauncher and ns.Options and ns.Options.Hide then
         ns.Options:Hide()
     end
+    if app.clockLauncher and ns.Clock then ns.Clock.Minimize() end
 end
 
 -- The results-based extension showing right now ("icons", "clipboard"),
@@ -370,6 +378,49 @@ function ns.Results:GetNotesLauncherMatch(text)
         end,
     }
     return notesLauncherRow
+end
+
+-- The clock's launcher, shared by the extensions menu and the searchable
+-- row. A typed word opens it only once it cannot be the start of another
+-- search: "tim" and "stop" stay ordinary queries.
+local CLOCK_WORDS = {
+    { "clock", 4 }, { "timer", 5 }, { "stopwatch", 5 },
+    { "pomodoro", 4 }, { "alarm", 4 }, { "countdown", 5 },
+}
+local clockLauncherEntry
+local function OpenClock()
+    if ns.RequestClock() then ns.Clock.Open() end
+end
+function ns.ClockLauncherEntry()
+    clockLauncherEntry = clockLauncherEntry or {
+        name = ns.CLOCK_NAME,
+        clockLauncher = true,
+        noPin = true,
+        noLearn = true,
+        icon = ns.CLOCK_ICON_TEX,
+        nativeRun = OpenClock,
+    }
+    return clockLauncherEntry
+end
+
+local function IsWordStart(word, q, minLen)
+    return #q >= minLen and #q <= #word and word:sub(1, #q) == q
+end
+
+function ns.Results:GetClockLauncherMatch(text)
+    if not text or #text < 3 then return nil end
+    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock") then return nil end
+    local slower = ns.Utils.slower
+    local q = slower(text)
+    for i = 1, #CLOCK_WORDS do
+        if IsWordStart(CLOCK_WORDS[i][1], q, CLOCK_WORDS[i][2]) then return ns.ClockLauncherEntry() end
+    end
+    local name = slower(ns.CLOCK_NAME)
+    local stopwatch = slower(_G["STOPWATCH_TITLE"] or "stopwatch")
+    if q == name or q == stopwatch or IsWordStart(name, q, 4) or IsWordStart(stopwatch, q, 5) then
+        return ns.ClockLauncherEntry()
+    end
+    return nil
 end
 
 local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
