@@ -44,6 +44,7 @@ local SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" }, { 160, "GPS_SIZE_SHORT" }, { 240
 
 local ticker
 local surfaces = {}     -- every container that renders the route
+GPS.Surfaces = function() return surfaces end   -- dev tools
 local SampleGroundSpeed -- defined with the recorders at the end
 local popoutFrame       -- built on first use by the pop-out below
 
@@ -1184,9 +1185,8 @@ local function StepRow(container, i)
     -- Anchored from the top so a wrapped step grows the row downward;
     -- a single line sits at the same place either way.
     row.text:SetPoint("TOPLEFT", row.num, "TOPRIGHT", 6, 0)
-    row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
-    row.text:SetWordWrap(false)
+    row.text:SetWordWrap(true)
     row.num:ClearAllPoints()
     row.num:SetPoint("TOPLEFT", row, "TOPLEFT", 6, -4)
     -- A teleport's icon near the row's right edge, with a little room.
@@ -1262,7 +1262,6 @@ local function TipRow(container, i)
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text._efOwnColor = true
     row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 30, -4)
-    row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
     row:SetScript("OnClick", TipClick)
@@ -1396,6 +1395,9 @@ local function Render(container)
     local shown = route.arrived and 0 or #route.steps
     local scale = MapScale(container)
     local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
+    -- A wrapped line is measured at the width it is given outright: a new
+    -- row's anchors may not be placed yet when it is measured.
+    local listW = container.list:GetWidth() or 0
     local from = FromRow(container)
     if route.arrived then
         from:Hide()
@@ -1427,14 +1429,10 @@ local function Render(container)
         row.num:SetText(tostring(i) .. ".")
         local active = (route.active or 1) == i and not route.arrived
         local done = route.arrived or i < (route.active or 1)
-        -- Long steps: cut with an ellipsis, or wrapped onto more lines.
-        local wrap = EasyFind.db and EasyFind.db.gpsWrapSteps and true or false
-        row.text:SetWordWrap(wrap)
-        row.text:SetText(StepText(step, active))
         local cast = SetupCast(row.cast, step, active)
-        row.text:SetPoint("RIGHT", row, "RIGHT", cast and -32 or -6, 0)
-        local rowH = rowBase
-        if wrap then rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8) end
+        row.text:SetWidth(mmax(40, listW - 12 - row.num:GetWidth() - (cast and 32 or 6)))
+        row.text:SetText(StepText(step, active))
+        local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
         row:SetHeight(rowH)
         if active then
             row.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
@@ -1467,6 +1465,7 @@ local function Render(container)
             row.fontScale = scale
             SizeFont(row.text, (MAP_STEP_PX - 1) * scale)
         end
+        row.text:SetWidth(mmax(40, listW - 36))
         row.text:SetText(tips[t].text)
         row.text:SetTextColor(unpack(ns.TEXT_DIM))
         local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
@@ -3072,13 +3071,6 @@ local function ShowSizePopup(anchor)
                 popoutFrame:ApplyBorderShape(v)
                 popoutFrame:Render()
             end
-        end }
-    defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_WRAP"],
-        get = function() local db = DB() return db and db.gpsWrapSteps == true end,
-        set = function(v)
-            local db = DB()
-            if db then db.gpsWrapSteps = v or nil end
-            Refresh()
         end }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
