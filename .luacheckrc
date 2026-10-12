@@ -13,7 +13,6 @@ globals = {
     "EasyFindDB",
     "EasyNotesDB",
     "EasyClockDB",
-    "EasyAlertsDB",
     "SLASH_EASYFINDALERTS1",
     "EasyFind_OnAddonCompartmentClick",
     "SlashCmdList",

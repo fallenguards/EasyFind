@@ -61,6 +61,7 @@ function Engine.RingText(rule, text)
 end
 
 local function Ring(rule, text)
+    if EasyFind.db.alertsPaused then return end
     local st = State(rule)
     local now = time()
     if rule.gap and rule.gap > 0 and st.last and now - st.last < rule.gap then return end

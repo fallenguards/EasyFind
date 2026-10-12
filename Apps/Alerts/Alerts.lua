@@ -37,7 +37,7 @@ function Alerts.Slash(msg)
 end
 
 local function Init()
-    EasyAlertsDB = AL.Store:Attach(EasyAlertsDB)
+    EasyFind.db.alerts = AL.Store:Attach(EasyFind.db.alerts)
     AL.Engine.Start()
     S.ready = true
     if S.openQueued then

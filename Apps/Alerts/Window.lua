@@ -298,6 +298,16 @@ local function WhatField(f)
     return 40
 end
 
+-- A pick-one choice: radio rows, the current one ticked.
+local function Radio(owner, options, get, set)
+    local defs = {}
+    for _, o in ipairs(options) do
+        defs[#defs + 1] = { kind = "radio", label = o.label, value = o.value, get = get,
+            set = function(v) set(v) Rebuild() end }
+    end
+    ns.ShowTogglePopup("EasyFindAlertsPick", owner, defs, {})
+end
+
 local function ChoiceLabel(options, value)
     for _, o in ipairs(options) do
         if o.value == value then return o.label end
@@ -340,11 +350,7 @@ local function FieldRow(f)
     if t == "choice" then
         Label(L["ALERTS_FIELD_" .. f.key:upper()] or f.key)
         local btn = EditButton(ChoiceLabel(f.options, tr[f.key]), 150, function(self)
-            local rows = {}
-            for _, o in ipairs(f.options) do
-                rows[#rows + 1] = { text = o.label, onClick = function() tr[f.key] = o.value Rebuild() end }
-            end
-            ShowMenu(self, rows)
+            Radio(self, f.options, function() return tr[f.key] end, function(v) tr[f.key] = v end)
         end)
         Place(btn, LABEL_W + 8)
         return 26
@@ -369,11 +375,7 @@ local function CondValue(cond, def)
     if not f then return nil end
     if f.type == "choice" then
         return EditButton(ChoiceLabel(f.options, cond.value), 120, function(self)
-            local rows = {}
-            for _, o in ipairs(f.options) do
-                rows[#rows + 1] = { text = o.label, onClick = function() cond.value = o.value Rebuild() end }
-            end
-            ShowMenu(self, rows)
+            Radio(self, f.options, function() return cond.value end, function(v) cond.value = v end)
         end)
     end
     if f.type == "text" then
@@ -381,20 +383,18 @@ local function CondValue(cond, def)
     end
     if f.type == "character" or f.type == "class" then
         return EditButton(C.Text({ kind = cond.kind, value = cond.value }), 120, function(self)
-            local rows = {}
+            local options = {}
             if f.type == "character" then
                 local keys = { [ns.CurrentCharacterKey()] = true }
                 for key in pairs(Store:Chars()) do keys[key] = true end
-                for key in pairs(keys) do
-                    rows[#rows + 1] = { text = T.CharName(key), onClick = function() cond.value = key Rebuild() end }
-                end
+                for key in pairs(keys) do options[#options + 1] = { value = key, label = T.CharName(key) } end
             else
                 for file, name in pairs(LOCALIZED_CLASS_NAMES_MALE or {}) do
-                    rows[#rows + 1] = { text = name, onClick = function() cond.value = file Rebuild() end }
+                    options[#options + 1] = { value = file, label = name }
                 end
             end
-            table.sort(rows, function(a, b) return a.text < b.text end)
-            ShowMenu(self, rows)
+            table.sort(options, function(a, b) return a.label < b.label end)
+            Radio(self, options, function() return cond.value end, function(v) cond.value = v end)
         end)
     end
 end
@@ -444,28 +444,23 @@ local function ConditionRows()
     cursor.y = cursor.y + 26
 end
 
-local function SoundRows(sig)
-    local rows = { { text = _G["NONE"] or L["SIGNAL_SOUND_NONE"], onClick = function() sig.sound = nil Rebuild() end } }
-    for _, s in ipairs(ns.Signals.SOUNDS) do
-        rows[#rows + 1] = { text = s.label, onClick = function()
-            sig.sound = s.key
-            ns.Signals.PlaySound(s.key)
-            Rebuild()
-        end }
-    end
-    return rows
+-- "" stands for none: a radio row needs a value to tick.
+local function PickSound(owner, sig)
+    local options = { { value = "", label = _G["NONE"] or L["SIGNAL_SOUND_NONE"] } }
+    for _, s in ipairs(ns.Signals.SOUNDS) do options[#options + 1] = { value = s.key, label = s.label } end
+    Radio(owner, options, function() return sig.sound or "" end, function(v)
+        sig.sound = v ~= "" and v or nil
+        if sig.sound then ns.Signals.PlaySound(v) end
+    end)
 end
 
-local function ScreenRows(sig)
-    local rows = { { text = L["ALERTS_SCREEN_OFF"], onClick = function() sig.screen = nil Rebuild() end } }
-    for _, c in ipairs(ns.Signals.COLORS) do
-        rows[#rows + 1] = { text = c.label, onClick = function()
-            sig.screen = c.key
-            ns.Signals.FlashScreen(c.key)
-            Rebuild()
-        end }
-    end
-    return rows
+local function PickScreen(owner, sig)
+    local options = { { value = "", label = L["ALERTS_SCREEN_OFF"] } }
+    for _, c in ipairs(ns.Signals.COLORS) do options[#options + 1] = { value = c.key, label = c.label } end
+    Radio(owner, options, function() return sig.screen or "" end, function(v)
+        sig.screen = v ~= "" and v or nil
+        if sig.screen then ns.Signals.FlashScreen(v) end
+    end)
 end
 
 local function SignalRows()
@@ -481,12 +476,12 @@ local function SignalRows()
     cursor.y = cursor.y + 26
     Label(L["ALERTS_SIG_SOUND"])
     local snd = EditButton(sig.sound and ns.Signals.SoundLabel(sig.sound) or (_G["NONE"] or L["SIGNAL_SOUND_NONE"]), 150,
-        function(self) ShowMenu(self, SoundRows(sig)) end)
+        function(self) PickSound(self, sig) end)
     Place(snd, LABEL_W + 8)
     cursor.y = cursor.y + 26
     Label(L["ALERTS_SIG_SCREEN"])
     local scr = EditButton(sig.screen and ns.Signals.ColorLabel(sig.screen) or L["ALERTS_SCREEN_OFF"], 150,
-        function(self) ShowMenu(self, ScreenRows(sig)) end)
+        function(self) PickScreen(self, sig) end)
     Place(scr, LABEL_W + 8)
     cursor.y = cursor.y + 28
     local wait = EditCheck(L["ALERTS_WAIT_COMBAT"], d.waitCombat, function(v) d.waitCombat = v or nil end)

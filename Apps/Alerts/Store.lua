@@ -2,7 +2,7 @@ local _, AL = ...
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
 
--- Saved alerts (EasyAlertsDB, account wide): the rules and what each
+-- Saved alerts (EasyFind.db.alerts, account wide): the rules and what each
 -- character last read, so a cooldown or a lockout on an alt can ring here.
 local Store = {}
 AL.Store = Store

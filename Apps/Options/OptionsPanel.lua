@@ -4302,6 +4302,27 @@ local function BuildNotesPage(ctx, page)
     end)
 end
 
+-- Alerts: open the window, or pause every alert at once.
+local function BuildAlertsPage(ctx, page)
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    title:SetText(L["APP_ALERTS"])
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(L["ALERTS_OPT_HINT"])
+    local pause = CreateCheckbox(page, "AlertsPaused", L["ALERTS_OPT_PAUSE"], L["ALERTS_OPT_PAUSE_TT"], true)
+    pause:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
+    pause:SetChecked(EasyFind.db.alertsPaused == true)
+    pause:SetScript("OnClick", function(self) EasyFind.db.alertsPaused = self:GetChecked() and true or false end)
+    local open = CreateModernButton(page, L["ALERTS_OPT_OPEN"], 140, 22)
+    open:SetPoint("TOPLEFT", pause, "BOTTOMLEFT", 8, -12)
+    open:SetScript("OnClick", function()
+        if ns.RequestAlerts() then ns.Alerts.Open() end
+    end)
+end
+
 -- Clock: what the end of a run does, the pomodoro lengths, and what a
 -- bare number means in each slot of a typed command.
 local function BuildClockPage(ctx, page)
@@ -4408,6 +4429,10 @@ local function ExtensionPageDefs()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
         defs[#defs + 1] = { id = "clock", name = ns.CLOCK_NAME, icon = ns.CLOCK_ICON_TEX,
             coords = ns.CLOCK_ICON_COORDS, core = true, build = BuildClockPage }
+    end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts")) then
+        defs[#defs + 1] = { id = "alerts", name = L["APP_ALERTS"], icon = ns.ALERTS_ICON_TEX,
+            core = true, build = BuildAlertsPage }
     end
     for _, def in ipairs(ns.ExtensionPages or {}) do
         if not (def.companion and ns.IsCompanionLoadable and not ns.IsCompanionLoadable(def.companion)) then

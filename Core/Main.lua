@@ -73,6 +73,7 @@ local DB_DEFAULTS = {
     -- unit a bare number means in each slot ("s", "m" or "h").
     clockSound = true, clockBigText = true, clockChat = true, clockFlash = true,
     clockBreakDim = false, clockMinimapIcon = false,
+    alertsPaused = false,
     clockFocusSeconds = 1500, clockBreakSeconds = 300,
     clockFocusUnit = "m", clockBreakUnit = "m", clockTimerUnit = "m", clockStopwatchUnit = "m",
     -- True while a run exists, so login loads the clock to keep it going.

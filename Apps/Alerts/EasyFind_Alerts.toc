@@ -8,7 +8,6 @@
 ## Category: UI
 ## RequiredDeps: EasyFind
 ## LoadOnDemand: 1
-## SavedVariables: EasyAlertsDB
 ## DefaultState: enabled
 
 Store.lua
