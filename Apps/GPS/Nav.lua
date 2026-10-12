@@ -682,6 +682,34 @@ local function Clear(w, t, a, b)
     return g == b
 end
 
+-- Whether one walks straight from (ax, ay) to (bx, by): each cell along
+-- the line reached from the one before by a link, across tiles, and none
+-- of them water unless the start is. nil off the grid.
+function Nav.Straight(ci, ax, ay, bx, by, indoors)
+    local w = World(ci)
+    if not w then return nil end
+    local t, g = Locate(w, ax, ay, indoors, 1)
+    if not g then return nil end
+    local cell = w.cell
+    local x0, y0 = FloorXY(w, t, g)
+    local _, sx, sy = TileOf(bx, by)
+    local x1 = sx + (mfloor((bx - sx) / cell) + 0.5) * cell
+    local y1 = sy + (mfloor((by - sy) / cell) + 0.5) * cell
+    local nr, ncl = mfloor(mabs(x1 - x0) / cell + 0.5), mfloor(mabs(y1 - y0) / cell + 0.5)
+    local alongRow, alongCol = x1 > x0 and 1 or 3, y1 > y0 and 2 or 0
+    local dry = t.flag[g] % 2 == 0
+    local ir, ic = 0, 0
+    while ir < nr or ic < ncl do
+        local stepRow = (0.5 + ir) * ncl < (0.5 + ic) * nr
+        if ic >= ncl then stepRow = true elseif ir >= nr then stepRow = false end
+        local d
+        if stepRow then d, ir = alongRow, ir + 1 else d, ic = alongCol, ic + 1 end
+        t, g = Step(w, t, g, d)
+        if not g or (dry and t.flag[g] % 2 == 1) then return false end
+    end
+    return true
+end
+
 -- Floor path inside tile t from a to b, pulled straight: world points
 -- appended to out; acc gains the cell walk's yards (len) and time (time).
 local function TilePath(w, t, a, b, out, acc)

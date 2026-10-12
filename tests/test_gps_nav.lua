@@ -65,6 +65,24 @@ function tests.path_keepsToWalkableGround()
     H.assertEq(off, 0, "samples off walkable cells")
 end
 
+-- Each stretch of a drawn walk is one the player walks straight along.
+function tests.straight_alongEachDrawnStretch()
+    local Nav = fresh()
+    local pts = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    for v = 3, #pts - 5, 2 do
+        H.assertEq(Nav.Straight(0, pts[v], pts[v + 1], pts[v + 2], pts[v + 3]), true,
+            "stretch from point " .. ((v + 1) / 2))
+    end
+end
+
+function tests.straight_notOffTheBakedGround()
+    local Nav = fresh()
+    local _, sx, sy = Nav.TileOf(GOLDSHIRE[1], GOLDSHIRE[2])
+    -- A tile further west than the fixture holds.
+    H.assertEq(Nav.Straight(0, GOLDSHIRE[1], GOLDSHIRE[2], GOLDSHIRE[1], sy + 700), false)
+    H.assertTrue(sx ~= nil)
+end
+
 -- The pulled line is no longer than the walk it was priced as.
 function tests.path_noLongerThanItsCost()
     local Nav = fresh()

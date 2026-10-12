@@ -1,10 +1,11 @@
--- Tests for Apps/GPS/Arrow.lua: the arrow at the character aims a little
--- ahead along the walk, turns at its bends, and finds the walk again when
--- the player strays off it.
+-- Tests for Apps/GPS/Arrow.lua and Follow.lua: the arrow at the character
+-- aims a little ahead along the walk, turns at its bends, leads alongside
+-- the walk a few yards out, and finds the walk again when the player strays.
 local H = require("Harness")
 
--- An L-shaped walk in world yards: 100 north, then 100 west.
-local function fresh()
+-- An L-shaped walk in world yards: 100 north, then 100 west; found from
+-- where the player stands, or with planned, from where the route was planned.
+local function fresh(planned)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -13,7 +14,9 @@ local function fresh()
     env.GetTime = function() return now.t end
     local player = { x = 0, y = 0 }
     local finds = {}
-    local route = { steps = { { kind = "travel", go = { ci = 1, wx = 100, wy = 100 } } }, active = 1 }
+    local clear = { v = true }
+    local route = { steps = { { kind = "travel", go = { ci = 1, wx = 100, wy = 100 } } }, active = 1,
+                    from = planned and { ci = 1, wx = 0, wy = 0 } or nil }
     ns.GPS = {
         CurrentRoute = function() return route end,
         PlayerWorldPos = function() return 1, player.x, player.y end,
@@ -26,8 +29,10 @@ local function fresh()
             return { pts = pts, cum = { 0, a, a + math.abs(ty - sy) }, len = a + math.abs(ty - sy) }
         end,
     }
+    ns.GPSNav = { Straight = function() return clear.v end }
+    H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Arrow.lua", env, ns)
-    return ns.GPSArrow._Aim, player, finds, now
+    return ns.GPSArrow._Aim, player, finds, now, clear
 end
 
 local tests = {}
@@ -73,6 +78,49 @@ function tests.closeToTheWayItKeepsTheWalk()
     H.assertEq(#finds, 1, "a few yards off is still on the way")
 end
 
+function tests.theWalkRunsFromWhereTheRouteWasPlanned()
+    local Aim, player, finds = fresh(true)
+    player.x = 50
+    Aim()
+    H.assertEq(finds[1][1], 0)
+    H.assertEq(finds[1][2], 0)
+end
+
+local function near(a, b) return math.abs(a - b) < 1e-9 end
+
+function tests.besideTheWalkItLeadsAlongside()
+    local Aim, player = fresh(true)
+    player.x, player.y = 50, 6
+    local _, _, ax, ay = Aim()
+    H.assertTrue(near(ax, 75))
+    H.assertTrue(near(ay, 6), "alongside the walk, not back onto it: " .. ay)
+end
+
+function tests.fartherOutItLeadsBackToTheLane()
+    local Aim, player = fresh(true)
+    player.x, player.y = 50, 15
+    local _, _, ax, ay = Aim()
+    H.assertTrue(near(ax, 75))
+    H.assertTrue(near(ay, 10), "back to 10 yd beside the walk: " .. ay)
+end
+
+function tests.withSomethingBetweenItLeadsOntoTheWalk()
+    local Aim, player, _, _, clear = fresh(true)
+    clear.v = false
+    player.x, player.y = 50, 6
+    local _, _, ax, ay = Aim()
+    H.assertTrue(near(ax, 75))
+    H.assertTrue(near(ay, 0))
+end
+
+function tests.nearTheEndItMakesForTheSpot()
+    local Aim, player = fresh(true)
+    player.x, player.y = 106, 90
+    local _, _, ax, ay, left = Aim()
+    H.assertTrue(near(left, 10))
+    H.assertTrue(near(ax, 100) and near(ay, 100), "the spot itself: " .. ax .. "," .. ay)
+end
+
 -- The bearing reads north and west off the map, whichever way the world's
 -- coordinates run: map up is north, map left is west.
 local function bearingWith(toWorld)
@@ -82,11 +130,10 @@ local function bearingWith(toWorld)
     env.UIParent = H.newFrame()
     env.C_Map = { GetBestMapForUnit = function() return 7 end }
     ns.GPSRoute = { WorldPos = function(_, x, y) return 1, toWorld(x, y) end }
+    H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Arrow.lua", env, ns)
     return ns.GPSArrow._Bearing
 end
-
-local function near(a, b) return math.abs(a - b) < 1e-9 end
 
 function tests.bearingFromNorthTowardWest()
     -- x north, y west
