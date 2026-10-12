@@ -13,6 +13,8 @@ globals = {
     "EasyFindDB",
     "EasyNotesDB",
     "EasyClockDB",
+    "EasyAlertsDB",
+    "SLASH_EASYFINDALERTS1",
     "EasyFind_OnAddonCompartmentClick",
     "SlashCmdList",
     "StaticPopupDialogs",
@@ -36,6 +38,12 @@ read_globals = {
     "bit",
     "debugstack", "debugprofilestart", "debugprofilestop", "strsplit", "strtrim", "wipe", "hooksecurefunc",
     "format", "time", "date",
+
+    -- Alerts
+    "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting",
+    "GetXPExhaustion", "GetWeaponEnchantInfo", "GetSavedInstanceInfo", "GetNumSavedInstances",
+    "GetMaxPlayerLevel", "GetInboxNumItems", "GetInboxHeaderInfo", "UnitIsDead", "UnitClassification",
+    "LOCALIZED_CLASS_NAMES_MALE", "GetSubZoneText", "GetInventoryItemID",
 
     -- Menus
     "MenuUtil",
