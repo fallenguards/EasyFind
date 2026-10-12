@@ -33,13 +33,15 @@ end
 local ROUTE_BLUE = { 0.25, 0.6, 1 }
 local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry = { 0.1, 0.8, 0.72 },
                      zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
+-- The part of the route already walked, faded so it does not read as the way.
+local PASSED_COLOR, PASSED_ALPHA = { 0.78, 0.8, 0.84 }, 0.45
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 local TEX_CORE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_core"
 local TEX_EDGE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_edge"
 local DEST = 26                    -- the destination's pin
 
-local overlay, solids, marks, syms
+local overlay, lines, marks, syms
 local shownMap, shownIndex
 local since = 0
 
@@ -61,7 +63,7 @@ local function Build()
     overlay:SetFrameStrata("HIGH")
     overlay:SetFrameLevel(300)
     overlay:EnableMouse(false)
-    solids = {}
+    lines = Preview.NewLines(overlay, "TOPLEFT")
     marks = { start = overlay:CreateTexture(nil, "OVERLAY", nil, 2), stop = overlay:CreateTexture(nil, "OVERLAY", nil, 3) }
     marks.start:SetTexture("Interface\\AddOns\\EasyFind_GPS\\textures\\beam_flare")
     marks.start:SetBlendMode("ADD")
@@ -112,29 +114,14 @@ local function Span()
 end
 Preview.LINE_SPANS = LINE_SPANS
 
--- Every edge under every core: a bend never lays one stretch's dark edge
--- over the next one's core.
-local function Solid(i)
-    local s = solids[i]
-    if not s then
-        s = overlay:CreateTexture(nil, "OVERLAY", nil, 1)
-        s:SetTexture(TEX_CORE)
-        s.edge = overlay:CreateTexture(nil, "OVERLAY", nil, 0)
-        s.edge:SetTexture(TEX_EDGE)
-        s.pair = { s, s.edge }
-        solids[i] = s
-    end
-    return s
-end
-
 -- One stretch as a four-cornered strip in its box, each corner moved onto
 -- its point: strips cut along the bends meet edge to edge, with no overlap
 -- to darken and no gap to show.
-local function Shape(t, ulx, uly, llx, lly, urx, ury, lrx, lry)
+local function Shape(t, parent, anchor, ulx, uly, llx, lly, urx, ury, lrx, lry)
     local x0, x1 = mmin(ulx, llx, urx, lrx), mmax(ulx, llx, urx, lrx)
     local y0, y1 = mmin(uly, lly, ury, lry), mmax(uly, lly, ury, lry)
     t:ClearAllPoints()
-    t:SetPoint("TOPLEFT", overlay, "TOPLEFT", x0, y1)
+    t:SetPoint("TOPLEFT", parent, anchor, x0, y1)
     t:SetSize(mmax(x1 - x0, 0.01), mmax(y1 - y0, 0.01))
     t:SetVertexOffset(UL, ulx - x0, uly - y1)
     t:SetVertexOffset(LL, llx - x0, lly - y0)
@@ -205,6 +192,84 @@ local function RoundBends(pts, m, r)
 end
 Preview._RoundBends = RoundBends   -- tests
 
+-- Route lines on a frame, in its pixels from anchor (y up): Begin, a Line
+-- per piece, then Finish hides the strips left over.
+local Lines = {}
+Lines.__index = Lines
+
+function Preview.NewLines(parent, anchor)
+    return setmetatable({ parent = parent, anchor = anchor, pool = {}, n = 0 }, Lines)
+end
+
+function Lines:Begin() self.n = 0 end
+
+-- Every edge under every core: a bend never lays one stretch's dark edge
+-- over the next one's core.
+function Lines:Strip()
+    local n = self.n + 1
+    self.n = n
+    local s = self.pool[n]
+    if not s then
+        s = self.parent:CreateTexture(nil, "OVERLAY", nil, 1)
+        s:SetTexture(TEX_CORE)
+        s.edge = self.parent:CreateTexture(nil, "OVERLAY", nil, 0)
+        s.edge:SetTexture(TEX_EDGE)
+        s.pair = { s, s.edge }
+        self.pool[n] = s
+    end
+    return s
+end
+
+-- A line through points (x, y pairs, m numbers), span wide, its bends cut
+-- back up to round: points closer together than the line is wide add nothing.
+local poly = {}
+function Lines:Line(src, m, span, round, color, alpha)
+    local gap, k = span * 0.4, 0
+    for v = 1, m - 1, 2 do
+        local x, y = src[v], src[v + 1]
+        if k == 0 or v == m - 1 or msqrt((x - poly[k - 1]) ^ 2 + (y - poly[k]) ^ 2) >= gap then
+            poly[k + 1], poly[k + 2] = x, y
+            k = k + 2
+        end
+    end
+    if k < 4 then return end
+    local line, n = poly, k
+    if n > 4 then line, n = RoundBends(poly, n, round) end
+    local total = 0
+    for v = 1, n - 3, 2 do total = total + msqrt((line[v + 2] - line[v]) ^ 2 + (line[v + 3] - line[v + 1]) ^ 2) end
+    if total <= 2 then return end
+    Offsets(line, n, span / 2)
+    local parent, anchor = self.parent, self.anchor
+    for j = 1, n / 2 - 1 do
+        local x1, y1, x2, y2 = line[2 * j - 1], line[2 * j], line[2 * j + 1], line[2 * j + 2]
+        if x1 ~= x2 or y1 ~= y2 then
+            local ax, ay, bx, by = offX[j], offY[j], offX[j + 1], offY[j + 1]
+            for _, t in ipairs(self:Strip().pair) do
+                Shape(t, parent, anchor, x1 + ax, y1 + ay, x1 - ax, y1 - ay, x2 + bx, y2 + by, x2 - bx, y2 - by)
+                t:SetVertexColor(color[1], color[2], color[3], alpha)
+                t:Show()
+            end
+        end
+    end
+end
+
+function Lines:Finish()
+    local pool = self.pool
+    for i = self.n + 1, #pool do
+        pool[i]:Hide()
+        pool[i].edge:Hide()
+    end
+end
+
+function Lines:Hide()
+    self.n = 0
+    self:Finish()
+end
+
+Preview.PASSED_COLOR, Preview.PASSED_ALPHA = PASSED_COLOR, PASSED_ALPHA
+Preview.MODE_COLOR, Preview.ROUTE_BLUE = MODE_COLOR, ROUTE_BLUE
+Preview.Span = Span
+
 -- A step's point on the shown map, in canvas pixels, or nothing when it
 -- is not on that map.
 local function OnCanvas(p, mapID)
@@ -221,10 +286,11 @@ local function OnCanvas(p, mapID)
     return { x * canvas:GetWidth(), -y * canvas:GetHeight() }
 end
 
--- Where a step starts: the previous step's landing, or the player, read
--- through the GPS module's own helper so the axes match the data's.
+-- Where a step starts: the previous step's landing, or where the route was
+-- planned, or else the player.
 local function StartOf(route, i)
     if i > 1 then return route.steps[i - 1].arrive end
+    if route.from then return route.from end
     local get = ns.GPS and ns.GPS.PlayerWorldPos
     if get then
         local ci, wx, wy = get()
@@ -294,7 +360,50 @@ local function WalkPoints(route, i, start, target, mapID)
     return pts
 end
 
-local poly = {}
+-- World yards to the shown map's fractions, from three of its corners.
+local affines = {}
+local function Affine(mapID)
+    local a = affines[mapID]
+    if a ~= nil then return a end
+    a = false
+    local toWorld = ns.GPSRoute and ns.GPSRoute.WorldPos
+    if toWorld then
+        local c0, x0, y0 = toWorld(mapID, 0, 0)
+        local c1, x1, y1 = toWorld(mapID, 1, 0)
+        local c2, x2, y2 = toWorld(mapID, 0, 1)
+        if c0 and c0 == c1 and c0 == c2 then
+            local ux, uy, vx, vy = x1 - x0, y1 - y0, x2 - x0, y2 - y0
+            local det = ux * vy - vx * uy
+            if det ~= 0 then a = { ci = c0, x0 = x0, y0 = y0, ux = ux, uy = uy, vx = vx, vy = vy, det = det } end
+        end
+    end
+    affines[mapID] = a
+    return a
+end
+
+-- A world point onto the canvas at legPts[m + 1], when it falls on the map.
+local legPts = {}
+local function Put(a, wx, wy, cw, ch, m)
+    local dx, dy = wx - a.x0, wy - a.y0
+    local x, y = (dx * a.vy - a.vx * dy) / a.det, (a.ux * dy - dx * a.uy) / a.det
+    if x < 0 or x > 1 or y < 0 or y > 1 then return m end
+    legPts[m + 1], legPts[m + 2] = x * cw, -y * ch
+    return m + 2
+end
+
+-- The walk being followed, cut where the player stands: the part walked
+-- faded, the rest in its color.
+local function DrawFollowed(f, a, cw, ch, span, round, color, alpha)
+    local pts, seg = f.path.pts, f.seg
+    local m = 0
+    for v = 1, seg do m = Put(a, pts[2 * v - 1], pts[2 * v], cw, ch, m) end
+    m = Put(a, f.qx, f.qy, cw, ch, m)
+    lines:Line(legPts, m, span, round, PASSED_COLOR, PASSED_ALPHA)
+    m = Put(a, f.qx, f.qy, cw, ch, 0)
+    for v = seg + 1, #pts / 2 do m = Put(a, pts[2 * v - 1], pts[2 * v], cw, ch, m) end
+    lines:Line(legPts, m, span, round, color, alpha)
+end
+
 local function Draw()
     local route = Route()
     if not (route and overlay and shownMap) then return end
@@ -304,11 +413,17 @@ local function Draw()
         return
     end
     local accent = Accent()
-    local nSolid, nSym = 0, 0
+    local nSym = 0
     local hovered
-    local span = px(Span())
+    local span, round = px(Span()), px(ROUND)
     local lineW = span * 0.4
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
+    local active = route.arrived and #route.steps + 1 or (route.active or 1)
+    local f = ns.GPSFollow and ns.GPSFollow.Now()
+    if f and not (f.route == route and f.path) then f = nil end
+    local affine = f and Affine(shownMap)
+    if affine and affine.ci ~= f.ci then affine = nil end
+    lines:Begin()
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
     local all = shownIndex == 0
     for i = 1, #route.steps do
@@ -320,49 +435,26 @@ local function Draw()
         local a = (not teleport) and OnCanvas(start, shownMap) or nil
         local b = (not teleport) and OnCanvas(target, shownMap) or nil
         if a and b then
-            -- The leg's line: its way on foot for a walk, straight otherwise.
-            local way = step.kind == "travel" and WalkPoints(route, i, start, target, shownMap)
-            local m = 0
-            if way then
-                -- Points closer together than the line is wide add nothing.
-                local last = #way - 1
-                for v = 1, last, 2 do
-                    local x, y = way[v] * cw, -way[v + 1] * ch
-                    if m == 0 or v == last or msqrt((x - poly[m - 1]) ^ 2 + (y - poly[m]) ^ 2) >= lineW then
-                        poly[m + 1], poly[m + 2] = x, y
+            local bright = all or i == shownIndex
+            local color, alpha = MODE_COLOR[step.kind] or accent, bright and 0.95 or 0.4
+            -- A leg already behind reads as walked, unless it is the one looked at.
+            if i < active and not (i == shownIndex and not all) then color, alpha = PASSED_COLOR, PASSED_ALPHA end
+            if affine and i == f.index then
+                DrawFollowed(f, affine, cw, ch, span, round, color, alpha)
+            else
+                -- The leg's line: its way on foot for a walk, straight otherwise.
+                local way = step.kind == "travel" and WalkPoints(route, i, start, target, shownMap)
+                local m = 0
+                if way then
+                    for v = 1, #way - 1, 2 do
+                        legPts[m + 1], legPts[m + 2] = way[v] * cw, -way[v + 1] * ch
                         m = m + 2
                     end
+                else
+                    legPts[1], legPts[2], legPts[3], legPts[4] = a[1], a[2], b[1], b[2]
+                    m = 4
                 end
-            else
-                poly[1], poly[2], poly[3], poly[4] = a[1], a[2], b[1], b[2]
-                m = 4
-            end
-            local line = poly
-            if m > 4 then line, m = RoundBends(poly, m, px(ROUND)) end
-            local total = 0
-            for v = 1, m - 3, 2 do
-                total = total + msqrt((line[v + 2] - line[v]) ^ 2 + (line[v + 3] - line[v + 1]) ^ 2)
-            end
-            if total > 2 then
-                local bright = all or i == shownIndex
-                local alpha = bright and 0.95 or 0.4
-                local color = MODE_COLOR[step.kind] or accent
-                -- One line, stretch by stretch: a walk follows its way, a
-                -- ride runs straight; each in its mode's color.
-                Offsets(line, m, span / 2)
-                for k = 1, m / 2 - 1 do
-                    local x1, y1, x2, y2 = line[2 * k - 1], line[2 * k], line[2 * k + 1], line[2 * k + 2]
-                    if x1 ~= x2 or y1 ~= y2 then
-                        local ax, ay, bx, by = offX[k], offY[k], offX[k + 1], offY[k + 1]
-                        nSolid = nSolid + 1
-                        local sl = Solid(nSolid)
-                        for _, t in ipairs(sl.pair) do
-                            Shape(t, x1 + ax, y1 + ay, x1 - ax, y1 - ay, x2 + bx, y2 + by, x2 - bx, y2 - by)
-                            t:SetVertexColor(color[1], color[2], color[3], alpha)
-                            t:Show()
-                        end
-                    end
-                end
+                lines:Line(legPts, m, span, round, color, alpha)
             end
         end
         -- The whole route marks each change of ride with its symbol.
@@ -382,10 +474,7 @@ local function Draw()
                         final = i == #route.steps, color = MODE_COLOR[step.kind] or accent }
         end
     end
-    for i = nSolid + 1, #solids do
-        solids[i]:Hide()
-        solids[i].edge:Hide()
-    end
+    lines:Finish()
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
     -- it ends; a crossing shows its spot alone when the start is elsewhere.
@@ -573,11 +662,12 @@ if WorldMapFrame then
     end)
 end
 
--- The canvas resizes with the zoom and the map can change under the
--- drawing: redraw while shown, lightly.
+-- The canvas resizes with the zoom, the map can change under the drawing
+-- and the walked part grows: redraw while on screen, lightly.
 local driver = CreateFrame("Frame")
+Preview._driver = driver   -- dev tools
 driver:SetScript("OnUpdate", function(_, dt)
-    if not (overlay and overlay:IsShown() and shownIndex) then return end
+    if not (overlay and overlay:IsVisible() and shownIndex) then return end
     since = since + dt
     if since < 0.1 then return end
     since = 0
