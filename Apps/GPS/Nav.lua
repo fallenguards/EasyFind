@@ -103,6 +103,7 @@ local function DecodeTile(w, key)
     local f = 0
     local pos = N * N + 1
     for c = 0, N * N - 1 do
+        if c % 2048 == 0 then Pause() end
         local n = sbyte(raw, c + 1)
         cellFirst[c], cellN[c] = f + 1, n
         for _ = 1, n do
@@ -130,6 +131,7 @@ local function DecodeTile(w, key)
     -- floors link to one, the others in extra). grid.py builds the same.
     local W, Nn, E, S, extra = {}, {}, {}, {}, {}
     for g = 1, f do
+        if g % 2048 == 0 then Pause() end
         local c = fcell[g]
         local r, col = mfloor(c / N), c % N
         local k = wc[g]
@@ -348,8 +350,9 @@ end
 
 -- Inside one tile from floor g0 (or from each floor of a table, at its
 -- starting cost): each floor's cost and the floor before. With a goal the
--- search stops there (A* on the straight line).
-local function TileSearch(w, t, g0, goal)
+-- search stops there (A* on the straight line); with want (a set of
+-- floors, left of them) once all are reached.
+local function TileSearch(w, t, g0, goal, want, left)
     local cost, prev, closed = {}, {}, {}
     local heap = NewHeap()
     if type(g0) == "table" then
@@ -375,6 +378,10 @@ local function TileSearch(w, t, g0, goal)
         if not closed[g] then
             closed[g] = true
             if g == goal then break end
+            if want and want[g] then
+                left = left - 1
+                if left == 0 then break end
+            end
             local base, wg = cost[g], Weight(t, g)
             local n = TileNeighbours(t, g)
             for k = 1, n do
@@ -465,7 +472,13 @@ local function ToEntrances(w, t, g)
     local kept = w.reach[rk]
     if kept then return kept end
     if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
-    local out = EntranceCosts(w, t, TileSearch(w, t, g))
+    local tc, ents = TileCosts(w, t.key), Entrances(w)
+    local want, left = {}, 0
+    for k = 1, tc and tc.n or 0 do
+        local f = ents.floor[tc.side[k]]
+        if not want[f] then want[f], left = true, left + 1 end
+    end
+    local out = EntranceCosts(w, t, TileSearch(w, t, g, nil, want, left))
     w.reach[rk], w.reachN = out, w.reachN + 1
     return out
 end
