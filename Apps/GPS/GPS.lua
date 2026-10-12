@@ -340,6 +340,7 @@ local function Refresh()
     end
     if ns.MapTab and ns.MapTab.RefreshPageBar then ns.MapTab:RefreshPageBar() end
     if ns.GPSWorldPin then ns.GPSWorldPin:Refresh() end
+    if ns.GPSArrow then ns.GPSArrow:Refresh() end
 end
 GPS.RefreshSurfaces = Refresh
 
@@ -3532,9 +3533,20 @@ local function BuildOptionsPage(ctx, page)
         "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
     lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
     if not ctx.CreateCheckbox then return end
+    local arrow = ctx.CreateCheckbox(page, "GPSArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], true)
+    arrow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -6)
+    local d0 = DB()
+    arrow:SetChecked(not (d0 and d0.gpsArrow == false))
+    if arrow.RefreshVisual then arrow:RefreshVisual() end
+    arrow:SetScript("OnClick", function(self)
+        local d = DB()
+        if d then d.gpsArrow = (not self:GetChecked()) and false or nil end
+        if self.RefreshVisual then self:RefreshVisual() end
+        Refresh()
+    end)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }

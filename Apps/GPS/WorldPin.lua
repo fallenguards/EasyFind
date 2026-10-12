@@ -605,7 +605,9 @@ local function Update(dt)
     local clamped = C_Navigation and C_Navigation.WasClampedToScreen and C_Navigation.WasClampedToScreen()
     beam:SetShown(not clamped and not still)
     calm:SetShown(not clamped and still)
-    edge:SetShown(clamped and true or false)
+    -- The arrow at the character leads the way: none here pointing straight at the spot.
+    local led = ns.GPSArrow and ns.GPSArrow:Guiding()
+    edge:SetShown(clamped and not led or false)
     -- The off-screen arrow breathes only with the moving look.
     if still then
         if edge.pulse:IsPlaying() then edge.pulse:Stop() end
