@@ -20,7 +20,6 @@ Nav.lua
 Route.lua
 Flights.lua
 Boats.lua
-WorldPin.lua
 Arrow.lua
 Preview.lua
 Npcs.lua

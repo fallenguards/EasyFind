@@ -339,7 +339,6 @@ local function Refresh()
         if s:IsShown() and s.Render then s:Render() end
     end
     if ns.MapTab and ns.MapTab.RefreshPageBar then ns.MapTab:RefreshPageBar() end
-    if ns.GPSWorldPin then ns.GPSWorldPin:Refresh() end
     if ns.GPSArrow then ns.GPSArrow:Refresh() end
 end
 GPS.RefreshSurfaces = Refresh
@@ -386,33 +385,6 @@ function GPS:Plan(name, build, done)
 end
 
 function GPS:IsPlanning() return Planner.co ~= nil end
-
--- The map point for a step's waypoint. A map that refuses user waypoints
--- (dungeon-type cities, underground continents) hands it to the nearest ancestor that takes one.
-local function WaypointPoint(step)
-    local mapID, x, y = step.mapID, step.x, step.y
-    if not (mapID and x and y) then return nil end
-    local can = C_Map and C_Map.CanSetUserWaypointOnMap
-    if not can or can(mapID) then return mapID, x, y end
-    local p = step.go or step.arrive
-    local ci, wx, wy
-    if p and p.wx then ci, wx, wy = p.ci, p.wx, p.wy else ci, wx, wy = WorldPos(mapID, x, y) end
-    if not (ci and C_Map.GetMapInfo and C_Map.GetMapPosFromWorldPos and CreateVector2D) then return nil end
-    local cur, depth = mapID, 0
-    while cur and depth < 6 do
-        local info = C_Map.GetMapInfo(cur)
-        cur = info and info.parentMapID
-        depth = depth + 1
-        if cur and can(cur) then
-            local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), cur)
-            if ok and pos then
-                local px, py = pos:GetXY()
-                if px and px >= 0 and px <= 1 and py >= 0 and py <= 1 then return cur, px, py end
-            end
-        end
-    end
-    return nil
-end
 
 local REACH_YARDS = 40
 local ShowGameMenu   -- defined with the menus below; the rows are built before it
@@ -462,17 +434,6 @@ TrackStep = function(index)
     -- A teleport counts as taken only once cast, or once off this continent.
     route.castAt = nil
     route.stepCi = PlayerWorldPos()
-    local MapSearch = ns.MapSearch
-    local mapID, x, y = WaypointPoint(step)
-    if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
-        MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
-        -- Navigation is explicit tracking: the arrow is on whatever the
-        -- general auto-track option says.
-        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-        end
-        if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
-    end
     Refresh()
     if ns.GPSPreview and ns.GPSPreview.Follow then ns.GPSPreview:Follow() end
 end
@@ -502,11 +463,6 @@ local function Arrive(route)
     route.arrived = true
     if route.report and route.report.t then route.tookSec = time() - route.report.t end
     StopTicker()
-    -- The arrow lets go and the pin comes off the map: there is nowhere
-    -- left to point.
-    if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
-    if C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
     Refresh()
     if L["GPS_ARRIVED_AT_FMT"] and EasyFind.Print then
         EasyFind:Print(sformat(L["GPS_ARRIVED_AT_FMT"], route.dest and route.dest.name or "?"))
@@ -829,7 +785,6 @@ end
 -- What the navigation is doing right now, for the dev command.
 function GPS:Status()
     local out = {}
-    out[#out + 1] = ns.GPSWorldPin and ns.GPSWorldPin:Status() or "world pin: file not loaded (the companion's file list changed: restart the client)"
     if popoutFrame then
         local f = popoutFrame
         local b = f.border
@@ -845,9 +800,7 @@ function GPS:Status()
     out[#out + 1] = sformat("route to %s: step %d of %d%s, ticker %s", tostring(route.dest and route.dest.name),
         route.active or 1, #route.steps, route.arrived and " (arrived)" or "", ticker and "running" or "stopped")
     if step then
-        local mapID, x, y = WaypointPoint(step)
-        out[#out + 1] = sformat("step: %s | pin map %s at %.3f,%.3f (step map %s%s)", tostring(step.text), tostring(mapID),
-            x or -1, y or -1, tostring(step.mapID), (C_Map and C_Map.CanSetUserWaypointOnMap and step.mapID and not C_Map.CanSetUserWaypointOnMap(step.mapID)) and ", refuses waypoints" or "")
+        out[#out + 1] = sformat("step: %s (map %s at %.3f,%.3f)", tostring(step.text), tostring(step.mapID), step.x or -1, step.y or -1)
         local ci, px, py = PlayerWorldPos()
         local arrive = step.arrive
         local sci, sx, sy
@@ -1661,29 +1614,15 @@ local PIN_ON_FACE_OFF = { 1, 0.82, 0 }        -- gold pin on the dark face
 local PIN_ON_FACE_ON  = { 0.25, 0.13, 0.03 }  -- dark pin on the gold face
 
 RouteTracked = function()
-    return C_SuperTrack and C_SuperTrack.IsSuperTrackingUserWaypoint and C_SuperTrack.IsSuperTrackingUserWaypoint() or false
+    local route = Route()
+    return route ~= nil and not route.untracked
 end
 
--- The arrow follows the route, or lets go of it for the tracker's quests.
+-- The arrow at the character follows the route, or lets go of it.
 local function ToggleRouteTracking()
     local route = Route()
     if not route then return end
-    if RouteTracked() then
-        -- Let go: the map search must stop treating the pin as its own, or
-        -- it re-tracks it the moment nothing else is tracked.
-        if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
-    else
-        if C_SuperTrack then
-            if C_SuperTrack.IsSuperTrackingQuest and C_SuperTrack.IsSuperTrackingQuest() and C_SuperTrack.SetSuperTrackedQuestID then
-                C_SuperTrack.SetSuperTrackedQuestID(0)
-            end
-            if C_SuperTrack.GetSuperTrackedVignette and C_SuperTrack.GetSuperTrackedVignette() and C_SuperTrack.ClearAllSuperTrackedVignettes then
-                C_SuperTrack.ClearAllSuperTrackedVignettes()
-            end
-        end
-        TrackStep(route.active or 1)
-    end
+    route.untracked = not route.untracked or nil
     Refresh()
 end
 
@@ -2007,18 +1946,6 @@ local function Tracker()
     local t = _G.ObjectiveTrackerFrame
     if t and type(t.modules) == "table" then return t end
     return nil
-end
-
--- Any of our menus that is up: gone before its anchor is.
--- The menu row for the pin in the world (on unless turned off).
-function GPS.WorldPinRow()
-    return { kind = "check", label = L["GPS_WORLD_PIN"],
-        get = function() local db = DB() return not (db and db.gpsWorldPin == false) end,
-        set = function(v)
-            local db = DB()
-            if db then db.gpsWorldPin = (not v) and false or nil end
-            Refresh()
-        end }
 end
 
 -- The menu row for snapping into the tracker (on unless turned off); off
@@ -2763,7 +2690,6 @@ local function BuildDock()
                 and ns.ResultLinks:BuildRouteText(route.dest)
             if share then defs[#defs + 1] = { kind = "send", label = L["CTX_SEND_LINK"], link = share } end
             defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end }
-            defs[#defs + 1] = GPS.WorldPinRow()
             defs[#defs + 1] = GPS.SnapRow()
             -- The style is for the window outside the tracker; snapped in,
             -- the section has one look.
@@ -3073,7 +2999,6 @@ local function ShowSizePopup(anchor)
                 popoutFrame:Render()
             end
         end }
-    defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_HEIGHT"] }
@@ -3495,30 +3420,9 @@ SampleGroundSpeed = function()
     end
 end
 
--- The GPS page in the options' Extensions tab: how the beacon looks, or
--- no beacon (the same switch as the beacon row in the GPS menu).
+-- The GPS page in the options' Extensions tab: the map line, the arrow,
+-- and the ways of travel to leave out.
 local function BuildOptionsPage(ctx, page)
-    local WorldPin = ns.GPSWorldPin
-    local choices = {
-        { label = L["GPS_BEACON_CALM"], value = "calm" },
-        { label = L["GPS_BEACON_FLAME"], value = "flame" },
-        { label = _G["OFF"] or "Off", value = "off" },
-    }
-    local row = ctx.CreateFlyoutPresetRow(page, L["GPS_BEACON_STYLE"], choices,
-        function()
-            local db = DB()
-            if db and db.gpsWorldPin == false then return "off" end
-            return WorldPin and WorldPin.Style() or "calm"
-        end,
-        function(v)
-            local db = DB()
-            if not db then return end
-            db.gpsWorldPin = (v == "off") and false or nil
-            if v ~= "off" then db.gpsBeaconStyle = v end
-            Refresh()
-        end,
-        "EasyFindGPSBeaconStyle", WorldPin and WorldPin.DefaultStyle() or "calm", L["GPS_BEACON_STYLE_TT"])
-    row:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
     local widths = {
         { label = L["GPS_LINE_THIN"], value = "thin" },
         { label = L["GPS_SIZE_NORMAL"], value = "normal" },
@@ -3531,7 +3435,7 @@ local function BuildOptionsPage(ctx, page)
             if db then db.gpsLineWidth = (v ~= "normal") and v or nil end
         end,
         "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
-    lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
+    lineRow:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
     if not ctx.CreateCheckbox then return end
     local arrow = ctx.CreateCheckbox(page, "GPSArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], true)
     arrow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -6)
@@ -3575,6 +3479,20 @@ end
 
 if ns.RegisterExtensionPage then
     ns.RegisterExtensionPage({ id = "gps", name = L["APP_GPS"], icon = ns.GPS_ICON_TEX, companion = "EasyFind_GPS", build = BuildOptionsPage })
+end
+
+-- Routes once dropped the game's pin on each step: one still on the
+-- active step's spot is that, lifted once.
+local function LiftOldPin(route)
+    local db = DB()
+    local step = route and route.steps and route.steps[route.active or 1]
+    if not (db and step and step.mapID and step.x and step.y) or db.gpsPinLifted then return end
+    db.gpsPinLifted = true
+    local wp = C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    if not (wp and wp.uiMapID == step.mapID and wp.position) then return end
+    if math.abs(wp.position.x - step.x) > 0.001 or math.abs(wp.position.y - step.y) > 0.001 then return end
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+    C_Map.ClearUserWaypoint()
 end
 
 local loginFrame = CreateFrame("Frame")
@@ -3638,6 +3556,7 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
         GPS:TogglePopout(true)
     end
     local route = Route()
+    LiftOldPin(route)
     if not route then return end
     -- A route is for the trip in progress; one left from another day is
     -- noise, not directions.
