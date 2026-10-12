@@ -1,6 +1,5 @@
--- Clock basics: names and repeats in the grammar, the kept alarms (repeat,
--- re-arm, realm time), snooze, timer nudges and presets, stopwatch laps,
--- pomodoro long breaks and the wait between phases.
+-- Names and repeats in the grammar, kept alarms, snooze, timer nudges and
+-- presets, stopwatch laps, pomodoro long breaks and the wait between phases.
 local H = require("Harness")
 
 local function load(db, gameTime)

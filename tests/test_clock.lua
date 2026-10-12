@@ -473,13 +473,17 @@ local function companion(saved, startAt)
     env.InCombatLockdown = function() return log.combat end
     env.UnitAffectingCombat = function() return log.combat end
     env.GameTime_GetFormattedTime = function(h, m) return string.format("%02d:%02d", h, m) end
-    env.SOUNDKIT = { ALARM_CLOCK_WARNING_3 = 12889 }
-    env.PlaySound = function() log.sound = log.sound + 1 end
+    env.SOUNDKIT = { ALARM_CLOCK_WARNING_3 = 12889, READY_CHECK = 8960, MAP_PING = 3175 }
+    env.PlaySound = function(id)
+        log.sound = log.sound + 1
+        log.lastSound = id
+    end
     env.FlashClientIcon = function() log.flash = log.flash + 1 end
     env.EasyFind.Print = function(_, msg) log.chat[#log.chat + 1] = msg end
     env.EasyFind.db = {
         clockSound = true, clockBigText = true, clockChat = true, clockFlash = true, clockBreakDim = true,
         clockFocusSeconds = 1500, clockBreakSeconds = 300,
+        clockSoundTimer = "alarm", clockSoundAlarm = "alarm", clockSoundPomodoro = "readycheck", clockSoundMark = "ping",
     }
     env.EasyClockDB = saved
     local ns = H.newNs(env)
@@ -502,6 +506,7 @@ local function companion(saved, startAt)
     ns.TooltipTextColor = function() return 1, 1, 1 end
     ns.MinimapEdgeOffset = function() return 0, 80 end
     ns.ShowHintTooltip, ns.HideHintTooltip = function() end, function() end
+    ns.ShowThemedDialog = function(opts) log.dialog = opts end
     ns.RegisterThemeCallback = function(fn) log.themeFn = fn end
     ns.Utils.InstallMenuRowHighlight = function() end
     ns.Utils.RefreshMenuRowHighlights = function() end
@@ -514,6 +519,7 @@ local function companion(saved, startAt)
         return menu
     end
     H.loadModule("Search/ClockCommands.lua", env, ns)
+    H.loadModule("Shared/Signals.lua", env, ns)
     -- The companion's files share one private table, as the client gives them.
     local CL = {}
     for _, f in ipairs(H.TocFiles("Apps/Clock/EasyFind_Clock.toc")) do
@@ -546,7 +552,8 @@ function tests.companion_typedCommandsRunTogether()
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("timer 10s"))
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("stop 5s"))
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("alarm 18:01"))
-    H.assertEq(#env.EasyClockDB.runs, 4, "four runs at once")
+    H.assertEq(#env.EasyClockDB.runs, 3, "three runs at once")
+    H.assertEq(#env.EasyClockDB.alarms, 1, "and a kept alarm")
     H.assertTrue(ns.Clock.IsOpen(), "starting a run shows the window")
     H.assertTrue(env.EasyFind.db.clockActive, "login will load the clock")
     advance(5)
@@ -558,6 +565,7 @@ function tests.companion_typedCommandsRunTogether()
     H.assertEq(log.flash, 2, "a taskbar flash each")
     advance(50)
     H.assertEq(#log.chat, 3, "the alarm at 18:01")
+    H.assertEq(#env.EasyClockDB.runs, 4, "rings as a card")
     local before = #env.EasyClockDB.runs
     ns.Clock.Minimize()
     H.assertFalse(ns.Clock.IsOpen(), "minimize closes the window")
@@ -605,14 +613,19 @@ function tests.companion_resumesSavedRunsAtLogin()
     H.assertEq(#log.chat, 2, "the other timer ends on time")
 end
 
+-- The break dim: a click lifts it and it listens for a pull while shown.
+local function Dim()
+    for i = 1, #frames do
+        local f = frames[i]
+        if f.events.PLAYER_REGEN_DISABLED and f.scripts.OnClick then return f end
+    end
+end
+
 function tests.companion_breakDim()
     local ns, env, _, advance = companion(nil)
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("pom 10s 20s"))
     advance(10)
-    local dim
-    for i = 1, #frames do
-        if frames[i].events.PLAYER_REGEN_DISABLED then dim = frames[i] end
-    end
+    local dim = Dim()
     H.assertTrue(dim and dim.shown, "the break dims the screen")
     dim.scripts.OnClick(dim)
     H.assertFalse(dim.shown, "a click lifts the dim")
@@ -631,16 +644,11 @@ function tests.companion_breakDimNeverInCombat()
     log.combat = true
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("pom 10s 20s"))
     advance(10)
-    for i = 1, #frames do
-        H.assertFalse(frames[i].events.PLAYER_REGEN_DISABLED, "no dim in combat")
-    end
+    H.assertNil(Dim(), "no dim in combat")
     log.combat = false
     advance(1)
-    local shown = false
-    for i = 1, #frames do
-        if frames[i].events.PLAYER_REGEN_DISABLED then shown = frames[i].shown end
-    end
-    H.assertTrue(shown, "the dim comes once the fight is over")
+    local dim = Dim()
+    H.assertTrue(dim and dim.shown, "the dim comes once the fight is over")
 end
 
 -- A chip or button found by the word on it.
@@ -681,7 +689,7 @@ function tests.companion_endedCardChoices()
     H.assertTrue(run.done)
     CL.ShowRunMenu(run, {})
     local rows = log.menus[#log.menus]
-    H.assertEq(#rows, 3, "+5 min, Again, Dismiss")
+    H.assertEq(#rows, 4, "+5 min, Again, Rename, Dismiss")
     rows[1].onClick()
     H.assertFalse(run.done, "+5 min")
     H.assertEq(run.duration, 300)
@@ -692,7 +700,7 @@ function tests.companion_endedCardChoices()
     H.assertEq(run.duration, 3, "Again: its own length")
     advance(3)
     CL.ShowRunMenu(run, {})
-    log.menus[#log.menus][3].onClick()
+    log.menus[#log.menus][4].onClick()
     H.assertEq(#env.EasyClockDB.runs, 0, "Dismiss")
     H.assertTrue(ns.Clock.IsOpen(), "the window stays, on its tiles")
     H.assertFalse(CL.Strip.IsShown())
@@ -733,6 +741,235 @@ function tests.companion_menusAndOpen()
     rows[4].onClick()
     H.assertEq(#env.EasyClockDB.runs, 0, "cancel all")
     H.assertFalse(env.EasyFind.db.clockActive)
+end
+
+local function Parse(text, ns)
+    return ns.ClockGrammar.Parse(text)
+end
+
+-- The formats a named end line goes through, so the name shows in it.
+local function RealFormats(ns)
+    ns.L.CLOCK_DOT_FMT, ns.L.CLOCK_CMD_NAMED, ns.L.CLOCK_DONE_FMT = "%s - %s", "%s: %s", "%s is done."
+end
+
+function tests.companion_alarmRingsSnoozesDismisses()
+    local ns, env, log, advance, CL = companion(nil)
+    RealFormats(ns)
+    ns.Clock.StartFromCommand(Parse("alarm 18:01 raid", ns))
+    local alarm = env.EasyClockDB.alarms[1]
+    H.assertEq(alarm.name, "raid")
+    H.assertEq(#env.EasyClockDB.runs, 0, "a set alarm is kept in the list, not a card")
+    H.assertTrue(env.EasyFind.db.clockActive, "a switched-on alarm loads the clock at login")
+    H.assertTrue(ns.Clock.IsOpen(), "setting an alarm shows the window")
+    advance(60)
+    local run = env.EasyClockDB.runs[1]
+    H.assertTrue(run and run.done and run.tool == "alarm", "it rings as an ended card")
+    H.assertTrue(log.chat[1]:find("raid", 1, true) ~= nil, "the chat line names it")
+    H.assertFalse(alarm.enabled, "a one-off alarm switches itself off")
+    local sounds = log.sound
+    advance(10)
+    H.assertEq(log.sound, sounds, "one chime unless the repeat setting is on")
+    CL.Snooze(run)
+    H.assertFalse(run.done, "snoozed")
+    H.assertEq(run.at - env.time(), 9 * 60, "for the snooze minutes")
+    advance(9 * 60)
+    H.assertTrue(run.done, "it rings again after the snooze")
+    CL.ShowRunMenu(run, {})
+    local rows = log.menus[#log.menus]
+    H.assertEq(#rows, 2, "Snooze, Dismiss")
+    rows[2].onClick()
+    H.assertEq(#env.EasyClockDB.runs, 0, "Dismiss")
+    H.assertFalse(env.EasyFind.db.clockActive, "nothing left to keep")
+end
+
+function tests.companion_alarmSoundRepeatsUntilSnoozed()
+    local ns, env, log, advance, CL = companion(nil)
+    env.EasyFind.db.clockAlarmRepeat = true
+    ns.Clock.StartFromCommand(Parse("alarm 18:01", ns))
+    advance(60)
+    local sounds = log.sound
+    advance(5)
+    H.assertEq(log.sound, sounds + 1, "chimes again while it rings")
+    advance(5)
+    H.assertEq(log.sound, sounds + 2)
+    CL.Snooze(env.EasyClockDB.runs[1])
+    advance(5)
+    H.assertEq(log.sound, sounds + 2, "a snooze quiets it")
+end
+
+function tests.companion_repeatingAlarmReArms()
+    local ns, env, _, advance = companion(nil)
+    ns.Clock.StartFromCommand(Parse("alarm 18:01 daily", ns))
+    local alarm = env.EasyClockDB.alarms[1]
+    H.assertEq(alarm.days, 127)
+    advance(60)
+    H.assertEq(#env.EasyClockDB.runs, 1, "it rang")
+    H.assertTrue(alarm.enabled, "a daily alarm stays on")
+    H.assertEq(alarm.next, at(18, 1, 1), "armed for tomorrow")
+    H.assertTrue(env.EasyFind.db.clockActive)
+end
+
+function tests.companion_alarmListSwitchEditDelete()
+    local ns, env, _, advance, CL = companion(nil)
+    ns.Clock.StartFromCommand(Parse("alarm 19:00", ns))
+    local alarm = env.EasyClockDB.alarms[1]
+    CL.SetAlarmOn(alarm, false)
+    H.assertFalse(alarm.enabled)
+    H.assertFalse(env.EasyFind.db.clockActive, "an alarm switched off keeps nothing loaded")
+    advance(3600)
+    H.assertEq(#env.EasyClockDB.runs, 0, "and never rings")
+    CL.EditAlarm(alarm, 20, 15, 62, " gym ", nil)
+    H.assertTrue(alarm.enabled, "a saved edit switches it on")
+    H.assertEq(alarm.name, "gym")
+    H.assertEq(alarm.days, 62)
+    CL.DeleteAlarm(alarm)
+    H.assertEq(#env.EasyClockDB.alarms, 0)
+end
+
+function tests.companion_alarmWhileMinimizedSaysSo()
+    local ns, env, log = companion(nil)
+    ns.Clock.StartFromCommand(Parse("timer 10", ns))
+    ns.Clock.Minimize()
+    ns.Clock.StartFromCommand(Parse("alarm 21:00", ns))
+    H.assertFalse(ns.Clock.IsOpen(), "the minimized window stays a strip")
+    H.assertTrue(log.chat[#log.chat]:find("CLOCK_ALARM_SET", 1, true) ~= nil, "a chat line confirms it")
+    H.assertEq(#env.EasyClockDB.alarms, 1)
+end
+
+function tests.companion_stripShowsAlarmWithinTheHour()
+    local ns, _, _, advance, CL = companion(nil)
+    ns.Clock.StartFromCommand(Parse("alarm 19:30", ns))
+    ns.Clock.Minimize()
+    H.assertFalse(CL.Strip.IsShown(), "an alarm 90 minutes off shows nowhere")
+    advance(1800)
+    H.assertTrue(CL.Strip.IsShown(), "within the hour it joins the strip")
+end
+
+function tests.companion_timerNudgesPresetsAndRename()
+    local ns, env, log, advance, CL = companion(nil)
+    RealFormats(ns)
+    ns.Clock.StartFromCommand(Parse("timer 10 pizza", ns))
+    local run = env.EasyClockDB.runs[1]
+    H.assertEq(run.name, "pizza")
+    CL.ShowRunMenu(run, {})
+    local rows = log.menus[#log.menus]
+    rows[2].onClick()
+    H.assertEq(run.duration, 660, "+1 min")
+    rows[3].onClick()
+    rows[3].onClick()
+    H.assertEq(run.duration, 540, "-1 min twice")
+    rows[4].onClick()
+    local presets = ns.ClockRuns:Presets()
+    local saved = false
+    for _, sec in ipairs(presets) do saved = saved or sec == 600 end
+    H.assertTrue(saved, "its own length saved as a preset")
+    CL.RemovePreset(600)
+    for _, sec in ipairs(presets) do H.assertTrue(sec ~= 600, "and removed") end
+    CL.Rename(run)
+    log.dialog.onAccept("dough")
+    H.assertEq(run.name, "dough", "renamed")
+    advance(540)
+    H.assertTrue(log.chat[#log.chat]:find("dough", 1, true) ~= nil, "the end names it")
+end
+
+function tests.companion_soundPerKind()
+    local ns, env, log, advance = companion(nil)
+    env.EasyFind.db.clockSoundTimer = "readycheck"
+    ns.Clock.StartFromCommand(Parse("timer 3s", ns))
+    advance(3)
+    H.assertEq(log.lastSound, 8960, "the timer's own sound")
+    env.EasyFind.db.clockSoundMark = "ping"
+    ns.Clock.StartFromCommand(Parse("stopwatch 2s", ns))
+    advance(2)
+    H.assertEq(log.lastSound, 3175, "the mark's own sound")
+    local flashed
+    ns.Signals.FlashScreen = function(color) flashed = color end
+    env.EasyFind.db.clockScreen = "blue"
+    ns.Clock.StartFromCommand(Parse("timer 2s", ns))
+    advance(2)
+    H.assertEq(flashed, "blue", "the screen edge flash in its color")
+end
+
+function tests.companion_pomodoroWaitsWithoutAutoStart()
+    local ns, env, log, advance, CL = companion(nil)
+    RealFormats(ns)
+    env.EasyFind.db.clockAutoNext = false
+    env.EasyFind.db.clockBreakDim = false
+    ns.Clock.SettingsChanged()
+    ns.Clock.StartFromCommand(Parse("pom 10s 20s reading", ns))
+    advance(10)
+    local run = env.EasyClockDB.runs[1]
+    H.assertTrue(run.waiting, "the card waits on Start next")
+    H.assertTrue(log.chat[#log.chat]:find("reading: CLOCK_BREAK_READY", 1, true) ~= nil, "named")
+    advance(60)
+    H.assertEq(run.phase, "break", "still waiting")
+    H.assertTrue(run.waiting)
+    CL.ShowRunMenu(run, {})
+    log.menus[#log.menus][1].onClick()
+    H.assertFalse(run.waiting, "Start next")
+    advance(20)
+    H.assertEq(run.phase, "focus")
+    H.assertTrue(run.waiting)
+end
+
+function tests.companion_pomodoroLongBreakSetting()
+    local ns, env, log, advance = companion(nil)
+    env.EasyFind.db.clockLongEvery = 2
+    env.EasyFind.db.clockLongSeconds = 60
+    env.EasyFind.db.clockBreakDim = false
+    ns.Clock.SettingsChanged()
+    ns.Clock.StartFromCommand(Parse("pom 10s 5s", ns))
+    local run = env.EasyClockDB.runs[1]
+    advance(10)
+    advance(5)
+    advance(10)
+    H.assertTrue(run.long, "the second break is long")
+    H.assertTrue(log.chat[#log.chat]:find("CLOCK_LONG_BREAK_START", 1, true) ~= nil)
+    advance(59)
+    H.assertEq(run.phase, "break")
+    advance(1)
+    H.assertEq(run.phase, "focus", "after its own length")
+end
+
+function tests.companion_awayAlarmIsToldQuietly()
+    local start = at(18, 0)
+    local saved = {
+        version = 3, runs = {}, hud = { shown = true },
+        alarms = { { id = 1, hour = 17, min = 0, days = 0, enabled = true, next = start - 3600 } },
+        nextAlarmID = 2,
+    }
+    local _, env, log, advance = companion(saved, start)
+    H.assertEq(#env.EasyClockDB.runs, 1, "a missed alarm shows as rung")
+    H.assertFalse(env.EasyClockDB.alarms[1].enabled)
+    advance(3)
+    H.assertTrue(log.chat[1]:find("CLOCK_AWAY_FMT", 1, true) ~= nil, "told as away")
+    H.assertEq(log.sound, 0, "with no sound")
+    H.assertNil(env.EasyClockDB.runs[1].ringing, "and no repeat")
+end
+
+function tests.companion_alarmEditorKeepsAnUntouchedTime()
+    local ns, env, _, _, CL = companion(nil)
+    ns.Clock.StartFromCommand(Parse("alarm 7:30", ns))
+    local alarm = env.EasyClockDB.alarms[1]
+    H.assertEq(alarm.hour, 19, "at 18:00 a bare 7:30 is the evening")
+    local row
+    for i = 1, #frames do
+        if frames[i].alarm == alarm and frames[i].scripts.OnClick then row = frames[i] end
+    end
+    row.scripts.OnClick(row, "LeftButton")
+    local box
+    for i = 1, #frames do
+        if frames[i].scripts.OnEnterPressed and frames[i].text == "19:30" then box = frames[i] end
+    end
+    H.assertTrue(box ~= nil, "the editor shows the time as the row does")
+    box.scripts.OnEnterPressed(box)
+    H.assertEq(alarm.hour, 19, "saved untouched, the hour stays")
+    row.scripts.OnClick(row, "LeftButton")
+    box:SetText("6:15")
+    box.scripts.OnEnterPressed(box)
+    H.assertEq(alarm.hour, 18, "a typed time reads as the search bar reads it")
+    H.assertEq(alarm.min, 15)
+    H.assertTrue(CL.AlarmList ~= nil)
 end
 
 local pass, fail, failures = H.runSuite("Clock", tests)

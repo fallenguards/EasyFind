@@ -76,6 +76,9 @@ local DB_DEFAULTS = {
     alertsPaused = false,
     clockFocusSeconds = 1500, clockBreakSeconds = 300,
     clockFocusUnit = "m", clockBreakUnit = "m", clockTimerUnit = "m", clockStopwatchUnit = "m",
+    clockSnoozeMinutes = 9, clockLongEvery = 4, clockLongSeconds = 900, clockAutoNext = true,
+    clockSoundTimer = "alarm", clockSoundAlarm = "alarm", clockSoundPomodoro = "readycheck",
+    clockSoundMark = "ping", clockAlarmRepeat = false, clockScreen = false,
     -- True while a run exists, so login loads the clock to keep it going.
     clockActive = false,
     snippetTriggerChar = "\\",

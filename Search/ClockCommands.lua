@@ -140,9 +140,8 @@ function Grammar.JoinDays(a, b)
     return mfloor(out)
 end
 
--- The next moment after `now` the clock reads hour:minute on an allowed day.
--- offset (seconds) moves the clock to realm time. Without am or pm, "7" is
--- whichever of 7:00 and 19:00 comes first.
+-- The next hour:minute after `now` on an allowed day; offset moves to realm
+-- time. Without am or pm, "7" is whichever of 7:00 and 19:00 comes first.
 function Grammar.NextOccurrence(hour, minute, days, explicit, now, offset)
     offset, days = offset or 0, days or 0
     local s = now + offset

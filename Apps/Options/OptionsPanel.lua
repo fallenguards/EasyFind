@@ -4323,8 +4323,8 @@ local function BuildAlertsPage(ctx, page)
     end)
 end
 
--- Clock: what the end of a run does, the pomodoro lengths, and what a
--- bare number means in each slot of a typed command.
+-- Clock: what the end of a run does, its sounds, the pomodoro and snooze
+-- lengths, and what a bare number means in each slot of a typed command.
 local function BuildClockPage(ctx, page)
     local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
@@ -4344,6 +4344,8 @@ local function BuildClockPage(ctx, page)
         { "clockFlash", "CLOCK_OPT_FLASH", "CLOCK_OPT_FLASH_TT", "ClockFlash" },
         { "clockBreakDim", "CLOCK_OPT_DIM", "CLOCK_OPT_DIM_TT", "ClockBreakDim" },
         { "clockMinimapIcon", "CLOCK_OPT_MINIMAP", "CLOCK_OPT_MINIMAP_TT", "ClockMinimapIcon" },
+        { "clockAlarmRepeat", "CLOCK_OPT_REPEAT", "CLOCK_OPT_REPEAT_TT", "ClockAlarmRepeat" },
+        { "clockAutoNext", "CLOCK_OPT_AUTONEXT", "CLOCK_OPT_AUTONEXT_TT", "ClockAutoNext" },
     }
     local anchor = hint
     for i = 1, #toggles do
@@ -4357,23 +4359,69 @@ local function BuildClockPage(ctx, page)
         end)
         anchor = box
     end
+    local Signals = ns.Signals
+    -- The screen edge flash: off, or a color; a pick shows it once.
+    local screenChoices = { { label = _G["OFF"] or L["CLOCK_OFF"], value = false } }
+    for _, color in ipairs(Signals.COLORS) do screenChoices[#screenChoices + 1] = { label = color.label, value = color.key } end
+    local screenRow = ctx.CreateFlyoutPresetRow(page, L["CLOCK_OPT_SCREEN"], screenChoices,
+        function() return EasyFind.db.clockScreen or false end,
+        function(v)
+            EasyFind.db.clockScreen = v
+            if v then Signals.FlashScreen(v) end
+        end,
+        "EasyFindClockScreen", false, L["CLOCK_OPT_SCREEN_TT"])
+    screenRow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -6)
+    anchor = screenRow
+    local soundHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    soundHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
+    soundHeader:SetText(L["CLOCK_OPT_SOUNDS"])
+    local soundChoices = {}
+    for i, sound in ipairs(Signals.SOUNDS) do soundChoices[i] = { label = sound.label, value = sound.key } end
+    local sounds = {
+        { "clockSoundTimer", L["CLOCK_TIMER"] },
+        { "clockSoundAlarm", L["CLOCK_ALARM"] },
+        { "clockSoundPomodoro", L["CLOCK_POMODORO"] },
+        { "clockSoundMark", L["CLOCK_OPT_SOUND_MARK"] },
+    }
+    anchor = soundHeader
+    for i = 1, #sounds do
+        local dbKey, label = unpack(sounds[i])
+        -- A pick plays the sound once.
+        local row = ctx.CreateFlyoutPresetRow(page, label, soundChoices,
+            function() return EasyFind.db[dbKey] end,
+            function(v)
+                EasyFind.db[dbKey] = v
+                Signals.PlaySound(v)
+            end,
+            "EasyFindClockSound" .. i, ns.DB_DEFAULTS[dbKey], L["CLOCK_OPT_SOUNDS_TT"])
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -6 or -4)
+        anchor = row
+    end
     local minuteFormat = _G["MINUTES_ABBR"] or "%d min"
-    local function MinuteChoices(list)
+    local function MinuteChoices(list, scale)
         local out = {}
-        for _, m in ipairs(list) do out[#out + 1] = { label = sformat(minuteFormat, m), value = m * 60 } end
+        for _, m in ipairs(list) do out[#out + 1] = { label = sformat(minuteFormat, m), value = m * (scale or 60) } end
         return out
     end
+    local rounds = {}
+    for n = 2, 6 do rounds[#rounds + 1] = { label = sformat(L["CLOCK_OPT_ROUNDS_FMT"], n), value = n } end
     local lengths = {
-        { "clockFocusSeconds", "CLOCK_OPT_FOCUS_LEN", { 15, 20, 25, 30, 45, 50, 60, 90 }, 1500 },
-        { "clockBreakSeconds", "CLOCK_OPT_BREAK_LEN", { 3, 5, 10, 15, 20, 30 }, 300 },
+        { "clockFocusSeconds", "CLOCK_OPT_FOCUS_LEN", MinuteChoices({ 15, 20, 25, 30, 45, 50, 60, 90 }), "CLOCK_OPT_LEN_TT" },
+        { "clockBreakSeconds", "CLOCK_OPT_BREAK_LEN", MinuteChoices({ 3, 5, 10, 15, 20, 30 }), "CLOCK_OPT_LEN_TT" },
+        { "clockLongEvery", "CLOCK_OPT_LONG_EVERY", rounds, "CLOCK_OPT_LONG_TT" },
+        { "clockLongSeconds", "CLOCK_OPT_LONG_LEN", MinuteChoices({ 10, 15, 20, 30 }), "CLOCK_OPT_LONG_TT" },
+        { "clockSnoozeMinutes", "CLOCK_OPT_SNOOZE", MinuteChoices({ 5, 9, 10, 15 }, 1), "CLOCK_OPT_SNOOZE_TT" },
     }
     for i = 1, #lengths do
-        local dbKey, labelKey, minutes, default = unpack(lengths[i])
-        local row = ctx.CreateFlyoutPresetRow(page, L[labelKey], MinuteChoices(minutes),
+        local dbKey, labelKey, choices, tipKey = unpack(lengths[i])
+        local row = ctx.CreateFlyoutPresetRow(page, L[labelKey], choices,
             function() return EasyFind.db[dbKey] end,
-            function(v) EasyFind.db[dbKey] = v end,
-            "EasyFindClockLen" .. i, default, L["CLOCK_OPT_LEN_TT"])
-        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -8 or -4)
+            function(v)
+                EasyFind.db[dbKey] = v
+                Changed()
+            end,
+            "EasyFindClockLen" .. i, ns.DB_DEFAULTS[dbKey], L[tipKey])
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -12 or -4)
         anchor = row
     end
     local unitHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

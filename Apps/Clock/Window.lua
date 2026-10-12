@@ -2,35 +2,39 @@ local _, CL = ...
 local ns = EasyFind and EasyFind._ns
 if not (ns and ns.ClockRuns and ns.ClockGrammar) then return end
 
--- The window: one card per run, and the start tiles when nothing runs
--- (or when the header's + asks for them).
+-- The window: one card per run, the kept alarms under them, and the start
+-- tiles when nothing runs (or when the header's + asks for them).
 local Utils = ns.Utils
 local L = ns.L
-local Runs, Grammar = ns.ClockRuns, ns.ClockGrammar
+local Runs = ns.ClockRuns
 
 local CreateFrame, UIParent = CreateFrame, UIParent
-local time, tostring, strtrim = time, tostring, strtrim
-local mmax, mmin, pairs = Utils.mmax, Utils.mmin, Utils.pairs
+local time, type = time, type
+local mmin, sformat, pairs = Utils.mmin, Utils.sformat, Utils.pairs
 
 local Window = {}
 CL.Window = Window
 
 local W, PAD, HEADER_H, GAP = 272, 8, 30, 6
-local CARD_H, ENDED_H, RING, BTN, BTN_GAP = 56, 84, 40, 24, 5
-local CHIP_H, TILE_GAP, ENTRY_W = 18, 8, 92
-local PLUS_SECONDS = 300
+local CARD_H, RING, BTN, BTN_GAP = 56, 40, 22, 4
+-- Buttons sit just above the label line, so the label runs the card's width.
+local BTN_Y = 8 + RING / 2 - 3
+local CHIP_H, CHIP_ROW = 18, 28
+local LAP_HEAD, LAP_ROW, LAPS_SHOWN = 18, 14, 8
+local MAX_DOTS = 8
+local PLUS_SECONDS, NUDGE = 300, 60
 local PAUSED_ALPHA = 0.55
-local TIMER_CHIPS = { 1, 5, 10, 15, 30 }
-local POMODORO_CHIPS = { { 25, 5 }, { 50, 10 } }
+local HALF_PI = math.pi / 2
+Window.W, Window.PAD, Window.CHIP_H = W, PAD, CHIP_H
 
-local UI = { cards = {}, entries = {} }
+local UI = { cards = {} }
 
-local function DragStart()
+function CL.WindowDragStart()
     UI.win:StartMoving()
 end
 
 -- The place is read before the stop, which can leave the frame unanchored.
-local function DragStop()
+function CL.WindowDragStop()
     local win = UI.win
     local left, top = win:GetLeft(), win:GetTop()
     win:StopMovingOrSizing()
@@ -42,34 +46,34 @@ local function DragStop()
     end
 end
 
--- Cards
+-- Card buttons
 
 local function CardRun(btn)
-    return btn:GetParent().run
+    return btn.card.run
 end
 
-local function PauseClick(self)
-    Runs:TogglePause(CardRun(self), time())
-    CL.Changed()
+local function Act(fn)
+    return function(self)
+        fn(CardRun(self))
+    end
 end
 
-local function StopClick(self)
-    Runs:Cancel(CardRun(self))
-    CL.Changed()
-end
-
-local function SkipClick(self)
-    CL.Skip(CardRun(self))
-end
-
-local function PlusClick(self)
-    Runs:Extend(CardRun(self), time(), PLUS_SECONDS)
-    CL.Changed()
-end
-
-local function AgainClick(self)
-    CL.Again(CardRun(self))
-end
+local ACTIONS = {
+    pause = function(run) Runs:TogglePause(run, time()) CL.Changed() end,
+    stop = function(run) Runs:Cancel(run) CL.Changed() end,
+    skip = function(run) CL.Skip(run) end,
+    plus = function(run) Runs:Adjust(run, time(), NUDGE) CL.Changed() end,
+    minus = function(run) Runs:Adjust(run, time(), -NUDGE) CL.Changed() end,
+    lap = function(run) Runs:Lap(run, time()) CL.Changed() end,
+    reset = function(run) Runs:Restart(run, time()) CL.Changed() end,
+    more = function(run) Runs:Extend(run, time(), PLUS_SECONDS) CL.Changed() end,
+    again = function(run) CL.Again(run) end,
+    snooze = function(run) CL.Snooze(run) end,
+    laps = function(run)
+        run.lapsOpen = not run.lapsOpen
+        Window.Refresh()
+    end,
+}
 
 local function CardClick(self, button)
     if button == "RightButton" and self.run then CL.ShowRunMenu(self.run, self) end
@@ -79,7 +83,7 @@ local function PaintPill(card)
     local run = card.run
     if not (run and run.tool == "pomodoro") then return end
     local c = CL.KindColor(run)
-    local _, _, light = CL.Palette()
+    local _, faint, light = CL.Palette()
     ns.SetRoundedRectFill(card.pill, c[1], c[2], c[3], 0.22, true)
     -- The phase color lifted toward white, or toward black on light themes.
     local to, k = light and 0 or 1, light and 0.3 or 0.45
@@ -93,23 +97,60 @@ local function PaintPill(card)
             card.dots[i]:SetVertexColor(r, g, b, 1)
         end
     end
+    card.pomName:SetTextColor(faint[1], faint[2], faint[3], 1)
 end
 
--- An ended run wears a gold outline and a gold time.
 local function PaintCard(card)
     local r, g, b = CL.Surface(0.07)
     ns.SetRoundedRectFill(card, r, g, b, 1, true)
-    local ended = card.run and card.run.done
     ns.SetRoundedRectBorderEdgeShown(card, false)
     local body, faint, light = CL.Palette()
-    local c = ended and CL.GOLD or body
+    local c = card.run and card.run.done and CL.GOLD or body
     card.time:SetTextColor(c[1], c[2], c[3], 1)
     card.label:SetTextColor(faint[1], faint[2], faint[3], 1)
     local shadow = light and 0 or 1
     card.time:SetShadowColor(0, 0, 0, shadow)
     card.label:SetShadowColor(0, 0, 0, shadow)
+    card.lapHead:SetTextColor(faint[1], faint[2], faint[3], 1)
+    card.lapArrow:SetVertexColor(faint[1], faint[2], faint[3], 1)
+    for i = 1, #card.lapRows do
+        local row = card.lapRows[i]
+        row.n:SetTextColor(faint[1], faint[2], faint[3], 1)
+        row.split:SetTextColor(body[1], body[2], body[3], 1)
+        row.total:SetTextColor(faint[1], faint[2], faint[3], 1)
+    end
     ns.SetRoundedRectFill(card.glow, CL.GOLD[1], CL.GOLD[2], CL.GOLD[3], 0.18, true)
     PaintPill(card)
+end
+
+local function Button(card, key, tex, word)
+    local btn = CL.CreateRoundButton(card, BTN, tex, word)
+    btn.card = card
+    btn:SetScript("OnClick", Act(ACTIONS[key]))
+    card.buttons[key] = btn
+    return btn
+end
+
+local function Chip(card, key, action, label)
+    local chip = CL.CreateChip(card, CHIP_H)
+    chip.card = card
+    if label then chip:SetLabel(label) end
+    chip:SetScript("OnClick", Act(ACTIONS[action]))
+    card.chips[key] = chip
+    return chip
+end
+
+local function LapRow(card, i)
+    local row = card.lapRows[i]
+    if row then return row end
+    row = {}
+    row.n = CL.Text(card, "GameFontHighlightSmall")
+    row.split = CL.Text(card, "GameFontHighlightSmall")
+    row.total = CL.Text(card, "GameFontHighlightSmall")
+    row.split:SetJustifyH("RIGHT")
+    row.total:SetJustifyH("RIGHT")
+    card.lapRows[i] = row
+    return row
 end
 
 local function CreateCard()
@@ -117,8 +158,8 @@ local function CreateCard()
     card:SetHeight(CARD_H)
     card:RegisterForClicks("RightButtonUp")
     card:RegisterForDrag("LeftButton")
-    card:SetScript("OnDragStart", DragStart)
-    card:SetScript("OnDragStop", DragStop)
+    card:SetScript("OnDragStart", CL.WindowDragStart)
+    card:SetScript("OnDragStop", CL.WindowDragStop)
     card:SetScript("OnClick", CardClick)
     ns.CreateRoundedRectBorder(card)
     ns.SetRoundedRectBarHeight(card, 18)
@@ -131,7 +172,7 @@ local function CreateCard()
     card.label:SetJustifyH("LEFT")
     card.label:SetWordWrap(false)
 
-    -- A pomodoro's phase and its round in the set.
+    -- A pomodoro's phase, its round in the set, then its name.
     card.pill = CreateFrame("Frame", nil, card)
     card.pill:SetHeight(14)
     card.pill:SetPoint("TOPLEFT", card.time, "BOTTOMLEFT", 0, -4)
@@ -141,39 +182,46 @@ local function CreateCard()
     card.pill.text = CL.Text(card.pill, "GameFontHighlightSmall")
     card.pill.text:SetPoint("CENTER")
     card.dots = {}
-    for i = 1, CL.ROUNDS do
+    for i = 1, MAX_DOTS do
         local dot = card:CreateTexture(nil, "ARTWORK")
         dot:SetTexture(CL.TEX.dot)
         dot:SetSize(6, 6)
         dot:SetPoint("LEFT", card.pill, "RIGHT", 6 + (i - 1) * 9, 0)
         card.dots[i] = dot
     end
+    card.pomName = CL.Text(card, "GameFontHighlightSmall")
+    card.pomName:SetJustifyH("LEFT")
+    card.pomName:SetWordWrap(false)
 
-    -- Controls, right to left.
-    card.stop = CL.CreateRoundButton(card, BTN, CL.TEX.stop)
-    card.stop:SetPoint("RIGHT", card, "TOPRIGHT", -8, -(8 + RING / 2))
-    card.stop:SetScript("OnClick", StopClick)
-    card.stop.tip = L["CLOCK_STOP"]
-    card.pause = CL.CreateRoundButton(card, BTN)
-    card.pause:SetPoint("RIGHT", card.stop, "LEFT", -BTN_GAP, 0)
-    card.pause:SetScript("OnClick", PauseClick)
-    card.skip = CL.CreateRoundButton(card, BTN, CL.TEX.skip)
-    card.skip:SetPoint("RIGHT", card.pause, "LEFT", -BTN_GAP, 0)
-    card.skip:SetScript("OnClick", SkipClick)
+    card.buttons, card.chips = {}, {}
+    Button(card, "stop", CL.TEX.stop).tip = L["CLOCK_STOP"]
+    Button(card, "pause")
+    Button(card, "skip", CL.TEX.skip)
+    Button(card, "plus", nil, "+1").tip = L["CLOCK_PLUS1_TT"]
+    Button(card, "minus", nil, "-1").tip = L["CLOCK_MINUS1_TT"]
+    Button(card, "lap", CL.TEX.lap).tip = L["CLOCK_LAP"]
+    Button(card, "reset", CL.TEX.reset).tip = _G["RESET"] or "Reset"
 
-    -- An ended run's choices, under the time.
-    card.dismiss = CL.CreateChip(card, CHIP_H)
-    card.dismiss:SetLabel(L["CLOCK_DISMISS"])
-    card.dismiss:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 8)
-    card.dismiss:SetScript("OnClick", StopClick)
-    card.again = CL.CreateChip(card, CHIP_H)
-    card.again:SetLabel(L["CLOCK_AGAIN"])
-    card.again:SetPoint("RIGHT", card.dismiss, "LEFT", -5, 0)
-    card.again:SetScript("OnClick", AgainClick)
-    card.more = CL.CreateChip(card, CHIP_H)
-    card.more:SetLabel(L["CLOCK_PLUS5"])
-    card.more:SetPoint("RIGHT", card.again, "LEFT", -5, 0)
-    card.more:SetScript("OnClick", PlusClick)
+    -- Choices under the time: an ended run's, or the pomodoro's next phase.
+    Chip(card, "dismiss", "stop", L["CLOCK_DISMISS"])
+    Chip(card, "again", "again", L["CLOCK_AGAIN"])
+    Chip(card, "more", "more", L["CLOCK_PLUS5"])
+    Chip(card, "snooze", "snooze")
+    Chip(card, "next", "pause", L["CLOCK_START_NEXT"])
+    Chip(card, "restart", "reset", _G["RESTART"] or "Restart")
+
+    -- A stopwatch's laps, newest first, folded under one line.
+    card.lapToggle = CreateFrame("Button", nil, card)
+    card.lapToggle:SetHeight(LAP_HEAD)
+    card.lapToggle.card = card
+    card.lapToggle:SetScript("OnClick", Act(ACTIONS.laps))
+    card.lapArrow = card.lapToggle:CreateTexture(nil, "OVERLAY")
+    card.lapArrow:SetSize(8, 8)
+    card.lapArrow:SetPoint("LEFT", card.lapToggle, "LEFT", 0, 0)
+    card.lapArrow:SetTexture(CL.TEX.play)
+    card.lapHead = CL.Text(card.lapToggle, "GameFontHighlightSmall")
+    card.lapHead:SetPoint("LEFT", card.lapArrow, "RIGHT", 4, 0)
+    card.lapRows = {}
 
     -- Three soft gold pulses when the run signals.
     card.glow = CreateFrame("Frame", nil, card)
@@ -217,271 +265,126 @@ local function TickCard(card, now)
     CL.HoldRing(card.ring, run, now)
 end
 
+-- The round buttons a running card shows, right to left.
+local function ButtonsFor(run)
+    local tool = run.tool
+    if run.done then return nil end
+    if tool == "alarm" then return "stop" end
+    if tool == "timer" then return "stop", "pause", "plus", "minus" end
+    if tool == "stopwatch" then return "stop", "pause", "lap", "reset" end
+    if run.waiting then return "stop", "skip" end
+    return "stop", "pause", "skip"
+end
+
+-- The chips under the time, right to left.
+local function ChipsFor(run)
+    if run.done then
+        if run.tool == "alarm" then return "dismiss", "snooze" end
+        return "dismiss", "again", "more"
+    end
+    if run.waiting then return "next" end
+    if run.pausedAt and run.tool == "timer" then return "restart" end
+    return nil
+end
+
+local function ShowControls(card, run)
+    for _, btn in pairs(card.buttons) do btn:Hide() end
+    for _, chip in pairs(card.chips) do chip:Hide() end
+    local keys = { ButtonsFor(run) }
+    local right = -8
+    for i = 1, #keys do
+        local btn = card.buttons[keys[i]]
+        btn:ClearAllPoints()
+        btn:SetPoint("RIGHT", card, "TOPRIGHT", right, -BTN_Y)
+        btn:Show()
+        right = right - BTN - BTN_GAP
+    end
+    local chips = { ChipsFor(run) }
+    local x = -8
+    for i = 1, #chips do
+        local chip = card.chips[chips[i]]
+        chip:ClearAllPoints()
+        chip:SetPoint("TOPRIGHT", card, "TOPRIGHT", x, -(8 + RING + 6))
+        chip:Show()
+        x = x - chip:GetWidth() - 5
+    end
+    return #chips > 0
+end
+
+-- The laps under a stopwatch; returns the height they take.
+local function ShowLaps(card, run, top)
+    local laps = run.laps
+    local n = laps and #laps or 0
+    card.lapToggle:SetShown(n > 0)
+    local shown = (n > 0 and run.lapsOpen) and mmin(n, LAPS_SHOWN) or 0
+    for i = 1, #card.lapRows do
+        local row = card.lapRows[i]
+        row.n:Hide()
+        row.split:Hide()
+        row.total:Hide()
+    end
+    if n == 0 then return 0 end
+    card.lapToggle:ClearAllPoints()
+    card.lapToggle:SetPoint("TOPLEFT", card, "TOPLEFT", 10, top)
+    card.lapToggle:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, top)
+    card.lapHead:SetText(sformat(L["CLOCK_LAPS"], n))
+    -- The play glyph points down while the laps are open.
+    card.lapArrow:SetRotation(run.lapsOpen and -HALF_PI or 0)
+    for i = 1, shown do
+        local lap = n - i + 1
+        local row = LapRow(card, i)
+        local y = top - LAP_HEAD - (i - 1) * LAP_ROW
+        row.n:SetPoint("TOPLEFT", card, "TOPLEFT", 10, y)
+        row.n:SetText(sformat(L["CLOCK_LAP_N"], lap))
+        row.total:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, y)
+        row.total:SetText(CL.Format(laps[lap]))
+        row.split:SetPoint("TOPRIGHT", card, "TOPRIGHT", -70, y)
+        row.split:SetText(CL.Format(laps[lap] - (laps[lap - 1] or 0)))
+        row.n:Show()
+        row.split:Show()
+        row.total:Show()
+    end
+    PaintCard(card)
+    return LAP_HEAD + shown * LAP_ROW + (shown > 0 and 4 or 0)
+end
+
 local function FillCard(card, run, now)
     card.run = run
-    local tool = run.tool
-    local running = not run.done
-    card:SetHeight(running and CARD_H or ENDED_H)
     CL.SetRing(card.ring, run, now)
     card.shownTime, card.shownLabel = nil, nil
 
-    local pom = running and tool == "pomodoro"
+    local pom = run.tool == "pomodoro" and not run.done
     card.pill:SetShown(pom)
-    for i = 1, #card.dots do card.dots[i]:SetShown(pom) end
+    card.pomName:SetShown(pom)
     card.label:SetShown(not pom)
+    local set = 0
     if pom then
         card.pill.text:SetText(run.phase == "break" and L["CLOCK_BREAK"] or L["CLOCK_FOCUS"])
         card.pill:SetWidth(CL.TextWidth(card.pill.text) + 12)
-        card.lit = CL.RoundInSet(run)
-        card.skip.tip = run.phase == "focus" and L["CLOCK_SKIP_BREAK"] or L["CLOCK_SKIP_FOCUS"]
+        card.lit, set = CL.RoundInSet(run)
+        set = mmin(set, MAX_DOTS)
+        card.buttons.skip.tip = run.phase == "focus" and L["CLOCK_SKIP_BREAK"] or L["CLOCK_SKIP_FOCUS"]
+        card.pomName:ClearAllPoints()
+        card.pomName:SetPoint("LEFT", card.pill, "RIGHT", 6 + set * 9 + 2, 0)
+        card.pomName:SetText(run.name or "")
     end
+    for i = 1, #card.dots do card.dots[i]:SetShown(i <= set) end
+    card.buttons.pause.icon:SetTexture(run.pausedAt and CL.TEX.play or CL.TEX.pause)
+    card.buttons.pause.tip = run.pausedAt and L["CLOCK_RESUME"] or L["CLOCK_PAUSE"]
+    card.chips.snooze:SetLabel(sformat(L["CLOCK_SNOOZE_FMT"], CL.SnoozeMinutes()))
 
-    local pausable = running and tool ~= "alarm"
-    card.stop:SetShown(running)
-    card.pause:SetShown(pausable)
-    card.skip:SetShown(pom)
-    card.more:SetShown(not running)
-    card.again:SetShown(not running)
-    card.dismiss:SetShown(not running)
-    if pausable then
-        card.pause.icon:SetTexture(run.pausedAt and CL.TEX.play or CL.TEX.pause)
-        card.pause.tip = run.pausedAt and L["CLOCK_RESUME"] or L["CLOCK_PAUSE"]
-    end
-
-    -- The label ends where the controls start.
-    local n = not running and 0 or (pom and 3 or (pausable and 2 or 1))
+    local chipRow = ShowControls(card, run)
     card.label:ClearAllPoints()
     card.label:SetPoint("TOPLEFT", card.time, "BOTTOMLEFT", 0, -4)
-    card.label:SetPoint("RIGHT", card, "RIGHT", -(8 + n * BTN + mmax(0, n - 1) * BTN_GAP + 6), 0)
-    card.time:SetAlpha(run.pausedAt and PAUSED_ALPHA or 1)
+    card.label:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    card.pomName:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    card.time:SetAlpha(run.pausedAt and not run.waiting and PAUSED_ALPHA or 1)
+
+    local h = CARD_H + (chipRow and CHIP_ROW or 0)
+    h = h + ShowLaps(card, run, -h + 2)
+    card:SetHeight(h)
     PaintCard(card)
     TickCard(card, now)
-end
-
--- Tiles
-
-local function PaintHint()
-    local hint = UI.hint
-    if not hint then return end
-    local _, faint, light = CL.Palette()
-    local c = UI.badEntry and CL.FOCUS_COLOR or faint
-    hint:SetTextColor(c[1], c[2], c[3], 1)
-    hint:SetShadowColor(0, 0, 0, light and 0 or 1)
-end
-
-local function SetHint(text, bad)
-    UI.badEntry = bad
-    UI.hint:SetText(text)
-    PaintHint()
-end
-
-local function PaintTile(tile)
-    local r, g, b = CL.Surface(0.07)
-    ns.SetRoundedRectFill(tile, r, g, b, 1, true)
-    local body, faint, light = CL.Palette()
-    tile.title:SetTextColor(body[1], body[2], body[3], 1)
-    tile.title:SetShadowColor(0, 0, 0, light and 0 or 1)
-    tile.glyph:SetVertexColor(tile.color[1], tile.color[2], tile.color[3], 1)
-    if tile.unit then tile.unit.text:SetTextColor(faint[1], faint[2], faint[3], 1) end
-end
-
-local function CreateTile(parent, tool, color)
-    local tile = CreateFrame("Frame", nil, parent)
-    ns.CreateRoundedRectBorder(tile)
-    ns.SetRoundedRectBarHeight(tile, 18)
-    ns.SetRoundedRectBorderEdgeShown(tile, false)
-    tile.glyph = tile:CreateTexture(nil, "ARTWORK")
-    tile.glyph:SetSize(14, 14)
-    tile.glyph:SetPoint("TOPLEFT", tile, "TOPLEFT", 8, -8)
-    tile.glyph:SetTexture(ns.CLOCK_TOOL_ICONS[tool])
-    tile.title = CL.Text(tile, "GameFontHighlight")
-    tile.title:SetPoint("LEFT", tile.glyph, "RIGHT", 6, 0)
-    tile.title:SetText(CL.TOOL_NAMES[tool])
-    tile.color = color
-    tile.items = {}
-    CL.Painted(tile, PaintTile)
-    return tile
-end
-
-local function AddChip(tile, label, onClick, a, b)
-    local chip = CL.CreateChip(tile, CHIP_H)
-    chip:SetLabel(label)
-    chip.a, chip.b = a, b
-    chip:SetScript("OnClick", onClick)
-    tile.items[#tile.items + 1] = chip
-    return chip
-end
-
--- The plain word after the timer chips.
-local function AddUnit(tile, text)
-    local unit = CreateFrame("Frame", nil, tile)
-    unit:SetHeight(CHIP_H)
-    unit.text = CL.Text(unit, "GameFontHighlightSmall")
-    unit.text:SetPoint("LEFT", unit, "LEFT", 2, 0)
-    unit.text:SetText(text)
-    unit:SetWidth(CL.TextWidth(unit.text) + 4)
-    tile.unit = unit
-    tile.items[#tile.items + 1] = unit
-end
-
--- Chips in rows, wrapping at the tile's edge; returns the tile's height.
-local function FlowTile(tile, width)
-    local x, y = 8, -28
-    for i = 1, #tile.items do
-        local item = tile.items[i]
-        local w = item:GetWidth()
-        if x > 8 and x + w > width - 8 then
-            x, y = 8, y - CHIP_H - 4
-        end
-        item:ClearAllPoints()
-        item:SetPoint("TOPLEFT", tile, "TOPLEFT", x, y)
-        x = x + w + 4
-    end
-    return -y + CHIP_H + 8
-end
-
-local function StartFromTile(tool, a, b)
-    UI.tilesOpen = false
-    CL.StartRun(tool, a, b)
-end
-
-local function TimerChip(self)
-    StartFromTile("timer", self.a * 60)
-end
-
-local function PomodoroChip(self)
-    StartFromTile("pomodoro", self.a * 60, self.b * 60)
-end
-
-local function StopwatchChip()
-    StartFromTile("stopwatch")
-end
-
--- A tile's typed entry: its chip gives way to a box read as the search bar
--- reads "timer 45", "pom 40 10" or "alarm 7:30pm".
-
-local ENTRY_VERB = { timer = "timer", pomodoro = "pom", alarm = "alarm" }
-local ENTRY_BAD = { timer = "CLOCK_TIMER_BAD", pomodoro = "CLOCK_POMODORO_BAD", alarm = "CLOCK_ALARM_BAD" }
-
-local function CloseEntry(box)
-    if not (box and box:IsShown()) then return end
-    box:Hide()
-    box.chip:Show()
-    SetHint(L["CLOCK_TILES_HINT"], false)
-end
-
-local function CloseEntries()
-    for _, box in pairs(UI.entries) do CloseEntry(box) end
-end
-
-local function EntryEnter(box)
-    local text = strtrim(box:GetText() or "")
-    local cmd = text ~= "" and Grammar.Parse(ENTRY_VERB[box.tool] .. " " .. text)
-    if cmd and cmd.tool == box.tool and Grammar.Resolve(cmd, time()) then
-        box:ClearFocus()
-        if box.tool == "alarm" then
-            StartFromTile("alarm", cmd.at)
-        else
-            StartFromTile(box.tool, cmd.seconds, cmd.seconds2)
-        end
-        return
-    end
-    SetHint(L[ENTRY_BAD[box.tool]], true)
-end
-
-local function EntryChanged(box)
-    box.placeholder:SetShown((box:GetText() or "") == "")
-    if UI.badEntry then SetHint(L["CLOCK_TILES_HINT"], false) end
-end
-
-local function PaintEntry(box)
-    local r, g, b = CL.Surface(0.0)
-    ns.SetRoundedRectFill(box, r, g, b, 1, true)
-    local body, faint = CL.Palette()
-    box:SetTextColor(body[1], body[2], body[3], 1)
-    box.placeholder:SetTextColor(faint[1], faint[2], faint[3], 1)
-end
-
-local function EnsureEntry(chip)
-    local box = UI.entries[chip.tool]
-    if box then return box end
-    local tile = chip:GetParent()
-    box = CreateFrame("EditBox", nil, tile)
-    box.chip, box.tool = chip, chip.tool
-    box:Hide()
-    box:SetAutoFocus(false)
-    box:SetHeight(CHIP_H)
-    box:SetPoint("TOPLEFT", chip, "TOPLEFT", 0, 0)
-    box:SetFontObject(_G["GameFontHighlightSmall"] or _G["GameFontNormal"])
-    ns.RegisterAddonFont(box)
-    box:SetTextInsets(7, 7, 0, 0)
-    box:SetMaxLetters(12)
-    ns.CreateRoundedRectBorder(box)
-    ns.SetRoundedRectBarHeight(box, CHIP_H)
-    ns.SetRoundedRectBorderEdgeShown(box, false)
-    box.placeholder = CL.Text(box, "GameFontHighlightSmall")
-    box.placeholder:SetPoint("LEFT", box, "LEFT", 7, 0)
-    box.placeholder:SetText(chip.placeholder)
-    box:SetScript("OnEnterPressed", EntryEnter)
-    box:SetScript("OnEscapePressed", box.ClearFocus)
-    box:SetScript("OnEditFocusLost", CloseEntry)
-    box:SetScript("OnTextChanged", EntryChanged)
-    UI.entries[chip.tool] = box
-    CL.Painted(box, PaintEntry)
-    return box
-end
-
--- As wide as the room left in the tile row, never narrower than the chip.
-local function EntryChip(chip)
-    CloseEntries()
-    local box = EnsureEntry(chip)
-    local room = (chip:GetParent():GetRight() or 0) - (chip:GetLeft() or 0) - 8
-    box:SetWidth(mmax(chip:GetWidth(), mmin(ENTRY_W, room)))
-    chip:Hide()
-    box:SetText("")
-    box:Show()
-    -- A box opened from a press takes focus a frame later.
-    Utils.SafeAfter(0, function()
-        if box:IsVisible() then box:SetFocus() end
-    end)
-end
-
-local function AddEntryChip(tile, tool, label, placeholder)
-    local chip = AddChip(tile, label, EntryChip)
-    chip.tool, chip.placeholder = tool, placeholder
-end
-
-local function CreateTiles(win)
-    local tiles = CreateFrame("Frame", nil, win)
-    local tw = (W - 2 * PAD - TILE_GAP) / 2
-    tiles:SetWidth(W - 2 * PAD)
-    local timer = CreateTile(tiles, "timer", CL.GOLD)
-    for i = 1, #TIMER_CHIPS do AddChip(timer, tostring(TIMER_CHIPS[i]), TimerChip, TIMER_CHIPS[i]) end
-    AddUnit(timer, L["CLOCK_MIN"])
-    AddEntryChip(timer, "timer", L["CLOCK_CUSTOM"], "45")
-    local pom = CreateTile(tiles, "pomodoro", CL.FOCUS_COLOR)
-    for i = 1, #POMODORO_CHIPS do
-        local p = POMODORO_CHIPS[i]
-        AddChip(pom, p[1] .. " / " .. p[2], PomodoroChip, p[1], p[2])
-    end
-    AddEntryChip(pom, "pomodoro", L["CLOCK_CUSTOM"], "40 / 10")
-    local sw = CreateTile(tiles, "stopwatch", CL.GOLD)
-    AddChip(sw, _G["START"] or "Start", StopwatchChip)
-    local alarm = CreateTile(tiles, "alarm", CL.ALARM_COLOR)
-    AddEntryChip(alarm, "alarm", L["CLOCK_SET_TIME"],
-        GameTime_GetFormattedTime and GameTime_GetFormattedTime(19, 30, true) or "19:30")
-    -- Two by two, each row as tall as its taller tile.
-    local h1 = mmax(FlowTile(timer, tw), FlowTile(pom, tw))
-    local h2 = mmax(FlowTile(sw, tw), FlowTile(alarm, tw))
-    local cells = { { timer, 0, 0, h1 }, { pom, tw + TILE_GAP, 0, h1 },
-        { sw, 0, -(h1 + TILE_GAP), h2 }, { alarm, tw + TILE_GAP, -(h1 + TILE_GAP), h2 } }
-    for i = 1, #cells do
-        local c = cells[i]
-        c[1]:SetSize(tw, c[4])
-        c[1]:SetPoint("TOPLEFT", tiles, "TOPLEFT", c[2], c[3])
-    end
-    tiles:SetHeight(h1 + TILE_GAP + h2)
-    UI.tiles = tiles
 end
 
 -- The window
@@ -492,7 +395,6 @@ local function PaintWindow(win)
     win.glyph:SetVertexColor(gc[1], gc[2], gc[3], 1)
     win.title:SetTextColor(ns.TooltipTextColor())
     win.title:SetShadowColor(0, 0, 0, light and 0 or 1)
-    PaintHint()
 end
 
 local function SettingsTip()
@@ -502,6 +404,10 @@ end
 local function TilesClick()
     UI.tilesOpen = not UI.tilesOpen
     Window.Refresh()
+end
+
+function Window.CloseTiles()
+    UI.tilesOpen = false
 end
 
 local function EnsureWindow()
@@ -515,10 +421,18 @@ local function EnsureWindow()
     win:EnableMouse(true)
     win:SetMovable(true)
     win:RegisterForDrag("LeftButton")
-    win:SetScript("OnDragStart", DragStart)
-    win:SetScript("OnDragStop", DragStop)
-    win:HookScript("OnHide", function()
-        CloseEntries()
+    win:SetScript("OnDragStart", CL.WindowDragStart)
+    win:SetScript("OnDragStop", CL.WindowDragStop)
+    win:HookScript("OnHide", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_DISABLED")
+        CL.Tiles.CloseEntries()
+        CL.AlarmList.CloseEditor()
+    end)
+    -- A pull takes the keyboard back from a typed box.
+    win:HookScript("OnShow", function(self) self:RegisterEvent("PLAYER_REGEN_DISABLED") end)
+    win:SetScript("OnEvent", function()
+        CL.Tiles.CloseEntries()
+        CL.AlarmList.DropFocus()
     end)
     ns.StyleMenuPanel(win)
     local pos = Runs.sv.hud
@@ -550,11 +464,7 @@ local function EnsureWindow()
     win.plus:SetScript("OnClick", TilesClick)
     win.plus.tip = L["CLOCK_TILES_TT"]
 
-    CreateTiles(win)
-    UI.hint = CL.Text(win, "GameFontHighlightSmall")
-    UI.hint:SetWidth(W - 2 * PAD - 4)
-    UI.hint:SetJustifyH("LEFT")
-    UI.hint:SetText(L["CLOCK_TILES_HINT"])
+    CL.Tiles.Create(win)
     CL.Painted(win, PaintWindow)
     return win
 end
@@ -580,22 +490,10 @@ function Window.Refresh()
         cards[i]:Hide()
         cards[i].run = nil
     end
+    y = CL.AlarmList.Layout(win, y, now)
     win.plus:SetShown(#runs > 0)
-    local tiles = #runs == 0 or UI.tilesOpen
-    UI.tiles:SetShown(tiles)
-    UI.hint:SetShown(tiles)
-    if tiles then
-        UI.tiles:ClearAllPoints()
-        UI.tiles:SetPoint("TOPLEFT", win, "TOPLEFT", PAD, y)
-        y = y - UI.tiles:GetHeight() - 8
-        UI.hint:ClearAllPoints()
-        UI.hint:SetPoint("TOPLEFT", win, "TOPLEFT", PAD + 2, y)
-        y = y - UI.hint:GetStringHeight()
-    else
-        y = y + GAP
-        CloseEntries()
-    end
-    win:SetHeight(-y + PAD)
+    y = CL.Tiles.Layout(win, y, #runs == 0 or UI.tilesOpen)
+    win:SetHeight(-y + PAD - GAP)
 end
 
 function Window.UpdateTimes(now)
@@ -604,6 +502,7 @@ function Window.UpdateTimes(now)
     for i = 1, #cards do
         if cards[i].run and cards[i]:IsShown() then TickCard(cards[i], now) end
     end
+    CL.AlarmList.UpdateTimes(now)
 end
 
 function Window.Show()

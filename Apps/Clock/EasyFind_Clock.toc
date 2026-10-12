@@ -14,6 +14,9 @@
 Runs.lua
 Alarms.lua
 Parts.lua
+Tiles.lua
+AlarmList.lua
 Window.lua
 Strip.lua
+Menus.lua
 Clock.lua

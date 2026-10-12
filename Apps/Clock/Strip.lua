@@ -1,21 +1,30 @@
 local _, CL = ...
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.ClockRuns and ns.ClockGrammar) then return end
+if not (ns and ns.ClockRuns and ns.ClockAlarms) then return end
 
--- The minimized clock: a slim bar with one segment per run, left on
--- screen while the window is closed.
+-- The minimized clock: a slim bar with one segment per run and one for an
+-- alarm due within the hour, left on screen while the window is closed.
 local L = ns.L
-local Runs = ns.ClockRuns
+local Runs, Alarms = ns.ClockRuns, ns.ClockAlarms
 
 local CreateFrame, UIParent = CreateFrame, UIParent
 local time, type = time, type
+local sformat, mmax = ns.Utils.sformat, ns.Utils.mmax
 
 local Strip = {}
 CL.Strip = Strip
 
 local STRIP_H, SEG_H, MINI, SEG_GAP = 30, 22, 16, 4
+local SOON_SECONDS = 3600
 
-local UI = { segs = {} }
+-- soon: the upcoming alarm drawn as an alarm card would draw it.
+local UI = { segs = {}, soon = { tool = "alarm" } }
+
+local function SoonAlarm(now)
+    local alarm = Alarms:Soonest()
+    if alarm and alarm.next - now <= SOON_SECONDS then return alarm end
+    return nil
+end
 
 local function DragStart()
     UI.strip:StartMoving()
@@ -37,7 +46,13 @@ end
 local function SegEnter(self)
     local run = self.run
     if not run then return end
-    ns.ShowHintTooltip(self, "ANCHOR_TOP", CL.CardLabel(run, time()), nil, L["CLOCK_STRIP_TT"])
+    local now = time()
+    if self.alarm then
+        local title = sformat(L["CLOCK_DOT_FMT"], CL.RunLabel(run), sformat(L["CLOCK_IN_FMT"], CL.Format(run.at - now)))
+        ns.ShowHintTooltip(self, "ANCHOR_TOP", title, nil, L["CLOCK_STRIP_ALARM_TT"])
+        return
+    end
+    ns.ShowHintTooltip(self, "ANCHOR_TOP", CL.CardLabel(run, now), nil, L["CLOCK_STRIP_TT"])
 end
 
 local function SegLeave(self)
@@ -46,7 +61,12 @@ end
 
 local function SegClick(self, button)
     if button == "RightButton" then
-        if self.run then CL.ShowRunMenu(self.run, self) end
+        local alarm = self.alarm
+        if alarm then
+            CL.ShowMenu({ { text = L["CLOCK_TURN_OFF"], onClick = function() CL.SetAlarmOn(alarm, false) end } }, self)
+        elseif self.run then
+            CL.ShowRunMenu(self.run, self)
+        end
     else
         CL.OpenWindow()
     end
@@ -124,6 +144,10 @@ local function EnsureStrip()
 end
 
 function Strip.UpdateTimes(now, relayout)
+    if not relayout and SoonAlarm(now) ~= UI.soonAlarm then
+        Strip.Refresh()
+        return
+    end
     local strip = UI.strip
     if not (strip and strip:IsShown()) and not relayout then return end
     local segs = UI.segs
@@ -144,28 +168,44 @@ function Strip.UpdateTimes(now, relayout)
     if relayout then Layout() end
 end
 
--- Shown while any run exists and the window is closed.
+local function ShowSeg(i, run, alarm, now)
+    local seg = UI.segs[i] or CreateSeg()
+    UI.segs[i] = seg
+    seg.run, seg.alarm, seg.shownText = run, alarm, nil
+    CL.SetRing(seg.ring, run, now)
+    PaintSeg(seg)
+    seg:Show()
+end
+
+local function FillSoon(alarm)
+    local soon = UI.soon
+    -- The ring drains over the last hour.
+    soon.at, soon.startedAt = alarm.next, mmax(alarm.armedAt or 0, alarm.next - SOON_SECONDS)
+    soon.name, soon.hour, soon.min, soon.server = alarm.name, alarm.hour, alarm.min, alarm.server
+    return soon
+end
+
+-- Shown while the window is closed and a run exists or an alarm is near.
 function Strip.Refresh()
     local runs = Runs:List()
-    if #runs == 0 or CL.Window.IsShown() then
+    local now = time()
+    local alarm = SoonAlarm(now)
+    UI.soonAlarm = alarm
+    if (#runs == 0 and not alarm) or CL.Window.IsShown() then
         if UI.strip then UI.strip:Hide() end
         return
     end
     EnsureStrip()
-    local now = time()
-    local segs = UI.segs
-    for i = 1, #runs do
-        local seg = segs[i] or CreateSeg()
-        segs[i] = seg
-        seg.run = runs[i]
-        seg.shownText = nil
-        CL.SetRing(seg.ring, runs[i], now)
-        PaintSeg(seg)
-        seg:Show()
+    for i = 1, #runs do ShowSeg(i, runs[i], nil, now) end
+    local n = #runs
+    if alarm then
+        n = n + 1
+        ShowSeg(n, FillSoon(alarm), alarm, now)
     end
-    for i = #runs + 1, #segs do
+    local segs = UI.segs
+    for i = n + 1, #segs do
         segs[i]:Hide()
-        segs[i].run = nil
+        segs[i].run, segs[i].alarm = nil, nil
     end
     UI.strip:Show()
     Strip.UpdateTimes(now, true)

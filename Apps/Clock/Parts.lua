@@ -9,7 +9,7 @@ local L = ns.L
 local Runs, Grammar = ns.ClockRuns, ns.ClockGrammar
 local Format = Grammar.FormatDuration
 
-local CreateFrame, GetTime = CreateFrame, GetTime
+local CreateFrame, GetTime, tostring = CreateFrame, GetTime, tostring
 local pairs, setmetatable = Utils.pairs, setmetatable
 local sformat, mfloor, mceil = Utils.sformat, Utils.mfloor, Utils.mceil
 
@@ -19,6 +19,7 @@ local TEX = "Interface\\AddOns\\EasyFind\\textures\\"
 CL.TEX = {
     ring = TEX .. "clock-ring", ringSmall = TEX .. "clock-ring-small", dot = TEX .. "clock-dot",
     play = TEX .. "clock-play", pause = TEX .. "clock-pause", stop = TEX .. "clock-stop", skip = TEX .. "clock-skip",
+    lap = TEX .. "clock-lap", reset = TEX .. "clock-reset",
     flat = "Interface\\Buttons\\WHITE8x8",
 }
 
@@ -172,9 +173,14 @@ end
 
 -- Buttons
 
+-- A chosen chip (a repeat day, realm time) wears the alarm color.
 local function PaintButton(btn)
     local k = btn.down and 0.10 or (btn.hover and 0.26 or 0.15)
     local r, g, b = CL.Surface(k)
+    if btn.active then
+        local c = CL.ALARM_COLOR
+        r, g, b = r + (c[1] - r) * 0.55, g + (c[2] - g) * 0.55, b + (c[3] - b) * 0.55
+    end
     ns.SetRoundedRectFill(btn, r, g, b, 1, true)
     local body = CL.Palette()
     if btn.icon then btn.icon:SetVertexColor(body[1], body[2], body[3], 1) end
@@ -217,16 +223,27 @@ local function MakeRounded(btn, h)
     CL.Painted(btn, PaintButton)
 end
 
--- A round button with a glyph; `tip` is its tooltip.
-function CL.CreateRoundButton(parent, size, tex)
+-- A round button with a glyph, or a short word ("+1"); `tip` is its tooltip.
+function CL.CreateRoundButton(parent, size, tex, word)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(size, size)
-    btn.icon = btn:CreateTexture(nil, "OVERLAY")
-    btn.icon:SetSize(mfloor(size * 0.5), mfloor(size * 0.5))
-    btn.icon:SetPoint("CENTER")
-    if tex then btn.icon:SetTexture(tex) end
+    if word then
+        btn.text = CL.Text(btn, "GameFontHighlightSmall")
+        btn.text:SetPoint("CENTER")
+        btn.text:SetText(word)
+    else
+        btn.icon = btn:CreateTexture(nil, "OVERLAY")
+        btn.icon:SetSize(mfloor(size * 0.5), mfloor(size * 0.5))
+        btn.icon:SetPoint("CENTER")
+        if tex then btn.icon:SetTexture(tex) end
+    end
     MakeRounded(btn, size)
     return btn
+end
+
+function CL.SetActive(btn, on)
+    btn.active = on and true or nil
+    PaintButton(btn)
 end
 
 local function SetChipLabel(chip, text)
@@ -283,6 +300,44 @@ function CL.CreateGlyphButton(parent, kind)
     return btn
 end
 
+-- A two-state switch, like the options panel's.
+local function PaintSwitch(sw)
+    local c = sw.on and CL.ALARM_COLOR
+    if c then
+        ns.SetRoundedRectFill(sw, c[1], c[2], c[3], 1, true)
+    else
+        local r, g, b = CL.Surface(0.24)
+        ns.SetRoundedRectFill(sw, r, g, b, 1, true)
+    end
+    ns.SetRoundedRectFill(sw.knob, 0.96, 0.96, 0.96, 1, true)
+end
+
+local function SetSwitch(sw, on)
+    sw.on = on and true or false
+    sw.knob:ClearAllPoints()
+    sw.knob:SetPoint(sw.on and "RIGHT" or "LEFT", sw, sw.on and "RIGHT" or "LEFT", sw.on and -2 or 2, 0)
+    PaintSwitch(sw)
+end
+
+function CL.CreateSwitch(parent)
+    local sw = CreateFrame("Button", nil, parent)
+    sw:SetSize(30, 16)
+    ns.CreateRoundedRectBorder(sw)
+    ns.SetRoundedRectBarHeight(sw, 16)
+    ns.SetRoundedRectBorderEdgeShown(sw, false)
+    sw.knob = CreateFrame("Frame", nil, sw)
+    sw.knob:SetSize(12, 12)
+    sw.knob:EnableMouse(false)
+    ns.CreateRoundedRectBorder(sw.knob)
+    ns.SetRoundedRectBarHeight(sw.knob, 12)
+    ns.SetRoundedRectBorderEdgeShown(sw.knob, false)
+    sw.SetOn = SetSwitch
+    Utils.AttachDelayedTooltip(sw, "ANCHOR_TOP", ButtonTip)
+    SetSwitch(sw, false)
+    CL.Painted(sw, PaintSwitch)
+    return sw
+end
+
 -- Labels
 
 function CL.Words(sec)
@@ -291,49 +346,76 @@ function CL.Words(sec)
     return Format(sec)
 end
 
--- A run's name in menus, tooltips and signals.
-function CL.RunLabel(run)
-    local tool = run.tool
-    local name = CL.TOOL_NAMES[tool]
-    if tool == "timer" then return name .. " " .. Format(run.duration) end
-    if tool == "alarm" then return name .. " " .. Grammar.TimeLabel(run.at) end
-    if tool == "stopwatch" then return run.mark and (name .. " " .. Format(run.mark)) or name end
+-- A chip's length: whole minutes as a plain number, the rest as m:ss.
+function CL.ChipLength(sec)
+    if sec % 60 == 0 then return tostring(mfloor(sec / 60)) end
+    return Format(sec)
+end
+
+-- What an alarm card's clock reads: its own hour, realm time saying so.
+function CL.AlarmClock(run)
+    if run.hour then return Grammar.ClockLabel(run.hour, run.min, run.server) end
+    return Grammar.TimeLabel(run.at)
+end
+
+local function PhaseName(run)
     local n = (run.intervals or 0) + (run.phase == "focus" and 1 or 0)
     return sformat(run.phase == "break" and L["CLOCK_BREAK_N"] or L["CLOCK_FOCUS_N"], n)
 end
 
+-- A run in the end announcement and the chat line: its name, or what it is.
+function CL.RunLabel(run)
+    local tool = run.tool
+    if tool == "alarm" then
+        local clock = CL.AlarmClock(run)
+        if run.name then return sformat(L["CLOCK_DOT_FMT"], run.name, clock) end
+        return CL.TOOL_NAMES.alarm .. " " .. clock
+    end
+    if run.name then return run.name end
+    local kind = CL.TOOL_NAMES[tool]
+    if tool == "timer" then return kind .. " " .. Format(run.duration) end
+    if tool == "stopwatch" then return run.mark and (kind .. " " .. Format(run.mark)) or kind end
+    return PhaseName(run)
+end
+
+-- A run in a menu: a pomodoro by its name, not its phase.
+function CL.MenuLabel(run)
+    if run.tool == "pomodoro" then return run.name or CL.TOOL_NAMES.pomodoro end
+    return CL.RunLabel(run)
+end
+
 -- The big time on a card or a strip segment.
 function CL.TimeString(run, now)
-    if run.tool == "alarm" then return Grammar.TimeLabel(run.at) end
+    if run.tool == "alarm" and (run.done or not run.snoozed) then return CL.AlarmClock(run) end
     return Format(Runs.Shown(run, now))
 end
 
 -- The line under a card's time.
 function CL.CardLabel(run, now)
     local tool = run.tool
+    local who = run.name or CL.TOOL_NAMES[tool]
     local text
     if tool == "timer" then
-        text = sformat(L["CLOCK_CARD_TIMER"], CL.Words(run.duration))
+        text = sformat(L["CLOCK_DOT_FMT"], who, CL.Words(run.duration))
         if run.done then return sformat(L["CLOCK_CARD_ENDED"], text) end
     elseif tool == "alarm" then
-        if run.done then return sformat(L["CLOCK_CARD_ENDED"], CL.TOOL_NAMES.alarm) end
-        return sformat(L["CLOCK_CARD_ALARM"], Format(run.at - now))
+        if run.done then return sformat(L["CLOCK_CARD_ENDED"], who) end
+        return sformat(L["CLOCK_CARD_SNOOZED"], who)
     elseif tool == "stopwatch" then
-        if run.mark then
-            text = sformat(run.markHit and L["CLOCK_CARD_PASSED"] or L["CLOCK_CARD_MARK"], Format(run.mark))
-        else
-            text = CL.TOOL_NAMES.stopwatch
-        end
+        text = run.mark and sformat(run.markHit and L["CLOCK_CARD_PASSED"] or L["CLOCK_CARD_MARK"], who, Format(run.mark))
+            or who
     else
-        text = sformat(L["CLOCK_CARD_POMODORO"], CL.RunLabel(run))
+        text = sformat(L["CLOCK_DOT_FMT"], who, PhaseName(run))
+        if run.waiting then return sformat(L["CLOCK_CARD_WAITING"], text) end
     end
     if run.pausedAt then return sformat(L["CLOCK_CARD_PAUSED"], text) end
     return text
 end
 
--- The pomodoro round shown as lit dots, 1 to ROUNDS.
+-- Dots for a pomodoro's set, and which round of it this is.
 function CL.RoundInSet(run)
+    local set = (run.longEvery and run.longEvery > 0) and run.longEvery or CL.ROUNDS
     local round = (run.intervals or 0) + (run.phase == "focus" and 1 or 0)
     if round < 1 then round = 1 end
-    return (round - 1) % CL.ROUNDS + 1
+    return (round - 1) % set + 1, set
 end

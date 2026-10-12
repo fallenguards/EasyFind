@@ -1,38 +1,45 @@
 local addonName, CL = ...
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.ClockRuns and ns.ClockGrammar and CL.Window and CL.Strip) then return end
+if not (ns and ns.ClockRuns and ns.ClockAlarms and CL.Window and CL.Strip and CL.UpdateMinimapButton) then return end
 
 local Utils = ns.Utils
 local L = ns.L
-local Runs = ns.ClockRuns
+local Runs, Alarms, Signals = ns.ClockRuns, ns.ClockAlarms, ns.Signals
 local Grammar = ns.ClockGrammar
 local Format = Grammar.FormatDuration
 local Window, Strip = CL.Window, CL.Strip
 
-local CreateFrame, UIParent, Minimap = CreateFrame, UIParent, Minimap
-local GetCursorPosition, InCombatLockdown, UnitAffectingCombat = GetCursorPosition, InCombatLockdown, UnitAffectingCombat
-local PlaySound, FlashClientIcon = PlaySound, FlashClientIcon
-local time, date, type, wipe = time, date, type, wipe
+local CreateFrame, UIParent = CreateFrame, UIParent
+local InCombatLockdown, UnitAffectingCombat = InCombatLockdown, UnitAffectingCombat
+local time, type, wipe, tonumber, tostring = time, type, wipe, tonumber, tostring
 local sformat = Utils.sformat
-local mdeg, matan2 = math.deg, math.atan2
 
-local TICK_SECONDS = 0.2
-local PLUS_SECONDS = 300
-local RESTART_TEXT = _G["RESTART"] or "Restart"
-local ALERT_SOUND = SOUNDKIT and SOUNDKIT.ALARM_CLOCK_WARNING_3
+local TICK_SECONDS, ALARMS_TICK_SECONDS = 0.2, 1
+local RING_EVERY = 5
+local SNOOZE_DEFAULT = 9
+
+local SOUND_SETTING = {
+    timer = "clockSoundTimer", alarm = "clockSoundAlarm", mark = "clockSoundMark",
+    focus = "clockSoundPomodoro", ["break"] = "clockSoundPomodoro",
+}
 
 -- Frames and state in one table (upvalue budget).
-local UI = { events = {}, away = {} }
+local UI = { events = {}, away = {}, due = {}, spec = {} }
 local Clock = {}
 local UpdateDim
 
--- A menu names a pomodoro, not its phase.
-local function MenuLabel(run)
-    if run.tool == "pomodoro" then return CL.TOOL_NAMES.pomodoro end
-    return CL.RunLabel(run)
-end
-
 -- The end of a run
+
+local function PomodoroText(run)
+    local len = Format(Runs.PhaseLen(run))
+    if run.phase == "focus" then
+        return sformat(run.waiting and L["CLOCK_FOCUS_READY"] or L["CLOCK_FOCUS_START"], len)
+    end
+    if run.long then
+        return sformat(run.waiting and L["CLOCK_LONG_BREAK_READY"] or L["CLOCK_LONG_BREAK_START"], len)
+    end
+    return sformat(run.waiting and L["CLOCK_BREAK_READY"] or L["CLOCK_BREAK_START"], len)
+end
 
 local function EventText(event)
     local run, kind = event.run, event.kind
@@ -43,68 +50,64 @@ local function EventText(event)
         text = CL.RunLabel(run)
     elseif kind == "mark" then
         text = sformat(L["CLOCK_MARK_REACHED"], Format(run.mark))
-    elseif kind == "break" then
-        text = sformat(L["CLOCK_BREAK_START"], Format(run.breakLen))
+        if run.name then text = sformat(L["CLOCK_CMD_NAMED"], run.name, text) end
     else
-        text = sformat(L["CLOCK_FOCUS_START"], Format(run.focusLen))
+        text = PomodoroText(run)
+        if run.name then text = sformat(L["CLOCK_CMD_NAMED"], run.name, text) end
     end
     if event.away then text = sformat(L["CLOCK_AWAY_FMT"], text) end
     return text
 end
 
-local function PaintAlert(alert)
-    local c = CL.GOLD
-    alert.text:SetTextColor(c[1], c[2], c[3], 1)
+-- What every end does, from the settings; one table reused (no allocation).
+local function SpecFor(kind)
+    local db, spec = EasyFind.db, UI.spec
+    spec.chat, spec.big, spec.taskbar = db.clockChat ~= false, db.clockBigText ~= false, db.clockFlash ~= false
+    spec.sound = db.clockSound ~= false and db[SOUND_SETTING[kind]] or nil
+    spec.screen = db.clockScreen or nil
+    return spec
 end
 
--- Big center-screen text, like a raid warning.
-local function ShowAlert(text)
-    local alert = UI.alert
-    if not alert then
-        alert = CreateFrame("Frame", nil, UIParent)
-        alert:SetSize(900, 60)
-        alert:SetPoint("CENTER", UIParent, "CENTER", 0, 170)
-        -- In front of the clock window, which is HIGH.
-        alert:SetFrameStrata("DIALOG")
-        alert:EnableMouse(false)
-        alert.text = alert:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-        local font = alert.text:GetFont()
-        if font then alert.text:SetFont(font, 30, "OUTLINE") end
-        alert.text:SetAllPoints()
-        alert.fade = alert:CreateAnimationGroup()
-        local hold = alert.fade:CreateAnimation("Alpha")
-        hold:SetFromAlpha(1)
-        hold:SetToAlpha(1)
-        hold:SetDuration(4)
-        hold:SetOrder(1)
-        local out = alert.fade:CreateAnimation("Alpha")
-        out:SetFromAlpha(1)
-        out:SetToAlpha(0)
-        out:SetDuration(1.5)
-        out:SetOrder(2)
-        alert.fade:SetScript("OnFinished", function() alert:Hide() end)
-        UI.alert = alert
-        CL.Painted(alert, PaintAlert)
-    end
-    alert.text:SetText(text)
-    alert.fade:Stop()
-    alert:SetAlpha(1)
-    alert:Show()
-    alert.fade:Play()
-end
-
--- Every enabled signal. A run that ended while the player was away is
--- told in text only, once the loading screen is gone.
+-- A run that ended while the player was away is told in text only, once
+-- the loading screen is gone.
 local function Signal(event)
-    local db = EasyFind.db
-    local text = EventText(event)
     if event.kind == "break" then UI.dimDismissed = nil end
-    if db.clockChat ~= false then EasyFind:Print(text) end
-    if db.clockBigText ~= false then ShowAlert(text) end
+    Signals.Fire(SpecFor(event.kind), EventText(event), event.away)
     if event.away then return end
-    if db.clockSound ~= false and ALERT_SOUND then PlaySound(ALERT_SOUND, "Master") end
-    if db.clockFlash ~= false then FlashClientIcon() end
+    if event.kind == "alarm" then
+        event.run.ringing = true
+        UI.nextRing = time() + RING_EVERY
+    end
     Window.Pulse(event.run)
+end
+
+local function Ringing()
+    local runs = Runs:List()
+    for i = 1, #runs do
+        if runs[i].done and runs[i].ringing then return true end
+    end
+    return false
+end
+
+-- An alarm left ringing chimes again until it is dismissed (a setting).
+local function RingAgain(now)
+    local db = EasyFind.db
+    if not db.clockAlarmRepeat or db.clockSound == false or now < (UI.nextRing or 0) then return end
+    if not Ringing() then return end
+    UI.nextRing = now + RING_EVERY
+    Signals.PlaySound(db.clockSoundAlarm)
+end
+
+-- Kept alarms whose time has come ring as ended alarm cards.
+local function RingDue(now, events, away)
+    local due = UI.due
+    wipe(due)
+    Alarms:Due(now, due)
+    for i = 1, #due do
+        events[#events + 1] = { run = Runs:Ring(due[i], now), kind = "alarm", away = away or nil }
+        Alarms:Rang(due[i], now)
+    end
+    return #due > 0
 end
 
 -- Ticking
@@ -116,7 +119,9 @@ local function Tick()
     local events = UI.events
     wipe(events)
     local changed = Runs:Update(now, events)
+    if RingDue(now, events) then changed = true end
     for i = 1, #events do Signal(events[i]) end
+    RingAgain(now)
     if changed then
         CL.Changed()
     else
@@ -129,21 +134,27 @@ end
 local function OnDriverUpdate(_, elapsed)
     UI.tickWait = (UI.tickWait or 0) - elapsed
     if UI.tickWait > 0 then return end
-    UI.tickWait = TICK_SECONDS
+    UI.tickWait = UI.tickEvery
     Tick()
 end
 
--- Runs only while something counts: an ended card waits without a tick.
-local function UpdateTicker()
-    local want = false
+-- Fast while something counts, once a second for alarms waiting or one
+-- left ringing, off when nothing is set.
+local function TickEvery()
     local runs = Runs:List()
     for i = 1, #runs do
-        if not runs[i].done then want = true end
+        if not runs[i].done then return TICK_SECONDS end
     end
-    if want == (UI.ticking or false) then return end
-    UI.ticking = want
+    if Alarms:AnyOn() or (EasyFind.db.clockAlarmRepeat and Ringing()) then return ALARMS_TICK_SECONDS end
+    return nil
+end
+
+local function UpdateTicker()
+    local every = TickEvery()
+    if every == UI.tickEvery then return end
+    UI.tickEvery = every
     UI.tickWait = 0
-    Utils.SafeOnUpdate(driver, want and OnDriverUpdate or nil)
+    Utils.SafeOnUpdate(driver, every and OnDriverUpdate or nil)
 end
 
 -- The break dim
@@ -221,15 +232,21 @@ function CL.Skip(run)
     CL.Changed()
 end
 
--- A timer runs its own length again; an alarm rings at the same time tomorrow.
+-- An ended timer runs its own length again.
 function CL.Again(run)
-    local now = time()
-    local at
-    if run.tool == "alarm" then
-        local t = date("*t", run.at)
-        at = Grammar.AlarmTarget(t.hour, t.min, true, now)
-    end
-    Runs:Again(run, now, at)
+    Runs:Again(run, time())
+    CL.Changed()
+end
+
+function CL.SnoozeMinutes()
+    local minutes = tonumber(EasyFind.db.clockSnoozeMinutes)
+    return minutes and minutes > 0 and minutes or SNOOZE_DEFAULT
+end
+
+-- A ringing alarm goes quiet and rings again after the snooze.
+function CL.Snooze(run)
+    run.ringing = nil
+    Runs:Extend(run, time(), CL.SnoozeMinutes() * 60)
     CL.Changed()
 end
 
@@ -262,194 +279,113 @@ function CL.Minimize()
     Strip.Refresh()
 end
 
--- Menus
-
--- The owner's own click toggles its menu.
-local function ShowMenu(rows, owner)
-    local menu = UI.menu
-    if menu and menu:IsShown() and menu.toggleOwner == owner then
-        menu:Hide()
-        return
-    end
-    UI.menu = Utils.ShowCursorMenu("EasyFindClockMenu", rows, { toggleOwner = owner })
-end
-
-local function Row(text, fn, run)
-    return { text = text, onClick = function() fn(run) end }
-end
-
-local function TogglePause(run)
-    Runs:TogglePause(run, time())
-    CL.Changed()
-end
-
-local function Restart(run)
-    Runs:Restart(run, time())
-    CL.Changed()
-end
-
-local function Extend(run)
-    Runs:Extend(run, time(), PLUS_SECONDS)
-    CL.Changed()
-end
-
-local function Cancel(run)
-    Runs:Cancel(run)
-    CL.Changed()
-end
-
--- The card's and the strip segment's right-click: what the card's own
--- buttons do, plus restart.
-function CL.ShowRunMenu(run, owner)
-    local rows = {}
-    if run.done then
-        rows[1] = Row(L["CLOCK_PLUS5"], Extend, run)
-        rows[2] = Row(L["CLOCK_AGAIN"], CL.Again, run)
-        rows[3] = Row(L["CLOCK_DISMISS"], Cancel, run)
-    else
-        if run.tool ~= "alarm" then
-            rows[#rows + 1] = Row(run.pausedAt and L["CLOCK_RESUME"] or L["CLOCK_PAUSE"], TogglePause, run)
-        end
-        if run.tool == "pomodoro" then
-            rows[#rows + 1] = Row(run.phase == "focus" and L["CLOCK_SKIP_BREAK"] or L["CLOCK_SKIP_FOCUS"], CL.Skip, run)
-        end
-        if run.tool ~= "alarm" then rows[#rows + 1] = Row(RESTART_TEXT, Restart, run) end
-        rows[#rows + 1] = Row(L["CLOCK_STOP"], Cancel, run)
-    end
-    ShowMenu(rows, owner)
-end
-
-local function CancelAll()
-    Runs:CancelAll()
-    CL.Changed()
-end
-
-local function ShowCancelMenu(owner)
-    local runs = Runs:List()
-    if #runs == 0 then return end
-    local rows = {}
-    for i = 1, #runs do
-        local row = Row(sformat(L["CLOCK_CANCEL_RUN"], MenuLabel(runs[i])), Cancel, runs[i])
-        row.icon, row.chromeIcon = ns.CLOCK_TOOL_ICONS[runs[i].tool], true
-        rows[i] = row
-    end
-    if #runs > 1 then
-        rows[#rows + 1] = { isSeparator = true }
-        rows[#rows + 1] = { text = L["CLOCK_CANCEL_ALL"], onClick = CancelAll }
-    end
-    ShowMenu(rows, owner)
-end
-
--- The minimap icon, a setting (off unless turned on)
-
-local function PlaceMinimapButton()
-    local x, y = ns.MinimapEdgeOffset(Runs.sv.minimapAngle)
-    UI.mm:ClearAllPoints()
-    UI.mm:SetPoint("CENTER", Minimap, "CENTER", x, y)
-end
-
-local function MinimapDrag(self, elapsed)
-    self.dragWait = (self.dragWait or 0) - elapsed
-    if self.dragWait > 0 then return end
-    self.dragWait = 0.03
-    local mx, my = Minimap:GetCenter()
-    local cx, cy = GetCursorPosition()
-    local scale = Minimap:GetEffectiveScale()
-    Runs.sv.minimapAngle = mdeg(matan2(cy / scale - my, cx / scale - mx))
-    PlaceMinimapButton()
-end
-
-local function MinimapOnClick(self, button)
-    if button == "RightButton" then
-        ShowCancelMenu(self)
-    elseif Window.IsShown() then
-        CL.Minimize()
-    else
-        CL.OpenWindow()
-    end
-end
-
-local function PaintMinimap(btn)
-    local gc = ns.ChromeGlyphColor()
-    btn.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
-end
-
-local function EnsureMinimapButton()
-    if UI.mm then return UI.mm end
-    local btn = CreateFrame("Button", "EasyFindClockMinimapButton", Minimap)
-    btn:SetSize(31, 31)
-    btn:SetFrameStrata("MEDIUM")
-    btn:SetFrameLevel(8)
-    local border = btn:CreateTexture(nil, "OVERLAY")
-    border:SetSize(50, 50)
-    border:SetTexture(136430)
-    border:SetPoint("TOPLEFT")
-    local background = btn:CreateTexture(nil, "BACKGROUND")
-    background:SetSize(24, 24)
-    background:SetTexture(136467)
-    background:SetPoint("CENTER")
-    btn.icon = btn:CreateTexture(nil, "ARTWORK")
-    btn.icon:SetSize(17, 17)
-    btn.icon:SetPoint("CENTER")
-    btn.icon:SetTexture(ns.CLOCK_ICON_TEX)
-    btn:SetHighlightTexture(136477)
-    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    btn:SetScript("OnClick", MinimapOnClick)
-    btn:RegisterForDrag("LeftButton")
-    btn:SetScript("OnDragStart", function(self)
-        self.dragWait = 0
-        Utils.SafeOnUpdate(self, MinimapDrag)
-    end)
-    btn:SetScript("OnDragStop", function(self) Utils.SafeOnUpdate(self, nil) end)
-    btn:SetScript("OnEnter", function(self)
-        ns.ShowHintTooltip(self, "ANCHOR_LEFT", ns.CLOCK_NAME, L["CLOCK_MM_TT"], L["MINIMAP_TT_DRAG"])
-    end)
-    btn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
-    UI.mm = btn
-    CL.Painted(btn, PaintMinimap)
-    return btn
-end
-
-local function UpdateMinimapButton()
-    local want = EasyFind.db.clockMinimapIcon == true and #Runs:List() > 0
-    if not (want or UI.mm) then return end
-    EnsureMinimapButton():SetShown(want)
-    if want then PlaceMinimapButton() end
-end
-
 -- State changes
 
 function CL.Changed()
-    EasyFind.db.clockActive = #Runs:List() > 0
+    local active = #Runs:List() > 0 or Alarms:AnyOn()
+    EasyFind.db.clockActive = active
     UpdateTicker()
-    UpdateMinimapButton()
+    CL.UpdateMinimapButton(active)
     Window.Refresh()
     Strip.Refresh()
     UpdateDim(time())
 end
 
--- A new run opens the window, unless the player minimized it while other
--- runs were going: then it joins the strip.
-function CL.StartRun(tool, a, b)
+-- Something new opens the window, unless the player minimized it while
+-- runs were going: then it joins the strip. True when the window shows.
+local function Reveal(hadRuns)
+    if hadRuns and Runs.sv.hud.shown == false then return false end
+    Runs.sv.hud.shown = true
+    Window.Show()
+    return true
+end
+
+function CL.StartRun(tool, a, b, name)
     if not UI.ready then
-        UI.queued = { tool, a, b }
+        UI.queued = { tool, a, b, name }
         return
     end
     local hadRuns = #Runs:List() > 0
-    local run = Runs:Start(tool, time(), a, b)
+    local run = Runs:Start(tool, time(), a, b, name)
     if not run then
         EasyFind:Print(sformat(L["CLOCK_FULL"], Runs.MAX))
         return
     end
     if tool == "pomodoro" then UI.dimDismissed = nil end
-    if not (hadRuns and Runs.sv.hud.shown == false) then
-        Runs.sv.hud.shown = true
-        Window.Show()
+    Reveal(hadRuns)
+    CL.Changed()
+end
+
+-- Kept alarms
+
+-- A resolved alarm command (the search bar, the alarm tile).
+function CL.AddAlarm(cmd)
+    if not UI.ready then
+        UI.queuedAlarm = cmd
+        return
+    end
+    local now = time()
+    local alarm = Alarms:Add(now, cmd.hour, cmd.min, cmd.days, cmd.name, cmd.server)
+    if not alarm then
+        EasyFind:Print(sformat(L["CLOCK_ALARMS_FULL"], Alarms.MAX))
+        return
+    end
+    if not Reveal(#Runs:List() > 0) then
+        local label = Grammar.ClockLabel(alarm.hour, alarm.min, alarm.server)
+        EasyFind:Print(sformat(L["CLOCK_ALARM_SET"], sformat(L["CLOCK_ALARM_DESC"], label, Format(alarm.next - now))))
     end
     CL.Changed()
 end
 
+-- A saved edit switches the alarm on, as a phone's clock does.
+function CL.EditAlarm(alarm, hour, minute, days, name, server)
+    local now = time()
+    Alarms:Edit(alarm, now, hour, minute, days, name, server)
+    Alarms:SetEnabled(alarm, true, now)
+    CL.Changed()
+end
+
+function CL.DeleteAlarm(alarm)
+    Alarms:Delete(alarm)
+    CL.Changed()
+end
+
+function CL.SetAlarmOn(alarm, on)
+    Alarms:SetEnabled(alarm, on, time())
+    CL.Changed()
+end
+
+-- Timer presets
+
+function CL.SavePreset(seconds)
+    if type(seconds) ~= "number" then return end
+    if #Runs:Presets() >= Runs.PRESETS_MAX then
+        EasyFind:Print(sformat(L["CLOCK_PRESETS_FULL"], Runs.PRESETS_MAX))
+        return
+    end
+    Runs:AddPreset(seconds)
+    CL.Changed()
+end
+
+function CL.RemovePreset(seconds)
+    Runs:RemovePreset(seconds)
+    CL.Changed()
+end
+
 if ns.RegisterThemeCallback then ns.RegisterThemeCallback(CL.RepaintAll) end
+
+-- Settings the model reads; a running pomodoro takes new long breaks too.
+local function ApplySettings()
+    local db = EasyFind.db
+    Runs.autoNext = db.clockAutoNext ~= false
+    Runs.longEvery = tonumber(db.clockLongEvery) or 4
+    Runs.longLen = tonumber(db.clockLongSeconds) or 900
+    local runs = Runs:List()
+    for i = 1, #runs do
+        local run = runs[i]
+        if run.tool == "pomodoro" then run.longEvery, run.longLen = Runs.longEvery, Runs.longLen end
+    end
+end
 
 -- What the core and the options panel call
 
@@ -458,11 +394,11 @@ function Clock.StartFromCommand(cmd)
     if type(cmd) ~= "table" or not Grammar.Resolve(cmd, time()) then return end
     local tool = cmd.tool
     if tool == "alarm" then
-        CL.StartRun("alarm", cmd.at)
+        CL.AddAlarm(cmd)
     elseif tool == "pomodoro" then
-        CL.StartRun("pomodoro", cmd.seconds, cmd.seconds2)
+        CL.StartRun("pomodoro", cmd.seconds, cmd.seconds2, cmd.name)
     else
-        CL.StartRun(tool, cmd.seconds)
+        CL.StartRun(tool, cmd.seconds, nil, cmd.name)
     end
 end
 
@@ -478,24 +414,32 @@ function Clock.IsOpen()
     return Window.IsShown()
 end
 
--- A setting changed (the break dim, the minimap icon).
+-- A setting changed (sounds, long breaks, the dim, the minimap icon).
 function Clock.SettingsChanged()
-    if UI.ready then CL.Changed() end
+    if not UI.ready then return end
+    ApplySettings()
+    CL.Changed()
 end
 
--- Saved runs arrive with ADDON_LOADED: runs that ended while the player
--- was away say so once the world is up.
+-- Saved runs arrive with ADDON_LOADED: runs that ended and alarms that
+-- rang while the player was away say so once the world is up.
 local function Init()
     local now = time()
     EasyClockDB = Runs:Attach(EasyClockDB, now)
+    Alarms:Attach(Runs.sv)
+    ApplySettings()
     local away = UI.away
     Runs:Update(now, away, true)
+    RingDue(now, away, true)
+    Alarms:ArmAll(now)
     UI.ready = true
+    UI.nextRing = now + RING_EVERY
     if #Runs:List() > 0 and Runs.sv.hud.shown ~= false then Window.Show() end
     CL.Changed()
-    local queued = UI.queued
-    UI.queued = nil
-    if queued then CL.StartRun(queued[1], queued[2], queued[3]) end
+    local queued, queuedAlarm = UI.queued, UI.queuedAlarm
+    UI.queued, UI.queuedAlarm = nil, nil
+    if queued then CL.StartRun(queued[1], queued[2], queued[3], queued[4]) end
+    if queuedAlarm then CL.AddAlarm(queuedAlarm) end
     if UI.openQueued then
         UI.openQueued = nil
         CL.OpenWindow()
