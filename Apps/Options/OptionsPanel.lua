@@ -4302,6 +4302,84 @@ local function BuildNotesPage(ctx, page)
     end)
 end
 
+-- Clock: what the end of a run does, the pomodoro lengths, and what a
+-- bare number means in each slot of a typed command.
+local function BuildClockPage(ctx, page)
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    title:SetText(ns.CLOCK_NAME)
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(L["OPT_CLOCK_HINT"])
+    local function Changed()
+        if ns.Clock and ns.Clock.SettingsChanged then ns.Clock.SettingsChanged() end
+    end
+    local toggles = {
+        { "clockSound", "CLOCK_OPT_SOUND", "CLOCK_OPT_SOUND_TT", "ClockSound" },
+        { "clockBigText", "CLOCK_OPT_BIGTEXT", "CLOCK_OPT_BIGTEXT_TT", "ClockBigText" },
+        { "clockChat", "CLOCK_OPT_CHAT", "CLOCK_OPT_CHAT_TT", "ClockChat" },
+        { "clockFlash", "CLOCK_OPT_FLASH", "CLOCK_OPT_FLASH_TT", "ClockFlash" },
+        { "clockBreakDim", "CLOCK_OPT_DIM", "CLOCK_OPT_DIM_TT", "ClockBreakDim" },
+    }
+    local anchor = hint
+    for i = 1, #toggles do
+        local dbKey, labelKey, tipKey, name = unpack(toggles[i])
+        local box = CreateCheckbox(page, name, L[labelKey], L[tipKey], true)
+        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+        box:SetChecked(EasyFind.db[dbKey] and true or false)
+        box:SetScript("OnClick", function(self)
+            EasyFind.db[dbKey] = self:GetChecked() and true or false
+            Changed()
+        end)
+        anchor = box
+    end
+    local minuteFormat = _G["MINUTES_ABBR"] or "%d min"
+    local function MinuteChoices(list)
+        local out = {}
+        for _, m in ipairs(list) do out[#out + 1] = { label = sformat(minuteFormat, m), value = m * 60 } end
+        return out
+    end
+    local lengths = {
+        { "clockFocusSeconds", "CLOCK_OPT_FOCUS_LEN", { 15, 20, 25, 30, 45, 50, 60, 90 }, 1500 },
+        { "clockBreakSeconds", "CLOCK_OPT_BREAK_LEN", { 3, 5, 10, 15, 20, 30 }, 300 },
+    }
+    for i = 1, #lengths do
+        local dbKey, labelKey, minutes, default = unpack(lengths[i])
+        local row = ctx.CreateFlyoutPresetRow(page, L[labelKey], MinuteChoices(minutes),
+            function() return EasyFind.db[dbKey] end,
+            function(v) EasyFind.db[dbKey] = v end,
+            "EasyFindClockLen" .. i, default, L["CLOCK_OPT_LEN_TT"])
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -8 or -4)
+        anchor = row
+    end
+    local unitHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    unitHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
+    unitHeader:SetText(L["CLOCK_OPT_UNITS"])
+    local unitChoices = {
+        { label = L["CLOCK_UNIT_S"], value = "s" },
+        { label = L["CLOCK_UNIT_M"], value = "m" },
+        { label = L["CLOCK_UNIT_H"], value = "h" },
+    }
+    local units = {
+        { "clockFocusUnit", L["CLOCK_OPT_UNIT_FOCUS"] },
+        { "clockBreakUnit", L["CLOCK_OPT_UNIT_BREAK"] },
+        { "clockTimerUnit", L["CLOCK_TIMER"] },
+        { "clockStopwatchUnit", _G["STOPWATCH_TITLE"] or "Stopwatch" },
+    }
+    anchor = unitHeader
+    for i = 1, #units do
+        local dbKey, label = unpack(units[i])
+        local row = ctx.CreateFlyoutPresetRow(page, label, unitChoices,
+            function() return EasyFind.db[dbKey] end,
+            function(v) EasyFind.db[dbKey] = v end,
+            "EasyFindClockUnit" .. i, "m", L["CLOCK_OPT_UNITS_TT"])
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -6 or -4)
+        anchor = row
+    end
+end
+
 -- The Extensions tab: one settings page per extension, picked from a
 -- strip of chips at the top of the tab. Bundled pages come first; any
 -- page registered through ns.RegisterExtensionPage follows, so an
@@ -4325,6 +4403,10 @@ local function ExtensionPageDefs()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
         defs[#defs + 1] = { id = "notes", name = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX,
             core = true, build = BuildNotesPage }
+    end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
+        defs[#defs + 1] = { id = "clock", name = ns.CLOCK_NAME, icon = ns.CLOCK_ICON_TEX,
+            coords = ns.CLOCK_ICON_COORDS, core = true, build = BuildClockPage }
     end
     for _, def in ipairs(ns.ExtensionPages or {}) do
         if not (def.companion and ns.IsCompanionLoadable and not ns.IsCompanionLoadable(def.companion)) then
