@@ -742,6 +742,23 @@ function tests.report_isOneLineOfEveryField()
     has(" own=i6948 ")
 end
 
+-- A crossing whose own spot the grid cannot walk to (a boat's stop out on
+-- the water) is boarded from the ground just around it.
+function tests.crossingOffTheGround_isBoardedFromNearby()
+    local _, ns, Route = fresh()
+    local function nearPortal(x, y) return math.abs(x - 5000) < 2 and math.abs(y - 5000) < 2 end
+    withNav(ns, function(sx, sy, tx, ty)
+        if nearPortal(sx, sy) or nearPortal(tx, ty) then return nil end
+        return { sx, sy, tx, ty }
+    end)
+    local d = data()
+    d.edges = { d.edges[1] }
+    d.abilities, d.legs = {}, {}
+    local steps = build(Route, P(1, 0.49, 0.49), { name = "Over there", mapID = 2, x = 0.5, y = 0.53 }, { data = d })
+    H.assertNotNil(steps, "a route through the portal")
+    H.assertEq(steps[1].kind, "portal")
+end
+
 -- A walk no foot can take in the middle is never chosen: the crossing is.
 function tests.unwalkableMiddle_isNeverChosen()
     local _, ns, Route = fresh()

@@ -473,11 +473,16 @@ local function Walk(w, ax, ay, bx, by, opts)
         g[node] = c
         heap:Push(c + msqrt((bx - ents.x[node]) ^ 2 + (by - ents.y[node]) ^ 2), node)
     end
-    local reached
+    local reached, cut
     local cell = w.cell
+    local limit = opts and opts.limit
     while true do
         local node, f = heap:Pop()
         if not node or f >= best then break end
+        if limit and f > limit then
+            cut = true
+            break
+        end
         if not closed[node] then
             closed[node] = true
             local fin = toB[node]
@@ -506,8 +511,10 @@ local function Walk(w, ax, ay, bx, by, opts)
     end
     if best == mhuge then
         -- The heap ran dry: every entrance closed is A's whole region.
-        w.regions = w.regions + 1
-        for n in pairs(closed) do region[n] = w.regions end
+        if not cut then
+            w.regions = w.regions + 1
+            for n in pairs(closed) do region[n] = w.regions end
+        end
         return nil
     end
     local chain = {}
@@ -521,12 +528,13 @@ end
 
 -- Walking cost in running yards from (ax, ay) to (bx, by) on continent ci,
 -- or nil (no data there, or no way on foot). opts.indoorsA / indoorsB pick
--- the floor at each end.
+-- the floor at each end; opts.limit gives up past that many running yards.
 function Nav.Walk(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
     local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
         .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
+        .. ((opts and opts.limit) and ("L" .. mfloor(opts.limit)) or "")
     local cost = w.walks[key]
     if cost == nil then
         if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
