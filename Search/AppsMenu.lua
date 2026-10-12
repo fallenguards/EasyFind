@@ -75,6 +75,18 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    -- Notes opens its window. Hidden when the notes companion is disabled.
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
+        apps[#apps + 1] = {
+            name = L["APP_NOTES"],
+            notesLauncher = true,
+            noPin = true,
+            icon = ns.NOTES_ICON_TEX,
+            nativeRun = function()
+                if ns.RequestNotes() then ns.Notes.Open() end
+            end,
+        }
+    end
     -- GPS opens its own page under the map search tab. Hidden when the GPS
     -- companion is disabled in the AddOns list.
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
@@ -99,6 +111,7 @@ local APP_ID_FLAGS = {
     { "icons", "iconSearchLauncher" },
     { "snippets", "snippetsLauncher" },
     { "clipboard", "clipboardLauncher" },
+    { "notes", "notesLauncher" },
     { "gps", "gpsLauncher" },
 }
 function ns.ApplicationEntryID(app)
@@ -144,6 +157,9 @@ function ns.IsApplicationOpen(app)
     if app.clipboardLauncher then
         return resultsShown and qf ~= nil and qf.key == "clipboard"
     end
+    if app.notesLauncher then
+        return ns.Notes ~= nil and ns.Notes.IsOpen ~= nil and ns.Notes.IsOpen()
+    end
     if app.snippetsLauncher then
         local frame = ns.optionsFrame
         return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
@@ -162,6 +178,10 @@ function ns.CloseApplication(app)
     if app.iconSearchLauncher or app.clipboardLauncher then
         if ns.Filters and ns.Filters.ClearQuickFilter then ns.Filters:ClearQuickFilter(false) end
         if Results and Results.HideResults then Results:HideResults() end
+        return
+    end
+    if app.notesLauncher then
+        if ns.Notes and ns.Notes.Close then ns.Notes.Close() end
         return
     end
     if app.snippetsLauncher and ns.Options and ns.Options.Hide then
@@ -326,6 +346,30 @@ function ns.Results:GetClipboardLauncherMatch(text)
         end,
     }
     return clipboardLauncherRow
+end
+
+-- The notes launcher row: typing "notes" (or the localized app name)
+-- offers the row that opens the Notes window, before it ever loaded.
+local notesLauncherRow
+function ns.Results:GetNotesLauncherMatch(text)
+    if not text or #text < 3 then return nil end
+    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes") then return nil end
+    local q = ns.Utils.slower(text)
+    local sfind = ns.Utils.sfind
+    if not (sfind(ns.Utils.slower(L["APP_NOTES"]), q, 1, true) or sfind("notes", q, 1, true)) then
+        return nil
+    end
+    notesLauncherRow = notesLauncherRow or {
+        name = L["APP_NOTES"],
+        notesLauncher = true,
+        noPin = true,
+        noLearn = true,
+        icon = ns.NOTES_ICON_TEX,
+        nativeRun = function()
+            if ns.RequestNotes() then ns.Notes.Open() end
+        end,
+    }
+    return notesLauncherRow
 end
 
 local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"

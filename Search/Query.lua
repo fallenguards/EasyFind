@@ -831,6 +831,13 @@ function Search:OnSearchTextChangedNow(text, force)
             combined[#combined + 1] = { data = clipLauncher, score = 2e6 }
         end
     end
+    if not quickFilter and not calculatorData and not calculatorLauncher
+       and Results.GetNotesLauncherMatch then
+        local notesLauncher = Results:GetNotesLauncherMatch(text)
+        if notesLauncher then
+            combined[#combined + 1] = { data = notesLauncher, score = 2e6 }
+        end
+    end
     if #combined > 1 then tsort(combined, FlatNameLess) end
 
     -- Hard cap on visible results. The scoring step already ranks by

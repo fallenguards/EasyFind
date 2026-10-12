@@ -101,6 +101,7 @@ Search/Aliases.lua
 Search/History.lua
 Search/Answers.lua
 Search/AppsMenu.lua
+Search/NoteMenus.lua
 Search/ExtensionButtons.lua
 Search/Query.lua
 Search/Results/Theme.lua

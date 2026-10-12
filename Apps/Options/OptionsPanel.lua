@@ -4267,6 +4267,41 @@ function Options:OpenAtClipboard()
     self:OpenAtExtension("clipboard")
 end
 
+-- Notes: how notes find you (by place, on tooltips, from player menus).
+-- Kept in the core db so the page works before the companion ever loads.
+local function BuildNotesPage(ctx, page)
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    title:SetText(L["APP_NOTES"])
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(L["NOTES_OPT_HINT"])
+    local options = {
+        { "notesHereFilter", "NOTES_OPT_HERE", "NOTES_OPT_HERE_TT", "NotesHere" },
+        { "notesTooltips", "NOTES_OPT_TOOLTIPS", "NOTES_OPT_TOOLTIPS_TT", "NotesTooltips" },
+        { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU", "NOTES_OPT_PLAYER_MENU_TT", "NotesPlayerMenu" },
+    }
+    local anchor = hint
+    for i = 1, #options do
+        local dbKey, labelKey, tipKey, name = unpack(options[i])
+        local box = CreateCheckbox(page, name, L[labelKey], L[tipKey], true)
+        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+        box:SetChecked(EasyFind.db[dbKey] ~= false)
+        box:SetScript("OnClick", function(self)
+            EasyFind.db[dbKey] = self:GetChecked() and true or false
+            if ns.Notes and ns.Notes.Refresh then ns.Notes.Refresh() end
+        end)
+        anchor = box
+    end
+    local open = CreateModernButton(page, L["NOTES_OPT_OPEN"], 140, 22)
+    open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
+    open:SetScript("OnClick", function()
+        if ns.RequestNotes() then ns.Notes.Open() end
+    end)
+end
+
 -- The Extensions tab: one settings page per extension, picked from a
 -- strip of chips at the top of the tab. Bundled pages come first; any
 -- page registered through ns.RegisterExtensionPage follows, so an
@@ -4286,6 +4321,10 @@ local function ExtensionPageDefs()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clipboard")) then
         defs[#defs + 1] = { id = "clipboard", name = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX,
             coords = ns.CLIPBOARD_ICON_COORDS, core = true, build = BuildClipboardPage }
+    end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
+        defs[#defs + 1] = { id = "notes", name = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX,
+            core = true, build = BuildNotesPage }
     end
     for _, def in ipairs(ns.ExtensionPages or {}) do
         if not (def.companion and ns.IsCompanionLoadable and not ns.IsCompanionLoadable(def.companion)) then

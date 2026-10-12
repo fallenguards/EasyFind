@@ -17,6 +17,7 @@ globals = {
     "StaticPopupDialogs",
     "SLASH_EASYFIND1",
     "SLASH_EASYFINDCLEARCHAT1",
+    "SLASH_EASYFINDNOTES1",
     "BINDING_NAME_EASYFIND_TOGGLE_FOCUS",
     "BINDING_NAME_EASYFIND_CLEAR",
     "BINDING_NAME_EASYFIND_MAP_FOCUS",
@@ -38,6 +39,7 @@ read_globals = {
     -- Menus
     "MenuUtil",
     "ColorPickerFrame", "TooltipDataProcessor", "tContains", "GetInstanceInfo",
+    "UnitIsUnit", "C_PvP", "C_ChallengeMode", "GetNumClasses", "GetClassInfo", "GetNormalizedRealmName",
 
     -- ClassicUI Forever's public API (nil when that addon is not loaded)
     "ClassicUIForeverAPI",

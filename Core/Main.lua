@@ -755,6 +755,12 @@ local function OnInitialize()
         end
     end
 
+    -- /notes: the Notes window, or a note by its alias.
+    SLASH_EASYFINDNOTES1 = "/notes"
+    SlashCmdList["EASYFINDNOTES"] = function(msg)
+        if ns.RequestNotes() and ns.Notes.Slash then ns.Notes.Slash(msg) end
+    end
+
     InstallWhatsNewHyperlinkHook()
 end
 

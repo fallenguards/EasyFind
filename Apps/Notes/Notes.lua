@@ -5,6 +5,7 @@ local ns = EasyFind and EasyFind._ns
 if not (ns and ns.UI and ns.Utils) then return end
 
 local UI = ns.UI
+local L = ns.L
 local Utils = ns.Utils
 
 local CreateFrame = CreateFrame
@@ -18,18 +19,9 @@ local tostring = tostring
 local sfind, slower = Utils.sfind, Utils.slower
 local tinsert, tremove, tsort = Utils.tinsert, Utils.tremove, Utils.tsort
 local mmax, mmin = Utils.mmax, math.min
-local MapGetBestMapForUnit = C_Map and C_Map.GetBestMapForUnit
-local MapGetMapInfo = C_Map and C_Map.GetMapInfo
 local pcall = pcall
 local tonumber = tonumber
 local UnitName = UnitName
-local UnitFactionGroup = UnitFactionGroup
-local GetSpecialization = GetSpecialization
-local GetSpecializationInfo = GetSpecializationInfo
-local IsInGroup = IsInGroup
-local IsInRaid = IsInRaid
-local IsInInstance = IsInInstance
-local GetInstanceInfo = GetInstanceInfo
 local GetCursorInfo = GetCursorInfo
 
 notesNS.UI = UI
@@ -624,7 +616,7 @@ local function SortedNotes(filter)
         elseif charFilter then
             charOK = n.character == charFilter
         else
-            charOK = shareAll or not n.character or n.character == charKey
+            charOK = shareAll or n.scope == "account" or not n.character or n.character == charKey
         end
         local catOK = (not catFilter) or ((n.category or "General") == catFilter)
         if charOK and catOK and (filter == "" or sfind(PlainSearchText(n), filter, 1, true)
@@ -660,6 +652,7 @@ local function CreateNote(body)
     }
     tinsert(NotesStore(), 1, note)
     UI._notes.selectedID = note.id
+    if EasyFind.db then EasyFind.db.notesInUse = true end
     return note
 end
 
@@ -748,45 +741,8 @@ end
 -- Each appliesIn / showsOn entry is { type, id, name }. Only reliably
 -- detectable situations are auto-detected; bosses and freeform strings are not.
 
-local CTX_PRIORITY = {
-    uistate = 9, instance = 8, dungeon = 8, raid = 8,
-    zone = 7, subzone = 7, map = 6, group = 5,
-    spec = 4, role = 4, class = 3, faction = 2, character = 2,
-    profession = 2, mythicplus = 5, warmode = 4, pvp = 4,
-    dailyreset = 3, weeklyreset = 3,
-}
-
-local UISTATE_LABELS = {
-    auctionhouse = "Auction House open",
-    merchant = "Merchant open",
-    bank = "Bank open",
-    mail = "Mailbox open",
-    profession = "Profession window open",
-    greatvault = "Great Vault open",
-}
-
-local UISTATE_EVENTS = {
-    AUCTION_HOUSE_SHOW = { "auctionhouse", true },
-    AUCTION_HOUSE_CLOSED = { "auctionhouse", false },
-    MERCHANT_SHOW = { "merchant", true },
-    MERCHANT_CLOSED = { "merchant", false },
-    BANKFRAME_OPENED = { "bank", true },
-    BANKFRAME_CLOSED = { "bank", false },
-    MAIL_SHOW = { "mail", true },
-    MAIL_CLOSED = { "mail", false },
-    TRADE_SKILL_SHOW = { "profession", true },
-    TRADE_SKILL_CLOSE = { "profession", false },
-    WEEKLY_REWARDS_SHOW = { "greatvault", true },
-    WEEKLY_REWARDS_HIDE = { "greatvault", false },
-}
-
-local uiStateActive = {}
-
-local ROLE_LABELS = { TANK = "Tank", HEALER = "Healer", DAMAGER = "Damage" }
-
-local function CtxKey(entry)
-    return tostring(entry.type) .. ":" .. tostring(entry.id)
-end
+local Ctx = notesNS.Context
+local CtxKey = Ctx.Key
 
 local TAG_COLORS = {
     { 0.84, 0.38, 0.40 }, { 0.92, 0.58, 0.30 }, { 0.84, 0.72, 0.34 },
@@ -805,91 +761,6 @@ local function TagColor(key)
     return TAG_COLORS[(h % #TAG_COLORS) + 1]
 end
 
-local function CurrentCharacterCtx()
-    local name = ns.PlayerName()
-    if not name then return nil end
-    return { type = "character", id = ns.CurrentCharacterKey(), name = name }
-end
-
-
-local function CurrentSpecCtx()
-    if not (ns.Caps and ns.Caps.specs and GetSpecialization and GetSpecializationInfo) then return nil end
-    local idx = GetSpecialization()
-    if not idx then return nil end
-    local specID, specName = GetSpecializationInfo(idx)
-    if not specID then return nil end
-    if not specName or specName == "" or specName == "Adventurer" then return nil end
-    return { type = "spec", id = specID, name = specName }
-end
-
-local function CurrentRoleCtx()
-    if not (ns.Caps and ns.Caps.specs and GetSpecialization and GetSpecializationInfo) then return nil end
-    local idx = GetSpecialization()
-    if not idx then return nil end
-    local _, _, _, _, role = GetSpecializationInfo(idx)
-    if not role then return nil end
-    return { type = "role", id = role, name = ROLE_LABELS[role] or role }
-end
-
-local function CurrentFactionCtx()
-    if not UnitFactionGroup then return nil end
-    local faction = UnitFactionGroup("player")
-    if not faction or faction == "Neutral" then return nil end
-    return { type = "faction", id = faction, name = faction }
-end
-
-local function CurrentInstanceCtx()
-    if not (IsInInstance and IsInInstance() and GetInstanceInfo) then return nil end
-    local name, instType, _, _, _, _, _, instanceID = GetInstanceInfo()
-    if not (instanceID and name and name ~= "") then return nil end
-    local kind = "instance"
-    if instType == "party" then kind = "dungeon"
-    elseif instType == "raid" then kind = "raid" end
-    return { type = kind, id = instanceID, name = name }
-end
-
-local function CurrentZoneCtx()
-    if not MapGetBestMapForUnit then return nil end
-    local mapID = MapGetBestMapForUnit("player")
-    if not (mapID and MapGetMapInfo) then return nil end
-    local info = MapGetMapInfo(mapID)
-    if not (info and info.name and info.name ~= "") then return nil end
-    return { type = "map", id = mapID, name = info.name }
-end
-
-local function CurrentGroupCtx()
-    local state, label = "solo", "Solo"
-    if IsInRaid and IsInRaid() then
-        state, label = "raid", "In raid"
-    elseif IsInGroup and IsInGroup() then
-        state, label = "party", "In party"
-    end
-    return { type = "group", id = state, name = label }
-end
-
-local function CurrentUIStateCtx()
-    for id in pairs(UISTATE_LABELS) do
-        if uiStateActive[id] then
-            return { type = "uistate", id = id, name = UISTATE_LABELS[id] }
-        end
-    end
-    return nil
-end
-
--- Situations currently active. Drives homepage auto-filtering.
-local function GetActiveContexts()
-    local list = {}
-    local function add(c) if c then list[#list + 1] = c end end
-    add(CurrentUIStateCtx())
-    add(CurrentInstanceCtx())
-    add(CurrentZoneCtx())
-    add(CurrentGroupCtx())
-    add(CurrentCharacterCtx())
-    add(CurrentSpecCtx())
-    add(CurrentRoleCtx())
-    add(CurrentFactionCtx())
-    return list
-end
 
 local function NoteHasContext(note, key)
     if not (note and note.appliesIn) then return false end
@@ -937,6 +808,34 @@ local function ToggleNoteShowsOn(note, entry)
     note.updated = time()
 end
 
+-- A player's note is the one shown on that player; opening one makes it
+-- when there is none, account-wide (you meet players on every character).
+function notesNS.FindPlayerNote(key)
+    if not key then return nil end
+    local notes = NotesStore()
+    for i = 1, #notes do
+        if NoteHasShowsOn(notes[i], "player:" .. key) then return notes[i] end
+    end
+    return nil
+end
+
+function notesNS.OpenPlayerNote(key, shown)
+    local entry = Ctx.PlayerEntry(key, shown)
+    if not entry then return end
+    local note = notesNS.FindPlayerNote(key)
+    if not note then
+        note = CreateNote("")
+        note.name = entry.name
+        note.scope = "account"
+        note.appliesIn[1] = { type = entry.type, id = entry.id, name = entry.name }
+        note.showsOn[1] = { type = entry.type, id = entry.id, name = entry.name }
+    end
+    UI:OpenEasyNotes()
+    UI:SelectEasyNote(note.id)
+    UI:HideEasyNotesPalette()
+    UI:FocusEasyNoteEditor()
+end
+
 local function CountNotesWithContext(key)
     local notes = NotesStore()
     local n = 0
@@ -946,22 +845,12 @@ local function CountNotesWithContext(key)
     return n
 end
 
-local contextWatcher = CreateFrame("Frame")
-for ev in pairs(UISTATE_EVENTS) do
-    pcall(contextWatcher.RegisterEvent, contextWatcher, ev)
-end
-pcall(contextWatcher.RegisterEvent, contextWatcher, "ZONE_CHANGED_NEW_AREA")
-pcall(contextWatcher.RegisterEvent, contextWatcher, "PLAYER_ENTERING_WORLD")
-pcall(contextWatcher.RegisterEvent, contextWatcher, "GROUP_ROSTER_UPDATE")
-pcall(contextWatcher.RegisterEvent, contextWatcher, "PLAYER_SPECIALIZATION_CHANGED")
-contextWatcher:SetScript("OnEvent", function(_, event)
-    local m = UISTATE_EVENTS[event]
-    if m then uiStateActive[m[1]] = m[2] or nil end
+Ctx.SetOnChange(function(event)
     if event == "PLAYER_ENTERING_WORLD" and UI.CheckEasyNotesReminders then
         pcall(UI.CheckEasyNotesReminders, UI)
     end
     if UI.OnEasyNotesContextChanged then
-        pcall(UI.OnEasyNotesContextChanged, UI)
+        pcall(UI.OnEasyNotesContextChanged, UI, event)
     end
 end)
 
@@ -987,47 +876,6 @@ if C_Timer and C_Timer.NewTicker then
     C_Timer.NewTicker(60, function() UI:CheckEasyNotesReminders() end)
 end
 
--- Browse lists for the "Applies in" search. Real game entities only.
-
-local function BrowseRoles()
-    return {
-        { type = "role", id = "TANK", name = "Tank" },
-        { type = "role", id = "HEALER", name = "Healer" },
-        { type = "role", id = "DAMAGER", name = "Damage" },
-    }
-end
-
-local function BrowseFactions()
-    return {
-        { type = "faction", id = "Alliance", name = "Alliance" },
-        { type = "faction", id = "Horde", name = "Horde" },
-    }
-end
-
-local function BrowseGroupStates()
-    return {
-        { type = "group", id = "solo", name = "Solo" },
-        { type = "group", id = "party", name = "In party" },
-        { type = "group", id = "raid", name = "In raid" },
-    }
-end
-
-local function BrowseUIStates()
-    local out = {}
-    for id, label in pairs(UISTATE_LABELS) do
-        out[#out + 1] = { type = "uistate", id = id, name = label }
-    end
-    tsort(out, function(a, b) return a.name < b.name end)
-    return out
-end
-
-local function BrowseGameStates()
-    return {
-        { type = "mythicplus", id = "mplus", name = "Mythic+" },
-        { type = "warmode", id = "warmode", name = "War Mode" },
-        { type = "pvp", id = "pvp", name = "PvP" },
-    }
-end
 
 local function ConfirmDeleteNote(id)
     local ids = type(id) == "table" and id or { id }
@@ -5813,14 +5661,16 @@ function UI:CancelEasyNotesRowRename()
 end
 
 local function ContextMatchSort(a, b)
-    local pa = CTX_PRIORITY[a.type] or 1
-    local pb = CTX_PRIORITY[b.type] or 1
+    local pa = a.here and 99 or Ctx.Priority(a)
+    local pb = b.here and 99 or Ctx.Priority(b)
     if pa ~= pb then return pa > pb end
     return a.label < b.label
 end
 
-function UI:OnEasyNotesContextChanged()
-    UI._notes.contextFilterUserSet = false
+-- A new place starts the filter fresh; a new target or group only refreshes.
+local PLACE_EVENTS = { ZONE_CHANGED_NEW_AREA = true, PLAYER_ENTERING_WORLD = true }
+function UI:OnEasyNotesContextChanged(event)
+    if not event or PLACE_EVENTS[event] then UI._notes.contextFilterUserSet = false end
     if UI._notes.paletteShown then
         self:RefreshEasyNotesPalette()
     end
@@ -5966,7 +5816,7 @@ local function ShowsOnNotesFor(objType, objID)
 end
 
 local function AddShowsOnLines(tooltip, objType, objID)
-    if not (tooltip and tooltip.AddLine) then return end
+    if not (tooltip and tooltip.AddLine) or EasyFind.db.notesTooltips == false then return end
     local hits = ShowsOnNotesFor(objType, objID)
     if not hits then return end
     for i = 1, #hits do
@@ -6002,7 +5852,12 @@ if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
             local ok, err = pcall(function()
                 local guid = data and data.guid
-                if type(guid) ~= "string" then return end
+                if type(guid) ~= "string" or (_G.issecretvalue and _G.issecretvalue(guid)) then return end
+                if guid:find("^Player%-") then
+                    local _, unit = tooltip:GetUnit()
+                    AddShowsOnLines(tooltip, "player", (Ctx.UnitPlayer(unit)))
+                    return
+                end
                 local npcID = tonumber(guid:match("Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
                     or guid:match("Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
                 AddShowsOnLines(tooltip, "npc", npcID)
@@ -6259,56 +6114,6 @@ function UI:ShowEasyNotesContextTooltip(anchor)
     GameTooltip:Show()
 end
 
--- Flat, deduplicated list of every "Applies in" option for the search box.
-local function AllAppliesInOptions()
-    local out, seen = {}, {}
-    local function add(list)
-        for i = 1, #list do
-            local e = list[i]
-            local k = CtxKey(e)
-            if not seen[k] then
-                seen[k] = true
-                out[#out + 1] = e
-            end
-        end
-    end
-    add(BrowseRoles())
-    add(BrowseFactions())
-    add(BrowseGroupStates())
-    add(BrowseGameStates())
-    add(BrowseUIStates())
-    local curFns = {
-        CurrentCharacterCtx, CurrentSpecCtx, CurrentRoleCtx,
-        CurrentFactionCtx, CurrentZoneCtx, CurrentInstanceCtx, CurrentGroupCtx,
-        CurrentUIStateCtx,
-    }
-    for i = 1, #curFns do
-        local e = curFns[i]()
-        if e then
-            local k = CtxKey(e)
-            if not seen[k] then
-                seen[k] = true
-                out[#out + 1] = e
-            end
-        end
-    end
-    return out
-end
-
--- Fuzzy match: substring hit ranks by position; subsequence is a weak fallback.
-local function AppliesInMatchScore(lowerName, query)
-    if query == "" then return 1 end
-    local s = sfind(lowerName, query, 1, true)
-    if s then return 1000 - s end
-    local qi, qn = 1, #query
-    for i = 1, #lowerName do
-        if lowerName:byte(i) == query:byte(qi) then
-            qi = qi + 1
-            if qi > qn then return 1 end
-        end
-    end
-    return nil
-end
 
 local function AppliesInResultSort(a, b)
     if a.score ~= b.score then return a.score > b.score end
@@ -6393,14 +6198,13 @@ function UI:RefreshAppliesInSearchResults()
     if not popup then return end
     local note = GetSelectedNote()
     local query = slower(strtrim(popup.shell.edit:GetText() or ""))
-    local opts = AllAppliesInOptions()
+    local opts = Ctx.Options()
     local results = {}
     for i = 1, #opts do
         local e = opts[i]
-        local nm = e.name or tostring(e.id)
-        local score = AppliesInMatchScore(slower(nm), query)
+        local score = Ctx.MatchScore(e, query)
         if score then
-            results[#results + 1] = { entry = e, name = nm, score = score }
+            results[#results + 1] = { entry = e, name = e.name or tostring(e.id), score = score }
         end
     end
     tsort(results, AppliesInResultSort)
@@ -6411,7 +6215,8 @@ function UI:RefreshAppliesInSearchResults()
         if r then
             row.entry = r.entry
             local added = note and NoteHasContext(note, CtxKey(r.entry))
-            row.label:SetText((added and "|cff6fcf6f+ |r" or "") .. r.name)
+            row.label:SetText((added and "|cff6fcf6f+ |r" or "") .. r.name
+                .. "  |cff8a8a90" .. Ctx.KindLabel(r.entry) .. "|r")
             row:Show()
         else
             row:Hide()
@@ -6647,18 +6452,31 @@ function UI:GetEasyNotesContextChip(index)
         local fset = UI._notes.contextFilterSet or {}
         UI._notes.contextFilterSet = fset
         fset[self.ctxKey] = (not fset[self.ctxKey]) or nil
+        UI._notes.contextFilterUserSet = true
         UI:RefreshEasyNotesPalette()
     end)
     pool[index] = chip
     return chip
 end
 
--- Active situations carrying at least one note: the available filter chips.
--- Filtering is opt-in -- nothing is selected until the user clicks a chip.
+-- The filter chips: "Applies here" (the notes whose tags match where you
+-- are, by each note's match mode), then each active situation a note is
+-- tagged with. "Applies here" turns on by itself when it has notes, until
+-- the user picks chips; the setting can keep it off.
+local HERE_KEY = "@here"
 function UI:ResolveEasyNotesContextFilter()
-    local active = GetActiveContexts()
-    local matches = {}
-    local present = {}
+    local active, set = Ctx.Active()
+    UI._notes.activeSet = set
+    local matches, present = {}, {}
+    local visible = SortedNotes("")
+    local here = 0
+    for i = 1, #visible do
+        if Ctx.Applies(visible[i], set) then here = here + 1 end
+    end
+    if here > 0 then
+        matches[1] = { key = HERE_KEY, label = L["NOTES_HERE"], here = true, type = "here", count = here }
+        present[HERE_KEY] = true
+    end
     for i = 1, #active do
         local c = active[i]
         local key = CtxKey(c)
@@ -6669,11 +6487,13 @@ function UI:ResolveEasyNotesContextFilter()
         end
     end
     tsort(matches, ContextMatchSort)
-    local fset = UI._notes.contextFilterSet
-    if fset then
-        for k in pairs(fset) do
-            if not present[k] then fset[k] = nil end
-        end
+    local fset = UI._notes.contextFilterSet or {}
+    UI._notes.contextFilterSet = fset
+    for k in pairs(fset) do
+        if not present[k] then fset[k] = nil end
+    end
+    if here > 0 and not UI._notes.contextFilterUserSet and EasyFind.db.notesHereFilter ~= false then
+        fset[HERE_KEY] = true
     end
     return matches
 end
@@ -6878,21 +6698,25 @@ function UI:RefreshEasyNotesPalette()
     local query = frame.paletteSearch:GetText() or ""
     local list = SortedNotes(query)
     local fset = UI._notes.contextFilterSet
+    local set = UI._notes.activeSet or {}
     local hasFilter = fset ~= nil and next(fset) ~= nil
-    if hasFilter then
-        local filtered = {}
-        for i = 1, #list do
-            local n = list[i]
-            local keep = false
-            if n.appliesIn then
-                for j = 1, #n.appliesIn do
-                    if fset[CtxKey(n.appliesIn[j])] then keep = true break end
-                end
+    local filtered, later = {}, {}
+    for i = 1, #list do
+        local n = list[i]
+        local applies = Ctx.Applies(n, set)
+        local keep = not hasFilter or (fset[HERE_KEY] and applies)
+        if not keep and n.appliesIn then
+            for j = 1, #n.appliesIn do
+                if fset[CtxKey(n.appliesIn[j])] then keep = true break end
             end
-            if keep then filtered[#filtered + 1] = n end
         end
-        list = filtered
+        -- Unfiltered, notes that apply here follow the pinned ones.
+        if keep then
+            if hasFilter or n.pinned or applies then filtered[#filtered + 1] = n else later[#later + 1] = n end
+        end
     end
+    for i = 1, #later do filtered[#filtered + 1] = later[i] end
+    list = filtered
     local listW = frame.paletteList:GetWidth() or 200
     frame.paletteListChild:SetWidth(listW)
     local rows = UI._notes.paletteRows
@@ -6955,29 +6779,33 @@ end
 function UI:OpenEasyNoteByAlias(raw)
     local n = self:FindEasyNoteByAlias(raw)
     if not n then return false end
-    UI._notes.selectedID = n.id
     self:OpenEasyNotes()
+    self:SelectEasyNote(n.id)
+    self:HideEasyNotesPalette()
     return true
 end
 
-function UI:CreateEasyNotesUnitNote(name, kind)
-    local frame = self:EnsureEasyNotesFrame()
-    if not frame then return end
-    frame:Show()
-    name = name and strtrim(name) or ""
-    if name == "" then name = "Unit note" end
-    local note = CreateNote("")
-    note.name = name
-    note.showsOn = { { type = (kind == "npc" and "npc") or "player", id = name, name = name } }
-    note.updated = time()
-    self:HideEasyNotesPalette()
-    self:RefreshEasyNotes()
-    self:FocusEasyNoteEditor()
-end
-
 function notesNS.Open() UI:OpenEasyNotes() end
+function notesNS.Refresh()
+    if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+end
 function notesNS.Close() UI:CloseEasyNotes() end
 function notesNS.Toggle() UI:ToggleEasyNotes() end
+function notesNS.IsOpen()
+    local frame = UI._notes.frame
+    return frame ~= nil and frame:IsShown()
+end
+
+-- /notes: toggles the window; /notes <alias> opens that note, and any other
+-- word opens the list searching for it.
+function notesNS.Slash(msg)
+    msg = strtrim(msg or "")
+    if msg == "" then return UI:ToggleEasyNotes() end
+    if UI:OpenEasyNoteByAlias(msg) then return end
+    UI:OpenEasyNotes()
+    local frame = UI._notes.frame
+    if frame and frame.paletteSearch then frame.paletteSearch:SetText(msg) end
+end
 
 -- Hosts the full notes formatting experience inside another window (EasyFind's
 -- snippet editor): a notes-treated editor plus formatting toolbar whose actions
@@ -7600,4 +7428,4 @@ function notesNS.InsertAtCursor(text)
     if type(text) ~= "string" or text == "" then return false end
     return notesNS.InsertDocumentAtCursor(notesNS.DocumentFromMarkdown(text))
 end
-function notesNS.CreateUnitNote(name, kind) UI:CreateEasyNotesUnitNote(name, kind) end
+function notesNS.CreateUnitNote(name) notesNS.OpenPlayerNote(Ctx.PlayerKey(name), name) end

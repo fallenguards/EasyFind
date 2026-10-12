@@ -105,9 +105,15 @@ local function AppendDungeonEntrance(results, seen, entrance, x, y, mapID, paren
     seen[key] = true
 
     local category = ClassifyDungeonEntrance(entrance)
+    -- The instance's own map id, as GetInstanceInfo answers inside it.
+    local instanceID = entrance.instanceMapID
+    if not instanceID and entrance.journalInstanceID and EJ_GetInstanceInfo then
+        instanceID = select(10, EJ_GetInstanceInfo(entrance.journalInstanceID))
+    end
     local entry = {
         name = entrance.name,
         category = category,
+        instanceID = instanceID,
         icon = nil,
         isStatic = true,
         isDungeonEntrance = true,

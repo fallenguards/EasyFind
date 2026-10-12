@@ -247,6 +247,37 @@ function ns.RequestIconSearch()
     return false
 end
 
+-- Notes (EasyFind_Notes), the same funnel: the apps row, /notes, the player
+-- menus and Add to note load it on first use. Once there are notes it
+-- loads shortly after login, so they reach tooltips and their places.
+local notesModuleWarned = false
+function ns.RequestNotes()
+    if ns.Notes then return true end
+    if C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, "EasyFind_Notes")
+    end
+    if ns.Notes then return true end
+    if not notesModuleWarned then
+        notesModuleWarned = true
+        EasyFind:Print(ns.L["NOTES_MODULE_DISABLED"])
+    end
+    return false
+end
+
+do
+    local loader = CreateFrame("Frame")
+    loader:RegisterEvent("PLAYER_LOGIN")
+    loader:SetScript("OnEvent", function(self)
+        self:UnregisterAllEvents()
+        if not (EasyFind.db and EasyFind.db.notesInUse) then return end
+        ns.Utils.SafeAfter(3, function()
+            if not ns.Notes and ns.IsCompanionLoadable("EasyFind_Notes") and C_AddOns and C_AddOns.LoadAddOn then
+                pcall(C_AddOns.LoadAddOn, "EasyFind_Notes")
+            end
+        end)
+    end)
+end
+
 -- The macro icon picker's search bar lives in the companion too, so the
 -- game's macro UI loading is itself a use: pull the companion in (unless
 -- the user turned the picker bar off) so the bar can attach.
@@ -363,6 +394,7 @@ function ns.IsCompanionLoadable(name)
     if name == "EasyFind_Onboarding" and ns.Wizard then return true end
     if name == "EasyFind_Snippets" and ns.Snippets then return true end
     if name == "EasyFind_GPS" and ns.GPS then return true end
+    if name == "EasyFind_Notes" and ns.Notes then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)
     return ok and (tonumber(state) or 0) > 0

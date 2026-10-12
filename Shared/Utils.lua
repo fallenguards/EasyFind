@@ -2183,6 +2183,7 @@ ns.CLIPBOARD_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\clipboard-icon"
 ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
 -- GPS extension glyph: a map pin in the same white line-art family.
 ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
+ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.

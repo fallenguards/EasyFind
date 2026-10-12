@@ -11,4 +11,5 @@
 ## SavedVariables: EasyNotesDB
 ## DefaultState: enabled
 
+Context.lua
 Notes.lua
