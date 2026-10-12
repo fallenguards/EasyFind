@@ -249,5 +249,67 @@ function tests.hours_crossMidnight()
     H.assertFalse(test({ value = "08:00-17:00" }, base))
 end
 
+-- A frame that answers every method: Get* reads 0, the rest do nothing.
+local function Stub()
+    local special = {
+        GetText = function() return "" end,
+        GetChecked = function() return false end,
+        GetFont = function() return "Fonts\\FRIZQT__.TTF", 12, "" end,
+        IsShown = function(self) return self._shown ~= false end,
+        Show = function(self) self._shown = true end,
+        Hide = function(self) self._shown = false end,
+        SetShown = function(self, v) self._shown = v and true or false end,
+        CreateFontString = function() return Stub() end,
+        CreateTexture = function() return Stub() end,
+        CreateAnimationGroup = function() return Stub() end,
+        GetHighlightTexture = function() return Stub() end,
+        GetParent = function() return Stub() end,
+        SetScript = function(self, name, fn) self._scripts[name] = fn end,
+        GetScript = function(self, name) return self._scripts[name] end,
+        HookScript = function() end,
+    }
+    local t = { _scripts = {} }
+    return setmetatable(t, { __index = function(_, k)
+        if special[k] then return special[k] end
+        if k:sub(1, 3) == "Get" then return function() return 0 end end
+        return function() end
+    end })
+end
+
+function tests.window_buildsTheListAndEveryEditor()
+    local AL, w, env = Load()
+    env.CreateFrame = function() return Stub() end
+    local ns = env.EasyFind._ns
+    ns.Utils.ShowCursorMenu = function(_, rows) w.menu = rows return Stub() end
+    ns.Utils.AttachEscClose = function() end
+    ns.Utils.CreateMinimalScrollBar = function() return Stub() end
+    ns.StyleMenuPanel = function() end
+    ns.CreateCloseX = function() return Stub() end
+    ns.CreateModernButton = function() local b = Stub() b._label = Stub() return b end
+    ns.RegisterAddonFont = function() end
+    ns.Signals.SOUNDS, ns.Signals.COLORS = { { key = "alarm", label = "Alarm" } }, { { key = "red", label = "Red" } }
+    ns.Signals.SoundLabel = function() return "Alarm" end
+    ns.Signals.ColorLabel = function() return "Red" end
+    env.LOCALIZED_CLASS_NAMES_MALE = { MAGE = "Mage" }
+    env.C_Container.GetContainerNumSlots = function() return 0 end
+    for _, f in ipairs({ "Apps/Alerts/Templates.lua", "Apps/Alerts/Window.lua" }) do
+        assert(loadfile(H.ADDON_ROOT .. "/" .. f, "t", env))("EasyFind_Alerts", AL)
+    end
+    AL.Window.Show()
+    AL.Store:New({ kind = "bagsFull", slots = 2 })
+    AL.Window.Refresh()
+    for _, entry in ipairs(AL.Templates.LIST) do
+        local draft = AL.Templates.Draft(entry)
+        for _, kind in ipairs(AL.Conditions.ORDER) do draft.conds[#draft.conds + 1] = AL.Conditions.Fresh(kind) end
+        draft.conds[1].neg = true
+        AL.Window.Edit(draft)
+    end
+    for _, kind in ipairs(AL.Triggers.ORDER) do
+        AL.Window.Edit(AL.Templates.Draft({ make = function() return AL.Triggers.Fresh(kind) end }))
+    end
+    AL.Window.ShowList()
+    H.assertTrue(#AL.Window.NewMenuRows() > 0)
+end
+
 local pass, fail, failures = H.runSuite("Alerts", tests)
 return { pass = pass, fail = fail, failures = failures }

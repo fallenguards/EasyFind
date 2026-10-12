@@ -129,7 +129,7 @@ end
 function Text:GetFlatSubtext(data)
     if not data then return "" end
     if data.calculatorResult then return L["SUBTEXT_EXPRESSION"] end
-    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher then
+    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher or data.alertsLauncher then
         return L["SUBTEXT_APP"]
     end
     if data.snippetsLauncher then return L["SUBTEXT_SNIPPETS_MENU"] end

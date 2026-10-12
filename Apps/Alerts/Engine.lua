@@ -12,7 +12,7 @@ local Store, T, C = AL.Store, AL.Triggers, AL.Conditions
 local KINDS = T.KINDS
 local Utils = ns.Utils
 local CreateFrame, GetTime, time, InCombatLockdown = CreateFrame, GetTime, time, InCombatLockdown
-local ipairs, pairs, next, type, wipe = ipairs, pairs, next, type, wipe
+local ipairs, pairs, next, type, wipe, smatch = ipairs, pairs, next, type, wipe, string.match
 local mmax = math.max
 
 -- Never saved: per rule { was, primed, last, seen }.
@@ -47,7 +47,8 @@ end
 
 local function Refresh()
     ctx.now, ctx.gnow, ctx.char = time(), GetTime(), ns.CurrentCharacterKey()
-    ctx.playerName = UnitName("player")
+    -- Chat senders carry the first name; Forever adds a surname after it.
+    ctx.playerName = smatch(ns.PlayerName() or "", "^[^%s%-]+")
     return ctx
 end
 

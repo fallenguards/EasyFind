@@ -90,6 +90,9 @@ function ns.BuildApplicationEntries()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
         apps[#apps + 1] = ns.ClockLauncherEntry()
     end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts")) then
+        apps[#apps + 1] = ns.AlertsLauncherEntry()
+    end
     -- GPS opens its own page under the map search tab. Hidden when the GPS
     -- companion is disabled in the AddOns list.
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
@@ -117,6 +120,7 @@ local APP_ID_FLAGS = {
     { "notes", "notesLauncher" },
     { "gps", "gpsLauncher" },
     { "clock", "clockLauncher" },
+    { "alerts", "alertsLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end
@@ -172,6 +176,9 @@ function ns.IsApplicationOpen(app)
     if app.clockLauncher then
         return ns.Clock ~= nil and ns.Clock.IsOpen() or false
     end
+    if app.alertsLauncher then
+        return ns.Alerts ~= nil and ns.Alerts.IsOpen() or false
+    end
     return false
 end
 
@@ -195,6 +202,7 @@ function ns.CloseApplication(app)
         ns.Options:Hide()
     end
     if app.clockLauncher and ns.Clock then ns.Clock.Minimize() end
+    if app.alertsLauncher and ns.Alerts then ns.Alerts.Close() end
 end
 
 -- The results-based extension showing right now ("icons", "clipboard"),
@@ -401,6 +409,32 @@ function ns.ClockLauncherEntry()
         nativeRun = OpenClock,
     }
     return clockLauncherEntry
+end
+
+-- The alerts launcher: "alert", "alerts" or the localized app name.
+local alertsLauncherEntry
+local function OpenAlerts()
+    if ns.RequestAlerts() then ns.Alerts.Open() end
+end
+function ns.AlertsLauncherEntry()
+    alertsLauncherEntry = alertsLauncherEntry or {
+        name = L["APP_ALERTS"],
+        alertsLauncher = true,
+        noPin = true,
+        noLearn = true,
+        icon = ns.ALERTS_ICON_TEX,
+        nativeRun = OpenAlerts,
+    }
+    return alertsLauncherEntry
+end
+
+function ns.Results:GetAlertsLauncherMatch(text)
+    if not text or #text < 4 then return nil end
+    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts") then return nil end
+    local q = ns.Utils.slower(text)
+    local sfind = ns.Utils.sfind
+    if not (sfind(ns.Utils.slower(L["APP_ALERTS"]), q, 1, true) or sfind("alerts", q, 1, true)) then return nil end
+    return ns.AlertsLauncherEntry()
 end
 
 local function IsWordStart(word, q, minLen)

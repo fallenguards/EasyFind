@@ -190,6 +190,7 @@ local FLAT_CATEGORY_ICONS = {
     gps           = { tex = ns.GPS_ICON_TEX, chromeTint = true },
     notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
     clock         = { tex = ns.CLOCK_ICON_TEX, chromeTint = true },
+    alerts        = { tex = ns.ALERTS_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
@@ -214,6 +215,7 @@ function Icons:GetAppGlyphIcon(data)
     if data.gpsLauncher then return FLAT_CATEGORY_ICONS.gps end
     if data.notesLauncher then return FLAT_CATEGORY_ICONS.notes end
     if data.clockLauncher then return FLAT_CATEGORY_ICONS.clock end
+    if data.alertsLauncher then return FLAT_CATEGORY_ICONS.alerts end
     return nil
 end
 
@@ -236,7 +238,7 @@ function Icons:GetFlatCategoryIcon(data)
     if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     -- App launcher rows wear the apps-button waffle as their general glyph;
     -- the app's own glyph renders on the row's right via GetAppGlyphIcon.
-    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher then
+    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher or data.alertsLauncher then
         return FLAT_CATEGORY_ICONS.apps
     end
     if data.clockCommand then return CLOCK_COMMAND_ICONS[data.clockTool] or FLAT_CATEGORY_ICONS.clock end

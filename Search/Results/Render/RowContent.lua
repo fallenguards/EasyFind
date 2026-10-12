@@ -546,7 +546,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     -- waffle (set by the flat renderer via GetFlatCategoryIcon). RIGHT: the
     -- app's own glyph, desaturated and chrome-tinted like the apps menu.
     elseif not iconSet and data and (data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher
-                                     or data.notesLauncher or data.clockLauncher) then
+                                     or data.notesLauncher or data.clockLauncher or data.alertsLauncher) then
         local appGlyph = Icons:GetAppGlyphIcon(data)
         if appGlyph then
             resultRow.icon:SetTexture(nil)

@@ -770,6 +770,12 @@ local function OnInitialize()
         if ns.RequestNotes() and ns.Notes.Slash then ns.Notes.Slash(msg) end
     end
 
+    -- /alerts: the Alerts window ("/alerts new" opens the list to pick from).
+    SLASH_EASYFINDALERTS1 = "/alerts"
+    SlashCmdList["EASYFINDALERTS"] = function(msg)
+        if ns.RequestAlerts() then ns.Alerts.Slash(msg) end
+    end
+
     InstallWhatsNewHyperlinkHook()
 end
 

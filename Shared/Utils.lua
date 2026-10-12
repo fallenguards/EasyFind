@@ -2186,6 +2186,7 @@ ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
 -- Clock extension: the stopwatch, plus one glyph per kind of run.
 ns.CLOCK_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\clock-icon"
+ns.ALERTS_ICON_TEX     = "Interface\\AddOns\\EasyFind\\textures\\alerts-icon"
 ns.CLOCK_ICON_COORDS   = { 0, 1, 0, 1 }
 ns.CLOCK_TOOL_ICONS = {
     pomodoro  = "Interface\\AddOns\\EasyFind\\textures\\clock-pomodoro",

@@ -358,6 +358,28 @@ function ns.RequestOnboarding()
     return false
 end
 
+-- Alerts (EasyFind_Alerts): the apps row, /alerts and its search row load
+-- it; while any alert is on it loads shortly after login to keep watching.
+function ns.RequestAlerts()
+    if ns.Alerts then return true end
+    LoadCompanion("EasyFind_Alerts")
+    if ns.Alerts then return true end
+    WarnCompanion("EasyFind_Alerts", "ALERTS_MODULE_DISABLED")
+    return false
+end
+
+do
+    local loader = CreateFrame("Frame")
+    loader:RegisterEvent("PLAYER_LOGIN")
+    loader:SetScript("OnEvent", function(self)
+        self:UnregisterAllEvents()
+        if not (EasyFind.db and EasyFind.db.alertsInUse) then return end
+        ns.Utils.SafeAfter(2, function()
+            if not ns.Alerts and ns.IsCompanionLoadable("EasyFind_Alerts") then LoadCompanion("EasyFind_Alerts") end
+        end)
+    end)
+end
+
 -- Clock: LoadOnDemand companion (EasyFind_Clock). Loaded by a clock
 -- command, its launcher, and at login while a run is going.
 function ns.RequestClock()
