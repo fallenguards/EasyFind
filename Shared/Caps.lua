@@ -76,8 +76,11 @@ Caps.forever = Caps.interface < 20000
 Caps.retail = not Caps.forever
 
 -- Systems. Each is a plain boolean, decided once at load.
+-- Forever has the API but answers one "specialization" per class.
+local classID = UnitClass and select(3, UnitClass("player"))
 Caps.specs = type(GetNumSpecializationsForClassID) == "function"
     and type(GetSpecializationInfoForClassID) == "function"
+    and (not classID or (call(GetNumSpecializationsForClassID, classID) or 0) > 1)
 Caps.journal = rule("EncounterJournalDisabled") ~= true
     and type(EncounterJournal_LoadUI) == "function"
     and Caps.PanelEnabled("Blizzard_EncounterJournal")
