@@ -5918,14 +5918,15 @@ end
 
 -- A small badge beside a feature's name: NEW in cyan, EXP (experimental) in
 -- amber; its glow pulses, a tooltip says why. Parent it to a container, never
--- to the row the name sits on, or the row takes the mouse.
+-- to the row the name sits on, or the row takes the mouse. superscript makes
+-- it the smaller kind that rides a word (ns.SuperscriptTag places it).
 ns.TAG_COLORS = { new = { 0.3, 0.85, 1.0 }, exp = { 1.0, 0.55, 0.12 } }
-function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody)
+function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     local c = ns.TAG_COLORS[kind] or ns.TAG_COLORS.new
     local tag = CreateFrame("Frame", nil, parent)
     tag:EnableMouse(true)
     tag:SetFrameStrata("TOOLTIP")
-    local text = tag:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local text = tag:CreateFontString(nil, "OVERLAY", superscript and "GameFontNormalTiny" or "GameFontNormalSmall")
     text:SetPoint("CENTER")
     text:SetText(kind == "exp" and ns.L["TAG_EXP"] or ((_G["NEW"] or "New"):upper()))
     text:SetTextColor(1, 1, 1)
@@ -5933,10 +5934,10 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody)
     text:SetShadowOffset(1, -1)
     text._efOwnColor = true
     local w = text:GetStringWidth() + 4
-    tag:SetSize(w, 14)
+    tag:SetSize(w, superscript and 10 or 14)
     local glow = tag:CreateTexture(nil, "BACKGROUND")
     glow:SetPoint("CENTER")
-    glow:SetSize(w + 24, 24)
+    glow:SetSize(w + (superscript and 16 or 24), superscript and 16 or 24)
     glow:SetAtlas("collections-newglow")
     glow:SetVertexColor(c[1], c[2], c[3], 0.5)
     glow:SetBlendMode("ADD")
@@ -5945,6 +5946,13 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody)
         Utils.AttachDelayedTooltip(tag, "ANCHOR_TOPLEFT", function() return tipTitle, tipBody end)
     end
     return tag
+end
+
+-- A superscript tag on a word: its foot on the middle of the text, just past
+-- the last letter, so it sits raised like an exponent.
+function ns.SuperscriptTag(tag, fontString)
+    tag:ClearAllPoints()
+    tag:SetPoint("BOTTOMLEFT", fontString, "LEFT", (fontString:GetStringWidth() or 0) + 1, 1)
 end
 
 function ns.CreateBounceFloat(region, offsetX, offsetY, duration)

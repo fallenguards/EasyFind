@@ -496,11 +496,10 @@ local function BuildRows(dropdown)
         Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
         -- An experimental app wears the EXP badge after its name.
         if app.experimental and not row.expTag then
-            row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], app.experimental)
+            row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], app.experimental, true)
         end
         if row.expTag then
-            row.expTag:ClearAllPoints()
-            row.expTag:SetPoint("LEFT", row.label, "LEFT", (row.label:GetStringWidth() or 0) + 4, 0)
+            ns.SuperscriptTag(row.expTag, row.label)
             row.expTag:SetShown(app.experimental ~= nil)
         end
         row:Show()
@@ -521,7 +520,7 @@ local function BuildRows(dropdown)
     local widest = 0
     for i = 1, #apps do
         local row = dropdown.rows[i]
-        local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 4 or 0)
+        local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 1 or 0)
         if w > widest then widest = w end
     end
     local menuW = ICON + 8 + widest + PAD * 2 + 6

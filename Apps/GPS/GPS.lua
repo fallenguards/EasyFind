@@ -2508,11 +2508,11 @@ local function BuildDock()
     header:SetText(L["APP_GPS"])
     header:SetTextColor(1, 0.82, 0)
     f.header = header
-    local exp = ns.CreateFeatureTag(head, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"])
-    exp:SetPoint("LEFT", header, "RIGHT", 4, 0)
+    local exp = ns.CreateFeatureTag(head, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"], true)
+    ns.SuperscriptTag(exp, header)
 
     local time = head:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    time:SetPoint("LEFT", exp, "RIGHT", 6, 0)
+    time:SetPoint("LEFT", header, "RIGHT", exp:GetWidth() + 7, 0)
     time:SetTextColor(1, 1, 1)
     f.time = time
 
