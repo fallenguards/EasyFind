@@ -15,10 +15,12 @@ local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
 -- and shrinks with the zoom, so each is converted at draw time.
-local LINE_W = 5
-local LINE_SPAN = 16               -- both strips drawn this thick; the core is LINE_W of it
-local ROUND = 4 * LINE_W           -- how far back a bend is cut to round it
+-- The line's drawn thickness by the GPS setting: its core is a third of it,
+-- the rest a soft dark edge and a faint glow.
+local LINE_SPANS = { thin = 7, normal = 10, thick = 14 }
+local ROUND = 20                   -- how far back a bend is cut to round it
 local MIN_TURN, MAX_TURN = math.rad(3), math.rad(12)
+local UL, LL, UR, LR = 1, 2, 3, 4  -- the client's vertex order
 local START = 36
 local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at each change of ride
 
@@ -104,19 +106,72 @@ local function SetSymbol(t, symbol, x, y, size)
     t:Show()
 end
 
+local function Span()
+    local db = EasyFind and EasyFind.db
+    return LINE_SPANS[db and db.gpsLineWidth] or LINE_SPANS.normal
+end
+Preview.LINE_SPANS = LINE_SPANS
+
 -- Every edge under every core: a bend never lays one stretch's dark edge
 -- over the next one's core.
 local function Solid(i)
     local s = solids[i]
     if not s then
-        s = overlay:CreateLine(nil, "OVERLAY", nil, 1)
+        s = overlay:CreateTexture(nil, "OVERLAY", nil, 1)
         s:SetTexture(TEX_CORE)
-        s.casing = overlay:CreateLine(nil, "OVERLAY", nil, 0)
-        s.casing:SetTexture(TEX_EDGE)
+        s.edge = overlay:CreateTexture(nil, "OVERLAY", nil, 0)
+        s.edge:SetTexture(TEX_EDGE)
+        s.pair = { s, s.edge }
         solids[i] = s
     end
     return s
 end
+
+-- One stretch as a four-cornered strip in its box, each corner moved onto
+-- its point: strips cut along the bends meet edge to edge, with no overlap
+-- to darken and no gap to show.
+local function Shape(t, ulx, uly, llx, lly, urx, ury, lrx, lry)
+    local x0, x1 = mmin(ulx, llx, urx, lrx), mmax(ulx, llx, urx, lrx)
+    local y0, y1 = mmin(uly, lly, ury, lry), mmax(uly, lly, ury, lry)
+    t:ClearAllPoints()
+    t:SetPoint("TOPLEFT", overlay, "TOPLEFT", x0, y1)
+    t:SetSize(mmax(x1 - x0, 0.01), mmax(y1 - y0, 0.01))
+    t:SetVertexOffset(UL, ulx - x0, uly - y1)
+    t:SetVertexOffset(LL, llx - x0, lly - y0)
+    t:SetVertexOffset(UR, urx - x1, ury - y1)
+    t:SetVertexOffset(LR, lrx - x1, lry - y0)
+end
+
+-- Each point's offset to one side of the line, h away: square to the
+-- stretch at the ends, along the bend's bisector (the miter) between, so
+-- both edges of every strip run parallel to it.
+local offX, offY = {}, {}
+local function Offsets(line, m, h)
+    local np = m / 2
+    local pnx, pny
+    for k = 1, np do
+        local nx, ny = pnx, pny
+        if k < np then
+            local dx, dy = line[2 * k + 1] - line[2 * k - 1], line[2 * k + 2] - line[2 * k]
+            local len = msqrt(dx * dx + dy * dy)
+            if len > 0 then nx, ny = -dy / len, dx / len end
+        end
+        nx, ny = nx or 0, ny or 1
+        local ax, ay = pnx or nx, pny or ny
+        local mx, my = ax + nx, ay + ny
+        local ml = msqrt(mx * mx + my * my)
+        if ml < 1e-6 then
+            offX[k], offY[k] = nx * h, ny * h
+        else
+            mx, my = mx / ml, my / ml
+            local s = h / mmax(mx * nx + my * ny, 0.5)
+            offX[k], offY[k] = mx * s, my * s
+        end
+        pnx, pny = nx, ny
+    end
+    return offX, offY
+end
+Preview._Offsets = Offsets   -- tests
 
 -- A walk's corners rounded: each cut back up to r (half a side at most) and
 -- run as a curve through the corner, in turns of MAX_TURN at most.
@@ -251,7 +306,8 @@ local function Draw()
     local accent = Accent()
     local nSolid, nSym = 0, 0
     local hovered
-    local lineW = px(LINE_W)
+    local span = px(Span())
+    local lineW = span * 0.4
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
     local all = shownIndex == 0
@@ -291,25 +347,20 @@ local function Draw()
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
                 local color = MODE_COLOR[step.kind] or accent
-                local span = px(LINE_SPAN)
                 -- One line, stretch by stretch: a walk follows its way, a
                 -- ride runs straight; each in its mode's color.
-                for v = 1, m - 3, 2 do
-                    local x1, y1, x2, y2 = line[v], line[v + 1], line[v + 2], line[v + 3]
+                Offsets(line, m, span / 2)
+                for k = 1, m / 2 - 1 do
+                    local x1, y1, x2, y2 = line[2 * k - 1], line[2 * k], line[2 * k + 1], line[2 * k + 2]
                     if x1 ~= x2 or y1 ~= y2 then
+                        local ax, ay, bx, by = offX[k], offY[k], offX[k + 1], offY[k + 1]
                         nSolid = nSolid + 1
                         local sl = Solid(nSolid)
-                        sl:SetThickness(span)
-                        sl:SetStartPoint("TOPLEFT", overlay, x1, y1)
-                        sl:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                        sl:SetVertexColor(color[1], color[2], color[3], alpha)
-                        sl:Show()
-                        local c = sl.casing
-                        c:SetThickness(span)
-                        c:SetStartPoint("TOPLEFT", overlay, x1, y1)
-                        c:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                        c:SetVertexColor(color[1], color[2], color[3], alpha)
-                        c:Show()
+                        for _, t in ipairs(sl.pair) do
+                            Shape(t, x1 + ax, y1 + ay, x1 - ax, y1 - ay, x2 + bx, y2 + by, x2 - bx, y2 - by)
+                            t:SetVertexColor(color[1], color[2], color[3], alpha)
+                            t:Show()
+                        end
                     end
                 end
             end
@@ -333,7 +384,7 @@ local function Draw()
     end
     for i = nSolid + 1, #solids do
         solids[i]:Hide()
-        solids[i].casing:Hide()
+        solids[i].edge:Hide()
     end
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where

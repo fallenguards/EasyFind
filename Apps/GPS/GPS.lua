@@ -3518,10 +3518,23 @@ local function BuildOptionsPage(ctx, page)
         end,
         "EasyFindGPSBeaconStyle", WorldPin and WorldPin.DefaultStyle() or "calm", L["GPS_BEACON_STYLE_TT"])
     row:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
+    local widths = {
+        { label = L["GPS_LINE_THIN"], value = "thin" },
+        { label = L["GPS_SIZE_NORMAL"], value = "normal" },
+        { label = L["GPS_LINE_THICK"], value = "thick" },
+    }
+    local lineRow = ctx.CreateFlyoutPresetRow(page, L["GPS_LINE_WIDTH"], widths,
+        function() local db = DB() return db and db.gpsLineWidth or "normal" end,
+        function(v)
+            local db = DB()
+            if db then db.gpsLineWidth = (v ~= "normal") and v or nil end
+        end,
+        "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
+    lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
     if not ctx.CreateCheckbox then return end
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }

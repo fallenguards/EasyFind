@@ -7,7 +7,7 @@ local function fresh()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
     H.loadModule("Apps/GPS/Preview.lua", env, ns)
-    return ns.GPSPreview._RoundBends
+    return ns.GPSPreview._RoundBends, ns.GPSPreview._Offsets
 end
 
 local function copy(t, n)
@@ -55,6 +55,26 @@ function tests.aShortSideLimitsTheCut()
     local p, n = Round({ 0, 0, 10, 0, 10, 100 }, 6, 20)
     p = copy(p, n)
     H.assertTrue(p[3] >= 5, "never cut back past half the short side, got " .. p[3])
+end
+
+-- Each corner of a strip lies h from both stretches it joins, so the strips
+-- meet edge to edge and each one's edges run parallel to it.
+function tests.stripCornersSitOnBothEdges()
+    local Round, Offsets = fresh()
+    local p, n = Round({ 0, 0, 100, 0, 140, 60, 260, 40 }, 8, 20)
+    p = copy(p, n)
+    local h = 5
+    local ox, oy = Offsets(p, n, h)
+    local function away(k, s)   -- corner k's distance from stretch s's line
+        local x1, y1, x2, y2 = p[2 * s - 1], p[2 * s], p[2 * s + 1], p[2 * s + 2]
+        local dx, dy = x2 - x1, y2 - y1
+        local cx, cy = p[2 * k - 1] + ox[k], p[2 * k] + oy[k]
+        return math.abs((cx - x1) * dy - (cy - y1) * dx) / math.sqrt(dx * dx + dy * dy)
+    end
+    for k = 1, n / 2 do
+        if k > 1 then H.assertTrue(math.abs(away(k, k - 1) - h) < 1e-6, "corner " .. k .. " on the stretch before") end
+        if k < n / 2 then H.assertTrue(math.abs(away(k, k) - h) < 1e-6, "corner " .. k .. " on the stretch after") end
+    end
 end
 
 local pass, fail, failures = H.runSuite("GPSPreview", tests)
