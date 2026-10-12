@@ -444,6 +444,27 @@ function tests.portalArrivalOnTheGoal_endsThere()
     H.assertEq(steps[1].kind, "portal")
 end
 
+-- A zone goal ends where a crossing lands inside it, with no walk on to its
+-- middle; so the crossing chosen is the quickest way in, not the nearest to it.
+function tests.zoneGoal_endsWhereTheCrossingLands()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_ARRIVE_IN_FMT = "Arrive in %s"
+    local d = data()
+    d.legs, d.abilities = {}, {}
+    d.edges = {
+        { kind = "boat", n = "Boat to the far shore", from = P(1, 0.1, 0.12), to = P(2, 0.1, 0.1), sec = 60 },
+        { kind = "portal", n = "Portal to the middle", from = P(1, 0.1, 0.5), to = P(2, 0.5, 0.5), sec = 14 },
+    }
+    local spot = build(Route, P(1, 0.1, 0.1), { name = "Map 2", mapID = 2, x = 0.5, y = 0.5 }, { data = d })
+    H.assertEq(spot[1].kind, "portal", "to the middle itself the portal is quicker")
+    local steps = buildAll(Route, P(1, 0.1, 0.1), { name = "Map 2", mapID = 2, x = 0.5, y = 0.5, zone = true }, { data = d })
+    local last = steps[#steps]
+    H.assertEq(steps[#steps - 1].kind, "boat", "into the zone the boat is quicker")
+    H.assertEq(last.text, "Arrive in Map 2")
+    H.assertEq(last.sec, 0)
+    H.assertEq(last.arrive.wx, 1000, "where the boat lands")
+end
+
 -- Two portals at one map spot on different floors: the step names the
 -- floor from the recorded height.
 function tests.stackedPortals_nameTheFloor()

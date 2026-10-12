@@ -147,13 +147,6 @@ local function EntranceOf(data)
     return nil
 end
 
--- A zone-sized map or smaller: a continent or the world is never "entered".
-local function IsZoneMap(mapID)
-    local info = mapID and C_Map.GetMapInfo(mapID)
-    local zone = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
-    return info ~= nil and info.mapType ~= nil and info.mapType >= zone
-end
-
 -- Instances carry isZone in search, but their entrance is the spot to reach.
 local INSTANCE_CATEGORIES = { dungeon = true, raid = true, delve = true }
 
@@ -166,10 +159,10 @@ local function Destination(data)
     elseif data.x and data.y and data.mapID then
         dest.mapID, dest.x, dest.y = data.mapID, data.x, data.y
     else
+        -- A zone or a continent itself, not a spot on it: reached on entering it.
         dest.mapID, dest.x, dest.y = data.zoneMapID or data.mapID, 0.5, 0.5
+        if data.isZone and not INSTANCE_CATEGORIES[data.category] then dest.zone = true end
     end
-    -- A zone is reached on entering its map: only a zone row aimed at that map.
-    if data.isZone and not INSTANCE_CATEGORIES[data.category] and IsZoneMap(dest.mapID) then dest.zone = true end
     return dest
 end
 
@@ -697,7 +690,7 @@ local function Tick()
         Refresh()
     end
     -- A zone is reached when you are in it, wherever its map's middle is.
-    if route.dest and route.dest.zone and IsZoneMap(route.dest.mapID) and OnMap(route.dest.mapID) then
+    if route.dest and route.dest.zone and not INSTANCE_CATEGORIES[route.dest.category] and OnMap(route.dest.mapID) then
         Arrive(route)
         return
     end
@@ -980,7 +973,8 @@ function GPS:SetStart(data)
     local dest = route and route.dest
     if dest and not route.arrived then
         GPS:NavigateTo({ name = dest.name, icon = dest.icon, category = dest.category, isZone = dest.zone,
-                         mapID = dest.mapID, x = dest.x, y = dest.y }, { quiet = true })
+                         mapID = dest.mapID, x = not dest.zone and dest.x or nil, y = not dest.zone and dest.y or nil },
+                       { quiet = true })
     elseif data then
         GPS:TogglePopout(true)
         local box = popoutFrame and popoutFrame.search

@@ -1,5 +1,5 @@
 -- Tests for where a GPS route aims (Apps/GPS/GPS.lua Destination): a zone
--- is "reached on entering it" only when the route aims at that zone's map.
+-- or a continent is "reached on entering it"; a spot on a map is a spot.
 
 local H = require("Harness")
 
@@ -9,7 +9,7 @@ local function Load()
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local s = assert(src:find("-- A zone-sized map or smaller", 1, true), "IsZoneMap not in GPS.lua")
+    local s = assert(src:find("-- Instances carry isZone in search", 1, true), "Destination not in GPS.lua")
     local e = assert(src:find("-- The engine plans over", s, true), "end of Destination not found")
     local MAPS = {
         [947] = { mapType = 1 }, [1414] = { mapType = 2 }, [1440] = { mapType = 3 }, [491] = { mapType = 4 },
@@ -39,10 +39,17 @@ function tests.zoneRow_isReachedOnEnteringItsMap()
     H.assertEq(dest.mapID, 1440)
 end
 
-function tests.continentIsNeverAZone()
+-- The boat to Menethil Harbor already lands in Eastern Kingdoms.
+function tests.continentRow_isReachedOnEnteringIt()
     local Destination = Load()
-    H.assertNil(Destination({ name = "Kalimdor", isZone = true, mapID = 1414 }).zone)
-    H.assertNil(Destination({ name = "Azeroth", isZone = true, mapID = 947 }).zone)
+    local dest = Destination({ name = "Eastern Kingdoms", category = "zone", isZone = true, zoneMapID = 1415 })
+    H.assertTrue(dest.zone)
+    H.assertEq(dest.mapID, 1415)
+end
+
+function tests.zoneRowAtASpot_isASpot()
+    local Destination = Load()
+    H.assertNil(Destination({ name = "Ashenvale", category = "zone", isZone = true, mapID = 1414, x = 0.4, y = 0.3 }).zone)
 end
 
 local pass, fail, failures = H.runSuite("GPSDestination", tests)

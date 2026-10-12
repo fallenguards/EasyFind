@@ -442,6 +442,7 @@ L["GPS_TAB_TT"]                         = "Directions to a zone or point of inte
 L["GPS_EMPTY"]                          = "No route yet. Right-click a zone or point of interest in the results and choose Navigate (GPS)."
 L["GPS_TO_FMT"]                         = "To %s"
 L["GPS_STEP_TRAVEL_FMT"]                = "Travel to %s"
+L["GPS_STEP_ARRIVE_IN_FMT"]             = "Arrive in %s"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "Walk through %s to %s"
 L["GPS_STEP_EXIT_FMT"]                  = "Exit %s"
 L["GPS_STEP_REACH_FMT"]                 = "Reach the %s"

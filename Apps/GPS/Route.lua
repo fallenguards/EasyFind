@@ -583,6 +583,19 @@ local function WithinMap(m, goal)
     return false
 end
 
+-- A zone goal is reached on entering it: from any stop inside it the goal
+-- is no walk further, so the way in is chosen, not the way to its middle.
+local function ZoneGoal(g)
+    g.zoneGoal = true
+    local goal = g.nodes[g.goal].p
+    for i = 1, #g.nodes do
+        local p = g.nodes[i].p
+        if i ~= g.goal and p and p.ci == goal.ci and WithinMap(p.m, goal.m) then
+            g.walkSec[i * WALK_KEY + g.goal], g.walkWind[i * WALK_KEY + g.goal] = 0, nil
+        end
+    end
+end
+
 -- One step per path element; consecutive flight legs fold into one flight.
 local function Steps(g, path, goalName)
     local L = ns.L
@@ -630,7 +643,7 @@ local function Steps(g, path, goalName)
         local el = path[i]
         local e = el.edge
         local node = g.nodes[el.node]
-        if e.kind == "travel" and e.sec == 0 and #steps > 0 then
+        if e.kind == "travel" and e.sec == 0 and #steps > 0 and not (node.kind == "goal" and g.zoneGoal) then
             -- Already there: the previous step ends on this spot.
             i = i + 1
         elseif leadsInto(el, path[i + 1]) then
@@ -647,14 +660,13 @@ local function Steps(g, path, goalName)
                 else name = AreaName(node.p.area) or node.edge.n end
             elseif node.kind == "goal" then name = goalName
             else name = MapName(node.p.m) end
-            -- A zone goal is reached on entering it: a step that already lands
-            -- inside the destination's map ends the route.
-            local skip = false
-            if node.kind == "goal" and g.zoneGoal and #steps > 0 then
-                local from = g.nodes[i > 1 and path[i - 1].node or g.start]
-                if from and from.p and WithinMap(from.p.m, node.p.m) then skip = true end
-            end
-            if not skip then
+            -- A zone goal is reached on entering it: after a step that already
+            -- lands inside it, the route ends where that step lands.
+            local from = node.kind == "goal" and g.zoneGoal and #steps > 0 and g.nodes[i > 1 and path[i - 1].node or g.start]
+            if from and from.p and WithinMap(from.p.m, node.p.m) then
+                tinsert(steps, { kind = "travel", text = (L["GPS_STEP_ARRIVE_IN_FMT"]):format(name or "?"),
+                                 mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = from.p, sec = 0 })
+            else
                 tinsert(steps, { kind = "travel", text = (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
                                  wind = e.wind })
@@ -770,7 +782,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         local c = cands[i]
         known[c.id] = true
         local g2 = BuildGraph(trial)
-        g2.zoneGoal = g.zoneGoal
+        if g.zoneGoal then ZoneGoal(g2) end
         local path2, t2 = Dijkstra(g2)
         known[c.id] = nil
         if path2 and total - t2 >= SUGGEST_MIN_SECONDS then
@@ -1061,7 +1073,7 @@ function Route:Build(dest, opts)
     end
     if not ctx.groundSpeed and not ctx.canFly then ctx.groundSpeed = Route.GroundSpeed(data) end
     local g = BuildGraph(ctx)
-    g.zoneGoal = dest.zone and true or nil
+    if dest.zone then ZoneGoal(g) end
     local path = Solve(g)
     if not path then return nil end
     local cost = PathSeconds(g, path)
