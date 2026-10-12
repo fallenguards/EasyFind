@@ -93,10 +93,13 @@ local BUTTONFRAME_PANEL = {
 -- click opens PlayerSpellsFrame and navigates within it).
 function SecureOpeners.OpenKeyForData(data)
     if not data then return nil end
+    -- The replacement's own window opens through its API instead.
+    local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    local talent = data.category == "Talent"
+    if Replacement and Replacement(talent and "talents" or "spellBook") then return nil end
     local key = BUTTONFRAME_PANEL[data.buttonFrame]
     if key then return key end
-    if data.spellID and (data.category == "Talent"
-       or Utils.IsSpellbookOnlyAbility(data)) then
+    if data.spellID and (talent or Utils.IsSpellbookOnlyAbility(data)) then
         return "playerSpells"
     end
     return nil

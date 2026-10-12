@@ -8,6 +8,25 @@ local select, ipairs = Utils.select, Utils.ipairs
 
 function Handlers:OpenTalentInTalentsTab(data)
     local TALENTS_TAB = ns.SecureOpeners and ns.SecureOpeners.TAB_TALENTS or 2
+    -- The replacement's talents: opened through its API, the talent's
+    -- button highlighted where it hands one over.
+    local api = Openers.Replacement and Openers.Replacement("talents")
+    if api then
+        api.Open("talents")
+        local highlight = ns.RequestGuide()
+        local tries = 0
+        local function find()
+            tries = tries + 1
+            local ok, btn = pcall(api.GetFrame, "talents", "talent:" .. tostring(data.spellID))
+            if ok and btn and btn:IsVisible() and highlight and highlight.HighlightFrame then
+                highlight:HighlightFrame(btn)
+            elseif tries < 25 then
+                Utils.SafeAfter(0.2, find)
+            end
+        end
+        find()
+        return
+    end
 
     local function ensureFrameOnTab(attempt)
         local frame = _G["PlayerSpellsFrame"]

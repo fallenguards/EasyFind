@@ -16,6 +16,44 @@ local SecureCall = Utils.SecureCall
 
 local InCombatLockdown = InCombatLockdown
 
+-- The interface replacement's API (ClassicUIForeverAPI) when its version of
+-- a window (by its API name) stands in for the client's now, else nil.
+local function Replacement(name)
+    local api = name and ClassicUIForeverAPI
+    if not (api and (api.version or 0) >= 1 and api.IsOn) then return nil end
+    local ok, on = pcall(api.IsOn, name)
+    return (ok and on) and api or nil
+end
+Openers.Replacement = Replacement
+
+-- The replacement's window a client frame name stands for, shown or not:
+-- PlayerSpellsFrame is its spellbook or its talents, whichever is up.
+local REPLACED_FRAMES = { ClassTalentFrame = "talents", QuestLogFrame = "questLog", CommunitiesFrame = "guildRoster" }
+function Openers.ReplacementFrame(path)
+    if path == "PlayerSpellsFrame" then
+        local book, talents = Replacement("spellBook"), Replacement("talents")
+        local b = book and book.GetFrame("spellBook")
+        local t = talents and talents.GetFrame("talents")
+        if t and t:IsShown() then return t end
+        return b or t
+    end
+    local name = REPLACED_FRAMES[path]
+    local api = Replacement(name)
+    return api and api.GetFrame(name) or nil
+end
+
+-- Where a client micro button stands now: the replacement's lookup (its own
+-- copy when the client's is hidden), else the client's own while shown.
+function Openers.MicroButton(name)
+    local api = ClassicUIForeverAPI
+    if api and api.GetFrame then
+        local ok, frame = pcall(api.GetFrame, "microMenu", name)
+        if ok and frame then return frame end
+    end
+    local own = _G[name]
+    return (own and own:IsShown()) and own or nil
+end
+
 local function SecureShowUIPanel(frame)
     if not frame or not ShowUIPanel then return false end
     -- Protected panels cannot be shown by insecure code in combat; refuse
@@ -56,6 +94,9 @@ end
 -- is already active (or no specific tab was requested).
 local function EnsurePlayerSpellsTab(tabIndex)
     if not tabIndex or IsPlayerSpellsTabSelected(tabIndex) then return true end
+    if Replacement(tabIndex == (ns.SecureOpeners and ns.SecureOpeners.TAB_TALENTS) and "talents" or "spellBook") then
+        return true
+    end
     local tab = ns.SecureOpeners
         and ns.SecureOpeners.GetTabButtonFor("playerSpells", tabIndex)
     local highlight = ns.RequestGuide()
@@ -66,6 +107,11 @@ local function EnsurePlayerSpellsTab(tabIndex)
 end
 
 local function OpenPlayerSpellsFrame(tabIndex)
+    -- The replacement's spellbook or talents open through its API, never the
+    -- client's window or its taken micro button.
+    local which = tabIndex == (ns.SecureOpeners and ns.SecureOpeners.TAB_TALENTS) and "talents" or "spellBook"
+    local api = Replacement(which)
+    if api then return api.Open(which) end
     local frame = _G["PlayerSpellsFrame"]
     if frame and frame:IsShown() then
         EnsurePlayerSpellsTab(tabIndex)
@@ -136,13 +182,12 @@ end
 local REPLACED_BY = {
     GuildMicroButton = "guildRoster",
     QuestLogMicroButton = "questLog",
+    TalentMicroButton = "talents",
 }
 local function OpenReplacement(buttonFrame)
     local name = REPLACED_BY[buttonFrame]
-    local api = name and ClassicUIForeverAPI
-    if not (api and (api.version or 0) >= 1 and api.IsOn and api.Open) then return nil end
-    local ok, on = pcall(api.IsOn, name)
-    if not (ok and on) then return nil end
+    local api = Replacement(name)
+    if not (api and api.Open) then return nil end
     local okOpen, opened = pcall(api.Open, name)
     return (okOpen and opened) and true or false
 end

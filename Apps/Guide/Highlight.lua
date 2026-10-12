@@ -666,7 +666,10 @@ local function HandleGuideCustomText(self, step)
 end
 
 local function HandleGuideButtonFrame(self, step)
-    local targetFrame = Utils.GetFrameByPath(step.buttonFrame) or _G[step.buttonFrame]
+    local Openers = ns.SearchOpeners
+    local micro = Openers and Openers.MicroButton and step.buttonFrame and step.buttonFrame:find("MicroButton$")
+    local targetFrame = (micro and Openers.MicroButton(step.buttonFrame))
+        or Utils.GetFrameByPath(step.buttonFrame) or _G[step.buttonFrame]
     if targetFrame and targetFrame:IsShown() then
         local nextStep = currentGuide.steps[currentStepIndex + 1]
         if nextStep and nextStep.waitForFrame then
@@ -1966,6 +1969,10 @@ end
 
 function Highlight:GetFrameByPath(path)
     if not path then return nil end
+    -- A window the interface replacement stands in for: wait for its own.
+    local Openers = ns.SearchOpeners
+    local replaced = Openers and Openers.ReplacementFrame and Openers.ReplacementFrame(path)
+    if replaced then return replaced end
 
     if path == "FIND_PVP_TALENTS" then
         return self:FindPvPTalentsTray()

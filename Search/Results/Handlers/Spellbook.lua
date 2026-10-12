@@ -623,7 +623,33 @@ local function FindSpellbookButton(root, target, scroll, candidate)
     return nil
 end
 
+-- The replacement's spellbook: it opens and pages itself, and hands over the
+-- button showing the spell; the highlight holds while that button shows it.
+local function OpenAbilityInReplacement(api, data, stepGuide)
+    local highlight = ns.RequestGuide()
+    local id = data.spellID
+    if not stepGuide then api.Open("spellBook", "spell:" .. id) end
+    local tries = 0
+    local function find()
+        tries = tries + 1
+        local book = api.GetFrame("spellBook")
+        local btn = book and book:IsShown() and api.GetFrame("spellBook", "spell:" .. id)
+        if btn and btn:IsVisible() and highlight and highlight.HighlightFrame then
+            highlight:HighlightFrame(btn, nil, function() return api.SpellOnButton(btn) == id end)
+            return
+        end
+        if stepGuide and not (book and book:IsShown()) then
+            local micro = Openers.MicroButton("PlayerSpellsMicroButton")
+            if micro and highlight and highlight.HighlightFrame then highlight:HighlightFrame(micro, nil, nil, true) end
+        end
+        if tries < 150 then Utils.SafeAfter(0.2, find) end
+    end
+    find()
+end
+
 function Handlers:OpenAbilityInSpellbook(data, stepGuide)
+    local replaced = Openers.Replacement and data.spellID and Openers.Replacement("spellBook")
+    if replaced then return OpenAbilityInReplacement(replaced, data, stepGuide) end
     local highlight = ns.RequestGuide()
     local targetElement
 
