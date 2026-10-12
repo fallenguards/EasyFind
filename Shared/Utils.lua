@@ -2730,7 +2730,22 @@ do
             for _, t in pairs(frame.combinedBorder.fill) do t:SetShown(panel) end
             for _, t in pairs(frame.combinedBorder.border) do t:SetShown(panel and frame._efRingWanted ~= false) end
         end
+        -- The Forever theme without its band: the line border in its bronze.
+        if frame._efForeverSurface then
+            local c = ns.ForeverLineColor()
+            for _, t in pairs(frame.combinedBorder.border) do t:SetVertexColor(c[1], c[2], c[3], c[4]) end
+        end
         return false
+    end
+end
+
+-- The line border's and divider's color on a surface made for the Forever
+-- band: the theme's bronze under the Forever theme, else the usual gray.
+do
+    local LINE_GRAY = { BORDER_R, BORDER_G, BORDER_B, 1 }
+    function ns.ForeverLineColor()
+        local p = ns.ACTIVE_UI_PALETTE
+        return (p and p.chrome == "forever") and ns.FOREVER_BRONZE or LINE_GRAY
     end
 end
 
@@ -6002,7 +6017,8 @@ function ns.SetRoundedRectDivider(frame, yOffset, shown)
         d:SetHeight(1)
         inset = ns.CLASSIC_BACKDROP.insets.left
     else
-        d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1)
+        local c = frame._efForeverSurface and ns.ForeverLineColor() or nil
+        if c then d:SetColorTexture(c[1], c[2], c[3], c[4]) else d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1) end
         d:SetHeight(1)
     end
     d:ClearAllPoints()

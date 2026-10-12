@@ -32,6 +32,7 @@ local function newRegion(w, h)
     function r:SetTexCoord(...) self.coords = { ... } end
     function r:SetTexture(t, wh, wv) self.tex, self.wrapH, self.wrapV = t, wh, wv return true end
     function r:SetColorTexture(...) self.color = { ... } end
+    function r:SetVertexColor(...) self.vertex = { ... } end
     function r:SetBackdrop(b) self.backdrop = b end
     function r:SetBackdropColor(...) self.bdColor = { ... } end
     function r:SetBackdropBorderColor() end
@@ -113,6 +114,27 @@ end
 local function near(a, b) return math.abs(a - b) < 1e-6 end
 
 local tests = {}
+
+-- The band off (frame art off): the line border and divider are the
+-- Forever theme's bronze, the usual gray under any other theme.
+function tests.bandOff_lineBorderWearsTheThemesBronze()
+    installClient(FOREVER_ART)
+    borderOption(true)
+    env.EasyFind.db.themeFrameArt = false
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    local f = surface(true)
+    ns.ApplyThemeFill(f)
+    ns.SetRoundedRectDivider(f, 30, true)
+    H.assertFalse(f._efForeverOn, "no band")
+    for _, t in pairs(f.combinedBorder.border) do H.assertTrue(near(t.vertex[1], 0.78), "bronze border") end
+    H.assertTrue(near(f.combinedDivider.color[1], 0.78), "bronze divider")
+    ns.ACTIVE_UI_PALETTE = PLAIN
+    ns.ApplyThemeFill(f)
+    ns.SetRoundedRectDivider(f, 30, true)
+    for _, t in pairs(f.combinedBorder.border) do H.assertTrue(near(t.vertex[1], 0.42), "gray border") end
+    H.assertTrue(near(f.combinedDivider.color[1], 0.42), "gray divider")
+    env.EasyFind.db.themeFrameArt = nil
+end
 
 function tests.optedInSurface_wearsTheSpellbookBorderOverTheQuestLog()
     installClient(FOREVER_ART)
