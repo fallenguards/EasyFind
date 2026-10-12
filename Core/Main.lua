@@ -1179,12 +1179,14 @@ local function OnPlayerLogin()
 
     -- Delay so Minimap is ready.
     SafeAfter(0.6, function()
+        -- By now every addon (so every broker display and button gatherer)
+        -- has loaded; the broker object comes first so a LibDBIcon button can
+        -- take the hand-made one's place before it is ever shown.
+        if ns.RegisterDataBroker then ns.RegisterDataBroker() end
+        if ns.RegisterMinimapIcon then ns.RegisterMinimapIcon() end
         if EasyFind.db.showMinimapButton then
             EasyFind:UpdateMinimapButton()
         end
-        -- Same delay as the minimap button: both are launcher surfaces, and
-        -- by now every addon (so every broker display) has loaded.
-        if ns.RegisterDataBroker then ns.RegisterDataBroker() end
     end)
 
     local currentVersion = ns.version
@@ -1697,6 +1699,12 @@ local function PositionMinimapButton(angle)
     minimapButton:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
+-- Where a LibDBIcon button was last dragged wins, should its library leave.
+local function SavedMinimapAngle()
+    local icon = EasyFind.db.minimapIcon
+    return (type(icon) == "table" and icon.minimapPos) or EasyFind.db.minimapButtonAngle or 200
+end
+
 local function CreateMinimapButton()
     if minimapButton then return minimapButton end
 
@@ -1756,6 +1764,7 @@ local function CreateMinimapButton()
         cx, cy = cx / scale, cy / scale
         local angle = mdeg(matan2(cy - my, cx - mx))
         EasyFind.db.minimapButtonAngle = angle
+        if type(EasyFind.db.minimapIcon) == "table" then EasyFind.db.minimapIcon.minimapPos = angle end
         PositionMinimapButton(angle)
     end
     mmBtn:SetScript("OnDragStart", function(self)
@@ -1777,17 +1786,23 @@ local function CreateMinimapButton()
     mmBtn:SetScript("OnLeave", GameTooltip_Hide)
 
     minimapButton = mmBtn
-    PositionMinimapButton(EasyFind.db.minimapButtonAngle or 200)
+    PositionMinimapButton(SavedMinimapAngle())
     return mmBtn
 end
 
 function EasyFind:UpdateMinimapButton()
+    local icon = ns.minimapIcon
+    if icon then
+        if EasyFind.db.showMinimapButton then icon:Show(ADDON_LABEL) else icon:Hide(ADDON_LABEL) end
+        if minimapButton then minimapButton:Hide() end
+        return
+    end
     if EasyFind.db.showMinimapButton then
         if not minimapButton then
             CreateMinimapButton()
         end
         minimapButton:Show()
-        PositionMinimapButton(EasyFind.db.minimapButtonAngle or 200)
+        PositionMinimapButton(SavedMinimapAngle())
     elseif minimapButton then
         minimapButton:Hide()
     end
@@ -1830,6 +1845,33 @@ function ns.RegisterDataBroker()
             tooltip:AddLine(L["MINIMAP_TT_RIGHT_CLICK"], 1, 1, 1)
         end,
     })
+end
+
+-- Minimap button gatherers and bags collect only LibDBIcon buttons, and each
+-- ships the library: with one loaded, the launcher above becomes a LibDBIcon
+-- button and the hand-made one steps aside. Its saved angle carries over as
+-- minimapPos once (both measure from the east, counter-clockwise).
+function ns.RegisterMinimapIcon()
+    if ns.minimapIcon then return true end
+    if not LibStub then return false end
+    local okIcon, icon = pcall(LibStub, "LibDBIcon-1.0", true)
+    local okBroker, broker = pcall(LibStub, "LibDataBroker-1.1", true)
+    if not (okIcon and type(icon) == "table" and icon.Register and okBroker and type(broker) == "table"
+            and broker.GetDataObjectByName) then
+        return false
+    end
+    local obj = broker:GetDataObjectByName(ADDON_LABEL)
+    if not obj then return false end
+    local db = EasyFind.db
+    if type(db.minimapIcon) ~= "table" then db.minimapIcon = { minimapPos = db.minimapButtonAngle or 200 } end
+    db.minimapIcon.hide = db.showMinimapButton == false
+    if not pcall(icon.Register, icon, ADDON_LABEL, obj, db.minimapIcon) then return false end
+    ns.minimapIcon = icon
+    -- Known before its first click, so that click toggles instead of blinking.
+    local btn = icon.GetMinimapButton and icon:GetMinimapButton(ADDON_LABEL)
+    if btn then ns.brokerLauncherButtons[btn] = true end
+    if minimapButton then minimapButton:Hide() end
+    return true
 end
 
 function EasyFind_OnAddonCompartmentClick(_, button)
