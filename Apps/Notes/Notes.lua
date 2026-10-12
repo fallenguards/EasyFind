@@ -2,9 +2,10 @@ local _, notesNS = ...
 
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.UI and ns.Utils) then return end
+if not (ns and ns.Utils and ns.Results) then return end
 
-local UI = ns.UI
+-- The notes window's methods; the core's search window is ns.Results.
+local UI = {}
 local L = ns.L
 local Utils = ns.Utils
 
@@ -2657,8 +2658,8 @@ function UI:EnsureEasyNotesFrame()
         ns.SetRoundedRectBarHeight(frame, 14)
         ns.SetRoundedRectBorderBgAlpha(frame, db.opacity or OPACITY_DEFAULT)
         ns.SetRoundedRectBorderEdgeShown(frame, false)
-        if UI.ApplySearchWindowFill then
-            UI:ApplySearchWindowFill(frame)
+        if ns.Results.ApplySearchWindowFill then
+            ns.Results:ApplySearchWindowFill(frame)
         else
             local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(frame, c[1], c[2], c[3], 1)
@@ -5074,8 +5075,8 @@ function Builders.BuildEasyNotesHeaderPanel(frame)
         ns.CreateRoundedRectBorder(panel)
         ns.SetRoundedRectBarHeight(panel, 14)
         ns.SetRoundedRectBorderEdgeShown(panel, false)
-        if UI.ApplySearchWindowFill then
-            UI:ApplySearchWindowFill(panel)
+        if ns.Results.ApplySearchWindowFill then
+            ns.Results:ApplySearchWindowFill(panel)
         else
             local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(panel, c[1], c[2], c[3], 1)
