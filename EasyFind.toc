@@ -33,6 +33,7 @@ Shared/SearchText.lua
 Shared/CategoryMap.lua
 Shared/Scheduler.lua
 Shared/MapUtils.lua
+Shared/Signals.lua
 MapSearch/Categories.lua
 MapSearch/Indicators.lua
 MapSearch/Frames.lua
