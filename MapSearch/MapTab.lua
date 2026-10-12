@@ -2983,6 +2983,11 @@ function PlaceTab()
         local wmf = _G["WorldMapFrame"]
         local nine = wmf and wmf.BorderFrame and wmf.BorderFrame.NineSlice
         local inset = (nine and nine:GetAlpha() < 0.01) and -4 or -12
+        -- ClassicUI Forever's own map frame: its edge is the border's.
+        local openers = ns.SearchOpeners
+        local replaced = openers and openers.Replacement and openers.Replacement("worldMap")
+        local own = replaced and replaced.GetFrame("worldMap")
+        if own and own:IsVisible() then wmf, inset = own, -3 end
         local qTop, wTop = qmf:GetTop(), wmf and wmf:GetTop()
         if qTop and wTop then
             backTab:SetPoint("TOPLEFT", wmf, "TOPRIGHT", inset, qTop - wTop - 28)
