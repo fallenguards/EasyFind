@@ -742,5 +742,26 @@ function tests.report_isOneLineOfEveryField()
     has(" own=i6948 ")
 end
 
+-- A walk no foot can take in the middle is never chosen: the crossing is.
+function tests.unwalkableMiddle_isNeverChosen()
+    local _, ns, Route = fresh()
+    withNav(ns, function(sx, sy, tx, ty)
+        -- Nothing on foot crosses the x = 5000 line.
+        if (sx - 5000) * (tx - 5000) < 0 then return nil end
+        return { sx, sy, tx, ty }
+    end)
+    local steps, total = buildAll(Route, P(1, 0.1, 0.1), { name = "Far side", mapID = 1, x = 0.9, y = 0.9 })
+    H.assertNotNil(steps)
+    H.assertTrue(total < math.huge, "finite: " .. tostring(total))
+    for i = 1, #steps do H.assertTrue((steps[i].sec or 0) < math.huge, "step " .. i .. " is finite") end
+end
+
+-- The report line never fails on a time it cannot hold.
+function tests.stepsCode_neverFailsOnAnEndlessTime()
+    local _, _, Route = fresh()
+    local code = Route.StepsCode({ { kind = "travel", sec = math.huge, arrive = { m = 1439 } } })
+    H.assertEq(code, "travel>1439/-1")
+end
+
 local pass, fail, failures = H.runSuite("GPSRoute", tests)
 return { pass = pass, fail = fail, failures = failures }

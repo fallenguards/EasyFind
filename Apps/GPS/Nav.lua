@@ -71,7 +71,7 @@ local function World(ci)
     local data = ns.GPSNavData and ns.GPSNavData[ci]
     if not data then return nil end
     w = { ci = ci, data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
-          reach = {}, reachN = 0, walks = {}, walksN = 0 }
+          reach = {}, reachN = 0, walks = {}, walksN = 0, region = {}, regions = 0 }
     worlds[ci] = w
     return w
 end
@@ -458,6 +458,16 @@ local function Walk(w, ax, ay, bx, by, opts)
     end
     local fromA = ToEntrances(w, ta, ga)
     local toB = ToEntrances(w, tb, gb)
+    -- A's region already flooded: B is reached only if it lies in it.
+    local region, ra = w.region, nil
+    for node in pairs(fromA) do ra = ra or region[node] end
+    if ra and best == mhuge then
+        local inside = false
+        for node in pairs(toB) do
+            if region[node] == ra then inside = true break end
+        end
+        if not inside then return nil end
+    end
     local g, prev, closed, heap = {}, {}, {}, NewHeap()
     for node, c in pairs(fromA) do
         g[node] = c
@@ -494,7 +504,12 @@ local function Walk(w, ax, ay, bx, by, opts)
             end
         end
     end
-    if best == mhuge then return nil end
+    if best == mhuge then
+        -- The heap ran dry: every entrance closed is A's whole region.
+        w.regions = w.regions + 1
+        for n in pairs(closed) do region[n] = w.regions end
+        return nil
+    end
     local chain = {}
     local node = reached
     while node do

@@ -409,10 +409,12 @@ local function Dijkstra(g)
     return path, dist[reached]
 end
 
-local SOLVE_ROUNDS = 8
+local SOLVE_ROUNDS = 48
 
 -- The shortest path with its walks priced on the walking grid: only walks a
 -- best path takes are looked up, then the path is found again until it holds.
+-- A path still holding an unpriced walk is no path: it could be one no foot
+-- can take.
 local function Solve(g)
     for _ = 1, SOLVE_ROUNDS do
         local path, cost = Dijkstra(g)
@@ -427,7 +429,7 @@ local function Solve(g)
         end
         if not fresh then return path, cost end
     end
-    return Dijkstra(g)
+    return nil
 end
 
 -- Path cost in seconds (avoided ways' penalties in), each walk priced on
@@ -1228,7 +1230,8 @@ function Route.StepsCode(steps)
     for i = 1, #steps do
         local s = steps[i]
         local a = s.arrive
-        local sec = mfloor((s.sec or 0) + 0.5)
+        local sec = s.sec or 0
+        sec = (sec == sec and sec < mhuge and sec > -mhuge) and mfloor(sec + 0.5) or -1
         local prev = out[#out]
         if s.kind == "travel" and prev and prev.kind == "travel" then
             prev.sec, prev.m = prev.sec + sec, a and a.m or prev.m
