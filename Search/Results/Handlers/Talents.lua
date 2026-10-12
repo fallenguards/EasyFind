@@ -12,7 +12,8 @@ function Handlers:OpenTalentInTalentsTab(data)
     -- button highlighted where it hands one over.
     local api = Openers.Replacement and Openers.Replacement("talents")
     if api then
-        -- It opens on the tree tab that holds the talent.
+        -- It opens on the tree tab that holds the talent (the row's own
+        -- secure click may have opened the window already).
         api.Open("talents", "talent:" .. tostring(data.spellID))
         local highlight = ns.RequestGuide()
         local tries = 0

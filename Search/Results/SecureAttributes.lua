@@ -133,6 +133,8 @@ function SecureAttributes.Apply(resultRow, data)
         end
     elseif data and data.slashCommand then
         newType, newKey, newVal = "macro", "macrotext", data.slashCommand
+    elseif SecureOpeners and SecureOpeners.ReplacementMacro(data) then
+        newType, newKey, newVal = "macro", "macrotext", SecureOpeners.ReplacementMacro(data)
     elseif openKey then
         -- Nil while the panel is shown, so the click only steers tabs
         -- instead of toggling it closed.

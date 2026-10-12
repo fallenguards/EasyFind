@@ -5,6 +5,7 @@ local H = require("Harness")
 
 local function Load(on)
     local env = H.newEnv()
+    env._G = env
     local opened = {}
     if on then
         env.ClassicUIForeverAPI = {
@@ -16,9 +17,10 @@ local function Load(on)
     end
     local ns = H.newNs(env)
     ns.SearchOpeners = {}
+    ns.Utils.IsSpellbookOnlyAbility = ns.Utils.IsSpellbookOnlyAbility or function() return false end
     H.loadModule("Search/Openers.lua", env, ns)
     H.loadModule("Shared/SecureOpeners.lua", env, ns)
-    return ns, opened
+    return ns, opened, env
 end
 
 local SPELL = { spellID = 133, category = "Spell", buttonFrame = "PlayerSpellsMicroButton" }
@@ -64,6 +66,27 @@ function tests.legacyButton_opensThroughTheAPI()
     local ns, opened = Load({ legacyWindow = true })
     H.assertTrue(ns.SearchOpeners:OpenButtonFrame("LegacyMicroButton"))
     H.assertEq(opened[1], "legacyWindow")
+end
+
+-- Its keys: armed while the window is closed, never while it is open.
+function tests.replacementKey_onlyWhileItsWindowIsClosed()
+    local ns, _, env = Load({ talents = true })
+    local api = env.ClassicUIForeverAPI
+    local shown = false
+    api.SecureOpener = function(name) return name == "talents" and "CUIFTalentsKey" or nil end
+    api.GetFrame = function() return { IsVisible = function() return shown end } end
+    env.CUIFTalentsKey = {}
+    H.assertEq(ns.SecureOpeners.ReplacementMacro(TALENT), "/click CUIFTalentsKey")
+    shown = true
+    H.assertNil(ns.SecureOpeners.ReplacementMacro(TALENT), "open: the key would close it")
+    H.assertNil(ns.SecureOpeners.ReplacementMacro(SPELL), "spellbook not replaced")
+end
+
+function tests.followUpOpen_leavesAnOpenWindowAlone()
+    local ns, opened, env = Load({ questLog = true })
+    env.ClassicUIForeverAPI.GetFrame = function() return { IsVisible = function() return true end } end
+    H.assertTrue(ns.SearchOpeners:OpenButtonFrame("QuestLogMicroButton"))
+    H.assertEq(#opened, 0)
 end
 
 local pass, fail, failures = H.runSuite("CuifOpeners", tests)

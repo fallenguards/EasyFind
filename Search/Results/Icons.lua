@@ -397,7 +397,7 @@ function Icons:IsSecureActionResult(data)
         or data.macroIndex or data.slashCommand
         or (data.itemID and data.category == "Bag"
             and Handlers:GetBagItemActionKind(data) ~= "show"))
-        or (ns.SecureOpeners and ns.SecureOpeners.OpenKeyForData(data)) or false
+        or (ns.SecureOpeners and (ns.SecureOpeners.OpenKeyForData(data) or ns.SecureOpeners.ReplacementMacro(data))) or false
 end
 
 function Icons:GetBossPortraitTexCoord()

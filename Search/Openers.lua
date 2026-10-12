@@ -194,6 +194,8 @@ local function OpenReplacement(buttonFrame)
     local name = REPLACED_BY[buttonFrame]
     local api = Replacement(name)
     if not (api and api.Open) then return nil end
+    local frame = api.GetFrame and api.GetFrame(name)
+    if frame and frame:IsVisible() then return true end
     local okOpen, opened = pcall(api.Open, name)
     return (okOpen and opened) and true or false
 end
