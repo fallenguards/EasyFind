@@ -80,7 +80,7 @@ Data.CATEGORY_ICONS = {
     rostrum = { file = 1121272, coords = { 0.7738, 0.8033, 0.4066, 0.4394 } },
     pettrainer = "atlas:WildBattlePetCapturable",
     ridingtrainer = "atlas:StableMaster",
-    npc = "Interface\\Icons\\INV_Misc_Head_Human_01",
+    npc = 134148,
     areapoi = "Interface\\Icons\\INV_Misc_QuestionMark",
     unknown = "Interface\\Icons\\INV_Misc_QuestionMark",
 }
