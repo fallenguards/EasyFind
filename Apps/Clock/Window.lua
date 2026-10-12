@@ -9,21 +9,21 @@ local L = ns.L
 local Runs, Grammar = ns.ClockRuns, ns.ClockGrammar
 
 local CreateFrame, UIParent = CreateFrame, UIParent
-local time, tostring = time, tostring
-local mmax = Utils.mmax
+local time, tostring, strtrim = time, tostring, strtrim
+local mmax, mmin, pairs = Utils.mmax, Utils.mmin, Utils.pairs
 
 local Window = {}
 CL.Window = Window
 
 local W, PAD, HEADER_H, GAP = 272, 8, 30, 6
 local CARD_H, ENDED_H, RING, BTN, BTN_GAP = 56, 84, 40, 24, 5
-local CHIP_H, TILE_GAP = 18, 8
+local CHIP_H, TILE_GAP, ENTRY_W = 18, 8, 92
 local PLUS_SECONDS = 300
 local PAUSED_ALPHA = 0.55
 local TIMER_CHIPS = { 1, 5, 10, 15, 30 }
 local POMODORO_CHIPS = { { 25, 5 }, { 50, 10 } }
 
-local UI = { cards = {} }
+local UI = { cards = {}, entries = {} }
 
 local function DragStart()
     UI.win:StartMoving()
@@ -100,8 +100,7 @@ local function PaintCard(card)
     local r, g, b = CL.Surface(0.07)
     ns.SetRoundedRectFill(card, r, g, b, 1, true)
     local ended = card.run and card.run.done
-    ns.SetRoundedRectBorderEdgeShown(card, ended and true or false)
-    if ended then ns.SetRoundedRectBorderColor(card, CL.GOLD[1], CL.GOLD[2], CL.GOLD[3], 0.75, true) end
+    ns.SetRoundedRectBorderEdgeShown(card, false)
     local body, faint, light = CL.Palette()
     local c = ended and CL.GOLD or body
     card.time:SetTextColor(c[1], c[2], c[3], 1)
@@ -358,24 +357,36 @@ local function StopwatchChip()
     StartFromTile("stopwatch")
 end
 
--- The alarm tile's time entry
+-- A tile's typed entry: its chip gives way to a box read as the search bar
+-- reads "timer 45", "pom 40 10" or "alarm 7:30pm".
 
-local function CloseEntry()
-    local box = UI.entry
+local ENTRY_VERB = { timer = "timer", pomodoro = "pom", alarm = "alarm" }
+local ENTRY_BAD = { timer = "CLOCK_TIMER_BAD", pomodoro = "CLOCK_POMODORO_BAD", alarm = "CLOCK_ALARM_BAD" }
+
+local function CloseEntry(box)
     if not (box and box:IsShown()) then return end
     box:Hide()
-    UI.setTime:Show()
+    box.chip:Show()
     SetHint(L["CLOCK_TILES_HINT"], false)
 end
 
+local function CloseEntries()
+    for _, box in pairs(UI.entries) do CloseEntry(box) end
+end
+
 local function EntryEnter(box)
-    local cmd = Grammar.Parse("alarm " .. (box:GetText() or ""))
-    if cmd and Grammar.Resolve(cmd, time()) then
+    local text = strtrim(box:GetText() or "")
+    local cmd = text ~= "" and Grammar.Parse(ENTRY_VERB[box.tool] .. " " .. text)
+    if cmd and cmd.tool == box.tool and Grammar.Resolve(cmd, time()) then
         box:ClearFocus()
-        StartFromTile("alarm", cmd.at)
+        if box.tool == "alarm" then
+            StartFromTile("alarm", cmd.at)
+        else
+            StartFromTile(box.tool, cmd.seconds, cmd.seconds2)
+        end
         return
     end
-    SetHint(L["CLOCK_ALARM_BAD"], true)
+    SetHint(L[ENTRY_BAD[box.tool]], true)
 end
 
 local function EntryChanged(box)
@@ -391,15 +402,18 @@ local function PaintEntry(box)
     box.placeholder:SetTextColor(faint[1], faint[2], faint[3], 1)
 end
 
-local function EnsureEntry()
-    if UI.entry then return UI.entry end
-    local tile = UI.setTime:GetParent()
-    local box = CreateFrame("EditBox", nil, tile)
+local function EnsureEntry(chip)
+    local box = UI.entries[chip.tool]
+    if box then return box end
+    local tile = chip:GetParent()
+    box = CreateFrame("EditBox", nil, tile)
+    box.chip, box.tool = chip, chip.tool
     box:Hide()
     box:SetAutoFocus(false)
-    box:SetSize(92, CHIP_H)
-    box:SetPoint("TOPLEFT", UI.setTime, "TOPLEFT", 0, 0)
+    box:SetHeight(CHIP_H)
+    box:SetPoint("TOPLEFT", chip, "TOPLEFT", 0, 0)
     box:SetFontObject(_G["GameFontHighlightSmall"] or _G["GameFontNormal"])
+    ns.RegisterAddonFont(box)
     box:SetTextInsets(7, 7, 0, 0)
     box:SetMaxLetters(12)
     ns.CreateRoundedRectBorder(box)
@@ -407,25 +421,34 @@ local function EnsureEntry()
     ns.SetRoundedRectBorderEdgeShown(box, false)
     box.placeholder = CL.Text(box, "GameFontHighlightSmall")
     box.placeholder:SetPoint("LEFT", box, "LEFT", 7, 0)
-    box.placeholder:SetText(GameTime_GetFormattedTime and GameTime_GetFormattedTime(19, 30, true) or "19:30")
+    box.placeholder:SetText(chip.placeholder)
     box:SetScript("OnEnterPressed", EntryEnter)
     box:SetScript("OnEscapePressed", box.ClearFocus)
     box:SetScript("OnEditFocusLost", CloseEntry)
     box:SetScript("OnTextChanged", EntryChanged)
-    UI.entry = box
+    UI.entries[chip.tool] = box
     CL.Painted(box, PaintEntry)
     return box
 end
 
-local function AlarmChip()
-    local box = EnsureEntry()
-    UI.setTime:Hide()
+-- As wide as the room left in the tile row, never narrower than the chip.
+local function EntryChip(chip)
+    CloseEntries()
+    local box = EnsureEntry(chip)
+    local room = (chip:GetParent():GetRight() or 0) - (chip:GetLeft() or 0) - 8
+    box:SetWidth(mmax(chip:GetWidth(), mmin(ENTRY_W, room)))
+    chip:Hide()
     box:SetText("")
     box:Show()
     -- A box opened from a press takes focus a frame later.
     Utils.SafeAfter(0, function()
         if box:IsVisible() then box:SetFocus() end
     end)
+end
+
+local function AddEntryChip(tile, tool, label, placeholder)
+    local chip = AddChip(tile, label, EntryChip)
+    chip.tool, chip.placeholder = tool, placeholder
 end
 
 local function CreateTiles(win)
@@ -435,15 +458,18 @@ local function CreateTiles(win)
     local timer = CreateTile(tiles, "timer", CL.GOLD)
     for i = 1, #TIMER_CHIPS do AddChip(timer, tostring(TIMER_CHIPS[i]), TimerChip, TIMER_CHIPS[i]) end
     AddUnit(timer, L["CLOCK_MIN"])
+    AddEntryChip(timer, "timer", L["CLOCK_CUSTOM"], "45")
     local pom = CreateTile(tiles, "pomodoro", CL.FOCUS_COLOR)
     for i = 1, #POMODORO_CHIPS do
         local p = POMODORO_CHIPS[i]
         AddChip(pom, p[1] .. " / " .. p[2], PomodoroChip, p[1], p[2])
     end
+    AddEntryChip(pom, "pomodoro", L["CLOCK_CUSTOM"], "40 / 10")
     local sw = CreateTile(tiles, "stopwatch", CL.GOLD)
     AddChip(sw, _G["START"] or "Start", StopwatchChip)
     local alarm = CreateTile(tiles, "alarm", CL.ALARM_COLOR)
-    UI.setTime = AddChip(alarm, L["CLOCK_SET_TIME"], AlarmChip)
+    AddEntryChip(alarm, "alarm", L["CLOCK_SET_TIME"],
+        GameTime_GetFormattedTime and GameTime_GetFormattedTime(19, 30, true) or "19:30")
     -- Two by two, each row as tall as its taller tile.
     local h1 = mmax(FlowTile(timer, tw), FlowTile(pom, tw))
     local h2 = mmax(FlowTile(sw, tw), FlowTile(alarm, tw))
@@ -492,7 +518,7 @@ local function EnsureWindow()
     win:SetScript("OnDragStart", DragStart)
     win:SetScript("OnDragStop", DragStop)
     win:HookScript("OnHide", function()
-        if UI.entry then UI.entry:ClearFocus() end
+        CloseEntries()
     end)
     ns.StyleMenuPanel(win)
     local pos = Runs.sv.hud
@@ -567,7 +593,7 @@ function Window.Refresh()
         y = y - UI.hint:GetStringHeight()
     else
         y = y + GAP
-        CloseEntry()
+        CloseEntries()
     end
     win:SetHeight(-y + PAD)
 end

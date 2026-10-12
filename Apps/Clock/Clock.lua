@@ -64,7 +64,8 @@ local function ShowAlert(text)
         alert = CreateFrame("Frame", nil, UIParent)
         alert:SetSize(900, 60)
         alert:SetPoint("CENTER", UIParent, "CENTER", 0, 170)
-        alert:SetFrameStrata("HIGH")
+        -- In front of the clock window, which is HIGH.
+        alert:SetFrameStrata("DIALOG")
         alert:EnableMouse(false)
         alert.text = alert:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
         local font = alert.text:GetFont()
@@ -232,7 +233,13 @@ function CL.Again(run)
     CL.Changed()
 end
 
+-- The cog toggles: a second press closes the panel open on the clock page.
 function CL.OpenSettings()
+    local frame = ns.optionsFrame
+    if frame and frame:IsShown() and ns.Options.CurrentExtensionPage and ns.Options:CurrentExtensionPage() == "clock" then
+        ns.Options:Hide()
+        return
+    end
     if ns.RequestOptionsPanel() and ns.Options.OpenAtExtension then
         ns.Options:OpenAtExtension("clock")
     end

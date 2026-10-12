@@ -76,20 +76,22 @@ function CL.KindColor(run)
     return CL.GOLD
 end
 
--- Text the clock colors itself: the menu panel's text pass leaves it alone.
-function CL.Text(parent, template)
+-- Text the clock colors itself, in the font chosen for EasyFind; the menu
+-- panel's text pass leaves its color alone.
+function CL.Text(parent, template, size)
     local fs = parent:CreateFontString(nil, "OVERLAY", template)
     fs._efOwnColor = true
+    if size then
+        local path, _, flags = fs:GetFont()
+        if path then fs:SetFont(path, size, flags or "") end
+    end
+    ns.RegisterAddonFont(fs)
     return fs
 end
 
--- The digits font has same-width figures, so a running time never shifts.
-local DIGITS = _G["NumberFont_Shadow_Large"] and "NumberFont_Shadow_Large" or "GameFontHighlightLarge"
-
+-- Times in the game's own stopwatch face.
 function CL.DigitsText(parent, size)
-    local fs = CL.Text(parent, DIGITS)
-    local path = fs:GetFont()
-    if path then fs:SetFont(path, size, "") end
+    local fs = CL.Text(parent, "GameFontHighlightLarge", size)
     fs:SetJustifyH("LEFT")
     fs:SetWordWrap(false)
     return fs

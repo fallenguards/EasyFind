@@ -491,7 +491,7 @@ local function companion(saved, startAt)
     ns.ACTIVE_UI_PALETTE = { windowFill = { 0.05, 0.05, 0.06 } }
     ns.ThemeSwatchColor = function(p) return p.windowFill[1], p.windowFill[2], p.windowFill[3] end
     for _, name in ipairs({ "CreateRoundedRectBorder", "SetRoundedRectBarHeight", "SetRoundedRectBorderEdgeShown",
-                            "SetRoundedRectFill", "SetRoundedRectBorderColor" }) do
+                            "SetRoundedRectFill", "SetRoundedRectBorderColor", "RegisterAddonFont" }) do
         ns[name] = function() end
     end
     ns.StyleMenuPanel = function() end
