@@ -11,6 +11,7 @@ local Nav = {}
 ns.GPSNav = Nav
 
 local sbyte, mfloor, msqrt, mhuge, mabs = string.byte, math.floor, math.sqrt, math.huge, math.abs
+local mmax, mmin = math.max, math.min
 local tinsert, tremove = table.insert, table.remove
 
 local TILE = 1600 / 3
@@ -80,7 +81,7 @@ local function World(ci)
     local data = ns.GPSNavData and ns.GPSNavData[ci]
     if not data then return nil end
     w = { ci = ci, data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
-          reach = {}, reachN = 0, walks = {}, walksN = 0, region = {}, regions = 0 }
+          reach = {}, reachN = 0, walks = {}, walksN = 0 }
     worlds[ci] = w
     return w
 end
@@ -345,12 +346,21 @@ local function TileNeighbours(t, g)
     return n
 end
 
--- Inside one tile from floor g0: each floor's cost and the floor before.
--- With a goal the search stops there (A* on the straight line).
+-- Inside one tile from floor g0 (or from each floor of a table, at its
+-- starting cost): each floor's cost and the floor before. With a goal the
+-- search stops there (A* on the straight line).
 local function TileSearch(w, t, g0, goal)
-    local cost, prev, closed = { [g0] = 0 }, {}, {}
+    local cost, prev, closed = {}, {}, {}
     local heap = NewHeap()
-    heap:Push(0, g0)
+    if type(g0) == "table" then
+        for g, c in pairs(g0) do
+            cost[g] = c
+            heap:Push(c, g)
+        end
+    else
+        cost[g0] = 0
+        heap:Push(0, g0)
+    end
     local gx, gy
     if goal then gx, gy = FloorXY(w, t, goal) end
     local cell = w.cell * Danger(w, t.key)
@@ -438,12 +448,7 @@ end
 
 -- Costs from floor g of tile t to each entrance side in that tile; kept
 -- per floor, as every walk from one spot asks the same.
-local function ToEntrances(w, t, g)
-    local rk = t.key * 131072 + g
-    local kept = w.reach[rk]
-    if kept then return kept end
-    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
-    local cost = TileSearch(w, t, g)
+local function EntranceCosts(w, t, cost)
     local tc = TileCosts(w, t.key)
     local ents = Entrances(w)
     local out = {}
@@ -452,42 +457,124 @@ local function ToEntrances(w, t, g)
         local c = cost[ents.floor[node]]
         if c then out[node] = c end
     end
+    return out
+end
+
+local function ToEntrances(w, t, g)
+    local rk = t.key * 131072 + g
+    local kept = w.reach[rk]
+    if kept then return kept end
+    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
+    local out = EntranceCosts(w, t, TileSearch(w, t, g))
     w.reach[rk], w.reachN = out, w.reachN + 1
     return out
 end
 
+-- An end that is any floor within r yards of (x, y) (a dock or a landing
+-- just off the ground), in every tile that circle touches: the costs from
+-- the nearest such floor to each entrance side, and per tile key to every
+-- floor of that tile; nil without one.
+local function NearEnd(w, x, y, r)
+    local rk = mfloor(x) .. ":" .. mfloor(y) .. ":" .. r
+    local kept = w.reach[rk]
+    if kept then return kept[1], kept[2] end
+    local N, cell = w.N, w.cell
+    local out, floors
+    for _, cx in ipairs({ x - r, x + r }) do
+        for _, cy in ipairs({ y - r, y + r }) do
+            local key, sx, sy = TileOf(cx, cy)
+            local t = not (floors and floors[key]) and Tile(w, key)
+            local seeds
+            for row = mmax(0, mfloor((x - r - sx) / cell)), mmin(N - 1, mfloor((x + r - sx) / cell)) do
+                for col = mmax(0, mfloor((y - r - sy) / cell)), mmin(N - 1, mfloor((y + r - sy) / cell)) do
+                    local cc = row * N + col
+                    for g = t and t.cellFirst[cc] or 1, t and t.cellFirst[cc] + t.cellN[cc] - 1 or 0 do
+                        local gx, gy = FloorXY(w, t, g)
+                        local d = msqrt((gx - x) ^ 2 + (gy - y) ^ 2)
+                        if d <= r then
+                            seeds = seeds or {}
+                            seeds[g] = d
+                        end
+                    end
+                end
+            end
+            if seeds then
+                local cost = TileSearch(w, t, seeds)
+                floors, out = floors or {}, out or {}
+                floors[key] = cost
+                for node, c in pairs(EntranceCosts(w, t, cost)) do
+                    if not out[node] or c < out[node] then out[node] = c end
+                end
+            end
+        end
+    end
+    if not out then return nil end
+    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
+    w.reach[rk], w.reachN = { out, floors }, w.reachN + 1
+    return out, floors
+end
+
 local function Other(node) return node % 2 == 1 and node + 1 or node - 1 end
+
+-- The ground each entrance side lies on (dev/tools/navmesh/ground.py): no
+-- walk joins two grounds. false: the data does not say.
+local function Ground(w)
+    if w.ground ~= nil then return w.ground end
+    local s = w.data.ground
+    w.ground = false
+    if not s then return false end
+    local u = Reader(Unpack(s))
+    local out = {}
+    for e = 1, u() do
+        local gr = u()
+        out[2 * e - 1], out[2 * e] = gr, gr
+    end
+    w.ground = out
+    return out
+end
+
+local onGround = {}
 
 -- The walk from a to b: cost (running yards), the entrance sides it passes
 -- (pairs: leave a tile, enter the next), and both ends' tile and floor.
 local function Walk(w, ax, ay, bx, by, opts)
     local ta, ga = Locate(w, ax, ay, opts and opts.indoorsA)
-    local tb, gb = Locate(w, bx, by, opts and opts.indoorsB)
-    if not (ga and gb) then return nil end
+    local near = opts and opts.near
+    local tb, gb, toB, nearFloors
+    if near then
+        toB, nearFloors = NearEnd(w, bx, by, near)
+    else
+        tb, gb = Locate(w, bx, by, opts and opts.indoorsB)
+    end
+    if not (ga and (gb or toB)) then return nil end
     local ents = Entrances(w)
     local best = mhuge
-    if ta.key == tb.key then
+    if nearFloors then
+        local inTile = nearFloors[ta.key]
+        if inTile and inTile[ga] then best = inTile[ga] end
+    elseif ta.key == tb.key then
         local cost = TileSearch(w, ta, ga, gb)
         if cost[gb] then best = cost[gb] end
     end
     local fromA = ToEntrances(w, ta, ga)
-    local toB = ToEntrances(w, tb, gb)
-    -- A's region already flooded: B is reached only if it lies in it.
-    local region, ra = w.region, nil
-    for node in pairs(fromA) do ra = ra or region[node] end
-    if ra and best == mhuge then
-        local inside = false
+    toB = toB or ToEntrances(w, tb, gb)
+    -- B is reached only on ground A stands on.
+    local ground = Ground(w)
+    if ground and best == mhuge then
+        wipe(onGround)
+        for node in pairs(fromA) do onGround[ground[node]] = true end
+        local joined = false
         for node in pairs(toB) do
-            if region[node] == ra then inside = true break end
+            if onGround[ground[node]] then joined = true break end
         end
-        if not inside then return nil end
+        if not joined then return nil end
     end
     local g, prev, closed, heap = {}, {}, {}, NewHeap()
     for node, c in pairs(fromA) do
         g[node] = c
         heap:Push(c + msqrt((bx - ents.x[node]) ^ 2 + (by - ents.y[node]) ^ 2), node)
     end
-    local reached, cut
+    local reached
     local cell = w.cell
     local limit = opts and opts.limit
     local pops = 0
@@ -496,10 +583,7 @@ local function Walk(w, ax, ay, bx, by, opts)
         if pops % 64 == 0 then Pause() end
         local node, f = heap:Pop()
         if not node or f >= best then break end
-        if limit and f > limit then
-            cut = true
-            break
-        end
+        if limit and f > limit then break end
         if not closed[node] then
             closed[node] = true
             local fin = toB[node]
@@ -526,14 +610,7 @@ local function Walk(w, ax, ay, bx, by, opts)
             end
         end
     end
-    if best == mhuge then
-        -- The heap ran dry: every entrance closed is A's whole region.
-        if not cut then
-            w.regions = w.regions + 1
-            for n in pairs(closed) do region[n] = w.regions end
-        end
-        return nil
-    end
+    if best == mhuge then return nil end
     local chain = {}
     local node = reached
     while node do
@@ -545,13 +622,15 @@ end
 
 -- Walking cost in running yards from (ax, ay) to (bx, by) on continent ci,
 -- or nil (no data there, or no way on foot). opts.indoorsA / indoorsB pick
--- the floor at each end; opts.limit gives up past that many running yards.
+-- the floor at each end; opts.limit gives up past that many running yards;
+-- opts.near takes any floor within that many yards of b as the end.
 function Nav.Walk(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
     local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
         .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
         .. ((opts and opts.limit) and ("L" .. mfloor(opts.limit)) or "")
+        .. ((opts and opts.near) and ("N" .. opts.near) or "")
     local cost = w.walks[key]
     if cost == nil then
         if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end

@@ -157,5 +157,30 @@ function tests.walk_pausesInsideAPlanAndFinishesTheSame()
     H.assertEq(Nav.Walk(0, EAST[1], EAST[2], GOLDSHIRE[1], GOLDSHIRE[2]) ~= nil, true)
 end
 
+-- A near end takes the ground around b: never dearer than b itself, and
+-- short of it by no more than the reach.
+function tests.walk_nearEndTakesTheGroundAroundIt()
+    local Nav = fresh()
+    local exact = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local near = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2], { near = 40 })
+    H.assertTrue(near ~= nil and near <= exact + 0.01, "no dearer: " .. tostring(near) .. " vs " .. exact)
+    H.assertTrue(near >= exact - 40 * 1.6, "short by the reach at most: " .. near .. " vs " .. exact)
+    -- Across the tiles' seam (y = 0) from a point beside it.
+    local across = Nav.Walk(0, -9400, 30, -9400, -15, { near = 40 })
+    H.assertTrue(across ~= nil and across < 50, "the ground across the seam: " .. tostring(across))
+end
+
+-- Every shipped grid says which entrances one can walk between (ground.py),
+-- or a walk with no way searches all the ground it reaches first.
+function tests.shippedGrids_carryTheirGround()
+    for _, name in ipairs({ "Walk_Kalimdor", "Walk_EasternKingdoms", "Walk_ZephrasIsle" }) do
+        local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/" .. name .. ".lua", "rb"))
+        f:seek("end", -4096)
+        local tail = f:read("*a")
+        f:close()
+        H.assertTrue(tail:find('ground = "', 1, true) ~= nil, name .. " carries no ground")
+    end
+end
+
 local pass, fail, failures = H.runSuite("GPSNav", tests)
 return { pass = pass, fail = fail, failures = failures }

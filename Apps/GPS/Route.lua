@@ -276,36 +276,10 @@ local WALK_KEY = 65536
 
 -- A crossing's spot (a boat's stop on the water, the far end of a pier, a
 -- portal's landing) can sit just off the ground the walking grid joins up.
--- It is reached from the nearest ground around it that a walk gets to.
--- The ground is looked for only from a walk this close (the trouble is the
--- last few yards), then kept for every walk to that crossing.
+-- It is reached from the ground within this many yards of it, by a walk
+-- this close (the trouble is the last few yards, not the way there).
 local CROSSING = { taxi = true, edgeFrom = true, edgeTo = true, teleportTo = true }
-local BOARD_RINGS, BOARD_DIRS, BOARD_NEAR = { 10, 20, 30, 40 }, 12, 600
-local boardAt = {}
-
-local function BoardKey(ci, p) return ci .. ":" .. mfloor(p.wx) .. ":" .. mfloor(p.wy) end
-
-local function Board(Nav, ci, from, to)
-    local key = BoardKey(ci, to)
-    local at = boardAt[key]
-    if at then
-        local cost = Nav.Walk(ci, from.wx, from.wy, at[1], at[2])
-        return cost and cost + at[3]
-    end
-    if Dist(from, to) > BOARD_NEAR then return nil end
-    for _, r in ipairs(BOARD_RINGS) do
-        for k = 0, BOARD_DIRS - 1 do
-            local ang = k * 2 * math.pi / BOARD_DIRS
-            local cx, cy = to.wx + r * math.cos(ang), to.wy + r * math.sin(ang)
-            local straight = msqrt((cx - from.wx) ^ 2 + (cy - from.wy) ^ 2)
-            local cost = Nav.Walk(ci, from.wx, from.wy, cx, cy, { limit = straight * 3 + 200 })
-            if cost then
-                boardAt[key] = { cx, cy, r }
-                return cost + r
-            end
-        end
-    end
-end
+local BOARD, BOARD_NEAR = { near = 40 }, 600
 
 -- A walk's seconds on the walking grid by the cost it is chosen by (the
 -- chosen route's walks are timed by their real path afterwards), and its
@@ -328,7 +302,9 @@ local function PriceWalk(g, i, j)
         local from, to = a, b
         if CROSSING[ni.kind] and not CROSSING[nj.kind] then from, to = b, a end
         local cost = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy)
-        if not cost and (CROSSING[ni.kind] or CROSSING[nj.kind]) then cost = Board(Nav, a.ci, from, to) end
+        if not cost and (CROSSING[ni.kind] or CROSSING[nj.kind]) and straight <= BOARD_NEAR then
+            cost = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, BOARD)
+        end
         if cost then
             sec, wind = g.mountUp + cost / g.travelSpeed, cost / straight
         else

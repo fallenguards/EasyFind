@@ -537,7 +537,16 @@ local function withNav(ns, way)
         Ensure = function() return true end,
         Has = function() return true end,
         Path = path,
-        Walk = function(...) return select(2, path(...)) end,
+        -- opts.near: the end may be that far off, toward the start.
+        Walk = function(ci, sx, sy, tx, ty, opts)
+            local near = opts and opts.near
+            if near then
+                local d = math.sqrt((tx - sx) ^ 2 + (ty - sy) ^ 2)
+                local f = d > 0 and math.min(1, near * 0.9 / d) or 0
+                tx, ty = tx + (sx - tx) * f, ty + (sy - ty) * f
+            end
+            return select(2, path(ci, sx, sy, tx, ty))
+        end,
     }
 end
 
