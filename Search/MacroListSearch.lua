@@ -2,7 +2,7 @@ local _, ns = ...
 
 -- A search bar in the game's own macro window, filtering the visible macro
 -- grid on the CURRENT tab (general or character) to macros whose name or
--- body matches. Sits in the title strip, centered on the close button.
+-- body matches. Heads the icon grid, as wide as a row of icons.
 --
 -- Identity model: while a query is active, the selector gets OUR data
 -- provider, returning one filtered entry table per shown position, and OUR
@@ -24,7 +24,8 @@ local GetNumMacros = GetNumMacros
 local pcall = pcall
 local type = type
 
-local BUILD = "identity-remap-v10"
+local BUILD = "identity-remap-v11"
+local BAR_HEIGHT, BAR_GAP = 20, 8
 
 local filtered = {}      -- reused entry tables: {index, name, texture}
 local filteredCount = 0
@@ -149,34 +150,19 @@ local function AttachMacroListSearch(frame)
 
     local searchBox = CreateFrame("EditBox", "EasyFindMacroListSearchBox", frame, "SearchBoxTemplate")
     searchBox:SetAutoFocus(false)
-    -- The stock title text gives way to the bar (the window's purpose is
-    -- obvious from the window itself).
-    local title = frame.GetTitleText and frame:GetTitleText()
-    if title then title:Hide() end
-    -- Vertically centered ON the close button by construction; width spans
-    -- from right of the portrait to left of the X. The template's border
-    -- art is fixed-size textures, so SetHeight cannot shrink it visually:
-    -- scale the whole box and divide the on-screen width and gap by the
-    -- scale to compensate.
-    local scale = 0.75
-    searchBox:SetScale(scale)
-    searchBox:SetHeight(20)
-    searchBox:SetWidth((frame:GetWidth() - 70 - 48) / scale)
-    if frame.CloseButton then
-        searchBox:SetPoint("RIGHT", frame.CloseButton, "LEFT", -26 / scale, 0)
-    else
-        searchBox:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -40 / scale, -8 / scale)
-    end
-    -- Above the header chrome: NineSlice and the title/portrait containers
-    -- are child frames whose levels sit above the root's.
-    local topLevel = frame:GetFrameLevel()
-    for _, chrome in next, { frame.NineSlice, frame.TitleContainer, frame.PortraitContainer } do
-        if chrome and chrome.GetFrameLevel then
-            local lvl = chrome:GetFrameLevel()
-            if lvl > topLevel then topLevel = lvl end
-        end
-    end
-    searchBox:SetFrameLevel(topLevel + 5)
+    -- The bar heads the grid, flush with the outer icons; the grid starts
+    -- under it and scrolls in the rest. No window changes size.
+    local padTop, _, padLeft, _, spacing = sel:GetPadding()
+    local stride = sel:GetStride()
+    local strip = BAR_HEIGHT + BAR_GAP
+    local point, rel, relPoint, x, y = sel:GetPoint(1)
+    searchBox:SetHeight(BAR_HEIGHT)
+    -- The template's left border hangs 5 px past the box.
+    searchBox:SetPoint(point, rel, relPoint, x + padLeft + 5, y - padTop)
+    searchBox:SetWidth(stride * sel:GetButtonWidth() + (stride - 1) * spacing - 5)
+    searchBox:SetFrameStrata(sel:GetFrameStrata())
+    sel:SetPoint(point, rel, relPoint, x, y - strip)
+    sel:SetHeight(sel:GetHeight() - strip)
 
     searchBox:SetScript("OnTextChanged", function(self, userInput)
         if _G.SearchBoxTemplate_OnTextChanged then
