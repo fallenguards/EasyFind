@@ -309,21 +309,21 @@ local function StripDecorationMarks(text)
 end
 
 local FORMAT_ACTIONS = {
-    { key = "bold",      tip = "Bold",          mode = "bold",      buttonLabel = "B", buttonBold = true },
+    { key = "bold",      tip = L["NOTES_FMT_BOLD"],          mode = "bold",      buttonLabel = "B", buttonBold = true },
     -- The italic glyph is resolved at button creation through the live italic
     -- map: the font has italic glyphs only at the PUA slots, so a baked SMP
     -- math-italic codepoint renders as nothing.
-    { key = "italic",    tip = "Italic",        mode = "italic",    buttonLabel = "I" },
-    { key = "underline", tip = "Underline",     mode = "underline", buttonLabel = "U" },
-    { key = "strike",    tip = "Strikethrough", mode = "strike",    buttonLabel = "S" },
-    { key = "color",     tip = "Color",         mode = "color",     buttonLabel = "A", buttonBold = true, isColor = true },
+    { key = "italic",    tip = L["NOTES_FMT_ITALIC"],        mode = "italic",    buttonLabel = "I" },
+    { key = "underline", tip = L["NOTES_FMT_UNDERLINE"],     mode = "underline", buttonLabel = "U" },
+    { key = "strike",    tip = L["NOTES_FMT_STRIKE"], mode = "strike",    buttonLabel = "S" },
+    { key = "color",     tip = L["NOTES_FMT_COLOR"],         mode = "color",     buttonLabel = "A", buttonBold = true, isColor = true },
     -- The three list styles share one toolbar button that opens a small menu,
     -- so they cost one slot instead of three. Each entry is a full action the
     -- menu hands straight to ApplyEasyNotesFormat.
-    { key = "lists", tip = "Lists", mode = "lists", isListMenu = true, listMenu = {
-        { key = "list",      tip = "Bulleted list", mode = "list",    linePrefix = BULLET_PREFIX },
-        { key = "checklist", tip = "Checklist",     mode = "check",   linePrefix = CHECK_EMPTY_PREFIX, toggleCheck = true },
-        { key = "numlist",   tip = "Numbered list", mode = "numlist", numbered = true },
+    { key = "lists", tip = L["NOTES_FMT_LISTS"], mode = "lists", isListMenu = true, listMenu = {
+        { key = "list",      tip = L["NOTES_FMT_BULLETS"], mode = "list",    linePrefix = BULLET_PREFIX },
+        { key = "checklist", tip = L["NOTES_FMT_CHECKLIST"],     mode = "check",   linePrefix = CHECK_EMPTY_PREFIX, toggleCheck = true },
+        { key = "numlist",   tip = L["NOTES_FMT_NUMBERED"], mode = "numlist", numbered = true },
     } },
 }
 
@@ -360,7 +360,7 @@ local function NormalizeDB()
                 local body = tostring(n.body or "")
                 local first = body:match("^[^\n]+") or ""
                 first = strtrim((first:gsub("^#+%s*", "")))
-                n.name = (first == "" and "Untitled Note") or (#first > 64 and (first:sub(1, 64) .. "...")) or first
+                n.name = (first == "" and "") or (#first > 64 and (first:sub(1, 64) .. "...")) or first
             end
         end
     end
@@ -472,7 +472,7 @@ end
 local function NoteTitle(note)
     if not note then return "" end
     local name = note.name and strtrim(note.name) or ""
-    if name == "" then return "Untitled Note" end
+    if name == "" or name == "Untitled Note" then return L["NOTES_UNTITLED"] end
     if #name > 64 then name = name:sub(1, 64) .. "..." end
     return name
 end
@@ -480,10 +480,10 @@ end
 local function FormatRelTime(ts)
     if not ts then return "" end
     local diff = time() - ts
-    if diff < 60 then return "just now" end
-    if diff < 3600 then return math.floor(diff / 60) .. "m ago" end
-    if diff < 86400 then return math.floor(diff / 3600) .. "h ago" end
-    if diff < 86400 * 7 then return math.floor(diff / 86400) .. "d ago" end
+    if diff < 60 then return L["NOTES_JUST_NOW"] end
+    if diff < 3600 then return Utils.sformat(L["NOTES_MIN_AGO"], math.floor(diff / 60)) end
+    if diff < 86400 then return Utils.sformat(L["NOTES_HOURS_AGO"], math.floor(diff / 3600)) end
+    if diff < 86400 * 7 then return Utils.sformat(L["NOTES_DAYS_AGO"], math.floor(diff / 86400)) end
     return date("%b %d", ts)
 end
 
@@ -510,15 +510,6 @@ UI._notes = {
     toolbarShown = false,
     loadingNote = false,
     snippetFocus = false,
-    LAUNCHER = {
-        name = "Notes",
-        nameLower = "notes",
-        category = "Feature",
-        path = { "EasyFind" },
-        noPin = true,
-        notesLauncher = true,
-        keywords = { "notes", "note", "memo", "journal", "todo", "scratch" },
-    },
 }
 
 local function GetSelectedNote()
@@ -636,7 +627,7 @@ end
 local function CreateNote(body)
     local note = {
         id = NextNoteID(),
-        name = "Untitled Note",
+        name = "",
         body = tostring(body or ""),
         alias = "",
         pinned = false,
@@ -827,6 +818,7 @@ function notesNS.OpenPlayerNote(key, shown)
         note = CreateNote("")
         note.name = entry.name
         note.scope = "account"
+        note.category = "Players"
         note.appliesIn[1] = { type = entry.type, id = entry.id, name = entry.name }
         note.showsOn[1] = { type = entry.type, id = entry.id, name = entry.name }
     end
@@ -865,9 +857,7 @@ function UI:CheckEasyNotesReminders()
         local note = notes[i]
         if note.reminderAt and note.reminderAt <= now then
             note.reminderAt = nil
-            if DEFAULT_CHAT_FRAME then
-                DEFAULT_CHAT_FRAME:AddMessage("|cff66bbffEasyNotes reminder:|r " .. NoteTitle(note))
-            end
+            EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_FMT"], NoteTitle(note)))
             if PlaySound and SOUNDKIT then pcall(PlaySound, SOUNDKIT.IG_QUEST_LOG_OPEN) end
         end
     end
@@ -885,11 +875,11 @@ local function ConfirmDeleteNote(id)
         local idx = FindNoteIndex(ids[1])
         local note = idx and NotesStore()[idx]
         if not note then return end
-        local name = note.name or "Untitled Note"
+        local name = NoteTitle(note)
         if #name > 40 then name = name:sub(1, 40) .. "..." end
-        prompt = "Delete note \"" .. name .. "\"?"
+        prompt = Utils.sformat(L["NOTES_DELETE_ONE"], name)
     else
-        prompt = "Delete " .. #ids .. " notes?"
+        prompt = Utils.sformat(L["NOTES_DELETE_MANY"], #ids)
     end
     if not ns.ShowThemedDialog then return end
     ns.ShowThemedDialog({
@@ -1096,7 +1086,7 @@ local function GetNoteHeaders(text)
                 local title = strtrim(MapSelection(line, GlyphPlain))
                 out[#out + 1] = {
                     level = 1,
-                    title = title == "" and "(untitled)" or title,
+                    title = title == "" and L["NOTES_UNTITLED_HEADER"] or title,
                     byteStart = pos,
                 }
             end
@@ -2697,7 +2687,7 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.newButton:SetScript("OnEnter", function(self)
         if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
-        UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", "New note")
+        UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW"])
     end)
     frame.newButton:SetScript("OnLeave", function(self)
         if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
@@ -2839,11 +2829,11 @@ function UI:EnsureEasyNotesFrame()
     frame.title:SetWordWrap(false)
     if frame.title.SetMaxLines then frame.title:SetMaxLines(1) end
     frame.title:SetTextColor(0.96, 0.96, 0.97, 1)
-    frame.title:SetText("Untitled Note")
+    frame.title:SetText(L["NOTES_UNTITLED"])
 
     frame.homeTitle = frame.header:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.homeTitle:SetPoint("CENTER", frame.header, "CENTER", 0, 0)
-    frame.homeTitle:SetText("Notes")
+    frame.homeTitle:SetText(L["APP_NOTES"])
     frame.homeTitle:SetTextColor(0.96, 0.96, 0.97, 1)
     frame.homeTitle:Hide()
 
@@ -2866,7 +2856,7 @@ function UI:EnsureEasyNotesFrame()
         if note then
             -- Note names carry no formatting: strip SMP styling and color codes.
             local newName = strtrim(StripColorEscapes(MapSelection(self:GetText() or "", GlyphPlain)))
-            note.name = newName == "" and "Untitled Note" or newName
+            note.name = newName
             note.updated = time()
         end
         self:Hide()
@@ -2876,7 +2866,7 @@ function UI:EnsureEasyNotesFrame()
     frame.titleButton:SetScript("OnClick", function()
         local note = GetSelectedNote()
         if not note then return end
-        frame.titleEdit:SetText(note.name or "Untitled Note")
+        frame.titleEdit:SetText(NoteTitle(note))
         frame.titleButton:Hide()
         frame.titleEdit:Show()
         frame.titleEdit:SetFocus()
@@ -3189,7 +3179,7 @@ function UI:EnsureEasyNotesFrame()
     frame.charCounter = frame.footer:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.charCounter:SetPoint("CENTER", frame.footer, "CENTER", 0, 2)
     frame.charCounter:SetTextColor(0.48, 0.48, 0.52, 1)
-    frame.charCounter:SetText("0 characters")
+    frame.charCounter:SetText(Utils.sformat(L["NOTES_CHARS"], 0))
 
     frame.formatButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.formatButton, "T", BTN_W, BTN_H)
@@ -3216,7 +3206,7 @@ function UI:EnsureEasyNotesFrame()
         b.downArrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
         b.downArrow:SetDesaturated(true)
         b.downArrow:SetVertexColor(0.96, 0.96, 0.98, 1)
-        b.tip = "Auto-resize height"
+        b.tip = L["NOTES_AUTO_RESIZE"]
         b:SetScript("OnClick", function() UI:ToggleEasyNotesAutoResize() end)
         b:SetScript("OnEnter", function(self)
             if ns.SetRoundedRectFill and not NormalizeDB().autoResize then
@@ -3280,7 +3270,7 @@ function UI:EnsureEasyNotesFrame()
         end
         b:SetScript("OnClick", function(self) UI:ShowEasyNotesOverflowMenu(self) end)
         b:HookScript("OnEnter", function(self)
-            UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", "More options")
+            UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_MORE"])
         end)
         b:HookScript("OnLeave", function()
             if GameTooltip then GameTooltip:Hide() end
@@ -3295,7 +3285,7 @@ function UI:EnsureEasyNotesFrame()
     end
     frame.headerNavButton:SetScript("OnClick", function() UI:ToggleEasyNotesHeaderPanel() end)
     frame.headerNavButton:HookScript("OnEnter", function(self)
-        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", "Jump to header")
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_JUMP_HEADER"])
     end)
     frame.headerNavButton:HookScript("OnLeave", function()
         if GameTooltip then GameTooltip:Hide() end
@@ -3330,7 +3320,7 @@ function UI:EnsureEasyNotesFrame()
     end
     frame.appliesInButton:SetScript("OnClick", function(self) UI:ToggleEasyNotesAppliesInSearch(self) end)
     frame.appliesInButton:HookScript("OnEnter", function(self)
-        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", "Add an \"Applies in\" tag")
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_ADD_APPLIES_TT"])
     end)
     frame.appliesInButton:HookScript("OnLeave", function()
         if GameTooltip then GameTooltip:Hide() end
@@ -3344,7 +3334,7 @@ function UI:EnsureEasyNotesFrame()
     end
     frame.showsOnButton:SetScript("OnClick", function(self) UI:ShowAddShowsOnMenu(self) end)
     frame.showsOnButton:HookScript("OnEnter", function(self)
-        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", "Add a \"Shows on\" tooltip link")
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_ADD_SHOWS_TT"])
     end)
     frame.showsOnButton:HookScript("OnLeave", function()
         if GameTooltip then GameTooltip:Hide() end
@@ -3468,7 +3458,7 @@ function UI:EnsureEasyNotesFrame()
     do
         local fsBtn = CreateFrame("Button", nil, frame.toolbar)
         StyleSubtleButton(fsBtn, tostring(db.fontSize or FONT_SIZE_DEFAULT), BTN_W, BTN_H)
-        fsBtn.tip = "Font size"
+        fsBtn.tip = L["NOTES_FONT_SIZE"]
         if ns.SetRoundedRectFill then ns.SetRoundedRectFill(fsBtn, 0, 0, 0, 0, true) end
         fsBtn:SetScript("OnEnter", function(self)
             if ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0.20, 0.20, 0.22, 1, true) end
@@ -3620,7 +3610,7 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteSearch:SetTextColor(0.95, 0.95, 0.95, 1)
     frame.paletteSearchPlaceholder = frame.paletteSearchShell:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.paletteSearchPlaceholder:SetPoint("LEFT", frame.paletteSearchIcon, "RIGHT", 6, 0)
-    frame.paletteSearchPlaceholder:SetText("Search notes...")
+    frame.paletteSearchPlaceholder:SetText(L["NOTES_SEARCH"])
     frame.paletteSearchPlaceholder:SetTextColor(0.48, 0.48, 0.52, 1)
     frame.paletteSearch:SetScript("OnTextChanged", function(self)
         frame.paletteSearchPlaceholder:SetShown((self:GetText() or "") == "")
@@ -3743,14 +3733,14 @@ function UI:RefreshEasyNotesHeaderOnly()
     local frame = UI._notes.frame
     if not frame then return end
     local note = GetSelectedNote()
-    frame.title:SetText(note and NoteTitle(note) or "No Note")
+    frame.title:SetText(note and NoteTitle(note) or L["NOTES_NO_NOTE"])
 end
 
 function UI:UpdateEasyNotesCharCounter()
     local frame = UI._notes.frame
     if not frame then return end
     local note = GetSelectedNote()
-    frame.charCounter:SetText(CharCount(note and note.body or "") .. " characters")
+    frame.charCounter:SetText(Utils.sformat(L["NOTES_CHARS"], CharCount(note and note.body or "")))
 end
 
 function UI:RefreshEasyNotes()
@@ -3797,7 +3787,7 @@ function UI:RefreshEasyNotes()
         if frame.overflowButton then frame.overflowButton:SetShown(not UI._notes.paletteShown) end
     else
         frame.editor:SetText("")
-        frame.title:SetText("No Note")
+        frame.title:SetText(L["NOTES_NO_NOTE"])
         if frame.overflowButton then frame.overflowButton:Hide() end
     end
     UI._notes.loadingNote = nil
@@ -4624,7 +4614,7 @@ function UI:PromptEasyNotesAlias()
         end
         popup.label = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         popup.label:SetPoint("TOP", popup, "TOP", 0, -10)
-        popup.label:SetText("Alias (use /notes <alias>)")
+        popup.label:SetText(L["NOTES_ALIAS_LABEL"])
         popup.shell = CreateFrame("Frame", nil, popup)
         popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 14, -28)
         popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -14, -28)
@@ -4646,7 +4636,7 @@ function UI:PromptEasyNotesAlias()
         StyleAccentButton(popup.ok, "OK")
         popup.ok:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -14, 10)
         popup.cancel = CreateFrame("Button", nil, popup)
-        StyleSubtleButton(popup.cancel, "Cancel", 60, STD_BTN_H)
+        StyleSubtleButton(popup.cancel, _G.CANCEL, 60, STD_BTN_H)
         popup.cancel:SetPoint("RIGHT", popup.ok, "LEFT", -6, 0)
         local function close() popup:Hide() end
         popup.cancel:SetScript("OnClick", close)
@@ -4716,21 +4706,21 @@ function Builders.BuildSettingsPanel(frame)
 
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     panel.title:SetPoint("TOP", panel, "TOP", 0, -12)
-    panel.title:SetText("Settings")
+    panel.title:SetText(_G.SETTINGS)
     panel.title:SetTextColor(0.9, 0.9, 0.92, 1)
 
     -- Font size lives on the notes toolbar (and Ctrl+scroll); sharing across
     -- characters is the filter menu's job. Neither belongs here.
-    panel.scaleRow = Builders.BuildSettingsRow(panel, "Window scale", -40)
+    panel.scaleRow = Builders.BuildSettingsRow(panel, L["NOTES_WINDOW_SCALE"], -40)
     panel.scaleRow.minus:SetScript("OnClick", function() UI:AdjustEasyNotesUIScale(-UI_SCALE_STEP) end)
     panel.scaleRow.plus:SetScript("OnClick", function() UI:AdjustEasyNotesUIScale(UI_SCALE_STEP) end)
 
-    panel.opacityRow = Builders.BuildSettingsRow(panel, "Window opacity", -70)
+    panel.opacityRow = Builders.BuildSettingsRow(panel, L["NOTES_WINDOW_OPACITY"], -70)
     panel.opacityRow.minus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(-OPACITY_STEP) end)
     panel.opacityRow.plus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(OPACITY_STEP) end)
 
     panel.reset = CreateFrame("Button", nil, panel)
-    StyleSubtleButton(panel.reset, "Reset all", 78, STD_BTN_H)
+    StyleSubtleButton(panel.reset, L["NOTES_RESET_ALL"], 78, STD_BTN_H)
     panel.reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 14, 12)
     panel.reset:SetScript("OnClick", function()
         UI:AdjustEasyNotesUIScale(nil, true)
@@ -4739,7 +4729,7 @@ function Builders.BuildSettingsPanel(frame)
     end)
 
     panel.done = CreateFrame("Button", nil, panel)
-    StyleAccentButton(panel.done, "Done")
+    StyleAccentButton(panel.done, _G.DONE)
     panel.done:SetSize(60, 22)
     panel.done:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 12)
     panel.done:SetScript("OnClick", function() panel:Hide() end)
@@ -4865,7 +4855,7 @@ function Builders.BuildEasyNotesFindBar(frame)
     bar.countText:SetJustifyH("RIGHT")
     bar.countText:SetTextColor(0.6, 0.6, 0.64, 1)
 
-    bar.findShell = Builders.MakeFindInput(bar, "Find in note...")
+    bar.findShell = Builders.MakeFindInput(bar, L["NOTES_FIND"])
     bar.findShell:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -6)
     bar.findShell:SetPoint("RIGHT", bar.countText, "LEFT", -6, 0)
     bar.findShell.edit.onChanged = function() UI:RefreshEasyNotesFind() end
@@ -4875,16 +4865,16 @@ function Builders.BuildEasyNotesFindBar(frame)
     end)
 
     bar.allBtn = CreateFrame("Button", nil, bar)
-    StyleSubtleButton(bar.allBtn, "All", 36, STD_BTN_H)
+    StyleSubtleButton(bar.allBtn, _G.ALL, 36, STD_BTN_H)
     bar.allBtn:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -6, -32)
     bar.allBtn:SetScript("OnClick", function() UI:EasyNotesReplaceAll() end)
 
     bar.replaceBtn = CreateFrame("Button", nil, bar)
-    StyleSubtleButton(bar.replaceBtn, "Replace", 58, STD_BTN_H)
+    StyleSubtleButton(bar.replaceBtn, L["NOTES_REPLACE"], 58, STD_BTN_H)
     bar.replaceBtn:SetPoint("RIGHT", bar.allBtn, "LEFT", -4, 0)
     bar.replaceBtn:SetScript("OnClick", function() UI:EasyNotesReplaceCurrent() end)
 
-    bar.replaceShell = Builders.MakeFindInput(bar, "Replace with...")
+    bar.replaceShell = Builders.MakeFindInput(bar, L["NOTES_REPLACE_WITH"])
     bar.replaceShell:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -32)
     bar.replaceShell:SetPoint("RIGHT", bar.replaceBtn, "LEFT", -6, 0)
     bar.replaceShell.edit:SetScript("OnEscapePressed", closeAndFocusEditor)
@@ -5094,7 +5084,7 @@ function Builders.BuildEasyNotesHeaderPanel(frame)
     end
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.title:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -12)
-    panel.title:SetText("Headers")
+    panel.title:SetText(L["NOTES_HEADERS"])
     panel.sep = panel:CreateTexture(nil, "OVERLAY")
     panel.sep:SetColorTexture(0.30, 0.30, 0.33, 0.7)
     panel.sep:SetWidth(1)
@@ -5607,7 +5597,7 @@ function UI:ShowEasyNotesRowMenu(row)
         return
     end
     UI:ShowEasyNotesMenu("EasyNotesRowMenu", {
-        { text = "Rename note", onClick = function() UI:BeginEasyNotesRowRename(row) end },
+        { text = L["NOTES_RENAME"], onClick = function() UI:BeginEasyNotesRowRename(row) end },
     }, {})
 end
 
@@ -5621,7 +5611,7 @@ function UI:BeginEasyNotesRowRename(row)
     if not note then return end
     UI._notes.renameRow = row
     row.titleEdit._cancelRename = nil
-    row.titleEdit:SetText(note.name or "Untitled Note")
+    row.titleEdit:SetText(NoteTitle(note))
     row.title:Hide()
     row.titleEdit:Show()
     row.titleEdit:SetFocus()
@@ -5636,7 +5626,7 @@ function UI:CommitEasyNotesRowRename()
     local note = idx and NotesStore()[idx] or nil
     if note and row.titleEdit then
         local newName = strtrim(row.titleEdit:GetText() or "")
-        note.name = newName == "" and "Untitled Note" or newName
+        note.name = newName
         note.updated = time()
     end
     if row.titleEdit then
@@ -5732,7 +5722,7 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
         StyleAccentButton(popup.ok, "OK")
         popup.ok:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -14, 10)
         popup.cancel = CreateFrame("Button", nil, popup)
-        StyleSubtleButton(popup.cancel, "Cancel", 60, STD_BTN_H)
+        StyleSubtleButton(popup.cancel, _G.CANCEL, 60, STD_BTN_H)
         popup.cancel:SetPoint("RIGHT", popup.ok, "LEFT", -6, 0)
         local function close() popup:Hide() end
         popup.cancel:SetScript("OnClick", close)
@@ -5753,7 +5743,7 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
     end
     popup.itemID = itemID
     popup.itemName = itemName
-    popup.label:SetText("Note for " .. (itemName or ("item " .. itemID)))
+    popup.label:SetText(Utils.sformat(L["NOTES_NOTE_FOR"], itemName or Utils.sformat(L["NOTES_ITEM_FMT"], itemID)))
     local existing = GetItemNote(itemID)
     popup.edit:SetText(existing and existing.text or "")
     popup:Show()
@@ -5787,7 +5777,7 @@ if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and
             if type(itemID) ~= "number" then return end
             local note = GetItemNote(itemID)
             if not (note and type(note.text) == "string" and note.text ~= "") then return end
-            tooltip:AddLine("Note: " .. note.text, 0.95, 0.78, 0.36, true)
+            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], note.text), 0.95, 0.78, 0.36, true)
         end)
         if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
     end)
@@ -5824,7 +5814,7 @@ local function AddShowsOnLines(tooltip, objType, objID)
         local body = StripColorEscapes(MapSelection((n.body or ""):gsub("\n+", "  "), GlyphPlain))
         if #body > 120 then body = body:sub(1, 120) .. "..." end
         if body == "" then body = NoteTitle(n) end
-        tooltip:AddLine("Note: " .. body, 0.62, 0.78, 0.95, true)
+        tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), 0.62, 0.78, 0.95, true)
     end
 end
 
@@ -5868,9 +5858,9 @@ if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and
 end
 
 local MATCH_MODE_LABELS = {
-    any = "Match: any",
-    all = "Match: all",
-    manual = "Match: manual",
+    any = L["NOTES_MATCH_ANY"],
+    all = L["NOTES_MATCH_ALL"],
+    manual = L["NOTES_MATCH_MANUAL"],
 }
 
 function UI:RefreshEasyNotesContextButton()
@@ -5907,8 +5897,17 @@ function UI:ShowEasyNotesMenu(name, rows, opts)
     return Utils.ShowCursorMenu(name, rows, opts)
 end
 
+-- Categories are stored by their English key and shown in the client's language.
+local CATEGORY_LABELS = {
+    General = "NOTES_CAT_GENERAL", Players = "NOTES_CAT_PLAYERS", NPCs = "NOTES_CAT_NPCS",
+    Quests = "NOTES_CAT_QUESTS", Items = "NOTES_CAT_ITEMS", Locations = "NOTES_CAT_LOCATIONS",
+}
 function UI:GetEasyNotesCategories()
     return { "General", "Players", "NPCs", "Quests", "Items", "Locations" }
+end
+function UI:EasyNotesCategoryLabel(cat)
+    local key = CATEGORY_LABELS[cat]
+    return key and L[key] or cat
 end
 
 -- Filter menu on the note-list search bar: pick which character's notes to show
@@ -5931,8 +5930,8 @@ function UI:ShowEasyNotesFilterMenu(anchor)
     local function charRows()
         local curKey = CurrentCharKey()
         local t = {
-            charFilterRow("This character", nil),
-            charFilterRow("All characters", "all"),
+            charFilterRow(L["NOTES_THIS_CHAR"], nil),
+            charFilterRow(L["NOTES_ALL_CHARS"], "all"),
         }
         local seen, notes = {}, NotesStore()
         for i = 1, #notes do
@@ -5950,16 +5949,16 @@ function UI:ShowEasyNotesFilterMenu(anchor)
             onClick = function() UI._notes.categoryFilter = value; UI:RefreshEasyNotesPalette() end }
     end
     local function catRows()
-        local t = { catFilterRow("All categories", nil) }
+        local t = { catFilterRow(L["NOTES_ALL_CATS"], nil) }
         local cats = UI:GetEasyNotesCategories()
         for i = 1, #cats do
-            t[#t + 1] = catFilterRow(cats[i], cats[i])
+            t[#t + 1] = catFilterRow(UI:EasyNotesCategoryLabel(cats[i]), cats[i])
         end
         return t
     end
     local rows = {
-        { text = "Character", submenu = charRows },
-        { text = "Category", submenu = catRows },
+        { text = _G.CHARACTER, submenu = charRows },
+        { text = _G.CATEGORY, submenu = catRows },
     }
     UI._notes._filterMenu = self:ShowEasyNotesMenu("EasyNotesFilterMenu", rows, {
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
@@ -6002,52 +6001,50 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
             end }
     end
     local contextSub = {
-        matchRow("any", "Any \"Applies in\" entry active"),
-        matchRow("all", "All \"Applies in\" entries active"),
-        matchRow("manual", "Never auto-filter"),
+        matchRow("any", L["NOTES_RULE_ANY"]),
+        matchRow("all", L["NOTES_RULE_ALL"]),
+        matchRow("manual", L["NOTES_RULE_MANUAL"]),
         { isSeparator = true },
-        scopeRow("account", "Account-wide"),
-        scopeRow("character", "This character only"),
+        scopeRow("account", L["NOTES_SCOPE_ACCOUNT"]),
+        scopeRow("character", L["NOTES_SCOPE_CHAR"]),
     }
 
     local function remindRow(label, offset)
         return { text = label, onClick = function()
             note.reminderAt = time() + offset
             note.updated = time()
-            if DEFAULT_CHAT_FRAME then
-                DEFAULT_CHAT_FRAME:AddMessage("|cff66bbffEasyNotes|r reminder set: " .. label)
-            end
+            EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_SET_FMT"], label))
         end }
     end
     local remindSub = {
-        remindRow("In 1 hour", 3600),
-        remindRow("In 4 hours", 4 * 3600),
-        remindRow("Tomorrow", 24 * 3600),
-        remindRow("In 3 days", 3 * 24 * 3600),
-        remindRow("In 1 week", 7 * 24 * 3600),
+        remindRow(L["NOTES_REMIND_1H"], 3600),
+        remindRow(L["NOTES_REMIND_4H"], 4 * 3600),
+        remindRow(L["NOTES_REMIND_TOMORROW"], 24 * 3600),
+        remindRow(L["NOTES_REMIND_3D"], 3 * 24 * 3600),
+        remindRow(L["NOTES_REMIND_1W"], 7 * 24 * 3600),
         { isSeparator = true },
-        { text = note.reminderAt and "Clear reminder" or "No reminder set",
+        { text = note.reminderAt and L["NOTES_REMIND_CLEAR"] or L["NOTES_REMIND_NONE"],
           disabled = not note.reminderAt,
           onClick = function() note.reminderAt = nil; note.updated = time() end },
     }
 
     local rows = {
-        { text = "New note", onClick = function()
+        { text = L["NOTES_NEW"], onClick = function()
               CreateNote("")
               UI:HideEasyNotesPalette()
               UI:RefreshEasyNotes()
               UI:FocusEasyNoteEditor()
           end },
-        { text = "Remind me", submenu = remindSub },
-        { text = "Find in note", onClick = function() UI:ToggleEasyNotesFindBar() end },
-        { text = "Auto-resize height", icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil,
+        { text = L["NOTES_REMIND_ME"], submenu = remindSub },
+        { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
+        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil,
           onClick = function() UI:ToggleEasyNotesAutoResize() end },
         { isSeparator = true },
-        { text = "Category", submenu = (function()
+        { text = _G.CATEGORY, submenu = (function()
               local cats, out = self:GetEasyNotesCategories(), {}
               for i = 1, #cats do
                   local cat = cats[i]
-                  out[i] = { text = cat, icon = (note.category or "General") == cat and MENU_CHECK_TEX or nil,
+                  out[i] = { text = UI:EasyNotesCategoryLabel(cat), icon = (note.category or "General") == cat and MENU_CHECK_TEX or nil,
                       onClick = function()
                           note.category = cat
                           note.updated = time()
@@ -6056,12 +6053,12 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               end
               return out
           end)() },
-        { text = "Set alias", onClick = function() UI:PromptEasyNotesAlias() end },
-        { text = "Add \"Applies in\" tag", onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
-        { text = "Add \"Shows on\" link", onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
-        { text = "Context settings", submenu = contextSub },
+        { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
+        { text = L["NOTES_ADD_APPLIES"], onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
+        { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
+        { text = L["NOTES_CONTEXT"], submenu = contextSub },
         { isSeparator = true },
-        { text = "Delete note", icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
+        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
           onClick = function()
               local id = UI._notes.selectedID
               if id then ConfirmDeleteNote(id) end
@@ -6076,11 +6073,11 @@ end
 function UI:ShowEasyNotesMatchModeMenu(anchor)
     local note = GetSelectedNote()
     if not note then return end
-    local rows = { { text = "When does this note apply?", disabled = true } }
+    local rows = { { text = L["NOTES_WHEN"], disabled = true } }
     local modes = {
-        { "any", "Any \"Applies in\" entry active" },
-        { "all", "All \"Applies in\" entries active" },
-        { "manual", "Never auto-filter" },
+        { "any", L["NOTES_RULE_ANY"] },
+        { "all", L["NOTES_RULE_ALL"] },
+        { "manual", L["NOTES_RULE_MANUAL"] },
     }
     for _, m in ipairs(modes) do
         rows[#rows + 1] = { text = m[2], icon = (note.matchMode or "any") == m[1] and MENU_CHECK_TEX or nil,
@@ -6092,10 +6089,10 @@ function UI:ShowEasyNotesMatchModeMenu(anchor)
             end }
     end
     rows[#rows + 1] = { isSeparator = true }
-    rows[#rows + 1] = { text = "Note storage", disabled = true }
-    rows[#rows + 1] = { text = "Account-wide", icon = (note.scope or "character") == "account" and MENU_CHECK_TEX or nil,
+    rows[#rows + 1] = { text = L["NOTES_STORAGE"], disabled = true }
+    rows[#rows + 1] = { text = L["NOTES_SCOPE_ACCOUNT"], icon = (note.scope or "character") == "account" and MENU_CHECK_TEX or nil,
         onClick = function() note.scope = "account"; note.updated = time() end }
-    rows[#rows + 1] = { text = "This character only", icon = note.scope == "character" and MENU_CHECK_TEX or nil,
+    rows[#rows + 1] = { text = L["NOTES_SCOPE_CHAR"], icon = note.scope == "character" and MENU_CHECK_TEX or nil,
         onClick = function() note.scope = "character"; note.updated = time() end }
     UI:ShowEasyNotesMenu("EasyNotesMatchMode", rows, { anchorFrame = anchor })
 end
@@ -6103,13 +6100,13 @@ end
 function UI:ShowEasyNotesContextTooltip(anchor)
     if not GameTooltip then return end
     GameTooltip:SetOwner(anchor, "ANCHOR_TOP")
-    GameTooltip:SetText("Note matching")
+    GameTooltip:SetText(L["NOTES_MATCHING"])
     local note = GetSelectedNote()
     if note then
         GameTooltip:AddLine(MATCH_MODE_LABELS[note.matchMode or "any"], 0.95, 0.78, 0.36)
         local n = note.appliesIn and #note.appliesIn or 0
-        GameTooltip:AddLine(n .. " applies-in, " .. (note.showsOn and #note.showsOn or 0)
-            .. " shows-on", 0.6, 0.6, 0.62)
+        GameTooltip:AddLine(Utils.sformat(L["NOTES_COUNTS"], n, note.showsOn and #note.showsOn or 0),
+            0.6, 0.6, 0.62)
     end
     GameTooltip:Show()
 end
@@ -6131,7 +6128,7 @@ function Builders.BuildAppliesInSearch(frame)
         ns.SetRoundedRectFill(popup, 0.08, 0.08, 0.09, 1, true)
         ns.SetRoundedRectBorderEdgeShown(popup, false)
     end
-    popup.shell = Builders.MakeFindInput(popup, "Search class, zone, UI panel...")
+    popup.shell = Builders.MakeFindInput(popup, L["NOTES_TAG_SEARCH"])
     popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 8, -8)
     popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -8, -8)
     popup.shell.edit.onChanged = function() UI:RefreshAppliesInSearchResults() end
@@ -6248,11 +6245,11 @@ local function CursorObjectEntry()
     local kind, id = GetCursorInfo()
     if kind == "item" and id then
         local name = (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id))
-        return { type = "item", id = id, name = name or ("Item " .. id) }
+        return { type = "item", id = id, name = name or Utils.sformat(L["NOTES_ITEM_FMT"], id) }
     end
     if kind == "spell" and id then
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
-        return { type = "spell", id = id, name = (info and info.name) or ("Spell " .. id) }
+        return { type = "spell", id = id, name = (info and info.name) or Utils.sformat(L["NOTES_SPELL_FMT"], id) }
     end
     return nil
 end
@@ -6264,13 +6261,13 @@ local function TargetNPCEntry()
     if not guid then return nil end
     local npcID = tonumber(guid:match("Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
     if not npcID then return nil end
-    return { type = "npc", id = npcID, name = (UnitName and UnitName("target")) or ("NPC " .. npcID) }
+    return { type = "npc", id = npcID, name = (UnitName and UnitName("target")) or Utils.sformat(L["NOTES_NPC_FMT"], npcID) }
 end
 
 function UI:ShowAddShowsOnMenu(anchor)
     local note = GetSelectedNote()
     if not note then return end
-    local rows = { { text = "Show this note on a tooltip", disabled = true } }
+    local rows = { { text = L["NOTES_SHOW_ON_TT"], disabled = true } }
     local function addEntry(entry)
         rows[#rows + 1] = { text = entry.name, icon = NoteHasShowsOn(note, CtxKey(entry)) and MENU_CHECK_TEX or nil,
             onClick = function()
@@ -6283,7 +6280,7 @@ function UI:ShowAddShowsOnMenu(anchor)
     local npcEntry = TargetNPCEntry()
     if npcEntry then addEntry(npcEntry) end
     if not (cursorEntry or npcEntry) then
-        rows[#rows + 1] = { text = "Pick up an item/spell, or target an NPC", disabled = true }
+        rows[#rows + 1] = { text = L["NOTES_PICK_UP"], disabled = true }
     end
     UI:ShowEasyNotesMenu("EasyNotesShowsOn", rows, { anchorFrame = anchor })
 end
@@ -6340,9 +6337,9 @@ function UI:RefreshEasyNotesAttachBar()
             pill:SetScript("OnEnter", function(self)
                 if GameTooltip then
                     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                    GameTooltip:SetText(self.pillKind == "appliesIn" and "Applies in" or "Shows on")
+                    GameTooltip:SetText(self.pillKind == "appliesIn" and L["NOTES_APPLIES_IN"] or L["NOTES_SHOWS_ON"])
                     GameTooltip:AddLine(self.pillName or "", 0.9, 0.9, 0.9)
-                    GameTooltip:AddLine("Right-click to remove", 0.6, 0.6, 0.62)
+                    GameTooltip:AddLine(L["NOTES_RIGHT_REMOVE"], 0.6, 0.6, 0.62)
                     GameTooltip:Show()
                 end
             end)
@@ -6415,10 +6412,10 @@ end
 function UI:ShowEasyNotesTagOverflow(anchor)
     local note = GetSelectedNote()
     if not note then return end
-    local rows = { { text = "Applied tags", disabled = true } }
+    local rows = { { text = L["NOTES_APPLIED_TAGS"], disabled = true } }
     local function addRow(entry, isShowsOn)
         local nm = (entry.name or tostring(entry.id))
-        rows[#rows + 1] = { text = (isShowsOn and "Shows on: " or "Applies in: ") .. nm,
+        rows[#rows + 1] = { text = Utils.sformat(isShowsOn and L["NOTES_SHOWS_ON_FMT"] or L["NOTES_APPLIES_IN_FMT"], nm),
             onClick = function()
                 local n = GetSelectedNote()
                 if not n then return end
@@ -6588,7 +6585,7 @@ end
 
 function UI:ShowEasyNotesContextOverflowMenu(anchor, matches)
     if not matches then return end
-    local rows = { { text = "Filter notes by", disabled = true } }
+    local rows = { { text = L["NOTES_FILTER_BY"], disabled = true } }
     for i = 1, #matches do
         local m = matches[i]
         local fset = UI._notes.contextFilterSet
@@ -6619,7 +6616,7 @@ end
 local function RowTagMoreEnter(self)
     if not (GameTooltip and self.allTags) then return end
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText("Applies in")
+    GameTooltip:SetText(L["NOTES_APPLIES_IN"])
     for i = 1, #self.allTags do
         local t = self.allTags[i]
         GameTooltip:AddLine(t.name or tostring(t.id), 0.9, 0.9, 0.92)
