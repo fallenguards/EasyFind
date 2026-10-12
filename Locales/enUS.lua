@@ -1251,6 +1251,14 @@ L["CLOCK_TILES_TT"]                     = "Start another"
 L["CLOCK_STRIP_TT"]                     = "Click to open the clock. Right-click to pause or stop."
 L["CLOCK_OPT_MINIMAP"]                  = "Show a minimap icon while a run is going"
 L["CLOCK_OPT_MINIMAP_TT"]               = "Left-click shows or hides the window, right-click cancels a run."
+L["CLOCK_ONCE"]                         = "Once"
+L["CLOCK_DAILY"]                        = "Daily"
+L["CLOCK_WEEKDAYS"]                     = "Weekdays"
+L["CLOCK_WEEKENDS"]                     = "Weekends"
+L["CLOCK_DAY_SHORT"]                    = "Sun,Mon,Tue,Wed,Thu,Fri,Sat"
+L["CLOCK_REALM_FMT"]                    = "%s realm"
+L["CLOCK_CMD_NAMED"]                    = "%s: %s"
+L["CLOCK_DOT_FMT"]                      = "%s · %s"
 
 -- =============================================================================
 -- Alerts (Apps/Alerts)

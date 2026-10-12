@@ -12,6 +12,7 @@
 ## DefaultState: enabled
 
 Runs.lua
+Alarms.lua
 Parts.lua
 Window.lua
 Strip.lua

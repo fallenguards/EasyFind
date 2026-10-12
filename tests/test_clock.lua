@@ -33,6 +33,7 @@ end
 
 local function runs()
     local env = H.newEnv()
+    env.date = os.date
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
     H.loadModule("Apps/Clock/Runs.lua", env, ns)
@@ -131,7 +132,7 @@ function tests.notCommands()
     local G = grammar({})
     local texts = {
         "timer", "time", "stop", "alarm", "stormwind", "timeless isle", "stop attack",
-        "time 2 tickets", "timer 10 5", "timer abc", "pom 15 5 3", "pom pom", "stopwatches",
+        "time 2 tickets", "timer 10 5", "timer abc", "pom 15 5 3", "sw", "stopwatches", "stop 5 more",
         "timer 1:75", "stop watch", "alarm clock", "alarm 25", "alarm 7:61", "alarm 13pm",
         "alarm 7xm", "pomegranate", "times 5", "", "   ",
     }
@@ -216,9 +217,8 @@ function tests.runs_severalAtOnce()
     H.assertTrue(R:Start("timer", 1000, 600) ~= nil)
     H.assertTrue(R:Start("timer", 1000, 300) ~= nil, "two timers side by side")
     H.assertTrue(R:Start("stopwatch", 1000) ~= nil)
-    local alarm = R:Start("alarm", 1000, 5000)
+    H.assertTrue(R:Start("alarm", 1000, 5000) ~= nil)
     H.assertEq(#R:List(), 5)
-    H.assertEq(R:Start("alarm", 1010, 5000), alarm, "the same alarm twice is one")
     R:Start("pomodoro", 1020, 600, 60)
     H.assertEq(#R:List(), 5, "a new pomodoro replaces the old")
     local pom
@@ -373,19 +373,20 @@ function tests.persistence_resumeAfterGap()
         kinds[#kinds + 1] = e.kind
     end
     table.sort(kinds)
-    H.assertEq(table.concat(kinds, ","), "alarm,mark,timer", "what ended while away, and no pomodoro phases")
+    H.assertEq(table.concat(kinds, ","), "mark,timer", "what ended while away, and no pomodoro phases")
+    H.assertEq(sv.alarms[1].next, 4000, "a waiting alarm moved to the kept list")
     local list = R:List()
-    H.assertEq(#list, 6, "everything survives the gap")
+    H.assertEq(#list, 5, "everything survives the gap")
     H.assertTrue(list[1].done, "the short timer ran out while away")
     H.assertFalse(list[2].done, "the long one is still going")
     H.assertEq(R.Shown(list[2], now), 999999 - (now - 1000))
-    local pom = list[5]
+    local pom = list[4]
     local elapsed = now - 1000
     local cycles = math.floor(elapsed / 1800)
     H.assertEq(pom.intervals, cycles + ((elapsed % 1800) >= 1500 and 1 or 0), "a focus counted per cycle")
     H.assertEq(R.Shown(pom, now), (elapsed % 1800) < 1500 and 1500 - elapsed % 1800 or 1800 - elapsed % 1800)
-    H.assertFalse(list[6].done, "a paused timer stays paused")
-    H.assertEq(R.Shown(list[6], now), 500)
+    H.assertFalse(list[5].done, "a paused timer stays paused")
+    H.assertEq(R.Shown(list[5], now), 500)
 end
 
 function tests.persistence_migrationAndCleanup()
@@ -409,12 +410,12 @@ function tests.persistence_migrationAndCleanup()
     H.assertTrue(list[1].markHit)
     H.assertNil(list[1].target)
     H.assertEq(list[2].startedAt, 500, "a start in the future (clock moved back) restarts now")
-    H.assertEq(sv.version, 2)
+    H.assertEq(sv.version, 3)
     H.assertEq(sv.hud.left, 10, "the window place survives")
     H.assertEq(sv.minimapAngle, 245)
     local fresh = R:Attach(nil, 500)
     H.assertEq(#fresh.runs, 0)
-    H.assertEq(fresh.version, 2)
+    H.assertEq(fresh.version, 3)
 end
 
 -- ==== the companion, end to end on stub frames ==============================
