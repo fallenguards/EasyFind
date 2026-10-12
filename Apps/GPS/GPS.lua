@@ -285,7 +285,17 @@ function GPS:BuildRoute(dest, via, avoid, quick)
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
                        start = origin }
         if quick then opts.advise = false end
-        local ok, steps, total, advice = pcall(Route.Build, Route, dest, opts)
+        local ok, steps, total, advice
+        local co = coroutine.running()
+        local Nav = ns.GPSNav
+        if co then
+            if Nav then Nav.yieldCo = co end
+            steps, total, advice = Route.Build(Route, dest, opts)
+            if Nav then Nav.yieldCo = nil end
+            ok = true
+        else
+            ok, steps, total, advice = pcall(Route.Build, Route, dest, opts)
+        end
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
             return SplitWalks(steps, dest, origin), total, advice
@@ -338,6 +348,49 @@ local function Refresh()
     if ns.GPSWorldPin then ns.GPSWorldPin:Refresh() end
 end
 GPS.RefreshSurfaces = Refresh
+
+-- Plans run a slice a frame, so a long one never stalls the game. One at a
+-- time: a newer plan replaces one still running. A plan that fails runs once
+-- more at once, guarded, so its fallback still comes.
+local PLAN_BUDGET_MS = 8
+local Planner = { frame = CreateFrame("Frame") }
+
+local function PlanStep()
+    local co = Planner.co
+    if not co then
+        Planner.frame:SetScript("OnUpdate", nil)
+        return
+    end
+    local Nav = ns.GPSNav
+    if Nav then Nav.sliceEnd = debugprofilestop() + PLAN_BUDGET_MS end
+    local ok, a, b, c = coroutine.resume(co)
+    if Nav then Nav.sliceEnd = nil end
+    if coroutine.status(co) ~= "dead" or Planner.co ~= co then return end
+    Planner.co = nil
+    Planner.frame:SetScript("OnUpdate", nil)
+    local done, build = Planner.done, Planner.build
+    Planner.done, Planner.build = nil, nil
+    GPS.planning = nil
+    if not ok then
+        Utils.ErrorHandler(a)
+        a, b, c = build()
+    end
+    done(a, b, c)
+    Refresh()
+end
+
+-- build() runs in the plan; done gets what it returns. name: the place the
+-- surfaces say a way is being found to.
+function GPS:Plan(name, build, done)
+    Planner.co = coroutine.create(build)
+    Planner.done, Planner.build = done, build
+    GPS.planning = name and { name = name } or nil
+    Refresh()
+    Planner.frame:SetScript("OnUpdate", PlanStep)
+    PlanStep()
+end
+
+function GPS:IsPlanning() return Planner.co ~= nil end
 
 -- The map point for a step's waypoint. A map that refuses user waypoints
 -- (dungeon-type cities, underground continents) hands it to the nearest ancestor that takes one.
@@ -594,10 +647,15 @@ end
 -- The route again from where the player stands, to the same place. A stop
 -- to learn a flight master stays until that master is learned.
 local function Reroute(route)
+    if GPS:IsPlanning() then return end
     local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
     local via = route.via and not (known and known[route.via.id]) and route.via or nil
-    local steps, total, advice = GPS:BuildRoute(route.dest, via, route.wayAvoid)
-    if not steps then return end
+    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid) end, function(steps, total, advice)
+        if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice) end
+    end)
+end
+
+function GPS.Rerouted(route, via, steps, total, advice)
     local ci, wx, wy = PlayerWorldPos()
     -- The report keeps the first plan, and counts the starts over.
     local report = route.report
@@ -705,7 +763,22 @@ function GPS:NavigateTo(data, opts)
     local db = DB()
     if not db then return false end
     local dest = Destination(data)
-    local steps, total, advice = self:BuildRoute(dest)
+    -- Started from the window: it shows there; the map is not opened.
+    -- Started from the main search bar: the window opens, not the map.
+    if opts and opts.popout then
+        self:TogglePopout(true)
+    elseif not (opts and opts.quiet) then
+        self:Open()
+    end
+    self:Plan(dest.name, function() return self:BuildRoute(dest) end, function(steps, total, advice)
+        GPS.Navigated(dest, steps, total, advice)
+    end)
+    return true
+end
+
+function GPS.Navigated(dest, steps, total, advice)
+    local db = DB()
+    if not db then return end
     -- Planned from elsewhere: the route waits there until the player comes.
     local origin = StartPoint()
     local ci, wx, wy
@@ -734,14 +807,6 @@ function GPS:NavigateTo(data, opts)
     end
     TrackStep(1)
     StartTicker()
-    -- Started from the window: it shows there; the map is not opened.
-    -- Started from the main search bar: the window opens, not the map.
-    if opts and opts.popout then
-        self:TogglePopout(true)
-    elseif not (opts and opts.quiet) then
-        self:Open()
-    end
-    return true
 end
 
 -- The trip again with a stop to learn a flight master on it.
@@ -750,8 +815,12 @@ function GPS:AddStop(tip)
     local Engine = ns.GPSRoute
     if not (route and route.dest and Engine and tip and tip.id) then return end
     local via = { id = tip.id, name = tip.name, p = tip.p }
-    local steps, total, advice = self:BuildRoute(route.dest, via)
-    if not steps then return end
+    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, via) end, function(steps, total, advice)
+        if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice) end
+    end)
+end
+
+function GPS.StopAdded(route, via, tip, steps, total, advice)
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
     route.via = via
     if route.report then route.report.via = tip.id end
@@ -852,9 +921,10 @@ end
 local function PlanOtherWays()
     Utils.SafeAfter(0, function()
         local route = Route()
-        if not (route and route.dest and not route.arrived) then return end
-        route.others = OtherWays(route)
-        Refresh()
+        if not (route and route.dest and not route.arrived) or GPS:IsPlanning() then return end
+        GPS:Plan(nil, function() return OtherWays(route) end, function(ways)
+            if Route() == route then route.others = ways end
+        end)
     end)
 end
 GPS.PlanOtherWays = PlanOtherWays
@@ -863,13 +933,14 @@ GPS.PlanOtherWays = PlanOtherWays
 function GPS:TakeOtherWay(other)
     local route = Route()
     if not (route and route.dest and other) then return end
-    local steps, total, advice = self:BuildRoute(route.dest, nil, other.avoid)
-    if not steps then return end
-    route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
-    route.wayAvoid, route.others = other.avoid, nil
-    closing.step = nil
-    TrackStep(1)
-    PlanOtherWays()
+    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid) end, function(steps, total, advice)
+        if not (steps and Route() == route) then return end
+        route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+        route.wayAvoid, route.others = other.avoid, nil
+        closing.step = nil
+        TrackStep(1)
+        PlanOtherWays()
+    end)
 end
 
 -- Picking a start in a surface's search box: its hits set the start.
@@ -1287,7 +1358,7 @@ local function Render(container)
     if container.track then StyleTrackButton(container.track, route ~= nil and RouteTracked()) end
     if not route then
         if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
-        container.title:SetText("")
+        container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?") or "")
         for i = 1, #rows do rows[i]:Hide() end
         for i = 1, #(container.tips or {}) do container.tips[i]:Hide() end
         if container.fromRow then container.fromRow:Hide() end
@@ -1307,7 +1378,8 @@ local function Render(container)
         container.search:Show()
         container:ShowHits(nil)
     end
-    container.title:SetText(sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
+    container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?")
+        or sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
     if route.arrived then
         -- Arrived: the announcement in the body where the time line and
         -- the steps were, nothing left to follow.
@@ -3367,14 +3439,19 @@ local function RecordKnownFlights()
     end
     if not stale then return end
     if route.via and c.flights[route.via.id] then route.via = nil end
-    local steps, total, advice = GPS:BuildRoute(route.dest, route.via)
-    if not steps then
-        route.via = nil
-        steps, total, advice = GPS:BuildRoute(route.dest)
-    end
-    route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
-    closing.step = nil
-    TrackStep(1)
+    GPS:Plan(nil, function()
+        local steps, total, advice = GPS:BuildRoute(route.dest, route.via)
+        if not steps then
+            route.via = nil
+            steps, total, advice = GPS:BuildRoute(route.dest)
+        end
+        return steps, total, advice
+    end, function(steps, total, advice)
+        if not (steps and Route() == route) then return end
+        route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+        closing.step = nil
+        TrackStep(1)
+    end)
 end
 
 -- This character's mounted pace on the ground, the fastest seen.

@@ -35,6 +35,15 @@ local DANGER_WEIGHT = 2
 local dangerSet          -- { [continent] = { [tile] = true } }
 Nav.epoch = 0            -- bumped whenever walks would come out differently
 
+-- Inside GPS's planner (yieldCo, the plan's coroutine, while it runs the
+-- route engine; sliceEnd, this frame's budget) the searches give the frame
+-- back once the budget is spent. Anywhere else they run straight through.
+local corunning, coyield = coroutine.running, coroutine.yield
+local function Pause()
+    local co = Nav.yieldCo
+    if co and Nav.sliceEnd and corunning() == co and debugprofilestop() > Nav.sliceEnd then coyield() end
+end
+
 -- Unpacking -----------------------------------------------------------------
 
 local function Unpack(s)
@@ -345,7 +354,12 @@ local function TileSearch(w, t, g0, goal)
     local gx, gy
     if goal then gx, gy = FloorXY(w, t, goal) end
     local cell = w.cell * Danger(w, t.key)
+    local pops = 0
     while true do
+        -- At the loop's top: nbScratch is refilled after, so a search run
+        -- while this one waits cannot spoil it.
+        pops = pops + 1
+        if pops % 256 == 0 then Pause() end
         local g = heap:Pop()
         if not g then break end
         if not closed[g] then
@@ -476,7 +490,10 @@ local function Walk(w, ax, ay, bx, by, opts)
     local reached, cut
     local cell = w.cell
     local limit = opts and opts.limit
+    local pops = 0
     while true do
+        pops = pops + 1
+        if pops % 64 == 0 then Pause() end
         local node, f = heap:Pop()
         if not node or f >= best then break end
         if limit and f > limit then

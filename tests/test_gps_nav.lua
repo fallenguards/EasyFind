@@ -123,5 +123,39 @@ function tests.probe_findsTheFloorUnderAPoint()
     H.assertTrue(floor ~= nil)
 end
 
+-- Inside a plan's slice a search gives the frame back and, resumed, ends
+-- where a search run straight through does; outside a plan it never pauses.
+function tests.walk_pausesInsideAPlanAndFinishesTheSame()
+    local whole = fresh().Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
+    env.C_EncodingUtil = { DecodeBase64 = Inflate.DecodeBase64, DecompressString = function(s) return Inflate.Raw(s) end }
+    env.debugprofilestop = function() return 1e9 end
+    H.loadModule("tests/fixtures/nav_elwynn.lua", env, ns)
+    H.loadModule("Apps/GPS/Nav.lua", env, ns)
+    local Nav = ns.GPSNav
+    local co = coroutine.create(function()
+        Nav.yieldCo = coroutine.running()
+        local cost = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+        Nav.yieldCo = nil
+        return cost
+    end)
+    local slices, ok, cost = 0
+    repeat
+        Nav.sliceEnd = 0
+        ok, cost = coroutine.resume(co)
+        Nav.sliceEnd = nil
+        slices = slices + 1
+    until coroutine.status(co) == "dead"
+    H.assertTrue(ok, tostring(cost))
+    H.assertTrue(slices > 1, "it gave the frame back")
+    H.assertEq(cost, whole)
+    -- Outside the plan's coroutine: straight through.
+    Nav.yieldCo, Nav.sliceEnd = co, 0
+    H.assertEq(Nav.Walk(0, EAST[1], EAST[2], GOLDSHIRE[1], GOLDSHIRE[2]) ~= nil, true)
+end
+
 local pass, fail, failures = H.runSuite("GPSNav", tests)
 return { pass = pass, fail = fail, failures = failures }

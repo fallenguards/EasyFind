@@ -450,6 +450,7 @@ L["GPS_POPOUT_TT"]                      = "Open the directions in a small window
 L["GPS_CLEAR"]                          = "Clear route"
 L["GPS_ARRIVED"]                        = "You have arrived."
 L["GPS_ARRIVED_AT_FMT"]                 = "You have arrived at %s."
+L["GPS_PLANNING_FMT"]                   = "Finding a way to %s..."
 L["GPS_STEP_TT"]                        = "Shift-click to go to this step. Right-click for more."
 L["GPS_UNIT_HR"]                        = "%d hr"
 L["GPS_UNIT_MIN"]                       = "%d min"
