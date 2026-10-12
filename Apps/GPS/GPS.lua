@@ -147,17 +147,29 @@ local function EntranceOf(data)
     return nil
 end
 
+-- A zone-sized map or smaller: a continent or the world is never "entered".
+local function IsZoneMap(mapID)
+    local info = mapID and C_Map.GetMapInfo(mapID)
+    local zone = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
+    return info ~= nil and info.mapType ~= nil and info.mapType >= zone
+end
+
+-- Instances carry isZone in search, but their entrance is the spot to reach.
+local INSTANCE_CATEGORIES = { dungeon = true, raid = true, delve = true }
+
 local function Destination(data)
-    local dest = { name = data.name, icon = data.icon, category = data.category, zone = data.isZone and true or nil }
+    local dest = { name = data.name, icon = data.icon, category = data.category }
     local em, ex, ey
     if data.isDungeonEntrance and not (data.x and data.y) then em, ex, ey = EntranceOf(data) end
     if em then
-        dest.mapID, dest.x, dest.y, dest.zone = em, ex, ey, nil
+        dest.mapID, dest.x, dest.y = em, ex, ey
     elseif data.x and data.y and data.mapID then
         dest.mapID, dest.x, dest.y = data.mapID, data.x, data.y
     else
         dest.mapID, dest.x, dest.y = data.zoneMapID or data.mapID, 0.5, 0.5
     end
+    -- A zone is reached on entering its map: only a zone row aimed at that map.
+    if data.isZone and not INSTANCE_CATEGORIES[data.category] and IsZoneMap(dest.mapID) then dest.zone = true end
     return dest
 end
 
@@ -627,7 +639,7 @@ local function Tick()
         Refresh()
     end
     -- A zone is reached when you are in it, wherever its map's middle is.
-    if route.dest and route.dest.zone and route.dest.mapID and OnMap(route.dest.mapID) then
+    if route.dest and route.dest.zone and IsZoneMap(route.dest.mapID) and OnMap(route.dest.mapID) then
         Arrive(route)
         return
     end
