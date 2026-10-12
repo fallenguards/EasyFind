@@ -152,6 +152,7 @@ end
 local function RestoreResultShortcutGutter(row)
     if not row or not row.shortcutGroup then return end
     RestoreRightPointFromShortcut(row, row.icon, -5)
+    RestoreRightPointFromShortcut(row, row.iconLetter, -5)
     RestoreRightPointFromShortcut(row, row.amountText, -8)
     RestoreRightPointFromShortcut(row, row.settingState, -8)
     RestoreRightPointFromShortcut(row, row.settingSliderGroup, -6)
@@ -170,6 +171,7 @@ local function ApplyResultShortcutGutter(row)
     end
 
     ReplaceRightPointToShortcut(row, row.icon)
+    ReplaceRightPointToShortcut(row, row.iconLetter)
     ReplaceRightPointToShortcut(row, row.amountText)
     ReplaceRightPointToShortcut(row, row.settingState)
     ReplaceRightPointToShortcut(row, row.settingSliderGroup)
