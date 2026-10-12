@@ -1896,9 +1896,11 @@ local function BuildSurface(frame, opts)
         self.eta:SetShown(hasRoute)
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
         if self.search then
-            self.search:SetShown(not hasRoute)
+            -- While a way is found the title says so in the box's place.
+            local searching = not hasRoute and not GPS.planning
+            self.search:SetShown(searching)
             if hasRoute then self.search:SetText("") end
-            self.hitList:SetShown(not hasRoute)
+            self.hitList:SetShown(searching)
         end
         if opts.onRouteChanged then opts.onRouteChanged(self, hasRoute) end
     end
@@ -1909,12 +1911,45 @@ end
 
 -- The page under the map search tab
 
+-- The steps stop above the note at the page's foot and scroll under the wheel.
+local function FitPage(self)
+    -- A new route starts at its first step.
+    local route = Route()
+    if self.fitRoute ~= route then
+        self.fitRoute = route
+        if (self.scrollOffset or 0) > 0 then
+            self.scrollOffset = 0
+            self:Render()
+            return
+        end
+    end
+    local top, foot = self.list:GetTop(), self.note and self.note:GetTop()
+    if not (top and foot) then return end
+    local avail = mmax(1, top - foot - 6)
+    local maxOffset = mmax(0, (self.contentHeight or 0) - avail)
+    if (self.scrollOffset or 0) > maxOffset then
+        self.scrollOffset = maxOffset
+        self:Render()
+        return
+    end
+    self.list:SetHeight(mmax(1, math.min(self.contentHeight or 0, avail)))
+    self.list:SetClipsChildren(true)
+end
+
 local function BuildPage(frame)
-    BuildSurface(frame, { popoutButton = true })
+    BuildSurface(frame, { popoutButton = true, onRouteChanged = FitPage })
     frame.previewOnHover = true   -- this surface sits beside the map
     frame.mapFont = true          -- its steps follow the map search's font size
+    frame:EnableMouseWheel(true)
+    frame:SetScript("OnMouseWheel", function(self, delta)
+        if not Route() then return end
+        self.scrollOffset = mmax(0, (self.scrollOffset or 0) - delta * ROW_H)
+        self:Render()
+    end)
+    frame:HookScript("OnSizeChanged", function(self) if self:IsShown() then self:Render() end end)
     -- At its foot: GPS is experimental, and where to say so.
     local note = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.note = note
     local exp = ns.CreateFeatureTag(frame, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"])
     note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12 + exp:GetWidth() + 6, 10)
     note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
@@ -3268,7 +3303,7 @@ local function BuildPopout()
                 self:SetHeight(8 + 20 + 8)   -- the icon's 20 pixels, padded
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
-                    self.search:SetShown(not Route())
+                    self.search:SetShown(not (Route() or GPS.planning))
                     self.hitList:Hide()
                 end
                 return
