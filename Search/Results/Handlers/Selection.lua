@@ -141,7 +141,24 @@ local function DisplayedRecipeID()
     return ok and type(info) == "table" and info.recipeID or nil
 end
 
+-- The replacement interface's version of a profession window, when on.
+local function Replaced(name)
+    local R = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    return R and R(name)
+end
+
+local function ReplacedShown(api, name)
+    local ok, frame = pcall(api.GetFrame, name)
+    return ok and frame ~= nil and frame:IsVisible()
+end
+
 local function OpenPageOrBook(openID)
+    -- Its own windows stand in: never drive the client's under them.
+    local book = Replaced("professionsBook")
+    if book or Replaced("tradeSkill") then
+        if book then pcall(book.Open, "professionsBook") end
+        return
+    end
     if openID and OpenProfessionPage(openID) then return end
     if _G["ToggleProfessionsBook"] then
         pcall(_G["ToggleProfessionsBook"])
@@ -166,6 +183,13 @@ end
 local function OpenProfessionTarget(data)
     local recipeID = data.professionRecipeID
     local openRecipe = C_TradeSkillUI and C_TradeSkillUI.OpenRecipe
+    local tradeSkill = Replaced("tradeSkill")
+    -- The replacement's trade skill window asks the game for the recipe
+    -- and picks it as its list fills.
+    if recipeID and tradeSkill then
+        pcall(tradeSkill.Open, "tradeSkill", "recipe:" .. recipeID)
+        return
+    end
     if recipeID and openRecipe then
         EnsureProfessionsLoaded()
         pcall(openRecipe, recipeID)
@@ -199,6 +223,7 @@ local function OpenProfessionTarget(data)
         Utils.SafeAfter(0.8, function()
             local profFrame = _G["ProfessionsFrame"]
             if profFrame and profFrame:IsShown() then return end
+            if tradeSkill and ReplacedShown(tradeSkill, "tradeSkill") then return end
             -- Archaeology's cast opens its own frame, not ProfessionsFrame.
             local archFrame = _G["ArchaeologyFrame"]
             if archFrame and archFrame:IsShown() then return end

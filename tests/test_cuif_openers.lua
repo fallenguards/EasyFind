@@ -49,5 +49,22 @@ function tests.replacementOff_whenItsSwitchIsOff()
     H.assertEq(ns.SearchOpeners.Replacement("talents"), nil)
 end
 
+function tests.replacedWindows_standInForTheClientFrames()
+    local ns = Load({ tradeSkill = true, professionsBook = true, trainer = true })
+    local function Win(visible) return { IsVisible = function() return visible end } end
+    local frames = { tradeSkill = Win(true), professionsBook = Win(true), trainer = Win(false) }
+    local api = ns.SearchOpeners.Replacement("tradeSkill")
+    api.GetFrame = function(name) return frames[name] end
+    H.assertEq(ns.SearchOpeners.ReplacementFrame("ProfessionsFrame"), frames.tradeSkill)
+    H.assertEq(ns.SearchOpeners.ReplacementFrame("ProfessionsBookFrame"), frames.professionsBook)
+    H.assertEq(ns.SearchOpeners.ReplacementFrame("ClassTrainerFrame"), nil, "built but hidden: not open")
+end
+
+function tests.legacyButton_opensThroughTheAPI()
+    local ns, opened = Load({ legacyWindow = true })
+    H.assertTrue(ns.SearchOpeners:OpenButtonFrame("LegacyMicroButton"))
+    H.assertEq(opened[1], "legacyWindow")
+end
+
 local pass, fail, failures = H.runSuite("CuifOpeners", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -633,12 +633,12 @@ local function OpenAbilityInReplacement(api, data, stepGuide)
     local function find()
         tries = tries + 1
         local book = api.GetFrame("spellBook")
-        local btn = book and book:IsShown() and api.GetFrame("spellBook", "spell:" .. id)
+        local btn = book and book:IsVisible() and api.GetFrame("spellBook", "spell:" .. id)
         if btn and btn:IsVisible() and highlight and highlight.HighlightFrame then
             highlight:HighlightFrame(btn, nil, function() return api.SpellOnButton(btn) == id end)
             return
         end
-        if stepGuide and not (book and book:IsShown()) then
+        if stepGuide and not (book and book:IsVisible()) then
             local micro = Openers.MicroButton("PlayerSpellsMicroButton")
             if micro and highlight and highlight.HighlightFrame then highlight:HighlightFrame(micro, nil, nil, true) end
         end

@@ -26,20 +26,25 @@ local function Replacement(name)
 end
 Openers.Replacement = Replacement
 
--- The replacement's window a client frame name stands for, shown or not:
--- PlayerSpellsFrame is its spellbook or its talents, whichever is up.
-local REPLACED_FRAMES = { ClassTalentFrame = "talents", QuestLogFrame = "questLog", CommunitiesFrame = "guildRoster" }
+-- The replacement's window a client frame name stands for, only while it is
+-- visible (its roots exist hidden); PlayerSpellsFrame is either book.
+local REPLACED_FRAMES = {
+    ClassTalentFrame = "talents", QuestLogFrame = "questLog", CommunitiesFrame = "guildRoster",
+    ProfessionsFrame = "tradeSkill", TradeSkillFrame = "tradeSkill", ProfessionsBookFrame = "professionsBook",
+    ClassTrainerFrame = "trainer",
+}
 function Openers.ReplacementFrame(path)
     if path == "PlayerSpellsFrame" then
         local book, talents = Replacement("spellBook"), Replacement("talents")
         local b = book and book.GetFrame("spellBook")
         local t = talents and talents.GetFrame("talents")
-        if t and t:IsShown() then return t end
-        return b or t
+        if t and t:IsVisible() then return t end
+        return (b and b:IsVisible()) and b or nil
     end
     local name = REPLACED_FRAMES[path]
     local api = Replacement(name)
-    return api and api.GetFrame(name) or nil
+    local frame = api and api.GetFrame(name)
+    return (frame and frame:IsVisible()) and frame or nil
 end
 
 -- Where a client micro button stands now: the replacement's lookup (its own
@@ -183,6 +188,7 @@ local REPLACED_BY = {
     GuildMicroButton = "guildRoster",
     QuestLogMicroButton = "questLog",
     TalentMicroButton = "talents",
+    LegacyMicroButton = "legacyWindow",
 }
 local function OpenReplacement(buttonFrame)
     local name = REPLACED_BY[buttonFrame]
