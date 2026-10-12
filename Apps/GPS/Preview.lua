@@ -10,12 +10,15 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local msqrt = math.sqrt
+local msqrt, macos, mceil, mmax, mmin = math.sqrt, math.acos, math.ceil, math.max, math.min
 local CreateVector2D = CreateVector2D
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
 -- and shrinks with the zoom, so each is converted at draw time.
 local LINE_W = 5
+local LINE_SPAN = 16               -- both strips drawn this thick; the core is LINE_W of it
+local ROUND = 4 * LINE_W           -- how far back a bend is cut to round it
+local MIN_TURN, MAX_TURN = math.rad(3), math.rad(12)
 local START = 36
 local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at each change of ride
 
@@ -23,13 +26,15 @@ local function px(v)
     return ns.UIToCanvas and ns.UIToCanvas(v) or v
 end
 -- Blue, as routing maps draw a route (red reads as traffic or danger); each
--- ride in a hue the parchment does not use. Every line sits on a dark casing
--- so it reads over land and sea alike.
+-- ride in a hue the parchment does not use. Every line is a colored core on
+-- a soft dark edge with a faint glow, so it reads over land and sea alike.
 local ROUTE_BLUE = { 0.25, 0.6, 1 }
 local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry = { 0.1, 0.8, 0.72 },
                      zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
+local TEX_CORE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_core"
+local TEX_EDGE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_edge"
 local DEST = 26                    -- the destination's pin
 
 local overlay, solids, marks, syms
@@ -99,21 +104,51 @@ local function SetSymbol(t, symbol, x, y, size)
     t:Show()
 end
 
+-- Every edge under every core: a bend never lays one stretch's dark edge
+-- over the next one's core.
 local function Solid(i)
     local s = solids[i]
     if not s then
         s = overlay:CreateLine(nil, "OVERLAY", nil, 1)
+        s:SetTexture(TEX_CORE)
         s.casing = overlay:CreateLine(nil, "OVERLAY", nil, 0)
-        -- Round joints where a stretch meets the one before: the square
-        -- line ends leave a notch on the outside of every bend.
-        s.joint = overlay:CreateTexture(nil, "OVERLAY", nil, 1)
-        s.joint:SetTexture(TEX_DISC)
-        s.jointCasing = overlay:CreateTexture(nil, "OVERLAY", nil, 0)
-        s.jointCasing:SetTexture(TEX_DISC)
+        s.casing:SetTexture(TEX_EDGE)
         solids[i] = s
     end
     return s
 end
+
+-- A walk's corners rounded: each cut back up to r (half a side at most) and
+-- run as a curve through the corner, in turns of MAX_TURN at most.
+local bent = {}
+local function RoundBends(pts, m, r)
+    bent[1], bent[2] = pts[1], pts[2]
+    local n = 2
+    for v = 3, m - 3, 2 do
+        local x, y = pts[v], pts[v + 1]
+        local ax, ay, bx, by = x - pts[v - 2], y - pts[v - 1], pts[v + 2] - x, pts[v + 3] - y
+        local la, lb = msqrt(ax * ax + ay * ay), msqrt(bx * bx + by * by)
+        local turn = (la > 0 and lb > 0) and macos(mmax(-1, mmin(1, (ax * bx + ay * by) / (la * lb)))) or 0
+        if turn < MIN_TURN then
+            bent[n + 1], bent[n + 2] = x, y
+            n = n + 2
+        else
+            local d = mmin(r, la / 2, lb / 2)
+            local sx, sy, ex, ey = x - ax / la * d, y - ay / la * d, x + bx / lb * d, y + by / lb * d
+            local steps = mmax(2, mceil(turn / MAX_TURN))
+            for k = 0, steps do
+                local t = k / steps
+                local u = 1 - t
+                bent[n + 1] = u * u * sx + 2 * u * t * x + t * t * ex
+                bent[n + 2] = u * u * sy + 2 * u * t * y + t * t * ey
+                n = n + 2
+            end
+        end
+    end
+    bent[n + 1], bent[n + 2] = pts[m - 1], pts[m]
+    return bent, n + 2
+end
+Preview._RoundBends = RoundBends   -- tests
 
 -- A step's point on the shown map, in canvas pixels, or nothing when it
 -- is not on that map.
@@ -204,6 +239,7 @@ local function WalkPoints(route, i, start, target, mapID)
     return pts
 end
 
+local poly = {}
 local function Draw()
     local route = Route()
     if not (route and overlay and shownMap) then return end
@@ -217,7 +253,6 @@ local function Draw()
     local hovered
     local lineW = px(LINE_W)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
-    local poly = {}
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
     local all = shownIndex == 0
     for i = 1, #route.steps do
@@ -246,58 +281,36 @@ local function Draw()
                 poly[1], poly[2], poly[3], poly[4] = a[1], a[2], b[1], b[2]
                 m = 4
             end
+            local line = poly
+            if m > 4 then line, m = RoundBends(poly, m, px(ROUND)) end
             local total = 0
             for v = 1, m - 3, 2 do
-                total = total + msqrt((poly[v + 2] - poly[v]) ^ 2 + (poly[v + 3] - poly[v + 1]) ^ 2)
+                total = total + msqrt((line[v + 2] - line[v]) ^ 2 + (line[v + 3] - line[v + 1]) ^ 2)
             end
             if total > 2 then
                 local bright = all or i == shownIndex
                 local alpha = bright and 0.95 or 0.4
                 local color = MODE_COLOR[step.kind] or accent
-                local usable = total
-                -- One solid line, stretch by stretch: a walk follows its
-                -- way, a ride runs straight; each in its mode's color.
-                local walked = 0
+                local span = px(LINE_SPAN)
+                -- One line, stretch by stretch: a walk follows its way, a
+                -- ride runs straight; each in its mode's color.
                 for v = 1, m - 3, 2 do
-                    local x1, y1, x2, y2 = poly[v], poly[v + 1], poly[v + 2], poly[v + 3]
-                    local dx, dy = x2 - x1, y2 - y1
-                    local len = msqrt(dx * dx + dy * dy)
-                    if len > 0 and walked < usable then
-                        if walked + len > usable then
-                            local f = (usable - walked) / len
-                            x2, y2 = x1 + dx * f, y1 + dy * f
-                        end
+                    local x1, y1, x2, y2 = line[v], line[v + 1], line[v + 2], line[v + 3]
+                    if x1 ~= x2 or y1 ~= y2 then
                         nSolid = nSolid + 1
                         local sl = Solid(nSolid)
-                        sl:SetThickness(lineW * 0.8)
+                        sl:SetThickness(span)
                         sl:SetStartPoint("TOPLEFT", overlay, x1, y1)
                         sl:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                        sl:SetColorTexture(color[1], color[2], color[3], alpha)
+                        sl:SetVertexColor(color[1], color[2], color[3], alpha)
                         sl:Show()
                         local c = sl.casing
-                        c:SetThickness(lineW * 0.8 + 2 * px(CASING))
+                        c:SetThickness(span)
                         c:SetStartPoint("TOPLEFT", overlay, x1, y1)
                         c:SetEndPoint("TOPLEFT", overlay, x2, y2)
-                        c:SetColorTexture(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], alpha * 0.85)
+                        c:SetVertexColor(color[1], color[2], color[3], alpha)
                         c:Show()
-                        if v > 1 then
-                            local d, dc = lineW * 0.8, lineW * 0.8 + 2 * px(CASING)
-                            sl.joint:SetSize(d, d)
-                            sl.joint:ClearAllPoints()
-                            sl.joint:SetPoint("CENTER", overlay, "TOPLEFT", x1, y1)
-                            sl.joint:SetVertexColor(color[1], color[2], color[3], alpha)
-                            sl.joint:Show()
-                            sl.jointCasing:SetSize(dc, dc)
-                            sl.jointCasing:ClearAllPoints()
-                            sl.jointCasing:SetPoint("CENTER", overlay, "TOPLEFT", x1, y1)
-                            sl.jointCasing:SetVertexColor(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], alpha * 0.85)
-                            sl.jointCasing:Show()
-                        else
-                            sl.joint:Hide()
-                            sl.jointCasing:Hide()
-                        end
                     end
-                    walked = walked + len
                 end
             end
         end
@@ -321,8 +334,6 @@ local function Draw()
     for i = nSolid + 1, #solids do
         solids[i]:Hide()
         solids[i].casing:Hide()
-        solids[i].joint:Hide()
-        solids[i].jointCasing:Hide()
     end
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
