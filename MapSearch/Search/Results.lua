@@ -534,6 +534,7 @@ function MapSearch:SearchForUI(query)
         d.keywords = r.keywords
         d.query = query
         d.isZone = nil
+        d.zoneMapType = r.zoneMapType
         d.zoneMapID = nil
         d.entranceMapID = nil
         d.entranceX = nil

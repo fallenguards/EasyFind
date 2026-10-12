@@ -98,6 +98,34 @@ function Text:SetClippedText(fs, text)
 end
 
 
+-- A map row's kind by its category: the client's own names, else ours.
+local MAP_KIND_GLOBALS = {
+    zone = "ZONE", dungeon = "LFG_TYPE_DUNGEON", raid = "RAID", delve = "DELVE_LABEL",
+    flightmaster = "MINIMAP_TRACKING_FLIGHTMASTER", mailbox = "MINIMAP_TRACKING_MAILBOX",
+    innkeeper = "MINIMAP_TRACKING_INNKEEPER", auctionhouse = "MINIMAP_TRACKING_AUCTIONEER",
+    repairvendor = "MINIMAP_TRACKING_REPAIR", stablemaster = "MINIMAP_TRACKING_STABLEMASTER",
+    trainer = "MINIMAP_TRACKING_TRAINER_CLASS", barber = "MINIMAP_TRACKING_BARBER",
+    transmogrifier = "MINIMAP_TRACKING_TRANSMOGRIFIER", battlemasters = "MINIMAP_TRACKING_BATTLEMASTER",
+    pvpquest = "MINIMAP_TRACKING_BATTLEMASTER", upgradevendor = "ITEM_UPGRADE", bank = "BANK",
+    vendor = "MERCHANT", voidstorage = "VOID_STORAGE", rare = "ITEM_QUALITY3_DESC",
+    craftingorders = "PROFESSIONS_CRAFTING_ORDERS_TAB_NAME",
+}
+local MAP_KIND_STRINGS = {
+    npc = "MAP_KIND_NPC", boat = "MAP_KIND_BOAT", zeppelin = "MAP_KIND_ZEPPELIN",
+    portal = "MAP_KIND_PORTAL", tram = "MAP_KIND_TRAM", treasure = "MAP_KIND_TREASURE",
+}
+
+local function MapKind(data)
+    local cat = data.category
+    if cat == "zone" and Enum and Enum.UIMapType and data.zoneMapType == Enum.UIMapType.Continent then
+        return _G["CONTINENT"]
+    end
+    local g = MAP_KIND_GLOBALS[cat]
+    if g and _G[g] then return _G[g] end
+    local key = MAP_KIND_STRINGS[cat] or (cat and cat:find("^prof_") and "MAP_KIND_PROF_TRAINER")
+    return key and L[key] or nil
+end
+
 function Text:GetFlatSubtext(data)
     if not data then return "" end
     if data.calculatorResult then return L["SUBTEXT_EXPRESSION"] end
@@ -112,12 +140,7 @@ function Text:GetFlatSubtext(data)
         return data.path[#data.path]
     end
     if data.mapSearchResult then
-        local cat = data.category
-        local typeLabel
-        if cat == "dungeon" then typeLabel = _G["LFG_TYPE_DUNGEON"] or "Dungeon"
-        elseif cat == "raid" then typeLabel = _G["RAID"] or "Raid"
-        elseif cat == "delve" then typeLabel = _G["DELVE_LABEL"] or "Delve"
-        end
+        local typeLabel = MapKind(data)
         -- Use only the immediate parent zone, not the full continent path.
         -- pathPrefix can be "Continent > Region > Zone"; take the last segment.
         local zone = data.zoneName or data.pathPrefix
