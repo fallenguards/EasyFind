@@ -650,26 +650,6 @@ local function TriggerResultSelect(data, directOverride)
     -- the "This Zone" label refresh.
 end
 
--- A second left click on the same place within the double-click window
--- starts GPS directions to it: the right-click menu's Navigate row, one
--- gesture shorter. Rows are pooled and the list may re-render between the
--- two clicks, so the place is matched by name and map, not by table.
-local DOUBLE_CLICK_WINDOW = 0.35
-local lastClickKey, lastClickAt = nil, 0
-local function DoubleClickNavigate(data)
-    if not data then return false end
-    local key = tostring(data.name) .. "|" .. tostring(data.zoneMapID or data.mapID) .. "|" .. tostring(data.x)
-    local now = GetTime()
-    local double = lastClickKey == key and (now - lastClickAt) < DOUBLE_CLICK_WINDOW
-    lastClickKey, lastClickAt = key, now
-    if double and ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(data) then
-        lastClickKey = nil
-        ns.GPS:NavigateTo(data)
-        return true
-    end
-    return false
-end
-
 local function RowOnClick(row, button)
     local data = row.data
     if not data then return end
@@ -692,7 +672,6 @@ local function RowOnClick(row, button)
         return
     end
 
-    if DoubleClickNavigate(data) then return end
     MapTab:PushRecentSearch(currentQuery)
     TriggerResultSelect(data)
 end
@@ -915,7 +894,6 @@ local function AcquireGroupHeader(parent, labelText, groupKey, count, collapsed,
             return
         end
         if self.navigateData then
-            if DoubleClickNavigate(self.navigateData) then return end
             TriggerResultSelect(self.navigateData)
         end
     end)
