@@ -231,7 +231,7 @@ function tests.runs_severalAtOnce()
     H.assertEq(#R:List(), 0)
 end
 
-function tests.runs_timerEndsAndLingers()
+function tests.runs_endedStaysUntilDismissed()
     local R = runs()
     local timer = R:Start("timer", 1000, 600)
     local events = {}
@@ -243,11 +243,37 @@ function tests.runs_timerEndsAndLingers()
     H.assertEq(events[1].kind, "timer")
     H.assertNil(events[1].away)
     H.assertTrue(timer.done)
-    R:Update(1600 + R.LINGER - 1, events)
-    H.assertEq(#R:List(), 1, "a done row lingers")
-    R:Update(1600 + R.LINGER, events)
-    H.assertEq(#R:List(), 0, "then leaves")
+    R:Update(1600 + 86400, events)
+    H.assertEq(#R:List(), 1, "an ended card stays")
     H.assertEq(#events, 1, "one signal only")
+    R:Cancel(timer)
+    H.assertEq(#R:List(), 0, "Dismiss takes it away")
+end
+
+function tests.runs_plusFiveAndAgain()
+    local R = runs()
+    local timer = R:Start("timer", 1000, 600)
+    R:Update(1600, {})
+    R:Extend(timer, 2000, 300)
+    H.assertFalse(timer.done, "+5 min runs it again")
+    H.assertEq(R.Shown(timer, 2000), 300)
+    R:Update(2300, {})
+    H.assertTrue(timer.done)
+    R:Again(timer, 3000)
+    H.assertFalse(timer.done)
+    H.assertEq(R.Shown(timer, 3000), 600, "Again is the timer's own length, not the +5")
+    H.assertNil(timer.base)
+    local alarm = R:Start("alarm", 1000, 1200)
+    R:Update(1200, {})
+    H.assertTrue(alarm.done)
+    R:Extend(alarm, 1500, 300)
+    H.assertEq(alarm.at, 1800, "snoozed five minutes")
+    R:Update(1800, {})
+    R:Again(alarm, 2000, 87600)
+    H.assertFalse(alarm.done)
+    H.assertEq(alarm.at, 87600, "Again rings at the time given (tomorrow)")
+    R:Extend(alarm, 2100, 300)
+    H.assertEq(alarm.at, 87600, "+5 min only applies to an ended run")
 end
 
 function tests.runs_pomodoroPhases()
@@ -420,6 +446,9 @@ local function stubFrame()
         GetLeft = function() return 100 end, GetTop = function() return 500 end,
         GetCenter = function() return 0, 0 end, GetEffectiveScale = function() return 1 end,
         GetWidth = function() return 100 end, GetHeight = function() return 100 end,
+        GetFrameLevel = function() return 1 end,
+        GetStringWidth = function() return 30 end, GetStringHeight = function() return 12 end,
+        IsVisible = function(self) return self.shown end,
     }
     frames[#frames + 1] = f
     -- Methods are CamelCase; anything else is a field the code set or nil.
@@ -459,6 +488,12 @@ local function companion(saved, startAt)
     ns.CLOCK_ICON_TEX = "clock"
     ns.CLOCK_TOOL_ICONS = { pomodoro = "p", timer = "t", stopwatch = "s", alarm = "a" }
     ns.TEXT_DIM, ns.TEXT_PRIMARY, ns.TEXT_BODY = { 0.5, 0.5, 0.5 }, { 1, 1, 1 }, { 0.8, 0.8, 0.8 }
+    ns.ACTIVE_UI_PALETTE = { windowFill = { 0.05, 0.05, 0.06 } }
+    ns.ThemeSwatchColor = function(p) return p.windowFill[1], p.windowFill[2], p.windowFill[3] end
+    for _, name in ipairs({ "CreateRoundedRectBorder", "SetRoundedRectBarHeight", "SetRoundedRectBorderEdgeShown",
+                            "SetRoundedRectFill", "SetRoundedRectBorderColor" }) do
+        ns[name] = function() end
+    end
     ns.StyleMenuPanel = function() end
     ns.CreateCloseX = function() return stubFrame() end
     ns.CreateCogButton = function() return stubFrame() end
@@ -478,8 +513,11 @@ local function companion(saved, startAt)
         return menu
     end
     H.loadModule("Search/ClockCommands.lua", env, ns)
-    H.loadModule("Apps/Clock/Runs.lua", env, ns)
-    assert(loadfile(H.ADDON_ROOT .. "/Apps/Clock/Clock.lua", "t", env))("EasyFind_Clock", {})
+    -- The companion's files share one private table, as the client gives them.
+    local CL = {}
+    for _, f in ipairs(H.TocFiles("Apps/Clock/EasyFind_Clock.toc")) do
+        assert(loadfile(H.ADDON_ROOT .. "/" .. f, "t", env))("EasyFind_Clock", CL)
+    end
     ns.RequestClock = function() return ns.Clock ~= nil end
     H.assertTrue(ns.Clock ~= nil, "the companion loads")
     -- The client fires ADDON_LOADED once the saved variables are in.
@@ -498,11 +536,11 @@ local function companion(saved, startAt)
         end
         env._clock:advance(seconds)
     end
-    return ns, env, log, advance
+    return ns, env, log, advance, CL
 end
 
 function tests.companion_typedCommandsRunTogether()
-    local ns, env, log, advance = companion(nil)
+    local ns, env, log, advance, CL = companion(nil)
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("pom 15 5"))
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("timer 10s"))
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("stop 5s"))
@@ -521,12 +559,13 @@ function tests.companion_typedCommandsRunTogether()
     H.assertEq(#log.chat, 3, "the alarm at 18:01")
     local before = #env.EasyClockDB.runs
     ns.Clock.Minimize()
-    H.assertFalse(ns.Clock.IsOpen(), "the X minimizes")
+    H.assertFalse(ns.Clock.IsOpen(), "minimize closes the window")
+    H.assertTrue(CL.Strip.IsShown(), "and the strip takes over")
     H.assertEq(#env.EasyClockDB.runs, before, "minimizing cancels nothing")
     advance(900 - 60)
     H.assertTrue(log.chat[#log.chat]:find("CLOCK_BREAK_START", 1, true) ~= nil, "the pomodoro's break")
-    advance(60)
-    H.assertEq(#env.EasyClockDB.runs, 2, "done timer and alarm left after lingering")
+    advance(3600)
+    H.assertEq(#env.EasyClockDB.runs, 4, "ended cards stay until dismissed")
     log.themeFn()
 end
 
@@ -603,19 +642,90 @@ function tests.companion_breakDimNeverInCombat()
     H.assertTrue(shown, "the dim comes once the fight is over")
 end
 
+-- A chip or button found by the word on it.
+local function Labeled(word)
+    for i = 1, #frames do
+        local f = frames[i]
+        if f.scripts.OnClick and type(f.text) == "table" and f.text.text == word then return f end
+    end
+end
+
+local function MinimapIcon()
+    for i = 1, #frames do
+        local f = frames[i]
+        if f.scripts.OnClick and f.scripts.OnDragStart and f.scripts.OnEnter and f.icon then return f end
+    end
+end
+
+function tests.companion_tilesStartRuns()
+    local ns, env = companion(nil)
+    ns.Clock.Open()
+    H.assertTrue(ns.Clock.IsOpen(), "the launcher opens the window on its tiles")
+    Labeled("5").scripts.OnClick(Labeled("5"))
+    H.assertEq(env.EasyClockDB.runs[1].duration, 300, "the 5 chip starts a five minute timer")
+    Labeled("50 / 10").scripts.OnClick(Labeled("50 / 10"))
+    local pom = env.EasyClockDB.runs[2]
+    H.assertEq(pom.focusLen, 3000)
+    H.assertEq(pom.breakLen, 600)
+    local start = Labeled("START") or Labeled("Start")
+    start.scripts.OnClick(start)
+    H.assertEq(env.EasyClockDB.runs[3].tool, "stopwatch")
+end
+
+function tests.companion_endedCardChoices()
+    local ns, env, log, advance, CL = companion(nil)
+    ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("timer 3s"))
+    advance(3)
+    local run = env.EasyClockDB.runs[1]
+    H.assertTrue(run.done)
+    CL.ShowRunMenu(run, {})
+    local rows = log.menus[#log.menus]
+    H.assertEq(#rows, 3, "+5 min, Again, Dismiss")
+    rows[1].onClick()
+    H.assertFalse(run.done, "+5 min")
+    H.assertEq(run.duration, 300)
+    advance(300)
+    H.assertTrue(run.done)
+    CL.ShowRunMenu(run, {})
+    log.menus[#log.menus][2].onClick()
+    H.assertEq(run.duration, 3, "Again: its own length")
+    advance(3)
+    CL.ShowRunMenu(run, {})
+    log.menus[#log.menus][3].onClick()
+    H.assertEq(#env.EasyClockDB.runs, 0, "Dismiss")
+    H.assertTrue(ns.Clock.IsOpen(), "the window stays, on its tiles")
+    H.assertFalse(CL.Strip.IsShown())
+end
+
+function tests.companion_stripWhileMinimized()
+    local ns, env, _, advance, CL = companion(nil)
+    ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("timer 10"))
+    ns.Clock.Minimize()
+    H.assertTrue(CL.Strip.IsShown(), "minimized: the strip")
+    ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("stopwatch"))
+    H.assertFalse(ns.Clock.IsOpen(), "a new run while minimized joins the strip")
+    advance(1)
+    CL.OpenWindow()
+    H.assertTrue(ns.Clock.IsOpen())
+    H.assertFalse(CL.Strip.IsShown(), "the open window hides the strip")
+    ns.Clock.Minimize()
+    env.EasyClockDB.runs[2] = nil
+    env.EasyClockDB.runs[1] = nil
+    CL.Changed()
+    H.assertFalse(CL.Strip.IsShown(), "nothing running, no strip")
+    H.assertNil(MinimapIcon(), "the minimap icon is off by default")
+end
+
 function tests.companion_menusAndOpen()
     local ns, env, log = companion(nil)
+    env.EasyFind.db.clockMinimapIcon = true
     ns.Clock.Open()
     H.assertTrue(ns.Clock.IsOpen(), "the launcher opens an empty window")
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("timer 5"))
     ns.Clock.StartFromCommand(ns.ClockGrammar.Parse("stopwatch"))
     -- The minimap icon's right-click: one cancel row per run, then cancel all.
-    local mm
-    for i = 1, #frames do
-        local f = frames[i]
-        if f.scripts.OnClick and f.scripts.OnDragStart and f.scripts.OnEnter then mm = f end
-    end
-    H.assertTrue(mm ~= nil, "a minimap icon")
+    local mm = MinimapIcon()
+    H.assertTrue(mm ~= nil, "a minimap icon, with the setting on")
     mm.scripts.OnClick(mm, "RightButton")
     local rows = log.menus[#log.menus]
     H.assertEq(#rows, 4, "two cancels, a separator, cancel all")

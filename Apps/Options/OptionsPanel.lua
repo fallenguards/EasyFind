@@ -4322,6 +4322,7 @@ local function BuildClockPage(ctx, page)
         { "clockChat", "CLOCK_OPT_CHAT", "CLOCK_OPT_CHAT_TT", "ClockChat" },
         { "clockFlash", "CLOCK_OPT_FLASH", "CLOCK_OPT_FLASH_TT", "ClockFlash" },
         { "clockBreakDim", "CLOCK_OPT_DIM", "CLOCK_OPT_DIM_TT", "ClockBreakDim" },
+        { "clockMinimapIcon", "CLOCK_OPT_MINIMAP", "CLOCK_OPT_MINIMAP_TT", "ClockMinimapIcon" },
     }
     local anchor = hint
     for i = 1, #toggles do

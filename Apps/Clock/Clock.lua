@@ -1,64 +1,35 @@
-local addonName = ...
+local addonName, CL = ...
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.ClockRuns and ns.ClockGrammar) then return end
+if not (ns and ns.ClockRuns and ns.ClockGrammar and CL.Window and CL.Strip) then return end
 
 local Utils = ns.Utils
 local L = ns.L
 local Runs = ns.ClockRuns
 local Grammar = ns.ClockGrammar
 local Format = Grammar.FormatDuration
+local Window, Strip = CL.Window, CL.Strip
 
 local CreateFrame, UIParent, Minimap = CreateFrame, UIParent, Minimap
 local GetCursorPosition, InCombatLockdown, UnitAffectingCombat = GetCursorPosition, InCombatLockdown, UnitAffectingCombat
 local PlaySound, FlashClientIcon = PlaySound, FlashClientIcon
-local time, type, wipe = time, type, wipe
+local time, date, type, wipe = time, date, type, wipe
 local sformat = Utils.sformat
 local mdeg, matan2 = math.deg, math.atan2
 
-local WIDTH, HEADER_H, ROW_H, PAD = 240, 30, 22, 8
 local TICK_SECONDS = 0.2
-local PAUSED_ALPHA = 0.55
-local TIMER_PRESETS = { 60, 180, 300, 600, 900, 1800, 3600 }
-local TOOL_NAMES = {
-    pomodoro = L["CLOCK_POMODORO"],
-    timer = L["CLOCK_TIMER"],
-    stopwatch = _G["STOPWATCH_TITLE"] or "Stopwatch",
-    alarm = L["CLOCK_ALARM"],
-}
-local DONE_TEXT = _G["DONE"] or "Done"
-local CANCEL_TEXT = _G["CANCEL"] or "Cancel"
+local PLUS_SECONDS = 300
 local RESTART_TEXT = _G["RESTART"] or "Restart"
 local ALERT_SOUND = SOUNDKIT and SOUNDKIT.ALARM_CLOCK_WARNING_3
 
--- Frames and view state in one table (upvalue budget).
-local UI = { rows = {}, events = {}, away = {} }
+-- Frames and state in one table (upvalue budget).
+local UI = { events = {}, away = {} }
 local Clock = {}
-local OnRunsChanged, ShowHUD, RefreshHUD, UpdateTimes, UpdateDim, StartRun
-
-local function RunLabel(run)
-    local tool = run.tool
-    if tool == "timer" then return TOOL_NAMES.timer .. " " .. Format(run.duration) end
-    if tool == "alarm" then return TOOL_NAMES.alarm .. " " .. Grammar.TimeLabel(run.at) end
-    if tool == "stopwatch" then
-        return run.mark and (TOOL_NAMES.stopwatch .. " " .. Format(run.mark)) or TOOL_NAMES.stopwatch
-    end
-    local n = (run.intervals or 0) + (run.phase == "focus" and 1 or 0)
-    return sformat(run.phase == "break" and L["CLOCK_BREAK_N"] or L["CLOCK_FOCUS_N"], n)
-end
+local UpdateDim
 
 -- A menu names a pomodoro, not its phase.
 local function MenuLabel(run)
-    if run.tool == "pomodoro" then return TOOL_NAMES.pomodoro end
-    return RunLabel(run)
-end
-
-local function Palette()
-    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-    local light = theme and theme.lightTheme
-    local body = light and theme.leafColor or ns.TEXT_PRIMARY
-    local dim = light and (theme.textFaint or theme.leafColor) or ns.TEXT_DIM
-    local accent = theme and theme.accent or ns.GOLD_COLOR
-    return body, dim, accent, light
+    if run.tool == "pomodoro" then return CL.TOOL_NAMES.pomodoro end
+    return CL.RunLabel(run)
 end
 
 -- The end of a run
@@ -67,9 +38,9 @@ local function EventText(event)
     local run, kind = event.run, event.kind
     local text
     if kind == "timer" then
-        text = sformat(L["CLOCK_DONE_FMT"], RunLabel(run))
+        text = sformat(L["CLOCK_DONE_FMT"], CL.RunLabel(run))
     elseif kind == "alarm" then
-        text = RunLabel(run)
+        text = CL.RunLabel(run)
     elseif kind == "mark" then
         text = sformat(L["CLOCK_MARK_REACHED"], Format(run.mark))
     elseif kind == "break" then
@@ -81,11 +52,9 @@ local function EventText(event)
     return text
 end
 
-local function PaintAlert()
-    local alert = UI.alert
-    if not alert then return end
-    local _, _, accent = Palette()
-    alert.text:SetTextColor(accent[1], accent[2], accent[3], 1)
+local function PaintAlert(alert)
+    local c = CL.GOLD
+    alert.text:SetTextColor(c[1], c[2], c[3], 1)
 end
 
 -- Big center-screen text, like a raid warning.
@@ -114,25 +83,13 @@ local function ShowAlert(text)
         out:SetOrder(2)
         alert.fade:SetScript("OnFinished", function() alert:Hide() end)
         UI.alert = alert
-        PaintAlert()
+        CL.Painted(alert, PaintAlert)
     end
     alert.text:SetText(text)
     alert.fade:Stop()
     alert:SetAlpha(1)
     alert:Show()
     alert.fade:Play()
-end
-
-local function PulseRow(run)
-    if not (UI.hud and UI.hud:IsShown()) then return end
-    for i = 1, #UI.rows do
-        local row = UI.rows[i]
-        if row.run == run then
-            row.pulse:Stop()
-            row.pulse:Play()
-            return
-        end
-    end
 end
 
 -- Every enabled signal. A run that ended while the player was away is
@@ -146,7 +103,7 @@ local function Signal(event)
     if event.away then return end
     if db.clockSound ~= false and ALERT_SOUND then PlaySound(ALERT_SOUND, "Master") end
     if db.clockFlash ~= false then FlashClientIcon() end
-    PulseRow(event.run)
+    Window.Pulse(event.run)
 end
 
 -- Ticking
@@ -160,9 +117,10 @@ local function Tick()
     local changed = Runs:Update(now, events)
     for i = 1, #events do Signal(events[i]) end
     if changed then
-        OnRunsChanged()
+        CL.Changed()
     else
-        UpdateTimes(now)
+        Window.UpdateTimes(now)
+        Strip.UpdateTimes(now)
         UpdateDim(now)
     end
 end
@@ -174,9 +132,13 @@ local function OnDriverUpdate(_, elapsed)
     Tick()
 end
 
--- Runs only while a run exists.
+-- Runs only while something counts: an ended card waits without a tick.
 local function UpdateTicker()
-    local want = #Runs:List() > 0
+    local want = false
+    local runs = Runs:List()
+    for i = 1, #runs do
+        if not runs[i].done then want = true end
+    end
     if want == (UI.ticking or false) then return end
     UI.ticking = want
     UI.tickWait = 0
@@ -191,11 +153,9 @@ local function DismissDim()
 end
 
 -- Light text on every theme: the dim is always black.
-local function PaintDim()
-    local dim = UI.dim
-    if not dim then return end
-    local _, _, accent = Palette()
-    dim.title:SetTextColor(accent[1], accent[2], accent[3], 1)
+local function PaintDim(dim)
+    local c = CL.BREAK_COLOR
+    dim.title:SetTextColor(c[1], c[2], c[3], 1)
     dim.time:SetTextColor(Utils.RGB(ns.TEXT_PRIMARY, 1))
     dim.hint:SetTextColor(Utils.RGB(ns.TEXT_BODY, 1))
 end
@@ -214,9 +174,7 @@ local function EnsureDim()
     dim.title = dim:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     dim.title:SetPoint("BOTTOM", dim, "CENTER", 0, 40)
     dim.title:SetText(L["CLOCK_BREAK"])
-    dim.time = dim:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    local font = dim.time:GetFont()
-    if font then dim.time:SetFont(font, 56, "OUTLINE") end
+    dim.time = CL.DigitsText(dim, 56)
     dim.time:SetPoint("TOP", dim.title, "BOTTOM", 0, -10)
     dim.hint = dim:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     dim.hint:SetPoint("TOP", dim.time, "BOTTOM", 0, -16)
@@ -227,7 +185,7 @@ local function EnsureDim()
     dim:SetScript("OnEvent", function(self) self:Hide() end)
     Utils.AttachEscClose(dim, DismissDim)
     UI.dim = dim
-    PaintDim()
+    CL.Painted(dim, PaintDim)
     return dim
 end
 
@@ -255,6 +213,48 @@ function UpdateDim(now)
     end
 end
 
+-- Actions the window, the strip and the menus share
+
+function CL.Skip(run)
+    if Runs:SkipPhase(run, time()) == "break" then UI.dimDismissed = nil end
+    CL.Changed()
+end
+
+-- A timer runs its own length again; an alarm rings at the same time tomorrow.
+function CL.Again(run)
+    local now = time()
+    local at
+    if run.tool == "alarm" then
+        local t = date("*t", run.at)
+        at = Grammar.AlarmTarget(t.hour, t.min, true, now)
+    end
+    Runs:Again(run, now, at)
+    CL.Changed()
+end
+
+function CL.OpenSettings()
+    if ns.RequestOptionsPanel() and ns.Options.OpenAtExtension then
+        ns.Options:OpenAtExtension("clock")
+    end
+end
+
+function CL.OpenWindow()
+    if not UI.ready then
+        UI.openQueued = true
+        return
+    end
+    Runs.sv.hud.shown = true
+    Window.Show()
+    Strip.Refresh()
+end
+
+-- The window closes to the strip; nothing is cancelled.
+function CL.Minimize()
+    Window.Hide()
+    if Runs.sv then Runs.sv.hud.shown = false end
+    Strip.Refresh()
+end
+
 -- Menus
 
 -- The owner's own click toggles its menu.
@@ -267,64 +267,54 @@ local function ShowMenu(rows, owner)
     UI.menu = Utils.ShowCursorMenu("EasyFindClockMenu", rows, { toggleOwner = owner })
 end
 
-local function ShowRunMenu(run, owner)
+local function Row(text, fn, run)
+    return { text = text, onClick = function() fn(run) end }
+end
+
+local function TogglePause(run)
+    Runs:TogglePause(run, time())
+    CL.Changed()
+end
+
+local function Restart(run)
+    Runs:Restart(run, time())
+    CL.Changed()
+end
+
+local function Extend(run)
+    Runs:Extend(run, time(), PLUS_SECONDS)
+    CL.Changed()
+end
+
+local function Cancel(run)
+    Runs:Cancel(run)
+    CL.Changed()
+end
+
+-- The card's and the strip segment's right-click: what the card's own
+-- buttons do, plus restart.
+function CL.ShowRunMenu(run, owner)
     local rows = {}
-    if not run.done and run.tool ~= "alarm" then
-        rows[#rows + 1] = {
-            text = run.pausedAt and L["CLOCK_RESUME"] or L["CLOCK_PAUSE"],
-            onClick = function()
-                Runs:TogglePause(run, time())
-                OnRunsChanged()
-            end,
-        }
+    if run.done then
+        rows[1] = Row(L["CLOCK_PLUS5"], Extend, run)
+        rows[2] = Row(L["CLOCK_AGAIN"], CL.Again, run)
+        rows[3] = Row(L["CLOCK_DISMISS"], Cancel, run)
+    else
+        if run.tool ~= "alarm" then
+            rows[#rows + 1] = Row(run.pausedAt and L["CLOCK_RESUME"] or L["CLOCK_PAUSE"], TogglePause, run)
+        end
+        if run.tool == "pomodoro" then
+            rows[#rows + 1] = Row(run.phase == "focus" and L["CLOCK_SKIP_BREAK"] or L["CLOCK_SKIP_FOCUS"], CL.Skip, run)
+        end
+        if run.tool ~= "alarm" then rows[#rows + 1] = Row(RESTART_TEXT, Restart, run) end
+        rows[#rows + 1] = Row(L["CLOCK_STOP"], Cancel, run)
     end
-    if run.tool == "pomodoro" and not run.done then
-        rows[#rows + 1] = {
-            text = run.phase == "focus" and L["CLOCK_SKIP_BREAK"] or L["CLOCK_SKIP_FOCUS"],
-            onClick = function()
-                if Runs:SkipPhase(run, time()) == "break" then UI.dimDismissed = nil end
-                OnRunsChanged()
-            end,
-        }
-    end
-    if run.tool ~= "alarm" then
-        rows[#rows + 1] = {
-            text = RESTART_TEXT,
-            onClick = function()
-                Runs:Restart(run, time())
-                OnRunsChanged()
-            end,
-        }
-    end
-    rows[#rows + 1] = {
-        text = CANCEL_TEXT,
-        onClick = function()
-            Runs:Cancel(run)
-            OnRunsChanged()
-        end,
-    }
     ShowMenu(rows, owner)
 end
 
-local function ShowStartMenu(owner)
-    local timers = {}
-    for i = 1, #TIMER_PRESETS do
-        local sec = TIMER_PRESETS[i]
-        timers[i] = { text = Format(sec), onClick = function() StartRun("timer", sec) end }
-    end
-    ShowMenu({
-        {
-            text = L["CLOCK_CMD_POMODORO"],
-            icon = ns.CLOCK_TOOL_ICONS.pomodoro, chromeIcon = true,
-            onClick = function() StartRun("pomodoro", Grammar.PomodoroDefaults()) end,
-        },
-        { text = L["CLOCK_CMD_TIMER"], icon = ns.CLOCK_TOOL_ICONS.timer, chromeIcon = true, submenu = timers },
-        {
-            text = L["CLOCK_CMD_STOPWATCH"],
-            icon = ns.CLOCK_TOOL_ICONS.stopwatch, chromeIcon = true,
-            onClick = function() StartRun("stopwatch") end,
-        },
-    }, owner)
+local function CancelAll()
+    Runs:CancelAll()
+    CL.Changed()
 end
 
 local function ShowCancelMenu(owner)
@@ -332,270 +322,18 @@ local function ShowCancelMenu(owner)
     if #runs == 0 then return end
     local rows = {}
     for i = 1, #runs do
-        local run = runs[i]
-        rows[#rows + 1] = {
-            text = sformat(L["CLOCK_CANCEL_RUN"], MenuLabel(run)),
-            icon = ns.CLOCK_TOOL_ICONS[run.tool], chromeIcon = true,
-            onClick = function()
-                Runs:Cancel(run)
-                OnRunsChanged()
-            end,
-        }
+        local row = Row(sformat(L["CLOCK_CANCEL_RUN"], MenuLabel(runs[i])), Cancel, runs[i])
+        row.icon, row.chromeIcon = ns.CLOCK_TOOL_ICONS[runs[i].tool], true
+        rows[i] = row
     end
     if #runs > 1 then
         rows[#rows + 1] = { isSeparator = true }
-        rows[#rows + 1] = {
-            text = L["CLOCK_CANCEL_ALL"],
-            onClick = function()
-                Runs:CancelAll()
-                OnRunsChanged()
-            end,
-        }
+        rows[#rows + 1] = { text = L["CLOCK_CANCEL_ALL"], onClick = CancelAll }
     end
     ShowMenu(rows, owner)
 end
 
-local function OpenSettings()
-    if ns.RequestOptionsPanel() and ns.Options.OpenAtExtension then
-        ns.Options:OpenAtExtension("clock")
-    end
-end
-
--- The window
-
-local function HUDDragStart()
-    UI.hud:StartMoving()
-end
-
--- The place is read before the stop, which can leave the frame unanchored.
-local function HUDDragStop()
-    local hud = UI.hud
-    local left, top = hud:GetLeft(), hud:GetTop()
-    hud:StopMovingOrSizing()
-    hud:SetUserPlaced(false)
-    if left and top then
-        hud:ClearAllPoints()
-        hud:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-        Runs.sv.hud.left, Runs.sv.hud.top = left, top
-    end
-end
-
-local function PaintPlus(btn, hover)
-    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-    local c = hover and (theme and theme.leafColor or { 1, 1, 1 }) or (theme and theme.textFaint or ns.TEXT_DIM)
-    btn.h:SetVertexColor(c[1], c[2], c[3], 1)
-    btn.v:SetVertexColor(c[1], c[2], c[3], 1)
-end
-
-local function CreatePlusButton(parent)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(16, 16)
-    btn.h = btn:CreateTexture(nil, "OVERLAY")
-    btn.h:SetTexture("Interface\\Buttons\\WHITE8x8")
-    btn.h:SetSize(12, 1.5)
-    btn.h:SetPoint("CENTER")
-    btn.v = btn:CreateTexture(nil, "OVERLAY")
-    btn.v:SetTexture("Interface\\Buttons\\WHITE8x8")
-    btn.v:SetSize(1.5, 12)
-    btn.v:SetPoint("CENTER")
-    btn:SetScript("OnEnter", function(self) PaintPlus(self, true) end)
-    btn:SetScript("OnLeave", function(self) PaintPlus(self, false) end)
-    PaintPlus(btn, false)
-    return btn
-end
-
-local function PaintRow(row)
-    local body, _, accent, light = Palette()
-    local gc = ns.ChromeGlyphColor()
-    row.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
-    row.name:SetTextColor(body[1], body[2], body[3], 1)
-    local run = row.run
-    local c = run and (run.done or run.markHit) and accent or body
-    row.time:SetTextColor(c[1], c[2], c[3], 1)
-    row.flash:SetVertexColor(accent[1], accent[2], accent[3], 1)
-    local shadow = light and 0 or 1
-    row.name:SetShadowColor(0, 0, 0, shadow)
-    row.time:SetShadowColor(0, 0, 0, shadow)
-end
-
-local function RowOnClick(self, button)
-    if button == "RightButton" and self.run then ShowRunMenu(self.run, self) end
-end
-
-local function RowTooltip(self)
-    if not self.run then return nil end
-    return RunLabel(self.run), L["CLOCK_ROW_TT"]
-end
-
-local function EnsureRow(i)
-    local row = UI.rows[i]
-    if row then return row end
-    local hud = UI.hud
-    row = CreateFrame("Button", nil, hud)
-    row:SetHeight(ROW_H)
-    local top = -(HEADER_H + (i - 1) * ROW_H)
-    row:SetPoint("TOPLEFT", hud, "TOPLEFT", PAD - 2, top)
-    row:SetPoint("TOPRIGHT", hud, "TOPRIGHT", -(PAD - 2), top)
-    row:RegisterForClicks("RightButtonUp")
-    row:RegisterForDrag("LeftButton")
-    row:SetScript("OnDragStart", HUDDragStart)
-    row:SetScript("OnDragStop", HUDDragStop)
-    row:SetScript("OnClick", RowOnClick)
-    Utils.InstallMenuRowHighlight(row)
-    Utils.AttachDelayedTooltip(row, "ANCHOR_RIGHT", RowTooltip)
-
-    row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetSize(14, 14)
-    row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-    row.time = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    row.time:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-    row.time:SetJustifyH("RIGHT")
-    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.name:SetPoint("RIGHT", row.time, "LEFT", -6, 0)
-    row.name:SetJustifyH("LEFT")
-    row.name:SetWordWrap(false)
-
-    -- Three soft pulses when the run signals.
-    row.flash = row:CreateTexture(nil, "BACKGROUND")
-    row.flash:SetAllPoints()
-    row.flash:SetColorTexture(1, 1, 1, 1)
-    row.flash:SetAlpha(0)
-    row.pulse = row.flash:CreateAnimationGroup()
-    for n = 0, 2 do
-        local rise = row.pulse:CreateAnimation("Alpha")
-        rise:SetFromAlpha(0)
-        rise:SetToAlpha(0.35)
-        rise:SetDuration(0.25)
-        rise:SetOrder(n * 2 + 1)
-        local fall = row.pulse:CreateAnimation("Alpha")
-        fall:SetFromAlpha(0.35)
-        fall:SetToAlpha(0)
-        fall:SetDuration(0.35)
-        fall:SetOrder(n * 2 + 2)
-    end
-    UI.rows[i] = row
-    return row
-end
-
-local function PaintHUD()
-    local hud = UI.hud
-    if not hud then return end
-    local _, faint, _, light = Palette()
-    local gc = ns.ChromeGlyphColor()
-    hud.glyph:SetVertexColor(gc[1], gc[2], gc[3], 1)
-    hud.title:SetTextColor(ns.TooltipTextColor())
-    hud.hint:SetTextColor(faint[1], faint[2], faint[3], 1)
-    local shadow = light and 0 or 1
-    hud.title:SetShadowColor(0, 0, 0, shadow)
-    hud.hint:SetShadowColor(0, 0, 0, shadow)
-    PaintPlus(hud.plus, false)
-    for i = 1, #UI.rows do PaintRow(UI.rows[i]) end
-    Utils.RefreshMenuRowHighlights(hud, UI.rows)
-end
-
-local function EnsureHUD()
-    if UI.hud then return UI.hud end
-    local hud = CreateFrame("Frame", "EasyFindClockWindow", UIParent, "BackdropTemplate")
-    UI.hud = hud
-    hud:Hide()
-    hud:SetSize(WIDTH, HEADER_H + 2 * ROW_H + PAD)
-    hud:SetFrameStrata("HIGH")
-    hud:SetClampedToScreen(true)
-    hud:EnableMouse(true)
-    hud:SetMovable(true)
-    hud:RegisterForDrag("LeftButton")
-    hud:SetScript("OnDragStart", HUDDragStart)
-    hud:SetScript("OnDragStop", HUDDragStop)
-    ns.StyleMenuPanel(hud)
-    local pos = Runs.sv.hud
-    if type(pos.left) == "number" and type(pos.top) == "number" then
-        hud:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.left, pos.top)
-    else
-        hud:SetPoint("CENTER", UIParent, "CENTER", 300, 180)
-    end
-
-    hud.glyph = hud:CreateTexture(nil, "ARTWORK")
-    hud.glyph:SetSize(16, 16)
-    hud.glyph:SetPoint("TOPLEFT", hud, "TOPLEFT", PAD + 2, -8)
-    hud.glyph:SetTexture(ns.CLOCK_ICON_TEX)
-    hud.title = hud:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    hud.title:SetPoint("LEFT", hud.glyph, "RIGHT", 6, 0)
-    hud.title:SetText(ns.CLOCK_NAME)
-
-    -- The X minimizes to the minimap; it never cancels a run.
-    local close = ns.CreateCloseX(hud, 16)
-    close:SetPoint("TOPRIGHT", hud, "TOPRIGHT", -PAD, -8)
-    close:SetScript("OnClick", function() Clock.Minimize() end)
-    Utils.AttachDelayedTooltip(close, "ANCHOR_TOP", function() return L["CLOCK_MINIMIZE_TT"] end)
-    local cog = ns.CreateCogButton(hud)
-    cog:SetPoint("RIGHT", close, "LEFT", -4, 0)
-    cog:SetScript("OnClick", OpenSettings)
-    Utils.AttachDelayedTooltip(cog, "ANCHOR_TOP", function() return _G["SETTINGS"] or "Settings" end)
-    hud.plus = CreatePlusButton(hud)
-    hud.plus:SetPoint("RIGHT", cog, "LEFT", -4, 0)
-    hud.plus:SetScript("OnClick", ShowStartMenu)
-    Utils.AttachDelayedTooltip(hud.plus, "ANCHOR_TOP", function() return L["CLOCK_NEW_TT"] end)
-
-    hud.hint = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hud.hint:SetPoint("TOPLEFT", hud, "TOPLEFT", PAD + 2, -HEADER_H)
-    hud.hint:SetPoint("RIGHT", hud, "RIGHT", -(PAD + 2), 0)
-    hud.hint:SetJustifyH("LEFT")
-    hud.hint:SetText(L["CLOCK_EMPTY_HINT"])
-    PaintHUD()
-    return hud
-end
-
-function UpdateTimes(now)
-    if not (UI.hud and UI.hud:IsShown()) then return end
-    for i = 1, #UI.rows do
-        local row = UI.rows[i]
-        local run = row.run
-        if run then
-            local text = run.done and DONE_TEXT or Format(Runs.Shown(run, now))
-            if row.shownText ~= text then
-                row.shownText = text
-                row.time:SetText(text)
-            end
-        end
-    end
-end
-
-function RefreshHUD()
-    local hud = UI.hud
-    if not hud then return end
-    local runs = Runs:List()
-    local n = #runs
-    for i = 1, n do
-        local row = EnsureRow(i)
-        local run = runs[i]
-        row.run = run
-        row.icon:SetTexture(ns.CLOCK_TOOL_ICONS[run.tool])
-        row.name:SetText(RunLabel(run))
-        row:SetAlpha(run.pausedAt and PAUSED_ALPHA or 1)
-        row.shownText = nil
-        PaintRow(row)
-        row:Show()
-    end
-    for i = n + 1, #UI.rows do
-        UI.rows[i]:Hide()
-        UI.rows[i].run = nil
-    end
-    hud.hint:SetShown(n == 0)
-    -- The empty hint wraps to two lines.
-    hud:SetHeight(HEADER_H + (n > 0 and n or 2) * ROW_H + PAD)
-    -- The rows wear the menus' hover pill.
-    Utils.RefreshMenuRowHighlights(hud, UI.rows)
-    UpdateTimes(time())
-end
-
-function ShowHUD()
-    EnsureHUD():Show()
-    RefreshHUD()
-    Runs.sv.hud.shown = true
-end
-
--- The minimap icon
+-- The minimap icon, a setting (off unless turned on)
 
 local function PlaceMinimapButton()
     local x, y = ns.MinimapEdgeOffset(Runs.sv.minimapAngle)
@@ -617,17 +355,16 @@ end
 local function MinimapOnClick(self, button)
     if button == "RightButton" then
         ShowCancelMenu(self)
-    elseif UI.hud and UI.hud:IsShown() then
-        Clock.Minimize()
+    elseif Window.IsShown() then
+        CL.Minimize()
     else
-        ShowHUD()
+        CL.OpenWindow()
     end
 end
 
-local function PaintMinimap()
-    if not UI.mm then return end
+local function PaintMinimap(btn)
     local gc = ns.ChromeGlyphColor()
-    UI.mm.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
+    btn.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
 end
 
 local function EnsureMinimapButton()
@@ -662,60 +399,50 @@ local function EnsureMinimapButton()
     end)
     btn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
     UI.mm = btn
-    PaintMinimap()
+    CL.Painted(btn, PaintMinimap)
     return btn
 end
 
--- Shown while any run exists: the window minimizes to it.
 local function UpdateMinimapButton()
-    local active = #Runs:List() > 0
-    if not (active or UI.mm) then return end
-    EnsureMinimapButton():SetShown(active)
-    if active then PlaceMinimapButton() end
+    local want = EasyFind.db.clockMinimapIcon == true and #Runs:List() > 0
+    if not (want or UI.mm) then return end
+    EnsureMinimapButton():SetShown(want)
+    if want then PlaceMinimapButton() end
 end
 
 -- State changes
 
-function OnRunsChanged()
-    local n = #Runs:List()
-    EasyFind.db.clockActive = n > 0
+function CL.Changed()
+    EasyFind.db.clockActive = #Runs:List() > 0
     UpdateTicker()
     UpdateMinimapButton()
-    if UI.hud then
-        if n == 0 and UI.hadRuns and UI.hud:IsShown() then
-            UI.hud:Hide()
-        else
-            RefreshHUD()
-        end
-    end
-    UI.hadRuns = n > 0
+    Window.Refresh()
+    Strip.Refresh()
     UpdateDim(time())
 end
 
-function StartRun(tool, a, b)
-    -- Before the saved runs are in, the start waits for them.
+-- A new run opens the window, unless the player minimized it while other
+-- runs were going: then it joins the strip.
+function CL.StartRun(tool, a, b)
     if not UI.ready then
         UI.queued = { tool, a, b }
         return
     end
+    local hadRuns = #Runs:List() > 0
     local run = Runs:Start(tool, time(), a, b)
     if not run then
         EasyFind:Print(sformat(L["CLOCK_FULL"], Runs.MAX))
         return
     end
     if tool == "pomodoro" then UI.dimDismissed = nil end
-    OnRunsChanged()
-    ShowHUD()
+    if not (hadRuns and Runs.sv.hud.shown == false) then
+        Runs.sv.hud.shown = true
+        Window.Show()
+    end
+    CL.Changed()
 end
 
-if ns.RegisterThemeCallback then
-    ns.RegisterThemeCallback(function()
-        PaintHUD()
-        PaintMinimap()
-        PaintAlert()
-        PaintDim()
-    end)
-end
+if ns.RegisterThemeCallback then ns.RegisterThemeCallback(CL.RepaintAll) end
 
 -- What the core and the options panel call
 
@@ -724,30 +451,29 @@ function Clock.StartFromCommand(cmd)
     if type(cmd) ~= "table" or not Grammar.Resolve(cmd, time()) then return end
     local tool = cmd.tool
     if tool == "alarm" then
-        StartRun("alarm", cmd.at)
+        CL.StartRun("alarm", cmd.at)
     elseif tool == "pomodoro" then
-        StartRun("pomodoro", cmd.seconds, cmd.seconds2)
+        CL.StartRun("pomodoro", cmd.seconds, cmd.seconds2)
     else
-        StartRun(tool, cmd.seconds)
+        CL.StartRun(tool, cmd.seconds)
     end
 end
 
 function Clock.Open()
-    if UI.ready then ShowHUD() else UI.openQueued = true end
+    CL.OpenWindow()
 end
 
 function Clock.Minimize()
-    if UI.hud then UI.hud:Hide() end
-    if Runs.sv then Runs.sv.hud.shown = false end
+    if UI.ready then CL.Minimize() end
 end
 
 function Clock.IsOpen()
-    return UI.hud ~= nil and UI.hud:IsShown()
+    return Window.IsShown()
 end
 
--- A setting changed (the break dim, a unit).
+-- A setting changed (the break dim, the minimap icon).
 function Clock.SettingsChanged()
-    if UI.ready then OnRunsChanged() end
+    if UI.ready then CL.Changed() end
 end
 
 -- Saved runs arrive with ADDON_LOADED: runs that ended while the player
@@ -758,15 +484,14 @@ local function Init()
     local away = UI.away
     Runs:Update(now, away, true)
     UI.ready = true
-    UI.hadRuns = #Runs:List() > 0
-    OnRunsChanged()
-    if UI.hadRuns and Runs.sv.hud.shown ~= false then ShowHUD() end
+    if #Runs:List() > 0 and Runs.sv.hud.shown ~= false then Window.Show() end
+    CL.Changed()
     local queued = UI.queued
     UI.queued = nil
-    if queued then StartRun(queued[1], queued[2], queued[3]) end
+    if queued then CL.StartRun(queued[1], queued[2], queued[3]) end
     if UI.openQueued then
         UI.openQueued = nil
-        ShowHUD()
+        CL.OpenWindow()
     end
     if #away > 0 then
         Utils.SafeAfter(3, function()

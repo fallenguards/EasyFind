@@ -12,4 +12,7 @@
 ## DefaultState: enabled
 
 Runs.lua
+Parts.lua
+Window.lua
+Strip.lua
 Clock.lua

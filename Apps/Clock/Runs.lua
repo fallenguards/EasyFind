@@ -12,7 +12,6 @@ local Runs = {}
 ns.ClockRuns = Runs
 
 Runs.MAX = 10
-Runs.LINGER = 10
 local DB_VERSION = 2
 
 local TOOLS = { pomodoro = true, timer = true, stopwatch = true, alarm = true }
@@ -40,7 +39,9 @@ local function IsValid(run)
     if run.pausedAt ~= nil and not IsNumber(run.pausedAt) then return false end
     if run.done and not IsNumber(run.doneAt) then return false end
     local tool = run.tool
-    if tool == "timer" then return IsNumber(run.duration) and run.duration > 0 end
+    if tool == "timer" then
+        return IsNumber(run.duration) and run.duration > 0 and (run.base == nil or IsNumber(run.base))
+    end
     if tool == "alarm" then return IsNumber(run.at) end
     if tool == "stopwatch" then return run.mark == nil or (IsNumber(run.mark) and run.mark > 0) end
     return IsNumber(run.focusLen) and run.focusLen >= 1 and IsNumber(run.breakLen) and run.breakLen >= 1
@@ -70,6 +71,7 @@ function Runs:Attach(sv, now)
         end
     end
     if type(sv.hud) ~= "table" then sv.hud = {} end
+    if type(sv.strip) ~= "table" then sv.strip = {} end
     -- Clear of the main minimap button (200).
     if not IsNumber(sv.minimapAngle) then sv.minimapAngle = 245 end
     self.sv = sv
@@ -132,20 +134,15 @@ local function Advance(run, now)
     return moved
 end
 
--- Every end goes into events as { run, kind, away }; away (the login
--- catch-up) passes pomodoro phases silently. True when the list changed.
+-- Each end goes into events as { run, kind, away }; away (the login catch-up)
+-- passes pomodoro phases silently. Ended runs stay until dismissed.
 function Runs:Update(now, events, away)
     local runs = self:List()
     local changed = false
     for i = #runs, 1, -1 do
         local run = runs[i]
         local kind
-        if run.done then
-            if now - run.doneAt >= Runs.LINGER then
-                tremove(runs, i)
-                changed = true
-            end
-        elseif not run.pausedAt then
+        if not (run.done or run.pausedAt) then
             local tool = run.tool
             if tool == "timer" then
                 if Runs.Elapsed(run, now) >= run.duration then kind = "timer" end
@@ -230,13 +227,38 @@ function Runs:TogglePause(run, now)
     end
 end
 
+-- Back to the start; a timer that took +5 min gets its own length back.
 function Runs:Restart(run, now)
     if run.tool == "alarm" then return end
     run.startedAt, run.pausedAt = now, nil
     run.done, run.doneAt, run.markHit = nil, nil, nil
+    if run.base then run.duration, run.base = run.base, nil end
     if run.tool == "pomodoro" then
         run.phase, run.phaseStartedAt, run.intervals = "focus", now, 0
     end
+end
+
+-- An ended timer or alarm runs again for `seconds` (+5 min).
+function Runs:Extend(run, now, seconds)
+    if not run.done then return end
+    run.done, run.doneAt, run.pausedAt = nil, nil, nil
+    run.startedAt = now
+    if run.tool == "alarm" then
+        run.at = now + seconds
+    else
+        run.base = run.base or run.duration
+        run.duration = seconds
+    end
+end
+
+-- An ended run again: a timer for its own length, an alarm at `at`.
+function Runs:Again(run, now, at)
+    if run.tool == "alarm" then
+        run.done, run.doneAt = nil, nil
+        run.startedAt, run.at = now, at
+        return
+    end
+    self:Restart(run, now)
 end
 
 -- Ends a pomodoro's phase now; returns the phase it moves to.
