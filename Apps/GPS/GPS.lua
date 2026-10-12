@@ -644,7 +644,7 @@ local function Reroute(route)
     if GPS:IsPlanning() then return end
     local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
     local via = route.via and not (known and known[route.via.id]) and route.via or nil
-    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid) end, function(steps, total, advice)
+    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid, true) end, function(steps, total, advice)
         if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice) end
     end)
 end
@@ -764,7 +764,7 @@ function GPS:NavigateTo(data, opts)
     elseif not (opts and opts.quiet) then
         self:Open()
     end
-    self:Plan(dest.name, function() return self:BuildRoute(dest) end, function(steps, total, advice)
+    self:Plan(dest.name, function() return self:BuildRoute(dest, nil, nil, true) end, function(steps, total, advice)
         GPS.Navigated(dest, steps, total, advice)
     end)
     return true
@@ -911,13 +911,18 @@ local function OtherWays(route)
     return ways
 end
 
--- Planned once the route is on screen, never in the way of showing it.
+-- Planned once the route is on screen, never in the way of showing it: what
+-- to pick up on the way, then the other ways.
 local function PlanOtherWays()
     Utils.SafeAfter(0, function()
         local route = Route()
         if not (route and route.dest and not route.arrived) or GPS:IsPlanning() then return end
-        GPS:Plan(nil, function() return OtherWays(route) end, function(ways)
-            if Route() == route then route.others = ways end
+        GPS:Plan(nil, function()
+            local _, _, advice = GPS:BuildRoute(route.dest, route.via, route.wayAvoid)
+            return advice, OtherWays(route)
+        end, function(advice, ways)
+            if Route() ~= route then return end
+            route.advice, route.others = advice or route.advice, ways
         end)
     end)
 end
@@ -927,7 +932,7 @@ GPS.PlanOtherWays = PlanOtherWays
 function GPS:TakeOtherWay(other)
     local route = Route()
     if not (route and route.dest and other) then return end
-    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid) end, function(steps, total, advice)
+    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid, true) end, function(steps, total, advice)
         if not (steps and Route() == route) then return end
         route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
         route.wayAvoid, route.others = other.avoid, nil
