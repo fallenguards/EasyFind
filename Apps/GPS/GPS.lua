@@ -340,6 +340,7 @@ local function Refresh()
     end
     if ns.MapTab and ns.MapTab.RefreshPageBar then ns.MapTab:RefreshPageBar() end
     if ns.GPSArrow then ns.GPSArrow:Refresh() end
+    if ns.GPSMinimap then ns.GPSMinimap:Refresh() end
 end
 GPS.RefreshSurfaces = Refresh
 
@@ -3448,9 +3449,19 @@ local function BuildOptionsPage(ctx, page)
         if self.RefreshVisual then self:RefreshVisual() end
         Refresh()
     end)
+    local mini = ctx.CreateCheckbox(page, "GPSMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], true)
+    mini:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -6)
+    mini:SetChecked(not (d0 and d0.gpsMinimap == false))
+    if mini.RefreshVisual then mini:RefreshVisual() end
+    mini:SetScript("OnClick", function(self)
+        local d = DB()
+        if d then d.gpsMinimap = (not self:GetChecked()) and false or nil end
+        if self.RefreshVisual then self:RefreshVisual() end
+        Refresh()
+    end)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }

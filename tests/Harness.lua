@@ -138,6 +138,7 @@ local function newFrame()
         GetAttribute = function(self, k) return attributes[k] end,
         SetPoint = function(self, ...) points[#points + 1] = { ... } end,
         ClearAllPoints = function() points = {} end,
+        SetAllPoints = function() end,
         Show = function() shown = true end,
         Hide = function() shown = false end,
         SetShown = function(_, v) shown = v end,
