@@ -2,7 +2,7 @@ local _, notesNS = ...
 
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.Utils and ns.Results) then return end
+if not (ns and ns.Utils and ns.Results and notesNS.Context) then return end
 
 -- The notes window's methods; the core's search window is ns.Results.
 local UI = {}

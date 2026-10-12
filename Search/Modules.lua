@@ -232,35 +232,42 @@ end)
 -- here, loads the companion on first use, and reports whether the module
 -- is available. Disabled companion = one explanatory chat line per
 -- session, then quiet no-ops.
-local iconModuleWarned = false
+-- Loads a LoadOnDemand companion. One chat line per session when it does
+-- not come up: off in the AddOns list, or in but missing files it could
+-- not open (an update while the game runs adds files it cannot see yet).
+local companionWarned = {}
+local function LoadCompanion(addon)
+    if C_AddOns and C_AddOns.LoadAddOn then pcall(C_AddOns.LoadAddOn, addon) end
+end
+
+local function WarnCompanion(addon, disabledKey)
+    if companionWarned[addon] then return end
+    companionWarned[addon] = true
+    if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(addon) then
+        local title = C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(addon, "Title") or addon
+        EasyFind:Print(ns.L["COMPANION_INCOMPLETE_FMT"]:format(title))
+    else
+        EasyFind:Print(ns.L[disabledKey])
+    end
+end
+
 function ns.RequestIconSearch()
     if ns.Results.ShowIconGrid then return true end
     if InCombatLockdown() then return false end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Icons")
-    end
+    LoadCompanion("EasyFind_Icons")
     if ns.Results.ShowIconGrid then return true end
-    if not iconModuleWarned then
-        iconModuleWarned = true
-        EasyFind:Print(ns.L["ICON_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Icons", "ICON_MODULE_DISABLED")
     return false
 end
 
 -- Notes (EasyFind_Notes), the same funnel: the apps row, /notes, the player
 -- menus and Add to note load it on first use. Once there are notes it
 -- loads shortly after login, so they reach tooltips and their places.
-local notesModuleWarned = false
 function ns.RequestNotes()
     if ns.Notes then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Notes")
-    end
+    LoadCompanion("EasyFind_Notes")
     if ns.Notes then return true end
-    if not notesModuleWarned then
-        notesModuleWarned = true
-        EasyFind:Print(ns.L["NOTES_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Notes", "NOTES_MODULE_DISABLED")
     return false
 end
 
@@ -293,35 +300,23 @@ end
 -- that filter on, or applying @gen/@items -- never a keystroke (a 7MB
 -- compile mid-typing would hitch). announce=true on the explicit paths
 -- so a disabled companion explains itself once per session.
-local itemModuleWarned = false
 function ns.RequestItemCatalog(announce)
     if ns.ItemSearch then return true end
     if InCombatLockdown() then return false end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Items")
-    end
+    LoadCompanion("EasyFind_Items")
     if ns.ItemSearch then return true end
-    if announce and not itemModuleWarned then
-        itemModuleWarned = true
-        EasyFind:Print(ns.L["ITEMS_MODULE_DISABLED"])
-    end
+    if announce then WarnCompanion("EasyFind_Items", "ITEMS_MODULE_DISABLED") end
     return false
 end
 
 -- Options panel: LoadOnDemand companion (EasyFind_Options). Triggers are
 -- every options open (slash, ESC category stub, tutorial link, resets) --
 -- most sessions never pay for the panel at all.
-local optionsModuleWarned = false
 function ns.RequestOptionsPanel()
     if ns.Options then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Options")
-    end
+    LoadCompanion("EasyFind_Options")
     if ns.Options then return true end
-    if not optionsModuleWarned then
-        optionsModuleWarned = true
-        EasyFind:Print(ns.L["OPTIONS_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Options", "OPTIONS_MODULE_DISABLED")
     return false
 end
 
@@ -330,17 +325,11 @@ end
 -- (unless both settings filter buckets are off) and explicit settings
 -- queries -- so settings rows appear from the first real query, never at
 -- login. announce=true on explicit paths only.
-local settingsModuleWarned = false
 function ns.RequestSettingsSearch(announce)
     if ns.BlizzOptionsSearch then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Settings")
-    end
+    LoadCompanion("EasyFind_Settings")
     if ns.BlizzOptionsSearch then return true end
-    if announce and not settingsModuleWarned then
-        settingsModuleWarned = true
-        EasyFind:Print(ns.L["SETTINGS_MODULE_DISABLED"])
-    end
+    if announce then WarnCompanion("EasyFind_Settings", "SETTINGS_MODULE_DISABLED") end
     return false
 end
 
@@ -348,17 +337,11 @@ end
 -- is a guide-flavored gesture (starting a guide, a tab hint, a revealed-
 -- frame glow); teardown and probe paths keep their nil no-op guards so a
 -- session that never guides never loads it. Returns the module or nil.
-local guideModuleWarned = false
 function ns.RequestGuide()
     if ns.Highlight then return ns.Highlight end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Guide")
-    end
+    LoadCompanion("EasyFind_Guide")
     if ns.Highlight then return ns.Highlight end
-    if not guideModuleWarned then
-        guideModuleWarned = true
-        EasyFind:Print(ns.L["GUIDE_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Guide", "GUIDE_MODULE_DISABLED")
     return nil
 end
 
@@ -367,33 +350,21 @@ end
 -- at login only while onboarding is pending; the slash paths load it
 -- explicitly. ns.Wizard is the loaded marker (ns.Onboarding is a seeded
 -- module table, always truthy).
-local onboardingModuleWarned = false
 function ns.RequestOnboarding()
     if ns.Wizard then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Onboarding")
-    end
+    LoadCompanion("EasyFind_Onboarding")
     if ns.Wizard then return true end
-    if not onboardingModuleWarned then
-        onboardingModuleWarned = true
-        EasyFind:Print(ns.L["ONBOARDING_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Onboarding", "ONBOARDING_MODULE_DISABLED")
     return false
 end
 
 -- Clock: LoadOnDemand companion (EasyFind_Clock). Loaded by a clock
 -- command, its launcher, and at login while a run is going.
-local clockModuleWarned = false
 function ns.RequestClock()
     if ns.Clock then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Clock")
-    end
+    LoadCompanion("EasyFind_Clock")
     if ns.Clock then return true end
-    if not clockModuleWarned then
-        clockModuleWarned = true
-        EasyFind:Print(ns.L["CLOCK_MODULE_DISABLED"])
-    end
+    WarnCompanion("EasyFind_Clock", "CLOCK_MODULE_DISABLED")
     return false
 end
 

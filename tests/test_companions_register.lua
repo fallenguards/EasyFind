@@ -31,6 +31,28 @@ for _, c in ipairs(COMPANIONS) do
         end
         H.assertNotNil(ns[c.field], "ns." .. c.field .. " is set")
     end
+
+    -- A file the client cannot open (added by an update while the game
+    -- runs): the rest loads without an error and the core reports it.
+    tests["missingFile_loadsClean_" .. c.field] = function()
+        local files = H.TocFiles(c.toc)
+        for skip = 1, #files - 1 do
+            local env = H.newEnv()
+            local ns = H.newNs(env)
+            env.EasyFind._ns = ns
+            ns.Caps = ns.Caps or { forever = true }
+            ns.SearchCommands = ns.SearchCommands or {}
+            for _, f in ipairs(c.core or {}) do H.loadModule(f, env, ns) end
+            local own = {}
+            for i, f in ipairs(files) do
+                if i ~= skip then
+                    local chunk = assert(loadfile(H.ADDON_ROOT .. "/" .. f, "t", env))
+                    local ok, err = pcall(chunk, "EasyFind_" .. c.field, own)
+                    H.assertTrue(ok, f .. " loads without " .. files[skip] .. ": " .. tostring(err))
+                end
+            end
+        end
+    end
 end
 
 local pass, fail, failures = H.runSuite("CompanionsRegister", tests)

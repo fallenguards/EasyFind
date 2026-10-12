@@ -707,6 +707,7 @@ L["ITEMS_MODULE_DISABLED"] = "The item catalog is unavailable: enable the \"Easy
 L["OPTIONS_MODULE_DISABLED"] = "The options panel is unavailable: enable the \"EasyFind [Options]\" addon in your AddOns list."
 L["SETTINGS_MODULE_DISABLED"] = "Settings search is unavailable: enable the \"EasyFind [Settings Search]\" addon in your AddOns list."
 L["GUIDE_MODULE_DISABLED"] = "Guides are unavailable: enable the \"EasyFind [Guides]\" addon in your AddOns list."
+L["COMPANION_INCOMPLETE_FMT"] = "\"%s\" could not load all its files, as happens after an update while the game runs. Type /reload to finish loading it."
 L["ONBOARDING_MODULE_DISABLED"] = "The tutorial and What's New are unavailable: enable the \"EasyFind [Onboarding]\" addon in your AddOns list."
 L["CTX_COPY_ICON_NAME"] = "Copy icon name"
 L["CTX_COPY_ICON_PATH"] = "Copy texture path"
