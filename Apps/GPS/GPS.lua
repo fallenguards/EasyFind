@@ -472,6 +472,7 @@ TrackStep = function(index)
         if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
     end
     Refresh()
+    if ns.GPSPreview and ns.GPSPreview.Follow then ns.GPSPreview:Follow() end
 end
 
 local function StopTicker()

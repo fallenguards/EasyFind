@@ -451,14 +451,32 @@ function Preview:ShowAll()
     Draw()
 end
 
--- A clicked step keeps its preview up; a hovered step shows in its place
--- while the cursor is on it, then the clicked one returns.
+-- A clicked step keeps its preview up; with none clicked the step being
+-- followed shows. false: put away until the map opens or the route moves on.
 local pinned
 
--- Index 0 is the whole route.
+local function Following()
+    local route = Route()
+    return route and route.steps and not route.arrived and (route.active or 1) or nil
+end
+
+-- On opening the map and each time the route moves on.
+function Preview:Follow()
+    if pinned == false then pinned = nil end
+    local index = Following()
+    if pinned or not index or not (WorldMapFrame and WorldMapFrame:IsShown()) then return end
+    self:Show(index)
+end
+
+-- Index 0 is the whole route. A click on the step shown puts it away; on
+-- another step's, the followed step returns.
 function Preview:Toggle(index)
-    if pinned == index then
+    local followed = Following()
+    if pinned == index and index ~= followed then
         pinned = nil
+        self:Follow()
+    elseif pinned == index or (pinned == nil and shownIndex == index) then
+        pinned = false
         shownIndex = nil
         if overlay then overlay:Hide() end
     else
@@ -484,6 +502,13 @@ function Preview:Reset()
     pinned = nil
     shownIndex = nil
     if overlay then overlay:Hide() end
+end
+
+-- The client sets its own map on opening: the followed step goes after it.
+if WorldMapFrame then
+    WorldMapFrame:HookScript("OnShow", function()
+        if ns.Utils and ns.Utils.SafeAfter then ns.Utils.SafeAfter(0, function() Preview:Follow() end) end
+    end)
 end
 
 -- The canvas resizes with the zoom and the map can change under the
