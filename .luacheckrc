@@ -43,6 +43,7 @@ read_globals = {
     "GetXPExhaustion", "GetWeaponEnchantInfo", "GetSavedInstanceInfo", "GetNumSavedInstances",
     "GetMaxPlayerLevel", "GetInboxNumItems", "GetInboxHeaderInfo", "UnitIsDead", "UnitClassification",
     "LOCALIZED_CLASS_NAMES_MALE", "GetSubZoneText", "GetInventoryItemID",
+    "GetCurrentRegion", "GetFactionInfoByID", "GetQuestResetTime",
 
     -- Menus
     "MenuUtil",

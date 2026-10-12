@@ -5603,6 +5603,58 @@ function Stored.BankCacheStore()
     return Stored.StoredCacheStore("bankCache", "bankCacheVer", ns.BANK_CACHE_VER)
 end
 
+-- What each character held of an item at its last scan, from the stored bag
+-- and bank records: { [charKey] = { name, class, bags, bank } }. The index is
+-- rebuilt only when some character's scan time changes.
+do
+    local index, stamp = {}, nil
+    local SOURCES = { { "bagCache", "bagCacheVer", "BAG_CACHE_VER", "bags" }, { "bankCache", "bankCacheVer", "BANK_CACHE_VER", "bank" } }
+
+    local function Stores()
+        local db = EasyFind and EasyFind.db
+        local out = {}
+        for i, src in ipairs(SOURCES) do
+            local store = db and type(db[src[1]]) == "table" and db[src[2]] == ns[src[3]] and db[src[1]]
+            out[i] = store and type(store.chars) == "table" and store.chars or nil
+        end
+        return out
+    end
+
+    local function Stamp(stores)
+        local sum = 0
+        for _, chars in pairs(stores) do
+            for _, record in pairs(chars) do sum = sum + (type(record.scannedAt) == "number" and record.scannedAt or 0) + 1 end
+        end
+        return sum
+    end
+
+    function ns.StoredItemCounts(itemID)
+        local stores = Stores()
+        local now = Stamp(stores)
+        if now ~= stamp then
+            stamp = now
+            wipe(index)
+            for i, src in ipairs(SOURCES) do
+                for charKey, record in pairs(stores[i] or {}) do
+                    if type(record) == "table" and type(record.packed) == "string" then
+                        for _, row in ipairs(Utils.UnpackRows(record.packed, Stored.STORED_ITEM_ROW_SPEC)) do
+                            local id = row.itemID
+                            if id then
+                                local byChar = index[id] or {}
+                                index[id] = byChar
+                                local c = byChar[charKey] or { name = record.name, class = record.class, bags = 0, bank = 0 }
+                                byChar[charKey] = c
+                                c[src[4]] = c[src[4]] + (row.count or 1)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return index[itemID]
+    end
+end
+
 -- Records what is in the bank while one is open, which is the only time the
 -- client will say. The character tabs and the shared account tabs are stored
 -- separately so the warband bank is counted once for the account instead of

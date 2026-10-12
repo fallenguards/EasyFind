@@ -519,6 +519,8 @@ local function GetSelectedNote()
     local idx = FindNoteIndex(id)
     return idx and NotesStore()[idx] or nil
 end
+notesNS.SelectedNote = GetSelectedNote
+function notesNS.AllNotes() return NotesStore() end
 
 -- The main chunk sits against Lua's 200-local ceiling: private helper groups
 -- live in container tables (Fmt = format host, Builders = one-shot UI
@@ -684,6 +686,16 @@ end
 local function NotesWindowShown()
     local frame = UI.GetEasyNotesFrame and UI:GetEasyNotesFrame()
     return frame and frame:IsShown()
+end
+
+function notesNS.NewChecklist()
+    local note = CreateNote("")
+    note.scope = "account"
+    note.name = L["CHECK_NEW_NAME"]
+    if notesNS.Checklist then notesNS.Checklist.Init(note) end
+    UI:HideEasyNotesPalette()
+    UI:RefreshEasyNotes()
+    return note
 end
 
 function notesNS.CreateNote(opts)
@@ -2680,7 +2692,20 @@ function UI:EnsureEasyNotesFrame()
     frame.newButton = CreateFrame("Button", nil, frame.header)
     StyleAccentButton(frame.newButton, "+", BTN_W, BTN_H)
     frame.newButton:SetPoint("LEFT", frame.header, "LEFT", 8, 0)
-    frame.newButton:SetScript("OnClick", function()
+    frame.newButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    frame.newButton:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            Utils.ShowCursorMenu("EasyNotesNewMenu", {
+                { text = L["NOTES_NEW"], onClick = function()
+                    CreateNote("")
+                    UI:HideEasyNotesPalette()
+                    UI:RefreshEasyNotes()
+                    UI:FocusEasyNoteEditor()
+                end },
+                { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
+            }, { toggleOwner = self })
+            return
+        end
         CreateNote("")
         UI:HideEasyNotesPalette()
         UI:RefreshEasyNotes()
@@ -2688,7 +2713,7 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.newButton:SetScript("OnEnter", function(self)
         if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
-        UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW"])
+        UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW_TT"])
     end)
     frame.newButton:SetScript("OnLeave", function(self)
         if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
@@ -3803,6 +3828,7 @@ function UI:RefreshEasyNotes()
     self:RefreshEasyNotesHeaderNav()
     self:RefreshEasyNotesDragHandles()
     if UI._notes.paletteShown then self:RefreshEasyNotesPalette() end
+    if notesNS.ChecklistView then notesNS.ChecklistView.Refresh() end
 end
 
 function UI:SelectEasyNote(id)
@@ -5324,6 +5350,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
     end
     self:RefreshEasyNotesDragHandles()
     if shown then self:RefreshEasyNotesAttachBar() end
+    if notesNS.ChecklistView then notesNS.ChecklistView.SetAllowed(shown) end
 end
 
 local function ApplyEasyNotesWindowSize(frame, dims)
@@ -6036,6 +6063,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               UI:RefreshEasyNotes()
               UI:FocusEasyNoteEditor()
           end },
+        { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
         { text = L["NOTES_REMIND_ME"], submenu = remindSub },
         { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
         { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil,
@@ -6735,7 +6763,8 @@ function UI:RefreshEasyNotesPalette()
             end
         end
         -- strip SMP styling + color codes: the row font can't render them
-        local preview = StripColorEscapes(MapSelection((note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
+        local preview = (notesNS.Checklist and notesNS.Checklist.Is(note)) and notesNS.Checklist.Preview(note)
+            or StripColorEscapes(MapSelection((note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
         if note.alias and note.alias ~= "" then
             preview = "@" .. note.alias .. "  " .. preview
         end

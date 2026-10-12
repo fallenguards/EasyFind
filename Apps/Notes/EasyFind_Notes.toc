@@ -12,4 +12,6 @@
 ## DefaultState: enabled
 
 Context.lua
+Checklist.lua
 Notes.lua
+ChecklistView.lua
