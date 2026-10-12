@@ -11,6 +11,7 @@ ignore = {
 globals = {
     "EasyFind",
     "EasyFindDB",
+    "EasyNotesDB",
     "EasyFind_OnAddonCompartmentClick",
     "SlashCmdList",
     "StaticPopupDialogs",
@@ -36,6 +37,7 @@ read_globals = {
 
     -- Menus
     "MenuUtil",
+    "ColorPickerFrame", "TooltipDataProcessor", "tContains", "GetInstanceInfo",
 
     -- ClassicUI Forever's public API (nil when that addon is not loaded)
     "ClassicUIForeverAPI",

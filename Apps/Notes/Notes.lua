@@ -17,13 +17,11 @@ local tostring = tostring
 
 local sfind, slower = Utils.sfind, Utils.slower
 local tinsert, tremove, tsort = Utils.tinsert, Utils.tremove, Utils.tsort
-local mmax = Utils.mmax
+local mmax, mmin = Utils.mmax, math.min
 local MapGetBestMapForUnit = C_Map and C_Map.GetBestMapForUnit
 local MapGetMapInfo = C_Map and C_Map.GetMapInfo
 local pcall = pcall
-local xpcall = xpcall
 local tonumber = tonumber
-local UnitClass = UnitClass
 local UnitName = UnitName
 local UnitFactionGroup = UnitFactionGroup
 local GetSpecialization = GetSpecialization
@@ -33,7 +31,6 @@ local IsInRaid = IsInRaid
 local IsInInstance = IsInInstance
 local GetInstanceInfo = GetInstanceInfo
 local GetCursorInfo = GetCursorInfo
-local C_QuestLog = C_QuestLog
 
 notesNS.UI = UI
 ns.Notes = notesNS
@@ -595,11 +592,7 @@ function Fmt.ApplyTypingGlyphFormat(editor, c)
     UI._notes.inputBusy = nil
 end
 
-local function CurrentCharKey()
-    local name = (UnitName and UnitName("player")) or "?"
-    local realm = (GetRealmName and GetRealmName()) or ""
-    return name .. "-" .. realm
-end
+local function CurrentCharKey() return ns.CurrentCharacterKey() end
 
 -- search must see header and styled text, which is stored as SMP glyphs;
 -- map it back to plain ASCII (cached per note, keyed on the raw body)
@@ -813,15 +806,14 @@ local function TagColor(key)
 end
 
 local function CurrentCharacterCtx()
-    local name = UnitName and UnitName("player")
+    local name = ns.PlayerName()
     if not name then return nil end
-    local realm = GetRealmName and GetRealmName() or ""
-    return { type = "character", id = name .. "-" .. realm, name = name }
+    return { type = "character", id = ns.CurrentCharacterKey(), name = name }
 end
 
 
 local function CurrentSpecCtx()
-    if not (GetSpecialization and GetSpecializationInfo) then return nil end
+    if not (ns.Caps and ns.Caps.specs and GetSpecialization and GetSpecializationInfo) then return nil end
     local idx = GetSpecialization()
     if not idx then return nil end
     local specID, specName = GetSpecializationInfo(idx)
@@ -831,7 +823,7 @@ local function CurrentSpecCtx()
 end
 
 local function CurrentRoleCtx()
-    if not (GetSpecialization and GetSpecializationInfo) then return nil end
+    if not (ns.Caps and ns.Caps.specs and GetSpecialization and GetSpecializationInfo) then return nil end
     local idx = GetSpecialization()
     if not idx then return nil end
     local _, _, _, _, role = GetSpecializationInfo(idx)
@@ -943,21 +935,6 @@ local function ToggleNoteShowsOn(note, entry)
     end
     note.showsOn[#note.showsOn + 1] = { type = entry.type, id = entry.id, name = entry.name or tostring(entry.id) }
     note.updated = time()
-end
-
--- A note's appliesIn matches the active situation per its matchMode.
-local function NoteAppliesNow(note, activeKeys)
-    if not (note and note.appliesIn and #note.appliesIn > 0) then return false end
-    if note.matchMode == "manual" then return false end
-    local all = note.matchMode == "all"
-    local anyHit = false
-    for i = 1, #note.appliesIn do
-        local hit = activeKeys[CtxKey(note.appliesIn[i])] == true
-        if all and not hit then return false end
-        if hit then anyHit = true end
-    end
-    if all then return true end
-    return anyHit
 end
 
 local function CountNotesWithContext(key)
@@ -1266,8 +1243,7 @@ local function GetNoteHeaders(text)
         local lineEnd = nl and (nl - 1) or n
         local line = text:sub(pos, lineEnd)
         if line ~= "" then
-            local firstGlyph
-            for g in iterUtf8(line) do firstGlyph = g; break end
+            local firstGlyph = iterUtf8(line)()
             if firstGlyph and GlyphHasBold(firstGlyph) then
                 local title = strtrim(MapSelection(line, GlyphPlain))
                 out[#out + 1] = {
@@ -3582,11 +3558,8 @@ function UI:EnsureEasyNotesFrame()
         if btn.text then
             local font = action.buttonFont
             if font and _G[font] then btn.text:SetFontObject(_G[font]) end
-            local size = action.fontSize
-            local flags
-            -- No THICKOUTLINE: its heavy black halo read as a shadow behind the
-            -- B and A glyphs. They convey their meaning without a fake bold.
-            UI:ApplyEasyNotesCustomFont(btn.text, size, flags)
+            -- No outline: THICKOUTLINE's halo read as a shadow behind B and A.
+            UI:ApplyEasyNotesCustomFont(btn.text, action.fontSize)
         end
         if action.isListMenu then
             btn.text:Hide()
@@ -4332,9 +4305,7 @@ function UI:RefreshFormatButtonStates()
                 break
             end
         end
-    elseif keepIntent then
-        -- keep sticky modes as-is
-    else
+    elseif not keepIntent then
         local cursor = editor:GetCursorPosition() or 0
         modes.bold, modes.italic, modes.underline, modes.strike = nil, nil, nil, nil
         modes.color = nil
@@ -6907,10 +6878,7 @@ function UI:RefreshEasyNotesPalette()
     local query = frame.paletteSearch:GetText() or ""
     local list = SortedNotes(query)
     local fset = UI._notes.contextFilterSet
-    local hasFilter = false
-    if fset then
-        for _ in pairs(fset) do hasFilter = true break end
-    end
+    local hasFilter = fset ~= nil and next(fset) ~= nil
     if hasFilter then
         local filtered = {}
         for i = 1, #list do

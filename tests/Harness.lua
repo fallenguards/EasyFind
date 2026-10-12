@@ -55,6 +55,7 @@ Harness.TOCS = {
     "Apps/Snippets/EasyFind_Snippets.toc",
     "Apps/Clipboard/EasyFind_Clipboard.toc",
     "Apps/GPS/EasyFind_GPS.toc",
+    "Apps/Notes/EasyFind_Notes.toc",
 }
 
 -- The Lua files a .toc lists, relative to the addon root; false when unreadable.
