@@ -4394,7 +4394,7 @@ local function ExtensionPageDefs()
     local defs = {}
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then
         defs[#defs + 1] = { id = "snippets", name = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX,
-            coords = ns.SNIPPET_ICON_COORDS, core = true, build = BuildSnippetsPage }
+            coords = ns.SNIPPET_ICON_COORDS, core = true, fills = true, build = BuildSnippetsPage }
     end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clipboard")) then
         defs[#defs + 1] = { id = "clipboard", name = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX,
@@ -4417,18 +4417,67 @@ local function ExtensionPageDefs()
 end
 
 -- The page for an id, built on first use under the picker.
+-- A bundled page that flows top down scrolls when taller than the tab: its
+-- builder fills a scroll child as tall as its lowest control. A page that
+-- fills the tab itself (fills = true) and any registered page get the tab.
+local function ScrollingPage(holder)
+    local scroll = CreateFrame("ScrollFrame", nil, holder)
+    scroll:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
+    scroll:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -12, 0)
+    local page = CreateFrame("Frame", nil, scroll)
+    page:SetSize(1, 1)
+    scroll:SetScrollChild(page)
+    local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, holder)
+    local function Fit()
+        page:SetWidth(scroll:GetWidth())
+        local top, low = page:GetTop(), nil
+        if not top then return end
+        local function Lower(region)
+            local bottom = region:IsShown() and region:GetBottom()
+            if bottom and (not low or bottom < low) then low = bottom end
+        end
+        for _, kid in ipairs({ page:GetChildren() }) do Lower(kid) end
+        for _, region in ipairs({ page:GetRegions() }) do Lower(region) end
+        local height = low and (top - low + 12) or 1
+        page:SetHeight(height)
+        local view = scroll:GetHeight() or 0
+        if not bar then return end
+        if height > view + 1 then
+            bar:Show()
+            bar:UpdateThumb(height, view)
+        else
+            scroll:SetVerticalScroll(0)
+            bar:Hide()
+        end
+    end
+    scroll:SetScript("OnSizeChanged", Fit)
+    holder:SetScript("OnShow", function() Utils.SafeAfter(0, Fit) end)
+    -- A control the settings search jumps to scrolls into view first.
+    holder.Reveal = function(target)
+        local top, at = page:GetTop(), target and target.GetTop and target:GetTop()
+        if not (top and at) then return end
+        local most = math.max(0, page:GetHeight() - (scroll:GetHeight() or 0))
+        scroll:SetVerticalScroll(math.min(most, math.max(0, top - at - 8)))
+    end
+    return page, Fit
+end
+
 local function EnsureExtensionPage(entry)
     if entry.frame then return entry.frame end
-    local page = CreateFrame("Frame", nil, extensionsTab)
-    page:SetPoint("TOPLEFT", extensionStrip, "BOTTOMLEFT", 0, -8)
-    page:SetPoint("BOTTOMRIGHT", extensionsTab, "BOTTOMRIGHT", 0, 0)
-    entry.frame = page
-    if entry.def.core then
+    local holder = CreateFrame("Frame", nil, extensionsTab)
+    holder:SetPoint("TOPLEFT", extensionStrip, "BOTTOMLEFT", 0, -8)
+    holder:SetPoint("BOTTOMRIGHT", extensionsTab, "BOTTOMRIGHT", 0, 0)
+    entry.frame = holder
+    if entry.def.core and not entry.def.fills then
+        local page, Fit = ScrollingPage(holder)
         entry.def.build(extensionCtx, page)
+        Utils.SafeAfter(0, Fit)
+    elseif entry.def.core then
+        entry.def.build(extensionCtx, holder)
     else
-        entry.def.build(page)
+        entry.def.build(holder)
     end
-    return page
+    return holder
 end
 
 local function SelectExtensionPage(id)
@@ -4439,6 +4488,12 @@ local function SelectExtensionPage(id)
         if entry.frame then entry.frame:SetShown(on) end
     end
     if extensionsTab and extensionsTab.picker then extensionsTab.picker.Refresh() end
+end
+
+local function RevealOnExtensionPage(id, target)
+    for _, entry in ipairs(extensionPages) do
+        if entry.def.id == id and entry.frame and entry.frame.Reveal then entry.frame.Reveal(target) end
+    end
 end
 
 -- Every page, built: the sidebar search indexes their controls.
@@ -5533,7 +5588,10 @@ function Options:Initialize()
             results:Hide()
             box:ClearFocus()
             SwitchToTab(hit.tab)
-            if hit.pageID then SelectExtensionPage(hit.pageID) end
+            if hit.pageID then
+                SelectExtensionPage(hit.pageID)
+                RevealOnExtensionPage(hit.pageID, hit.target)
+            end
             FlashFrame(hit.target)
         end
         local function PaintSelection()
