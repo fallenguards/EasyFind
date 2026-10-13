@@ -5951,7 +5951,8 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     local c = ns.TAG_COLORS[kind] or ns.TAG_COLORS.new
     local tag = CreateFrame("Frame", nil, parent)
     tag:EnableMouse(true)
-    tag:SetFrameStrata("TOOLTIP")
+    -- Over its window's rows, never over other windows.
+    tag:SetFrameLevel(parent:GetFrameLevel() + 10)
     local text = tag:CreateFontString(nil, "OVERLAY", superscript and "GameFontNormalTiny" or "GameFontNormalSmall")
     text:SetPoint("CENTER")
     text:SetText(kind == "exp" and ns.L["TAG_EXP"] or ((_G["NEW"] or "New"):upper()))
