@@ -30,7 +30,7 @@ local ROWS = varints({
 -- Alliance and 0 (none) to the Horde, tile 3105 from level 60 to both.
 local DANGER = varints({ 2, 3100, 20, 0, 5, 60, 60 })
 
-local function fresh(localNames)
+local function fresh(localNames, rows, names)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -47,12 +47,37 @@ local function fresh(localNames)
     ns.MapSearch = {}
     ns.MapSearchSearch = { PreparePOI = function(p) p.nameLower = string.lower(p.name) return p end }
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
-    ns.NPC_DATA = { rows = ROWS, names = "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
+    ns.NPC_DATA = { rows = rows or ROWS, names = names or "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
                     titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER },
                     types = { [1] = "Beast", [7] = "Humanoid" } }
     env.EasyFind.db = {}
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
     return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
+end
+
+-- Vendors around a player standing at 0.31, 0.41 of map 1429, the
+-- Alliance: count repairers named "Arnold N" far off, one named
+-- "Bea Longername" beside the player, "Cid" repairing for the Horde only,
+-- and "Dana" selling food.
+local REPAIR = 7 + 16 + (2 + 256) * 256
+local function vendors(count)
+    local list, names = { count + 2 }, {}
+    local function add(name, flags, kind, x, y)
+        for _, v in ipairs({ 1, 10, 0, flags, kind, 0, 1, 1429, xy(x, y), 1 }) do list[#list + 1] = v end
+        names[#names + 1] = name
+    end
+    for k = 1, count - 1 do add("Arnold " .. k, 0, REPAIR, 0.9, 0.9) end
+    add("Bea Longername", 0, REPAIR, 0.32, 0.42)
+    add("Cid", 2 * 8, REPAIR, 0.31, 0.41)
+    add("Dana", 0, 7 + 16 + (2 + 512) * 256, 0.5, 0.5)
+    local append, _, env = fresh(nil, varints(list), table.concat(names, "\n"))
+    env.UnitFactionGroup = function() return "Alliance" end
+    return append
+end
+
+local function named(rows, name)
+    for _, r in ipairs(rows) do if r.name == name then return r end end
+    return nil
 end
 
 local function find(append, query, onlyMap)
@@ -145,6 +170,27 @@ end
 
 function tests.shortQueriesFindNothing()
     H.assertEq(#find(fresh(), "ho"), 0)
+end
+
+-- "repair" finds who repairs, whatever they are called, and only those
+-- who will serve the player.
+function tests.aServiceWordFindsWhoOffersIt()
+    local rows = find(vendors(3), "repair")
+    H.assertEq(#rows, 3, "the two Arnolds and Bea")
+    H.assertNil(named(rows, "Cid"), "repairs for the other faction only")
+    H.assertNil(named(rows, "Dana"))
+    local kw = table.concat(named(rows, "Bea Longername").keywords, ",")
+    H.assertTrue(kw:find("repair", 1, true) ~= nil, "the word rides along for the map search: " .. kw)
+    H.assertEq(find(vendors(3), "food")[1].name, "Dana", "what a vendor sells counts too")
+    H.assertEq(#find(vendors(3), "rep"), 3, "found while typing")
+end
+
+-- More matches than are handed over: the nearest of equal ones get in,
+-- not the shortest names.
+function tests.pastTheCapTheNearestGetIn()
+    local rows = find(vendors(80), "repair")
+    H.assertEq(#rows, 60)
+    H.assertEq(rows[1].name, "Bea Longername")
 end
 
 local pass, fail, failures = H.runSuite("GPSNpcs", tests)

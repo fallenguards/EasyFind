@@ -12,7 +12,7 @@ if not (MapSearch and Search and Search.PreparePOI) then return end
 local sbyte, sfind, slower, sgmatch, ssub = string.byte, string.find, string.lower, string.gmatch, string.sub
 local mfloor, mmin = math.floor, math.min
 local tsort = table.sort
-local band = bit.band
+local band, bor = bit.band, bit.bor
 local PreparePOI = Search.PreparePOI
 
 local MIN_QUERY = 3
@@ -22,6 +22,17 @@ local DANGER_LEVELS = 3 -- the client's orange: three levels above
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
 -- the filter offers; a creature with none is "other".
 local ROLE_GROUP = { quest = 1, vendor = 2 + 256, trainer = 4, flight = 8, services = 16 + 32 + 64 + 128 }
+-- Words for what a creature offers, matched as if in its title: English on
+-- every client, the client's own beside them. Food, ammo and reagents are
+-- what a vendor sells.
+local SERVICES = {
+    { bits = 256, en = "repair", key = "NPC_WORDS_REPAIR" },
+    { bits = 512, en = "food drink water", key = "NPC_WORDS_FOOD" },
+    { bits = 1024, en = "ammo arrows bullets restock", key = "NPC_WORDS_AMMO" },
+    { bits = 2048, en = "reagents restock", key = "NPC_WORDS_REAGENTS" },
+    { bits = 8, en = "flight", key = "NPC_WORDS_FLIGHT" },
+}
+local FAR = math.huge
 
 -- Everything unpacked, in one table: per creature (index i) its id, levels,
 -- flags, title, display and search names, and its spots (index k).
@@ -32,10 +43,27 @@ local N = {
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
-    hits = {}, score = {}, words = {}, retailEntrance = {},
+    hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
+
+-- Every service word with its bits, from SERVICES and the locale.
+local serviceWords
+local function ServiceWords()
+    if serviceWords then return serviceWords end
+    serviceWords = {}
+    for _, s in ipairs(SERVICES) do
+        local seen = {}
+        for w in sgmatch(slower(s.en .. " " .. (ns.L[s.key] or "")), "%S+") do
+            if not seen[w] then
+                seen[w] = true
+                serviceWords[#serviceWords + 1] = { word = w, bits = s.bits }
+            end
+        end
+    end
+    return serviceWords
+end
 
 local function Unpack(s)
     local E = C_EncodingUtil
@@ -230,7 +258,8 @@ local function MapName(m)
 end
 
 -- How well creature i matches the query words: 3 the name starts with
--- the first word, 2 a word of the name does, 1 anywhere; 0 no match.
+-- the first word, 2 a word of the name does, 1 anywhere or by what it
+-- offers; 0 no match.
 local function Score(i)
     local words, low, alt = N.words, N.low[i], N.lowEnglish[i]
     local tlow, tAlt = N.titleLow[N.title[i]], N.titleLowEnglish[N.title[i]]
@@ -238,7 +267,8 @@ local function Score(i)
     for w = 1, #words do
         local word = words[w]
         local at = sfind(low, word, 1, true) or (alt and sfind(alt, word, 1, true))
-        if not at and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true)) then
+        if not at and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
+            and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
             return 0
         end
         if w == 1 then
@@ -250,9 +280,12 @@ local function Score(i)
     return score
 end
 
+-- Equal matches nearest first.
 local function HitLess(a, b)
     local sa, sb = N.score[a], N.score[b]
     if sa ~= sb then return sa > sb end
+    local na, nb = N.near[a], N.near[b]
+    if na ~= nb then return na < nb end
     return #N.name[a] < #N.name[b]
 end
 
@@ -268,6 +301,10 @@ local function Row(i, k)
         if N.titleName[t] and N.titleName[t] ~= "" then keywords[#keywords + 1] = N.titleName[t] end
         if N.english[i] then keywords[#keywords + 1] = N.english[i] end
         if N.titleEnglish[t] then keywords[#keywords + 1] = N.titleEnglish[t] end
+        local roles = mfloor(N.kind[i] / 256)
+        for _, s in ipairs(ServiceWords()) do
+            if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
+        end
         poi = { name = N.name[i], category = "npc", isStatic = true, npcID = N.id[i],
                 keywords = #keywords > 0 and keywords or nil }
         PreparePOI(poi)
@@ -311,17 +348,30 @@ end
 -- those standing on that map. True when more matched than were handed over.
 function N.Append(out, nameSet, query, onlyMap)
     if not query or #query < MIN_QUERY or not Load() then return false end
-    local words = N.words
+    local words, wordBits = N.words, N.wordBits
     for w = #words, 1, -1 do words[w] = nil end
     for word in sgmatch(slower(query), "%S+") do words[#words + 1] = word end
     if #words == 0 then return false end
+    -- A word naming a service: only creatures that will serve the player.
+    local service = false
+    for w = 1, #words do
+        local bits = 0
+        if #words[w] >= MIN_QUERY then
+            for _, s in ipairs(ServiceWords()) do
+                if sfind(s.word, words[w], 1, true) == 1 then bits = bor(bits, s.bits) end
+            end
+        end
+        wordBits[w] = bits
+        if bits ~= 0 then service = true end
+    end
     local hits, score, n = N.hits, N.score, 0
     local f = EasyFind.db and EasyFind.db.npcFilters
-    local horde = f and f.reaction and UnitFactionGroup and UnitFactionGroup("player") == "Horde"
+    local horde = UnitFactionGroup and UnitFactionGroup("player") == "Horde"
     for i = 1, N.n do
         local s = Score(i)
         if s > 0 and onlyMap and not StandsOn(i, onlyMap) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
+        if s > 0 and service and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
         if s > 0 then
             n = n + 1
             hits[n] = i
@@ -330,12 +380,23 @@ function N.Append(out, nameSet, query, onlyMap)
     end
     for j = #hits, n + 1, -1 do hits[j] = nil end
     if n == 0 then return false end
+    -- Past the cap, the nearest of equal matches get in.
+    local pci, px, py = PlayerWorld()
+    local spot, near = N.spot, N.near
+    local capped = n > MAX_ROWS
+    for j = 1, n do
+        local i = hits[j]
+        local k = capped and BestSpot(i, onlyMap, pci, px, py) or nil
+        spot[i], near[i] = k, FAR
+        if k and pci then
+            local ci, wx, wy = SpotWorld(k)
+            if ci == pci then near[i] = (wx - px) ^ 2 + (wy - py) ^ 2 end
+        end
+    end
     tsort(hits, HitLess)
-    local pci, px, py
-    if not onlyMap then pci, px, py = PlayerWorld() end
     for j = 1, mmin(n, MAX_ROWS) do
         local i = hits[j]
-        local k = BestSpot(i, onlyMap, pci, px, py)
+        local k = spot[i] or BestSpot(i, onlyMap, pci, px, py)
         local poi = k and Row(i, k)
         if poi and not (nameSet and nameSet[poi.nameLower]) then out[#out + 1] = poi end
     end
