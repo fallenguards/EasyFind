@@ -77,5 +77,21 @@ function tests.stripCornersSitOnBothEdges()
     end
 end
 
+-- A leg running off the open map is drawn up to its edge, not dropped.
+function tests.aLegOffTheMapIsCutAtItsEdge()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    H.loadModule("Apps/GPS/Preview.lua", env, ns)
+    local OnMap = ns.GPSPreview._OnMap
+    local t0, t1 = OnMap(0.5, 0.5, 1.5, 0.5)
+    H.assertEq(t0, 0)
+    H.assertEq(t1, 0.5, "cut where it leaves the map")
+    t0, t1 = OnMap(-1, 0.25, 1, 0.25)
+    H.assertEq(t0, 0.5, "starts where it comes onto the map")
+    H.assertEq(t1, 1)
+    H.assertNil(OnMap(1.2, 0, 1.2, 1), "nothing of it on the map")
+end
+
 local pass, fail, failures = H.runSuite("GPSPreview", tests)
 return { pass = pass, fail = fail, failures = failures }

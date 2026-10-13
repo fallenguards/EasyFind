@@ -2003,11 +2003,7 @@ if ns.MapTab and ns.MapTab.RegisterPage then
             }, {})
         end,
         build = BuildPage,
-        onShow = function(frame)
-            frame:Render()
-            -- After the client sets its own map on opening.
-            Utils.SafeAfter(0, function() if ns.GPSPreview then ns.GPSPreview:Follow() end end)
-        end,
+        onShow = function(frame) frame:Render() end,
     })
 end
 

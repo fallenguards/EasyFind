@@ -1,10 +1,9 @@
--- EasyFind GPS: route previews on the map.
+-- EasyFind GPS: the route on the world map.
 --
--- With the GPS page open beside the map, resting the cursor on a step
--- shows that step's map and draws the route on it: every leg of the route
--- that lies on that map as a faint line, the hovered leg bright, with a
--- mark where it starts and our pin where it ends. Leaving the step takes
--- the drawing away; the map stays where it was put.
+-- On whatever map is open, every leg of the route lying on it: the step
+-- followed (or the one clicked) bright with a mark where it starts and
+-- ends, the rest faint, the part walked faded. The map is never turned on
+-- its own; a click on a step's number turns it to that step.
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
 local Preview = {}
@@ -328,36 +327,23 @@ local function World(p)
     return nil
 end
 
--- A walked leg's way on foot as map points (x, y in pairs), or nothing
+-- A walked leg's way on foot in world yards and its continent, or nothing
 -- without one. Kept per step until its start moves.
 local walks = {}
-local function WalkPoints(route, i, start, target, mapID)
+local function WalkWorld(route, i, start, target)
     local find = ns.GPSRoute and ns.GPSRoute.WalkPath
     if not (find and start and target) then return nil end
     local ci, sx, sy = World(start)
     local ci2, tx, ty = World(target)
     if not (ci and ci2 and ci == ci2) then return nil end
-    local key = mapID * 1e6 + math.floor(sx / 25) * 1e3 + math.floor(sy / 25)
+    local key = math.floor(sx / 25) * 1e5 + math.floor(sy / 25)
     local c = walks[i]
-    if c and c.route == route and c.key == key then return c.pts or nil end
-    c = { route = route, key = key, pts = false }
-    walks[i] = c
-    local path = find(ci, sx, sy, tx, ty)
-    if not path then return nil end
-    local pts, k = {}, 0
-    for v = 1, #path.pts / 2 do
-        local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(path.pts[2 * v - 1], path.pts[2 * v]), mapID)
-        if ok and pos then
-            local x, y = pos:GetXY()
-            if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
-                pts[k + 1], pts[k + 2] = x, y
-                k = k + 2
-            end
-        end
+    if not (c and c.route == route and c.key == key) then
+        c = { route = route, key = key, ci = ci, path = find(ci, sx, sy, tx, ty) or false }
+        walks[i] = c
     end
-    if k < 4 then return nil end
-    c.pts = pts
-    return pts
+    if not c.path then return nil end
+    return c.path, c.ci
 end
 
 -- World yards to the shown map's fractions, from three of its corners.
@@ -381,48 +367,118 @@ local function Affine(mapID)
     return a
 end
 
--- A world point onto the canvas at legPts[m + 1], when it falls on the map.
-local legPts = {}
-local function Put(a, wx, wy, cw, ch, m)
+local function Frac(a, wx, wy)
     local dx, dy = wx - a.x0, wy - a.y0
-    local x, y = (dx * a.vy - a.vx * dy) / a.det, (a.ux * dy - dx * a.uy) / a.det
-    if x < 0 or x > 1 or y < 0 or y > 1 then return m end
-    legPts[m + 1], legPts[m + 2] = x * cw, -y * ch
-    return m + 2
+    return (dx * a.vy - a.vx * dy) / a.det, (a.ux * dy - dx * a.uy) / a.det
 end
 
--- The walk being followed, cut where the player stands: the part walked
--- faded, the rest in its color.
-local function DrawFollowed(f, a, cw, ch, span, round, color, alpha)
-    local pts, seg = f.path.pts, f.seg
-    local m = 0
-    for v = 1, seg do m = Put(a, pts[2 * v - 1], pts[2 * v], cw, ch, m) end
-    m = Put(a, f.qx, f.qy, cw, ch, m)
-    lines:Line(legPts, m, span, round, PASSED_COLOR, PASSED_ALPHA)
-    m = Put(a, f.qx, f.qy, cw, ch, 0)
-    for v = seg + 1, #pts / 2 do m = Put(a, pts[2 * v - 1], pts[2 * v], cw, ch, m) end
-    lines:Line(legPts, m, span, round, color, alpha)
+-- The part of segment (x0, y0)-(x1, y1) on the map, as t0, t1; or nil.
+local function Edge(p, q, t0, t1)
+    if p == 0 then
+        if q < 0 then return nil end
+        return t0, t1
+    end
+    local t = q / p
+    if p < 0 then t0 = mmax(t0, t) else t1 = mmin(t1, t) end
+    if t0 > t1 then return nil end
+    return t0, t1
 end
+
+local function OnMap(x0, y0, x1, y1)
+    local dx, dy = x1 - x0, y1 - y0
+    local t0, t1 = Edge(-dx, x0, 0, 1)
+    if t0 then t0, t1 = Edge(dx, 1 - x0, t0, t1) end
+    if t0 then t0, t1 = Edge(-dy, y0, t0, t1) end
+    if t0 then t0, t1 = Edge(dy, 1 - y0, t0, t1) end
+    return t0, t1
+end
+Preview._OnMap = OnMap   -- tests
+
+-- The line being traced, in map fractions: the parts on the map handed to
+-- the drawer in canvas pixels, a piece at a time.
+local legPts = {}
+local pen = { n = 0 }
+
+local function PenUp()
+    if pen.n >= 4 then lines:Line(legPts, pen.n, pen.span, pen.round, pen.color, pen.alpha) end
+    pen.n = 0
+end
+
+local function Pen(color, alpha)
+    PenUp()
+    pen.color, pen.alpha, pen.x = color, alpha, nil
+end
+
+local function PenTo(x, y)
+    local x0, y0 = pen.x, pen.y
+    pen.x, pen.y = x, y
+    if not x0 then return end
+    local t0, t1 = OnMap(x0, y0, x, y)
+    if not t0 then return PenUp() end
+    local cw, ch, n = pen.cw, pen.ch, pen.n
+    if t0 > 0 or n == 0 then
+        PenUp()
+        legPts[1], legPts[2] = (x0 + (x - x0) * t0) * cw, -(y0 + (y - y0) * t0) * ch
+        n = 2
+    end
+    legPts[n + 1], legPts[n + 2] = (x0 + (x - x0) * t1) * cw, -(y0 + (y - y0) * t1) * ch
+    pen.n = n + 2
+    if t1 < 1 then PenUp() end
+end
+
+-- A clicked step stays the one shown; with none clicked it is the step
+-- being followed. false: none, until the map opens or the route moves on.
+local pinned
+
+local function Following()
+    local route = Route()
+    return route and route.steps and not route.arrived and (route.active or 1) or nil
+end
+
+local function Shown()
+    if pinned == false then return nil end
+    return pinned or Following()
+end
+
+-- What the last drawing was taken from: the same again draws nothing.
+local drawn = {}
+local dirty = true
 
 local function Draw()
     local route = Route()
-    if not (route and overlay and shownMap) then return end
     local canvas = Canvas()
-    if not canvas or (WorldMapFrame.GetMapID and WorldMapFrame:GetMapID() ~= shownMap) then
-        overlay:Hide()
+    local mapID = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
+    if not (route and canvas and mapID) then
+        if overlay then overlay:Hide() end
+        drawn.route = nil
         return
     end
+    if not overlay and not Build() then return end
+    shownMap, shownIndex = mapID, Shown()
+    local span, round = px(Span()), px(ROUND)
+    local cw, ch = canvas:GetWidth(), canvas:GetHeight()
+    local active = route.arrived and #route.steps + 1 or (route.active or 1)
+    local affine = Affine(mapID)
+    local f = ns.GPSFollow and ns.GPSFollow.Now()
+    if f and not (f.route == route and f.path and affine and affine.ci == f.ci) then f = nil end
+    local qx, qy
+    if f then
+        qx, qy = Frac(affine, f.qx, f.qy)
+        qx, qy = qx * cw, qy * ch
+    end
+    if not dirty and drawn.route == route and drawn.map == mapID and drawn.span == span and drawn.cw == cw
+        and drawn.ch == ch and drawn.shown == shownIndex and drawn.active == active
+        and drawn.seg == (f and f.seg) and (not qx or (qx - drawn.qx) ^ 2 + (qy - drawn.qy) ^ 2 < px(0.5) ^ 2) then
+        return
+    end
+    dirty = false
+    drawn.route, drawn.map, drawn.span, drawn.cw, drawn.ch = route, mapID, span, cw, ch
+    drawn.shown, drawn.active, drawn.seg, drawn.qx, drawn.qy = shownIndex, active, f and f.seg, qx, qy
     local accent = Accent()
     local nSym = 0
     local hovered
-    local span, round = px(Span()), px(ROUND)
     local lineW = span * 0.4
-    local cw, ch = canvas:GetWidth(), canvas:GetHeight()
-    local active = route.arrived and #route.steps + 1 or (route.active or 1)
-    local f = ns.GPSFollow and ns.GPSFollow.Now()
-    if f and not (f.route == route and f.path) then f = nil end
-    local affine = f and Affine(shownMap)
-    if affine and affine.ci ~= f.ci then affine = nil end
+    pen.span, pen.round, pen.cw, pen.ch, pen.n = span, round, cw, ch, 0
     lines:Begin()
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
     local all = shownIndex == 0
@@ -432,29 +488,44 @@ local function Draw()
         -- it start from where it lands.
         local teleport = step.kind == "teleport"
         local start, target = Ends(route, i)
-        local a = (not teleport) and OnCanvas(start, shownMap) or nil
-        local b = (not teleport) and OnCanvas(target, shownMap) or nil
-        if a and b then
+        local a = (not teleport) and OnCanvas(start, mapID) or nil
+        local b = (not teleport) and OnCanvas(target, mapID) or nil
+        if not teleport then
             local bright = all or i == shownIndex
             local color, alpha = MODE_COLOR[step.kind] or accent, bright and 0.95 or 0.4
             -- A leg already behind reads as walked, unless it is the one looked at.
             if i < active and not (i == shownIndex and not all) then color, alpha = PASSED_COLOR, PASSED_ALPHA end
-            if affine and i == f.index then
-                DrawFollowed(f, affine, cw, ch, span, round, color, alpha)
-            else
-                -- The leg's line: its way on foot for a walk, straight otherwise.
-                local way = step.kind == "travel" and WalkPoints(route, i, start, target, shownMap)
-                local m = 0
-                if way then
-                    for v = 1, #way - 1, 2 do
-                        legPts[m + 1], legPts[m + 2] = way[v] * cw, -way[v + 1] * ch
-                        m = m + 2
+            if f and i == f.index then
+                -- Cut where the player stands: the part walked faded.
+                local pts, seg = f.path.pts, f.seg
+                Pen(PASSED_COLOR, PASSED_ALPHA)
+                for v = 1, seg do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
+                PenTo(Frac(affine, f.qx, f.qy))
+                Pen(color, alpha)
+                PenTo(Frac(affine, f.qx, f.qy))
+                for v = seg + 1, #pts / 2 do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
+            elseif affine then
+                -- Its way on foot for a walk, straight otherwise; drawn where
+                -- it lies on this map.
+                Pen(color, alpha)
+                local path, pci
+                if step.kind == "travel" then path, pci = WalkWorld(route, i, start, target) end
+                if path and pci == affine.ci then
+                    local pts = path.pts
+                    for v = 1, #pts / 2 do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
+                elseif start and target then
+                    local sci, sx, sy = World(start)
+                    local tci, tx, ty = World(target)
+                    if sci == affine.ci and tci == affine.ci then
+                        PenTo(Frac(affine, sx, sy))
+                        PenTo(Frac(affine, tx, ty))
                     end
-                else
-                    legPts[1], legPts[2], legPts[3], legPts[4] = a[1], a[2], b[1], b[2]
-                    m = 4
                 end
-                lines:Line(legPts, m, span, round, color, alpha)
+            elseif a and b then
+                -- A map over more than one continent: its ends joined.
+                PenUp()
+                legPts[1], legPts[2], legPts[3], legPts[4] = a[1], a[2], b[1], b[2]
+                lines:Line(legPts, 4, span, round, color, alpha)
             end
         end
         -- The whole route marks each change of ride with its symbol.
@@ -474,6 +545,7 @@ local function Draw()
                         final = i == #route.steps, color = MODE_COLOR[step.kind] or accent }
         end
     end
+    PenUp()
     lines:Finish()
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
@@ -558,117 +630,74 @@ local function MapOf(route, index)
     return mapID
 end
 
-function Preview:Show(index)
-    local route = Route()
-    local step = route and route.steps and route.steps[index]
-    if not (step and WorldMapFrame and WorldMapFrame:IsShown()) then return end
-    -- A spell or an item: nothing to show on the map.
-    if step.kind == "teleport" then self:Hide() return end
-    if not overlay and not Build() then return end
-    local mapID = MapOf(route, index)
-    if not mapID then return end
-    shownMap, shownIndex = mapID, index
-    if WorldMapFrame.GetMapID and WorldMapFrame:GetMapID() ~= mapID and WorldMapFrame.SetMapID then
-        pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID)
-    end
-    Draw()
-end
-
--- The whole route, on the smallest map that holds its start and its end.
-function Preview:ShowAll()
-    local route = Route()
-    local last = route and route.steps and route.steps[#route.steps]
-    if not (last and WorldMapFrame and WorldMapFrame:IsShown()) then return end
-    if not overlay and not Build() then return end
-    local target = last.go or last.arrive
-    local mapID = last.mapID or (target and target.m)
-    if not mapID then return end
+-- Index 0 is the whole route: the smallest map holding its start and end.
+local function TargetMap(route, index)
+    if index ~= 0 then return MapOf(route, index) end
+    local last = route.steps[#route.steps]
+    local target = last and (last.go or last.arrive)
+    local mapID = last and (last.mapID or (target and target.m))
     local start = StartOf(route, 1)
     local m, depth = mapID, 0
     while start and m and depth < 8 do
-        if Falls(start, m) and Falls(target, m) then
-            mapID = m
-            break
-        end
+        if Falls(start, m) and Falls(target, m) then return m end
         local info = C_Map.GetMapInfo and C_Map.GetMapInfo(m)
         if not info or not info.parentMapID or info.parentMapID == 0 or (info.mapType and info.mapType <= 1) then break end
         m = info.parentMapID
         depth = depth + 1
     end
-    shownMap, shownIndex = mapID, 0
-    if WorldMapFrame.GetMapID and WorldMapFrame:GetMapID() ~= mapID and WorldMapFrame.SetMapID then
-        pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID)
-    end
-    Draw()
+    return mapID
 end
 
--- A clicked step keeps its preview up; with none clicked the step being
--- followed shows. false: put away until the map opens or the route moves on.
-local pinned
-
-local function Following()
-    local route = Route()
-    return route and route.steps and not route.arrived and (route.active or 1) or nil
-end
-
--- On the GPS page coming up and each time the route moves on; on any
--- other tab the map stays where the player put it.
+-- The route moved on or the map opened: the followed step is shown again
+-- unless another is clicked. The map stays where it is.
 function Preview:Follow()
     if pinned == false then pinned = nil end
-    local index = Following()
-    local tab = ns.MapTab
-    if pinned or not index or not (WorldMapFrame and WorldMapFrame:IsShown())
-        or not (tab and tab.IsPageShowing and tab:IsPageShowing("gps")) then return end
-    self:Show(index)
+    dirty = true
 end
 
--- Index 0 is the whole route. A click on the step shown puts it away; on
--- another step's, the followed step returns.
+-- A click on a step's number turns the map to that step and shows it; a
+-- click on the step shown, its map up, puts it away.
 function Preview:Toggle(index)
-    local followed = Following()
-    if pinned == index and index ~= followed then
-        pinned = nil
-        self:Follow()
-    elseif pinned == index or (pinned == nil and shownIndex == index) then
-        pinned = false
-        shownIndex = nil
-        if overlay then overlay:Hide() end
-    else
-        pinned = index
-        if index == 0 then self:ShowAll() else self:Show(index) end
-    end
-end
-
-function Preview:Hide()
-    shownIndex = nil
     local route = Route()
-    if pinned == 0 and route then
-        self:ShowAll()
-        return
-    elseif pinned and route and route.steps and route.steps[pinned] then
-        self:Show(pinned)
-        return
+    if not (route and route.steps and (index == 0 or route.steps[index])) then return end
+    local mapID = TargetMap(route, index)
+    local here = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
+    local followed = Following()
+    if Shown() == index and (not mapID or here == mapID) then
+        if pinned == index and index ~= followed then pinned = nil else pinned = false end
+    else
+        if index == followed then pinned = nil else pinned = index end
+        if mapID and here ~= mapID and WorldMapFrame.SetMapID then pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID) end
     end
-    if overlay then overlay:Hide() end
+    dirty = true
+    Draw()
 end
 
 function Preview:Reset()
     pinned = nil
     shownIndex = nil
+    dirty = true
     if overlay then overlay:Hide() end
 end
 
--- The canvas resizes with the zoom, the map can change under the drawing
--- and the walked part grows: redraw while on screen, lightly.
+-- The canvas resizes with the zoom, the map changes under the drawing and
+-- the walked part grows: looked at while the map is open, drawn on change.
 local driver = CreateFrame("Frame")
 Preview._driver = driver   -- dev tools
-driver:SetScript("OnUpdate", function(_, dt)
-    if not (overlay and overlay:IsVisible() and shownIndex) then return end
+local function Tick(_, dt)
     since = since + dt
     if since < 0.1 then return end
     since = 0
     Draw()
-end)
+end
+if WorldMapFrame then
+    WorldMapFrame:HookScript("OnShow", function()
+        Preview:Follow()
+        since = 0.1
+        driver:SetScript("OnUpdate", Tick)
+    end)
+    WorldMapFrame:HookScript("OnHide", function() driver:SetScript("OnUpdate", nil) end)
+end
 
 -- For the dev tools: what a step's preview would draw, and where it stops.
 function Preview:Status(index)
@@ -693,9 +722,9 @@ function Preview:Status(index)
     local mapID = MapOf(route, index)
     out[#out + 1] = string.format("step %d %s: start %s | target %s", index, tostring(step.kind), P(start), P(target))
     local a, b = mapID and OnCanvas(start, mapID), mapID and OnCanvas(target, mapID)
-    local way = mapID and step.kind == "travel" and WalkPoints(route, index, start, target, mapID)
+    local way = step.kind == "travel" and WalkWorld(route, index, start, target)
     out[#out + 1] = string.format("map %s: start on it %s, target on it %s, walk points %s", tostring(mapID),
         a and string.format("%.0f,%.0f", a[1], a[2]) or "no", b and string.format("%.0f,%.0f", b[1], b[2]) or "no",
-        way and tostring(#way / 2) or "none")
+        way and tostring(#way.pts / 2) or "none")
     return out
 end
