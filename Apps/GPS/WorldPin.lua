@@ -170,6 +170,10 @@ local function Repaint()
     PaintPlate()
 end
 
+-- The arrow at the character wears the beacon's colors too.
+WorldPin.Tint = Tint
+if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Repaint) end
+
 -- ---------------------------------------------------------------------------
 -- Building it
 -- ---------------------------------------------------------------------------
@@ -497,12 +501,6 @@ local function Build(host)
         ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})
     end)
     frame:Hide()
-
-    -- A theme change repaints every tinted part.
-    if ns.ApplyUITheme and not ns._efGPSBeaconThemeHook then
-        ns._efGPSBeaconThemeHook = true
-        hooksecurefunc(ns, "ApplyUITheme", Repaint)
-    end
 end
 
 -- ---------------------------------------------------------------------------

@@ -21,7 +21,6 @@ local AHEAD = 25               -- yards along the walk the arrow aims at
 local LANE = 10                -- yards beside the walk still walked alongside it
 local AT_RIDE = 60             -- yards from a ride's boarding spot: still pointing at it
 local THROTTLE = 0.03
-local COLOR = { 0.25, 0.6, 1 } -- the map line's blue
 
 local frame, art, label, driver
 local since = 0
@@ -103,7 +102,7 @@ local function Build()
     art = frame:CreateTexture(nil, "ARTWORK")
     art:SetAllPoints(frame)
     art:SetTexture(TEX_ARROW)
-    art:SetVertexColor(COLOR[1], COLOR[2], COLOR[3], 1)
+    ns.GPSWorldPin.Tint(art, "arrow", 1)
     label = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("TOP", frame, "BOTTOM", 0, -2)
     -- Clicks pass through to the world, unless Shift is held to move it.
