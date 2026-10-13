@@ -261,10 +261,55 @@ function MapSearch:ReleaseIdleSearchMemory()
     CollectMapGarbage()
 end
 
+-- Equal matches nearest first: the player's spot, taken once a search, and
+-- each place's world spot, kept beside it.
+local GetPlayerMapPosition, GetWorldPosFromMapPos = C_Map.GetPlayerMapPosition, C_Map.GetWorldPosFromMapPos
+local FAR = math.huge
+local worldSpots = setmetatable({}, { __mode = "k" })
+local nearOf = setmetatable({}, { __mode = "k" })
+
+local function WorldSpot(poi)
+    local m, x, y = poi.coordMapID or poi.entranceMapID or poi.mapID, poi.x, poi.y
+    if not (m and x and y) then return nil end
+    local s = worldSpots[poi]
+    if not (s and s.m == m and s.x == x and s.y == y) then
+        s = { m = m, x = x, y = y }
+        local ok, ci, pos = pcall(GetWorldPosFromMapPos, m, CreateVector2D(x, y))
+        if ok and ci and pos then s.ci, s.wx, s.wy = ci, pos:GetXY() end
+        worldSpots[poi] = s
+    end
+    return s.ci, s.wx, s.wy
+end
+
+local function Nearest(poi, pci, px, py)
+    local d = FAR
+    local list = poi.allInstances
+    for i = 1, list and #list or 1 do
+        local ci, wx, wy = WorldSpot(list and list[i] or poi)
+        if ci == pci then d = mmin(d, (wx - px) ^ 2 + (wy - py) ^ 2) end
+    end
+    return d
+end
+
+local function TakeDistances(results)
+    local m = GetBestMapForUnit("player")
+    local pos = m and GetPlayerMapPosition(m, "player")
+    local ok, pci, wp
+    if pos then ok, pci, wp = pcall(GetWorldPosFromMapPos, m, pos) end
+    local px, py
+    if ok and pci and wp then px, py = wp:GetXY() else pci = nil end
+    for i = 1, #results do
+        local r = results[i]
+        nearOf[r] = (pci and not r.isZone) and Nearest(r, pci, px, py) or FAR
+    end
+end
+
 local function POIResultLess(a, b)
     if a.score == b.score then
         if a.isZone and not b.isZone then return true end
         if b.isZone and not a.isZone then return false end
+        local da, db = nearOf[a] or FAR, nearOf[b] or FAR
+        if da ~= db then return da < db end
         local an, bn = a.name or "", b.name or ""
         if #an ~= #bn then return #an < #bn end
         return an < bn
@@ -413,7 +458,12 @@ function MapSearch:SearchPOIs(pois, query, noCache)
     if not noCache then
         local cachedHit
         cache, candidates, cachedHit, candidatesAreCached = ResolveSearchCache(query, matchedCategory, pois)
-        if cachedHit then return candidates end
+        if cachedHit then
+            -- The player has moved since: equal matches ranked again.
+            TakeDistances(candidates)
+            tsort(candidates, POIResultLess)
+            return candidates
+        end
     end
 
     if candidatesAreCached then
@@ -424,6 +474,7 @@ function MapSearch:SearchPOIs(pois, query, noCache)
     AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
     AttachDuplicateSets(results, duplicates)
 
+    TakeDistances(results)
     tsort(results, POIResultLess)
 
     if noCache then return results end
