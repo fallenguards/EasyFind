@@ -2012,16 +2012,57 @@ end
 
 local dockFrame
 local RenderDock            -- defined below; the ghost helpers above it call it
+local SectionLook           -- defined with it; the placing reads it
 local PopoutSize            -- defined with the pop-out below; the floating section uses it
 local DOCK_REACH = 24
 local DOCK_HEADER_H = 25
 local DOCK_INDENT = 20
 local DOCK_LINE_GAP = 4
 
-local function Tracker()
+-- The section's other looks: the Era watch's (its lines wrap past W, are
+-- LINE tall, its titles in TITLE) and ClassicUI's restyled tracker's.
+local Look = { W = 280, LINE = 13, TITLE = { 0.75, 0.61, 0 } }
+
+local function ClientTracker()
     local t = _G.ObjectiveTrackerFrame
     if t and type(t.modules) == "table" then return t end
     return nil
+end
+
+-- What the section snaps into: "game" the game's tracker, "classic" that
+-- tracker restyled by ClassicUI Forever, "era" its Era quest watch, or nil
+-- with none to snap into (its tracker hidden, or a watch without room).
+local function Host()
+    local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    if Replacement then
+        local api = Replacement("questWatch")
+        if api then return api.WatchRoom and "era" or nil, api end
+        if Replacement("hideObjectiveTracker") then return nil end
+        if Replacement("questTracker") then return ClientTracker() and "classic" or nil end
+    end
+    return ClientTracker() and "game" or nil
+end
+
+-- The game's tracker, while the section snaps into it.
+local function Tracker()
+    local host = Host()
+    if host == "game" or host == "classic" then return ClientTracker() end
+    return nil
+end
+
+-- The Era watch and its API, while the section snaps into it.
+local function Watch()
+    local host, api = Host()
+    if host ~= "era" then return nil end
+    return api.GetFrame("questWatch"), api
+end
+
+-- A frame's edges in screen pixels: left, top, right, bottom.
+function Look.ScreenRect(r)
+    local l, b, w, h = r:GetRect()
+    if not l then return nil end
+    local s = r:GetEffectiveScale()
+    return l * s, (b + h) * s, (l + w) * s, b * s
 end
 
 -- The menu row for the beacon in the world (on unless turned off).
@@ -2118,6 +2159,17 @@ local function NearTracker(f)
     local t = Tracker()
     local db = DB()
     if db and db.gpsNeverDock then return false end
+    local watch = Watch()
+    if watch and f:GetLeft() then
+        -- Over the Era watch's column: its lines run left from its right edge.
+        local wl, wt, wr, wb = Look.ScreenRect(watch)
+        local fl, ft, fr, fb = Look.ScreenRect(f)
+        if not (wl and fl) then return false end
+        local s = watch:GetEffectiveScale()
+        local cx = (fl + fr) / 2
+        return cx > math.min(wl, wr - Look.W * s) and cx < wr
+            and ft > wb - DOCK_REACH * s and fb < wt + DOCK_REACH * s
+    end
     if not (t and f:GetLeft() and t:GetLeft() and t:GetTop()) then return false end
     local top = t:GetTop()
     local bottom = top - DOCK_HEADER_H * 2
@@ -2154,6 +2206,13 @@ end
 -- The slot a frame whose top edge is at screen height y lands in: above
 -- the first section, or after the last section whose middle is above y.
 local function SlotAt(y)
+    local watch = Watch()
+    if watch then
+        -- Above the Era watch's middle: over its quests; else under them.
+        local _, wt, _, wb = Look.ScreenRect(watch)
+        local s = UIParent:GetEffectiveScale()
+        return (wt and y * s > (wt + wb) / 2) and { top = true } or { bottom = true }
+    end
     local t = Tracker()
     if not t then return { bottom = true } end
     local mods = VisibleModules(t)
@@ -2218,6 +2277,7 @@ local function ClearInsert(t)
     local ins = dockFrame.insert
     dockFrame.insert = nil
     if not ins then return end
+    if ins.api then ins.api.WatchRoom(ins.side, nil) return end
     if ins.module and ins.module.ClearHeightModifier then ins.module:ClearHeightModifier(INSERT_KEY) end
     if ins.provider then
         topPad.height = 0
@@ -2254,9 +2314,61 @@ local function ApplyInsert(t, slot, height)
     return above, below, ins
 end
 
+-- Room in the Era watch above or under its quests, in its scale; kept
+-- until the side or the size changes.
+function Look.WatchInsert(api, watch, slot, height, width)
+    local side = slot and slot.top and "top" or "bottom"
+    local k = dockFrame:GetEffectiveScale() / watch:GetEffectiveScale()
+    local h, w = mfloor(height * k + 0.5), mfloor(width * k + 0.5)
+    local ins = dockFrame.insert
+    if ins and ins.api and ins.side == side and ins.height == h and ins.width == w then return side end
+    ClearInsert(ClientTracker())
+    api.WatchRoom(side, h, w)
+    dockFrame.insert = { api = api, side = side, height = h, width = w }
+    return side
+end
+
+-- In the room the Era watch keeps: its top left, or its bottom left.
+function Look.PlaceInWatch(watch, api)
+    local gap = dockFrame.dragGap
+    if gap then
+        Look.WatchInsert(api, watch, gap.slot, gap.height, gap.width or Look.W)
+        return
+    end
+    if not dockFrame.docked or dockFrame.dragging or dockFrame.ghost then return end
+    local db = DB()
+    local side = Look.WatchInsert(api, watch, db and db.gpsWatchSlot, dockFrame:GetHeight() or 13, dockFrame:GetWidth() or Look.W)
+    local wl, wt, _, wb = Look.ScreenRect(watch)
+    -- Kept out of sight until the watch has a spot (it is built after login).
+    local alpha = (wl and watch:IsVisible()) and 1 or 0
+    if dockFrame:GetAlpha() ~= alpha then dockFrame:SetAlpha(alpha) end
+    if not wl then return end
+    local s = dockFrame:GetEffectiveScale()
+    local lvl = (watch:GetFrameLevel() or 0) + 5
+    if dockFrame:GetFrameLevel() ~= lvl then dockFrame:SetFrameLevel(lvl) end
+    dockFrame:ClearAllPoints()
+    if side == "top" then
+        dockFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", wl / s, wt / s)
+    else
+        dockFrame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", wl / s, wb / s)
+    end
+end
+
 local function PlaceDock()
+    if not dockFrame then return end
+    -- ClassicUI's tracker pick changed under it: drawn again in the new look.
+    if (dockFrame.docked or dockFrame.floating) and dockFrame.look ~= SectionLook(dockFrame) then
+        return RenderDock(dockFrame)
+    end
+    -- Nothing left to snap into (ClassicUI's tracker hidden): the window.
+    if dockFrame.docked and not (dockFrame.dragging or dockFrame.ghost) and Host() == nil then
+        GPS:Undock()
+        return GPS:TogglePopout(true)
+    end
+    local watch, api = Watch()
+    if watch then return Look.PlaceInWatch(watch, api) end
     local t = Tracker()
-    if not (dockFrame and t) then return end
+    if not t then return end
     local gap = dockFrame.dragGap
     if gap then
         ApplyInsert(t, gap.slot, gap.height)
@@ -2305,15 +2417,18 @@ end
 local function DragGap(frame, height)
     if not dockFrame then return end
     local t = Tracker()
-    if not t then return end
+    if not (t or Watch()) then return end
     local want
     if frame and NearTracker(frame) then
-        want = { slot = SlotAt(frame:GetTop() or 0), height = height }
+        want = { slot = SlotAt(frame:GetTop() or 0), height = height, width = dockFrame:GetWidth() }
     end
     local had = dockFrame.dragGap
     if (want == nil) ~= (had == nil) or (want and had and (not SameSlot(want.slot, had.slot) or want.height ~= had.height)) then
         dockFrame.dragGap = want
-        if not want then ClearInsert(t) TrackerRelayout(t) end
+        if not want then
+            ClearInsert(t)
+            if t then TrackerRelayout(t) end
+        end
         PlaceDock()
     end
 end
@@ -2322,13 +2437,13 @@ end
 -- rides on the window, at the tracker's width, and the window fades.
 local function ShowSectionGhost(window)
     local t = Tracker()
-    if not (dockFrame and t) then return end
+    if not (dockFrame and (t or Watch())) then return end
     dockFrame.ghost = true
     dockFrame.docked = true
     RenderDock(dockFrame)
     dockFrame.docked = nil
     dockFrame:ClearAllPoints()
-    dockFrame:SetWidth(t:GetWidth() or 260)
+    if t then dockFrame:SetWidth(t:GetWidth() or 260) end
     dockFrame:SetPoint("TOPLEFT", window, "TOPLEFT", 0, 0)
     dockFrame:SetFrameStrata("HIGH")
     dockFrame:SetAlpha(1)
@@ -2446,8 +2561,221 @@ local function DockFromLine(f)
     return row
 end
 
+-- Where a drop leaves the section: its slot in the tracker, or its side of the Era watch.
+local function SaveDockSlot(slot)
+    local db = DB()
+    if not (db and slot) then return end
+    if Watch() then db.gpsWatchSlot = slot else db.gpsDockSlot = slot end
+end
+
+-- The section's look: the Era watch's, ClassicUI's restyled tracker's or
+-- the game's; floating, the window style picked.
+SectionLook = function(f)
+    local host = Host()
+    if f.docked then return host == "era" and "era" or (host == "classic" and "classic" or "game") end
+    if PopoutStyle() == "era" then return "era" end
+    return host == "classic" and "classic" or "game"
+end
+
+-- ClassicUI's tracker sizes: 12 a header, 11 a title, 10 a line, each up by
+-- what the game's Text Size adds to its line font past 12.
+Look.FONT = _G.STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+function Look.ClassicSize(base)
+    local font = _G.ObjectiveTrackerLineFont
+    if not font then return base end
+    local _, h = font:GetFont()
+    if type(h) ~= "number" or (issecretvalue and issecretvalue(h)) then return base end
+    return base + mmax(0, mfloor(h + 0.5) - 12)
+end
+
+function Look.Restyle(fs, look, base, object)
+    if fs.look == look then return end
+    fs.look = look
+    if look == "classic" then
+        fs:SetFont(Look.FONT, Look.ClassicSize(base), "")
+        fs:SetShadowColor(0, 0, 0, 1)
+        fs:SetShadowOffset(1, -1)
+    else
+        fs:SetFontObject(object)
+    end
+end
+
+-- ClassicUI's fold button: its sheet's module open and shut, each pushed.
+Look.FOLD_SHEET = "Interface\\Buttons\\QuestTrackerButtons"
+Look.FOLD_OPEN, Look.FOLD_OPEN_DOWN = { 0.273438, 0.390625, 0.265625, 0.484375 }, { 0.273438, 0.390625, 0.015625, 0.234375 }
+Look.FOLD_SHUT, Look.FOLD_SHUT_DOWN = { 0.40625, 0.523438, 0.265625, 0.484375 }, { 0.40625, 0.523438, 0.015625, 0.234375 }
+function Look.FoldArt(fold, look, open)
+    if look == "classic" then
+        fold:SetNormalTexture(Look.FOLD_SHEET)
+        fold:SetPushedTexture(Look.FOLD_SHEET)
+        fold:GetNormalTexture():SetTexCoord(unpack(open and Look.FOLD_OPEN or Look.FOLD_SHUT))
+        fold:GetPushedTexture():SetTexCoord(unpack(open and Look.FOLD_OPEN_DOWN or Look.FOLD_SHUT_DOWN))
+        fold:SetSize(15, 14)
+    else
+        if fold.ClearPushedTexture then fold:ClearPushedTexture() end
+        fold:SetNormalAtlas(open and "UI-QuestTrackerButton-Secondary-Collapse" or "UI-QuestTrackerButton-Secondary-Expand")
+        fold:SetSize(16, 15)
+    end
+end
+
+-- The widgets of one look shown, the other's hidden.
+function Look.Apply(f, look)
+    if f.look == look then return end
+    f.look = look
+    local era = look == "era"
+    f.head:SetShown(not era)
+    f.plate:SetShown(look == "game")
+    f.eraTitle:SetShown(era)
+    f.eraGrip:SetShown(era)
+    f.searchAnchor:ClearAllPoints()
+    f.hitList:ClearAllPoints()
+    if era then
+        f.title:Hide()
+        f.titleBtn:Hide()
+        f.track:Hide()
+        for i = 1, #f.lines do f.lines[i]:Hide() end
+        for i = 1, #(f.tipLines or {}) do f.tipLines[i]:Hide() end
+        if f.fromLine then f.fromLine:Hide() end
+        f.searchAnchor:SetPoint("LEFT", f.eraTitle, "RIGHT", 4, 0)
+        f.hitList:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -(Look.LINE + 4))
+        f.hitList:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+        return
+    end
+    for i = 1, #f.eraLines do f.eraLines[i]:Hide() end
+    f.searchAnchor:SetPoint("LEFT", f.header, "RIGHT", -2, 0)
+    f.hitList:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, -(DOCK_HEADER_H + 4))
+    f.hitList:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+    Look.Restyle(f.header, look, 12, "ObjectiveTrackerHeaderFont")
+    f.header:SetTextColor(1, 0.82, 0)
+    Look.Restyle(f.title, look, 11, "ObjectiveTrackerLineFont")
+    f.title:SetTextColor(1, 0.82, 0)
+end
+
+-- A line laid as the Era watch lays one: on one line, or wrapped at its width.
+function Look.EraFill(fs, text)
+    fs:SetWidth(0)
+    fs:SetText(text)
+    local w = fs:GetStringWidth() or 0
+    if w <= Look.W then
+        fs:SetSize(w, Look.LINE)
+        return w, Look.LINE
+    end
+    fs:SetWidth(Look.W)
+    local h = mmax(Look.LINE, fs:GetStringHeight() or Look.LINE)
+    fs:SetHeight(h)
+    return Look.W, h
+end
+
+function Look.EraLine(f, i)
+    local row = f.eraLines[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, f)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetJustifyV("TOP")
+    row.text:SetIndentedWordWrap(true)
+    row:SetScript("OnClick", function(self, button)
+        if self.tip then return TipClick(self) end
+        if self.from then return GPS:PickStart(f) end
+        if button == "RightButton" then
+            if f.ShowMenu then f.ShowMenu() end
+        elseif self.index and IsShiftKeyDown() then
+            GPS.GoToStep(self.index)
+        end
+    end)
+    row:SetScript("OnEnter", function(self) if self.tip then TipEnter(self) end end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    -- A teleport's icon just past the line's end.
+    row.cast = CastButton(row, 18)
+    row.cast:SetSize(16, 16)
+    f.eraLines[i] = row
+    return row
+end
+
+-- Line n of the Era block at depth tall, its text in gray c: the row, its
+-- width and the depth under it.
+function Look.EraRow(f, n, text, c, tall)
+    local row = Look.EraLine(f, n)
+    local w, h = Look.EraFill(row.text, " - " .. text)
+    row.text:SetTextColor(c, c, c)
+    row.index, row.tip, row.from = nil, nil, nil
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -tall)
+    row:SetSize(mmax(1, w), h)
+    row:Show()
+    return row, w, tall + h
+end
+
+-- The section in the Era watch's look: the route's title as a quest's,
+-- its steps as the quest's lines, the current one white.
+function Look.RenderEra(f)
+    local route = Route()
+    SearchHint(f)
+    if GPS.picking == f then route = nil end
+    local text = L["APP_GPS"]
+    if route then
+        text = sformat(L["GPS_TO_FMT"], route.dest.name or "?")
+        if not route.arrived and route.eta and route.eta > 0 then text = text .. "  " .. EtaText(route.eta) end
+    end
+    local widest, tall = Look.EraFill(f.eraTitle, text)
+    if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
+    local n = 0
+    if route then
+        if f.search then
+            if f.search:GetText() ~= "" then f.search:SetText("") end
+            f.search:Hide()
+            f.hitList:Hide()
+        end
+        local row, w
+        local start = not route.arrived and Start()
+        if start then
+            n = n + 1
+            row, w, tall = Look.EraRow(f, n, sformat(L["GPS_FROM_FMT"], start.name or "?"), 1, tall)
+            row.text:SetTextColor(unpack(ns.TEXT_DIM))
+            row.from = true
+            widest = mmax(widest, w)
+        end
+        local items = route.steps
+        if route.arrived then
+            items = { { text = L["GPS_ARRIVED_AT_FMT"] and sformat(L["GPS_ARRIVED_AT_FMT"], route.dest.name or "?") or L["GPS_ARRIVED"] } }
+        end
+        local at = route.active or 1
+        for i = 1, #items do
+            local active = at == i and not route.arrived
+            n = n + 1
+            row, w, tall = Look.EraRow(f, n, StepText(items[i], active), (active or route.arrived) and 1 or (i < at and 0.5 or 0.8), tall)
+            row.index = (not route.arrived) and i or nil
+            widest = mmax(widest, w + (SetupCast(row.cast, items[i], active) and 20 or 0))
+        end
+        local tips = AdviceLines(route)
+        for t = 1, tips and #tips or 0 do
+            n = n + 1
+            row, w, tall = Look.EraRow(f, n, tips[t].text, 1, tall)
+            row.text:SetTextColor(unpack(ns.TEXT_DIM))
+            row.tip = tips[t]
+            widest = mmax(widest, w)
+        end
+    elseif f.search then
+        -- The search box right of the name, and the places it finds under it.
+        f.search:Show()
+        f.hitList:Show()
+        local k = math.min(f.hitCount or 0, HIT_ROWS)
+        f:SetHitView(k * ROW_H)
+        widest = Look.W
+        if k > 0 then tall = tall + 4 + k * ROW_H + 4 end
+    end
+    for i = n + 1, #f.eraLines do f.eraLines[i]:Hide() end
+    f:SetSize(mmax(1, widest), mmax(Look.LINE, tall))
+    PlaceDock()
+end
+
 RenderDock = function(f)
     if not (f.docked or f.floating) then return end
+    local look = SectionLook(f)
+    Look.Apply(f, look)
+    if look == "era" then return Look.RenderEra(f) end
     local route = Route()
     local y = -(DOCK_HEADER_H + 8)
     local nTips = 0
@@ -2494,6 +2822,8 @@ RenderDock = function(f)
             -- A start picked: its line first; a click picks another.
             if start then
                 local line = DockFromLine(f)
+                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(line.dash, look, 10, "ObjectiveTrackerLineFont")
                 line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
                 line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
                 line.text:SetTextColor(unpack(ns.TEXT_DIM))
@@ -2514,6 +2844,8 @@ RenderDock = function(f)
             for i = 1, #items do
                 n = n + 1
                 local row = DockLine(f, n)
+                Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
                 row.index = (not route.arrived) and i or nil
                 row.text:SetText(StepText(items[i], (route.active or 1) == i and not route.arrived))
                 local cast = SetupCast(row.cast, items[i], (route.active or 1) == i and not route.arrived)
@@ -2535,6 +2867,8 @@ RenderDock = function(f)
             for t = 1, tips and #tips or 0 do
                 nTips = t
                 local row = DockTipLine(f, t)
+                Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
                 row.tip = tips[t]
                 row.text:SetText(tips[t].text)
                 row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
@@ -2569,7 +2903,7 @@ RenderDock = function(f)
     for t = nTips + 1, #(f.tipLines or {}) do f.tipLines[t]:Hide() end
     -- Nothing to fold without a route.
     f.fold:SetShown(route ~= nil)
-    f.fold:SetNormalAtlas(f.expanded ~= false and "UI-QuestTrackerButton-Secondary-Collapse" or "UI-QuestTrackerButton-Secondary-Expand")
+    Look.FoldArt(f.fold, look, f.expanded ~= false)
     f:SetHeight(mmax(DOCK_HEADER_H, -y))
     PlaceDock()   -- the room in the tracker follows the height
 end
@@ -2634,6 +2968,7 @@ local function BuildDock()
     local bg = head:CreateTexture(nil, "BACKGROUND")
     bg:SetAtlas("UI-QuestTracker-Secondary-Objective-Header", true)
     bg:SetPoint("CENTER", head, "CENTER", 0, 0)
+    f.plate = bg
 
     local header = head:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerHeaderFont")
     header:SetPoint("LEFT", head, "LEFT", 7, 0)
@@ -2675,7 +3010,7 @@ local function BuildDock()
         if not ok and EasyFind.Print then EasyFind:Print("GPS drag: " .. tostring(err)) end
     end
     f.grip = grip
-    grip:SetScript("OnDragStart", function()
+    local function DragStart()
         Report(pcall(function()
         DLog("drag start: docked %s floating %s %s", tostring(f.docked == true), tostring(f.floating == true), RectOf(f))
         HideMenus()
@@ -2692,8 +3027,8 @@ local function BuildDock()
         f:StartMoving()
         DragGap(f, h)
         end))
-    end)
-    grip:SetScript("OnDragStop", function()
+    end
+    local function DragStop()
         -- Once per drop: the handler must not run again from inside itself.
         if f.stopping then return end
         f.stopping = true
@@ -2713,13 +3048,12 @@ local function BuildDock()
             GPS:Dock(slot)
             DLog("-> docked: %s", FrameState(f))
         elseif near then
-            local db = DB()
-            if db then db.gpsDockSlot = slot end
+            SaveDockSlot(slot)
             PlaceDock()
             local t = Tracker()
             if t then TrackerRelayout(t) end
             DLog("-> placed: %s", FrameState(f))
-        elseif PopoutStyle() == "tracker" then
+        elseif PopoutStyle() ~= "easyfind" then
             -- Stays a section, floating where it was dropped, never hidden
             -- on the way (see Undock).
             GPS:Undock(true)
@@ -2746,7 +3080,9 @@ local function BuildDock()
         end
         end))
         f.stopping = nil
-    end)
+    end
+    grip:SetScript("OnDragStart", DragStart)
+    grip:SetScript("OnDragStop", DragStop)
     -- The menu anchors at the cursor, not the header: a click anywhere on
     -- the header then closes it, and the header keeps its drag.
     local menuAnchor = CreateFrame("Frame", nil, f)
@@ -2771,8 +3107,13 @@ local function BuildDock()
             end
             defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end }
             defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
-            -- The route as a link another EasyFind user clicks to be routed there too.
             local route = Route()
+            -- The Era look has no tracking button beside the title.
+            if f.look == "era" and route then
+                defs[#defs + 1] = { kind = "action", label = RouteTracked() and L["GPS_TRACK_OFF"] or L["GPS_TRACK_ON"],
+                    onClick = ToggleRouteTracking }
+            end
+            -- The route as a link another EasyFind user clicks to be routed there too.
             local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
                 and ns.ResultLinks:BuildRouteText(route.dest)
             if share then defs[#defs + 1] = { kind = "send", label = L["CTX_SEND_LINK"], link = share } end
@@ -2798,6 +3139,30 @@ local function BuildDock()
         if button == "RightButton" then ShowDockMenu() end
     end)
 
+    -- The Era watch's look: the title line, as a quest's, is the handle; a
+    -- click opens the map's GPS page.
+    local eraTitle = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    eraTitle:SetJustifyH("LEFT")
+    eraTitle:SetJustifyV("TOP")
+    eraTitle:SetIndentedWordWrap(true)
+    eraTitle:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+    eraTitle:Hide()
+    f.eraTitle = eraTitle
+    f.eraLines = {}
+    local eraGrip = CreateFrame("Button", nil, f)
+    eraGrip:SetAllPoints(eraTitle)
+    eraGrip:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    eraGrip:RegisterForDrag("LeftButton")
+    eraGrip:SetScript("OnDragStart", DragStart)
+    eraGrip:SetScript("OnDragStop", DragStop)
+    eraGrip:SetScript("OnClick", function(_, button)
+        if button == "RightButton" then ShowDockMenu() elseif Route() then GPS:Open() end
+    end)
+    eraGrip:SetScript("OnEnter", function() eraTitle:SetTextColor(1, 1, 1) end)
+    eraGrip:SetScript("OnLeave", function() eraTitle:SetTextColor(unpack(Look.TITLE)) end)
+    eraGrip:Hide()
+    f.eraGrip = eraGrip
+
     local title = f:CreateFontString(nil, "ARTWORK", "ObjectiveTrackerLineFont")
     title:SetJustifyH("LEFT")
     title:SetWordWrap(true)
@@ -2817,6 +3182,7 @@ local function BuildDock()
     local searchAnchor = CreateFrame("Frame", nil, f)
     searchAnchor:SetSize(1, 20)
     searchAnchor:SetPoint("LEFT", header, "RIGHT", -2, 0)
+    f.searchAnchor = searchAnchor
     BuildSearch(f, searchAnchor, 10, 8)
     f.search:SetFrameLevel(head:GetFrameLevel() + 5)   -- above the header's grip
     -- Dressed for the banner: shorter, no inset chrome or field, just the
@@ -2862,7 +3228,7 @@ local function BuildDock()
 
     -- Follow the tracker's own relayouts, and check on a light throttle
     -- for anything that moves without one.
-    local t = Tracker()
+    local t = ClientTracker()
     if t and not t._efGPSHooked then
         t._efGPSHooked = true
         pcall(hooksecurefunc, t, "Update", function() PlaceDock() end)
@@ -2878,7 +3244,7 @@ local function BuildDock()
                 DragGap(self, self:GetHeight() or DOCK_HEADER_H)
             else
                 DragGap(nil)
-                if PopoutStyle() ~= "tracker" and GPS.EnsurePopout and not (popoutFrame and popoutFrame.ghosting) then
+                if PopoutStyle() == "easyfind" and GPS.EnsurePopout and not (popoutFrame and popoutFrame.ghosting) then
                     GPS.EnsurePopout()
                     popoutFrame.ghosting = true
                     ShowWindowGhost(self)
@@ -2918,7 +3284,7 @@ function GPS.FloatDockAt(left, top)
     dockFrame.floating = true
     dockFrame:SetFrameStrata("MEDIUM")
     -- A section's width, floating or not.
-    local t = Tracker()
+    local t = ClientTracker()
     local ref = t and t.modules and t.modules[1]
     local w = ref and ref.GetWidth and ref:GetWidth() or 0
     dockFrame:SetWidth(w > 0 and w or 260)
@@ -2964,7 +3330,7 @@ function GPS.StyleRows()
                 if dockFrame and dockFrame.floating then dockFrame.floating = nil dockFrame:Hide() end
                 GPS:TogglePopout(true)
                 if left and top then
-                    local f = (style == "tracker") and dockFrame or popoutFrame
+                    local f = (style ~= "easyfind") and dockFrame or popoutFrame
                     if f then
                         f:ClearAllPoints()
                         f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
@@ -2978,18 +3344,17 @@ function GPS.StyleRows()
         { kind = "title", label = L["GPS_STYLE"] },
         { kind = "radio", label = L["GPS_STYLE_EASYFIND"], value = "easyfind", get = PopoutStyle, set = pick("easyfind") },
         { kind = "radio", label = L["GPS_STYLE_TRACKER"], value = "tracker", get = PopoutStyle, set = pick("tracker") },
+        { kind = "radio", label = L["GPS_STYLE_ERA"], value = "era", get = PopoutStyle, set = pick("era") },
     }
 end
 
 function GPS:Dock(slot)
-    if not Tracker() then return false end
+    if not (Tracker() or Watch()) then return false end
     HideMenus()
     dockFrame = dockFrame or BuildDock()
     local db = DB()
-    if db then
-        db.gpsDocked = true
-        if slot then db.gpsDockSlot = slot end
-    end
+    if db then db.gpsDocked = true end
+    SaveDockSlot(slot)
     if popoutFrame then popoutFrame:Hide() end
     dockFrame.docked = true
     dockFrame.floating = nil
@@ -3026,7 +3391,11 @@ function GPS.DockStatus()
         out[#out + 1] = sformat("section: shown %s alpha %.1f strata %s | docked %s floating %s ghost %s dragging %s | size %.0fx%.0f | room on %s height %s pad %s",
             tostring(d:IsShown()), d:GetAlpha() or 1, tostring(d:GetFrameStrata()), tostring(d.docked == true), tostring(d.floating == true),
             tostring(d.ghost == true), tostring(d.dragging == true), d:GetWidth() or 0, d:GetHeight() or 0,
-            ins and ins.module and (ins.module:GetName() or "?") or "none", tostring(ins and ins.height), tostring(ins and ins.pad))
+            ins and (ins.side and ("watch " .. ins.side) or ins.module and (ins.module:GetName() or "?")) or "none",
+            tostring(ins and ins.height), tostring(ins and ins.pad))
+        local watch = Watch()
+        out[#out + 1] = sformat("host %s look %s | watch %s", tostring((Host())), tostring(d.look),
+            watch and FrameState(watch) or "none")
         local t = Tracker()
         if t then
             local mods = VisibleModules(t)
@@ -3111,12 +3480,12 @@ local function BuildPopout()
     local function BeginWindowDrag(self)
         self.dragging = true
         self:StartMoving()
-        if Tracker() then dockFrame = dockFrame or BuildDock() end
+        if Tracker() or Watch() then dockFrame = dockFrame or BuildDock() end
     end
     local function EndWindowDrag(self)
         self:StopMovingOrSizing()
         self.dragging = nil
-        local near = Tracker() and NearTracker(self)
+        local near = (Tracker() or Watch()) and NearTracker(self)
         local slot = near and SlotAt(self:GetTop() or 0) or nil
         DragGap(nil)
         HideSectionGhost(self)
@@ -3400,7 +3769,7 @@ end
 
 function GPS:TogglePopout(show)
     HideMenus()
-    if PopoutStyle() == "tracker" and Tracker() then
+    if PopoutStyle() ~= "easyfind" then
         -- The window is the section, floating.
         local open = dockFrame and dockFrame.floating and dockFrame:IsShown()
         if show == nil then show = not open end
@@ -3657,7 +4026,8 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     if db then db.gpsRoute, db.gpsPopoutOpen = nil, nil end
     local c = CharDB()
     if db and db.gpsDocked then
-        GPS:Dock()
+        -- Nothing to snap into (ClassicUI's tracker hidden): the window.
+        if not GPS:Dock() then GPS:TogglePopout(true) end
     elseif c and c.popoutOpen then
         GPS:TogglePopout(true)
     end
