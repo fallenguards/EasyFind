@@ -21,6 +21,7 @@ Route.lua
 Flights.lua
 Boats.lua
 Follow.lua
+WorldPin.lua
 Arrow.lua
 Preview.lua
 Minimap.lua

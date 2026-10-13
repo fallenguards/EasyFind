@@ -150,6 +150,10 @@ local function Tick(_, dt)
     Update()
 end
 
+-- Whether the arrow points the way now: the beacon's own edge arrow stays
+-- away while it does.
+function Arrow:Guiding() return frame ~= nil and frame:IsShown() end
+
 -- A route change or the option flipped: runs only while there is a way to point.
 function Arrow:Refresh()
     local route = Route()
