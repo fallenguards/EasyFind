@@ -253,6 +253,19 @@ end
 function SecureAttributes.SwapToPanelOpen(resultRow)
     DisarmAction(resultRow)
     if not SecureOpeners then return end
+    -- A replaced spellbook opens on its own key; PostClick pages to the spell.
+    local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    if Replacement and Replacement("spellBook") then
+        local openMacro = SecureOpeners.ReplacementOpenMacro("spellBook")
+        if openMacro then
+            Utils.SafeCallMethod(resultRow, "SetAttribute", "type", "macro")
+            Utils.SafeCallMethod(resultRow, "SetAttribute", "macrotext", openMacro)
+            resultRow._lastAttrType = "macro"
+            resultRow._lastAttrKey = "macrotext"
+            resultRow._lastAttrVal = openMacro
+        end
+        return
+    end
     SecureOpeners.EnsureLoaded(SPELLBOOK_PANEL)
     local defaultTab = SecureOpeners.GetDefaultTabButton(SPELLBOOK_PANEL)
     local steerTab = defaultTab

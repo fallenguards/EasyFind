@@ -82,6 +82,22 @@ function tests.replacementKey_onlyWhileItsWindowIsClosed()
     H.assertNil(ns.SecureOpeners.ReplacementMacro(SPELL), "spellbook not replaced")
 end
 
+-- Alt+click on a castable spell: the replaced book's key, never the
+-- client's spells button (that opened its talents next to ours).
+function tests.altClick_opensTheReplacedSpellbookOnly()
+    local ns, _, env = Load({ spellBook = true })
+    env.ClassicUIForeverAPI.SecureOpener = function(name) return name == "spellBook" and "CUIFBookKey" or nil end
+    env.CUIFBookKey, env.PlayerSpellsMicroButton = {}, {}
+    ns.ResultIcons, ns.ResultHandlers = {}, {}
+    H.loadModule("Search/Results/SecureAttributes.lua", env, ns)
+    local attrs = {}
+    local row = { SetAttribute = function(_, k, v) attrs[k] = v end }
+    ns.ResultSecureAttributes.SwapToPanelOpen(row)
+    H.assertEq(attrs.type, "macro")
+    H.assertEq(attrs.macrotext, "/click CUIFBookKey")
+    H.assertNil(row._efSwappedToOpen, "the client panel's release steer stays off")
+end
+
 function tests.followUpOpen_leavesAnOpenWindowAlone()
     local ns, opened, env = Load({ questLog = true })
     env.ClassicUIForeverAPI.GetFrame = function() return { IsVisible = function() return true end } end

@@ -109,10 +109,19 @@ end
 -- macro, so the player's click opens it in the player's name. Only while
 -- its version is on and the window is closed: the key toggles.
 local REPLACED_KEYS = { TalentMicroButton = "talents", QuestLogMicroButton = "questLog", LegacyMicroButton = "legacyWindow" }
+function SecureOpeners.ReplacementOpenMacro(name)
+    local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    local api = Replacement and Replacement(name)
+    if not (api and api.SecureOpener) then return nil end
+    local ok, button = pcall(api.SecureOpener, name)
+    if not (ok and type(button) == "string" and _G[button]) then return nil end
+    local frame = api.GetFrame(name)
+    if frame and frame:IsVisible() then return nil end
+    return "/click " .. button
+end
+
 function SecureOpeners.ReplacementMacro(data)
     if not data then return nil end
-    local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
-    if not Replacement then return nil end
     local name
     if data.category == "Talent" then
         name = "talents"
@@ -121,13 +130,7 @@ function SecureOpeners.ReplacementMacro(data)
     else
         name = REPLACED_KEYS[data.buttonFrame]
     end
-    local api = name and Replacement(name)
-    if not (api and api.SecureOpener) then return nil end
-    local ok, button = pcall(api.SecureOpener, name)
-    if not (ok and type(button) == "string" and _G[button]) then return nil end
-    local frame = api.GetFrame(name)
-    if frame and frame:IsVisible() then return nil end
-    return "/click " .. button
+    return name and SecureOpeners.ReplacementOpenMacro(name)
 end
 
 function SecureOpeners.IsPanelShown(key)
