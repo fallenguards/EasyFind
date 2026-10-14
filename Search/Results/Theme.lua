@@ -387,14 +387,27 @@ function ns.ApplyUITheme(themeName, skipRepaint)
         setColor(ns.TEXT_PRIMARY, modern.pathColorHover[1], modern.pathColorHover[2], modern.pathColorHover[3])
         setColor(ns.TEXT_BODY, modern.textFaint[1], modern.textFaint[2], modern.textFaint[3])
     else
-        setColor(ns.BTN_FILL_NORMAL, 0.160, 0.190, 0.250)
-        setColor(ns.BTN_FILL_HOVER, 0.220, 0.270, 0.340)
-        setColor(ns.BTN_FILL_PRESSED, 0.120, 0.140, 0.190)
-        setColor(ns.SECTION_TABLE_FILL, 0.075, 0.075, 0.085, 0.92)
-        setColor(ns.NAV_SELECTED_FILL, 0.16, 0.19, 0.25, 0.95)
-        setColor(ns.NAV_HOVER_FILL, 0.12, 0.14, 0.19, 0.85)
-        setColor(ns.PANEL_CARD_FILL, 0.05, 0.05, 0.06)
-        setColor(ns.EDITBOX_INSET_FILL, 0.02, 0.02, 0.03)
+        -- Dark themes: the window fill lifted toward the theme's control
+        -- accent and a little toward its text makes the buttons (hover a
+        -- step more, pressed a step less) and the nav pills; cards and
+        -- insets sit a shade under the window.
+        local fillC = ns.SEARCH_WINDOW_FILL_COLOR
+        local tint = palette.controlAccent or palette.accent
+        local leaf = modern.leafColor
+        local function lift(dst, f, up, a)
+            local r = fillC[1] * (1 - f) + tint[1] * f
+            local g = fillC[2] * (1 - f) + tint[2] * f
+            local b = fillC[3] * (1 - f) + tint[3] * f
+            setColor(dst, r + (leaf[1] - r) * up, g + (leaf[2] - g) * up, b + (leaf[3] - b) * up, a)
+        end
+        lift(ns.BTN_FILL_NORMAL, 0.30, 0.08)
+        lift(ns.BTN_FILL_HOVER, 0.40, 0.16)
+        lift(ns.BTN_FILL_PRESSED, 0.22, 0.03)
+        lift(ns.NAV_SELECTED_FILL, 0.30, 0.08, 0.95)
+        lift(ns.NAV_HOVER_FILL, 0.15, 0.04, 0.85)
+        setColor(ns.SECTION_TABLE_FILL, fillC[1] * 0.85, fillC[2] * 0.85, fillC[3] * 0.85, 0.92)
+        setColor(ns.PANEL_CARD_FILL, fillC[1] * 0.75, fillC[2] * 0.75, fillC[3] * 0.75)
+        setColor(ns.EDITBOX_INSET_FILL, fillC[1] * 0.5, fillC[2] * 0.5, fillC[3] * 0.5)
         setColor(ns.LINK_COLOR, 0.44, 0.84, 1.0)
         setColor(ns.LINK_HOVER, 0.72, 0.94, 1.0)
         setColor(ns.TEXT_PRIMARY, 1.00, 0.97, 0.86)
