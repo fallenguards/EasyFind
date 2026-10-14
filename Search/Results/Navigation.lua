@@ -356,9 +356,11 @@ function Results:ShowPinnedItems()
     if not ResultsFrame() then return end
     local pins = GetAllPins()
     local quickFilter = self:GetQuickFilter()
-    -- The last copied entry leads the empty bar when that option is on.
+    -- The last copied entry leads the empty bar when that option is on,
+    -- then the notes that apply where the player is.
     local last = not quickFilter and ns.Clipboard and ns.Clipboard.LastCopiedRow and ns.Clipboard:LastCopiedRow()
-    if #pins == 0 and not last then
+    local here = not quickFilter and ns.Notes and ns.Notes.HereRows and ns.Notes.HereRows()
+    if #pins == 0 and not last and not here then
         self:HideResults()
         return
     end
@@ -366,11 +368,15 @@ function Results:ShowPinnedItems()
     wipe(CollapsedNodes())
     local entries = pinnedOnlyEntries
     local n = 0
-    if last then
-        n = 1
-        local e = entries[1] or {}
-        entries[1] = e
-        e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = last.name, 0, false, true, false, true, last
+    local function Lead(data)
+        n = n + 1
+        local e = entries[n] or {}
+        entries[n] = e
+        e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = data.name, 0, false, true, false, true, data
+    end
+    if last then Lead(last) end
+    if here then
+        for i = 1, #here do Lead(here[i]) end
     end
     for _, pin in ipairs(pins) do
         if not quickFilter or self:QuickFilterAllowsData(pin, quickFilter) then

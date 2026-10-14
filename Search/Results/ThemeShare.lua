@@ -20,8 +20,6 @@ local tremove = Utils.tremove
 local tsort = Utils.tsort
 local tconcat = Utils.tconcat
 local sformat = Utils.sformat
-local CreateFrame = CreateFrame
-local UIParent = UIParent
 
 local CODE_PREFIX = "EFT1!"
 local PAYLOAD_MARKER = "EFTHEME1"
@@ -304,95 +302,25 @@ function ThemeShare:Import(str)
     return self:SaveCustomTheme(name, rawPalette)
 end
 
--- Paste-a-code dialog, matching the shortkey share popup treatment. Kept in
--- the mothership so import works without the studio companion.
-local importDialog
-
-local function BuildImportDialog()
-    local f = CreateFrame("Frame", "EasyFindThemeImport", UIParent)
-    f:SetSize(420, 196)
-    f:SetPoint("CENTER")
-    f:SetFrameStrata("TOOLTIP")
-    f:SetFrameLevel(9600)
-    f:EnableMouse(true)
-    f:SetMovable(true)
-    f:SetClampedToScreen(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
-    f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    ns.StyleMenuPanel(f)
-
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    f.title._efOwnColor = true
-    f.title:SetPoint("TOP", 0, -12)
-    f.title:SetText(L["OPT_IMPORT_THEME"])
-
-    local boxFrame = CreateFrame("Frame", nil, f)
-    boxFrame:SetPoint("TOPLEFT", 14, -34)
-    boxFrame:SetPoint("TOPRIGHT", -14, -34)
-    boxFrame:SetHeight(112)
-    ns.CreateRoundedRectBorder(boxFrame)
-    ns.SetRoundedRectBarHeight(boxFrame, 8)
-    ns.SetRoundedRectBorderShown(boxFrame, false)
-    ns.SetRoundedRectFill(boxFrame, 0.02, 0.02, 0.03, 1)
-
-    local scroll = CreateFrame("ScrollFrame", "EasyFindThemeImportScroll", boxFrame)
-    scroll:SetPoint("TOPLEFT", 8, -8)
-    scroll:SetPoint("BOTTOMRIGHT", -14, 8)
-    local editBox = CreateFrame("EditBox", nil, scroll)
-    editBox:SetMultiLine(true)
-    editBox:SetAutoFocus(false)
-    editBox:SetFontObject("GameFontHighlightSmall")
-    editBox:SetWidth(384)
-    editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() f:Hide() end)
-    scroll:SetScrollChild(editBox)
-    f.editBox = editBox
-    Utils.CreateMinimalScrollBar(scroll, boxFrame)
-
-    f.importBtn = ns.CreateModernButton(f, L["SHORTKEY_IMPORT"], 90, 22)
-    f.importBtn:SetPoint("BOTTOMRIGHT", -14, 12)
-
-    f.hint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    f.hint:SetPoint("BOTTOMLEFT", 14, 16)
-    f.hint:SetText(L["SHORTKEY_IMPORT_HINT"])
-
-    local x = ns.CreateCloseX(f, 14)
-    x:SetPoint("TOPRIGHT", -8, -8)
-    x:SetScript("OnClick", function() f:Hide() end)
-    ns.AttachEscClose(f)
-    f:Hide()
-    return f
-end
-
 -- opts.onImported(name) runs after a successful import (callers apply the
 -- theme and refresh their pickers there).
 function ThemeShare:ShowImportDialog(opts)
-    if not importDialog then importDialog = BuildImportDialog() end
-    local f = importDialog
-    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-    if theme and theme.lightTheme and theme.leafColor then
-        f.title:SetTextColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3])
-    else
-        f.title:SetTextColor(1.0, 0.82, 0)
-    end
-    f.editBox:SetText("")
-    f.importBtn:SetScript("OnClick", function()
-        local code = f.editBox:GetText()
-        f:Hide()
-        local name = ThemeShare:Import(code)
-        if not name then
-            if EasyFind and EasyFind.Print then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
-            return
-        end
-        if EasyFind and EasyFind.Print then
-            EasyFind:Print((L["THEME_IMPORTED"]):format(name))
-        end
-        if opts and opts.onImported then
-            pcall(opts.onImported, name)
-        end
-    end)
-    f:Show()
-    Utils.SafeAfter(0, function() if f:IsShown() then f.editBox:SetFocus() end end)
+    ns.ShowPasteDialog({
+        title = L["OPT_IMPORT_THEME"],
+        onAccept = function(code)
+            local name = ThemeShare:Import(code)
+            if not name then
+                if EasyFind and EasyFind.Print then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
+                return
+            end
+            if EasyFind and EasyFind.Print then
+                EasyFind:Print((L["THEME_IMPORTED"]):format(name))
+            end
+            if opts and opts.onImported then
+                pcall(opts.onImported, name)
+            end
+        end,
+    })
 end
 
 function ThemeShare:ShowExportDialog(name)

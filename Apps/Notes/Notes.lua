@@ -40,6 +40,12 @@ local OPACITY_MIN = 0.40
 local OPACITY_DEFAULT = 1.00
 local OPACITY_STEP = 0.05
 local NOTES_MAX_BODY = 20000
+-- Deleted notes wait in the trash this long, this many at most.
+local TRASH_MAX = 50
+local TRASH_SECONDS = 30 * 24 * 3600
+local NOTE_CODE_PREFIX = "EFN1!"
+local NOTE_CODE_PAYLOAD = "EFNOTE1"
+local NOTE_CODE_BODY_MAX = 8000
 local DEFAULT_WIDTH = 290
 local DEFAULT_HEIGHT = 380
 local MIN_WIDTH = 220
@@ -429,6 +435,7 @@ local function NormalizeDB()
         end
     end
     EasyNotesDB.version = NOTES_DB_VERSION
+    if type(EasyNotesDB.trash) ~= "table" then EasyNotesDB.trash = {} end
     if type(EasyNotesDB.nextID) ~= "number" then EasyNotesDB.nextID = 1 end
     if type(EasyNotesDB.window) ~= "table" then
         EasyNotesDB.window = { w = DEFAULT_WIDTH, h = DEFAULT_HEIGHT }
@@ -650,14 +657,71 @@ local function CreateNote(body)
     return note
 end
 
+-- A deleted note goes to the trash, newest first; old and surplus ones
+-- fall off there.
 local function DeleteNote(id)
     local idx = FindNoteIndex(id)
     if not idx then return end
-    tremove(NotesStore(), idx)
+    local note = tremove(NotesStore(), idx)
+    local trash = NormalizeDB().trash
+    note.deletedAt = time()
+    tinsert(trash, 1, note)
+    for i = #trash, 1, -1 do
+        if i > TRASH_MAX or time() - (trash[i].deletedAt or 0) > TRASH_SECONDS then
+            tremove(trash, i)
+        end
+    end
     if UI._notes.selectedID == id then
         local rest = SortedNotes()
         UI._notes.selectedID = rest[1] and rest[1].id or nil
     end
+end
+
+local function RestoreNote(id)
+    local trash = NormalizeDB().trash
+    for i = 1, #trash do
+        if trash[i].id == id then
+            local note = tremove(trash, i)
+            note.deletedAt = nil
+            note.updated = time()
+            tinsert(NotesStore(), 1, note)
+            UI._notes.selectedID = note.id
+            return note
+        end
+    end
+    return nil
+end
+
+function notesNS.TrashList()
+    local trash = NormalizeDB().trash
+    local out = {}
+    for i = 1, #trash do
+        out[i] = { id = trash[i].id, title = NoteTitle(trash[i]), deletedAt = trash[i].deletedAt }
+    end
+    return out
+end
+
+function notesNS.RestoreNote(id)
+    local note = RestoreNote(id)
+    if not note then return nil end
+    if EasyFind.db then EasyFind.db.notesInUse = true end
+    EasyFind:Print(Utils.sformat(L["NOTES_RESTORED_FMT"], NoteTitle(note)))
+    if UI.RefreshEasyNotes then UI:RefreshEasyNotes() end
+    return note
+end
+
+function notesNS.RestoreLastDeleted()
+    local trash = NormalizeDB().trash
+    if not trash[1] then
+        EasyFind:Print(L["NOTES_NOTHING_TO_UNDO"])
+        return nil
+    end
+    return notesNS.RestoreNote(trash[1].id)
+end
+
+function notesNS.EmptyTrash()
+    local trash = NormalizeDB().trash
+    for i = #trash, 1, -1 do trash[i] = nil end
 end
 
 local function UpdateBody(id, body)
@@ -777,6 +841,164 @@ function notesNS.NewFromSearch(title)
     UI:SelectEasyNote(note.id)
     UI:HideEasyNotesPalette()
     UI:FocusEasyNoteEditor()
+end
+
+-- The body as markdown: styled glyphs become ** and * runs, underline and
+-- strike decorations __ and ~~; colors stay home. Spaces and punctuation
+-- between two words of one style sit inside the markers.
+local function DecorationAt(decorations, kind, bytePos)
+    for i = 1, #decorations do
+        local d = decorations[i]
+        if d.kind == kind and d.startByte <= bytePos and bytePos < d.endByte then return true end
+    end
+    return false
+end
+
+local function NoteToMarkdown(note)
+    local body = note.body or ""
+    local decorations = note.decorations or {}
+    local out, pending = {}, {}
+    local bold, ital, und, str = false, false, false, false
+    local function Close()
+        if str then out[#out + 1] = "~~" end
+        if und then out[#out + 1] = "__" end
+        if ital then out[#out + 1] = "*" end
+        if bold then out[#out + 1] = "**" end
+    end
+    local function Open()
+        if bold then out[#out + 1] = "**" end
+        if ital then out[#out + 1] = "*" end
+        if und then out[#out + 1] = "__" end
+        if str then out[#out + 1] = "~~" end
+    end
+    local function Flush()
+        for i = 1, #pending do out[#out + 1] = pending[i] end
+        for i = #pending, 1, -1 do pending[i] = nil end
+    end
+    for g, start in iterUtf8(body) do
+        local plain = GlyphPlain(g)
+        if not IsLetterLike(g) then
+            pending[#pending + 1] = plain
+        else
+            local b, i = GlyphHasBold(g), GlyphHasItalic(g)
+            local u = DecorationAt(decorations, "underline", start)
+            local s = DecorationAt(decorations, "strike", start)
+            if b ~= bold or i ~= ital or u ~= und or s ~= str then
+                Close()
+                Flush()
+                bold, ital, und, str = b, i, u, s
+                Open()
+            else
+                Flush()
+            end
+            out[#out + 1] = plain
+        end
+    end
+    Close()
+    Flush()
+    return StripColorEscapes(table.concat(out))
+end
+notesNS.NoteToMarkdown = NoteToMarkdown
+
+local function NoteByID(id)
+    local idx = FindNoteIndex(id)
+    return idx and NotesStore()[idx] or nil
+end
+
+function notesNS.CopyAsText(id)
+    local note = NoteByID(id)
+    if not note then return end
+    Utils.CopyToClipboard(StripColorEscapes(MapSelection(note.body or "", GlyphPlain)))
+end
+
+function notesNS.CopyAsMarkdown(id)
+    local note = NoteByID(id)
+    if note then Utils.CopyToClipboard(NoteToMarkdown(note)) end
+end
+
+-- Share codes: EFN1! + the shared codec, carrying title, category and the
+-- markdown body.
+function notesNS.ExportCode(id)
+    local note = NoteByID(id)
+    local codec = ns.ShareCodec
+    if not (note and codec) then return nil end
+    local md = NoteToMarkdown(note)
+    if #md > NOTE_CODE_BODY_MAX then md = md:sub(1, NOTE_CODE_BODY_MAX) end
+    local encS = codec.encS
+    local parts = { NOTE_CODE_PAYLOAD, encS(NoteTitle(note)), encS(note.category or "General"), encS(md) }
+    return NOTE_CODE_PREFIX .. codec.base64enc(table.concat(parts))
+end
+
+function notesNS.DecodeCode(str)
+    local codec = ns.ShareCodec
+    if not (codec and type(str) == "string") then return nil end
+    local b64 = str:match("^%s*EFN1!(%S+)")
+    if not b64 then return nil end
+    local ok, blob = pcall(codec.base64dec, b64)
+    if not ok or type(blob) ~= "string" or blob:sub(1, #NOTE_CODE_PAYLOAD) ~= NOTE_CODE_PAYLOAD then
+        return nil
+    end
+    local decS = codec.decS
+    local pos = #NOTE_CODE_PAYLOAD + 1
+    local name, category, md
+    name, pos = decS(blob, pos)
+    category, pos = decS(blob, pos)
+    md = decS(blob, pos)
+    if not (name and md) then return nil end
+    return name, category, md
+end
+
+-- An imported note is a new note of this character; its markdown becomes
+-- the live styled body. Returns the note, or nil for a bad code.
+function notesNS.ImportCode(str)
+    local name, category, md = notesNS.DecodeCode(str)
+    if not name then return nil end
+    if #md > NOTE_CODE_BODY_MAX then md = md:sub(1, NOTE_CODE_BODY_MAX) end
+    local doc = notesNS.DocumentFromMarkdown(md)
+    local note = CreateNote(doc.body)
+    note.decorations = doc.decorations or {}
+    note.name = strtrim(name:gsub("|", "")):sub(1, 64)
+    local cats = UI:GetEasyNotesCategories()
+    for i = 1, #cats do
+        if cats[i] == category then note.category = category end
+    end
+    EasyFind:Print(Utils.sformat(L["NOTES_IMPORTED_FMT"], NoteTitle(note)))
+    UI:OpenEasyNotes()
+    UI:SelectEasyNote(note.id)
+    UI:HideEasyNotesPalette()
+    return note
+end
+
+function notesNS.PromptImportCode()
+    ns.ShowPasteDialog({
+        title = L["NOTES_IMPORT_TITLE"],
+        onAccept = function(text)
+            if not notesNS.ImportCode(text) then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
+        end,
+    })
+end
+
+-- Notes that apply where the player is, as rows for the empty bar.
+function notesNS.HereRows()
+    if EasyFind.db and EasyFind.db.notesSurfaceHere == false then return nil end
+    local Context = notesNS.Context
+    local _, set = Context.Active()
+    local list = SortedNotes("")
+    local rows
+    for i = 1, #list do
+        local n = list[i]
+        if Context.Applies(n, set) then
+            local title = NoteTitle(n)
+            rows = rows or {}
+            rows[#rows + 1] = {
+                name = title, nameLower = slower(title), category = "Notes",
+                searchCommandDesc = L["NOTES_HERE"], icon = ns.NOTES_ICON_TEX,
+                noteID = n.id, noPin = true, noLearn = true,
+            }
+            if #rows >= 3 then break end
+        end
+    end
+    return rows
 end
 
 -- The bar's rows follow every change, a moment after the last one.
@@ -936,12 +1158,12 @@ end
 local function ConfirmDeleteNote(id)
     local ids = type(id) == "table" and id or { id }
     if #ids == 0 then return end
-    local prompt
+    local prompt, name
     if #ids == 1 then
         local idx = FindNoteIndex(ids[1])
         local note = idx and NotesStore()[idx]
         if not note then return end
-        local name = NoteTitle(note)
+        name = NoteTitle(note)
         if #name > 40 then name = name:sub(1, 40) .. "..." end
         prompt = Utils.sformat(L["NOTES_DELETE_ONE"], name)
     else
@@ -955,6 +1177,11 @@ local function ConfirmDeleteNote(id)
         onAccept = function()
             local wasPalette = UI._notes.paletteShown
             for i = 1, #ids do DeleteNote(ids[i]) end
+            if #ids == 1 then
+                EasyFind:Print(Utils.sformat(L["NOTES_DELETED_ONE_UNDO"], prompt and name or "?"))
+            else
+                EasyFind:Print(Utils.sformat(L["NOTES_DELETED_MANY_UNDO"], #ids))
+            end
             local sel = UI._notes.paletteSelection
             for k in pairs(sel) do sel[k] = nil end
             UI:RefreshEasyNotes()
@@ -6141,6 +6368,30 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
         { text = L["NOTES_CONTEXT"], submenu = contextSub },
         { isSeparator = true },
+        { text = L["NOTES_COPY_TEXT"], onClick = function() notesNS.CopyAsText(note.id) end },
+        { text = L["NOTES_COPY_MARKDOWN"], onClick = function() notesNS.CopyAsMarkdown(note.id) end },
+        { text = L["NOTES_COPY_CODE"], onClick = function()
+              local code = notesNS.ExportCode(note.id)
+              if code then Utils.CopyToClipboard(code) end
+          end },
+        { text = L["NOTES_IMPORT_CODE"], onClick = function() notesNS.PromptImportCode() end },
+        { isSeparator = true },
+        { text = L["NOTES_TRASH"], submenu = (function()
+              local trashed, out = notesNS.TrashList(), {}
+              for i = 1, math.min(#trashed, 15) do
+                  local entry = trashed[i]
+                  out[#out + 1] = { text = entry.title .. "  (" .. FormatRelTime(entry.deletedAt) .. ")",
+                      onClick = function()
+                          notesNS.RestoreNote(entry.id)
+                          if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                      end }
+              end
+              if #out == 0 then out[1] = { text = L["NOTES_TRASH_NONE"], disabled = true } end
+              out[#out + 1] = { isSeparator = true }
+              out[#out + 1] = { text = L["NOTES_TRASH_EMPTY"], disabled = #trashed == 0,
+                  onClick = function() notesNS.EmptyTrash() end }
+              return out
+          end)() },
         { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
           onClick = function()
               local id = UI._notes.selectedID
@@ -6882,6 +7133,8 @@ end
 function notesNS.Slash(msg)
     msg = strtrim(msg or "")
     if msg == "" then return UI:ToggleEasyNotes() end
+    if slower(msg) == "undo" then return notesNS.RestoreLastDeleted() end
+    if slower(msg) == "import" then return notesNS.PromptImportCode() end
     if UI:OpenEasyNoteByAlias(msg) then return end
     UI:OpenEasyNotes()
     local frame = UI._notes.frame

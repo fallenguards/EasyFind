@@ -5079,6 +5079,91 @@ end
 ns.CopyToClipboard = Utils.CopyToClipboard
 end
 
+-- Paste-a-code dialog shared by every import (themes, notes): a title, a
+-- multi-line box, Import. opts: { title, hint, acceptText, onAccept(text) }.
+do
+local pasteDialog
+
+local function BuildPasteDialog()
+    local f = CreateFrame("Frame", "EasyFindPasteDialog", UIParent)
+    f:SetSize(420, 196)
+    f:SetPoint("CENTER")
+    f:SetFrameStrata("TOOLTIP")
+    f:SetFrameLevel(9600)
+    f:EnableMouse(true)
+    f:SetMovable(true)
+    f:SetClampedToScreen(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    ns.StyleMenuPanel(f)
+
+    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    f.title._efOwnColor = true
+    f.title:SetPoint("TOP", 0, -12)
+
+    local boxFrame = CreateFrame("Frame", nil, f)
+    boxFrame:SetPoint("TOPLEFT", 14, -34)
+    boxFrame:SetPoint("TOPRIGHT", -14, -34)
+    boxFrame:SetHeight(112)
+    ns.CreateRoundedRectBorder(boxFrame)
+    ns.SetRoundedRectBarHeight(boxFrame, 8)
+    ns.SetRoundedRectBorderShown(boxFrame, false)
+    ns.SetRoundedRectFill(boxFrame, 0.02, 0.02, 0.03, 1)
+
+    local scroll = CreateFrame("ScrollFrame", "EasyFindPasteDialogScroll", boxFrame)
+    scroll:SetPoint("TOPLEFT", 8, -8)
+    scroll:SetPoint("BOTTOMRIGHT", -14, 8)
+    local editBox = CreateFrame("EditBox", nil, scroll)
+    editBox:SetMultiLine(true)
+    editBox:SetAutoFocus(false)
+    editBox:SetFontObject("GameFontHighlightSmall")
+    editBox:SetWidth(384)
+    editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() f:Hide() end)
+    scroll:SetScrollChild(editBox)
+    f.editBox = editBox
+    Utils.CreateMinimalScrollBar(scroll, boxFrame)
+
+    f.acceptBtn = ns.CreateModernButton(f, L["SHORTKEY_IMPORT"], 90, 22)
+    f.acceptBtn:SetPoint("BOTTOMRIGHT", -14, 12)
+    f.acceptBtn:SetScript("OnClick", function()
+        local text = f.editBox:GetText()
+        local onAccept = f._onAccept
+        f:Hide()
+        if onAccept then onAccept(text) end
+    end)
+
+    f.hint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    f.hint:SetPoint("BOTTOMLEFT", 14, 16)
+
+    local x = ns.CreateCloseX(f, 14)
+    x:SetPoint("TOPRIGHT", -8, -8)
+    x:SetScript("OnClick", function() f:Hide() end)
+    ns.AttachEscClose(f)
+    f:SetScript("OnHide", function(self) self._onAccept = nil end)
+    f:Hide()
+    return f
+end
+
+function ns.ShowPasteDialog(opts)
+    if not pasteDialog then pasteDialog = BuildPasteDialog() end
+    local f = pasteDialog
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    if theme and theme.lightTheme and theme.leafColor then
+        f.title:SetTextColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3])
+    else
+        f.title:SetTextColor(1.0, 0.82, 0)
+    end
+    f.title:SetText(opts.title or "")
+    f.hint:SetText(opts.hint or L["SHORTKEY_IMPORT_HINT"])
+    f.acceptBtn:SetText(opts.acceptText or L["SHORTKEY_IMPORT"])
+    f._onAccept = opts.onAccept
+    f.editBox:SetText("")
+    f:Show()
+    Utils.SafeAfter(0, function() if f:IsShown() then f.editBox:SetFocus() end end)
+end
+end
+
 -- Themed replacement for Blizzard StaticPopup confirm/input dialogs, styled
 -- like the rest of EasyFind (StyleMenuPanel + CreateModernButton). One pooled
 -- frame. opts: { text, acceptText, cancelText, hasEditBox, editBoxDefault,

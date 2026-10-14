@@ -1709,3 +1709,22 @@ L["OPT_QUICKLISTS_HINT"]                = "A quicklist is a named set of results
 L["OPT_NO_QUICKLISTS"]                  = "No quicklists yet."
 L["POPUP_CLEAR_QUICKLISTS"]             = "Delete every quicklist?"
 L["PROFILE_SECTION_QUICKLISTS"]         = "Quicklists"
+
+-- =============================================================================
+-- Notes: trash, copies, share codes and notes that apply here
+-- =============================================================================
+L["NOTES_COPY_TEXT"]                    = "Copy as text"
+L["NOTES_COPY_MARKDOWN"]                = "Copy as markdown"
+L["NOTES_COPY_CODE"]                    = "Copy share code"
+L["NOTES_IMPORT_CODE"]                  = "Import from code..."
+L["NOTES_IMPORT_TITLE"]                 = "Import a note"
+L["NOTES_IMPORTED_FMT"]                 = "Imported note: %s"
+L["NOTES_TRASH"]                        = "Trash"
+L["NOTES_TRASH_EMPTY"]                  = "Empty trash"
+L["NOTES_TRASH_NONE"]                   = "Nothing in the trash"
+L["NOTES_DELETED_ONE_UNDO"]             = "Deleted %s. Undo with /notes undo."
+L["NOTES_DELETED_MANY_UNDO"]            = "Deleted %d notes. The Trash menu restores them."
+L["NOTES_RESTORED_FMT"]                 = "Restored %s."
+L["NOTES_NOTHING_TO_UNDO"]              = "Nothing to undo."
+L["NOTES_OPT_SURFACE"]                  = "Show notes that apply here on the empty bar"
+L["NOTES_OPT_SURFACE_TT"]               = "When a note applies where you are, it shows at the top of the bar before you type."
