@@ -12,13 +12,14 @@ ns.GPSNav = Nav
 
 local sbyte, mfloor, msqrt, mhuge, mabs = string.byte, math.floor, math.sqrt, math.huge, math.abs
 local mmax, mmin = math.max, math.min
-local tinsert, tremove = table.insert, table.remove
+local tinsert, tremove, tsort = table.insert, table.remove, table.sort
 
 local TILE = 1600 / 3
 local ORIGIN = 32 * TILE
 local TILES_KEPT = 12              -- unpacked tiles held at once
 local SNAP_CELLS = 6               -- a point off the grid takes a floor this many cells away
-local REACH_KEPT = 64              -- end points whose tile search is kept
+local REACH_KEPT = 256             -- end points whose tile search is kept
+local LANDMARKS_USED = 3           -- of the data's landmarks, the most telling for a walk
 local WALKS_KEPT = 512             -- walk costs kept
 -- Walking weights, the same in dev/tools/navmesh/grid.py: swimming at the
 -- game's swim speed against running, and off the road a quarter more, so a
@@ -81,7 +82,7 @@ local function World(ci)
     local data = ns.GPSNavData and ns.GPSNavData[ci]
     if not data then return nil end
     w = { ci = ci, data = data, N = data.cells, cell = data.cell, tiles = {}, order = {}, costs = {},
-          reach = {}, reachN = 0, walks = {}, walksN = 0 }
+          reach = {}, reachN = 0, walks = {}, walksN = 0, marks = {} }
     worlds[ci] = w
     return w
 end
@@ -93,6 +94,21 @@ local function TileOf(x, y)
 end
 Nav.TileOf = TileOf
 
+-- Bytes from..to of s appended to out from index at: read in runs, not one
+-- call a byte.
+local RUN = 4000
+local function Bytes(s, from, to, out, at)
+    local i = from
+    while i <= to do
+        local j = mmin(to, i + RUN - 1)
+        local run = { sbyte(s, i, j) }
+        for k = 1, j - i + 1 do out[at + k - 1] = run[k] end
+        at = at + (j - i + 1)
+        i = j + 1
+    end
+    return out
+end
+
 local function DecodeTile(w, key)
     local s = w.data.tiles[key]
     if not s then return nil end
@@ -100,31 +116,39 @@ local function DecodeTile(w, key)
     local N = w.N
     local cellFirst, cellN = {}, {}
     local fcell, flag, wc, nc = {}, {}, {}, {}
+    local counts = Bytes(raw, 1, N * N, {}, 0)
     local f = 0
-    local pos = N * N + 1
     for c = 0, N * N - 1 do
-        if c % 2048 == 0 then Pause() end
-        local n = sbyte(raw, c + 1)
+        local n = counts[c]
         cellFirst[c], cellN[c] = f + 1, n
         for _ = 1, n do
             f = f + 1
-            local b = sbyte(raw, pos)
-            pos = pos + 1
             fcell[f] = c
-            flag[f] = b % 4
-            wc[f] = mfloor(b / 4) % 8
-            nc[f] = mfloor(b / 32)
         end
     end
+    local pos = N * N + 1
+    local bytes = Bytes(raw, pos, pos + f - 1, {}, 1)
+    for g = 1, f do
+        if g % 4096 == 0 then Pause() end
+        local b = bytes[g]
+        flag[g] = b % 4
+        wc[g] = mfloor(b / 4) % 8
+        nc[g] = mfloor(b / 32)
+    end
+    pos = pos + f
     -- Road cells: a bit each after the floors, low bit first.
     local road = {}
+    local roadBytes = Bytes(raw, pos, pos + mfloor((N * N + 7) / 8) - 1, {}, 0)
     for c = 0, N * N - 1 do
-        local b = sbyte(raw, pos + mfloor(c / 8))
+        local b = roadBytes[mfloor(c / 8)]
         if b and mfloor(b / 2 ^ (c % 8)) % 2 == 1 then road[c] = true end
     end
+    -- What a yard on each floor costs to choose, for the searches.
+    local wt = {}
+    for g = 1, f do wt[g] = (flag[g] % 2 == 1 and SWIM_WEIGHT or 1) * (road[fcell[g]] and 1 or offRoad) end
     local tx, ty = mfloor(key / 64), key % 64
     local t = { key = key, tx = tx, ty = ty, N = N, nf = f, cellFirst = cellFirst, cellN = cellN,
-                fcell = fcell, flag = flag, wc = wc, nc = nc, road = road,
+                fcell = fcell, flag = flag, wc = wc, nc = nc, road = road, wt = wt,
                 sx = ORIGIN - ty * TILE - TILE, sy = ORIGIN - tx * TILE - TILE }
     -- Links inside the tile, all four ways: west and north from the data,
     -- east and south their reverse (the lowest floor first; when several
@@ -227,11 +251,13 @@ local function Danger(w, key)
     return set and set[key] and DANGER_WEIGHT or 1
 end
 
--- Walks come out differently from now on: the ones kept are dropped.
+-- Walks come out differently from now on: the ones kept are dropped, and
+-- the tiles, which carry their floors' weights.
 local function Reset()
     Nav.epoch = Nav.epoch + 1
     for _, w in pairs(worlds) do
         w.walks, w.walksN, w.reach, w.reachN, w.costs = {}, 0, {}, 0, {}
+        w.tiles, w.order, w.marks = {}, {}, {}
     end
 end
 
@@ -257,9 +283,8 @@ function Nav.HasRoads(ci)
     return data ~= nil and data.roads ~= nil
 end
 
--- What a yard on floor g costs to choose; Swim what it costs in time.
+-- What a yard on floor g costs in time (to choose: t.wt[g]).
 local function Swim(t, g) return t.flag[g] % 2 == 1 and SWIM_WEIGHT or 1 end
-local function Weight(t, g) return Swim(t, g) * (t.road[t.fcell[g]] and 1 or offRoad) end
 
 -- The floor under (x, y): indoors an indoor one, else one outdoors, else
 -- the highest; off the grid the nearest within SNAP_CELLS (or snap).
@@ -366,7 +391,8 @@ local function TileSearch(w, t, g0, goal, want, left)
     end
     local gx, gy
     if goal then gx, gy = FloorXY(w, t, goal) end
-    local cell = w.cell * Danger(w, t.key)
+    local cell = w.cell * Danger(w, t.key) / 2
+    local wt = t.wt
     local pops = 0
     while true do
         -- At the loop's top: nbScratch is refilled after, so a search run
@@ -382,12 +408,12 @@ local function TileSearch(w, t, g0, goal, want, left)
                 left = left - 1
                 if left == 0 then break end
             end
-            local base, wg = cost[g], Weight(t, g)
+            local base, wg = cost[g], wt[g]
             local n = TileNeighbours(t, g)
             for k = 1, n do
                 local o = nbScratch[k]
                 if not closed[o] then
-                    local nc = base + nbLen[k] * cell * (wg + Weight(t, o)) / 2
+                    local nc = base + nbLen[k] * cell * (wg + wt[o])
                     if not cost[o] or nc < cost[o] then
                         cost[o], prev[o] = nc, g
                         local h = 0
@@ -438,19 +464,26 @@ local function TileCosts(w, key)
         local node = (ents.key[2 * last + 1] == key) and (2 * last + 1) or (2 * last + 2)
         side[k], at[node] = node, k
     end
-    local codes = {}
-    for k = 1, n * (n - 1) / 2 do codes[k] = u() end
-    tc = { side = side, at = at, n = n, codes = codes }
+    -- Each pair's cost by its index in the upper triangle: the straight
+    -- line plus the way around, false where no way joins them.
+    local cost, ex, ey = {}, ents.x, ents.y
+    local p = 0
+    for a = 1, n - 1 do
+        local na = side[a]
+        for b = a + 1, n do
+            p = p + 1
+            local code = u()
+            if code == 0 then
+                cost[p] = false
+            else
+                local nb = side[b]
+                cost[p] = msqrt((ex[na] - ex[nb]) ^ 2 + (ey[na] - ey[nb]) ^ 2) + (code - 1) / 2
+            end
+        end
+    end
+    tc = { side = side, at = at, n = n, cost = cost }
     w.costs[key] = tc
     return tc
-end
-
-local function PairCost(tc, ents, a, b)
-    local i, j = tc.at[a], tc.at[b]
-    if i > j then i, j = j, i end
-    local code = tc.codes[(i - 1) * tc.n - (i - 1) * i / 2 + (j - i)]
-    if not code or code == 0 then return nil end
-    return msqrt((ents.x[a] - ents.x[b]) ^ 2 + (ents.y[a] - ents.y[b]) ^ 2) + (code - 1) / 2
 end
 
 -- Costs from floor g of tile t to each entrance side in that tile; kept
@@ -483,15 +516,64 @@ local function ToEntrances(w, t, g)
     return out
 end
 
+-- Costs to entrance sides as the data bakes them for fixed spots
+-- (dev/tools/navmesh/bake_spots.lua): the sides in order, each a step on
+-- from the last, with its cost in sixteenths of a yard.
+local function Baked(u)
+    local out, node = {}, 0
+    for _ = 1, u() do
+        node = node + u()
+        out[node] = u() / 16
+    end
+    return out
+end
+
+-- A walk's end at (x, y): its tile key, floor and costs to that tile's
+-- entrance sides, from the baked spots where the point is one (no tile
+-- decoded then), else searched once and kept, as every walk from one end
+-- asks the same.
+local function End(w, x, y, indoors)
+    local spots = w.data.spots
+    local s = not indoors and spots and spots[mfloor(x) .. ":" .. mfloor(y)]
+    if s then
+        local u = Reader(Unpack(s))
+        local key, g = u(), u()
+        local rk = key * 131072 + g
+        local out = w.reach[rk]
+        if not out then
+            if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
+            out = Baked(u)
+            w.reach[rk], w.reachN = out, w.reachN + 1
+        end
+        return key, g, out
+    end
+    local t, g = Locate(w, x, y, indoors)
+    if not g then return nil end
+    return t.key, g, ToEntrances(w, t, g)
+end
+
 -- An end that is any floor within r yards of (x, y) (a dock or a landing
 -- just off the ground), in every tile that circle touches: the costs from
 -- the nearest such floor to each entrance side, and per tile key to every
--- floor of that tile; nil without one.
-local function NearEnd(w, x, y, r)
+-- floor of that tile; nil without one. Baked for fixed spots (sides only),
+-- taken unless the walk starts in a tile the circle touches (fromKey),
+-- where the way inside that tile is needed.
+local function NearEnd(w, x, y, r, fromKey)
     local rk = mfloor(x) .. ":" .. mfloor(y) .. ":" .. r
     local kept = w.reach[rk]
     if kept then return kept[1], kept[2] end
     local N, cell = w.N, w.cell
+    local baked = w.data.near and w.data.near[rk]
+    if baked and fromKey then
+        local touches = false
+        for _, cx in ipairs({ x - r, x + r }) do
+            for _, cy in ipairs({ y - r, y + r }) do
+                if TileOf(cx, cy) == fromKey then touches = true end
+            end
+        end
+        -- Not kept: only the full search below serves every walk.
+        if not touches then return Baked(Reader(Unpack(baked))), nil end
+    end
     local out, floors
     for _, cx in ipairs({ x - r, x + r }) do
         for _, cy in ipairs({ y - r, y + r }) do
@@ -548,29 +630,168 @@ end
 
 local onGround = {}
 
--- The walk from a to b: cost (running yards), the entrance sides it passes
--- (pairs: leave a tile, enter the next), and both ends' tile and floor.
-local function Walk(w, ax, ay, bx, by, opts)
-    local ta, ga = Locate(w, ax, ay, opts and opts.indoorsA)
-    local near = opts and opts.near
-    local tb, gb, toB, nearFloors
-    if near then
-        toB, nearFloors = NearEnd(w, bx, by, near)
-    else
-        tb, gb = Locate(w, bx, by, opts and opts.indoorsB)
+-- Landmark distances as refine.py bakes them: per landmark, whole yards
+-- to each entrance (its nearer side), 0 unknown. A walk between two sides
+-- is at least the difference of their distances from any one landmark.
+local function Landmarks(w)
+    if w.alt ~= nil then return w.alt or nil end
+    local a = w.data.alt
+    if not a then w.alt = false return nil end
+    local _, i = Reader(Unpack(a.d))
+    local n = Entrances(w).n
+    local tabs = {}
+    for l = 1, a.n do
+        local t, last = {}, 0
+        for e = 1, n do
+            if e % 4096 == 0 then Pause() end
+            last = last + i()
+            t[e] = last
+        end
+        tabs[l] = t
     end
-    if not (ga and (gb or toB)) then return nil end
+    w.alt = tabs
+    return tabs
+end
+
+-- The cheapest way over the entrance sides from fromA's sides to toB's,
+-- each with its cost on to the walk's end at (bx, by), or any floor within
+-- circle yards of it. A* under the straight line and, for a point end,
+-- the landmark bound to the end's nearest side, which holds since every
+-- pair cost is at least the way inside the tile. best: a way in hand
+-- inside one tile; limit: given up past this many yards. The cost, the
+-- side it ends at (nil for the way in hand) and the sides before each.
+local marksPick = {}
+local function Search(w, fromA, toB, bx, by, best, limit, circle)
     local ents = Entrances(w)
+    local ex, ey = ents.x, ents.y
+    local alt = not circle and Landmarks(w)
+    -- The landmarks used: those whose bound between the nearest sides of
+    -- the two ends is largest, as they tell the most along the way.
+    local used, K = {}, 0
+    local e0, fin0
+    if alt then
+        local es, cs = nil, mhuge
+        for node, c in pairs(fromA) do
+            if c < cs then es, cs = (node + node % 2) / 2, c end
+        end
+        fin0 = mhuge
+        for node, fin in pairs(toB) do
+            if fin < fin0 then e0, fin0 = (node + node % 2) / 2, fin end
+        end
+        -- Whole yards in the data, the nearer side's, and pair costs
+        -- rounded to the half yard: a cell and a yard and a quarter of play.
+        fin0 = fin0 + w.cell + 1.25
+        local n = 0
+        for l = 1, #alt do
+            local d0, ds = alt[l][e0], alt[l][es]
+            if d0 > 0 and ds > 0 then
+                n = n + 1
+                marksPick[n] = l
+                marksPick[-l] = d0 > ds and d0 - ds or ds - d0
+            end
+        end
+        for k = n + 1, #marksPick do marksPick[k] = nil end
+        tsort(marksPick, function(a, b) return marksPick[-a] > marksPick[-b] end)
+        for k = 1, mmin(n, LANDMARKS_USED) do
+            K = K + 1
+            used[K] = alt[marksPick[k]]
+        end
+    end
+    local slack = circle or 0
+    local hc = {}   -- each side's bound, once a search
+    local function H(node)
+        local h = hc[node]
+        if h then return h end
+        h = msqrt((bx - ex[node]) ^ 2 + (by - ey[node]) ^ 2) - slack
+        local e = (node + node % 2) / 2
+        for l = 1, K do
+            local t = used[l]
+            local d0, dv = t[e0], t[e]
+            if dv > 0 then
+                local diff = (d0 > dv and d0 - dv or dv - d0) - fin0
+                if diff > h then h = diff end
+            end
+        end
+        if h < 0 then h = 0 end
+        hc[node] = h
+        return h
+    end
+    local g, prev, heap = {}, {}, NewHeap()
+    for node, c in pairs(fromA) do
+        g[node] = c
+        heap:Push(c + H(node), node)
+    end
+    local reached
+    local cell = w.cell
+    local pops = 0
+    while true do
+        pops = pops + 1
+        if pops % 64 == 0 then Pause() end
+        local node, f = heap:Pop()
+        if not node or f >= best or (limit and f > limit) then break end
+        local here = g[node]
+        -- The landmark bound's rounding makes it uneven from side to side,
+        -- so a side may be reached cheaper after it was taken: the cheaper
+        -- way is pushed too, and an entry it outdid is passed over here.
+        if f <= here + H(node) + 0.001 then
+            local fin = toB[node]
+            if fin and here + fin < best then best, reached = here + fin, node end
+            -- Across the edge to the entrance's other side, then on inside that tile.
+            local o = Other(node)
+            local c = here + cell
+            if not g[o] or c < g[o] then
+                g[o], prev[o] = c, node
+                heap:Push(c + H(o), o)
+            end
+            local key = ents.key[node]
+            local tc = TileCosts(w, key)
+            if tc then
+                local df = Danger(w, key)
+                local n, side, cost = tc.n, tc.side, tc.cost
+                local i = tc.at[node]
+                local row = (i - 1) * n - (i - 1) * i / 2 - i
+                for j = 1, n do
+                    if j ~= i then
+                        if j > i then c = cost[row + j] else c = cost[(j - 1) * n - (j - 1) * j / 2 + (i - j)] end
+                        if c then
+                            o = side[j]
+                            c = here + c * df
+                            if not g[o] or c < g[o] then
+                                g[o], prev[o] = c, node
+                                heap:Push(c + H(o), o)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best, reached, prev
+end
+
+local function NearKey(x, y, r) return mfloor(x) .. ":" .. mfloor(y) .. ":" .. r end
+
+-- The walk from a to b: cost (running yards), the entrance sides it passes
+-- (pairs: leave a tile, enter the next), and both ends' tile key and floor.
+local function Walk(w, ax, ay, bx, by, opts)
+    local keyA, ga, fromA = End(w, ax, ay, opts and opts.indoorsA)
+    if not ga then return nil end
+    local near = opts and opts.near
+    local keyB, gb, toB, nearFloors
+    if near then
+        toB, nearFloors = NearEnd(w, bx, by, near, keyA)
+    else
+        keyB, gb, toB = End(w, bx, by, opts and opts.indoorsB)
+    end
+    if not toB then return nil end
     local best = mhuge
     if nearFloors then
-        local inTile = nearFloors[ta.key]
+        local inTile = nearFloors[keyA]
         if inTile and inTile[ga] then best = inTile[ga] end
-    elseif ta.key == tb.key then
-        local cost = TileSearch(w, ta, ga, gb)
+    elseif keyA == keyB then
+        local cost = TileSearch(w, Tile(w, keyA), ga, gb)
         if cost[gb] then best = cost[gb] end
     end
-    local fromA = ToEntrances(w, ta, ga)
-    toB = toB or ToEntrances(w, tb, gb)
     -- B is reached only on ground A stands on.
     local ground = Ground(w)
     if ground and best == mhuge then
@@ -582,47 +803,8 @@ local function Walk(w, ax, ay, bx, by, opts)
         end
         if not joined then return nil end
     end
-    local g, prev, closed, heap = {}, {}, {}, NewHeap()
-    for node, c in pairs(fromA) do
-        g[node] = c
-        heap:Push(c + msqrt((bx - ents.x[node]) ^ 2 + (by - ents.y[node]) ^ 2), node)
-    end
-    local reached
-    local cell = w.cell
-    local limit = opts and opts.limit
-    local pops = 0
-    while true do
-        pops = pops + 1
-        if pops % 64 == 0 then Pause() end
-        local node, f = heap:Pop()
-        if not node or f >= best then break end
-        if limit and f > limit then break end
-        if not closed[node] then
-            closed[node] = true
-            local fin = toB[node]
-            if fin and g[node] + fin < best then best, reached = g[node] + fin, node end
-            -- Across the edge to the entrance's other side, then on inside that tile.
-            local here = g[node]
-            local o = Other(node)
-            if not closed[o] and (not g[o] or here + cell < g[o]) then
-                g[o], prev[o] = here + cell, node
-                heap:Push(here + cell + msqrt((bx - ents.x[o]) ^ 2 + (by - ents.y[o]) ^ 2), o)
-            end
-            local tc = TileCosts(w, ents.key[node])
-            local df = Danger(w, ents.key[node])
-            for k = 1, tc and tc.n or 0 do
-                o = tc.side[k]
-                if o ~= node and not closed[o] then
-                    local c = PairCost(tc, ents, node, o)
-                    c = c and c * df
-                    if c and (not g[o] or here + c < g[o]) then
-                        g[o], prev[o] = here + c, node
-                        heap:Push(here + c + msqrt((bx - ents.x[o]) ^ 2 + (by - ents.y[o]) ^ 2), o)
-                    end
-                end
-            end
-        end
-    end
+    local reached, prev
+    best, reached, prev = Search(w, fromA, toB, bx, by, best, opts and opts.limit, near)
     if best == mhuge then return nil end
     local chain = {}
     local node = reached
@@ -630,7 +812,80 @@ local function Walk(w, ax, ay, bx, by, opts)
         tinsert(chain, 1, node)
         node = prev[node]
     end
-    return best, chain, ta, ga, tb, gb
+    return best, chain, keyA, ga, keyB, gb
+end
+
+-- A point's distance from each landmark: the least, over its tile's
+-- sides, of the way to the side and the side's own; false where unknown.
+-- Kept by the point, so every walk between fixed spots is bounded at once.
+local function Marks(w, x, y)
+    local key = mfloor(x) .. ":" .. mfloor(y)
+    local m = w.marks[key]
+    if m ~= nil then return m or nil end
+    local alt = Landmarks(w)
+    local _, _, reach = End(w, x, y)
+    if not (alt and reach) then
+        w.marks[key] = false
+        return nil
+    end
+    m = {}
+    for l = 1, #alt do
+        local t, least = alt[l], mhuge
+        for node, fin in pairs(reach) do
+            local d = t[(node + node % 2) / 2]
+            if d > 0 and fin + d < least then least = fin + d end
+        end
+        m[l] = least < mhuge and least or false
+    end
+    w.marks[key] = m
+    return m
+end
+
+-- What the walk from a to b costs at the least, in running yards, from the
+-- landmarks: at least the difference of the ends' distances from any one.
+-- Nil without landmarks or an end off the grid.
+function Nav.Bound(ci, ax, ay, bx, by)
+    local w = World(ci)
+    if not w then return nil end
+    local ma, mb = Marks(w, ax, ay), Marks(w, bx, by)
+    if not (ma and mb) then return nil end
+    local best, play = 0, w.cell + 1
+    for l = 1, #ma do
+        local a, b = ma[l], mb[l]
+        if a and b then
+            local diff = (a > b and a - b or b - a) - play
+            if diff > best then best = diff end
+        end
+    end
+    return best
+end
+
+-- For dev/tools/navmesh/bake_spots.lua: a fixed spot's key and costs to
+-- its tile's entrance sides, or with near its boarding circle's.
+function Nav.SpotReach(ci, x, y, near)
+    local w = World(ci)
+    if not w then return nil end
+    if near then return NearKey(x, y, near), (NearEnd(w, x, y, near)) end
+    local t, g = Locate(w, x, y)
+    if not g then return nil end
+    return t.key, g, ToEntrances(w, t, g)
+end
+
+-- A walk as Walk finds it, kept with its chain: the drawing of a priced
+-- walk reads the chain instead of searching again. false: no way.
+local function Kept(w, ax, ay, bx, by, opts)
+    local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
+        .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
+        .. ((opts and opts.limit) and ("L" .. mfloor(opts.limit)) or "")
+        .. ((opts and opts.near) and ("N" .. opts.near) or "")
+    local walk = w.walks[key]
+    if walk == nil then
+        if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
+        local cost, chain, keyA, ga, keyB, gb = Walk(w, ax, ay, bx, by, opts)
+        walk = cost and { cost, chain, keyA, ga, keyB, gb } or false
+        w.walks[key], w.walksN = walk, w.walksN + 1
+    end
+    return walk
 end
 
 -- Walking cost in running yards from (ax, ay) to (bx, by) on continent ci,
@@ -640,21 +895,23 @@ end
 function Nav.Walk(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
-    local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
-        .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
-        .. ((opts and opts.limit) and ("L" .. mfloor(opts.limit)) or "")
-        .. ((opts and opts.near) and ("N" .. opts.near) or "")
-    local cost = w.walks[key]
-    if cost == nil then
-        if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
-        cost = Walk(w, ax, ay, bx, by, opts) or false
-        w.walks[key], w.walksN = cost, w.walksN + 1
-    end
-    return cost or nil
+    local walk = Kept(w, ax, ay, bx, by, opts)
+    return walk and walk[1] or nil
 end
 
 function Nav.Has(ci) return ns.GPSNavData ~= nil and ns.GPSNavData[ci] ~= nil end
 Nav.Ensure = Nav.Has
+
+-- What every search on continent ci reads first (the entrance sides, the
+-- grounds, the landmarks), decoded now, in the planner's slices, so the
+-- first click of a session does not pay for it.
+function Nav.Warm(ci)
+    local w = World(ci)
+    if not w then return end
+    Entrances(w)
+    Ground(w)
+    Landmarks(w)
+end
 
 -- Drawing ---------------------------------------------------------------------
 
@@ -749,14 +1006,16 @@ end
 function Nav.Path(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
-    local cost, chain, ta, ga, tb, gb = Walk(w, ax, ay, bx, by, opts)
-    if not cost then return nil end
+    local walk = Kept(w, ax, ay, bx, by, opts)
+    if not walk then return nil end
+    local cost, chain, keyA, ga, keyB, gb = walk[1], walk[2], walk[3], walk[4], walk[5], walk[6]
+    if not keyB then return nil end
     local ents = Entrances(w)
     local out = { ax, ay }
     local acc = { len = 0, time = 0 }
-    local t, g = ta, ga
+    local t, g = Tile(w, keyA), ga
     local k = 1
-    while chain and k <= #chain do
+    while k <= #chain do
         local node = chain[k]
         local key = ents.key[node]
         if key ~= t.key then return nil end
@@ -773,8 +1032,8 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
         end
         if not t then return nil end
     end
-    if t.key ~= tb.key then return nil end
-    t = Tile(w, tb.key)
+    if t.key ~= keyB then return nil end
+    t = Tile(w, keyB)
     if not TilePath(w, t, g, gb, out, acc) then return nil end
     out[#out + 1], out[#out + 2] = bx, by
     local len = 0
