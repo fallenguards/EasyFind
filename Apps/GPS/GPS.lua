@@ -643,6 +643,7 @@ local function UpdateEtaText(route)
     for i = 1, #surfaces do
         local fs = surfaces[i].time or surfaces[i].eta
         if fs and fs.SetText then fs:SetText(eta) end
+        if route and surfaces[i].PlaceSearch then surfaces[i]:PlaceSearch(true) end
     end
 end
 
@@ -1494,7 +1495,12 @@ local function Render(container)
     container.empty:Hide()
     if container.search then
         container.search:Show()
-        container:ShowHits(nil)
+        -- A new route: places typed before it go.
+        if container.shownRoute ~= route then
+            container.shownRoute = route
+            container.search:SetText("")
+            container:ShowHits(nil)
+        end
     end
     container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?")
         or sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
@@ -1753,8 +1759,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     end
 
     local pending
-    box:HookScript("OnTextChanged", function(self, userInput)
-        if Route() and GPS.picking ~= frame then return end
+    box:HookScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         if text == "" then frame:ShowHits(nil) return end
         if pending then return end
@@ -1763,7 +1768,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             pending = nil
             local MapSearch = ns.MapSearch
             local q = box:GetText() or ""
-            if q == "" or (Route() and GPS.picking ~= frame) or not (MapSearch and MapSearch.BuildResults) then return end
+            if q == "" or not (MapSearch and MapSearch.BuildResults) then return end
             local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
             frame:ShowHits(WithTowns(q, ok and results or nil))
         end)
@@ -1992,7 +1997,27 @@ local function BuildSurface(frame, opts)
         frame.popoutBtn = btn
     end
 
-    if opts.search then BuildSearch(frame, glyph, padRight, bodyPad) end
+    if opts.search then
+        BuildSearch(frame, glyph, padRight, bodyPad)
+        -- With a route the box moves to the time line, after the time and
+        -- before the Clear link, and the places it finds take the steps' place.
+        frame.PlaceSearch = function(self, hasRoute)
+            local box, hits = self.search, self.hitList
+            box:ClearAllPoints()
+            hits:ClearAllPoints()
+            if hasRoute then
+                box:SetPoint("LEFT", self.eta, "LEFT", (self.eta:GetStringWidth() or 0) + 10, 0)
+                box:SetPoint("RIGHT", self.clearBtn, "LEFT", -8, 0)
+                hits:SetPoint("TOPLEFT", self.list, "TOPLEFT", 0, 0)
+                hits:SetPoint("RIGHT", self.list, "RIGHT", 0, 0)
+            else
+                box:SetPoint("LEFT", glyph, "RIGHT", 12, 0)
+                box:SetPoint("RIGHT", self, "RIGHT", -padRight, 0)
+                hits:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6, -8)
+                hits:SetPoint("RIGHT", self, "RIGHT", -(bodyPad - 4), 0)
+            end
+        end
+    end
 
     local empty = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     empty:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", 0, -10)
@@ -2025,10 +2050,10 @@ local function BuildSurface(frame, opts)
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
         if self.search then
             -- While a way is found the title says so in the box's place.
-            local searching = not hasRoute and not GPS.planning
+            local searching = not GPS.planning
             self.search:SetShown(searching)
-            if hasRoute then self.search:SetText("") end
-            self.hitList:SetShown(searching)
+            self.hitList:SetShown(searching and (not hasRoute or (self.hitCount or 0) > 0))
+            self:PlaceSearch(hasRoute)
         end
         if opts.onRouteChanged then opts.onRouteChanged(self, hasRoute) end
     end
@@ -2829,12 +2854,19 @@ function Look.RenderEra(f)
     local widest, tall = Look.EraFill(f.eraTitle, text)
     if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
     local n = 0
-    if route then
-        if f.search then
-            if f.search:GetText() ~= "" then f.search:SetText("") end
-            f.search:Hide()
-            f.hitList:Hide()
-        end
+    local hits = route and f.search and (f.hitCount or 0) > 0
+    if route and f.search then
+        -- The box after the title; the places it finds take the steps' place.
+        f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+        f.search:Show()
+        f.hitList:SetShown(hits)
+    end
+    if hits then
+        local k = math.min(f.hitCount, HIT_ROWS)
+        f:SetHitView(k * ROW_H)
+        widest = Look.W
+        tall = tall + 4 + k * ROW_H + 4
+    elseif route then
         local row, w
         local start = not route.arrived and Start()
         if start then
@@ -2866,6 +2898,7 @@ function Look.RenderEra(f)
         end
     elseif f.search then
         -- The search box right of the name, and the places it finds under it.
+        f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
         f.search:Show()
         f.hitList:Show()
         local k = math.min(f.hitCount or 0, HIT_ROWS)
@@ -2889,19 +2922,34 @@ RenderDock = function(f)
     SearchHint(f)
     if GPS.picking == f then route = nil end
     if f.fromLine then f.fromLine:Hide() end
+    local hits = route and f.search and (f.hitCount or 0) > 0
+    if route and f.search then
+        -- The box after the time in the banner; the places it finds take
+        -- the steps' place.
+        f.searchAnchor:ClearAllPoints()
+        f.searchAnchor:SetPoint("LEFT", f.time, "RIGHT", 6, 0)
+        f.search:SetPoint("RIGHT", f.fold, "LEFT", -4, 0)
+        f.search:Show()
+        f.hitList:SetShown(hits)
+    end
     if route then
-        if f.search then
-            if f.search:GetText() ~= "" then f.search:SetText("") end
-            f.search:Hide()
-            f.hitList:Hide()
-        end
+        local eta = ""
+        if not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
+        f.time:SetText(eta)
+    end
+    if hits then
+        f.title:Hide()
+        f.titleBtn:Hide()
+        f.track:Hide()
+        for i = 1, #f.lines do f.lines[i]:Hide() end
+        local k = math.min(f.hitCount, HIT_ROWS)
+        f:SetHitView(k * ROW_H)
+        y = -DOCK_HEADER_H - (4 + k * ROW_H + 4)
+    elseif route then
         f.title:SetText(sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
         f.title:Show()
         f.titleBtn:Show()
         local start = not route.arrived and Start()
-        local eta = ""
-        if not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
-        f.time:SetText(eta)
         -- Widths are set, not anchored: a fresh line's anchors are not
         -- resolved yet when its height is read, and it would read as one line.
         local lineW = (f.head:GetWidth() or 260) - DOCK_INDENT
@@ -3000,6 +3048,7 @@ RenderDock = function(f)
         for i = 1, #f.lines do f.lines[i]:Hide() end
         if f.search then
             -- The search box, and the places it finds, in the steps' place.
+            f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
             f.search:Show()
             f.hitList:Show()
             local n = math.min(f.hitCount or 0, HIT_ROWS)
@@ -3786,7 +3835,8 @@ local function BuildPopout()
         onRouteChanged = function(self)
             -- The fold button folds a route; with none there is nothing to fold.
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
-            local tight = (not Route() and (self.hitCount or 0) == 0) or (self.collapsed and Route())
+            local hits = self.search ~= nil and (self.hitCount or 0) > 0
+            local tight = (not Route() and not hits) or (self.collapsed and Route())
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
@@ -3799,15 +3849,18 @@ local function BuildPopout()
                 end
                 return
             end
-            self.list:Show()
             self:SetHeaderPad(9)
             local _, fixed = PopoutSize()
             local head = 9 + 20 + 8   -- pad, the icon, gap
             local line = 4 + 14 + 8   -- the time line under the name
             local h
-            if Route() then
+            -- With a route, typed places take the steps' place.
+            self.list:SetShown(not (Route() and hits))
+            if Route() and hits then
+                h = head + line + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
+            elseif Route() then
                 h = head + line + (self.contentHeight or 0) + 4   -- the last row carries its own padding
-            elseif (self.hitCount or 0) > 0 then
+            elseif hits then
                 h = head + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
             elseif self.search then
                 h = head + 4   -- the search box alone, in the header row
@@ -3817,13 +3870,13 @@ local function BuildPopout()
             if fixed then
                 -- A fixed height: the step list, or the hits, scroll inside it.
                 self:SetHeight(fixed)
-                if not Route() and (self.hitCount or 0) > 0 then self:SetHitView(fixed - head - 12) end
+                if hits then self:SetHitView(fixed - head - (Route() and line or 0) - 12) end
                 local avail = fixed - (head + line + 12)
                 self.list:SetHeight(mmax(1, math.min(self.contentHeight or 0, avail)))
                 self.list:SetClipsChildren(true)
             else
                 self:SetHeight(mmax(60, h))
-                if not Route() and (self.hitCount or 0) > 0 then self:SetHitView(HIT_ROWS * ROW_H) end
+                if hits then self:SetHitView(HIT_ROWS * ROW_H) end
                 self.list:SetClipsChildren(false)
                 self.scrollOffset = 0
             end
