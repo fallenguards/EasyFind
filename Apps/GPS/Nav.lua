@@ -45,6 +45,7 @@ local function Pause()
     local co = Nav.yieldCo
     if co and Nav.sliceEnd and corunning() == co and debugprofilestop() > Nav.sliceEnd then coyield() end
 end
+Nav.Pause = Pause
 
 -- Unpacking -----------------------------------------------------------------
 
@@ -521,6 +522,7 @@ local function Entrances(w)
     local e = { n = n, key = {}, floor = {}, x = {}, y = {} }
     local N, cell = w.N, w.cell
     for k = 1, 2 * n do
+        if k % 4096 == 0 then Pause() end
         local key, f, c = u(), u(), u()
         local tx, ty = mfloor(key / 64), key % 64
         e.key[k], e.floor[k] = key, f
@@ -703,6 +705,7 @@ local function Ground(w)
     local u = Reader(Unpack(s))
     local out = {}
     for e = 1, u() do
+        if e % 8192 == 0 then Pause() end
         local gr = u()
         out[2 * e - 1], out[2 * e] = gr, gr
     end
@@ -1083,11 +1086,14 @@ local function TilePath(w, t, a, b, out, acc)
         if not (out[#out - 1] == x and out[#out] == y) then out[#out + 1], out[#out + 2] = x, y end
     end
     emit(cells[1])
+    local bends = 0
     while i < #cells do
         local j = i + 1
         while j < #cells and Clear(w, t, cells[i], cells[j + 1]) do j = j + 1 end
         emit(cells[j])
         i = j
+        bends = bends + 1
+        if bends % 8 == 0 then Pause() end
     end
     return true
 end

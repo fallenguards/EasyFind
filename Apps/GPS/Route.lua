@@ -9,6 +9,13 @@ local Route = {}
 ns.GPSRoute = Route
 
 local msqrt, mmax, mhuge, mfloor = math.sqrt, math.max, math.huge, math.floor
+
+-- Inside the planner's slices the solver gives the frame back where the
+-- walking grid's searches do (Nav.lua); anywhere else it runs through.
+local function Pause()
+    local Nav = ns.GPSNav
+    if Nav and Nav.Pause then Nav.Pause() end
+end
 local tinsert, tsort, tconcat = table.insert, table.sort, table.concat
 local sformat = string.format
 
@@ -261,7 +268,7 @@ local function BuildGraph(ctx)
         travelSpeed = travelSpeed, mountUp = mountUp, waitAt = ctx.waitAt,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
-        walkSec = {}, walkWind = {}, least = {},
+        walkSec = {}, walkWind = {}, least = {}, travel = {}, rides = {},
         data = data,
     }
 end
@@ -394,70 +401,63 @@ local function TimeWalks(g, steps, start)
     end
 end
 
--- noWalk: arrived on foot, so no walk on from here; t: seconds from now
--- when node i is reached (a timed boat's wait hangs on it).
-local function Neighbors(g, i, out, noWalk, t)
-    local n = g.nodes[i]
-    local k = 0
-    -- Travel to everything on the same continent and landmass; a walk not
-    -- yet priced on the walking grid costs the least it can.
-    local same = not noWalk and g.byCi[n.p.ci]
-    if same then
-        local walkSec, bound = g.walkSec, g.nav and 1
-        for j = 1, #same do
-            local idx = same[j]
-            -- The walking grid knows what joins; without it, the landmass.
-            if idx ~= i and (g.nav or g.nodes[idx].land == n.land) then
-                k = k + 1
-                local key = i * WALK_KEY + idx
-                local sec = walkSec[key]
-                out[k] = { to = idx, sec = sec or TravelCost(g, LeastYards(g, i, idx), bound), kind = "travel",
-                           wind = sec and g.walkWind[key] or nil }
-            end
-        end
+-- The travel edge from node i to j, one table per pair for the graph's
+-- life, its seconds those of this visit.
+local function TravelEdge(g, i, j, sec, wind)
+    local key = i * WALK_KEY + j
+    local e = g.travel[key]
+    if not e then
+        e = { to = j, kind = "travel" }
+        g.travel[key] = e
     end
+    e.sec, e.wind = sec, wind
+    return e
+end
+
+-- Node i's rides, made once per graph: its flight legs, its crossings
+-- and, from the start, the teleports.
+local function Rides(g, i)
+    local out = g.rides[i]
+    if out then return out end
+    out = {}
     local legs = g.legs[i]
-    if legs then
-        for j = 1, #legs do
-            k = k + 1
-            out[k] = { to = legs[j].to, sec = BOARD_TAXI + legs[j].sec, pen = legs[j].pen, kind = "taxi" }
-        end
+    for j = 1, legs and #legs or 0 do
+        out[#out + 1] = { to = legs[j].to, sec = BOARD_TAXI + legs[j].sec, pen = legs[j].pen, kind = "taxi" }
     end
     local hops = g.hops[i]
-    if hops then
-        for j = 1, #hops do
-            k = k + 1
-            local h = hops[j]
-            local sec, wait = h.sec, nil
-            if h.timed and not h.reverse then
-                wait = g.waitAt(h.edge.route, h.edge.stop, t or 0)
-                if wait then sec = h.sec - (h.edge.wait or 0) + wait end
-            end
-            out[k] = { to = h.to, sec = sec, pen = h.pen, kind = h.edge.kind, edge = h.edge,
-                       reverse = h.reverse, hostile = h.hostile, liveWait = wait }
-        end
+    for j = 1, hops and #hops or 0 do
+        local h = hops[j]
+        out[#out + 1] = { to = h.to, sec = h.sec, pen = h.pen, kind = h.edge.kind, edge = h.edge,
+                          reverse = h.reverse, hostile = h.hostile, hop = (h.timed and not h.reverse) and h or nil }
     end
     if i == g.start then
         for j = 1, #g.teleports do
-            k = k + 1
-            out[k] = { to = g.teleports[j].to, sec = g.teleports[j].sec, pen = g.teleports[j].pen, kind = "teleport",
-                       ability = g.teleports[j].ability }
+            local tp = g.teleports[j]
+            out[#out + 1] = { to = tp.to, sec = tp.sec, pen = tp.pen, kind = "teleport", ability = tp.ability }
         end
     end
-    return k
+    g.rides[i] = out
+    return out
 end
 
 -- State s is node s reached any way but on foot, s + n node s reached on
 -- foot: no walk follows a walk, so stops never chain across a mountain.
+-- From a node reached any other way, travel to everything on the same
+-- continent (and landmass, without the walking grid); a walk not yet
+-- priced on the grid costs the least it can. A timed crossing's wait
+-- hangs on when its dock is reached: its edge is made for the visit.
 local function Dijkstra(g)
     local n = #g.nodes
+    local nodes, walkSec, walkWind, nav = g.nodes, g.walkSec, g.walkWind, g.nav
+    local bound = nav and 1
     local dist, prev, prevEdge, done = {}, {}, {}, {}
     dist[g.start] = 0
     local heap = NewHeap()
     heap:Push(0, g.start)
-    local scratch = {}
-    local reached
+    local reached, pops = nil, 0
     while true do
+        pops = pops + 1
+        if pops % 32 == 0 then Pause() end
         local best, bestD = heap:Pop()
         if not best then break end
         -- An entry outdone since it was pushed is passed over.
@@ -469,10 +469,35 @@ local function Dijkstra(g)
                 break
             end
             done[best] = true
-            local count = Neighbors(g, i, scratch, onFoot, bestD)
-            for j = 1, count do
-                local e = scratch[j]
-                local to = e.kind == "travel" and e.to + n or e.to
+            if not onFoot then
+                local node = nodes[i]
+                local same, land = g.byCi[node.p.ci], node.land
+                for j = 1, same and #same or 0 do
+                    local idx = same[j]
+                    if idx ~= i and (nav or nodes[idx].land == land) then
+                        local key = i * WALK_KEY + idx
+                        local priced = walkSec[key]
+                        local sec = priced or TravelCost(g, LeastYards(g, i, idx), bound)
+                        local nd = bestD + sec
+                        local to = idx + n
+                        if nd < (dist[to] or mhuge) then
+                            dist[to], prev[to] = nd, best
+                            prevEdge[to] = TravelEdge(g, i, idx, sec, priced and walkWind[key] or nil)
+                            heap:Push(nd, to)
+                        end
+                    end
+                end
+            end
+            local rides = Rides(g, i)
+            for j = 1, #rides do
+                local e = rides[j]
+                local h = e.hop
+                if h then
+                    local wait = g.waitAt(h.edge.route, h.edge.stop, bestD)
+                    e = { to = e.to, sec = wait and (h.sec - (h.edge.wait or 0) + wait) or h.sec, pen = e.pen,
+                          kind = e.kind, edge = e.edge, hostile = e.hostile, liveWait = wait }
+                end
+                local to = e.to
                 local nd = bestD + e.sec + (e.pen or 0)
                 if nd < (dist[to] or mhuge) then
                     dist[to], prev[to], prevEdge[to] = nd, best, e
@@ -835,6 +860,7 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
     -- Each trip with unpriced walks first: the most it could save.
     local trips = {}
     for i = 1, mmax(0, math.min(#cands, SUGGEST_CANDIDATES)) do
+        Pause()
         local c = cands[i]
         known[c.id] = true
         local g2 = BuildGraph(trial)
