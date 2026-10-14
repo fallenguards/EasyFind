@@ -7005,7 +7005,7 @@ function Utils.ClickButton(btn, mouseButton)
     if (okD and onDown) or (okU and onUp) then
         local ok = true
         if okD and onDown then ok = xpcall(onDown, ErrorHandler, btn, mouseButton) end
-        if ok and okU and onUp then ok = xpcall(onUp, ErrorHandler, btn, mouseButton) end
+        if ok and okU and onUp then ok = xpcall(onUp, ErrorHandler, btn, mouseButton, true) end
         if ok then return true end
     end
     return false

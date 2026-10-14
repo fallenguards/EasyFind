@@ -2031,7 +2031,11 @@ function Highlight:IsTabSelected(frameName, tabIndex)
                 local tab = ns.Caps.CollectionsTab(tabIndex)
                 if tab and tab.GetID then want = tab:GetID() end
             end
-            return PanelTemplates_GetSelectedTab(frame) == want
+            -- The journal's own getter: the classic-rules client keeps the
+            -- selection on its TabContainer, not on the frame.
+            local current = CollectionsJournal_GetTab and CollectionsJournal_GetTab(frame)
+                or PanelTemplates_GetSelectedTab(frame)
+            return current == want
         end
         return false
     end

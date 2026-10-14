@@ -99,7 +99,7 @@ read_globals = {
     "GetSpellInfo", "GetItemInfo", "UseToyByItemID", "GetItemClassInfo", "CreateAtlasMarkup",
     "GetSpellLink", "GetAchievementLink",
     "GetMacroSpell", "GetMacroItem",
-    "PanelTemplates_GetSelectedTab",
+    "PanelTemplates_GetSelectedTab", "CollectionsJournal_GetTab", "C_HeirloomInfo",
 
     -- Frames and UI objects
     "UIParent", "GameTooltip", "WorldMapFrame", "WorldFrame", "Minimap", "MinimapCluster",

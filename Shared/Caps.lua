@@ -95,27 +95,21 @@ Caps.achievements = rule("AchievementsPanelDisabled") ~= true
     and type(GetCategoryList) == "function"
     and Caps.PanelEnabled("Blizzard_AchievementUI")
     and not Caps.forever   -- the panel loads and is a shell; no toggle binding exists
--- Forever draws the Appearances tab over a wardrobe that holds nothing,
--- and asking it for a category does not fail, it takes the client down:
--- GetCategoryAppearances aborts on BC_ASSERT(m_has_value), a C++ assert
--- that pcall cannot catch (measured 2026-09-18, crash 1FC77402, and the
--- same assert behind a player report). Nothing here may touch the
--- wardrobe on that client, so the whole system is off.
+-- Forever's client took itself down on our wardrobe category call, a
+-- C++ assert pcall cannot catch (2026-09-18, crash 1FC77402, and a player
+-- report): the call went without the transmog location the client's own
+-- wardrobe passes. Off there until that call is seen safe.
 Caps.transmog = rule("TransmogEnabled") ~= false
     and C_TransmogCollection ~= nil
     and not Caps.forever
--- Forever's collections journal hides the mount, pet, toy and heirloom
--- tabs (only Appearances shows), so the journal rows have nowhere to go.
-Caps.mounts = C_MountJournal ~= nil and C_MountJournal.GetMountIDs ~= nil and not Caps.forever
--- Pets, toys, heirlooms, currencies: the API stays even when the game has
--- none, so the count of everything the game knows is the answer.
-do
-    local total = C_PetJournal and C_PetJournal.GetNumPets and select(2, call(C_PetJournal.GetNumPets))
-    Caps.pets = rule("PetBattlesDisabled") ~= true and C_PetJournal ~= nil and not Caps.forever
-    Caps.petCountKnown = total
-end
-Caps.toys = C_ToyBox ~= nil and not Caps.forever
-Caps.heirlooms = C_Heirloom ~= nil and not Caps.forever
+-- The journal's own tab rule shows mounts, pets and toys wherever the
+-- journal loads, and heirlooms only where the game has them.
+Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
+Caps.mounts = Caps.collectionsUI and C_MountJournal ~= nil and C_MountJournal.GetMountIDs ~= nil
+Caps.pets = Caps.collectionsUI and rule("PetBattlesDisabled") ~= true and C_PetJournal ~= nil
+Caps.toys = Caps.collectionsUI and C_ToyBox ~= nil
+Caps.heirlooms = Caps.collectionsUI and C_Heirloom ~= nil
+    and (C_HeirloomInfo == nil or call(C_HeirloomInfo.HeirloomsAvailable) ~= false)
 Caps.currencies = C_CurrencyInfo ~= nil and not Caps.forever
 Caps.warbandBank = C_Bank ~= nil and C_Bank.FetchPurchasedBankTabData ~= nil and not Caps.forever
 Caps.classTalents = C_ClassTalents ~= nil and C_Traits ~= nil
@@ -136,7 +130,6 @@ Caps.campsites = C_WarbandScene ~= nil and not Caps.forever
 Caps.warbandRep = C_Reputation ~= nil and C_Reputation.IsAccountWideReputation ~= nil and not Caps.forever
 Caps.pvpUI = Caps.PanelEnabled("Blizzard_PVPUI")
 Caps.groupFinder = Caps.PanelEnabled("Blizzard_GroupFinder")
-Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
 
 -- Which panel a UI entry's steps open, by the frame they wait for, and
 -- which micro button stands for which binding: a UI entry is offered only
@@ -238,23 +231,21 @@ local COLLECTIONS_TAB_LABEL = {
     [4] = "HEIRLOOMS", [5] = "WARDROBE", [6] = "WARBAND_SCENES",
 }
 
--- The live collections tab control for a retail tab number, or nil.
+-- The live collections tab control for a retail tab number, or nil. The
+-- classic-rules journal keeps its tabs unnamed in its TabContainer, each
+-- carrying the tooltip text of the tab it stands for.
 function Caps.CollectionsTab(tabIndex)
     local direct = _G["CollectionsJournalTab" .. tostring(tabIndex)]
-    if not Caps.forever then return direct end
+    if direct or not Caps.forever then return direct end
+    local container = CollectionsJournal and CollectionsJournal.TabContainer
+    local tabs = container and container.Tabs
+    if not tabs then return nil end
     local key = COLLECTIONS_TAB_LABEL[tabIndex]
     local want = key and _G[key]
-    if not want then return direct end
-    local hidden
-    for i = 1, 12 do
-        local tab = _G["CollectionsJournalTab" .. i]
-        if not tab then break end
-        if tab.GetText and tab:GetText() == want then
-            if not tab.IsShown or tab:IsShown() then return tab end
-            hidden = hidden or tab
-        end
+    for i = 1, #tabs do
+        if want and tabs[i].tooltipText == want then return tabs[i] end
     end
-    return hidden
+    return tabs[tabIndex]
 end
 
 -- The live sidebar slot for a retail sidebar number, or nil. Blizzard
