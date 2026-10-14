@@ -3,7 +3,8 @@
 -- While the arrow follows a route, the game's own floating waypoint marker
 -- carries our beacon instead of its icon: a column of light rising from
 -- the spot, wisps streaming down it, the addon's emblem in flames where it
--- lands, and a small plate under it naming the step and how far it is.
+-- lands, and a small plate under it naming the step and how far it is
+-- (under the character's arrow instead while that shows).
 -- Our own art, in the companion's textures folder. The game keeps placing
 -- and fading its marker; only its face changes. Off the screen, our arrow
 -- at the edge points the way.
@@ -142,20 +143,20 @@ end
 -- The plate reads on any theme: on a light theme the menu look is pale
 -- and its light text vanishes, so the plate takes the darker fill the
 -- settings columns use on light themes, with the theme's dark text.
-local function PaintPlate()
-    if not plate then return end
+local plates = {}   -- the beacon's and the arrow's
+local function PaintPlate(p)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     local light = theme and theme.lightTheme
     if light then
         local fill = ns.PANEL_CARD_FILL or { 0.5, 0.5, 0.45 }
-        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(plate, fill[1], fill[2], fill[3], 0.96) end
+        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(p, fill[1], fill[2], fill[3], 0.96) end
         local main = theme.leafColor or { 0.2, 0.2, 0.1 }
         local faint = theme.textFaint or main
-        plate.text:SetTextColor(main[1], main[2], main[3], 1)
-        plate.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
+        p.text:SetTextColor(main[1], main[2], main[3], 1)
+        p.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
     else
-        if ns.TEXT_PRIMARY then plate.text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
-        if ns.TEXT_DIM then plate.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
+        if ns.TEXT_PRIMARY then p.text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
+        if ns.TEXT_DIM then p.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
     end
 end
 
@@ -167,12 +168,88 @@ local function Repaint()
         if p.f then c = dim(c, p.f) end
         p.tex:SetVertexColor(c[1], c[2], c[3], p.a)
     end
-    PaintPlate()
+    for i = 1, #plates do PaintPlate(plates[i]) end
 end
 
 -- The arrow at the character wears the beacon's colors too.
 WorldPin.Tint = Tint
 if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Repaint) end
+
+-- A plate in the addon's menu look: the step, then the distance and the
+-- time left. Under the beacon, or under the arrow while it shows.
+function WorldPin.NewPlate(parent)
+    local p = CreateFrame("Frame", nil, parent)
+    if ns.StyleMenuPanel then ns.StyleMenuPanel(p) end
+    local font = (ns.LEAF_FONT and _G[ns.LEAF_FONT]) and ns.LEAF_FONT or "GameFontHighlight"
+    local text = p:CreateFontString(nil, "OVERLAY", font)
+    text:SetPoint("TOP", p, "TOP", 0, -6)
+    text:SetJustifyH("CENTER")
+    text:SetWordWrap(false)
+    text._efOwnColor = true
+    p.text = text
+    local sub = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    sub:SetPoint("TOP", text, "BOTTOM", 0, -2)
+    sub:SetJustifyH("CENTER")
+    sub:SetWordWrap(false)
+    sub._efOwnColor = true
+    p.sub = sub
+    -- The menu styling refills the plate each time it shows; paint ours
+    -- after it, every time.
+    p:HookScript("OnShow", PaintPlate)
+    PaintPlate(p)
+    plates[#plates + 1] = p
+    -- A right-click: clear the route, or bring the window up when nothing
+    -- on screen shows the route yet. The menu at the cursor.
+    local menuAnchor = CreateFrame("Frame", nil, p)
+    menuAnchor:SetSize(1, 1)
+    p:EnableMouse(true)
+    p:SetScript("OnMouseUp", function(_, button)
+        if button ~= "RightButton" or not (ns.ShowTogglePopup and ns.GPS) then return end
+        local L = ns.L
+        local cx, cy = GetCursorPosition()
+        local scale = UIParent:GetEffectiveScale()
+        menuAnchor:ClearAllPoints()
+        menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
+        local defs = {}
+        if not (ns.GPS.IsWindowOpen and ns.GPS:IsWindowOpen()) then
+            defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:TogglePopout(true) end }
+        end
+        defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
+        ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})
+    end)
+    return p
+end
+
+-- New lines on a plate, sized to them; the same again does nothing.
+function WorldPin.FillPlate(p, text, sub)
+    if text == p.shownText and sub == p.shownSub then return end
+    p.shownText, p.shownSub = text, sub
+    p.text:SetText(text)
+    p.sub:SetText(sub)
+    local w = mmax(p.text:GetStringWidth() or 0, p.sub:GetStringWidth() or 0)
+    local inner = mmin(PLATE_MAX_W, mmax(60, w))
+    p.text:SetWidth(inner)
+    p.sub:SetWidth(inner)
+    p:SetSize(inner + 20, 6 + (p.text:GetStringHeight() or 12) + 2 + (p.sub:GetStringHeight() or 10) + 6)
+end
+
+-- The current step's line and the time left on the route.
+function WorldPin.StepLines(route)
+    local step = route.steps and route.steps[route.active or 1]
+    local text = (ns.GPS and ns.GPS.StepText) and ns.GPS.StepText(step, true) or (step and step.text or "")
+    local eta = ""
+    if route.eta and route.eta > 0 then eta = (ns.GPS and ns.GPS.EtaText) and ns.GPS.EtaText(route.eta) or (mfloor(route.eta) .. " s") end
+    return text, eta
+end
+
+-- Yards and the time left as the plate's second line.
+function WorldPin.RangeLine(yards, eta)
+    local range = ""
+    if yards and yards > 0 then
+        range = IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, mfloor(yards)) or (mfloor(yards) .. " yd")
+    end
+    return (range ~= "" and eta ~= "") and (range .. "   " .. eta) or (range ~= "" and range or eta)
+end
 
 -- ---------------------------------------------------------------------------
 -- Building it
@@ -457,49 +534,8 @@ local function Build(host)
     edge.pulse = pulse
     edge:Hide()
 
-    -- The plate under it all, in the addon's menu look: the step, then the
-    -- distance and the time left.
-    plate = CreateFrame("Frame", nil, frame)
-    if ns.StyleMenuPanel then ns.StyleMenuPanel(plate) end
+    plate = WorldPin.NewPlate(frame)
     plate:SetPoint("TOP", frame, "CENTER", 0, -44)
-    local font = (ns.LEAF_FONT and _G[ns.LEAF_FONT]) and ns.LEAF_FONT or "GameFontHighlight"
-    local text = plate:CreateFontString(nil, "OVERLAY", font)
-    text:SetPoint("TOP", plate, "TOP", 0, -6)
-    text:SetJustifyH("CENTER")
-    text:SetWordWrap(false)
-    if ns.TEXT_PRIMARY then text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
-    text._efOwnColor = true
-    plate.text = text
-    local sub = plate:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    sub:SetPoint("TOP", text, "BOTTOM", 0, -2)
-    sub:SetJustifyH("CENTER")
-    sub:SetWordWrap(false)
-    if ns.TEXT_DIM then sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
-    sub._efOwnColor = true
-    plate.sub = sub
-    -- The menu styling refills the plate each time it shows; paint ours
-    -- after it, every time.
-    plate:HookScript("OnShow", PaintPlate)
-    PaintPlate()
-    -- A right-click on the plate: clear the route, or bring the window up
-    -- when nothing on screen shows the route yet. The menu at the cursor.
-    local menuAnchor = CreateFrame("Frame", nil, plate)
-    menuAnchor:SetSize(1, 1)
-    plate:EnableMouse(true)
-    plate:SetScript("OnMouseUp", function(_, button)
-        if button ~= "RightButton" or not (ns.ShowTogglePopup and ns.GPS) then return end
-        local L = ns.L
-        local cx, cy = GetCursorPosition()
-        local scale = UIParent:GetEffectiveScale()
-        menuAnchor:ClearAllPoints()
-        menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
-        local defs = {}
-        if not (ns.GPS.IsWindowOpen and ns.GPS:IsWindowOpen()) then
-            defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:TogglePopout(true) end }
-        end
-        defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
-        ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})
-    end)
     frame:Hide()
 end
 
@@ -552,16 +588,6 @@ end
 -- Every pass
 -- ---------------------------------------------------------------------------
 
-local function Layout()
-    local text, sub = plate.text, plate.sub
-    local w = mmax(text:GetStringWidth() or 0, sub:GetStringWidth() or 0)
-    local inner = mmin(PLATE_MAX_W, mmax(60, w))
-    text:SetWidth(inner)
-    sub:SetWidth(inner)
-    local h = 6 + (text:GetStringHeight() or 12) + 2 + (sub:GetStringHeight() or 10) + 6
-    plate:SetSize(inner + 20, h)
-end
-
 -- Far away the beam stands full height; close by it shrinks, so it never
 -- fills the screen over the spot you are standing on. Eased a little on
 -- every pass, never stepped.
@@ -585,7 +611,7 @@ local function HideFace(host)
     styledHost, restyleAt = host, now + 1
 end
 
-local plateAt, plateText, plateSub   -- what the plate was last given
+local plateAt   -- where the plate was last placed
 
 local function PlacePlate(at)
     if at == plateAt then return end
@@ -649,22 +675,12 @@ local function Update(dt)
     else
         PlacePlate("under")
     end
-    plate:Show()
-    local step = route.steps and route.steps[route.active or 1]
-    local text = (ns.GPS and ns.GPS.StepText) and ns.GPS.StepText(step, true) or (step and step.text or "")
+    -- The arrow carries the plate while it shows.
+    plate:SetShown(not led)
     local d = C_Navigation and C_Navigation.GetDistance and C_Navigation.GetDistance() or 0
-    local range = ""
-    if d and d > 0 then
-        range = IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, mfloor(d)) or (mfloor(d) .. " yd")
-    end
-    local eta = ""
-    if route.eta and route.eta > 0 then eta = (ns.GPS and ns.GPS.EtaText) and ns.GPS.EtaText(route.eta) or (mfloor(route.eta) .. " s") end
-    local sub = (range ~= "" and eta ~= "") and (range .. "   " .. eta) or (range ~= "" and range or eta)
-    if text ~= plateText or sub ~= plateSub then
-        plateText, plateSub = text, sub
-        plate.text:SetText(text)
-        plate.sub:SetText(sub)
-        Layout()
+    if not led then
+        local text, eta = WorldPin.StepLines(route)
+        WorldPin.FillPlate(plate, text, WorldPin.RangeLine(d, eta))
     end
     Resize(d, dt or THROTTLE)
 end

@@ -2,7 +2,8 @@
 --
 -- While a route is followed, an arrow under the character points the way
 -- on foot as it runs: at a spot a little ahead along the walk, so it turns
--- with every bend, with the yards left on the walk under it. A few yards
+-- with every bend, with the step, the yards left on the walk and the time
+-- left in the beacon's plate under it. A few yards
 -- beside the walk it leads alongside it, not back onto it, where nothing
 -- stands between. At a ride's boarding spot it points there; on board, and
 -- where the game gives no facing (instances), it rests. Shift-drag moves it.
@@ -11,8 +12,7 @@ if not ns then return end
 local Arrow = {}
 ns.GPSArrow = Arrow
 
-local mmax, mmin, matan2, mpi, mfloor = math.max, math.min, math.atan2 or math.atan, math.pi, math.floor
-local sformat = string.format
+local mmax, mmin, matan2, mpi = math.max, math.min, math.atan2 or math.atan, math.pi
 
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 local SIZE = 44
@@ -22,9 +22,8 @@ local LANE = 10                -- yards beside the walk still walked alongside i
 local AT_RIDE = 60             -- yards from a ride's boarding spot: still pointing at it
 local THROTTLE = 0.03
 
-local frame, art, label, driver
+local frame, art, plate, driver
 local since = 0
-local shownYards
 local aimCi                    -- the continent the last aim was taken on
 
 local function DB() return EasyFind and EasyFind.db end
@@ -103,23 +102,36 @@ local function Build()
     art:SetAllPoints(frame)
     art:SetTexture(TEX_ARROW)
     ns.GPSWorldPin.Tint(art, "arrow", 1)
-    label = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("TOP", frame, "BOTTOM", 0, -2)
-    -- Clicks pass through to the world, unless Shift is held to move it.
-    frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
+    plate = ns.GPSWorldPin.NewPlate(frame)
+    plate:SetPoint("TOP", frame, "BOTTOM", 0, -2)
+    plate:RegisterForDrag("LeftButton")
+    -- Clicks pass through to the world, unless Shift is held to move it
+    -- (by the arrow or its plate) or to right-click the plate's menu.
+    local function DragStart() frame:StartMoving() end
+    local function DragStop()
+        frame:StopMovingOrSizing()
         SavePlace()
-    end)
-    frame:SetScript("OnEvent", function(self) self:EnableMouse(IsShiftKeyDown()) end)
+    end
+    local function TakeMouse()
+        local shift = IsShiftKeyDown()
+        frame:EnableMouse(shift)
+        plate:EnableMouse(shift)
+    end
+    frame:SetScript("OnDragStart", DragStart)
+    frame:SetScript("OnDragStop", DragStop)
+    plate:SetScript("OnDragStart", DragStart)
+    plate:SetScript("OnDragStop", DragStop)
+    frame:SetScript("OnEvent", TakeMouse)
     frame:SetScript("OnShow", function(self)
         self:RegisterEvent("MODIFIER_STATE_CHANGED")
-        self:EnableMouse(IsShiftKeyDown())
+        TakeMouse()
     end)
     frame:SetScript("OnHide", function(self)
         self:UnregisterEvent("MODIFIER_STATE_CHANGED")
         self:EnableMouse(false)
+        plate:EnableMouse(false)
     end)
+    plate:EnableMouse(false)
     frame:Hide()
 end
 
@@ -134,11 +146,9 @@ local function Update()
     if not frame then Build() end
     -- Facing turns from north toward west too; the art points down at rest.
     art:SetRotation(bearing - facing + mpi)
-    local yards = mfloor(left)
-    if yards ~= shownYards then
-        shownYards = yards
-        label:SetText(IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, yards) or (yards .. " yd"))
-    end
+    local Pin = ns.GPSWorldPin
+    local text, eta = Pin.StepLines(Route())
+    Pin.FillPlate(plate, text, Pin.RangeLine(left, eta))
     frame:Show()
 end
 
