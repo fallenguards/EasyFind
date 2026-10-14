@@ -3939,9 +3939,67 @@ local function BuildOptionsPage(ctx, page)
         end,
         "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
     lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
+    -- The lines' colors: a swatch per way of travel, the theme's beacon
+    -- color until one is picked, and again on a right-click.
+    local colorHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    colorHead:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 8, -8)
+    colorHead:SetText(L["GPS_LINE_COLORS"])
+    local prevRow = colorHead
+    local ways = { { "walk", L["GPS_LINE_WALK"] }, { "taxi", L["GPS_AVOID_TAXI"] }, { "boat", L["GPS_AVOID_BOAT"] },
+                   { "zeppelin", L["GPS_AVOID_ZEPPELIN"] }, { "tram", L["GPS_LINE_TRAM"] } }
+    local swatches = {}
+    local function PaintSwatches()
+        local Preview = ns.GPSPreview
+        for i = 1, #swatches do
+            local c = Preview and Preview.LineColor(swatches[i].kind) or ns.GOLD_COLOR
+            swatches[i].fill:SetColorTexture(c[1], c[2], c[3], 1)
+        end
+    end
+    for _, way in ipairs(ways) do
+        local kind, label = way[1], way[2]
+        local wrow = CreateFrame("Frame", nil, page)
+        wrow:SetSize(ctx.SELECTOR_ROW_W, 22)
+        wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", prevRow == colorHead and -8 or 0, prevRow == colorHead and -4 or 0)
+        local text = wrow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        text:SetPoint("LEFT", wrow, "LEFT", 8, 0)
+        text:SetText(label)
+        local swatch = CreateFrame("Button", nil, wrow)
+        swatch:SetSize(18, 18)
+        swatch:SetPoint("LEFT", wrow, "RIGHT", -ctx.SELECTOR_BTN_W - 18, 0)
+        swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        if ns.CreateRoundedRectBorder then ns.CreateRoundedRectBorder(swatch) end
+        local fill = swatch:CreateTexture(nil, "ARTWORK")
+        fill:SetPoint("TOPLEFT", 2, -2)
+        fill:SetPoint("BOTTOMRIGHT", -2, 2)
+        swatch.fill, swatch.kind = fill, kind
+        swatches[#swatches + 1] = swatch
+        local function Changed()
+            PaintSwatches()
+            if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
+        end
+        swatch:SetScript("OnClick", function(_, button)
+            local db = DB()
+            if not db then return end
+            if button == "RightButton" then
+                if db.gpsLineColors then db.gpsLineColors[kind] = nil end
+                Changed()
+                return
+            end
+            local c = ns.GPSPreview and ns.GPSPreview.LineColor(kind) or ns.GOLD_COLOR
+            if not ns.PickColor then return end
+            ns.PickColor(c[1], c[2], c[3], function(r, g, b)
+                db.gpsLineColors = db.gpsLineColors or {}
+                db.gpsLineColors[kind] = { r, g, b }
+                Changed()
+            end)
+        end)
+        Utils.AttachDelayedTooltip(swatch, "ANCHOR_RIGHT", function() return label, L["GPS_LINE_COLOR_TT"] end)
+        prevRow = wrow
+    end
+    PaintSwatches()
     if not ctx.CreateCheckbox then return end
     local arrow = ctx.CreateCheckbox(page, "GPSArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], true)
-    arrow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -6)
+    arrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 0, -6)
     local d0 = DB()
     arrow:SetChecked(not (d0 and d0.gpsArrow == false))
     if arrow.RefreshVisual then arrow:RefreshVisual() end

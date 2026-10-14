@@ -48,7 +48,7 @@ local function fresh()
     ns.GPSPreview = {
         NewLines = function() return lines end,
         Span = function() return 10 end,
-        PASSED_COLOR = PASSED, PASSED_ALPHA = 0.5, MODE_COLOR = {}, ROUTE_BLUE = BLUE,
+        PASSED_COLOR = PASSED, PASSED_ALPHA = 0.5, LineColor = function() return BLUE end,
     }
     H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Minimap.lua", env, ns)

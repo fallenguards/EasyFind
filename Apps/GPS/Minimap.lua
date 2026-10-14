@@ -149,7 +149,7 @@ local function Draw()
     view.square = GetMinimapShape and GetMinimapShape() == "SQUARE"
     view.rim = half - span / 2 - 1
     local Preview = ns.GPSPreview
-    local passed, passedAlpha, modes = Preview.PASSED_COLOR, Preview.PASSED_ALPHA, Preview.MODE_COLOR
+    local passed, passedAlpha = Preview.PASSED_COLOR, Preview.PASSED_ALPHA
     local active = route.arrived and #route.steps + 1 or (route.active or 1)
     local f = Follow.Now()
     if f and not (f.route == route and f.path) then f = nil end
@@ -157,7 +157,7 @@ local function Draw()
     for i = 1, #route.steps do
         local step = route.steps[i]
         if step.kind ~= "teleport" then
-            local color = i < active and passed or modes[step.kind] or Preview.ROUTE_BLUE
+            local color = i < active and passed or Preview.LineColor(step.kind)
             local alpha = i < active and passedAlpha or ALPHA
             if f and i == f.index then
                 local pts, seg = f.path.pts, f.seg

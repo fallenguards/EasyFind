@@ -5975,6 +5975,36 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     return tag
 end
 
+-- The game's color picker on a color: onPick(r, g, b) with every change
+-- and on OK, onCancel() when it is put away unchanged.
+function ns.PickColor(r, g, b, onPick, onCancel)
+    local picker = ColorPickerFrame
+    if not (picker and picker.SetupColorPickerAndShow) then return false end
+    local function Read()
+        if picker.GetColorRGB then
+            local ok, rr, gg, bb = pcall(picker.GetColorRGB, picker)
+            if ok and type(rr) == "number" then return rr, gg, bb end
+        end
+        local inner = picker.Content and picker.Content.ColorPicker
+        if inner and inner.GetColorRGB then
+            local ok, rr, gg, bb = pcall(inner.GetColorRGB, inner)
+            if ok and type(rr) == "number" then return rr, gg, bb end
+        end
+        return r, g, b
+    end
+    picker:SetupColorPickerAndShow({
+        r = r, g = g, b = b, hasOpacity = false,
+        swatchFunc = function() onPick(Read()) end,
+        cancelFunc = function()
+            onPick(r, g, b)
+            if onCancel then onCancel() end
+        end,
+    })
+    if picker.SetFrameStrata then picker:SetFrameStrata("TOOLTIP") end
+    if picker.Raise then picker:Raise() end
+    return true
+end
+
 -- A superscript tag on a word: its foot on the middle of the text, just past
 -- the last letter, so it sits raised like an exponent.
 function ns.SuperscriptTag(tag, fontString)

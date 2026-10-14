@@ -26,19 +26,20 @@ local SYMBOL, WAY_SYMBOL = 20, 16  -- a step's end symbol; the whole route's, at
 local function px(v)
     return ns.UIToCanvas and ns.UIToCanvas(v) or v
 end
--- Blue, as routing maps draw a route (red reads as traffic or danger); each
--- ride in a hue the parchment does not use. Every line is a colored core on
--- a soft dark edge with a faint glow, so it reads over land and sea alike.
-local ROUTE_BLUE = { 0.25, 0.6, 1 }
-local MODE_COLOR = { taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 }, ferry = { 0.1, 0.8, 0.72 },
-                     zeppelin = { 0.72, 0.42, 1 }, skyship = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
+-- Every line is a colored core on a soft dark edge with a faint glow, so it
+-- reads over land and sea alike, in the theme's beacon color, or the color
+-- the GPS settings give its way of travel.
+local ROUTE_BLUE = { 0.25, 0.6, 1 }   -- without a theme
+local LINE_KINDS = { taxi = "taxi", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
+                     tram = "tram" }
 -- The part of the route already walked, faded so it does not read as the way.
 local PASSED_COLOR, PASSED_ALPHA = { 0.78, 0.8, 0.84 }, 0.45
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 local TEX_CORE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_core"
 local TEX_EDGE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_edge"
-local DEST = 26                    -- the destination's pin
+local DEST = 30                    -- the journey's end: the addon's emblem, centered on the spot
+local DEST_EDGE = 0.44             -- of its size: the line stops at the emblem's ring
 
 local overlay, lines, marks, syms
 local shownMap, shownIndex
@@ -50,9 +51,15 @@ local function Canvas()
     return WorldMapFrame and WorldMapFrame.ScrollContainer and WorldMapFrame.ScrollContainer.Child
 end
 
-local function Accent()
-    return ROUTE_BLUE
+-- The color a step of this kind is drawn in, on the world map and the minimap.
+function Preview.LineColor(kind)
+    local db = EasyFind and EasyFind.db
+    local own = db and db.gpsLineColors and db.gpsLineColors[LINE_KINDS[kind] or "walk"]
+    if own then return own end
+    local Pin = ns.GPSWorldPin
+    return Pin and Pin.ThemeBase and Pin.ThemeBase() or ROUTE_BLUE
 end
+Preview.LINE_KINDS = LINE_KINDS
 
 local function Build()
     local canvas = Canvas()
@@ -74,9 +81,9 @@ local function Build()
     -- A portal's, flight master's or dock's spot: the map's own symbol.
     marks.symbol = overlay:CreateTexture(nil, "OVERLAY", nil, 4)
     marks.symbol:Hide()
-    -- The journey's end: the GPS pin standing on it.
-    marks.dest = overlay:CreateTexture(nil, "OVERLAY", nil, 5)
-    marks.dest:SetTexture(ns.GPS_ICON_TEX)
+    -- The journey's end: the addon's emblem centered on it, the line
+    -- running up to its ring.
+    marks.dest = ns.GPSWorldPin.NewEmblem(overlay)
     marks.dest:Hide()
     syms = {}
     overlay:Hide()
@@ -220,15 +227,27 @@ function Lines:Strip()
 end
 
 -- A line through points (x, y pairs, m numbers), span wide, its bends cut
--- back up to round: points closer together than the line is wide add nothing.
+-- back up to round: points closer together than the line is wide add
+-- nothing. trim: pixels taken off its end, for a mark it runs into.
 local poly = {}
-function Lines:Line(src, m, span, round, color, alpha)
+function Lines:Line(src, m, span, round, color, alpha, trim)
     local gap, k = span * 0.4, 0
     for v = 1, m - 1, 2 do
         local x, y = src[v], src[v + 1]
         if k == 0 or v == m - 1 or msqrt((x - poly[k - 1]) ^ 2 + (y - poly[k]) ^ 2) >= gap then
             poly[k + 1], poly[k + 2] = x, y
             k = k + 2
+        end
+    end
+    local cut = trim or 0
+    while cut > 0 and k >= 4 do
+        local dx, dy = poly[k - 1] - poly[k - 3], poly[k] - poly[k - 2]
+        local l = msqrt(dx * dx + dy * dy)
+        if l > cut then
+            poly[k - 1], poly[k] = poly[k - 1] - dx / l * cut, poly[k] - dy / l * cut
+            cut = 0
+        else
+            cut, k = cut - l, k - 2
         end
     end
     if k < 4 then return end
@@ -266,7 +285,6 @@ function Lines:Hide()
 end
 
 Preview.PASSED_COLOR, Preview.PASSED_ALPHA = PASSED_COLOR, PASSED_ALPHA
-Preview.MODE_COLOR, Preview.ROUTE_BLUE = MODE_COLOR, ROUTE_BLUE
 Preview.Span = Span
 
 -- A step's point on the shown map, in canvas pixels, or nothing when it
@@ -399,14 +417,15 @@ Preview._OnMap = OnMap   -- tests
 local legPts = {}
 local pen = { n = 0 }
 
-local function PenUp()
-    if pen.n >= 4 then lines:Line(legPts, pen.n, pen.span, pen.round, pen.color, pen.alpha) end
+-- ended: the piece ends where the leg does, so its trim applies.
+local function PenUp(ended)
+    if pen.n >= 4 then lines:Line(legPts, pen.n, pen.span, pen.round, pen.color, pen.alpha, ended and pen.trim or 0) end
     pen.n = 0
 end
 
-local function Pen(color, alpha)
+local function Pen(color, alpha, trim)
     PenUp()
-    pen.color, pen.alpha, pen.x = color, alpha, nil
+    pen.color, pen.alpha, pen.trim, pen.x = color, alpha, trim, nil
 end
 
 local function PenTo(x, y)
@@ -474,15 +493,18 @@ local function Draw()
     dirty = false
     drawn.route, drawn.map, drawn.span, drawn.cw, drawn.ch = route, mapID, span, cw, ch
     drawn.shown, drawn.active, drawn.seg, drawn.qx, drawn.qy = shownIndex, active, f and f.seg, qx, qy
-    local accent = Accent()
+    local accent = Preview.LineColor("travel")
     local nSym = 0
     local hovered
     local lineW = span * 0.4
+    local last = #route.steps
+    -- The last leg stops at the emblem's ring on the journey's end.
+    local destTrim = px(DEST) * DEST_EDGE
     pen.span, pen.round, pen.cw, pen.ch, pen.n = span, round, cw, ch, 0
     lines:Begin()
     -- Index 0 is the whole route: every leg bright, one arrowhead at its end.
     local all = shownIndex == 0
-    for i = 1, #route.steps do
+    for i = 1, last do
         local step = route.steps[i]
         -- A teleport draws nothing: nothing is walked, and the legs after
         -- it start from where it lands.
@@ -492,22 +514,23 @@ local function Draw()
         local b = (not teleport) and OnCanvas(target, mapID) or nil
         if not teleport then
             local bright = all or i == shownIndex
-            local color, alpha = MODE_COLOR[step.kind] or accent, bright and 0.95 or 0.4
+            local color, alpha = Preview.LineColor(step.kind), bright and 0.95 or 0.4
             -- A leg already behind reads as walked, unless it is the one looked at.
             if i < active and not (i == shownIndex and not all) then color, alpha = PASSED_COLOR, PASSED_ALPHA end
+            local trim = i == last and destTrim or 0
             if f and i == f.index then
                 -- Cut where the player stands: the part walked faded.
                 local pts, seg = f.path.pts, f.seg
                 Pen(PASSED_COLOR, PASSED_ALPHA)
                 for v = 1, seg do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
                 PenTo(Frac(affine, f.qx, f.qy))
-                Pen(color, alpha)
+                Pen(color, alpha, trim)
                 PenTo(Frac(affine, f.qx, f.qy))
                 for v = seg + 1, #pts / 2 do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
             elseif affine then
                 -- Its way on foot for a walk, straight otherwise; drawn where
                 -- it lies on this map.
-                Pen(color, alpha)
+                Pen(color, alpha, trim)
                 local path, pci
                 if step.kind == "travel" then path, pci = WalkWorld(route, i, start, target) end
                 if path and pci == affine.ci then
@@ -525,7 +548,7 @@ local function Draw()
                 -- A map over more than one continent: its ends joined.
                 PenUp()
                 legPts[1], legPts[2], legPts[3], legPts[4] = a[1], a[2], b[1], b[2]
-                lines:Line(legPts, 4, span, round, color, alpha)
+                lines:Line(legPts, 4, span, round, color, alpha, trim)
             end
         end
         -- The whole route marks each change of ride with its symbol.
@@ -542,10 +565,10 @@ local function Draw()
             hovered.final = i == #route.steps
         elseif i == shownIndex then
             hovered = { a = a, b = b, target = target, step = step, symbol = SymbolOf(route, i),
-                        final = i == #route.steps, color = MODE_COLOR[step.kind] or accent }
+                        final = i == last, color = Preview.LineColor(step.kind) }
         end
     end
-    PenUp()
+    PenUp(true)
     lines:Finish()
     for i = nSym + 1, #syms do syms[i]:Hide() end
     -- The hovered leg's ends: a soft mark where it starts, our pin where
@@ -563,13 +586,12 @@ local function Draw()
     marks.dest:Hide()
     marks.stopCasing:Hide()
     if hovered and hovered.b and hovered.final then
-        -- The journey's end: the GPS pin with its tip on the spot.
+        -- The journey's end: the emblem centered on the spot.
         marks.stop:Hide()
         marks.symbol:Hide()
         marks.dest:ClearAllPoints()
         marks.dest:SetSize(px(DEST), px(DEST))
-        marks.dest:SetPoint("BOTTOM", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
-        marks.dest:SetVertexColor(unpack(ns.GOLD_COLOR))
+        marks.dest:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
         marks.dest:Show()
     elseif hovered and hovered.b and symbol then
         -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
@@ -679,6 +701,14 @@ function Preview:Reset()
     dirty = true
     if overlay then overlay:Hide() end
 end
+
+-- The theme or the line color settings changed: drawn again, here and on
+-- the minimap.
+function Preview.ColorsChanged()
+    dirty = true
+    if ns.GPSMinimap and ns.GPSMinimap.Refresh then ns.GPSMinimap:Refresh() end
+end
+if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Preview.ColorsChanged) end
 
 -- The canvas resizes with the zoom, the map changes under the drawing and
 -- the walked part grows: looked at while the map is open, drawn on change.

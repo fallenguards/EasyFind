@@ -140,6 +140,42 @@ local function Tint(tex, role, a, f)
     tex:SetVertexColor(c[1], c[2], c[3], a)
 end
 
+-- The theme's beacon color, for what should match the beacon.
+function WorldPin.ThemeBase() return Colors().wisp end
+
+-- The emblem's shape as a flat fill on host, at an offset: a mask of its
+-- own anchored where it sits.
+local function Shaped(host, dx, dy, sub, role, a, f, blend)
+    local m = host:CreateMaskTexture()
+    m:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetPoint("TOPLEFT", host, "TOPLEFT", dx, dy)
+    m:SetPoint("BOTTOMRIGHT", host, "BOTTOMRIGHT", dx, dy)
+    local t = host:CreateTexture(nil, "ARTWORK", nil, sub)
+    t:SetTexture(WHITE)
+    t:SetPoint("TOPLEFT", host, "TOPLEFT", dx, dy)
+    t:SetPoint("BOTTOMRIGHT", host, "BOTTOMRIGHT", dx, dy)
+    t:SetBlendMode(blend or "BLEND")
+    Tint(t, role, a, f)
+    t:AddMaskTexture(m)
+    return t, m
+end
+
+-- The addon's mark as the calm beacon wears it: the shape in relief with
+-- its rim lit and a soft glow behind, in the theme's colors, filling
+-- whatever size its frame is given. The map's journey's end wears it too.
+function WorldPin.NewEmblem(parent)
+    local seat = CreateFrame("Frame", nil, parent)
+    local glow = seat:CreateTexture(nil, "ARTWORK", nil, 1)
+    glow:SetTexture(TEX_FLARE)
+    glow:SetBlendMode("ADD")
+    glow:SetAllPoints(seat)
+    Tint(glow, "halo", 0.35)
+    Shaped(seat, 0.8, -1.2, 3, "extrude", 1)
+    Shaped(seat, 0, 0, 4, "face", 1)
+    Shaped(seat, -1, 1, 5, "rim", 0.5, nil, "ADD")
+    return seat
+end
+
 -- The plate reads on any theme: on a light theme the menu look is pale
 -- and its light text vanishes, so the plate takes the darker fill the
 -- settings columns use on light themes, with the theme's dark text.
@@ -428,28 +464,12 @@ local function Build(host)
     halo(EMBLEM * 1.7, "halo", 0.28, 3, -2, 9, 1)
     halo(EMBLEM * 1.4, "halo2", 0.24, -4, 3, 13, -1)
 
-    -- The emblem's shape as a flat fill at an offset: each needs a mask of
-    -- its own anchored where it sits.
-    local function shaped(dx, dy, sub, role, a, f, blend)
-        local m = orb:CreateMaskTexture()
-        m:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        m:SetPoint("TOPLEFT", orb, "TOPLEFT", dx, dy)
-        m:SetPoint("BOTTOMRIGHT", orb, "BOTTOMRIGHT", dx, dy)
-        local t = orb:CreateTexture(nil, "ARTWORK", nil, sub)
-        t:SetTexture(WHITE)
-        t:SetPoint("TOPLEFT", orb, "TOPLEFT", dx, dy)
-        t:SetPoint("BOTTOMRIGHT", orb, "BOTTOMRIGHT", dx, dy)
-        t:SetBlendMode(blend or "BLEND")
-        Tint(t, role, a, f)
-        t:AddMaskTexture(m)
-        return t, m
-    end
     -- Depth: the shape repeated below and to the right, darker each step,
     -- an extrusion the face sits on.
     for k = 4, 1, -1 do
-        shaped(k * 0.7, -k * 1.0, 3, "extrude", 1, 1 - k * 0.14)
+        Shaped(orb, k * 0.7, -k * 1.0, 3, "extrude", 1, 1 - k * 0.14)
     end
-    local _, faceMask = shaped(0, 0, 4, "face", 1)
+    local _, faceMask = Shaped(orb, 0, 0, 4, "face", 1)
 
     -- The fire inside the shape.
     local fire = CreateFrame("Frame", nil, orb)
@@ -463,7 +483,7 @@ local function Build(host)
         { { secs = 2.4, role = "fire", a = 1 }, { secs = 3.6, role = "fire2", a = 0.75 } }, 5)
 
     -- The lit edge of the relief, and the shape's own light, flickering.
-    shaped(-1, 1, 7, "rim", 0.45, nil, "ADD")
+    Shaped(orb, -1, 1, 7, "rim", 0.45, nil, "ADD")
     local shine = orb:CreateTexture(nil, "ARTWORK", nil, 7)
     shine:SetTexture(WHITE)
     shine:SetAllPoints(orb)
@@ -520,22 +540,9 @@ local function Build(host)
     glow:SetSize(CALM_EMBLEM * 1.6, CALM_EMBLEM * 1.6)
     glow:SetPoint("CENTER")
     Tint(glow, "halo", 0.3)
-    local function calmShape(dx, dy, sub, role, a, blend)
-        local m = seat:CreateMaskTexture()
-        m:SetTexture(TEX_EMBLEM, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        m:SetPoint("TOPLEFT", seat, "TOPLEFT", dx, dy)
-        m:SetPoint("BOTTOMRIGHT", seat, "BOTTOMRIGHT", dx, dy)
-        local t = seat:CreateTexture(nil, "ARTWORK", nil, sub)
-        t:SetTexture(WHITE)
-        t:SetPoint("TOPLEFT", seat, "TOPLEFT", dx, dy)
-        t:SetPoint("BOTTOMRIGHT", seat, "BOTTOMRIGHT", dx, dy)
-        t:SetBlendMode(blend or "BLEND")
-        Tint(t, role, a)
-        t:AddMaskTexture(m)
-    end
-    calmShape(0.8, -1.2, 3, "extrude", 1)
-    calmShape(0, 0, 4, "face", 1)
-    calmShape(-1, 1, 5, "rim", 0.5, "ADD")
+    Shaped(seat, 0.8, -1.2, 3, "extrude", 1)
+    Shaped(seat, 0, 0, 4, "face", 1)
+    Shaped(seat, -1, 1, 5, "rim", 0.5, nil, "ADD")
     calm:Hide()
 
     -- The pointer for when the spot is off the screen: the game clamps its
