@@ -415,7 +415,9 @@ local function DrawWalks(steps, start, all, zoneGoal)
         end
     end
     for i = 1, #steps do
-        if all or i == first or (zoneGoal and i == last) then DrawWalk(steps[i], i > 1 and steps[i - 1].arrive or start) end
+        if all or i == first or (zoneGoal and i == last) then
+            DrawWalk(steps[i], steps[i].from or (i > 1 and steps[i - 1].arrive) or start)
+        end
     end
 end
 
@@ -1397,7 +1399,8 @@ function Route.SplitWalks(steps, start, data, env)
     for i = 1, #steps do
         local step = steps[i]
         local pieces
-        if step.kind == "travel" then
+        -- A ghost's walk to its corpse stays one step, from where it released.
+        if step.kind == "travel" and not step.corpse then
             pieces = WalkPieces(step, i == 1 and start or steps[i - 1].arrive, data, env, i == 1)
         end
         if pieces then

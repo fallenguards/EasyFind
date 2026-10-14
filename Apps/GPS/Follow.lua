@@ -33,8 +33,11 @@ local function World(p)
 end
 Follow.World = World
 
--- Where step i starts: the step before's landing, or where the route was planned.
+-- Where step i starts: its own start (a ghost's walk, from where it
+-- released), the step before's landing, or where the route was planned.
 local function StartOf(route, i)
+    local own = route.steps[i] and route.steps[i].from
+    if own then return World(own) end
     if i > 1 then return World(route.steps[i - 1].arrive) end
     return World(route.from)
 end

@@ -306,6 +306,7 @@ end
 -- Where a step starts: the previous step's landing, or where the route was
 -- planned, or else the player.
 local function StartOf(route, i)
+    if route.steps[i] and route.steps[i].from then return route.steps[i].from end
     if i > 1 then return route.steps[i - 1].arrive end
     if route.from then return route.from end
     local get = ns.GPS and ns.GPS.PlayerWorldPos

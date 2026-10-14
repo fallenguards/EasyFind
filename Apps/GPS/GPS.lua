@@ -717,6 +717,69 @@ function GPS.Rerouted(route, via, steps, total, advice)
     TrackStep(1)
 end
 
+-- Dead on the way: released, the ghost is led to its corpse first, a step
+-- of its own before the one it was on; risen, that step goes and the
+-- route carries on from there.
+local function CorpsePoint()
+    local get = C_DeathInfo and C_DeathInfo.GetCorpseMapPosition
+    local mapID = get and C_Map.GetBestMapForUnit("player")
+    for _ = 1, 4 do
+        if not mapID then return nil end
+        local pos = get(mapID)
+        local x, y
+        if pos and pos.GetXY then x, y = pos:GetXY() elseif pos then x, y = pos.x, pos.y end
+        if x and (x ~= 0 or y ~= 0) then
+            local ci, wx, wy = WorldPos(mapID, x, y)
+            if ci then return { m = mapID, x = x, y = y, ci = ci, wx = wx, wy = wy } end
+        end
+        local info = C_Map.GetMapInfo(mapID)
+        mapID = info and info.parentMapID
+    end
+    return nil
+end
+
+-- The steps changed under the route: every surface starts afresh and the
+-- walks are drawn again from their new starts.
+local function StepsChanged(route, active)
+    if ns.GPSFollow then ns.GPSFollow.Reset() end
+    if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
+    TrackStep(active)
+    if GPS.AfterRoute then GPS.AfterRoute(true) end
+end
+
+local function LeadToCorpse()
+    local route = Route()
+    if not (route and route.steps and not route.arrived) then return end
+    local i = route.active or 1
+    if route.steps[i] and route.steps[i].corpse then return end
+    local p = CorpsePoint()
+    if not p then return end
+    local ci, px, py = PlayerWorldPos()
+    table.insert(route.steps, i, { kind = "travel", corpse = true, text = L["GPS_STEP_CORPSE"],
+                                   mapID = p.m, x = p.x, y = p.y, go = p, arrive = p, sec = 0,
+                                   from = ci and { ci = ci, wx = px, wy = py } or nil })
+    StepsChanged(route, i)
+end
+
+local function Risen()
+    local route = Route()
+    if not (route and route.steps) then return end
+    for i = 1, #route.steps do
+        if route.steps[i].corpse then
+            table.remove(route.steps, i)
+            local active = route.active or 1
+            if active > i then active = active - 1 end
+            if route.steps[active] then StepsChanged(route, active) else Arrive(route) end
+            return
+        end
+    end
+end
+
+local function GhostOrRisen()
+    if UnitIsGhost("player") then LeadToCorpse() else Risen() end
+end
+GPS.LeadToCorpse, GPS.Risen = LeadToCorpse, Risen   -- dev tools
+
 local function Tick()
     local route = Route()
     if not route or route.arrived then StopTicker() return end
@@ -738,6 +801,12 @@ local function Tick()
         route.eta = RemainingSeconds(route)
         UpdateEtaText(route)
     end
+    -- A ghost without its corpse leg (the route rewritten under it), or a
+    -- risen player still carrying one: put right here, every second. A
+    -- ghost on its way to its corpse: nothing else counts until it rises.
+    local ghost = UnitIsGhost("player") == true
+    if ghost ~= (step.corpse == true) then GhostOrRisen() return end
+    if ghost then return end
     -- Reaching a crossing's spot changes what its step says: redraw then.
     local there = StepText(step, true) == (step.text or "")
     if route.there ~= there then
@@ -4229,6 +4298,8 @@ loginFrame:RegisterEvent("PLAYER_LOGIN")
 loginFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 loginFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+loginFrame:RegisterEvent("PLAYER_ALIVE")
+loginFrame:RegisterEvent("PLAYER_UNGHOST")
 loginFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     if event == "PLAYER_REGEN_ENABLED" then
@@ -4259,7 +4330,13 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
         Utils.SafeAfter(0.5, LearnHearth)
         return
     end
+    -- Released to a graveyard, risen, or back in the world as either.
+    if event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
+        GhostOrRisen()
+        return
+    end
     if event == "PLAYER_ENTERING_WORLD" then
+        Utils.SafeAfter(1, GhostOrRisen)
         if hearthCastAt and GetTime() - hearthCastAt < 90 then
             hearthCastAt = nil
             Utils.SafeAfter(1.5, LearnHearth)

@@ -61,7 +61,7 @@ read_globals = {
     "ClassicUIForeverAPI",
 
     -- GPS: travel, taxi, character state
-    "GetBindLocation", "UnitOnTaxi", "GetTaxiMapID", "IsMounted", "IsFlying", "IsSwimming",
+    "GetBindLocation", "UnitOnTaxi", "GetTaxiMapID", "IsMounted", "IsFlying", "IsSwimming", "UnitIsGhost", "C_DeathInfo",
     "UnitLevel", "UnitRace", "C_QuestLog", "C_Covenants", "MenuResponse",
     "SEARCH", "QUEST_DASH", "IN_GAME_NAVIGATION_RANGE",
     "GetRealZoneText", "EventRegistry", "C_EncodingUtil", "GetServerTime",
