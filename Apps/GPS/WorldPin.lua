@@ -176,28 +176,19 @@ function WorldPin.NewEmblem(parent)
     return seat
 end
 
--- The plate reads on any theme: on a light theme the menu look is pale
--- and its light text vanishes, so the plate takes the darker fill the
--- settings columns use on light themes, with the theme's dark text.
+-- The plate as the keybind buttons are: a flat block in the window's
+-- color with the theme's text, no shadow under it. The live color tables
+-- follow the theme; Repaint reads them again on a theme change.
 local plates = {}   -- the beacon's and the arrow's
 local function PaintPlate(p)
+    local fill = ns.SEARCH_WINDOW_FILL_COLOR or { 0.05, 0.05, 0.06 }
+    if ns.SetRoundedRectBorderFillColor then ns.SetRoundedRectBorderFillColor(p, fill[1], fill[2], fill[3], 0.96) end
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-    local light = theme and theme.lightTheme
-    if light then
-        local fill = ns.PANEL_CARD_FILL or { 0.5, 0.5, 0.45 }
-        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(p, fill[1], fill[2], fill[3], 0.96) end
-        local main = theme.leafColor or { 0.2, 0.2, 0.1 }
-        local faint = theme.textFaint or main
-        p.text:SetTextColor(main[1], main[2], main[3], 1)
-        p.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
-        p.sub2:SetTextColor(faint[1], faint[2], faint[3], 1)
-    else
-        if ns.TEXT_PRIMARY then p.text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
-        if ns.TEXT_DIM then
-            p.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1)
-            p.sub2:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1)
-        end
-    end
+    local main = ns.TEXT_PRIMARY or { 1, 1, 1 }
+    local faint = (theme and theme.lightTheme and theme.textFaint) or ns.TEXT_DIM or main
+    p.text:SetTextColor(main[1], main[2], main[3], 1)
+    p.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
+    p.sub2:SetTextColor(faint[1], faint[2], faint[3], 1)
 end
 
 local function Repaint()
@@ -215,17 +206,22 @@ end
 WorldPin.Tint = Tint
 if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Repaint) end
 
--- A plate in the addon's menu look: the step, then the distance and this
--- step's time, then the trip's. Under the beacon, or under the arrow
--- while it shows.
+-- A plate in the keybind buttons' look: the step, then the distance and
+-- this step's time, then the trip's. Under the beacon, or under the
+-- arrow while it shows.
 function WorldPin.NewPlate(parent)
     local p = CreateFrame("Frame", nil, parent)
-    if ns.StyleMenuPanel then ns.StyleMenuPanel(p) end
+    if ns.CreateRoundedRectBorder then
+        ns.CreateRoundedRectBorder(p)
+        ns.SetRoundedRectBorderBgAlpha(p, 1)
+        ns.SetRoundedRectBorderEdgeShown(p, false)
+    end
     local font = (ns.LEAF_FONT and _G[ns.LEAF_FONT]) and ns.LEAF_FONT or "GameFontHighlight"
     local text = p:CreateFontString(nil, "OVERLAY", font)
     text:SetPoint("TOP", p, "TOP", 0, -6)
     text:SetJustifyH("CENTER")
     text:SetWordWrap(false)
+    text:SetShadowColor(0, 0, 0, 0)
     text._efOwnColor = true
     p.text = text
     local function Line(above)
@@ -233,14 +229,12 @@ function WorldPin.NewPlate(parent)
         fs:SetPoint("TOP", above, "BOTTOM", 0, -2)
         fs:SetJustifyH("CENTER")
         fs:SetWordWrap(false)
+        fs:SetShadowColor(0, 0, 0, 0)
         fs._efOwnColor = true
         return fs
     end
     p.sub = Line(text)
     p.sub2 = Line(p.sub)
-    -- The menu styling refills the plate each time it shows; paint ours
-    -- after it, every time.
-    p:HookScript("OnShow", PaintPlate)
     PaintPlate(p)
     plates[#plates + 1] = p
     -- A right-click: clear the route, or bring the window up when nothing
