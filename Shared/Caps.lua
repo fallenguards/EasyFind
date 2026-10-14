@@ -95,13 +95,10 @@ Caps.achievements = rule("AchievementsPanelDisabled") ~= true
     and type(GetCategoryList) == "function"
     and Caps.PanelEnabled("Blizzard_AchievementUI")
     and not Caps.forever   -- the panel loads and is a shell; no toggle binding exists
--- Forever's client took itself down on our wardrobe category call, a
--- C++ assert pcall cannot catch (2026-09-18, crash 1FC77402, and a player
--- report): the call went without the transmog location the client's own
--- wardrobe passes. Off there until that call is seen safe.
+-- Forever's client asserts on a wardrobe call without the transmog
+-- location; Database.TransmogLocation supplies it on every call.
 Caps.transmog = rule("TransmogEnabled") ~= false
     and C_TransmogCollection ~= nil
-    and not Caps.forever
 -- The journal's own tab rule shows mounts, pets and toys wherever the
 -- journal loads, and heirlooms only where the game has them.
 Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
