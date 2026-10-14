@@ -261,7 +261,7 @@ local function BuildGraph(ctx)
         travelSpeed = travelSpeed, mountUp = mountUp, waitAt = ctx.waitAt,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
-        walkSec = {}, walkWind = {},
+        walkSec = {}, walkWind = {}, least = {},
         data = data,
     }
 end
@@ -273,6 +273,62 @@ local function TravelCost(g, d, detour)
 end
 
 local WALK_KEY = 65536
+
+-- The least a walk not yet priced can be, in yards: the straight line, or
+-- on the walking grid the landmarks' bound, so the solve tries far fewer
+-- ways before one holds.
+local function LeastYards(g, i, j)
+    local key = i * WALK_KEY + j
+    local yards = g.least[key]
+    if yards then return yards end
+    local a, b = g.nodes[i].p, g.nodes[j].p
+    yards = Dist(a, b)
+    local Nav = ns.GPSNav
+    if g.nav and Nav.Bound then
+        local lower = Nav.Bound(a.ci, a.wx, a.wy, b.wx, b.wy)
+        if lower and lower > yards then yards = lower end
+    end
+    g.least[key] = yards
+    return yards
+end
+
+-- A binary heap of (cost, id), the least cost first.
+local Heap = {}
+Heap.__index = Heap
+local function NewHeap() return setmetatable({ k = {}, v = {}, n = 0 }, Heap) end
+function Heap:Push(cost, id)
+    local n = self.n + 1
+    self.n = n
+    local k, v = self.k, self.v
+    while n > 1 do
+        local parent = mfloor(n / 2)
+        if k[parent] <= cost then break end
+        k[n], v[n] = k[parent], v[parent]
+        n = parent
+    end
+    k[n], v[n] = cost, id
+end
+function Heap:Pop()
+    local n = self.n
+    if n == 0 then return nil end
+    local k, v = self.k, self.v
+    local topK, topV = k[1], v[1]
+    local lastK, lastV = k[n], v[n]
+    k[n], v[n] = nil, nil
+    n = n - 1
+    self.n = n
+    local i = 1
+    while true do
+        local c = i * 2
+        if c > n then break end
+        if c < n and k[c + 1] < k[c] then c = c + 1 end
+        if k[c] >= lastK then break end
+        k[i], v[i] = k[c], v[c]
+        i = c
+    end
+    if n > 0 then k[i], v[i] = lastK, lastV end
+    return topV, topK
+end
 
 -- A crossing's spot (a boat's stop on the water, the far end of a pier, a
 -- portal's landing) can sit just off the ground the walking grid joins up.
@@ -336,7 +392,7 @@ local function Neighbors(g, i, out, noWalk, t)
     local n = g.nodes[i]
     local k = 0
     -- Travel to everything on the same continent and landmass; a walk not
-    -- yet priced on the walking grid costs its straight line, its least.
+    -- yet priced on the walking grid costs the least it can.
     local same = not noWalk and g.byCi[n.p.ci]
     if same then
         local walkSec, bound = g.walkSec, g.nav and 1
@@ -347,7 +403,7 @@ local function Neighbors(g, i, out, noWalk, t)
                 k = k + 1
                 local key = i * WALK_KEY + idx
                 local sec = walkSec[key]
-                out[k] = { to = idx, sec = sec or TravelCost(g, Dist(n.p, g.nodes[idx].p), bound), kind = "travel",
+                out[k] = { to = idx, sec = sec or TravelCost(g, LeastYards(g, i, idx), bound), kind = "travel",
                            wind = sec and g.walkWind[key] or nil }
             end
         end
@@ -388,30 +444,32 @@ end
 local function Dijkstra(g)
     local n = #g.nodes
     local dist, prev, prevEdge, done = {}, {}, {}, {}
-    for s = 1, 2 * n do dist[s] = mhuge end
     dist[g.start] = 0
+    local heap = NewHeap()
+    heap:Push(0, g.start)
     local scratch = {}
     local reached
     while true do
-        local best, bestD = nil, mhuge
-        for s = 1, 2 * n do
-            if not done[s] and dist[s] < bestD then best, bestD = s, dist[s] end
-        end
+        local best, bestD = heap:Pop()
         if not best then break end
-        local onFoot = best > n
-        local i = onFoot and best - n or best
-        if i == g.goal then
-            reached = best
-            break
-        end
-        done[best] = true
-        local count = Neighbors(g, i, scratch, onFoot, bestD)
-        for j = 1, count do
-            local e = scratch[j]
-            local to = e.kind == "travel" and e.to + n or e.to
-            local nd = bestD + e.sec + (e.pen or 0)
-            if nd < dist[to] then
-                dist[to], prev[to], prevEdge[to] = nd, best, e
+        -- An entry outdone since it was pushed is passed over.
+        if not done[best] and bestD <= dist[best] then
+            local onFoot = best > n
+            local i = onFoot and best - n or best
+            if i == g.goal then
+                reached = best
+                break
+            end
+            done[best] = true
+            local count = Neighbors(g, i, scratch, onFoot, bestD)
+            for j = 1, count do
+                local e = scratch[j]
+                local to = e.kind == "travel" and e.to + n or e.to
+                local nd = bestD + e.sec + (e.pen or 0)
+                if nd < (dist[to] or mhuge) then
+                    dist[to], prev[to], prevEdge[to] = nd, best, e
+                    heap:Push(nd, to)
+                end
             end
         end
     end
