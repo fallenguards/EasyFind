@@ -3057,11 +3057,13 @@ local function BuildDock()
     header:SetText(L["APP_GPS"])
     header:SetTextColor(1, 0.82, 0)
     f.header = header
+    -- The tag rides the name's top right corner, above the search box's
+    -- magnifier that follows the name.
     local exp = ns.CreateFeatureTag(head, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"], true)
-    ns.SuperscriptTag(exp, header)
+    exp:SetPoint("BOTTOMLEFT", header, "LEFT", (header:GetStringWidth() or 0) - 7, 7)
 
     local time = head:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    time:SetPoint("LEFT", header, "RIGHT", exp:GetWidth() + 7, 0)
+    time:SetPoint("LEFT", header, "RIGHT", exp:GetWidth() + 2, 0)
     time:SetTextColor(1, 1, 1)
     f.time = time
 
@@ -3258,12 +3260,11 @@ local function BuildDock()
     titleBtn:SetScript("OnClick", function() GPS:Open() end)
     titleBtn:Hide()
     f.titleBtn = titleBtn
-    -- With no route, a search box in the banner right of the name and its
-    -- tag, from the same builder as the window's folded row. Its finds
-    -- list below.
+    -- With no route, a search box in the banner right of the name, from the
+    -- same builder as the window's folded row. Its finds list below.
     local searchAnchor = CreateFrame("Frame", nil, f)
     searchAnchor:SetSize(1, 20)
-    searchAnchor:SetPoint("LEFT", exp, "RIGHT", -7, 0)
+    searchAnchor:SetPoint("LEFT", header, "RIGHT", -2, 0)
     f.searchAnchor = searchAnchor
     BuildSearch(f, searchAnchor, 10, 8)
     f.search:SetFrameLevel(head:GetFrameLevel() + 5)   -- above the header's grip
