@@ -554,6 +554,10 @@ local function ShowEditor(draft)
     UI.draft = draft
     UI.whatMissed = nil
     UI.listView:Hide()
+    -- The empty list's hint and buttons hang on the window, not the list.
+    UI.empty:Hide()
+    UI.emptyList:Hide()
+    UI.emptyOwn:Hide()
     UI.editView:Show()
     UI.win.title:SetText(Store:Find(draft.id) and L["ALERTS_EDIT"] or L["ALERTS_NEW"])
     UI.back:Show()
