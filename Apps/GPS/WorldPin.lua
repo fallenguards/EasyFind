@@ -287,9 +287,9 @@ function WorldPin.FillPlate(p, text, sub, sub2)
     p:SetSize(inner + 20, h)
 end
 
--- What the plate says, by the Arrow text setting: the step; under it the
--- yards there and this step's time; under those the time for the whole
--- trip, when more steps follow. Nothing with the plate off.
+-- What the plate says, by the Arrow text setting: the step; under it
+-- "This step: 119 yds, 1 min"; under those the time for the whole trip,
+-- when more steps follow. Nothing with the plate off.
 function WorldPin.PlateLines(route, yards)
     local db = DB()
     local mode = db and db.gpsArrowText or "full"
@@ -299,20 +299,17 @@ function WorldPin.PlateLines(route, yards)
     local step = route.steps and route.steps[active]
     local text = (ns.GPS and ns.GPS.StepText) and ns.GPS.StepText(step, true) or (step and step.text or "")
     if mode == "step" then return text, "", "" end
-    local range = ""
-    if yards and yards > 0 then
-        range = IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, mfloor(yards)) or (mfloor(yards) .. " yd")
-    end
-    if mode == "range" then return text, range, "" end
+    -- Our own yard word: the game's carries a grammar token that cuts the
+    -- rest of the line.
+    local range = yards and yards > 0 and sformat(L["GPS_UNIT_YD"], mfloor(yards)) or nil
     local Eta = ns.GPS and ns.GPS.EtaText
-    local left = route.stepEta or (step and step.sec)
-    local line = range
-    if Eta and left and left > 0 then
-        local t = sformat(L["GPS_PLATE_STEP_FMT"], Eta(left))
-        line = range ~= "" and (range .. "   " .. t) or t
-    end
+    local left = mode == "full" and Eta and (route.stepEta or (step and step.sec))
+    local time = left and left > 0 and Eta(left) or nil
+    local line = ""
+    if range and time then line = sformat(L["GPS_PLATE_STEP_BOTH_FMT"], range, time)
+    elseif range or time then line = sformat(L["GPS_PLATE_STEP_FMT"], range or time) end
     local trip = ""
-    if Eta and route.eta and route.eta > 0 and route.steps and #route.steps > active then
+    if mode == "full" and Eta and route.eta and route.eta > 0 and route.steps and #route.steps > active then
         trip = sformat(L["GPS_PLATE_TRIP_FMT"], Eta(route.eta))
     end
     return text, line, trip
