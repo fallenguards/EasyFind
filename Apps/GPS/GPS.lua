@@ -2559,6 +2559,29 @@ function Look.PlaceInWatch(watch, api)
     end
 end
 
+-- A faded section takes no mouse: nothing of ours to hover or click
+-- under a folded tracker. Out of a fight only (the cast buttons are
+-- protected); rows made later are walked on the next placing.
+local function DockMouse(on)
+    if InCombatLockdown() then return end
+    local function walk(f)
+        for i = 1, select("#", f:GetChildren()) do
+            local c = select(i, f:GetChildren())
+            if on then
+                if c.efMouseOff then
+                    c.efMouseOff = nil
+                    c:EnableMouse(true)
+                end
+            elseif c:IsMouseEnabled() then
+                c.efMouseOff = true
+                c:EnableMouse(false)
+            end
+            walk(c)
+        end
+    end
+    walk(dockFrame)
+end
+
 local function PlaceDock()
     if not dockFrame then return end
     -- ClassicUI's tracker pick changed under it: drawn again in the new look.
@@ -2591,6 +2614,7 @@ local function PlaceDock()
         dockFrame:SetAlpha(alpha)
         Refresh()
     end
+    DockMouse(not collapsed)
     local db = DB()
     local height = dockFrame:GetHeight() or DOCK_HEADER_H
     local above, below, ins = ApplyInsert(t, db and db.gpsDockSlot or { bottom = true }, height)
