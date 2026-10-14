@@ -1766,7 +1766,10 @@ ns.CLASSIC_HEADER = "Interface\\DialogFrame\\UI-DialogBox-Header"
 -- frame art everywhere; off, every surface takes the rounded shape.
 function ns.WindowBorderOn()
     local db = EasyFind and EasyFind.db
-    return not (db and db.windowBorder == false)
+    if db and db.windowBorder == false then return false end
+    -- A studio theme can ship borderless.
+    local pal = ns.ACTIVE_UI_PALETTE
+    return not (pal and pal.borderHidden)
 end
 
 -- The Classic and Forever themes' own frame art; off, they wear the line
@@ -2244,6 +2247,10 @@ end
 function ns.RowWashColor()
     local pal = ns.ACTIVE_UI_PALETTE
     if not pal or (ns.UI_THEME_PALETTES and pal == ns.UI_THEME_PALETTES.Black) then return nil end
+    -- A studio theme can pin the hover wash outright.
+    if pal.rowHover then
+        return pal.rowHover[1], pal.rowHover[2], pal.rowHover[3]
+    end
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     local leaf = theme and theme.leafColor
     if not leaf then return nil end
@@ -3198,6 +3205,16 @@ function ns.ApplyThemeFill(frame)
     local fill = frame.combinedBorder.fill
     local palette = ns.ACTIVE_UI_PALETTE
     local cWhite = CreateColor and CreateColor(1, 1, 1, 1)
+    -- A studio theme tints the ring; the stock tint returns when the
+    -- next theme has no borderColor slot.
+    local ring = palette and palette.borderColor
+    if ring then
+        frame._efPaletteRing = true
+        ns.SetRoundedRectBorderColor(frame, ring[1], ring[2], ring[3], ring[4] or 1)
+    elseif frame._efPaletteRing then
+        frame._efPaletteRing = nil
+        ns.SetRoundedRectBorderColor(frame, BORDER_R, BORDER_G, BORDER_B, 1)
+    end
 
     local artPath = palette and palette.fillTexture
     local atlasInfo = palette and palette.fillAtlas and C_Texture and C_Texture.GetAtlasInfo

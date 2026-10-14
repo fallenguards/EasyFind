@@ -1103,6 +1103,10 @@ local function OnPlayerLogin()
     -- creation with the repaint skipped leaves the whole bar wearing the
     -- default palette until something else repaints (the reset-on-reload
     -- bug). Creation-time paints read the selected palette directly.
+    -- Custom themes register first so a selected one survives the reload.
+    if ns.ThemeShare then
+        xpcall(ns.ThemeShare.RegisterCustomThemes, ErrorHandler, ns.ThemeShare)
+    end
     if ns.ApplyUITheme then
         ns.ApplyUITheme(EasyFind.db.uiTheme, true)
     end

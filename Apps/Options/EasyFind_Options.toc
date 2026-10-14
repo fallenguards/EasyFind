@@ -11,3 +11,4 @@
 ## DefaultState: enabled
 
 OptionsPanel.lua
+ThemeStudio.lua

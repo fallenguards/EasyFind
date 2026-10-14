@@ -410,6 +410,11 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     if ns.RestyleShownMenuPanels then
         ns.RestyleShownMenuPanels()
     end
+    -- A studio theme can hide the ring; frame-art themes re-run this
+    -- function from UpdateWindowBorders, so they are left out.
+    if not palette.chrome and ns.Search and ns.Search.UpdateWindowBorders then
+        ns.Search:UpdateWindowBorders()
+    end
     -- Chevrons register weakly at creation; repaint them all here so
     -- popups without their own restyle hook can never go stale.
     if ns.Utils and ns.Utils.RetintChevrons then

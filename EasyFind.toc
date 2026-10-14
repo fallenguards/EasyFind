@@ -112,6 +112,7 @@ Search/NoteMenus.lua
 Search/ExtensionButtons.lua
 Search/Query.lua
 Search/Results/Theme.lua
+Search/Results/ThemeShare.lua
 Search/Results/Shortcuts.lua
 Search/Results/ResultsFrame.lua
 Search/Results/PinPopup.lua

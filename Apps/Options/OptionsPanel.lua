@@ -514,6 +514,7 @@ local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, s
         for i = 1, #rows do rows[i]:SetWidth(rowW) end
         flyout:SetWidth(rowW + 6)
     end
+    return rows
 end
 
 -- Stays a CheckButton so existing option code can keep using SetChecked /
@@ -1359,15 +1360,16 @@ local function BuildGeneralBindsTab(ctx)
         if name == defaultTheme then return DefaultTag(name) end
         return name
     end
-    local themeFlyout = CreateFlyoutPanel(themeBtnFrame, "EasyFindTheme", SELECTOR_BTN_W, #themeChoices)
-    AddFlyoutOptions(themeFlyout, themeChoices, SELECTOR_BTN_W - 6, function(name)
+    local themeFlyout = CreateFlyoutPanel(themeBtnFrame, "EasyFindTheme", SELECTOR_BTN_W, #themeChoices + 1)
+    local function SelectTheme(name)
         EasyFind.db.uiTheme = name
         themeBtnText:SetText(name)
         if ns.ApplyUITheme then ns.ApplyUITheme(name) end
         optionsFrame:RepaintTheme()
         -- A pick here also lands in the tutorial wizard if it's open.
         if ns.RepaintWizardTheme then pcall(ns.RepaintWizardTheme) end
-    end, ThemeFlyoutLabel, function(flyoutBtn, name, label)
+    end
+    local function StyleThemeFlyoutRow(flyoutBtn, name, label)
         -- Circular color dot tinted at the theme's gradient midpoint
         -- (a flat square of the darkest base fill read as black).
         local swatch = label:GetParent():CreateTexture(nil, "OVERLAY")
@@ -1381,8 +1383,99 @@ local function BuildGeneralBindsTab(ctx)
             swatch:Hide()
         end
         flyoutBtn._rightIconW = 13 + 4
+    end
+    -- Custom themes join the list, so the rows rebuild after an import,
+    -- a studio save or a delete; "Import theme" stays pinned at the bottom.
+    local themeRows, themeImportRow
+    local function RebuildThemeFlyout()
+        if themeRows then
+            for i = 1, #themeRows do themeRows[i]:Hide() end
+        end
+        local order = ns.UI_THEME_ORDER or themeChoices
+        themeRows = AddFlyoutOptions(themeFlyout, order, SELECTOR_BTN_W - 6,
+            SelectTheme, ThemeFlyoutLabel, StyleThemeFlyoutRow)
+        if not themeImportRow then
+            themeImportRow = CreateFrame("Button", nil, themeFlyout)
+            themeImportRow:SetSize(SELECTOR_BTN_W - 6, 18)
+            local importBg = CreateFrame("Frame", nil, themeImportRow)
+            importBg:SetAllPoints()
+            importBg:EnableMouse(false)
+            ns.CreateRoundedRectBorder(importBg)
+            ns.SetRoundedRectBarHeight(importBg, 9)
+            HideRoundedFrameBorder(importBg)
+            PaintRoundedFill(importBg, 1, 1, 1, 0)
+            local importLabel = themeImportRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            importLabel:SetPoint("LEFT", themeImportRow, "LEFT", 6, 0)
+            importLabel:SetText(L["OPT_IMPORT_THEME"])
+            themeImportRow:SetScript("OnEnter", function() PaintRoundedFill(importBg, 1, 1, 1, 0.06) end)
+            themeImportRow:SetScript("OnLeave", function() PaintRoundedFill(importBg, 1, 1, 1, 0) end)
+            Utils.AttachDelayedTooltip(themeImportRow, "ANCHOR_RIGHT", function()
+                return L["OPT_IMPORT_THEME"], L["OPT_IMPORT_THEME_TT"]
+            end)
+            themeImportRow:SetScript("OnClick", function()
+                themeFlyout:Hide()
+                ns.ThemeShare:ShowImportDialog({ onImported = function(name)
+                    SelectTheme(name)
+                    RebuildThemeFlyout()
+                end })
+            end)
+        end
+        themeImportRow:ClearAllPoints()
+        themeImportRow:SetPoint("TOPLEFT", themeFlyout, "TOPLEFT", 3, -3 - #order * 20)
+        themeImportRow:SetWidth(themeFlyout:GetWidth() - 6)
+        themeFlyout:SetHeight((#order + 1) * 20 + 6)
+    end
+    RebuildThemeFlyout()
+    optionsFrame.RebuildThemeFlyout = RebuildThemeFlyout
+
+    -- The palette button beside the theme selector opens the Theme Studio.
+    local studioBtn = CreateFrame("Button", nil, themeRow)
+    studioBtn:SetSize(20, 20)
+    studioBtn:SetPoint("RIGHT", themeBtnFrame, "LEFT", -5, 0)
+    local studioFill = studioBtn:CreateTexture(nil, "BACKGROUND")
+    studioFill:SetAllPoints()
+    studioFill:SetTexture("Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle")
+    local studioRing = studioBtn:CreateTexture(nil, "ARTWORK")
+    studioRing:SetAllPoints()
+    studioRing:SetTexture("Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle")
+    local STUDIO_DOT_COLORS = {
+        { 0.90, 0.30, 0.30 }, { 0.35, 0.75, 0.40 }, { 0.35, 0.55, 0.95 },
+    }
+    for d = 1, 3 do
+        local dot = studioBtn:CreateTexture(nil, "OVERLAY")
+        dot:SetSize(5, 5)
+        dot:SetTexture("Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle")
+        local c = STUDIO_DOT_COLORS[d]
+        dot:SetVertexColor(c[1], c[2], c[3], 1)
+        dot:SetPoint("CENTER", studioBtn, "CENTER",
+            (d == 1 and -4) or (d == 2 and 4) or 0, (d == 3 and -4) or 3)
+    end
+    local function PaintStudioRing()
+        local ringTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local glyph = ringTheme and ringTheme.chromeGlyph
+        if glyph then
+            studioRing:SetVertexColor(glyph[1], glyph[2], glyph[3], 0.35)
+        else
+            studioRing:SetVertexColor(1, 1, 1, 0.35)
+        end
+        local buttonFill = ns.BTN_FILL_NORMAL or { 0.13, 0.13, 0.14 }
+        studioFill:SetVertexColor(buttonFill[1], buttonFill[2], buttonFill[3], 1)
+    end
+    PaintStudioRing()
+    ns.RegisterThemeCallback(PaintStudioRing)
+    studioBtn:SetScript("OnEnter", function(self)
+        studioRing:SetAlpha(1)
+        ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["OPT_THEME_STUDIO"])
     end)
-    optionsFrame.themeBtnText = themeBtnText
+    studioBtn:SetScript("OnLeave", function(self)
+        studioRing:SetAlpha(0.75)
+        ns.HideHintTooltip(self)
+    end)
+    studioBtn:SetScript("OnClick", function()
+        -- The studio takes the options panel's place on screen.
+        optionsFrame:Hide()
+        ns.ThemeStudio:Open()
+    end)
 
     local indicatorRow, indicatorLabel = CreateSelectorRow(themeRow, L["OPT_INDICATOR_STYLE"])
 

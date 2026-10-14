@@ -828,6 +828,9 @@ local function decS(blob, pos)
     return val, colon + 1 + len
 end
 
+-- One code family: theme codes (ThemeShare) frame their fields the same way.
+ns.ShareCodec = { base64enc = base64enc, base64dec = base64dec, encS = encS, decS = decS }
+
 function Shortkeys:ExportList()
     local out = {}
     self:ForEach(function(rowKey, info, isChar)
