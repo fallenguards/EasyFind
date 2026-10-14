@@ -63,10 +63,6 @@ local WINDOWS = {
 local windowOpen = {}
 local onChange
 
--- Players are filed by the core's key (Search/NoteMenus.lua), the one the
--- right-click menus use.
-Ctx.PlayerKey = ns.NotesPlayerKey
-
 -- A player unit's key and the name it shows, or nil.
 function Ctx.UnitPlayer(unit)
     if not (unit and UnitExists and UnitExists(unit) and UnitIsPlayer and UnitIsPlayer(unit)) then return nil end
@@ -74,11 +70,6 @@ function Ctx.UnitPlayer(unit)
     if type(full) ~= "string" or issecret(full) then return nil end
     local shown = GetUnitName(unit, false) or full
     return Ctx.PlayerKey(full), shown
-end
-
-function Ctx.PlayerEntry(key, shown)
-    if not key then return nil end
-    return { type = "player", id = key, name = shown or key:match("^([^%-]+)") or key }
 end
 
 -- Detection ---------------------------------------------------------------------
@@ -147,13 +138,15 @@ local function AddGroup(list, set)
     Add(list, set, { type = "group", id = id, name = L[label] })
 end
 
-local function AddPlayers(list, set)
+-- The target (a player or an NPC) and the group.
+local function AddUnits(list, set)
     local seen = {}
     local function unit(u)
-        local key, shown = Ctx.UnitPlayer(u)
-        if key and not seen[key] and not UnitIsUnit(u, "player") then
+        local entry = ns.NotesUnitEntry(u)
+        local key = entry and Key(entry)
+        if key and not seen[key] then
             seen[key] = true
-            Add(list, set, Ctx.PlayerEntry(key, shown))
+            Add(list, set, entry)
         end
     end
     unit("target")
@@ -180,18 +173,24 @@ function Ctx.Active()
     end
     AddInstance(list, set)
     AddMaps(list, set)
-    AddPlayers(list, set)
+    AddUnits(list, set)
     AddGroup(list, set)
     AddSelf(list, set)
     AddGame(list, set)
     return list, set
 end
 
--- Whether a note applies in the situations of set, by its match mode:
--- any of its tags (the default), all of them, or never on its own.
+-- Whether a note applies in the situations of set: a unit it shows on is
+-- there, or its tags match by its mode (any of them, all of them, or
+-- never on its own).
 function Ctx.Applies(note, set)
-    local tags = note and note.appliesIn
-    if not (tags and #tags > 0) or note.matchMode == "manual" then return false end
+    if not note or note.matchMode == "manual" then return false end
+    local shows = note.showsOn
+    for i = 1, shows and #shows or 0 do
+        if set[Key(shows[i])] == true then return true end
+    end
+    local tags = note.appliesIn
+    if not (tags and #tags > 0) then return false end
     local all, hit = note.matchMode == "all", false
     for i = 1, #tags do
         local on = set[Key(tags[i])] == true

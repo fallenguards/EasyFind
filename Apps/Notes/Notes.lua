@@ -22,13 +22,12 @@ local tinsert, tremove, tsort = Utils.tinsert, Utils.tremove, Utils.tsort
 local mmax, mmin = Utils.mmax, math.min
 local pcall = pcall
 local tonumber = tonumber
-local UnitName = UnitName
 local GetCursorInfo = GetCursorInfo
 
 notesNS.UI = UI
 ns.Notes = notesNS
 
-local NOTES_DB_VERSION = 10
+local NOTES_DB_VERSION = 11
 local FONT_SIZE_MIN = 9
 local FONT_SIZE_MAX = 56
 local FONT_SIZE_DEFAULT = 12
@@ -449,6 +448,24 @@ local function NormalizeDB()
     if v < 10 then
         for i = 1, #EasyNotesDB.notes do
             EasyNotesDB.notes[i].scope = "character"
+        end
+    end
+    -- A unit note carried its player twice; the shows-on tag alone applies.
+    if v < 11 then
+        for i = 1, #EasyNotesDB.notes do
+            local n = EasyNotesDB.notes[i]
+            local applies, shows = n and n.appliesIn, n and n.showsOn
+            for j = (applies and #applies or 0), 1, -1 do
+                local a = applies[j]
+                if a and a.type == "player" then
+                    for k = 1, (shows and #shows or 0) do
+                        if shows[k].type == "player" and shows[k].id == a.id then
+                            table.remove(applies, j)
+                            break
+                        end
+                    end
+                end
+            end
         end
     end
     if type(EasyNotesDB.fontSize) ~= "number" then EasyNotesDB.fontSize = FONT_SIZE_DEFAULT end
@@ -1373,27 +1390,26 @@ local function ToggleNoteShowsOn(note, entry)
     note.updated = time()
 end
 
--- A player's note is the one shown on that player; opening one makes it
--- when there is none, account-wide (you meet players on every character).
-function notesNS.FindPlayerNote(key)
-    if not key then return nil end
+-- A unit's note is the one shown on it; opening one makes it when there
+-- is none, account-wide (you meet players and NPCs on every character).
+function notesNS.FindUnitNote(entry)
+    if not entry then return nil end
+    local key = CtxKey(entry)
     local notes = NotesStore()
     for i = 1, #notes do
-        if NoteHasShowsOn(notes[i], "player:" .. key) then return notes[i] end
+        if NoteHasShowsOn(notes[i], key) then return notes[i] end
     end
     return nil
 end
 
-function notesNS.OpenPlayerNote(key, shown)
-    local entry = Ctx.PlayerEntry(key, shown)
+function notesNS.OpenUnitNote(entry)
     if not entry then return end
-    local note = notesNS.FindPlayerNote(key)
+    local note = notesNS.FindUnitNote(entry)
     if not note then
         note = CreateNote("")
         note.name = entry.name
         note.scope = "account"
-        note.category = "Players"
-        note.appliesIn[1] = { type = entry.type, id = entry.id, name = entry.name }
+        note.category = entry.type == "player" and "Players" or "NPCs"
         note.showsOn[1] = { type = entry.type, id = entry.id, name = entry.name }
     end
     UI:OpenEasyNotes()
@@ -6883,13 +6899,8 @@ local function CursorObjectEntry()
 end
 
 local function TargetNPCEntry()
-    if not (UnitExists and UnitExists("target")) then return nil end
-    if UnitIsPlayer and UnitIsPlayer("target") then return nil end
-    local guid = UnitGUID and UnitGUID("target")
-    if not guid then return nil end
-    local npcID = tonumber(guid:match("Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
-    if not npcID then return nil end
-    return { type = "npc", id = npcID, name = (UnitName and UnitName("target")) or Utils.sformat(L["NOTES_NPC_FMT"], npcID) }
+    local entry = ns.NotesUnitEntry("target")
+    return entry and entry.type == "npc" and entry or nil
 end
 
 function UI:ShowAddShowsOnMenu(anchor)
@@ -8057,4 +8068,3 @@ function notesNS.InsertAtCursor(text)
     if type(text) ~= "string" or text == "" then return false end
     return notesNS.InsertDocumentAtCursor(notesNS.DocumentFromMarkdown(text))
 end
-function notesNS.CreateUnitNote(name) notesNS.OpenPlayerNote(Ctx.PlayerKey(name), name) end

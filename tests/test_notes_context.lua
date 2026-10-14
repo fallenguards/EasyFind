@@ -33,9 +33,15 @@ local function Load(opts)
     env.GetClassInfo = function(id) local c = classes[id] if c then return c[1], c[2], id end end
     env.IsInRaid = function() return false end
     env.IsInGroup = function() return opts.party ~= nil end
-    env.UnitExists = function(u) return (u == "target" and opts.target) or (u == "party1" and opts.party) or false end
-    env.UnitIsPlayer = function() return true end
+    env.UnitExists = function(u)
+        return (u == "target" and (opts.target or opts.npc)) or (u == "party1" and opts.party) or false
+    end
+    env.UnitIsPlayer = function(u) return not (u == "target" and opts.npc) end
     env.UnitIsUnit = function(a, b) return a == b end
+    env.UnitGUID = function(u)
+        return u == "target" and opts.npc and ("Creature-0-4234-0-1234-" .. opts.npc .. "-000012345") or nil
+    end
+    env.UnitName = function(u) return u == "target" and opts.npc and "Defias Pillager" or nil end
     env.GetUnitName = function(u, withRealm)
         local name = (u == "target" and opts.target) or (u == "party1" and opts.party)
         if not withRealm then return (name:gsub("%-.*", "")) end
@@ -62,7 +68,7 @@ local function Load(opts)
     local chunk = assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/Context.lua", "t", env))
     env.EasyFind = { _ns = ns }
     chunk("EasyFind_Notes", notesNS)
-    return notesNS.Context
+    return notesNS.Context, ns
 end
 
 local function has(set, key) return set[key] == true end
@@ -132,14 +138,30 @@ function tests.matchModes()
 end
 
 function tests.players_oneKeyFromMenusAndUnits()
-    local Ctx = Load({ forever = true, target = "Bren Oakhart-Stormrage", party = "Cass" })
-    H.assertEq(Ctx.PlayerKey("Bren"), "Bren-Stormrage")
-    H.assertEq(Ctx.PlayerKey("Bren Oakhart"), "Bren-Stormrage", "a Forever surname is left out")
-    H.assertEq(Ctx.PlayerKey("Bren-Stormrage"), "Bren-Stormrage")
-    H.assertEq(Ctx.PlayerKey("Dax", "Area 52"), "Dax-Area52")
+    local Ctx, ns = Load({ forever = true, target = "Bren Oakhart-Stormrage", party = "Cass" })
+    H.assertEq(ns.NotesPlayerKey("Bren"), "Bren-Stormrage")
+    H.assertEq(ns.NotesPlayerKey("Bren Oakhart"), "Bren-Stormrage", "a Forever surname is left out")
+    H.assertEq(ns.NotesPlayerKey("Bren-Stormrage"), "Bren-Stormrage")
+    H.assertEq(ns.NotesPlayerKey("Dax", "Area 52"), "Dax-Area52")
     local _, set = Ctx.Active()
     H.assertTrue(has(set, "player:Bren-Stormrage"), "the target")
     H.assertTrue(has(set, "player:Cass-Stormrage"), "a party member")
+    local cass = { { type = "player", id = "Cass-Stormrage" } }
+    H.assertTrue(Ctx.Applies({ appliesIn = {}, showsOn = cass }, set), "a note shown on a party member applies")
+end
+
+function tests.npcs_areUnitsToo_andAPresentUnitAppliesItsNote()
+    local Ctx, ns = Load({ npc = 5678 })
+    local entry = ns.NotesUnitEntry("target")
+    H.assertEq(entry.type, "npc")
+    H.assertEq(entry.id, 5678)
+    H.assertEq(entry.name, "Defias Pillager")
+    local _, set = Ctx.Active()
+    H.assertTrue(has(set, "npc:5678"), "the targeted creature by its id")
+    local here = { { type = "npc", id = 5678 } }
+    H.assertTrue(Ctx.Applies({ appliesIn = {}, showsOn = here }, set), "a note shown on the target applies")
+    H.assertFalse(Ctx.Applies({ appliesIn = {}, showsOn = { { type = "npc", id = 99 } } }, set), "another creature's note")
+    H.assertFalse(Ctx.Applies({ showsOn = here, matchMode = "manual" }, set), "manual stays manual")
 end
 
 function tests.search_ranksWordStartsFirst()
