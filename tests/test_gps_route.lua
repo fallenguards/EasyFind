@@ -536,8 +536,10 @@ local function withNav(ns, way)
     ns.GPSNav = {
         Ensure = function() return true end,
         Has = function() return true end,
+        CostOverTime = function() return 1 end,
         Path = path,
-        -- opts.near: the end may be that far off, toward the start.
+        -- opts.near: the end may be that far off, toward the start. The
+        -- time is the cost: dry ground on a road.
         Walk = function(ci, sx, sy, tx, ty, opts)
             local near = opts and opts.near
             if near then
@@ -545,7 +547,8 @@ local function withNav(ns, way)
                 local f = d > 0 and math.min(1, near * 0.9 / d) or 0
                 tx, ty = tx + (sx - tx) * f, ty + (sy - ty) * f
             end
-            return select(2, path(ci, sx, sy, tx, ty))
+            local cost = select(2, path(ci, sx, sy, tx, ty))
+            return cost, nil, cost
         end,
     }
 end

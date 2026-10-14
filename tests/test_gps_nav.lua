@@ -93,6 +93,25 @@ function tests.path_noLongerThanItsCost()
     H.assertTrue(len >= Straight(GOLDSHIRE, EAST) - 1)
 end
 
+-- A walk's time (yards walked, swimming slower) comes with its cost: never
+-- more than the cost (leaving a road weighs the choice, not the clock),
+-- never less than the straight line, and the drawn way's time is the same.
+function tests.walk_timeComesWithTheCost()
+    local Nav = fresh()
+    local cost, beyond, time = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    H.assertNil(beyond)
+    H.assertTrue(time ~= nil and time <= cost + 0.01, "the time within the cost: " .. tostring(time) .. " vs " .. cost)
+    H.assertTrue(time >= Straight(GOLDSHIRE, EAST) - 8, "no shorter than the straight line: " .. time)
+    local _, drawnCost, drawnTime = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    H.assertEq(drawnCost, cost)
+    H.assertEq(drawnTime, time, "the drawn way's time is the walk's")
+    Nav.SetRoads(true)
+    local roadsCost, _, roadsTime = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    H.assertTrue(roadsTime <= roadsCost + 0.01 and roadsTime >= time - 0.01,
+        "kept to roads: a dearer choice, a way no quicker: " .. roadsTime .. " vs " .. time)
+    Nav.SetRoads(false)
+end
+
 -- A tile to go around costs more to choose; the walk keeps out of it where
 -- it can, its time the walk's own, and all is as before once no tile is.
 function tests.danger_weighsTheChoiceNotTheTime()

@@ -281,9 +281,10 @@ end
 
 local WALK_KEY = 65536
 
--- The least a walk not yet priced can be, in yards: the straight line, or
--- on the walking grid the landmarks' bound, so the solve tries far fewer
--- ways before one holds.
+-- The least a walk not yet priced can take, in running yards: the
+-- straight line, or on the walking grid the landmarks' bound on its cost,
+-- brought down to time (a yard off the road costs more than it takes), so
+-- the solve tries far fewer ways before one holds.
 local function LeastYards(g, i, j)
     local key = i * WALK_KEY + j
     local yards = g.least[key]
@@ -293,6 +294,7 @@ local function LeastYards(g, i, j)
     local Nav = ns.GPSNav
     if g.nav and Nav.Bound then
         local lower = Nav.Bound(a.ci, a.wx, a.wy, b.wx, b.wy)
+        if lower and Nav.CostOverTime then lower = lower / Nav.CostOverTime() end
         if lower and lower > yards then yards = lower end
     end
     g.least[key] = yards
@@ -367,16 +369,21 @@ local function PriceWalk(g, i, j, room)
         local ni, nj = g.nodes[i], g.nodes[j]
         local from, to = a, b
         if CROSSING[ni.kind] and not CROSSING[nj.kind] then from, to = b, a end
-        local limit = room and room < mhuge and (room - g.mountUp) * g.travelSpeed or nil
-        local cost, beyond = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { limit = limit } or nil)
+        -- The room in running yards; the search gives up by cost, which a
+        -- yard off the road raises, so its limit is that much wider.
+        local yards = room and room < mhuge and (room - g.mountUp) * g.travelSpeed or nil
+        local limit = yards and yards * (Nav.CostOverTime and Nav.CostOverTime() or 1) or nil
+        local cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { limit = limit } or nil)
         if not cost and not beyond and (CROSSING[ni.kind] or CROSSING[nj.kind]) and straight <= BOARD_NEAR then
-            cost, beyond = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { near = BOARD.near, limit = limit } or BOARD)
+            cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy,
+                                          limit and { near = BOARD.near, limit = limit } or BOARD)
         end
         if cost then
-            sec, wind = g.mountUp + cost / g.travelSpeed, cost / straight
+            -- Chosen by its cost, timed by its time (yards walked, swimming slower).
+            sec, wind = g.mountUp + time / g.travelSpeed, time / straight
         elseif beyond then
             local least = g.least[key]
-            if not least or limit + 0.001 > least then g.least[key] = limit + 0.001 end
+            if not least or yards + 0.001 > least then g.least[key] = yards + 0.001 end
             return nil
         else
             sec = mhuge
@@ -388,38 +395,34 @@ local function PriceWalk(g, i, j, room)
     return sec, wind
 end
 
--- A walk step timed by its drawn way, when there is one: its seconds and
--- its wind (yards walked per straight yard). lazy: a way not drawn yet is
--- left as the search priced it.
-local function TimeWalk(g, s, a, lazy)
+-- A walk step's way drawn and kept, when it has one: the arrow follows
+-- it and the split by zone reads it; its time was priced with it.
+local function DrawWalk(s, a)
     local b = s.go or s.arrive
-    if not (s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci) then return false end
-    local straight = Dist(a, b)
-    local way = straight > 5 and Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy, lazy)
-    if way then s.sec, s.wind = g.mountUp + way.time / g.travelSpeed, way.len / straight end
-    return way ~= nil
+    if s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci and Dist(a, b) > 5 then
+        Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
+    end
 end
 
--- The chosen route's walks timed by their real path: the first one (the
--- one set out on), or every one; the rest are drawn once the route is on
--- screen (GPS.lua) and timed then.
-local function TimeWalks(g, steps, start, all)
+-- The chosen route's walks drawn: the first (the one set out on) and, for
+-- a zone goal, the last (cut at the border on the split), or every one.
+-- The rest are drawn once the route is on screen (GPS.lua).
+local function DrawWalks(steps, start, all, zoneGoal)
+    local first, last
     for i = 1, #steps do
-        local s = steps[i]
-        if s.kind == "travel" then
-            TimeWalk(g, s, i > 1 and steps[i - 1].arrive or start)
-            if not all then return end
+        if steps[i].kind == "travel" then
+            first, last = first or i, i
         end
     end
+    for i = 1, #steps do
+        if all or i == first or (zoneGoal and i == last) then DrawWalk(steps[i], i > 1 and steps[i - 1].arrive or start) end
+    end
 end
 
--- The route's walks not drawn yet, drawn and timed in order: for the job
--- after the route shows. g: mountUp and travelSpeed, as the route was built.
-function Route.DrawWalks(g, steps, start)
-    for i = 1, #steps do
-        local s = steps[i]
-        if s.kind == "travel" then TimeWalk(g, s, i > 1 and steps[i - 1].arrive or start) end
-    end
+-- The route's walks not drawn yet, drawn in order: the job after the
+-- route shows.
+function Route.DrawWalks(steps, start)
+    DrawWalks(steps, start, true)
 end
 
 -- The travel edge from node i to j, one table per pair for the graph's
@@ -1181,13 +1184,11 @@ function Route:Build(dest, opts)
     if not path then return nil end
     local cost = PathSeconds(g, path)
     local steps = Steps(g, path, dest.name)
-    -- opts.draw: "first" times the walk set out on by its drawn way, "all"
-    -- every walk; else the search's prices stand until the route's walks
-    -- are drawn after it shows.
-    if g.nav and opts.draw then TimeWalks(g, steps, start, opts.draw == "all") end
+    -- opts.draw: "first" draws the walk set out on (and the last, into a
+    -- zone goal), "all" every walk; else none, for a route to compare.
+    if g.nav and opts.draw then DrawWalks(steps, start, opts.draw == "all", dest.zone) end
     local total = 0
     for i = 1, #steps do total = total + (steps[i].sec or 0) end
-    local pace = { mountUp = g.mountUp, travelSpeed = g.travelSpeed }
     local advice
     if opts.advise ~= false then
         local used = {}
@@ -1222,7 +1223,7 @@ function Route:Build(dest, opts)
         end
         if #advice.pickups == 0 and not advice.learn then advice = nil end
     end
-    return steps, total, advice, pace
+    return steps, total, advice
 end
 
 -- Walks on WoW Forever's walking grid (Nav.lua)
