@@ -346,6 +346,14 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- Note rows open the note (the "New note" row carries nativeRun).
+    if data.noteID and ns.RequestNotes then
+        local noteID = data.noteID
+        self:FinishResultSelection()
+        if ns.RequestNotes() and ns.Notes.OpenNote then ns.Notes.OpenNote(noteID) end
+        return
+    end
+
     -- Pinned native command: storage keeps only strings, so the run
     -- callback is re-resolved by name. Secure ones carry slashCommand and
     -- already ran via the row's macrotext attribute instead.

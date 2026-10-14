@@ -737,6 +737,59 @@ function notesNS.OpenNote(id)
     if UI.OpenEasyNotes then UI:OpenEasyNotes() end
 end
 
+-- The notes as rows of the search bar: every note this character sees,
+-- found by title, alias and body, opened on Enter. The bar is the one
+-- door that needs no window open first.
+function notesNS.BuildSearchData()
+    local notes = NotesStore()
+    local shareAll = EasyNotesDB.shareAcrossCharacters == true
+    local charKey = CurrentCharKey()
+    local out = {}
+    for i = 1, #notes do
+        local n = notes[i]
+        if shareAll or n.scope == "account" or not n.character or n.character == charKey then
+            local title = NoteTitle(n)
+            local keywords = { "note", "notes" }
+            local alias = n.alias and slower(strtrim(n.alias)) or ""
+            if alias ~= "" then keywords[#keywords + 1] = alias end
+            local body = PlainSearchText(n)
+            if body ~= "" then keywords[#keywords + 1] = body:sub(1, 300) end
+            out[#out + 1] = {
+                name = title,
+                nameLower = slower(title),
+                category = "Notes",
+                keywordsLower = keywords,
+                searchCommandDesc = FormatRelTime(n.updated),
+                icon = ns.NOTES_ICON_TEX,
+                noteID = n.id,
+            }
+        end
+    end
+    return out
+end
+
+-- A note made from the bar's "New note: ..." row: titled by the query,
+-- open with the body ready to type into.
+function notesNS.NewFromSearch(title)
+    local note = CreateNote("")
+    note.name = strtrim(title or "")
+    UI:OpenEasyNotes()
+    UI:SelectEasyNote(note.id)
+    UI:HideEasyNotesPalette()
+    UI:FocusEasyNoteEditor()
+end
+
+-- The bar's rows follow every change, a moment after the last one.
+local searchRefreshDue
+local function RefreshSearchRows()
+    if searchRefreshDue then return end
+    searchRefreshDue = true
+    Utils.SafeAfter(0.3, function()
+        searchRefreshDue = nil
+        if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory("notes") end
+    end)
+end
+
 -- Note-context v2. A note carries two independent attachment systems:
 --   appliesIn  -- situational filters (zone, instance, class, open UI panel...)
 --                 deciding which notes surface on the homepage.
@@ -3770,6 +3823,7 @@ function UI:UpdateEasyNotesCharCounter()
 end
 
 function UI:RefreshEasyNotes()
+    RefreshSearchRows()
     local frame = UI._notes.frame
     if not frame then return end
     NormalizeDB()

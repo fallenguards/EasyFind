@@ -246,8 +246,10 @@ function Icons:GetFlatCategoryIcon(data)
     -- category (the snippet create row, the snippets app) must fall
     -- through to their own category glyph below.
     if data.searchCommand or data.category == "Command" then return FLAT_CATEGORY_ICONS.command end
+    if data.category == "Notes" then return FLAT_CATEGORY_ICONS.notes end
     if data.quickFilterDef then
         local key = data.quickFilterDef.key
+        if key == "notes" then return FLAT_CATEGORY_ICONS.notes end
         if key == "abilities" then return FLAT_CATEGORY_ICONS.ability end
         if key == "achievements" then return FLAT_CATEGORY_ICONS.achievement end
         if key == "statistics" then return FLAT_CATEGORY_ICONS.statistic end

@@ -2682,6 +2682,16 @@ function Database:PopulateDynamicClipboard()
     return true
 end
 
+function Database:PopulateDynamicNotes()
+    RemoveEntriesByCategory("Notes")
+    local entries = ns.Notes and ns.Notes.BuildSearchData and ns.Notes.BuildSearchData()
+    if not entries then return false end
+    for i = 1, #entries do
+        uiSearchData[#uiSearchData + 1] = entries[i]
+    end
+    return true
+end
+
 function Database:PopulateDynamicCommands()
     RemoveEntriesByCategory("Command")
     local entries = ns.SearchCommands and ns.SearchCommands.BuildCommandSearchData

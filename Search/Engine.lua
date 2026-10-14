@@ -56,6 +56,7 @@ local PROVIDERS = {
     -- No trigger words: the list is only reached through @clipboard (the
     -- pill requests the provider); a typed "clipboard" finds the launcher.
     { key = "clipboard", words = {} },
+    { key = "notes", words = { "note", "notes" }, loadOnLowResults = true },
     { key = "currencies", words = { "currency", "currencies", "cur" }, loadOnLowResults = true },
     { key = "reputations", words = { "rep", "reps", "reputation", "reputations", "faction" }, loadOnLowResults = true },
     { key = "achievements", words = { "ach", "achievement", "achievements" }, loadOnLowResults = true },

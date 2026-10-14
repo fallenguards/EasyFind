@@ -74,6 +74,9 @@ local dynamicProviders = {
     -- Never eager: pasted text and chat links must not land in normal
     -- results. Reached through @clipboard, the launcher row, and the words.
     { key = "clipboard", category = providerCategory["clipboard"],      fn = "PopulateDynamicClipboard" },
+    -- Notes are found by title in any search, once the companion is loaded
+    -- (it loads at login as soon as there is a note).
+    { key = "notes", category = providerCategory["notes"],              fn = "PopulateDynamicNotes", eager = true },
     { key = "professions", category = providerCategory["professions"],  fn = "PopulateDynamicProfessions", eager = true },
 }
 

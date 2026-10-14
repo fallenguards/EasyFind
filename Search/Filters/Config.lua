@@ -259,6 +259,14 @@ local UI_FILTER_OPTIONS = {
                 { dbKey = "clipboardOldestFirst", label = L["CLIP_OPT_OLDEST_FIRST"],
                   tooltip = L["CLIP_OPT_OLDEST_FIRST_TT"], onChange = RefreshClipboardView },
             } },
+          { key = "notes", label = L["APP_NOTES"], iconTex = ns.NOTES_ICON_TEX,
+            iconCoords = ns.NOTES_ICON_COORDS, companion = "EasyFind_Notes",
+            hasOptions = true,
+            checkboxOptions = {
+                { dbKey = "notesHereFilter", label = L["NOTES_OPT_HERE"], tooltip = L["NOTES_OPT_HERE_TT"] },
+                { dbKey = "notesTooltips", label = L["NOTES_OPT_TOOLTIPS"], tooltip = L["NOTES_OPT_TOOLTIPS_TT"] },
+                { dbKey = "notesPlayerMenu", label = L["NOTES_OPT_PLAYER_MENU"], tooltip = L["NOTES_OPT_PLAYER_MENU_TT"] },
+            } },
       } },
     -- Title icon from PaperDollSidebarTab2 (Titles tab) spritesheet 514608.
     -- Titles you have not earned are opt-in: they outnumber earned ones many

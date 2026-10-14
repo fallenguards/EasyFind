@@ -40,6 +40,7 @@ local ENTRIES = {
     { key = "extensions",      categories = {} },
     { key = "snippets",        parent = "extensions", categories = { "Snippet" } },
     { key = "clipboard",       parent = "extensions", categories = { "Clipboard" } },
+    { key = "notes",           parent = "extensions", categories = { "Notes" } },
     { key = "professions",     categories = { "Profession" } },
     { key = "gameOptions",     parent = "options", categories = { "Game Settings" } },
     { key = "addonOptions",    parent = "options", categories = { "AddOn Settings" } },

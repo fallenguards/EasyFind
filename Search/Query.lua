@@ -844,6 +844,25 @@ function Search:OnSearchTextChangedNow(text, force)
             combined[#combined + 1] = { data = notesLauncher, score = 2e6 }
         end
     end
+    -- Under @notes a query that is no note's title offers to make one so
+    -- titled, last in the list.
+    if quickFilter and quickFilter.key == "notes" and text ~= "" and ns.Notes and ns.Notes.NewFromSearch then
+        local lower = slower(text)
+        local titled = false
+        for ri = 1, #combined do
+            local d = combined[ri].data
+            if d and d.noteID and d.nameLower == lower then titled = true break end
+        end
+        if not titled then
+            local title = text
+            combined[#combined + 1] = { score = 1, data = {
+                name = Utils.sformat(ns.L["NOTES_ROW_NEW_FMT"], title), category = "Notes",
+                searchCommandDesc = ns.L["NOTES_ROW_NEW_SUB"], icon = ns.NOTES_ICON_TEX,
+                noteCreate = true, noPin = true, noLearn = true,
+                nativeRun = function() ns.Notes.NewFromSearch(title) end,
+            } }
+        end
+    end
     if not quickFilter and not calculatorData and not calculatorLauncher
        and Results.GetClockLauncherMatch then
         local clockLauncher = Results:GetClockLauncherMatch(text)
