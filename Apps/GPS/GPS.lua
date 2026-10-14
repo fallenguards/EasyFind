@@ -4031,6 +4031,19 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     elseif c and c.popoutOpen then
         GPS:TogglePopout(true)
     end
+    -- What every plan decodes first, done now in the planner's slices
+    -- rather than on the session's first click.
+    local Nav = ns.GPSNav
+    if Nav and Nav.Warm and ns.GPSNavData then
+        Utils.SafeAfter(2, function()
+            if GPS:IsPlanning() then return end
+            GPS:Plan(nil, function()
+                Nav.yieldCo = coroutine.running()
+                for ci in pairs(ns.GPSNavData) do Nav.Warm(ci) end
+                Nav.yieldCo = nil
+            end, function() end)
+        end)
+    end
     local route = Route()
     if not route then return end
     -- A route is for the trip in progress; one left from another day is
