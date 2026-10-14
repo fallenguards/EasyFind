@@ -100,6 +100,7 @@ read_globals = {
     "GetSpellLink", "GetAchievementLink",
     "GetMacroSpell", "GetMacroItem",
     "PanelTemplates_GetSelectedTab", "CollectionsJournal_GetTab", "C_HeirloomInfo",
+    "INVSLOT_MAINHAND", "INVSLOT_OFFHAND", "INVSLOT_RANGED",
 
     -- Frames and UI objects
     "UIParent", "GameTooltip", "WorldMapFrame", "WorldFrame", "Minimap", "MinimapCluster",

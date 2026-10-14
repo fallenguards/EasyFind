@@ -1476,23 +1476,57 @@ end
 
 local DIFF_PRIORITY = { "mythic", "heroic", "normal", "lfr" }
 
--- Every entry into the wardrobe goes through these two. On a client whose
--- wardrobe holds nothing, asking for a category does not fail, it takes
--- the whole client down: an assert inside the game (BC_ASSERT on an empty
--- optional) that pcall cannot catch, because it aborts the process rather
--- than raising a Lua error. So the only real protection is the capability
--- check, and the guard below repeats it here where the call is: no path,
--- stray or future, reaches the wardrobe on a client without one. The
--- pcall covers the ordinary Lua-side failures on top of that.
+-- Every entry into the wardrobe goes through these. The category and
+-- source calls take the transmog location the client's own wardrobe
+-- passes; without it Forever's client asserts and aborts, past pcall.
 -- Methods on Database, not file locals: this chunk is at Lua's limit.
 function Database.NoWardrobe()
     return ns.Caps ~= nil and ns.Caps.transmog == false
 end
 
-function Database.CategoryAppearances(slot)
+-- Armor categories (Enum.TransmogCollectionType) to equipment slots.
+Database.CATEGORY_SLOT = {
+    [1] = 1, [2] = 3, [3] = 15, [4] = 5, [5] = 4, [6] = 19,
+    [7] = 9, [8] = 10, [9] = 6, [10] = 7, [11] = 8,
+}
+
+-- Weapons take the hand the category allows, as the wardrobe's slot
+-- picker does.
+function Database.TransmogLocation(category)
+    local C = C_TransmogCollection
+    local slotID = Database.CATEGORY_SLOT[category]
+    if not slotID and C and C.GetCategoryInfo then
+        local name, isWeapon, _, canMainHand, canOffHand, canRanged = C.GetCategoryInfo(category)
+        if name and isWeapon then
+            slotID = (canMainHand and (INVSLOT_MAINHAND or 16))
+                or (canOffHand and (INVSLOT_OFFHAND or 17))
+                or (canRanged and (INVSLOT_RANGED or 18))
+        end
+    end
+    if not slotID then return nil end
+    return {
+        slotID = slotID,
+        type = (Enum.TransmogType and Enum.TransmogType.Appearance) or 0,
+        modification = (Enum.TransmogModification and Enum.TransmogModification.Main) or 0,
+    }
+end
+
+function Database.CategoryAppearances(category)
     local C = C_TransmogCollection
     if Database.NoWardrobe() or not (C and C.GetCategoryAppearances) then return nil end
-    local ok, list = pcall(C.GetCategoryAppearances, slot)
+    local location = Database.TransmogLocation(category)
+    if not location then return nil end
+    local ok, list = pcall(C.GetCategoryAppearances, category, location)
+    if ok then return list end
+    return nil
+end
+
+function Database.AppearanceSources(visualID, category)
+    local C = C_TransmogCollection
+    if Database.NoWardrobe() or not (C and C.GetAppearanceSources) then return nil end
+    local location = Database.TransmogLocation(category)
+    if not location then return nil end
+    local ok, list = pcall(C.GetAppearanceSources, visualID, category, location)
     if ok then return list end
     return nil
 end
@@ -3175,7 +3209,6 @@ function Database:PopulateDynamicAppearanceItems()
         ns.Filters:EnsureWardrobeItemSlotHooks()
     end
 
-    local GetSources = C.GetAppearanceSources
     local GetSourceInfo = C.GetSourceInfo
     local GetSourceIcon = C.GetSourceIcon
     local getCatInfo = C.GetCategoryInfo
@@ -3198,8 +3231,8 @@ function Database:PopulateDynamicAppearanceItems()
                 -- (e.g. collected-only and this whole appearance is uncollected).
                 local appOk = (app.isCollected and showCollected)
                     or (not app.isCollected and showNotCollected)
-                if appOk and app.visualID and GetSources then
-                    local sources = GetSources(app.visualID)
+                if appOk and app.visualID then
+                    local sources = Database.AppearanceSources(app.visualID, catID)
                     if sources then
                         -- One entry per source item, not per appearance. Items
                         -- that share a visual (e.g. "Cowl of Sina's Stalwarts"
@@ -3334,11 +3367,10 @@ function Database:PopulateDynamicAppearanceItemsAsync(done)
         ns.Filters:EnsureWardrobeItemSlotHooks()
     end
 
-    local GetSources = C.GetAppearanceSources
     local GetSourceInfo = C.GetSourceInfo
     local GetSourceIcon = C.GetSourceIcon
     local getCatInfo = C.GetCategoryInfo
-    if not GetSources then done(false, "cancelled"); return end
+    if not C.GetAppearanceSources then done(false, "cancelled"); return end
 
     local appearances = Database.CategoryAppearances(slot)
     if not appearances or #appearances == 0 then done(false, "cancelled"); return end
@@ -3371,7 +3403,7 @@ function Database:PopulateDynamicAppearanceItemsAsync(done)
                 app = appearances[appIndex]
                 local appOk = app and ((app.isCollected and showCollected)
                     or (not app.isCollected and showNotCollected))
-                sources = appOk and app.visualID and GetSources(app.visualID) or false
+                sources = appOk and app.visualID and Database.AppearanceSources(app.visualID, slot) or false
                 sourceIndex = 1
             end
 

@@ -96,19 +96,7 @@ end
 -- Our slot dropdown stores Enum.TransmogCollectionType ids; the wardrobe's slot
 -- buttons carry a transmogLocation with the equipment slotID (INVSLOT_*). These
 -- map between them. Armor only; weapon slots use a separate nav we don't sync.
-local CAT_TO_INV_SLOT = {
-    [1] = 1,   -- Head
-    [2] = 3,   -- Shoulder
-    [3] = 15,  -- Back
-    [4] = 5,   -- Chest
-    [5] = 4,   -- Shirt (Body)
-    [6] = 19,  -- Tabard
-    [7] = 9,   -- Wrist
-    [8] = 10,  -- Hands
-    [9] = 6,   -- Waist
-    [10] = 7,  -- Legs
-    [11] = 8,  -- Feet
-}
+local CAT_TO_INV_SLOT = ns.Database.CATEGORY_SLOT
 local INV_SLOT_TO_CAT = {}
 for cat, inv in pairs(CAT_TO_INV_SLOT) do INV_SLOT_TO_CAT[inv] = cat end
 
