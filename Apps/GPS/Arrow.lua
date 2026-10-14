@@ -3,7 +3,8 @@
 -- While a route is followed, an arrow under the character points the way
 -- on foot as it runs: at a spot a little ahead along the walk, so it turns
 -- with every bend, with the step, the yards left on the walk and the times
--- left in the beacon's plate under it. A few yards
+-- left in the beacon's plate under it. A walk hardly longer than the line
+-- to its spot is aimed at the spot, past the grid's wiggles. A few yards
 -- beside the walk it leads alongside it, not back onto it, where nothing
 -- stands between. At a ride's boarding spot it points there; on board, and
 -- where the game gives no facing (instances), it rests. Shift-drag moves it.
@@ -18,6 +19,7 @@ local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -
 local SIZE = 44
 local HOME_Y = -130            -- under the character, from the screen's center
 local AHEAD = 25               -- yards along the walk the arrow aims at
+local NEAR_STRAIGHT = 1.1      -- a walk within this of the straight line is aimed at its spot
 local LANE = 10                -- yards beside the walk still walked alongside it
 local AT_RIDE = 60             -- yards from a ride's boarding spot: still pointing at it
 local THROTTLE = 0.03
@@ -58,6 +60,9 @@ local function Aim()
     local path = f.path
     if not path then return px, py, f.tx, f.ty, f.straight end
     local left = mmax(0, path.len - f.along)
+    -- A walk hardly longer than the line to the spot bends only round the
+    -- grid's small blocks (a bush, a post): straight at the spot.
+    if left <= f.straight * NEAR_STRAIGHT then return px, py, f.tx, f.ty, left end
     local ax, ay = ns.GPSFollow.PointAt(path, f.along + AHEAD, f.seg)
     -- Beside the walk: alongside it, up to LANE out, closing in on the
     -- last stretch so the spot itself is reached.
