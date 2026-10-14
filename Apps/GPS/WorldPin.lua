@@ -154,9 +154,13 @@ local function PaintPlate(p)
         local faint = theme.textFaint or main
         p.text:SetTextColor(main[1], main[2], main[3], 1)
         p.sub:SetTextColor(faint[1], faint[2], faint[3], 1)
+        p.sub2:SetTextColor(faint[1], faint[2], faint[3], 1)
     else
         if ns.TEXT_PRIMARY then p.text:SetTextColor(ns.TEXT_PRIMARY[1], ns.TEXT_PRIMARY[2], ns.TEXT_PRIMARY[3], 1) end
-        if ns.TEXT_DIM then p.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1) end
+        if ns.TEXT_DIM then
+            p.sub:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1)
+            p.sub2:SetTextColor(ns.TEXT_DIM[1], ns.TEXT_DIM[2], ns.TEXT_DIM[3], 1)
+        end
     end
 end
 
@@ -175,8 +179,9 @@ end
 WorldPin.Tint = Tint
 if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Repaint) end
 
--- A plate in the addon's menu look: the step, then the distance and the
--- time left. Under the beacon, or under the arrow while it shows.
+-- A plate in the addon's menu look: the step, then the distance and this
+-- step's time, then the trip's. Under the beacon, or under the arrow
+-- while it shows.
 function WorldPin.NewPlate(parent)
     local p = CreateFrame("Frame", nil, parent)
     if ns.StyleMenuPanel then ns.StyleMenuPanel(p) end
@@ -187,12 +192,16 @@ function WorldPin.NewPlate(parent)
     text:SetWordWrap(false)
     text._efOwnColor = true
     p.text = text
-    local sub = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    sub:SetPoint("TOP", text, "BOTTOM", 0, -2)
-    sub:SetJustifyH("CENTER")
-    sub:SetWordWrap(false)
-    sub._efOwnColor = true
-    p.sub = sub
+    local function Line(above)
+        local fs = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        fs:SetPoint("TOP", above, "BOTTOM", 0, -2)
+        fs:SetJustifyH("CENTER")
+        fs:SetWordWrap(false)
+        fs._efOwnColor = true
+        return fs
+    end
+    p.sub = Line(text)
+    p.sub2 = Line(p.sub)
     -- The menu styling refills the plate each time it shows; paint ours
     -- after it, every time.
     p:HookScript("OnShow", PaintPlate)
@@ -220,35 +229,57 @@ function WorldPin.NewPlate(parent)
     return p
 end
 
--- New lines on a plate, sized to them; the same again does nothing.
-function WorldPin.FillPlate(p, text, sub)
-    if text == p.shownText and sub == p.shownSub then return end
-    p.shownText, p.shownSub = text, sub
+-- New lines on a plate, sized to them, an empty line taking no room; the
+-- same again does nothing.
+function WorldPin.FillPlate(p, text, sub, sub2)
+    sub, sub2 = sub or "", sub2 or ""
+    if text == p.shownText and sub == p.shownSub and sub2 == p.shownSub2 then return end
+    p.shownText, p.shownSub, p.shownSub2 = text, sub, sub2
     p.text:SetText(text)
     p.sub:SetText(sub)
-    local w = mmax(p.text:GetStringWidth() or 0, p.sub:GetStringWidth() or 0)
+    p.sub2:SetText(sub2)
+    local w = mmax(p.text:GetStringWidth() or 0, p.sub:GetStringWidth() or 0, p.sub2:GetStringWidth() or 0)
     local inner = mmin(PLATE_MAX_W, mmax(60, w))
     p.text:SetWidth(inner)
     p.sub:SetWidth(inner)
-    p:SetSize(inner + 20, 6 + (p.text:GetStringHeight() or 12) + 2 + (p.sub:GetStringHeight() or 10) + 6)
+    p.sub2:SetWidth(inner)
+    local h = 6 + (p.text:GetStringHeight() or 12) + 6
+    if sub ~= "" then h = h + 2 + (p.sub:GetStringHeight() or 10) end
+    if sub2 ~= "" then h = h + 2 + (p.sub2:GetStringHeight() or 10) end
+    p.sub:SetShown(sub ~= "")
+    p.sub2:SetShown(sub2 ~= "")
+    p:SetSize(inner + 20, h)
 end
 
--- The current step's line and the time left on the route.
-function WorldPin.StepLines(route)
-    local step = route.steps and route.steps[route.active or 1]
+-- What the plate says, by the Arrow text setting: the step; under it the
+-- yards there and this step's time; under those the time for the whole
+-- trip, when more steps follow. Nothing with the plate off.
+function WorldPin.PlateLines(route, yards)
+    local db = DB()
+    local mode = db and db.gpsArrowText or "full"
+    if mode == "off" then return nil end
+    local L = ns.L
+    local active = route.active or 1
+    local step = route.steps and route.steps[active]
     local text = (ns.GPS and ns.GPS.StepText) and ns.GPS.StepText(step, true) or (step and step.text or "")
-    local eta = ""
-    if route.eta and route.eta > 0 then eta = (ns.GPS and ns.GPS.EtaText) and ns.GPS.EtaText(route.eta) or (mfloor(route.eta) .. " s") end
-    return text, eta
-end
-
--- Yards and the time left as the plate's second line.
-function WorldPin.RangeLine(yards, eta)
+    if mode == "step" then return text, "", "" end
     local range = ""
     if yards and yards > 0 then
         range = IN_GAME_NAVIGATION_RANGE and sformat(IN_GAME_NAVIGATION_RANGE, mfloor(yards)) or (mfloor(yards) .. " yd")
     end
-    return (range ~= "" and eta ~= "") and (range .. "   " .. eta) or (range ~= "" and range or eta)
+    if mode == "range" then return text, range, "" end
+    local Eta = ns.GPS and ns.GPS.EtaText
+    local left = route.stepEta or (step and step.sec)
+    local line = range
+    if Eta and left and left > 0 then
+        local t = sformat(L["GPS_PLATE_STEP_FMT"], Eta(left))
+        line = range ~= "" and (range .. "   " .. t) or t
+    end
+    local trip = ""
+    if Eta and route.eta and route.eta > 0 and route.steps and #route.steps > active then
+        trip = sformat(L["GPS_PLATE_TRIP_FMT"], Eta(route.eta))
+    end
+    return text, line, trip
 end
 
 -- ---------------------------------------------------------------------------
@@ -676,12 +707,11 @@ local function Update(dt)
         PlacePlate("under")
     end
     -- The arrow carries the plate while it shows.
-    plate:SetShown(not led)
     local d = C_Navigation and C_Navigation.GetDistance and C_Navigation.GetDistance() or 0
-    if not led then
-        local text, eta = WorldPin.StepLines(route)
-        WorldPin.FillPlate(plate, text, WorldPin.RangeLine(d, eta))
-    end
+    local text, line, trip
+    if not led then text, line, trip = WorldPin.PlateLines(route, d) end
+    plate:SetShown(text ~= nil)
+    if text then WorldPin.FillPlate(plate, text, line, trip) end
     Resize(d, dt or THROTTLE)
 end
 

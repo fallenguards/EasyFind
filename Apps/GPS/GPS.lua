@@ -292,7 +292,11 @@ function GPS:BuildRoute(dest, via, avoid, quick)
         end
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
-            return SplitWalks(steps, dest, origin), total, advice
+            steps = SplitWalks(steps, dest, origin)
+            -- A walk to a zone ends at its border: the total follows the split.
+            total = 0
+            for i = 1, #steps do total = total + (steps[i].sec or 0) end
+            return steps, total, advice
         end
         if via then return nil end   -- no way with that stop: the route stays as it was
     end
@@ -529,75 +533,95 @@ local function Arrive(route)
     end)
 end
 
--- The pace toward the current step's spot, from the last ticks.
+-- The step followed: the yards along its way at the last tick and when,
+-- the yards and seconds moved since the step began (its speed, once
+-- enough), what the last tick answered, and the estimate smoothed.
 local closing = {}
 local walkOpts = {}
+local SPEED_AFTER_YARDS, SPEED_AFTER_SECONDS = 40, 6
+local ETA_SMOOTH = 0.3
 
--- The time still to go: the way from where the player stands to the
--- current step's spot, that step's crossing, and every step after it.
+-- The time still to go, as a car's navigation reckons it: the way left to
+-- the current step's spot along its drawn way, at the speed planned until
+-- the speed seen on this step tells more (mounted under level 40, a buff),
+-- then that step's crossing and every step after it, their walks at the
+-- speed seen too. Off a drawn way the straight line stands in. Standing
+-- still holds the estimate, and it is smoothed so the minute shown holds.
 local function RemainingSeconds(route)
     local i = route.active or 1
     local step = route.steps[i]
     local Engine = ns.GPSRoute
     if not (step and Engine and Engine.TravelSeconds) then return route.eta end
+    local now = GetTime and GetTime() or 0
+    if closing.step ~= i then
+        closing.step, closing.along, closing.at, closing.d = i, nil, nil, nil
+        closing.moved, closing.secs, closing.speed, closing.held, closing.eta = 0, 0, nil, nil, nil
+    end
+    local planned = Engine.GroundSpeed(ns.GPSData)
     local total
     if step.kind == "teleport" then
         total = step.edgeSec or step.sec or 0
     else
-        local ci, px, py = PlayerWorldPos()
         local onTaxi = step.kind == "taxi" and UnitOnTaxi and UnitOnTaxi("player")
-        local target = onTaxi and step.arrive or (step.go or step.arrive)
-        local tci, tx, ty
-        if target and target.wx then tci, tx, ty = target.ci, target.wx, target.wy
-        elseif target then tci, tx, ty = WorldPos(target.m, target.x, target.y) end
-        if ci and tci == ci and tx then
-            local d = ((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5
-            -- Pace learned over the whole step (ground closed over time moving) beats the
-            -- model; the last second swings with every turn. Standing still holds the estimate.
-            local now = GetTime and GetTime() or 0
-            if closing.step ~= i or not closing.at then
-                closing.step, closing.d0, closing.moving, closing.pace = i, d, 0, nil
-            elseif now > closing.at then
-                if closing.d - d > 0.5 then closing.moving = closing.moving + (now - closing.at) end
-                local progress = closing.d0 - d
-                if progress >= 40 and closing.moving >= 6 then closing.pace = progress / closing.moving end
+        local f = not onTaxi and ns.GPSFollow and ns.GPSFollow.Now()
+        local moved = false
+        if f and f.path then
+            if closing.at and now > closing.at then
+                local gain = f.along - closing.along
+                if gain > 0.5 then
+                    moved = true
+                    closing.moved, closing.secs = closing.moved + gain, closing.secs + (now - closing.at)
+                    if closing.moved >= SPEED_AFTER_YARDS and closing.secs >= SPEED_AFTER_SECONDS then
+                        closing.speed = closing.moved / closing.secs
+                    end
+                end
             end
-            local moved = closing.at and (closing.d - d) > 0.5
-            closing.d, closing.at = d, now
-            if closing.pace and closing.pace > 1 then
-                total = d / closing.pace + (step.edgeSec or 0)
-            elseif onTaxi then total = Engine:TravelSeconds(d, { taxi = true })
-            else
-                walkOpts.wind = step.wind
-                total = Engine:TravelSeconds(d, walkOpts) + (step.edgeSec or 0)
-            end
-            if not moved and closing.held then total = closing.held end
-            closing.held = total
+            closing.along, closing.at = f.along, now
+            local left = mmax(0, f.path.len - f.along)
+            total = left * (f.path.time / mmax(1, f.path.len)) / (closing.speed or planned) + (step.edgeSec or 0)
         else
-            total = step.sec or 0
+            local ci, px, py = PlayerWorldPos()
+            local target = onTaxi and step.arrive or (step.go or step.arrive)
+            local tci, tx, ty
+            if target and target.wx then tci, tx, ty = target.ci, target.wx, target.wy
+            elseif target then tci, tx, ty = WorldPos(target.m, target.x, target.y) end
+            if ci and tci == ci and tx then
+                local d = ((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5
+                moved = closing.d ~= nil and (closing.d - d > 0.5 or d - closing.d > 0.5)
+                closing.d = d
+                if onTaxi then
+                    total = Engine:TravelSeconds(d, { taxi = true })
+                else
+                    walkOpts.wind = step.wind
+                    total = Engine:TravelSeconds(d, walkOpts) + (step.edgeSec or 0)
+                end
+            else
+                total = step.sec or 0
+            end
         end
+        if not moved and closing.held then total = closing.held end
+        closing.held = total
     end
-    for j = i + 1, #route.steps do total = total + (route.steps[j].sec or 0) end
-    return total
+    route.stepEta = total
+    local k = closing.speed and planned / closing.speed or 1
+    for j = i + 1, #route.steps do
+        local s = route.steps[j]
+        total = total + (s.sec or 0) * (s.kind == "travel" and k or 1)
+    end
+    closing.eta = closing.eta and (closing.eta + (total - closing.eta) * ETA_SMOOTH) or total
+    return closing.eta
 end
 
--- The time still to go, always with its units: hours and minutes, or
--- minutes and seconds, or seconds alone, in the game's own short forms.
+-- The time still to go in minutes, and hours past one, as a car's
+-- navigation shows it: under a minute reads as one. Our own unit words:
+-- the game's carry a grammar token that some text does not render.
 local function EtaText(sec)
-    sec = mfloor((sec or 0) + 0.5)
-    if sec < 1 then sec = 1 end
-    local h = mfloor(sec / 3600)
-    local m = mfloor((sec % 3600) / 60)
-    local s = sec % 60
-    -- Our own unit words: the game's carry a grammar token that some text
-    -- does not render, leaving the number alone.
-    local H, M, S = L["GPS_UNIT_HR"] or "%d hr", L["GPS_UNIT_MIN"] or "%d min", L["GPS_UNIT_SEC"] or "%d sec"
-    if h > 0 then
-        return sformat(H, h) .. (m > 0 and (" " .. sformat(M, m)) or "")
-    elseif m > 0 then
-        return sformat(M, m) .. (s > 0 and (" " .. sformat(S, s)) or "")
-    end
-    return sformat(S, s)
+    local m = mmax(1, mfloor((sec or 0) / 60 + 0.5))
+    local h = mfloor(m / 60)
+    m = m % 60
+    local H, M = L["GPS_UNIT_HR"] or "%d hr", L["GPS_UNIT_MIN"] or "%d min"
+    if h > 0 then return sformat(H, h) .. (m > 0 and (" " .. sformat(M, m)) or "") end
+    return sformat(M, m)
 end
 GPS.EtaText = EtaText
 
@@ -3927,8 +3951,23 @@ local function BuildOptionsPage(ctx, page)
         if self.RefreshVisual then self:RefreshVisual() end
         Refresh()
     end)
+    local texts = {
+        { label = L["GPS_ARROW_TEXT_FULL"], value = "full" },
+        { label = L["GPS_ARROW_TEXT_RANGE"], value = "range" },
+        { label = L["GPS_ARROW_TEXT_STEP"], value = "step" },
+        { label = _G["OFF"] or "Off", value = "off" },
+    }
+    local textRow = ctx.CreateFlyoutPresetRow(page, L["GPS_ARROW_TEXT"], texts,
+        function() local db = DB() return db and db.gpsArrowText or "full" end,
+        function(v)
+            local db = DB()
+            if db then db.gpsArrowText = (v ~= "full") and v or nil end
+            Refresh()
+        end,
+        "EasyFindGPSArrowText", "full", L["GPS_ARROW_TEXT_TT"])
+    textRow:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -4)
     local mini = ctx.CreateCheckbox(page, "GPSMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], true)
-    mini:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -6)
+    mini:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -6)
     mini:SetChecked(not (d0 and d0.gpsMinimap == false))
     if mini.RefreshVisual then mini:RefreshVisual() end
     mini:SetScript("OnClick", function(self)

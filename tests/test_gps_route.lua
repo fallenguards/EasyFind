@@ -669,7 +669,20 @@ function tests.walk_toAZoneEndsOnEnteringIt()
     local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt, goalZone = 12 })
     H.assertEq(#out, 2, "no step inside the goal zone")
     H.assertEq(out[2].enter, 12)
-    H.assertEq(out[2].arrive, target)
+    H.assertTrue(out[2].arrive ~= target and out[2].arrive.wx >= 500 and out[2].arrive.wx <= 600,
+        "the walk ends at the goal zone's border, not its middle")
+    H.assertEq(out[2].arrive.m, 11, "the border placed on the zone before")
+    -- The border lies 1050 yd in (A to B) plus the way north to it.
+    H.assertTrue(math.abs(out[1].sec + out[2].sec - 210 * (1050 + out[2].arrive.wx) / 2100) < 1,
+        "the time runs to the border: " .. tostring(out[1].sec + out[2].sec))
+    -- Each piece's way is kept as the walk between its ends: followed and
+    -- drawn from the cache, no search.
+    local a = out[1].arrive
+    local piece = Route.WalkPath(1, a.wx, a.wy, out[2].arrive.wx, out[2].arrive.wy)
+    H.assertTrue(piece and piece.len > 0 and piece.pts[1] == a.wx and piece.pts[2] == a.wy, "the second piece's way starts at the first border")
+    H.assertTrue(math.abs(piece.len - ((1000 - a.wy) + out[2].arrive.wx)) < 1, "and runs by B to the goal's border: " .. tostring(piece.len))
+    local first = Route.WalkPath(1, start.wx, start.wy, a.wx, a.wy)
+    H.assertTrue(first and math.abs(first.len - (a.wy - start.wy)) < 1, "the first piece's way runs west to the border")
 end
 
 function tests.walk_fromInsideACityStartsWithLeavingIt()

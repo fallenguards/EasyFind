@@ -2,7 +2,7 @@
 --
 -- While a route is followed, an arrow under the character points the way
 -- on foot as it runs: at a spot a little ahead along the walk, so it turns
--- with every bend, with the step, the yards left on the walk and the time
+-- with every bend, with the step, the yards left on the walk and the times
 -- left in the beacon's plate under it. A few yards
 -- beside the walk it leads alongside it, not back onto it, where nothing
 -- stands between. At a ride's boarding spot it points there; on board, and
@@ -103,7 +103,7 @@ local function Build()
     art:SetTexture(TEX_ARROW)
     ns.GPSWorldPin.Tint(art, "arrow", 1)
     plate = ns.GPSWorldPin.NewPlate(frame)
-    plate:SetPoint("TOP", frame, "BOTTOM", 0, -2)
+    plate:SetPoint("TOP", frame, "BOTTOM", 0, -7)
     plate:RegisterForDrag("LeftButton")
     -- Clicks pass through to the world, unless Shift is held to move it
     -- (by the arrow or its plate) or to right-click the plate's menu.
@@ -147,8 +147,9 @@ local function Update()
     -- Facing turns from north toward west too; the art points down at rest.
     art:SetRotation(bearing - facing + mpi)
     local Pin = ns.GPSWorldPin
-    local text, eta = Pin.StepLines(Route())
-    Pin.FillPlate(plate, text, Pin.RangeLine(left, eta))
+    local text, line, trip = Pin.PlateLines(Route(), left)
+    plate:SetShown(text ~= nil)
+    if text then Pin.FillPlate(plate, text, line, trip) end
     frame:Show()
 end
 

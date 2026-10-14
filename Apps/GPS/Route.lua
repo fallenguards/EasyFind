@@ -1205,6 +1205,15 @@ end
 local WALK_PATHS_KEPT = 128
 local walkPaths, walkPathCount, walkEpoch = {}, 0, nil
 
+local function WalkKey(ci, sx, sy, tx, ty)
+    return ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
+end
+
+local function KeepPath(key, path)
+    if walkPathCount >= WALK_PATHS_KEPT then walkPaths, walkPathCount = {}, 0 end
+    walkPaths[key], walkPathCount = path, walkPathCount + 1
+end
+
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
 -- so far), len (yards walked), time (running yards: swimming takes longer) },
 -- false when no way leads there, nil without walking data for ci.
@@ -1212,10 +1221,9 @@ function Route.WalkPath(ci, sx, sy, tx, ty)
     local Nav = ns.GPSNav
     if not (Nav and Nav.Ensure(ci)) then return nil end
     if walkEpoch ~= Nav.epoch then walkPaths, walkPathCount, walkEpoch = {}, 0, Nav.epoch end
-    local key = ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
+    local key = WalkKey(ci, sx, sy, tx, ty)
     local path = walkPaths[key]
     if path == nil then
-        if walkPathCount >= WALK_PATHS_KEPT then walkPaths, walkPathCount = {}, 0 end
         local pts, _, time = Nav.Path(ci, sx, sy, tx, ty)
         if pts then
             local cum = { 0 }
@@ -1226,9 +1234,27 @@ function Route.WalkPath(ci, sx, sy, tx, ty)
         else
             path = false
         end
-        walkPaths[key], walkPathCount = path, walkPathCount + 1
+        KeepPath(key, path)
     end
     return path
+end
+
+-- The stretch of a drawn walk from `from` to `stop` yards along it, between
+-- (sx, sy) and (ex, ey), kept as the walk between those: a piece of a split
+-- walk is then followed and drawn without a search of its own.
+local function KeepStretch(ci, path, from, stop, sx, sy, ex, ey)
+    local pts, cum = path.pts, path.cum
+    local out, ocum = { sx, sy }, { 0 }
+    for v = 1, #pts / 2 do
+        if cum[v] > from and cum[v] < stop then
+            out[#out + 1], out[#out + 2] = pts[2 * v - 1], pts[2 * v]
+            ocum[#ocum + 1] = cum[v] - from
+        end
+    end
+    out[#out + 1], out[#out + 2] = ex, ey
+    ocum[#ocum + 1] = stop - from
+    KeepPath(WalkKey(ci, sx, sy, ex, ey), { pts = out, cum = ocum, len = stop - from,
+                                             time = path.time * (stop - from) / mmax(1, path.len) })
 end
 
 -- Walks, zone by zone
@@ -1295,8 +1321,8 @@ local function WalkPieces(step, from, data, env, first)
         runs[1].at, runs[1].x, runs[1].y = cum[2], pts[3], pts[4]
         table.insert(runs, 1, { map = city.map, name = city.name or "?", at = 0, x = fx, y = fy })
     end
-    -- A zone goal is reached on entering it: the stretch inside it is
-    -- the end of the step before.
+    -- A zone goal is reached on entering it: the walk ends at its border,
+    -- where the step before's stretch ends.
     local count = #runs
     local intoGoal = env.goalZone and count > 1 and runs[count].map == env.goalZone
     if intoGoal then count = count - 1 end
@@ -1307,31 +1333,30 @@ local function WalkPieces(step, from, data, env, first)
         local run, nxt = runs[k], runs[k + 1]
         local piece = {}
         for key, value in pairs(step) do piece[key] = value end
-        local stop = (k < count or intoGoal) and nxt and nxt.at or path.len
+        local border = (k < count or intoGoal) and nxt or nil
+        local stop = border and border.at or path.len
         if step.sec then piece.sec = step.sec * (stop - run.at) / path.len end
         local ex, ey = tx, ty
-        if (k < count or intoGoal) and nxt then ex, ey = nxt.x, nxt.y end
+        if border then ex, ey = border.x, border.y end
         local straight = msqrt((ex - run.x) ^ 2 + (ey - run.y) ^ 2)
         piece.wind = straight > 5 and mmax(1, (stop - run.at) / straight) or nil
         piece.walkZone = run.map
-        if k < count then
+        if border then
             -- Up to the border: done on entering the next zone.
             local mx, my
-            if env.mapPos then mx, my = env.mapPos(ci, nxt.x, nxt.y, run.map) end
+            if env.mapPos then mx, my = env.mapPos(ci, border.x, border.y, run.map) end
             -- A border the zone's own map cannot place: the walk stays whole.
             if env.mapPos and not mx then return nil end
-            local spot = { ci = ci, wx = nxt.x, wy = nxt.y, m = run.map, x = mx, y = my }
+            local spot = { ci = ci, wx = border.x, wy = border.y, m = run.map, x = mx, y = my }
             piece.mapID, piece.x, piece.y, piece.go, piece.arrive = run.map, mx, my, spot, spot
-            piece.enter = nxt.map
-            if env.isCity and env.isCity(run.map) then
+            piece.enter = border.map
+            if k < count and env.isCity and env.isCity(run.map) then
                 piece.text = (L["GPS_STEP_EXIT_FMT"]):format(run.name)
             else
-                piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, nxt.name)
+                piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, border.name)
             end
-        elseif intoGoal then
-            piece.enter = nxt.map
-            piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, nxt.name)
         end
+        KeepStretch(ci, path, run.at, stop, run.x, run.y, ex, ey)
         out[k] = piece
     end
     return out
