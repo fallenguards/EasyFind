@@ -2302,10 +2302,10 @@ ns.UPDATE_NOTICE_BOTTOM_PAD = 6
 -- Gap between the last result row and the notice; deliberately slim.
 ns.UPDATE_NOTICE_TOP_PAD = 1
 -- The options window and the tutorial wizard share one silhouette on
--- purpose; both frames read this pair. Height grew by one 28px settings
--- row (408 -> 436) when the tabs ran out of room.
+-- purpose; both frames read this pair. Height grows by one 28px settings
+-- row (408, 436, 464) each time the tabs run out of room.
 ns.OPTIONS_WINDOW_W = 544
-ns.OPTIONS_WINDOW_H = 436
+ns.OPTIONS_WINDOW_H = 464
 ns.DEFAULT_FONT_SIZE = 0.9
 ns.CLEAR_BTN_SIZE = 12
 -- Blizzard's standard round-crop mask, used wherever a square icon has to
