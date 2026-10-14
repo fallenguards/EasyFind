@@ -1987,9 +1987,9 @@ ns.SEARCH_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\search-icon"
 ns.SEARCH_ICON_COORDS = { 0.094, 0.938, 0.094, 0.938 }
 ns.COMMANDS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\commands-icon"
 -- Window manager: pixels between a snapped window and the screen edge or
--- its neighbour, and the Windows category glyph.
+-- its neighbour. Its category glyph (WINDOW_ICON_TEX, WINDOW_ICON_COORDS)
+-- is the task view's, set in WindowManager/Commands.lua.
 ns.WINDOW_GAP_DEFAULT = 8
-ns.WINDOW_ICON_TEX = 7415937
 ns.RADIO_OFF_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-off"
 ns.RADIO_ON_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-on"
 ns.FILTER_ARROW_TEX = "Interface\\AddOns\\EasyFind\\textures\\filter-arrow"

@@ -186,6 +186,12 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
                 resultRow.flatCatIcon:SetAtlas(catIconDef.atlas)
             else
                 resultRow.flatCatIcon:SetTexture(catIconDef.tex)
+                if catIconDef.coords then
+                    resultRow.flatCatIcon:SetTexCoord(catIconDef.coords[1], catIconDef.coords[2],
+                                                      catIconDef.coords[3], catIconDef.coords[4])
+                else
+                    resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
+                end
             end
             resultRow.flatCatIcon:SetDesaturated(false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
@@ -249,6 +255,12 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
                 resultRow.flatCatIcon:SetAtlas(catIconDef.atlas)
             else
                 resultRow.flatCatIcon:SetTexture(catIconDef.tex)
+                if catIconDef.coords then
+                    resultRow.flatCatIcon:SetTexCoord(catIconDef.coords[1], catIconDef.coords[2],
+                                                      catIconDef.coords[3], catIconDef.coords[4])
+                else
+                    resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
+                end
             end
             resultRow.flatCatIcon:SetDesaturated(false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)

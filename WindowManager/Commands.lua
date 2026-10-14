@@ -74,6 +74,8 @@ for i = 1, #COMMANDS do
     }
 end
 WindowCommands.ICON_DEFS = ICON_DEFS
+-- The Windows filter row and its results' category glyph: the task view's.
+ns.WINDOW_ICON_TEX, ns.WINDOW_ICON_COORDS = WINDOW_ACTIONS_TEX, ICON_DEFS["task-view"].coords
 
 -- Path is shared (read-only) so every entry references one table instead of
 -- allocating a path array each. Built lazily because L resolves at call time.

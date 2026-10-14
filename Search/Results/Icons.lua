@@ -197,7 +197,7 @@ local FLAT_CATEGORY_ICONS = {
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
-    window        = { tex = ns.WINDOW_ICON_TEX },
+    window        = { tex = ns.WINDOW_ICON_TEX, coords = ns.WINDOW_ICON_COORDS },
 }
 
 local CLOCK_COMMAND_ICONS = {}
