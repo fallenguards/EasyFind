@@ -42,6 +42,10 @@ read_globals = {
     "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting",
     "GetXPExhaustion", "GetWeaponEnchantInfo", "GetSavedInstanceInfo", "GetNumSavedInstances",
     "GetMaxPlayerLevel", "GetInboxNumItems", "GetInboxHeaderInfo", "UnitIsDead", "UnitClassification",
+    -- Notes capture: the open mail and the selected quest
+    "GetInboxText", "GetInboxItem", "GetInboxItemLink", "InboxFrame", "OpenMailFrame", "ATTACHMENTS_MAX_RECEIVE",
+    "GetNumQuestLogRewards", "GetQuestLogRewardInfo", "GetNumQuestLogChoices", "GetQuestLogChoiceInfo",
+    "GetQuestLogItemLink", "GetQuestLogRewardMoney", "GetQuestLogRewardXP", "GetCoinTextureString",
     "LOCALIZED_CLASS_NAMES_MALE", "GetSubZoneText", "GetInventoryItemID",
     "GetCurrentRegion", "GetFactionInfoByID", "GetQuestResetTime",
 

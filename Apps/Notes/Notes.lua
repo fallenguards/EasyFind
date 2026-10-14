@@ -733,6 +733,7 @@ local function UpdateBody(id, body)
     if note.body == body then return end
     note.body = body
     note.updated = time()
+    if notesNS.RefreshReader then notesNS.RefreshReader(id) end
 end
 
 local function TogglePinned(id)
@@ -999,6 +1000,291 @@ function notesNS.HereRows()
         end
     end
     return rows
+end
+
+-- ==== reader ================================================================
+
+-- A small read-only window of one note, stepping through the pinned
+-- notes (every note when none is pinned), in the editor's own font.
+local reader
+local READER_W, READER_H = 300, 220
+
+local function ReaderNotes()
+    local list = SortedNotes("")
+    local pinned = {}
+    for i = 1, #list do
+        if list[i].pinned then pinned[#pinned + 1] = list[i] end
+    end
+    return #pinned > 0 and pinned or list
+end
+
+local function ReaderFit()
+    local f = reader
+    local w = (f:GetWidth() or READER_W) - 30
+    f.child:SetWidth(w)
+    f.body:SetWidth(w)
+    f.child:SetHeight((f.body:GetStringHeight() or 0) + 8)
+    f.scroll:SetVerticalScroll(0)
+end
+
+local function ReaderShow(note)
+    local f = reader
+    f.noteID = note.id
+    f.title:SetText(NoteTitle(note))
+    UI:ApplyEasyNotesCustomFont(f.body, NormalizeDB().fontSize)
+    f.body:SetText(note.body or "")
+    local r, g, b = ns.TooltipTextColor()
+    f.title:SetTextColor(r, g, b, 1)
+    f.body:SetTextColor(r, g, b, 1)
+    ReaderFit()
+end
+
+local function ReaderSave()
+    local f = reader
+    local db = NormalizeDB()
+    db.reader = { x = f:GetLeft(), y = f:GetTop(), w = f:GetWidth(), h = f:GetHeight() }
+end
+
+local function BuildReader()
+    local f = CreateFrame("Frame", "EasyNotesReader", UIParent, "BackdropTemplate")
+    local saved = NormalizeDB().reader or {}
+    f:SetSize(saved.w or READER_W, saved.h or READER_H)
+    if saved.x and saved.y then
+        f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", saved.x, saved.y)
+    else
+        f:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+    end
+    f:SetFrameStrata("MEDIUM")
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:SetResizable(true)
+    if f.SetResizeBounds then f:SetResizeBounds(220, 140) end
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        ReaderSave()
+    end)
+    ns.StyleMenuPanel(f)
+    ns.SetRoundedRectBarHeight(f, 14)
+
+    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    f.title._efOwnColor = true
+    f.title:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -11)
+    f.title:SetPoint("RIGHT", f, "RIGHT", -120, 0)
+    f.title:SetJustifyH("LEFT")
+    f.title:SetWordWrap(false)
+
+    local close = ns.CreateCloseX(f, 14)
+    close:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -8)
+    close:SetScript("OnClick", function() f:Hide() end)
+    ns.AttachEscClose(f)
+
+    local nextBtn = ns.CreateModernButton(f, ">", 20, 18)
+    nextBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
+    nextBtn:SetScript("OnClick", function() notesNS.ReaderStep(1) end)
+    local prevBtn = ns.CreateModernButton(f, "<", 20, 18)
+    prevBtn:SetPoint("RIGHT", nextBtn, "LEFT", -2, 0)
+    prevBtn:SetScript("OnClick", function() notesNS.ReaderStep(-1) end)
+    local openBtn = ns.CreateModernButton(f, L["NOTES_OPEN_NOTE"], 64, 18)
+    openBtn:SetPoint("RIGHT", prevBtn, "LEFT", -6, 0)
+    openBtn:SetScript("OnClick", function()
+        if f.noteID then notesNS.OpenNote(f.noteID) end
+    end)
+
+    f.scroll = CreateFrame("ScrollFrame", nil, f)
+    f.scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -34)
+    f.scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -16, 12)
+    f.child = CreateFrame("Frame", nil, f.scroll)
+    f.child:SetSize(READER_W - 30, 1)
+    f.scroll:SetScrollChild(f.child)
+    f.body = f.child:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    f.body._efOwnColor = true
+    f.body:SetPoint("TOPLEFT", f.child, "TOPLEFT", 0, 0)
+    f.body:SetJustifyH("LEFT")
+    f.body:SetJustifyV("TOP")
+    f.body:SetWordWrap(true)
+    f.scroll:EnableMouseWheel(true)
+    f.scroll:SetScript("OnMouseWheel", function(self, delta)
+        local most = math.max(0, (f.child:GetHeight() or 0) - (self:GetHeight() or 0))
+        self:SetVerticalScroll(math.min(most, math.max(0, self:GetVerticalScroll() - delta * 30)))
+    end)
+    Utils.CreateMinimalScrollBar(f.scroll, f)
+
+    -- Corner grip: drag to resize, the text reflows.
+    local grip = CreateFrame("Button", nil, f)
+    grip:SetSize(14, 14)
+    grip:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -3, 3)
+    local gripTex = grip:CreateTexture(nil, "OVERLAY")
+    gripTex:SetAllPoints()
+    gripTex:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    gripTex:SetVertexColor(0.7, 0.7, 0.7, 0.8)
+    grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", function()
+        f:StopMovingOrSizing()
+        ReaderSave()
+        ReaderFit()
+    end)
+    f:SetScript("OnSizeChanged", function() if f:IsShown() then ReaderFit() end end)
+    if ns.RegisterThemeCallback then
+        ns.RegisterThemeCallback(function()
+            if f:IsShown() and f.noteID then
+                local note = NoteByID(f.noteID)
+                if note then ReaderShow(note) end
+            end
+        end)
+    end
+    f:Hide()
+    return f
+end
+
+function notesNS.OpenReader(id)
+    if not reader then reader = BuildReader() end
+    local note = id and NoteByID(id) or ReaderNotes()[1]
+    if not note then
+        EasyFind:Print(L["NOTES_READER_EMPTY"])
+        return
+    end
+    ReaderShow(note)
+    reader:Show()
+end
+
+function notesNS.ReaderStep(delta)
+    if not reader then return end
+    local list = ReaderNotes()
+    if #list == 0 then return end
+    local idx = 1
+    for i = 1, #list do
+        if list[i].id == reader.noteID then idx = i break end
+    end
+    ReaderShow(list[((idx - 1 + delta) % #list) + 1])
+end
+
+function notesNS.ToggleReader()
+    if reader and reader:IsShown() then
+        reader:Hide()
+    else
+        notesNS.OpenReader(UI._notes.selectedID)
+    end
+end
+
+-- The reader follows edits to the note it shows.
+function notesNS.RefreshReader(id)
+    if reader and reader:IsShown() and reader.noteID == id then
+        local note = NoteByID(id)
+        if note then ReaderShow(note) end
+    end
+end
+
+-- ==== capture ===============================================================
+
+local function MoneyText(copper)
+    local fn = C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString or GetCoinTextureString
+    if fn and copper and copper > 0 then return fn(copper) end
+    return nil
+end
+
+local function CountLabel(label, count)
+    if count and count > 1 then return label .. " x" .. count end
+    return label
+end
+
+local function OpenCaptured(note)
+    UI:OpenEasyNotes()
+    UI:SelectEasyNote(note.id)
+    UI:HideEasyNotesPalette()
+    return note
+end
+
+function notesNS.SelectedQuestID()
+    local QL = C_QuestLog
+    local questID = QL and QL.GetSelectedQuest and QL.GetSelectedQuest()
+    if questID and questID > 0 then return questID end
+    return nil
+end
+
+-- The selected quest as a note: its objectives as checklist lines, then
+-- its rewards.
+function notesNS.CaptureQuest()
+    local QL = C_QuestLog
+    local questID = notesNS.SelectedQuestID()
+    if not questID then return nil end
+    local title = (QL.GetTitleForQuestID and QL.GetTitleForQuestID(questID)) or ("Quest " .. questID)
+    local lines = {}
+    local objectives = QL.GetQuestObjectives and QL.GetQuestObjectives(questID) or {}
+    for i = 1, #objectives do
+        local o = objectives[i]
+        if o and o.text and o.text ~= "" then
+            lines[#lines + 1] = (o.finished and CHECK_FILLED_PREFIX or CHECK_EMPTY_PREFIX) .. o.text
+        end
+    end
+    local rewards = {}
+    local n = GetNumQuestLogRewards and GetNumQuestLogRewards(questID) or 0
+    for i = 1, n do
+        local name, _, count = GetQuestLogRewardInfo(i, questID)
+        local link = GetQuestLogItemLink and GetQuestLogItemLink("reward", i)
+        if link or name then rewards[#rewards + 1] = CountLabel(link or name, count) end
+    end
+    local choices = GetNumQuestLogChoices and GetNumQuestLogChoices(questID) or 0
+    for i = 1, choices do
+        local name, _, count = GetQuestLogChoiceInfo(i, questID)
+        local link = GetQuestLogItemLink and GetQuestLogItemLink("choice", i)
+        if link or name then rewards[#rewards + 1] = CountLabel(link or name, count) end
+    end
+    local money = MoneyText(GetQuestLogRewardMoney and GetQuestLogRewardMoney(questID))
+    if money then rewards[#rewards + 1] = money end
+    local xp = GetQuestLogRewardXP and GetQuestLogRewardXP(questID)
+    if xp and xp > 0 then rewards[#rewards + 1] = Utils.sformat(L["NOTES_CAPTURE_XP_FMT"], xp) end
+    if #rewards > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = L["NOTES_CAPTURE_REWARDS"]
+        for i = 1, #rewards do lines[#lines + 1] = BULLET_PREFIX .. rewards[i] end
+    end
+    local note = CreateNote(table.concat(lines, "\n"))
+    note.name = title
+    note.category = "Quests"
+    return OpenCaptured(note)
+end
+
+function notesNS.OpenMailIndex()
+    local index = InboxFrame and InboxFrame.openMailID
+    if index and index > 0 and GetInboxHeaderInfo and OpenMailFrame and OpenMailFrame:IsShown() then
+        return index
+    end
+    return nil
+end
+
+-- The open mail as a note: sender, text, then its attachments and coin.
+function notesNS.CaptureMail()
+    local index = notesNS.OpenMailIndex()
+    if not index then return nil end
+    local _, _, sender, subject, money = GetInboxHeaderInfo(index)
+    local body = GetInboxText and GetInboxText(index) or ""
+    local lines = {}
+    if sender and sender ~= "" then lines[#lines + 1] = Utils.sformat(L["NOTES_CAPTURE_FROM_FMT"], sender) end
+    if body and body ~= "" then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = body
+    end
+    local items = {}
+    for a = 1, (ATTACHMENTS_MAX_RECEIVE or 16) do
+        local name, _, _, count = GetInboxItem(index, a)
+        if name then
+            local link = GetInboxItemLink and GetInboxItemLink(index, a)
+            items[#items + 1] = CountLabel(link or name, count)
+        end
+    end
+    local coin = MoneyText(money)
+    if coin then items[#items + 1] = coin end
+    if #items > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = L["NOTES_CAPTURE_ATTACHMENTS"]
+        for i = 1, #items do lines[#lines + 1] = BULLET_PREFIX .. items[i] end
+    end
+    local note = CreateNote(table.concat(lines, "\n"))
+    note.name = (subject and subject ~= "") and subject or L["NOTES_CAPTURE_MAIL_TITLE"]
+    return OpenCaptured(note)
 end
 
 -- The bar's rows follow every change, a moment after the last one.
@@ -6368,6 +6654,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
         { text = L["NOTES_CONTEXT"], submenu = contextSub },
         { isSeparator = true },
+        { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
         { text = L["NOTES_COPY_TEXT"], onClick = function() notesNS.CopyAsText(note.id) end },
         { text = L["NOTES_COPY_MARKDOWN"], onClick = function() notesNS.CopyAsMarkdown(note.id) end },
         { text = L["NOTES_COPY_CODE"], onClick = function()
@@ -6398,6 +6685,13 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               if id then ConfirmDeleteNote(id) end
           end },
     }
+    -- Capture rows show only while there is something to capture.
+    if notesNS.OpenMailIndex() then
+        tinsert(rows, 3, { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end })
+    end
+    if notesNS.SelectedQuestID() then
+        tinsert(rows, 3, { text = L["NOTES_CAPTURE_QUEST"], onClick = function() notesNS.CaptureQuest() end })
+    end
     UI._notes._moreMenu = self:ShowEasyNotesMenu("EasyNotesMoreMenu", rows, {
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
         offsetX = 0, offsetY = -4,
@@ -7135,6 +7429,7 @@ function notesNS.Slash(msg)
     if msg == "" then return UI:ToggleEasyNotes() end
     if slower(msg) == "undo" then return notesNS.RestoreLastDeleted() end
     if slower(msg) == "import" then return notesNS.PromptImportCode() end
+    if slower(msg) == "read" then return notesNS.ToggleReader() end
     if UI:OpenEasyNoteByAlias(msg) then return end
     UI:OpenEasyNotes()
     local frame = UI._notes.frame
