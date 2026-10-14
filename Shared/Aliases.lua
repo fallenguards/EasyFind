@@ -120,6 +120,7 @@ function Aliases:GetEntryKey(data)
     if data.itemID and data.category == "Loot" then return "loot:" .. data.itemID end
     if data.catalogItem and data.itemID then return "catalogitem:" .. data.itemID end
     if data.noteID         then return "note:"           .. data.noteID end
+    if data.quicklistID    then return "quicklist:"      .. data.quicklistID end
     if data.category == "Currency" and data.steps then
         for i = 1, #data.steps do
             local cid = data.steps[i].currencyID

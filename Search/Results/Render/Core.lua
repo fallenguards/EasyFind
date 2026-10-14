@@ -594,6 +594,10 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
                 -- from saved places and stays live.
                 if renderState.windowNoTarget and (data.windowCommand or data.windowRestore) then
                     lockedReason = ns.L["WINDOW_NO_TARGET"]
+                elseif data.quicklistMissing then
+                    lockedReason = ns.L["QUICKLIST_ROW_MISSING"]
+                elseif data.quicklistHint then
+                    lockedReason = data.name
                 else
                     lockedReason = Database:GetEntryLockedReason(data)
                 end

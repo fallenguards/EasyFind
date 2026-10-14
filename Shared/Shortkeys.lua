@@ -452,13 +452,16 @@ local capturePopup
 -- belongs to a different EasyFind shortkey, or ("bind", combo) if combo is a
 -- live game/addon keybinding, or nil if free. The shortkey case wins because
 -- silently overwriting the player's own shortkey is the more destructive one.
-local function DetectBindConflict(rowKey, combo)
+local function DetectBindConflict(rowKey, combo, excludeListID)
     local otherName
     Shortkeys:ForEach(function(k, info)
         if not otherName and k ~= rowKey and info.key == combo then
             otherName = info.name or "?"
         end
     end)
+    if not otherName and ns.Quicklists then
+        otherName = ns.Quicklists:KeyOwnerName(combo, excludeListID)
+    end
     if otherName then return "shortkey", otherName end
     local action = GetBindingAction and GetBindingAction(combo)
     if action and action ~= "" then return "bind", combo end
@@ -556,8 +559,12 @@ local function StopCapture(popup)
     Utils.SafeCallMethod(popup, "EnableKeyboard", false)
     popup:SetScript("OnKeyDown", nil)
     if popup.bindBtn then
-        local existing = popup.rowKey and Shortkeys:Get(popup.rowKey)
-        popup.bindBtn:SetText((existing and existing.key) or L["SHORTKEY_CLICK_TO_BIND"])
+        local current = popup.currentCombo
+        if not popup.onCombo then
+            local existing = popup.rowKey and Shortkeys:Get(popup.rowKey)
+            current = existing and existing.key
+        end
+        popup.bindBtn:SetText(current or L["SHORTKEY_CLICK_TO_BIND"])
     end
 end
 
@@ -569,6 +576,23 @@ local function StartCapture(popup)
         local combo = Utils.CaptureKeybindCombo(key)
         if not combo then return end
         if combo == "stop" then StopCapture(self); return end
+        -- A caller's own key (a quicklist): the combo goes to it, after
+        -- the same conflict notice.
+        if self.onCombo then
+            local onCombo, exclude = self.onCombo, self.excludeListID
+            StopCapture(self)
+            self:Hide()
+            local kind, label = DetectBindConflict(nil, combo, exclude)
+            if kind and EasyFind and EasyFind.db and EasyFind.db.shortkeyConflictPrompt ~= false then
+                local msg = (kind == "shortkey"
+                    and L["SHORTKEY_CONFLICT_SHORTKEY"]
+                    or L["SHORTKEY_CONFLICT_BIND"]):format(label)
+                ShowConflictPopup(msg, function() onCombo(combo) end)
+            else
+                onCombo(combo)
+            end
+            return
+        end
         local rowKey, name, cs, skData = self.rowKey, self.skName, self.charSpecific, self.skData
         StopCapture(self)
         self:Hide()
@@ -614,6 +638,12 @@ local function BuildCapturePopup()
     bindBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     bindBtn:SetScript("OnClick", function(_, button)
         if button == "RightButton" then
+            if f.onClear then
+                f.currentCombo = nil
+                StopCapture(f)
+                f.onClear()
+                return
+            end
             if f.rowKey then Shortkeys:Remove(f.rowKey) end
             StopCapture(f)
             if ns.RefreshBindTables then ns.RefreshBindTables() end
@@ -643,9 +673,28 @@ local function BuildCapturePopup()
         self.skName = nil
         self.charSpecific = nil
         self.skData = nil
+        self.onCombo = nil
+        self.onClear = nil
+        self.currentCombo = nil
+        self.excludeListID = nil
     end)
     f:Hide()
     return f
+end
+
+-- The same capture popup for a key that is not a row's: onCombo(combo)
+-- gets the key, onClear runs on a right-click of the bind button.
+function Shortkeys:PromptForCombo(title, current, onCombo, onClear, excludeListID)
+    if not capturePopup then capturePopup = BuildCapturePopup() end
+    local f = capturePopup
+    f:Hide()
+    f.onCombo = onCombo
+    f.onClear = onClear
+    f.currentCombo = current
+    f.excludeListID = excludeListID
+    f.title:SetText(title or "")
+    f.bindBtn:SetText(current or L["SHORTKEY_CLICK_TO_BIND"])
+    f:Show()
 end
 
 function Shortkeys:PromptForKeyByKey(rowKey, name, charSpecific, data)
@@ -680,7 +729,7 @@ local base64enc, base64dec = Utils.Base64Encode, Utils.Base64Decode
 -- that travel: what a player sets up by hand is never limited. A code
 -- leaves these rows out (the export says how many) and an import lists
 -- them as left out rather than applying them.
-local SHARE_CAPS = { aliases = 300, shortkeys = 100, blacklist = 500, snippets = 100 }
+local SHARE_CAPS = { aliases = 300, shortkeys = 100, blacklist = 500, snippets = 100, quicklists = 50 }
 local SHARE_FIELD_MAX = 80      -- characters, per field
 local SHARE_BODY_MAX = 255      -- characters a snippet body shows (a link counts as its bracket text)
 local SHARE_BODY_RAW_MAX = 1024 -- bytes a snippet body carries (links travel in full)
@@ -809,6 +858,18 @@ function Shortkeys.ShareRefusal(section, row)
         if TooLong(SHARE_FIELD_MAX, row.name, row.keyword) or BodyTooLong(row.body) then
             return "length"
         end
+    elseif section == "quicklists" then
+        local combo = type(row.key) == "string" and row.key or ""
+        local last = combo:match("([^%-]+)$") or combo
+        if combo ~= "" and REFUSED_KEYS[last:upper()] then return "key" end
+        if TooLong(SHARE_FIELD_MAX, row.name) then return "length" end
+        local items = type(row.items) == "table" and row.items or {}
+        if #items > 60 then return "length" end
+        for i = 1, #items do
+            if type(items[i]) ~= "table" or TooLong(SHARE_FIELD_MAX, items[i].k, items[i].n) then
+                return "length"
+            end
+        end
     end
     return nil
 end
@@ -936,6 +997,25 @@ function Shortkeys:BuildExportString(which)
         parts[#parts + 1] = encS(r.body or "")
     end
 
+    -- Fifth section, quicklists: name, key, hold, then the row keys and
+    -- names; the rows resolve on the importer's side.
+    local qlList = {}
+    if which == "quicklist" and ns.QuicklistStore then
+        qlList = Keep("quicklists", ns.QuicklistStore.ExportList())
+    end
+    parts[#parts + 1] = encS(#qlList)
+    for i = 1, #qlList do
+        local r = qlList[i]
+        parts[#parts + 1] = encS(r.name)
+        parts[#parts + 1] = encS(r.key or "")
+        parts[#parts + 1] = encS(r.hold and "1" or "0")
+        parts[#parts + 1] = encS(#r.items)
+        for j = 1, #r.items do
+            parts[#parts + 1] = encS(r.items[j].k)
+            parts[#parts + 1] = encS(r.items[j].n or "")
+        end
+    end
+
     return "EF1!" .. base64enc(table.concat(parts)), #leftOut, leftOut
 end
 
@@ -1011,7 +1091,35 @@ function Shortkeys:DecodeString(str)
         if body then snippets[#snippets + 1] = { name = name, keyword = keyword, body = body } end
     end
 
-    return { aliases = aliases, shortkeys = shortkeys, blacklist = blacklist, snippets = snippets }
+    local qlCountStr
+    qlCountStr, pos = decS(blob, pos)
+    local qlCount = tonumber(qlCountStr) or 0
+    if qlCount > MAX_IMPORT_ROWS then qlCount = MAX_IMPORT_ROWS end
+    local quicklists = {}
+    for _ = 1, qlCount do
+        local name, key, hold, itemCountStr
+        name, pos = decS(blob, pos)
+        if not name then break end
+        key, pos = decS(blob, pos)
+        hold, pos = decS(blob, pos)
+        itemCountStr, pos = decS(blob, pos)
+        local itemCount = tonumber(itemCountStr) or 0
+        if itemCount > 200 then itemCount = 200 end
+        local items = {}
+        for _ = 1, itemCount do
+            local k, n
+            k, pos = decS(blob, pos)
+            if not k then break end
+            n, pos = decS(blob, pos)
+            items[#items + 1] = { k = k, n = n }
+        end
+        quicklists[#quicklists + 1] = {
+            name = name, key = key ~= "" and key or nil, hold = hold == "1", items = items,
+        }
+    end
+
+    return { aliases = aliases, shortkeys = shortkeys, blacklist = blacklist, snippets = snippets,
+             quicklists = quicklists }
 end
 
 -- The first section over its shared-code cap among those the importing
@@ -1024,6 +1132,7 @@ function Shortkeys:CheckImportLimits(decoded, which)
         { id = "shortkeys", on = which == "shortkey" or which == "both" },
         { id = "blacklist", on = which == "blacklist" },
         { id = "snippets", on = which == "snippet" },
+        { id = "quicklists", on = which == "quicklist" },
     }
     for i = 1, #checks do
         local c = checks[i]
@@ -1059,7 +1168,7 @@ end
 function Shortkeys:AnalyzeImport(decoded, which)
     which = which or "both"
     local conflicts = {}
-    local newRows = { aliases = {}, shortkeys = {}, blacklist = {}, snippets = {} }
+    local newRows = { aliases = {}, shortkeys = {}, blacklist = {}, snippets = {}, quicklists = {} }
     local skipped = {}
     local disruptive, seenCmd = {}, {}
     local result = { conflicts = conflicts, newRows = newRows, disruptive = disruptive, skipped = skipped }
@@ -1133,6 +1242,20 @@ function Shortkeys:AnalyzeImport(decoded, which)
         end
     end
 
+    if which == "quicklist" and decoded.quicklists then
+        for i = 1, #decoded.quicklists do
+            local r = decoded.quicklists[i]
+            if r and type(r.name) == "string" and strtrim(r.name) ~= ""
+               and not Refused("quicklists", r, r.name) then
+                if ns.QuicklistStore and ns.QuicklistStore.FindByName(r.name) then
+                    conflicts[#conflicts + 1] = { section = "quicklists", row = r, label = r.name }
+                else
+                    newRows.quicklists[#newRows.quicklists + 1] = r
+                end
+            end
+        end
+    end
+
     return result
 end
 
@@ -1156,8 +1279,13 @@ function Shortkeys:ApplyDecoded(decoded, which, skipExisting)
     if which == "snippet" and ns.Snippets and ns.Snippets.ImportList then
         nsn = ns.Snippets:ImportList(decoded.snippets, skipExisting)
     end
+    local nq = 0
+    if which == "quicklist" and ns.QuicklistStore then
+        nq = ns.QuicklistStore.ImportList(decoded.quicklists, skipExisting)
+        if ns.Quicklists then ns.Quicklists:Changed() end
+    end
     if ns.RefreshBindTables then ns.RefreshBindTables() end
-    return na, nk, nb, nsn
+    return na, nk, nb, nsn, nq
 end
 
 -- Write a resolved import. applySet.{aliases,shortkeys,blacklist} hold the rows
@@ -1178,8 +1306,13 @@ function Shortkeys:ApplyResolvedImport(applySet)
     if ns.Snippets and ns.Snippets.ImportList then
         nsn = ns.Snippets:ImportList(applySet.snippets, false)
     end
+    local nq = 0
+    if ns.QuicklistStore and applySet.quicklists then
+        nq = ns.QuicklistStore.ImportList(applySet.quicklists, false)
+        if ns.Quicklists then ns.Quicklists:Changed() end
+    end
     if ns.RefreshBindTables then ns.RefreshBindTables() end
-    return na, nk, nb, nsn
+    return na, nk, nb, nsn, nq
 end
 
 -- Returns aliasCount, shortkeyCount, blacklistCount applied, or nil on a

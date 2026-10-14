@@ -37,6 +37,7 @@ Profiles.SECTIONS = {
                          perChar = { shortkeysPerChar = true }, exportDefault = true },
     { id = "blacklist",  keys = { "blacklist" }, exportDefault = true },
     { id = "snippets",   keys = { "snippets" }, exportDefault = false },
+    { id = "quicklists", keys = { "quicklists", "quicklistNextID" }, exportDefault = true },
     { id = "extbuttons", keys = { "extensionButtons", "extensionButtonBorders" }, exportDefault = true },
     { id = "pins",       keys = { "pinnedUIItems", "pinnedUIItemsPerChar", "pinnedMapItems" },
                          perChar = { pinnedUIItemsPerChar = true }, exportDefault = true },

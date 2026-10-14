@@ -1,0 +1,13 @@
+## Interface: 16001, 120100, 120007, 120001, 120000
+## Title: EasyFind [Quicklists]
+## Notes: Quicklists companion for EasyFind: named lists of results on a key, pressed or held
+## Author: justawower
+## Version: 3.4.3
+## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
+## Group: EasyFind
+## Category: UI
+## RequiredDeps: EasyFind
+## DefaultState: enabled
+
+Store.lua
+Quicklists.lua

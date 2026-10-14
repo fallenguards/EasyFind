@@ -346,6 +346,14 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- A quicklist row opens that list in the bar.
+    if data.quicklistID and ns.Quicklists then
+        local listID = data.quicklistID
+        self:FinishResultSelection()
+        ns.Quicklists:OpenSoon(listID)
+        return
+    end
+
     -- Note rows open the note (the "New note" row carries nativeRun).
     if data.noteID and ns.RequestNotes then
         local noteID = data.noteID

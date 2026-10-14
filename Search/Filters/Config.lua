@@ -269,6 +269,8 @@ local UI_FILTER_OPTIONS = {
                 { dbKey = "notesTooltips", label = L["NOTES_OPT_TOOLTIPS"], tooltip = L["NOTES_OPT_TOOLTIPS_TT"] },
                 { dbKey = "notesPlayerMenu", label = L["NOTES_OPT_PLAYER_MENU"], tooltip = L["NOTES_OPT_PLAYER_MENU_TT"] },
             } },
+          { key = "quicklists", label = L["FILTER_QUICKLISTS"], iconTex = ns.QUICKLIST_ICON_TEX,
+            companion = "EasyFind_Quicklists" },
       } },
     -- Title icon from PaperDollSidebarTab2 (Titles tab) spritesheet 514608.
     -- Titles you have not earned are opt-in: they outnumber earned ones many

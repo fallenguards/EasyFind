@@ -56,6 +56,8 @@ local DB_DEFAULTS = {
     updateNotify = true,
     snippets = {},
     snippetChatExpansion = true,
+    -- Quicklists: named lists of results on a key (the companion reads these).
+    quicklists = {},
     -- Clipboard history sources (the clipboard companion reads these).
     clipboardCopied = true,
     clipboardPasted = true,

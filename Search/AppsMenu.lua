@@ -87,6 +87,7 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    if ns.Quicklists then ns.Quicklists:AppEntries(apps) end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
         apps[#apps + 1] = ns.ClockLauncherEntry()
     end
@@ -121,9 +122,11 @@ local APP_ID_FLAGS = {
     { "gps", "gpsLauncher" },
     { "clock", "clockLauncher" },
     { "alerts", "alertsLauncher" },
+    { "quicklists", "quicklistsLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end
+    if app.quicklistID then return "quicklist:" .. app.quicklistID end
     for i = 1, #APP_ID_FLAGS do
         if app[APP_ID_FLAGS[i][2]] then return APP_ID_FLAGS[i][1] end
     end
@@ -165,6 +168,14 @@ function ns.IsApplicationOpen(app)
     if app.clipboardLauncher then
         return resultsShown and qf ~= nil and qf.key == "clipboard"
     end
+    if app.quicklistID then
+        return resultsShown and qf ~= nil and qf.quicklistID == app.quicklistID
+    end
+    if app.quicklistsLauncher then
+        local frame = ns.optionsFrame
+        return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
+            and ns.Options:CurrentExtensionPage() == "quicklists"
+    end
     if app.notesLauncher then
         return ns.Notes ~= nil and ns.Notes.IsOpen ~= nil and ns.Notes.IsOpen()
     end
@@ -189,9 +200,13 @@ function ns.CloseApplication(app)
         if calc and calc.popupFrame then calc.popupFrame:Hide() end
         return
     end
-    if app.iconSearchLauncher or app.clipboardLauncher then
+    if app.iconSearchLauncher or app.clipboardLauncher or app.quicklistID then
         if ns.Filters and ns.Filters.ClearQuickFilter then ns.Filters:ClearQuickFilter(false) end
         if Results and Results.HideResults then Results:HideResults() end
+        return
+    end
+    if app.quicklistsLauncher and ns.Options and ns.Options.Hide then
+        ns.Options:Hide()
         return
     end
     if app.notesLauncher then
@@ -211,7 +226,8 @@ function ns.CurrentApplicationSurfaceID()
     local Filters = ns.Filters
     local qf = Filters and Filters.GetQuickFilter and Filters:GetQuickFilter()
     local key = qf and qf.key
-    if key ~= "icons" and key ~= "clipboard" then return nil end
+    if qf and qf.quicklistID then key = "quicklist:" .. qf.quicklistID end
+    if key ~= "icons" and key ~= "clipboard" and not (qf and qf.quicklistID) then return nil end
     local rf = ns.Search and ns.Search.GetResultsFrame and ns.Search:GetResultsFrame()
     if not (rf and rf:IsShown()) then return nil end
     return key

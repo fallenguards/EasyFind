@@ -404,6 +404,7 @@ function ns.IsCompanionLoadable(name)
     if name == "EasyFind_Snippets" and ns.Snippets then return true end
     if name == "EasyFind_GPS" and ns.GPS then return true end
     if name == "EasyFind_Notes" and ns.Notes then return true end
+    if name == "EasyFind_Quicklists" and ns.Quicklists then return true end
     if name == "EasyFind_Clock" and ns.Clock then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)

@@ -67,6 +67,7 @@ Filters.quickFilterOptions = {
     { key = "snippets",       canonical = "snippets",        label = L["FILTER_SNIPPETS"],        categories = { "Snippet" }, aliases = { "snip", "snips", "snippet", "snippets" }, companion = "EasyFind_Snippets" },
     { key = "clipboard",      canonical = "clipboard",       label = L["FILTER_CLIPBOARD"],       categories = { "Clipboard" }, aliases = { "clip", "clips", "clipboard", "history" }, companion = "EasyFind_Clipboard" },
     { key = "notes",          canonical = "notes",           label = L["APP_NOTES"],              categories = { "Notes" }, aliases = { "note", "notes" }, companion = "EasyFind_Notes" },
+    { key = "quicklists",     canonical = "quicklists",      label = L["FILTER_QUICKLISTS"],      categories = { "Quicklist" }, aliases = { "ql", "quicklist", "quicklists" }, companion = "EasyFind_Quicklists" },
     { key = "map",            canonical = "map",             label = L["FILTER_MAP_SEARCH"],      aliases = { "map", "maps", "zone", "zones", "location", "locations" } },
     { key = "options",        canonical = "options",         label = _G["OPTIONS"] or "Options",         categories = { "Game Settings", "AddOn Settings" }, aliases = { "op", "opt", "option", "options", "setting", "settings" }, companion = "EasyFind_Settings" },
     { key = "gameOptions",    canonical = "game-options",    label = L["FILTER_GAME_OPTIONS"],    categories = { "Game Settings" }, aliases = { "go", "game", "game-option", "game-options", "game-setting", "game-settings" }, companion = "EasyFind_Settings" },

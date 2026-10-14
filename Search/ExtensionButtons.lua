@@ -121,6 +121,7 @@ end
 local function ShortkeyText(app)
     local Shortkeys = ns.Shortkeys
     if not (Shortkeys and app) then return nil end
+    if app.quicklistID and ns.Quicklists then return ns.Quicklists:KeyOf(app.quicklistID) end
     local rowKey = Shortkeys:GetEntryKey(app)
     local info = rowKey and Shortkeys:Get(rowKey)
     return info and info.key or nil

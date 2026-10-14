@@ -165,6 +165,9 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         extra.hasShortkey = ns.Shortkeys:Get(skKey) ~= nil
         extra.onAddShortkey = function() ns.Shortkeys:PromptForKey(pinData) end
     end
+    if ns.Quicklists and not pinData.quicklistID then
+        extra.addQuicklistRows = ns.Quicklists:BuildAddRows(pinData)
+    end
     -- Blacklist shares the alias key gate: any keyable row can be hidden
     -- from all future results. The Blacklist options tab is the undo path.
     if canAlias and ns.Blacklist then

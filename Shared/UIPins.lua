@@ -27,7 +27,8 @@ local SIMPLE_FIELDS = {
     -- Extension launcher flags: a stored copy (a shortkey's snapshot) keeps
     -- which extension it opens; the live entry is looked up by the flag.
     "calculatorLauncher", "iconSearchLauncher", "snippetsLauncher", "clipboardLauncher", "notesLauncher", "clockLauncher", "alertsLauncher",
-    "noteID",
+    "quicklistsLauncher",
+    "noteID", "quicklistID",
     "transmogSetID",
     -- Collection action IDs each SelectResult branch gates on; absent, a cold
     -- title/gear-set/talent/appearance shortkey fell through to a panel open.

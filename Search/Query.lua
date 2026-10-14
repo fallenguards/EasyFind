@@ -262,6 +262,11 @@ function Search:OnSearchTextChangedNow(text, force)
         end
         return
     end
+    -- A quicklist's pill shows that list's own rows; typing narrows them.
+    if quickFilter and quickFilter.quicklistID then
+        if ns.Quicklists then ns.Quicklists:ShowView(quickFilter.quicklistID, text) end
+        return
+    end
     if (not text or text == "") and not quickFilter then
         if ns.Database and ns.Database.CancelDynamicWarmup then
             ns.Database:CancelDynamicWarmup()

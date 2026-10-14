@@ -78,6 +78,7 @@ local dynamicProviders = {
     -- Notes are found by title in any search, once the companion is loaded
     -- (it loads at login as soon as there is a note).
     { key = "notes", category = providerCategory["notes"],              fn = "PopulateDynamicNotes", eager = true },
+    { key = "quicklists", category = providerCategory["quicklists"],    fn = "PopulateDynamicQuicklists", eager = true },
     { key = "professions", category = providerCategory["professions"],  fn = "PopulateDynamicProfessions", eager = true },
 }
 

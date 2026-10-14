@@ -379,7 +379,7 @@ local PROFILE_SECTION_LABEL_KEY = {
     shortkeys = "PROFILE_SECTION_SHORTKEYS", blacklist = "PROFILE_SECTION_BLACKLIST",
     snippets = "PROFILE_SECTION_SNIPPETS", extbuttons = "PROFILE_SECTION_EXTBUTTONS",
     pins = "PROFILE_SECTION_PINS", learned = "PROFILE_SECTION_LEARNED",
-    keybinds = "PROFILE_SECTION_KEYBINDS",
+    keybinds = "PROFILE_SECTION_KEYBINDS", quicklists = "PROFILE_SECTION_QUICKLISTS",
 }
 
 local function ParkScrollBarInMargin(bar, card, top)
@@ -2877,6 +2877,7 @@ local function BuildAliasesTab(ctx)
         if id == "aliases" then return L["SHORTKEY_SCOPE_ALIASES"] end
         if id == "shortkeys" then return L["SHORTKEY_SCOPE_SHORTKEYS"] end
         if id == "blacklist" then return L["OPT_TAB_BLACKLIST"] end
+        if id == "quicklists" then return L["FILTER_QUICKLISTS"] end
         return L["FILTER_SNIPPETS"]
     end
     local REFUSAL_TEXT = {
@@ -2885,6 +2886,7 @@ local function BuildAliasesTab(ctx)
     local function ScopeTitle(scope)
         if scope == "blacklist" then return L["OPT_TAB_BLACKLIST"] end
         if scope == "snippet" then return L["FILTER_SNIPPETS"] end
+        if scope == "quicklist" then return L["FILTER_QUICKLISTS"] end
         if scope == "profile" then return L["OPT_TAB_PROFILES"] end
         return L["OPT_TAB_ALIASES"]
     end
@@ -3270,9 +3272,9 @@ local function BuildAliasesTab(ctx)
                 local applySet = analysis.newRows
 
                 local function finish()
-                    local na, nk, nb, nsn = ns.Shortkeys:ApplyResolvedImport(applySet)
+                    local na, nk, nb, nsn, nq = ns.Shortkeys:ApplyResolvedImport(applySet)
                     if EasyFind and EasyFind.Print then
-                        EasyFind:Print((L["SHORTKEY_IMPORTED"]):format((na or 0) + (nk or 0) + (nb or 0) + (nsn or 0)))
+                        EasyFind:Print((L["SHORTKEY_IMPORTED"]):format((na or 0) + (nk or 0) + (nb or 0) + (nsn or 0) + (nq or 0)))
                     end
                     if onImported then onImported() end
                 end
@@ -4384,6 +4386,279 @@ function Options:OpenAtClipboard()
     self:OpenAtExtension("clipboard")
 end
 
+-- Quicklists: the lists with their key and hold flag, and the rows of the
+-- picked list beneath. The data lives in the companion's store.
+local RefreshQuicklistsPage
+
+local function BuildQuicklistsPage(ctx, page)
+    local FRAME_W = ctx.FRAME_W
+    local Store = ns.QuicklistStore
+    local Quicklists = ns.Quicklists
+    local selectedID
+
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    title:SetText(L["FILTER_QUICKLISTS"])
+
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(L["OPT_QUICKLISTS_HINT"])
+
+    local tools = CreateFrame("Frame", nil, page)
+    tools:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
+    tools:SetPoint("RIGHT", page, "RIGHT", -8, 0)
+    tools:SetHeight(22)
+    local newBtn = CreateModernButton(tools, L["QUICKLIST_NEW"], 140, 22)
+    newBtn:SetPoint("RIGHT", tools, "RIGHT", 0, 0)
+    newBtn:SetScript("OnClick", function()
+        if Quicklists then
+            Quicklists:PromptNew(function(list) selectedID = list.id end)
+        end
+    end)
+    local exportBtn = CreateModernButton(tools, L["SHORTKEY_EXPORT"], 92, 22)
+    exportBtn:SetPoint("LEFT", tools, "LEFT", 0, 0)
+    exportBtn:SetScript("OnClick", function()
+        local str, leftOut, leftOutRows = "", 0, nil
+        if ns.Shortkeys then str, leftOut, leftOutRows = ns.Shortkeys:BuildExportString("quicklist") end
+        if optionsFrame.ShowShareString then optionsFrame.ShowShareString(true, str, nil, nil, leftOut, leftOutRows) end
+    end)
+    local importBtn = CreateModernButton(tools, L["SHORTKEY_IMPORT"], 92, 22)
+    importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
+    importBtn:SetScript("OnClick", function()
+        if optionsFrame.ShowShareString then
+            optionsFrame.ShowShareString(false, nil, "quicklist", function()
+                if RefreshQuicklistsPage then RefreshQuicklistsPage() end
+            end)
+        end
+    end)
+    local clearBtn = CreateModernButton(tools, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    clearBtn:SetPoint("RIGHT", newBtn, "LEFT", -8, 0)
+    clearBtn:SetScript("OnClick", function()
+        ns.ShowThemedDialog({
+            text = L["POPUP_CLEAR_QUICKLISTS"],
+            acceptText = _G["CLEAR"] or "Clear",
+            onAccept = function()
+                if Store then Store.ClearAll() end
+                if Quicklists then Quicklists:Changed() end
+            end,
+        })
+    end)
+
+    local NAME_LEFT = 10
+    local BTN_W = 20
+    local KEY_W = 96
+    local HOLD_W = 44
+    local HEADER_H = 14
+    local HEADER_TOP = 7
+    local DIVIDER_Y = HEADER_TOP + HEADER_H + 3
+    local SCROLL_TOP = DIVIDER_Y + 4
+    local ROW_H = 28
+
+    local function Card(anchor, header)
+        local card = CreateFrame("Frame", nil, page)
+        card:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
+        card:SetPoint("RIGHT", page, "RIGHT", -8, 0)
+        ns.CreateRoundedRectBorder(card)
+        ns.SetRoundedRectBarHeight(card, 8)
+        HideRoundedFrameBorder(card)
+        ns.ApplyCardFill(card)
+        card.header = CreateFrame("Frame", nil, card)
+        card.header:SetSize(FRAME_W - 42, HEADER_H)
+        card.header:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -HEADER_TOP)
+        card.title = card.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        card.title:SetJustifyH("LEFT")
+        card.title:SetTextColor(0.92, 0.92, 0.92, 1)
+        card.title:SetPoint("LEFT", card.header, "LEFT", NAME_LEFT, 0)
+        card.title:SetText(header)
+        local divider = card:CreateTexture(nil, "ARTWORK")
+        divider:SetColorTexture(1, 1, 1, 0.09)
+        divider:SetHeight(1)
+        divider:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -DIVIDER_Y)
+        divider:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -DIVIDER_Y)
+        card.scroll = CreateFrame("ScrollFrame", nil, card)
+        card.scroll:SetPoint("TOPLEFT", card, "TOPLEFT", 6, -SCROLL_TOP)
+        card.scroll:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 6)
+        card.content = CreateFrame("Frame", nil, card.scroll)
+        card.content:SetSize(FRAME_W - 42, 1)
+        card.scroll:SetScrollChild(card.content)
+        card.bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(card.scroll, card)
+        ParkScrollBarInMargin(card.bar, card, SCROLL_TOP)
+        card.empty = card.content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        card.empty:SetPoint("TOPLEFT", card.content, "TOPLEFT", 8, -8)
+        card.empty:SetTextColor(0.92, 0.92, 0.92, 1)
+        card.pool = {}
+        card.UpdateBar = function()
+            if not card.bar then return end
+            local contentH = card.content:GetHeight() or 0
+            local viewH = card.scroll:GetHeight() or 0
+            if contentH > viewH + 1 then
+                card.bar:Show()
+                card.bar:UpdateThumb(contentH, viewH)
+            else
+                card.scroll:SetVerticalScroll(0)
+                card.bar:Hide()
+            end
+        end
+        card.scroll:SetScript("OnSizeChanged", card.UpdateBar)
+        card.content:HookScript("OnSizeChanged", card.UpdateBar)
+        return card
+    end
+
+    local function NewRow(card, withKey)
+        local row = CreateFrame("Button", nil, card.content)
+        row:SetSize(FRAME_W - 42, ROW_H - 2)
+        row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row.bg = CreateFrame("Frame", nil, row)
+        row.bg:SetAllPoints()
+        row.bg:EnableMouse(false)
+        ns.CreateRoundedRectBorder(row.bg)
+        ns.SetRoundedRectBarHeight(row.bg, 8)
+        HideRoundedFrameBorder(row.bg)
+        PaintRoundedFill(row.bg, 1, 1, 1, 0)
+        row.removeBtn = CreateModernButton(row, "x", BTN_W, 18)
+        row.removeBtn:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+        row.downBtn = CreateModernButton(row, "v", BTN_W, 18)
+        row.downBtn:SetPoint("RIGHT", row.removeBtn, "LEFT", -4, 0)
+        row.upBtn = CreateModernButton(row, "^", BTN_W, 18)
+        row.upBtn:SetPoint("RIGHT", row.downBtn, "LEFT", -2, 0)
+        local textRight = row.upBtn
+        if withKey then
+            row.holdCheck = CreateCheckbox(row, nil, "", L["QUICKLIST_HOLD_TT"], true, HOLD_W)
+            row.holdCheck:SetPoint("RIGHT", row.upBtn, "LEFT", -4, 0)
+            row.keyBtn = CreateModernButton(row, "", KEY_W, 18)
+            row.keyBtn:SetNormalFontObject("GameFontHighlightSmall")
+            row.keyBtn:SetHighlightFontObject("GameFontHighlightSmall")
+            row.keyBtn:SetPoint("RIGHT", row.holdCheck, "LEFT", -4, 0)
+            textRight = row.keyBtn
+        end
+        row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
+        row.nameText:SetPoint("RIGHT", textRight, "LEFT", -8, 0)
+        row.nameText:SetJustifyH("LEFT")
+        row.nameText:SetWordWrap(false)
+        row.nameText:SetShadowColor(0, 0, 0, 0)
+        row:SetScript("OnEnter", function(self)
+            if not self.selected then PaintRoundedFill(self.bg, 1, 1, 1, 0.055) end
+        end)
+        row:SetScript("OnLeave", function(self)
+            if not self.selected then PaintRoundedFill(self.bg, 1, 1, 1, 0) end
+        end)
+        return row
+    end
+
+    local function AcquireRow(card, idx, withKey)
+        local row = card.pool[idx]
+        if not row then
+            row = NewRow(card, withKey)
+            card.pool[idx] = row
+        end
+        row:Show()
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", card.content, "TOPLEFT", 4, -4 - (idx - 1) * ROW_H)
+        return row
+    end
+
+    local function FinishCard(card, shown, emptyText)
+        for i = shown + 1, #card.pool do card.pool[i]:Hide() end
+        card.empty:SetText(emptyText)
+        card.empty:SetShown(shown == 0)
+        card.content:SetHeight(math.max(32, shown * ROW_H + 8))
+        card.UpdateBar()
+        Utils.SafeAfter(0, card.UpdateBar)
+    end
+
+    local listsCard = Card(tools, L["FILTER_QUICKLISTS"])
+    listsCard:SetHeight(SCROLL_TOP + 5 * ROW_H + 14)
+    local keyHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    keyHeader:SetJustifyH("LEFT")
+    keyHeader:SetTextColor(0.92, 0.92, 0.92, 1)
+    keyHeader:SetPoint("RIGHT", listsCard.header, "RIGHT", -(4 + BTN_W * 3 + 10 + HOLD_W + 4 + 8), 0)
+    keyHeader:SetWidth(KEY_W)
+    keyHeader:SetText(L["QUICKLIST_COL_KEY"])
+    local holdHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    holdHeader:SetJustifyH("LEFT")
+    holdHeader:SetTextColor(0.92, 0.92, 0.92, 1)
+    holdHeader:SetPoint("LEFT", keyHeader, "RIGHT", 4, 0)
+    holdHeader:SetText(L["QUICKLIST_COL_HOLD"])
+
+    local itemsCard = Card(listsCard, "")
+    ctx.AnchorListCardBottom(itemsCard, page)
+
+    RefreshQuicklistsPage = function()
+        if not Store then return end
+        local lists = Store.All()
+        if not Store.Get(selectedID) then selectedID = lists[1] and lists[1].id or nil end
+        for i = 1, #lists do
+            local list = lists[i]
+            local id = list.id
+            local row = AcquireRow(listsCard, i, true)
+            row.selected = id == selectedID
+            PaintRoundedFill(row.bg, 1, 1, 1, row.selected and 0.10 or 0)
+            row.nameText:SetText(list.name)
+            row.keyBtn:SetText(list.key or L["SHORTKEY_CLICK_TO_BIND"])
+            row.keyBtn:SetScript("OnClick", function()
+                if Quicklists then Quicklists:PromptForKey(id, RefreshQuicklistsPage) end
+            end)
+            row.holdCheck:SetChecked(list.hold and true or false)
+            row.holdCheck:SetScript("OnClick", function(self)
+                Store.SetHold(id, self:GetChecked())
+                if self.RefreshVisual then self:RefreshVisual() end
+            end)
+            row.upBtn:SetScript("OnClick", function()
+                if Store.Move(id, -1) and Quicklists then Quicklists:Changed() end
+            end)
+            row.downBtn:SetScript("OnClick", function()
+                if Store.Move(id, 1) and Quicklists then Quicklists:Changed() end
+            end)
+            row.removeBtn:SetScript("OnClick", function()
+                if Quicklists then Quicklists:DeleteWithConfirm(id) end
+            end)
+            row:SetScript("OnClick", function(_, button)
+                if button == "RightButton" then
+                    if Quicklists then Quicklists:PromptRename(id) end
+                    return
+                end
+                selectedID = id
+                RefreshQuicklistsPage()
+            end)
+        end
+        FinishCard(listsCard, #lists, L["OPT_NO_QUICKLISTS"])
+
+        local selected = Store.Get(selectedID)
+        local items = selected and selected.items or {}
+        itemsCard.title:SetText(selected and sformat(L["QUICKLIST_ITEMS_FMT"], selected.name) or "")
+        for i = 1, #items do
+            local item = items[i]
+            local row = AcquireRow(itemsCard, i, false)
+            row.selected = nil
+            PaintRoundedFill(row.bg, 1, 1, 1, 0)
+            row.nameText:SetText(item.n or item.k)
+            row.upBtn:SetScript("OnClick", function()
+                if Store.MoveItem(selectedID, i, -1) and Quicklists then Quicklists:Changed() end
+            end)
+            row.downBtn:SetScript("OnClick", function()
+                if Store.MoveItem(selectedID, i, 1) and Quicklists then Quicklists:Changed() end
+            end)
+            row.removeBtn:SetScript("OnClick", function()
+                if Store.Remove(selectedID, item.k) and Quicklists then Quicklists:Changed() end
+            end)
+            row:SetScript("OnClick", nil)
+        end
+        FinishCard(itemsCard, #items, selected and L["QUICKLIST_NO_ITEMS"] or L["QUICKLIST_SELECT_HINT"])
+    end
+    page:HookScript("OnShow", RefreshQuicklistsPage)
+end
+
+function Options:RefreshQuicklistsPage()
+    if RefreshQuicklistsPage and optionsFrame and optionsFrame:IsShown() then RefreshQuicklistsPage() end
+end
+
+function Options:OpenAtQuicklists()
+    self:OpenAtExtension("quicklists")
+end
+
 -- Notes: how notes find you (by place, on tooltips, from player menus).
 -- Kept in the core db so the page works before the companion ever loads.
 local function BuildNotesPage(ctx, page)
@@ -4590,6 +4865,10 @@ local function ExtensionPageDefs()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
         defs[#defs + 1] = { id = "notes", name = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX,
             core = true, build = BuildNotesPage }
+    end
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Quicklists")) then
+        defs[#defs + 1] = { id = "quicklists", name = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX,
+            core = true, fills = true, build = BuildQuicklistsPage }
     end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
         defs[#defs + 1] = { id = "clock", name = ns.CLOCK_NAME, icon = ns.CLOCK_ICON_TEX,

@@ -2692,6 +2692,16 @@ function Database:PopulateDynamicNotes()
     return true
 end
 
+function Database:PopulateDynamicQuicklists()
+    RemoveEntriesByCategory("Quicklist")
+    local entries = ns.Quicklists and ns.Quicklists:BuildSearchData()
+    if not entries then return false end
+    for i = 1, #entries do
+        uiSearchData[#uiSearchData + 1] = entries[i]
+    end
+    return true
+end
+
 function Database:PopulateDynamicCommands()
     RemoveEntriesByCategory("Command")
     local entries = ns.SearchCommands and ns.SearchCommands.BuildCommandSearchData

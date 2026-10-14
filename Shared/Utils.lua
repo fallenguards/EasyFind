@@ -2191,6 +2191,7 @@ ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
 -- GPS extension glyph: a map pin in the same white line-art family.
 ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
+ns.QUICKLIST_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\quicklists-icon"
 ns.NOTES_ICON_COORDS   = { 0, 1, 0, 1 }
 -- Clock extension: the stopwatch, plus one glyph per kind of run.
 ns.CLOCK_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\clock-icon"
@@ -8272,6 +8273,12 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
         rows[#rows + 1] = {
             text = L["CTX_ADD_NOTE"],
             submenu = extra.addNoteRows,
+        }
+    end
+    if extra and extra.addQuicklistRows then
+        rows[#rows + 1] = {
+            text = L["CTX_ADD_QUICKLIST"],
+            submenu = extra.addQuicklistRows,
         }
     end
     if extra and extra.onBlacklist then
