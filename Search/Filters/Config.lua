@@ -245,6 +245,8 @@ local UI_FILTER_OPTIONS = {
                 { dbKey = "clipboardPasted", label = L["CLIP_OPT_PASTED"], tooltip = L["CLIP_OPT_PASTED_TT"] },
                 { dbKey = "clipboardChat", label = L["CLIP_OPT_CHAT"], tooltip = L["CLIP_OPT_CHAT_TT"] },
                 { dbKey = "clipboardWhispers", label = L["CLIP_OPT_WHISPERS"], tooltip = L["CLIP_OPT_WHISPERS_TT"] },
+                { dbKey = "clipboardSent", label = L["CLIP_OPT_SENT"], tooltip = L["CLIP_OPT_SENT_TT"] },
+                { dbKey = "clipboardLastCopiedRow", label = L["CLIP_OPT_LAST_ROW"], tooltip = L["CLIP_OPT_LAST_ROW_TT"] },
                 -- The view: which kinds show, and the order. Each change
                 -- rebuilds the open list.
                 { header = L["CLIP_OPT_SHOW"] },

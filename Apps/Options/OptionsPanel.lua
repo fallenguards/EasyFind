@@ -1586,6 +1586,7 @@ local function BuildGeneralBindsTab(ctx)
           needsAlwaysShow = true },
         { label = L["OPT_KEYBIND_OPEN_MAP_TAB"],  action = "EASYFIND_MAP_FOCUS" },
         { label = L["OPT_KEYBIND_CLEAR_ALL"],     action = "EASYFIND_CLEAR" },
+        { label = L["OPT_KEYBIND_CLIPBOARD"],     action = "EASYFIND_CLIPBOARD" },
     }
 
     local keybindTooltips = {
@@ -1593,6 +1594,7 @@ local function BuildGeneralBindsTab(ctx)
         EASYFIND_FOCUS_BAR    = { L["OPT_KEYBIND_FOCUS_BAR"],     L["OPT_KB_FOCUS_TT_DESC"] },
         EASYFIND_MAP_FOCUS    = { L["OPT_KEYBIND_OPEN_MAP_TAB"],  L["OPT_KB_MAP_TT_DESC"] },
         EASYFIND_CLEAR        = { L["OPT_KEYBIND_CLEAR_ALL"],     L["OPT_KB_CLEAR_TT_DESC"] },
+        EASYFIND_CLIPBOARD    = { L["OPT_KEYBIND_CLIPBOARD"],     L["OPT_KB_CLIPBOARD_TT_DESC"] },
     }
 
     local keybindButtons = {}
@@ -4217,6 +4219,8 @@ local function BuildClipboardPage(ctx, page)
         { "clipboardPasted", "CLIP_OPT_PASTED", "CLIP_OPT_PASTED_TT", "ClipPasted" },
         { "clipboardChat", "CLIP_OPT_CHAT", "CLIP_OPT_CHAT_TT", "ClipChat" },
         { "clipboardWhispers", "CLIP_OPT_WHISPERS", "CLIP_OPT_WHISPERS_TT", "ClipWhispers" },
+        { "clipboardSent", "CLIP_OPT_SENT", "CLIP_OPT_SENT_TT", "ClipSent" },
+        { "clipboardLastCopiedRow", "CLIP_OPT_LAST_ROW", "CLIP_OPT_LAST_ROW_TT", "ClipLastRow" },
     }
     local anchor = hint
     for i = 1, #sources do

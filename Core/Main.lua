@@ -63,6 +63,9 @@ local DB_DEFAULTS = {
     -- worth keeping. Copies and pastes are the player's own doing.
     clipboardChat = false,
     clipboardWhispers = false,
+    clipboardSent = false,
+    -- The last copied entry as a row on the empty bar: opt in.
+    clipboardLastCopiedRow = false,
     -- Clipboard History's own view, from the filter menu's Clipboard
     -- History flyout: which kinds show, and the order.
     clipboardKindLink = true, clipboardKindEflink = true, clipboardKindMappin = true,
@@ -874,7 +877,8 @@ end
 -- account-wide in EasyFindDB and applied as an override-click each login.
 -- They are not WoW named bindings, so they never appear in Blizzard's
 -- keybinding panel and work the same on every character.
-local EASYFIND_BINDINGS = { "EASYFIND_TOGGLE_FOCUS", "EASYFIND_FOCUS_BAR", "EASYFIND_MAP_FOCUS", "EASYFIND_CLEAR" }
+local EASYFIND_BINDINGS = { "EASYFIND_TOGGLE_FOCUS", "EASYFIND_FOCUS_BAR", "EASYFIND_MAP_FOCUS", "EASYFIND_CLEAR",
+                            "EASYFIND_CLIPBOARD" }
 local EASYFIND_BINDING_LOOKUP = {}
 for i = 1, #EASYFIND_BINDINGS do EASYFIND_BINDING_LOOKUP[EASYFIND_BINDINGS[i]] = true end
 
@@ -885,6 +889,7 @@ local KEYBIND_BUTTON = {
     EASYFIND_FOCUS_BAR    = "EasyFindKeybindFocusButton",
     EASYFIND_MAP_FOCUS    = "EasyFindKeybindMapButton",
     EASYFIND_CLEAR        = "EasyFindKeybindClearButton",
+    EASYFIND_CLIPBOARD    = "EasyFindKeybindClipboardButton",
 }
 do
     local toggleBtn = CreateFrame("Button", "EasyFindKeybindToggleButton", UIParent)
@@ -903,6 +908,12 @@ do
     local clearBtn = CreateFrame("Button", "EasyFindKeybindClearButton", UIParent)
     clearBtn:Hide()
     clearBtn:SetScript("OnClick", function() EasyFind:ClearAll() end)
+    -- The clipboard history list, when its companion is on.
+    local clipBtn = CreateFrame("Button", "EasyFindKeybindClipboardButton", UIParent)
+    clipBtn:Hide()
+    clipBtn:SetScript("OnClick", function()
+        if ns.Clipboard and ns.Clipboard.OpenList then ns.Clipboard:OpenList() end
+    end)
 end
 
 local function ApplyAccountKeybinds()

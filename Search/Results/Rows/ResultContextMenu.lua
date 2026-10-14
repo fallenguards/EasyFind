@@ -114,6 +114,11 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         if ns.Snippets and ns.Snippets.OpenEditorPrefilled then
             extra.onClipSaveSnippet = function() ns.Clipboard:SaveAsSnippet(clipID) end
         end
+        -- An entry goes into a note as its text, or its live link.
+        if entry and ns.BuildAddNoteRows then
+            local addNoteRows = ns.BuildAddNoteRows(entry.link or entry.text, ns.ClipboardStore.FirstLine(entry.text))
+            if addNoteRows then extra.addNoteRows = addNoteRows end
+        end
     end
     if pinData.snippetIndex and ns.Snippets then
         local snippetIndex = pinData.snippetIndex

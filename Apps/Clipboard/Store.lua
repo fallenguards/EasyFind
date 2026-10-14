@@ -39,7 +39,7 @@ Store.KIND = {
     LINK = "link", EFLINK = "eflink", MAPPIN = "mappin", URL = "url", NUMBER = "number",
     COMMAND = "command", TEXT = "text",
 }
-Store.SOURCE = { COPIED = "copied", PASTED = "pasted", CHAT = "chat" }
+Store.SOURCE = { COPIED = "copied", PASTED = "pasted", CHAT = "chat", SENT = "sent" }
 
 -- Cut a string at a byte count without splitting a UTF-8 character.
 function Store.CutBytes(s, n)
@@ -93,9 +93,9 @@ end
 -- own table only stands in when no options exist (tests).
 local DB_KEY = {
     copied = "clipboardCopied", pasted = "clipboardPasted",
-    chat = "clipboardChat", whispers = "clipboardWhispers",
+    chat = "clipboardChat", whispers = "clipboardWhispers", sent = "clipboardSent",
 }
-local DEFAULTS = { copied = true, pasted = true, chat = false, whispers = false }
+local DEFAULTS = { copied = true, pasted = true, chat = false, whispers = false, sent = false }
 
 function Store:Settings()
     local db = EasyFind and EasyFind.db
@@ -212,6 +212,8 @@ function Store:Record(source, text, link, meta)
         entry.copiedAt = now
     elseif source == Store.SOURCE.PASTED then
         entry.pastedAt = now
+    elseif source == Store.SOURCE.SENT then
+        entry.sentAt = now
     end
     if meta then
         if meta.sender ~= nil then entry.sender = meta.sender end

@@ -268,6 +268,22 @@ function Clipboard:RecordChatLink(link, bracket, sender, channel)
     end
 end
 
+-- A message you sent, as typed, with its channel (a whisper names who
+-- to); a message that is one link is kept as that link.
+function Clipboard:RecordSent(msg, chatType, target)
+    if not SourceOn("sent") or type(msg) ~= "string" then return end
+    local channel = chatType and (_G[chatType] or chatType) or ""
+    if chatType == "WHISPER" and type(target) == "string" and target ~= "" then
+        channel = channel .. ": " .. (smatch(target, "^([^%-]+)") or target)
+    end
+    local text, link = msg, nil
+    local found, bracket = LinkInText(msg)
+    if found and smatch(msg, "^%s*|c?.-|H.-|h%[.-%]|h|?r?%s*$") then link, text = found, bracket end
+    if Store:Record(Store.SOURCE.SENT, text, link, { channel = channel, char = CharKey(), icon = link and LinkIcon(link) or nil }) then
+        self:Refresh()
+    end
+end
+
 -- Every chat event a link can arrive on. The filter reads, never rewrites.
 local CHAT_EVENTS = {
     "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER",
@@ -404,6 +420,8 @@ local function Subtext(entry, now)
         end
     elseif entry.source == Store.SOURCE.PASTED then
         who = L["CLIP_PASTED"]
+    elseif entry.source == Store.SOURCE.SENT then
+        who = (entry.channel and entry.channel ~= "") and sformat(L["CLIP_SENT_FMT"], entry.channel) or L["CLIP_SENT"]
     else
         who = L["CLIP_COPIED"]
     end
@@ -536,6 +554,29 @@ function Clipboard:BuildSearchData()
     return entries
 end
 
+-- The last copied entry as one row for the empty bar (an option): Enter
+-- puts it into chat, as the list's own rows do.
+function Clipboard:LastCopiedRow()
+    local db = EasyFind and EasyFind.db
+    if not (db and db.clipboardLastCopiedRow) then return nil end
+    local entries = Store:Entries()
+    local entry
+    for i = 1, #entries do
+        if entries[i].source == Store.SOURCE.COPIED then entry = entries[i] break end
+    end
+    if not entry then return nil end
+    local name = RowName(entry)
+    local icon = IconFor(entry)
+    return {
+        name = sformat(L["CLIP_LAST_COPIED_FMT"], name), nameHex = LinkNameHex(entry.link), nameLower = slower(name),
+        category = "Clipboard", searchCommandDesc = Subtext(entry, time()), icon = icon,
+        clipLetter = (not icon and entry.kind == Store.KIND.TEXT) and "T" or nil,
+        clipID = entry.id, clipText = entry.text, clipLink = entry.link, clipKind = entry.kind,
+        clipSource = entry.source, clipAtlas = entry.kind == Store.KIND.MAPPIN and MAPPIN_ATLAS or nil,
+        noPin = true, noLearn = true,
+    }
+end
+
 -- ==== actions ===============================================================
 
 -- Enter or click: the entry goes into the chat box, live link and all.
@@ -607,27 +648,36 @@ function Clipboard:ClearWithConfirm()
     })
 end
 
--- The launcher row and the apps menu land on the list itself.
+-- The launcher row, the apps menu and the bound key land on the list
+-- itself. A frame later: a bound key's own character must not land in
+-- the box that takes focus.
 function Clipboard:OpenList()
-    -- The app row's own selection closes the search; open it back first,
-    -- as the icon app does, then put the @clipboard pill in.
-    local Search = ns.Search
-    if Search and Search.Show then Search:Show(false) end
-    local searchFrame = Search and Search.GetSearchFrame and Search:GetSearchFrame()
-    if not (searchFrame and searchFrame:IsShown()) then return end
-    local defs = ns.Filters and ns.Filters.quickFilterOptions
-    if not defs then return end
-    for i = 1, #defs do
-        if defs[i].key == "clipboard" then
-            ns.Filters:ApplyQuickFilter(defs[i], "")
-            return
+    Utils.SafeAfter(0, function()
+        -- The app row's own selection closes the search; open it back first,
+        -- as the icon app does, then put the @clipboard pill in.
+        local Search = ns.Search
+        if Search and Search.Show then Search:Show(false) end
+        local searchFrame = Search and Search.GetSearchFrame and Search:GetSearchFrame()
+        if not (searchFrame and searchFrame:IsShown()) then return end
+        local defs = ns.Filters and ns.Filters.quickFilterOptions
+        if not defs then return end
+        for i = 1, #defs do
+            if defs[i].key == "clipboard" then
+                ns.Filters:ApplyQuickFilter(defs[i], "")
+                return
+            end
         end
-    end
+    end)
 end
 
 -- ==== wiring ================================================================
 
 Utils.OnClipboardCopied = function(text, link, icon) Clipboard:RecordCopied(text, link, icon) end
+
+-- What you send in chat, read after the client sends it.
+if hooksecurefunc and SendChatMessage then
+    hooksecurefunc("SendChatMessage", function(msg, chatType, _, target) Clipboard:RecordSent(msg, chatType, target) end)
+end
 
 -- The @clipboard pill going up is the list opening: changes noted while
 -- it was closed are applied then.

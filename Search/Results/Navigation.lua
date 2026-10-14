@@ -355,15 +355,23 @@ end
 function Results:ShowPinnedItems()
     if not ResultsFrame() then return end
     local pins = GetAllPins()
-    if #pins == 0 then
+    local quickFilter = self:GetQuickFilter()
+    -- The last copied entry leads the empty bar when that option is on.
+    local last = not quickFilter and ns.Clipboard and ns.Clipboard.LastCopiedRow and ns.Clipboard:LastCopiedRow()
+    if #pins == 0 and not last then
         self:HideResults()
         return
     end
 
     wipe(CollapsedNodes())
     local entries = pinnedOnlyEntries
-    local quickFilter = self:GetQuickFilter()
     local n = 0
+    if last then
+        n = 1
+        local e = entries[1] or {}
+        entries[1] = e
+        e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = last.name, 0, false, true, false, true, last
+    end
     for _, pin in ipairs(pins) do
         if not quickFilter or self:QuickFilterAllowsData(pin, quickFilter) then
             n = n + 1
