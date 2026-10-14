@@ -468,7 +468,7 @@ end
 local function StepText(step, active)
     local departs = active and step and step.route and DepartureText(step)
     if departs then return (step.text or "") .. " " .. departs end
-    if not (active and step and step.reach and step.go) then return step and step.text or "" end
+    if not (active and step and step.reach and step.go) or step.reached then return step and step.text or "" end
     local ci, px, py = PlayerWorldPos()
     local tci, tx, ty
     if step.go.wx then tci, tx, ty = step.go.ci, step.go.wx, step.go.wy
@@ -476,6 +476,9 @@ local function StepText(step, active)
     if ci and tci == ci and tx then
         local d = ((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5
         if d > REACH_YARDS then return step.reachText or sformat(L["GPS_STEP_REACH_FMT"], step.reach) end
+        -- Once there, moving away is the ride itself (the boat under way, the
+        -- flight): the step keeps its own words.
+        step.reached = true
     end
     return step.text or ""
 end
@@ -488,6 +491,7 @@ TrackStep = function(index)
     if not step then return end
     route.active = index
     route.arrived = nil
+    step.reached = nil
     -- A teleport counts as taken only once cast, or once off this continent.
     route.castAt = nil
     route.stepCi = PlayerWorldPos()
