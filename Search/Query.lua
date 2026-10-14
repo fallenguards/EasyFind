@@ -681,6 +681,7 @@ function Search:OnSearchTextChangedNow(text, force)
                     or filters.gameOptions == false or filters.addonOptions == false
                     or filters.titles == false or filters.gearSets == false
                     or filters.talents == false or filters.commands == false
+                    or filters.window == false
                     or hidePassives or hideAchievementHeaders or hideGuildAchievements
                     or macroGeneralOff or macroCharOff or bossDungeonOff or bossRaidOff
                     or hideJunk or commandNativeOff or commandCustomOff

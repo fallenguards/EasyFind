@@ -650,6 +650,15 @@ function Results:ActivateResultRow(resultRow, source)
         if ns.RunTalentSwap then ns.RunTalentSwap(specIndex, loadoutID) end
         return true
     end
+    if resultRow.data.windowCommand or resultRow.data.windowRestore
+       or resultRow.data.windowRestoreAll or resultRow.data.windowTaskView then
+        local cmd, restore, restoreAll, taskView = resultRow.data.windowCommand,
+            resultRow.data.windowRestore, resultRow.data.windowRestoreAll,
+            resultRow.data.windowTaskView
+        self:FinishResultSelection()
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView)
+        return true
+    end
     if resultRow.data.calculatorLauncher then
         return self:OpenCalculator("")
     end

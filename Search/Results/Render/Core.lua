@@ -460,6 +460,9 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     local renderState = SCRATCH.renderState
     wipe(renderState)
     renderState.theme = theme
+    -- Resolved once per pass: window rows gray together with no open target.
+    renderState.windowNoTarget = ns.WindowManager ~= nil
+        and not ns.WindowManager:ResolveTarget()
     renderState.fontScale = fontScale
     renderState.rowH = rowH
     renderState.stackGap = stackGap
@@ -587,7 +590,13 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             resultRow.isPathNode = entry.isPathNode  -- Store for tooltip text
             local lockedReason
             if not isUnearnedCurrency and data then
-                lockedReason = Database:GetEntryLockedReason(data)
+                -- Snap and restore need an open window; restore-all works
+                -- from saved places and stays live.
+                if renderState.windowNoTarget and (data.windowCommand or data.windowRestore) then
+                    lockedReason = ns.L["WINDOW_NO_TARGET"]
+                else
+                    lockedReason = Database:GetEntryLockedReason(data)
+                end
             end
             resultRow.lockedReason = lockedReason
             -- An unearned title dims like any unavailable row, but is NOT

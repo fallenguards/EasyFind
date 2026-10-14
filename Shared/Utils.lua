@@ -1983,6 +1983,10 @@ ns.SEARCH_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\search-icon"
 -- compensates with its own icon scale instead).
 ns.SEARCH_ICON_COORDS = { 0.094, 0.938, 0.094, 0.938 }
 ns.COMMANDS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\commands-icon"
+-- Window manager: pixels between a snapped window and the screen edge or
+-- its neighbour, and the Windows category glyph.
+ns.WINDOW_GAP_DEFAULT = 8
+ns.WINDOW_ICON_TEX = 7415937
 ns.RADIO_OFF_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-off"
 ns.RADIO_ON_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-on"
 ns.FILTER_ARROW_TEX = "Interface\\AddOns\\EasyFind\\textures\\filter-arrow"
@@ -6176,6 +6180,25 @@ function Utils.IsClickGuardMouseOver()
         if guard and Utils.IsFrameOrChildMouseOver(guard) then return true end
     end
     return false
+end
+
+-- A click outside the popup (and its owner or extra guards) hides it.
+function Utils.AttachOutsideClickClose(popup, owner, extraGuards)
+    if not popup or popup._efOutsideClose then return end
+    popup._efOutsideClose = true
+    popup:HookScript("OnShow", function(self) self:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
+    popup:HookScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
+    popup:HookScript("OnEvent", function(self, event)
+        if event ~= "GLOBAL_MOUSE_DOWN" then return end
+        if self:IsMouseOver() then return end
+        if owner and owner.IsMouseOver and owner:IsMouseOver() then return end
+        if extraGuards then
+            for i = 1, #extraGuards do
+                if Utils.IsFrameVisiblyMouseOver(extraGuards[i]) then return end
+            end
+        end
+        self:Hide()
+    end)
 end
 
 -- Windows that predate the registry, plus the Blizzard StaticPopup slots

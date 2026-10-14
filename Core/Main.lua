@@ -225,6 +225,7 @@ local DB_DEFAULTS = {
         talents        = true,
         titles         = true,
         map            = true,
+        window         = true,
     },
     -- "all" | "current" | a specific "Name-Realm" key. Defaults to the logged-in
     -- character: the account bank is shown regardless of scope, so this is only
@@ -294,6 +295,12 @@ local DB_DEFAULTS = {
     shortkeyConflictPrompt = true,
     commandShowNative = true,
     commandShowCustom = true,
+    -- Window manager: snap gap, saved places per window, and the two
+    -- panel behaviours its filter flyout toggles.
+    windowGap = ns.WINDOW_GAP_DEFAULT,
+    windowPositions = {},
+    windowHideBarGrid = false,
+    windowMultiPanels = false,
     appearanceSetClass = nil,
     appearanceSetCollected = true,
     appearanceSetNotCollected = true,
@@ -1128,6 +1135,7 @@ local function OnPlayerLogin()
         SafeInit(ns.MapSearch,  "MapSearch")
     end
     SafeInit(ns.Search,        "UI")
+    SafeInit(ns.WindowManager, "WindowManager")
     SafeInit(ns.VersionCheck,  "VersionCheck")
     SafeInit(ns.RowCopy,       "RowCopy")
     local regOk, regErr = xpcall(RegisterBlizzardOptionsStub, ErrorHandler)

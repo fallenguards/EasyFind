@@ -374,6 +374,16 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- Captured first: FinishResultSelection recycles the data table.
+    if data.windowCommand or data.windowRestore or data.windowRestoreAll
+       or data.windowTaskView then
+        local cmd, restore, restoreAll, taskView = data.windowCommand,
+            data.windowRestore, data.windowRestoreAll, data.windowTaskView
+        self:FinishResultSelection()
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView)
+        return
+    end
+
     if data.calculatorLauncher then
         self:OpenCalculator("")
         return

@@ -35,6 +35,7 @@ local ENTRIES = {
     { key = "titles",          categories = { "Title" } },
     { key = "gearSets",        categories = { "Gear Set" } },
     { key = "commands",        categories = { "Command" } },
+    { key = "window",          categories = { "Window" } },
     -- extensions is the umbrella gate for the extension apps; its children
     -- carry the real categories.
     { key = "extensions",      categories = {} },

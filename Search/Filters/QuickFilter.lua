@@ -74,6 +74,7 @@ Filters.quickFilterOptions = {
     { key = "reputations",    canonical = "reputations",     label = _G["REPUTATION"] or "Reputations",     categories = { "Reputation" }, aliases = { "r", "rep", "reps", "reputation", "reputations" } },
     { key = "talents",        canonical = "talents",         label = _G["TALENTS"] or "Talents",         categories = { "Talent" }, aliases = { "ta", "tal", "talent", "talents" } },
     { key = "titles",         canonical = "titles",          label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",          categories = { "Title" }, aliases = { "ti", "title", "titles" } },
+    { key = "window",         canonical = "windows",         label = L["FILTER_WINDOW"],         categories = { "Window" }, aliases = { "w", "win", "window", "windows" } },
 }
 
 Filters.quickFilterByAlias = {}

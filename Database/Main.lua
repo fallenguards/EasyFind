@@ -2703,6 +2703,16 @@ function Database:PopulateDynamicCommands()
     return true
 end
 
+function Database:PopulateDynamicWindows()
+    RemoveEntriesByCategory("Window")
+    local entries = ns.WindowCommands and ns.WindowCommands:BuildSearchData()
+    if not entries then return false end
+    for i = 1, #entries do
+        uiSearchData[#uiSearchData + 1] = entries[i]
+    end
+    return true
+end
+
 function Database:SyncTransmogSetFiltersFromUI()
     local db = EasyFind and EasyFind.db
     if not db then return end

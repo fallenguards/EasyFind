@@ -49,6 +49,11 @@ Database/Loot_Forever.lua
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua
 Database/StaticLocations_Forever.lua
+WindowManager/SnapMath.lua
+WindowManager/Registry.lua
+WindowManager/Manager.lua
+WindowManager/Interactive.lua
+WindowManager/Commands.lua
 Shared/Aliases.lua
 Shared/Shortkeys.lua
 Shared/UIPins.lua

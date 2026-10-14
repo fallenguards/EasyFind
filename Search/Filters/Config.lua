@@ -294,6 +294,28 @@ local UI_FILTER_OPTIONS = {
               { dbKey = "commandShowCustom", label = L["FILTER_EXTRA"] },
           },
       } },
+    { key = "window",      label = L["FILTER_WINDOW"], iconTex = ns.WINDOW_ICON_TEX,
+      flyoutRadio = {
+          checkboxes = {
+              { dbKey = "windowsUnlocked", label = L["WINDOW_UNLOCK_TOGGLE"],
+                tooltip = L["WINDOW_UNLOCK_TIP"] },
+              { dbKey = "windowHideBarGrid", label = L["WINDOW_GRID_TOGGLE"],
+                tooltip = L["WINDOW_GRID_TIP"],
+                onChange = function()
+                    if ns.WindowManager then ns.WindowManager:RefreshGridMask() end
+                end },
+              { dbKey = "windowMultiPanels", label = L["WINDOW_MULTI_TOGGLE"],
+                tooltip = L["WINDOW_MULTI_TIP"],
+                onChange = function()
+                    if ns.WindowManager then ns.WindowManager:RefreshMultiPanels() end
+                end },
+              { dbKey = "windowsResizable", label = L["WINDOW_RESIZE_TOGGLE"],
+                tooltip = L["WINDOW_RESIZE_TIP"],
+                onChange = function()
+                    if ns.WindowSnapAssist then ns.WindowSnapAssist:RefreshResizeWatcher() end
+                end },
+          },
+      } },
 }
 
 -- Top-level filter categories list alphabetically by their (localized) label.

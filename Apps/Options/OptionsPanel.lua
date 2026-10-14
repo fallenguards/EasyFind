@@ -263,6 +263,7 @@ local function SyncOptionControls()
     if optionsFrame.searchOpacityRow then optionsFrame.searchOpacityRow:SetValue(mfloor((EasyFind.db.searchWindowOpacity or ns.SEARCH_WINDOW_ALPHA) * 100 + 0.5)) end
     if optionsFrame.mapIconPresetRow then optionsFrame.mapIconPresetRow:SetValue(EasyFind.db.iconScale or 0.8) end
     if optionsFrame.recentCountStepper then optionsFrame.recentCountStepper:SetValue(EasyFind.db.mapTabRecentCount or 3) end
+    if optionsFrame.windowGapRow then optionsFrame.windowGapRow:SetValue(EasyFind.db.windowGap or ns.WINDOW_GAP_DEFAULT) end
 
     if optionsFrame.visibilityModeRow then optionsFrame.visibilityModeRow:SetValue(GetVisibilityModeValue()) end
     if optionsFrame.lockPositionCheckbox then optionsFrame.lockPositionCheckbox:SetChecked(EasyFind.db.lockPosition or false) end
@@ -2541,6 +2542,25 @@ local function BuildMapTab(ctx)
     }
     UpdateMapToggleVisual()
 
+end
+
+local function BuildWindowsTab(ctx)
+    local CreateTab, FRAME_W = ctx.CreateTab, ctx.FRAME_W
+    local winTab = CreateTab(L["FILTER_WINDOW"])
+
+    local windowText = winTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    windowText:SetPoint("TOPLEFT", winTab, "TOPLEFT", 8, -8)
+    windowText:SetWidth(FRAME_W - 60)
+    windowText:SetJustifyH("LEFT")
+    windowText:SetSpacing(2)
+    windowText:SetText(L["OPT_WINDOWS_TEXT"])
+
+    local windowGapRow = CreateStepperRow(winTab, L["OPT_WINDOW_GAP"], 0, 64,
+        function() return EasyFind.db.windowGap or ns.WINDOW_GAP_DEFAULT end,
+        function(value) EasyFind.db.windowGap = value end,
+        L["OPT_WINDOW_GAP_TT"], 330)
+    windowGapRow:SetPoint("TOPLEFT", windowText, "BOTTOMLEFT", 0, -14)
+    optionsFrame.windowGapRow = windowGapRow
 end
 
 local function BuildShortcutsTab(ctx)
@@ -5549,6 +5569,7 @@ function Options:Initialize()
     BuildGeneralBindsTab(ctx)
     BuildSearchTab(ctx)
     BuildMapTab(ctx)
+    BuildWindowsTab(ctx)
     BuildShortcutsTab(ctx)
     BuildAliasesTab(ctx)
     BuildBlacklistTab(ctx)

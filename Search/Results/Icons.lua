@@ -196,6 +196,7 @@ local FLAT_CATEGORY_ICONS = {
     gearSet       = { tex = 514608, coords = { 0.01562, 0.53125, 0.46875, 0.60547 } },
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
+    window        = { tex = ns.WINDOW_ICON_TEX },
 }
 
 local CLOCK_COMMAND_ICONS = {}
@@ -246,6 +247,7 @@ function Icons:GetFlatCategoryIcon(data)
     -- category (the snippet create row, the snippets app) must fall
     -- through to their own category glyph below.
     if data.searchCommand or data.category == "Command" then return FLAT_CATEGORY_ICONS.command end
+    if data.category == "Window" then return FLAT_CATEGORY_ICONS.window end
     if data.category == "Notes" then return FLAT_CATEGORY_ICONS.notes end
     if data.quickFilterDef then
         local key = data.quickFilterDef.key
