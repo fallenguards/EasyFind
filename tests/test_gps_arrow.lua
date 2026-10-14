@@ -5,7 +5,9 @@ local H = require("Harness")
 
 -- An L-shaped walk in world yards: 100 north, then 100 west (opts.ty: fewer);
 -- found from where the player stands, or with planned, from where the route
--- was planned. opts.pts draws another walk from its ends.
+-- was planned. opts.pts draws another walk from its ends. With opts.planner,
+-- only the walk from the planned start is drawn; others wait for
+-- planner.draw(), as the game's planner draws them in its slices.
 local function fresh(planned, opts)
     opts = opts or {}
     local env = H.newEnv()
@@ -19,12 +21,20 @@ local function fresh(planned, opts)
     local clear = { v = true }
     local route = { steps = { { kind = "travel", go = { ci = 1, wx = 100, wy = opts.ty or 100 } } }, active = 1,
                     from = planned and { ci = 1, wx = 0, wy = 0 } or nil }
+    local planner = { asked = {}, drawn = {} }
+    function planner.draw()
+        for _, a in ipairs(planner.asked) do planner.drawn[a[1] .. ":" .. a[2]] = true end
+    end
     ns.GPS = {
         CurrentRoute = function() return route end,
         PlayerWorldPos = function() return 1, player.x, player.y end,
+        DrawWalk = function(_, sx, sy) planner.asked[#planner.asked + 1] = { sx, sy } return true end,
     }
     ns.GPSRoute = {
-        WalkPath = function(_, sx, sy, tx, ty)
+        WalkPath = function(_, sx, sy, tx, ty, lazy)
+            if opts.planner and lazy and not (sx == 0 and sy == 0) and not planner.drawn[sx .. ":" .. sy] then
+                return nil
+            end
             finds[#finds + 1] = { sx, sy }
             local pts = opts.pts and opts.pts(sx, sy, tx, ty) or { sx, sy, 100, sy, tx, ty }
             local cum, len = { 0 }, 0
@@ -38,7 +48,7 @@ local function fresh(planned, opts)
     ns.GPSNav = { Straight = function() return clear.v end }
     H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Arrow.lua", env, ns)
-    return ns.GPSArrow._Aim, player, finds, now, clear
+    return ns.GPSArrow._Aim, player, finds, now, clear, planner
 end
 
 local tests = {}
@@ -69,6 +79,28 @@ function tests.aWalkHardlyLongerThanTheLineAimsAtTheSpot()
     local _, _, ax, ay = Aim()
     H.assertEq(ax, 100, "the spot itself, not a point along the wiggle")
     H.assertEq(ay, 100)
+end
+
+function tests.aWalkFoundAgainIsDrawnByThePlanner()
+    local Aim, player, _, now, _, planner = fresh(true, { planner = true })
+    player.x = 50
+    Aim()
+    H.assertEq(#planner.asked, 0, "the walk from the planned start is drawn already")
+    player.y = 40
+    now.t = now.t + 5
+    local _, _, ax, ay = Aim()
+    H.assertEq(#planner.asked, 1, "the walk from here is asked of the planner")
+    H.assertEq(planner.asked[1][2], 40)
+    H.assertEq(ax, 100, "straight at the spot meanwhile")
+    H.assertEq(ay, 100)
+    now.t = now.t + 1
+    Aim()
+    H.assertEq(#planner.asked, 1, "asked once while it draws")
+    planner.draw()
+    now.t = now.t + 1
+    _, _, ax, ay = Aim()
+    H.assertEq(ax, 75, "then followed from here")
+    H.assertEq(ay, 40)
 end
 
 function tests.offTheWayTheWalkIsFoundAgain()

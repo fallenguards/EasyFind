@@ -963,10 +963,20 @@ local function OtherWays(route)
     return ways
 end
 
+-- A planner job for the next frame; the follower's walks wait behind it.
+local jobsPending = 0
+local function Soon(fn)
+    jobsPending = jobsPending + 1
+    Utils.SafeAfter(0, function()
+        jobsPending = jobsPending - 1
+        fn()
+    end)
+end
+
 -- Planned once the route is on screen, never in the way of showing it: what
 -- to pick up on the way, then the other ways.
 local function PlanOtherWays()
-    Utils.SafeAfter(0, function()
+    Soon(function()
         local route = Route()
         if not (route and route.dest and not route.arrived) or GPS:IsPlanning() then return end
         GPS:Plan(nil, function()
@@ -984,7 +994,7 @@ GPS.PlanOtherWays = PlanOtherWays
 -- on screen: each timed by its way, split by zone, the total following;
 -- then, unless onlyDraw, the advice and the other ways.
 local function AfterRoute(onlyDraw)
-    Utils.SafeAfter(0, function()
+    Soon(function()
         local route = Route()
         local Engine = ns.GPSRoute
         if not (route and route.dest and route.from and not route.arrived and Engine and Engine.DrawWalks)
@@ -1018,6 +1028,22 @@ local function AfterRoute(onlyDraw)
     end)
 end
 GPS.AfterRoute = AfterRoute
+
+-- A walk the follower needs (from where the player strayed to), drawn in
+-- the planner's slices; the follower reads it once it is there. Refused
+-- while the planner runs or a job waits for it: asked again.
+function GPS.DrawWalk(ci, sx, sy, tx, ty)
+    local Engine = ns.GPSRoute
+    if jobsPending > 0 or GPS:IsPlanning() or not (Engine and Engine.WalkPath) then return false end
+    GPS:Plan(nil, function()
+        local Nav = ns.GPSNav
+        if Nav then Nav.yieldCo = coroutine.running() end
+        Engine.WalkPath(ci, sx, sy, tx, ty)
+        if Nav then Nav.yieldCo = nil end
+        return true
+    end, function() end)
+    return true
+end
 
 -- Takes one of the other ways: the route keeps to it, starting over too.
 function GPS:TakeOtherWay(other)

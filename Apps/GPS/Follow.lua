@@ -60,12 +60,29 @@ function Follow.Axes(ci)
     return a
 end
 
--- The way as drawn; one not drawn yet counts as none until the drawing
--- job resets this (GPS.lua), so the arrow points straight meanwhile.
-local function Find(ci, sx, sy, now)
-    walk.found, walk.fx, walk.fy, walk.seg, walk.wide = now, sx, sy, 1, true
+-- The walk from where it was found, once drawn: the route's own walks
+-- by the planner, one from where the player strayed to by GPS.DrawWalk
+-- in the planner's slices, asked here and again while it was busy. nil
+-- until then; the arrow points straight meanwhile.
+local function Drawn(ci)
     local find = ns.GPSRoute and ns.GPSRoute.WalkPath
-    walk.path = find and find(ci, sx, sy, walk.tx, walk.ty, true) or false
+    if not find then walk.path = false return false end
+    local path = find(ci, walk.fx, walk.fy, walk.tx, walk.ty, true)
+    if path == nil then
+        local now = GetTime()
+        if not (walk.asked and now - walk.asked < REFIND) then
+            local draw = ns.GPS.DrawWalk
+            walk.asked = draw and draw(ci, walk.fx, walk.fy, walk.tx, walk.ty) and now or nil
+        end
+        return nil
+    end
+    walk.path = path
+    return path
+end
+
+local function Find(ci, sx, sy, now)
+    walk.found, walk.fx, walk.fy, walk.seg, walk.wide, walk.path, walk.asked = now, sx, sy, 1, true, nil, nil
+    Drawn(ci)
 end
 
 -- The walk's nearest point to (x, y), looked for near the stretch matched
@@ -129,11 +146,12 @@ function Follow.Now()
         local sci, sx, sy = StartOf(route, index)
         if sci == ci and sx then Find(ci, sx, sy, -mhuge) else Find(ci, px, py, now) end
     end
-    -- Off the way, or with none found: found again from here, once moved on.
     local path = walk.path
+    if path == nil then path = Drawn(ci) end
     local seg, along, off, qx, qy
     if path then seg, along, off, qx, qy = Nearest(path, px, py) end
-    if (not path or off > OFF_WAY) and now - walk.found > REFIND
+    -- Off the way, or with none: found again from here, once moved on.
+    if (path == false or (path and off > OFF_WAY)) and now - walk.found > REFIND
         and (walk.fx - px) ^ 2 + (walk.fy - py) ^ 2 > OFF_WAY * OFF_WAY then
         Find(ci, px, py, now)
         path = walk.path
