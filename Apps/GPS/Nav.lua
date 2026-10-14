@@ -76,6 +76,7 @@ local function Reader(s)
 end
 
 local worlds = {}
+Nav._worlds = worlds   -- dev tools
 
 local function World(ci)
     local w = worlds[ci]
