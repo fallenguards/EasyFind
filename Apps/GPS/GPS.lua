@@ -3258,11 +3258,12 @@ local function BuildDock()
     titleBtn:SetScript("OnClick", function() GPS:Open() end)
     titleBtn:Hide()
     f.titleBtn = titleBtn
-    -- With no route, a search box in the banner right of the name, from the
-    -- same builder as the window's folded row. Its finds list below.
+    -- With no route, a search box in the banner right of the name and its
+    -- tag, from the same builder as the window's folded row. Its finds
+    -- list below.
     local searchAnchor = CreateFrame("Frame", nil, f)
     searchAnchor:SetSize(1, 20)
-    searchAnchor:SetPoint("LEFT", header, "RIGHT", -2, 0)
+    searchAnchor:SetPoint("LEFT", exp, "RIGHT", -7, 0)
     f.searchAnchor = searchAnchor
     BuildSearch(f, searchAnchor, 10, 8)
     f.search:SetFrameLevel(head:GetFrameLevel() + 5)   -- above the header's grip
