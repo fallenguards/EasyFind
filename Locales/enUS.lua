@@ -510,6 +510,9 @@ L["GPS_LINE_WIDTH"]                     = "Map line"
 L["GPS_LINE_WIDTH_TT"]                  = "How thick the route is drawn on the world map."
 L["GPS_LINE_THIN"]                      = "Thin"
 L["GPS_LINE_THICK"]                     = "Thick"
+L["GPS_MAP_CLICK"]                      = "Clicking a pinned spot on the map"
+L["GPS_MAP_CLICK_TT"]                   = "What a left-click on a spot pinned on the world map does."
+L["GPS_MAP_CLICK_PIN"]                  = "Place a waypoint and track it"
 L["GPS_LINE_COLORS"]                    = "Map line colors"
 L["GPS_LINE_COLOR_TT"]                  = "Click to pick the color this way of travel is drawn in on the map and minimap. Right-click to take the theme's color again."
 L["GPS_LINE_WALK"]                      = "On foot"
@@ -754,8 +757,7 @@ L["MAP_AUTO_EXPAND_EXAMPLE"]            = "Example: searching |cffffd200east|r m
 -- MapSearch/Navigation.lua  --  waypoint pin tooltips
 -- =============================================================================
 L["WP_PLACE"]                           = "Left-click to place waypoint and track"
-L["WP_NAV_UNAVAILABLE"]                 = "Navigate not available"
-L["WP_NAV_ZONE_ONLY"]                   = "Only available when viewing your current zone"
+L["WP_NAVIGATE"]                        = "Left-click to navigate here (GPS)"
 L["WP_DISMISS"]                         = "Right-click to dismiss"
 
 -- =============================================================================

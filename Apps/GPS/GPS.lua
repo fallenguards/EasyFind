@@ -134,6 +134,13 @@ function GPS:CanNavigate(data)
     return WorldPos(mapID, data.x or 0.5, data.y or 0.5) ~= nil
 end
 
+-- Whether a left-click on a spot pinned on the world map starts the GPS
+-- there (the setting's default) rather than placing the game's waypoint.
+function GPS.MapClickNavigates()
+    local db = DB()
+    return db ~= nil and db.gpsMapClick ~= "pin"
+end
+
 -- Where a row points: a POI's coordinates, a zone's marker on the parent map, else
 -- the zone's middle. A dungeon row names its continent: the door is in the entrance list.
 local function EntranceOf(data)
@@ -3939,10 +3946,22 @@ local function BuildOptionsPage(ctx, page)
         end,
         "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
     lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
+    local clicks = {
+        { label = L["CTX_GPS"], value = "gps" },
+        { label = L["GPS_MAP_CLICK_PIN"], value = "pin" },
+    }
+    local clickRow = ctx.CreateFlyoutPresetRow(page, L["GPS_MAP_CLICK"], clicks,
+        function() local db = DB() return db and db.gpsMapClick or "gps" end,
+        function(v)
+            local db = DB()
+            if db then db.gpsMapClick = (v ~= "gps") and v or nil end
+        end,
+        "EasyFindGPSMapClick", "gps", L["GPS_MAP_CLICK_TT"])
+    clickRow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -4)
     -- The lines' colors: a swatch per way of travel, the theme's beacon
     -- color until one is picked, and again on a right-click.
     local colorHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    colorHead:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 8, -8)
+    colorHead:SetPoint("TOPLEFT", clickRow, "BOTTOMLEFT", 8, -8)
     colorHead:SetText(L["GPS_LINE_COLORS"])
     local prevRow = colorHead
     local ways = { { "walk", L["GPS_LINE_WALK"] }, { "taxi", L["GPS_AVOID_TAXI"] }, { "boat", L["GPS_AVOID_BOAT"] },

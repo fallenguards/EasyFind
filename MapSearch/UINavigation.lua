@@ -11,6 +11,7 @@ local MapSearch = ns.MapSearch
 --   Standard mode: guide to open map, then run SelectResult.
 function MapSearch:HandleUISearchClick(data, forceGuide)
     if not data then return end
+    self._selected = data
 
     local isGlobalResult = data.isZone or data.isDungeonEntrance
 

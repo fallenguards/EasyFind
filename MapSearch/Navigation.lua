@@ -80,6 +80,44 @@ local function PlaceTrackedWaypoint(mapID, x, y)
     MapSearch:RefreshAllClearButtons()
 end
 
+-- Whether a click on a pinned spot starts the GPS there (the GPS loaded
+-- and its setting on) rather than placing a waypoint.
+local function GPSNavigates()
+    local GPS = ns.GPS
+    return GPS ~= nil and GPS.MapClickNavigates ~= nil and GPS.MapClickNavigates()
+end
+
+local function PinEnter(self)
+    if self.isLocalSearch then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(GPSNavigates() and L["WP_NAVIGATE"] or L["WP_PLACE"])
+        GameTooltip:AddLine(L["WP_DISMISS"], 0.6, 0.6, 0.6)
+        GameTooltip:Show()
+    else
+        MapSearch:ClearActivePinState()
+        MapSearch:ClearHighlight()
+    end
+end
+
+-- A left-click on a pinned spot leads there: the GPS when it is on and
+-- set to, else the game's waypoint, tracked; the waypoint is world-space,
+-- so the map viewed need not be the one the player stands on. One of a
+-- cluster (several auction houses) stands alone first.
+local function PinClick(self, button)
+    if button == "RightButton" then MapSearch:ClearAll() return end
+    if button ~= "LeftButton" or not (self.isLocalSearch and self.waypointX and self.waypointY) then return end
+    local x, y, cat = self.waypointX, self.waypointY, self.waypointCategory
+    if activePinState and activePinState.instances then MapSearch:ShowWaypointAt(x, y, nil, cat) end
+    local viewingMapID = WorldMapFrame:GetMapID()
+    if not viewingMapID then return end
+    local sel = MapSearch._selected
+    if sel and GPSNavigates() and ns.GPS:NavigateTo({ name = sel.name, mapID = viewingMapID, x = x, y = y,
+            icon = sel.icon, category = sel.category or cat }, { quiet = true }) then
+        return
+    end
+    PlaceTrackedWaypoint(viewingMapID, x, y)
+end
+
 function MapSearch:HasActivePinState()
     return activePinState ~= nil
 end
@@ -236,44 +274,9 @@ function MapSearch:CreateHighlightFrame()
     waypointPin:Hide()
 
     waypointPin:EnableMouse(true)
-    waypointPin:SetScript("OnEnter", function(self)
-        if self.isLocalSearch then
-            local playerMapID = GetBestMapForUnit("player")
-            local viewingMapID = WorldMapFrame:GetMapID()
-            local inZone = playerMapID and viewingMapID and playerMapID == viewingMapID
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if inZone then
-                GameTooltip:AddLine(L["WP_PLACE"])
-            else
-                GameTooltip:AddLine(L["WP_NAV_UNAVAILABLE"], 0.6, 0.6, 0.6)
-                GameTooltip:AddLine(L["WP_NAV_ZONE_ONLY"], 0.5, 0.5, 0.5)
-            end
-            GameTooltip:AddLine(L["WP_DISMISS"], 0.6, 0.6, 0.6)
-            GameTooltip:Show()
-        else
-            MapSearch:ClearActivePinState()
-            MapSearch:ClearHighlight()
-        end
-    end)
+    waypointPin:SetScript("OnEnter", PinEnter)
     waypointPin:SetScript("OnLeave", GameTooltip_Hide)
-    waypointPin:SetScript("OnMouseUp", function(self, button)
-        if button == "LeftButton" and self.isLocalSearch and self.waypointX and self.waypointY then
-            local x, y = self.waypointX, self.waypointY
-            if activePinState and activePinState.instances then
-                MapSearch:ShowWaypointAt(x, y, nil, self.waypointCategory)
-            end
-            local playerMapID = GetBestMapForUnit("player")
-            local viewingMapID = WorldMapFrame:GetMapID()
-            if viewingMapID and playerMapID == viewingMapID then
-                EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(viewingMapID, x, y))
-                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-                MapSearch:RefreshAllClearButtons()
-            end
-        end
-        if button == "RightButton" then
-            MapSearch:ClearAll()
-        end
-    end)
+    waypointPin:SetScript("OnMouseUp", PinClick)
 
     MapFrames.AddWaypointPinVisuals(waypointPin, {
         color = YELLOW_HIGHLIGHT,
@@ -524,6 +527,7 @@ function MapSearch:SelectResult(data, directOverride)
     self._previewing = nil
     self._savedPinState = nil
     self._suppressTextChanged = true
+    self._selected = data   -- what the pin on the map stands for
     if data then
         DebugPrint("[EasyFind] SelectResult: name=", data.name,
             "isZone=", data.isZone, "zoneMapID=", data.zoneMapID,
@@ -730,33 +734,9 @@ function MapSearch:ShowMultipleWaypoints(instances)
                     })
 
                     extraPin:EnableMouse(true)
-                    extraPin:SetScript("OnEnter", function(self)
-                        if self.isLocalSearch then
-                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                            GameTooltip:AddLine(L["WP_PLACE"])
-                            GameTooltip:AddLine(L["WP_DISMISS"], 0.6, 0.6, 0.6)
-                            GameTooltip:Show()
-                        else
-                            MapSearch:ClearActivePinState()
-                            MapSearch:ClearHighlight()
-                        end
-                    end)
+                    extraPin:SetScript("OnEnter", PinEnter)
                     extraPin:SetScript("OnLeave", GameTooltip_Hide)
-                    extraPin:SetScript("OnMouseUp", function(self, button)
-                        if button == "LeftButton" and self.isLocalSearch and self.waypointX and self.waypointY then
-                            local x, y, cat = self.waypointX, self.waypointY, self.waypointCategory
-                            -- Collapse multi-pin to this one, then place waypoint
-                            MapSearch:ShowWaypointAt(x, y, nil, cat)
-                            local viewingMapID = WorldMapFrame:GetMapID()
-                            if viewingMapID then
-                                EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(viewingMapID, x, y))
-                                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-                            end
-                        end
-                        if button == "RightButton" then
-                            MapSearch:ClearAll()
-                        end
-                    end)
+                    extraPin:SetScript("OnMouseUp", PinClick)
 
                     self.extraPins[i-1] = extraPin
                 end

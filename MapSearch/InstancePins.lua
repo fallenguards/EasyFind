@@ -47,13 +47,14 @@ local function PinOnEnter(self)
     GameTooltip:Show()
 end
 
--- A click leads there: the GPS when it is loaded, else a waypoint at the door.
+-- A click leads there: the GPS when it is on and set to, else a waypoint at the door.
 local function PinOnClick(self)
     local e = self.entry
     if not (e and e.zoneMapID) then return end
     local dest = { name = e.name, mapID = e.zoneMapID, x = e.zoneX, y = e.zoneY, isDungeonEntrance = true,
                    category = e.isRaid and "raid" or "dungeon" }
-    if ns.GPS and ns.GPS.NavigateTo and ns.GPS:NavigateTo(dest, { quiet = true }) then return end
+    local GPS = ns.GPS
+    if GPS and GPS.MapClickNavigates and GPS.MapClickNavigates() and GPS:NavigateTo(dest, { quiet = true }) then return end
     local MapSearch = ns.MapSearch
     if MapSearch and MapSearch.PlaceUserWaypoint and UiMapPoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(e.zoneMapID, e.zoneX, e.zoneY))
