@@ -638,16 +638,28 @@ local function zoneAt(_, x, y)
     return 12, "Charlie"
 end
 
-local function walk()
+-- The walk, its way drawn, as the planner leaves it before the split: a
+-- walk not drawn yet is never split.
+local function walk(Route)
     local target = { ci = 1, wx = 1050, wy = 1000, m = 12, x = 0.1, y = 0.1 }
+    local start = { ci = 1, wx = 0, wy = -50 }
+    if Route then Route.WalkPath(1, start.wx, start.wy, target.wx, target.wy) end
     return { { kind = "travel", text = "Travel to Spot", mapID = 12, go = target, arrive = target, sec = 210 } },
-        { ci = 1, wx = 0, wy = -50 }, target
+        start, target
+end
+
+function tests.walk_notDrawnYetStaysWhole()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local steps, start = walk()
+    H.assertEq(#Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "its way is not drawn: whole")
+    H.assertNil(Route.WalkPath(1, 0, -50, 1050, 1000, true), "and asking lazily draws nothing")
 end
 
 function tests.walk_splitsIntoAStepPerZone()
     local _, ns, Route = fresh()
     withNav(ns, junction)
-    local steps, start, target = walk()
+    local steps, start, target = walk(Route)
     local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt })
     H.assertEq(#out, 3, "Alpha, Bravo, Charlie")
     H.assertEq(out[1].enter, 11, "the first ends on entering Bravo")
@@ -665,7 +677,7 @@ end
 function tests.walk_toAZoneEndsOnEnteringIt()
     local _, ns, Route = fresh()
     withNav(ns, junction)
-    local steps, start, target = walk()
+    local steps, start, target = walk(Route)
     local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt, goalZone = 12 })
     H.assertEq(#out, 2, "no step inside the goal zone")
     H.assertEq(out[2].enter, 12)
@@ -688,7 +700,7 @@ end
 function tests.walk_fromInsideACityStartsWithLeavingIt()
     local _, ns, Route = fresh()
     withNav(ns, junction)
-    local steps, start = walk()
+    local steps, start = walk(Route)
     local out = Route.SplitWalks(steps, start, data(), {
         zoneAt = zoneAt, isCity = function(m) return m == 99 end, startCity = { map = 99, name = "City" } })
     H.assertEq(#out, 4)
@@ -699,7 +711,7 @@ end
 function tests.walk_inOneZoneOrWithoutAGridStaysOneStep()
     local _, ns, Route = fresh()
     withNav(ns, junction)
-    local steps, start = walk()
+    local steps, start = walk(Route)
     H.assertEq(#Route.SplitWalks(steps, start, data(), { zoneAt = function() return 10, "Alpha" end }), 1)
     local _, _, Bare = fresh()
     H.assertEq(#Bare.SplitWalks(steps, start, data(), { zoneAt = zoneAt }), 1, "no walking grid")

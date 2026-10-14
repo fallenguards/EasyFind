@@ -276,26 +276,28 @@ local function StartPoint()
     return { m = s.mapID, x = s.x, y = s.y, ci = ci, wx = wx, wy = wy }
 end
 
--- avoid: ways to leave out, the settings' by default; quick: no advice.
-function GPS:BuildRoute(dest, via, avoid, quick)
+-- avoid: ways to leave out, the settings' by default; quick: no advice;
+-- draw: "first" draws the walk set out on (a route to show), nothing
+-- otherwise (a route to compare). Also the pace the walks were priced at.
+function GPS:BuildRoute(dest, via, avoid, quick, draw)
     local Route = ns.GPSRoute
     local origin = StartPoint()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
-                       start = origin }
+                       start = origin, draw = draw }
         if quick then opts.advise = false end
-        local ok, steps, total, advice
+        local ok, steps, total, advice, pace
         local co = coroutine.running()
         local Nav = ns.GPSNav
         if co then
             if Nav then Nav.yieldCo = co end
-            steps, total, advice = Route.Build(Route, dest, opts)
+            steps, total, advice, pace = Route.Build(Route, dest, opts)
             if Nav then Nav.yieldCo = nil end
             ok = true
         else
-            ok, steps, total, advice = pcall(Route.Build, Route, dest, opts)
+            ok, steps, total, advice, pace = pcall(Route.Build, Route, dest, opts)
         end
         if ok and steps and #steps > 0 then
             for i = 1, #steps do steps[i].name = steps[i].name or dest.name end
@@ -303,7 +305,7 @@ function GPS:BuildRoute(dest, via, avoid, quick)
             -- A walk to a zone ends at its border: the total follows the split.
             total = 0
             for i = 1, #steps do total = total + (steps[i].sec or 0) end
-            return steps, total, advice
+            return steps, total, advice, pace
         end
         if via then return nil end   -- no way with that stop: the route stays as it was
     end
@@ -356,10 +358,12 @@ local function Refresh()
 end
 GPS.RefreshSurfaces = Refresh
 
--- Plans run a slice a frame, so a long one never stalls the game. One at a
--- time: a newer plan replaces one still running. A plan that fails runs once
--- more at once, guarded, so its fallback still comes.
-local PLAN_BUDGET_MS = 8
+-- Plans run a slice a frame, so a long one never stalls the game: a bigger
+-- slice for the plan someone waits on (a route to show), a smaller one for
+-- the work after it. One at a time: a newer plan replaces one still
+-- running. A plan that fails runs once more at once, guarded, so its
+-- fallback still comes.
+local PLAN_BUDGET_MS, PLAN_BUDGET_BACK_MS = 12, 6
 local Planner = { frame = CreateFrame("Frame") }
 
 local function PlanStep()
@@ -369,7 +373,7 @@ local function PlanStep()
         return
     end
     local Nav = ns.GPSNav
-    if Nav then Nav.sliceEnd = debugprofilestop() + PLAN_BUDGET_MS end
+    if Nav then Nav.sliceEnd = debugprofilestop() + (GPS.planning and PLAN_BUDGET_MS or PLAN_BUDGET_BACK_MS) end
     local ok, a, b, c = coroutine.resume(co)
     if Nav then Nav.sliceEnd = nil end
     if coroutine.status(co) ~= "dead" or Planner.co ~= co then return end
@@ -672,7 +676,9 @@ local function OffRoute(route, ci, px, py)
     if ci ~= tci then return true end
     if ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
     local Engine = ns.GPSRoute
-    local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty)
+    local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty, true)
+    -- Its way not drawn yet: nothing to be off.
+    if way == nil then return false end
     local pts = way and way.pts or {}
     for v = 1, #pts - 3, 2 do
         if ToSegment(px, py, pts[v], pts[v + 1], pts[v + 2], pts[v + 3]) <= OFF_ROUTE_YARDS then return false end
@@ -686,21 +692,22 @@ local function Reroute(route)
     if GPS:IsPlanning() then return end
     local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
     local via = route.via and not (known and known[route.via.id]) and route.via or nil
-    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid, true) end, function(steps, total, advice)
-        if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice) end
-    end)
+    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid, true, "first") end,
+        function(steps, total, advice, pace)
+            if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice, pace) end
+        end)
 end
 
-function GPS.Rerouted(route, via, steps, total, advice)
+function GPS.Rerouted(route, via, steps, total, advice, pace)
     local ci, wx, wy = PlayerWorldPos()
     -- The report keeps the first plan, and counts the starts over.
     local report = route.report
     if report then report.re = (report.re or 0) + 1 end
     CharDB().route = { dest = route.dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
                        via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil, report = report,
-                       wayAvoid = route.wayAvoid }
+                       wayAvoid = route.wayAvoid, pace = pace }
     closing.step = nil
-    if GPS.PlanOtherWays then GPS.PlanOtherWays() end
+    if GPS.AfterRoute then GPS.AfterRoute() end
     if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
     TrackStep(1)
 end
@@ -806,13 +813,14 @@ function GPS:NavigateTo(data, opts)
     elseif not (opts and opts.quiet) then
         self:Open()
     end
-    self:Plan(dest.name, function() return self:BuildRoute(dest, nil, nil, true) end, function(steps, total, advice)
-        GPS.Navigated(dest, steps, total, advice)
-    end)
+    self:Plan(dest.name, function() return self:BuildRoute(dest, nil, nil, true, "first") end,
+        function(steps, total, advice, pace)
+            GPS.Navigated(dest, steps, total, advice, pace)
+        end)
     return true
 end
 
-function GPS.Navigated(dest, steps, total, advice)
+function GPS.Navigated(dest, steps, total, advice, pace)
     local db = DB()
     if not db then return end
     -- Planned from elsewhere: the route waits there until the player comes.
@@ -832,10 +840,10 @@ function GPS.Navigated(dest, steps, total, advice)
         if okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
     end
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = from, origin = origin,
+                       from = from, origin = origin, pace = pace,
                        report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
-    if GPS.PlanOtherWays then GPS.PlanOtherWays() end
+    if GPS.AfterRoute then GPS.AfterRoute() end
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -851,19 +859,21 @@ function GPS:AddStop(tip)
     local Engine = ns.GPSRoute
     if not (route and route.dest and Engine and tip and tip.id) then return end
     local via = { id = tip.id, name = tip.name, p = tip.p }
-    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, via) end, function(steps, total, advice)
-        if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice) end
-    end)
+    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, via, nil, nil, "first") end,
+        function(steps, total, advice, pace)
+            if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice, pace) end
+        end)
 end
 
-function GPS.StopAdded(route, via, tip, steps, total, advice)
+function GPS.StopAdded(route, via, tip, steps, total, advice, pace)
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
-    route.via = via
+    route.via, route.pace = via, pace
     if route.report then route.report.via = tip.id end
     local ci, wx, wy = PlayerWorldPos()
     route.from = ci and { ci = ci, wx = wx, wy = wy } or nil
     closing.step = nil
     TrackStep(1)
+    if GPS.AfterRoute then GPS.AfterRoute(true) end
 end
 
 -- What the navigation is doing right now, for the dev command.
@@ -970,18 +980,58 @@ local function PlanOtherWays()
 end
 GPS.PlanOtherWays = PlanOtherWays
 
+-- The route's walks past the one set out on, drawn now that the route is
+-- on screen: each timed by its way, split by zone, the total following;
+-- then, unless onlyDraw, the advice and the other ways.
+local function AfterRoute(onlyDraw)
+    Utils.SafeAfter(0, function()
+        local route = Route()
+        local Engine = ns.GPSRoute
+        if not (route and route.dest and route.pace and route.from and not route.arrived and Engine and Engine.DrawWalks)
+            or GPS:IsPlanning() then
+            if not onlyDraw then PlanOtherWays() end
+            return
+        end
+        GPS:Plan(nil, function()
+            local Nav = ns.GPSNav
+            if Nav then Nav.yieldCo = coroutine.running() end
+            Engine.DrawWalks(route.pace, route.steps, route.from)
+            if Nav then Nav.yieldCo = nil end
+            return true
+        end, function()
+            if Route() ~= route then return end
+            local current = route.steps[route.active or 1]
+            local steps = SplitWalks(route.steps, route.dest, route.from)
+            for i = 1, #steps do
+                if steps[i] == current then route.active = i end
+            end
+            local total = 0
+            for i = 1, #steps do total = total + (steps[i].sec or 0) end
+            route.steps, route.total, route.eta = steps, total, total
+            if route.report and Engine.StepsCode then route.report.steps = Engine.StepsCode(steps) end
+            closing.eta = nil
+            if ns.GPSFollow and ns.GPSFollow.Reset then ns.GPSFollow.Reset() end
+            if ns.GPSPreview and ns.GPSPreview.Follow then ns.GPSPreview:Follow() end
+            Refresh()
+            if not onlyDraw then PlanOtherWays() end
+        end)
+    end)
+end
+GPS.AfterRoute = AfterRoute
+
 -- Takes one of the other ways: the route keeps to it, starting over too.
 function GPS:TakeOtherWay(other)
     local route = Route()
     if not (route and route.dest and other) then return end
-    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid, true) end, function(steps, total, advice)
-        if not (steps and Route() == route) then return end
-        route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
-        route.wayAvoid, route.others = other.avoid, nil
-        closing.step = nil
-        TrackStep(1)
-        PlanOtherWays()
-    end)
+    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid, true, "first") end,
+        function(steps, total, advice, pace)
+            if not (steps and Route() == route) then return end
+            route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+            route.wayAvoid, route.others, route.pace = other.avoid, nil, pace
+            closing.step = nil
+            TrackStep(1)
+            AfterRoute()
+        end)
 end
 
 -- Picking a start in a surface's search box: its hits set the start.
@@ -3882,17 +3932,19 @@ local function RecordKnownFlights()
     if not stale then return end
     if route.via and c.flights[route.via.id] then route.via = nil end
     GPS:Plan(nil, function()
-        local steps, total, advice = GPS:BuildRoute(route.dest, route.via)
+        local steps, total, advice, pace = GPS:BuildRoute(route.dest, route.via, nil, nil, "first")
         if not steps then
             route.via = nil
-            steps, total, advice = GPS:BuildRoute(route.dest)
+            steps, total, advice, pace = GPS:BuildRoute(route.dest, nil, nil, nil, "first")
         end
-        return steps, total, advice
-    end, function(steps, total, advice)
+        return steps, total, advice, pace
+    end, function(steps, total, advice, pace)
         if not (steps and Route() == route) then return end
         route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
+        route.pace = pace
         closing.step = nil
         TrackStep(1)
+        AfterRoute(true)
     end)
 end
 
@@ -4169,4 +4221,6 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
         return
     end
     StartTicker()
+    -- Its walks are drawn afresh this session.
+    AfterRoute()
 end)

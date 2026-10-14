@@ -388,16 +388,37 @@ local function PriceWalk(g, i, j, room)
     return sec, wind
 end
 
--- The chosen route's walks timed by their real path.
-local function TimeWalks(g, steps, start)
+-- A walk step timed by its drawn way, when there is one: its seconds and
+-- its wind (yards walked per straight yard). lazy: a way not drawn yet is
+-- left as the search priced it.
+local function TimeWalk(g, s, a, lazy)
+    local b = s.go or s.arrive
+    if not (s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci) then return false end
+    local straight = Dist(a, b)
+    local way = straight > 5 and Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy, lazy)
+    if way then s.sec, s.wind = g.mountUp + way.time / g.travelSpeed, way.len / straight end
+    return way ~= nil
+end
+
+-- The chosen route's walks timed by their real path: the first one (the
+-- one set out on), or every one; the rest are drawn once the route is on
+-- screen (GPS.lua) and timed then.
+local function TimeWalks(g, steps, start, all)
     for i = 1, #steps do
         local s = steps[i]
-        local a, b = i > 1 and steps[i - 1].arrive or start, s.go or s.arrive
-        if s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci then
-            local straight = Dist(a, b)
-            local way = straight > 5 and Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
-            if way then s.sec, s.wind = g.mountUp + way.time / g.travelSpeed, way.len / straight end
+        if s.kind == "travel" then
+            TimeWalk(g, s, i > 1 and steps[i - 1].arrive or start)
+            if not all then return end
         end
+    end
+end
+
+-- The route's walks not drawn yet, drawn and timed in order: for the job
+-- after the route shows. g: mountUp and travelSpeed, as the route was built.
+function Route.DrawWalks(g, steps, start)
+    for i = 1, #steps do
+        local s = steps[i]
+        if s.kind == "travel" then TimeWalk(g, s, i > 1 and steps[i - 1].arrive or start) end
     end
 end
 
@@ -1019,7 +1040,7 @@ local function ViaStop(route, dest, opts, start, known, listed)
     local here = Resolve(via.p)
     if not here then return nil end
     local o = Copy(opts)
-    o.via, o.advise, o.start, o.known, o.listed = nil, false, start, known or false, listed
+    o.via, o.advise, o.start, o.known, o.listed, o.draw = nil, false, start, known or false, listed, nil
     local s1, t1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y }, o)
     if not s1 then return nil end
     local learned = {}
@@ -1160,9 +1181,13 @@ function Route:Build(dest, opts)
     if not path then return nil end
     local cost = PathSeconds(g, path)
     local steps = Steps(g, path, dest.name)
-    if g.nav then TimeWalks(g, steps, start) end
+    -- opts.draw: "first" times the walk set out on by its drawn way, "all"
+    -- every walk; else the search's prices stand until the route's walks
+    -- are drawn after it shows.
+    if g.nav and opts.draw then TimeWalks(g, steps, start, opts.draw == "all") end
     local total = 0
     for i = 1, #steps do total = total + (steps[i].sec or 0) end
+    local pace = { mountUp = g.mountUp, travelSpeed = g.travelSpeed }
     local advice
     if opts.advise ~= false then
         local used = {}
@@ -1172,7 +1197,7 @@ function Route:Build(dest, opts)
         advice = { pickups = Pickups(g, path, used), learn = BestToLearn(ctx, g, cost, used) }
         -- What each stop really costs: this trip built with it.
         local priced = Copy(opts)
-        priced.advise, priced.start, priced.known, priced.listed = false, start, known or false, listed
+        priced.advise, priced.start, priced.known, priced.listed, priced.draw = false, start, known or false, listed, nil
         local function Price(item)
             priced.via = item
             local _, t = self:Build(dest, priced)
@@ -1197,7 +1222,7 @@ function Route:Build(dest, opts)
         end
         if #advice.pickups == 0 and not advice.learn then advice = nil end
     end
-    return steps, total, advice
+    return steps, total, advice, pace
 end
 
 -- Walks on WoW Forever's walking grid (Nav.lua)
@@ -1216,14 +1241,16 @@ end
 
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
 -- so far), len (yards walked), time (running yards: swimming takes longer) },
--- false when no way leads there, nil without walking data for ci.
-function Route.WalkPath(ci, sx, sy, tx, ty)
+-- false when no way leads there, nil without walking data for ci. lazy:
+-- nil too when it is not drawn yet; the planner draws, everything else
+-- asks lazily and is told when it is there.
+function Route.WalkPath(ci, sx, sy, tx, ty, lazy)
     local Nav = ns.GPSNav
     if not (Nav and Nav.Ensure(ci)) then return nil end
     if walkEpoch ~= Nav.epoch then walkPaths, walkPathCount, walkEpoch = {}, 0, Nav.epoch end
     local key = WalkKey(ci, sx, sy, tx, ty)
     local path = walkPaths[key]
-    if path == nil then
+    if path == nil and not lazy then
         local pts, _, time = Nav.Path(ci, sx, sy, tx, ty)
         if pts then
             local cum = { 0 }
@@ -1269,13 +1296,13 @@ local function PointWorld(p)
 end
 
 -- One walked step as a step per zone its way crosses, or nil when it stays
--- in one zone or no way on foot leads there.
+-- in one zone, no way on foot leads there, or its way is not drawn yet.
 local function WalkPieces(step, from, data, env, first)
     local target = step.go or step.arrive
     local ci, fx, fy = PointWorld(from)
     local ci2, tx, ty = PointWorld(target)
     if not (ci and ci == ci2) then return nil end
-    local path = Route.WalkPath(ci, fx, fy, tx, ty)
+    local path = Route.WalkPath(ci, fx, fy, tx, ty, true)
     if not path then return nil end
     local pts, cum = path.pts, path.cum
     local runs = {}

@@ -60,10 +60,12 @@ function Follow.Axes(ci)
     return a
 end
 
+-- The way as drawn; one not drawn yet counts as none until the drawing
+-- job resets this (GPS.lua), so the arrow points straight meanwhile.
 local function Find(ci, sx, sy, now)
     walk.found, walk.fx, walk.fy, walk.seg, walk.wide = now, sx, sy, 1, true
     local find = ns.GPSRoute and ns.GPSRoute.WalkPath
-    walk.path = find and find(ci, sx, sy, walk.tx, walk.ty) or false
+    walk.path = find and find(ci, sx, sy, walk.tx, walk.ty, true) or false
 end
 
 -- The walk's nearest point to (x, y), looked for near the stretch matched

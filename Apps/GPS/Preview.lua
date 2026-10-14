@@ -357,7 +357,10 @@ local function WalkWorld(route, i, start, target)
     local key = math.floor(sx / 25) * 1e5 + math.floor(sy / 25)
     local c = walks[i]
     if not (c and c.route == route and c.key == key) then
-        c = { route = route, key = key, ci = ci, path = find(ci, sx, sy, tx, ty) or false }
+        -- Not drawn yet: asked again next time, straight meanwhile.
+        local path = find(ci, sx, sy, tx, ty, true)
+        if path == nil then return nil end
+        c = { route = route, key = key, ci = ci, path = path }
         walks[i] = c
     end
     if not c.path then return nil end
