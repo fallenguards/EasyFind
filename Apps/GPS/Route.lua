@@ -339,8 +339,11 @@ local BOARD, BOARD_NEAR = { near = 40 }, 600
 
 -- A walk's seconds on the walking grid by the cost it is chosen by (the
 -- chosen route's walks are timed by their real path afterwards), and its
--- wind (yards per straight yard); no way on foot costs forever.
-local function PriceWalk(g, i, j)
+-- wind (yards per straight yard); no way on foot costs forever. With room
+-- (seconds the walk may take and still beat the best route in hand), the
+-- search gives up past it: the walk stays unpriced, its least raised past
+-- the room, and nil comes back.
+local function PriceWalk(g, i, j, room)
     local key = i * WALK_KEY + j
     local sec = g.walkSec[key]
     if sec then return sec, g.walkWind[key] end
@@ -357,12 +360,17 @@ local function PriceWalk(g, i, j)
         local ni, nj = g.nodes[i], g.nodes[j]
         local from, to = a, b
         if CROSSING[ni.kind] and not CROSSING[nj.kind] then from, to = b, a end
-        local cost = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy)
-        if not cost and (CROSSING[ni.kind] or CROSSING[nj.kind]) and straight <= BOARD_NEAR then
-            cost = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, BOARD)
+        local limit = room and room < mhuge and (room - g.mountUp) * g.travelSpeed or nil
+        local cost, beyond = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { limit = limit } or nil)
+        if not cost and not beyond and (CROSSING[ni.kind] or CROSSING[nj.kind]) and straight <= BOARD_NEAR then
+            cost, beyond = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { near = BOARD.near, limit = limit } or BOARD)
         end
         if cost then
             sec, wind = g.mountUp + cost / g.travelSpeed, cost / straight
+        elseif beyond then
+            local least = g.least[key]
+            if not least or limit + 0.001 > least then g.least[key] = limit + 0.001 end
+            return nil
         else
             sec = mhuge
         end
@@ -486,24 +494,38 @@ end
 local SOLVE_ROUNDS = 48
 
 -- The shortest path with its walks priced on the walking grid: only walks a
--- best path takes are looked up, then the path is found again until it holds.
--- A path still holding an unpriced walk is no path: it could be one no foot
--- can take.
+-- best path takes are looked up, then the path is found again until it
+-- holds. Once a path is priced through, its cost is the one to beat: a
+-- later path's walk is searched only within the room that leaves it, and
+-- the hunt ends when no path can come in under it. A path still holding
+-- an unpriced walk is no path: it could be one no foot can take.
 local function Solve(g)
+    local U, bestPath = mhuge, nil
     for _ = 1, SOLVE_ROUNDS do
         local path, cost = Dijkstra(g)
         if not (path and g.nav) then return path, cost end
-        local fresh = false
+        if cost >= U - 1e-6 then return bestPath, U end
+        local fresh, beyond = false, false
         for i = 1, #path do
             local from = i > 1 and path[i - 1].node or g.start
-            if path[i].edge.kind == "travel" and not g.walkSec[from * WALK_KEY + path[i].node] then
-                PriceWalk(g, from, path[i].node)
+            local e = path[i].edge
+            if e.kind == "travel" and not g.walkSec[from * WALK_KEY + path[i].node] then
                 fresh = true
+                if not PriceWalk(g, from, path[i].node, U - (cost - e.sec)) then beyond = true end
             end
         end
         if not fresh then return path, cost end
+        if not beyond then
+            local real = 0
+            for i = 1, #path do
+                local from = i > 1 and path[i - 1].node or g.start
+                local e = path[i].edge
+                real = real + (e.kind == "travel" and g.walkSec[from * WALK_KEY + path[i].node] or (e.sec + (e.pen or 0)))
+            end
+            if real < U then U, bestPath = real, path end
+        end
     end
-    return nil
+    return bestPath, bestPath and U or nil
 end
 
 -- Path cost in seconds (avoided ways' penalties in), each walk priced on

@@ -109,16 +109,18 @@ local function Bytes(s, from, to, out, at)
     return out
 end
 
+local BIT = { [0] = 1, 2, 4, 8, 16, 32, 64, 128 }
+
 local function DecodeTile(w, key)
     local s = w.data.tiles[key]
     if not s then return nil end
     local raw = Unpack(s)
     local N = w.N
-    local cellFirst, cellN = {}, {}
-    local fcell, flag, wc, nc = {}, {}, {}, {}
-    local counts = Bytes(raw, 1, N * N, {}, 0)
+    local NN = N * N
+    local cellFirst, cellN, fcell = {}, {}, {}
+    local counts = Bytes(raw, 1, NN, {}, 0)
     local f = 0
-    for c = 0, N * N - 1 do
+    for c = 0, NN - 1 do
         local n = counts[c]
         cellFirst[c], cellN[c] = f + 1, n
         for _ = 1, n do
@@ -126,53 +128,56 @@ local function DecodeTile(w, key)
             fcell[f] = c
         end
     end
-    local pos = N * N + 1
+    local pos = NN + 1
     local bytes = Bytes(raw, pos, pos + f - 1, {}, 1)
+    pos = pos + f
+    -- Road cells: a bit each after the floors, low bit first.
+    local roadBytes = Bytes(raw, pos, pos + mfloor((NN + 7) / 8) - 1, {}, 0)
+    -- Per floor: its flags, its links west and north (the data's; east
+    -- and south are read back from them as asked), and what a yard on it
+    -- costs to choose.
+    local flag, wc, nc, wt, W, Nn = {}, {}, {}, {}, {}, {}
     for g = 1, f do
         if g % 4096 == 0 then Pause() end
         local b = bytes[g]
-        flag[g] = b % 4
-        wc[g] = mfloor(b / 4) % 8
-        nc[g] = mfloor(b / 32)
-    end
-    pos = pos + f
-    -- Road cells: a bit each after the floors, low bit first.
-    local road = {}
-    local roadBytes = Bytes(raw, pos, pos + mfloor((N * N + 7) / 8) - 1, {}, 0)
-    for c = 0, N * N - 1 do
-        local b = roadBytes[mfloor(c / 8)]
-        if b and mfloor(b / 2 ^ (c % 8)) % 2 == 1 then road[c] = true end
-    end
-    -- What a yard on each floor costs to choose, for the searches.
-    local wt = {}
-    for g = 1, f do wt[g] = (flag[g] % 2 == 1 and SWIM_WEIGHT or 1) * (road[fcell[g]] and 1 or offRoad) end
-    local tx, ty = mfloor(key / 64), key % 64
-    local t = { key = key, tx = tx, ty = ty, N = N, nf = f, cellFirst = cellFirst, cellN = cellN,
-                fcell = fcell, flag = flag, wc = wc, nc = nc, road = road, wt = wt,
-                sx = ORIGIN - ty * TILE - TILE, sy = ORIGIN - tx * TILE - TILE }
-    -- Links inside the tile, all four ways: west and north from the data,
-    -- east and south their reverse (the lowest floor first; when several
-    -- floors link to one, the others in extra). grid.py builds the same.
-    local W, Nn, E, S, extra = {}, {}, {}, {}, {}
-    for g = 1, f do
-        if g % 2048 == 0 then Pause() end
+        local fl = b % 4
+        local k = mfloor(b / 4) % 8
+        flag[g], wc[g] = fl, k
         local c = fcell[g]
-        local r, col = mfloor(c / N), c % N
-        local k = wc[g]
-        if k > 0 and col < N - 1 and k <= cellN[c + 1] then
-            local o = cellFirst[c + 1] + k - 1
-            W[g] = o
-            if not E[o] then E[o] = g else extra[o] = extra[o] or {}; tinsert(extra[o], g) end
-        end
-        k = nc[g]
-        if k > 0 and r < N - 1 and k <= cellN[c + N] then
-            local o = cellFirst[c + N] + k - 1
-            Nn[g] = o
-            if not S[o] then S[o] = g else extra[o] = extra[o] or {}; tinsert(extra[o], g) end
-        end
+        if k > 0 and c % N < N - 1 and k <= cellN[c + 1] then W[g] = cellFirst[c + 1] + k - 1 end
+        k = mfloor(b / 32)
+        nc[g] = k
+        if k > 0 and c < NN - N and k <= cellN[c + N] then Nn[g] = cellFirst[c + N] + k - 1 end
+        local rb = roadBytes[mfloor(c / 8)]
+        local onRoad = rb and mfloor(rb / BIT[c % 8]) % 2 == 1
+        wt[g] = (fl % 2 == 1 and SWIM_WEIGHT or 1) * (onRoad and 1 or offRoad)
     end
-    t.W, t.N_, t.E, t.S, t.extra = W, Nn, E, S, extra
-    return t
+    local tx, ty = mfloor(key / 64), key % 64
+    return { key = key, tx = tx, ty = ty, N = N, nf = f, cellFirst = cellFirst, cellN = cellN,
+             fcell = fcell, flag = flag, wc = wc, nc = nc, wt = wt, W = W, N_ = Nn,
+             sx = ORIGIN - ty * TILE - TILE, sy = ORIGIN - tx * TILE - TILE }
+end
+
+-- The floor east (south) of g inside its tile: the first in the cell
+-- before (a row before) that links west (north) to g, or nil.
+local function East(t, g)
+    local c = t.fcell[g]
+    if c % t.N == 0 then return nil end
+    local cc, W = c - 1, t.W
+    for o = t.cellFirst[cc], t.cellFirst[cc] + t.cellN[cc] - 1 do
+        if W[o] == g then return o end
+    end
+    return nil
+end
+local function South(t, g)
+    local c = t.fcell[g]
+    local N = t.N
+    if c < N then return nil end
+    local cc, Nn = c - N, t.N_
+    for o = t.cellFirst[cc], t.cellFirst[cc] + t.cellN[cc] - 1 do
+        if Nn[o] == g then return o end
+    end
+    return nil
 end
 
 local function Tile(w, key)
@@ -223,7 +228,7 @@ local function Step(w, t, g, d)
         if k > u.cellN[col] then return nil end
         return u, u.cellFirst[col] + k - 1
     elseif d == 0 then
-        if col > 0 then local o = t.E[g] return o and t, o end
+        if col > 0 then local o = East(t, g) return o and t, o end
         local u = Tile(w, t.key + 64)
         if not u then return nil end
         local cc = r * N + N - 1
@@ -232,7 +237,7 @@ local function Step(w, t, g, d)
             if u.wc[o] == rank then return u, o end
         end
     else
-        if r > 0 then local o = t.S[g] return o and t, o end
+        if r > 0 then local o = South(t, g) return o and t, o end
         local u = Tile(w, t.key + 1)
         if not u then return nil end
         local cc = (N - 1) * N + col
@@ -357,19 +362,46 @@ end
 -- where both ways round the corner are open.
 local nbScratch, nbLen = {}, {}
 local function TileNeighbours(t, g)
-    local W, Nn, E, S = t.W, t.N_, t.E, t.S
-    local w0, n0, e0, s0 = W[g], Nn[g], E[g], S[g]
+    local W, Nn = t.W, t.N_
+    local cellFirst, cellN = t.cellFirst, t.cellN
+    local c, N = t.fcell[g], t.N
+    local w0, n0 = W[g], Nn[g]
     local n = 0
     if w0 then n = n + 1; nbScratch[n], nbLen[n] = w0, 1 end
     if n0 then n = n + 1; nbScratch[n], nbLen[n] = n0, 1 end
-    if e0 then n = n + 1; nbScratch[n], nbLen[n] = e0, 1 end
-    if s0 then n = n + 1; nbScratch[n], nbLen[n] = s0, 1 end
-    if n0 and w0 and Nn[w0] and Nn[w0] == W[n0] then n = n + 1; nbScratch[n], nbLen[n] = W[n0], DIAG end
-    if n0 and e0 and Nn[e0] and Nn[e0] == E[n0] then n = n + 1; nbScratch[n], nbLen[n] = E[n0], DIAG end
-    if s0 and w0 and S[w0] and S[w0] == W[s0] then n = n + 1; nbScratch[n], nbLen[n] = W[s0], DIAG end
-    if s0 and e0 and S[e0] and S[e0] == E[s0] then n = n + 1; nbScratch[n], nbLen[n] = E[s0], DIAG end
-    local more = t.extra[g]
-    for k = 1, more and #more or 0 do n = n + 1; nbScratch[n], nbLen[n] = more[k], 1 end
+    -- East and south: every floor in the cell before (a row before) that
+    -- links west (north) to g; the first of each for the diagonals.
+    local e0, s0
+    if c % N > 0 then
+        local cc = c - 1
+        for o = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
+            if W[o] == g then n = n + 1; nbScratch[n], nbLen[n] = o, 1; e0 = e0 or o end
+        end
+    end
+    if c >= N then
+        local cc = c - N
+        for o = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
+            if Nn[o] == g then n = n + 1; nbScratch[n], nbLen[n] = o, 1; s0 = s0 or o end
+        end
+    end
+    if n0 and w0 then
+        local x = W[n0]
+        if x and Nn[w0] == x then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+    end
+    if n0 and e0 then
+        local x = Nn[e0]
+        if x and W[x] == n0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+    end
+    if s0 and w0 then
+        local x = W[s0]
+        if x and Nn[x] == w0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+    end
+    if s0 and e0 then
+        local cc = c - 1 - N
+        for x = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
+            if W[x] == s0 and Nn[x] == e0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG break end
+        end
+    end
     return n
 end
 
@@ -721,14 +753,18 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
         g[node] = c
         heap:Push(c + H(node), node)
     end
-    local reached
+    local reached, cut
     local cell = w.cell
     local pops = 0
     while true do
         pops = pops + 1
         if pops % 64 == 0 then Pause() end
         local node, f = heap:Pop()
-        if not node or f >= best or (limit and f > limit) then break end
+        if not node or f >= best then break end
+        if limit and f > limit then
+            cut = best == mhuge
+            break
+        end
         local here = g[node]
         -- The landmark bound's rounding makes it uneven from side to side,
         -- so a side may be reached cheaper after it was taken: the cheaper
@@ -766,7 +802,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
             end
         end
     end
-    return best, reached, prev
+    return best, reached, prev, cut
 end
 
 local function NearKey(x, y, r) return mfloor(x) .. ":" .. mfloor(y) .. ":" .. r end
@@ -803,9 +839,9 @@ local function Walk(w, ax, ay, bx, by, opts)
         end
         if not joined then return nil end
     end
-    local reached, prev
-    best, reached, prev = Search(w, fromA, toB, bx, by, best, opts and opts.limit, near)
-    if best == mhuge then return nil end
+    local reached, prev, cut
+    best, reached, prev, cut = Search(w, fromA, toB, bx, by, best, opts and opts.limit, near)
+    if best == mhuge then return nil, cut end
     local chain = {}
     local node = reached
     while node do
@@ -872,7 +908,9 @@ function Nav.SpotReach(ci, x, y, near)
 end
 
 -- A walk as Walk finds it, kept with its chain: the drawing of a priced
--- walk reads the chain instead of searching again. false: no way.
+-- walk reads the chain instead of searching again. false: no way; beyond:
+-- not found within the limit asked.
+local BEYOND = { beyond = true }
 local function Kept(w, ax, ay, bx, by, opts)
     local key = mfloor(ax / 4) .. ":" .. mfloor(ay / 4) .. ":" .. mfloor(bx / 4) .. ":" .. mfloor(by / 4)
         .. ((opts and opts.indoorsA) and "i" or "") .. ((opts and opts.indoorsB) and "i" or "")
@@ -882,7 +920,7 @@ local function Kept(w, ax, ay, bx, by, opts)
     if walk == nil then
         if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
         local cost, chain, keyA, ga, keyB, gb = Walk(w, ax, ay, bx, by, opts)
-        walk = cost and { cost, chain, keyA, ga, keyB, gb } or false
+        walk = cost and { cost, chain, keyA, ga, keyB, gb } or (chain and BEYOND) or false
         w.walks[key], w.walksN = walk, w.walksN + 1
     end
     return walk
@@ -890,13 +928,16 @@ end
 
 -- Walking cost in running yards from (ax, ay) to (bx, by) on continent ci,
 -- or nil (no data there, or no way on foot). opts.indoorsA / indoorsB pick
--- the floor at each end; opts.limit gives up past that many running yards;
--- opts.near takes any floor within that many yards of b as the end.
+-- the floor at each end; opts.limit gives up past that many running yards,
+-- answering nil, true; opts.near takes any floor within that many yards of
+-- b as the end.
 function Nav.Walk(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
     local walk = Kept(w, ax, ay, bx, by, opts)
-    return walk and walk[1] or nil
+    if not walk then return nil end
+    if walk.beyond then return nil, true end
+    return walk[1]
 end
 
 function Nav.Has(ci) return ns.GPSNavData ~= nil and ns.GPSNavData[ci] ~= nil end
@@ -1007,7 +1048,7 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     local w = World(ci)
     if not w then return nil end
     local walk = Kept(w, ax, ay, bx, by, opts)
-    if not walk then return nil end
+    if not walk or walk.beyond then return nil end
     local cost, chain, keyA, ga, keyB, gb = walk[1], walk[2], walk[3], walk[4], walk[5], walk[6]
     if not keyB then return nil end
     local ents = Entrances(w)
