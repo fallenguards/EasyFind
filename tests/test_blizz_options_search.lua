@@ -46,7 +46,7 @@ local function loadOptionsSearch(opts)
     -- parent addon's ns via the EasyFind._ns handshake.
     env.EasyFind._ns = ns
     H.loadModule("Apps/Settings/BlizzSearch.lua", env, ns)
-    return ns
+    return ns, env
 end
 
 local function findByVariable(data, variable)
@@ -205,6 +205,30 @@ function tests.searchLowerStripsMarkupInsideNames()
         "color codes and texture escapes must not survive into the searchable name")
     H.assertEq(lower("Auto Loot"), "auto loot", "plain names are only lowered")
     H.assertEq(lower("|cff00ff00|r"), "|cff00ff00|r", "a name that is only markup keeps its raw form")
+end
+
+-- A window's toggle binding row stays out while the window's own entry is
+-- offered: both open the same window.
+function tests.windowToggleBindingYieldsToTheWindowsEntry()
+    local ns, env = loadOptionsSearch()
+    local actions = { "TOGGLECOLLECTIONS", "TOGGLEMUSIC" }
+    env.GetNumBindings = function() return #actions end
+    env.GetBinding = function(i) return actions[i], "Interface" end
+    ns.Caps = { BUTTON_BINDING = { CollectionsMicroButton = "TOGGLECOLLECTIONS" } }
+    local offered = true
+    ns.Database.uiSearchData = { { name = "Collections", category = "Menu Bar", buttonFrame = "CollectionsMicroButton",
+                                   available = function() return offered end } }
+    ns.BlizzOptionsSearch:Populate(false)
+    local function Row(action)
+        for _, e in ipairs(ns.Database.uiSearchData) do
+            if e.bindingAction == action then return e end
+        end
+    end
+    local toggle = Row("TOGGLECOLLECTIONS")
+    H.assertTrue(toggle and toggle.available and not toggle.available(), "hidden while the window's entry is offered")
+    offered = false
+    H.assertTrue(toggle.available(), "back while the window's entry is not offered")
+    H.assertNil(Row("TOGGLEMUSIC").available, "other bindings left alone")
 end
 
 local pass, fail, failures = H.runSuite("BlizzOptionsSearch", tests)

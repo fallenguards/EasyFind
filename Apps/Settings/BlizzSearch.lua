@@ -3097,6 +3097,19 @@ local function PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
         end
     end
 
+    -- A window's toggle binding is listed only while the window's own
+    -- entry is not: both open the same window.
+    local owners, byButton = {}, ns.Caps and ns.Caps.BUTTON_BINDING or {}
+    for i = 1, #data do
+        local e = data[i]
+        local action = e.category == "Menu Bar" and e.buttonFrame and byButton[e.buttonFrame]
+        if action and e.available then owners[action] = e end
+    end
+    for i = 1, #kb do
+        local owner = owners[kb[i].bindingAction]
+        if owner then kb[i].available = function() return not owner.available() end end
+    end
+
     -- Order matches what search ranking expects: curated -> keybinds ->
     -- addons -> dynamic game.
     pushFiltered(entries)
