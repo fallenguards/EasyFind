@@ -407,57 +407,107 @@ end
 
 -- Inside one tile from floor g0 (or from each floor of a table, at its
 -- starting cost): each floor's cost and the floor before. With a goal the
--- search stops there (A* on the straight line); with want (a set of
--- floors, left of them) once all are reached.
+-- search stops there (A* on the straight line, on a heap); with want (a
+-- set of floors, left of them) once all are reached, in buckets a cell
+-- wide: no step costs less than a cell, so a bucket's floors are at their
+-- final cost when it is opened, in any order.
 local function TileSearch(w, t, g0, goal, want, left)
     local cost, prev, closed = {}, {}, {}
-    local heap = NewHeap()
-    if type(g0) == "table" then
-        for g, c in pairs(g0) do
-            cost[g] = c
-            heap:Push(c, g)
-        end
-    else
-        cost[g0] = 0
-        heap:Push(0, g0)
-    end
-    local gx, gy
-    if goal then gx, gy = FloorXY(w, t, goal) end
     local cell = w.cell * Danger(w, t.key) / 2
     local wt = t.wt
     local pops = 0
-    while true do
-        -- At the loop's top: nbScratch is refilled after, so a search run
-        -- while this one waits cannot spoil it.
-        pops = pops + 1
-        if pops % 256 == 0 then Pause() end
-        local g = heap:Pop()
-        if not g then break end
-        if not closed[g] then
-            closed[g] = true
-            if g == goal then break end
-            if want and want[g] then
-                left = left - 1
-                if left == 0 then break end
+    if goal then
+        local heap = NewHeap()
+        if type(g0) == "table" then
+            for g, c in pairs(g0) do
+                cost[g] = c
+                heap:Push(c, g)
             end
-            local base, wg = cost[g], wt[g]
-            local n = TileNeighbours(t, g)
-            for k = 1, n do
-                local o = nbScratch[k]
-                if not closed[o] then
-                    local nc = base + nbLen[k] * cell * (wg + wt[o])
-                    if not cost[o] or nc < cost[o] then
-                        cost[o], prev[o] = nc, g
-                        local h = 0
-                        if goal then
+        else
+            cost[g0] = 0
+            heap:Push(0, g0)
+        end
+        local gx, gy = FloorXY(w, t, goal)
+        while true do
+            -- At the loop's top: nbScratch is refilled after, so a search run
+            -- while this one waits cannot spoil it.
+            pops = pops + 1
+            if pops % 256 == 0 then Pause() end
+            local g = heap:Pop()
+            if not g then break end
+            if not closed[g] then
+                closed[g] = true
+                if g == goal then break end
+                local base, wg = cost[g], wt[g]
+                local n = TileNeighbours(t, g)
+                for k = 1, n do
+                    local o = nbScratch[k]
+                    if not closed[o] then
+                        local nc = base + nbLen[k] * cell * (wg + wt[o])
+                        if not cost[o] or nc < cost[o] then
+                            cost[o], prev[o] = nc, g
                             local ox, oy = FloorXY(w, t, o)
-                            h = msqrt((gx - ox) ^ 2 + (gy - oy) ^ 2)
+                            heap:Push(nc + msqrt((gx - ox) ^ 2 + (gy - oy) ^ 2), o)
                         end
-                        heap:Push(nc + h, o)
                     end
                 end
             end
         end
+        return cost, prev
+    end
+    local width = w.cell
+    local buckets, lo, hi = {}, mhuge, 0
+    local function Put(g, c)
+        local b = mfloor(c / width)
+        local list = buckets[b]
+        if not list then
+            list = {}
+            buckets[b] = list
+        end
+        list[#list + 1] = g
+        if b < lo then lo = b end
+        if b > hi then hi = b end
+    end
+    if type(g0) == "table" then
+        for g, c in pairs(g0) do
+            cost[g] = c
+            Put(g, c)
+        end
+    else
+        cost[g0] = 0
+        Put(g0, 0)
+    end
+    local b = lo
+    while b <= hi do
+        local list = buckets[b]
+        local i = 1
+        while list and i <= #list do
+            local g = list[i]
+            i = i + 1
+            pops = pops + 1
+            if pops % 256 == 0 then Pause() end
+            if not closed[g] then
+                closed[g] = true
+                if want and want[g] then
+                    left = left - 1
+                    if left == 0 then return cost, prev end
+                end
+                local base, wg = cost[g], wt[g]
+                local n = TileNeighbours(t, g)
+                for k = 1, n do
+                    local o = nbScratch[k]
+                    if not closed[o] then
+                        local nc = base + nbLen[k] * cell * (wg + wt[o])
+                        if not cost[o] or nc < cost[o] then
+                            cost[o], prev[o] = nc, g
+                            Put(o, nc)
+                        end
+                    end
+                end
+            end
+        end
+        buckets[b] = nil
+        b = b + 1
     end
     return cost, prev
 end
