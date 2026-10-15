@@ -282,12 +282,15 @@ local SEARCH_BAR_WIDGETS = { searchBox = true, cog = true }
 local function UpdatePageBar()
     if not (panel and panel.pageBar) then return end
     local bar = panel.pageBar
-    local def
+    local def, back
     if activePage == nil then
         for i = 1, #pageOrder do
             local d = pages[pageOrder[i]]
             if d and d.keepSearch and d.hasContent and d.hasContent() then def = d break end
         end
+    elseif pages[activePage] and pages[activePage].keepSearch then
+        -- On the page itself the same bar leads back to the search.
+        back = true
     end
     local scrollFrame = panel.scrollFrame
     if def then
@@ -299,6 +302,10 @@ local function UpdatePageBar()
             scrollFrame:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -4)
             scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 28)
         end
+    elseif back then
+        bar.pageID = false
+        bar:SetText(L["MAP_RETURN_SEARCH"])
+        bar:Show()
     else
         bar:Hide()
         if scrollFrame then
@@ -334,6 +341,12 @@ local function SelectPage(id)
                 f:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 4)
                 def.frame = f
                 if def.build then def.build(f) end
+            end
+            -- Under the return bar while that shows, else at the panel's top.
+            if panel.pageBar and panel.pageBar:IsShown() then
+                def.frame:SetPoint("TOPLEFT", panel.pageBar, "BOTTOMLEFT", 0, -4)
+            else
+                def.frame:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
             end
             def.frame:Show()
             if def.onShow then def.onShow(def.frame) end
@@ -2766,6 +2779,11 @@ local function CreatePanel(qmf)
     pageBar:SetPoint("TOPRIGHT", p, "TOPRIGHT", -4, -4)
     pageBar:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     pageBar:SetScript("OnClick", function(self, button)
+        -- On a page the bar leads back to the search.
+        if self.pageID == false then
+            if button == "LeftButton" then ShowOurPanel(false) end
+            return
+        end
         local def = self.pageID and pages[self.pageID]
         if not def then return end
         if button == "RightButton" then
