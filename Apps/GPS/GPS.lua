@@ -1137,7 +1137,9 @@ function GPS.DrawWalk(ci, sx, sy, tx, ty)
         Engine.WalkPath(ci, sx, sy, tx, ty)
         if Nav then Nav.yieldCo = nil end
         return true
-    end, function() end)
+    end, function()
+        if ns.GPSPreview and ns.GPSPreview.Follow then ns.GPSPreview:Follow() end
+    end)
     return true
 end
 

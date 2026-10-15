@@ -1230,11 +1230,15 @@ end
 
 -- Walks on WoW Forever's walking grid (Nav.lua)
 
-local WALK_PATHS_KEPT = 128
-local walkPaths, walkPathCount, walkEpoch = {}, 0, nil
+local WALK_PATHS_KEPT = 512
+local walkPaths, walkPathCount = {}, 0
 
+-- Keyed under the grid's settings too (Nav.epoch): a way drawn around the
+-- dangers of one route stays good once those settings come back, and the
+-- other ways' trials in between never throw the shown route's ways out.
 local function WalkKey(ci, sx, sy, tx, ty)
-    return ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
+    local Nav = ns.GPSNav
+    return (Nav and Nav.epoch or 0) .. ":" .. ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
 end
 
 local function KeepPath(key, path)
@@ -1250,7 +1254,6 @@ end
 function Route.WalkPath(ci, sx, sy, tx, ty, lazy)
     local Nav = ns.GPSNav
     if not (Nav and Nav.Ensure(ci)) then return nil end
-    if walkEpoch ~= Nav.epoch then walkPaths, walkPathCount, walkEpoch = {}, 0, Nav.epoch end
     local key = WalkKey(ci, sx, sy, tx, ty)
     local path = walkPaths[key]
     if path == nil and not lazy then

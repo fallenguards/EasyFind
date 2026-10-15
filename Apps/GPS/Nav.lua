@@ -35,7 +35,23 @@ local offRoad, roadsOnly = OFF_ROAD_WEIGHT, false
 -- choose; the time a walk through it takes stays the same.
 local DANGER_WEIGHT = 2
 local dangerSet          -- { [continent] = { [tile] = true } }
-Nav.epoch = 0            -- bumped whenever walks would come out differently
+-- The settings walks come out under, as one number: the danger set's
+-- id and the roads switch. The same settings give the same epoch again,
+-- so ways kept under it hold good once a trial under others is over.
+local dangerIds = setmetatable({}, { __mode = "k" })
+local dangerIdNext = 1
+local function Epoch()
+    local id = 0
+    if dangerSet then
+        id = dangerIds[dangerSet]
+        if not id then
+            id, dangerIdNext = dangerIdNext, dangerIdNext + 1
+            dangerIds[dangerSet] = id
+        end
+    end
+    return id * 2 + (roadsOnly and 1 or 0)
+end
+Nav.epoch = 0
 
 -- Inside GPS's planner (yieldCo, the plan's coroutine, while it runs the
 -- route engine; sliceEnd, this frame's budget) the searches give the frame
@@ -297,7 +313,7 @@ end
 -- Walks come out differently from now on: the ones kept are dropped, and
 -- the tiles, which carry their floors' weights.
 local function Reset()
-    Nav.epoch = Nav.epoch + 1
+    Nav.epoch = Epoch()
     for _, w in pairs(worlds) do
         w.walks, w.walksN, w.reach, w.reachN, w.costs = {}, 0, {}, 0, {}
         w.tiles, w.order, w.marks = {}, {}, {}
