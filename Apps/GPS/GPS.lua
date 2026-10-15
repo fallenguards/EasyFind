@@ -1654,15 +1654,17 @@ local function Render(container)
         row.text:SetText(StepText(step, active))
         local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
         row:SetHeight(rowH)
+        -- The window's art is dark whatever the theme: the dark colors,
+        -- not the theme's text, which a light theme turns dark.
         if active then
-            row.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
+            row.text:SetTextColor(1, 0.97, 0.86)
             row.num:SetTextColor(unpack(ns.GOLD_COLOR))
         elseif done then
             row.text:SetTextColor(unpack(ns.TEXT_DIM))
             row.num:SetTextColor(unpack(ns.TEXT_DIM))
         else
-            row.text:SetTextColor(unpack(ns.TEXT_BODY))
-            row.num:SetTextColor(unpack(ns.TEXT_BODY))
+            row.text:SetTextColor(0.78, 0.78, 0.80)
+            row.num:SetTextColor(0.78, 0.78, 0.80)
         end
         row:Show()
         y = y + rowH
@@ -1994,7 +1996,7 @@ local function BuildSurface(frame, opts)
     title:SetPoint("RIGHT", frame, "RIGHT", -padRight, 0)
     title:SetJustifyH("LEFT")
     title:SetWordWrap(false)
-    title:SetTextColor(unpack(ns.TEXT_PRIMARY))
+    title:SetTextColor(1, 0.97, 0.86)
     title._efOwnColor = true
     frame.title = title
     if not opts.titleOpensMap then
@@ -2017,7 +2019,7 @@ local function BuildSurface(frame, opts)
         local btn = CreateFrame("Button", nil, frame)
         btn:SetAllPoints(title)
         btn:SetScript("OnEnter", function() title:SetTextColor(unpack(ns.GOLD_COLOR)) end)
-        btn:SetScript("OnLeave", function() title:SetTextColor(unpack(ns.TEXT_PRIMARY)) end)
+        btn:SetScript("OnLeave", function() title:SetTextColor(1, 0.97, 0.86) end)
         btn:SetScript("OnClick", function() GPS:Open() end)
         btn:Hide()
         frame.titleBtn = btn
