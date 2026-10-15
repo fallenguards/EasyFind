@@ -533,7 +533,7 @@ local function EnsureFrameHooks(entry)
     if frame.HookScript and not showHooked[entry.name] then
         showHooked[entry.name] = true
         frame:HookScript("OnShow", function()
-            frontTargetName = entry.name
+            if not entry.own then frontTargetName = entry.name end
             -- Opened while Shift was already held: give it a catcher now.
             if IsShiftKeyDown() then Manager:RefreshDragCatchers() end
             -- Panels build their contents on first show; pick up the children
@@ -574,7 +574,7 @@ local function EnsureFrameHooks(entry)
         ReassertHook(frame, entry)
         if frame:IsShown() then ReapplyOnShow(entry, appliedSpec[entry.name]) end
     end
-    if frame:IsShown() then frontTargetName = entry.name end
+    if frame:IsShown() and not entry.own then frontTargetName = entry.name end
 end
 
 local STRATA_RANK = {
