@@ -387,8 +387,13 @@ local function PlanStep()
     end
     local Nav = ns.GPSNav
     if Nav then Nav.sliceEnd = debugprofilestop() + (GPS.planning and PLAN_BUDGET_MS or PLAN_BUDGET_BACK_MS) end
+    local before = collectgarbage("count")
     local ok, a, b, c = coroutine.resume(co)
     if Nav then Nav.sliceEnd = nil end
+    -- The collector keeps pace with the slice: what the plan left behind
+    -- goes now, not once the heap has doubled.
+    local grew = collectgarbage("count") - before
+    if grew > 0 then collectgarbage("step", mfloor(grew)) end
     if coroutine.status(co) ~= "dead" or Planner.co ~= co then return end
     Planner.co = nil
     Planner.frame:SetScript("OnUpdate", nil)
@@ -2498,6 +2503,7 @@ function topPad:GetTopPadding()
     self.seen = self.height
     return self.height
 end
+GPS._topPad = topPad   -- dev tools
 local topPadAdded
 local function TopPadProvider(t)
     if topPadAdded then return true end
