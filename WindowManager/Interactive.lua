@@ -609,9 +609,13 @@ local function EnsureLayoutRow(view, index)
     view.layoutRows = view.layoutRows or {}
     local row = view.layoutRows[index]
     if row then return row end
-    row = CreateFrame("Button", nil, view)
+    -- A secure button: its click opens the layout's panels through their
+    -- micro buttons in the client's own execution, the snaps follow after.
+    row = CreateFrame("Button", nil, view, "SecureActionButtonTemplate")
     row:SetSize(TASK_W - TASK_PAD * 2, TASK_LAYOUT_ROW_H)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetAttribute("type", "macro")
+    row:SetAttribute("type2", "ignore")
     row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.name:SetPoint("LEFT", TASK_PILL_INSET, 0)
     row.name:SetJustifyH("LEFT")
@@ -625,11 +629,11 @@ local function EnsureLayoutRow(view, index)
     hl:SetColorTexture(1, 1, 1, 0.06)
     -- A layout row opens and places its windows; right-click holds its
     -- standing and its removal. The last row saves the screen as it stands.
-    row:SetScript("OnClick", function(self, button)
+    row:SetScript("PostClick", function(self, button)
         local Layouts = ns.WindowLayouts
         if not Layouts then return end
         if not self.layoutID then
-            Layouts:PromptSave()
+            if button == "LeftButton" then Layouts:PromptSave() end
             return
         end
         if button == "RightButton" then
@@ -649,11 +653,21 @@ local function EnsureLayoutRow(view, index)
             }, {})
             return
         end
-        Layouts:Apply(self.layoutID)
+        Layouts:Apply(self.layoutID, self.closing)
         SnapAssist:RefreshTaskView()
     end)
     view.layoutRows[index] = row
     return row
+end
+
+-- The row's clicks for the layout as the windows stand now; untouched in
+-- a fight, where the row refuses anyway.
+local function ArmLayoutRow(row, layoutID)
+    local Layouts = ns.WindowLayouts
+    local text, closing = nil, nil
+    if layoutID and Layouts and Layouts.ClickMacro then text, closing = Layouts:ClickMacro(layoutID) end
+    row.closing = closing
+    if not InCombatLockdown() then row:SetAttribute("macrotext", text or "") end
 end
 
 -- The saved layouts under the windows: a header, a row each with its
@@ -672,6 +686,7 @@ local function LayoutRows(view, top)
         n = n + 1
         local row = EnsureLayoutRow(view, n)
         row.layoutID = layout.id
+        ArmLayoutRow(row, layout.id)
         row.name:SetText(layout.name or "?")
         row.sub:SetText(sformat(L["WINDOW_LAYOUT_SUBTEXT_FMT"], #layout.windows)
             .. (layout.standing and ("  " .. L["WINDOW_LAYOUT_STANDING"]) or ""))
@@ -683,6 +698,7 @@ local function LayoutRows(view, top)
     n = n + 1
     local save = EnsureLayoutRow(view, n)
     save.layoutID = nil
+    ArmLayoutRow(save, nil)
     save.name:SetText(L["WINDOW_LAYOUT_SAVE"])
     save.sub:SetText("")
     save:ClearAllPoints()

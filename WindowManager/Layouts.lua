@@ -143,10 +143,31 @@ local function Open(entry, frame)
     end
 end
 
+-- The clicks a secure button makes first: the micro buttons of the
+-- layout's windows that have one, opened or closed as the layout asks.
+-- A panel opened in the client's own execution keeps its secret values
+-- (the character frame's bars trip on them when we open it ourselves).
+function Layouts:ClickMacro(id)
+    local layout = self:Get(id)
+    local Registry = ns.WindowRegistry
+    if not (layout and Registry) then return nil, false end
+    local closing = AllShown(layout.windows)
+    local lines = {}
+    for _, w in ipairs(layout.windows) do
+        local entry = Registry:GetEntryByName(w.name)
+        local frame = entry and Registry:GetFrame(entry)
+        local shown = frame and frame:IsShown() or false
+        if entry and entry.micro and _G[entry.micro] and shown == closing then
+            lines[#lines + 1] = "/click " .. entry.micro
+        end
+    end
+    return #lines > 0 and table.concat(lines, "\n") or nil, closing
+end
+
 -- Applied as one: every window of it opened and put in its zone for the
 -- moment (for keeps, from the standing layout); all of it open already:
--- closed as one.
-function Layouts:Apply(id)
+-- closed as one. The caller says which when its own clicks went first.
+function Layouts:Apply(id, closing)
     local layout = self:Get(id)
     local Registry, Manager = ns.WindowRegistry, ns.WindowManager
     if not (layout and Registry and Manager) then return false end
@@ -154,7 +175,7 @@ function Layouts:Apply(id)
         Print(L["WINDOW_LAYOUT_COMBAT"])
         return false
     end
-    local closing = AllShown(layout.windows)
+    if closing == nil then closing = AllShown(layout.windows) end
     for _, w in ipairs(layout.windows) do
         local entry = Registry:GetEntryByName(w.name)
         local frame = entry and Registry:GetFrame(entry)

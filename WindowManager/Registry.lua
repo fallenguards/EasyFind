@@ -119,6 +119,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenCharacter,
+        micro = "CharacterMicroButton",
     },
     {
         -- Midnight 12.0 merged spellbook + talents into PlayerSpellsFrame; the
@@ -130,6 +131,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenSpells,
+        micro = "PlayerSpellsMicroButton",
     },
     {
         name = "ContainerFrameCombinedBags",
@@ -137,6 +139,7 @@ local ENTRIES = {
         keywords = { "bags", "inventory", "backpack", "containers" },
         protected = true,
         open = OpenBags,
+        micro = "MainMenuBarBackpackButton",
     },
     {
         name = "CollectionsJournal",
@@ -146,6 +149,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenCollections,
+        micro = "CollectionsMicroButton",
     },
     {
         name = "EncounterJournal",
@@ -155,6 +159,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenEncounterJournal,
+        micro = "EJMicroButton",
     },
     {
         name = "AchievementFrame",
@@ -164,6 +169,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenAchievements,
+        micro = "AchievementMicroButton",
     },
     {
         name = "PVEFrame",
@@ -173,6 +179,7 @@ local ENTRIES = {
         protected = true,
         padBottom = TAB_PAD,
         open = OpenGroupFinder,
+        micro = "LFDMicroButton",
     },
     {
         name = "FriendsFrame",
@@ -189,6 +196,7 @@ local ENTRIES = {
         name = "CommunitiesFrame",
         labelKey = "WINDOW_TARGET_COMMUNITIES",
         keywords = { "guild", "communities", "community", "club" },
+        micro = "GuildMicroButton",
         uiPanel = true,
         protected = true,
         padBottom = TAB_PAD,
@@ -199,6 +207,7 @@ local ENTRIES = {
         name = "ProfessionsFrame",
         labelKey = "WINDOW_TARGET_PROFESSIONS",
         keywords = { "professions", "profession", "crafting", "tradeskill" },
+        micro = "ProfessionMicroButton",
         uiPanel = true,
         protected = true,
         padBottom = TAB_PAD,
