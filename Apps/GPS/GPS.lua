@@ -1651,6 +1651,7 @@ local function Render(container)
             SizeFont(container.eta, px)
             SizeFont(linkText, px)
             container.clearBtn:SetWidth((linkText:GetStringWidth() or 60) + 4)
+            if container.note then SizeFont(container.note, px) end
         end
     end
     local y = 0
@@ -4115,6 +4116,7 @@ local function BuildPopout()
         f:SetPoint("TOPRIGHT", UIParent, "RIGHT", -40, 200)
     end
     f:Hide()
+    if ns.FlatText then ns.FlatText(f) end
     return f
 end
 

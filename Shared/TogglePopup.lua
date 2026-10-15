@@ -204,6 +204,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
             if not fs then
                 fs = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
                 fs:SetJustifyH("LEFT")
+                fs:SetShadowColor(0, 0, 0, 0)
                 fs._efOwnColor = true
                 popup.titles[nTitle] = fs
             end
@@ -256,6 +257,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     popup:SetScale(opts.scale or 1)
     Utils.RefreshMenuRowHighlights(popup, live)
     Utils.OpenFlyoutBeside(popup, anchor, 4)
+    if ns.FlatText then ns.FlatText(popup) end
     popup:Show()
     return popup
 end

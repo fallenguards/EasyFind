@@ -2931,38 +2931,22 @@ local function RetintFontString(fs, theme, shadowOnly)
     -- _efOwnColor text likewise has a dedicated painter (row RefreshVisual,
     -- ApplyRowLabelColor): classification here would freeze whatever theme
     -- was active when the color snapshot was taken.
-    if shadowOnly or fs._efOwnColor then
-        if theme.lightTheme then
-            fs:SetShadowColor(0, 0, 0, 0)
-        else
-            local sh = fs._efOrigShadow
-            fs:SetShadowColor(sh[1], sh[2], sh[3], sh[4])
-        end
-        return
-    end
+    -- No font shadow on either polarity: our text is flat everywhere.
+    fs:SetShadowColor(0, 0, 0, 0)
+    if shadowOnly or fs._efOwnColor then return end
     local orig = fs._efOrigTextColor
     -- Tagged link text follows the live link table on BOTH polarities;
     -- its build-time color is whatever theme was active then, so neither
     -- restore-to-original nor color classification can handle it.
     if fs._efLinkText then
-        if theme.lightTheme then
-            fs:SetShadowColor(0, 0, 0, 0)
-        else
-            local sh = fs._efOrigShadow
-            fs:SetShadowColor(sh[1], sh[2], sh[3], sh[4])
-        end
         local link = ns.LINK_COLOR
         fs:SetTextColor(link[1], link[2], link[3], orig[4])
         return
     end
     if not theme.lightTheme then
-        local sh = fs._efOrigShadow
-        fs:SetShadowColor(sh[1], sh[2], sh[3], sh[4])
         fs:SetTextColor(orig[1], orig[2], orig[3], orig[4])
         return
     end
-    -- Dark shadows under dark text read as a smeared backdrop.
-    fs:SetShadowColor(0, 0, 0, 0)
     local r, g, b = orig[1], orig[2], orig[3]
     local lum = 0.3 * r + 0.5 * g + 0.2 * b
     if r >= 0.85 and b <= 0.45 then
@@ -3047,6 +3031,44 @@ function ns.RetintPanelText(root)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     if not theme then return end
     RetintWalk(root, theme)
+end
+
+-- Our text carries no font shadow, on either polarity: the game's font
+-- objects bring one, so every font string and edit box under a root is
+-- flattened, now and again each time the root shows (rows made since).
+function ns.StripShadows(f)
+    if not f then return end
+    if f.SetShadowColor then f:SetShadowColor(0, 0, 0, 0) end
+    if f.GetRegions then
+        for i = 1, select("#", f:GetRegions()) do
+            local region = select(i, f:GetRegions())
+            if region and region.SetShadowColor then region:SetShadowColor(0, 0, 0, 0) end
+        end
+    end
+    if f.GetChildren then
+        for i = 1, select("#", f:GetChildren()) do
+            ns.StripShadows((select(i, f:GetChildren())))
+        end
+    end
+end
+function ns.FlatText(root)
+    if not root then return end
+    ns.StripShadows(root)
+    if not root._efFlatHooked and root.HookScript then
+        root._efFlatHooked = true
+        root:HookScript("OnShow", ns.StripShadows)
+    end
+end
+-- Every window of ours by its name, at a theme change and after login.
+function ns.FlatTextEverywhere()
+    if not EnumerateFrames then return end
+    local f = EnumerateFrames()
+    while f do
+        -- Some frames answer GetName with a region of theirs: strings only.
+        local name = f.GetName and f:GetName()
+        if type(name) == "string" and name:sub(1, 8) == "EasyFind" then ns.FlatText(f) end
+        f = EnumerateFrames(f)
+    end
 end
 
 -- Theme art overlay: the window is a VIEWPORT onto a big square image.
@@ -4647,7 +4669,7 @@ local function PaintHintTooltip(self)
     self.body:SetTextColor(body[1], body[2], body[3], 1)
     local note = light and (theme.textFaint or theme.leafColor) or ns.TEXT_DIM
     self.note:SetTextColor(note[1], note[2], note[3], 1)
-    local shadow = light and 0 or 1
+    local shadow = 0   -- flat text on either polarity
     self.title:SetShadowColor(0, 0, 0, shadow)
     self.body:SetShadowColor(0, 0, 0, shadow)
     self.note:SetShadowColor(0, 0, 0, shadow)
@@ -5161,6 +5183,7 @@ function ns.ShowPasteDialog(opts)
     f.acceptBtn:SetText(opts.acceptText or L["SHORTKEY_IMPORT"])
     f._onAccept = opts.onAccept
     f.editBox:SetText("")
+    ns.FlatText(f)
     f:Show()
     Utils.SafeAfter(0, function() if f:IsShown() then f.editBox:SetFocus() end end)
 end
@@ -5346,6 +5369,7 @@ function ns.ShowThemedDialog(opts)
     used = used + 22 + 14
     f:SetHeight(used)
 
+    ns.FlatText(f)
     f:Show()
     if f._hasEditBox then
         f.editBox:SetFocus()
@@ -7964,7 +7988,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 -- SetScaledFont's shadow re-apply when font/size are
                 -- unchanged, so a row first built on a dark theme keeps its
                 -- shadow after a switch to light unless it's set per open.
-                row.label:SetShadowColor(0, 0, 0, (menuTheme and menuTheme.lightTheme) and 0 or 1)
+                row.label:SetShadowColor(0, 0, 0, 0)
                 -- Anchoring follows the menu's icon side; pooled rows serve
                 -- menus of either style, so re-anchor per open. The label is
                 -- ALWAYS right-constrained: an unconstrained label renders
@@ -8248,6 +8272,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
         menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT",
             x / scale + (opts.offsetX or 0), y / scale + (opts.offsetY or 0))
     end
+    ns.FlatText(menu)
     menu:Show()
     -- Uniform per-row pills carry no geometry dependency, so this can run
     -- synchronously again (the old positional corner masks needed resolved

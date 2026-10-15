@@ -437,6 +437,8 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     if ns.RestyleCardFills then
         ns.RestyleCardFills()
     end
+    -- Every window of ours: flat text, no font shadow.
+    if ns.FlatTextEverywhere then ns.FlatTextEverywhere() end
     -- Rows retint their hover glow lazily against this generation (the
     -- per-render cost is one field compare on pooled rows).
     ns.uiThemeGeneration = (ns.uiThemeGeneration or 0) + 1

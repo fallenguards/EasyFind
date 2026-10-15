@@ -140,6 +140,7 @@ function Editor:ShowHits(results)
         end
     end
     for i = n + 1, #self.dropRows do self.dropRows[i]:Hide() end
+    if ns.StripShadows then ns.StripShadows(self.drop) end
     self.drop:SetHeight(mmax(1, n * DROP_ROW_H))
     self.drop:SetShown(n > 0 and self.editing ~= nil)
 end
