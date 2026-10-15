@@ -577,6 +577,7 @@ function MapSearch:SearchForUI(query)
         d.nameLower = GetNameLower(r)
         d.category = cat
         d.icon = r.icon or GetCategoryIcon(cat)
+        d.displayID = r.displayID
         d.mapSearchResult = true
         d.mapID = r.mapID or r.zoneMapID or r.entranceMapID or searchMapID
         d.zoneName = r.zoneName or r.pathPrefix
