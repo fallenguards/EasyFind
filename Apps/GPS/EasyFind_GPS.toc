@@ -27,3 +27,4 @@ Preview.lua
 Minimap.lua
 Npcs.lua
 GPS.lua
+Trip.lua

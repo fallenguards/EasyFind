@@ -79,6 +79,7 @@ local function Start()
     local c = CharDB()
     return c and c.start
 end
+GPS.Start = Start   -- the trip editor's first field
 
 -- The search box's hint: picking a start, where to from a start, or plain.
 local function SearchHint(frame)
@@ -279,9 +280,9 @@ end
 -- avoid: ways to leave out, the settings' by default; quick: no advice;
 -- draw: "first" draws the walk set out on (a route to show), nothing
 -- otherwise (a route to compare).
-function GPS:BuildRoute(dest, via, avoid, quick, draw)
+function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom)
     local Route = ns.GPSRoute
-    local origin = StartPoint()
+    local origin = startFrom or StartPoint()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
@@ -334,6 +335,15 @@ WorldPos = function(mapID, x, y)
         return ci, wx, wy
     end
     return nil
+end
+
+GPS.WorldPos = WorldPos   -- the trip's legs start at a stop's world spot
+
+-- The route's stops planned leg by leg (Trip.lua); one stop is the route itself.
+function GPS:BuildStops(route, via, avoid, quick, draw)
+    local Trip = ns.GPSTrip
+    if Trip and route.stops and #route.stops > 1 then return Trip.Build(route.stops, via, avoid, quick, draw) end
+    return self:BuildRoute(route.dest, via, avoid, quick, draw)
 end
 
 PlayerWorldPos = function()
@@ -724,7 +734,7 @@ local function Reroute(route)
     if GPS:IsPlanning() then return end
     local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
     local via = route.via and not (known and known[route.via.id]) and route.via or nil
-    GPS:Plan(nil, function() return GPS:BuildRoute(route.dest, via, route.wayAvoid, true, "first") end,
+    GPS:Plan(nil, function() return GPS:BuildStops(route, via, route.wayAvoid, true, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice) end
         end)
@@ -902,6 +912,8 @@ local function StartTicker()
     ticker = C_Timer.NewTicker(1, Tick)
 end
 
+GPS.Destination = Destination   -- the trip editor's stops
+
 function GPS:NavigateTo(data, opts)
     if not self:CanNavigate(data) then return false end
     local db = DB()
@@ -921,7 +933,7 @@ function GPS:NavigateTo(data, opts)
     return true
 end
 
-function GPS.Navigated(dest, steps, total, advice)
+function GPS.Navigated(dest, steps, total, advice, stops)
     local db = DB()
     if not db then return end
     -- Planned from elsewhere: the route waits there until the player comes.
@@ -941,7 +953,7 @@ function GPS.Navigated(dest, steps, total, advice)
         if okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
     end
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = from, origin = origin,
+                       from = from, origin = origin, stops = stops or { dest },
                        report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     if GPS.AfterRoute then GPS.AfterRoute() end
@@ -960,7 +972,7 @@ function GPS:AddStop(tip)
     local Engine = ns.GPSRoute
     if not (route and route.dest and Engine and tip and tip.id) then return end
     local via = { id = tip.id, name = tip.name, p = tip.p }
-    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, via, nil, nil, "first") end,
+    self:Plan(route.dest.name, function() return self:BuildStops(route, via, nil, nil, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice) end
         end)
@@ -1050,7 +1062,7 @@ local function OtherWays(route)
         local avoid = {}
         for k, v in pairs(base) do avoid[k] = v end
         for i = 1, #extra do avoid[extra[i]] = true end
-        local steps, total = GPS:BuildRoute(route.dest, nil, avoid, true)
+        local steps, total = GPS:BuildStops(route, nil, avoid, true)
         if not (steps and total and total > 0) then return end
         local way = WayOf(steps)
         if found[way] then return end
@@ -1081,7 +1093,7 @@ local function PlanOtherWays()
         local route = Route()
         if not (route and route.dest and not route.arrived) or GPS:IsPlanning() then return end
         GPS:Plan(nil, function()
-            local _, _, advice = GPS:BuildRoute(route.dest, route.via, route.wayAvoid)
+            local _, _, advice = GPS:BuildStops(route, route.via, route.wayAvoid)
             return advice, OtherWays(route)
         end, function(advice, ways)
             if Route() ~= route then return end
@@ -1152,7 +1164,7 @@ end
 function GPS:TakeOtherWay(other)
     local route = Route()
     if not (route and route.dest and other) then return end
-    self:Plan(route.dest.name, function() return self:BuildRoute(route.dest, nil, other.avoid, true, "first") end,
+    self:Plan(route.dest.name, function() return self:BuildStops(route, nil, other.avoid, true, "first") end,
         function(steps, total, advice)
             if not (steps and Route() == route) then return end
             route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
@@ -1199,9 +1211,14 @@ function GPS:SetStart(data)
     local route = Route()
     local dest = route and route.dest
     if dest and not route.arrived then
-        GPS:NavigateTo({ name = dest.name, icon = dest.icon, category = dest.category, isZone = dest.zone,
-                         mapID = dest.mapID, x = not dest.zone and dest.x or nil, y = not dest.zone and dest.y or nil },
-                       { quiet = true })
+        -- The trip again from the new start, every stop kept.
+        if ns.GPSTrip and route.stops and #route.stops > 1 then
+            ns.GPSTrip.Navigate({ quiet = true })
+        else
+            GPS:NavigateTo({ name = dest.name, icon = dest.icon, category = dest.category, isZone = dest.zone,
+                             mapID = dest.mapID, x = not dest.zone and dest.x or nil, y = not dest.zone and dest.y or nil },
+                           { quiet = true })
+        end
     elseif data then
         GPS:TogglePopout(true)
         local box = popoutFrame and popoutFrame.search
@@ -1617,6 +1634,7 @@ local function Render(container)
         if route.eta and route.eta > 0 then eta = EtaText(route.eta) end
         container.eta:SetText(eta)
     end
+    if container.trip then container.trip:Refresh(route) end
     local y = 0
     local offset = container.scrollOffset or 0
     local shown = route.arrived and 0 or #route.steps
@@ -1629,7 +1647,7 @@ local function Render(container)
     -- row's anchors may not be placed yet when it is measured.
     local listW = container.list:GetWidth() or 0
     local from = FromRow(container)
-    if route.arrived or only then
+    if route.arrived or only or container.trip then
         from:Hide()
     else
         local s = Start()
@@ -1777,6 +1795,14 @@ local function WithTowns(q, results)
         end
     end
     return mergedHits
+end
+
+-- Places for a typed name, for the trip editor: the map search's, then towns.
+function GPS.SearchPlaces(q)
+    local MapSearch = ns.MapSearch
+    if not (MapSearch and MapSearch.BuildResults) then return WithTowns(q, nil) end
+    local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
+    return WithTowns(q, ok and results or nil)
 end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
@@ -2201,6 +2227,7 @@ local function BuildPage(frame)
     BuildSurface(frame, { popoutButton = true, onRouteChanged = FitPage })
     frame.previewOnHover = true   -- this surface sits beside the map
     frame.mapFont = true          -- its steps follow the map search's font size
+    if ns.GPSTrip then ns.GPSTrip.BuildEditor(frame) end
     frame:EnableMouseWheel(true)
     frame:SetScript("OnMouseWheel", function(self, delta)
         if not Route() then return end
@@ -4155,10 +4182,10 @@ local function RecordKnownFlights()
     if not stale then return end
     if route.via and c.flights[route.via.id] then route.via = nil end
     GPS:Plan(nil, function()
-        local steps, total, advice = GPS:BuildRoute(route.dest, route.via, nil, nil, "first")
+        local steps, total, advice = GPS:BuildStops(route, route.via, nil, nil, "first")
         if not steps then
             route.via = nil
-            steps, total, advice = GPS:BuildRoute(route.dest, nil, nil, nil, "first")
+            steps, total, advice = GPS:BuildStops(route, nil, nil, nil, "first")
         end
         return steps, total, advice
     end, function(steps, total, advice)
