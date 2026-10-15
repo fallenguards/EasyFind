@@ -2892,15 +2892,31 @@ end
 
 -- The small settings cogwheel tucked into a button or a dialog corner
 -- (export scope, snippet trigger). The caller anchors it and sets OnClick.
-function ns.CreateCogButton(parent)
-    local cog = CreateFrame("Button", nil, parent)
-    cog:SetSize(18, 18)
-    local tex = cog:CreateTexture(nil, "ARTWORK")
-    tex:SetPoint("CENTER")
-    tex:SetSize(15, 15)
-    tex:SetAtlas("QuestLog-icon-setting")
-    cog:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-    return cog
+-- Cog buttons wear the theme's glyph color: dark on a light theme, white
+-- otherwise; repainted at each theme change (RetintCogs).
+do
+    local cogs = setmetatable({}, { __mode = "k" })
+    local function PaintCog(cog)
+        local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local c = theme and theme.lightTheme and (theme.leafColor or theme.textFaint)
+        if c then cog.tex:SetVertexColor(c[1], c[2], c[3], 1) else cog.tex:SetVertexColor(1, 1, 1, 1) end
+    end
+    function ns.RetintCogs()
+        for cog in pairs(cogs) do PaintCog(cog) end
+    end
+    function ns.CreateCogButton(parent)
+        local cog = CreateFrame("Button", nil, parent)
+        cog:SetSize(18, 18)
+        local tex = cog:CreateTexture(nil, "ARTWORK")
+        tex:SetPoint("CENTER")
+        tex:SetSize(15, 15)
+        tex:SetAtlas("QuestLog-icon-setting")
+        cog.tex = tex
+        cog:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+        cogs[cog] = true
+        PaintCog(cog)
+        return cog
+    end
 end
 
 -- Panel text retint for light themes: fontstrings sitting DIRECTLY on
@@ -3059,14 +3075,28 @@ function ns.FlatText(root)
         root:HookScript("OnShow", ns.StripShadows)
     end
 end
+-- A glossed panel's text in the theme's colors, now and on each show.
+function ns.ThemePanelText(root)
+    if not (root and ns.RetintPanelText) then return end
+    ns.RetintPanelText(root)
+    if not root._efPanelTextHooked and root.HookScript then
+        root._efPanelTextHooked = true
+        root:HookScript("OnShow", ns.RetintPanelText)
+    end
+end
 -- Every window of ours by its name, at a theme change and after login.
 function ns.FlatTextEverywhere()
     if not EnumerateFrames then return end
     local f = EnumerateFrames()
     while f do
         -- Some frames answer GetName with a region of theirs: strings only.
+        -- Ours are named EasyFind..., the notes companion's EasyNotes...
         local name = f.GetName and f:GetName()
-        if type(name) == "string" and name:sub(1, 8) == "EasyFind" then ns.FlatText(f) end
+        if type(name) == "string" and (name:sub(1, 8) == "EasyFind" or name:sub(1, 9) == "EasyNotes") then
+            ns.FlatText(f)
+            -- Glossed panels: their text goes dark on a light theme too.
+            if name:sub(1, 9) == "EasyNotes" or name == "EasyFindAlertsWindow" then ns.ThemePanelText(f) end
+        end
         f = EnumerateFrames(f)
     end
 end
