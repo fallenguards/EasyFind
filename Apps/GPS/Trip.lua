@@ -14,9 +14,10 @@ local Utils = ns.Utils
 local mmax, mmin = math.max, math.min
 local tremove, tinsert = table.remove, table.insert
 
-local ROW_H, ADD_H, MARK, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 6, 20
-local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring-small"
-local DIM, PIN_RED, RING_GREY = { 0.55, 0.55, 0.58 }, { 0.92, 0.26, 0.21 }, { 0.8, 0.8, 0.82 }
+local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 14, 6, 20
+local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring"   -- a 1.5 px line at 16 px
+local PIN = 22
+local DIM, RING_GREY = { 0.55, 0.55, 0.58 }, { 0.8, 0.8, 0.82 }
 
 local function Route() local g = ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
 
@@ -245,6 +246,11 @@ end
 -- Each frame: the drag's line where the stop would land; a pending close
 -- once a hit's click had its chance.
 function Editor:OnUpdate()
+    -- The grip shows on the row under the cursor, while a drag holds it.
+    for i = 1, #self.stopRows do
+        local r = self.stopRows[i]
+        r.grip:SetShown(r.canDrag and (self.drag == r.index or r:IsMouseOver()))
+    end
     if self.drag then
         local j = self:Target()
         local n = #self.stopRows
@@ -268,12 +274,13 @@ function Editor:OnUpdate()
     end
 end
 
--- A row's mark at the left: the start's open ring, a stop's pin, the add
--- row's ring with a plus. Three dots above a row join it to the one before.
+-- A row's mark, right of the room the drag grip takes: the start's open
+-- ring, a stop's pin, the add row's ring with a plus. Three dots above a
+-- row join it to the one before.
 local function Mark(parent)
     local mark = parent:CreateTexture(nil, "ARTWORK")
     mark:SetSize(MARK, MARK)
-    mark:SetPoint("LEFT", parent, "LEFT", 0, 0)
+    mark:SetPoint("CENTER", parent, "LEFT", GRIP_W + MARK / 2, 0)
     return mark
 end
 
@@ -287,27 +294,35 @@ local function Field(ed, i)
     for k = 1, 3 do
         local dot = row:CreateTexture(nil, "ARTWORK")
         dot:SetSize(2, 2)
-        dot:SetPoint("CENTER", row, "TOPLEFT", MARK / 2, (2 - k) * 3)
+        dot:SetPoint("CENTER", row, "TOPLEFT", GRIP_W + MARK / 2, (2 - k) * 3)
         dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
         row.dots[k] = dot
     end
+    -- The drag grip, six dots left of the mark, shown while the cursor
+    -- is on a row that can move.
     local grip = CreateFrame("Button", nil, row)
-    grip:SetSize(14, 14)
-    grip:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    for k = -1, 1 do
-        local bar = grip:CreateTexture(nil, "ARTWORK")
-        bar:SetSize(10, 1)
-        bar:SetPoint("CENTER", grip, "CENTER", 0, k * 3)
-        bar:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
+    grip:SetSize(GRIP_W, 20)
+    grip:SetPoint("LEFT", row, "LEFT", 0, 0)
+    for col = -1, 1, 2 do
+        for k = -1, 1 do
+            local dot = grip:CreateTexture(nil, "ARTWORK")
+            dot:SetSize(2, 2)
+            dot:SetPoint("CENTER", grip, "CENTER", col * 2, k * 4)
+            dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
+        end
     end
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
     grip:SetScript("OnDragStop", function() ed:DragStop() end)
+    if Utils.AttachDelayedTooltip then
+        Utils.AttachDelayedTooltip(grip, "ANCHOR_LEFT", function() return L["GPS_TRIP_DRAG"] end)
+    end
+    grip:Hide()
     row.grip = grip
     local box = CreateFrame("EditBox", nil, row, "SearchBoxTemplate")
     box:SetHeight(20)
-    box:SetPoint("LEFT", row.mark, "RIGHT", 8, 0)
-    box:SetPoint("RIGHT", grip, "LEFT", -4, 0)
+    box:SetPoint("LEFT", row, "LEFT", GRIP_W + MARK + 8, 0)
+    box:SetPoint("RIGHT", row, "RIGHT", 0, 0)
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
     if box.Instructions then
@@ -363,20 +378,27 @@ function Editor:Refresh(route)
         end
         row.box:SetHeight(boxH)
         if pin then
+            local gold = ns.GOLD_COLOR
             row.mark:SetTexture(ns.GPS_ICON_TEX)
-            row.mark:SetVertexColor(PIN_RED[1], PIN_RED[2], PIN_RED[3], 1)
+            row.mark:SetSize(PIN, PIN)
+            row.mark:SetVertexColor(gold[1], gold[2], gold[3], 1)
         else
             row.mark:SetTexture(TEX_RING)
+            row.mark:SetSize(MARK, MARK)
             row.mark:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
         end
         for k = 1, 3 do row.dots[k]:SetShown(n > 1) end
-        row.grip:SetShown(index > 0 and not adding and #stops > 1)
+        row.canDrag = index > 0 and not adding and #stops > 1
+        if not row.canDrag then row.grip:Hide() end
         row:SetHeight(rowH)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
-        -- The first row shares its line with the page's pop-out button.
+        -- The first row shares its line with the header's buttons: the
+        -- page's pop-out button, the window's fold and close.
         if n == 1 and self.frame.popoutBtn then
             row:SetPoint("RIGHT", self.frame.popoutBtn, "LEFT", -6, 0)
+        elseif n == 1 then
+            row:SetPoint("RIGHT", self, "RIGHT", -mmax(0, (self.frame.padRight or 0) - 14), 0)
         else
             row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
         end
@@ -440,7 +462,7 @@ function Trip.BuildEditor(frame)
     for k = 1, 3 do
         local dot = add:CreateTexture(nil, "ARTWORK")
         dot:SetSize(2, 2)
-        dot:SetPoint("CENTER", add, "TOPLEFT", MARK / 2, (2 - k) * 3)
+        dot:SetPoint("CENTER", add, "TOPLEFT", GRIP_W + MARK / 2, (2 - k) * 3)
         dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
         ed.addDots[k] = dot
     end

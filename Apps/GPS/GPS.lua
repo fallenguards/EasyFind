@@ -1745,6 +1745,8 @@ local function Render(container)
     for t = nTips + 1, #(container.tips or {}) do container.tips[t]:Hide() end
     container.contentHeight = y
     container.list:SetHeight(mmax(1, y))
+    -- Rows made this render carry the font's shadow until flattened.
+    if ns.StripShadows then ns.StripShadows(container.list) end
     if container.OnRouteChanged then container:OnRouteChanged(true) end
 end
 
@@ -2013,6 +2015,7 @@ end
 local function BuildSurface(frame, opts)
     frame.rows = {}
     local padX, padY, padRight = opts.padX or 8, opts.padY or 8, opts.padRight or 8
+    frame.padRight = padRight   -- the trip editor keeps its first row clear of the header's buttons
     -- The header's right padding clears its buttons; the body below only
     -- clears the edge.
     local bodyPad = opts.bodyPadRight or padRight
@@ -2203,7 +2206,8 @@ local function BuildSurface(frame, opts)
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
         if self.search then
             -- While a way is found the title says so in the box's place.
-            local searching = not GPS.planning
+            -- With the trip editor up, its fields do the searching.
+            local searching = not GPS.planning and not (hasRoute and self.trip)
             self.search:SetShown(searching)
             self.hitList:SetShown(searching and (not hasRoute or (self.hitCount or 0) > 0))
             self:PlaceSearch(hasRoute)
@@ -4070,6 +4074,8 @@ local function BuildPopout()
             end
         end,
     })
+    -- The trip's fields in the window too, as on the map page.
+    if ns.GPSTrip then ns.GPSTrip.BuildEditor(f) end
     -- While the window is dragged over the tracker, the tracker opens the
     -- gap the section would take.
     local dragSince = 0
