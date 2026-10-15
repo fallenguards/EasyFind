@@ -43,16 +43,24 @@ local function DragStop()
     end
 end
 
+-- The tip goes above the strip, or under it when the strip sits near the
+-- screen's top, where above would be off screen or over the strip.
+local function TipSide(self)
+    local top, screenTop = self:GetTop(), UIParent:GetTop()
+    if top and screenTop and screenTop - top < 100 then return "ANCHOR_BOTTOM" end
+    return "ANCHOR_TOP"
+end
+
 local function SegEnter(self)
     local run = self.run
     if not run then return end
     local now = time()
     if self.alarm then
         local title = sformat(L["CLOCK_DOT_FMT"], CL.RunLabel(run), sformat(L["CLOCK_IN_FMT"], CL.Format(run.at - now)))
-        ns.ShowHintTooltip(self, "ANCHOR_TOP", title, nil, L["CLOCK_STRIP_ALARM_TT"])
+        ns.ShowHintTooltip(self, TipSide(self), title, nil, L["CLOCK_STRIP_ALARM_TT"])
         return
     end
-    ns.ShowHintTooltip(self, "ANCHOR_TOP", CL.CardLabel(run, now), nil, L["CLOCK_STRIP_TT"])
+    ns.ShowHintTooltip(self, TipSide(self), CL.CardLabel(run, now), nil, L["CLOCK_STRIP_TT"])
 end
 
 local function SegLeave(self)
