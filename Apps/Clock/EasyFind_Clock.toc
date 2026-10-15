@@ -1,4 +1,4 @@
-## Interface: 16001, 120100, 120007, 120001, 120000
+## Interface: 16001, 120105, 120100, 120007, 120001, 120000
 ## Title: EasyFind [Clock]
 ## Notes: Pomodoro, timer, stopwatch and alarm companion for EasyFind
 ## Author: justawower
