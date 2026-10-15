@@ -629,6 +629,7 @@ L["SNIPPET_DELETE_CONFIRM"]             = "Удалить заготовку \"%
 L["SNIPPET_EXPAND_IN_CHAT"]             = "Разворачивать %sслово в чате"
 L["OPT_SNIPPETS_HINT"]                  = "Сохраняйте часто набираемый текст и разворачивайте его где угодно по ключевому слову. Щёлкните заготовку, чтобы изменить её."
 L["OPT_SEARCH_SNIPPETS_PLACEHOLDER"]    = "Поиск заготовок..."
+L["OPT_SEARCH_QUICKLISTS_PLACEHOLDER"]  = "Поиск быстрых списков..."
 L["OPT_NO_SNIPPETS"]                    = "Заготовок пока нет."
 L["SNIP_HELP_CTRL_ENTER"]               = "Ctrl+Enter сразу отправляет развёрнутый текст."
 L["SNIPPET_EDIT_TITLE"]                 = "Изменить заготовку"

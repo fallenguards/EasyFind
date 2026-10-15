@@ -4459,13 +4459,53 @@ local function BuildQuicklistsPage(ctx, page)
     tools:SetHeight(22)
     local newBtn = CreateModernButton(tools, L["QUICKLIST_NEW"], 140, 22)
     newBtn:SetPoint("RIGHT", tools, "RIGHT", 0, 0)
-    newBtn:SetScript("OnClick", function()
-        if Quicklists then
-            Quicklists:PromptNew(function(list) selectedID = list.id end)
+
+    local searchShell = CreateFrame("Frame", nil, tools)
+    searchShell:SetPoint("LEFT", tools, "LEFT", 0, 0)
+    searchShell:SetPoint("RIGHT", newBtn, "LEFT", -8, 0)
+    searchShell:SetHeight(22)
+    ns.CreateRoundedRectBorder(searchShell)
+    ns.SetRoundedRectBarHeight(searchShell, 10)
+    HideRoundedFrameBorder(searchShell)
+    PaintControlFill(searchShell, ns.BTN_FILL_NORMAL, 1)
+    local searchIcon = searchShell:CreateTexture(nil, "OVERLAY")
+    searchIcon:SetSize(13, 13)
+    searchIcon:SetPoint("LEFT", searchShell, "LEFT", 7, 0)
+    searchIcon:SetAtlas("common-search-magnifyingglass")
+    searchIcon:SetAlpha(0.65)
+    local searchBox = CreateFrame("EditBox", nil, searchShell)
+    searchBox:SetPoint("LEFT", searchIcon, "RIGHT", 6, 0)
+    searchBox:SetPoint("RIGHT", searchShell, "RIGHT", -8, 0)
+    searchBox:SetHeight(18)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
+    searchBox:SetMaxLetters(64)
+    local searchPlaceholder = searchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 0, 0)
+    searchPlaceholder:SetText(L["OPT_SEARCH_QUICKLISTS_PLACEHOLDER"])
+    searchPlaceholder:SetTextColor(0.78, 0.78, 0.80, 1)
+    searchBox:SetScript("OnTextChanged", function(self)
+        searchPlaceholder:SetShown((self:GetText() or "") == "")
+        if RefreshQuicklistsPage then RefreshQuicklistsPage() end
+    end)
+    searchBox:SetScript("OnEscapePressed", function(self)
+        if (self:GetText() or "") ~= "" then
+            self:SetText("")
+        else
+            self:ClearFocus()
         end
     end)
-    -- Export and Import on a row of their own: with New and Clear All the
-    -- four do not fit the page's width.
+    newBtn:SetScript("OnClick", function()
+        if Quicklists then
+            Quicklists:PromptNew(function(list)
+                selectedID = list.id
+                searchBox:SetText("")
+            end)
+        end
+    end)
+
+    -- Under the New row, as the snippets page: Export and Import at the
+    -- left, Clear All at the right.
     local share = CreateFrame("Frame", nil, page)
     share:SetPoint("TOPLEFT", tools, "BOTTOMLEFT", 0, -6)
     share:SetPoint("RIGHT", page, "RIGHT", -8, 0)
@@ -4486,8 +4526,8 @@ local function BuildQuicklistsPage(ctx, page)
             end)
         end
     end)
-    local clearBtn = CreateModernButton(tools, L["OPT_CLEAR_ALL_BTN"], 78, 22)
-    clearBtn:SetPoint("RIGHT", newBtn, "LEFT", -8, 0)
+    local clearBtn = CreateModernButton(share, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    clearBtn:SetPoint("RIGHT", share, "RIGHT", 0, 0)
     clearBtn:SetScript("OnClick", function()
         ns.ShowThemedDialog({
             text = L["POPUP_CLEAR_QUICKLISTS"],
@@ -4623,7 +4663,8 @@ local function BuildQuicklistsPage(ctx, page)
     end
 
     local listsCard = Card(share, L["FILTER_QUICKLISTS"])
-    listsCard:SetHeight(SCROLL_TOP + 5 * ROW_H + 14)
+    -- Three rows here; the rows card under it gets the rest of the page.
+    listsCard:SetHeight(SCROLL_TOP + 3 * ROW_H + 14)
     local keyHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     keyHeader:SetJustifyH("LEFT")
     keyHeader:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -4639,12 +4680,36 @@ local function BuildQuicklistsPage(ctx, page)
     local itemsCard = Card(listsCard, "")
     ctx.AnchorListCardBottom(itemsCard, page)
 
+    local function Matches(text, query)
+        return query == "" or (text and string.find(text:lower(), query, 1, true)) ~= nil
+    end
+
+    -- A list shows when its name or any of its rows matches the search.
+    local function ListMatches(list, query)
+        if Matches(list.name, query) then return true end
+        for i = 1, #list.items do
+            if Matches(list.items[i].n or list.items[i].k, query) then return true end
+        end
+        return false
+    end
+
     RefreshQuicklistsPage = function()
         if not Store then return end
+        local query = (searchBox:GetText() or ""):lower()
         local lists = Store.All()
-        if not Store.Get(selectedID) then selectedID = lists[1] and lists[1].id or nil end
+        local shown = {}
         for i = 1, #lists do
-            local list = lists[i]
+            if ListMatches(lists[i], query) then shown[#shown + 1] = lists[i] end
+        end
+        local selectedShown
+        for i = 1, #shown do
+            if shown[i].id == selectedID then selectedShown = true end
+        end
+        if not selectedShown then selectedID = shown[1] and shown[1].id or nil end
+        clearBtn:SetEnabled(#lists > 0)
+        clearBtn:SetAlpha(#lists > 0 and 1 or 0.45)
+        for i = 1, #shown do
+            local list = shown[i]
             local id = list.id
             local row = AcquireRow(listsCard, i, true)
             row.selected = id == selectedID
@@ -4677,31 +4742,40 @@ local function BuildQuicklistsPage(ctx, page)
                 RefreshQuicklistsPage()
             end)
         end
-        FinishCard(listsCard, #lists, L["OPT_NO_QUICKLISTS"])
+        FinishCard(listsCard, #shown, #lists == 0 and L["OPT_NO_QUICKLISTS"] or L["OPT_NO_BLACKLIST_MATCH"])
 
         local selected = Store.Get(selectedID)
         local items = selected and selected.items or {}
         itemsCard.title:SetText(selected and sformat(L["QUICKLIST_ITEMS_FMT"], selected.name) or "")
+        -- A list found by its name shows all its rows; else the matching ones.
+        local wholeList = selected and Matches(selected.name, query)
+        local count = 0
         for i = 1, #items do
             local item = items[i]
-            local row = AcquireRow(itemsCard, i, false)
-            row.selected = nil
-            PaintRoundedFill(row.bg, 1, 1, 1, 0)
-            row.nameText:SetText(item.n or item.k)
-            row.upBtn:SetScript("OnClick", function()
-                if Store.MoveItem(selectedID, i, -1) and Quicklists then Quicklists:Changed() end
-            end)
-            row.downBtn:SetScript("OnClick", function()
-                if Store.MoveItem(selectedID, i, 1) and Quicklists then Quicklists:Changed() end
-            end)
-            row.removeBtn:SetScript("OnClick", function()
-                if Store.Remove(selectedID, item.k) and Quicklists then Quicklists:Changed() end
-            end)
-            row:SetScript("OnClick", nil)
+            if wholeList or Matches(item.n or item.k, query) then
+                count = count + 1
+                local row = AcquireRow(itemsCard, count, false)
+                row.selected = nil
+                PaintRoundedFill(row.bg, 1, 1, 1, 0)
+                row.nameText:SetText(item.n or item.k)
+                row.upBtn:SetScript("OnClick", function()
+                    if Store.MoveItem(selectedID, i, -1) and Quicklists then Quicklists:Changed() end
+                end)
+                row.downBtn:SetScript("OnClick", function()
+                    if Store.MoveItem(selectedID, i, 1) and Quicklists then Quicklists:Changed() end
+                end)
+                row.removeBtn:SetScript("OnClick", function()
+                    if Store.Remove(selectedID, item.k) and Quicklists then Quicklists:Changed() end
+                end)
+                row:SetScript("OnClick", nil)
+            end
         end
-        FinishCard(itemsCard, #items, selected and L["QUICKLIST_NO_ITEMS"] or L["QUICKLIST_SELECT_HINT"])
+        FinishCard(itemsCard, count, selected and L["QUICKLIST_NO_ITEMS"]
+            or (#shown > 0 or query == "") and L["QUICKLIST_SELECT_HINT"] or "")
     end
     page:HookScript("OnShow", RefreshQuicklistsPage)
+    -- Built on its first open, after that OnShow.
+    RefreshQuicklistsPage()
 end
 
 function Options:RefreshQuicklistsPage()
