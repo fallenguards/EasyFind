@@ -1031,16 +1031,19 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
         end
         local at = slot and dropdown.rows[slot]
         local last = slot and not at and dropdown.rows[slot - 1]
-        self.line:SetShown((at or last) ~= nil)
-        self.line:ClearAllPoints()
-        if Settings().columns > 1 then
-            self.line:SetSize(2, (at or last):GetHeight())
-            if at then self.line:SetPoint("RIGHT", at, "LEFT", -1, 0)
-            elseif last then self.line:SetPoint("LEFT", last, "RIGHT", 1, 0) end
-        else
-            self.line:SetSize((at or last):GetWidth(), 2)
-            if at then self.line:SetPoint("BOTTOM", at, "TOP", 0, 1)
-            elseif last then self.line:SetPoint("TOP", last, "BOTTOM", 0, -1) end
+        local beside = at or last
+        self.line:SetShown(beside ~= nil)
+        if beside then
+            self.line:ClearAllPoints()
+            if Settings().columns > 1 then
+                self.line:SetSize(2, beside:GetHeight())
+                if at then self.line:SetPoint("RIGHT", at, "LEFT", -1, 0)
+                else self.line:SetPoint("LEFT", last, "RIGHT", 1, 0) end
+            else
+                self.line:SetSize(beside:GetWidth(), 2)
+                if at then self.line:SetPoint("BOTTOM", at, "TOP", 0, 1)
+                else self.line:SetPoint("TOP", last, "BOTTOM", 0, -1) end
+            end
         end
         if not IsMouseButtonDown("LeftButton") then EndArrangeDrag(dropdown) end
     end)
