@@ -27,11 +27,14 @@ local function px(v)
     return ns.UIToCanvas and ns.UIToCanvas(v) or v
 end
 -- Every line is a colored core on a soft dark edge with a faint glow, so it
--- reads over land and sea alike, in the theme's beacon color, or the color
--- the GPS settings give its way of travel.
-local ROUTE_BLUE = { 0.25, 0.6, 1 }   -- without a theme
+-- reads over land and sea alike, in its way of travel's color: blue on
+-- foot, as routing maps draw a route, each ride in a hue the parchment
+-- does not use, or the color the GPS settings give that way.
+local ROUTE_BLUE = { 0.25, 0.6, 1 }
 local LINE_KINDS = { taxi = "taxi", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
                      tram = "tram" }
+local KIND_COLOR = { walk = ROUTE_BLUE, taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0.8, 0.72 },
+                     zeppelin = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
 -- The part of the route already walked, faded so it does not read as the way.
 local PASSED_COLOR, PASSED_ALPHA = { 0.78, 0.8, 0.84 }, 0.45
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
@@ -53,11 +56,10 @@ end
 
 -- The color a step of this kind is drawn in, on the world map and the minimap.
 function Preview.LineColor(kind)
+    local way = LINE_KINDS[kind] or "walk"
     local db = EasyFind and EasyFind.db
-    local own = db and db.gpsLineColors and db.gpsLineColors[LINE_KINDS[kind] or "walk"]
-    if own then return own end
-    local Pin = ns.GPSWorldPin
-    return Pin and Pin.ThemeBase and Pin.ThemeBase() or ROUTE_BLUE
+    local own = db and db.gpsLineColors and db.gpsLineColors[way]
+    return own or KIND_COLOR[way]
 end
 Preview.LINE_KINDS = LINE_KINDS
 
