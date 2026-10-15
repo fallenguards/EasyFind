@@ -1508,9 +1508,10 @@ local function PaintSubtleButton(btn, hovered)
     ns.SetRoundedRectFill(btn, fill[1], fill[2], fill[3], 1, true)
 end
 
+-- The same fill as the window's other buttons, so the header reads as one.
 local function PaintAccentButton(btn)
     if not ns.SetRoundedRectFill then return end
-    local ac = ns.NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
+    local ac = ns.BTN_FILL_NORMAL or ns.NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
     ns.SetRoundedRectFill(btn, ac[1], ac[2], ac[3], 1, true)
 end
 
