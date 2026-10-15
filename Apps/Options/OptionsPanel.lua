@@ -467,7 +467,8 @@ local function DefaultTag(label)
     return label .. " (" .. (_G["DEFAULT"] or "Default") .. ")"
 end
 
-local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, styleFn)
+-- onHover(value): a choice under the cursor, for a preview of it.
+local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, styleFn, onHover)
     local rows = {}
     for i, name in ipairs(choices) do
         local flyoutBtn = CreateFrame("Button", nil, flyout)
@@ -489,6 +490,7 @@ local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, s
         if styleFn then styleFn(flyoutBtn, name, label) end
         flyoutBtn:SetScript("OnEnter", function()
             PaintRoundedFill(rowBg, 1, 1, 1, 0.06)
+            if onHover then onHover(name) end
         end)
         flyoutBtn:SetScript("OnLeave", function()
             PaintRoundedFill(rowBg, 1, 1, 1, 0)
@@ -4803,16 +4805,15 @@ local function BuildClockPage(ctx, page)
         anchor = box
     end
     local Signals = ns.Signals
-    -- The screen edge flash: off, or a color; a pick shows it once.
+    -- The screen edge flash: off, or a color; a color under the cursor
+    -- in the flyout shows itself once.
     local screenChoices = { { label = _G["OFF"] or L["CLOCK_OFF"], value = false } }
     for _, color in ipairs(Signals.COLORS) do screenChoices[#screenChoices + 1] = { label = color.label, value = color.key } end
     local screenRow = ctx.CreateFlyoutPresetRow(page, L["CLOCK_OPT_SCREEN"], screenChoices,
         function() return EasyFind.db.clockScreen or false end,
-        function(v)
-            EasyFind.db.clockScreen = v
-            if v then Signals.FlashScreen(v) end
-        end,
-        "EasyFindClockScreen", false, L["CLOCK_OPT_SCREEN_TT"])
+        function(v) EasyFind.db.clockScreen = v end,
+        "EasyFindClockScreen", false, L["CLOCK_OPT_SCREEN_TT"],
+        function(v) if v then Signals.FlashScreen(v) end end)
     screenRow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -6)
     anchor = screenRow
     -- A heading, set apart from the rows under it: larger and gold.
@@ -5936,7 +5937,8 @@ function Options:Initialize()
     -- getter/setter as CreatePresetRow, but a single dropdown (like the indicator
     -- selector) instead of a button row. globalPrefix names the flyout frames and
     -- must be unique. Returns the row, which carries :SetValue for refresh.
-    local function CreateFlyoutPresetRow(parent, labelText, choices, getter, setter, globalPrefix, defaultValue, tooltipText)
+    -- onHover(value): a choice hovered in the flyout, for a preview of it.
+    local function CreateFlyoutPresetRow(parent, labelText, choices, getter, setter, globalPrefix, defaultValue, tooltipText, onHover)
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(SELECTOR_ROW_W, 24)
         local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -5968,7 +5970,7 @@ function Options:Initialize()
         AddFlyoutOptions(flyout, values, SELECTOR_BTN_W - 6, function(value)
             setter(value)
             btnText:SetText(LabelFor(value))
-        end, FlyoutLabelFor)
+        end, FlyoutLabelFor, nil, onHover)
 
         if tooltipText then
             row:EnableMouse(true)
