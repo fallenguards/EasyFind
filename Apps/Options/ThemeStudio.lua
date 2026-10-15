@@ -304,7 +304,8 @@ local HISTORY_CAP = 50
 local undoBtn, redoBtn
 
 local function HistorySnapshot()
-    local snap = { name = draft and draft.name or "", palette = {} }
+    local snap = { name = draft and draft.name or "", palette = {},
+        baseName = draft and draft.baseName, sourceCustom = draft and draft.sourceCustom }
     if draft then CopyPaletteInto(snap.palette, draft.palette) end
     return snap
 end
@@ -347,8 +348,11 @@ end
 local function RestoreHistorySnapshot(snap)
     if not (draft and snap) then return end
     draft.name = snap.name
+    draft.baseName = snap.baseName
+    draft.sourceCustom = snap.sourceCustom
     CopyPaletteInto(draft.palette, snap.palette)
     RefreshEditor()
+    RefreshThemeList()
     SchedulePreview()
     UpdateHistoryButtons()
 end
@@ -916,6 +920,8 @@ local function BuildStudio()
     Utils.SetChevronTexture(redoBtn.arrow)
     redoBtn.arrow:SetRotation(Utils.mpi / 2)
     redoBtn:SetScript("OnClick", DoRedo)
+    redoBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["OPT_STUDIO_REDO"]) end)
+    redoBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
     local redoHl = redoBtn:CreateTexture(nil, "HIGHLIGHT")
     redoHl:SetAllPoints()
     redoHl:SetColorTexture(1, 1, 1, 0.08)
@@ -929,6 +935,8 @@ local function BuildStudio()
     Utils.SetChevronTexture(undoBtn.arrow)
     undoBtn.arrow:SetRotation(-Utils.mpi / 2)
     undoBtn:SetScript("OnClick", DoUndo)
+    undoBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["OPT_STUDIO_UNDO"]) end)
+    undoBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
     local undoHl = undoBtn:CreateTexture(nil, "HIGHLIGHT")
     undoHl:SetAllPoints()
     undoHl:SetColorTexture(1, 1, 1, 0.08)
