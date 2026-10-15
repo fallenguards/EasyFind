@@ -4815,9 +4815,12 @@ local function BuildClockPage(ctx, page)
         "EasyFindClockScreen", false, L["CLOCK_OPT_SCREEN_TT"])
     screenRow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -6)
     anchor = screenRow
-    local soundHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    soundHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
+    -- A heading, set apart from the rows under it: larger and gold.
+    local soundHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    soundHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -14)
     soundHeader:SetText(L["CLOCK_OPT_SOUNDS"])
+    soundHeader:SetTextColor(1, 0.82, 0, 1)
+    soundHeader._efOwnColor = true
     local soundChoices = {}
     for i, sound in ipairs(Signals.SOUNDS) do soundChoices[i] = { label = sound.label, value = sound.key } end
     local sounds = {
@@ -4949,6 +4952,12 @@ local function ScrollingPage(holder)
     page:SetSize(1, 1)
     scroll:SetScrollChild(page)
     local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, holder)
+    -- In the gutter right of the page, never over its rows.
+    if bar then
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPRIGHT", holder, "TOPRIGHT", -2, -4)
+        bar:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -2, 4)
+    end
     local function Fit()
         page:SetWidth(scroll:GetWidth())
         local top, low = page:GetTop(), nil
