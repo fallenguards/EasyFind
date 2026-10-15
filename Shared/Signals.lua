@@ -95,7 +95,15 @@ function Signals.ShowText(text, rgb)
     big.fade:Play()
 end
 
--- The screen's edges glow and fade, in the low-health art.
+-- The screen's edges glow and fade in the color: four strips, each a
+-- gradient from the color at its edge to nothing inward. The game's
+-- low-health art is red in itself, so no tint could make it another color.
+local EDGE_DEPTH = 0.18   -- of the screen, each strip
+local function SizeEdge(edge, w, h)
+    for _, tex in ipairs(edge.strips) do
+        if tex.side == "TOP" or tex.side == "BOTTOM" then tex:SetHeight(h * EDGE_DEPTH) else tex:SetWidth(w * EDGE_DEPTH) end
+    end
+end
 function Signals.FlashScreen(colorKey)
     local edge = UI.edge
     if not edge then
@@ -103,15 +111,35 @@ function Signals.FlashScreen(colorKey)
         edge:SetAllPoints(UIParent)
         edge:SetFrameStrata("FULLSCREEN_DIALOG")
         edge:EnableMouse(false)
-        edge.tex = edge:CreateTexture(nil, "BACKGROUND")
-        edge.tex:SetAllPoints()
-        edge.tex:SetTexture("Interface\\FullScreenTextures\\LowHealth")
-        edge.tex:SetBlendMode("ADD")
+        edge.strips = {}
+        for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+            local tex = edge:CreateTexture(nil, "BACKGROUND")
+            tex:SetColorTexture(1, 1, 1, 1)
+            tex:SetBlendMode("ADD")
+            tex.side = side
+            if side == "TOP" or side == "BOTTOM" then
+                tex:SetPoint(side .. "LEFT", edge, side .. "LEFT", 0, 0)
+                tex:SetPoint(side .. "RIGHT", edge, side .. "RIGHT", 0, 0)
+            else
+                tex:SetPoint("TOP" .. side, edge, "TOP" .. side, 0, 0)
+                tex:SetPoint("BOTTOM" .. side, edge, "BOTTOM" .. side, 0, 0)
+            end
+            edge.strips[#edge.strips + 1] = tex
+        end
+        edge:SetScript("OnSizeChanged", SizeEdge)
+        SizeEdge(edge, edge:GetWidth() or 0, edge:GetHeight() or 0)
         edge.fade = FadeGroup(edge, 0.35, 0.9)
         UI.edge = edge
     end
     local c = (COLOR_BY_KEY[colorKey] or Signals.COLORS[1]).rgb
-    edge.tex:SetVertexColor(c[1], c[2], c[3], 1)
+    local on, off = CreateColor(c[1], c[2], c[3], 0.85), CreateColor(c[1], c[2], c[3], 0)
+    for _, tex in ipairs(edge.strips) do
+        -- A gradient's first color sits at the bottom or the left.
+        if tex.side == "TOP" then tex:SetGradient("VERTICAL", off, on)
+        elseif tex.side == "BOTTOM" then tex:SetGradient("VERTICAL", on, off)
+        elseif tex.side == "LEFT" then tex:SetGradient("HORIZONTAL", on, off)
+        else tex:SetGradient("HORIZONTAL", off, on) end
+    end
     edge.fade:Stop()
     edge:SetAlpha(1)
     edge:Show()
