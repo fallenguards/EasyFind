@@ -4462,14 +4462,20 @@ local function BuildQuicklistsPage(ctx, page)
             Quicklists:PromptNew(function(list) selectedID = list.id end)
         end
     end)
-    local exportBtn = CreateModernButton(tools, L["SHORTKEY_EXPORT"], 92, 22)
-    exportBtn:SetPoint("LEFT", tools, "LEFT", 0, 0)
+    -- Export and Import on a row of their own: with New and Clear All the
+    -- four do not fit the page's width.
+    local share = CreateFrame("Frame", nil, page)
+    share:SetPoint("TOPLEFT", tools, "BOTTOMLEFT", 0, -6)
+    share:SetPoint("RIGHT", page, "RIGHT", -8, 0)
+    share:SetHeight(22)
+    local exportBtn = CreateModernButton(share, L["SHORTKEY_EXPORT"], 92, 22)
+    exportBtn:SetPoint("LEFT", share, "LEFT", 0, 0)
     exportBtn:SetScript("OnClick", function()
         local str, leftOut, leftOutRows = "", 0, nil
         if ns.Shortkeys then str, leftOut, leftOutRows = ns.Shortkeys:BuildExportString("quicklist") end
         if optionsFrame.ShowShareString then optionsFrame.ShowShareString(true, str, nil, nil, leftOut, leftOutRows) end
     end)
-    local importBtn = CreateModernButton(tools, L["SHORTKEY_IMPORT"], 92, 22)
+    local importBtn = CreateModernButton(share, L["SHORTKEY_IMPORT"], 92, 22)
     importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
     importBtn:SetScript("OnClick", function()
         if optionsFrame.ShowShareString then
@@ -4614,7 +4620,7 @@ local function BuildQuicklistsPage(ctx, page)
         Utils.SafeAfter(0, card.UpdateBar)
     end
 
-    local listsCard = Card(tools, L["FILTER_QUICKLISTS"])
+    local listsCard = Card(share, L["FILTER_QUICKLISTS"])
     listsCard:SetHeight(SCROLL_TOP + 5 * ROW_H + 14)
     local keyHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     keyHeader:SetJustifyH("LEFT")
@@ -4992,6 +4998,8 @@ local function EnsureExtensionPage(entry)
     else
         entry.def.build(holder)
     end
+    -- Built after the panel's theme pass ran: its text gets the pass now.
+    if ns.RetintPanelText then ns.RetintPanelText(holder) end
     return holder
 end
 
