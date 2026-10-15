@@ -275,7 +275,6 @@ end
 -- Show one registered page in the panel: an id selects that page, false
 -- selects the search page, nil keeps whichever was showing last.
 local SEARCH_WIDGETS = { "searchBox", "cog", "scrollFrame", "scrollBar", "emptyMsg", "recentCheck", "expandCheck" }
-local SEARCH_BAR_WIDGETS = { searchBox = true, cog = true }
 
 -- The directions bar: one themed line above the results, shown while a
 -- search is up and a keepSearch page has content, leading back to it.
@@ -293,6 +292,12 @@ local function UpdatePageBar()
         back = true
     end
     local scrollFrame = panel.scrollFrame
+    -- The bar's words in the list's size, as its rows.
+    local label = bar._label
+    if label then
+        local file, _, flags = label:GetFont()
+        if file then label:SetFont(file, Scaled(13), flags) end
+    end
     if def then
         bar.pageID = def.id
         bar:SetText((def.barText and def.barText()) or def.title or def.id)
@@ -325,12 +330,13 @@ local function SelectPage(id)
     if id == false then id = nil elseif id == nil then id = activePage end
     if id and not pages[id] then id = nil end
     activePage = id
-    local keepSearch = id and pages[id].keepSearch
+    -- A page has its own fields and its return bar: the search bar goes
+    -- and the panel takes its strip.
     for i = 1, #SEARCH_WIDGETS do
-        local name = SEARCH_WIDGETS[i]
-        local w = panel[name]
-        if w then w:SetShown(id == nil or (keepSearch and SEARCH_BAR_WIDGETS[name]) or false) end
+        local w = panel[SEARCH_WIDGETS[i]]
+        if w then w:SetShown(id == nil) end
     end
+    if panel.anchor then panel:SetPoint("TOPLEFT", panel.anchor, "TOPLEFT", 0, id and 0 or -29) end
     if id and panel.filterDropdown then panel.filterDropdown:Hide() end
     UpdatePageBar()
     for pid, def in pairs(pages) do
@@ -2620,7 +2626,7 @@ local function CreatePanel(qmf)
     p:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, -29)
     p:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -22, 0)
     p:EnableMouse(true)
-    p.outer = outer
+    p.outer, p.anchor = outer, anchor
     outer:Hide()
 
     local paper = p:CreateTexture(nil, "BACKGROUND", nil, -1)
