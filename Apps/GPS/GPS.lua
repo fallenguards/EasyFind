@@ -3252,10 +3252,12 @@ local function BuildDock()
     local exp = ns.CreateFeatureTag(head, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"], true)
     exp:SetPoint("BOTTOMLEFT", header, "LEFT", (header:GetStringWidth() or 0) - 7, 7)
 
+    -- The fold button as the tracker's own section headers place theirs.
     local fold = CreateFrame("Button", nil, head)
-    fold:SetSize(16, 15)
-    fold:SetPoint("RIGHT", head, "RIGHT", -1, 0)
+    fold:SetSize(16, 16)
+    fold:SetPoint("RIGHT", head, "RIGHT", 1, 0)
     fold:SetNormalAtlas("UI-QuestTrackerButton-Secondary-Collapse")
+    fold:SetPushedAtlas("UI-QuestTrackerButton-Secondary-Collapse-Pressed")
     fold:SetHighlightAtlas("UI-QuestTrackerButton-Yellow-Highlight")
     if fold:GetHighlightTexture() then fold:GetHighlightTexture():SetBlendMode("ADD") end
     fold:SetScript("OnClick", function()
