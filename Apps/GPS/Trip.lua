@@ -395,8 +395,8 @@ function Editor:Refresh(route)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
         -- The first row shares its line with the header's buttons: the
-        -- page's pop-out button, the window's fold and close.
-        if n == 1 and self.frame.popoutBtn then
+        -- window's fold and close, a pop-out button still in the header.
+        if n == 1 and self.frame.popoutBtn and not self.frame.popoutAtFoot then
             row:SetPoint("RIGHT", self.frame.popoutBtn, "LEFT", -6, 0)
         elseif n == 1 then
             row:SetPoint("RIGHT", self, "RIGHT", -mmax(0, (self.frame.padRight or 0) - 14), 0)
@@ -505,7 +505,7 @@ function Trip.BuildEditor(frame)
     frame.clearBtn:ClearAllPoints()
     frame.clearBtn:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
     frame.clearBtn:SetPoint("TOP", ed, "BOTTOM", 0, -3)
-    frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6, -(4 + etaH + 8))
+    frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6, -(4 + etaH + (frame.listGap or 8)))
     if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 0, -10) end
 
     ed:SetScript("OnUpdate", ed.OnUpdate)

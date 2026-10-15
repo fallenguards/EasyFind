@@ -2151,6 +2151,7 @@ local function BuildSurface(frame, opts)
             if WorldMapFrame and WorldMapFrame:IsShown() and HideUIPanel then HideUIPanel(WorldMapFrame) end
         end)
         title:SetPoint("RIGHT", btn, "LEFT", -6, 0)
+        Utils.AttachDelayedTooltip(btn, "ANCHOR_TOP", function() return L["GPS_POPOUT"], L["GPS_POPOUT_TT"] end)
         frame.popoutBtn = btn
     end
 
@@ -2195,8 +2196,9 @@ local function BuildSurface(frame, opts)
     -- cannot be positioned through a FontString or Texture. The time line gets a fixed height.
     local etaH = math.ceil((eta.GetLineHeight and eta:GetLineHeight()) or 12)
     eta:SetHeight(etaH)
+    frame.listGap = opts.listGap or 8   -- the room between the time line and the first step
     local list = CreateFrame("Frame", nil, frame)
-    list:SetPoint("TOPLEFT", head, "BOTTOMLEFT", -6, -(4 + etaH + 8))
+    list:SetPoint("TOPLEFT", head, "BOTTOMLEFT", -6, -(4 + etaH + frame.listGap))
     list:SetPoint("RIGHT", frame, "RIGHT", -(bodyPad - 4), 0)
     list:SetHeight(1)
     frame.list = list
@@ -2222,8 +2224,10 @@ end
 
 -- The page under the map search tab
 
--- The steps stop above the note at the page's foot and scroll under the wheel.
-local function FitPage(self)
+-- The steps stop above the foot rule and scroll under the wheel; the rule
+-- under the time line shows with a route.
+local function FitPage(self, hasRoute)
+    if self.headRule then self.headRule:SetShown(hasRoute and true or false) end
     -- A new route starts at its first step.
     local route = Route()
     if self.fitRoute ~= route then
@@ -2234,9 +2238,9 @@ local function FitPage(self)
             return
         end
     end
-    local top, foot = self.list:GetTop(), self.note and self.note:GetTop()
+    local top, foot = self.list:GetTop(), self.footRule and self.footRule:GetTop()
     if not (top and foot) then return end
-    local avail = mmax(1, top - foot - 6)
+    local avail = mmax(1, top - foot - 8)
     local maxOffset = mmax(0, (self.contentHeight or 0) - avail)
     if (self.scrollOffset or 0) > maxOffset then
         self.scrollOffset = maxOffset
@@ -2247,8 +2251,18 @@ local function FitPage(self)
     self.list:SetClipsChildren(true)
 end
 
+local function Rule(frame)
+    local rule = frame:CreateTexture(nil, "ARTWORK")
+    rule:SetHeight(1)
+    local d = ns.TEXT_DIM
+    rule:SetColorTexture(d[1], d[2], d[3], 0.35)
+    rule:SetPoint("LEFT", frame, "LEFT", 12, 0)
+    rule:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
+    return rule
+end
+
 local function BuildPage(frame)
-    BuildSurface(frame, { popoutButton = true, onRouteChanged = FitPage })
+    BuildSurface(frame, { popoutButton = true, listGap = 14, onRouteChanged = FitPage })
     frame.previewOnHover = true   -- this surface sits beside the map
     frame.mapFont = true          -- its steps follow the map search's font size
     if ns.GPSTrip then ns.GPSTrip.BuildEditor(frame) end
@@ -2259,17 +2273,28 @@ local function BuildPage(frame)
         self:Render()
     end)
     frame:HookScript("OnSizeChanged", function(self) if self:IsShown() then self:Render() end end)
-    -- At its foot: GPS is experimental, and where to say so.
+    -- A rule under the time line sets the steps apart from it.
+    frame.headRule = Rule(frame)
+    frame.headRule:SetPoint("TOP", frame.clearBtn, "BOTTOM", 0, -4)
+    frame.headRule:Hide()
+    -- At its foot, under a rule: GPS is experimental and where to say so,
+    -- the pop-out at the right so the trip fields above keep one width.
+    local btn = frame.popoutBtn
+    btn:ClearAllPoints()
+    btn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 8)
+    frame.popoutAtFoot = true
     local note = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.note = note
     local exp = ns.CreateFeatureTag(frame, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"])
     note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12 + exp:GetWidth() + 6, 10)
-    note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
+    note:SetPoint("BOTTOMRIGHT", btn, "BOTTOMLEFT", -8, 2)
     note:SetJustifyH("LEFT")
     note:SetText(L["GPS_EXP_TT"])
     note:SetTextColor(unpack(ns.TEXT_DIM))
     note._efOwnColor = true
     exp:SetPoint("TOPRIGHT", note, "TOPLEFT", -6, 1)
+    frame.footRule = Rule(frame)
+    frame.footRule:SetPoint("BOTTOM", exp, "TOP", 0, 7)
 end
 
 if ns.MapTab and ns.MapTab.RegisterPage then
