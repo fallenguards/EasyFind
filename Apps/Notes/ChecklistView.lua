@@ -16,12 +16,14 @@ local CreateFrame, time = CreateFrame, time
 local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
 local ipairs, smatch, strtrim = ipairs, string.match, strtrim
 
-local ROW_H, ROW_H2, BAR_H, ADD_H, CELL_W, NAME_W = 26, 36, 26, 28, 56, 150
+local ROW_H, ROW_H2, BAR_H, CELL_W, NAME_W, GRIP_W = 26, 36, 26, 56, 150, 14
 local DONE_COLOR, OPEN_COLOR, FAINT_COLOR = { 0.45, 0.85, 0.45 }, { 1, 1, 1 }, { 0.65, 0.65, 0.65 }
 local READY_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
+local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 
--- Frames and state in one table (upvalue budget).
-local UI = { rows = {}, cells = {}, heads = {}, allowed = false, board = false }
+-- Frames and state in one table (upvalue budget); open: the rows of the
+-- lines not ticked, in order, the ones a drag can move among.
+local UI = { rows = {}, cells = {}, heads = {}, open = {}, allowed = false, board = false }
 
 local function Text(parent, template)
     local fs = parent:CreateFontString(nil, "OVERLAY", template)
@@ -309,9 +311,38 @@ local function CreateRow(i)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
     row:GetHighlightTexture():SetAlpha(0.2)
+    -- The grip, six dots at the left, shows under the cursor: a drag
+    -- from it carries the line to another place.
+    local grip = CreateFrame("Button", nil, row)
+    grip:SetSize(GRIP_W, 20)
+    grip:SetPoint("LEFT", row, "LEFT", 0, 0)
+    for col = -1, 1, 2 do
+        for k = -1, 1 do
+            local dot = grip:CreateTexture(nil, "ARTWORK")
+            dot:SetSize(2, 2)
+            dot:SetPoint("CENTER", grip, "CENTER", col * 2, k * 4)
+            dot:SetColorTexture(FAINT_COLOR[1], FAINT_COLOR[2], FAINT_COLOR[3], 1)
+        end
+    end
+    grip:RegisterForDrag("LeftButton")
+    grip:SetScript("OnDragStart", function() View.DragStart(row) end)
+    grip:SetScript("OnDragStop", function() View.DragStop() end)
+    Utils.AttachDelayedTooltip(grip, "ANCHOR_LEFT", function() return L["GPS_TRIP_DRAG"] end)
+    grip:Hide()
+    row.grip = grip
+    -- The X at the right, under the cursor too, drops the line.
+    local remove = ns.CreateCloseX(row, 12)
+    remove:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+    remove:SetScript("OnClick", function()
+        local note = Note()
+        if note and row.line then CK.RemoveLine(note, row.line.id) Changed(note) end
+    end)
+    remove:Hide()
+    row.remove = remove
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.check:SetSize(22, 22)
-    row.check:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -2)
+    row.check:SetPoint("TOPLEFT", row, "TOPLEFT", GRIP_W, -2)
+    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, 22) end
     row.check:SetScript("OnClick", function(self)
         local note = Note()
         if not (note and row.line) then return end
@@ -328,7 +359,7 @@ local function CreateRow(i)
     row.name = Text(row, "GameFontHighlight")
     row.progress = Text(row, "GameFontHighlight")
     row.progress:SetJustifyH("RIGHT")
-    row.progress:SetPoint("TOPRIGHT", row, "TOPRIGHT", -4, -6)
+    row.progress:SetPoint("TOPRIGHT", row.remove, "TOPLEFT", -4, -6)
     row.detail = Text(row, "GameFontDisableSmall")
     row:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
@@ -405,6 +436,7 @@ end
 
 local function FillBoard(note)
     for _, row in ipairs(UI.rows) do row:Hide() end
+    if UI.doneHead then UI.doneHead:Hide() end
     local chars = CK.Board(note)
     local lines = note.list.lines
     for i, charKey in ipairs(chars) do
@@ -451,20 +483,105 @@ local function FillBoard(note)
     return 18 + #lines * ROW_H
 end
 
+-- The open lines first, in their order; the ticked ones under a Done
+-- heading at the bottom, as a checklist keeps them.
 local function FillList(note)
     for _, cell in ipairs(UI.cells) do cell:Hide() end
     for _, head in ipairs(UI.heads) do head:Hide() end
-    local y = 0
-    for i, line in ipairs(note.list.lines) do
-        local row = UI.rows[i] or CreateRow(i)
-        row.check:Show()
-        y = y + FillRow(row, note, line, y)
+    local y, n = 0, 0
+    wipe(UI.open)
+    local lines, done = note.list.lines, {}
+    for _, line in ipairs(lines) do
+        if CK.LineState(note, line) then
+            done[#done + 1] = line
+        else
+            n = n + 1
+            local row = UI.rows[n] or CreateRow(n)
+            row.check:Show()
+            y = y + FillRow(row, note, line, y)
+            UI.open[#UI.open + 1] = row
+        end
     end
-    for i = #note.list.lines + 1, #UI.rows do UI.rows[i]:Hide() end
+    if UI.doneHead then UI.doneHead:Hide() end
+    if #done > 0 then
+        UI.doneHead = UI.doneHead or Text(UI.list, "GameFontNormalSmall")
+        local head = UI.doneHead
+        head:ClearAllPoints()
+        head:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W + 4, -y - 6)
+        head:SetText(sformat(L["CHECK_DONE_FMT"], #done))
+        head:SetTextColor(FAINT_COLOR[1], FAINT_COLOR[2], FAINT_COLOR[3], 1)
+        head:Show()
+        y = y + 22
+        for _, line in ipairs(done) do
+            n = n + 1
+            local row = UI.rows[n] or CreateRow(n)
+            row.check:Show()
+            y = y + FillRow(row, note, line, y)
+        end
+    end
+    for i = n + 1, #UI.rows do UI.rows[i]:Hide() end
     return y
 end
 
 -- The view
+
+-- Dragging a line's grip: the slot among the open rows the cursor is on,
+-- the line drawn there, and on the drop the line moved to it.
+function View.DropSlot()
+    local _, cy = GetCursorPosition()
+    cy = cy / UI.list:GetEffectiveScale()
+    for j, r in ipairs(UI.open) do
+        local top, bottom = r:GetTop(), r:GetBottom()
+        if top and bottom and cy > (top + bottom) / 2 then return j end
+    end
+    return #UI.open + 1
+end
+
+function View.PlaceDropLine()
+    local j, open = View.DropSlot(), UI.open
+    local last = open[#open]
+    if not last then return end
+    UI.line:ClearAllPoints()
+    if j > #open then
+        UI.line:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -1)
+        UI.line:SetPoint("RIGHT", last, "RIGHT", 0, 0)
+    else
+        UI.line:SetPoint("TOPLEFT", open[j], "TOPLEFT", 0, 1)
+        UI.line:SetPoint("RIGHT", open[j], "RIGHT", 0, 0)
+    end
+end
+
+function View.DragStart(row)
+    if UI.board or row.done then return end
+    UI.drag = row
+    UI.line:Show()
+end
+
+function View.DragStop()
+    local row = UI.drag
+    UI.drag = nil
+    UI.line:Hide()
+    local note = Note()
+    if not (row and note and row.line) then return end
+    local j = View.DropSlot()
+    local target = UI.open[j]
+    if target == row or (j > #UI.open and UI.open[#UI.open] == row) then return end
+    -- Out of the list, back in before the target's line, or last of the
+    -- open lines when dropped under them all.
+    local lines = note.list.lines
+    local from
+    for i = 1, #lines do if lines[i] == row.line then from = i end end
+    if not from then return end
+    table.remove(lines, from)
+    local at = #lines + 1
+    local after = target and target.line or (UI.open[#UI.open] and UI.open[#UI.open].line)
+    for i = 1, #lines do
+        if lines[i] == after then at = target and i or i + 1 break end
+    end
+    table.insert(lines, at, row.line)
+    CK.SyncBody(note)
+    Changed(note)
+end
 
 local function EnsureView()
     if UI.view then return UI.view end
@@ -475,46 +592,40 @@ local function EnsureView()
     view:SetAllPoints(frame.editorScroll)
     view:Hide()
 
+    -- One line at the top: the box a new line is typed in, the Link
+    -- button and a cog with the list's settings; the rows under it.
     local bar = CreateFrame("Frame", nil, view)
     bar:SetPoint("TOPLEFT")
     bar:SetPoint("TOPRIGHT")
     bar:SetHeight(BAR_H)
-    UI.scope = ns.CreateModernButton(bar, "", 112, 20)
-    UI.scope:SetPoint("LEFT", bar, "LEFT", 0, 0)
-    UI.scope:SetScript("OnClick", function(self)
+    UI.tools = ns.CreateCogButton and ns.CreateCogButton(bar) or CreateFrame("Button", nil, bar)
+    UI.tools:SetSize(18, 18)
+    UI.tools:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
+    UI.tools:SetScript("OnClick", function(self)
         local note = Note()
-        if note then Radio(self, SCOPES, function() return note.list.scope end, function(v) note.list.scope = v note.updated = time() end) end
+        if not note then return end
+        Menu(self, {
+            { text = sformat(L["CHECK_SCOPE_FMT"], OptionLabel(SCOPES, note.list.scope)), onClick = function()
+                Radio(self, SCOPES, function() return note.list.scope end, function(v) note.list.scope = v note.updated = time() end)
+            end },
+            { text = L["CHECK_RESET_ROW"], onClick = function() PickReset(self, note) end },
+            { text = L["CHECK_BOARD"], icon = UI.board and MENU_CHECK_TEX or nil,
+              onClick = function() View.ShowBoard(not UI.board) end },
+            { isSeparator = true },
+            { text = L["CHECK_SEARCH_AH"], disabled = not AuctionOpen(), onClick = function() SearchNext(note) end },
+        })
     end)
-    UI.reset = ns.CreateModernButton(bar, "", 128, 20)
-    UI.reset:SetPoint("LEFT", UI.scope, "RIGHT", 6, 0)
-    UI.reset:SetScript("OnClick", function(self)
+    UI.linkBtn = ns.CreateModernButton(bar, L["CHECK_LINK_BTN"], 66, 20)
+    UI.linkBtn:SetPoint("RIGHT", UI.tools, "LEFT", -6, 0)
+    UI.linkBtn:SetScript("OnClick", function(self)
         local note = Note()
-        if note then PickReset(self, note) end
+        if note then LinkMenu(self, note) end
     end)
-    UI.boardBtn = ns.CreateModernButton(bar, L["CHECK_ALTS"], 56, 20)
-    UI.boardBtn:SetPoint("LEFT", UI.reset, "RIGHT", 6, 0)
-    UI.boardBtn:SetScript("OnClick", function() View.ShowBoard(not UI.board) end)
-    UI.ahBtn = ns.CreateModernButton(bar, L["CHECK_SEARCH_AH"], 96, 20)
-    UI.ahBtn:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
-    UI.ahBtn:SetScript("OnClick", function()
-        local note = Note()
-        if note then SearchNext(note) end
-    end)
-
-    local scroll = CreateFrame("ScrollFrame", nil, view)
-    scroll:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -4)
-    scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -10, ADD_H + 4)
-    UI.scroll = scroll
-    UI.list = CreateFrame("Frame", nil, scroll)
-    UI.list:SetSize(1, 1)
-    scroll:SetScrollChild(UI.list)
-    UI.bar = Utils.CreateMinimalScrollBar(scroll, view)
-
-    local add = CreateFrame("EditBox", nil, view, "InputBoxTemplate")
+    local add = CreateFrame("EditBox", nil, bar, "InputBoxTemplate")
     add:SetAutoFocus(false)
     add:SetHeight(20)
-    add:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 6, 4)
-    add:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -74, 4)
+    add:SetPoint("LEFT", bar, "LEFT", 6, 0)
+    add:SetPoint("RIGHT", UI.linkBtn, "LEFT", -8, 0)
     ns.RegisterAddonFont(add)
     add.hint = Text(add, "GameFontDisableSmall")
     add.hint:SetPoint("LEFT", add, "LEFT", 2, 0)
@@ -529,11 +640,37 @@ local function EnsureView()
         end
     end)
     UI.add = add
-    UI.linkBtn = ns.CreateModernButton(view, L["CHECK_LINK_BTN"], 66, 22)
-    UI.linkBtn:SetPoint("LEFT", add, "RIGHT", 6, 0)
-    UI.linkBtn:SetScript("OnClick", function(self)
-        local note = Note()
-        if note then LinkMenu(self, note) end
+
+    local scroll = CreateFrame("ScrollFrame", nil, view)
+    scroll:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
+    scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -12, 2)
+    UI.scroll = scroll
+    UI.list = CreateFrame("Frame", nil, scroll)
+    UI.list:SetSize(1, 1)
+    scroll:SetScrollChild(UI.list)
+    UI.bar = Utils.CreateMinimalScrollBar(scroll, view)
+    -- In the gutter right of the rows, never over them.
+    UI.bar:ClearAllPoints()
+    UI.bar:SetPoint("TOPRIGHT", view, "TOPRIGHT", -2, -(BAR_H + 8))
+    UI.bar:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -2, 4)
+    UI.line = UI.list:CreateTexture(nil, "OVERLAY")
+    UI.line:SetHeight(2)
+    UI.line:SetColorTexture(1, 0.82, 0, 0.9)
+    UI.line:Hide()
+    -- The grip and the X show on the row under the cursor; while a grip
+    -- is dragged, the line marks where its row would land.
+    view:SetScript("OnUpdate", function(_, dt)
+        UI.since = (UI.since or 0) + dt
+        if UI.since < 0.05 and not UI.drag then return end
+        UI.since = 0
+        for _, row in ipairs(UI.rows) do
+            if row:IsShown() then
+                local over = not UI.board and (UI.drag == row or row:IsMouseOver())
+                row.grip:SetShown(over and not row.done)
+                row.remove:SetShown(over)
+            end
+        end
+        if UI.drag then View.PlaceDropLine() end
     end)
 
     UI.empty = Text(view, "GameFontDisable")
@@ -606,11 +743,7 @@ function View.Refresh()
     CK.Init(note)
     if CK.ApplyReset(note, time()) then note.updated = time() end
     local list = note.list
-    UI.scope._label:SetText(OptionLabel(SCOPES, list.scope))
-    UI.reset._label:SetText(sformat(L["CHECK_RESETS_FMT"], OptionLabel(RESETS, list.reset.every)))
-    UI.ahBtn:SetShown(AuctionOpen())
     local board = UI.board and #list.lines > 0
-    UI.boardBtn._label:SetText(board and L["CHECK_LIST"] or L["CHECK_ALTS"])
     local h = board and FillBoard(note) or FillList(note)
     UI.empty:SetShown(#list.lines == 0)
     UI.list:SetWidth(mmax(1, board and (NAME_W + #CK.Board(note) * CELL_W) or (UI.scroll:GetWidth() or 1)))
