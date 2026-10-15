@@ -20,6 +20,7 @@ end
 
 local select, ipairs = Utils.select, Utils.ipairs
 local sfind = Utils.sfind
+local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 local InCombatLockdown = InCombatLockdown
 local GetItemCooldown = (C_Item and C_Item.GetItemCooldown) or GetItemCooldown
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
@@ -752,6 +753,10 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
                 resultRow.icon:SetAtlas(mapIcon:sub(7))
             else
                 resultRow.icon:SetTexture(mapIcon)
+            end
+            -- A creature wears its own face, drawn by the client from its model.
+            if data.displayID and SetPortraitTextureFromCreatureDisplayID then
+                SetPortraitTextureFromCreatureDisplayID(resultRow.icon, data.displayID)
             end
             resultRow.icon:SetSize(rowIconSize, rowIconSize)
             resultRow.icon:ClearAllPoints()
