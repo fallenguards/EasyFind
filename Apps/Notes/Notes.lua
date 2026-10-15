@@ -1526,7 +1526,9 @@ if ns.RegisterThemeCallback then
     ns.RegisterThemeCallback(function()
         for i = 1, #themedButtons do
             local btn = themedButtons[i]
-            if btn._efAccent then PaintAccentButton(btn) else PaintSubtleButton(btn, false) end
+            if btn.actionKey then UI:RefreshEasyNotesToolbarButton(btn)
+            elseif btn._efAccent then PaintAccentButton(btn)
+            else PaintSubtleButton(btn, false) end
         end
     end)
 end
@@ -3255,6 +3257,13 @@ function UI:EnsureEasyNotesFrame()
         ns.SetRoundedRectBorderEdgeShown(frame, false)
         if ns.Results.ApplySearchWindowFill then
             ns.Results:ApplySearchWindowFill(frame)
+            -- The body follows a theme change in place, the header too.
+            if ns.RegisterThemeCallback then
+                ns.RegisterThemeCallback(function()
+                    ns.Results:ApplySearchWindowFill(frame)
+                    ns.SetRoundedRectBorderBgAlpha(frame, db.opacity or OPACITY_DEFAULT)
+                end)
+            end
         else
             local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(frame, c[1], c[2], c[3], 1)
@@ -5687,6 +5696,9 @@ function Builders.BuildEasyNotesHeaderPanel(frame)
         ns.SetRoundedRectBorderEdgeShown(panel, false)
         if ns.Results.ApplySearchWindowFill then
             ns.Results:ApplySearchWindowFill(panel)
+            if ns.RegisterThemeCallback then
+                ns.RegisterThemeCallback(function() ns.Results:ApplySearchWindowFill(panel) end)
+            end
         else
             local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(panel, c[1], c[2], c[3], 1)
