@@ -270,6 +270,7 @@ local UI_FILTER_OPTIONS = {
                 { dbKey = "notesPlayerMenu", label = L["NOTES_OPT_PLAYER_MENU"], tooltip = L["NOTES_OPT_PLAYER_MENU_TT"] },
                 { dbKey = "notesSurfaceHere", label = L["NOTES_OPT_SURFACE"], tooltip = L["NOTES_OPT_SURFACE_TT"] },
             } },
+          { key = "chat", label = L["APP_CHAT"], iconTex = ns.CHAT_ICON_TEX, companion = "EasyFind_Chat" },
           { key = "quicklists", label = L["FILTER_QUICKLISTS"], iconTex = ns.QUICKLIST_ICON_TEX,
             companion = "EasyFind_Quicklists" },
           { key = "window", label = L["FILTER_WINDOW"], iconTex = ns.WINDOW_ICON_TEX,

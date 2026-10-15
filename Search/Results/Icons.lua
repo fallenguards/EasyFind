@@ -255,6 +255,7 @@ function Icons:GetFlatCategoryIcon(data)
     if data.searchCommand or data.category == "Command" then return FLAT_CATEGORY_ICONS.command end
     if data.category == "Window" then return FLAT_CATEGORY_ICONS.window end
     if data.category == "Notes" then return FLAT_CATEGORY_ICONS.notes end
+    if data.category == "Chat" then return FLAT_CATEGORY_ICONS.chat end
     if data.quickFilterDef then
         local key = data.quickFilterDef.key
         if key == "notes" then return FLAT_CATEGORY_ICONS.notes end

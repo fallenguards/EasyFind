@@ -8583,6 +8583,10 @@ function ns.BuildSendLinkRows(link, copyKey, copyNote)
             })
         end,
     }
+    local chatRows = ns.BuildChatSendRows(link)
+    if chatRows then
+        rows[#rows + 1] = { text = L["CTX_SEND_LINK_MESSENGER"], submenu = chatRows }
+    end
     rows[#rows + 1] = { isSeparator = true }
     -- The clipboard carries the text with links flattened to their
     -- display names; the live link rides along for a chat paste. The
@@ -8596,6 +8600,27 @@ function ns.BuildSendLinkRows(link, copyKey, copyNote)
         tooltip = L["COPY_ROW_TT"],
         tooltipNote = copyNote or L["COPY_ROW_TT_RESULT"],
     }
+    return rows
+end
+
+-- The messenger's threads for a result's link: a new conversation, then
+-- each thread it has, most recent first. Unloaded, the messenger offers
+-- the new conversation alone and loads on that click; absent, nothing.
+function ns.BuildChatSendRows(link)
+    if not link then return nil end
+    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat") then return nil end
+    local rows = {
+        { text = L["CHAT_NEW_CONVERSATION"], onClick = function()
+            if ns.RequestChat and ns.RequestChat() and ns.Chat.ComposeWith then ns.Chat:ComposeWith(nil, link) end
+        end },
+    }
+    local Chat = ns.Chat
+    local list = Chat and Chat.ListConversations and Chat:ListConversations() or {}
+    if #list > 0 then rows[#rows + 1] = { isSeparator = true } end
+    for i = 1, math.min(#list, 12) do
+        local c = list[i]
+        rows[#rows + 1] = { text = c.label, onClick = function() Chat:ComposeWith(c.key, link) end }
+    end
     return rows
 end
 

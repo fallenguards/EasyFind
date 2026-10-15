@@ -2726,6 +2726,18 @@ function Database:PopulateDynamicNotes()
     return true
 end
 
+-- The messenger's conversations and messages; the companion loads here
+-- on first use, as its filter or words ask for it.
+function Database:PopulateDynamicChat()
+    RemoveEntriesByCategory("Chat")
+    if not ns.Chat and ns.RequestChat then ns.RequestChat() end
+    local entries = ns.Chat and ns.Chat.BuildSearchData and ns.Chat:BuildSearchData()
+    if not entries then return false end
+    for i = 1, #entries do
+        uiSearchData[#uiSearchData + 1] = entries[i]
+    end
+    return true
+end
 function Database:PopulateDynamicQuicklists()
     RemoveEntriesByCategory("Quicklist")
     local entries = ns.Quicklists and ns.Quicklists:BuildSearchData()

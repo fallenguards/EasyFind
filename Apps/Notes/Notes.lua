@@ -6228,20 +6228,30 @@ function UI:ShowEasyNotesRowMenu(row)
         self:BeginEasyNotesRowRename(row)
         return
     end
-    UI:ShowEasyNotesMenu("EasyNotesRowMenu", {
+    local rows = {
         { text = L["NOTES_RENAME"], onClick = function() UI:BeginEasyNotesRowRename(row) end },
-        { isSeparator = true },
-        -- The row's note, or the whole selection when the row is part of one.
-        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
-          onClick = function()
-              local sel = UI._notes.paletteSelection
-              local ids = {}
-              if sel and sel[row.noteID] then
-                  for id in pairs(sel) do ids[#ids + 1] = id end
-              end
-              ConfirmDeleteNote(#ids > 1 and ids or row.noteID)
-          end },
-    }, {})
+    }
+    -- The note's words into the messenger, plain, when that companion is in.
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat")) then
+        rows[#rows + 1] = { text = L["NOTES_SEND_MESSAGE"], onClick = function()
+            local idx = FindNoteIndex(row.noteID)
+            local note = idx and NotesStore()[idx] or nil
+            if not (note and ns.RequestChat and ns.RequestChat() and ns.Chat.ComposeWith) then return end
+            ns.Chat:ComposeWith(nil, strtrim(StripColorEscapes(MapSelection(note.body or "", GlyphPlain))))
+        end }
+    end
+    rows[#rows + 1] = { isSeparator = true }
+    -- The row's note, or the whole selection when the row is part of one.
+    rows[#rows + 1] = { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
+      onClick = function()
+          local sel = UI._notes.paletteSelection
+          local ids = {}
+          if sel and sel[row.noteID] then
+              for id in pairs(sel) do ids[#ids + 1] = id end
+          end
+          ConfirmDeleteNote(#ids > 1 and ids or row.noteID)
+      end }
+    UI:ShowEasyNotesMenu("EasyNotesRowMenu", rows, {})
 end
 
 function UI:BeginEasyNotesRowRename(row)

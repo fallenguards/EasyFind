@@ -78,6 +78,8 @@ local dynamicProviders = {
     -- Notes are found by title in any search, once the companion is loaded
     -- (it loads at login as soon as there is a note).
     { key = "notes", category = providerCategory["notes"],              fn = "PopulateDynamicNotes", eager = true },
+    -- Never eager: the messenger loads for the words or the filter only.
+    { key = "chat", category = providerCategory["chat"],                fn = "PopulateDynamicChat" },
     { key = "quicklists", category = providerCategory["quicklists"],    fn = "PopulateDynamicQuicklists", eager = true },
     { key = "professions", category = providerCategory["professions"],  fn = "PopulateDynamicProfessions", eager = true },
 }

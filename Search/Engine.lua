@@ -57,6 +57,8 @@ local PROVIDERS = {
     -- pill requests the provider); a typed "clipboard" finds the launcher.
     { key = "clipboard", words = {} },
     { key = "notes", words = { "note", "notes" }, loadOnLowResults = true },
+    -- Its words only, never low results: the provider loads the messenger.
+    { key = "chat", words = { "chat", "message", "messages", "whisper", "whispers", "conversation" } },
     { key = "currencies", words = { "currency", "currencies", "cur" }, loadOnLowResults = true },
     { key = "reputations", words = { "rep", "reps", "reputation", "reputations", "faction" }, loadOnLowResults = true },
     { key = "achievements", words = { "ach", "achievement", "achievements" }, loadOnLowResults = true },

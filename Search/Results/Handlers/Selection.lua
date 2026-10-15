@@ -361,6 +361,13 @@ function Handlers:SelectResult(data, forceGuide)
         if ns.RequestNotes() and ns.Notes.OpenNote then ns.Notes.OpenNote(noteID) end
         return
     end
+    -- Chat rows open the messenger at the conversation, at the message.
+    if data.chatKey and ns.RequestChat then
+        local key, index = data.chatKey, data.chatMessageIndex
+        self:FinishResultSelection()
+        if ns.RequestChat() and ns.Chat.OpenConversation then ns.Chat:OpenConversation(key, index) end
+        return
+    end
 
     -- Pinned native command: storage keeps only strings, so the run
     -- callback is re-resolved by name. Secure ones carry slashCommand and
