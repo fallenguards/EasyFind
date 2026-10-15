@@ -405,6 +405,7 @@ function Icons:IsSecureActionResult(data)
             and not Icons:IsSpellbookOnlyAbility(data))
         or (data.mountID and Icons:IsMountSummonable(data))
         or data.macroIndex or data.slashCommand
+        or data.windowLayout or data.windowLayoutDo == "here"
         or (data.itemID and data.category == "Bag"
             and Handlers:GetBagItemActionKind(data) ~= "show"))
         or (ns.SecureOpeners and (ns.SecureOpeners.OpenKeyForData(data) or ns.SecureOpeners.ReplacementMacro(data))) or false

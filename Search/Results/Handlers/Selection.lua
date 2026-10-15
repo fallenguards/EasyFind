@@ -387,8 +387,9 @@ function Handlers:SelectResult(data, forceGuide)
        or data.windowTaskView or data.windowLayout or data.windowLayoutDo then
         local cmd, restore, restoreAll, taskView, layout, layoutDo = data.windowCommand,
             data.windowRestore, data.windowRestoreAll, data.windowTaskView, data.windowLayout, data.windowLayoutDo
+        local closing = data._layoutClosing
         self:FinishResultSelection()
-        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo, closing)
         return
     end
 

@@ -144,21 +144,23 @@ end
 -- activation paths so both behave identically. Plain args, no table: the
 -- callers capture the two fields before FinishResultSelection recycles the
 -- row's data table.
-function WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
+function WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo, closing)
     if taskView then
         return ns.WindowSnapAssist and ns.WindowSnapAssist:ToggleTaskView() or false
     end
     local layouts = ns.WindowLayouts
     if layoutDo == "save" then return layouts ~= nil and layouts:PromptSave() end
+    -- closing: what the row's secure press did to the layout's panels
+    -- (Results/SecureAttributes.lua), so the snaps know not to reopen them.
     if layoutDo == "here" then
         local best = layouts and layouts:ForHere()
         if not best then
             if EasyFind and EasyFind.Print then EasyFind:Print(L["WINDOW_LAYOUT_NONE_SAVED"]) end
             return false
         end
-        return layouts:Apply(best.id)
+        return layouts:Apply(best.id, closing)
     end
-    if layout then return layouts ~= nil and layouts:Apply(layout) end
+    if layout then return layouts ~= nil and layouts:Apply(layout, closing) end
     if not ns.WindowManager then return false end
     if restoreAll then
         return ns.WindowManager:RestoreAll()

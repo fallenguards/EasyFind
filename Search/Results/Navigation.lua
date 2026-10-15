@@ -668,8 +668,9 @@ function Results:ActivateResultRow(resultRow, source)
         local cmd, restore, restoreAll, taskView, layout, layoutDo = resultRow.data.windowCommand,
             resultRow.data.windowRestore, resultRow.data.windowRestoreAll,
             resultRow.data.windowTaskView, resultRow.data.windowLayout, resultRow.data.windowLayoutDo
+        local closing = resultRow.data._layoutClosing
         self:FinishResultSelection()
-        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo, closing)
         return true
     end
     if resultRow.data.calculatorLauncher then
