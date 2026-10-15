@@ -6798,12 +6798,8 @@ function Builders.BuildAppliesInSearch(frame)
     popup:SetSize(236, 226)
     popup:SetFrameLevel(frame:GetFrameLevel() + 30)
     popup:EnableMouse(true)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(popup)
-        ns.SetRoundedRectBarHeight(popup, 10)
-        ns.SetRoundedRectFill(popup, 0.08, 0.08, 0.09, 1, true)
-        ns.SetRoundedRectBorderEdgeShown(popup, false)
-    end
+    -- A menu surface: the theme's fill and ring, refilled on each theme.
+    ns.StyleMenuPanel(popup)
     popup.shell = Builders.MakeFindInput(popup, L["NOTES_TAG_SEARCH"])
     popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 8, -8)
     popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -8, -8)
@@ -6835,23 +6831,13 @@ function UI:GetAppliesInResultRow(index)
     row:SetHeight(20)
     row:SetPoint("TOPLEFT", popup, "TOPLEFT", 8, y)
     row:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -8, y)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(row)
-        ns.SetRoundedRectBarHeight(row, 8)
-        ns.SetRoundedRectFill(row, 0.08, 0.08, 0.09, 1, true)
-        ns.SetRoundedRectBorderEdgeShown(row, false)
-    end
+    -- The hover pill every menu row wears, in the theme's colors.
+    Utils.InstallMenuRowHighlight(row)
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.label:SetPoint("LEFT", row, "LEFT", 6, 0)
     row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
-    row:SetScript("OnEnter", function(self)
-        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0.18, 0.18, 0.20, 1, true) end
-    end)
-    row:SetScript("OnLeave", function(self)
-        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0.08, 0.08, 0.09, 1, true) end
-    end)
     row:SetScript("OnClick", function(self)
         local note = GetSelectedNote()
         if note and self.entry then
@@ -6895,6 +6881,9 @@ function UI:RefreshAppliesInSearchResults()
             row:Hide()
         end
     end
+    -- Rows made this pass take the theme's hover pill and text color.
+    if Utils.RefreshMenuRowHighlights then Utils.RefreshMenuRowHighlights(popup, popup.rows) end
+    if ns.RetintPanelText then ns.RetintPanelText(popup) end
 end
 
 function UI:ToggleEasyNotesAppliesInSearch(anchor)
