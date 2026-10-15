@@ -640,14 +640,22 @@ local function EtaText(sec)
 end
 GPS.EtaText = EtaText
 
--- The time line on every surface, without a full redraw.
+-- The destination line: the name, with the time still to go after it.
+local function DestText(route)
+    local name = route.dest.name or "?"
+    if route.arrived or not (route.eta and route.eta > 0) then return sformat(L["GPS_TO_FMT"], name) end
+    return sformat(L["GPS_TO_ETA_FMT"], name, EtaText(route.eta))
+end
+
+-- The time on every surface, without a full redraw.
 local function UpdateEtaText(route)
     local eta = ""
     if route and not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
     for i = 1, #surfaces do
-        local fs = surfaces[i].time or surfaces[i].eta
-        if fs and fs.SetText then fs:SetText(eta) end
-        if route and surfaces[i].PlaceSearch then surfaces[i]:PlaceSearch(true) end
+        local s = surfaces[i]
+        if s.SetEta then s:SetEta(route)
+        elseif s.eta then s.eta:SetText(eta) end
+        if route and s.PlaceSearch then s:PlaceSearch(true) end
     end
 end
 
@@ -2943,11 +2951,7 @@ function Look.RenderEra(f)
     local route = Route()
     SearchHint(f)
     if GPS.picking == f then route = nil end
-    local text = L["APP_GPS"]
-    if route then
-        text = sformat(L["GPS_TO_FMT"], route.dest.name or "?")
-        if not route.arrived and route.eta and route.eta > 0 then text = text .. "  " .. EtaText(route.eta) end
-    end
+    local text = route and DestText(route) or L["APP_GPS"]
     local widest, tall = Look.EraFill(f.eraTitle, text)
     if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
     local n = 0
@@ -3021,18 +3025,11 @@ RenderDock = function(f)
     if f.fromLine then f.fromLine:Hide() end
     local hits = route and f.search and (f.hitCount or 0) > 0
     if route and f.search then
-        -- The box after the time in the banner; the places it finds take
+        -- The box after the name in the banner; the places it finds take
         -- the steps' place.
-        f.searchAnchor:ClearAllPoints()
-        f.searchAnchor:SetPoint("LEFT", f.time, "RIGHT", 6, 0)
         f.search:SetPoint("RIGHT", f.fold, "LEFT", -4, 0)
         f.search:Show()
         f.hitList:SetShown(hits)
-    end
-    if route then
-        local eta = ""
-        if not route.arrived and route.eta and route.eta > 0 then eta = EtaText(route.eta) end
-        f.time:SetText(eta)
     end
     if hits then
         f.title:Hide()
@@ -3043,7 +3040,7 @@ RenderDock = function(f)
         f:SetHitView(k * ROW_H)
         y = -DOCK_HEADER_H - (4 + k * ROW_H + 4)
     elseif route then
-        f.title:SetText(sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
+        f.title:SetText(DestText(route))
         f.title:Show()
         f.titleBtn:Show()
         local start = not route.arrived and Start()
@@ -3141,7 +3138,6 @@ RenderDock = function(f)
         f.title:Hide()
         f.titleBtn:Hide()
         f.track:Hide()
-        f.time:SetText("")
         for i = 1, #f.lines do f.lines[i]:Hide() end
         if f.search then
             -- The search box, and the places it finds, in the steps' place.
@@ -3233,11 +3229,6 @@ local function BuildDock()
     -- magnifier that follows the name.
     local exp = ns.CreateFeatureTag(head, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"], true)
     exp:SetPoint("BOTTOMLEFT", header, "LEFT", (header:GetStringWidth() or 0) - 7, 7)
-
-    local time = head:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    time:SetPoint("LEFT", header, "RIGHT", exp:GetWidth() + 2, 0)
-    time:SetTextColor(1, 1, 1)
-    f.time = time
 
     local fold = CreateFrame("Button", nil, head)
     fold:SetSize(16, 15)
@@ -3512,6 +3503,19 @@ local function BuildDock()
         PlaceDock()
     end)
 
+    -- The time on the destination line; the section is laid out again
+    -- only when the line grows or shrinks.
+    f.SetEta = function(self, route)
+        if not (route and self:IsShown()) or GPS.picking == self then return end
+        local text = DestText(route)
+        if self.look == "era" then
+            if self.eraTitle:GetText() ~= text then RenderDock(self) end
+        elseif self.title:IsShown() then
+            local h = self.title:GetStringHeight()
+            self.title:SetText(text)
+            if self.title:GetStringHeight() ~= h then RenderDock(self) end
+        end
+    end
     f.Render = RenderDock
     surfaces[#surfaces + 1] = f
     f:Hide()
