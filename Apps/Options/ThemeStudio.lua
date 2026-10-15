@@ -700,50 +700,75 @@ local function BuildPreviewCard(parent)
     end
 end
 
--- Hovering a slot cell pulses the LITERAL mock element that slot drives --
--- we draw every region, so the thing itself flashes: the fill cells for
--- the background, the ring textures for the border, the wash pill for the
--- hover, each waffle dot for the chrome. One looping alpha bounce per
--- region, created lazily and reused.
-local pulseGroups = setmetatable({}, { __mode = "k" })
-local pulseBaseAlpha = setmetatable({}, { __mode = "k" })
-local activePulses = {}
+-- Hovering a slot cell outlines the mock element that slot paints: a gold
+-- ring around the region, or the group of regions, breathing while the
+-- cursor stays. Rings are pooled, one per outlined element.
+local rings, ringsUsed = {}, 0
+local RING_COLOR = { 1, 0.82, 0 }
 
-local function PulseRegion(region)
-    if not (region and region.CreateAnimationGroup) then return end
-    local ag = pulseGroups[region]
-    if not ag then
-        ag = region:CreateAnimationGroup()
-        ag:SetLooping("BOUNCE")
-        ag.anim = ag:CreateAnimation("Alpha")
-        ag.anim:SetDuration(0.7)
-        pulseGroups[region] = ag
+local function Ring()
+    ringsUsed = ringsUsed + 1
+    local ring = rings[ringsUsed]
+    if ring then return ring end
+    ring = CreateFrame("Frame", nil, preview.card)
+    ring:SetFrameLevel(preview.card:GetFrameLevel() + 20)
+    local function Edge(p1, p2)
+        local e = ring:CreateTexture(nil, "OVERLAY")
+        e:SetColorTexture(RING_COLOR[1], RING_COLOR[2], RING_COLOR[3], 1)
+        e:SetPoint(p1)
+        e:SetPoint(p2)
+        return e
     end
-    -- A gentle dip proportional to the region's OWN alpha (fill cells run
-    -- at the window-opacity setting, not 1), captured so the stop can
-    -- restore it exactly.
-    if not ag:IsPlaying() then
-        pulseBaseAlpha[region] = region:GetAlpha() or 1
+    Edge("TOPLEFT", "TOPRIGHT"):SetHeight(1)
+    Edge("BOTTOMLEFT", "BOTTOMRIGHT"):SetHeight(1)
+    Edge("TOPLEFT", "BOTTOMLEFT"):SetWidth(1)
+    Edge("TOPRIGHT", "BOTTOMRIGHT"):SetWidth(1)
+    ring.pulse = ring:CreateAnimationGroup()
+    ring.pulse:SetLooping("BOUNCE")
+    local fade = ring.pulse:CreateAnimation("Alpha")
+    fade:SetDuration(0.5)
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(0.35)
+    rings[ringsUsed] = ring
+    return ring
+end
+
+-- One ring around the box the given regions fill together, pad outward.
+local function Outline(pad, ...)
+    local left, right, top, bottom
+    for i = 1, select("#", ...) do
+        local region = select(i, ...)
+        if region and region:IsShown() then
+            local l, r, t, b = region:GetLeft(), region:GetRight(), region:GetTop(), region:GetBottom()
+            if l and r and t and b then
+                left = left and math.min(left, l) or l
+                right = right and math.max(right, r) or r
+                top = top and math.max(top, t) or t
+                bottom = bottom and math.min(bottom, b) or b
+            end
+        end
     end
-    local base = pulseBaseAlpha[region] or 1
-    ag.anim:SetFromAlpha(base)
-    ag.anim:SetToAlpha(base * 0.55)
-    ag:Play()
-    activePulses[#activePulses + 1] = region
+    local card = preview.card
+    local cl, ct = card:GetLeft(), card:GetTop()
+    if not (left and cl and ct) then return end
+    local ring = Ring()
+    ring:ClearAllPoints()
+    ring:SetPoint("TOPLEFT", card, "TOPLEFT", left - cl - pad, top - ct + pad)
+    ring:SetSize(right - left + 2 * pad, top - bottom + 2 * pad)
+    ring:Show()
+    ring.pulse:Play()
 end
 
 local function HideSlotHighlights()
-    for i = #activePulses, 1, -1 do
-        local region = activePulses[i]
-        local ag = pulseGroups[region]
-        if ag then ag:Stop() end
-        region:SetAlpha(pulseBaseAlpha[region] or 1)
-        activePulses[i] = nil
+    for i = 1, ringsUsed do
+        rings[i].pulse:Stop()
+        rings[i]:Hide()
     end
+    ringsUsed = 0
 end
 
--- The exact drawn regions each slot owns. Slots with no mock element yet
--- (muted hints, selection, backdrop pair, control accent) pulse nothing.
+-- The mock element each slot owns. Slots with no mock element yet (muted
+-- hints, selection, backdrop pair, control accent) outline nothing.
 local function ShowSlotHighlight(slotKey)
     HideSlotHighlights()
     if not preview then return end
@@ -752,38 +777,26 @@ local function ShowSlotHighlight(slotKey)
     local rows = preview.rows
     if slotKey == "windowFill" or slotKey == "windowFillBottom"
        or slotKey == "windowFillTop" then
-        if card.combinedBorder and card.combinedBorder.fill then
-            for _, tex in pairs(card.combinedBorder.fill) do PulseRegion(tex) end
-        end
-        if card._efArtCells then
-            for _, tex in pairs(card._efArtCells) do PulseRegion(tex) end
-        end
+        Outline(-3, card)
     elseif slotKey == "borderColor" then
-        if card.combinedBorder and card.combinedBorder.border then
-            for _, tex in pairs(card.combinedBorder.border) do PulseRegion(tex) end
-        end
+        Outline(3, card)
     elseif slotKey == "textFaint" then
-        PulseRegion(preview.placeholder)
+        Outline(2, preview.placeholder)
     elseif slotKey == "separator" then
-        PulseRegion(preview.barLine)
+        Outline(3, preview.barLine)
     elseif slotKey == "chromeGlyph" then
-        PulseRegion(preview.glyph)
-        PulseRegion(preview.filterArrow)
-        for i = 1, #preview.appDots do PulseRegion(preview.appDots[i]) end
-        PulseRegion(rows[1] and rows[1].leftIcon)
+        Outline(2, preview.glyph)
+        Outline(2, preview.filterArrow, unpack(preview.appDots))
+        Outline(2, rows[1] and rows[1].leftIcon)
     elseif slotKey == "leafColor" then
-        PulseRegion(rows[1] and rows[1].name)
-        PulseRegion(rows[2] and rows[2].name)
+        Outline(2, rows[1] and rows[1].name)
+        Outline(2, rows[2] and rows[2].name)
     elseif slotKey == "pathColor" then
-        PulseRegion(rows[1] and rows[1].sub)
+        Outline(2, rows[1] and rows[1].sub)
     elseif slotKey == "pathColorHover" then
-        PulseRegion(rows[2] and rows[2].sub)
+        Outline(2, rows[2] and rows[2].sub)
     elseif slotKey == "rowHover" or slotKey == "accent" then
-        local hovered = rows[2]
-        if hovered then
-            PulseRegion(hovered.hoverWash and hovered.hoverWash:IsShown() and hovered.hoverWash
-                or hovered.glow)
-        end
+        Outline(1, rows[2])
     end
 end
 
