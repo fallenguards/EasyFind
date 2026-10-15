@@ -51,6 +51,7 @@ local GROUP_HEADER_H   = 28
 
 -- The list's text size, picked in its settings menu; rows grow with it.
 local FONT_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
+local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 local function FontScale() return EasyFind.db and EasyFind.db.mapTabFontSize or 1 end
 local function Scaled(h) return math.floor(h * FontScale() + 0.5) end
 local function ScaleFont(fs, template, scale)
@@ -626,6 +627,10 @@ local function SetRowIcon(row, data)
         icon = ns.MapSearch.GetCategoryIcon(data.category)
     end
     Utils.SetIconTexture(row.icon, icon)
+    -- A creature wears its own face, drawn by the client from its model.
+    if data.displayID and SetPortraitTextureFromCreatureDisplayID then
+        SetPortraitTextureFromCreatureDisplayID(row.icon, data.displayID)
+    end
 end
 
 -- Suppress hover previews briefly after every keystroke: re-renders fire

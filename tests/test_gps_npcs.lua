@@ -19,11 +19,11 @@ local function xy(x, y) return math.floor(x * 4095 + 0.5) * 4096 + math.floor(y 
 -- Four creatures in id order (6, 448, 639, 1076), each id as a delta.
 local ROWS = varints({
     4,
-    -- id, level, span, flags, kind (type | expansion + 1 << 4 | roles << 8), title, spots
-    6, 1, 1, 80, 7 + 16, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, hostile to both
-    442, 11, 0, 17, 1 + 16, 0, 1, 1429, xy(0.3, 0.4), 1,                       -- Hogger, beast, elite
-    191, 25, 0, 0, 7 + 16 + 256, 0, 1, 0, 36, 1,                               -- Edwin VanCleef, quests
-    437, 30, 0, 0, 7 + 32 + 512, 1, 1, 1426, xy(0.2, 0.3), 1,                  -- Brog Hamfist, vendor, TBC
+    -- id, level, span, flags, kind (type | expansion + 1 << 4 | roles << 8), display, title, spots
+    6, 1, 1, 80, 7 + 16, 327, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, hostile to both
+    442, 11, 0, 17, 1 + 16, 384, 0, 1, 1429, xy(0.3, 0.4), 1,                       -- Hogger, beast, elite
+    191, 25, 0, 0, 7 + 16 + 256, 0, 0, 1, 0, 36, 1,                                 -- Edwin VanCleef, quests, no model
+    437, 30, 0, 0, 7 + 32 + 512, 2160, 1, 1, 1426, xy(0.2, 0.3), 1,                 -- Brog Hamfist, vendor, TBC
 })
 
 -- Two tiles on continent 0: tile 3100 hostile from level 20 to the
@@ -63,7 +63,7 @@ local REPAIR = 7 + 16 + (2 + 256) * 256
 local function vendors(count)
     local list, names = { count + 2 }, {}
     local function add(name, flags, kind, x, y)
-        for _, v in ipairs({ 1, 10, 0, flags, kind, 0, 1, 1429, xy(x, y), 1 }) do list[#list + 1] = v end
+        for _, v in ipairs({ 1, 10, 0, flags, kind, 0, 0, 1, 1429, xy(x, y), 1 }) do list[#list + 1] = v end
         names[#names + 1] = name
     end
     for k = 1, count - 1 do add("Arnold " .. k, 0, REPAIR, 0.9, 0.9) end
@@ -96,6 +96,8 @@ function tests.nameFindsTheCreatureOnItsSpot()
     H.assertEq(rows[1].mapID, 1429)
     H.assertTrue(math.abs(rows[1].x - 0.3) < 0.001 and math.abs(rows[1].y - 0.4) < 0.001)
     H.assertEq(rows[1].npcID, 448)
+    H.assertEq(rows[1].displayID, 384)
+    H.assertEq(find(fresh(), "vancleef")[1].displayID, nil)
 end
 
 function tests.dungeonCreatureStandsAtTheEntrance()

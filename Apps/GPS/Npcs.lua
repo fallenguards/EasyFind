@@ -38,7 +38,7 @@ local FAR = math.huge
 -- flags, title, display and search names, and its spots (index k).
 local N = {
     n = nil,
-    id = {}, lo = {}, span = {}, flags = {}, kind = {}, title = {}, first = {}, count = {},
+    id = {}, lo = {}, span = {}, flags = {}, kind = {}, display = {}, title = {}, first = {}, count = {},
     name = {}, low = {}, english = {}, lowEnglish = {},
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
@@ -117,7 +117,7 @@ local function Load()
     local count, last, k = u(), 0, 0
     for i = 1, count do
         last = last + u()
-        N.id[i], N.lo[i], N.span[i], N.flags[i], N.kind[i], N.title[i] = last, u(), u(), u(), u(), u()
+        N.id[i], N.lo[i], N.span[i], N.flags[i], N.kind[i], N.display[i], N.title[i] = last, u(), u(), u(), u(), u(), u()
         local c = u()
         N.first[i], N.count[i] = k + 1, c
         for _ = 1, c do
@@ -306,6 +306,7 @@ local function Row(i, k)
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
         end
         poi = { name = N.name[i], category = "npc", isStatic = true, npcID = N.id[i],
+                displayID = N.display[i] ~= 0 and N.display[i] or nil,
                 keywords = #keywords > 0 and keywords or nil }
         PreparePOI(poi)
         N.pois[i] = poi

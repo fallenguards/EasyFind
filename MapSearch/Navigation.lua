@@ -2,6 +2,7 @@ local _, ns = ...
 
 local MapSearch = ns.MapSearch
 local Utils = ns.Utils
+local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 local L = ns.L
 local MapUtils = ns.MapUtils
 local MapFrames = ns.MapSearchFrames
@@ -794,6 +795,10 @@ function MapSearch:ShowMultipleWaypoints(instances)
                 iconTexture = instance.icon
             end
             Utils.SetIconTexture(pin.icon, iconTexture)
+            -- A creature's pin wears its face, drawn by the client from its model.
+            if instance.displayID and SetPortraitTextureFromCreatureDisplayID then
+                SetPortraitTextureFromCreatureDisplayID(pin.icon, instance.displayID)
+            end
 
             if pin.glow then
                 pin.glow:SetSize(glowSize, glowSize)
