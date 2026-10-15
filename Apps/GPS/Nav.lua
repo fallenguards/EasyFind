@@ -472,14 +472,34 @@ end
 -- final cost when it is opened, in any order.
 -- Each floor's time too: yards walked, swimming slower, as its way was
 -- chosen by cost (a seed's cost counts as time).
-local function TileSearch(w, t, g0, goal, want, left)
-    local cost, prev, closed, time = {}, {}, {}, {}
+-- A search's tables are wiped and used again, not made anew, so a plan
+-- leaves no garbage behind: one set inside the planner, one outside it,
+-- as a search the planner left waiting keeps its own. keep: the cost
+-- and time tables are fresh, the caller's to hold on to.
+local function NewScratch() return { prev = {}, closed = {}, cost = {}, time = {}, buckets = {}, lists = {}, heap = NewHeap() } end
+local scratchMain, scratchPlan = NewScratch(), NewScratch()
+local function TileSearch(w, t, g0, goal, want, left, keep)
+    local s = (Nav.yieldCo and corunning() == Nav.yieldCo) and scratchPlan or scratchMain
+    local prev, closed = s.prev, s.closed
+    wipe(prev)
+    wipe(closed)
+    local cost, time
+    if keep then
+        cost, time = {}, {}
+    else
+        cost, time = s.cost, s.time
+        wipe(cost)
+        wipe(time)
+    end
     local cell = w.cell * Danger(w, t.key) / 2
     local half = w.cell / 2
     local fb = t.b
     local pops = 0
     if goal then
-        local heap = NewHeap()
+        local heap = s.heap
+        wipe(heap.k)
+        wipe(heap.v)
+        heap.n = 0
         if type(g0) == "table" then
             for g, c in pairs(g0) do
                 cost[g], time[g] = c, c
@@ -522,12 +542,19 @@ local function TileSearch(w, t, g0, goal, want, left)
         return cost, prev, time
     end
     local width = w.cell
-    local buckets, lo, hi = {}, mhuge, 0
+    local buckets, lists, lo, hi = s.buckets, s.lists, mhuge, 0
+    -- Lists a search ended early left in the buckets go back to the pool.
+    for bk, list in pairs(buckets) do
+        wipe(list)
+        lists[#lists + 1] = list
+        buckets[bk] = nil
+    end
     local function Put(g, c)
         local b = mfloor(c / width)
         local list = buckets[b]
         if not list then
-            list = {}
+            list = lists[#lists]
+            if list then lists[#lists] = nil else list = {} end
             buckets[b] = list
         end
         list[#list + 1] = g
@@ -576,7 +603,11 @@ local function TileSearch(w, t, g0, goal, want, left)
                 end
             end
         end
-        buckets[b] = nil
+        if list then
+            wipe(list)
+            lists[#lists + 1] = list
+            buckets[b] = nil
+        end
         b = b + 1
     end
     return cost, prev, time
@@ -783,7 +814,7 @@ local function NearEnd(w, x, y, r, fromKey)
                 end
             end
             if seeds then
-                local cost, _, time = TileSearch(w, t, seeds)
+                local cost, _, time = TileSearch(w, t, seeds, nil, nil, nil, true)
                 floors, floorsT, out, outT = floors or {}, floorsT or {}, out or {}, outT or {}
                 floors[key], floorsT[key] = cost, time
                 local ec, et = EntranceCosts(w, t, cost, time)
