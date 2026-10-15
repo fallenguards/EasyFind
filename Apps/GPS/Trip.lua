@@ -17,6 +17,7 @@ local tremove, tinsert = table.remove, table.insert
 local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 14, 6, 20
 local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring"   -- a 1.5 px line at 16 px
 local PIN = 22
+local RING = 13   -- a ring's size; MARK stays the column the marks center in
 local DIM, RING_GREY = { 0.55, 0.55, 0.58 }, { 0.8, 0.8, 0.82 }
 
 local function Route() local g = ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
@@ -98,6 +99,44 @@ function Trip.Move(i, j)
     local stops = route and Stops(route)
     if not (stops and stops[i] and j >= 1 and j <= #stops) or i == j then return end
     tinsert(stops, j, tremove(stops, i))
+    Trip.Navigate({ quiet = true })
+end
+
+-- The player's own position, as the start row stands for it.
+local HERE = {}
+
+-- Where the player stands now, as a place a trip can pass through.
+local function HerePlace()
+    local m = C_Map.GetBestMapForUnit("player")
+    local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+    if not pos then return nil end
+    local x, y = pos:GetXY()
+    return { name = L["GPS_TRIP_FROM"], mapID = m, x = x, y = y }
+end
+
+-- The whole trip in order, the start first (1), moved from i to j. A place
+-- moved to the top becomes the start; the player's own position moved down
+-- becomes a stop where the player stands now.
+function Trip.Reorder(i, j)
+    local g = ns.GPS
+    local route = Route()
+    local stops = route and Stops(route)
+    if not stops or i == j then return end
+    local order = { (g.Start and g.Start()) or HERE }
+    for k = 1, #stops do order[k + 1] = stops[k] end
+    if not (order[i] and j >= 1 and j <= #order) then return end
+    tinsert(order, j, tremove(order, i))
+    local list = {}
+    for k = 2, #order do
+        local p = order[k] == HERE and HerePlace() or order[k]
+        if p and p ~= HERE then list[#list + 1] = p end
+    end
+    if #list == 0 then return end
+    for k = #stops, 1, -1 do stops[k] = nil end
+    for k = 1, #list do stops[k] = list[k] end
+    local first = order[1]
+    if first == HERE then g:SetStart(nil, true)
+    else g:SetStart({ name = first.name, mapID = first.mapID, x = first.x, y = first.y }, true) end
     Trip.Navigate({ quiet = true })
 end
 
@@ -221,12 +260,13 @@ function Editor:Cleared(row)
 end
 
 -- Dragging a stop's grip: the place the stop would go, by the cursor.
+-- The rows in trip order, the start first: positions for a drag.
 function Editor:Target()
     local _, cy = GetCursorPosition()
     cy = cy / self:GetEffectiveScale()
-    local n = #self.stopRows
+    local n = #self.orderRows
     for j = 1, n do
-        local r = self.stopRows[j]
+        local r = self.orderRows[j]
         local top, bottom = r:GetTop(), r:GetBottom()
         if top and bottom and cy > (top + bottom) / 2 then return j end
     end
@@ -234,7 +274,7 @@ function Editor:Target()
 end
 
 function Editor:DragStart(row)
-    self.drag = row.index
+    self.drag = row.index + 1
     self.line:Show()
 end
 
@@ -245,21 +285,21 @@ function Editor:DragStop()
     if not i then return end
     local j = self:Target()
     if j > i then j = j - 1 end
-    Trip.Move(i, j)
+    Trip.Reorder(i, j)
 end
 
--- Each frame: the drag's line where the stop would land; a pending close
+-- Each frame: the drag's line where the row would land; a pending close
 -- once a hit's click had its chance.
 function Editor:OnUpdate()
     -- The grip shows on the row under the cursor, while a drag holds it.
-    for i = 1, #self.stopRows do
-        local r = self.stopRows[i]
-        r.grip:SetShown(r.canDrag and (self.drag == r.index or r:IsMouseOver()))
+    for i = 1, #self.orderRows do
+        local r = self.orderRows[i]
+        r.grip:SetShown(r.canDrag and (self.drag == r.index + 1 or r:IsMouseOver()))
     end
     if self.drag then
         local j = self:Target()
-        local n = #self.stopRows
-        local r = self.stopRows[mmin(j, n)]
+        local n = #self.orderRows
+        local r = self.orderRows[mmin(j, n)]
         if r then
             self.line:ClearAllPoints()
             if j > n then
@@ -389,11 +429,12 @@ function Editor:Refresh(route)
             row.mark:SetVertexColor(gold[1], gold[2], gold[3], 1)
         else
             row.mark:SetTexture(TEX_RING)
-            row.mark:SetSize(MARK, MARK)
+            row.mark:SetSize(RING, RING)
             row.mark:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
         end
         for k = 1, 3 do row.dots[k]:SetShown(n > 1) end
-        row.canDrag = index > 0 and not adding and #stops > 1
+        -- Any row of a planned trip drags, the start too: two rows swap.
+        row.canDrag = not adding and #stops >= 1
         if not row.canDrag then row.grip:Hide() end
         row:SetHeight(rowH)
         row:ClearAllPoints()
@@ -412,16 +453,21 @@ function Editor:Refresh(route)
         return row
     end
     wipe(self.stopRows)
-    if #stops == 0 then
-        -- No route yet: the one field, where to; the rest once it is planned.
-        self.adding = self.adding or true
-    else
-        Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
+    wipe(self.orderRows)
+    -- No route yet: the one field, where to; the start and the add row
+    -- once it is planned.
+    local first = #stops == 0
+    if first and self.adding ~= "focus" then self.adding = nil end
+    local adding = self.adding or first
+    if not first then
+        self.orderRows[1] = Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
+        -- The pin marks where the trip ends; every stop before it a ring.
         for i = 1, #stops do
-            self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], true)
+            self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], i == #stops and not adding)
+            self.orderRows[i + 1] = self.stopRows[i]
         end
     end
-    if self.adding then
+    if adding then
         local row = Show(#stops + 1, "", L["GPS_TRIP_TO"], true, true)
         if self.adding == "focus" then
             -- Focused after the click that made the row, not inside it.
@@ -437,9 +483,9 @@ function Editor:Refresh(route)
     self.add:ClearAllPoints()
     self.add:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
     self.add:SetPoint("RIGHT", self, "RIGHT", 0, 0)
-    for k = 1, 3 do self.addDots[k]:SetShown(not self.adding) end
-    self.add:SetShown(not self.adding)
-    if not self.adding then y = y + ADD_H end
+    for k = 1, 3 do self.addDots[k]:SetShown(not adding) end
+    self.add:SetShown(not adding)
+    if not adding then y = y + ADD_H end
     self:SetHeight(mmax(1, y))
 end
 
@@ -450,7 +496,7 @@ function Trip.BuildEditor(frame)
     local ed = CreateFrame("Frame", nil, frame)
     for k, v in pairs(Editor) do ed[k] = v end
     ed.frame = frame
-    ed.rows, ed.stopRows, ed.dropRows = {}, {}, {}
+    ed.rows, ed.stopRows, ed.orderRows, ed.dropRows = {}, {}, {}, {}
     ed:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", 0, 0)
     ed:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     ed:SetHeight(1)
@@ -461,6 +507,7 @@ function Trip.BuildEditor(frame)
     local add = CreateFrame("Button", nil, ed)
     add:SetHeight(ADD_H)
     local ring = Mark(add)
+    ring:SetSize(RING, RING)
     ring:SetTexture(TEX_RING)
     ring:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
     local plus = add:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -529,12 +576,6 @@ function Trip.Fold(frame, folded)
     if not ed then return end
     ed:SetShown(not folded)
     frame.title:SetShown(folded)
-    local track = frame.track
-    if not track then return end
-    track:ClearAllPoints()
-    if folded then
-        track:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", 0, 0)
-    else
-        track:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 0, -1)
-    end
+    -- Folded, the title row wears the GPS glyph in the fields' place.
+    if frame.glyphTex then frame.glyphTex:SetShown(folded) end
 end

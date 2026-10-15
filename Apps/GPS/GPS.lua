@@ -1201,8 +1201,8 @@ end
 
 -- Starts routes at data's place ({ name, mapID, x, y }), or at the player
 -- again with nil. A route on screen is planned again from there; with none,
--- the GPS window asks where to.
-function GPS:SetStart(data)
+-- the GPS window asks where to. quiet: the start alone, the caller plans.
+function GPS:SetStart(data, quiet)
     local c = CharDB()
     if not c then return end
     c.start = data and { name = data.name, mapID = data.zoneMapID or data.mapID, x = data.x or 0.5, y = data.y or 0.5 } or nil
@@ -1214,6 +1214,7 @@ function GPS:SetStart(data)
             box:ClearFocus()
         end
     end
+    if quiet then return end
     local route = Route()
     local dest = route and route.dest
     if dest and not route.arrived then
@@ -4057,7 +4058,7 @@ local function BuildPopout()
     f.isPopout = true
 
     BuildSurface(f, {
-        padX = 12, padY = 9, padRight = 84, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true, trackGlyph = true,
+        padX = 12, padY = 9, padRight = 84, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
         onRouteChanged = function(self)
             -- The fold button folds a route; with none there is nothing to fold.
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
