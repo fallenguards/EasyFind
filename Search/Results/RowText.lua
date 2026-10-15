@@ -77,10 +77,30 @@ local function applyClip(fs)
     end
 end
 
+-- The bound read in the frame a row's right-side widget was re-anchored
+-- is still last frame's: every title set this frame is clipped once more
+-- next frame, in one pass.
+local reclip, reclipQueued = {}, false
+local function FlushReclip()
+    reclipQueued = false
+    for i = 1, #reclip do
+        local fs = reclip[i]
+        reclip[i] = nil
+        if fs._unclippedText then applyClip(fs) end
+    end
+end
+
 function Text:SetClippedText(fs, text)
     if not fs then return end
     fs._unclippedText = text or ""
     applyClip(fs)
+    if C_Timer and C_Timer.After then
+        reclip[#reclip + 1] = fs
+        if not reclipQueued then
+            reclipQueued = true
+            C_Timer.After(0, FlushReclip)
+        end
+    end
     -- Re-clip on parent-frame size changes so a later layout pass (e.g.
     -- when the row's right-side widget shows / hides / re-anchors after
     -- the row's title was already set) doesn't leave the title clipped
