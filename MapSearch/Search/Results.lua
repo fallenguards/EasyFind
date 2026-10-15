@@ -305,7 +305,8 @@ local function TakeDistances(results)
 end
 
 local function POIResultLess(a, b)
-    if a.score == b.score then
+    local sa, sb = a.score or 0, b.score or 0
+    if sa == sb then
         if a.isZone and not b.isZone then return true end
         if b.isZone and not a.isZone then return false end
         local da, db = nearOf[a] or FAR, nearOf[b] or FAR
@@ -314,7 +315,7 @@ local function POIResultLess(a, b)
         if #an ~= #bn then return #an < #bn end
         return an < bn
     end
-    return a.score > b.score
+    return sa > sb
 end
 
 local function GetPOIDuplicateKey(poi)
