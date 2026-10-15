@@ -1089,9 +1089,10 @@ end
 -- quick filter and clearing the box): OnChar fires right after the client
 -- inserts the character, so stripping the byte at the cursor removes the
 -- leaked char no matter what the text has become in between.
-function Utils.SwallowNextCharInsert(box, char)
+-- held: every insert of the char for a second, as a key held down repeats.
+function Utils.SwallowNextCharInsert(box, char, held)
     if not (box and char and char ~= "") then return end
-    box._efSwallowChar = { char = char:lower(), expires = GetTime() + 0.6 }
+    box._efSwallowChar = { char = char:lower(), expires = GetTime() + (held and 1 or 0.6), held = held }
     if box._efSwallowCharHooked then return end
     box._efSwallowCharHooked = true
     box:HookScript("OnChar", function(self, typedChar)
@@ -1102,7 +1103,7 @@ function Utils.SwallowNextCharInsert(box, char)
             return
         end
         if not typedChar or typedChar:lower() ~= armed.char then return end
-        self._efSwallowChar = nil
+        if not armed.held then self._efSwallowChar = nil end
         local cursor = self:GetCursorPosition() or 0
         if cursor < 1 then return end
         local text = self:GetText() or ""

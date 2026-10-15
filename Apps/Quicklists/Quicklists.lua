@@ -109,6 +109,10 @@ function Quicklists:Open(id)
     if not (sf and sf:IsShown()) then return false end
     openedBar[id] = not wasShown
     ns.Filters:ApplyQuickFilter(Pill(list), "")
+    -- The bound key's own character lands in the box the filter focused,
+    -- again while the key is held: swallowed for that long.
+    local base = list.key and list.key:match("([^%-]+)$")
+    if base and #base == 1 and sf.editBox then Utils.SwallowNextCharInsert(sf.editBox, base, true) end
     return true
 end
 
@@ -256,6 +260,12 @@ local function OnPreClick(b, _, down)
         if Quicklists:Open(id) then
             hold = { id = id, button = b, lastTick = 0 }
             Utils.SafeOnUpdate(owner, HoldTick)
+            -- Held: the row under the cursor is the target, not the box;
+            -- the bar's own focus lands a frame later, this runs after it.
+            Utils.SafeAfter(0, function()
+                local sf = ns.Search and ns.Search:GetSearchFrame()
+                if hold and sf and sf.editBox then sf.editBox:ClearFocus() end
+            end)
         end
         return
     end
