@@ -5009,22 +5009,16 @@ local function BuildExtensionsMenuPage(ctx, page)
         function() return S().labels end, function(v) S().labels = v Changed() end,
         "EasyFindExtMenuLabels", "right")
     labelsRow:SetPoint("TOPLEFT", columnsRow, "BOTTOMLEFT", 0, -4)
-    local fonts = {}
-    for _, name in ipairs(ns.FONT_CHOICES) do
-        fonts[#fonts + 1] = { label = name == "Default" and (_G["DEFAULT"] or "Default") or name, value = name }
-    end
-    local fontRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_LABEL_FONT"], fonts,
-        function() return S().font end, function(v) S().font = v Changed() end,
-        "EasyFindExtMenuFont", "Default")
-    fontRow:SetPoint("TOPLEFT", labelsRow, "BOTTOMLEFT", 0, -4)
+    local sizes = {}
+    for _, size in ipairs(AppsMenu.LABEL_SIZES) do sizes[#sizes + 1] = { label = L[size[1]], value = size[2] } end
+    local sizeRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_LABEL_SIZE"], sizes,
+        function() return S().labelSize end, function(v) S().labelSize = v Changed() end,
+        "EasyFindExtMenuLabelSize", 1)
+    sizeRow:SetPoint("TOPLEFT", labelsRow, "BOTTOMLEFT", 0, -4)
     local sortBtn = CreateModernButton(page, L["OPT_EXT_SORT_NAME"], 120, 22)
-    sortBtn:SetPoint("TOPLEFT", fontRow, "BOTTOMLEFT", 8, -10)
+    sortBtn:SetPoint("TOPLEFT", sizeRow, "BOTTOMLEFT", 8, -10)
     sortBtn:SetScript("OnClick", function() S().order = nil Changed() end)
     Utils.AttachDelayedTooltip(sortBtn, "ANCHOR_TOP", function() return L["OPT_EXT_SORT_NAME_TT"] end)
-    local arrangeBtn = CreateModernButton(page, L["EXTMENU_ARRANGE"], 140, 22)
-    arrangeBtn:SetPoint("LEFT", sortBtn, "RIGHT", 8, 0)
-    arrangeBtn:SetScript("OnClick", function() if AppsMenu.StartArranging then AppsMenu:StartArranging() end end)
-    Utils.AttachDelayedTooltip(arrangeBtn, "ANCHOR_TOP", function() return L["EXTMENU_ARRANGE_HINT"] end)
 end
 
 local function ExtensionPageDefs()

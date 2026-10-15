@@ -596,8 +596,11 @@ local function ShowTooltip(btn)
     GameTooltip:SetText(Title(btn))
     local apps = btn.rec.apps
     if #apps == 1 then
-        local key = ShortkeyText(AppEntry(apps[1]))
-        if key then GameTooltip:AddLine((L["SHORTKEY_FOR"]):format(key), 1, 1, 1) end
+        local app = AppEntry(apps[1])
+        local desc = ns.ApplicationDescription and ns.ApplicationDescription(app)
+        if desc then GameTooltip:AddLine(desc, 1, 1, 1, true) end
+        local key = ShortkeyText(app)
+        if key then GameTooltip:AddLine((L["SHORTKEY_FOR"]):format(key), 0.7, 0.7, 0.7) end
     else
         for i = 1, #apps do
             local app = AppEntry(apps[i])
@@ -900,9 +903,10 @@ local function OpenFolderMenu(btn)
                 if menu.dragging then return end
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetText(BRAND .. ": " .. (self.app and self.app.name or ""))
+                local desc = ns.ApplicationDescription and ns.ApplicationDescription(self.app)
+                if desc then GameTooltip:AddLine(desc, 1, 1, 1, true) end
                 local key = ShortkeyText(self.app)
-                if key then GameTooltip:AddLine((L["SHORTKEY_FOR"]):format(key), 1, 1, 1) end
-                GameTooltip:AddLine(L["EXTBTN_ROW_HINT"], 0.7, 0.7, 0.7)
+                if key then GameTooltip:AddLine((L["SHORTKEY_FOR"]):format(key), 0.7, 0.7, 0.7) end
                 GameTooltip:Show()
             end)
             row:SetScript("OnLeave", GameTooltip_Hide)
@@ -960,7 +964,7 @@ end
 
 -- An extension's own menu: its key, and a button of it on the screen,
 -- placed where the cursor is, as a drag out of the menu would.
-function ExtensionButtons:ShowAppMenu(anchor, app, opts)
+function ExtensionButtons:ShowAppMenu(anchor, app)
     local defs = {}
     local row = ShortkeyRow(app)
     if row then
@@ -977,10 +981,6 @@ function ExtensionButtons:ShowAppMenu(anchor, app, opts)
                 ExtensionButtons:CreateButtonAt(appID, x / scale, y / scale)
             end,
         }
-    end
-    -- From the extensions menu: its tiles can be arranged.
-    if opts and opts.arrange and ns.AppsMenu then
-        defs[#defs + 1] = { kind = "action", label = L["EXTMENU_ARRANGE"], onClick = function() ns.AppsMenu:StartArranging() end }
     end
     if #defs == 0 then return end
     ns.ShowTogglePopup("EasyFindExtensionAppPopup", anchor, defs)

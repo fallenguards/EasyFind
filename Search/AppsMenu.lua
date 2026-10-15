@@ -149,6 +149,18 @@ local APP_ID_FLAGS = {
     { "windows", "windowsLauncher" },
     { "chat", "chatLauncher" },
 }
+-- What each extension does, one line under its name in its tooltips.
+local APP_DESC_KEYS = {
+    calculator = "APP_DESC_CALCULATOR", icons = "APP_DESC_ICONS", snippets = "APP_DESC_SNIPPETS",
+    clipboard = "APP_DESC_CLIPBOARD", notes = "APP_DESC_NOTES", gps = "APP_DESC_GPS",
+    clock = "APP_DESC_CLOCK", alerts = "APP_DESC_ALERTS", quicklists = "APP_DESC_QUICKLISTS",
+    windows = "APP_DESC_WINDOWS", chat = "APP_DESC_CHAT",
+}
+function ns.ApplicationDescription(app)
+    local key = APP_DESC_KEYS[ns.ApplicationEntryID(app) or ""]
+    return key and L[key] or app and app.description or nil
+end
+
 function ns.ApplicationEntryID(app)
     if not app then return nil end
     if app.quicklistID then return "quicklist:" .. app.quicklistID end
@@ -564,21 +576,24 @@ function AppsMenu:SetGlyphColor(r, g, b, a)
     end
 end
 
--- The menu's settings: columns, where a label sits and its font, the
+-- The menu's settings: columns, where a label sits and its size, the
 -- order dragged into place and the groups. Kept with the profile.
 local LABEL_POSITIONS = { "right", "below", "above", "left", "hidden" }
 AppsMenu.LABEL_POSITIONS = LABEL_POSITIONS
+AppsMenu.LABEL_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
 local TILE_ICON = 20      -- the icon of a stacked or bare tile
 local GAP = 4             -- between tiles
+local GROUP_HOLD = 0.45   -- seconds a dragged tile rests on another before they group
 local BuildRows
 local function Settings()
     local db = EasyFind and EasyFind.db
-    if not db then return { columns = 1, labels = "right", font = "Default" } end
+    if not db then return { columns = 1, labels = "right", labelSize = 1 } end
     local s = db.appsMenu
     if not s then s = {} db.appsMenu = s end
     s.columns = s.columns or 1
     s.labels = s.labels or "right"
-    s.font = s.font or "Default"
+    s.labelSize = s.labelSize or 1
+    s.font = nil   -- the label font once chosen here; the global font rules now
     return s
 end
 AppsMenu.Settings = Settings
@@ -674,6 +689,11 @@ local function EnsureTile(dropdown, i)
     row:SetScript("OnClick", function(self, button)
         local item = self.item
         if not item then return end
+        -- The release that ends a drag is no click.
+        if self._efDragged then
+            self._efDragged = nil
+            return
+        end
         if item.back then
             BuildRows(dropdown, nil)
             return
@@ -686,7 +706,6 @@ local function EnsureTile(dropdown, i)
             BuildRows(dropdown, item.group.id)
             return
         end
-        if dropdown.arranging then return end
         dropdown:Hide()
         ns.ToggleApplication(item.app)
     end)
@@ -695,20 +714,21 @@ local function EnsureTile(dropdown, i)
         if not item or item.back then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(item.name or "")
-        if item.app then GameTooltip:AddLine(L["EXTBTN_DRAG_HINT"], 0.7, 0.7, 0.7, true) end
+        local desc = item.app and ns.ApplicationDescription(item.app)
+        if desc then GameTooltip:AddLine(desc, 1, 1, 1, true) end
         GameTooltip:Show()
     end)
     row:HookScript("OnLeave", function() GameTooltip:Hide() end)
-    -- Dragging a row out makes a button for that extension on screen
-    -- (Search/ExtensionButtons.lua); while arranging, the drag moves the
-    -- tile within the menu instead. Press-and-move, not the frame drag
-    -- events (those depend on the row keeping the mouse, which a menu row
-    -- does not always get): a press followed by movement past a few
-    -- pixels while the button is still held starts the drag.
+    -- A drag moves the tile within the menu; carried past the menu's edge
+    -- it becomes a button on the screen (Search/ExtensionButtons.lua).
+    -- Press-and-move, not the frame drag events (those depend on the row
+    -- keeping the mouse, which a menu row does not always get): a press
+    -- followed by movement past a few pixels while the button is still
+    -- held starts the drag.
     row:HookScript("OnMouseDown", function(self, button)
         local item = self.item
+        self._efDragged = nil
         if button ~= "LeftButton" or not item or item.back then return end
-        if not (dropdown.arranging or (item.app and ns.ExtensionButtons)) then return end
         local sx, sy = GetCursorPosition()
         self._efPress = { x = sx, y = sy }
         self:SetScript("OnUpdate", function(row2)
@@ -723,12 +743,8 @@ local function EnsureTile(dropdown, i)
             if (cx - press.x) ^ 2 + (cy - press.y) ^ 2 < 36 then return end
             row2._efPress = nil
             row2:SetScript("OnUpdate", nil)
-            if dropdown.arranging then
-                AppsMenu:BeginArrangeDrag(dropdown, row2)
-            else
-                dropdown:Hide()
-                ns.ExtensionButtons:BeginDragFromMenu(row2.item.app)
-            end
+            row2._efDragged = true
+            AppsMenu:BeginArrangeDrag(dropdown, row2)
         end)
     end)
     dropdown.rows[i] = row
@@ -819,14 +835,14 @@ local function PaintTile(row, item, dropdown)
         end
     end
     row.label:SetText(item.name or "")
-    -- Same font as result-row titles (pathFont), like every menu, unless
-    -- the labels have a font of their own.
+    -- Same font as result-row titles (pathFont), like every menu, at the
+    -- labels' own size.
     local theme = Results.GetActiveTheme and Results:GetActiveTheme()
     Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
-    local path = ns.GetFontChoicePath and ns.GetFontChoicePath(Settings().font)
-    if path then
-        local _, size, flags = row.label:GetFont()
-        row.label:SetFont(path, size, flags)
+    local scale = Settings().labelSize
+    if scale ~= 1 then
+        local file, size, flags = row.label:GetFont()
+        if file and size then row.label:SetFont(file, size * scale, flags) end
     end
     -- An experimental app wears the EXP badge after its name.
     local exp = item.app and item.app.experimental
@@ -840,24 +856,38 @@ local function PaintTile(row, item, dropdown)
     row:Show()
 end
 
--- Tile sizes from the widest label and the labels setting; the grid from
--- the columns setting. Returns the tile width, height and the columns.
+-- A tile's own width: its label and badge beside or under the icon.
+local function TileWidth(row, labels)
+    if labels == "hidden" then return 32 end
+    local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 1 or 0)
+    if labels == "below" or labels == "above" then return math.min(140, math.max(TILE_ICON, w) + 12) end
+    return math.min(188, ICON + 8 + w + 10)
+end
+
+-- The grid: each column as wide as its widest tile, every row as tall as
+-- the labels setting makes a tile. Returns the column widths, the tile
+-- height and the column count.
+local colWidths = {}
 local function TileMetrics(dropdown, n)
     local s = Settings()
-    local widest, fontH = 0, 12
+    local cols = math.max(1, math.min(4, s.columns))
+    local fontH = 12
+    wipe(colWidths)
+    -- One column keeps its old floor so a short list does not shrink to a sliver.
+    local floor = (s.labels == "below" or s.labels == "above") and 52 or (s.labels == "hidden" and 32)
+        or (cols == 1 and 78 or 0)
+    for c = 1, cols do colWidths[c] = floor end
     for i = 1, n do
         local row = dropdown.rows[i]
-        local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 1 or 0)
-        if w > widest then widest = w end
+        local c = (i - 1) % cols + 1
+        colWidths[c] = math.max(colWidths[c], TileWidth(row, s.labels))
         fontH = row.label:GetStringHeight() or fontH
     end
-    local cols = math.max(1, math.min(4, s.columns))
-    if s.labels == "below" or s.labels == "above" then
-        return math.max(52, math.min(140, widest + 12)), TILE_ICON + 4 + fontH + 10, cols
-    elseif s.labels == "hidden" then
-        return 32, 32, cols
-    end
-    return math.max(78, math.min(188, ICON + 8 + widest + 10)), ROW_H, cols
+    local h
+    if s.labels == "below" or s.labels == "above" then h = TILE_ICON + 4 + fontH + 10
+    elseif s.labels == "hidden" then h = 32
+    else h = math.max(ROW_H, math.ceil(fontH) + 10) end
+    return colWidths, h, cols
 end
 
 function BuildRows(dropdown, groupID)
@@ -878,20 +908,22 @@ function BuildRows(dropdown, groupID)
     -- Wash mode and tint follow the active theme; re-run per build so rows
     -- created this open (or a theme swapped since last open) paint right.
     Utils.RefreshMenuRowHighlights(dropdown, dropdown.rows)
-    local w, h, cols = TileMetrics(dropdown, #items)
+    local widths, h, cols = TileMetrics(dropdown, #items)
+    local used = math.min(cols, #items)
     for i = 1, #items do
         local row = dropdown.rows[i]
-        local r, c = math.floor((i - 1) / cols), (i - 1) % cols
+        local r, c = math.floor((i - 1) / cols), (i - 1) % cols + 1
+        local x = PAD
+        for k = 1, c - 1 do x = x + widths[k] + GAP end
         row.index = i
-        row:SetSize(w, h)
+        row:SetSize(widths[c], h)
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", dropdown, "TOPLEFT", PAD + c * (w + GAP), -PAD - r * (h + GAP))
+        row:SetPoint("TOPLEFT", dropdown, "TOPLEFT", x, -PAD - r * (h + GAP))
     end
     local lines = math.ceil(#items / cols)
-    local menuW = PAD * 2 + cols * w + (cols - 1) * GAP
-    local contentH = lines * h + (lines - 1) * GAP
-    local footH = AppsMenu:LayoutFooter(dropdown, contentH, menuW)
-    dropdown:SetSize(menuW, PAD * 2 + contentH + footH)
+    local menuW = PAD * 2 + (used - 1) * GAP
+    for k = 1, used do menuW = menuW + widths[k] end
+    dropdown:SetSize(menuW, PAD * 2 + lines * h + (lines - 1) * GAP)
     return #items
 end
 
@@ -901,10 +933,10 @@ function AppsMenu:Rebuild()
     if dropdown and dropdown:IsShown() then BuildRows(dropdown, dropdown.groupID) end
 end
 
--- Arranging: the tiles drag into an order; one dropped on another makes
--- a group of the two, or joins the group it lands on; dropped on the back
--- tile inside a group it leaves the group. Entered from a tile's menu or
--- the settings page; a footer with the hint and Done shows meanwhile.
+-- Arranging, always on: a dragged tile drops between others for an order;
+-- held on another a moment it groups with it, or joins the group it rests
+-- on; held on the back tile inside a group it leaves the group. Carried
+-- past the menu's edge, an extension becomes a button on the screen.
 
 -- The ids as the tiles stand, the back tile left out.
 local function TileIDs(dropdown)
@@ -961,8 +993,9 @@ local function MakeGroup(dropdown, targetID, movedID)
     PromptGroupName(g, function() AppsMenu:Rebuild() end)
 end
 
--- Where a drag would land: a tile to join (its middle), else the slot
--- before or after the nearest tile along the flow.
+-- Where a drag would land: the tile it rests on that it may group with
+-- (its middle), and the slot before or after the nearest tile along the
+-- flow; the hold decides which of the two the drop takes.
 local function DropTarget(dropdown, x, y, from)
     local best, bestD
     local dl, db = dropdown:GetLeft(), dropdown:GetBottom()
@@ -978,24 +1011,28 @@ local function DropTarget(dropdown, x, y, from)
     if not best then return nil, nil end
     local l, b = best:GetLeft() - dl, best:GetBottom() - db
     local w, h = best:GetWidth(), best:GetHeight()
-    local inside = x >= l and x <= l + w and y >= b and y <= b + h
-    local joins = best.item.back or best.item.group or (best.item.app and from.item.app and not dropdown.groupID)
-    if inside and joins and math.abs(x - (l + w / 2)) < w * 0.3 and math.abs(y - (b + h / 2)) < h * 0.3 then
-        return best, nil
-    end
+    local joins = best.item.back or (best.item.group and from.item.app)
+        or (best.item.app and from.item.app and not dropdown.groupID)
+    local candidate = joins and math.abs(x - (l + w / 2)) < w * 0.3 and math.abs(y - (b + h / 2)) < h * 0.3
+        and best or nil
+    if best.item.back then return candidate, nil end
     local after
     if Settings().columns > 1 then after = x > l + w / 2 else after = y < b + h / 2 end
-    return nil, after and best.index + 1 or best.index
+    return candidate, after and best.index + 1 or best.index
 end
 
-local function EndArrangeDrag(dropdown)
-    local ghost = dropdown.ghost
+local function StopGhost(ghost)
     ghost:SetScript("OnUpdate", nil)
     ghost:Hide()
     ghost.line:Hide()
     ghost.target:Hide()
+    ghost.from:SetAlpha(1)
+end
+
+local function EndArrangeDrag(dropdown)
+    local ghost = dropdown.ghost
+    StopGhost(ghost)
     local from = ghost.from
-    from:SetAlpha(1)
     local moved = from.item
     local s = Settings()
     if ghost.over then
@@ -1054,15 +1091,32 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
     ghost.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
     TintGlyph(ghost.icon)
     ghost.from = row
+    ghost.resting, ghost.restSince = nil, nil
     row:SetAlpha(0.35)
     ghost:Show()
     ghost:SetScript("OnUpdate", function(self)
         local cx, cy = GetCursorPosition()
         local scale = dropdown:GetEffectiveScale()
         local x, y = cx / scale - dropdown:GetLeft(), cy / scale - dropdown:GetBottom()
+        local outside = x < -8 or y < -8 or x > dropdown:GetWidth() + 8 or y > dropdown:GetHeight() + 8
+        -- Past the edge an extension leaves the menu for a button on the
+        -- screen; a group stays, and a drop out there changes nothing.
+        if outside and row.item.app and ns.ExtensionButtons then
+            StopGhost(self)
+            dropdown:Hide()
+            ns.ExtensionButtons:BeginDragFromMenu(row.item.app)
+            return
+        end
         self:ClearAllPoints()
         self:SetPoint("CENTER", dropdown, "BOTTOMLEFT", x, y)
-        local over, slot = DropTarget(dropdown, x, y, row)
+        local candidate, slot = nil, nil
+        if not outside then candidate, slot = DropTarget(dropdown, x, y, row) end
+        -- Resting on a tile a moment groups with it; passing over reorders.
+        if candidate ~= self.resting then
+            self.resting, self.restSince = candidate, GetTime()
+        end
+        local over = candidate and GetTime() - self.restSince >= GROUP_HOLD and candidate or nil
+        if over then slot = nil end
         self.over, self.slot = over, slot
         self.target:SetShown(over ~= nil)
         if over then
@@ -1089,67 +1143,12 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
     end)
 end
 
--- The footer while arranging: the hint and Done. Returns its height.
-function AppsMenu:LayoutFooter(dropdown, contentH, menuW)
-    local foot = dropdown.foot
-    if not dropdown.arranging then
-        if foot then foot:Hide() end
-        return 0
-    end
-    if not foot then
-        foot = CreateFrame("Frame", nil, dropdown)
-        foot.hint = foot:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        foot.hint:SetPoint("TOPLEFT", foot, "TOPLEFT", 2, 0)
-        foot.hint:SetJustifyH("LEFT")
-        foot.hint:SetWordWrap(true)
-        foot.hint:SetText(L["EXTMENU_ARRANGE_HINT"])
-        foot.done = CreateFrame("Button", nil, foot)
-        foot.done:SetHeight(18)
-        foot.done.text = foot.done:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        foot.done.text:SetPoint("RIGHT", foot.done, "RIGHT", 0, 0)
-        foot.done.text:SetText(L["EXTMENU_DONE"])
-        foot.done:SetWidth((foot.done.text:GetStringWidth() or 30) + 4)
-        foot.done:SetPoint("BOTTOMRIGHT", foot, "BOTTOMRIGHT", -2, 0)
-        foot.done:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
-        foot.done:SetScript("OnLeave", function(self) self.text:SetTextColor(unpack(ns.TEXT_DIM)) end)
-        foot.done.text:SetTextColor(unpack(ns.TEXT_DIM))
-        foot.done:SetScript("OnClick", function() AppsMenu:StopArranging() end)
-        dropdown.foot = foot
-    end
-    foot:ClearAllPoints()
-    foot:SetPoint("TOPLEFT", dropdown, "TOPLEFT", PAD, -PAD - contentH - 6)
-    foot:SetWidth(menuW - PAD * 2)
-    foot.hint:SetWidth(menuW - PAD * 2 - 4)
-    local h = (foot.hint:GetStringHeight() or 12) + 22
-    foot:SetHeight(h)
-    foot:Show()
-    return h + 6
-end
-
-function AppsMenu:StartArranging()
-    local dropdown, btn = self.dropdown, self.button
-    if not (dropdown and btn) then return end
-    -- The menu hangs from the bar: shown first when it is away.
-    if not BarShown() and ns.Search and ns.Search.Show then ns.Search:Show(false) end
-    if not dropdown:IsShown() then btn:Click() end
-    if not dropdown:IsShown() then return end
-    dropdown.arranging = true
-    BuildRows(dropdown, dropdown.groupID)
-end
-
-function AppsMenu:StopArranging()
-    local dropdown = self.dropdown
-    if not dropdown then return end
-    dropdown.arranging = nil
-    if dropdown:IsShown() then BuildRows(dropdown, dropdown.groupID) end
-end
-
--- Right-click on a tile: an app's own menu with Arrange added; a group's
--- menu, its name and its members.
+-- Right-click on a tile: an app's own menu; a group's, its name and
+-- ungrouping.
 function AppsMenu:ShowTileMenu(row)
     local dropdown, item = self.dropdown, row.item
     if item.app then
-        if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(row, item.app, { arrange = true }) end
+        if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(row, item.app) end
         return
     end
     local g = item.group
@@ -1167,8 +1166,6 @@ function AppsMenu:ShowTileMenu(row)
             DeleteGroupIfEmpty(s, g)
             AppsMenu:Rebuild()
         end },
-        { isSeparator = true },
-        { text = L["EXTMENU_ARRANGE"], onClick = function() AppsMenu:StartArranging() end },
     }, {})
 end
 
@@ -1214,6 +1211,8 @@ function AppsMenu:Create(searchFrame, filterBtn)
     -- Children need level headroom (rows +1, hover pill between); at 9999
     -- they clamp against the 10000 ceiling.
     dropdown:SetFrameLevel(9000)
+    -- A setting changed while it is open can widen it: it stays on screen.
+    dropdown:SetClampedToScreen(true)
     dropdown:EnableMouse(true)
     dropdown:Hide()
     ns.StyleMenuPanel(dropdown)
@@ -1302,6 +1301,9 @@ function AppsMenu:Create(searchFrame, filterBtn)
         dropdown:SetScale(barScale)
         local scale = searchFrame:GetEffectiveScale() / (UIParent:GetEffectiveScale() * barScale)
         local left = btn:GetLeft() * scale
+        -- A grid wider than the room right of the button opens leftward.
+        local room = UIParent:GetWidth() / barScale
+        if left + dropdown:GetWidth() > room then left = math.max(0, room - dropdown:GetWidth()) end
         dropdown:ClearAllPoints()
         if EasyFind.db.uiResultsAbove then
             dropdown:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, searchFrame:GetTop() * scale)
@@ -1323,7 +1325,6 @@ function AppsMenu:Create(searchFrame, filterBtn)
     -- open, like every other menu-owner button.
     -- Closed, the menu is back at its top level and locked.
     dropdown:HookScript("OnHide", function(self)
-        self.arranging = nil
         self.groupID = nil
     end)
     dropdown:HookScript("OnShow", function() btn:LockHighlight() end)
