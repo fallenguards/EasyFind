@@ -450,8 +450,9 @@ local function EnsureWindow()
     win.title:SetPoint("LEFT", win.glyph, "RIGHT", 6, 0)
     win.title:SetText(ns.CLOCK_NAME)
 
-    -- Header, right to left: minimize, settings, more runs.
-    win.minimize = CL.CreateGlyphButton(win, "dash")
+    -- Header, right to left: the close X (the window goes, the runs stay
+    -- on the strip), settings, more runs.
+    win.minimize = CL.CreateGlyphButton(win, "cross")
     win.minimize:SetPoint("TOPRIGHT", win, "TOPRIGHT", -PAD, -8)
     win.minimize:SetScript("OnClick", function() CL.Minimize() end)
     win.minimize.tip = L["CLOCK_MINIMIZE_TT"]

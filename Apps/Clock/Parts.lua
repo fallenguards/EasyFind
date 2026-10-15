@@ -278,21 +278,27 @@ local function GlyphLeave(self)
     PaintGlyphButton(self)
 end
 
-local function Stroke(btn, w, h)
+local function Stroke(btn, w, h, angle)
     local t = btn:CreateTexture(nil, "OVERLAY")
     t:SetTexture(CL.TEX.flat)
     t:SetSize(w, h)
     t:SetPoint("CENTER")
+    if angle then t:SetRotation(angle) end
     btn.strokes[#btn.strokes + 1] = t
 end
 
--- A flat header glyph like the close X: "plus" or "dash".
+-- A flat header glyph: "plus", "dash", or "cross" (the close X).
 function CL.CreateGlyphButton(parent, kind)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(16, 16)
     btn.strokes = {}
-    Stroke(btn, 11, 1.5)
-    if kind == "plus" then Stroke(btn, 1.5, 11) end
+    if kind == "cross" then
+        Stroke(btn, 11, 1.5, math.rad(45))
+        Stroke(btn, 11, 1.5, math.rad(-45))
+    else
+        Stroke(btn, 11, 1.5)
+        if kind == "plus" then Stroke(btn, 1.5, 11) end
+    end
     btn:SetScript("OnEnter", GlyphEnter)
     btn:SetScript("OnLeave", GlyphLeave)
     Utils.AttachDelayedTooltip(btn, "ANCHOR_TOP", ButtonTip)
