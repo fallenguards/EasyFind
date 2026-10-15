@@ -2193,6 +2193,7 @@ ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
 -- GPS extension glyph: a map pin in the same white line-art family.
 ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
+ns.CHAT_ICON_TEX       = "Interface\\AddOns\\EasyFind\\textures\\chat-icon"
 ns.QUICKLIST_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\quicklists-icon"
 ns.NOTES_ICON_COORDS   = { 0, 1, 0, 1 }
 -- Clock extension: the stopwatch, plus one glyph per kind of run.

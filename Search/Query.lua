@@ -850,6 +850,13 @@ function Search:OnSearchTextChangedNow(text, force)
             combined[#combined + 1] = { data = notesLauncher, score = 2e6 }
         end
     end
+    if not quickFilter and not calculatorData and not calculatorLauncher
+       and Results.GetChatLauncherMatch then
+        local chatLauncher = Results:GetChatLauncherMatch(text)
+        if chatLauncher then
+            combined[#combined + 1] = { data = chatLauncher, score = 2e6 }
+        end
+    end
     -- Under @notes a query that is no note's title offers to make one so
     -- titled, last in the list.
     if quickFilter and quickFilter.key == "notes" and text ~= "" and ns.Notes and ns.Notes.NewFromSearch then

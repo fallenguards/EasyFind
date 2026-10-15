@@ -115,6 +115,7 @@ function ns.BuildApplicationEntries()
             name = L["APP_CHAT"],
             chatLauncher = true,
             noPin = true,
+            icon = ns.CHAT_ICON_TEX,
             nativeRun = function()
                 if ns.RequestChat and ns.RequestChat() then ns.Chat:Open() end
             end,
@@ -409,6 +410,30 @@ function ns.Results:GetClipboardLauncherMatch(text)
         end,
     }
     return clipboardLauncherRow
+end
+
+-- The chat launcher row: typing "chat" (or the localized app name)
+-- offers the row that opens the messenger, before it ever loaded.
+local chatLauncherRow
+function ns.Results:GetChatLauncherMatch(text)
+    if not text or #text < 3 then return nil end
+    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat") then return nil end
+    local q = ns.Utils.slower(text)
+    local sfind = ns.Utils.sfind
+    if not (sfind(ns.Utils.slower(L["APP_CHAT"]), q, 1, true) or sfind("chat", q, 1, true)) then
+        return nil
+    end
+    chatLauncherRow = chatLauncherRow or {
+        name = L["APP_CHAT"],
+        chatLauncher = true,
+        noPin = true,
+        noLearn = true,
+        icon = ns.CHAT_ICON_TEX,
+        nativeRun = function()
+            if ns.RequestChat and ns.RequestChat() then ns.Chat:Open() end
+        end,
+    }
+    return chatLauncherRow
 end
 
 -- The notes launcher row: typing "notes" (or the localized app name)

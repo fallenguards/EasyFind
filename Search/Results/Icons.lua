@@ -191,7 +191,7 @@ local FLAT_CATEGORY_ICONS = {
     notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
     quicklist     = { tex = ns.QUICKLIST_ICON_TEX, chromeTint = true },
     clock         = { tex = ns.CLOCK_ICON_TEX, chromeTint = true },
-    chat          = { tex = 2056011, chromeTint = true },   -- the client's chat bubble
+    chat          = { tex = ns.CHAT_ICON_TEX, chromeTint = true },
     alerts        = { tex = ns.ALERTS_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
