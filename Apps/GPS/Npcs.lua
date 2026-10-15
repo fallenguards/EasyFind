@@ -48,6 +48,25 @@ local N = {
 }
 ns.GPSNpcs = N
 
+-- A creature by its name in any case, for rows saved before they kept
+-- the proper name and portrait: { name, npcID, displayID } or nil.
+-- Filled on the first ask from the unpacked catalog.
+local byName
+function N.ByName(name)
+    if not name or name == "" then return nil end
+    if not byName then
+        if not (N.Load and N.Load()) then return nil end
+        byName = {}
+        for i = 1, N.n do
+            local low = N.low[i]
+            if low and not byName[low] then byName[low] = i end
+        end
+    end
+    local i = byName[string.lower(name)]
+    if not i then return nil end
+    return { name = N.name[i], npcID = N.id[i], displayID = N.display[i] ~= 0 and N.display[i] or nil }
+end
+
 -- Every service word with its bits, from SERVICES and the locale.
 local serviceWords
 local function ServiceWords()
@@ -147,6 +166,8 @@ local function Load()
     N.n = count
     return count > 0
 end
+
+N.Load = Load
 
 -- Instance map id -> its entrance, from the instance list.
 local entrances

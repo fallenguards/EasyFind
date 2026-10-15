@@ -86,8 +86,11 @@ local function ReconstructMapData(key)
             end
         end
     end
+    -- A creature: its name, portrait and zone from the creature catalog.
+    local creature = category == "npc" and ns.GPSNpcs and ns.GPSNpcs.ByName and ns.GPSNpcs.ByName(name)
+    local zoneInfo = creature and mapID and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
     return {
-        name = properName or name,
+        name = (creature and creature.name) or properName or name,
         nameLower = name,
         category = category,
         mapSearchResult = true,
@@ -96,6 +99,9 @@ local function ReconstructMapData(key)
         y = tonumber(yi) / 10000,
         isZone = isZone or nil,
         zoneMapID = isZone and mapID or nil,
+        zoneName = zoneInfo and zoneInfo.name or nil,
+        npcID = creature and creature.npcID or nil,
+        displayID = creature and creature.displayID or nil,
     }
 end
 
@@ -249,8 +255,32 @@ function Aliases:BuildSnapshot(data)
         entranceIcon = data.entranceIcon,
         entranceCategory = data.entranceCategory,
         isDungeonEntrance = data.isDungeonEntrance,
+        npcID = data.npcID,
+        displayID = data.displayID,
     }
 end
+
+-- A saved creature row without its portrait (saved before rows carried
+-- one) takes it from the creature catalog by name, once.
+local function FillCreature(entry)
+    if not (entry and entry.category == "npc" and not entry.displayID) then return entry end
+    local npcs = ns.GPSNpcs
+    local hit = npcs and npcs.ByName and npcs.ByName(entry.nameLower or entry.name)
+    if hit then
+        entry.name = hit.name
+        entry.displayID = hit.displayID
+        entry.npcID = entry.npcID or hit.npcID
+    end
+    return entry
+end
+
+-- A saved map row: the snapshot first, which keeps the proper-case name
+-- and the zone; the key's own rebuild only lowercases them back.
+local function SavedEntry(key, snapshot)
+    if snapshot and smatch(key or "", "^map:") then return FillCreature(snapshot) end
+    return FillCreature(Aliases:FindEntryByKey(key) or snapshot)
+end
+Aliases.SavedEntry = SavedEntry
 
 ---Stores an alias pointing at the given entry. Returns true on success,
 ---false if the alias text or entry is unsuitable.
@@ -647,8 +677,7 @@ function Learned:GetBoost(queryLower)
     if type(store) ~= "table" then return nil end
     local rec, _, typedPast = ResolveRecord(store, queryLower)
     if not rec then return nil end
-    local entry = Aliases:FindEntryByKey(rec.key)
-    if not entry then entry = rec.snapshot end
+    local entry = SavedEntry(rec.key, rec.snapshot)
     if entry and typedPast and not LearnedStillMatches(entry, queryLower) then
         return nil
     end
@@ -657,7 +686,7 @@ function Learned:GetBoost(queryLower)
     if entry and rec.prev then
         for i = 1, #rec.prev do
             local p = rec.prev[i]
-            local e = Aliases:FindEntryByKey(p.key) or p.snapshot
+            local e = SavedEntry(p.key, p.snapshot)
             if e and e ~= entry and not (typedPast and not LearnedStillMatches(e, queryLower)) then
                 extras = extras or {}
                 extras[#extras + 1] = e
