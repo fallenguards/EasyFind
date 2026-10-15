@@ -350,7 +350,12 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         if catIconDef and resultRow.flatCatIcon then
             local sz = entry.isFlat and (entryRowH - 16) or rowIconSize
             resultRow.flatCatIcon:SetTexture(catIconDef.tex)
-            resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
+            if catIconDef.coords then
+                resultRow.flatCatIcon:SetTexCoord(catIconDef.coords[1], catIconDef.coords[2],
+                                                  catIconDef.coords[3], catIconDef.coords[4])
+            else
+                resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
+            end
             resultRow.flatCatIcon:SetDesaturated(false)
             resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, nil)
