@@ -627,6 +627,7 @@ local function CreateRow(i)
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.check:SetSize(24, 24)
     row.check:SetPoint("LEFT", row, "LEFT", 0, 0)
+    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, 24) end
     row.check:SetScript("OnClick", function(self)
         local rule = row.rule
         rule.on = self:GetChecked() and true or false
@@ -655,14 +656,9 @@ end
 function Window.Refresh()
     if not (UI.win and UI.listView:IsShown()) then return end
     local rules = Store:Rules()
-    for i, rule in ipairs(rules) do
-        local row = UI.rows[i] or CreateRow(i)
-        row.rule = rule
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", UI.listView, "TOPLEFT", 0, -(i - 1) * ROW_H)
-        row:SetPoint("RIGHT", UI.listView, "RIGHT", 0, 0)
-        row.check:SetChecked(rule.on)
-        row.title:SetText(rule.name or T.Summary(rule))
+    local n = 0
+    for _, rule in ipairs(rules) do
+        local title = rule.name or T.Summary(rule)
         local parts = {}
         for _, cond in ipairs(rule.conds) do parts[#parts + 1] = C.Text(cond) end
         local missing = T.Missing(rule)
@@ -671,16 +667,36 @@ function Window.Refresh()
         elseif rule.lastFired then
             parts[#parts + 1] = sformat(L["ALERTS_RANG_FMT"], Ago(rule.lastFired))
         end
-        row.sub:SetText(table.concat(parts, ", "))
-        row:SetAlpha(rule.on and 1 or 0.55)
-        row:Show()
+        local sub = table.concat(parts, ", ")
+        local shown = not UI.filter or (title .. " " .. sub):lower():find(UI.filter, 1, true) ~= nil
+        if shown then
+            n = n + 1
+            local row = UI.rows[n] or CreateRow(n)
+            row.rule = rule
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", UI.listView, "TOPLEFT", 0, -(n - 1) * ROW_H)
+            row:SetPoint("RIGHT", UI.listView, "RIGHT", 0, 0)
+            row.check:SetChecked(rule.on)
+            row.title:SetText(title)
+            row.sub:SetText(sub)
+            -- With nothing under it the title sits on the row's middle line.
+            row.title:ClearAllPoints()
+            if sub == "" then
+                row.title:SetPoint("LEFT", row, "LEFT", 30, 0)
+            else
+                row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 30, -4)
+            end
+            row.title:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+            row:SetAlpha(rule.on and 1 or 0.55)
+            row:Show()
+        end
     end
-    for i = #rules + 1, #UI.rows do UI.rows[i]:Hide() end
+    for i = n + 1, #UI.rows do UI.rows[i]:Hide() end
     local empty = #rules == 0
     UI.empty:SetShown(empty)
     UI.emptyList:SetShown(empty)
     UI.emptyOwn:SetShown(empty)
-    UI.listView:SetHeight(mmax(1, #rules * ROW_H))
+    UI.listView:SetHeight(mmax(1, n * ROW_H))
     UI.fit()
 end
 
@@ -720,6 +736,15 @@ local function EnsureWindow()
     win.glyph:SetSize(16, 16)
     win.glyph:SetPoint("TOPLEFT", win, "TOPLEFT", PAD + 2, -9)
     win.glyph:SetTexture(ns.ALERTS_ICON_TEX)
+    -- The glyph in the theme's glyph color: dark on a light theme.
+    local function PaintGlyph()
+        local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local c = theme and theme.lightTheme and (theme.leafColor or theme.textFaint)
+        if c then win.glyph:SetVertexColor(c[1], c[2], c[3], 1) else win.glyph:SetVertexColor(1, 1, 1, 1) end
+    end
+    PaintGlyph()
+    win:HookScript("OnShow", PaintGlyph)
+    if ns.RegisterThemeCallback then ns.RegisterThemeCallback(PaintGlyph) end
     win.title = Text(win, "GameFontNormal")
     win.title:SetPoint("LEFT", win.glyph, "RIGHT", 6, 0)
     win.title:SetText(L["APP_ALERTS"])
@@ -729,6 +754,21 @@ local function EnsureWindow()
     UI.newBtn = ns.CreateModernButton(win, L["ALERTS_NEW_BTN"], 110, 22)
     UI.newBtn:SetPoint("RIGHT", close, "LEFT", -8, 0)
     UI.newBtn:SetScript("OnClick", function(self) ShowMenu(self, NewMenuRows()) end)
+    -- A search over the list, between the title and the button: typed
+    -- words keep the alerts whose name or conditions carry them.
+    UI.search = CreateFrame("EditBox", nil, win, "SearchBoxTemplate")
+    UI.search:SetHeight(20)
+    UI.search:SetPoint("LEFT", win.title, "RIGHT", 12, 0)
+    UI.search:SetPoint("RIGHT", UI.newBtn, "LEFT", -8, 0)
+    UI.search:SetAutoFocus(false)
+    local hint = UI.search.Instructions
+    if type(hint) == "table" and hint.SetText then hint:SetText(L["ALERTS_SEARCH_PH"]) end
+    UI.search:HookScript("OnTextChanged", function(self)
+        local q = (self:GetText() or ""):lower()
+        UI.filter = q ~= "" and q or nil
+        Window.Refresh()
+    end)
+    UI.search:HookScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
     UI.back = ns.CreateModernButton(win, _G["BACK"] or L["ALERTS_BACK"], 70, 22)
     UI.back:SetPoint("RIGHT", close, "LEFT", -8, 0)
     UI.back:SetScript("OnClick", ShowList)
