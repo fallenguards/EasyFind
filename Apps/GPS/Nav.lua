@@ -10,9 +10,9 @@ if not ns then return end
 local Nav = {}
 ns.GPSNav = Nav
 
-local sbyte, mfloor, msqrt, mhuge, mabs = string.byte, math.floor, math.sqrt, math.huge, math.abs
+local sbyte, schar, mfloor, msqrt, mhuge, mabs = string.byte, string.char, math.floor, math.sqrt, math.huge, math.abs
 local mmax, mmin = math.max, math.min
-local tinsert, tremove, tsort = table.insert, table.remove, table.sort
+local tinsert, tremove, tsort, tconcat = table.insert, table.remove, table.sort, table.concat
 
 local TILE = 1600 / 3
 local ORIGIN = 32 * TILE
@@ -113,80 +113,116 @@ end
 
 local BIT = { [0] = 1, 2, 4, 8, 16, 32, 64, 128 }
 
+-- A decoded tile holds, per cell, its first floor's index (one past the
+-- last cell closes the list) and, per floor, its cell and its data byte
+-- with the cell's road bit above: bits 0-1 the flags (swimming, indoors),
+-- 2-4 the west link, 5-7 the north link, 8 the road. Links, weights and
+-- the east and south ways are read out of those as asked.
 local function DecodeTile(w, key)
     local s = w.data.tiles[key]
     if not s then return nil end
     local raw = Unpack(s)
     local N = w.N
     local NN = N * N
-    local cellFirst, cellN, fcell = {}, {}, {}
-    local counts = Bytes(raw, 1, NN, {}, 0)
-    local f = 0
-    for c = 0, NN - 1 do
-        local n = counts[c]
-        cellFirst[c], cellN[c] = f + 1, n
-        for _ = 1, n do
-            f = f + 1
-            fcell[f] = c
+    local cellFirst, fcell, b = {}, {}, {}
+    local f, c, i = 0, 0, 1
+    while c < NN do
+        local j = mmin(NN, i + RUN - 1)
+        local run = { sbyte(raw, i, j) }
+        for k = 1, j - i + 1 do
+            cellFirst[c] = f + 1
+            for _ = 1, run[k] do
+                f = f + 1
+                fcell[f] = c
+            end
+            c = c + 1
         end
+        i = j + 1
+        Pause()
     end
-    local pos = NN + 1
-    local bytes = Bytes(raw, pos, pos + f - 1, {}, 1)
-    pos = pos + f
+    cellFirst[NN] = f + 1
     -- Road cells: a bit each after the floors, low bit first.
-    local roadBytes = Bytes(raw, pos, pos + mfloor((NN + 7) / 8) - 1, {}, 0)
-    -- Per floor: its flags, its links west and north (the data's; east
-    -- and south are read back from them as asked), and what a yard on it
-    -- costs to choose.
-    local flag, wc, nc, wt, W, Nn = {}, {}, {}, {}, {}, {}
-    for g = 1, f do
-        if g % 4096 == 0 then Pause() end
-        local b = bytes[g]
-        local fl = b % 4
-        local k = mfloor(b / 4) % 8
-        flag[g], wc[g] = fl, k
-        local c = fcell[g]
-        if k > 0 and c % N < N - 1 and k <= cellN[c + 1] then W[g] = cellFirst[c + 1] + k - 1 end
-        k = mfloor(b / 32)
-        nc[g] = k
-        if k > 0 and c < NN - N and k <= cellN[c + N] then Nn[g] = cellFirst[c + N] + k - 1 end
-        local rb = roadBytes[mfloor(c / 8)]
-        local onRoad = rb and mfloor(rb / BIT[c % 8]) % 2 == 1
-        wt[g] = (fl % 2 == 1 and SWIM_WEIGHT or 1) * (onRoad and 1 or offRoad)
+    local road = Bytes(raw, NN + f + 1, NN + f + mfloor((NN + 7) / 8), {}, 0)
+    local g = 0
+    i = NN + 1
+    while g < f do
+        local j = mmin(NN + f, i + RUN - 1)
+        local run = { sbyte(raw, i, j) }
+        for k = 1, j - i + 1 do
+            g = g + 1
+            local cg = fcell[g]
+            local rb = road[mfloor(cg / 8)]
+            b[g] = run[k] + ((rb and mfloor(rb / BIT[cg % 8]) % 2 == 1) and 256 or 0)
+        end
+        i = j + 1
+        Pause()
     end
     local tx, ty = mfloor(key / 64), key % 64
-    return { key = key, tx = tx, ty = ty, N = N, nf = f, cellFirst = cellFirst, cellN = cellN,
-             fcell = fcell, flag = flag, wc = wc, nc = nc, wt = wt, W = W, N_ = Nn,
+    return { key = key, tx = tx, ty = ty, N = N, NN = NN, nf = f, cellFirst = cellFirst, fcell = fcell, b = b,
              sx = ORIGIN - ty * TILE - TILE, sy = ORIGIN - tx * TILE - TILE }
 end
 
+-- By a floor's byte: its west link, its north link, its swimming factor
+-- and what a yard on it costs to choose; table reads, no arithmetic, in
+-- the searches.
+local WC, NC, SW, WT = {}, {}, {}, {}
+for v = 0, 511 do
+    WC[v], NC[v] = mfloor(v / 4) % 8, mfloor(v / 32) % 8
+    SW[v] = v % 2 == 1 and SWIM_WEIGHT or 1
+end
+local function Reweigh()
+    for v = 0, 511 do WT[v] = SW[v] * (v >= 256 and 1 or offRoad) end
+end
+Reweigh()
+
+-- The floor west (north) of g inside its tile, or nil.
+local function WestOf(t, g)
+    local k = WC[t.b[g]]
+    if k == 0 then return nil end
+    local c, N = t.fcell[g], t.N
+    if c % N == N - 1 then return nil end
+    return t.cellFirst[c + 1] + k - 1
+end
+local function NorthOf(t, g)
+    local k = NC[t.b[g]]
+    if k == 0 then return nil end
+    local c, N = t.fcell[g], t.N
+    if c >= t.NN - N then return nil end
+    return t.cellFirst[c + N] + k - 1
+end
+
 -- The floor east (south) of g inside its tile: the first in the cell
--- before (a row before) that links west (north) to g, or nil.
+-- before (a row before) whose west (north) link is g's rank in its cell.
 local function East(t, g)
     local c = t.fcell[g]
     if c % t.N == 0 then return nil end
-    local cc, W = c - 1, t.W
-    for o = t.cellFirst[cc], t.cellFirst[cc] + t.cellN[cc] - 1 do
-        if W[o] == g then return o end
+    local cellFirst, b = t.cellFirst, t.b
+    local rank = g - cellFirst[c] + 1
+    for o = cellFirst[c - 1], cellFirst[c] - 1 do
+        if WC[b[o]] == rank then return o end
     end
     return nil
 end
 local function South(t, g)
-    local c = t.fcell[g]
-    local N = t.N
+    local c, N = t.fcell[g], t.N
     if c < N then return nil end
-    local cc, Nn = c - N, t.N_
-    for o = t.cellFirst[cc], t.cellFirst[cc] + t.cellN[cc] - 1 do
-        if Nn[o] == g then return o end
+    local cellFirst, b = t.cellFirst, t.b
+    local rank = g - cellFirst[c] + 1
+    for o = cellFirst[c - N], cellFirst[c - N + 1] - 1 do
+        if NC[b[o]] == rank then return o end
     end
     return nil
 end
 
 local function Tile(w, key)
     local t = w.tiles[key]
-    if t then return t end
+    if t then
+        t.at = GetTime()
+        return t
+    end
     t = DecodeTile(w, key)
     if not t then return nil end
+    t.at = GetTime()
     w.tiles[key] = t
     local order = w.order
     order[#order + 1] = key
@@ -213,21 +249,21 @@ local function Step(w, t, g, d)
     local c = t.fcell[g]
     local r, col = mfloor(c / N), c % N
     if d == 2 then
-        if col < N - 1 then local o = t.W[g] return o and t, o end
-        local k = t.wc[g]
+        if col < N - 1 then local o = WestOf(t, g) return o and t, o end
+        local k = WC[t.b[g]]
         if k == 0 then return nil end
         local u = Tile(w, t.key - 64)
         if not u then return nil end
         local cc = r * N
-        if k > u.cellN[cc] then return nil end
+        if k > u.cellFirst[cc + 1] - u.cellFirst[cc] then return nil end
         return u, u.cellFirst[cc] + k - 1
     elseif d == 1 then
-        if r < N - 1 then local o = t.N_[g] return o and t, o end
-        local k = t.nc[g]
+        if r < N - 1 then local o = NorthOf(t, g) return o and t, o end
+        local k = NC[t.b[g]]
         if k == 0 then return nil end
         local u = Tile(w, t.key - 1)
         if not u then return nil end
-        if k > u.cellN[col] then return nil end
+        if k > u.cellFirst[col + 1] - u.cellFirst[col] then return nil end
         return u, u.cellFirst[col] + k - 1
     elseif d == 0 then
         if col > 0 then local o = East(t, g) return o and t, o end
@@ -235,8 +271,8 @@ local function Step(w, t, g, d)
         if not u then return nil end
         local cc = r * N + N - 1
         local rank = Rank(t, g)
-        for o = u.cellFirst[cc], u.cellFirst[cc] + u.cellN[cc] - 1 do
-            if u.wc[o] == rank then return u, o end
+        for o = u.cellFirst[cc], u.cellFirst[cc + 1] - 1 do
+            if WC[u.b[o]] == rank then return u, o end
         end
     else
         if r > 0 then local o = South(t, g) return o and t, o end
@@ -244,8 +280,8 @@ local function Step(w, t, g, d)
         if not u then return nil end
         local cc = (N - 1) * N + col
         local rank = Rank(t, g)
-        for o = u.cellFirst[cc], u.cellFirst[cc] + u.cellN[cc] - 1 do
-            if u.nc[o] == rank then return u, o end
+        for o = u.cellFirst[cc], u.cellFirst[cc + 1] - 1 do
+            if NC[u.b[o]] == rank then return u, o end
         end
     end
     return nil
@@ -281,6 +317,7 @@ function Nav.SetRoads(on)
     if on == roadsOnly then return end
     roadsOnly = on
     offRoad = on and OFF_ROAD_STRICT or OFF_ROAD_WEIGHT
+    Reweigh()
     Reset()
 end
 
@@ -313,8 +350,8 @@ local function Locate(w, x, y, indoors, snap)
             for c = c0 - ring, c0 + ring do
                 if (mabs(r - r0) == ring or mabs(c - c0) == ring) and r >= 0 and c >= 0 and r < N and c < N then
                     local cc = r * N + c
-                    for g = t.cellFirst[cc], t.cellFirst[cc] + t.cellN[cc] - 1 do
-                        local inside = mfloor(t.flag[g] / 2) == 1
+                    for g = t.cellFirst[cc], t.cellFirst[cc + 1] - 1 do
+                        local inside = t.b[g] % 4 >= 2
                         local score = ((indoors and inside) or (not indoors and not inside)) and 100 or 0
                         score = score + (g - t.cellFirst[cc]) - ring * 1000
                         if not bestScore or score > bestScore then best, bestScore = g, score end
@@ -370,44 +407,58 @@ end
 -- where both ways round the corner are open.
 local nbScratch, nbLen = {}, {}
 local function TileNeighbours(t, g)
-    local W, Nn = t.W, t.N_
-    local cellFirst, cellN = t.cellFirst, t.cellN
-    local c, N = t.fcell[g], t.N
-    local w0, n0 = W[g], Nn[g]
+    local cellFirst, b = t.cellFirst, t.b
+    local c, N, NN = t.fcell[g], t.N, t.NN
+    local bg = b[g]
+    local w0, n0
+    local k = WC[bg]
+    if k > 0 and c % N < N - 1 then w0 = cellFirst[c + 1] + k - 1 end
+    k = NC[bg]
+    if k > 0 and c < NN - N then n0 = cellFirst[c + N] + k - 1 end
     local n = 0
     if w0 then n = n + 1; nbScratch[n], nbLen[n] = w0, 1 end
     if n0 then n = n + 1; nbScratch[n], nbLen[n] = n0, 1 end
-    -- East and south: every floor in the cell before (a row before) that
-    -- links west (north) to g; the first of each for the diagonals.
+    -- East and south: every floor in the cell before (a row before) whose
+    -- west (north) link is g's rank in its cell; the first of each for the
+    -- diagonals.
+    local rank = g - cellFirst[c] + 1
     local e0, s0
     if c % N > 0 then
-        local cc = c - 1
-        for o = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
-            if W[o] == g then n = n + 1; nbScratch[n], nbLen[n] = o, 1; e0 = e0 or o end
+        for o = cellFirst[c - 1], cellFirst[c] - 1 do
+            if WC[b[o]] == rank then n = n + 1; nbScratch[n], nbLen[n] = o, 1; e0 = e0 or o end
         end
     end
     if c >= N then
-        local cc = c - N
-        for o = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
-            if Nn[o] == g then n = n + 1; nbScratch[n], nbLen[n] = o, 1; s0 = s0 or o end
+        for o = cellFirst[c - N], cellFirst[c - N + 1] - 1 do
+            if NC[b[o]] == rank then n = n + 1; nbScratch[n], nbLen[n] = o, 1; s0 = s0 or o end
         end
     end
+    -- Diagonals, by the links' ranks: the corner cell's floor is the one
+    -- both ways round reach, and the straight ways found above keep the
+    -- edge checks already made.
     if n0 and w0 then
-        local x = W[n0]
-        if x and Nn[w0] == x then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+        local kd = WC[b[n0]]
+        if kd > 0 and NC[b[w0]] == kd then n = n + 1; nbScratch[n], nbLen[n] = cellFirst[c + N + 1] + kd - 1, DIAG end
     end
     if n0 and e0 then
-        local x = Nn[e0]
-        if x and W[x] == n0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+        local kd = NC[b[e0]]
+        if kd > 0 then
+            local x = cellFirst[c + N - 1] + kd - 1
+            if WC[b[x]] == n0 - cellFirst[c + N] + 1 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+        end
     end
     if s0 and w0 then
-        local x = W[s0]
-        if x and Nn[x] == w0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+        local kd = WC[b[s0]]
+        if kd > 0 then
+            local x = cellFirst[c - N + 1] + kd - 1
+            if NC[b[x]] == w0 - cellFirst[c + 1] + 1 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG end
+        end
     end
     if s0 and e0 then
-        local cc = c - 1 - N
-        for x = cellFirst[cc], cellFirst[cc] + cellN[cc] - 1 do
-            if W[x] == s0 and Nn[x] == e0 then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG break end
+        local rs, re = s0 - cellFirst[c - N] + 1, e0 - cellFirst[c - 1] + 1
+        for x = cellFirst[c - 1 - N], cellFirst[c - N] - 1 do
+            local bx = b[x]
+            if WC[bx] == rs and NC[bx] == re then n = n + 1; nbScratch[n], nbLen[n] = x, DIAG break end
         end
     end
     return n
@@ -425,7 +476,7 @@ local function TileSearch(w, t, g0, goal, want, left)
     local cost, prev, closed, time = {}, {}, {}, {}
     local cell = w.cell * Danger(w, t.key) / 2
     local half = w.cell / 2
-    local wt, flag = t.wt, t.flag
+    local fb = t.b
     local pops = 0
     if goal then
         local heap = NewHeap()
@@ -449,16 +500,18 @@ local function TileSearch(w, t, g0, goal, want, left)
             if not closed[g] then
                 closed[g] = true
                 if g == goal then break end
-                local base, wg, tbase = cost[g], wt[g], time[g]
-                local sg = flag[g] % 2 == 1 and SWIM_WEIGHT or 1
+                local base, bg, tbase = cost[g], fb[g], time[g]
+                local sg, wg = SW[bg], WT[bg]
                 local n = TileNeighbours(t, g)
                 for k = 1, n do
                     local o = nbScratch[k]
                     if not closed[o] then
-                        local nc = base + nbLen[k] * cell * (wg + wt[o])
+                        local bo = fb[o]
+                        local so = SW[bo]
+                        local nc = base + nbLen[k] * cell * (wg + WT[bo])
                         if not cost[o] or nc < cost[o] then
                             cost[o], prev[o] = nc, g
-                            time[o] = tbase + nbLen[k] * half * (sg + (flag[o] % 2 == 1 and SWIM_WEIGHT or 1))
+                            time[o] = tbase + nbLen[k] * half * (sg + so)
                             local ox, oy = FloorXY(w, t, o)
                             heap:Push(nc + msqrt((gx - ox) ^ 2 + (gy - oy) ^ 2), o)
                         end
@@ -505,16 +558,18 @@ local function TileSearch(w, t, g0, goal, want, left)
                     left = left - 1
                     if left == 0 then return cost, prev, time end
                 end
-                local base, wg, tbase = cost[g], wt[g], time[g]
-                local sg = flag[g] % 2 == 1 and SWIM_WEIGHT or 1
+                local base, bg, tbase = cost[g], fb[g], time[g]
+                local sg, wg = SW[bg], WT[bg]
                 local n = TileNeighbours(t, g)
                 for k = 1, n do
                     local o = nbScratch[k]
                     if not closed[o] then
-                        local nc = base + nbLen[k] * cell * (wg + wt[o])
+                        local bo = fb[o]
+                        local so = SW[bo]
+                        local nc = base + nbLen[k] * cell * (wg + WT[bo])
                         if not cost[o] or nc < cost[o] then
                             cost[o], prev[o] = nc, g
-                            time[o] = tbase + nbLen[k] * half * (sg + (flag[o] % 2 == 1 and SWIM_WEIGHT or 1))
+                            time[o] = tbase + nbLen[k] * half * (sg + so)
                             Put(o, nc)
                         end
                     end
@@ -527,24 +582,30 @@ local function TileSearch(w, t, g0, goal, want, left)
     return cost, prev, time
 end
 
--- Entrances: per entrance two sides (tile, floor, cell); side 1 of entrance
--- e is node 2e - 1, side 2 node 2e.
+-- Entrances: per entrance two sides, side 1 of entrance e node 2e - 1,
+-- side 2 node 2e; a side is one number, its tile key, cell and floor packed.
 local function Entrances(w)
     if w.ents then return w.ents end
     local u = Reader(Unpack(w.data.ents))
     local n = u()
-    local e = { n = n, key = {}, floor = {}, x = {}, y = {} }
-    local N, cell = w.N, w.cell
+    local e = { n = n, v = {} }
+    local v = e.v
     for k = 1, 2 * n do
         if k % 4096 == 0 then Pause() end
         local key, f, c = u(), u(), u()
-        local tx, ty = mfloor(key / 64), key % 64
-        e.key[k], e.floor[k] = key, f
-        e.x[k] = ORIGIN - ty * TILE - TILE + (mfloor(c / N) + 0.5) * cell
-        e.y[k] = ORIGIN - tx * TILE - TILE + (c % N + 0.5) * cell
+        v[k] = key * 4294967296 + c * 131072 + f
     end
     w.ents = e
     return e
+end
+local function SideKey(v) return mfloor(v / 4294967296) end
+local function SideFloor(v) return v % 131072 end
+-- World point of a side's cell.
+local function SideXY(w, v)
+    local key, c = mfloor(v / 4294967296), mfloor(v / 131072) % 32768
+    local tx, ty = mfloor(key / 64), key % 64
+    local N, cell = w.N, w.cell
+    return ORIGIN - ty * TILE - TILE + (mfloor(c / N) + 0.5) * cell, ORIGIN - tx * TILE - TILE + (c % N + 0.5) * cell
 end
 
 local function TileCosts(w, key)
@@ -559,9 +620,11 @@ local function TileCosts(w, key)
     for k = 1, n do
         last = last + i()
         -- The entrance's side in this tile (ids count from 0 in the data).
-        local node = (ents.key[2 * last + 1] == key) and (2 * last + 1) or (2 * last + 2)
+        local node = (SideKey(ents.v[2 * last + 1]) == key) and (2 * last + 1) or (2 * last + 2)
         side[k], at[node] = node, k
     end
+    local sx, sy = {}, {}
+    for k = 1, n do sx[k], sy[k] = SideXY(w, ents.v[side[k]]) end
     -- Each pair's cost by its index in the upper triangle: the straight
     -- line plus the way around, false where no way joins them; and that
     -- way's time, the cost less what leaving roads added, as 127ths of
@@ -569,7 +632,7 @@ local function TileCosts(w, key)
     -- not shipped yet) lists every ordered pair; the way from the lower
     -- side is taken.
     local oneway = u() == 1
-    local cost, time, ex, ey = {}, {}, ents.x, ents.y
+    local cost, time = {}, {}
     local function Pair(a, b, p)
         local code = u()
         if code == 0 then
@@ -577,9 +640,8 @@ local function TileCosts(w, key)
         else
             local off = u()
             if p then
-                local na, nb = side[a], side[b]
                 local around = (code - 1) / 2
-                local c = msqrt((ex[na] - ex[nb]) ^ 2 + (ey[na] - ey[nb]) ^ 2) + around
+                local c = msqrt((sx[a] - sx[b]) ^ 2 + (sy[a] - sy[b]) ^ 2) + around
                 cost[p], time[p] = c, c - off / 127 * around
             end
         end
@@ -612,7 +674,7 @@ local function EntranceCosts(w, t, cost, time)
     local out, outT = {}, {}
     for k = 1, tc and tc.n or 0 do
         local node = tc.side[k]
-        local f = ents.floor[node]
+        local f = SideFloor(ents.v[node])
         local c = cost[f]
         if c then out[node], outT[node] = c, time[f] end
     end
@@ -628,7 +690,7 @@ local function ToEntrances(w, t, g)
     local tc, ents = TileCosts(w, t.key), Entrances(w)
     local want, left = {}, 0
     for k = 1, tc and tc.n or 0 do
-        local f = ents.floor[tc.side[k]]
+        local f = SideFloor(ents.v[tc.side[k]])
         if not want[f] then want[f], left = true, left + 1 end
     end
     local cost, _, time = TileSearch(w, t, g, nil, want, left)
@@ -710,7 +772,7 @@ local function NearEnd(w, x, y, r, fromKey)
             for row = mmax(0, mfloor((x - r - sx) / cell)), mmin(N - 1, mfloor((x + r - sx) / cell)) do
                 for col = mmax(0, mfloor((y - r - sy) / cell)), mmin(N - 1, mfloor((y + r - sy) / cell)) do
                     local cc = row * N + col
-                    for g = t and t.cellFirst[cc] or 1, t and t.cellFirst[cc] + t.cellN[cc] - 1 or 0 do
+                    for g = t and t.cellFirst[cc] or 1, t and t.cellFirst[cc + 1] - 1 or 0 do
                         local gx, gy = FloorXY(w, t, g)
                         local d = msqrt((gx - x) ^ 2 + (gy - y) ^ 2)
                         if d <= r then
@@ -768,18 +830,24 @@ local function Landmarks(w)
     if not a then w.alt = false return nil end
     local _, i = Reader(Unpack(a.d))
     local n = Entrances(w).n
-    local tabs = {}
+    -- Per landmark a string, three bytes an entrance.
+    local tabs, parts = {}, {}
     for l = 1, a.n do
-        local t, last = {}, 0
+        local last = 0
         for e = 1, n do
             if e % 4096 == 0 then Pause() end
             last = last + i()
-            t[e] = last
+            parts[e] = schar(last % 256, mfloor(last / 256) % 256, mfloor(last / 65536))
         end
-        tabs[l] = t
+        tabs[l] = tconcat(parts, "", 1, n)
     end
     w.alt = tabs
     return tabs
+end
+-- Whole yards from a landmark to entrance e, 0 unknown.
+local function Mark(s, e)
+    local lo, mid, hi = sbyte(s, 3 * e - 2, 3 * e)
+    return lo + mid * 256 + hi * 65536
 end
 
 -- The cheapest way over the entrance sides from fromA's sides to toB's,
@@ -792,11 +860,11 @@ end
 local marksPick = {}
 local function Search(w, fromA, toB, bx, by, best, limit, circle)
     local ents = Entrances(w)
-    local ex, ey = ents.x, ents.y
+    local ev = ents.v
     local alt = not circle and Landmarks(w)
     -- The landmarks used: those whose bound between the nearest sides of
     -- the two ends is largest, as they tell the most along the way.
-    local used, K = {}, 0
+    local used, used0, K = {}, {}, 0
     local e0, fin0
     if alt then
         local es, cs = nil, mhuge
@@ -812,7 +880,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
         fin0 = fin0 + w.cell + 1.25
         local n = 0
         for l = 1, #alt do
-            local d0, ds = alt[l][e0], alt[l][es]
+            local d0, ds = Mark(alt[l], e0), Mark(alt[l], es)
             if d0 > 0 and ds > 0 then
                 n = n + 1
                 marksPick[n] = l
@@ -824,6 +892,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
         for k = 1, mmin(n, LANDMARKS_USED) do
             K = K + 1
             used[K] = alt[marksPick[k]]
+            used0[K] = Mark(used[K], e0)
         end
     end
     local slack = circle or 0
@@ -831,11 +900,11 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
     local function H(node)
         local h = hc[node]
         if h then return h end
-        h = msqrt((bx - ex[node]) ^ 2 + (by - ey[node]) ^ 2) - slack
+        local x, y = SideXY(w, ev[node])
+        h = msqrt((bx - x) ^ 2 + (by - y) ^ 2) - slack
         local e = (node + node % 2) / 2
         for l = 1, K do
-            local t = used[l]
-            local d0, dv = t[e0], t[e]
+            local d0, dv = used0[l], Mark(used[l], e)
             if dv > 0 then
                 local diff = (d0 > dv and d0 - dv or dv - d0) - fin0
                 if diff > h then h = diff end
@@ -876,7 +945,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle)
                 g[o], prev[o] = c, node
                 heap:Push(c + H(o), o)
             end
-            local key = ents.key[node]
+            local key = SideKey(ev[node])
             local tc = TileCosts(w, key)
             if tc then
                 local df = Danger(w, key)
@@ -956,7 +1025,7 @@ local function Walk(w, ax, ay, bx, by, opts)
             if n2 == Other(n1) then
                 time = time + w.cell
             else
-                local tc = TileCosts(w, ents.key[n1])
+                local tc = TileCosts(w, SideKey(ents.v[n1]))
                 local i, j, n = tc.at[n1], tc.at[n2], tc.n
                 time = time + tc.time[j > i and ((i - 1) * n - (i - 1) * i / 2 - i + j)
                                       or ((j - 1) * n - (j - 1) * j / 2 + (i - j))]
@@ -973,6 +1042,7 @@ local function Marks(w, x, y)
     local key = mfloor(x) .. ":" .. mfloor(y)
     local m = w.marks[key]
     if m ~= nil then return m or nil end
+    w.used = GetTime()
     local alt = Landmarks(w)
     local _, _, reach = End(w, x, y)
     if not (alt and reach) then
@@ -981,9 +1051,9 @@ local function Marks(w, x, y)
     end
     m = {}
     for l = 1, #alt do
-        local t, least = alt[l], mhuge
+        local s, least = alt[l], mhuge
         for node, fin in pairs(reach) do
-            local d = t[(node + node % 2) / 2]
+            local d = Mark(s, (node + node % 2) / 2)
             if d > 0 and fin + d < least then least = fin + d end
         end
         m[l] = least < mhuge and least or false
@@ -1036,6 +1106,7 @@ local function Kept(w, ax, ay, bx, by, opts)
         .. ((opts and opts.limit) and ("L" .. mfloor(opts.limit)) or "")
         .. ((opts and opts.near) and ("N" .. opts.near) or "")
     local walk = w.walks[key]
+    w.used = GetTime()
     if walk == nil then
         if w.walksN >= WALKS_KEPT then w.walks, w.walksN = {}, 0 end
         local cost, chain, keyA, ga, keyB, gb, time = Walk(w, ax, ay, bx, by, opts)
@@ -1072,6 +1143,34 @@ function Nav.Warm(ci)
     Entrances(w)
     Ground(w)
     Landmarks(w)
+end
+
+-- Decoded data idle for age seconds goes: a tile by its last read, and a
+-- continent's entrance sides, grounds, landmarks and kept searches once
+-- no walk has asked for them. True while anything a walk decoded remains.
+function Nav.Release(age)
+    local now = GetTime()
+    local held = false
+    for _, w in pairs(worlds) do
+        local order = w.order
+        for i = #order, 1, -1 do
+            local key = order[i]
+            if w.tiles[key].at + age <= now then
+                w.tiles[key] = nil
+                tremove(order, i)
+            end
+        end
+        if #order > 0 then held = true end
+        if w.used then
+            if w.used + age <= now then
+                w.used, w.ents, w.ground, w.alt = nil, nil, nil, nil
+                w.walks, w.walksN, w.reach, w.reachN, w.costs, w.marks = {}, 0, {}, 0, {}, {}
+            else
+                held = true
+            end
+        end
+    end
+    return held
 end
 
 -- Drawing ---------------------------------------------------------------------
@@ -1115,7 +1214,7 @@ function Nav.Straight(ci, ax, ay, bx, by, indoors)
     local y1 = sy + (mfloor((by - sy) / cell) + 0.5) * cell
     local nr, ncl = mfloor(mabs(x1 - x0) / cell + 0.5), mfloor(mabs(y1 - y0) / cell + 0.5)
     local alongRow, alongCol = x1 > x0 and 1 or 3, y1 > y0 and 2 or 0
-    local dry = t.flag[g] % 2 == 0
+    local dry = t.b[g] % 2 == 0
     local ir, ic = 0, 0
     while ir < nr or ic < ncl do
         local stepRow = (0.5 + ir) * ncl < (0.5 + ic) * nr
@@ -1123,7 +1222,7 @@ function Nav.Straight(ci, ax, ay, bx, by, indoors)
         local d
         if stepRow then d, ir = alongRow, ir + 1 else d, ic = alongCol, ic + 1 end
         t, g = Step(w, t, g, d)
-        if not g or (dry and t.flag[g] % 2 == 1) then return false end
+        if not g or (dry and t.b[g] % 2 == 1) then return false end
     end
     return true
 end
@@ -1168,23 +1267,22 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     if not walk or walk.beyond then return nil end
     local cost, chain, keyA, ga, keyB, gb = walk[1], walk[2], walk[3], walk[4], walk[5], walk[6]
     if not keyB then return nil end
-    local ents = Entrances(w)
+    local ev = Entrances(w).v
     local out = { ax, ay }
     local t, g = Tile(w, keyA), ga
     local k = 1
     while k <= #chain do
         local node = chain[k]
-        local key = ents.key[node]
-        if key ~= t.key then return nil end
-        if not TilePath(w, t, g, ents.floor[node], out) then return nil end
+        if SideKey(ev[node]) ~= t.key then return nil end
+        if not TilePath(w, t, g, SideFloor(ev[node]), out) then return nil end
         -- Across: the next node is the other side when the walk crosses here.
         local nxt = chain[k + 1]
         if nxt == Other(node) then
-            t = Tile(w, ents.key[nxt])
-            g = ents.floor[nxt]
+            t = Tile(w, SideKey(ev[nxt]))
+            g = SideFloor(ev[nxt])
             k = k + 2
         else
-            g = ents.floor[node]
+            g = SideFloor(ev[node])
             k = k + 1
         end
         if not t then return nil end

@@ -219,5 +219,34 @@ function tests.shippedGrids_carryTheirGround()
     end
 end
 
+-- Decoded data idle for a while goes and comes back on the next walk the
+-- same; a tile read since then stays.
+function tests.release_letsIdleDataGo_keepsWhatWasRead()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
+    env.C_EncodingUtil = { DecodeBase64 = Inflate.DecodeBase64, DecompressString = function(s) return Inflate.Raw(s) end }
+    H.loadModule("tests/fixtures/nav_elwynn.lua", env, ns)
+    H.loadModule("Apps/GPS/Nav.lua", env, ns)
+    local Nav = ns.GPSNav
+    local cost = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local w = Nav._worlds[0]
+    H.assertTrue(#w.order > 0 and w.ents ~= nil, "the walk decoded tiles and entrance sides")
+    H.assertTrue(Nav.Release(60), "nothing idle yet: held")
+    H.assertTrue(#w.order > 0 and w.ents ~= nil, "and kept")
+    env._clock:advance(30)
+    Nav.Straight(0, GOLDSHIRE[1], GOLDSHIRE[2], GOLDSHIRE[1] + 5, GOLDSHIRE[2])
+    env._clock:advance(31)
+    H.assertTrue(Nav.Release(60), "the tile read since stays: held")
+    H.assertEq(#w.order, 1, "only the tile under the read point")
+    H.assertNil(w.ents, "the entrance sides went")
+    H.assertNil(w.alt, "the landmarks went")
+    env._clock:advance(61)
+    H.assertFalse(Nav.Release(60), "all gone")
+    H.assertEq(#w.order, 0)
+    H.assertEq(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]), cost, "the same walk after")
+end
+
 local pass, fail, failures = H.runSuite("GPSNav", tests)
 return { pass = pass, fail = fail, failures = failures }

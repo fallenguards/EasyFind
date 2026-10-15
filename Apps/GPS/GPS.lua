@@ -364,7 +364,20 @@ GPS.RefreshSurfaces = Refresh
 -- running. A plan that fails runs once more at once, guarded, so its
 -- fallback still comes.
 local PLAN_BUDGET_MS, PLAN_BUDGET_BACK_MS = 12, 6
-local Planner = { frame = CreateFrame("Frame") }
+local Planner = { frame = CreateFrame("Frame"), IDLE_RELEASE = 60 }
+
+-- A minute after the last plan the grid's decoded data goes (Nav.Release);
+-- what the arrow still reads stays, and the check comes round again
+-- while anything is held.
+function Planner.ReleaseLater()
+    if Planner.releaseWaits then return end
+    Planner.releaseWaits = true
+    Utils.SafeAfter(Planner.IDLE_RELEASE, function()
+        Planner.releaseWaits = false
+        local Nav = ns.GPSNav
+        if GPS:IsPlanning() or (Nav and Nav.Release(Planner.IDLE_RELEASE)) then Planner.ReleaseLater() end
+    end)
+end
 
 local function PlanStep()
     local co = Planner.co
@@ -388,6 +401,7 @@ local function PlanStep()
     end
     done(a, b, c)
     Refresh()
+    Planner.ReleaseLater()
 end
 
 -- build() runs in the plan; done gets what it returns. name: the place the
