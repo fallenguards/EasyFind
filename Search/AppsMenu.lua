@@ -534,11 +534,25 @@ local function BuildRows(dropdown)
             row.label:SetPoint("RIGHT", row, "RIGHT", -4, 0)
             row.label:SetJustifyH("LEFT")
 
-            row:SetScript("OnClick", function(self)
+            row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            row:SetScript("OnClick", function(self, button)
                 if not self.app then return end
+                -- Right-click: the extension's own menu, a button of it among its rows.
+                if button == "RightButton" then
+                    if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(self, self.app) end
+                    return
+                end
                 dropdown:Hide()
                 ns.ToggleApplication(self.app)
             end)
+            row:HookScript("OnEnter", function(self)
+                if not self.app then return end
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(self.app.name or "")
+                GameTooltip:AddLine(L["EXTBTN_DRAG_HINT"], 0.7, 0.7, 0.7, true)
+                GameTooltip:Show()
+            end)
+            row:HookScript("OnLeave", function() GameTooltip:Hide() end)
             -- Dragging a row out makes a button for that extension on
             -- screen (Search/ExtensionButtons.lua); the menu gets out of
             -- the way and a ghost rides the cursor until the drop.

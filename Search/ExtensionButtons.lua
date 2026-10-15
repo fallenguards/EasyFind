@@ -958,10 +958,28 @@ local function ShortkeyRow(app)
     }
 end
 
+-- An extension's own menu: its key, and a button of it on the screen,
+-- placed where the cursor is, as a drag out of the menu would.
 function ExtensionButtons:ShowAppMenu(anchor, app)
+    local defs = {}
     local row = ShortkeyRow(app)
-    if not row then return end
-    ns.ShowTogglePopup("EasyFindExtensionAppPopup", anchor, { row })
+    if row then
+        defs[#defs + 1] = row
+        defs[#defs + 1] = { kind = "separator" }
+    end
+    local appID = ns.ApplicationEntryID and ns.ApplicationEntryID(app)
+    if appID and not self:FindButtonFor(appID) then
+        defs[#defs + 1] = {
+            kind = "action", label = L["EXTBTN_POP_OUT"],
+            onClick = function()
+                local x, y = GetCursorPosition()
+                local scale = UIParent:GetEffectiveScale()
+                ExtensionButtons:CreateButtonAt(appID, x / scale, y / scale)
+            end,
+        }
+    end
+    if #defs == 0 then return end
+    ns.ShowTogglePopup("EasyFindExtensionAppPopup", anchor, defs)
 end
 
 local function ShowButtonMenu(btn)
