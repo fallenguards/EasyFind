@@ -191,6 +191,7 @@ local FLAT_CATEGORY_ICONS = {
     notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
     quicklist     = { tex = ns.QUICKLIST_ICON_TEX, chromeTint = true },
     clock         = { tex = ns.CLOCK_ICON_TEX, chromeTint = true },
+    chat          = { tex = 2056011, chromeTint = true },   -- the client's chat bubble
     alerts        = { tex = ns.ALERTS_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
@@ -220,6 +221,7 @@ function Icons:GetAppGlyphIcon(data)
     if data.clockLauncher then return FLAT_CATEGORY_ICONS.clock end
     if data.alertsLauncher then return FLAT_CATEGORY_ICONS.alerts end
     if data.windowsLauncher then return FLAT_CATEGORY_ICONS.window end
+    if data.chatLauncher then return FLAT_CATEGORY_ICONS.chat end
     return nil
 end
 

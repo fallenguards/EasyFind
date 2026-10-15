@@ -271,6 +271,15 @@ function ns.RequestNotes()
     return false
 end
 
+-- Chat (EasyFind_Chat): the messenger, loaded from its apps row.
+function ns.RequestChat()
+    if ns.Chat then return true end
+    LoadCompanion("EasyFind_Chat")
+    if ns.Chat then return true end
+    WarnCompanion("EasyFind_Chat", "CHAT_MODULE_DISABLED")
+    return false
+end
+
 do
     local loader = CreateFrame("Frame")
     loader:RegisterEvent("PLAYER_LOGIN")

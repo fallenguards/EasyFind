@@ -109,6 +109,17 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    -- Chat opens the messenger. Hidden when its companion is disabled.
+    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat")) then
+        apps[#apps + 1] = {
+            name = L["APP_CHAT"],
+            chatLauncher = true,
+            noPin = true,
+            nativeRun = function()
+                if ns.RequestChat and ns.RequestChat() then ns.Chat:Open() end
+            end,
+        }
+    end
     -- Windows opens the task view: every open panel with its zones, and
     -- the saved layouts. Part of the core, never a companion.
     if ns.WindowSnapAssist then
@@ -135,6 +146,7 @@ local APP_ID_FLAGS = {
     { "alerts", "alertsLauncher" },
     { "quicklists", "quicklistsLauncher" },
     { "windows", "windowsLauncher" },
+    { "chat", "chatLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end
@@ -205,6 +217,9 @@ function ns.IsApplicationOpen(app)
     if app.windowsLauncher then
         local view = _G["EasyFindTaskView"]
         return view ~= nil and view:IsShown()
+    end
+    if app.chatLauncher then
+        return ns.Chat ~= nil and ns.Chat.IsOpen ~= nil and ns.Chat:IsOpen() or false
     end
     return false
 end
