@@ -1614,6 +1614,7 @@ local function Render(container)
         else
             container.empty:Show()
         end
+        if container.trip then container.trip:Refresh(nil) end
         if container.OnRouteChanged then container:OnRouteChanged(false) end
         return
     end
@@ -2027,13 +2028,17 @@ local function BuildSurface(frame, opts)
     if opts.trackGlyph then
         -- The window's icon is the tracking toggle the section has, so it
         -- reads the same way: lit while the arrow follows the route.
-        head = BuildTrackButton(frame)
+        head = CreateFrame("Frame", nil, frame)
         head:SetFrameLevel(frame:GetFrameLevel() + 10)
+        head:SetSize(20, 20)
         head:SetPoint("TOPLEFT", frame, "TOPLEFT", padX - 2, -(padY - 2))
-        head:Show()
+        local track = BuildTrackButton(frame)
+        track:SetFrameLevel(frame:GetFrameLevel() + 10)
+        track:SetPoint("TOPLEFT", head, "TOPLEFT", 0, 0)
+        track:Show()
         glyph = head
         frame.glyph = head
-        frame.track = head
+        frame.track = track
         frame:RegisterEvent("SUPER_TRACKING_CHANGED")
         frame:HookScript("OnEvent", function(self, event) if event == "SUPER_TRACKING_CHANGED" and self:IsShown() then self:Render() end end)
     else
@@ -2207,10 +2212,12 @@ local function BuildSurface(frame, opts)
         self.clearBtn:SetShown(hasRoute)
         self.eta:SetShown(hasRoute)
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
+        -- With the trip's fields the track toggle sits on the time line.
+        if self.track and self.trip then self.track:SetShown(hasRoute) end
         if self.search then
             -- While a way is found the title says so in the box's place.
             -- With the trip editor up, its fields do the searching.
-            local searching = not GPS.planning and not (hasRoute and self.trip)
+            local searching = not GPS.planning and not self.trip
             self.search:SetShown(searching)
             self.hitList:SetShown(searching and (not hasRoute or (self.hitCount or 0) > 0))
             self:PlaceSearch(hasRoute)
@@ -4054,22 +4061,26 @@ local function BuildPopout()
             -- The fold button folds a route; with none there is nothing to fold.
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
             local hits = self.search ~= nil and (self.hitCount or 0) > 0
-            local tight = (not Route() and not hits) or (self.collapsed and Route())
+            local folded = self.collapsed == true and Route() ~= nil
+            if self.trip then ns.GPSTrip.Fold(self, folded) end
+            -- The header row: the trip's fields while they show, else the icon.
+            local headRow = (self.trip and self.trip:IsShown()) and self.trip:GetHeight() or 20
+            local tight = (not Route() and not hits) or folded
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
                 self:SetHeaderPad(8)
-                self:SetHeight(8 + 20 + 8)   -- the icon's 20 pixels, padded
+                self:SetHeight(8 + headRow + 8)
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
-                    self.search:SetShown(not (Route() or GPS.planning))
+                    self.search:SetShown(not (Route() or GPS.planning or self.trip))
                     self.hitList:Hide()
                 end
                 return
             end
             self:SetHeaderPad(9)
             local _, fixed = PopoutSize()
-            local head = 9 + 20 + 8   -- pad, the icon, gap
+            local head = 9 + headRow + 8   -- pad, the header row, gap
             local line = 4 + 14 + 8   -- the time line under the name
             local h
             -- With a route, typed places take the steps' place.

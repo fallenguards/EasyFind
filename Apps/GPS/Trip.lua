@@ -194,6 +194,10 @@ function Editor:Pick(data)
     self.drop:Hide()
     if index == 0 then
         g:SetStart(data)
+    elseif row.adding and not Route() then
+        -- The first field of all: the route starts here, where it was typed.
+        self.adding = nil
+        g:NavigateTo(data, { quiet = true })
     elseif row.adding then
         self.adding = nil
         Trip.Add(g.Destination(data))
@@ -407,10 +411,15 @@ function Editor:Refresh(route)
         y = y + rowH
         return row
     end
-    Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
     wipe(self.stopRows)
-    for i = 1, #stops do
-        self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], true)
+    if #stops == 0 then
+        -- No route yet: the one field, where to; the rest once it is planned.
+        self.adding = self.adding or true
+    else
+        Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
+        for i = 1, #stops do
+            self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], true)
+        end
     end
     if self.adding then
         local row = Show(#stops + 1, "", L["GPS_TRIP_TO"], true, true)
@@ -511,4 +520,21 @@ function Trip.BuildEditor(frame)
     ed:SetScript("OnUpdate", ed.OnUpdate)
     frame.trip = ed
     ed:Refresh(Route())
+end
+
+-- Folded, the window shows its title row: the fields go, the title and
+-- the track toggle take the header; open, the toggle sits on the time line.
+function Trip.Fold(frame, folded)
+    local ed = frame.trip
+    if not ed then return end
+    ed:SetShown(not folded)
+    frame.title:SetShown(folded)
+    local track = frame.track
+    if not track then return end
+    track:ClearAllPoints()
+    if folded then
+        track:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", 0, 0)
+    else
+        track:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 0, -1)
+    end
 end
