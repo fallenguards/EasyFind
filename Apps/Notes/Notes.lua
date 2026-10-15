@@ -4676,22 +4676,30 @@ end
 function UI:RefreshEasyNotesToolbarButton(btn)
     if not btn or not btn.actionKey then return end
     local active = UI._notes.activeModes[btn.actionKey]
+    -- A light theme's toolbar is pale: the engaged fill takes the theme's
+    -- control accent and resting ink its dark text, or neither shows.
+    local pal = ns.ACTIVE_UI_PALETTE
+    local light = pal and pal.light
     if ns.SetRoundedRectFill then
         if active then
-            ns.SetRoundedRectFill(btn, ActiveButtonColor())
+            local c = light and ns.CONTROL_ACCENT
+            if c then ns.SetRoundedRectFill(btn, c[1], c[2], c[3], 1, true)
+            else ns.SetRoundedRectFill(btn, ActiveButtonColor()) end
         elseif btn._hover then
-            ns.SetRoundedRectFill(btn, 0.20, 0.20, 0.22, 1, true)
+            local c = light and ns.BTN_FILL_HOVER
+            if c then ns.SetRoundedRectFill(btn, c[1], c[2], c[3], 1, true)
+            else ns.SetRoundedRectFill(btn, 0.20, 0.20, 0.22, 1, true) end
         else
             ns.SetRoundedRectFill(btn, 0, 0, 0, 0, true)
         end
     end
-    if btn.text then
-        if active then
-            btn.text:SetTextColor(1, 1, 1, 1)
-        else
-            btn.text:SetTextColor(0.84, 0.84, 0.86, 1)
-        end
-    end
+    local ink = light and not active and ns.TEXT_PRIMARY
+    local ir, ig, ib = 0.84, 0.84, 0.86
+    if active then ir, ig, ib = 1, 1, 1 elseif ink then ir, ig, ib = ink[1], ink[2], ink[3] end
+    if btn.text then btn.text:SetTextColor(ir, ig, ib, 1) end
+    if btn.underBar then btn.underBar:SetColorTexture(ir, ig, ib, 1) end
+    if btn.strikeBar then btn.strikeBar:SetColorTexture(ir, ig, ib, 1) end
+    if btn.listIcon then btn.listIcon:SetVertexColor(ir, ig, ib, 1) end
     -- The colour bar shows the colour typing would actually produce here
     -- (typing colour from the caret/selection context), not the last pick.
     if btn.colorBar then
