@@ -4,6 +4,20 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [3.4.4] - 2026-10-15
+
+### Fixed
+- **Patch 12.1.5**: no more error in chat at login. The patch removed the game's old item and coin functions, and EasyFind now calls their replacements, so loot and bag results show their names and icons again, along with catalog type names, coin text and toy cooldowns
+- **Patch 12.1.5**: the map, statistics, reputation and other category icons show the right art again. They are textures of EasyFind's own now, so a patch that rearranges the game's art can no longer swap them
+- **Translated labels**: on non-English clients, filter and menu labels that stayed in English now read in the game's language: the mount type and Unusable filters, the profession recipe filters, All Factions and All Races, Warband, Bags, Titles, Flight Paths and the Discovery recipe source
+- **Appearances window**: opened from a search result on a non-English client, the Situations tab is hidden as it already was in English
+
+### Changed
+- EasyFind is marked up to date for patch 12.1.5
+- **Toy filters**: the Expansions row is named Expansion, as in the game's own toy filter
+
+---
+
 ## [3.4.3] - 2026-09-18
 
 ### Fixed

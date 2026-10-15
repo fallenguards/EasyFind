@@ -119,7 +119,7 @@ function Filters:BuildMountOptionsPopup(StylePopup, CHECK_SIZE)
     local filterDefs = {
         { dbKey = "mountFilterCollected",    label = _G["COLLECTED"] or "Collected" },
         { dbKey = "mountFilterNotCollected", label = _G["NOT_COLLECTED"] or "Not Collected" },
-        { dbKey = "mountFilterUnusable",     label = _G["UNUSABLE"] or "Unusable" },
+        { dbKey = "mountFilterUnusable",     label = _G["MOUNT_JOURNAL_FILTER_UNUSABLE"] or "Unusable" },
     }
     for _, def in ipairs(filterDefs) do
         rows[#rows + 1] = CreateCheckRow(def, y)
@@ -145,10 +145,10 @@ function Filters:BuildMountOptionsPopup(StylePopup, CHECK_SIZE)
     y = y - HEADER_H
 
     local typeDefs = {
-        { dbKey = "mountTypeGround",    label = _G["GROUND"] or "Ground" },
-        { dbKey = "mountTypeFlying",    label = _G["FLYING"] or "Flying" },
-        { dbKey = "mountTypeAquatic",   label = _G["AQUATIC"] or "Aquatic" },
-        { dbKey = "mountTypeRideAlong", label = _G["RIDE_ALONG"] or "Ride Along" },
+        { dbKey = "mountTypeGround",    label = _G["MOUNT_JOURNAL_FILTER_GROUND"] or "Ground" },
+        { dbKey = "mountTypeFlying",    label = _G["MOUNT_JOURNAL_FILTER_FLYING"] or "Flying" },
+        { dbKey = "mountTypeAquatic",   label = _G["MOUNT_JOURNAL_FILTER_AQUATIC"] or "Aquatic" },
+        { dbKey = "mountTypeRideAlong", label = _G["MOUNT_JOURNAL_FILTER_RIDEALONG"] or "Ride Along" },
     }
     for _, def in ipairs(typeDefs) do
         rows[#rows + 1] = CreateCheckRow(def, y)

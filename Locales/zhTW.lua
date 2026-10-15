@@ -268,13 +268,11 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff設定檔|r\n" ..
-    "    |cff999999-|r 你自訂的一切都放在一個設定檔裡：設定、別名、快捷鍵、黑名單、片段、擴充功能按鈕、釘選項目和按鍵。每個角色記住自己的選擇，專精設定檔隨專精切換\n" ..
-    "    |cff999999-|r 在選項中新的設定檔分頁裡，把設定檔匯出為代碼或匯入一個\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff片段代碼|r\n" ..
-    "    |cff999999-|r 在片段設定頁面把你的片段匯出為代碼，並匯入別人分享給你的代碼\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff匯入預覽|r\n" ..
-    "    |cff999999-|r 貼上別名、快捷鍵、黑名單或片段代碼時，會在套用前顯示其內容，並在它把指令放到按鍵或巨集中時發出警告。只從你信任的來源匯入"
+    "|cffFFD100\226\128\162|r |cffffffff適配 12.1.5 修正檔|r\n" ..
+    "    |cff999999-|r 登入時聊天框不再出錯：戰利品和背包結果重新顯示名稱和圖示\n" ..
+    "    |cff999999-|r 地圖、統計和聲望圖示重新顯示正確的圖案\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff翻譯後的標籤|r\n" ..
+    "    |cff999999-|r 原本仍為英文的篩選和選單標籤，現在以遊戲語言顯示"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"
@@ -656,6 +654,7 @@ L["MAP_FILTER_SERVICES"]                = "服務"
 L["MAP_FILTER_TRAVEL_TT"]               = "飛行路徑、飛艇、船隻、傳送門和地鐵。"
 L["MAP_FILTER_SERVICES_TT"]             = "職業和專業訓練師、公會銀行以及其他服務NPC。"
 L["MAP_FILTER_RARES"]                   = "稀有怪"
+L["MAP_FILTER_FLIGHTS"]                 = "飛行路徑"
 L["MAP_FILTER_BOATS"]                   = "船隻"
 L["MAP_FILTER_PORTALS"]                 = "傳送門"
 L["MAP_FILTER_BANKS"]                   = "銀行"

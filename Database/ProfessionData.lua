@@ -16,7 +16,7 @@ ns.PROFESSION_SOURCE_LABELS = {
     [1] = function() return _G["BATTLE_PET_SOURCE_2"] or "Quest" end,
     [2] = function() return _G["BATTLE_PET_SOURCE_3"] or "Vendor" end,
     [3] = function() return _G["BATTLE_PET_SOURCE_4"] or "Profession" end,
-    [10] = function() return _G["DISCOVERY"] or "Discovery" end,
+    [10] = function() return _G["BATTLE_PET_SOURCE_11"] or "Discovery" end,
 }
 
 ns.PROFESSION_RECIPES = {

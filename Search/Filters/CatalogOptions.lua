@@ -8,7 +8,7 @@ local ipairs = Utils.ipairs
 local sformat = Utils.sformat
 local CreateFrame = CreateFrame
 local UIParent = UIParent
-local GetItemClassInfo = GetItemClassInfo
+local GetItemClassInfo = (C_Item and C_Item.GetItemClassInfo) or GetItemClassInfo
 local CreateAtlasMarkup = CreateAtlasMarkup
 local C_Texture = C_Texture
 

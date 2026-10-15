@@ -291,13 +291,11 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffProfiles|r\n" ..
-    "    |cff999999-|r Everything you customized, in a profile of its own: settings, aliases, shortkeys, blacklist, snippets, extension buttons, pins and keybinds. Each character remembers its pick, and spec profiles switch with your specialization\n" ..
-    "    |cff999999-|r Export a profile as a code or import one from the new Profiles tab in the options\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSnippet codes|r\n" ..
-    "    |cff999999-|r Export your snippets as a code from the Snippets settings page, and import a code someone shared with you\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffImport preview|r\n" ..
-    "    |cff999999-|r Pasting an alias, shortkey, blacklist or snippet code shows what it holds before anything applies, and warns when it puts commands on keys or into macros. Import only from a source you trust"
+    "|cffFFD100\226\128\162|r |cffffffffReady for patch 12.1.5|r\n" ..
+    "    |cff999999-|r No more error in chat at login: loot and bag results show their names and icons again\n" ..
+    "    |cff999999-|r The map, statistics and reputation icons show the right art again\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTranslated labels|r\n" ..
+    "    |cff999999-|r Filter and menu labels that stayed in English now read in your game's language"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels
@@ -697,6 +695,7 @@ L["MAP_FILTER_SERVICES"]                = "Services"
 L["MAP_FILTER_TRAVEL_TT"]               = "Flight paths, zeppelins, boats, portals, and trams."
 L["MAP_FILTER_SERVICES_TT"]             = "Class and profession trainers, guild bank, and other service NPCs."
 L["MAP_FILTER_RARES"]                   = "Rares"
+L["MAP_FILTER_FLIGHTS"]                 = "Flight Paths"
 L["MAP_FILTER_BOATS"]                   = "Boats"
 L["MAP_FILTER_PORTALS"]                 = "Portals"
 L["MAP_FILTER_BANKS"]                   = "Banks"
