@@ -66,6 +66,9 @@ local dragHooked = {}
 -- RESTORE_SENTINEL for a queued restore.
 local pendingMoves = {}
 local RESTORE_SENTINEL = "restore"
+-- Snaps for the moment (a layout's, or every snap with windowSnapsMomentary):
+-- name -> true; the zone goes when the window hides.
+local momentarySpec = {}
 -- Single event frame: replays queued moves on combat end (PLAYER_REGEN_ENABLED)
 -- and installs hooks on load-on-demand panels as they appear (ADDON_LOADED).
 local eventFrame
@@ -494,6 +497,31 @@ local function EnsureShiftDriver()
     end)
 end
 
+-- The seat snapshotted before our first touch this session put back: scale,
+-- size and anchors; false without one, or with the frame locked in a fight.
+local function ReplaySeat(entry, frame)
+    local snap = origPlacement[entry.name]
+    if not snap then return false end
+    if InCombatLockdown() and frame.IsProtected and frame:IsProtected() then return false end
+    ignoreSetPointHook = true
+    if frame.SetScale then frame:SetScale(snap.scale or 1) end
+    if entry.resizable and snap.w and frame.SetSize then
+        frame:SetSize(snap.w, snap.h)
+    end
+    if #snap.points > 0 and frame.ClearAllPoints then
+        frame:ClearAllPoints()
+        for i = 1, #snap.points do
+            local p = snap.points[i]
+            frame:SetPoint(p[1], p[2], p[3], p[4], p[5])
+        end
+    end
+    ignoreSetPointHook = false
+    if entry.uiPanel and frame.SetUserPlaced then
+        SafeCallMethod(frame, "SetUserPlaced", false)
+    end
+    return true
+end
+
 local function EnsureFrameHooks(entry)
     local frame = Registry:GetFrame(entry)
     if not frame then return end
@@ -532,6 +560,14 @@ local function EnsureFrameHooks(entry)
             -- now that it is closed and the manager has released it,
             -- stripping its layout attributes is safe.
             EnsurePanelDetached(entry, frame)
+            -- A snap for the moment ends here: the kept zone, if any, or
+            -- the window's own seat is back on the next open.
+            if momentarySpec[entry.name] then
+                momentarySpec[entry.name] = nil
+                local store = PositionStore()
+                appliedSpec[entry.name] = store and store[entry.name] or nil
+                if not appliedSpec[entry.name] then ReplaySeat(entry, frame) end
+            end
         end)
     end
     if appliedSpec[entry.name] then
@@ -636,7 +672,9 @@ function Manager:ResolveTarget()
     return ownFallback
 end
 
-local function DoApply(entry, specKey)
+-- momentary: the zone holds only while the window stays open; so does
+-- every snap with windowSnapsMomentary on.
+local function DoApply(entry, specKey, momentary)
     local frame = Registry:GetFrame(entry)
     if not frame then return false end
 
@@ -654,15 +692,35 @@ local function DoApply(entry, specKey)
 
     appliedSpec[entry.name] = specKey
     ReassertHook(frame, entry)
-    Persist(entry, specKey)
+    if momentary or (EasyFind and EasyFind.db and EasyFind.db.windowSnapsMomentary) then
+        momentarySpec[entry.name] = true
+    else
+        momentarySpec[entry.name] = nil
+        Persist(entry, specKey)
+    end
     return true
 end
 
 -- Direct spec application to a known entry: the interactive drop path
--- (edge snap, layout bar) bypasses target resolution and cycling.
-function Manager:ApplySpecTo(entry, specKey)
+-- (edge snap, layout bar) and layouts bypass target resolution and cycling.
+function Manager:ApplySpecTo(entry, specKey, momentary)
     if not (entry and specKey) then return false end
-    return DoApply(entry, specKey)
+    return DoApply(entry, specKey, momentary)
+end
+
+-- A zone kept for a window whether or not it is open now: the standing
+-- layout's. An open window takes it at once.
+function Manager:SetStandingSpec(entry, specKey)
+    if not (entry and specKey) then return false end
+    appliedSpec[entry.name] = specKey
+    momentarySpec[entry.name] = nil
+    Persist(entry, specKey)
+    local frame = Registry:GetFrame(entry)
+    if frame then
+        ReassertHook(frame, entry)
+        if frame:IsShown() then ReapplyOnShow(entry, specKey) end
+    end
+    return true
 end
 
 function Manager:FlushPending()
@@ -746,29 +804,11 @@ function Manager:Restore(explicitEntry)
         Toast(L["WINDOW_QUEUED_COMBAT"])
         return false
     end
-    -- Exact restore: replay the scale/anchors snapshotted before our first
-    -- touch this session. No hide/show blink, no dependence on the panel
+    -- Exact restore: the seat snapshotted before our first touch this
+    -- session, with no hide/show blink and no dependence on the panel
     -- layout system honoring frames an addon moved.
-    local snap = origPlacement[entry.name]
-    if snap then
-        ignoreSetPointHook = true
-        if frame.SetScale then frame:SetScale(snap.scale or 1) end
-        if entry.resizable and snap.w and frame.SetSize then
-            frame:SetSize(snap.w, snap.h)
-        end
-        if #snap.points > 0 and frame.ClearAllPoints then
-            frame:ClearAllPoints()
-            for i = 1, #snap.points do
-                local p = snap.points[i]
-                frame:SetPoint(p[1], p[2], p[3], p[4], p[5])
-            end
-        end
-        ignoreSetPointHook = false
-        if entry.uiPanel and frame.SetUserPlaced then
-            SafeCallMethod(frame, "SetUserPlaced", false)
-        end
-        return true
-    end
+    momentarySpec[entry.name] = nil
+    if ReplaySeat(entry, frame) then return true end
     -- No snapshot (a saved snap from a prior session, frame untouched since
     -- login): fall back to the panel layout reseat.
     if not entry.resizable and frame.SetScale then

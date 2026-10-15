@@ -2654,6 +2654,51 @@ local function BuildWindowsTab(ctx)
         L["OPT_WINDOW_GAP_TT"], 330)
     windowGapRow:SetPoint("TOPLEFT", windowText, "BOTTOMLEFT", 0, -14)
     optionsFrame.windowGapRow = windowGapRow
+
+    -- The saved layouts: each made the standing one, or deleted.
+    local header = winTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", windowGapRow, "BOTTOMLEFT", 0, -16)
+    header:SetText(L["WINDOW_LAYOUTS_HEADER"])
+    local hint = winTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
+    hint:SetWidth(FRAME_W - 60)
+    hint:SetJustifyH("LEFT")
+    hint:SetSpacing(2)
+    hint:SetText(L["WINDOW_LAYOUTS_HINT"])
+    local rows = {}
+    local function RefreshLayouts()
+        local layouts = ns.WindowLayouts and ns.WindowLayouts:All() or {}
+        local anchor = hint
+        for i, layout in ipairs(layouts) do
+            local row = rows[i]
+            if not row then
+                row = CreateFrame("Frame", nil, winTab)
+                row:SetSize(FRAME_W - 60, 22)
+                row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+                row.name:SetPoint("LEFT", row, "LEFT", 4, 0)
+                row.name:SetWidth(150)
+                row.name:SetJustifyH("LEFT")
+                row.name:SetWordWrap(false)
+                row.standing = CreateModernButton(row, "", 110, 20)
+                row.standing:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
+                row.delete = CreateModernButton(row, _G["DELETE"] or "Delete", 70, 20)
+                row.delete:SetPoint("LEFT", row.standing, "RIGHT", 6, 0)
+                rows[i] = row
+            end
+            row.name:SetText(layout.name)
+            row.standing:SetText(layout.standing and L["WINDOW_LAYOUT_STANDING"] or L["WINDOW_LAYOUT_MAKE_STANDING"])
+            row.standing:SetScript("OnClick", function() ns.WindowLayouts:SetStanding(layout.id, not layout.standing) end)
+            row.delete:SetScript("OnClick", function() ns.WindowLayouts:Delete(layout.id) end)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+            row:Show()
+            anchor = row
+        end
+        for i = #layouts + 1, #rows do rows[i]:Hide() end
+    end
+    winTab:HookScript("OnShow", RefreshLayouts)
+    RefreshLayouts()
+    function Options:RefreshWindowLayouts() RefreshLayouts() end
 end
 
 local function BuildShortcutsTab(ctx)

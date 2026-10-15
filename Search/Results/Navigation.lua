@@ -663,12 +663,13 @@ function Results:ActivateResultRow(resultRow, source)
         return true
     end
     if resultRow.data.windowCommand or resultRow.data.windowRestore
-       or resultRow.data.windowRestoreAll or resultRow.data.windowTaskView then
-        local cmd, restore, restoreAll, taskView = resultRow.data.windowCommand,
+       or resultRow.data.windowRestoreAll or resultRow.data.windowTaskView
+       or resultRow.data.windowLayout or resultRow.data.windowLayoutDo then
+        local cmd, restore, restoreAll, taskView, layout, layoutDo = resultRow.data.windowCommand,
             resultRow.data.windowRestore, resultRow.data.windowRestoreAll,
-            resultRow.data.windowTaskView
+            resultRow.data.windowTaskView, resultRow.data.windowLayout, resultRow.data.windowLayoutDo
         self:FinishResultSelection()
-        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView)
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
         return true
     end
     if resultRow.data.calculatorLauncher then

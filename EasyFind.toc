@@ -54,6 +54,7 @@ WindowManager/Registry.lua
 WindowManager/Manager.lua
 WindowManager/Interactive.lua
 WindowManager/Commands.lua
+WindowManager/Layouts.lua
 Shared/Aliases.lua
 Shared/Shortkeys.lua
 Shared/UIPins.lua

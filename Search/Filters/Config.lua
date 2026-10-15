@@ -289,6 +289,7 @@ local UI_FILTER_OPTIONS = {
                   onChange = function()
                       if ns.WindowSnapAssist then ns.WindowSnapAssist:RefreshResizeWatcher() end
                   end },
+                { dbKey = "windowSnapsMomentary", label = L["WINDOW_MOMENTARY_TOGGLE"], tooltip = L["WINDOW_MOMENTARY_TIP"] },
             } },
       } },
     -- Title icon from PaperDollSidebarTab2 (Titles tab) spritesheet 514608.

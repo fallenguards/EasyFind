@@ -59,6 +59,8 @@ local mfloor = ns.Utils.mfloor
 -- target area filled. Sheet cell = COMMANDS array order; the generator
 -- (dev/tools/gen_window_actions.py) mirrors this list, so the two MUST
 -- change together. Defs are built once and returned by the icon resolver.
+local sformat = string.format
+local LAYOUT_KW = { "layout", "layouts", "windows", "arrange" }
 local WINDOW_ACTIONS_TEX = "Interface\\AddOns\\EasyFind\\textures\\window-actions"
 local CELLS_PER_ROW = 8
 local CELL_UV = 32 / 256
@@ -112,6 +114,29 @@ function WindowCommands:BuildSearchData()
             searchCommandDesc = def.restoreAll and L["WINDOW_SUBTEXT_ALL"] or L["WINDOW_SUBTEXT"],
         }
     end
+    -- Saved layouts, then saving one and the one for here.
+    local layouts = ns.WindowLayouts
+    if layouts then
+        local glyph = ICON_DEFS["task-view"]
+        for _, layout in ipairs(layouts:All()) do
+            out[#out + 1] = {
+                name = layout.name, nameLower = slower(layout.name), category = WINDOW_CATEGORY, path = path,
+                keywords = LAYOUT_KW, noPin = true, _windowIconDef = glyph, windowLayout = layout.id,
+                searchCommandDesc = sformat(L["WINDOW_LAYOUT_SUBTEXT_FMT"], #layout.windows)
+                    .. (layout.standing and ("  " .. L["WINDOW_LAYOUT_STANDING"]) or ""),
+            }
+        end
+        out[#out + 1] = {
+            name = L["WINDOW_LAYOUT_SAVE"], nameLower = slower(L["WINDOW_LAYOUT_SAVE"]), category = WINDOW_CATEGORY,
+            path = path, keywords = LAYOUT_KW, noPin = true, _windowIconDef = glyph, windowLayoutDo = "save",
+            searchCommandDesc = L["WINDOW_LAYOUT_SAVE_SUBTEXT"],
+        }
+        out[#out + 1] = {
+            name = L["WINDOW_LAYOUT_HERE"], nameLower = slower(L["WINDOW_LAYOUT_HERE"]), category = WINDOW_CATEGORY,
+            path = path, keywords = LAYOUT_KW, noPin = true, _windowIconDef = glyph, windowLayoutDo = "here",
+            searchCommandDesc = L["WINDOW_LAYOUT_HERE_SUBTEXT"],
+        }
+    end
     return out
 end
 
@@ -119,10 +144,21 @@ end
 -- activation paths so both behave identically. Plain args, no table: the
 -- callers capture the two fields before FinishResultSelection recycles the
 -- row's data table.
-function WindowCommands:Run(cmd, restore, restoreAll, taskView)
+function WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
     if taskView then
         return ns.WindowSnapAssist and ns.WindowSnapAssist:ToggleTaskView() or false
     end
+    local layouts = ns.WindowLayouts
+    if layoutDo == "save" then return layouts ~= nil and layouts:PromptSave() end
+    if layoutDo == "here" then
+        local best = layouts and layouts:ForHere()
+        if not best then
+            if EasyFind and EasyFind.Print then EasyFind:Print(L["WINDOW_LAYOUT_NONE_SAVED"]) end
+            return false
+        end
+        return layouts:Apply(best.id)
+    end
+    if layout then return layouts ~= nil and layouts:Apply(layout) end
     if not ns.WindowManager then return false end
     if restoreAll then
         return ns.WindowManager:RestoreAll()

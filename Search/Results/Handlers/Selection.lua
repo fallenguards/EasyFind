@@ -384,11 +384,11 @@ function Handlers:SelectResult(data, forceGuide)
 
     -- Captured first: FinishResultSelection recycles the data table.
     if data.windowCommand or data.windowRestore or data.windowRestoreAll
-       or data.windowTaskView then
-        local cmd, restore, restoreAll, taskView = data.windowCommand,
-            data.windowRestore, data.windowRestoreAll, data.windowTaskView
+       or data.windowTaskView or data.windowLayout or data.windowLayoutDo then
+        local cmd, restore, restoreAll, taskView, layout, layoutDo = data.windowCommand,
+            data.windowRestore, data.windowRestoreAll, data.windowTaskView, data.windowLayout, data.windowLayoutDo
         self:FinishResultSelection()
-        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView)
+        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo)
         return
     end
 
