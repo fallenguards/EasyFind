@@ -6209,6 +6209,17 @@ function UI:ShowEasyNotesRowMenu(row)
     end
     UI:ShowEasyNotesMenu("EasyNotesRowMenu", {
         { text = L["NOTES_RENAME"], onClick = function() UI:BeginEasyNotesRowRename(row) end },
+        { isSeparator = true },
+        -- The row's note, or the whole selection when the row is part of one.
+        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
+          onClick = function()
+              local sel = UI._notes.paletteSelection
+              local ids = {}
+              if sel and sel[row.noteID] then
+                  for id in pairs(sel) do ids[#ids + 1] = id end
+              end
+              ConfirmDeleteNote(#ids > 1 and ids or row.noteID)
+          end },
     }, {})
 end
 
