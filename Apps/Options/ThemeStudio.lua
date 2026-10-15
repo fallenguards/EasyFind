@@ -227,6 +227,8 @@ local function RunPreview()
     -- now-active theme afterwards, so both can never disagree.
     ns.ApplyUITheme(PREVIEW_NAME)
     RepaintPreviewCard()
+    -- The studio's own buttons follow the draft, as the rest of the UI does.
+    if ns.RetintPanelText and studio then ns.RetintPanelText(studio) end
     RepaintStudioTexts()
     local of = ns.optionsFrame
     if of and of.RepaintTheme and of:IsShown() then
@@ -247,6 +249,7 @@ local function ClearPreview()
     if ns.UI_THEME_PALETTES then ns.UI_THEME_PALETTES[PREVIEW_NAME] = nil end
     if ns.ApplyUITheme and EasyFind and EasyFind.db then
         ns.ApplyUITheme(EasyFind.db.uiTheme)
+        if ns.RetintPanelText and studio then ns.RetintPanelText(studio) end
         RepaintStudioTexts()
         local of = ns.optionsFrame
         if of and of.RepaintTheme and of:IsShown() then
@@ -435,6 +438,25 @@ local function OpenPickerForSlot(slotKey)
     ColorPickerFrame:SetupColorPickerAndShow(info)
     if ColorPickerFrame.SetFrameStrata then ColorPickerFrame:SetFrameStrata("TOOLTIP") end
     if ColorPickerFrame.Raise then ColorPickerFrame:Raise() end
+    -- The picker reports a color on release only; while it is up, the
+    -- draft follows the wheel and the slider as they are dragged.
+    local watch = ThemeStudio.pickerWatch
+    if not watch then
+        watch = CreateFrame("Frame")
+        ThemeStudio.pickerWatch = watch
+    end
+    local lastR, lastG, lastB, lastA
+    watch:SetScript("OnUpdate", function(self)
+        if not (ColorPickerFrame:IsShown() and pickerSlotKey) then
+            self:SetScript("OnUpdate", nil)
+            return
+        end
+        local r, g, b, a = ReadPickerColor()
+        if r and (r ~= lastR or g ~= lastG or b ~= lastB or a ~= lastA) then
+            lastR, lastG, lastB, lastA = r, g, b, a
+            ApplyPickerColor()
+        end
+    end)
 end
 
 local function LoadBase(name)
@@ -511,31 +533,36 @@ local function DoDelete()
     RefreshEditor()
 end
 
--- Left pane: one row per installed theme (builtins in curated order, customs
--- after them via UI_THEME_ORDER). Pooled; rebuilt on open and after
+-- The shipped themes a draft can start from: every one but the art
+-- themes, whose baked backgrounds no color slot can reproduce.
+local function BuiltinBases()
+    local out = {}
+    for _, name in ipairs(ns.UI_THEME_ORDER or {}) do
+        local pal = ns.UI_THEME_PALETTES and ns.UI_THEME_PALETTES[name]
+        if pal and not pal.fillTexture and not (ns.ThemeShare and ns.ThemeShare:IsCustomTheme(name)) then
+            out[#out + 1] = name
+        end
+    end
+    return out
+end
+
+-- Left pane: the themes of your own, one row each, under the button that
+-- starts a draft from a shipped theme. Pooled; rebuilt on open and after
 -- save/delete so the list always matches reality.
 function RefreshThemeList()
     if not studio then return end
-    -- Art themes (baked TGA backgrounds) sit pinned at the top wearing a
-    -- lock: their look can't be reproduced by color slots, so they can't be
-    -- a starting base. Everything else follows in the curated order.
     local order = {}
-    local themeOrder = ns.UI_THEME_ORDER or {}
-    for i = 1, #themeOrder do
-        local pal = ns.UI_THEME_PALETTES and ns.UI_THEME_PALETTES[themeOrder[i]]
-        if pal and pal.fillTexture then order[#order + 1] = themeOrder[i] end
+    for _, name in ipairs(ns.UI_THEME_ORDER or {}) do
+        if ns.ThemeShare and ns.ThemeShare:IsCustomTheme(name) then order[#order + 1] = name end
     end
-    for i = 1, #themeOrder do
-        local pal = ns.UI_THEME_PALETTES and ns.UI_THEME_PALETTES[themeOrder[i]]
-        if not (pal and pal.fillTexture) then order[#order + 1] = themeOrder[i] end
-    end
+    if studio.noThemes then studio.noThemes:SetShown(#order == 0) end
     for i = 1, #order do
         local name = order[i]
         local row = themeListRows[i]
         if not row then
             row = CreateFrame("Button", nil, studio.listPane)
             row:SetHeight(22)
-            row:SetPoint("TOPLEFT", studio.listPane, "TOPLEFT", 4, -26 - (i - 1) * 22)
+            row:SetPoint("TOPLEFT", studio.listPane, "TOPLEFT", 4, -54 - (i - 1) * 22)
             row:SetPoint("RIGHT", studio.listPane, "RIGHT", -4, 0)
             row.sel = row:CreateTexture(nil, "BACKGROUND")
             row.sel:SetAllPoints()
@@ -834,6 +861,7 @@ local function BuildSlotGrid(parent)
         local slotKey = slots[i].key
         local cell = CreateFrame("Button", nil, grid)
         cell:SetSize(CELL_W, CELL_H)
+        cell._efNoAutoRetint = true   -- a swatch keeps its slot's color through the retint walk
         local col = mfloor((i - 1) / perCol)
         local rowIdx = (i - 1) % perCol
         cell:SetPoint("TOPLEFT", grid, "TOPLEFT", col * (CELL_W + 2), -rowIdx * (CELL_H + 2))
@@ -999,8 +1027,26 @@ local function BuildStudio()
     studio.listPane:SetWidth(LIST_W - 10)
     local listHeader = studio.listPane:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     listHeader:SetPoint("TOPLEFT", studio.listPane, "TOPLEFT", 4, -6)
-    listHeader:SetText(L["OPT_TAB_THEMES"])
+    listHeader:SetText(L["THEME_STUDIO_YOURS"])
     RegisterStudioText(listHeader, 0.85)
+    -- The shipped themes stay as they are: one is copied into the draft
+    -- from this button's menu, and saved under a name of its own.
+    local baseBtn = ns.CreateModernButton(studio.listPane, L["THEME_STUDIO_START_FROM"], LIST_W - 18, 20)
+    baseBtn:SetPoint("TOPLEFT", studio.listPane, "TOPLEFT", 4, -26)
+    baseBtn:SetScript("OnClick", function(self)
+        local defs = {}
+        for _, name in ipairs(BuiltinBases()) do
+            defs[#defs + 1] = { kind = "action", label = name, onClick = function() LoadBase(name) end }
+        end
+        if #defs > 0 then ns.ShowTogglePopup("EasyFindStudioBasePopup", self, defs) end
+    end)
+    studio.baseBtn = baseBtn
+    studio.noThemes = studio.listPane:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    studio.noThemes:SetPoint("TOPLEFT", studio.listPane, "TOPLEFT", 8, -58)
+    studio.noThemes:SetPoint("RIGHT", studio.listPane, "RIGHT", -6, 0)
+    studio.noThemes:SetJustifyH("LEFT")
+    studio.noThemes:SetWordWrap(true)
+    studio.noThemes:SetText(L["THEME_STUDIO_NONE_YET"])
 
     -- Light vertical rules between the three panes, wearing the theme's
     -- separator color (retinted with the rest of the studio chrome).
