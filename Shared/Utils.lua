@@ -5188,8 +5188,10 @@ function ns.ShowThemedDialog(opts)
         f.message:SetJustifyH("CENTER")
         f.message:SetSpacing(2)
         f.message:SetTextColor(unpack(ns.TEXT_PRIMARY))
-        -- ShowThemedDialog owns this color per prompt type.
+        -- ShowThemedDialog owns this color per prompt type; flat text, no
+        -- font-object shadow, on either polarity.
         f.message._efOwnColor = true
+        f.message:SetShadowColor(0, 0, 0, 0)
 
         local field = CreateFrame("Frame", nil, f)
         field:SetHeight(26)
@@ -5203,6 +5205,7 @@ function ns.ShowThemedDialog(opts)
         eb:SetFontObject("GameFontHighlight")
         eb:SetAutoFocus(false)
         eb:SetJustifyH("LEFT")
+        eb:SetShadowColor(0, 0, 0, 0)
         f.field = field
         f.editBox = eb
 
@@ -5219,6 +5222,7 @@ function ns.ShowThemedDialog(opts)
         f.check.text = f.check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         f.check.text:SetPoint("LEFT", f.check, "RIGHT", 2, 0)
         f.check.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
+        f.check.text:SetShadowColor(0, 0, 0, 0)
 
         local function checkedState()
             return f.check:IsShown() and f.check:GetChecked() and true or false
