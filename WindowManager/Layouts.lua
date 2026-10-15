@@ -86,6 +86,7 @@ end
 local function Changed()
     if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory("window") end
     if ns.Options and ns.Options.RefreshWindowLayouts then ns.Options:RefreshWindowLayouts() end
+    if ns.WindowSnapAssist and ns.WindowSnapAssist.RefreshTaskViewIfShown then ns.WindowSnapAssist:RefreshTaskViewIfShown() end
 end
 
 -- Saved from the screen as it stands, under the name asked for; a layout

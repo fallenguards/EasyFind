@@ -108,6 +108,16 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
+    -- Windows opens the task view: every open panel with its zones, and
+    -- the saved layouts. Part of the core, never a companion.
+    if ns.WindowSnapAssist then
+        apps[#apps + 1] = {
+            name = L["FILTER_WINDOW"],
+            windowsLauncher = true,
+            noPin = true,
+            nativeRun = function() ns.WindowSnapAssist:ToggleTaskView() end,
+        }
+    end
     return apps
 end
 
@@ -123,6 +133,7 @@ local APP_ID_FLAGS = {
     { "clock", "clockLauncher" },
     { "alerts", "alertsLauncher" },
     { "quicklists", "quicklistsLauncher" },
+    { "windows", "windowsLauncher" },
 }
 function ns.ApplicationEntryID(app)
     if not app then return nil end
@@ -189,6 +200,10 @@ function ns.IsApplicationOpen(app)
     end
     if app.alertsLauncher then
         return ns.Alerts ~= nil and ns.Alerts.IsOpen() or false
+    end
+    if app.windowsLauncher then
+        local view = _G["EasyFindTaskView"]
+        return view ~= nil and view:IsShown()
     end
     return false
 end

@@ -17,6 +17,7 @@ ns.WindowSnapAssist = SnapAssist
 
 local Utils = ns.Utils
 local L = ns.L
+local sformat = string.format
 local SnapMath = ns.SnapMath
 
 local UIParent = UIParent
@@ -322,6 +323,8 @@ local TASK_PAD = 14
 -- The selection pill hugs the panel edges a little wider than the rows.
 local TASK_PILL_INSET = 8
 local TASK_FOOT_H = 26
+local TASK_LAYOUT_ROW_H = 22
+local CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 local TASK_SEL_COLOR = { 0, 0, 0, 0.14 }
 -- Checkbox metrics copied from the filter flyout's checkbox rows so the two
 -- views of the same setting look identical.
@@ -602,6 +605,98 @@ function TaskViewWatchTick(_, elapsed)
     SyncTaskMultiCheck()
 end
 
+local function EnsureLayoutRow(view, index)
+    view.layoutRows = view.layoutRows or {}
+    local row = view.layoutRows[index]
+    if row then return row end
+    row = CreateFrame("Button", nil, view)
+    row:SetSize(TASK_W - TASK_PAD * 2, TASK_LAYOUT_ROW_H)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.name:SetPoint("LEFT", TASK_PILL_INSET, 0)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    row.sub = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.sub:SetPoint("RIGHT", row, "RIGHT", -TASK_PILL_INSET, 0)
+    row.sub:SetJustifyH("RIGHT")
+    row.name:SetPoint("RIGHT", row.sub, "LEFT", -8, 0)
+    local hl = row:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.06)
+    -- A layout row opens and places its windows; right-click holds its
+    -- standing and its removal. The last row saves the screen as it stands.
+    row:SetScript("OnClick", function(self, button)
+        local Layouts = ns.WindowLayouts
+        if not Layouts then return end
+        if not self.layoutID then
+            Layouts:PromptSave()
+            return
+        end
+        if button == "RightButton" then
+            local layout = Layouts:Get(self.layoutID)
+            if not layout then return end
+            Utils.ShowCursorMenu("EasyFindTaskLayoutMenu", {
+                { text = L["WINDOW_LAYOUT_MAKE_STANDING"], icon = layout.standing and CHECK_TEX or nil,
+                  onClick = function()
+                      Layouts:SetStanding(layout.id, not layout.standing)
+                      SnapAssist:RefreshTaskView()
+                  end },
+                { isSeparator = true },
+                { text = _G["DELETE"] or "Delete", onClick = function()
+                    Layouts:Delete(layout.id)
+                    SnapAssist:RefreshTaskView()
+                end },
+            }, {})
+            return
+        end
+        Layouts:Apply(self.layoutID)
+        SnapAssist:RefreshTaskView()
+    end)
+    view.layoutRows[index] = row
+    return row
+end
+
+-- The saved layouts under the windows: a header, a row each with its
+-- window count and standing, and a Save layout row. Returns the height.
+local function LayoutRows(view, top)
+    local Layouts = ns.WindowLayouts
+    if not view.layoutsHead then
+        view.layoutsHead = view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        view.layoutsHead:SetJustifyH("LEFT")
+        view.layoutsHead:SetText(L["WINDOW_LAYOUTS_HEADER"])
+    end
+    view.layoutsHead:ClearAllPoints()
+    view.layoutsHead:SetPoint("TOPLEFT", TASK_PAD + TASK_PILL_INSET, -top)
+    local n, y = 0, top + 16
+    for _, layout in ipairs(Layouts and Layouts:All() or {}) do
+        n = n + 1
+        local row = EnsureLayoutRow(view, n)
+        row.layoutID = layout.id
+        row.name:SetText(layout.name or "?")
+        row.sub:SetText(sformat(L["WINDOW_LAYOUT_SUBTEXT_FMT"], #layout.windows)
+            .. (layout.standing and ("  " .. L["WINDOW_LAYOUT_STANDING"]) or ""))
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", TASK_PAD, -y)
+        row:Show()
+        y = y + TASK_LAYOUT_ROW_H
+    end
+    n = n + 1
+    local save = EnsureLayoutRow(view, n)
+    save.layoutID = nil
+    save.name:SetText(L["WINDOW_LAYOUT_SAVE"])
+    save.sub:SetText("")
+    save:ClearAllPoints()
+    save:SetPoint("TOPLEFT", TASK_PAD, -y)
+    save:Show()
+    y = y + TASK_LAYOUT_ROW_H
+    for i = n + 1, #view.layoutRows do view.layoutRows[i]:Hide() end
+    return y - top
+end
+
+function SnapAssist:RefreshTaskViewIfShown()
+    if taskView and taskView:IsShown() then self:RefreshTaskView() end
+end
+
 function SnapAssist:RefreshTaskView()
     local view = EnsureTaskView()
     local registry = ns.WindowRegistry
@@ -627,8 +722,9 @@ function SnapAssist:RefreshTaskView()
     view._windowSig = sig
     for i = shown + 1, #view.rows do view.rows[i]:Hide() end
     view.empty:SetShown(shown == 0)
-    view:SetSize(TASK_W,
-        46 + (shown == 0 and 20 or shown * TASK_ROW_H) + TASK_FOOT_H)
+    local windowsH = shown == 0 and 20 or shown * TASK_ROW_H
+    local layoutsH = LayoutRows(view, 34 + windowsH + 8)
+    view:SetSize(TASK_W, 46 + windowsH + 8 + layoutsH + TASK_FOOT_H)
     SyncTaskMultiCheck()
     -- Preselect the row for the most recently focused window so Alt+1..9
     -- acts on it without an extra click.

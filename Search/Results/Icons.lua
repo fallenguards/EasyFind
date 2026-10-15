@@ -219,6 +219,7 @@ function Icons:GetAppGlyphIcon(data)
     if data.quicklistsLauncher or data.quicklistID then return FLAT_CATEGORY_ICONS.quicklist end
     if data.clockLauncher then return FLAT_CATEGORY_ICONS.clock end
     if data.alertsLauncher then return FLAT_CATEGORY_ICONS.alerts end
+    if data.windowsLauncher then return FLAT_CATEGORY_ICONS.window end
     return nil
 end
 
