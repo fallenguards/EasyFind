@@ -184,6 +184,8 @@ function Filters:ResolveQuickFilterToken(token)
             if matches > 1 then return nil end
         end
     end
+    -- No fixed filter: a quicklist's name typed as a tag opens that list.
+    if not found and ns.Quicklists and ns.Quicklists.ResolveToken then return ns.Quicklists:ResolveToken(token) end
     return found
 end
 

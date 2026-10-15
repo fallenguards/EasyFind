@@ -79,6 +79,19 @@ local function BarShown()
     return sf ~= nil and sf:IsShown() and (sf:GetAlpha() or 1) > 0.01
 end
 
+-- The one list whose name starts with a typed tag (lower case, "@" off),
+-- as its filter; nil with none or more than one.
+function Quicklists:ResolveToken(token)
+    local found, matches = nil, 0
+    for _, list in ipairs(Store.All()) do
+        if list.name and list.name:lower():find(token, 1, true) == 1 then
+            found, matches = list, matches + 1
+        end
+    end
+    if matches == 1 then return Pill(found) end
+    return nil
+end
+
 function Quicklists:IsOpen(id)
     local qf = ns.Filters and ns.Filters:GetQuickFilter()
     if not (qf and qf.quicklistID == id) then return false end
