@@ -960,7 +960,7 @@ end
 
 -- An extension's own menu: its key, and a button of it on the screen,
 -- placed where the cursor is, as a drag out of the menu would.
-function ExtensionButtons:ShowAppMenu(anchor, app)
+function ExtensionButtons:ShowAppMenu(anchor, app, opts)
     local defs = {}
     local row = ShortkeyRow(app)
     if row then
@@ -977,6 +977,10 @@ function ExtensionButtons:ShowAppMenu(anchor, app)
                 ExtensionButtons:CreateButtonAt(appID, x / scale, y / scale)
             end,
         }
+    end
+    -- From the extensions menu: its tiles can be arranged.
+    if opts and opts.arrange and ns.AppsMenu then
+        defs[#defs + 1] = { kind = "action", label = L["EXTMENU_ARRANGE"], onClick = function() ns.AppsMenu:StartArranging() end }
     end
     if #defs == 0 then return end
     ns.ShowTogglePopup("EasyFindExtensionAppPopup", anchor, defs)

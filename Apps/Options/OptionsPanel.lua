@@ -4981,8 +4981,57 @@ local extensionPages = {}       -- ordered { def, chip, frame }
 local extensionCurrent
 local extensionCtx
 
+-- The menu's own page, the one the tab opens on: columns, labels, the
+-- label font, and the order.
+local function BuildExtensionsMenuPage(ctx, page)
+    local AppsMenu = ns.AppsMenu
+    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    title:SetText(L["OPT_EXT_MENU_PAGE"])
+    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetText(L["OPT_EXT_MENU_HINT"])
+    local function S() return AppsMenu.Settings() end
+    local function Changed() if AppsMenu.Rebuild then AppsMenu:Rebuild() end end
+    local columns = {}
+    for i = 1, 4 do columns[i] = { label = tostring(i), value = i } end
+    local columnsRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_COLUMNS"], columns,
+        function() return S().columns end, function(v) S().columns = v Changed() end,
+        "EasyFindExtMenuColumns", 1)
+    columnsRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -10)
+    local labels = {}
+    for _, pos in ipairs(AppsMenu.LABEL_POSITIONS) do
+        labels[#labels + 1] = { label = L["OPT_EXT_LABEL_" .. pos:upper()], value = pos }
+    end
+    local labelsRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_LABELS"], labels,
+        function() return S().labels end, function(v) S().labels = v Changed() end,
+        "EasyFindExtMenuLabels", "right")
+    labelsRow:SetPoint("TOPLEFT", columnsRow, "BOTTOMLEFT", 0, -4)
+    local fonts = {}
+    for _, name in ipairs(ns.FONT_CHOICES) do
+        fonts[#fonts + 1] = { label = name == "Default" and (_G["DEFAULT"] or "Default") or name, value = name }
+    end
+    local fontRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_LABEL_FONT"], fonts,
+        function() return S().font end, function(v) S().font = v Changed() end,
+        "EasyFindExtMenuFont", "Default")
+    fontRow:SetPoint("TOPLEFT", labelsRow, "BOTTOMLEFT", 0, -4)
+    local sortBtn = CreateModernButton(page, L["OPT_EXT_SORT_NAME"], 120, 22)
+    sortBtn:SetPoint("TOPLEFT", fontRow, "BOTTOMLEFT", 8, -10)
+    sortBtn:SetScript("OnClick", function() S().order = nil Changed() end)
+    Utils.AttachDelayedTooltip(sortBtn, "ANCHOR_TOP", function() return L["OPT_EXT_SORT_NAME_TT"] end)
+    local arrangeBtn = CreateModernButton(page, L["EXTMENU_ARRANGE"], 140, 22)
+    arrangeBtn:SetPoint("LEFT", sortBtn, "RIGHT", 8, 0)
+    arrangeBtn:SetScript("OnClick", function() if AppsMenu.StartArranging then AppsMenu:StartArranging() end end)
+    Utils.AttachDelayedTooltip(arrangeBtn, "ANCHOR_TOP", function() return L["EXTMENU_ARRANGE_HINT"] end)
+end
+
 local function ExtensionPageDefs()
     local defs = {}
+    if ns.AppsMenu then
+        defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage }
+    end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then
         defs[#defs + 1] = { id = "snippets", name = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX,
             coords = ns.SNIPPET_ICON_COORDS, core = true, fills = true, build = BuildSnippetsPage }

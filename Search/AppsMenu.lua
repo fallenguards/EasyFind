@@ -6,6 +6,7 @@ local Utils = ns.Utils
 
 local CreateFrame = CreateFrame
 local UIParent = UIParent
+local tremove, tinsert, sformat, strtrim, time = table.remove, table.insert, string.format, strtrim, time
 
 -- The apps menu: a 3x3 dot grid beside the filter button that drops a list of
 -- apps, exactly as the filter button drops its filters.
@@ -523,142 +524,609 @@ function AppsMenu:SetGlyphColor(r, g, b, a)
     end
 end
 
-local function BuildRows(dropdown)
+-- The menu's settings: columns, where a label sits and its font, the
+-- order dragged into place and the groups. Kept with the profile.
+local LABEL_POSITIONS = { "right", "below", "above", "left", "hidden" }
+AppsMenu.LABEL_POSITIONS = LABEL_POSITIONS
+local TILE_ICON = 20      -- the icon of a stacked or bare tile
+local GAP = 4             -- between tiles
+local BuildRows
+local function Settings()
+    local db = EasyFind and EasyFind.db
+    if not db then return { columns = 1, labels = "right", font = "Default" } end
+    local s = db.appsMenu
+    if not s then s = {} db.appsMenu = s end
+    s.columns = s.columns or 1
+    s.labels = s.labels or "right"
+    s.font = s.font or "Default"
+    return s
+end
+AppsMenu.Settings = Settings
+
+local function GroupByID(s, id)
+    for _, g in ipairs(s.groups or {}) do if g.id == id then return g end end
+    return nil
+end
+
+local function ByName(a, b) return (a.name or "") < (b.name or "") end
+
+-- The tiles in their order: the saved order first (apps and groups), the
+-- rest by name; inside a group, its apps in the group's order.
+local function MenuItems(groupID)
+    local s = Settings()
     local apps = ns.BuildApplicationEntries and ns.BuildApplicationEntries() or {}
-    dropdown.rows = dropdown.rows or {}
-
-    for i = 1, #apps do
-        local app = apps[i]
-        local row = dropdown.rows[i]
-        if not row then
-            row = CreateFrame("Button", nil, dropdown)
-            row:SetHeight(ROW_H)
-            row:SetPoint("LEFT", dropdown, "LEFT", PAD, 0)
-            row:SetPoint("RIGHT", dropdown, "RIGHT", -PAD, 0)
-
-            -- Same rounded hover pill as every other menu row; the shared
-            -- installer owns the highlight texture and wash behavior.
-            Utils.InstallMenuRowHighlight(row)
-
-            row.icon = row:CreateTexture(nil, "ARTWORK")
-            row.icon:SetSize(ICON, ICON)
-            row.icon:SetPoint("LEFT", row, "LEFT", 2, 0)
-
-            row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-            row.label:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-            row.label:SetJustifyH("LEFT")
-
-            row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            row:SetScript("OnClick", function(self, button)
-                if not self.app then return end
-                -- Right-click: the extension's own menu, a button of it among its rows.
-                if button == "RightButton" then
-                    if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(self, self.app) end
-                    return
-                end
-                dropdown:Hide()
-                ns.ToggleApplication(self.app)
-            end)
-            row:HookScript("OnEnter", function(self)
-                if not self.app then return end
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(self.app.name or "")
-                GameTooltip:AddLine(L["EXTBTN_DRAG_HINT"], 0.7, 0.7, 0.7, true)
-                GameTooltip:Show()
-            end)
-            row:HookScript("OnLeave", function() GameTooltip:Hide() end)
-            -- Dragging a row out makes a button for that extension on
-            -- screen (Search/ExtensionButtons.lua); the menu gets out of
-            -- the way and a ghost rides the cursor until the drop.
-            -- Press-and-move, not the frame drag events (those depend on
-            -- the row keeping the mouse, which a menu row does not always
-            -- get): a press followed by movement past a few pixels while
-            -- the button is still held starts the drag.
-            row:HookScript("OnMouseDown", function(self, button)
-                if button ~= "LeftButton" or not (self.app and ns.ExtensionButtons) then return end
-                local sx, sy = GetCursorPosition()
-                self._efPress = { x = sx, y = sy }
-                self:SetScript("OnUpdate", function(row2)
-                    local press = row2._efPress
-                    if not press then row2:SetScript("OnUpdate", nil); return end
-                    if not IsMouseButtonDown("LeftButton") then
-                        row2._efPress = nil
-                        row2:SetScript("OnUpdate", nil)
-                        return
-                    end
-                    local cx, cy = GetCursorPosition()
-                    if (cx - press.x) ^ 2 + (cy - press.y) ^ 2 < 36 then return end
-                    row2._efPress = nil
-                    row2:SetScript("OnUpdate", nil)
-                    dropdown:Hide()
-                    ns.ExtensionButtons:BeginDragFromMenu(row2.app)
-                end)
-            end)
-            dropdown.rows[i] = row
+    local byID = {}
+    for _, app in ipairs(apps) do
+        local id = ns.ApplicationEntryID(app)
+        if id then byID[id] = app end
+    end
+    local items = {}
+    if groupID then
+        local g = GroupByID(s, groupID)
+        for _, id in ipairs(g and g.apps or {}) do
+            if byID[id] then items[#items + 1] = { app = byID[id], id = id, name = byID[id].name } end
         end
+        return items, g
+    end
+    local grouped, placed = {}, {}
+    for _, g in ipairs(s.groups or {}) do
+        for _, id in ipairs(g.apps) do grouped[id] = true end
+    end
+    for _, id in ipairs(s.order or {}) do
+        local gid = id:match("^group:(.+)$")
+        local g = gid and GroupByID(s, gid)
+        if g and not placed[id] then
+            items[#items + 1] = { group = g, id = id, name = g.name }
+            placed[id] = true
+        elseif not gid and byID[id] and not grouped[id] and not placed[id] then
+            items[#items + 1] = { app = byID[id], id = id, name = byID[id].name }
+            placed[id] = true
+        end
+    end
+    local rest = {}
+    for _, g in ipairs(s.groups or {}) do
+        if not placed["group:" .. g.id] then rest[#rest + 1] = { group = g, id = "group:" .. g.id, name = g.name } end
+    end
+    for id, app in pairs(byID) do
+        if not grouped[id] and not placed[id] then rest[#rest + 1] = { app = app, id = id, name = app.name or "" } end
+    end
+    table.sort(rest, ByName)
+    for _, it in ipairs(rest) do items[#items + 1] = it end
+    return items, nil
+end
+AppsMenu.MenuItems = MenuItems
 
-        row.app = app
-        row:SetPoint("TOPLEFT", dropdown, "TOPLEFT", PAD, -PAD - (i - 1) * ROW_H)
+local function TintGlyph(tex)
+    local gc = ns.ChromeGlyphColor()
+    tex:SetDesaturated(true)
+    tex:SetVertexColor(gc[1], gc[2], gc[3], 1)
+end
 
-        -- The app's own glyph, not GetFlatCategoryIcon: launcher data resolves
-        -- to the apps waffle there (result rows), which says nothing in a menu
-        -- where every row is an app.
-        local iconDef = ns.ResultIcons and (ns.ResultIcons:GetAppGlyphIcon(app)
-            or ns.ResultIcons:GetFlatCategoryIcon(app))
-        local tex = (iconDef and iconDef.tex) or app.icon
+local function AppGlyph(app)
+    -- The app's own glyph, not GetFlatCategoryIcon: launcher data resolves
+    -- to the apps waffle there (result rows), which says nothing in a menu
+    -- where every row is an app.
+    local iconDef = ns.ResultIcons and (ns.ResultIcons:GetAppGlyphIcon(app)
+        or ns.ResultIcons:GetFlatCategoryIcon(app))
+    return (iconDef and iconDef.tex) or app.icon, iconDef and iconDef.coords
+end
+
+local function EnsureTile(dropdown, i)
+    local row = dropdown.rows[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, dropdown)
+    row:SetSize(100, ROW_H)
+    -- Same rounded hover pill as every other menu row; the shared
+    -- installer owns the highlight texture and wash behavior.
+    Utils.InstallMenuRowHighlight(row)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(ICON, ICON)
+    -- A group shows up to four of its members in the icon's place.
+    row.minis = {}
+    for k = 1, 4 do
+        local mini = row:CreateTexture(nil, "ARTWORK")
+        mini:Hide()
+        row.minis[k] = mini
+    end
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.label:SetWordWrap(false)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, button)
+        local item = self.item
+        if not item then return end
+        if item.back then
+            BuildRows(dropdown, nil)
+            return
+        end
+        if button == "RightButton" then
+            AppsMenu:ShowTileMenu(self)
+            return
+        end
+        if item.group then
+            BuildRows(dropdown, item.group.id)
+            return
+        end
+        if dropdown.arranging then return end
+        dropdown:Hide()
+        ns.ToggleApplication(item.app)
+    end)
+    row:HookScript("OnEnter", function(self)
+        local item = self.item
+        if not item or item.back then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(item.name or "")
+        if item.app then GameTooltip:AddLine(L["EXTBTN_DRAG_HINT"], 0.7, 0.7, 0.7, true) end
+        GameTooltip:Show()
+    end)
+    row:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    -- Dragging a row out makes a button for that extension on screen
+    -- (Search/ExtensionButtons.lua); while arranging, the drag moves the
+    -- tile within the menu instead. Press-and-move, not the frame drag
+    -- events (those depend on the row keeping the mouse, which a menu row
+    -- does not always get): a press followed by movement past a few
+    -- pixels while the button is still held starts the drag.
+    row:HookScript("OnMouseDown", function(self, button)
+        local item = self.item
+        if button ~= "LeftButton" or not item or item.back then return end
+        if not (dropdown.arranging or (item.app and ns.ExtensionButtons)) then return end
+        local sx, sy = GetCursorPosition()
+        self._efPress = { x = sx, y = sy }
+        self:SetScript("OnUpdate", function(row2)
+            local press = row2._efPress
+            if not press then row2:SetScript("OnUpdate", nil); return end
+            if not IsMouseButtonDown("LeftButton") then
+                row2._efPress = nil
+                row2:SetScript("OnUpdate", nil)
+                return
+            end
+            local cx, cy = GetCursorPosition()
+            if (cx - press.x) ^ 2 + (cy - press.y) ^ 2 < 36 then return end
+            row2._efPress = nil
+            row2:SetScript("OnUpdate", nil)
+            if dropdown.arranging then
+                AppsMenu:BeginArrangeDrag(dropdown, row2)
+            else
+                dropdown:Hide()
+                ns.ExtensionButtons:BeginDragFromMenu(row2.item.app)
+            end
+        end)
+    end)
+    dropdown.rows[i] = row
+    return row
+end
+
+-- A tile's icon and label where the labels setting puts them.
+local function PlaceTile(row, labels)
+    local icon, label = row.icon, row.label
+    icon:ClearAllPoints()
+    label:ClearAllPoints()
+    label:SetShown(labels ~= "hidden")
+    if labels == "below" or labels == "above" then
+        icon:SetSize(TILE_ICON, TILE_ICON)
+        label:SetJustifyH("CENTER")
+        label:SetPoint("LEFT", row, "LEFT", 3, 0)
+        label:SetPoint("RIGHT", row, "RIGHT", -3, 0)
+        if labels == "below" then
+            icon:SetPoint("TOP", row, "TOP", 0, -5)
+            label:SetPoint("TOP", icon, "BOTTOM", 0, -4)
+        else
+            label:SetPoint("TOP", row, "TOP", 0, -5)
+            icon:SetPoint("TOP", label, "BOTTOM", 0, -4)
+        end
+    elseif labels == "hidden" then
+        icon:SetSize(TILE_ICON, TILE_ICON)
+        icon:SetPoint("CENTER", row, "CENTER", 0, 0)
+    elseif labels == "left" then
+        icon:SetSize(ICON, ICON)
+        icon:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+        label:SetJustifyH("RIGHT")
+        label:SetPoint("RIGHT", icon, "LEFT", -8, 0)
+        label:SetPoint("LEFT", row, "LEFT", 4, 0)
+    else
+        icon:SetSize(ICON, ICON)
+        icon:SetPoint("LEFT", row, "LEFT", 2, 0)
+        label:SetJustifyH("LEFT")
+        label:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+        label:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    end
+    -- The group's members sit in the icon's box, two by two.
+    local half = icon:GetWidth() / 2
+    for k = 1, 4 do
+        local mini = row.minis[k]
+        mini:SetSize(half - 1, half - 1)
+        mini:ClearAllPoints()
+        mini:SetPoint("TOPLEFT", icon, "TOPLEFT", ((k - 1) % 2) * half, -math.floor((k - 1) / 2) * half)
+    end
+end
+
+local function PaintTile(row, item, dropdown)
+    row.item = item
+    local labels = Settings().labels
+    PlaceTile(row, labels)
+    for k = 1, 4 do row.minis[k]:Hide() end
+    if item.back then
+        row.icon:SetTexture(nil)
+        Utils.SetChevronTexture(row.icon)
+        row.icon:SetRotation(-math.pi / 2)
+        TintGlyph(row.icon)
+        row.icon:Show()
+    elseif item.group then
+        row.icon:SetRotation(0)
+        row.icon:Hide()
+        local shown = 0
+        for _, id in ipairs(item.group.apps) do
+            local app = ns.FindApplicationEntry(id)
+            if app and shown < 4 then
+                shown = shown + 1
+                local mini = row.minis[shown]
+                local tex, coords = AppGlyph(app)
+                mini:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
+                mini:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
+                TintGlyph(mini)
+                mini:Show()
+            end
+        end
+    else
+        row.icon:SetRotation(0)
+        local tex, coords = AppGlyph(item.app)
         if tex then
             row.icon:SetTexture(tex)
-            row.icon:SetTexCoord(unpack(iconDef and iconDef.coords or { 0, 1, 0, 1 }))
-            -- All app icons follow the theme's chrome-glyph color (same source as
-            -- the filter arrow and the 3x3 dots), desaturated first so every icon
-            -- tints uniformly and stays readable on light themes.
-            local gc = ns.ChromeGlyphColor()
-            row.icon:SetDesaturated(true)
-            row.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
+            row.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
+            TintGlyph(row.icon)
             row.icon:Show()
         else
             row.icon:Hide()
         end
-        row.label:SetText(app.name or "")
-        -- Same font as result-row titles (pathFont), like every menu.
-        local theme = Results.GetActiveTheme and Results:GetActiveTheme()
-        Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
-        -- An experimental app wears the EXP badge after its name.
-        if app.experimental and not row.expTag then
-            row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], app.experimental, true)
-        end
-        if row.expTag then
-            ns.SuperscriptTag(row.expTag, row.label)
-            row.expTag:SetShown(app.experimental ~= nil)
-        end
-        row:Show()
     end
-
-    for i = #apps + 1, #dropdown.rows do
-        dropdown.rows[i]:Hide()
-        if dropdown.rows[i].expTag then dropdown.rows[i].expTag:Hide() end
+    row.label:SetText(item.name or "")
+    -- Same font as result-row titles (pathFont), like every menu, unless
+    -- the labels have a font of their own.
+    local theme = Results.GetActiveTheme and Results:GetActiveTheme()
+    Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
+    local path = ns.GetFontChoicePath and ns.GetFontChoicePath(Settings().font)
+    if path then
+        local _, size, flags = row.label:GetFont()
+        row.label:SetFont(path, size, flags)
     end
+    -- An experimental app wears the EXP badge after its name.
+    local exp = item.app and item.app.experimental
+    if exp and not row.expTag then
+        row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], exp, true)
+    end
+    if row.expTag then
+        ns.SuperscriptTag(row.expTag, row.label)
+        row.expTag:SetShown(exp ~= nil and labels ~= "hidden")
+    end
+    row:Show()
+end
 
-    -- Wash mode and tint follow the active theme; re-run per build so rows
-    -- created this open (or a theme swapped since last open) paint right.
-    Utils.RefreshMenuRowHighlights(dropdown, dropdown.rows)
-
-    -- Fit the widest label rather than a fixed width, so short names don't
-    -- leave a slab of empty space on the right. icon + gap + text + edge
-    -- padding, clamped to a sane range.
-    local widest = 0
-    for i = 1, #apps do
+-- Tile sizes from the widest label and the labels setting; the grid from
+-- the columns setting. Returns the tile width, height and the columns.
+local function TileMetrics(dropdown, n)
+    local s = Settings()
+    local widest, fontH = 0, 12
+    for i = 1, n do
         local row = dropdown.rows[i]
         local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 1 or 0)
         if w > widest then widest = w end
+        fontH = row.label:GetStringHeight() or fontH
     end
-    local menuW = ICON + 8 + widest + PAD * 2 + 6
-    if menuW < 90 then menuW = 90 end
-    if menuW > 200 then menuW = 200 end
+    local cols = math.max(1, math.min(4, s.columns))
+    if s.labels == "below" or s.labels == "above" then
+        return math.max(52, math.min(140, widest + 12)), TILE_ICON + 4 + fontH + 10, cols
+    elseif s.labels == "hidden" then
+        return 32, 32, cols
+    end
+    return math.max(78, math.min(188, ICON + 8 + widest + 10)), ROW_H, cols
+end
 
-    dropdown:SetSize(menuW, PAD * 2 + #apps * ROW_H)
-    return #apps
+function BuildRows(dropdown, groupID)
+    dropdown.rows = dropdown.rows or {}
+    dropdown.groupID = groupID
+    local items, group = MenuItems(groupID)
+    if group then
+        table.insert(items, 1, { back = true, name = group.name, id = "back" })
+    end
+    for i = 1, #items do
+        PaintTile(EnsureTile(dropdown, i), items[i], dropdown)
+    end
+    for i = #items + 1, #dropdown.rows do
+        dropdown.rows[i]:Hide()
+        dropdown.rows[i].item = nil
+        if dropdown.rows[i].expTag then dropdown.rows[i].expTag:Hide() end
+    end
+    -- Wash mode and tint follow the active theme; re-run per build so rows
+    -- created this open (or a theme swapped since last open) paint right.
+    Utils.RefreshMenuRowHighlights(dropdown, dropdown.rows)
+    local w, h, cols = TileMetrics(dropdown, #items)
+    for i = 1, #items do
+        local row = dropdown.rows[i]
+        local r, c = math.floor((i - 1) / cols), (i - 1) % cols
+        row.index = i
+        row:SetSize(w, h)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", dropdown, "TOPLEFT", PAD + c * (w + GAP), -PAD - r * (h + GAP))
+    end
+    local lines = math.ceil(#items / cols)
+    local menuW = PAD * 2 + cols * w + (cols - 1) * GAP
+    local contentH = lines * h + (lines - 1) * GAP
+    local footH = AppsMenu:LayoutFooter(dropdown, contentH, menuW)
+    dropdown:SetSize(menuW, PAD * 2 + contentH + footH)
+    return #items
+end
+
+-- The menu built again where it stands, after a setting or an arrangement.
+function AppsMenu:Rebuild()
+    local dropdown = self.dropdown
+    if dropdown and dropdown:IsShown() then BuildRows(dropdown, dropdown.groupID) end
+end
+
+-- Arranging: the tiles drag into an order; one dropped on another makes
+-- a group of the two, or joins the group it lands on; dropped on the back
+-- tile inside a group it leaves the group. Entered from a tile's menu or
+-- the settings page; a footer with the hint and Done shows meanwhile.
+
+-- The ids as the tiles stand, the back tile left out.
+local function TileIDs(dropdown)
+    local ids = {}
+    for i = 1, #dropdown.rows do
+        local item = dropdown.rows[i].item
+        if item and not item.back then ids[#ids + 1] = item.id end
+    end
+    return ids
+end
+
+local function RemoveID(list, id)
+    for i = #list, 1, -1 do if list[i] == id then tremove(list, i) end end
+end
+
+local function WriteIDs(dropdown, ids)
+    local s = Settings()
+    if dropdown.groupID then
+        local g = GroupByID(s, dropdown.groupID)
+        if g then g.apps = ids end
+    else
+        s.order = ids
+    end
+end
+
+local function DeleteGroupIfEmpty(s, g)
+    if #g.apps > 0 then return end
+    for i = #s.groups, 1, -1 do if s.groups[i] == g then tremove(s.groups, i) end end
+    if s.order then RemoveID(s.order, "group:" .. g.id) end
+end
+
+local function PromptGroupName(g, onDone)
+    ns.ShowThemedDialog({
+        text = L["EXTMENU_GROUP_NAME"], hasEditBox = true, editBoxDefault = g.name, maxLetters = 24,
+        acceptText = _G["OKAY"] or "Okay", cancelText = _G["CANCEL"] or "Cancel",
+        onAccept = function(value)
+            value = strtrim(value or "")
+            if value ~= "" then g.name = value end
+            if onDone then onDone() end
+        end,
+    })
+end
+
+-- A new group of two tiles, standing where the target stood.
+local function MakeGroup(dropdown, targetID, movedID)
+    local s = Settings()
+    s.groups = s.groups or {}
+    local g = { id = sformat("%d.%d", time(), #s.groups + 1), name = L["EXTMENU_GROUP_DEFAULT"], apps = { targetID, movedID } }
+    s.groups[#s.groups + 1] = g
+    local ids = TileIDs(dropdown)
+    RemoveID(ids, movedID)
+    for i = 1, #ids do if ids[i] == targetID then ids[i] = "group:" .. g.id end end
+    s.order = ids
+    PromptGroupName(g, function() AppsMenu:Rebuild() end)
+end
+
+-- Where a drag would land: a tile to join (its middle), else the slot
+-- before or after the nearest tile along the flow.
+local function DropTarget(dropdown, x, y, from)
+    local best, bestD
+    local dl, db = dropdown:GetLeft(), dropdown:GetBottom()
+    for i = 1, #dropdown.rows do
+        local row = dropdown.rows[i]
+        if row:IsShown() and row ~= from and row.item then
+            local cx = row:GetLeft() - dl + row:GetWidth() / 2
+            local cy = row:GetBottom() - db + row:GetHeight() / 2
+            local d = (x - cx) ^ 2 + (y - cy) ^ 2
+            if not bestD or d < bestD then best, bestD = row, d end
+        end
+    end
+    if not best then return nil, nil end
+    local l, b = best:GetLeft() - dl, best:GetBottom() - db
+    local w, h = best:GetWidth(), best:GetHeight()
+    local inside = x >= l and x <= l + w and y >= b and y <= b + h
+    local joins = best.item.back or best.item.group or (best.item.app and from.item.app and not dropdown.groupID)
+    if inside and joins and math.abs(x - (l + w / 2)) < w * 0.3 and math.abs(y - (b + h / 2)) < h * 0.3 then
+        return best, nil
+    end
+    local after
+    if Settings().columns > 1 then after = x > l + w / 2 else after = y < b + h / 2 end
+    return nil, after and best.index + 1 or best.index
+end
+
+local function EndArrangeDrag(dropdown)
+    local ghost = dropdown.ghost
+    ghost:SetScript("OnUpdate", nil)
+    ghost:Hide()
+    ghost.line:Hide()
+    ghost.target:Hide()
+    local from = ghost.from
+    from:SetAlpha(1)
+    local moved = from.item
+    local s = Settings()
+    if ghost.over then
+        local t = ghost.over.item
+        if t.back then
+            -- Out of the group: the app takes its place among the top tiles.
+            local g = GroupByID(s, dropdown.groupID)
+            if g then
+                RemoveID(g.apps, moved.id)
+                local top = {}
+                for _, it in ipairs(MenuItems(nil)) do top[#top + 1] = it.id end
+                s.order = top
+                DeleteGroupIfEmpty(s, g)
+                if #g.apps == 0 then dropdown.groupID = nil end
+            end
+        elseif t.group and moved.app then
+            local ids = TileIDs(dropdown)
+            RemoveID(ids, moved.id)
+            s.order = ids
+            t.group.apps[#t.group.apps + 1] = moved.id
+        elseif t.app and moved.app then
+            MakeGroup(dropdown, t.id, moved.id)
+        end
+    elseif ghost.slot then
+        local ids = TileIDs(dropdown)
+        local fromIdx
+        for i = 1, #ids do if ids[i] == moved.id then fromIdx = i end end
+        local to = ghost.slot - (dropdown.groupID and 1 or 0)
+        if fromIdx then
+            tremove(ids, fromIdx)
+            if to > fromIdx then to = to - 1 end
+            tinsert(ids, math.max(1, math.min(#ids + 1, to)), moved.id)
+            WriteIDs(dropdown, ids)
+        end
+    end
+    BuildRows(dropdown, dropdown.groupID)
+end
+
+function AppsMenu:BeginArrangeDrag(dropdown, row)
+    local ghost = dropdown.ghost
+    if not ghost then
+        ghost = CreateFrame("Frame", nil, dropdown)
+        ghost:SetFrameLevel(dropdown:GetFrameLevel() + 20)
+        ghost:SetSize(TILE_ICON, TILE_ICON)
+        ghost.icon = ghost:CreateTexture(nil, "OVERLAY")
+        ghost.icon:SetAllPoints()
+        ghost.line = dropdown:CreateTexture(nil, "OVERLAY")
+        ghost.line:SetColorTexture(1, 0.82, 0, 0.9)
+        ghost.target = dropdown:CreateTexture(nil, "ARTWORK")
+        ghost.target:SetColorTexture(1, 0.82, 0, 0.22)
+        dropdown.ghost = ghost
+    end
+    local tex, coords
+    if row.item.group then tex = ns.EXTENSIONS_ICON_TEX else tex, coords = AppGlyph(row.item.app) end
+    ghost.icon:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
+    ghost.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
+    TintGlyph(ghost.icon)
+    ghost.from = row
+    row:SetAlpha(0.35)
+    ghost:Show()
+    ghost:SetScript("OnUpdate", function(self)
+        local cx, cy = GetCursorPosition()
+        local scale = dropdown:GetEffectiveScale()
+        local x, y = cx / scale - dropdown:GetLeft(), cy / scale - dropdown:GetBottom()
+        self:ClearAllPoints()
+        self:SetPoint("CENTER", dropdown, "BOTTOMLEFT", x, y)
+        local over, slot = DropTarget(dropdown, x, y, row)
+        self.over, self.slot = over, slot
+        self.target:SetShown(over ~= nil)
+        if over then
+            self.target:ClearAllPoints()
+            self.target:SetAllPoints(over)
+        end
+        local at = slot and dropdown.rows[slot]
+        local last = slot and not at and dropdown.rows[slot - 1]
+        self.line:SetShown((at or last) ~= nil)
+        self.line:ClearAllPoints()
+        if Settings().columns > 1 then
+            self.line:SetSize(2, (at or last):GetHeight())
+            if at then self.line:SetPoint("RIGHT", at, "LEFT", -1, 0)
+            elseif last then self.line:SetPoint("LEFT", last, "RIGHT", 1, 0) end
+        else
+            self.line:SetSize((at or last):GetWidth(), 2)
+            if at then self.line:SetPoint("BOTTOM", at, "TOP", 0, 1)
+            elseif last then self.line:SetPoint("TOP", last, "BOTTOM", 0, -1) end
+        end
+        if not IsMouseButtonDown("LeftButton") then EndArrangeDrag(dropdown) end
+    end)
+end
+
+-- The footer while arranging: the hint and Done. Returns its height.
+function AppsMenu:LayoutFooter(dropdown, contentH, menuW)
+    local foot = dropdown.foot
+    if not dropdown.arranging then
+        if foot then foot:Hide() end
+        return 0
+    end
+    if not foot then
+        foot = CreateFrame("Frame", nil, dropdown)
+        foot.hint = foot:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        foot.hint:SetPoint("TOPLEFT", foot, "TOPLEFT", 2, 0)
+        foot.hint:SetJustifyH("LEFT")
+        foot.hint:SetWordWrap(true)
+        foot.hint:SetText(L["EXTMENU_ARRANGE_HINT"])
+        foot.done = CreateFrame("Button", nil, foot)
+        foot.done:SetHeight(18)
+        foot.done.text = foot.done:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        foot.done.text:SetPoint("RIGHT", foot.done, "RIGHT", 0, 0)
+        foot.done.text:SetText(L["EXTMENU_DONE"])
+        foot.done:SetWidth((foot.done.text:GetStringWidth() or 30) + 4)
+        foot.done:SetPoint("BOTTOMRIGHT", foot, "BOTTOMRIGHT", -2, 0)
+        foot.done:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
+        foot.done:SetScript("OnLeave", function(self) self.text:SetTextColor(unpack(ns.TEXT_DIM)) end)
+        foot.done.text:SetTextColor(unpack(ns.TEXT_DIM))
+        foot.done:SetScript("OnClick", function() AppsMenu:StopArranging() end)
+        dropdown.foot = foot
+    end
+    foot:ClearAllPoints()
+    foot:SetPoint("TOPLEFT", dropdown, "TOPLEFT", PAD, -PAD - contentH - 6)
+    foot:SetWidth(menuW - PAD * 2)
+    foot.hint:SetWidth(menuW - PAD * 2 - 4)
+    local h = (foot.hint:GetStringHeight() or 12) + 22
+    foot:SetHeight(h)
+    foot:Show()
+    return h + 6
+end
+
+function AppsMenu:StartArranging()
+    local dropdown, btn = self.dropdown, self.button
+    if not (dropdown and btn) then return end
+    -- The menu hangs from the bar: shown first when it is away.
+    if not BarShown() and ns.Search and ns.Search.Show then ns.Search:Show(false) end
+    if not dropdown:IsShown() then btn:Click() end
+    if not dropdown:IsShown() then return end
+    dropdown.arranging = true
+    BuildRows(dropdown, dropdown.groupID)
+end
+
+function AppsMenu:StopArranging()
+    local dropdown = self.dropdown
+    if not dropdown then return end
+    dropdown.arranging = nil
+    if dropdown:IsShown() then BuildRows(dropdown, dropdown.groupID) end
+end
+
+-- Right-click on a tile: an app's own menu with Arrange added; a group's
+-- menu, its name and its members.
+function AppsMenu:ShowTileMenu(row)
+    local dropdown, item = self.dropdown, row.item
+    if item.app then
+        if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(row, item.app, { arrange = true }) end
+        return
+    end
+    local g = item.group
+    local s = Settings()
+    Utils.ShowCursorMenu("EasyFindAppsTileMenu", {
+        { text = L["EXTMENU_RENAME"], onClick = function() PromptGroupName(g, function() AppsMenu:Rebuild() end) end },
+        { text = L["EXTMENU_UNGROUP"], onClick = function()
+            local ids = s.order or TileIDs(dropdown)
+            local at = #ids + 1
+            for i = 1, #ids do if ids[i] == "group:" .. g.id then at = i end end
+            RemoveID(ids, "group:" .. g.id)
+            for k = #g.apps, 1, -1 do tinsert(ids, at, g.apps[k]) end
+            s.order = ids
+            g.apps = {}
+            DeleteGroupIfEmpty(s, g)
+            AppsMenu:Rebuild()
+        end },
+        { isSeparator = true },
+        { text = L["EXTMENU_ARRANGE"], onClick = function() AppsMenu:StartArranging() end },
+    }, {})
 end
 
 function AppsMenu:Create(searchFrame, filterBtn)
@@ -810,6 +1278,11 @@ function AppsMenu:Create(searchFrame, filterBtn)
 
     -- The apps button stays engaged (its highlight locked) while its menu is
     -- open, like every other menu-owner button.
+    -- Closed, the menu is back at its top level and locked.
+    dropdown:HookScript("OnHide", function(self)
+        self.arranging = nil
+        self.groupID = nil
+    end)
     dropdown:HookScript("OnShow", function() btn:LockHighlight() end)
     dropdown:HookScript("OnHide", function()
         -- The locked highlight doubles as the toolbar-ring focus visual.
