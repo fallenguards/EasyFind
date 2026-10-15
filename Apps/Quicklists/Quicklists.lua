@@ -494,7 +494,8 @@ function Quicklists:BuildAddRows(data)
     return rows
 end
 
--- The extensions menu: the settings page, then one row per list.
+-- The extensions menu: the settings page alone; a list opens by its key
+-- or its name typed as a tag, never from the menu.
 function Quicklists:AppEntries(apps)
     apps[#apps + 1] = {
         name = L["FILTER_QUICKLISTS"],
@@ -508,13 +509,6 @@ function Quicklists:AppEntries(apps)
             end
         end,
     }
-    local lists = Store.All()
-    for i = 1, #lists do
-        apps[#apps + 1] = {
-            name = lists[i].name, quicklistID = lists[i].id, noPin = true,
-            icon = ns.QUICKLIST_ICON_TEX,
-        }
-    end
 end
 
 -- ==== wiring ================================================================
