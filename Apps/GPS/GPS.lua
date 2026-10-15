@@ -286,6 +286,16 @@ end
 -- avoid: ways to leave out, the settings' by default; quick: no advice;
 -- draw: "first" draws the walk set out on (a route to show), nothing
 -- otherwise (a route to compare).
+-- The flight points the player dropped from the trip dest belongs to.
+function GPS.SkipFor(dest)
+    local route = Route()
+    if not (route and route.skipLearn and dest) then return nil end
+    for _, s in ipairs(route.stops or { route.dest }) do
+        if s.name == dest.name and s.mapID == dest.mapID then return route.skipLearn end
+    end
+    return nil
+end
+
 function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom)
     local Route = ns.GPSRoute
     local origin = startFrom or StartPoint()
@@ -293,7 +303,8 @@ function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom)
         local h = HearthPoint()
         local db = DB()
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
-                       start = origin, draw = draw }
+                       start = origin, draw = draw,
+                       autoLearn = not (db and db.gpsAutoLearn == false), skipLearn = GPS.SkipFor(dest) }
         if quick then opts.advise = false end
         local ok, steps, advice, _
         local co = coroutine.running()
@@ -958,8 +969,11 @@ function GPS.Navigated(dest, steps, total, advice, stops)
         local okPos, herePos = pcall(C_Map.GetPlayerMapPosition, hereMap, "player")
         if okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
     end
+    -- The same trip planned again keeps the flight points dropped from it.
+    local old = Route()
+    local skip = old and old.dest and old.dest.name == dest.name and old.dest.mapID == dest.mapID and old.skipLearn or nil
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = from, origin = origin, stops = stops or { dest },
+                       from = from, origin = origin, stops = stops or { dest }, skipLearn = skip,
                        report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     if GPS.AfterRoute then GPS.AfterRoute() end
@@ -981,6 +995,20 @@ function GPS:AddStop(tip)
     self:Plan(route.dest.name, function() return self:BuildStops(route, via, nil, nil, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice) end
+        end)
+end
+
+-- A learning stop dropped: the trip again without it, and it is not
+-- taken or offered again on this trip.
+function GPS:DropLearn(nodeID)
+    local route = Route()
+    if not (route and route.dest and nodeID) then return end
+    route.skipLearn = route.skipLearn or {}
+    route.skipLearn[nodeID] = true
+    local keepVia = route.via and route.via.id ~= nodeID and route.via or nil
+    self:Plan(route.dest.name, function() return self:BuildStops(route, keepVia, nil, nil, "first") end,
+        function(steps, total, advice)
+            if steps and Route() == route then GPS.StopAdded(route, keepVia, keepVia or {}, steps, total, advice) end
         end)
 end
 
@@ -1437,6 +1465,13 @@ local function StepRow(container, i)
     row.num:SetPoint("TOPLEFT", row, "TOPLEFT", 6, -4)
     -- A teleport's icon near the row's right edge, with a little room.
     row.cast = CastButton(row, -8)
+    -- A learning step drops from the trip with the X its row shows on hover.
+    row.drop = ns.CreateCloseX(row, 10)
+    row.drop:SetPoint("TOPRIGHT", row, "TOPRIGHT", -8, -4)
+    row.drop:Hide()
+    row.drop:SetScript("OnClick", function() if row.learnID then GPS:DropLearn(row.learnID) end end)
+    Utils.AttachDelayedTooltip(row.drop, "ANCHOR_TOP", function() return L["GPS_SKIP_LEARN"] end)
+    row.drop:HookScript("OnLeave", function() if not row:IsMouseOver() then row.drop:Hide() end end)
     -- A plain click never moves the route: beside the map it pins the
     -- step's preview; Shift-click jumps; right-click offers the jump.
     row:SetScript("OnClick", function(self, button)
@@ -1457,10 +1492,12 @@ local function StepRow(container, i)
         GameTooltip:Show()
         -- A spell or an item pulses its own icon.
         if self.cast and self.cast:IsShown() and self.cast.pulse then self.cast.pulse:Play() end
+        if self.learnID then self.drop:Show() end
     end)
     row:SetScript("OnLeave", function(self)
         GameTooltip_Hide()
         if self.cast and self.cast.pulse then self.cast.pulse:Stop() end
+        if not self.drop:IsMouseOver() then self.drop:Hide() end
     end)
     rows[i] = row
     return row
@@ -1699,7 +1736,9 @@ local function Render(container)
         local active = (route.active or 1) == i and not route.arrived
         local done = route.arrived or i < (route.active or 1)
         local cast = SetupCast(row.cast, step, active)
-        row.text:SetWidth(mmax(40, listW - 12 - row.num:GetWidth() - (cast and 32 or 6)))
+        row.learnID = step.kind == "learn" and not route.arrived and step.nodeID or nil
+        if not row.learnID then row.drop:Hide() end
+        row.text:SetWidth(mmax(40, listW - 12 - row.num:GetWidth() - ((cast or row.learnID) and 32 or 6)))
         row.text:SetText(StepText(step, active))
         local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
         row:SetHeight(rowH)
@@ -2398,6 +2437,24 @@ function GPS.WorldPinRow()
             local db = DB()
             if db then db.gpsWorldPin = (not v) and false or nil end
             Refresh()
+        end }
+end
+
+-- The menu row for learning cheap flight points on the way (on unless
+-- turned off); the trip on screen is planned again either way.
+function GPS.AutoLearnRow()
+    return { kind = "check", label = L["GPS_AUTO_LEARN"], tooltip = L["GPS_AUTO_LEARN_TT"],
+        get = function() local db = DB() return not (db and db.gpsAutoLearn == false) end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsAutoLearn = (not v) and false or nil end
+            local route = Route()
+            if route and route.dest and not route.arrived then
+                GPS:Plan(route.dest.name, function() return GPS:BuildStops(route, nil, nil, nil, "first") end,
+                    function(steps, total, advice)
+                        if steps and Route() == route then GPS.StopAdded(route, nil, {}, steps, total, advice) end
+                    end)
+            end
         end }
 end
 
@@ -3481,6 +3538,7 @@ local function BuildDock()
             defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end }
             defs[#defs + 1] = GPS.WorldPinRow()
             defs[#defs + 1] = GPS.SnapRow()
+            defs[#defs + 1] = GPS.AutoLearnRow()
             -- The style is for the window outside the tracker; snapped in,
             -- the section has one look.
             if not f.docked then
@@ -3842,6 +3900,7 @@ local function ShowSizePopup(anchor)
         end }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
+    defs[#defs + 1] = GPS.AutoLearnRow()
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_HEIGHT"] }
     for i = 1, #SIZE_HEIGHTS do

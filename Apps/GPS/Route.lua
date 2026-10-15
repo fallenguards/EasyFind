@@ -31,6 +31,9 @@ local AVOID_KIND = { taxi = "taxi", boat = "boat", ferry = "boat", zeppelin = "z
 Route.AVOID_KIND = AVOID_KIND
 local WALK_DETOUR = 1.2     -- without the walking grid: ground yards per straight yard
 local PICKUP_YARDS = 150    -- an undiscovered flight master this far off a ride is on the way
+-- Learning stops taken without asking: together at most this share of the
+-- trip's time and this many seconds, at most this many stops.
+local AUTO_LEARN_SHARE, AUTO_LEARN_CAP, AUTO_LEARN_STOPS = 0.05, 90, 3
 local SUGGEST_MIN_SECONDS = 60
 local SUGGEST_CANDIDATES = 12
 
@@ -1037,11 +1040,15 @@ local function Copy(t)
     return c
 end
 
--- The trip with a stop to learn the flight master via = { id, name, p }:
--- the way there, a step to learn it, then on with its flight path known.
+-- The trip with stops to learn flight masters, via = { id, name, p } or a
+-- list of them in the order the trip meets them: the way to each, a step
+-- to learn it, then on with its flight path known.
 local function ViaStop(route, dest, opts, start, known, listed)
     local L = ns.L
-    local via = opts.via
+    local list = opts.via.id and { opts.via } or opts.via
+    local via = list[1]
+    local rest = {}
+    for i = 2, #list do rest[#rest + 1] = list[i] end
     local here = Resolve(via.p)
     if not here then return nil end
     local o = Copy(opts)
@@ -1052,6 +1059,7 @@ local function ViaStop(route, dest, opts, start, known, listed)
     for id in pairs(known or {}) do learned[id] = true end
     learned[via.id] = true
     o.start, o.known = here, known and learned or false
+    o.via = #rest > 0 and rest or nil
     local s2, t2 = route:Build(dest, o)
     if not s2 then return nil end
     local steps = {}
@@ -1120,8 +1128,73 @@ local function KnownSet(data)
 end
 Route.KnownSet = KnownSet
 
+local function ByExtra(a, b) return a.extra < b.extra end
+local function ByOrder(a, b) return a.order < b.order end
+
+-- Flight points learned on the way without asking: the cheapest offers
+-- first, while their extra time together stays within the budget (a share
+-- of the trip, capped). A stop that costs nothing is always taken. Never
+-- one the player dropped (opts.skipLearn), and on Forever only once this
+-- character's learned points were recorded: before that every point looks
+-- new. Taken offers leave the advice. Returns the steps and total.
+function Route:TakeCheapLearns(dest, priced, advice, steps, total, opts, data)
+    local recorded = Route.recordedKnown
+    local trusted = not data.classic or (recorded and next(recorded) ~= nil)
+    local budget = (opts.autoLearn and trusted) and math.min(AUTO_LEARN_CAP, total * AUTO_LEARN_SHARE) or 0
+    local skip = opts.skipLearn
+    local cands = {}
+    for i = 1, #advice.pickups do
+        local p = advice.pickups[i]
+        p.order = i
+        cands[#cands + 1] = p
+    end
+    if advice.learn then
+        advice.learn.order = #advice.pickups + 1
+        cands[#cands + 1] = advice.learn
+    end
+    local chosen, spent = {}, 0
+    local usable = {}
+    for i = 1, #cands do
+        local c = cands[i]
+        if c.extra and not (skip and skip[c.id]) then usable[#usable + 1] = c end
+    end
+    tsort(usable, ByExtra)
+    for i = 1, #usable do
+        local c = usable[i]
+        local cost = mmax(0, c.extra)
+        if #chosen < AUTO_LEARN_STOPS and spent + cost <= budget then
+            chosen[#chosen + 1] = c
+            spent = spent + cost
+        end
+    end
+    -- Together they may cost more than their sum: the dearest goes until
+    -- the whole trip fits.
+    while #chosen > 0 do
+        local via = {}
+        for i = 1, #chosen do via[i] = chosen[i] end
+        tsort(via, ByOrder)
+        priced.via = via
+        local viaSteps, viaTotal = self:Build(dest, priced)
+        if viaSteps and viaTotal and viaTotal - total <= budget + 1 then
+            local taken = {}
+            for i = 1, #via do taken[via[i].id] = true end
+            local keep = {}
+            for i = 1, #advice.pickups do
+                if not taken[advice.pickups[i].id] then keep[#keep + 1] = advice.pickups[i] end
+            end
+            advice.pickups = keep
+            if advice.learn and taken[advice.learn.id] then advice.learn = nil end
+            return viaSteps, viaTotal
+        end
+        chosen[#chosen] = nil
+    end
+    return steps, total
+end
+
 -- Route from the player to dest { name, mapID, x, y }: steps, total seconds,
 -- advice { pickups, learn = { id, name, p, save, total } }; nil without data.
+-- opts.autoLearn: learn cheap flight points on the way; opts.skipLearn: the
+-- flight master ids the player dropped from this trip.
 function Route:Build(dest, opts)
     opts = opts or {}
     local data = opts.data or ns.GPSData
@@ -1210,19 +1283,7 @@ function Route:Build(dest, opts)
         for i = 1, #advice.pickups do Price(advice.pickups[i]) end
         local learn = advice.learn
         if learn then Price(learn) end
-        -- A stop that costs nothing is simply taken.
-        if learn and learn.extra and learn.extra <= 0 then
-            priced.via = learn
-            local viaSteps, viaTotal = self:Build(dest, priced)
-            if viaSteps then
-                steps, total, advice.learn = viaSteps, viaTotal, nil
-                local keep = {}
-                for i = 1, #advice.pickups do
-                    if advice.pickups[i].id ~= learn.id then keep[#keep + 1] = advice.pickups[i] end
-                end
-                advice.pickups = keep
-            end
-        end
+        steps, total = self:TakeCheapLearns(dest, priced, advice, steps, total, opts, data)
         if #advice.pickups == 0 and not advice.learn then advice = nil end
     end
     return steps, total, advice
