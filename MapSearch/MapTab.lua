@@ -2798,6 +2798,22 @@ local function CreatePanel(qmf)
         end
         ShowOurPanel(self.pageID)
     end)
+    -- An X at the bar's right while the cursor is on it: the page's route
+    -- cleared without opening the page.
+    local clearX = ns.CreateCloseX(pageBar, 12)
+    clearX:SetPoint("RIGHT", pageBar, "RIGHT", -6, 0)
+    clearX:Hide()
+    clearX:SetScript("OnClick", function()
+        local def = pageBar.pageID and pages[pageBar.pageID]
+        if def and def.clear then def.clear() end
+    end)
+    local function HoverX()
+        local def = pageBar.pageID and pages[pageBar.pageID]
+        clearX:SetShown(def and def.clear and (pageBar:IsMouseOver() or clearX:IsMouseOver()) or false)
+    end
+    pageBar:HookScript("OnEnter", HoverX)
+    pageBar:HookScript("OnLeave", function() Utils.SafeAfter(0.05, HoverX) end)
+    clearX:HookScript("OnLeave", function() Utils.SafeAfter(0.05, HoverX) end)
     pageBar:Hide()
     p.pageBar = pageBar
 

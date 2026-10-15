@@ -2313,6 +2313,7 @@ if ns.MapTab and ns.MapTab.RegisterPage then
         keepSearch = true,
         title = L["APP_GPS"],
         hasContent = function() return Route() ~= nil end,
+        clear = function() GPS:Clear() end,
         barText = function()
             local route = Route()
             return route and sformat(L["GPS_RESUME_FMT"], route.dest.name or "?") or L["APP_GPS"]
