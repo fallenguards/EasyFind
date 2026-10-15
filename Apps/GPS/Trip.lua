@@ -14,8 +14,9 @@ local Utils = ns.Utils
 local mmax, mmin = math.max, math.min
 local tremove, tinsert = table.remove, table.insert
 
-local ROW_H, ADD_H, DROP_ROWS, DROP_ROW_H = 24, 18, 6, 20
-local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
+local ROW_H, ADD_H, MARK, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 6, 20
+local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring-small"
+local DIM, PIN_RED, RING_GREY = { 0.55, 0.55, 0.58 }, { 0.92, 0.26, 0.21 }, { 0.8, 0.8, 0.82 }
 
 local function Route() local g = ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
 
@@ -116,6 +117,7 @@ local function DropRow(ed, i)
     row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
+    if ed.px and ns.GPS.SizeFont then ns.GPS.SizeFont(row.text, ed.px) end
     row:SetScript("OnClick", function(self) if self.data then ed:Pick(self.data) end end)
     ed.dropRows[i] = row
     return row
@@ -266,15 +268,29 @@ function Editor:OnUpdate()
     end
 end
 
+-- A row's mark at the left: the start's open ring, a stop's pin, the add
+-- row's ring with a plus. Three dots above a row join it to the one before.
+local function Mark(parent)
+    local mark = parent:CreateTexture(nil, "ARTWORK")
+    mark:SetSize(MARK, MARK)
+    mark:SetPoint("LEFT", parent, "LEFT", 0, 0)
+    return mark
+end
+
 local function Field(ed, i)
     local row = ed.rows[i]
     if row then return row end
     row = CreateFrame("Frame", nil, ed)
     row:SetHeight(ROW_H)
-    local mark = row:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(12, 12)
-    mark:SetPoint("LEFT", row, "LEFT", 2, 0)
-    row.mark = mark
+    row.mark = Mark(row)
+    row.dots = {}
+    for k = 1, 3 do
+        local dot = row:CreateTexture(nil, "ARTWORK")
+        dot:SetSize(2, 2)
+        dot:SetPoint("CENTER", row, "TOPLEFT", MARK / 2, (2 - k) * 3)
+        dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
+        row.dots[k] = dot
+    end
     local grip = CreateFrame("Button", nil, row)
     grip:SetSize(14, 14)
     grip:SetPoint("RIGHT", row, "RIGHT", 0, 0)
@@ -282,7 +298,7 @@ local function Field(ed, i)
         local bar = grip:CreateTexture(nil, "ARTWORK")
         bar:SetSize(10, 1)
         bar:SetPoint("CENTER", grip, "CENTER", 0, k * 3)
-        bar:SetColorTexture(0.55, 0.55, 0.58, 1)
+        bar:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
     end
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
@@ -290,13 +306,13 @@ local function Field(ed, i)
     row.grip = grip
     local box = CreateFrame("EditBox", nil, row, "SearchBoxTemplate")
     box:SetHeight(20)
-    box:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    box:SetPoint("LEFT", row.mark, "RIGHT", 8, 0)
     box:SetPoint("RIGHT", grip, "LEFT", -4, 0)
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
     if box.Instructions then
         box.Instructions:SetWordWrap(false)
-        box.Instructions:SetTextColor(0.55, 0.55, 0.58, 1)
+        box.Instructions:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
         box.Instructions._efOwnColor = true
     end
     -- The client focuses a fresh visible EditBox on its own; refuse that.
@@ -322,13 +338,18 @@ local function Field(ed, i)
     return row
 end
 
--- The rows as the route stands: the start, each stop, the add row.
+-- The rows as the route stands: the start, each stop, the add row. Text
+-- in the page's size, the one the steps follow.
 function Editor:Refresh(route)
     local g = ns.GPS
     local stops = route and Stops(route) or {}
     local start = g.Start and g.Start()
+    local px = g.MapTextPx and g.MapTextPx(self.frame)
+    self.px = px
+    local boxH = mmax(20, (px or 12) + 8)
+    local rowH = boxH + 10
     local y, n = 0, 0
-    local function Show(index, text, placeholder, mark, adding)
+    local function Show(index, text, placeholder, pin, adding)
         n = n + 1
         local row = Field(self, n)
         row.index, row.adding = index, adding or nil
@@ -336,23 +357,40 @@ function Editor:Refresh(route)
             row.box:SetText(text or "")
             if row.box.Instructions then row.box.Instructions:SetText(placeholder or "") end
         end
-        row.mark:SetTexture(mark == "pin" and ns.GPS_ICON_TEX or TEX_DISC)
-        if mark == "pin" then row.mark:SetVertexColor(1, 0.82, 0, 1) else row.mark:SetVertexColor(0.55, 0.55, 0.58, 1) end
+        if px and g.SizeFont then
+            g.SizeFont(row.box, px)
+            if row.box.Instructions then g.SizeFont(row.box.Instructions, px) end
+        end
+        row.box:SetHeight(boxH)
+        if pin then
+            row.mark:SetTexture(ns.GPS_ICON_TEX)
+            row.mark:SetVertexColor(PIN_RED[1], PIN_RED[2], PIN_RED[3], 1)
+        else
+            row.mark:SetTexture(TEX_RING)
+            row.mark:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
+        end
+        for k = 1, 3 do row.dots[k]:SetShown(n > 1) end
         row.grip:SetShown(index > 0 and not adding and #stops > 1)
+        row:SetHeight(rowH)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
-        row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
+        -- The first row shares its line with the page's pop-out button.
+        if n == 1 and self.frame.popoutBtn then
+            row:SetPoint("RIGHT", self.frame.popoutBtn, "LEFT", -6, 0)
+        else
+            row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
+        end
         row:Show()
-        y = y + ROW_H
+        y = y + rowH
         return row
     end
-    Show(0, start and start.name or "", L["GPS_TRIP_FROM"], "disc")
+    Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
     wipe(self.stopRows)
     for i = 1, #stops do
-        self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], "pin")
+        self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], true)
     end
     if self.adding then
-        local row = Show(#stops + 1, "", L["GPS_TRIP_TO"], "pin", true)
+        local row = Show(#stops + 1, "", L["GPS_TRIP_TO"], true, true)
         if self.adding == "focus" then
             -- Focused after the click that made the row, not inside it.
             self.adding = true
@@ -363,38 +401,61 @@ function Editor:Refresh(route)
         end
     end
     for i = n + 1, #self.rows do self.rows[i]:Hide() end
+    if px and g.SizeFont then g.SizeFont(self.addText, px) end
     self.add:ClearAllPoints()
-    self.add:SetPoint("TOPLEFT", self, "TOPLEFT", 20, -y - 2)
+    self.add:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
+    self.add:SetPoint("RIGHT", self, "RIGHT", 0, 0)
+    for k = 1, 3 do self.addDots[k]:SetShown(not self.adding) end
     self.add:SetShown(not self.adding)
     if not self.adding then y = y + ADD_H end
     self:SetHeight(mmax(1, y))
 end
 
--- The editor on a route page, between its title line and its time line.
+-- The editor at the top of a route page, in the title line's place: the
+-- fields say where the trip goes, so the title does not.
 function Trip.BuildEditor(frame)
     if frame.trip or not (frame.glyph and frame.eta and frame.list and frame.clearBtn) then return end
     local ed = CreateFrame("Frame", nil, frame)
     for k, v in pairs(Editor) do ed[k] = v end
+    ed.frame = frame
     ed.rows, ed.stopRows, ed.dropRows = {}, {}, {}
-    ed:SetPoint("TOPLEFT", frame.glyph, "BOTTOMLEFT", 0, -8)
+    ed:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", 0, 0)
     ed:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     ed:SetHeight(1)
+    frame.title:Hide()
+    if frame.glyphTex then frame.glyphTex:Hide() end
 
+    -- The add row: a ring with a plus in it under the marks, the words after.
     local add = CreateFrame("Button", nil, ed)
     add:SetHeight(ADD_H)
+    local ring = Mark(add)
+    ring:SetTexture(TEX_RING)
+    ring:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
+    local plus = add:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    plus:SetPoint("CENTER", ring, "CENTER", 0, 0)
+    plus:SetText("+")
+    plus:SetTextColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
+    plus._efOwnColor = true
+    ed.addDots = {}
+    for k = 1, 3 do
+        local dot = add:CreateTexture(nil, "ARTWORK")
+        dot:SetSize(2, 2)
+        dot:SetPoint("CENTER", add, "TOPLEFT", MARK / 2, (2 - k) * 3)
+        dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
+        ed.addDots[k] = dot
+    end
     local addText = add:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    addText:SetPoint("LEFT", add, "LEFT", 0, 0)
-    addText:SetText("+ " .. L["GPS_TRIP_ADD"])
-    addText:SetTextColor(0.55, 0.55, 0.58, 1)
+    addText:SetPoint("LEFT", ring, "RIGHT", 8, 0)
+    addText:SetText(L["GPS_TRIP_ADD"])
+    addText:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
     addText._efOwnColor = true
-    add:SetWidth((addText:GetStringWidth() or 100) + 8)
     add:SetScript("OnEnter", function() addText:SetTextColor(1, 1, 1, 1) end)
-    add:SetScript("OnLeave", function() addText:SetTextColor(0.55, 0.55, 0.58, 1) end)
+    add:SetScript("OnLeave", function() addText:SetTextColor(DIM[1], DIM[2], DIM[3], 1) end)
     add:SetScript("OnClick", function()
         ed.adding = "focus"
         ed:Refresh(Route())
     end)
-    ed.add = add
+    ed.add, ed.addText = add, addText
 
     local line = ed:CreateTexture(nil, "OVERLAY")
     line:SetHeight(2)

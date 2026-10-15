@@ -37,6 +37,12 @@ local function SizeFont(fs, px)
     local file, _, flags = fs:GetFont()
     if file then fs:SetFont(file, px, flags) end
 end
+-- The trip editor sizes its text as the page's steps.
+GPS.SizeFont = SizeFont
+function GPS.MapTextPx(container)
+    local scale = MapScale(container)
+    return scale and MAP_STEP_PX * scale or nil
+end
 local HIT_ROWS = 8            -- results shown under the pop-out's search box
 -- Pop-out sizes on offer: the cog's radio rows. A nil height fits the steps.
 local SIZE_WIDTHS = { { 240, "GPS_SIZE_NARROW" }, { 300, "GPS_SIZE_NORMAL" }, { 380, "GPS_SIZE_WIDE" }, { 460, "GPS_SIZE_WIDER" } }
@@ -1632,9 +1638,21 @@ local function Render(container)
     else
         local eta = ""
         if route.eta and route.eta > 0 then eta = EtaText(route.eta) end
+        -- The trip editor stands where the title was: a plan under way says so here.
+        if container.trip and GPS.planning then eta = sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?") end
         container.eta:SetText(eta)
     end
-    if container.trip then container.trip:Refresh(route) end
+    if container.trip then
+        container.trip:Refresh(route)
+        -- The time line and the Clear link in the page's size, as the steps.
+        local px = GPS.MapTextPx(container)
+        local linkText = container.clearBtn and container.clearBtn.text
+        if px and linkText then
+            SizeFont(container.eta, px)
+            SizeFont(linkText, px)
+            container.clearBtn:SetWidth((linkText:GetStringWidth() or 60) + 4)
+        end
+    end
     local y = 0
     local offset = container.scrollOffset or 0
     local shown = route.arrived and 0 or #route.steps
@@ -2081,6 +2099,7 @@ local function BuildSurface(frame, opts)
         text:SetText(L["GPS_CLEAR"])
         text:SetTextColor(unpack(ns.TEXT_DIM))
         text._efOwnColor = true
+        link.text = text
         link:SetWidth((text:GetStringWidth() or 60) + 4)
         -- On the time line's row, anchored to the frame (the line then
         -- ends at the link; anchoring the two to each other would loop).
