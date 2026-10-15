@@ -1615,13 +1615,16 @@ local function Render(container)
     local y = 0
     local offset = container.scrollOffset or 0
     local shown = route.arrived and 0 or #route.steps
+    -- The window set to the next step alone: that step, nothing else.
+    local dbo = DB()
+    local only = container.isPopout and dbo and dbo.gpsPopoutNextOnly and shown > 0 and (route.active or 1) or nil
     local scale = MapScale(container)
     local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
     -- A wrapped line is measured at the width it is given outright: a new
     -- row's anchors may not be placed yet when it is measured.
     local listW = container.list:GetWidth() or 0
     local from = FromRow(container)
-    if route.arrived then
+    if route.arrived or only then
         from:Hide()
     else
         local s = Start()
@@ -1635,7 +1638,7 @@ local function Render(container)
         from:Show()
         y = y + rowBase
     end
-    for i = 1, shown do
+    for i = only or 1, only or shown do
         local step = route.steps[i]
         local row = StepRow(container, i)
         row.index = i
@@ -1671,8 +1674,9 @@ local function Render(container)
         row:Show()
         y = y + rowH
     end
-    for i = shown + 1, #rows do rows[i]:Hide() end
-    local tips = AdviceLines(route)
+    for i = 1, (only or 1) - 1 do rows[i]:Hide() end
+    for i = (only or shown) + 1, #rows do rows[i]:Hide() end
+    local tips = not only and AdviceLines(route)
     local nTips = tips and #tips or 0
     -- Arrived: the report line goes under the announcement.
     if route.arrived and container.empty:IsShown() then
@@ -3733,6 +3737,16 @@ local function ShowSizePopup(anchor)
                 popoutFrame:Render()
             end
         end }
+    defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_NEXT_ONLY"],
+        get = function() local db = DB() return db and db.gpsPopoutNextOnly == true end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsPopoutNextOnly = v or nil end
+            if popoutFrame then
+                popoutFrame.scrollOffset = 0
+                popoutFrame:Render()
+            end
+        end }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = { kind = "separator" }
@@ -3948,6 +3962,7 @@ local function BuildPopout()
     end)
     f.ShowMenu = ShowWindowMenu
     f.menuAnchor = menuAnchor
+    f.isPopout = true
 
     BuildSurface(f, {
         padX = 12, padY = 9, padRight = 84, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true, trackGlyph = true,
