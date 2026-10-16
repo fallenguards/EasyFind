@@ -4773,6 +4773,7 @@ function ns.ShowHintTooltip(owner, anchor, title, body, note)
     if body then w = mmax(w, NaturalWidth(t.body)) end
     if note then w = mmax(w, NaturalWidth(t.note)) end
     w = mmin(MAX_W, mceil(w))
+    t._w = w
     t.title:SetWidth(w)
     t.body:SetWidth(w)
     t.note:SetWidth(w)
@@ -4830,6 +4831,29 @@ function ns.ShowHintTooltip(owner, anchor, title, body, note)
     if not wasShown then
         t.fade:Stop()
         t.fade:Play()
+    end
+    -- A font's first use after a reload measures short until it has drawn
+    -- once (the box came out a word too narrow): measure again next frame
+    -- and lay out anew when the width moved.
+    if not t._remeasuring then
+        local token = (t._layoutToken or 0) + 1
+        t._layoutToken = token
+        Utils.SafeAfter(0, function()
+            if t._layoutToken ~= token or t._owner ~= owner or not t:IsShown() then return end
+            local w2 = 0
+            if title then w2 = mmax(w2, NaturalWidth(t.title)) end
+            if body then w2 = mmax(w2, NaturalWidth(t.body)) end
+            if note then w2 = mmax(w2, NaturalWidth(t.note)) end
+            if mmin(MAX_W, mceil(w2)) == t._w then
+                t.title:SetWidth(t._w)
+                t.body:SetWidth(t._w)
+                t.note:SetWidth(t._w)
+                return
+            end
+            t._remeasuring = true
+            ns.ShowHintTooltip(owner, anchor, title, body, note)
+            t._remeasuring = nil
+        end)
     end
 end
 
