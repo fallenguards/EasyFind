@@ -5526,6 +5526,7 @@ function Options:Initialize()
     divider:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMRIGHT", 8, 2)
     divider:SetWidth(1)
     divider:SetColorTexture(1, 1, 1, 0.08)
+    optionsFrame.sidebarDivider = divider
 
     -- The sidebar column backdrop is a fixed near-black wash tuned for dark
     -- fills; light themes get a darker tint of their own window fill so the
@@ -5615,6 +5616,7 @@ function Options:Initialize()
 
     local tabFrames = {}
     local tabButtons = {}
+    optionsFrame.tabNames, optionsFrame.tabIndexByName = {}, {}
 
     -- Light themes run the keybind-group scheme on the nav column: the
     -- column wears the card color, and unselected tab names read in
@@ -5754,6 +5756,8 @@ function Options:Initialize()
         content:Hide()
         content.tabIndex = index
         tinsert(tabFrames, content)
+        optionsFrame.tabNames[index] = tabName
+        optionsFrame.tabIndexByName[tabName] = index
 
         return content
     end
@@ -5794,6 +5798,62 @@ function Options:Initialize()
         RestyleTutorialLink()
     end)
     tutorialBtn:SetScript("OnClick", OpenTutorialWizard)
+
+    -- In the game's settings window the Tutorial entry is a link at the
+    -- strip's right end, the settings search at its left.
+    local pagedTutorial = CreateFrame("Button", nil, optionsFrame)
+    pagedTutorial:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -16, -12)
+    local pagedTutorialLabel = pagedTutorial:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    pagedTutorialLabel:SetPoint("RIGHT")
+    pagedTutorialLabel:SetText(L["OPT_TAB_TUTORIAL"])
+    pagedTutorialLabel:SetTextColor(TUT_LINK[1], TUT_LINK[2], TUT_LINK[3], 1)
+    pagedTutorial:SetSize(math.ceil(pagedTutorialLabel:GetStringWidth() + 4), 18)
+    pagedTutorial:SetScript("OnEnter", function()
+        pagedTutorialLabel:SetTextColor(TUT_LINK_HOVER[1], TUT_LINK_HOVER[2], TUT_LINK_HOVER[3], 1)
+    end)
+    pagedTutorial:SetScript("OnLeave", function()
+        pagedTutorialLabel:SetTextColor(TUT_LINK[1], TUT_LINK[2], TUT_LINK[3], 1)
+    end)
+    pagedTutorial:SetScript("OnClick", OpenTutorialWizard)
+    pagedTutorial:Hide()
+
+    -- The game's settings window lists the tabs in its left column: the
+    -- sidebar goes and the page sits centered in the window's own shape
+    -- (which then scales to fill the area), the search and the Tutorial
+    -- link on the strip above it, flush with its edges.
+    function optionsFrame.SetPagedLayout(paged)
+        paged = paged and true or false
+        if optionsFrame.paged == paged then return end
+        optionsFrame.paged = paged
+        sidebar:SetShown(not paged)
+        divider:SetShown(not paged)
+        pagedTutorial:SetShown(paged)
+        local shell = optionsFrame.settingsSearchShell
+        contentBorder:ClearAllPoints()
+        local side = (WINDOW_W - FRAME_W) / 2
+        if paged then
+            contentBorder:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", side, -42)
+            contentBorder:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -side, CONTENT_BOTTOM_INSET)
+            pagedTutorial:ClearAllPoints()
+            pagedTutorial:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -side, -12)
+            if shell then
+                shell:SetParent(optionsFrame)
+                shell:ClearAllPoints()
+                shell:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", side, -10)
+                shell:SetWidth(SIDEBAR_W + 60)
+                shell:SetFrameLevel(optionsFrame.bgTex:GetFrameLevel() + 2)
+            end
+        else
+            contentBorder:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", SIDEBAR_W + 32, -42)
+            contentBorder:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -14, CONTENT_BOTTOM_INSET)
+            if shell then
+                shell:SetParent(sidebar)
+                shell:ClearAllPoints()
+                shell:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 8, -6)
+                shell:SetPoint("RIGHT", sidebar, "RIGHT", -8, 0)
+            end
+        end
+    end
 
     local function GetCurrentKeybindText(action)
         -- Account store only; see SyncOptionControls for why native
@@ -5929,6 +5989,7 @@ function Options:Initialize()
     -- pulses the control. The addon's own name scorer ranks them.
     do
         local shell = CreateFrame("Frame", nil, sidebar)
+        optionsFrame.settingsSearchShell = shell
         shell:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 8, -6)
         shell:SetPoint("RIGHT", sidebar, "RIGHT", -8, 0)
         shell:SetHeight(22)
@@ -6091,7 +6152,7 @@ function Options:Initialize()
                     + 6 + (results.measurePath:GetStringWidth() or 0))
             end
             results:SetSize(math.max(RESULTS_W, math.ceil(PAD * 2 + 6 + widest + 6)), PAD * 2 + n * ROW_H)
-            results:SetScale(OPTIONS_PANEL_SCALE)
+            results:SetScale(optionsFrame:GetEffectiveScale() / UIParent:GetEffectiveScale())
             Utils.RefreshMenuRowHighlights(results, results.rows)
             Utils.OpenDropdownBelow(results, shell, 2)
             results:Show()
@@ -6238,10 +6299,29 @@ end
 -- Category registration and the settings-root hooks live in Core/Main.lua
 -- (RegisterBlizzardOptionsStub): they must exist from login, before this
 -- LoadOnDemand companion is parsed. The stub panel's OnShow/OnHide land here.
-function Options:EmbedInBlizzardPanel(panel)
+-- Paged in the game's settings window: the panel as large as the area
+-- right of its list allows at the panel's own shape, centered in it. The
+-- area may not have its size yet when shown: then again next frame.
+local function FitToHost(host)
+    local w, h = host:GetSize()
+    local fw, fh = optionsFrame:GetWidth(), optionsFrame:GetHeight()
+    if not (w and h and w > 1 and h > 1) then
+        C_Timer.After(0, function()
+            if optionsFrame:GetParent() == host and optionsFrame.paged and host:GetWidth() > 1 then FitToHost(host) end
+        end)
+        return
+    end
+    optionsFrame:SetScale(math.min(w / fw, h / fh))
+    optionsFrame:ClearAllPoints()
+    optionsFrame:SetPoint("CENTER", host, "CENTER", 0, 0)
+end
+
+-- pageName: the tab a left-column entry stands for (nil: Home).
+function Options:EmbedInBlizzardPanel(panel, pageName)
     if not isInitialized then Options:Initialize() end
     Options.embedded = true
     Options.embedding = true
+    optionsFrame.SetPagedLayout(ns.OptionsSubcategories ~= nil)
 
     optionsFrame.titleText:Hide()
     optionsFrame.closeBtn:Hide()
@@ -6255,11 +6335,21 @@ function Options:EmbedInBlizzardPanel(panel)
     optionsFrame:SetParent(panel)
     optionsFrame:ClearAllPoints()
     optionsFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -10)
+    if optionsFrame.paged then
+        FitToHost(panel)
+        if not panel.efFitHooked then
+            panel.efFitHooked = true
+            panel:HookScript("OnSizeChanged", function(self)
+                if optionsFrame:GetParent() == self and optionsFrame.paged then FitToHost(self) end
+            end)
+        end
+    end
     optionsFrame:SetFrameStrata("HIGH")
     optionsFrame:SetMovable(false)
     optionsFrame:RegisterForDrag()
 
     Options:Show()
+    if optionsFrame.paged then optionsFrame.SwitchToTab(optionsFrame.tabIndexByName[pageName or ""] or 1) end
     Options.embedding = false
 end
 
@@ -6303,6 +6393,7 @@ end
 
 function Options:RestoreStandalone()
     self.embedded = false
+    optionsFrame.SetPagedLayout(false)
 
     optionsFrame.titleText:Show()
     optionsFrame.closeBtn:Show()

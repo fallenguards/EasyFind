@@ -1001,24 +1001,46 @@ end
 -- at login so EasyFind stays listed under ESC > Options > AddOns, and the
 -- first OnShow loads the companion and embeds the real panel into it.
 local function RegisterBlizzardOptionsStub()
+    -- Hidden until the client shows it: a frame born shown never fires
+    -- OnShow when the client parents and shows it.
     local panel = CreateFrame("Frame")
+    panel:Hide()
     panel.name = "EasyFind"
 
-    panel:SetScript("OnShow", function(self)
+    -- pageName: the tab a left-column entry stands for (nil: Home).
+    local function EmbedAt(frame, pageName)
         if ns.RequestOptionsPanel() and ns.Options and ns.Options.EmbedInBlizzardPanel then
-            ns.Options:EmbedInBlizzardPanel(self)
+            ns.Options:EmbedInBlizzardPanel(frame, pageName)
         end
-    end)
-
-    panel:SetScript("OnHide", function()
+    end
+    local function PanelHidden()
         if ns.Options and ns.Options.OnBlizzardPanelHide then
             ns.Options:OnBlizzardPanelHide()
         end
-    end)
+    end
+    panel:SetScript("OnShow", function(self) EmbedAt(self, nil) end)
+    panel:SetScript("OnHide", PanelHidden)
 
     if Settings and Settings.RegisterCanvasLayoutCategory then
         local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
         Settings.RegisterAddOnCategory(category)
+        -- The panel's tabs as entries under EasyFind in the left column, in
+        -- the panel's order (Home is EasyFind itself).
+        if Settings.RegisterCanvasLayoutSubcategory then
+            ns.OptionsCategory = category
+            ns.OptionsSubcategories = {}
+            for _, key in ipairs({ "OPT_TAB_GENERAL_BINDS", "OPT_TAB_SEARCH", "OPT_TAB_MAP", "OPT_TAB_SHORTCUTS",
+                                   "OPT_TAB_ALIASES", "OPT_TAB_BLACKLIST", "FILTER_EXTENSIONS",
+                                   "OPT_TAB_PROFILES", "OPT_TAB_FEEDBACK" }) do
+                local name = L[key]
+                local page = CreateFrame("Frame")
+                page:Hide()
+                page.name = name
+                page:SetScript("OnShow", function(self) EmbedAt(self, name) end)
+                page:SetScript("OnHide", PanelHidden)
+                ns.OptionsSubcategories[name] = Settings.RegisterCanvasLayoutSubcategory(category, page, name)
+            end
+        end
     elseif InterfaceOptions_AddCategory then
         InterfaceOptions_AddCategory(panel)
     end
