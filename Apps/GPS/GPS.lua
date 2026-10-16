@@ -166,7 +166,7 @@ end
 local INSTANCE_CATEGORIES = { dungeon = true, raid = true, delve = true }
 
 local function Destination(data)
-    local dest = { name = data.name, icon = data.icon, category = data.category }
+    local dest = { name = data.name, icon = data.icon, category = data.category, displayID = data.displayID }
     local em, ex, ey
     if data.isDungeonEntrance and not (data.x and data.y) then em, ex, ey = EntranceOf(data) end
     if em then
@@ -1251,6 +1251,7 @@ function GPS:SetStart(data, quiet)
             ns.GPSTrip.Navigate({ quiet = true })
         else
             GPS:NavigateTo({ name = dest.name, icon = dest.icon, category = dest.category, isZone = dest.zone,
+                             displayID = dest.displayID,
                              mapID = dest.mapID, x = not dest.zone and dest.x or nil, y = not dest.zone and dest.y or nil },
                            { quiet = true })
         end

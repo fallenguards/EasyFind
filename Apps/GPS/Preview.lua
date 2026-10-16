@@ -11,6 +11,7 @@ ns.GPSPreview = Preview
 
 local msqrt, macos, mceil, mmax, mmin = math.sqrt, math.acos, math.ceil, math.max, math.min
 local CreateVector2D = CreateVector2D
+local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 
 -- Sizes in screen pixels; the canvas is drawn far larger than the screen
 -- and shrinks with the zoom, so each is converted at draw time.
@@ -87,6 +88,9 @@ local function Build()
     -- running up to its ring.
     marks.dest = ns.GPSWorldPin.NewEmblem(overlay)
     marks.dest:Hide()
+    -- Or the place's own: a creature's face, a map icon.
+    marks.destIcon = overlay:CreateTexture(nil, "OVERLAY", nil, 5)
+    marks.destIcon:Hide()
     syms = {}
     overlay:Hide()
     return true
@@ -595,15 +599,27 @@ local function Draw()
     end
     local symbol = hovered and hovered.symbol
     marks.dest:Hide()
+    marks.destIcon:Hide()
     marks.stopCasing:Hide()
     if hovered and hovered.b and hovered.final then
-        -- The journey's end: the emblem centered on the spot.
+        -- The journey's end: the place's own icon when it has one, else
+        -- the emblem, centered on the spot.
         marks.stop:Hide()
         marks.symbol:Hide()
-        marks.dest:ClearAllPoints()
-        marks.dest:SetSize(px(DEST), px(DEST))
-        marks.dest:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
-        marks.dest:Show()
+        local dest = route.dest
+        local mark = marks.dest
+        if dest and not dest.zone and (dest.displayID or dest.icon) then
+            mark = marks.destIcon
+            ns.Utils.SetIconTexture(mark, dest.icon)
+            if dest.displayID and SetPortraitTextureFromCreatureDisplayID then
+                SetPortraitTextureFromCreatureDisplayID(mark, dest.displayID)
+            end
+        end
+        local size = mark == marks.dest and px(DEST) or px(DEST) * DEST_EDGE * 2
+        mark:ClearAllPoints()
+        mark:SetSize(size, size)
+        mark:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
+        mark:Show()
     elseif hovered and hovered.b and symbol then
         -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
         marks.stop:Hide()

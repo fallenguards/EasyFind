@@ -113,7 +113,7 @@ local function PinClick(self, button)
     if not viewingMapID then return end
     local sel = MapSearch._selected
     if sel and GPSNavigates() and ns.GPS:NavigateTo({ name = sel.name, mapID = viewingMapID, x = x, y = y,
-            icon = sel.icon, category = sel.category or cat }) then
+            icon = sel.icon, category = sel.category or cat, displayID = sel.displayID }) then
         return
     end
     PlaceTrackedWaypoint(viewingMapID, x, y)
