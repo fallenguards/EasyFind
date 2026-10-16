@@ -1387,7 +1387,7 @@ local function CreateButtonFrame(index, rec)
     grabber:Hide()
     btn.grabber = grabber
     -- What its extensions report unread, on the button's corner.
-    btn.badge = ns.CreateCountBadge and ns.CreateCountBadge(btn, 15) or nil
+    btn.badge = ns.CreateCountBadge and ns.CreateCountBadge(btn, 11) or nil
     if btn.badge then
         btn.badge:SetFrameLevel(btn:GetFrameLevel() + 6)
         -- On the glyph's corner, inside the ring, as app icons wear it.

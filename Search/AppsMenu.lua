@@ -405,7 +405,7 @@ PaintTileBadge = function(row)
     end
     if n == 0 and not row.badge then return end
     if not row.badge then
-        row.badge = ns.CreateCountBadge(row, 14)
+        row.badge = ns.CreateCountBadge(row, 11)
         row.badge:SetFrameLevel(row:GetFrameLevel() + 4)
         row.badge:SetPoint("CENTER", row.icon, "TOPRIGHT", -1, -1)
     end
