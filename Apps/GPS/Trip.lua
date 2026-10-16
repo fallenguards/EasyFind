@@ -15,6 +15,7 @@ local mmax, mmin = math.max, math.min
 local tremove, tinsert = table.remove, table.insert
 
 local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 14, 6, 20
+local DROP_PAD = 4
 local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring"   -- a 1.5 px line at 16 px
 local PIN = 22
 local RING = 13   -- a ring's size; MARK stays the column the marks center in
@@ -149,8 +150,8 @@ local function DropRow(ed, i)
     if row then return row end
     row = CreateFrame("Button", nil, ed.drop)
     row:SetHeight(DROP_ROW_H)
-    row:SetPoint("LEFT", ed.drop, "LEFT", 0, 0)
-    row:SetPoint("RIGHT", ed.drop, "RIGHT", 0, 0)
+    row:SetPoint("LEFT", ed.drop, "LEFT", DROP_PAD, 0)
+    row:SetPoint("RIGHT", ed.drop, "RIGHT", -DROP_PAD, 0)
     Utils.InstallMenuRowHighlight(row)
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text:SetPoint("LEFT", row, "LEFT", 6, 0)
@@ -172,7 +173,7 @@ function Editor:ShowHits(results)
             n = n + 1
             local row = DropRow(self, n)
             row.data = r
-            row:SetPoint("TOP", self.drop, "TOP", 0, -(n - 1) * DROP_ROW_H)
+            row:SetPoint("TOP", self.drop, "TOP", 0, -DROP_PAD - (n - 1) * DROP_ROW_H)
             local where = r.zoneName or r.parentName or r.category
             row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
             row:Show()
@@ -180,7 +181,7 @@ function Editor:ShowHits(results)
     end
     for i = n + 1, #self.dropRows do self.dropRows[i]:Hide() end
     if ns.StripShadows then ns.StripShadows(self.drop) end
-    self.drop:SetHeight(mmax(1, n * DROP_ROW_H))
+    self.drop:SetHeight(mmax(1, n * DROP_ROW_H + DROP_PAD * 2))
     self.drop:SetShown(n > 0 and self.editing ~= nil)
 end
 
@@ -542,11 +543,13 @@ function Trip.BuildEditor(frame)
     line:Hide()
     ed.line = line
 
+    -- Our menus' panel, above the route's step buttons (a teleport's icon
+    -- sits in its own frame over its row).
     local drop = CreateFrame("Frame", nil, ed)
-    drop:SetFrameLevel(frame:GetFrameLevel() + 30)
-    local fill = drop:CreateTexture(nil, "BACKGROUND")
-    fill:SetAllPoints(drop)
-    fill:SetColorTexture(0.05, 0.05, 0.06, 0.96)
+    drop:SetFrameStrata("TOOLTIP")
+    drop:SetFrameLevel(9500)
+    drop:EnableMouse(true)
+    ns.StyleMenuPanel(drop)
     drop:Hide()
     ed.drop = drop
 
