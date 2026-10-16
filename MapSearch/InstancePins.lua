@@ -54,7 +54,7 @@ local function PinOnClick(self)
     local dest = { name = e.name, mapID = e.zoneMapID, x = e.zoneX, y = e.zoneY, isDungeonEntrance = true,
                    category = e.isRaid and "raid" or "dungeon" }
     local GPS = ns.GPS
-    if GPS and GPS.MapClickNavigates and GPS.MapClickNavigates() and GPS:NavigateTo(dest, { quiet = true }) then return end
+    if GPS and GPS.MapClickNavigates and GPS.MapClickNavigates() and GPS:NavigateTo(dest) then return end
     local MapSearch = ns.MapSearch
     if MapSearch and MapSearch.PlaceUserWaypoint and UiMapPoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(e.zoneMapID, e.zoneX, e.zoneY))

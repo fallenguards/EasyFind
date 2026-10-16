@@ -100,10 +100,10 @@ local function PinEnter(self)
     end
 end
 
--- A left-click on a pinned spot leads there: the GPS when it is on and
--- set to, else the game's waypoint, tracked; the waypoint is world-space,
--- so the map viewed need not be the one the player stands on. One of a
--- cluster (several auction houses) stands alone first.
+-- A left-click on a pinned spot leads there: the GPS when it is on and set
+-- to (its route takes the map tab), else the game's waypoint, tracked; the
+-- waypoint is world-space, so the map viewed need not be the one the player
+-- stands on. One of a cluster (several auction houses) stands alone first.
 local function PinClick(self, button)
     if button == "RightButton" then MapSearch:ClearAll() return end
     if button ~= "LeftButton" or not (self.isLocalSearch and self.waypointX and self.waypointY) then return end
@@ -113,7 +113,7 @@ local function PinClick(self, button)
     if not viewingMapID then return end
     local sel = MapSearch._selected
     if sel and GPSNavigates() and ns.GPS:NavigateTo({ name = sel.name, mapID = viewingMapID, x = x, y = y,
-            icon = sel.icon, category = sel.category or cat }, { quiet = true }) then
+            icon = sel.icon, category = sel.category or cat }) then
         return
     end
     PlaceTrackedWaypoint(viewingMapID, x, y)
