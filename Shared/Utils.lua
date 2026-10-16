@@ -7858,6 +7858,22 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
     -- row link BEFORE the teardown so it can be restored onto the new frame.
     local priorSubmenuRow = opts.parentMenu and opts.parentMenu._openSubmenuRow
 
+    -- Every menu hung from a button toggles from it, no caller has to ask:
+    -- the anchor is the toggle owner unless one is named, and a click on it
+    -- while its menu is open closes the menu. A click only: a menu reshown
+    -- as its anchor's text changes (no clicked button) stays.
+    local owner = opts.toggleOwner or opts.anchorFrame
+    if owner and not opts.parentMenu and GetMouseButtonClicked and GetMouseButtonClicked()
+       and Utils.IsFrameVisiblyMouseOver(owner) then
+        local pool = cursorMenuPool[globalName]
+        for i = 1, #(pool or {}) do
+            if pool[i]:IsShown() and pool[i].toggleOwner == owner then
+                pool[i]:Hide()
+                return nil
+            end
+        end
+    end
+
     HideOtherMenus(globalName, nil)
 
     local menu = FindFreeMenu(globalName) or CreateCursorMenu(globalName)
@@ -7880,7 +7896,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
     menu.keyboardMode = opts.keyboardMode and true or false
     menu.keyboardIndex = nil
     menu.onHide = opts.onHide
-    menu.toggleOwner = opts.toggleOwner
+    menu.toggleOwner = owner
     menu._parentMenu = opts.parentMenu
     -- Menus wear their CONTEXT's font: search menus track the results leaf
     -- font (default), other hosts (notes) pass their chrome font object so
