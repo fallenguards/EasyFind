@@ -4359,6 +4359,8 @@ local function BuildSnippetsPage(ctx, page)
     snScroll:SetScript("OnSizeChanged", UpdateSnippetScrollBar)
     snContent:HookScript("OnSizeChanged", UpdateSnippetScrollBar)
     snippetsTab:HookScript("OnShow", RefreshSnippetsList)
+    -- Built on its first open, after that OnShow.
+    RefreshSnippetsList()
     -- Snippets.lua calls this after any save/delete so an open tab stays live.
     Options.RefreshSnippetsList = RefreshSnippetsList
 end
