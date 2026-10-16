@@ -490,6 +490,36 @@ end
 -- Search for the UI search bar, mirroring the real map search pipeline.
 -- Gathers the same POI sources (dynamic, static, entrances, flight masters),
 -- runs SearchPOIs with the same scoring, and returns results for UI display.
+-- The main bar's @map list in the map tab's two parts: the player's zone
+-- first under "This Zone (Zone)", the rest under "Across the World", each
+-- part in its own order. entries: the bar's { data, score } rows.
+function MapSearch:SplitUIRowsByZone(entries)
+    local zone = GetBestMapForUnit("player")
+    local info = zone and C_Map.GetMapInfo(zone)
+    local here, there = {}, {}
+    for i = 1, #entries do
+        local d = entries[i].data
+        if d and zone and (d.mapID == zone or d.zoneMapID == zone) then
+            here[#here + 1] = entries[i]
+        else
+            there[#there + 1] = entries[i]
+        end
+    end
+    local hereLabel = info and info.name and string.format(L["MAP_SECTION_THIS_ZONE_NAMED"], info.name)
+        or L["MAP_SECTION_THIS_ZONE"]
+    local n = 0
+    for _, e in ipairs(here) do
+        n = n + 1
+        entries[n] = e
+        if e.data then e.data.sectionLabel = hereLabel end
+    end
+    for _, e in ipairs(there) do
+        n = n + 1
+        entries[n] = e
+        if e.data then e.data.sectionLabel = L["MAP_SECTION_ACROSS_WORLD"] end
+    end
+end
+
 function MapSearch:SearchForUI(query)
     if not query or query == "" or #query < 2 then return nil end
     if self.HasWorldZoneCache and not self:HasWorldZoneCache() then return nil end

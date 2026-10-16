@@ -923,24 +923,29 @@ function Search:OnSearchTextChangedNow(text, force)
         end
     end
 
+    -- @map: the map tab's This Zone and Across the World parts.
+    local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone
+    if mapSplit then ns.MapSearch:SplitUIRowsByZone(combined) end
+
     local n = 0
     local lastGroup
     for ri = 1, #combined do
         local d = combined[ri] and combined[ri].data
         if d then
             -- Rows that carry a group label (clipboard history's Today,
-            -- Yesterday, ...) get a section divider where the label
-            -- changes: a header row, not a result, drawn by ResultHeader
-            -- and skipped by selection like the pin header.
-            if d.clipGroup and d.clipGroup ~= lastGroup then
-                lastGroup = d.clipGroup
+            -- Yesterday, ...; @map's This Zone) get a section divider where
+            -- the label changes: a header row, not a result, drawn by
+            -- ResultHeader and skipped by selection like the pin header.
+            local group = d.clipGroup or (mapSplit and d.sectionLabel)
+            if group and group ~= lastGroup then
+                lastGroup = group
                 n = n + 1
                 local h = flatEntries[n]
                 if not h then
                     h = {}
                     flatEntries[n] = h
                 end
-                h.name = d.clipGroup
+                h.name = group
                 h.depth = 0
                 h.isPathNode = false
                 h.isSectionHeader = true
