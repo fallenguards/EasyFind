@@ -1001,6 +1001,7 @@ L["NPC_WORDS_FOOD"]                    = "food drink water"
 L["NPC_WORDS_AMMO"]                    = "ammo arrows bullets restock"
 L["NPC_WORDS_REAGENTS"]                = "reagents restock"
 L["NPC_WORDS_FLIGHT"]                  = "flight"
+L["NPC_WORDS_CLASS_TRAINER"]           = "class trainer"
 -- A vendor's row when found by an item it sells: the item's name.
 L["NPC_SELLS"]                         = "Sells %s"
 L["FILTER_GAME_OPTIONS"]                = "Game Options"

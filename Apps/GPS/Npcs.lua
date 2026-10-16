@@ -33,7 +33,13 @@ local SERVICES = {
     { bits = 1024, en = "ammo arrows bullets restock", key = "NPC_WORDS_AMMO" },
     { bits = 2048, en = "reagents restock", key = "NPC_WORDS_REAGENTS" },
     { bits = 8, en = "flight", key = "NPC_WORDS_FLIGHT" },
+    { bits = 4096, en = "class trainer", key = "NPC_WORDS_CLASS_TRAINER" },
 }
+-- A trainer titled with a class's name (Hunter Trainer): no catalog role,
+-- worked out from the title as the catalog loads.
+local CLASS_TRAINER = 4096
+local CLASS_NAMES_EN = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid",
+                         "death knight", "monk", "demon hunter", "evoker" }
 local FAR = math.huge
 
 -- Everything unpacked, in one table: per creature (index i) its id, levels,
@@ -167,6 +173,29 @@ local function Load()
         if tEnglish[t] ~= N.titleName[t] then
             N.titleEnglish[t] = tEnglish[t]
             N.titleLowEnglish[t] = slower(tEnglish[t])
+        end
+    end
+    -- Class trainers: their title names a class, in English or the client's.
+    local classNames = {}
+    for _, n in ipairs(CLASS_NAMES_EN) do classNames[#classNames + 1] = n end
+    for _, names in ipairs({ LOCALIZED_CLASS_NAMES_MALE or {}, LOCALIZED_CLASS_NAMES_FEMALE or {} }) do
+        for _, n in pairs(names) do
+            if type(n) == "string" then classNames[#classNames + 1] = slower(n) end
+        end
+    end
+    local classTitle = {}
+    for t = 1, #tEnglish do
+        for _, n in ipairs(classNames) do
+            if sfind(N.titleLow[t] or "", n, 1, true) or (N.titleLowEnglish[t] and sfind(N.titleLowEnglish[t], n, 1, true)) then
+                classTitle[t] = true
+                break
+            end
+        end
+    end
+    for i = 1, count do
+        local roles = mfloor(N.kind[i] / 256)
+        if classTitle[N.title[i]] and band(roles, 4) ~= 0 and band(roles, CLASS_TRAINER) == 0 then
+            N.kind[i] = N.kind[i] + CLASS_TRAINER * 256
         end
     end
     N.n = count

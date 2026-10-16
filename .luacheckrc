@@ -44,7 +44,7 @@ read_globals = {
     "GetInboxText", "GetInboxItem", "GetInboxItemLink", "InboxFrame", "OpenMailFrame", "ATTACHMENTS_MAX_RECEIVE",
     "GetNumQuestLogRewards", "GetQuestLogRewardInfo", "GetNumQuestLogChoices", "GetQuestLogChoiceInfo",
     "GetQuestLogItemLink", "GetQuestLogRewardMoney", "GetQuestLogRewardXP", "GetCoinTextureString",
-    "LOCALIZED_CLASS_NAMES_MALE", "GetSubZoneText", "GetInventoryItemID",
+    "LOCALIZED_CLASS_NAMES_MALE", "LOCALIZED_CLASS_NAMES_FEMALE", "GetSubZoneText", "GetInventoryItemID",
     "GetCurrentRegion", "GetFactionInfoByID", "GetQuestResetTime",
 
     -- Menus
