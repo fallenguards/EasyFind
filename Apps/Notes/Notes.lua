@@ -3681,6 +3681,9 @@ function UI:EnsureEasyNotesFrame()
             elseif k == "F" then
                 UI:ToggleEasyNotesFindBar()
                 return
+            elseif k == "S" then
+                UI:SaveEasyNoteNow()
+                return
             elseif Fmt.HandleEditorFormatKey(self, k) then
                 return
             end
@@ -4353,6 +4356,36 @@ function UI:RefreshEasyNotesHeaderOnly()
     if not frame then return end
     local note = GetSelectedNote()
     frame.title:SetText(note and NoteTitle(note) or L["NOTES_NO_NOTE"])
+end
+
+-- Ctrl+S: the open note is stored as typed already; this stores it now and
+-- says so (the game writes saved data to disk at a reload or logout).
+function UI:SaveEasyNoteNow()
+    local frame = UI._notes.frame
+    local id = UI._notes.selectedID
+    if not (frame and id) then return end
+    UpdateBody(id, frame.editor:GetText() or "")
+    local flash = frame.savedFlash
+    if not flash then
+        flash = frame.footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        flash._efOwnColor = true
+        flash:SetPoint("RIGHT", frame.charCounter, "LEFT", -10, 0)
+        flash:SetText(L["NOTES_SAVED"])
+        flash.fade = flash:CreateAnimationGroup()
+        local a = flash.fade:CreateAnimation("Alpha")
+        a:SetFromAlpha(1)
+        a:SetToAlpha(0)
+        a:SetStartDelay(0.9)
+        a:SetDuration(0.5)
+        flash.fade:SetScript("OnFinished", function() flash:Hide() end)
+        frame.savedFlash = flash
+    end
+    local c = ns.COPIED_COLOR or { 0.48, 1.0, 0.62 }
+    flash:SetTextColor(c[1], c[2], c[3], 1)
+    flash.fade:Stop()
+    flash:SetAlpha(1)
+    flash:Show()
+    flash.fade:Play()
 end
 
 function UI:UpdateEasyNotesCharCounter()
@@ -5314,7 +5347,7 @@ end
 
 function Builders.BuildSettingsPanel(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(250, 140)
+    panel:SetSize(250, 172)
     panel:SetPoint("CENTER")
     -- The flyouts' layer, over everything in the window, so its border reads
     -- clear of the window under it.
@@ -5349,6 +5382,42 @@ function Builders.BuildSettingsPanel(frame)
     panel.opacityRow.minus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(-OPACITY_STEP) end)
     panel.opacityRow.plus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(OPACITY_STEP) end)
 
+    panel.tooltipRow = CreateFrame("Frame", nil, panel)
+    panel.tooltipRow:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -100)
+    panel.tooltipRow:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -100)
+    panel.tooltipRow:SetHeight(22)
+    panel.tooltipRow.label = panel.tooltipRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    panel.tooltipRow.label:SetPoint("LEFT", panel.tooltipRow, "LEFT", 2, 0)
+    panel.tooltipRow.label:SetText(L["NOTES_TOOLTIP_COLOR"])
+    panel.tooltipRow.label:SetTextColor(0.86, 0.86, 0.88, 1)
+    local swatch = CreateFrame("Button", nil, panel.tooltipRow)
+    StyleSubtleButton(swatch, "", 54, STD_BTN_H)
+    swatch:SetPoint("RIGHT", panel.tooltipRow, "RIGHT", 0, 0)
+    swatch.color = swatch:CreateTexture(nil, "OVERLAY")
+    swatch.color:SetPoint("TOPLEFT", swatch, "TOPLEFT", 5, -5)
+    swatch.color:SetPoint("BOTTOMRIGHT", swatch, "BOTTOMRIGHT", -5, 5)
+    panel.tooltipRow.swatch = swatch
+    swatch:SetScript("OnClick", function()
+        if not (ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then return end
+        local c0 = UI:GetEasyNotesTooltipColor()
+        local function apply()
+            local r, g, b = ColorPickerFrame:GetColorRGB()
+            if type(r) ~= "number" then return end
+            NormalizeDB().tooltipColor = { r = r, g = g, b = b }
+            UI:RefreshEasyNotesSettings()
+        end
+        ColorPickerFrame:SetupColorPickerAndShow({
+            hasOpacity = false, r = c0.r, g = c0.g, b = c0.b,
+            swatchFunc = apply,
+            cancelFunc = function()
+                NormalizeDB().tooltipColor = { r = c0.r, g = c0.g, b = c0.b }
+                UI:RefreshEasyNotesSettings()
+            end,
+        })
+        if ColorPickerFrame.SetFrameStrata then ColorPickerFrame:SetFrameStrata("TOOLTIP") end
+        if ColorPickerFrame.Raise then ColorPickerFrame:Raise() end
+    end)
+
     panel.reset = CreateFrame("Button", nil, panel)
     StyleSubtleButton(panel.reset, L["NOTES_RESET_ALL"], 78, STD_BTN_H)
     panel.reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 14, 12)
@@ -5356,6 +5425,8 @@ function Builders.BuildSettingsPanel(frame)
         UI:AdjustEasyNotesUIScale(nil, true)
         UI:AdjustEasyNotesFontSize(nil, true)
         UI:AdjustEasyNotesOpacity(nil, true)
+        NormalizeDB().tooltipColor = nil
+        UI:RefreshEasyNotesSettings()
     end)
 
     panel.done = CreateFrame("Button", nil, panel)
@@ -5377,6 +5448,8 @@ function UI:RefreshEasyNotesSettings()
     local opacity = db.opacity or OPACITY_DEFAULT
     panel.scaleRow.value:SetText(math.floor(scale * 100 + 0.5) .. "%")
     panel.opacityRow.value:SetText(math.floor(opacity * 100 + 0.5) .. "%")
+    local c = UI:GetEasyNotesTooltipColor()
+    panel.tooltipRow.swatch.color:SetColorTexture(c.r, c.g, c.b, 1)
 end
 
 function UI:ToggleEasyNotesSettings()
@@ -6328,6 +6401,13 @@ local function ItemIDFromLink(link)
     return id and tonumber(id) or nil
 end
 
+-- The note line in tooltips: the settings panel's pick, else the blue.
+function UI:GetEasyNotesTooltipColor()
+    local c = NormalizeDB().tooltipColor
+    if type(c) == "table" and type(c.r) == "number" then return c end
+    return { r = 0.62, g = 0.78, b = 0.95 }
+end
+
 local function GetItemNote(itemID)
     if type(itemID) ~= "number" then return nil end
     local store = NormalizeDB().itemNotes
@@ -6417,7 +6497,8 @@ if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and
             if type(itemID) ~= "number" then return end
             local note = GetItemNote(itemID)
             if not (note and type(note.text) == "string" and note.text ~= "") then return end
-            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], note.text), 0.95, 0.78, 0.36, true)
+            local c = UI:GetEasyNotesTooltipColor()
+            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], note.text), c.r, c.g, c.b, true)
         end)
         if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
     end)
@@ -6454,7 +6535,8 @@ local function AddShowsOnLines(tooltip, objType, objID)
         local body = StripColorEscapes(MapSelection((n.body or ""):gsub("\n+", "  "), GlyphPlain))
         if #body > 120 then body = body:sub(1, 120) .. "..." end
         if body == "" then body = NoteTitle(n) end
-        tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), 0.62, 0.78, 0.95, true)
+        local c = UI:GetEasyNotesTooltipColor()
+        tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), c.r, c.g, c.b, true)
     end
 end
 
