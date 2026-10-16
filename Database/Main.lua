@@ -4167,15 +4167,11 @@ end
 -- GetProfessionInfo's skillLine return live.
 local professionPageRetries = 0
 
--- Cheap "have the pages we are waiting for arrived yet" check: no recipe
--- scan, just whether an owned profession resolves a non-empty page list
--- (KnownExpansionPages caches once it does). The retry uses this so it
--- re-populates ONLY when the data actually landed. Blindly re-populating
--- every 3s wiped and re-added the Profession rows, and each removal forces
--- a full search-index rebuild -- six of them was the startup stutter
--- (Perfy convicted SearchIndex TryCompact->Rebuild, 2026-09-06).
+-- How many owned professions with recipe data resolve a page list yet (no
+-- recipe scan; KnownExpansionPages caches once one does).
 local function ProfessionPagesResolved()
-    if not (GetProfessions and GetProfessionInfo and ns.KnownExpansionPages) then return true end
+    local resolved = 0
+    if not (GetProfessions and GetProfessionInfo and ns.KnownExpansionPages) then return resolved end
     local p1, p2, arch, fish, cook = GetProfessions()
     local idxs = { p1, p2, arch, fish, cook }
     for i = 1, 5 do
@@ -4184,22 +4180,26 @@ local function ProfessionPagesResolved()
             local _, _, _, _, _, _, skillLine = GetProfessionInfo(idx)
             if skillLine and ns.PROFESSION_RECIPES and ns.PROFESSION_RECIPES[skillLine] then
                 local pages = ns.KnownExpansionPages(skillLine)
-                if pages and #pages > 0 then return true end
+                if pages and #pages > 0 then resolved = resolved + 1 end
             end
         end
     end
-    return false
+    return resolved
 end
 
+-- Re-populates only when another profession's pages landed, and the tries
+-- count across re-populates: a profession whose pages never resolve
+-- (Forever) stops it after six instead of a rebuild every 3s all session.
+-- Each rebuild forces a search-index rebuild (Perfy, 2026-09-06).
 local function ScheduleProfessionRetry(self)
     if professionPageRetries >= 6 then professionPageRetries = 0; return end
     professionPageRetries = professionPageRetries + 1
+    local before = ProfessionPagesResolved()
     Utils.SafeAfter(3, function()
-        if ProfessionPagesResolved() then
-            professionPageRetries = 0
+        if ProfessionPagesResolved() > before then
             if self.RefreshDynamicCategory then self:RefreshDynamicCategory("professions") end
         else
-            ScheduleProfessionRetry(self)  -- still waiting; reschedule, no rebuild
+            ScheduleProfessionRetry(self)
         end
     end)
 end
