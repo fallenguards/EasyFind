@@ -69,7 +69,7 @@ function Ctx.UnitPlayer(unit)
     local full = GetUnitName and GetUnitName(unit, true)
     if type(full) ~= "string" or issecret(full) then return nil end
     local shown = GetUnitName(unit, false) or full
-    return Ctx.PlayerKey(full), shown
+    return ns.NotesPlayerKey(full), shown
 end
 
 -- Detection ---------------------------------------------------------------------
