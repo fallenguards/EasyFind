@@ -4902,7 +4902,9 @@ local function EnsureExtensionPage(entry)
     elseif entry.def.core then
         entry.def.build(extensionCtx, holder)
     else
-        entry.def.build(holder)
+        -- A companion's page gets the panel's own controls too (CreateCheckbox,
+        -- CreateFlyoutPresetRow), so it looks like the rest.
+        entry.def.build(holder, extensionCtx)
     end
     -- Built after the panel's theme pass ran: its text gets the pass now.
     if ns.RetintPanelText then ns.RetintPanelText(holder) end
