@@ -2297,6 +2297,16 @@ local function FitPage(self, hasRoute)
     end
     self.list:SetHeight(mmax(1, math.min(self.contentHeight or 0, avail)))
     self.list:SetClipsChildren(true)
+    local bar = self.scrollBar
+    if bar then
+        bar:SetShown(hasRoute and true or false)
+        self.maxOffset = maxOffset
+        local total = self.contentHeight or 0
+        self.syncingBar = true
+        bar:SetVisibleExtentPercentage(total > 0 and math.min(1, avail / total) or 1)
+        bar:SetScrollPercentage(maxOffset > 0 and (self.scrollOffset or 0) / maxOffset or 0)
+        self.syncingBar = nil
+    end
 end
 
 local function Rule(frame)
@@ -2321,6 +2331,24 @@ local function BuildPage(frame)
         self:Render()
     end)
     frame:HookScript("OnSizeChanged", function(self) if self:IsShown() then self:Render() end end)
+    -- The steps' scroll bar where the map search keeps its own, in the strip
+    -- right of the panel.
+    local panel = frame:GetParent()
+    local bar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
+    bar:SetFrameStrata("HIGH")
+    bar:SetPoint("TOPLEFT", panel, "TOPRIGHT", 8, 2)
+    bar:SetPoint("BOTTOMLEFT", panel, "BOTTOMRIGHT", 8, -4)
+    bar:Hide()
+    if bar.RegisterCallback and bar.Event and bar.Event.OnScroll then
+        bar:RegisterCallback(bar.Event.OnScroll, function(_, pct)
+            if frame.syncingBar then return end
+            local offset = mfloor(pct * (frame.maxOffset or 0) + 0.5)
+            if offset == (frame.scrollOffset or 0) then return end
+            frame.scrollOffset = offset
+            frame:Render()
+        end, frame)
+    end
+    frame.scrollBar = bar
     -- A rule under the time line sets the steps apart from it.
     frame.headRule = Rule(frame)
     frame.headRule:SetPoint("TOP", frame.clearBtn, "BOTTOM", 0, -4)
