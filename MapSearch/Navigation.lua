@@ -612,6 +612,23 @@ function MapSearch:SelectResult(data, directOverride)
             return
         end
 
+        -- A spot on another map (a creature, a place across the world):
+        -- open that map and pin it there, or guide the way to it.
+        local spot = data.allInstances and #data.allInstances == 1 and data.allInstances[1] or data
+        local spotMapID = not (data.allInstances and #data.allInstances > 1) and spot.coordMapID
+        if spotMapID and spot.x and spot.y and spotMapID ~= WorldMapFrame:GetMapID() then
+            self:ClearHighlight()
+            self.pendingWaypoint = { x = spot.x, y = spot.y, icon = spot.icon, category = spot.category,
+                mapID = spotMapID, name = data.name, displayID = spot.displayID }
+            if directMode or IsOrphanZone(spotMapID) then
+                self:ClearZoneHighlight()
+                WorldMapFrame:SetMapID(spotMapID)
+            else
+                self:HighlightZoneOnMap(spotMapID, data.name)
+            end
+            return
+        end
+
         if data.allInstances and #data.allInstances > 1 then
             -- Show ALL instances on the map
             self:ShowMultipleWaypoints(data.allInstances)
