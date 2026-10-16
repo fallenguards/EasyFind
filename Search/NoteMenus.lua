@@ -107,6 +107,13 @@ if hooksecurefunc then
     end)
 end
 
+-- For our other addons (ClassicUI Forever's spellbook): the note on a
+-- "spell" or "item" by id, made when there is none, as Ctrl+right-click.
+function EasyFind:OpenObjectNote(kind, id, name)
+    if (kind ~= "spell" and kind ~= "item") or type(id) ~= "number" then return end
+    OpenObjectNote({ type = kind, id = id, name = name or tostring(id) })
+end
+
 -- The note for what the game tooltip shows now (the hover-note key): a
 -- spell on a bar or in the spellbook, an item, a player or an NPC.
 function ns.OpenHoveredNote()
