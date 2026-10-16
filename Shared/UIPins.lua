@@ -26,7 +26,7 @@ local SIMPLE_FIELDS = {
     "catalogItem", "lookupRow", "quality",
     -- Extension launcher flags: a stored copy (a shortkey's snapshot) keeps
     -- which extension it opens; the live entry is looked up by the flag.
-    "calculatorLauncher", "iconSearchLauncher", "snippetsLauncher", "clipboardLauncher", "notesLauncher", "clockLauncher", "alertsLauncher",
+    "calculatorLauncher", "iconSearchLauncher", "snippetsLauncher", "clipboardLauncher", "notesLauncher",
     "quicklistsLauncher",
     "noteID", "quicklistID",
     "transmogSetID",

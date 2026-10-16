@@ -1989,10 +1989,6 @@ ns.SEARCH_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\search-icon"
 -- compensates with its own icon scale instead).
 ns.SEARCH_ICON_COORDS = { 0.094, 0.938, 0.094, 0.938 }
 ns.COMMANDS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\commands-icon"
--- Window manager: pixels between a snapped window and the screen edge or
--- its neighbour. Its category glyph (WINDOW_ICON_TEX, WINDOW_ICON_COORDS)
--- is the task view's, set in WindowManager/Commands.lua.
-ns.WINDOW_GAP_DEFAULT = 8
 ns.RADIO_OFF_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-off"
 ns.RADIO_ON_TEX = "Interface\\AddOns\\EasyFind\\Search\\Images\\radio-on"
 ns.FILTER_ARROW_TEX = "Interface\\AddOns\\EasyFind\\textures\\filter-arrow"
@@ -2191,17 +2187,6 @@ ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
 ns.CHAT_ICON_TEX       = "Interface\\AddOns\\EasyFind\\textures\\chat-icon"
 ns.QUICKLIST_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\quicklists-icon"
 ns.NOTES_ICON_COORDS   = { 0, 1, 0, 1 }
--- Clock extension: the stopwatch, plus one glyph per kind of run.
-ns.CLOCK_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\clock-icon"
-ns.ALERTS_ICON_TEX     = "Interface\\AddOns\\EasyFind\\textures\\alerts-icon"
-ns.CLOCK_ICON_COORDS   = { 0, 1, 0, 1 }
-ns.CLOCK_TOOL_ICONS = {
-    pomodoro  = "Interface\\AddOns\\EasyFind\\textures\\clock-pomodoro",
-    timer     = "Interface\\AddOns\\EasyFind\\textures\\clock-timer",
-    stopwatch = ns.CLOCK_ICON_TEX,
-    alarm     = "Interface\\AddOns\\EasyFind\\textures\\clock-alarm",
-}
-ns.CLOCK_NAME = _G["TIMEMANAGER_TITLE"] or "Clock"
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.
@@ -3091,7 +3076,7 @@ function ns.FlatTextEverywhere()
         if type(name) == "string" and (name:sub(1, 8) == "EasyFind" or name:sub(1, 9) == "EasyNotes") then
             ns.FlatText(f)
             -- Glossed panels: their text goes dark on a light theme too.
-            if name:sub(1, 9) == "EasyNotes" or name == "EasyFindAlertsWindow" then ns.ThemePanelText(f) end
+            if name:sub(1, 9) == "EasyNotes" then ns.ThemePanelText(f) end
         end
         f = EnumerateFrames(f)
     end

@@ -8,8 +8,6 @@ local H = require("Harness")
 local COMPANIONS = {
     { toc = "Apps/Notes/EasyFind_Notes.toc", field = "Notes" },
     { toc = "Apps/Clipboard/EasyFind_Clipboard.toc", field = "Clipboard" },
-    { toc = "Apps/Clock/EasyFind_Clock.toc", field = "Clock", core = { "Search/ClockCommands.lua" } },
-    { toc = "Apps/Alerts/EasyFind_Alerts.toc", field = "Alerts" },
     { toc = "Apps/Quicklists/EasyFind_Quicklists.toc", field = "Quicklists" },
 }
 

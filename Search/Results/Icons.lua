@@ -190,21 +190,13 @@ local FLAT_CATEGORY_ICONS = {
     gps           = { tex = ns.GPS_ICON_TEX, chromeTint = true },
     notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
     quicklist     = { tex = ns.QUICKLIST_ICON_TEX, chromeTint = true },
-    clock         = { tex = ns.CLOCK_ICON_TEX, chromeTint = true },
     chat          = { tex = ns.CHAT_ICON_TEX, chromeTint = true },
-    alerts        = { tex = ns.ALERTS_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = ns.ART.gear_set,
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
-    window        = { tex = ns.WINDOW_ICON_TEX, coords = ns.WINDOW_ICON_COORDS },
 }
-
-local CLOCK_COMMAND_ICONS = {}
-for tool, tex in pairs(ns.CLOCK_TOOL_ICONS) do
-    CLOCK_COMMAND_ICONS[tool] = { tex = tex, chromeTint = true }
-end
 
 local BOSS_PORTRAIT_TEXCOORD = { 0.22, 0.78, 0, 1 }
 
@@ -218,9 +210,6 @@ function Icons:GetAppGlyphIcon(data)
     if data.gpsLauncher then return FLAT_CATEGORY_ICONS.gps end
     if data.notesLauncher then return FLAT_CATEGORY_ICONS.notes end
     if data.quicklistsLauncher or data.quicklistID then return FLAT_CATEGORY_ICONS.quicklist end
-    if data.clockLauncher then return FLAT_CATEGORY_ICONS.clock end
-    if data.alertsLauncher then return FLAT_CATEGORY_ICONS.alerts end
-    if data.windowsLauncher then return FLAT_CATEGORY_ICONS.window end
     if data.chatLauncher then return FLAT_CATEGORY_ICONS.chat end
     return nil
 end
@@ -244,16 +233,14 @@ function Icons:GetFlatCategoryIcon(data)
     if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     -- App launcher rows wear the apps-button waffle as their general glyph;
     -- the app's own glyph renders on the row's right via GetAppGlyphIcon.
-    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher or data.alertsLauncher or data.quicklistsLauncher then
+    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.quicklistsLauncher then
         return FLAT_CATEGORY_ICONS.apps
     end
     if data.category == "Quicklist" then return FLAT_CATEGORY_ICONS.quicklist end
-    if data.clockCommand then return CLOCK_COMMAND_ICONS[data.clockTool] or FLAT_CATEGORY_ICONS.clock end
     -- Category, not nativeRun: nativeRun rows that belong to a real
     -- category (the snippet create row, the snippets app) must fall
     -- through to their own category glyph below.
     if data.searchCommand or data.category == "Command" then return FLAT_CATEGORY_ICONS.command end
-    if data.category == "Window" then return FLAT_CATEGORY_ICONS.window end
     if data.category == "Notes" then return FLAT_CATEGORY_ICONS.notes end
     if data.category == "Chat" then return FLAT_CATEGORY_ICONS.chat end
     if data.quickFilterDef then
@@ -406,7 +393,6 @@ function Icons:IsSecureActionResult(data)
             and not Icons:IsSpellbookOnlyAbility(data))
         or (data.mountID and Icons:IsMountSummonable(data))
         or data.macroIndex or data.slashCommand
-        or data.windowLayout or data.windowLayoutDo == "here"
         or (data.itemID and data.category == "Bag"
             and Handlers:GetBagItemActionKind(data) ~= "show"))
         or (ns.SecureOpeners and (ns.SecureOpeners.OpenKeyForData(data) or ns.SecureOpeners.ReplacementMacro(data))) or false

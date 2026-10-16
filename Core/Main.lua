@@ -74,18 +74,6 @@ local DB_DEFAULTS = {
     clipboardKindUrl = true, clipboardKindCommand = true, clipboardKindNumber = true,
     clipboardKindText = true,
     clipboardOldestFirst = false,
-    -- Clock: what the end of a run does, the pomodoro lengths, and the
-    -- unit a bare number means in each slot ("s", "m" or "h").
-    clockSound = true, clockBigText = true, clockChat = true, clockFlash = true,
-    clockBreakDim = false, clockMinimapIcon = false,
-    alertsPaused = false,
-    clockFocusSeconds = 1500, clockBreakSeconds = 300,
-    clockFocusUnit = "m", clockBreakUnit = "m", clockTimerUnit = "m", clockStopwatchUnit = "m",
-    clockSnoozeMinutes = 9, clockLongEvery = 4, clockLongSeconds = 900, clockAutoNext = true,
-    clockSoundTimer = "alarm", clockSoundAlarm = "alarm", clockSoundPomodoro = "readycheck",
-    clockSoundMark = "ping", clockAlarmRepeat = false, clockScreen = false,
-    -- True while a run exists, so login loads the clock to keep it going.
-    clockActive = false,
     snippetTriggerChar = "\\",
     accountKeybinds = {},
     resultsTheme = "Modern",
@@ -227,7 +215,6 @@ local DB_DEFAULTS = {
         talents        = true,
         titles         = true,
         map            = true,
-        window         = true,
     },
     -- "all" | "current" | a specific "Name-Realm" key. Defaults to the logged-in
     -- character: the account bank is shown regardless of scope, so this is only
@@ -297,12 +284,6 @@ local DB_DEFAULTS = {
     shortkeyConflictPrompt = true,
     commandShowNative = true,
     commandShowCustom = true,
-    -- Window manager: snap gap, saved places per window, and the two
-    -- panel behaviours its filter flyout toggles.
-    windowGap = ns.WINDOW_GAP_DEFAULT,
-    windowPositions = {},
-    windowHideBarGrid = false,
-    windowMultiPanels = false,
     appearanceSetClass = nil,
     appearanceSetCollected = true,
     appearanceSetNotCollected = true,
@@ -418,7 +399,6 @@ local INTERACTIVE_RESET_PRESERVE = {
     statisticCache = true,
     statisticCacheVer = true,
     optionsSearchCache = true,
-    clockActive = true,
 }
 for key in pairs(PRESERVED_KEYS) do
     INTERACTIVE_RESET_PRESERVE[key] = true
@@ -785,12 +765,6 @@ local function OnInitialize()
         if ns.RequestNotes() and ns.Notes.Slash then ns.Notes.Slash(msg) end
     end
 
-    -- /alerts: the Alerts window ("/alerts new" opens the list to pick from).
-    SLASH_EASYFINDALERTS1 = "/alerts"
-    SlashCmdList["EASYFINDALERTS"] = function(msg)
-        if ns.RequestAlerts() then ns.Alerts.Slash(msg) end
-    end
-
     InstallWhatsNewHyperlinkHook()
 end
 
@@ -1133,14 +1107,11 @@ local function OnPlayerLogin()
        or not (spotlightsDone and spotlightsDone.snippets31) then
         ns.RequestOnboarding()
     end
-    -- A clock run is going: load the clock so it keeps time.
-    if EasyFind.db.clockActive and ns.IsCompanionLoadable("EasyFind_Clock") then ns.RequestClock() end
 
     if EasyFind.db.enableMapSearch ~= false then
         SafeInit(ns.MapSearch,  "MapSearch")
     end
     SafeInit(ns.Search,        "UI")
-    SafeInit(ns.WindowManager, "WindowManager")
     SafeInit(ns.VersionCheck,  "VersionCheck")
     SafeInit(ns.RowCopy,       "RowCopy")
     local regOk, regErr = xpcall(RegisterBlizzardOptionsStub, ErrorHandler)

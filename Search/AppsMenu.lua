@@ -89,12 +89,6 @@ function ns.BuildApplicationEntries()
         }
     end
     if ns.Quicklists then ns.Quicklists:AppEntries(apps) end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
-        apps[#apps + 1] = ns.ClockLauncherEntry()
-    end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts")) then
-        apps[#apps + 1] = ns.AlertsLauncherEntry()
-    end
     -- GPS opens its own page under the map search tab. Hidden when the GPS
     -- companion is disabled in the AddOns list.
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
@@ -121,16 +115,6 @@ function ns.BuildApplicationEntries()
             end,
         }
     end
-    -- Windows opens the task view: every open panel with its zones, and
-    -- the saved layouts. Part of the core, never a companion.
-    if ns.WindowSnapAssist then
-        apps[#apps + 1] = {
-            name = L["FILTER_WINDOW"],
-            windowsLauncher = true,
-            noPin = true,
-            nativeRun = function() ns.WindowSnapAssist:ToggleTaskView() end,
-        }
-    end
     return apps
 end
 
@@ -143,18 +127,14 @@ local APP_ID_FLAGS = {
     { "clipboard", "clipboardLauncher" },
     { "notes", "notesLauncher" },
     { "gps", "gpsLauncher" },
-    { "clock", "clockLauncher" },
-    { "alerts", "alertsLauncher" },
     { "quicklists", "quicklistsLauncher" },
-    { "windows", "windowsLauncher" },
     { "chat", "chatLauncher" },
 }
 -- What each extension does, one line under its name in its tooltips.
 local APP_DESC_KEYS = {
     calculator = "APP_DESC_CALCULATOR", icons = "APP_DESC_ICONS", snippets = "APP_DESC_SNIPPETS",
     clipboard = "APP_DESC_CLIPBOARD", notes = "APP_DESC_NOTES", gps = "APP_DESC_GPS",
-    clock = "APP_DESC_CLOCK", alerts = "APP_DESC_ALERTS", quicklists = "APP_DESC_QUICKLISTS",
-    windows = "APP_DESC_WINDOWS", chat = "APP_DESC_CHAT",
+    quicklists = "APP_DESC_QUICKLISTS", chat = "APP_DESC_CHAT",
 }
 function ns.ApplicationDescription(app)
     local key = APP_DESC_KEYS[ns.ApplicationEntryID(app) or ""]
@@ -221,16 +201,6 @@ function ns.IsApplicationOpen(app)
         return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
             and ns.Options:CurrentExtensionPage() == "snippets"
     end
-    if app.clockLauncher then
-        return ns.Clock ~= nil and ns.Clock.IsOpen() or false
-    end
-    if app.alertsLauncher then
-        return ns.Alerts ~= nil and ns.Alerts.IsOpen() or false
-    end
-    if app.windowsLauncher then
-        local view = _G["EasyFindTaskView"]
-        return view ~= nil and view:IsShown()
-    end
     if app.chatLauncher then
         return ns.Chat ~= nil and ns.Chat.IsOpen ~= nil and ns.Chat:IsOpen() or false
     end
@@ -260,8 +230,6 @@ function ns.CloseApplication(app)
     if app.snippetsLauncher and ns.Options and ns.Options.Hide then
         ns.Options:Hide()
     end
-    if app.clockLauncher and ns.Clock then ns.Clock.Minimize() end
-    if app.alertsLauncher and ns.Alerts then ns.Alerts.Close() end
 end
 
 -- The results-based extension showing right now ("icons", "clipboard"),
@@ -470,75 +438,6 @@ function ns.Results:GetNotesLauncherMatch(text)
         end,
     }
     return notesLauncherRow
-end
-
--- The clock's launcher, shared by the extensions menu and the searchable
--- row. A typed word opens it only once it cannot be the start of another
--- search: "tim" and "stop" stay ordinary queries.
-local CLOCK_WORDS = {
-    { "clock", 4 }, { "timer", 5 }, { "stopwatch", 5 },
-    { "pomodoro", 4 }, { "alarm", 4 }, { "countdown", 5 },
-}
-local clockLauncherEntry
-local function OpenClock()
-    if ns.RequestClock() then ns.Clock.Open() end
-end
-function ns.ClockLauncherEntry()
-    clockLauncherEntry = clockLauncherEntry or {
-        name = ns.CLOCK_NAME,
-        clockLauncher = true,
-        noPin = true,
-        noLearn = true,
-        icon = ns.CLOCK_ICON_TEX,
-        nativeRun = OpenClock,
-    }
-    return clockLauncherEntry
-end
-
--- The alerts launcher: "alert", "alerts" or the localized app name.
-local alertsLauncherEntry
-local function OpenAlerts()
-    if ns.RequestAlerts() then ns.Alerts.Open() end
-end
-function ns.AlertsLauncherEntry()
-    alertsLauncherEntry = alertsLauncherEntry or {
-        name = L["APP_ALERTS"],
-        alertsLauncher = true,
-        noPin = true,
-        noLearn = true,
-        icon = ns.ALERTS_ICON_TEX,
-        nativeRun = OpenAlerts,
-    }
-    return alertsLauncherEntry
-end
-
-function ns.Results:GetAlertsLauncherMatch(text)
-    if not text or #text < 4 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts") then return nil end
-    local q = ns.Utils.slower(text)
-    local sfind = ns.Utils.sfind
-    if not (sfind(ns.Utils.slower(L["APP_ALERTS"]), q, 1, true) or sfind("alerts", q, 1, true)) then return nil end
-    return ns.AlertsLauncherEntry()
-end
-
-local function IsWordStart(word, q, minLen)
-    return #q >= minLen and #q <= #word and word:sub(1, #q) == q
-end
-
-function ns.Results:GetClockLauncherMatch(text)
-    if not text or #text < 3 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock") then return nil end
-    local slower = ns.Utils.slower
-    local q = slower(text)
-    for i = 1, #CLOCK_WORDS do
-        if IsWordStart(CLOCK_WORDS[i][1], q, CLOCK_WORDS[i][2]) then return ns.ClockLauncherEntry() end
-    end
-    local name = slower(ns.CLOCK_NAME)
-    local stopwatch = slower(_G["STOPWATCH_TITLE"] or "stopwatch")
-    if q == name or q == stopwatch or IsWordStart(name, q, 4) or IsWordStart(stopwatch, q, 5) then
-        return ns.ClockLauncherEntry()
-    end
-    return nil
 end
 
 local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"

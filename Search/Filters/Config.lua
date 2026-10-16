@@ -273,25 +273,6 @@ local UI_FILTER_OPTIONS = {
           { key = "chat", label = L["APP_CHAT"], iconTex = ns.CHAT_ICON_TEX, companion = "EasyFind_Chat" },
           { key = "quicklists", label = L["FILTER_QUICKLISTS"], iconTex = ns.QUICKLIST_ICON_TEX,
             companion = "EasyFind_Quicklists" },
-          { key = "window", label = L["FILTER_WINDOW"], iconTex = ns.WINDOW_ICON_TEX,
-            iconCoords = ns.WINDOW_ICON_COORDS,
-            hasOptions = true,
-            checkboxOptions = {
-                { dbKey = "windowsUnlocked", label = L["WINDOW_UNLOCK_TOGGLE"], tooltip = L["WINDOW_UNLOCK_TIP"] },
-                { dbKey = "windowHideBarGrid", label = L["WINDOW_GRID_TOGGLE"], tooltip = L["WINDOW_GRID_TIP"],
-                  onChange = function()
-                      if ns.WindowManager then ns.WindowManager:RefreshGridMask() end
-                  end },
-                { dbKey = "windowMultiPanels", label = L["WINDOW_MULTI_TOGGLE"], tooltip = L["WINDOW_MULTI_TIP"],
-                  onChange = function()
-                      if ns.WindowManager then ns.WindowManager:RefreshMultiPanels() end
-                  end },
-                { dbKey = "windowsResizable", label = L["WINDOW_RESIZE_TOGGLE"], tooltip = L["WINDOW_RESIZE_TIP"],
-                  onChange = function()
-                      if ns.WindowSnapAssist then ns.WindowSnapAssist:RefreshResizeWatcher() end
-                  end },
-                { dbKey = "windowSnapsMomentary", label = L["WINDOW_MOMENTARY_TOGGLE"], tooltip = L["WINDOW_MOMENTARY_TIP"] },
-            } },
       } },
     -- Title icon from PaperDollSidebarTab2 (Titles tab) spritesheet 514608.
     -- Titles you have not earned are opt-in: they outnumber earned ones many

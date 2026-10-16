@@ -131,20 +131,6 @@ function SecureAttributes.Apply(resultRow, data)
         if body and body ~= "" then
             newType, newKey, newVal = "macro", "macrotext", body
         end
-    elseif data and (data.windowLayout or data.windowLayoutDo == "here") and ns.WindowLayouts then
-        -- A layout's panels open through their micro buttons on the press,
-        -- in the client's own execution; the snaps follow on the release
-        -- (WindowCommands:Run), told whether the press closed them.
-        local layouts = ns.WindowLayouts
-        local id = data.windowLayout
-        if not id and layouts.ForHere then
-            local best = layouts:ForHere()
-            id = best and best.id
-        end
-        local macro, closing = nil, nil
-        if id and layouts.ClickMacro then macro, closing = layouts:ClickMacro(id) end
-        data._layoutClosing = closing
-        if macro then newType, newKey, newVal = "macro", "macrotext", macro end
     elseif data and data.slashCommand then
         newType, newKey, newVal = "macro", "macrotext", data.slashCommand
     elseif SecureOpeners and SecureOpeners.ReplacementMacro(data) then
@@ -255,7 +241,6 @@ end
 function SecureAttributes.ActsOnRelease(button, data)
     return button._efSwappedToOpen
         or (data and SecureOpeners and SecureOpeners.OpenKeyForData(data))
-        or (data and (data.windowLayout or data.windowLayoutDo == "here"))
         or nil
 end
 

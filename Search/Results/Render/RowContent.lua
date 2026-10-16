@@ -331,50 +331,6 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     elseif data and data.calculatorResult and not entry.isPathNode then
         iconSet = Render.CalculatorRow(owner, resultRow, data, state)
 
-    -- Window commands: the category glyph on the left, the command's
-    -- region glyph on the right.
-    elseif not iconSet and data and data._windowIconDef then
-        resultRow.amountText:Hide()
-        local winDef = data._windowIconDef
-        resultRow.icon:SetTexture(winDef.tex)
-        resultRow.icon:SetTexCoord(winDef.coords[1], winDef.coords[2],
-                                   winDef.coords[3], winDef.coords[4])
-        resultRow.icon:SetVertexColor(1, 1, 1, 1)
-        resultRow.icon:SetSize(rowIconSize, rowIconSize)
-        resultRow.icon:ClearAllPoints()
-        resultRow.icon:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)
-        resultRow.icon:Show()
-
-        local indentPixels = depth * indPx
-        local leftAnchor
-        local catIconDef = Icons:GetFlatCategoryIcon(data)
-        if catIconDef and resultRow.flatCatIcon then
-            local sz = entry.isFlat and (entryRowH - 16) or rowIconSize
-            resultRow.flatCatIcon:SetTexture(catIconDef.tex)
-            if catIconDef.coords then
-                resultRow.flatCatIcon:SetTexCoord(catIconDef.coords[1], catIconDef.coords[2],
-                                                  catIconDef.coords[3], catIconDef.coords[4])
-            else
-                resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
-            end
-            resultRow.flatCatIcon:SetDesaturated(false)
-            resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
-            ns.SizeIconAspect(resultRow.flatCatIcon, sz, nil)
-            resultRow.flatCatIcon:ClearAllPoints()
-            resultRow.flatCatIcon:SetPoint("LEFT", resultRow, "LEFT", indentPixels, 0)
-            resultRow.flatCatIcon:Show()
-            leftAnchor = resultRow.flatCatIcon
-        end
-        resultRow.text:ClearAllPoints()
-        if leftAnchor then
-            resultRow.text:SetPoint("LEFT", leftAnchor, "RIGHT", 4, 0)
-        else
-            resultRow.text:SetPoint("LEFT", resultRow, "LEFT", indentPixels + 4, 0)
-        end
-        resultRow.text:SetPoint("RIGHT", resultRow.icon, "LEFT", -4, 0)
-        Render.SetClippedText(resultRow.text, Render.NameText(entry))
-        iconSet = true
-
     -- Entry-specific leaf icons: keep the category icon on the
     -- left in flat mode, and put the specific item/spell/achievement
     -- art on the right.
@@ -603,7 +559,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     -- waffle (set by the flat renderer via GetFlatCategoryIcon). RIGHT: the
     -- app's own glyph, desaturated and chrome-tinted like the apps menu.
     elseif not iconSet and data and (data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher
-                                     or data.notesLauncher or data.clockLauncher or data.alertsLauncher) then
+                                     or data.notesLauncher) then
         local appGlyph = Icons:GetAppGlyphIcon(data)
         if appGlyph then
             resultRow.icon:SetTexture(nil)

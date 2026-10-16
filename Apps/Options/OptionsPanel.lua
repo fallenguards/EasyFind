@@ -263,7 +263,6 @@ local function SyncOptionControls()
     if optionsFrame.searchOpacityRow then optionsFrame.searchOpacityRow:SetValue(mfloor((EasyFind.db.searchWindowOpacity or ns.SEARCH_WINDOW_ALPHA) * 100 + 0.5)) end
     if optionsFrame.mapIconPresetRow then optionsFrame.mapIconPresetRow:SetValue(EasyFind.db.iconScale or 0.8) end
     if optionsFrame.recentCountStepper then optionsFrame.recentCountStepper:SetValue(EasyFind.db.mapTabRecentCount or 3) end
-    if optionsFrame.windowGapRow then optionsFrame.windowGapRow:SetValue(EasyFind.db.windowGap or ns.WINDOW_GAP_DEFAULT) end
 
     if optionsFrame.visibilityModeRow then optionsFrame.visibilityModeRow:SetValue(GetVisibilityModeValue()) end
     if optionsFrame.lockPositionCheckbox then optionsFrame.lockPositionCheckbox:SetChecked(EasyFind.db.lockPosition or false) end
@@ -2639,70 +2638,6 @@ local function BuildMapTab(ctx)
 
 end
 
-local function BuildWindowsTab(ctx)
-    local CreateTab, FRAME_W = ctx.CreateTab, ctx.FRAME_W
-    local winTab = CreateTab(L["FILTER_WINDOW"])
-
-    local windowText = winTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    windowText:SetPoint("TOPLEFT", winTab, "TOPLEFT", 8, -8)
-    windowText:SetWidth(FRAME_W - 60)
-    windowText:SetJustifyH("LEFT")
-    windowText:SetSpacing(2)
-    windowText:SetText(L["OPT_WINDOWS_TEXT"])
-
-    local windowGapRow = CreateStepperRow(winTab, L["OPT_WINDOW_GAP"], 0, 64,
-        function() return EasyFind.db.windowGap or ns.WINDOW_GAP_DEFAULT end,
-        function(value) EasyFind.db.windowGap = value end,
-        L["OPT_WINDOW_GAP_TT"], 330)
-    windowGapRow:SetPoint("TOPLEFT", windowText, "BOTTOMLEFT", 0, -14)
-    optionsFrame.windowGapRow = windowGapRow
-
-    -- The saved layouts: each made the standing one, or deleted.
-    local header = winTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    header:SetPoint("TOPLEFT", windowGapRow, "BOTTOMLEFT", 0, -16)
-    header:SetText(L["WINDOW_LAYOUTS_HEADER"])
-    local hint = winTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
-    hint:SetWidth(FRAME_W - 60)
-    hint:SetJustifyH("LEFT")
-    hint:SetSpacing(2)
-    hint:SetText(L["WINDOW_LAYOUTS_HINT"])
-    local rows = {}
-    local function RefreshLayouts()
-        local layouts = ns.WindowLayouts and ns.WindowLayouts:All() or {}
-        local anchor = hint
-        for i, layout in ipairs(layouts) do
-            local row = rows[i]
-            if not row then
-                row = CreateFrame("Frame", nil, winTab)
-                row:SetSize(FRAME_W - 60, 22)
-                row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-                row.name:SetPoint("LEFT", row, "LEFT", 4, 0)
-                row.name:SetWidth(150)
-                row.name:SetJustifyH("LEFT")
-                row.name:SetWordWrap(false)
-                row.standing = CreateModernButton(row, "", 110, 20)
-                row.standing:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
-                row.delete = CreateModernButton(row, _G["DELETE"] or "Delete", 70, 20)
-                row.delete:SetPoint("LEFT", row.standing, "RIGHT", 6, 0)
-                rows[i] = row
-            end
-            row.name:SetText(layout.name)
-            row.standing:SetText(layout.standing and L["WINDOW_LAYOUT_STANDING"] or L["WINDOW_LAYOUT_MAKE_STANDING"])
-            row.standing:SetScript("OnClick", function() ns.WindowLayouts:SetStanding(layout.id, not layout.standing) end)
-            row.delete:SetScript("OnClick", function() ns.WindowLayouts:Delete(layout.id) end)
-            row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
-            row:Show()
-            anchor = row
-        end
-        for i = #layouts + 1, #rows do rows[i]:Hide() end
-    end
-    winTab:HookScript("OnShow", RefreshLayouts)
-    RefreshLayouts()
-    function Options:RefreshWindowLayouts() RefreshLayouts() end
-end
-
 local function BuildShortcutsTab(ctx)
     local CreateTab, FRAME_W = ctx.CreateTab, ctx.FRAME_W
     local sec4 = CreateTab(L["OPT_TAB_SHORTCUTS"])
@@ -4823,156 +4758,6 @@ local function BuildNotesPage(ctx, page)
     end)
 end
 
--- Alerts: open the window, or pause every alert at once.
-local function BuildAlertsPage(ctx, page)
-    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
-    title:SetText(L["APP_ALERTS"])
-    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
-    hint:SetJustifyH("LEFT")
-    hint:SetText(L["ALERTS_OPT_HINT"])
-    local pause = CreateCheckbox(page, "AlertsPaused", L["ALERTS_OPT_PAUSE"], L["ALERTS_OPT_PAUSE_TT"], true)
-    pause:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
-    pause:SetChecked(EasyFind.db.alertsPaused == true)
-    pause:SetScript("OnClick", function(self) EasyFind.db.alertsPaused = self:GetChecked() and true or false end)
-    local open = CreateModernButton(page, L["ALERTS_OPT_OPEN"], 140, 22)
-    open:SetPoint("TOPLEFT", pause, "BOTTOMLEFT", 8, -12)
-    open:SetScript("OnClick", function()
-        if ns.RequestAlerts() then ns.Alerts.Open() end
-    end)
-end
-
--- Clock: what the end of a run does, its sounds, the pomodoro and snooze
--- lengths, and what a bare number means in each slot of a typed command.
-local function BuildClockPage(ctx, page)
-    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
-    title:SetText(ns.CLOCK_NAME)
-    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
-    hint:SetJustifyH("LEFT")
-    hint:SetText(L["OPT_CLOCK_HINT"])
-    local function Changed()
-        if ns.Clock and ns.Clock.SettingsChanged then ns.Clock.SettingsChanged() end
-    end
-    local toggles = {
-        { "clockSound", "CLOCK_OPT_SOUND", "CLOCK_OPT_SOUND_TT", "ClockSound" },
-        { "clockBigText", "CLOCK_OPT_BIGTEXT", "CLOCK_OPT_BIGTEXT_TT", "ClockBigText" },
-        { "clockChat", "CLOCK_OPT_CHAT", "CLOCK_OPT_CHAT_TT", "ClockChat" },
-        { "clockFlash", "CLOCK_OPT_FLASH", "CLOCK_OPT_FLASH_TT", "ClockFlash" },
-        { "clockBreakDim", "CLOCK_OPT_DIM", "CLOCK_OPT_DIM_TT", "ClockBreakDim" },
-        { "clockMinimapIcon", "CLOCK_OPT_MINIMAP", "CLOCK_OPT_MINIMAP_TT", "ClockMinimapIcon" },
-        { "clockAlarmRepeat", "CLOCK_OPT_REPEAT", "CLOCK_OPT_REPEAT_TT", "ClockAlarmRepeat" },
-        { "clockAutoNext", "CLOCK_OPT_AUTONEXT", "CLOCK_OPT_AUTONEXT_TT", "ClockAutoNext" },
-    }
-    local anchor = hint
-    for i = 1, #toggles do
-        local dbKey, labelKey, tipKey, name = unpack(toggles[i])
-        local box = CreateCheckbox(page, name, L[labelKey], L[tipKey], true)
-        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
-        box:SetChecked(EasyFind.db[dbKey] and true or false)
-        box:SetScript("OnClick", function(self)
-            EasyFind.db[dbKey] = self:GetChecked() and true or false
-            Changed()
-        end)
-        anchor = box
-    end
-    local Signals = ns.Signals
-    -- The screen edge flash: off, or a color; a color under the cursor
-    -- in the flyout shows itself once.
-    local screenChoices = { { label = _G["OFF"] or L["CLOCK_OFF"], value = false } }
-    for _, color in ipairs(Signals.COLORS) do screenChoices[#screenChoices + 1] = { label = color.label, value = color.key } end
-    local screenRow = ctx.CreateFlyoutPresetRow(page, L["CLOCK_OPT_SCREEN"], screenChoices,
-        function() return EasyFind.db.clockScreen or false end,
-        function(v) EasyFind.db.clockScreen = v end,
-        "EasyFindClockScreen", false, L["CLOCK_OPT_SCREEN_TT"],
-        function(v) if v then Signals.FlashScreen(v) end end)
-    screenRow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -6)
-    anchor = screenRow
-    -- A heading, set apart from the rows under it: larger and gold.
-    local soundHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    soundHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -14)
-    soundHeader:SetText(L["CLOCK_OPT_SOUNDS"])
-    soundHeader:SetTextColor(1, 0.82, 0, 1)
-    soundHeader._efOwnColor = true
-    local soundChoices = {}
-    for i, sound in ipairs(Signals.SOUNDS) do soundChoices[i] = { label = sound.label, value = sound.key } end
-    local sounds = {
-        { "clockSoundTimer", L["CLOCK_TIMER"] },
-        { "clockSoundAlarm", L["CLOCK_ALARM"] },
-        { "clockSoundPomodoro", L["CLOCK_POMODORO"] },
-        { "clockSoundMark", L["CLOCK_OPT_SOUND_MARK"] },
-    }
-    anchor = soundHeader
-    for i = 1, #sounds do
-        local dbKey, label = unpack(sounds[i])
-        -- A pick plays the sound once.
-        local row = ctx.CreateFlyoutPresetRow(page, label, soundChoices,
-            function() return EasyFind.db[dbKey] end,
-            function(v)
-                EasyFind.db[dbKey] = v
-                Signals.PlaySound(v)
-            end,
-            "EasyFindClockSound" .. i, ns.DB_DEFAULTS[dbKey], L["CLOCK_OPT_SOUNDS_TT"])
-        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -6 or -4)
-        anchor = row
-    end
-    local minuteFormat = _G["MINUTES_ABBR"] or "%d min"
-    local function MinuteChoices(list, scale)
-        local out = {}
-        for _, m in ipairs(list) do out[#out + 1] = { label = sformat(minuteFormat, m), value = m * (scale or 60) } end
-        return out
-    end
-    local rounds = {}
-    for n = 2, 6 do rounds[#rounds + 1] = { label = sformat(L["CLOCK_OPT_ROUNDS_FMT"], n), value = n } end
-    local lengths = {
-        { "clockFocusSeconds", "CLOCK_OPT_FOCUS_LEN", MinuteChoices({ 15, 20, 25, 30, 45, 50, 60, 90 }), "CLOCK_OPT_LEN_TT" },
-        { "clockBreakSeconds", "CLOCK_OPT_BREAK_LEN", MinuteChoices({ 3, 5, 10, 15, 20, 30 }), "CLOCK_OPT_LEN_TT" },
-        { "clockLongEvery", "CLOCK_OPT_LONG_EVERY", rounds, "CLOCK_OPT_LONG_TT" },
-        { "clockLongSeconds", "CLOCK_OPT_LONG_LEN", MinuteChoices({ 10, 15, 20, 30 }), "CLOCK_OPT_LONG_TT" },
-        { "clockSnoozeMinutes", "CLOCK_OPT_SNOOZE", MinuteChoices({ 5, 9, 10, 15 }, 1), "CLOCK_OPT_SNOOZE_TT" },
-    }
-    for i = 1, #lengths do
-        local dbKey, labelKey, choices, tipKey = unpack(lengths[i])
-        local row = ctx.CreateFlyoutPresetRow(page, L[labelKey], choices,
-            function() return EasyFind.db[dbKey] end,
-            function(v)
-                EasyFind.db[dbKey] = v
-                Changed()
-            end,
-            "EasyFindClockLen" .. i, ns.DB_DEFAULTS[dbKey], L[tipKey])
-        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -12 or -4)
-        anchor = row
-    end
-    local unitHeader = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    unitHeader:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
-    unitHeader:SetText(L["CLOCK_OPT_UNITS"])
-    local unitChoices = {
-        { label = L["CLOCK_UNIT_S"], value = "s" },
-        { label = L["CLOCK_UNIT_M"], value = "m" },
-        { label = L["CLOCK_UNIT_H"], value = "h" },
-    }
-    local units = {
-        { "clockFocusUnit", L["CLOCK_OPT_UNIT_FOCUS"] },
-        { "clockBreakUnit", L["CLOCK_OPT_UNIT_BREAK"] },
-        { "clockTimerUnit", L["CLOCK_TIMER"] },
-        { "clockStopwatchUnit", _G["STOPWATCH_TITLE"] or "Stopwatch" },
-    }
-    anchor = unitHeader
-    for i = 1, #units do
-        local dbKey, label = unpack(units[i])
-        local row = ctx.CreateFlyoutPresetRow(page, label, unitChoices,
-            function() return EasyFind.db[dbKey] end,
-            function(v) EasyFind.db[dbKey] = v end,
-            "EasyFindClockUnit" .. i, "m", L["CLOCK_OPT_UNITS_TT"])
-        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -8 or 0, i == 1 and -6 or -4)
-        anchor = row
-    end
-end
-
 -- The Extensions tab: one settings page per extension, picked from a
 -- strip of chips at the top of the tab. Bundled pages come first; any
 -- page registered through ns.RegisterExtensionPage follows, so an
@@ -5043,14 +4828,6 @@ local function ExtensionPageDefs()
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Quicklists")) then
         defs[#defs + 1] = { id = "quicklists", name = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX,
             core = true, fills = true, build = BuildQuicklistsPage }
-    end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clock")) then
-        defs[#defs + 1] = { id = "clock", name = ns.CLOCK_NAME, icon = ns.CLOCK_ICON_TEX,
-            coords = ns.CLOCK_ICON_COORDS, core = true, build = BuildClockPage }
-    end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Alerts")) then
-        defs[#defs + 1] = { id = "alerts", name = L["APP_ALERTS"], icon = ns.ALERTS_ICON_TEX,
-            core = true, build = BuildAlertsPage }
     end
     for _, def in ipairs(ns.ExtensionPages or {}) do
         if not (def.companion and ns.IsCompanionLoadable and not ns.IsCompanionLoadable(def.companion)) then
@@ -6124,7 +5901,6 @@ function Options:Initialize()
     BuildGeneralBindsTab(ctx)
     BuildSearchTab(ctx)
     BuildMapTab(ctx)
-    BuildWindowsTab(ctx)
     BuildShortcutsTab(ctx)
     BuildAliasesTab(ctx)
     BuildBlacklistTab(ctx)

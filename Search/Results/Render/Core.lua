@@ -460,9 +460,6 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     local renderState = SCRATCH.renderState
     wipe(renderState)
     renderState.theme = theme
-    -- Resolved once per pass: window rows gray together with no open target.
-    renderState.windowNoTarget = ns.WindowManager ~= nil
-        and not ns.WindowManager:ResolveTarget()
     renderState.fontScale = fontScale
     renderState.rowH = rowH
     renderState.stackGap = stackGap
@@ -590,11 +587,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             resultRow.isPathNode = entry.isPathNode  -- Store for tooltip text
             local lockedReason
             if not isUnearnedCurrency and data then
-                -- Snap and restore need an open window; restore-all works
-                -- from saved places and stays live.
-                if renderState.windowNoTarget and (data.windowCommand or data.windowRestore) then
-                    lockedReason = ns.L["WINDOW_NO_TARGET"]
-                elseif data.quicklistMissing then
+                if data.quicklistMissing then
                     lockedReason = ns.L["QUICKLIST_ROW_MISSING"]
                 elseif data.quicklistHint then
                     lockedReason = data.name

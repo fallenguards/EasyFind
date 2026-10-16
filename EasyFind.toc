@@ -49,12 +49,6 @@ Database/Loot_Forever.lua
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua
 Database/StaticLocations_Forever.lua
-WindowManager/SnapMath.lua
-WindowManager/Registry.lua
-WindowManager/Manager.lua
-WindowManager/Interactive.lua
-WindowManager/Commands.lua
-WindowManager/Layouts.lua
 Shared/Aliases.lua
 Shared/Shortkeys.lua
 Shared/UIPins.lua
@@ -68,7 +62,6 @@ Search/Focus.lua
 Search/Openers.lua
 Options/SurfaceGuard.lua
 Search/Commands.lua
-Search/ClockCommands.lua
 Search/Results/ResultState.lua
 Search/Results/Handlers/Utils.lua
 Search/Results/Handlers/Spellbook.lua

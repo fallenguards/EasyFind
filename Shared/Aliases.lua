@@ -111,12 +111,6 @@ end
 ---@return string?
 function Aliases:GetEntryKey(data)
     if not data then return nil end
-    if data.windowTaskView   then return "windowcmd:taskview" end
-    if data.windowRestoreAll then return "windowcmd:restoreall" end
-    if data.windowRestore    then return "windowcmd:restore" end
-    if data.windowCommand    then return "windowcmd:"      .. data.windowCommand end
-    if data.windowLayout     then return "windowlayout:"   .. data.windowLayout end
-    if data.windowLayoutDo   then return "windowcmd:layout" .. data.windowLayoutDo end
     if data.mountID       then return "mount:"          .. data.mountID end
     if data.toyItemID     then return "toy:"            .. data.toyItemID end
     if data.petID         then return "pet:"            .. data.petID end

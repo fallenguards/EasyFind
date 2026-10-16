@@ -367,38 +367,6 @@ function ns.RequestOnboarding()
     return false
 end
 
--- Alerts (EasyFind_Alerts): the apps row, /alerts and its search row load
--- it; while any alert is on it loads shortly after login to keep watching.
-function ns.RequestAlerts()
-    if ns.Alerts then return true end
-    LoadCompanion("EasyFind_Alerts")
-    if ns.Alerts then return true end
-    WarnCompanion("EasyFind_Alerts", "ALERTS_MODULE_DISABLED")
-    return false
-end
-
-do
-    local loader = CreateFrame("Frame")
-    loader:RegisterEvent("PLAYER_LOGIN")
-    loader:SetScript("OnEvent", function(self)
-        self:UnregisterAllEvents()
-        if not (EasyFind.db and EasyFind.db.alertsInUse) then return end
-        ns.Utils.SafeAfter(2, function()
-            if not ns.Alerts and ns.IsCompanionLoadable("EasyFind_Alerts") then LoadCompanion("EasyFind_Alerts") end
-        end)
-    end)
-end
-
--- Clock: LoadOnDemand companion (EasyFind_Clock). Loaded by a clock
--- command, its launcher, and at login while a run is going.
-function ns.RequestClock()
-    if ns.Clock then return true end
-    LoadCompanion("EasyFind_Clock")
-    if ns.Clock then return true end
-    WarnCompanion("EasyFind_Clock", "CLOCK_MODULE_DISABLED")
-    return false
-end
-
 -- Can a LoadOnDemand companion load (or is it already in)? Entry-point UI
 -- (filter rows, quick filter suggestions, app rows, launchers) hides when
 -- the companion is disabled in the AddOns list, instead of advertising a
@@ -414,7 +382,6 @@ function ns.IsCompanionLoadable(name)
     if name == "EasyFind_GPS" and ns.GPS then return true end
     if name == "EasyFind_Notes" and ns.Notes then return true end
     if name == "EasyFind_Quicklists" and ns.Quicklists then return true end
-    if name == "EasyFind_Clock" and ns.Clock then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)
     return ok and (tonumber(state) or 0) > 0

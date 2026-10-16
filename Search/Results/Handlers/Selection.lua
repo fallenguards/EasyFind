@@ -306,7 +306,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- extension button's record) keeps the flag but not the run function:
     -- swap in the live entry so it opens the same way the row does.
     if not data.nativeRun and ns.FindApplicationEntry
-       and (data.iconSearchLauncher or data.snippetsLauncher or data.clipboardLauncher or data.notesLauncher or data.clockLauncher or data.alertsLauncher) then
+       and (data.iconSearchLauncher or data.snippetsLauncher or data.clipboardLauncher or data.notesLauncher) then
         local live = ns.FindApplicationEntry(data)
         if live then data = live end
     end
@@ -386,17 +386,6 @@ function Handlers:SelectResult(data, forceGuide)
         local specIndex, loadoutID = data.specSetIndex, data.loadoutConfigID
         self:FinishResultSelection()
         if ns.RunTalentSwap then ns.RunTalentSwap(specIndex, loadoutID) end
-        return
-    end
-
-    -- Captured first: FinishResultSelection recycles the data table.
-    if data.windowCommand or data.windowRestore or data.windowRestoreAll
-       or data.windowTaskView or data.windowLayout or data.windowLayoutDo then
-        local cmd, restore, restoreAll, taskView, layout, layoutDo = data.windowCommand,
-            data.windowRestore, data.windowRestoreAll, data.windowTaskView, data.windowLayout, data.windowLayoutDo
-        local closing = data._layoutClosing
-        self:FinishResultSelection()
-        ns.WindowCommands:Run(cmd, restore, restoreAll, taskView, layout, layoutDo, closing)
         return
     end
 

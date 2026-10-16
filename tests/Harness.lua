@@ -56,8 +56,6 @@ Harness.TOCS = {
     "Apps/Clipboard/EasyFind_Clipboard.toc",
     "Apps/GPS/EasyFind_GPS.toc",
     "Apps/Notes/EasyFind_Notes.toc",
-    "Apps/Clock/EasyFind_Clock.toc",
-    "Apps/Alerts/EasyFind_Alerts.toc",
     "Apps/Quicklists/EasyFind_Quicklists.toc",
 }
 
