@@ -92,15 +92,14 @@ function MapSearch:UpdateBlinkingPins()
 end
 
 function MapSearch:UpdatePinHighlight()
-    local visible = EasyFind.db.mapPinHighlight ~= false
     local _, highlightFrame = self:GetMapVisualFrames()
     if highlightFrame and highlightFrame:IsShown() then
-        self:SetHighlightBordersVisible(highlightFrame, visible)
+        self:ApplyHighlightStyle(highlightFrame)
     end
     if self.extraHighlights then
         for _, hl in ipairs(self.extraHighlights) do
             if hl:IsShown() then
-                self:SetHighlightBordersVisible(hl, visible)
+                self:ApplyHighlightStyle(hl)
             end
         end
     end
@@ -136,6 +135,7 @@ function MapSearch:UpdateIconScales()
 
     if highlightFrame and highlightFrame:IsShown() then
         highlightFrame:SetSize(highlightSize, highlightSize)
+        self:ResizeHighlightBorders(highlightFrame)
     end
 
     resizeIndicator(indicatorFrame, indicatorSize, indicatorGlowSize)
@@ -169,6 +169,7 @@ function MapSearch:UpdateIconScales()
         for _, hl in ipairs(self.extraHighlights) do
             if hl:IsShown() then
                 hl:SetSize(multiHighlightSize, multiHighlightSize)
+                self:ResizeHighlightBorders(hl)
             end
         end
     end
@@ -256,7 +257,7 @@ function MapSearch:HighlightPin(pin, x, y, icon, category)
     highlightFrame:SetPoint("CENTER", pin, "CENTER", 0, 0)
     self:ResizeHighlightBorders(highlightFrame)
     highlightFrame:Show()
-    self:SetHighlightBordersVisible(highlightFrame, EasyFind.db.mapPinHighlight ~= false)
+    self:ApplyHighlightStyle(highlightFrame)
     indicatorFrame:Show()
 
     if indicatorFrame.animGroup then

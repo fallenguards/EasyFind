@@ -169,7 +169,7 @@ local UI_DEFAULTS = {
 -- Restored from ns.DB_DEFAULTS so the reset can never drift from the
 -- first-run defaults (a duplicated copy here once re-enabled auto-track).
 local MAP_RESET_KEYS = {
-    "iconScale", "mapPinHighlight", "blinkingPins", "autoPinClear",
+    "iconScale", "mapPinStyle", "blinkingPins", "autoPinClear",
     "autoTrackPins", "globalSearchFilters", "localSearchFilters",
     "mapTabFilters", "alwaysShowRares", "mapTabShowRecent",
     "mapTabAutoExpand", "mapTabRecentCount", "mapTabFontSize",
@@ -284,7 +284,7 @@ local function SyncOptionControls()
 
     if optionsFrame.mapTabShowRecentCheckbox then optionsFrame.mapTabShowRecentCheckbox:SetChecked(EasyFind.db.mapTabShowRecent ~= false) end
     if optionsFrame.UpdateRecentCountEnabled then optionsFrame.UpdateRecentCountEnabled() end
-    if optionsFrame.mapPinHighlightCheckbox then optionsFrame.mapPinHighlightCheckbox:SetChecked(EasyFind.db.mapPinHighlight ~= false) end
+    if optionsFrame.mapPinStyleRow then optionsFrame.mapPinStyleRow:SetValue(EasyFind.db.mapPinStyle or "glow") end
     if optionsFrame.blinkingPinsCheckbox then optionsFrame.blinkingPinsCheckbox:SetChecked(EasyFind.db.blinkingPins or false) end
     if optionsFrame.autoTrackPinsCheckbox then optionsFrame.autoTrackPinsCheckbox:SetChecked(EasyFind.db.autoTrackPins ~= false) end
     if optionsFrame.autoPinClearCheckbox then optionsFrame.autoPinClearCheckbox:SetChecked(EasyFind.db.autoPinClear ~= false) end
@@ -744,8 +744,15 @@ local function CreateSettingsGroup(parent, width, height)
     return group
 end
 
+-- A number picks the nearest choice; anything else (a style name) its own.
 local function FindNearestChoice(choices, value)
     local best = choices[1]
+    if type(value) ~= "number" then
+        for _, choice in ipairs(choices) do
+            if choice.value == value then return choice end
+        end
+        return best
+    end
     local bestDelta
     for _, choice in ipairs(choices) do
         local delta = math.abs((value or choice.value) - choice.value)
@@ -2525,22 +2532,23 @@ local function BuildMapTab(ctx)
     mapIconSettings:SetPoint("TOPLEFT", mapIconsLabel, "BOTTOMLEFT", 0, -3)
     optionsFrame.mapIconSettings = mapIconSettings
 
-    local mapPinHighlightCheckbox = CreateCheckbox(mapIconSettings, "MapPinHighlight", L["OPT_HIGHLIGHT_BOX"],
-        L["OPT_HIGHLIGHT_BOX_TT"], false, GROUP_W)
-    mapPinHighlightCheckbox:SetPoint("TOPLEFT", mapIconSettings, "TOPLEFT", 0, -4)
-    mapPinHighlightCheckbox:SetChecked(EasyFind.db.mapPinHighlight ~= false)
-    mapPinHighlightCheckbox:SetScript("OnClick", function(self)
-        EasyFind.db.mapPinHighlight = self:GetChecked()
-        if self.RefreshVisual then self:RefreshVisual() end
-        RunSoon(function()
+    local pinStyleChoices = {
+        { label = L["OPT_PIN_GLOW"], value = "glow" },
+        { label = L["OPT_PIN_BOX"],  value = "box" },
+        { label = _G["NONE"] or "None", value = "off" },
+    }
+    local mapPinStyleRow = CreatePresetRow(mapIconSettings, L["OPT_PIN_HIGHLIGHT"], pinStyleChoices,
+        function() return EasyFind.db.mapPinStyle or "glow" end,
+        function(value)
+            EasyFind.db.mapPinStyle = value
             if ns.MapSearch and ns.MapSearch.UpdatePinHighlight then ns.MapSearch:UpdatePinHighlight() end
-        end)
-    end)
-    optionsFrame.mapPinHighlightCheckbox = mapPinHighlightCheckbox
+        end,
+        L["OPT_PIN_HIGHLIGHT_TT"], GROUP_W)
+    optionsFrame.mapPinStyleRow = mapPinStyleRow
 
     local blinkingPinsCheckbox = CreateCheckbox(mapIconSettings, "BlinkingPins", L["OPT_BLINKING"],
         L["OPT_BLINKING_TT"], false, GROUP_W)
-    blinkingPinsCheckbox:SetPoint("TOPLEFT", mapPinHighlightCheckbox, "BOTTOMLEFT", 0, 0)
+    blinkingPinsCheckbox:SetPoint("TOPLEFT", mapIconSettings, "TOPLEFT", 0, -4)
     blinkingPinsCheckbox:SetChecked(EasyFind.db.blinkingPins or false)
     blinkingPinsCheckbox:SetScript("OnClick", function(self)
         EasyFind.db.blinkingPins = self:GetChecked()
@@ -2572,7 +2580,6 @@ local function BuildMapTab(ctx)
         L["OPT_ICON_SIZE_TT"], GROUP_W)
     optionsFrame.mapIconPresetRow = mapIconPresetRow
 
-    mapIconSettings:AddControl(mapPinHighlightCheckbox)
     mapIconSettings:AddControl(blinkingPinsCheckbox)
 
     -- Rare tracking and pin auto-track/clear act only on EasyFind's own pins,
@@ -2618,9 +2625,10 @@ local function BuildMapTab(ctx)
     mapIconSettings:AddControl(autoTrackPinsCheckbox)
     mapIconSettings:AddControl(autoPinClearCheckbox)
 
-    -- Icon Size (a preset-button row) sits at the very bottom so it doesn't
-    -- interrupt the run of toggle checkboxes above it.
-    mapIconPresetRow:SetPoint("TOPLEFT", autoPinClearCheckbox, "BOTTOMLEFT", 0, 0)
+    -- The preset rows sit under the run of checkboxes.
+    mapPinStyleRow:SetPoint("TOPLEFT", autoPinClearCheckbox, "BOTTOMLEFT", 0, 0)
+    mapIconSettings:AddControl(mapPinStyleRow)
+    mapIconPresetRow:SetPoint("TOPLEFT", mapPinStyleRow, "BOTTOMLEFT", 0, 0)
     mapIconSettings:AddControl(mapIconPresetRow)
 
     local resetMapBtn = CreateModernButton(sec2)

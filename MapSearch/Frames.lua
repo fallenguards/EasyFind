@@ -6,6 +6,7 @@ ns.MapSearchFrames = Frames
 local Utils = ns.Utils
 local CreateFrame = CreateFrame
 local STAR_GLOW_TEXTURE = ns.MAP_SEARCH_STAR_GLOW_TEXTURE or "Interface\\Cooldown\\star4"
+local PIN_RING_TEXTURE = "Interface\\AddOns\\EasyFind\\textures\\map-pin-glow"
 local ANIM_DURATION = 0.5
 
 function Frames.AttachBounceAnimation(frame, opts)
@@ -65,6 +66,14 @@ function Frames.CreateHighlightBox(globalName, parent, opts)
     if opts.mouse ~= nil then frame:EnableMouse(opts.mouse) end
     if opts.hidden then frame:Hide() end
     Frames.AddHighlightBorderTextures(frame, opts.color, opts.borderAlpha)
+    -- The glow style: a ring at the pin's edge instead of the box.
+    local ring = frame:CreateTexture(nil, "OVERLAY")
+    ring:SetPoint("CENTER")
+    ring:SetTexture(PIN_RING_TEXTURE)
+    ring:SetBlendMode("ADD")
+    ring:SetVertexColor(Utils.RGB(opts.color or ns.YELLOW_HIGHLIGHT, 1))
+    ring:Hide()
+    frame.ring = ring
     if opts.anim ~= false then
         Frames.AttachBounceAnimation(frame, opts.anim or { fromAlpha = 1, toAlpha = 0.4 })
     end

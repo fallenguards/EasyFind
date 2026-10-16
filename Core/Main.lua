@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 21
+local DB_VERSION = 22
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -102,7 +102,7 @@ local DB_DEFAULTS = {
     mapPinsCollapsed = false,
     showAliasMessages = true,
     blinkingPins = false,
-    mapPinHighlight = true,
+    mapPinStyle = "glow",
     autoPinClear = true,
     autoTrackPins = true,
     uiResultsAbove = false,
@@ -537,6 +537,11 @@ local DB_MIGRATIONS = {
     [21] = function(db)
         -- Results viewport is row-count owned; the pixel height is retired.
         db.uiResultsHeight = nil
+    end,
+    [22] = function(db)
+        -- The highlight box toggle became a style; a box turned off stays off.
+        if db.mapPinHighlight == false then db.mapPinStyle = "off" end
+        db.mapPinHighlight = nil
     end,
 }
 

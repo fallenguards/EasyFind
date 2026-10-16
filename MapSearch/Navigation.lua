@@ -200,10 +200,15 @@ loadingScreenFrame:SetScript("OnEvent", function(_, event, isInitialLogin, isRel
 end)
 
 
+-- The ring texture's bright edge sits at 40 of its 64 half-width.
+local RING_SPAN = 64 / 40
+
 -- Canvas-unit borders so thickness matches UI search regardless of zoom.
 local function ResizeHighlightBorders(frame)
     local bs  = ns.UIToCanvas(4)
     local pad = ns.UIToCanvas(4)
+    local ringSize = math.max(frame:GetWidth(), frame:GetHeight()) * RING_SPAN
+    frame.ring:SetSize(ringSize, ringSize)
 
     -- Top/bottom own the corners (full width including padding).
     frame.top:ClearAllPoints()
@@ -227,19 +232,23 @@ local function ResizeHighlightBorders(frame)
     frame.right:SetPoint("BOTTOMRIGHT", frame.bottom, "TOPRIGHT", 0, 0)
 end
 
-local function SetHighlightBordersVisible(frame, visible)
-    frame.top:SetShown(visible)
-    frame.bottom:SetShown(visible)
-    frame.left:SetShown(visible)
-    frame.right:SetShown(visible)
+-- Options > Map > Highlight: "glow" (a ring at the pin's edge), "box" or "off".
+local function ApplyHighlightStyle(frame)
+    local style = EasyFind.db.mapPinStyle or "glow"
+    local box = style == "box"
+    frame.top:SetShown(box)
+    frame.bottom:SetShown(box)
+    frame.left:SetShown(box)
+    frame.right:SetShown(box)
+    frame.ring:SetShown(style == "glow")
 end
 
 function MapSearch:ResizeHighlightBorders(frame)
     ResizeHighlightBorders(frame)
 end
 
-function MapSearch:SetHighlightBordersVisible(frame, visible)
-    SetHighlightBordersVisible(frame, visible)
+function MapSearch:ApplyHighlightStyle(frame)
+    ApplyHighlightStyle(frame)
 end
 
 function MapSearch:GetMapVisualFrames()
@@ -829,7 +838,7 @@ function MapSearch:ShowMultipleWaypoints(instances)
             highlight:SetPoint("CENTER", pin, "CENTER", 0, 0)
             ResizeHighlightBorders(highlight)
             highlight:Show()
-            SetHighlightBordersVisible(highlight, EasyFind.db.mapPinHighlight ~= false)
+            ApplyHighlightStyle(highlight)
 
             -- Position and show the indicator
             ind:SetSize(indicatorSize, indicatorSize)
@@ -969,7 +978,7 @@ function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly, displayID)
     highlightFrame:SetPoint("CENTER", waypointPin, "CENTER", 0, 0)
     ResizeHighlightBorders(highlightFrame)
     highlightFrame:Show()
-    SetHighlightBordersVisible(highlightFrame, EasyFind.db.mapPinHighlight ~= false)
+    ApplyHighlightStyle(highlightFrame)
 
     -- Resize indicator and its glow, then anchor explicitly above the
     -- highlight box (indicator is a permanent canvas child; the old
