@@ -316,7 +316,25 @@ end
 -- count badge on its icon wherever the icon sits: the extensions menu and
 -- an extension button on screen.
 local appBadges = {}
-local BADGE_FONT = "Interface\\AddOns\\EasyFind\\Fonts\\Inter-SemiBold.ttf"
+-- The badge digits: one row of textures/badge-digits.tga (dev tools:
+-- badge_digits.py), per glyph its texcoords across and its advance in em;
+-- every glyph is the digits' ink band tall, so the group centers by its ink.
+local BADGE_DIGIT_TEX = "Interface\\AddOns\\EasyFind\\textures\\badge-digits"
+local BADGE_DIGIT_BAND = 0.8106
+local BADGE_DIGIT_V0, BADGE_DIGIT_V1 = 0.19603, 0.80397
+local BADGE_DIGITS = {
+    ["0"] = { 0.01400, 0.07584, 0.6597 },
+    ["1"] = { 0.11494, 0.15459, 0.4229 },
+    ["2"] = { 0.19540, 0.25381, 0.6230 },
+    ["3"] = { 0.28463, 0.34428, 0.6362 },
+    ["4"] = { 0.37308, 0.43552, 0.6660 },
+    ["5"] = { 0.46544, 0.52284, 0.6123 },
+    ["6"] = { 0.55400, 0.61397, 0.6396 },
+    ["7"] = { 0.64682, 0.70084, 0.5762 },
+    ["8"] = { 0.73367, 0.79368, 0.6401 },
+    ["9"] = { 0.82353, 0.88350, 0.6396 },
+    ["+"] = { 0.91182, 0.97490, 0.6729 },
+}
 local badgeTiles = setmetatable({}, { __mode = "k" })
 local PaintTileBadge
 function ns.SetApplicationBadge(id, count)
@@ -343,23 +361,33 @@ function ns.CreateCountBadge(parent, height)
     ns.SetRoundedRectBarHeight(badge, height)
     ns.SetRoundedRectBorderBgAlpha(badge, 1)
     ns.SetRoundedRectBorderEdgeShown(badge, false)
-    -- Inter SemiBold: its digits sit on the exact middle of its line box,
-    -- so centering the text centers the number (the game font's sit high).
-    local text = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    text._efOwnColor = true
-    text._efFontPreview = true
-    text:SetPoint("CENTER", 0, 0)
-    local size = math.floor(height * 0.68 + 0.5)
-    if not text:SetFont(BADGE_FONT, size, "") then
-        local file, _, flags = text:GetFont()
-        if file then text:SetFont(file, size, flags) end
-    end
-    text:SetTextColor(1, 1, 1, 1)
-    badge.text = text
+    -- The number from glyph textures, its group centered on the pill.
+    local em = height * 0.66
+    badge.glyphs = {}
     function badge:SetCount(n, r, g, b)
         if not n or n <= 0 then self:Hide() return end
-        self.text:SetText(n > 99 and "99+" or tostring(n))
-        self:SetWidth(math.max(height, math.ceil(self.text:GetStringWidth() + height * 0.6)))
+        local s = n > 99 and "99+" or tostring(n)
+        local total = 0
+        for i = 1, #s do total = total + BADGE_DIGITS[s:sub(i, i)][3] * em end
+        self:SetWidth(math.max(height, math.ceil(total + height * 0.55)))
+        local x = -total / 2
+        for i = 1, #s do
+            local d = BADGE_DIGITS[s:sub(i, i)]
+            local glyph = self.glyphs[i]
+            if not glyph then
+                glyph = self:CreateTexture(nil, "OVERLAY")
+                glyph:SetTexture(BADGE_DIGIT_TEX)
+                self.glyphs[i] = glyph
+            end
+            local w = d[3] * em
+            glyph:SetTexCoord(d[1], d[2], BADGE_DIGIT_V0, BADGE_DIGIT_V1)
+            glyph:SetSize(w, BADGE_DIGIT_BAND * em)
+            glyph:ClearAllPoints()
+            glyph:SetPoint("CENTER", self, "CENTER", x + w / 2, 0)
+            glyph:Show()
+            x = x + w
+        end
+        for i = #s + 1, #self.glyphs do self.glyphs[i]:Hide() end
         ns.SetRoundedRectFill(self, r or 0.89, g or 0.22, b or 0.21, 1, true)
         self:Show()
     end
