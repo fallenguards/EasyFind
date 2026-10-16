@@ -2065,6 +2065,19 @@ local TOGGLE_BINDING_STATE = {
             end
         end,
     },
+    TOGGLEFPS = {
+        get = function()
+            local framerateFrame = _G["FramerateFrame"]
+            return framerateFrame and framerateFrame:IsShown()
+        end,
+        run = function()
+            local framerateFrame = _G["FramerateFrame"]
+            if framerateFrame and framerateFrame.Toggle then
+                framerateFrame:Toggle()
+                return true
+            end
+        end,
+    },
     TOGGLEBATTLEFIELDMINIMAP = {
         get = function() return BattlefieldMapFrame and BattlefieldMapFrame:IsShown() end,
         run = function()
@@ -2134,13 +2147,6 @@ local PERFORM_ONLY_BINDINGS = {
     OPENALLBAGS = function()
         if ToggleAllBags then
             ToggleAllBags()
-            return true
-        end
-    end,
-    TOGGLEFPS = function()
-        local framerateFrame = _G["FramerateFrame"]
-        if framerateFrame and framerateFrame.Toggle then
-            framerateFrame:Toggle()
             return true
         end
     end,
