@@ -5315,8 +5315,9 @@ function Builders.BuildSettingsPanel(frame)
     local panel = CreateFrame("Frame", nil, frame)
     panel:SetSize(250, 140)
     panel:SetPoint("CENTER")
-    -- Above the footer/toolbar buttons (which sit at footer level + 20) so the T
-    -- button does not bleed through the panel.
+    -- The flyouts' layer, over everything in the window, so its border reads
+    -- clear of the window under it.
+    panel:SetFrameStrata("FULLSCREEN_DIALOG")
     panel:SetFrameLevel(frame:GetFrameLevel() + 60)
     panel:EnableMouse(true)
     -- EXACTLY the tooltip/menu panel treatment (StyleMenuPanel): themed galaxy
