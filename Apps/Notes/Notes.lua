@@ -623,7 +623,7 @@ local function SortedNotes(filter)
     local shareAll = EasyNotesDB.shareAcrossCharacters == true
     local charKey = CurrentCharKey()
     -- Search-bar filters: charFilter (nil = this character, "all", or a specific
-    -- character key) and categoryFilter (nil = all, or a category name).
+    -- character key) and categoryFilter (nil = all, or a set of category names).
     local charFilter = UI._notes and UI._notes.charFilter
     local catFilter = UI._notes and UI._notes.categoryFilter
     for i = 1, #notes do
@@ -636,7 +636,7 @@ local function SortedNotes(filter)
         else
             charOK = shareAll or n.scope == "account" or not n.character or n.character == charKey
         end
-        local catOK = (not catFilter) or ((n.category or "General") == catFilter)
+        local catOK = (not catFilter) or catFilter[n.category or "General"] == true
         if charOK and catOK and (filter == "" or sfind(PlainSearchText(n), filter, 1, true)
                        or sfind(slower(n.alias or ""), filter, 1, true)) then
             list[#list + 1] = n
@@ -6596,16 +6596,33 @@ function UI:ShowEasyNotesFilterMenu(anchor)
         end
         return t
     end
-    local function catFilterRow(label, value)
+    -- Categories pick several at once; All is none picked. Clearing the
+    -- last pick, or picking every one, is All again.
+    local function catFilterRow(label, value, cats)
+        local picked = UI._notes.categoryFilter
+        local on = value == nil and picked == nil or (value ~= nil and picked ~= nil and picked[value] == true)
         return { text = label, keepOpen = true,
-            icon = (UI._notes.categoryFilter == value) and MENU_CHECK_TEX or nil,
-            onClick = function() UI._notes.categoryFilter = value; UI:RefreshEasyNotesPalette() end }
+            icon = on and MENU_CHECK_TEX or nil,
+            onClick = function()
+                local set = UI._notes.categoryFilter
+                if value == nil then
+                    set = nil
+                else
+                    set = set or {}
+                    set[value] = not set[value] or nil
+                    local count = 0
+                    for _ in pairs(set) do count = count + 1 end
+                    if count == 0 or count >= #cats then set = nil end
+                end
+                UI._notes.categoryFilter = set
+                UI:RefreshEasyNotesPalette()
+            end }
     end
     local function catRows()
-        local t = { catFilterRow(L["NOTES_ALL_CATS"], nil) }
         local cats = UI:GetEasyNotesCategories()
+        local t = { catFilterRow(L["NOTES_ALL_CATS"], nil, cats) }
         for i = 1, #cats do
-            t[#t + 1] = catFilterRow(UI:EasyNotesCategoryLabel(cats[i]), cats[i])
+            t[#t + 1] = catFilterRow(UI:EasyNotesCategoryLabel(cats[i]), cats[i], cats)
         end
         return t
     end
