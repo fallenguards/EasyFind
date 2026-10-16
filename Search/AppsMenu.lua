@@ -149,6 +149,14 @@ function ns.ApplicationEntryID(app)
     end
     return nil
 end
+-- An extension's launcher row (calculator, chat, GPS, ...): the apps glyph
+-- on its left, its own on its right. Snippets' menu row and a single
+-- quicklist keep their own looks. Every place that asks uses this.
+function ns.IsApplicationLauncher(data)
+    return data ~= nil and not data.quicklistID and not data.snippetsLauncher
+        and ns.ApplicationEntryID(data) ~= nil
+end
+
 -- The live launcher entry for an id, or for a stored copy of one (a
 -- shortkey snapshot keeps the flag but not the run function).
 function ns.FindApplicationEntry(idOrData)

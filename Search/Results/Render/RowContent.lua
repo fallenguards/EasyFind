@@ -558,8 +558,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     -- App launcher rows (calculator, icon search). LEFT: the apps-button
     -- waffle (set by the flat renderer via GetFlatCategoryIcon). RIGHT: the
     -- app's own glyph, desaturated and chrome-tinted like the apps menu.
-    elseif not iconSet and data and (data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher
-                                     or data.notesLauncher) then
+    elseif not iconSet and data and ns.IsApplicationLauncher and ns.IsApplicationLauncher(data) then
         local appGlyph = Icons:GetAppGlyphIcon(data)
         if appGlyph then
             resultRow.icon:SetTexture(nil)

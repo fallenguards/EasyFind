@@ -305,8 +305,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- A stored copy of an extension launcher (a shortkey's snapshot, an
     -- extension button's record) keeps the flag but not the run function:
     -- swap in the live entry so it opens the same way the row does.
-    if not data.nativeRun and ns.FindApplicationEntry
-       and (data.iconSearchLauncher or data.snippetsLauncher or data.clipboardLauncher or data.notesLauncher) then
+    if not data.nativeRun and ns.FindApplicationEntry and not data.quicklistID and ns.ApplicationEntryID(data) then
         local live = ns.FindApplicationEntry(data)
         if live then data = live end
     end

@@ -233,7 +233,7 @@ function Icons:GetFlatCategoryIcon(data)
     if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     -- App launcher rows wear the apps-button waffle as their general glyph;
     -- the app's own glyph renders on the row's right via GetAppGlyphIcon.
-    if data.calculatorLauncher or data.iconSearchLauncher or data.clipboardLauncher or data.notesLauncher or data.quicklistsLauncher then
+    if ns.IsApplicationLauncher and ns.IsApplicationLauncher(data) then
         return FLAT_CATEGORY_ICONS.apps
     end
     if data.category == "Quicklist" then return FLAT_CATEGORY_ICONS.quicklist end
