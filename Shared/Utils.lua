@@ -8309,12 +8309,26 @@ end
 
 function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opts, extra)
     local rows = {}
+    local addRows, removeRows = {}, {}
+    -- Two or more related rows fold into one flyout row; a lone one stays a
+    -- plain row under its own full label.
+    local function AddGroup(label, members)
+        if #members == 0 then return end
+        if #members == 1 then
+            members[1].text = members[1].fullText or members[1].text
+            rows[#rows + 1] = members[1]
+            return
+        end
+        tsort(members, MenuRowLess)
+        rows[#rows + 1] = { text = label, submenu = members }
+    end
     if onAddAlias then
-        rows[#rows + 1] = { text = L["CTX_ADD_ALIAS"], onClick = onAddAlias }
+        addRows[#addRows + 1] = { text = L["OPT_COL_ALIAS"], fullText = L["CTX_ADD_ALIAS"], onClick = onAddAlias }
     end
     if extra and extra.onAddShortkey then
-        rows[#rows + 1] = {
-            text = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["CTX_ADD_SHORTKEY"],
+        addRows[#addRows + 1] = {
+            text = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["OPT_COL_SHORTKEY"],
+            fullText = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["CTX_ADD_SHORTKEY"],
             onClick = extra.onAddShortkey,
         }
     end
@@ -8341,13 +8355,21 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
     if onGuide then
         rows[#rows + 1] = { text = L["CTX_GUIDE"], icon = ns.EYE_ICON_TEX, chromeIcon = true, onClick = onGuide }
     end
-    if extra and extra.onGPS then
-        -- Turn-by-turn directions from the GPS extension, the same custom
-        -- line-art treatment as Guide's eye.
-        rows[#rows + 1] = { text = L["CTX_GPS"], icon = ns.GPS_ICON_TEX, chromeIcon = true, onClick = extra.onGPS }
-    end
-    if extra and extra.onGPSFrom then
-        rows[#rows + 1] = { text = L["CTX_GPS_FROM"], icon = ns.GPS_ICON_TEX, chromeIcon = true, onClick = extra.onGPSFrom }
+    -- GPS: directions to the row, or a route starting there; the custom
+    -- line-art glyph, as Guide's eye.
+    if extra and extra.onGPS and extra.onGPSFrom then
+        rows[#rows + 1] = {
+            text = L["APP_GPS"], icon = ns.GPS_ICON_TEX, chromeIcon = true,
+            submenu = {
+                { text = L["CTX_GPS_TO"], onClick = extra.onGPS },
+                { text = L["CTX_GPS_FROM"], onClick = extra.onGPSFrom },
+            },
+        }
+    elseif extra and (extra.onGPS or extra.onGPSFrom) then
+        rows[#rows + 1] = {
+            text = extra.onGPS and L["CTX_GPS"] or L["CTX_GPS_FROM"], icon = ns.GPS_ICON_TEX, chromeIcon = true,
+            onClick = extra.onGPS or extra.onGPSFrom,
+        }
     end
     if extra and extra.wowheadUrl then
         -- Our own chain-link glyph (textures/link.tga), the same custom
@@ -8397,27 +8419,25 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
         }
     end
     if extra and extra.addNoteRows then
-        rows[#rows + 1] = {
-            text = L["CTX_ADD_NOTE"],
-            submenu = extra.addNoteRows,
-        }
+        addRows[#addRows + 1] = { text = L["CTX_NOTE"], fullText = L["CTX_ADD_NOTE"], submenu = extra.addNoteRows }
     end
     if extra and extra.addQuicklistRows then
-        rows[#rows + 1] = {
-            text = L["CTX_ADD_QUICKLIST"],
-            submenu = extra.addQuicklistRows,
+        addRows[#addRows + 1] = {
+            text = L["CTX_QUICKLIST"], fullText = L["CTX_ADD_QUICKLIST"], submenu = extra.addQuicklistRows,
         }
     end
+    AddGroup(_G["ADD"] or "Add", addRows)
     if extra and extra.onBlacklist then
-        rows[#rows + 1] = { text = L["CTX_BLACKLIST"], onClick = extra.onBlacklist }
+        removeRows[#removeRows + 1] = { text = L["CTX_BLACKLIST"], onClick = extra.onBlacklist }
     end
     if extra and extra.onForgetPick then
         -- Only on a row search put on top from a past pick for this text.
-        rows[#rows + 1] = {
+        removeRows[#removeRows + 1] = {
             text = L["CTX_FORGET_PICK"], tooltip = L["CTX_FORGET_PICK_TT"],
             onClick = extra.onForgetPick,
         }
     end
+    AddGroup(_G["REMOVE"] or "Remove", removeRows)
 
     local extras = {}
     if extra and extra.onTrack then

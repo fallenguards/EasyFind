@@ -485,8 +485,15 @@ local function ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, ext
     end
     local ok, menu = pcall(MenuUtil.CreateContextMenu, row or panel or UIParent, function(_, root)
         if name and name ~= "" then root:CreateTitle(name) end
-        if extra.onGPS then root:CreateButton(L["CTX_GPS"], extra.onGPS) end
-        if extra.onGPSFrom then root:CreateButton(L["CTX_GPS_FROM"], extra.onGPSFrom) end
+        if extra.onGPS and extra.onGPSFrom then
+            local gps = root:CreateButton(L["APP_GPS"])
+            gps:CreateButton(L["CTX_GPS_TO"], extra.onGPS)
+            gps:CreateButton(L["CTX_GPS_FROM"], extra.onGPSFrom)
+        elseif extra.onGPS then
+            root:CreateButton(L["CTX_GPS"], extra.onGPS)
+        elseif extra.onGPSFrom then
+            root:CreateButton(L["CTX_GPS_FROM"], extra.onGPSFrom)
+        end
         if onGuide then root:CreateButton(L["CTX_GUIDE"], onGuide) end
         root:CreateButton(isPinned and (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_UNPIN"] or "Unpin")
             or (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_PIN"] or "Pin"), onPin)
