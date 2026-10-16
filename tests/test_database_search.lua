@@ -28,6 +28,14 @@ function tests.keywordTiers_beatTypoNameMatches()
     H.assertEq(Database:ScoreFuzzy("black rat", "brack", 5), 85, "typo name match")
 end
 
+-- The map search passes no word list: keywords and multi-word names still
+-- score (they scored 0, which dropped every repairer and titled trainer).
+function tests.noWordList_stillScores()
+    H.assertEq(Database:ScoreKeywords({ "repair" }, "repair", 6), 100, "a keyword with no word list")
+    H.assertTrue(Database:ScoreKeywords({ "hunter trainer" }, "hunter trainer", 14) > 0, "a two-word title")
+    H.assertTrue(Database:ScoreName("randal hunter", "randal hunter", 13) > 0, "a two-word name")
+end
+
 function tests.queryAsksFor_exactAndPrefixWords()
     local ask = { "teleport", "tp", "portal", "dungeon" }
     H.assertTrue(Database.QueryAsksFor({ "kara", "teleport" }, ask), "exact word")

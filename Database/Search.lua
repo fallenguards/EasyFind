@@ -684,8 +684,10 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
 
     -- Multi-word query: all words must match. Fires even after an inferior
     -- low-score path so "estern kingd" -> "Eastern Kingdoms" can still surface.
-    if score < 100 and sfind(query, " ", 1, true) and optQueryWords then
-        local queryWords = optQueryWords
+    if score < 100 and sfind(query, " ", 1, true) then
+        -- A caller without its own word list (the map search) gets the
+        -- query cut as names are.
+        local queryWords = optQueryWords or GetWords(query)
         if #queryWords >= 2 then
             local nameWords = GetWords(nameLower)
             local allMatched = true
@@ -802,8 +804,9 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
         if queryLen == 0 then return 0 end
     end
 
-    local queryWords = optQueryWords
-    if not queryWords then return 0 end
+    -- No word list from the caller: the query cut as names are. Returning
+    -- 0 there silently zeroed every map search keyword (repair, a title).
+    local queryWords = optQueryWords or GetWords(query)
 
     -- Single-word: take BEST kw match, not sum. Summing let items with
     -- redundant keywords ("reputation" + "reputation achievements") beat
