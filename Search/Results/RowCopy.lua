@@ -254,6 +254,12 @@ local function ArmHovered()
     RowCopy:ArmFor(target, easy)
 end
 
+-- For other focused boxes (the chat's): Ctrl went down on them, where
+-- MODIFIER_STATE_CHANGED never arrives.
+function RowCopy:ArmHovered()
+    ArmHovered()
+end
+
 function RowCopy:Initialize()
     -- Ctrl edges reach this watcher only while no EditBox has keyboard
     -- focus (nav mode, menus, popups); the focused search box is handled
