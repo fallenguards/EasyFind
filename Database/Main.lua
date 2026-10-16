@@ -796,6 +796,24 @@ local SLOT_KEYWORDS = {
     INVTYPE_HOLDABLE        = {"off hand", "held"},
 }
 
+-- Weapon types by weapon subclass id, so "@loot sword" finds swords. On a
+-- non-English client the item's own subtype name adds its words too.
+Database.WEAPON_KEYWORDS = {
+    [0] = {"axe", "axes"}, [1] = {"axe", "axes"},
+    [2] = {"bow", "bows"}, [3] = {"gun", "guns"},
+    [4] = {"mace", "maces"}, [5] = {"mace", "maces"},
+    [6] = {"polearm", "polearms"},
+    [7] = {"sword", "swords"}, [8] = {"sword", "swords"},
+    [9] = {"warglaive", "warglaives", "glaive", "glaives"},
+    [10] = {"staff", "staves"},
+    [13] = {"fist", "fists"},
+    [15] = {"dagger", "daggers"},
+    [16] = {"thrown"},
+    [17] = {"spear", "spears"},
+    [18] = {"crossbow", "crossbows"},
+    [19] = {"wand", "wands"},
+}
+
 local STAT_KEYWORD_MAP = {
     ITEM_MOD_CRIT_RATING_SHORT    = {"crit", "critical strike"},
     ITEM_MOD_HASTE_RATING_SHORT   = {"haste"},
@@ -827,6 +845,11 @@ local function IsLootSlotSearchWord(word)
         slotSearchWordLookup = {}
         slotSearchWordList = {}
         for _, words in pairs(SLOT_KEYWORDS) do
+            for i = 1, #words do
+                AddLookupWords(slotSearchWordLookup, words[i], slotSearchWordList)
+            end
+        end
+        for _, words in pairs(Database.WEAPON_KEYWORDS) do
             for i = 1, #words do
                 AddLookupWords(slotSearchWordLookup, words[i], slotSearchWordList)
             end
@@ -987,7 +1010,7 @@ end
 -- or partial cache. Discarding forces one clean re-scan under the fixed
 -- scan (which now waits for EJ_LOOT_DATA_RECIEVED and refuses to mark
 -- specs complete on unresolved reads).
-ns.LOOT_ITEM_CACHE_VER = 4 -- 4: rows packed into one string instead of per-row tables
+ns.LOOT_ITEM_CACHE_VER = 5 -- 5: weapon types join the slot words
 ns.BOSS_CACHE_VER = 3 -- 3: rows packed into one string instead of per-row tables
 ns.STATISTIC_CACHE_VER = 3 -- 3: path/chain once per category; rows packed into one string
 ns.MOUNT_CACHE_VER = 2 -- 2: rows packed into one string instead of per-row tables
@@ -3573,7 +3596,7 @@ local function CacheLootInfo(database, lootInfo, inst, encName, encID, diff, sp,
 
     local itemName = lootInfo.name
     if not itemName or itemName == "" then return end
-    local _, _, _, equipLoc, instIcon = GetItemInfoInstantFn(itemID)
+    local _, _, subTypeName, equipLoc, instIcon, classID, subclassID = GetItemInfoInstantFn(itemID)
     if not (equipLoc and SLOT_KEYWORDS[equipLoc]) and lootInfo.filterType then
         equipLoc = FILTER_TO_INVTYPE[lootInfo.filterType] or equipLoc
     end
@@ -3581,6 +3604,15 @@ local function CacheLootInfo(database, lootInfo, inst, encName, encID, diff, sp,
     local slotKwVals = equipLoc and SLOT_KEYWORDS[equipLoc]
     if slotKwVals then
         for _, w in ipairs(slotKwVals) do slotKws[#slotKws + 1] = w end
+    end
+    if classID == 2 then   -- Enum.ItemClass.Weapon
+        local weaponWords = Database.WEAPON_KEYWORDS[subclassID]
+        if weaponWords then
+            for _, w in ipairs(weaponWords) do slotKws[#slotKws + 1] = w end
+        end
+        if type(subTypeName) == "string" and GetLocale() ~= "enUS" then
+            for w in slower(subTypeName):gmatch("[^%s%-]+") do slotKws[#slotKws + 1] = w end
+        end
     end
 
     local sourceKws = {}
