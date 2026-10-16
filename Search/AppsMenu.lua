@@ -316,6 +316,7 @@ end
 -- count badge on its icon wherever the icon sits: the extensions menu and
 -- an extension button on screen.
 local appBadges = {}
+local BADGE_FONT = "Interface\\AddOns\\EasyFind\\Fonts\\Inter-SemiBold.ttf"
 local badgeTiles = setmetatable({}, { __mode = "k" })
 local PaintTileBadge
 function ns.SetApplicationBadge(id, count)
@@ -342,11 +343,17 @@ function ns.CreateCountBadge(parent, height)
     ns.SetRoundedRectBarHeight(badge, height)
     ns.SetRoundedRectBorderBgAlpha(badge, 1)
     ns.SetRoundedRectBorderEdgeShown(badge, false)
+    -- Inter SemiBold: its digits sit on the exact middle of its line box,
+    -- so centering the text centers the number (the game font's sit high).
     local text = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     text._efOwnColor = true
+    text._efFontPreview = true
     text:SetPoint("CENTER", 0, 0)
-    local file, _, flags = text:GetFont()
-    if file then text:SetFont(file, math.floor(height * 0.68 + 0.5), flags) end
+    local size = math.floor(height * 0.68 + 0.5)
+    if not text:SetFont(BADGE_FONT, size, "") then
+        local file, _, flags = text:GetFont()
+        if file then text:SetFont(file, size, flags) end
+    end
     text:SetTextColor(1, 1, 1, 1)
     badge.text = text
     function badge:SetCount(n, r, g, b)

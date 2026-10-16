@@ -1390,7 +1390,8 @@ local function CreateButtonFrame(index, rec)
     btn.badge = ns.CreateCountBadge and ns.CreateCountBadge(btn, 15) or nil
     if btn.badge then
         btn.badge:SetFrameLevel(btn:GetFrameLevel() + 6)
-        btn.badge:SetPoint("CENTER", btn, "TOPRIGHT", -4, -4)
+        -- On the glyph's corner, inside the ring, as app icons wear it.
+        btn.badge:SetPoint("CENTER", btn.icon, "TOPRIGHT", -1, -1)
     end
     -- Repainted with the theme like every themed panel.
     btn._efOnThemeRestyle = function(self) PaintIcon(self) end
