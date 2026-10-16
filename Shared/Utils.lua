@@ -4939,6 +4939,8 @@ local function EnsureClipboardBox()
     if box then return box end
     box = CreateFrame("EditBox", "EasyFindClipboardBox", UIParent)
     box:SetAutoFocus(false)
+    -- Multi-line, so a copied transcript keeps its line breaks.
+    box:SetMultiLine(true)
     box:SetSize(1, 1)
     box:SetPoint("TOP", UIParent, "TOP", 0, 30)
     box:SetAlpha(0)
