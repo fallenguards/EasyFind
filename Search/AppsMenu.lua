@@ -212,6 +212,11 @@ function ns.IsApplicationOpen(app)
     if app.chatLauncher then
         return ns.Chat ~= nil and ns.Chat.IsOpen ~= nil and ns.Chat:IsOpen() or false
     end
+    if app.gpsLauncher then
+        local MapTab = ns.MapTab
+        return WorldMapFrame ~= nil and WorldMapFrame:IsShown() and MapTab ~= nil and MapTab.IsPageShowing ~= nil
+            and MapTab:IsPageShowing("gps") or false
+    end
     return false
 end
 
@@ -233,6 +238,15 @@ function ns.CloseApplication(app)
     end
     if app.notesLauncher then
         if ns.Notes and ns.Notes.Close then ns.Notes.Close() end
+        return
+    end
+    if app.chatLauncher then
+        if ns.Chat and ns.Chat.Close then ns.Chat:Close() end
+        return
+    end
+    -- The GPS opened the map at its page: the map closes the way it opened.
+    if app.gpsLauncher then
+        if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then ToggleWorldMap() end
         return
     end
     if app.snippetsLauncher and ns.Options and ns.Options.Hide then
@@ -296,6 +310,71 @@ local function HideBarIfLaunchOpened(app)
     if not (id and launchOpenedBar[id]) then return end
     launchOpenedBar[id] = nil
     if BarShown() and ns.Search.Hide then ns.Search:Hide() end
+end
+
+-- Counts an extension reports (Chat: messages unread), drawn as a red
+-- count badge on its icon wherever the icon sits: the extensions menu and
+-- an extension button on screen.
+local appBadges = {}
+local badgeTiles = setmetatable({}, { __mode = "k" })
+local PaintTileBadge
+function ns.SetApplicationBadge(id, count)
+    count = (type(count) == "number" and count > 0) and count or nil
+    if not id or appBadges[id] == count then return end
+    appBadges[id] = count
+    for row in pairs(badgeTiles) do
+        if row:IsShown() and row.item then PaintTileBadge(row) end
+    end
+    if ns.ExtensionButtons and ns.ExtensionButtons.RefreshBadges then ns.ExtensionButtons:RefreshBadges() end
+end
+
+function ns.GetApplicationBadge(id)
+    return id and appBadges[id] or nil
+end
+
+-- A count in a pill, as chat apps badge: the number, 99+ past it; hidden
+-- at none. SetCount(n, r, g, b) paints it (red when no color is given).
+function ns.CreateCountBadge(parent, height)
+    local badge = CreateFrame("Frame", nil, parent)
+    badge._efNoAutoRetint = true
+    badge:SetSize(height, height)
+    ns.CreateRoundedRectBorder(badge)
+    ns.SetRoundedRectBarHeight(badge, height)
+    ns.SetRoundedRectBorderBgAlpha(badge, 1)
+    ns.SetRoundedRectBorderEdgeShown(badge, false)
+    local text = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    text._efOwnColor = true
+    text:SetPoint("CENTER", 0, 0)
+    local file, _, flags = text:GetFont()
+    if file then text:SetFont(file, math.floor(height * 0.68 + 0.5), flags) end
+    text:SetTextColor(1, 1, 1, 1)
+    badge.text = text
+    function badge:SetCount(n, r, g, b)
+        if not n or n <= 0 then self:Hide() return end
+        self.text:SetText(n > 99 and "99+" or tostring(n))
+        self:SetWidth(math.max(height, math.ceil(self.text:GetStringWidth() + height * 0.6)))
+        ns.SetRoundedRectFill(self, r or 0.89, g or 0.22, b or 0.21, 1, true)
+        self:Show()
+    end
+    badge:Hide()
+    return badge
+end
+
+PaintTileBadge = function(row)
+    local item = row.item
+    local n = 0
+    if item.group then
+        for _, id in ipairs(item.group.apps) do n = n + (appBadges[id] or 0) end
+    elseif item.app then
+        n = appBadges[ns.ApplicationEntryID(item.app) or ""] or 0
+    end
+    if n == 0 and not row.badge then return end
+    if not row.badge then
+        row.badge = ns.CreateCountBadge(row, 14)
+        row.badge:SetFrameLevel(row:GetFrameLevel() + 4)
+        row.badge:SetPoint("CENTER", row.icon, "TOPRIGHT", -1, -1)
+    end
+    row.badge:SetCount(n)
 end
 
 function ns.ToggleApplication(app)
@@ -740,6 +819,12 @@ local function PaintTile(row, item, dropdown)
         else
             row.icon:Hide()
         end
+    end
+    badgeTiles[row] = true
+    if item.back then
+        if row.badge then row.badge:Hide() end
+    else
+        PaintTileBadge(row)
     end
     row.label:SetText(item.name or "")
     -- Same font as result-row titles (pathFont), like every menu, at the

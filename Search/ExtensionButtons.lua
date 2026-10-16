@@ -1386,6 +1386,12 @@ local function CreateButtonFrame(index, rec)
     end)
     grabber:Hide()
     btn.grabber = grabber
+    -- What its extensions report unread, on the button's corner.
+    btn.badge = ns.CreateCountBadge and ns.CreateCountBadge(btn, 15) or nil
+    if btn.badge then
+        btn.badge:SetFrameLevel(btn:GetFrameLevel() + 6)
+        btn.badge:SetPoint("CENTER", btn, "TOPRIGHT", -4, -4)
+    end
     -- Repainted with the theme like every themed panel.
     btn._efOnThemeRestyle = function(self) PaintIcon(self) end
     ns._menuPanels = ns._menuPanels or setmetatable({}, { __mode = "k" })
@@ -1393,10 +1399,22 @@ local function CreateButtonFrame(index, rec)
     return btn
 end
 
+local function PaintBadge(btn)
+    if not (btn and btn.badge and btn.rec) then return end
+    local n = 0
+    for _, id in ipairs(btn.rec.apps) do n = n + (ns.GetApplicationBadge and ns.GetApplicationBadge(id) or 0) end
+    btn.badge:SetCount(n)
+end
+
 function ExtensionButtons:Refresh(btn)
     if not btn then return end
     ApplyMode(btn)
     if btn.rec.locked then btn.grabber:Hide() end
+    PaintBadge(btn)
+end
+
+function ExtensionButtons:RefreshBadges()
+    for i = 1, #buttons do PaintBadge(buttons[i]) end
 end
 
 function ExtensionButtons:PlaceInMicroMenu(btn, slot)
