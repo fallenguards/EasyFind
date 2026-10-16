@@ -113,6 +113,7 @@ local function HookSpellBook()
     local mixin = _G.SpellBookItemMixin
     if spellBookHooked or not (mixin and mixin.OnModifiedIconClick and hooksecurefunc) then return end
     spellBookHooked = true
+    ns.SpellBookNoteHook = mixin
     hooksecurefunc(mixin, "OnModifiedIconClick", function(self, button)
         if button ~= "RightButton" or not CtrlRightClick() then return end
         local info = self.spellBookItemInfo
