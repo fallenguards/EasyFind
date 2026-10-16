@@ -678,6 +678,35 @@ local function OpenKey(key, attempt)
     Utils.SafeAfter(delay, function() OpenKey(key, attempt + 1) end)
 end
 
+-- Our links get only our hover logic; every other link falls through to
+-- what the frame had (or the given fallbacks).
+local function WrapLinkHover(frame, otherEnter, otherLeave)
+    if frame._efLinkHover then return end
+    frame._efLinkHover = true
+    local prev = frame:GetScript("OnHyperlinkEnter") or otherEnter
+    frame:SetScript("OnHyperlinkEnter", function(self, link, ...)
+        if IsOurLink(link) then
+            OnLinkEnter(self, link, ...)
+            return
+        end
+        if prev then return prev(self, link, ...) end
+    end)
+    local prevLeave = frame:GetScript("OnHyperlinkLeave") or otherLeave
+    frame:SetScript("OnHyperlinkLeave", function(self, link, ...)
+        if IsOurLink(link) then
+            -- A pad-backed link's tip belongs to the pad's OnUpdate: this
+            -- fires the moment the pad appears under the cursor, while the
+            -- link is still hovered. Any other link's tip goes now.
+            local key = DecodeKey(ssub(link, #LINK_PREFIX + 1))
+            if not (pad and pad:IsShown() and padKey == key) then
+                HideLinkTip()
+            end
+            return
+        end
+        if prevLeave then return prevLeave(self, link, ...) end
+    end)
+end
+
 local installed = false
 function ResultLinks:Install()
     if installed then return end
@@ -717,33 +746,31 @@ function ResultLinks:Install()
     -- falls through to whatever was there before.
     for i = 1, (NUM_CHAT_WINDOWS or 10) do
         local cf = _G["ChatFrame" .. i]
-        if cf and not cf._efLinkHover then
-            cf._efLinkHover = true
-            local prev = cf:GetScript("OnHyperlinkEnter")
-            cf:SetScript("OnHyperlinkEnter", function(self, link, ...)
-                if IsOurLink(link) then
-                    OnLinkEnter(self, link, ...)
-                    return
-                end
-                if prev then return prev(self, link, ...) end
-            end)
-            local prevLeave = cf:GetScript("OnHyperlinkLeave")
-            cf:SetScript("OnHyperlinkLeave", function(self, link, ...)
-                if IsOurLink(link) then
-                    -- A pad-backed link's tip belongs to the pad's OnUpdate:
-                    -- this fires the moment the pad appears under the
-                    -- cursor, while the link is still hovered. Any other
-                    -- link's tip goes now.
-                    local key = DecodeKey(ssub(link, #LINK_PREFIX + 1))
-                    if not (pad and pad:IsShown() and padKey == key) then
-                        HideLinkTip()
-                    end
-                    return
-                end
-                if prevLeave then return prevLeave(self, link, ...) end
-            end)
-        end
+        if cf then WrapLinkHover(cf) end
     end
+end
+
+-- The chat extension's bubbles: markers turned into links, and the frame's
+-- links hovering and clicking as in the game's chat windows. A right-click
+-- on one of ours is left to the frame's own menu.
+function ResultLinks:Linkify(text)
+    return Linkify(text)
+end
+
+function ResultLinks:AttachHyperlinks(frame)
+    if not (frame and frame.SetHyperlinksEnabled) or frame._efLinkHover then return end
+    frame:SetHyperlinksEnabled(true)
+    WrapLinkHover(frame, function(self, link)
+        if not (GameTooltip and link) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+        if pcall(GameTooltip.SetHyperlink, GameTooltip, link) then GameTooltip:Show() else GameTooltip:Hide() end
+    end, function()
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
+        if IsOurLink(link) and button ~= "LeftButton" then return end
+        if _G["SetItemRef"] then _G["SetItemRef"](link, text, button, self) end
+    end)
 end
 
 local loginFrame = CreateFrame("Frame")
