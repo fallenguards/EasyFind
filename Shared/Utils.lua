@@ -4731,10 +4731,12 @@ local function EnsureHintTooltip()
     return tip
 end
 
--- Natural (unwrapped) width of a wrapping FontString.
+-- Natural (unwrapped) width of a wrapping FontString, with a pixel to
+-- spare: a box at exactly the measured width wraps its last word.
 local function NaturalWidth(fs)
     fs:SetWidth(0)
-    return fs:GetStringWidth() or 0
+    local w = fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth() or fs:GetStringWidth() or 0
+    return w + 1
 end
 
 -- Puts the notch on `edge`, at the owner's center projected onto that
@@ -6722,6 +6724,9 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent)
     local thumb = CreateFrame("Button", nil, track)
     thumb:SetWidth(THUMB_W)
     thumb:EnableMouse(true)
+    -- The thumb is a hairline: it takes the mouse a few pixels to either
+    -- side (the track does not, so the list's own edge stays clickable).
+    thumb:SetHitRectInsets(-5, -4, -3, -3)
 
     local capH = THUMB_W * 0.5
 
