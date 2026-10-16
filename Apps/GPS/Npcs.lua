@@ -1,6 +1,6 @@
 -- Named creatures as map rows: the packed catalog (ns.NPC_DATA) unpacked on
--- the first query long enough to reach it, matched on name and title, each
--- row on the creature's spot nearest the player.
+-- the first query long enough to reach it, matched on name, title, service
+-- or what a vendor sells, each row on the creature's spot nearest the player.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
@@ -10,6 +10,7 @@ local Search = ns.MapSearchSearch
 if not (MapSearch and Search and Search.PreparePOI) then return end
 
 local sbyte, sfind, slower, sgmatch, ssub = string.byte, string.find, string.lower, string.gmatch, string.sub
+local sformat = string.format
 local mfloor, mmin = math.floor, math.min
 local tsort = table.sort
 local band, bor = bit.band, bit.bor
@@ -26,6 +27,7 @@ local ROLE_GROUP = { quest = 1, vendor = 2 + 256, trainer = 4, flight = 8, servi
 -- every client, the client's own beside them. Food, ammo and reagents are
 -- what a vendor sells.
 local SERVICES = {
+    { bits = 2, en = "vendor merchant", key = "NPC_WORDS_VENDOR" },
     { bits = 256, en = "repair", key = "NPC_WORDS_REPAIR" },
     { bits = 512, en = "food drink water", key = "NPC_WORDS_FOOD" },
     { bits = 1024, en = "ammo arrows bullets restock", key = "NPC_WORDS_AMMO" },
@@ -44,6 +46,10 @@ local N = {
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
+    -- What vendors sell: per item (index j) its id and names, per stock list
+    -- (index l) its items, per creature the list it sells (sells[i]).
+    goodsN = nil, goodsId = {}, goodsName = {}, goodsLow = {}, goodsLowEnglish = {},
+    listsOf = {}, sells = {}, listHit = {}, itemScore = {}, matched = {}, sold = {},
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
@@ -168,6 +174,93 @@ local function Load()
 end
 
 N.Load = Load
+
+-- The goods blob (dev/tools/npc_catalog.py): items, the lists that share
+-- them, and which creature (by row index) sells which list.
+local function LoadGoods()
+    if N.goodsN then return N.goodsN > 0 end
+    N.goodsN = 0
+    local data = ns.NPC_DATA
+    if not (data and data.goods and Load()) then return false end
+    local ok, raw = pcall(Unpack, data.goods)
+    if not (ok and raw) then return false end
+    local u = Reader(raw)
+    local count, last = u(), 0
+    for j = 1, count do
+        last = last + u()
+        N.goodsId[j] = last
+        N.listsOf[j] = {}
+    end
+    for l = 1, u() do
+        local at = 0
+        for _ = 1, u() do
+            at = at + u()
+            local lists = N.listsOf[at + 1]
+            lists[#lists + 1] = l
+        end
+    end
+    local row = 0
+    for _ = 1, u() do
+        row = row + u()
+        N.sells[row + 1] = u() + 1
+    end
+    local english, own, base = Lines(data.goodsNames, {}), Lines(data.localGoods, {}), Lines(data.baseGoods, {})
+    for j = 1, count do
+        local name = Pick(own, base, english, j) or "?"
+        N.goodsName[j] = name
+        N.goodsLow[j] = slower(name)
+        if english[j] and english[j] ~= name then N.goodsLowEnglish[j] = slower(english[j]) end
+    end
+    N.goodsN = count
+    return count > 0
+end
+N.LoadGoods = LoadGoods
+
+-- Every word of the query in the item's name (either language): 3 when the
+-- name starts with the first, 2 when a word in it does, else 1; 0 when not.
+local function ItemScore(j)
+    local words, low, alt = N.words, N.goodsLow[j], N.goodsLowEnglish[j]
+    local score = 0
+    for w = 1, #words do
+        local word = words[w]
+        local at = sfind(low, word, 1, true)
+        local altAt = alt and sfind(alt, word, 1, true)
+        if not (at or altAt) then return 0 end
+        if w == 1 then
+            local s, pos = at and low or alt, at or altAt
+            if pos == 1 then score = 3
+            elseif ssub(s, pos - 1, pos - 1) == " " then score = 2
+            else score = 1 end
+        end
+    end
+    return score
+end
+
+-- Marks each stock list holding an item the query names with its best such
+-- item (listHit[l] = j). False when no item matched.
+local function MatchGoods()
+    local listHit, itemScore, matched = N.listHit, N.itemScore, N.matched
+    for m = #matched, 1, -1 do
+        for _, l in ipairs(N.listsOf[matched[m]]) do listHit[l] = nil end
+        itemScore[matched[m]] = nil
+        matched[m] = nil
+    end
+    if not LoadGoods() then return false end
+    for j = 1, N.goodsN do
+        local s = ItemScore(j)
+        if s > 0 then
+            itemScore[j] = s
+            matched[#matched + 1] = j
+            for _, l in ipairs(N.listsOf[j]) do
+                local best = listHit[l]
+                if not best or s > itemScore[best] or (s == itemScore[best] and #N.goodsLow[j] < #N.goodsLow[best]) then
+                    listHit[l] = j
+                end
+            end
+        end
+    end
+    return #matched > 0
+end
 
 -- Instance map id -> its entrance, from the instance list.
 local entrances
@@ -329,8 +422,24 @@ local function Row(i, k)
         poi = { name = N.name[i], category = "npc", isStatic = true, npcID = N.id[i],
                 displayID = N.display[i] ~= 0 and N.display[i] or nil,
                 keywords = #keywords > 0 and keywords or nil }
+        poi.baseKeywords = poi.keywords
         PreparePOI(poi)
         N.pois[i] = poi
+    end
+    -- Found by what it sells: the item rides along as a keyword so the map
+    -- search's own scoring keeps the row, and as the row's note.
+    local j = N.sold[i] or nil
+    if poi.soldItem ~= j then
+        poi.soldItem = j
+        local keywords = poi.baseKeywords
+        if j then
+            keywords = { N.goodsName[j] }
+            if N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
+            for w = 1, #(poi.baseKeywords or {}) do keywords[#keywords + 1] = poi.baseKeywords[w] end
+        end
+        poi.keywords, poi.kwLower, poi.searchMask = keywords, nil, nil
+        poi.matchNote = j and sformat(ns.L["NPC_SELLS"] or "Sells %s", N.goodsName[j]) or nil
+        PreparePOI(poi)
     end
     poi.mapID, poi.coordMapID, poi.x, poi.y = m, m, x, y
     poi.zoneName = e and e.n or MapName(m)
@@ -389,15 +498,23 @@ function N.Append(out, nameSet, query, onlyMap)
     local hits, score, n = N.hits, N.score, 0
     local f = EasyFind.db and EasyFind.db.npcFilters
     local horde = UnitFactionGroup and UnitFactionGroup("player") == "Horde"
+    local goods = MatchGoods()
+    local listHit, sells, sold = N.listHit, N.sells, N.sold
     for i = 1, N.n do
         local s = Score(i)
+        local j = false
+        if s == 0 and goods and sells[i] then
+            j = listHit[sells[i]] or false
+            if j then s = N.itemScore[j] end
+        end
         if s > 0 and onlyMap and not StandsOn(i, onlyMap) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
-        if s > 0 and service and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
+        if s > 0 and (service or j) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
         if s > 0 then
             n = n + 1
             hits[n] = i
             score[i] = s
+            sold[i] = j
         end
     end
     for j = #hits, n + 1, -1 do hits[j] = nil end

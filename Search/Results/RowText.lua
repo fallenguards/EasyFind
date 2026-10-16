@@ -170,6 +170,10 @@ function Text:GetFlatSubtext(data)
                 zone = zone:sub(lastSep + 1):match("^%s*(.-)%s*$")
             end
         end
+        -- A vendor found by what it sells: the item, then where.
+        if data.matchNote then
+            return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
+        end
         if typeLabel and zone and zone ~= "" then
             return typeLabel .. ": " .. zone
         elseif typeLabel then

@@ -30,7 +30,7 @@ local ROWS = varints({
 -- Alliance and 0 (none) to the Horde, tile 3105 from level 60 to both.
 local DANGER = varints({ 2, 3100, 20, 0, 5, 60, 60 })
 
-local function fresh(localNames, rows, names)
+local function fresh(localNames, rows, names, goods)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -49,8 +49,11 @@ local function fresh(localNames, rows, names)
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
     ns.NPC_DATA = { rows = rows or ROWS, names = names or "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
                     titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER },
-                    types = { [1] = "Beast", [7] = "Humanoid" } }
+                    types = { [1] = "Beast", [7] = "Humanoid" },
+                    goods = goods and goods.blob, goodsNames = goods and goods.names,
+                    localGoods = goods and goods.localNames }
     env.EasyFind.db = {}
+    ns.L.NPC_SELLS = "Sells %s"
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
     return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
 end
@@ -193,6 +196,35 @@ function tests.pastTheCapTheNearestGetIn()
     local rows = find(vendors(80), "repair")
     H.assertEq(#rows, 60)
     H.assertEq(rows[1].name, "Bea Longername")
+end
+
+-- Two items (159 water, 2515 arrows) on one shared list, sold by the
+-- Kobold Vermin (row 0, hostile to the Alliance) and Brog Hamfist (row 3).
+local GOODS = {
+    blob = varints({ 2, 159, 2356, 1, 2, 0, 1, 2, 0, 0, 3, 0 }),
+    names = "Refreshing Spring Water\nSharp Arrow",
+}
+
+function tests.anItemFindsWhoSellsIt()
+    local append = fresh(nil, nil, nil, GOODS)
+    local rows = find(append, "sharp arrow")
+    H.assertEq(#rows, 1, "the kobold sells it too, but will not serve the Alliance")
+    H.assertEq(rows[1].name, "Brog Hamfist")
+    H.assertEq(rows[1].matchNote, "Sells Sharp Arrow")
+    H.assertEq(rows[1].keywords[1], "Sharp Arrow", "the item rides along for the map search")
+    H.assertEq(find(append, "water")[1].matchNote, "Sells Refreshing Spring Water")
+    H.assertEq(find(append, "brog")[1].matchNote, nil, "found by name, no note")
+    H.assertTrue(not table.concat(find(append, "brog")[1].keywords, ","):find("Arrow", 1, true),
+        "and the item's keyword is gone")
+    H.assertEq(#find(append, "sharp", 1433), 0, "a zone's own search keeps its own vendors")
+end
+
+function tests.anItemFindsInEitherLanguage()
+    local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = GOODS.names,
+                                          localNames = "Erfrischendes Quellwasser\nScharfer Pfeil" })
+    local rows = find(append, "pfeil")
+    H.assertEq(rows[1].matchNote, "Sells Scharfer Pfeil", "the client's language shows")
+    H.assertEq(find(append, "sharp")[1].name, "Brog Hamfist", "English still finds")
 end
 
 local pass, fail, failures = H.runSuite("GPSNpcs", tests)

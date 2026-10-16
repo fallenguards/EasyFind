@@ -1165,6 +1165,8 @@ local function RenderRows(scrollChild, pinned, localEntries, globalEntries, rece
                 local last = pathText:match("[^>]+$")
                 if last then pathText = last:gsub("^%s+", ""):gsub("%s+$", "") end
             end
+            -- A vendor found by what it sells says so in the path's place.
+            if data.matchNote then pathText = data.matchNote end
             if pathText ~= "" then
                 row.text:SetText(name .. "  |cff808080" .. pathText .. "|r")
             else

@@ -174,7 +174,7 @@ function Editor:ShowHits(results)
             local row = DropRow(self, n)
             row.data = r
             row:SetPoint("TOP", self.drop, "TOP", 0, -DROP_PAD - (n - 1) * DROP_ROW_H)
-            local where = r.zoneName or r.parentName or r.category
+            local where = r.matchNote or r.zoneName or r.parentName or r.category
             row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
             row:Show()
         end
