@@ -5428,6 +5428,9 @@ function ns.GetWowheadLink(data)
             npcID = select(11, C_PetJournal.GetPetInfoByPetID(data.petID))
         end
         if npcID then kind, id = "npc", npcID end
+    elseif data.npcID then
+        -- Creature rows: the world database's creature id is Wowhead's npc id.
+        kind, id = "npc", data.npcID
     elseif data.transmogSetID then
         -- Wowhead's transmog-set IDs are internal and do not match WoW's setID
         -- (that number 404s). The item that teaches a set is named
