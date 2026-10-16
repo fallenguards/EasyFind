@@ -242,10 +242,16 @@ function WorldPin.NewPlate(parent)
     local menuAnchor = CreateFrame("Frame", nil, p)
     menuAnchor:SetSize(1, 1)
     p:EnableMouse(true)
+    -- A right-drag that turned the camera is not a click on the plate.
+    local downX, downY
+    p:SetScript("OnMouseDown", function(_, button)
+        if button == "RightButton" then downX, downY = GetCursorPosition() end
+    end)
     p:SetScript("OnMouseUp", function(_, button)
         if button ~= "RightButton" or not (ns.ShowTogglePopup and ns.GPS) then return end
         local L = ns.L
         local cx, cy = GetCursorPosition()
+        if downX and (math.abs(cx - downX) > 4 or math.abs(cy - downY) > 4) then return end
         local scale = UIParent:GetEffectiveScale()
         menuAnchor:ClearAllPoints()
         menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)

@@ -111,8 +111,9 @@ local function Build()
     plate:SetPoint("TOP", frame, "BOTTOM", 0, -7)
     plate:RegisterForDrag("LeftButton")
     -- Clicks pass through to the world, unless Shift is held to move it
-    -- (by the arrow or its plate) or to right-click the plate's menu.
-    local function DragStart() frame:StartMoving() end
+    -- (by the arrow or its plate). The plate takes a right-click for its
+    -- menu at any time and hands clicks on to the world as well.
+    local function DragStart() if IsShiftKeyDown() then frame:StartMoving() end end
     local function DragStop()
         frame:StopMovingOrSizing()
         SavePlace()
@@ -120,7 +121,7 @@ local function Build()
     local function TakeMouse()
         local shift = IsShiftKeyDown()
         frame:EnableMouse(shift)
-        plate:EnableMouse(shift)
+        if plate.SetPropagateMouseClicks then plate:SetPropagateMouseClicks(not shift) end
     end
     frame:SetScript("OnDragStart", DragStart)
     frame:SetScript("OnDragStop", DragStop)
@@ -134,9 +135,8 @@ local function Build()
     frame:SetScript("OnHide", function(self)
         self:UnregisterEvent("MODIFIER_STATE_CHANGED")
         self:EnableMouse(false)
-        plate:EnableMouse(false)
     end)
-    plate:EnableMouse(false)
+    plate:EnableMouse(true)
     frame:Hide()
 end
 
