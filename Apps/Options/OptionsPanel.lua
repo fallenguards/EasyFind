@@ -1689,6 +1689,7 @@ local function BuildGeneralBindsTab(ctx)
         { label = L["OPT_KEYBIND_OPEN_MAP_TAB"],  action = "EASYFIND_MAP_FOCUS" },
         { label = L["OPT_KEYBIND_CLEAR_ALL"],     action = "EASYFIND_CLEAR" },
         { label = L["OPT_KEYBIND_CLIPBOARD"],     action = "EASYFIND_CLIPBOARD" },
+        { label = L["OPT_KEYBIND_HOVER_NOTE"],    action = "EASYFIND_HOVER_NOTE" },
     }
 
     local keybindTooltips = {
@@ -1697,6 +1698,7 @@ local function BuildGeneralBindsTab(ctx)
         EASYFIND_MAP_FOCUS    = { L["OPT_KEYBIND_OPEN_MAP_TAB"],  L["OPT_KB_MAP_TT_DESC"] },
         EASYFIND_CLEAR        = { L["OPT_KEYBIND_CLEAR_ALL"],     L["OPT_KB_CLEAR_TT_DESC"] },
         EASYFIND_CLIPBOARD    = { L["OPT_KEYBIND_CLIPBOARD"],     L["OPT_KB_CLIPBOARD_TT_DESC"] },
+        EASYFIND_HOVER_NOTE   = { L["OPT_KEYBIND_HOVER_NOTE"],    L["OPT_KB_HOVER_NOTE_TT_DESC"] },
     }
 
     local keybindButtons = {}

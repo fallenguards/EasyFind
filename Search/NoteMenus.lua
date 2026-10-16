@@ -92,8 +92,9 @@ local function CtrlRightClick()
         and GetMouseButtonClicked and GetMouseButtonClicked() == "RightButton"
 end
 
-local function OpenObjectNote(entry)
-    if not (EasyFind.db and EasyFind.db.notesPlayerMenu ~= false) then return end
+-- bound: the hover-note key, which the menus' setting does not turn off.
+local function OpenObjectNote(entry, bound)
+    if not bound and not (EasyFind.db and EasyFind.db.notesPlayerMenu ~= false) then return end
     if not (ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes")) then return end
     if ns.RequestNotes() and ns.Notes.OpenUnitNote then ns.Notes.OpenUnitNote(entry) end
 end
@@ -104,6 +105,35 @@ if hooksecurefunc then
         local id = tonumber(link:match("|Hitem:(%d+)"))
         if id then OpenObjectNote({ type = "item", id = id, name = link:match("%[(.-)%]") or tostring(id) }) end
     end)
+end
+
+-- The note for what the game tooltip shows now (the hover-note key): a
+-- spell on a bar or in the spellbook, an item, a player or an NPC.
+function ns.OpenHoveredNote()
+    local tip = GameTooltip
+    if not (tip and tip:IsShown()) then return end
+    local data = tip.GetPrimaryTooltipData and tip:GetPrimaryTooltipData()
+    local kinds = Enum and Enum.TooltipDataType or {}
+    local id = data and data.id
+    if type(id) == "number" and not issecret(id) then
+        if data.type == kinds.Spell then
+            local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+            return OpenObjectNote({ type = "spell", id = id, name = name or tostring(id) }, true)
+        elseif data.type == kinds.Item then
+            local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+            return OpenObjectNote({ type = "item", id = id, name = name or tostring(id) }, true)
+        end
+    end
+    local okS, spellName, spellID = pcall(tip.GetSpell, tip)
+    if okS and type(spellID) == "number" and not issecret(spellID) then
+        return OpenObjectNote({ type = "spell", id = spellID, name = spellName or tostring(spellID) }, true)
+    end
+    local okI, itemName, link = pcall(tip.GetItem, tip)
+    local itemID = okI and type(link) == "string" and not issecret(link) and tonumber(link:match("|Hitem:(%d+)"))
+    if itemID then return OpenObjectNote({ type = "item", id = itemID, name = itemName or tostring(itemID) }, true) end
+    local okU, _, unit = pcall(tip.GetUnit, tip)
+    local entry = okU and type(unit) == "string" and not issecret(unit) and ns.NotesUnitEntry(unit)
+    if entry then OpenObjectNote(entry, true) end
 end
 
 -- The spellbook's entries take their methods from its item mixin when they

@@ -865,7 +865,7 @@ end
 -- They are not WoW named bindings, so they never appear in Blizzard's
 -- keybinding panel and work the same on every character.
 local EASYFIND_BINDINGS = { "EASYFIND_TOGGLE_FOCUS", "EASYFIND_FOCUS_BAR", "EASYFIND_MAP_FOCUS", "EASYFIND_CLEAR",
-                            "EASYFIND_CLIPBOARD" }
+                            "EASYFIND_CLIPBOARD", "EASYFIND_HOVER_NOTE" }
 local EASYFIND_BINDING_LOOKUP = {}
 for i = 1, #EASYFIND_BINDINGS do EASYFIND_BINDING_LOOKUP[EASYFIND_BINDINGS[i]] = true end
 
@@ -877,6 +877,7 @@ local KEYBIND_BUTTON = {
     EASYFIND_MAP_FOCUS    = "EasyFindKeybindMapButton",
     EASYFIND_CLEAR        = "EasyFindKeybindClearButton",
     EASYFIND_CLIPBOARD    = "EasyFindKeybindClipboardButton",
+    EASYFIND_HOVER_NOTE   = "EasyFindKeybindNoteButton",
 }
 do
     local toggleBtn = CreateFrame("Button", "EasyFindKeybindToggleButton", UIParent)
@@ -900,6 +901,12 @@ do
     clipBtn:Hide()
     clipBtn:SetScript("OnClick", function()
         if ns.Clipboard and ns.Clipboard.OpenList then ns.Clipboard:OpenList() end
+    end)
+    -- The note for whatever the tooltip shows (an ability on the bar, an item).
+    local noteBtn = CreateFrame("Button", "EasyFindKeybindNoteButton", UIParent)
+    noteBtn:Hide()
+    noteBtn:SetScript("OnClick", function()
+        if ns.OpenHoveredNote then ns.OpenHoveredNote() end
     end)
 end
 
