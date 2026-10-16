@@ -566,7 +566,8 @@ local function ApplyMode(btn)
         if btn.layoutIndex then MicroRemove(btn) end
         if btn.micro then ShowMicroArt(btn, false) end
         btn:SetParent(UIParent)
-        btn:SetFrameStrata("MEDIUM")
+        -- Above the action bars (MEDIUM): a button dropped on one stays in sight.
+        btn:SetFrameStrata("HIGH")
         btn:SetFrameLevel(8)
         btn:SetClampedToScreen(true)
         btn:SetSize(BASE_SIZE, BASE_SIZE)
@@ -981,6 +982,14 @@ function ExtensionButtons:ShowAppMenu(anchor, app)
         defs[#defs + 1] = { kind = "separator" }
     end
     local appID = ns.ApplicationEntryID and ns.ApplicationEntryID(app)
+    -- Its buttons on screen, its own and folders holding it: removable from
+    -- here, so one lost under something can always go.
+    if appID and self:HasButtonsFor(appID) then
+        defs[#defs + 1] = {
+            kind = "action", label = L["EXTBTN_REMOVE_FROM_SCREEN"],
+            onClick = function() ExtensionButtons:RemoveButtonsFor(appID) end,
+        }
+    end
     if appID and not self:FindButtonFor(appID) then
         defs[#defs + 1] = {
             kind = "action", label = L["EXTBTN_POP_OUT"],
@@ -1342,7 +1351,7 @@ local function CreateButtonFrame(index, rec)
     local btn = CreateFrame("Button", "EasyFindExtensionButton" .. index, UIParent)
     btn.rec = rec
     btn:SetSize(BASE_SIZE, BASE_SIZE)
-    btn:SetFrameStrata("MEDIUM")
+    btn:SetFrameStrata("HIGH")
     btn:SetFrameLevel(8)
     btn:SetClampedToScreen(true)
     -- A launch surface: a press on it must not dismiss the results (or
@@ -1509,6 +1518,36 @@ function ExtensionButtons:FindButtonFor(appID)
         if b and b.rec and #b.rec.apps == 1 and b.rec.apps[1] == appID then return b end
     end
     return nil
+end
+
+function ExtensionButtons:HasButtonsFor(appID)
+    for i = 1, #buttons do
+        local apps = buttons[i] and buttons[i].rec and buttons[i].rec.apps
+        for j = 1, #(apps or {}) do
+            if apps[j] == appID then return true end
+        end
+    end
+    return false
+end
+
+-- Off the screen: the app's own button goes, a folder lets it out (and
+-- goes when nothing is left in it).
+function ExtensionButtons:RemoveButtonsFor(appID)
+    for i = #buttons, 1, -1 do
+        local btn = buttons[i]
+        local apps = btn and btn.rec and btn.rec.apps
+        if apps then
+            for j = #apps, 1, -1 do
+                if apps[j] == appID then tremove(apps, j) end
+            end
+            if #apps == 0 then
+                self:RemoveButton(btn)
+            else
+                PaintIcon(btn)
+                self:Refresh(btn)
+            end
+        end
+    end
 end
 
 function ExtensionButtons:Owns(btn)

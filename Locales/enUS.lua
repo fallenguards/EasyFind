@@ -607,6 +607,7 @@ L["OPT_CLIPBOARD_HINT"]                 = "What the history records, how much it
 L["EXTBTN_LOCK"]                        = "Lock"
 L["EXTBTN_UNLOCK"]                      = "Unlock"
 L["EXTBTN_SNAP"]                        = "Snap to minimap"
+L["EXTBTN_REMOVE_FROM_SCREEN"]          = "Remove from screen"
 L["EXTBTN_REMOVE"]                      = "Remove button"
 L["EXTBTN_TT_HINT"]                     = "Left click opens. Right click for options."
 L["EXTBTN_BORDER_EASYFIND"]             = "EasyFind"
