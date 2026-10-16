@@ -82,3 +82,56 @@ if Menu and Menu.ModifyMenu then
         Menu.ModifyMenu("MENU_UNIT_" .. UNIT_MENUS[i], AddMakeNote)
     end
 end
+
+-- Ctrl+right-click on an item (bags, bank, character, loot) or a spell in
+-- the spellbook opens its note, made when there is none, shown on its
+-- tooltip as a portrait's is. The game does nothing else with that click:
+-- its modified-click handlers have no action for it.
+local function CtrlRightClick()
+    return IsControlKeyDown() and not IsShiftKeyDown() and not IsAltKeyDown()
+        and GetMouseButtonClicked and GetMouseButtonClicked() == "RightButton"
+end
+
+local function OpenObjectNote(entry)
+    if not (EasyFind.db and EasyFind.db.notesPlayerMenu ~= false) then return end
+    if not (ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes")) then return end
+    if ns.RequestNotes() and ns.Notes.OpenUnitNote then ns.Notes.OpenUnitNote(entry) end
+end
+
+if hooksecurefunc then
+    hooksecurefunc("HandleModifiedItemClick", function(link)
+        if type(link) ~= "string" or issecret(link) or not CtrlRightClick() then return end
+        local id = tonumber(link:match("|Hitem:(%d+)"))
+        if id then OpenObjectNote({ type = "item", id = id, name = link:match("%[(.-)%]") or tostring(id) }) end
+    end)
+end
+
+-- The spellbook's entries take their methods from its item mixin when they
+-- are made, which is when the book first shows: hooked as it loads.
+local spellBookHooked = false
+local function HookSpellBook()
+    local mixin = _G.SpellBookItemMixin
+    if spellBookHooked or not (mixin and mixin.OnModifiedIconClick and hooksecurefunc) then return end
+    spellBookHooked = true
+    hooksecurefunc(mixin, "OnModifiedIconClick", function(self, button)
+        if button ~= "RightButton" or not CtrlRightClick() then return end
+        local info = self.spellBookItemInfo
+        local id = info and info.spellID
+        if type(id) == "number" then
+            OpenObjectNote({ type = "spell", id = id, name = info.name or tostring(id) })
+        end
+    end)
+end
+do
+    local watch = CreateFrame("Frame")
+    watch:RegisterEvent("ADDON_LOADED")
+    watch:SetScript("OnEvent", function(self, _, name)
+        if name ~= "Blizzard_PlayerSpells" then return end
+        HookSpellBook()
+        self:UnregisterAllEvents()
+    end)
+    if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Blizzard_PlayerSpells") then
+        HookSpellBook()
+        watch:UnregisterAllEvents()
+    end
+end

@@ -412,6 +412,18 @@ PaintTileBadge = function(row)
     row.badge:SetCount(n)
 end
 
+-- An extension's own rows on its icon's right-click menu (Chat: Mark all
+-- as read), as ShowTogglePopup defs: fn() returns a list, or nil for none.
+local appMenuRows = {}
+function ns.RegisterApplicationMenuRows(id, fn)
+    if id then appMenuRows[id] = fn end
+end
+
+function ns.ApplicationMenuRows(id)
+    local fn = id and appMenuRows[id]
+    return fn and fn() or nil
+end
+
 function ns.ToggleApplication(app)
     if not app then return end
     if JustDismissed(app) then

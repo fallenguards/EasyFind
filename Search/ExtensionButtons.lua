@@ -964,8 +964,17 @@ end
 
 -- An extension's own menu: its key, and a button of it on the screen,
 -- placed where the cursor is, as a drag out of the menu would.
+-- The app's own rows first (Chat: Mark all as read), then a rule.
+local function AddAppRows(defs, appID)
+    local rows = ns.ApplicationMenuRows and ns.ApplicationMenuRows(appID)
+    if not (rows and rows[1]) then return end
+    for i = 1, #rows do defs[#defs + 1] = rows[i] end
+    defs[#defs + 1] = { kind = "separator" }
+end
+
 function ExtensionButtons:ShowAppMenu(anchor, app)
     local defs = {}
+    AddAppRows(defs, ns.ApplicationEntryID and ns.ApplicationEntryID(app))
     local row = ShortkeyRow(app)
     if row then
         defs[#defs + 1] = row
@@ -990,6 +999,7 @@ local function ShowButtonMenu(btn)
     local rec = btn.rec
     local defs = {}
     if #rec.apps == 1 then
+        AddAppRows(defs, rec.apps[1])
         local row = ShortkeyRow(AppEntry(rec.apps[1]))
         if row then
             defs[#defs + 1] = row

@@ -1409,7 +1409,8 @@ function notesNS.OpenUnitNote(entry)
         note = CreateNote("")
         note.name = entry.name
         note.scope = "account"
-        note.category = entry.type == "player" and "Players" or "NPCs"
+        note.category = (entry.type == "player" and "Players") or (entry.type == "item" and "Items")
+            or (entry.type == "spell" and "Abilities") or "NPCs"
         note.showsOn[1] = { type = entry.type, id = entry.id, name = entry.name }
     end
     UI:OpenEasyNotes()
@@ -6404,21 +6405,6 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
     popup.edit:SetFocus()
 end
 
-if hooksecurefunc and not UI._notes._itemNoteClickHooked then
-    UI._notes._itemNoteClickHooked = true
-    hooksecurefunc("HandleModifiedItemClick", function(link)
-        local ok, err = pcall(function()
-            if not link then return end
-            if not (IsControlKeyDown and IsControlKeyDown()) then return end
-            local itemID = ItemIDFromLink(link)
-            if not itemID then return end
-            local itemName = link:match("%[(.-)%]")
-            UI:PromptEasyNotesItemNote(itemID, itemName)
-        end)
-        if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
-    end)
-end
-
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
         local ok, err = pcall(function()
@@ -6555,9 +6541,10 @@ end
 local CATEGORY_LABELS = {
     General = "NOTES_CAT_GENERAL", Players = "NOTES_CAT_PLAYERS", NPCs = "NOTES_CAT_NPCS",
     Quests = "NOTES_CAT_QUESTS", Items = "NOTES_CAT_ITEMS", Locations = "NOTES_CAT_LOCATIONS",
+    Abilities = "NOTES_CAT_ABILITIES",
 }
 function UI:GetEasyNotesCategories()
-    return { "General", "Players", "NPCs", "Quests", "Items", "Locations" }
+    return { "General", "Players", "NPCs", "Quests", "Items", "Abilities", "Locations" }
 end
 function UI:EasyNotesCategoryLabel(cat)
     local key = CATEGORY_LABELS[cat]

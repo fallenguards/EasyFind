@@ -67,7 +67,7 @@ read_globals = {
     -- Core API
     "DEFAULT_CHAT_FRAME", "DoEmote", "GetScreenWidth", "GetScreenHeight", "GetPhysicalScreenSize",
     "CreateFrame", "CreateFont", "CreateVector2D", "CreateColor",
-    "GetTime", "GetLocale", "GetCVar", "SetCVar", "GetCursorPosition", "GetRealmName",
+    "GetTime", "GetLocale", "GetCVar", "SetCVar", "GetCursorPosition", "GetMouseButtonClicked", "GetRealmName",
     "SecondsToTime", "MacroFrameText", "ChatFrame1EditBox", "strlenutf8", "AddonCompartmentFrame",
     "GetAddOnMetadata", "GetAtlasInfo", "GetMinimapShape",
     "GetBindingKey", "GetBindingAction", "GetCurrentBindingSet", "SaveBindings", "SetBinding",
