@@ -32,7 +32,8 @@ function MapSearch:GetPreviewCoords(data)
             return { instances = valid }
         elseif #valid == 1 then
             local single = valid[1]
-            return { x = single.x, y = single.y, icon = single.icon, category = single.category }
+            return { x = single.x, y = single.y, icon = single.icon, category = single.category,
+                displayID = single.displayID }
         else
             return nil
         end
@@ -65,7 +66,7 @@ function MapSearch:GetPreviewCoords(data)
            and self.FindNativePinByName and data.name then
             pin = self:FindNativePinByName(data.name)
         end
-        return { x = px, y = py, icon = pIcon, category = pCat, pin = pin }
+        return { x = px, y = py, icon = pIcon, category = pCat, pin = pin, displayID = data.displayID }
     end
     -- Coords on a different map: check if entrance is visible here
     if data.isDungeonEntrance or data.category == "dungeon"
@@ -177,12 +178,12 @@ function MapSearch:RunHoverPreview(data)
         else
             composite[#composite + 1] = {
                 x = coords.x, y = coords.y,
-                icon = coords.icon, category = coords.category,
+                icon = coords.icon, category = coords.category, displayID = coords.displayID,
             }
             if #composite > 1 then
                 self:ShowMultipleWaypoints(composite)
             else
-                self:ShowWaypointAt(coords.x, coords.y, coords.icon, coords.category)
+                self:ShowWaypointAt(coords.x, coords.y, coords.icon, coords.category, nil, coords.displayID)
             end
         end
     end
@@ -232,7 +233,7 @@ function MapSearch:EndHoverPreview()
         if current.instances then
             self:ShowMultipleWaypoints(current.instances)
         else
-            self:ShowWaypointAt(current.x, current.y, current.icon, current.category)
+            self:ShowWaypointAt(current.x, current.y, current.icon, current.category, nil, current.displayID)
         end
         self:SetActivePinState(current)
         return
@@ -242,7 +243,7 @@ function MapSearch:EndHoverPreview()
         if saved.instances then
             self:ShowMultipleWaypoints(saved.instances)
         elseif saved.x and saved.y then
-            self:ShowWaypointAt(saved.x, saved.y, saved.icon, saved.category)
+            self:ShowWaypointAt(saved.x, saved.y, saved.icon, saved.category, nil, saved.displayID)
         end
         -- Restore the exact pre-hover state table so flags it carried
         -- (e.g. isRareTracking) survive the redraw.
@@ -264,7 +265,7 @@ function MapSearch:PreviewUIResult(data)
     elseif coords.pin and coords.pin:IsShown() then
         self:HighlightPin(coords.pin, coords.x, coords.y, coords.icon, coords.category)
     else
-        self:ShowWaypointAt(coords.x, coords.y, coords.icon, coords.category)
+        self:ShowWaypointAt(coords.x, coords.y, coords.icon, coords.category, nil, coords.displayID)
     end
     self:SetActivePinState(self._savedPinState)
     return true
@@ -282,7 +283,7 @@ function MapSearch:ClearUIPreview()
         if saved.instances then
             self:ShowMultipleWaypoints(saved.instances)
         else
-            self:ShowWaypointAt(saved.x, saved.y, saved.icon, saved.category)
+            self:ShowWaypointAt(saved.x, saved.y, saved.icon, saved.category, nil, saved.displayID)
         end
         self:SetActivePinState(saved)
     end

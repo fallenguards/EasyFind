@@ -298,7 +298,7 @@ local function RestoreActivePinsOnMapShow(self)
                     self:ShowMultipleWaypoints(activePinState.instances)
                 elseif activePinState then
                     self:ShowWaypointAt(activePinState.x, activePinState.y,
-                        activePinState.icon, activePinState.category)
+                        activePinState.icon, activePinState.category, nil, activePinState.displayID)
                 end
             end)
         else
@@ -333,7 +333,7 @@ local function ShowPendingWaypoint(self, waypoint)
         if pin and pin:IsShown() then
             self:HighlightPin(pin, waypoint.x, waypoint.y, waypoint.icon, waypoint.category)
         else
-            self:ShowWaypointAt(waypoint.x, waypoint.y, waypoint.icon, waypoint.category)
+            self:ShowWaypointAt(waypoint.x, waypoint.y, waypoint.icon, waypoint.category, nil, waypoint.displayID)
         end
     end)
 end
@@ -618,7 +618,7 @@ function MapSearch:SelectResult(data, directOverride)
         elseif data.allInstances and #data.allInstances == 1 then
             local single = data.allInstances[1]
             if single.x and single.y then
-                self:ShowWaypointAt(single.x, single.y, single.icon, single.category)
+                self:ShowWaypointAt(single.x, single.y, single.icon, single.category, nil, single.displayID)
                 if single.vignetteGUID and SetSuperTrackedVignette then
                     efTrackedVignetteGUID = single.vignetteGUID
                     SetSuperTrackedVignette(single.vignetteGUID)
@@ -631,7 +631,7 @@ function MapSearch:SelectResult(data, directOverride)
             self:HighlightPin(data.pin, data.x, data.y, data.icon, data.category)
         elseif data.x and data.y then
             -- Single POI with coordinates
-            self:ShowWaypointAt(data.x, data.y, data.icon, data.category)
+            self:ShowWaypointAt(data.x, data.y, data.icon, data.category, nil, data.displayID)
             -- Activate built-in navigation arrow for rares
             if data.vignetteGUID and SetSuperTrackedVignette then
                 efTrackedVignetteGUID = data.vignetteGUID
@@ -867,7 +867,8 @@ function MapSearch:ShowMultipleWaypoints(instances)
     end
 end
 
-function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly)
+-- displayID: a creature's model, drawn as its face on the pin.
+function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly, displayID)
     if not x or not y then return end
     self:ClearHighlight()
 
@@ -875,7 +876,7 @@ function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly)
     activePinState = {
         mapID = WorldMapFrame:GetMapID(),
         x = x, y = y,
-        icon = icon, category = category,
+        icon = icon, category = category, displayID = displayID,
         isLocal = not MapSearch:IsGlobalSearchActive(),
         arrowOnly = arrowOnly,
     }
@@ -928,6 +929,9 @@ function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly)
         iconTexture = icon
     end
     Utils.SetIconTexture(waypointPin.icon, iconTexture)
+    if displayID and SetPortraitTextureFromCreatureDisplayID then
+        SetPortraitTextureFromCreatureDisplayID(waypointPin.icon, displayID)
+    end
     waypointPin:ClearAllPoints()
     waypointPin:SetPoint("CENTER", canvas, "TOPLEFT", canvasWidth * x, -canvasHeight * y)
     waypointPin.waypointX = x
