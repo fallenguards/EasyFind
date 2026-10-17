@@ -38,6 +38,7 @@ local function fresh(localNames, rows, names, goods)
     local function vec(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
     env.CreateVector2D = vec
     env.C_EncodingUtil = { DecodeBase64 = function(s) return s end, DecompressString = function(s) return s end }
+    env.C_Item = { GetItemSubClassInfo = function(c, s) return c == 2 and ({ [2] = "Bows", [18] = "Crossbows" })[s] end }
     env.C_Map = {
         GetBestMapForUnit = function() return 1429 end,
         GetPlayerMapPosition = function() return vec(0.31, 0.41) end,
@@ -201,7 +202,7 @@ end
 -- Two items (159 water, 2515 arrows) on one shared list, sold by the
 -- Kobold Vermin (row 0, hostile to the Alliance) and Brog Hamfist (row 3).
 local GOODS = {
-    blob = varints({ 2, 159, 2356, 1, 2, 0, 1, 2, 0, 0, 3, 0 }),
+    blob = varints({ 2, 159, 2356, 0, 0, 1, 2, 0, 1, 2, 0, 0, 3, 0 }),
     names = "Refreshing Spring Water\nSharp Arrow",
 }
 
@@ -228,6 +229,28 @@ function tests.aNameMatchAlsoNamesWhatItSells()
     H.assertEq(rows[1].soldName, "Brog Arrow", "found by name, and the item named")
     H.assertEq(#rows, 1, "the kobold sells it too, but only an item match would bring it and it will not serve")
     H.assertNil(find(append, "rog")[1].soldName, "inside a word of the item: no note")
+end
+
+-- Water and a Worn Shortbow (bows, subclass 2) sold by Brog Hamfist (row
+-- 3), a Light Crossbow (subclass 18) by Edwin VanCleef (row 2).
+local WEAPONS = {
+    blob = varints({ 3, 159, 2345, 3, 0, 3, 19, 2, 2, 0, 1, 1, 2, 2, 2, 1, 1, 0 }),
+    names = "Refreshing Spring Water\nWorn Shortbow\nLight Crossbow",
+}
+
+function tests.aWeaponFindsByItsType()
+    local append = fresh(nil, nil, nil, WEAPONS)
+    local rows = find(append, "bow")
+    H.assertEq(#rows, 1, "a crossbow is not a bow")
+    H.assertEq(rows[1].name, "Brog Hamfist")
+    H.assertEq(rows[1].soldName, "Bows", "the type, as the client names it")
+    H.assertEq(rows[1].keywords[1], "Bows", "the type rides along for the map search")
+    H.assertEq(find(append, "bows")[1].soldName, "Bows")
+    H.assertEq(find(append, "shortbow")[1].soldName, "Worn Shortbow", "the item's own name, when it is typed")
+    rows = find(append, "crossbow")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Edwin VanCleef")
+    H.assertEq(rows[1].matchNote, "Sells Crossbows")
 end
 
 function tests.anItemFindsInEitherLanguage()

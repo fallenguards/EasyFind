@@ -23,6 +23,7 @@ local MAX_ROWS = 60     -- candidates handed to the map search's scoring
 local TOWN_RADIUS2 = 300 ^ 2   -- a town's spots: within this of its inn, in yards squared
 local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the map
 local DANGER_LEVELS = 3 -- the client's orange: three levels above
+local WEAPON = 2        -- Enum.ItemClass.Weapon
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
 -- the filter offers; a creature with none is "other".
 local ROLE_GROUP = { quest = 1, vendor = 2 + 256, trainer = 4, flight = 8, services = 16 + 32 + 64 + 128 }
@@ -70,6 +71,9 @@ local N = {
     -- (index l) its items, per creature the list it sells (sells[i]).
     goodsN = nil, goodsId = {}, goodsName = {}, goodsLow = {}, goodsLowEnglish = {},
     listsOf = {}, sells = {}, listHit = {}, itemScore = {}, matched = {}, sold = {},
+    -- Weapons: per item its type (item subclass), per type the client's
+    -- name; soldType[j] when the query named the type, not the item.
+    goodsType = {}, typeName = {}, typeLow = {}, typeScore = {}, soldType = {},
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
@@ -280,6 +284,16 @@ local function LoadGoods()
         N.goodsId[j] = last
         N.listsOf[j] = {}
     end
+    for j = 1, count do
+        local t = u() - 1
+        if t >= 0 then
+            N.goodsType[j] = t
+            if N.typeLow[t] == nil then
+                local name = C_Item.GetItemSubClassInfo(WEAPON, t)
+                N.typeName[t], N.typeLow[t] = name, name and name ~= "" and slower(name) or false
+            end
+        end
+    end
     for l = 1, u() do
         local at = 0
         for _ = 1, u() do
@@ -305,10 +319,10 @@ local function LoadGoods()
 end
 N.LoadGoods = LoadGoods
 
--- Every word of the query in the item's name (either language): 3 when the
+-- Every word of the query in a name (low, or alt in English): 3 when the
 -- name starts with the first, 2 when a word in it does, else 1; 0 when not.
-local function ItemScore(j)
-    local words, wordPlace, low, alt = N.words, N.wordPlace, N.goodsLow[j], N.goodsLowEnglish[j]
+local function WordsScore(low, alt)
+    local words, wordPlace = N.words, N.wordPlace
     local score, first = 0, true
     for w = 1, #words do
         if not wordPlace[w] then
@@ -331,15 +345,25 @@ end
 -- Marks each stock list holding an item the query names with its best such
 -- item (listHit[l] = j). False when no item matched.
 local function MatchGoods()
-    local listHit, itemScore, matched = N.listHit, N.itemScore, N.matched
+    local listHit, itemScore, matched, soldType = N.listHit, N.itemScore, N.matched, N.soldType
     for m = #matched, 1, -1 do
         for _, l in ipairs(N.listsOf[matched[m]]) do listHit[l] = nil end
         itemScore[matched[m]] = nil
+        soldType[matched[m]] = nil
         matched[m] = nil
     end
     if not LoadGoods() then return false end
+    local typeScore = N.typeScore
+    for t, low in pairs(N.typeLow) do typeScore[t] = low and WordsScore(low) or 0 end
     for j = 1, N.goodsN do
-        local s = ItemScore(j)
+        local s = WordsScore(N.goodsLow[j], N.goodsLowEnglish[j])
+        -- A weapon its type names better than its own name (a Shortbow for
+        -- "bow"): it is sold as the type.
+        local t = N.goodsType[j]
+        if t and typeScore[t] > s then
+            s = typeScore[t]
+            soldType[j] = t
+        end
         if s > 0 then
             itemScore[j] = s
             matched[#matched + 1] = j
@@ -535,19 +559,21 @@ local function Row(i, k)
         PreparePOI(poi)
         N.pois[i] = poi
     end
-    -- Found by what it sells or where: the item and the place words typed
-    -- ride along as keywords so the map search's own scoring keeps the
-    -- row; the item is the row's note too.
+    -- Found by what it sells or where: the item (or weapon type) and the
+    -- place words typed ride along as keywords so the map search's own
+    -- scoring keeps the row; the item is the row's note too.
     local j = N.sold[i] or nil
+    local t = j and N.soldType[j]
+    local soldName = j and (t and N.typeName[t] or N.goodsName[j]) or nil
     local placeKey = N.placeKey
-    if poi.soldItem ~= j or poi.placeKey ~= placeKey then
-        poi.soldItem, poi.placeKey = j, placeKey
+    if poi.soldName ~= soldName or poi.placeKey ~= placeKey then
+        poi.soldName, poi.placeKey = soldName, placeKey
         local keywords = poi.baseKeywords
-        if j or placeKey then
+        if soldName or placeKey then
             keywords = {}
-            if j then
-                keywords[1] = N.goodsName[j]
-                if N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
+            if soldName then
+                keywords[1] = soldName
+                if not t and N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
             end
             if placeKey then
                 for w = 1, #N.words do
@@ -557,8 +583,7 @@ local function Row(i, k)
             for w = 1, #(poi.baseKeywords or {}) do keywords[#keywords + 1] = poi.baseKeywords[w] end
         end
         poi.keywords, poi.kwLower, poi.searchMask = keywords, nil, nil
-        poi.matchNote = j and sformat(ns.L["NPC_SELLS"] or "Sells %s", N.goodsName[j]) or nil
-        poi.soldName = j and N.goodsName[j] or nil
+        poi.matchNote = soldName and sformat(ns.L["NPC_SELLS"] or "Sells %s", soldName) or nil
         PreparePOI(poi)
     end
     poi.mapID, poi.coordMapID, poi.x, poi.y = m, m, x, y
