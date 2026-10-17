@@ -35,6 +35,9 @@ local hoverTarget
 -- Extra copy surfaces (icon grid cells, the What's New link) register a
 -- function returning their frame under the mouse, or nil.
 local hoverScanners = {}
+-- Other chords pressed while armed, offered to these first (the chat's
+-- Ctrl and + or - text size); a handler returns true for a key it took.
+local keyHandlers = {}
 
 -- Calculator rows own their richer two-part copy flow. Grid cells and
 -- answer rows carry their text outright; everything else copies its send
@@ -149,6 +152,9 @@ local client = {
         if armedRow and (down or armedEasy) then RowCopy:ArmFor(armedRow, down) end
     end,
     OnKey = function(key)
+        for i = 1, #keyHandlers do
+            if keyHandlers[i](key) then return end
+        end
         local navFrame = Search.GetNavFrame and Search:GetNavFrame()
         if navFrame and navFrame:IsKeyboardEnabled() then
             local onKeyDown = navFrame:GetScript("OnKeyDown")
@@ -218,6 +224,10 @@ end
 
 function RowCopy:RegisterHoverScanner(fn)
     hoverScanners[#hoverScanners + 1] = fn
+end
+
+function RowCopy:RegisterKeyHandler(fn)
+    keyHandlers[#keyHandlers + 1] = fn
 end
 
 -- The target under the mouse, by GEOMETRY. The enter/leave bookkeeping
