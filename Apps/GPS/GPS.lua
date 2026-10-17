@@ -678,14 +678,16 @@ local function RemainingSeconds(route)
     return closing.eta
 end
 
--- The time still to go in minutes, and hours past one, as a car's
--- navigation shows it: under a minute reads as one. Our own unit words:
--- the game's carry a grammar token that some text does not render.
+-- The time still to go in minutes, and hours past one; under a minute
+-- reads <1 min. Our own unit words: the game's carry a grammar token that
+-- some text does not render.
 local function EtaText(sec)
-    local m = mmax(1, mfloor((sec or 0) / 60 + 0.5))
+    local H, M = L["GPS_UNIT_HR"] or "%d hr", L["GPS_UNIT_MIN"] or "%d min"
+    sec = sec or 0
+    if sec < 60 then return "<" .. sformat(M, 1) end
+    local m = mfloor(sec / 60 + 0.5)
     local h = mfloor(m / 60)
     m = m % 60
-    local H, M = L["GPS_UNIT_HR"] or "%d hr", L["GPS_UNIT_MIN"] or "%d min"
     if h > 0 then return sformat(H, h) .. (m > 0 and (" " .. sformat(M, m)) or "") end
     return sformat(M, m)
 end
