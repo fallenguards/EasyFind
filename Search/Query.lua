@@ -457,6 +457,15 @@ function Search:OnSearchTextChangedNow(text, force)
         local key = ns.Aliases and ns.Aliases.GetEntryKey and ns.Aliases:GetEntryKey(data)
         return key and SCRATCH.aliasSeenKeys[key] or false
     end
+    -- The map pass first: a category boost below reads its rows instead
+    -- of running a pass of its own.
+    local mapResults
+    if not calculatorData and not calculatorLauncher and ns.MapSearch and ns.MapSearch.SearchForUI
+       and ((quickFilter and quickFilter.key == "map")
+            or (not quickFilter and filters and filters.map ~= false)) then
+        mapResults = ns.MapSearch:SearchForUI(text)
+    end
+    local mapPass = ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
     wipe(SCRATCH.mapBoostSeen)
     wipe(SCRATCH.catalogBoostSeen)
     local seenMapRows = SCRATCH.mapBoostSeen
@@ -479,7 +488,7 @@ function Search:OnSearchTextChangedNow(text, force)
                     -- Expand to the nearest rows of the category. The rows
                     -- are pooled by the map search, so inject copies.
                     local catRows = ns.MapSearch and ns.MapSearch.GetCategoryResultsForUI
-                        and ns.MapSearch:GetCategoryResultsForUI(data.mapCategoryAlias, 3)
+                        and ns.MapSearch:GetCategoryResultsForUI(data.mapCategoryAlias, 3, nil, nil, text)
                     if catRows then
                         for j = #catRows, 1, -1 do
                             local wrapped = {}
@@ -524,7 +533,7 @@ function Search:OnSearchTextChangedNow(text, force)
             and ns.MapSearchData.KEYWORD_TO_CATEGORY[slower(text)]
         local localScope = boostCat and EasyFind.db.mapCategoryScope == "local"
         local catRows = boostCat and ns.MapSearch and ns.MapSearch.GetCategoryResultsForUI
-            and ns.MapSearch:GetCategoryResultsForUI(boostCat, localScope and 8 or 3, true, localScope)
+            and ns.MapSearch:GetCategoryResultsForUI(boostCat, localScope and 8 or 3, true, localScope, text)
         if localScope then
             suppressMapCategory = boostCat
         end
@@ -754,10 +763,8 @@ function Search:OnSearchTextChangedNow(text, force)
     -- Showing everything keeps search at least as inclusive as the
     -- in-game tab regardless of what mode is selected.
 
-    local mapResults
-    if not calculatorData and not calculatorLauncher and ns.MapSearch and ns.MapSearch.SearchForUI
-       and ((quickFilter and quickFilter.key == "map")
-            or (not quickFilter and filters and filters.map ~= false)) then
+    -- A boost that ran a pass of its own rewrote the pooled map rows.
+    if mapResults and ns.MapSearchSearch.uiSearchCount ~= mapPass then
         mapResults = ns.MapSearch:SearchForUI(text)
     end
 

@@ -666,19 +666,25 @@ local function AppendZoneSearchResults(out, zoneNames, groupedZones, existingNam
             local nameLower = GetNameLower(zone)
             zoneNames[nameLower] = true
             if not existingNames or not existingNames[nameLower] then
-                out[#out + 1] = {
-                    name = zone.name,
-                    nameLower = zone.nameLower,
-                    nameNorm = zone.nameNorm,
-                    category = "zone",
-                    icon = 237382,
-                    isZone = true,
-                    zoneMapID = zone.mapID,
-                    zoneMapType = zone.mapType,
-                    zoneParentMapID = zone.parentMapID,
-                    pathPrefix = group.parentPath,
-                    score = zone.score,
-                }
+                -- One row per zone, kept on it: only the score is per query.
+                local row = zone.row
+                if not row then
+                    row = {
+                        name = zone.name,
+                        nameLower = zone.nameLower,
+                        nameNorm = zone.nameNorm,
+                        category = "zone",
+                        icon = 237382,
+                        isZone = true,
+                        zoneMapID = zone.mapID,
+                        zoneMapType = zone.mapType,
+                        zoneParentMapID = zone.parentMapID,
+                        pathPrefix = group.parentPath,
+                    }
+                    zone.row = row
+                end
+                row.score, row.duplicateKey, row.allInstances = zone.score, nil, nil
+                out[#out + 1] = row
             end
         end
     end
@@ -694,6 +700,8 @@ local function GetInstanceNameNorms(instancePOIs)
     return reuseInstanceNameNorm
 end
 
+-- zoneRows: the list holding the zone rows (the result list itself when
+-- they sit among the rest).
 local function SuppressCoveredDungeonZones(out, zoneNames, instancePOIs)
     local instanceNameNorm = GetInstanceNameNorms(instancePOIs)
     local writeIdx = 0
@@ -751,10 +759,10 @@ local function AppendPromotedInstanceResults(self, out, zoneNames)
     end
 end
 
-local function AppendGlobalInstanceSearchSources(self, out, zoneNames)
+local function AppendGlobalInstanceSearchSources(self, out, zoneNames, zoneRows)
     local instancePOIs = self:GetGlobalInstanceCache()
-    SuppressCoveredDungeonZones(out, zoneNames, instancePOIs)
-    EnrichZoneSearchResults(out, zoneNames, instancePOIs)
+    SuppressCoveredDungeonZones(zoneRows or out, zoneNames, instancePOIs)
+    EnrichZoneSearchResults(zoneRows or out, zoneNames, instancePOIs)
     AppendPromotedInstanceResults(self, out, zoneNames)
 end
 

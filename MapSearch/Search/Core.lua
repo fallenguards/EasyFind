@@ -219,18 +219,17 @@ local reuseUISearchZoneNames = NewScratchTable()
 local reuseUISearchFiltered = NewScratchTable()
 local reuseUISearchResults = NewScratchTable()
 local reuseUISearchResultData = NewScratchTable()
+local reuseFreshRows = NewScratchTable()
+local reuseUIFreshRows = NewScratchTable()
+local reuseUIScored = NewScratchTable()
+local reuseUICategoryRows = NewScratchTable()
+local reuseUICategoryData = NewScratchTable()
 local UI_MAP_RESULT_CAP = 60
 
 
-function MapSearch:GetCategoryMatch(query)
-    query = slower(query):match("^(.-)%s*$")
-    if ns.Database and ns.Database.NormalizeSearchQuery then
-        query = ns.Database:NormalizeSearchQuery(query)
-    end
+local function MatchCategory(query)
     local matchedCategory = nil
     local matchScore = 0
-    local isExactCategoryMatch = false
-
     for catName, catData in pairs(CATEGORIES) do
         for _, keyword in ipairs(catData.keywords) do
             local kw = slower(keyword)
@@ -245,25 +244,47 @@ function MapSearch:GetCategoryMatch(query)
             end
         end
     end
-
-    return matchedCategory, matchScore, isExactCategoryMatch
+    return matchedCategory, matchScore, false
 end
 
-function MapSearch:GetRelatedCategories(category)
-    local related = {category}
-    local catData = CATEGORIES[category]
+-- Memoized per query: the map tab and the bar ask a few times a keystroke.
+local categoryMemo, categoryMemoN = {}, 0
+function MapSearch:GetCategoryMatch(query)
+    query = slower(query):match("^(.-)%s*$")
+    if ns.Database and ns.Database.NormalizeSearchQuery then
+        query = ns.Database:NormalizeSearchQuery(query)
+    end
+    local memo = categoryMemo[query]
+    if not memo then
+        if categoryMemoN >= 128 then
+            wipe(categoryMemo)
+            categoryMemoN = 0
+        end
+        local cat, score, exact = MatchCategory(query)
+        memo = { cat or false, score, exact }
+        categoryMemo[query] = memo
+        categoryMemoN = categoryMemoN + 1
+    end
+    return memo[1] or nil, memo[2], memo[3]
+end
 
-    -- Parent only, not siblings: "pvp" should not show "auction house".
+-- The category, its parent (not its siblings: "pvp" should not show
+-- "auction house") and its children; one list per category, read-only.
+local relatedMemo = {}
+function MapSearch:GetRelatedCategories(category)
+    local related = relatedMemo[category]
+    if related then return related end
+    related = { category }
+    local catData = CATEGORIES[category]
     if catData and catData.parent then
         tinsert(related, catData.parent)
     end
-
     for catName, data in pairs(CATEGORIES) do
         if data.parent == category then
             tinsert(related, catName)
         end
     end
-
+    relatedMemo[category] = related
     return related
 end
 
@@ -300,6 +321,11 @@ Search.reuseUISearchZoneNames = reuseUISearchZoneNames
 Search.reuseUISearchFiltered = reuseUISearchFiltered
 Search.reuseUISearchResults = reuseUISearchResults
 Search.reuseUISearchResultData = reuseUISearchResultData
+Search.reuseFreshRows = reuseFreshRows
+Search.reuseUIFreshRows = reuseUIFreshRows
+Search.reuseUIScored = reuseUIScored
+Search.reuseUICategoryRows = reuseUICategoryRows
+Search.reuseUICategoryData = reuseUICategoryData
 Search.UI_MAP_RESULT_CAP = UI_MAP_RESULT_CAP
 
 

@@ -45,6 +45,11 @@ local reuseUISearchZoneNames = Search.reuseUISearchZoneNames
 local reuseUISearchFiltered = Search.reuseUISearchFiltered
 local reuseUISearchResults = Search.reuseUISearchResults
 local reuseUISearchResultData = Search.reuseUISearchResultData
+local reuseFreshRows = Search.reuseFreshRows
+local reuseUIFreshRows = Search.reuseUIFreshRows
+local reuseUIScored = Search.reuseUIScored
+local reuseUICategoryRows = Search.reuseUICategoryRows
+local reuseUICategoryData = Search.reuseUICategoryData
 local UI_MAP_RESULT_CAP = Search.UI_MAP_RESULT_CAP
 
 local function RequestUISearchGlobalInstances(self)
@@ -57,6 +62,7 @@ local function RequestUISearchGlobalInstances(self)
     Search.uiGlobalInstanceRefreshPending = true
     self:RequestGlobalInstanceCache(function(ready)
         Search.uiGlobalInstanceRefreshPending = nil
+        if ready and ns.MapSearch.ResetSearchPoisCache then ns.MapSearch.ResetSearchPoisCache() end
         if ready and ns.Search and ns.Search.RefreshActiveSearch then
             ns.Search:RefreshActiveSearch()
         end
@@ -80,11 +86,15 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
 
     wipe(reuseAllPOIs)
     wipe(reuseZoneNames)
+    wipe(reuseFreshRows)
     local allPOIs = reuseAllPOIs
     local zoneNames = reuseZoneNames
+    -- Zone and creature rows: a set of their own per query, so scored
+    -- fresh beside the cached rest.
+    local fresh = reuseFreshRows
 
     local groupedZones = self:GroupZonesByParent(zoneMatches)
-    AppendZoneSearchResults(allPOIs, zoneNames, groupedZones)
+    AppendZoneSearchResults(fresh, zoneNames, groupedZones)
 
     -- Global search: zones + dungeon/raid/delve entrances (skip service POIs)
     --
@@ -92,13 +102,10 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
     -- Dungeon-type zone results from SearchZones are suppressed when the
     -- cache covers them. Cache entries are promoted to zone-style display
     -- (with full breadcrumb paths) using a mapID-to-path lookup.
-    -- Named creatures (the GPS package's catalog); past its cap the narrowing
-    -- cache would miss the ones left out, so this query is not cached.
-    local npcsCapped = false
     if isGlobal then
-        AppendGlobalInstanceSearchSources(self, allPOIs, zoneNames)
+        AppendGlobalInstanceSearchSources(self, allPOIs, zoneNames, fresh)
         AppendAlwaysFindableLocations(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
-        if self.AppendNpcRows then npcsCapped = self.AppendNpcRows(allPOIs, zoneNames, text) end
+        if self.AppendNpcRows then self.AppendNpcRows(fresh, zoneNames, text) end
 
         if FlightPathsEnabledAnywhere() then
             local allFMs = self:ScanAllFlightMasters()
@@ -117,11 +124,11 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         local existingNames = reuseExistingNames
         local dungeonEntrances = AppendLocalSearchSources(self, allPOIs, existingNames, zoneNames, nil, false)
         if self.AppendNpcRows then
-            npcsCapped = self.AppendNpcRows(allPOIs, existingNames, text, WorldMapFrame and WorldMapFrame:GetMapID())
+            self.AppendNpcRows(fresh, existingNames, text, WorldMapFrame and WorldMapFrame:GetMapID())
         end
 
         local entranceLookup = BuildEntranceLookup(dungeonEntrances)
-        for _, poi in ipairs(allPOIs) do
+        for _, poi in ipairs(fresh) do
             if poi.isZone and poi.zoneMapID then
                 local entrance = entranceLookup[GetNameLower(poi)]
                 if entrance then
@@ -140,7 +147,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         -- current zone. They still get scored alongside local POIs.
     end
 
-    local results = self:SearchPOIs(allPOIs, text, npcsCapped)
+    local results = self:SearchPOIs(allPOIs, text, fresh)
 
     -- Blacklist rides the existing filter copy-loops in both branches:
     -- same single suppression predicate as main search (ns.Blacklist).
@@ -233,6 +240,7 @@ local SEARCH_CACHE_MAX = 32
 local searchPoisCache = {
     local_  = { entries = {}, order = {}, lastQuery = "", lastCategory = nil },
     global_ = { entries = {}, order = {}, lastQuery = "", lastCategory = nil },
+    ui_     = { entries = {}, order = {}, lastQuery = "", lastCategory = nil },
 }
 local function ResetSearchPoisCache()
     for _, c in pairs(searchPoisCache) do
@@ -323,14 +331,14 @@ local function GetPOIDuplicateKey(poi)
         .. (poi.isZone and (poi.pathPrefix or "") or "")
 end
 
-local function ResolveSearchCache(query, matchedCategory, defaultCandidates)
-    local cacheKey = Search.isGlobalSearch and "global_" or "local_"
-    local cache = searchPoisCache[cacheKey]
+-- The cache's entry for the query, or the candidates: the last query's
+-- pool when this one extends it (narrowed = true), else every poi.
+local function ResolveSearchCache(cache, query, matchedCategory, defaultCandidates)
     local cachedHit = cache.entries[query]
     if cachedHit and cachedHit.matchedCategory == matchedCategory then
         cache.lastQuery = query
         cache.lastCategory = matchedCategory
-        return cache, cachedHit.results, true, false
+        return cachedHit, nil, false
     end
 
     if cache.lastQuery ~= ""
@@ -339,16 +347,17 @@ local function ResolveSearchCache(query, matchedCategory, defaultCandidates)
        and cache.lastCategory == matchedCategory then
         local previous = cache.entries[cache.lastQuery]
         if previous then
-            return cache, previous.results, false, true
+            return nil, previous.pool, true
         end
     end
 
-    return cache, defaultCandidates, false, false
+    return nil, defaultCandidates, false
 end
 
 local function ClearCachedCandidateScores(candidates)
     for i = 1, #candidates do
-        candidates[i].score = nil
+        local poi = candidates[i]
+        poi.score, poi.duplicateKey, poi.allInstances = nil, nil, nil
     end
 end
 
@@ -364,11 +373,18 @@ local function ScorePOIForQuery(poi, query)
 end
 
 local function AddScoredPOI(results, seen, duplicates, poi, key, score)
-    if not duplicates[key] then duplicates[key] = {} end
-    tinsert(duplicates[key], poi)
-
-    if seen[key] then return end
-    seen[key] = true
+    local first = seen[key]
+    if first then
+        -- The same place again: its set of spots, made at the second.
+        local dup = duplicates[key]
+        if not dup then
+            dup = { first }
+            duplicates[key] = dup
+        end
+        dup[#dup + 1] = poi
+        return
+    end
+    seen[key] = poi
     poi.score = score
     poi.duplicateKey = key
     tinsert(results, poi)
@@ -423,11 +439,29 @@ local function AttachDuplicateSets(results, duplicates)
     end
 end
 
-local function StoreSearchResults(cache, query, matchedCategory, results)
+-- The rows with their scores, keys and spot sets, so the same query comes
+-- back as it was; and every scored place, the other spots included, for
+-- a longer query to narrow over.
+local function StoreSearchResults(cache, query, matchedCategory, results, duplicates)
     if #results == 0 then return end
-
-    local snapshot = {}
-    for i = 1, #results do snapshot[i] = results[i] end
+    local rows, scores, keys, sets, anyDup = {}, {}, {}, {}, false
+    for i = 1, #results do
+        local r = results[i]
+        rows[i], scores[i], keys[i], sets[i] = r, r.score, r.duplicateKey, r.allInstances or false
+        if duplicates[r.duplicateKey] then anyDup = true end
+    end
+    local pool = rows
+    if anyDup then
+        pool = {}
+        for i = 1, #rows do
+            local dup = duplicates[keys[i]]
+            if dup then
+                for j = 1, #dup do pool[#pool + 1] = dup[j] end
+            else
+                pool[#pool + 1] = rows[i]
+            end
+        end
+    end
     if cache.entries[query] == nil then
         cache.order[#cache.order + 1] = query
         if #cache.order > SEARCH_CACHE_MAX then
@@ -435,10 +469,16 @@ local function StoreSearchResults(cache, query, matchedCategory, results)
             cache.entries[oldest] = nil
         end
     end
-    cache.entries[query] = { matchedCategory = matchedCategory, results = snapshot }
+    cache.entries[query] = { matchedCategory = matchedCategory, rows = rows, scores = scores, keys = keys,
+                             sets = sets, pool = pool }
 end
 
-function MapSearch:SearchPOIs(pois, query, noCache)
+-- Scores pois against query (name, keywords, the matched category), equal
+-- matches nearest first; the list is pooled. fresh: rows scored the same
+-- way but kept out of the cache (zones and creatures, a set of their own
+-- per query). cacheKey: local_, global_ or ui_ (nil: by the search mode;
+-- false: none). Also the matched category.
+function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
     query = slower(query)
     if ns.Database and ns.Database.NormalizeSearchQuery then
         query = ns.Database:NormalizeSearchQuery(query)
@@ -453,38 +493,42 @@ function MapSearch:SearchPOIs(pois, query, noCache)
     local matchedCategory = self:GetCategoryMatch(query)
     local relatedCategories = matchedCategory and self:GetRelatedCategories(matchedCategory) or nil
 
-    local cache
-    local candidates = pois
-    local candidatesAreCached = false
-    if not noCache then
-        local cachedHit
-        cache, candidates, cachedHit, candidatesAreCached = ResolveSearchCache(query, matchedCategory, pois)
-        if cachedHit then
-            -- The player has moved since: equal matches ranked again.
-            TakeDistances(candidates)
-            tsort(candidates, POIResultLess)
-            return candidates
+    if cacheKey == nil then cacheKey = Search.isGlobalSearch and "global_" or "local_" end
+    local cache = cacheKey and searchPoisCache[cacheKey]
+    local hit, candidates, narrowed
+    if cache then
+        hit, candidates, narrowed = ResolveSearchCache(cache, query, matchedCategory, pois)
+    else
+        candidates = pois
+    end
+    if hit then
+        local rows, scores, keys, sets = hit.rows, hit.scores, hit.keys, hit.sets
+        for i = 1, #rows do
+            local r = rows[i]
+            r.score, r.duplicateKey, r.allInstances = scores[i], keys[i], sets[i] or nil
+            results[i], seen[keys[i]] = r, r
+        end
+    else
+        if narrowed then ClearCachedCandidateScores(candidates) end
+        AppendNameMatches(results, seen, duplicates, candidates, query)
+        AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
+        AttachDuplicateSets(results, duplicates)
+        if cache then
+            StoreSearchResults(cache, query, matchedCategory, results, duplicates)
+            cache.lastQuery = query
+            cache.lastCategory = matchedCategory
         end
     end
-
-    if candidatesAreCached then
-        ClearCachedCandidateScores(candidates)
+    if fresh and #fresh > 0 then
+        AppendNameMatches(results, seen, duplicates, fresh, query)
+        AppendCategoryMatches(results, seen, duplicates, fresh, matchedCategory, relatedCategories)
+        AttachDuplicateSets(results, duplicates)
     end
 
-    AppendNameMatches(results, seen, duplicates, candidates, query)
-    AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
-    AttachDuplicateSets(results, duplicates)
-
+    -- The player has moved since a cached hit: equal matches ranked again.
     TakeDistances(results)
     tsort(results, POIResultLess)
-
-    if noCache then return results end
-
-    StoreSearchResults(cache, query, matchedCategory, results)
-    cache.lastQuery = query
-    cache.lastCategory = matchedCategory
-
-    return results
+    return results, matchedCategory
 end
 
 -- Search for the UI search bar, mirroring the real map search pipeline.
@@ -493,10 +537,13 @@ end
 -- The main bar's @map list in the map tab's two parts: the player's zone
 -- first under "This Zone (Zone)", the rest under "Across the World", each
 -- part in its own order. entries: the bar's { data, score } rows.
+local splitHere, splitThere = {}, {}
 function MapSearch:SplitUIRowsByZone(entries)
     local zone = GetBestMapForUnit("player")
     local info = zone and C_Map.GetMapInfo(zone)
-    local here, there = {}, {}
+    wipe(splitHere)
+    wipe(splitThere)
+    local here, there = splitHere, splitThere
     for i = 1, #entries do
         local d = entries[i].data
         if d and zone and (d.mapID == zone or d.zoneMapID == zone) then
@@ -520,7 +567,52 @@ function MapSearch:SplitUIRowsByZone(entries)
     end
 end
 
+-- A bar row's data from a scored map row.
+local function FillUIRow(d, r, searchMapID, query)
+    local cat = r.category or "location"
+    d.name = r.name
+    d.nameLower = GetNameLower(r)
+    d.category = cat
+    d.icon = r.icon or GetCategoryIcon(cat)
+    d.displayID = r.displayID
+    d.mapSearchResult = true
+    d.mapID = r.mapID or r.zoneMapID or r.entranceMapID or searchMapID
+    d.zoneName = r.zoneName or r.pathPrefix
+    d.matchNote = r.matchNote
+    d.pathPrefix = r.pathPrefix
+    d.x = r.x or r.entranceX
+    d.y = r.y or r.entranceY
+    d.keywords = r.keywords
+    d.query = query
+    d.isZone = nil
+    d.zoneMapType = r.zoneMapType
+    d.zoneMapID = nil
+    d.entranceMapID = nil
+    d.entranceX = nil
+    d.entranceY = nil
+    d.entranceIcon = nil
+    d.entranceCategory = nil
+    d.isDungeonEntrance = nil
+    if r.isZone then
+        d.isZone = true
+        d.zoneMapID = r.zoneMapID
+        d.entranceMapID = r.entranceMapID
+        d.entranceX = r.entranceX
+        d.entranceY = r.entranceY
+        d.entranceIcon = r.entranceIcon
+        d.entranceCategory = r.entranceCategory
+    end
+    if r.isDungeonEntrance then
+        d.isDungeonEntrance = true
+        if not d.entranceMapID then
+            d.entranceMapID = r.entranceMapID
+        end
+    end
+end
+
 function MapSearch:SearchForUI(query)
+    Search.uiSearchCount = (Search.uiSearchCount or 0) + 1
+    Search.uiScoredFor = nil
     if not query or query == "" or #query < 2 then return nil end
     if self.HasWorldZoneCache and not self:HasWorldZoneCache() then return nil end
 
@@ -535,8 +627,10 @@ function MapSearch:SearchForUI(query)
     -- content without asking the user to pick.
     wipe(reuseUISearchPOIs)
     wipe(reuseUISearchExistingNames)
+    wipe(reuseUIFreshRows)
     local pois = reuseUISearchPOIs
     local existingNames = reuseUISearchExistingNames
+    local fresh = reuseUIFreshRows
 
     do
         AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, true)
@@ -554,24 +648,28 @@ function MapSearch:SearchForUI(query)
         wipe(reuseUISearchZoneNames)
         local zoneNames = reuseUISearchZoneNames
 
-        AppendZoneSearchResults(pois, zoneNames, groupedZones, existingNames)
+        AppendZoneSearchResults(fresh, zoneNames, groupedZones, existingNames)
 
         -- Dungeons / raids / delves use a global map walk. The cache is
         -- built in background slices; first search should never do that walk.
         if self.HasGlobalInstanceCache and self:HasGlobalInstanceCache() then
-            AppendGlobalInstanceSearchSources(self, pois, zoneNames)
+            AppendGlobalInstanceSearchSources(self, pois, zoneNames, fresh)
         else
             RequestUISearchGlobalInstances(self)
         end
         AppendAlwaysFindableLocations(self, pois, existingNames, searchMapID)
-        if self.AppendNpcRows then self.AppendNpcRows(pois, existingNames, query, nil, searchMapID) end
+        if self.AppendNpcRows then self.AppendNpcRows(fresh, existingNames, query, nil, searchMapID) end
     end
 
-    if #pois == 0 then return nil end
+    if #pois == 0 and #fresh == 0 then return nil end
 
-    -- Run the same scoring pipeline as the real map search
-    local scored = self:SearchPOIs(pois, query, true)
+    -- The map tab's scoring, under the bar's own narrowing cache.
+    local scored, matchedCategory = self:SearchPOIs(pois, query, fresh, "ui_")
     if not scored or #scored == 0 then return nil end
+    -- Kept for a category boost in the same keystroke (GetCategoryResultsForUI).
+    wipe(reuseUIScored)
+    for i = 1, #scored do reuseUIScored[i] = scored[i] end
+    Search.uiScoredFor, Search.uiScoredCategory, Search.uiScoredMapID = query, matchedCategory, searchMapID
 
     -- Apply the search bar's OWN map buckets (uiMapFilters), independent
     -- of the map tab's cog filters, so the bar can stay lean while the
@@ -597,50 +695,12 @@ function MapSearch:SearchForUI(query)
     local resultCap = mmin(#scored, UI_MAP_RESULT_CAP)
     for ri = 1, resultCap do
         local r = scored[ri]
-        local cat = r.category or "location"
         local d = reuseUISearchResultData[ri]
         if not d then
             d = {}
             reuseUISearchResultData[ri] = d
         end
-        d.name = r.name
-        d.nameLower = GetNameLower(r)
-        d.category = cat
-        d.icon = r.icon or GetCategoryIcon(cat)
-        d.displayID = r.displayID
-        d.mapSearchResult = true
-        d.mapID = r.mapID or r.zoneMapID or r.entranceMapID or searchMapID
-        d.zoneName = r.zoneName or r.pathPrefix
-        d.matchNote = r.matchNote
-        d.pathPrefix = r.pathPrefix
-        d.x = r.x or r.entranceX
-        d.y = r.y or r.entranceY
-        d.keywords = r.keywords
-        d.query = query
-        d.isZone = nil
-        d.zoneMapType = r.zoneMapType
-        d.zoneMapID = nil
-        d.entranceMapID = nil
-        d.entranceX = nil
-        d.entranceY = nil
-        d.entranceIcon = nil
-        d.entranceCategory = nil
-        d.isDungeonEntrance = nil
-        if r.isZone then
-            d.isZone = true
-            d.zoneMapID = r.zoneMapID
-            d.entranceMapID = r.entranceMapID
-            d.entranceX = r.entranceX
-            d.entranceY = r.entranceY
-            d.entranceIcon = r.entranceIcon
-            d.entranceCategory = r.entranceCategory
-        end
-        if r.isDungeonEntrance then
-            d.isDungeonEntrance = true
-            if not d.entranceMapID then
-                d.entranceMapID = r.entranceMapID
-            end
-        end
+        FillUIRow(d, r, searchMapID, query)
         local out = results[ri]
         if not out then
             out = {}
@@ -664,8 +724,51 @@ end
 -- rule row aliases follow); the default keyword boost passes respectFilters
 -- so the user's map buckets still apply. Returned rows are the pooled
 -- search tables; callers must copy before retaining them.
-function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, localOnly)
+local function CategoryCovered(matched, category)
+    if not matched then return false end
+    if matched == category then return true end
+    local related = MapSearch:GetRelatedCategories(matched)
+    for i = 1, #related do
+        if related[i] == category then return true end
+    end
+    return false
+end
+
+-- text: the keystroke's query; its own map pass (SearchForUI) already
+-- scored the category's rows when its query matched the category, so
+-- those are read instead of running a pass of their own.
+function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, localOnly, text)
     if not category then return nil end
+    maxN = maxN or 3
+    if text and Search.uiScoredFor == text and CategoryCovered(Search.uiScoredCategory, category) then
+        local filters = respectFilters and EasyFind.db.uiMapFilters
+        local stash, mapID = reuseUIScored, Search.uiScoredMapID
+        local playerMapID = GetBestMapForUnit("player")
+        wipe(reuseUICategoryRows)
+        local out, n = reuseUICategoryRows, 0
+        -- The current zone's rows first, then the rest as the pass ranked them.
+        for pass = 1, localOnly and 1 or 2 do
+            for i = 1, #stash do
+                if n >= maxN then break end
+                local r = stash[i]
+                if r.category == category and (not filters or MapSearch.PassesFilter(r, filters)) then
+                    local here = playerMapID ~= nil
+                        and (r.mapID or r.zoneMapID or r.entranceMapID or mapID) == playerMapID
+                    if here == (pass == 1) then
+                        n = n + 1
+                        local d = reuseUICategoryData[n]
+                        if not d then
+                            d = {}
+                            reuseUICategoryData[n] = d
+                        end
+                        FillUIRow(d, r, mapID, text)
+                        out[n] = d
+                    end
+                end
+            end
+        end
+        return n > 0 and out or nil
+    end
     local catDef = ns.MapSearchData and ns.MapSearchData.CATEGORIES
         and ns.MapSearchData.CATEGORIES[category]
     local canonical = catDef and catDef.keywords and catDef.keywords[1] or category

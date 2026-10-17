@@ -296,6 +296,7 @@ function MapSearch:BuildWorldZoneCache()
         if not ok or myGen ~= zoneCacheGen or type(zones) ~= "table" then return end
         cachedWorldZones = zones
         BuildWorldZonePrefixIndex(zones)
+        if ns.MapSearch.ResetSearchPoisCache then ns.MapSearch.ResetSearchPoisCache() end
         if ns.Search and ns.Search.RefreshActiveSearch then
             ns.Search:RefreshActiveSearch()
         end
