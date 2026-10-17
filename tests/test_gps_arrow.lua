@@ -81,6 +81,16 @@ function tests.aWalkHardlyLongerThanTheLineAimsAtTheSpot()
     H.assertEq(ay, 100)
 end
 
+function tests.aWayRoundHardlyLongerIsFollowed()
+    -- From (0,0) to (100,0) by way of (50,-20): only 8% longer, but 20 yards
+    -- off the line, as a walk out along a pier to its end.
+    local Aim, player = fresh(true, { ty = 0, pts = function(sx, sy, tx, ty) return { sx, sy, 50, -20, tx, ty } end })
+    player.x, player.y = 0, 0
+    local _, _, ax, ay = Aim()
+    H.assertTrue(ay < -5, "along the walk, not across to the spot")
+    H.assertTrue(ax > 20 and ax < 30)
+end
+
 function tests.aWalkFoundAgainIsDrawnByThePlanner()
     local Aim, player, _, now, _, planner = fresh(true, { planner = true })
     player.x = 50

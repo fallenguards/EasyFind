@@ -4,7 +4,8 @@
 -- on foot as it runs: at a spot a little ahead along the walk, so it turns
 -- with every bend, with the step, the yards left on the walk and the times
 -- left in the beacon's plate under it. A walk hardly longer than the line
--- to its spot is aimed at the spot, past the grid's wiggles. A few yards
+-- to its spot and close beside it is aimed at the spot, past the grid's
+-- wiggles; a way round (out along a pier) is followed. A few yards
 -- beside the walk it leads alongside it, not back onto it, where nothing
 -- stands between. At a ride's boarding spot it points there; on board, and
 -- where the game gives no facing (instances), it rests. Shift-drag moves it.
@@ -13,13 +14,14 @@ if not ns then return end
 local Arrow = {}
 ns.GPSArrow = Arrow
 
-local mmax, mmin, matan2, mpi = math.max, math.min, math.atan2 or math.atan, math.pi
+local mmax, mmin, mabs, matan2, mpi = math.max, math.min, math.abs, math.atan2 or math.atan, math.pi
 
 local TEX_ARROW = "Interface\\AddOns\\EasyFind\\MapSearch\\Images\\arrow-hq"   -- points down as drawn
 local SIZE = 44
 local HOME_Y = -130            -- under the character, from the screen's center
 local AHEAD = 25               -- yards along the walk the arrow aims at
 local NEAR_STRAIGHT = 1.1      -- a walk within this of the straight line is aimed at its spot
+local WIGGLE = 10              -- yards it may stray from that line: two or three grid cells
 local LANE = 10                -- yards beside the walk still walked alongside it
 local AT_RIDE = 60             -- yards from a ride's boarding spot: still pointing at it
 local THROTTLE = 0.03
@@ -46,6 +48,20 @@ local function Clear(ci, px, py, x, y)
     return Nav and Nav.Straight and Nav.Straight(ci, px, py, x, y, IsIndoors and IsIndoors()) == true
 end
 
+-- How far the rest of the walk (from stretch s) strays from the line from
+-- (px, py) to its spot d yards off, in yards.
+local function Spread(path, s, px, py, tx, ty, d)
+    if d < 1 then return 0 end
+    local pts, far = path.pts, 0
+    local ux, uy = (tx - px) / d, (ty - py) / d
+    for v = s + 1, #pts / 2 do
+        local off = mabs((pts[2 * v - 1] - px) * uy - (pts[2 * v] - py) * ux)
+        if off > far then far = off end
+    end
+    return far
+end
+Arrow._Spread = Spread   -- the dev probe
+
 -- Where the arrow points from where the player stands, and the yards left,
 -- or nothing to point at.
 local function Aim()
@@ -60,9 +76,12 @@ local function Aim()
     local path = f.path
     if not path then return px, py, f.tx, f.ty, f.straight end
     local left = mmax(0, path.len - f.along)
-    -- A walk hardly longer than the line to the spot bends only round the
-    -- grid's small blocks (a bush, a post): straight at the spot.
-    if left <= f.straight * NEAR_STRAIGHT then return px, py, f.tx, f.ty, left end
+    -- A walk hardly longer than the line to the spot and never far beside
+    -- it bends only round the grid's small blocks (a bush, a post):
+    -- straight at the spot. Far off it, the walk is a way round.
+    if left <= f.straight * NEAR_STRAIGHT and Spread(path, f.seg, px, py, f.tx, f.ty, f.straight) <= WIGGLE then
+        return px, py, f.tx, f.ty, left
+    end
     local ax, ay = ns.GPSFollow.PointAt(path, f.along + AHEAD, f.seg)
     -- Beside the walk: alongside it, up to LANE out, closing in on the
     -- last stretch so the spot itself is reached.
