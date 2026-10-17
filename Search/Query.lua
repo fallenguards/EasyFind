@@ -30,6 +30,9 @@ local function FlatNameLess(ra, rb)
     -- would shuffle a timeline.
     local oa, ob = ra.data.clipOrder, rb.data.clipOrder
     if oa and ob and oa ~= ob then return oa < ob end
+    -- Map rows keep the map search's order among equal scores: nearest first.
+    local ma, mb = ra.data.mapRank, rb.data.mapRank
+    if ma and mb and ma ~= mb then return ma < mb end
     local na, nb = ra.data.name or "", rb.data.name or ""
     if #na ~= #nb then return #na < #nb end
     if na ~= nb then return na < nb end

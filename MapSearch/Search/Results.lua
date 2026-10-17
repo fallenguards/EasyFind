@@ -701,6 +701,7 @@ function MapSearch:SearchForUI(query)
             reuseUISearchResultData[ri] = d
         end
         FillUIRow(d, r, searchMapID, query)
+        d.mapRank = ri
         local out = results[ri]
         if not out then
             out = {}
