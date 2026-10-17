@@ -21,8 +21,9 @@ local mfloor = math.floor
 local unpack = unpack
 local mpi = math.pi
 
-local ARRIVE_YARDS = 40
-local CROSS_ARRIVE_YARDS = 300   -- a crossing's far spot is where it drops you, give or take
+-- Arrival rings: a step's spot; the last step to a creature or other spot
+-- (beside it); a crossing's far spot, where it drops you, give or take.
+local ARRIVE = { yards = 40, spot = 8, cross = 300 }
 local ROUTE_MAX_AGE = 2 * 60 * 60
 local ARRIVED_LINGER = 20
 local START_YARDS = 60      -- this close to a planned route's start, the player is on it
@@ -917,7 +918,14 @@ local function Tick()
     -- A crossing to another continent is done the moment you are on it;
     -- one that stays on this continent is done near its far spot.
     if not (crossing and step.go and step.go.ci ~= sci) then
-        local radius = crossing and CROSS_ARRIVE_YARDS or ARRIVE_YARDS
+        local radius = crossing and ARRIVE.cross or ARRIVE.yards
+        -- The marks stay on a creature until the player stands beside it
+        -- (several stand in a town); an entrance keeps the wider ring.
+        local dest = route.dest
+        if not crossing and not route.steps[(route.active or 1) + 1] and dest and not dest.zone
+           and not INSTANCE_CATEGORIES[dest.category] then
+            radius = ARRIVE.spot
+        end
         local dx, dy = px - sx, py - sy
         if (dx * dx + dy * dy) > radius * radius then return end
     end
@@ -1057,7 +1065,7 @@ function GPS:Status()
         else sci, sx, sy = WorldPos(step.mapID, step.x, step.y) end
         if ci and sci then
             out[#out + 1] = sformat("player continent %s, arrival continent %s, distance %s yd (advances within %d)", tostring(ci), tostring(sci),
-                ci == sci and tostring(math.floor(((px - sx) ^ 2 + (py - sy) ^ 2) ^ 0.5)) or "other continent", ARRIVE_YARDS)
+                ci == sci and tostring(math.floor(((px - sx) ^ 2 + (py - sy) ^ 2) ^ 0.5)) or "other continent", ARRIVE.yards)
         else
             out[#out + 1] = "player or arrival position unknown"
         end
