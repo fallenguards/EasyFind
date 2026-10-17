@@ -15,6 +15,7 @@ local mfloor, mmin = math.floor, math.min
 local tsort = table.sort
 local band, bor = bit.band, bit.bor
 local PreparePOI = Search.PreparePOI
+local SliceCheckpoint = ns.Utils and ns.Utils.SliceCheckpoint or function() end
 
 local MIN_QUERY = 3
 local MAX_ROWS = 60     -- candidates handed to the map search's scoring
@@ -43,15 +44,19 @@ local CLASS_NAMES_EN = { "warrior", "paladin", "hunter", "rogue", "priest", "sha
 local FAR = math.huge
 
 -- Everything unpacked, in one table: per creature (index i) its id, levels,
--- flags, title, display and search names, and its spots (index k).
+-- flags, title and display, and its spots (index k). Names stay one text
+-- (names) and one lowercase text (low), a line per creature starting at
+-- at[i]; the English texts beside them on other clients (enNames, enLow,
+-- enAt), nil where the client's names are English.
 local N = {
     n = nil,
     id = {}, lo = {}, span = {}, flags = {}, kind = {}, display = {}, title = {}, first = {}, count = {},
-    name = {}, low = {}, english = {}, lowEnglish = {},
+    names = "", low = "", at = {}, enNames = nil, enLow = nil, enAt = nil,
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
+    mark = {}, cand = {}, titleHit = {}, gen = 0,
     -- What vendors sell: per item (index j) its id and names, per stock list
     -- (index l) its items, per creature the list it sells (sells[i]).
     goodsN = nil, goodsId = {}, goodsName = {}, goodsLow = {}, goodsLowEnglish = {},
@@ -60,23 +65,39 @@ local N = {
 }
 ns.GPSNpcs = N
 
+-- The creature whose line holds byte position p of a names text.
+local function LineAt(at, n, p)
+    local lo, hi = 1, n
+    while lo < hi do
+        local mid = mfloor((lo + hi + 1) / 2)
+        if at[mid] <= p then lo = mid else hi = mid - 1 end
+    end
+    return lo
+end
+
+-- Creature i's name, from the text.
+local function Name(i)
+    return ssub(N.names, N.at[i], N.at[i + 1] - 2)
+end
+
+-- Creature i's English name when the client shows another, else nil.
+local function EnglishName(i)
+    if not N.enNames then return nil end
+    local en = ssub(N.enNames, N.enAt[i], N.enAt[i + 1] - 2)
+    if en == "" or en == Name(i) then return nil end
+    return en
+end
+N.Name = Name
+
 -- A creature by its name in any case, for rows saved before they kept
 -- the proper name and portrait: { name, npcID, displayID } or nil.
--- Filled on the first ask from the unpacked catalog.
-local byName
 function N.ByName(name)
     if not name or name == "" then return nil end
-    if not byName then
-        if not (N.Load and N.Load()) then return nil end
-        byName = {}
-        for i = 1, N.n do
-            local low = N.low[i]
-            if low and not byName[low] then byName[low] = i end
-        end
-    end
-    local i = byName[string.lower(name)]
-    if not i then return nil end
-    return { name = N.name[i], npcID = N.id[i], displayID = N.display[i] ~= 0 and N.display[i] or nil }
+    if not (N.Load and N.Load()) then return nil end
+    local p = sfind(N.low, "\n" .. string.lower(name) .. "\n", 1, true)
+    if not p then return nil end
+    local i = LineAt(N.at, N.n, p + 1)
+    return { name = Name(i), npcID = N.id[i], displayID = N.display[i] ~= 0 and N.display[i] or nil }
 end
 
 -- Every service word with its bits, from SERVICES and the locale.
@@ -137,6 +158,39 @@ local function Pick(own, base, english, i)
     return english[i]
 end
 
+-- A names text as one string, a line per creature between newlines, and
+-- the line starts: at[i] for creature i, at[count + 1] past the last.
+local function Text(text, count)
+    text = (text or ""):gsub("\n$", "")
+    local blob = "\n" .. text .. "\n"
+    local at, pos = {}, 2
+    for i = 1, count do
+        at[i] = pos
+        local nl = sfind(blob, "\n", pos, true)
+        if not nl then
+            blob = blob .. "\n"
+            nl = #blob
+        end
+        pos = nl + 1
+    end
+    at[count + 1] = pos
+    return blob, at
+end
+
+-- The client's names: its own where it has one, else its base locale's,
+-- else English, merged line by line (English clients skip the merge).
+local function MergedNames(data, count, key, localKey, baseKey)
+    local english = data[key]
+    if not english then return "" end
+    local ok, text = pcall(Unpack, english)
+    if not (ok and text) then return "" end
+    if not (data[localKey] or data[baseKey]) then return text end
+    local en, own, base = Lines(english, {}), Lines(data[localKey], {}), Lines(data[baseKey], {})
+    local out = {}
+    for i = 1, count do out[i] = Pick(own, base, en, i) or "?" end
+    return table.concat(out, "\n")
+end
+
 local function Load()
     if N.n then return N.n > 0 end
     N.n = 0
@@ -156,15 +210,12 @@ local function Load()
             N.spotMap[k], N.spotXY[k], N.spotN[k] = u(), u(), u()
         end
     end
-    local english, own, base = Lines(data.names, {}), Lines(data.localNames, {}), Lines(data.baseNames, {})
-    for i = 1, count do
-        local name = Pick(own, base, english, i) or "?"
-        N.name[i] = name
-        N.low[i] = slower(name)
-        if english[i] and english[i] ~= name then
-            N.english[i] = english[i]
-            N.lowEnglish[i] = slower(english[i])
-        end
+    N.names, N.at = Text(MergedNames(data, count, "names", "localNames", "baseNames"), count)
+    N.low = slower(N.names)
+    if data.localNames or data.baseNames then
+        local okEn, en = pcall(Unpack, data.names)
+        N.enNames, N.enAt = Text(okEn and en or "", count)
+        N.enLow = slower(N.enNames)
     end
     local tEnglish, tOwn, tBase = Lines(data.titles, {}), Lines(data.localTitles, {}), Lines(data.baseTitles, {})
     for t = 1, #tEnglish do
@@ -400,36 +451,45 @@ local function MapName(m)
     return info and info.name
 end
 
+-- Where word sits in creature i's line of a names text, or nil.
+local function WordIn(blob, at, i, word)
+    local p = sfind(blob, word, at[i], true)
+    if p and p <= at[i + 1] - 2 then return p end
+    return nil
+end
+
 -- How well creature i matches the query words: 3 the name starts with
 -- the first word, 2 a word of the name does, 1 anywhere or by what it
 -- offers; 0 no match.
 local function Score(i)
-    local words, low, alt = N.words, N.low[i], N.lowEnglish[i]
+    local words, low, at, enLow, enAt = N.words, N.low, N.at, N.enLow, N.enAt
     local tlow, tAlt = N.titleLow[N.title[i]], N.titleLowEnglish[N.title[i]]
     local score = 0
     for w = 1, #words do
         local word = words[w]
-        local at = sfind(low, word, 1, true) or (alt and sfind(alt, word, 1, true))
-        if not at and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
+        local p, blob, start = WordIn(low, at, i, word), low, at[i]
+        if not p and enLow then p, blob, start = WordIn(enLow, enAt, i, word), enLow, enAt[i] end
+        if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
             and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
             return 0
         end
         if w == 1 then
-            if at == 1 then score = 3
-            elseif at and ssub(low, at - 1, at - 1) == " " then score = 2
+            if p == start then score = 3
+            elseif p and sbyte(blob, p - 1) == 32 then score = 2
             else score = 1 end
         end
     end
     return score
 end
 
--- Equal matches nearest first.
+-- Equal matches nearest first, then the shorter name.
 local function HitLess(a, b)
     local sa, sb = N.score[a], N.score[b]
     if sa ~= sb then return sa > sb end
     local na, nb = N.near[a], N.near[b]
     if na ~= nb then return na < nb end
-    return #N.name[a] < #N.name[b]
+    local at = N.at
+    return (at[a + 1] - at[a]) < (at[b + 1] - at[b])
 end
 
 local function Row(i, k)
@@ -442,13 +502,14 @@ local function Row(i, k)
         local keywords = {}
         local t = N.title[i]
         if N.titleName[t] and N.titleName[t] ~= "" then keywords[#keywords + 1] = N.titleName[t] end
-        if N.english[i] then keywords[#keywords + 1] = N.english[i] end
+        local english = EnglishName(i)
+        if english then keywords[#keywords + 1] = english end
         if N.titleEnglish[t] then keywords[#keywords + 1] = N.titleEnglish[t] end
         local roles = mfloor(N.kind[i] / 256)
         for _, s in ipairs(ServiceWords()) do
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
         end
-        poi = { name = N.name[i], category = "npc", isStatic = true, npcID = N.id[i],
+        poi = { name = Name(i), category = "npc", isStatic = true, npcID = N.id[i],
                 displayID = N.display[i] ~= 0 and N.display[i] or nil,
                 keywords = #keywords > 0 and keywords or nil }
         poi.baseKeywords = poi.keywords
@@ -504,9 +565,30 @@ local function Passes(i, f, horde)
     return true
 end
 
+-- Marks creature i a candidate once per query.
+local function Mark(i)
+    if N.mark[i] ~= N.gen then
+        N.mark[i] = N.gen
+        local cand = N.cand
+        cand[#cand + 1] = i
+    end
+end
+
+-- Every creature whose name holds word, by one find per line that does.
+local function MarkLines(blob, at, n, word)
+    local p = sfind(blob, word, 1, true)
+    while p do
+        local i = LineAt(at, n, p)
+        Mark(i)
+        p = sfind(blob, word, at[i + 1], true)
+    end
+end
+
 -- Appends the creatures matching query to out (map POIs); onlyMap keeps
--- those standing on that map. True when more matched than were handed over.
-function N.Append(out, nameSet, query, onlyMap)
+-- those standing on that map, and serviceMap does so for a query naming
+-- only a service (repair, inn) unless the caller found a place in it.
+-- True when more matched than were handed over.
+function N.Append(out, nameSet, query, onlyMap, serviceMap)
     if not query or #query < MIN_QUERY or not Load() then return false end
     local words, wordBits = N.words, N.wordBits
     for w = #words, 1, -1 do words[w] = nil end
@@ -524,12 +606,51 @@ function N.Append(out, nameSet, query, onlyMap)
         wordBits[w] = bits
         if bits ~= 0 then service = true end
     end
+    -- A query of services alone (repair, inn) means the ones near: the
+    -- player's map, unless the caller already narrowed it.
+    local allService = true
+    for w = 1, #words do
+        if wordBits[w] == 0 then allService = false end
+    end
+    if allService and serviceMap and not onlyMap then onlyMap = serviceMap end
     local hits, score, n = N.hits, N.score, 0
     local f = EasyFind.db and EasyFind.db.npcFilters
     local horde = UnitFactionGroup and UnitFactionGroup("player") == "Horde"
     local goods = MatchGoods()
     local listHit, sells, sold = N.listHit, N.sells, N.sold
-    for i = 1, N.n do
+    -- Candidates: the creatures whose name, English name or title holds
+    -- the longest word, those offering its service, and the vendors when
+    -- an item matched; the rest can match nothing. Scoring runs on these.
+    N.gen = N.gen + 1
+    local cand = N.cand
+    for c = #cand, 1, -1 do cand[c] = nil end
+    local lw = 1
+    for w = 2, #words do
+        if #words[w] > #words[lw] then lw = w end
+    end
+    local longest = words[lw]
+    MarkLines(N.low, N.at, N.n, longest)
+    if N.enLow then MarkLines(N.enLow, N.enAt, N.n, longest) end
+    local titleHit, anyTitle = N.titleHit, false
+    for t = 1, #N.titleLow do
+        local hit = sfind(N.titleLow[t], longest, 1, true)
+            or (N.titleLowEnglish[t] and sfind(N.titleLowEnglish[t], longest, 1, true))
+        titleHit[t] = hit and true or nil
+        if hit then anyTitle = true end
+    end
+    local bits = wordBits[lw]
+    if anyTitle or bits ~= 0 then
+        local title, kind = N.title, N.kind
+        for i = 1, N.n do
+            if titleHit[title[i]] or (bits ~= 0 and band(mfloor(kind[i] / 256), bits) ~= 0) then Mark(i) end
+            if i % 512 == 0 then SliceCheckpoint() end
+        end
+    end
+    if goods then
+        for i in pairs(sells) do Mark(i) end
+    end
+    for c = 1, #cand do
+        local i = cand[c]
         local s = Score(i)
         local j = false
         if s == 0 and goods and sells[i] then
@@ -545,6 +666,7 @@ function N.Append(out, nameSet, query, onlyMap)
             score[i] = s
             sold[i] = j
         end
+        if c % 256 == 0 then SliceCheckpoint() end
     end
     for j = #hits, n + 1, -1 do hits[j] = nil end
     if n == 0 then return false end
