@@ -1036,3 +1036,11 @@ function MapSearch:ClearAll()
     self:RefreshAllClearButtons()
 end
 
+-- The pin cleared when it marks this spot: a GPS route led there and arrived.
+function MapSearch:ClearPinAt(mapID, x, y)
+    local s = activePinState
+    if not (s and s.x and x and s.mapID == mapID) then return end
+    if math.abs(s.x - x) > 0.001 or math.abs(s.y - y) > 0.001 then return end
+    self:ClearAll()
+end
+

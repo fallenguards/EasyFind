@@ -581,6 +581,10 @@ local function Arrive(route)
     if route.report and route.report.t then route.tookSec = time() - route.report.t end
     StopTicker()
     LiftPin(route)
+    local dest = route.dest
+    if dest and EasyFind.db.autoPinClear ~= false and ns.MapSearch and ns.MapSearch.ClearPinAt then
+        ns.MapSearch:ClearPinAt(dest.mapID, dest.x, dest.y)
+    end
     Refresh()
     if L["GPS_ARRIVED_AT_FMT"] and EasyFind.Print then
         EasyFind:Print(sformat(L["GPS_ARRIVED_AT_FMT"], route.dest and route.dest.name or "?"))
