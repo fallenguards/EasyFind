@@ -2191,6 +2191,7 @@ ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.
 ns.SORT_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\sort-icon"
+ns.COG_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\cog-icon"
 ns.SNIPPET_ICON_COORDS = { 0, 1, 0, 1 }
 -- One chat line's character budget; snippet bodies cap here so an
 -- expansion can never overflow a single message.
