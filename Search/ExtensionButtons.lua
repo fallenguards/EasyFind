@@ -981,11 +981,32 @@ end
 -- An extension's own menu: its key, and a button of it on the screen,
 -- placed where the cursor is, as a drag out of the menu would.
 -- The app's own rows first (Chat: Mark all as read), then a rule.
+-- Extensions with a page in Options > Extensions: the bundled ones, and
+-- any registered through ns.RegisterExtensionPage (Chat, GPS).
+local SETTINGS_PAGES = { snippets = true, clipboard = true, notes = true, quicklists = true }
+local function SettingsRow(appID)
+    local has = appID and SETTINGS_PAGES[appID]
+    for _, def in ipairs(not has and appID and ns.ExtensionPages or {}) do
+        if def.id == appID then has = true end
+    end
+    if not has then return nil end
+    return {
+        kind = "action", label = _G["SETTINGS"] or "Settings",
+        onClick = function()
+            if ns.RequestOptionsPanel and ns.RequestOptionsPanel() and ns.Options and ns.Options.OpenAtExtension then
+                ns.Options:OpenAtExtension(appID)
+            end
+        end,
+    }
+end
+
 local function AddAppRows(defs, appID)
+    local before = #defs
     local rows = ns.ApplicationMenuRows and ns.ApplicationMenuRows(appID)
-    if not (rows and rows[1]) then return end
-    for i = 1, #rows do defs[#defs + 1] = rows[i] end
-    defs[#defs + 1] = { kind = "separator" }
+    for i = 1, #(rows or {}) do defs[#defs + 1] = rows[i] end
+    local settings = SettingsRow(appID)
+    if settings then defs[#defs + 1] = settings end
+    if #defs > before then defs[#defs + 1] = { kind = "separator" } end
 end
 
 function ExtensionButtons:ShowAppMenu(anchor, app)
