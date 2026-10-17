@@ -356,7 +356,6 @@ local function BuildDisc(frame)
         return t
     end
     frame.ringLine = Circle("BACKGROUND", BASE_SIZE - 4)
-    frame.ringLine:SetVertexColor(RING_R, RING_G, RING_B, 1)
     frame.disc = Circle("BORDER", BASE_SIZE - 6)
     local ring = frame:CreateTexture(nil, "OVERLAY")
     ring:SetSize(BASE_SIZE * 50 / 31, BASE_SIZE * 50 / 31)
@@ -375,8 +374,16 @@ local function PaintDisc(frame, rec)
     local fill = (palette and palette.windowFill) or ns.SEARCH_WINDOW_FILL_COLOR or { 0.05, 0.05, 0.06 }
     frame.disc:SetVertexColor(fill[1], fill[2], fill[3], 1)
     local style = BorderStyle(rec)
+    -- The search bar's border in this theme: a studio theme's own ring,
+    -- else the theme's frame line (bronze on Forever), else its gray.
+    local line = (palette and (palette.borderColor or palette.backdropBorder)) or { RING_R, RING_G, RING_B }
+    frame.ringLine:SetVertexColor(line[1], line[2], line[3], 1)
     frame.ringLine:SetShown(style == "easyfind")
     frame.ring:SetShown(style == "minimap")
+    -- Off the map, ClassicUI Forever's scan never sees this ring: it is
+    -- handed over, to take that addon's ring, tint and border hiding.
+    local cuif = style == "minimap" and _G["ClassicUIForeverAPI"]
+    if cuif and cuif.ThemeMinimapButton then cuif.ThemeMinimapButton(frame) end
     -- The minimap style is the addon's own minimap button, scaled: a 24
     -- disc centered under a 50 ring hung from the corner (Core/Main.lua,
     -- CreateMinimapButton). A wider disc showed past the ring opening.
