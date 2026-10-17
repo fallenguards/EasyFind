@@ -26,8 +26,13 @@ local CreateFrame = CreateFrame
 local C_Item = C_Item
 local strtrim = strtrim
 
+local wipe = wipe
+local SliceCheckpoint = Utils.SliceCheckpoint
+
 local MIN_QUERY = 3      -- below this the catalog matches too much to be useful
 local SCAN_CAP = 250     -- candidate ceiling per keystroke; sort/cap keeps the best
+local KEEP = 32          -- the best kept of a scan, more than the bar shows
+local REMEMBER = 1024    -- records remembered for the next keystroke to narrow over
 
 local blob, blobLen
 
@@ -186,67 +191,143 @@ end
 -- Returns scored candidate entries { data = <item>, score = N }, or nil.
 -- `scoreName(nameLower, queryLower, qLen)` ranks each match so items interleave
 -- with the rest of the results by the same relevance rule.
+-- The best of a scan, kept in the bar's own order (score, then the
+-- shorter name, then alphabetical) in pooled entries; one data table per
+-- item, shared across queries while any row holds it.
+local keep, kept = {}, 0
+local out = {}
+local dataByID = setmetatable({}, { __mode = "v" })
+local seenIDs = {}
+local hitN = 0
+-- The last scan's query and the records holding it, when the scan ran
+-- to the end: a longer query can only match among them, so it skips the blob.
+local lastQl, lastComplete = nil, false
+local prevRecs, curRecs = { s = {}, e = {}, n = 0 }, { s = {}, e = {}, n = 0 }
+
+local function Beats(score, nameLower, e)
+    if score ~= e.score then return score > e.score end
+    local other = e.data.name
+    if #nameLower ~= #other then return #nameLower < #other end
+    return nameLower < other
+end
+
+-- One record of the blob (rStart to rEnd) scored and, when it places, kept.
+-- Fields: namelower \t id \t quality \t exp \t ilvl
+local function Record(rStart, rEnd, ql, qLen, scoreName)
+    local t1 = sfind(blob, "\t", rStart, true)
+    if not (t1 and t1 <= rEnd) then return end
+    local nameLower = ssub(blob, rStart, t1 - 1)
+    local t2 = sfind(blob, "\t", t1 + 1, true)
+    local t3 = t2 and sfind(blob, "\t", t2 + 1, true)
+    local itemID = tonumber(ssub(blob, t1 + 1, (t2 or (rEnd + 1)) - 1))
+    local quality = t2 and tonumber(ssub(blob, t2 + 1, (t3 or (rEnd + 1)) - 1))
+    -- Type + quality-tier filters (fields 6/7), parsed only when a filter
+    -- is active so the all-on default keeps the 3-field fast path.
+    if filtersActive and t3 then
+        local t4 = sfind(blob, "\t", t3 + 1, true)
+        local t5 = t4 and sfind(blob, "\t", t4 + 1, true)
+        if t5 then
+            local t6 = sfind(blob, "\t", t5 + 1, true)
+            local class = tonumber(ssub(blob, t5 + 1, (t6 or (rEnd + 1)) - 1))
+            if class and classDisabled[class] then
+                return
+            elseif qualityTier > 0 and t6 then
+                local qt = tonumber(ssub(blob, t6 + 1, rEnd))
+                if qt and qt > 0 and qt ~= qualityTier then return end
+            end
+        end
+    end
+    local score = scoreName and scoreName(nameLower, ql, qLen)
+    if not (itemID and score and score > 0) or seenIDs[itemID] then return end
+    seenIDs[itemID] = true
+    hitN = hitN + 1
+    local e
+    if kept < KEEP then
+        kept = kept + 1
+        e = keep[kept]
+        if not e then
+            e = {}
+            keep[kept] = e
+        end
+    else
+        e = keep[KEEP]
+        if not Beats(score, nameLower, e) then return end
+    end
+    local at = kept
+    while at > 1 and Beats(score, nameLower, keep[at - 1]) do
+        keep[at] = keep[at - 1]
+        at = at - 1
+    end
+    keep[at] = e
+    e.score = score
+    local d = dataByID[itemID]
+    if not d then
+        d = { itemID = itemID, catalogItem = true, lookupRow = true, category = "Item",
+              name = nameLower,   -- display name resolves live at render
+              nameLower = nameLower, quality = quality }
+        dataByID[itemID] = d
+    end
+    e.data = d
+end
+
 function ItemSearch:Search(query, scoreName)
     if not query or #query < MIN_QUERY then return nil end
     if not EnsureBlob() then return nil end
     if not filtersReady then self:RefreshFilters() end
     local ql = slower(query)
     local qLen = #ql
-    local out, n = {}, 0
-    local pos, seen = 1, nil
-    while n < SCAN_CAP do
-        local s = sfind(blob, ql, pos, true)
-        if not s then break end
-        local rStart, rEnd = RecordAt(s)
-        -- Fields: namelower \t id \t quality \t exp \t ilvl
-        local t1 = sfind(blob, "\t", rStart, true)
-        if t1 and t1 <= rEnd then
-            local nameLower = ssub(blob, rStart, t1 - 1)
-            local t2 = sfind(blob, "\t", t1 + 1, true)
-            local t3 = t2 and sfind(blob, "\t", t2 + 1, true)
-            local itemID = tonumber(ssub(blob, t1 + 1, (t2 or (rEnd + 1)) - 1))
-            local quality = t2 and tonumber(ssub(blob, t2 + 1, (t3 or (rEnd + 1)) - 1))
-            -- Type + quality-tier filters (fields 6/7), parsed only when a filter
-            -- is active so the all-on default keeps the 3-field fast path.
-            local passes = true
-            if filtersActive and t3 then
-                local t4 = sfind(blob, "\t", t3 + 1, true)
-                local t5 = t4 and sfind(blob, "\t", t4 + 1, true)
-                if t5 then
-                    local t6 = sfind(blob, "\t", t5 + 1, true)
-                    local class = tonumber(ssub(blob, t5 + 1, (t6 or (rEnd + 1)) - 1))
-                    if class and classDisabled[class] then
-                        passes = false
-                    elseif qualityTier > 0 and t6 then
-                        local qt = tonumber(ssub(blob, t6 + 1, rEnd))
-                        if qt and qt > 0 and qt ~= qualityTier then passes = false end
-                    end
+    wipe(seenIDs)
+    kept, hitN = 0, 0
+    local recs = curRecs
+    local rs, re, rn = recs.s, recs.e, 0
+    local complete = true
+    if lastComplete and lastQl and qLen > #lastQl and ssub(ql, 1, #lastQl) == lastQl then
+        local ps, pe = prevRecs.s, prevRecs.e
+        for i = 1, prevRecs.n do
+            local rStart, rEnd = ps[i], pe[i]
+            -- Tested on the name alone (a short interned string): a find
+            -- over the blob from here would run on to the next hit anywhere.
+            local t1 = sfind(blob, "\t", rStart, true)
+            if t1 and t1 <= rEnd and sfind(ssub(blob, rStart, t1 - 1), ql, 1, true) then
+                rn = rn + 1
+                rs[rn], re[rn] = rStart, rEnd
+                Record(rStart, rEnd, ql, qLen, scoreName)
+                if hitN >= SCAN_CAP then
+                    complete = false
+                    break
                 end
             end
-            local score = passes and scoreName and scoreName(nameLower, ql, qLen)
-            if itemID and score and score > 0 then
-                seen = seen or {}
-                if not seen[itemID] then
-                    seen[itemID] = true
-                    n = n + 1
-                    out[n] = {
-                        score = score,
-                        data = {
-                            itemID = itemID,
-                            catalogItem = true,
-                            lookupRow = true,
-                            category = "Item",
-                            name = nameLower,   -- display name resolves live at render
-                            nameLower = nameLower,
-                            quality = quality,
-                        },
-                    }
-                end
-            end
+            if i % 64 == 0 then SliceCheckpoint() end
         end
-        pos = (rEnd + 2)
+    else
+        local pos, scanned = 1, 0
+        while true do
+            local s = sfind(blob, ql, pos, true)
+            if not s then break end
+            local rStart, rEnd = RecordAt(s)
+            if rn < REMEMBER then
+                rn = rn + 1
+                rs[rn], re[rn] = rStart, rEnd
+            else
+                complete = false
+            end
+            Record(rStart, rEnd, ql, qLen, scoreName)
+            if hitN >= SCAN_CAP then
+                complete = false
+                break
+            end
+            pos = rEnd + 2
+            scanned = scanned + 1
+            if scanned % 64 == 0 then SliceCheckpoint() end
+        end
     end
-    return n > 0 and out or nil
+    for i = #rs, rn + 1, -1 do rs[i], re[i] = nil, nil end
+    recs.n = rn
+    lastQl, lastComplete = ql, complete
+    prevRecs, curRecs = recs, prevRecs
+    for i = 1, kept do out[i] = keep[i] end
+    for i = #out, kept + 1, -1 do out[i] = nil end
+    return kept > 0 and out or nil
 end
 
 -- Debug peek: blob and scratch live in file-locals invisible to ns
