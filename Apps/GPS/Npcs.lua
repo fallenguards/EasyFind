@@ -772,16 +772,13 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
     for c = 1, #cand do
         local i = cand[c]
         local s = Score(i)
-        -- What it sells that the query names: its match when nothing else
-        -- matched, else a note beside its name only when a word of the item
-        -- starts with the query (Bowen's bows, not an elbow guard).
+        -- What it sells that the query names, when a word of the item starts
+        -- with it (not "bow" inside Rainbow Fin Albacore): its match when
+        -- nothing else matched, else a note beside its name.
         local j = goods and sells[i] and listHit[sells[i]] or false
+        if j and N.itemScore[j] < 2 then j = false end
         local byItem = false
-        if s == 0 and j then
-            s, byItem = N.itemScore[j], true
-        elseif j and N.itemScore[j] < 2 then
-            j = false
-        end
+        if s == 0 and j then s, byItem = N.itemScore[j], true end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
         if s > 0 and (service or byItem) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
