@@ -558,6 +558,7 @@ local function Row(i, k)
         end
         poi.keywords, poi.kwLower, poi.searchMask = keywords, nil, nil
         poi.matchNote = j and sformat(ns.L["NPC_SELLS"] or "Sells %s", N.goodsName[j]) or nil
+        poi.soldName = j and N.goodsName[j] or nil
         PreparePOI(poi)
     end
     poi.mapID, poi.coordMapID, poi.x, poi.y = m, m, x, y
@@ -749,14 +750,19 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
     for c = 1, #cand do
         local i = cand[c]
         local s = Score(i)
-        local j = false
-        if s == 0 and goods and sells[i] then
-            j = listHit[sells[i]] or false
-            if j then s = N.itemScore[j] end
+        -- What it sells that the query names: its match when nothing else
+        -- matched, else a note beside its name only when a word of the item
+        -- starts with the query (Bowen's bows, not an elbow guard).
+        local j = goods and sells[i] and listHit[sells[i]] or false
+        local byItem = false
+        if s == 0 and j then
+            s, byItem = N.itemScore[j], true
+        elseif j and N.itemScore[j] < 2 then
+            j = false
         end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
-        if s > 0 and (service or j) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
+        if s > 0 and (service or byItem) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
         if s > 0 then
             n = n + 1
             hits[n] = i

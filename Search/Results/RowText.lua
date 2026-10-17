@@ -170,7 +170,10 @@ function Text:GetFlatSubtext(data)
                 zone = zone:sub(lastSep + 1):match("^%s*(.-)%s*$")
             end
         end
-        -- A vendor found by what it sells: the item, then where.
+        -- A vendor whose stock holds what was typed: its kind, where, the item.
+        if data.soldName and typeLabel and zone and zone ~= "" then
+            return sformat(L["NPC_SUBTEXT_SELLS_FMT"], typeLabel, zone, data.soldName)
+        end
         if data.matchNote then
             return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
         end

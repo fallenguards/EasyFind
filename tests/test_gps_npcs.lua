@@ -219,6 +219,17 @@ function tests.anItemFindsWhoSellsIt()
     H.assertEq(#find(append, "sharp", 1433), 0, "a zone's own search keeps its own vendors")
 end
 
+-- A creature named for the query still says what it sells that matches,
+-- when a word of the item starts with the query.
+function tests.aNameMatchAlsoNamesWhatItSells()
+    local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = "Refreshing Spring Water\nBrog Arrow" })
+    local rows = find(append, "brog")
+    H.assertEq(rows[1].name, "Brog Hamfist")
+    H.assertEq(rows[1].soldName, "Brog Arrow", "found by name, and the item named")
+    H.assertEq(#rows, 1, "the kobold sells it too, but only an item match would bring it and it will not serve")
+    H.assertNil(find(append, "rog")[1].soldName, "inside a word of the item: no note")
+end
+
 function tests.anItemFindsInEitherLanguage()
     local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = GOODS.names,
                                           localNames = "Erfrischendes Quellwasser\nScharfer Pfeil" })
