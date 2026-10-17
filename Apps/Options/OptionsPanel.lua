@@ -1002,7 +1002,7 @@ local function CreatePresetRow(parent, labelText, choices, getter, setter, toolt
     return row
 end
 
-local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, setter, tooltipText, width)
+local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, setter, tooltipText, width, step)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(width or 330, 28)
     row.enabled = true
@@ -1080,8 +1080,8 @@ local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, sette
     local function Step(delta)
         if row.enabled then SetValue((getter() or minVal) + delta) end
     end
-    minusBtn:SetScript("OnClick", function() Step(-1) end)
-    plusBtn:SetScript("OnClick", function() Step(1) end)
+    minusBtn:SetScript("OnClick", function() Step(-(step or 1)) end)
+    plusBtn:SetScript("OnClick", function() Step(step or 1) end)
 
     valueText:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     valueText:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -5977,6 +5977,7 @@ function Options:Initialize()
         MakeKeybindTooltip = MakeKeybindTooltip, StartCapture = StartCapture,
         SELECTOR_ROW_W = SELECTOR_ROW_W, SELECTOR_BTN_W = SELECTOR_BTN_W,
         CreateFlyoutPresetRow = CreateFlyoutPresetRow,
+        CreateStepperRow = CreateStepperRow,
         CreateCheckbox = CreateCheckbox,
         RESET_BTN_W = RESET_BTN_W,
         AnchorListCardBottom = AnchorListCardBottom,
