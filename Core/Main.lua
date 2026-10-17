@@ -1107,6 +1107,7 @@ local function OnPlayerLogin()
     -- The spec is known now: a per-spec profile goes live before the
     -- theme seed and the module Initialize loop read the db.
     if ns.Profiles then ns.Profiles:OnLogin() end
+    EasyFind:RestoreChatFramesHidden()
 
     -- Seed the live theme slots BEFORE the module Initialize loop below:
     -- the search UI is created (and painted) inside it, and a seed after
@@ -1586,21 +1587,14 @@ end
 
 -- Hide/show the whole chat cluster (windows, tabs, dock, chat buttons).
 -- WoW ships no binding or setting for this, so the "Toggle Chat Frame"
--- search entry provides it. Session-only: /reload restores everything.
+-- search entry provides it. Kept across sessions (db.chatFramesHidden).
 local hiddenChatFrames
-function EasyFind:ToggleChatFrames()
-    if hiddenChatFrames then
-        for i = 1, #hiddenChatFrames do
-            hiddenChatFrames[i]:Show()
-        end
-        hiddenChatFrames = nil
-        return
-    end
-    hiddenChatFrames = {}
+local function HideChatFrames()
+    hiddenChatFrames = hiddenChatFrames or {}
     local function stash(frame)
         if frame and frame:IsShown() then
             frame:Hide()
-            hiddenChatFrames[#hiddenChatFrames + 1] = frame
+            hiddenChatFrames[frame] = true
         end
     end
     for i = 1, (_G.NUM_CHAT_WINDOWS or 10) do
@@ -1613,7 +1607,37 @@ function EasyFind:ToggleChatFrames()
     stash(_G["ChatFrameMenuButton"])
     stash(_G["ChatFrameChannelButton"])
     stash(_G["TextToSpeechButton"])
-    if #hiddenChatFrames == 0 then hiddenChatFrames = nil end
+end
+
+-- Hidden last session: hidden again once the game has set its chat
+-- windows up (it shows them as it does), and again if it redoes that.
+local chatHideWatch
+local function KeepChatFramesHidden()
+    if not chatHideWatch then
+        chatHideWatch = CreateFrame("Frame")
+        chatHideWatch:SetScript("OnEvent", function()
+            if EasyFind.db.chatFramesHidden then ns.Utils.SafeAfter(0, HideChatFrames) end
+        end)
+    end
+    chatHideWatch:RegisterEvent("UPDATE_CHAT_WINDOWS")
+    ns.Utils.SafeAfter(0, HideChatFrames)
+end
+
+function EasyFind:RestoreChatFramesHidden()
+    if EasyFind.db.chatFramesHidden then KeepChatFramesHidden() end
+end
+
+function EasyFind:ToggleChatFrames()
+    if hiddenChatFrames then
+        for frame in pairs(hiddenChatFrames) do frame:Show() end
+        hiddenChatFrames = nil
+        EasyFind.db.chatFramesHidden = nil
+        if chatHideWatch then chatHideWatch:UnregisterAllEvents() end
+        return
+    end
+    HideChatFrames()
+    EasyFind.db.chatFramesHidden = true
+    KeepChatFramesHidden()
 end
 
 function EasyFind:OpenOptions()
