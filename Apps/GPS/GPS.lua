@@ -4078,10 +4078,13 @@ local function BuildPopout()
     function f:SetHeaderPad(pad)
         self.glyph:ClearAllPoints()
         self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 12, -pad)
-        -- The close (18 tall) centered on the icon (20 tall); the other
-        -- buttons and the search box center on those two.
+        -- The close centered on the header row: the trip's first field (30
+        -- tall and up with the text size), else the icon; the other
+        -- buttons center on the close.
+        local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
+        local h = row and row:GetHeight() or self.glyph:GetHeight()
         close:ClearAllPoints()
-        close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -(pad + 1))
+        close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + h / 2))
     end
 
     -- Left of the close: maximize, back to the GPS page on the map. A
