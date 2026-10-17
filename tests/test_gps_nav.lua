@@ -207,6 +207,18 @@ function tests.walk_nearEndTakesTheGroundAroundIt()
     H.assertTrue(across ~= nil and across < 50, "the ground across the seam: " .. tostring(across))
 end
 
+-- A near end drawn: the walk comes to a floor within reach of b, then on
+-- to b; its cost is the near walk's.
+function tests.path_nearEndStopsWithinReach()
+    local Nav = fresh()
+    local pts, cost = Nav.Path(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2], { near = 40 })
+    H.assertTrue(pts ~= nil and #pts >= 6, "a drawn way")
+    H.assertDeepEq({ pts[#pts - 1], pts[#pts] }, EAST, "on to b")
+    local fx, fy = pts[#pts - 3], pts[#pts - 2]
+    H.assertTrue(Straight({ fx, fy }, EAST) <= 40 + 3, "its last floor within reach")
+    H.assertEq(cost, Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2], { near = 40 }))
+end
+
 -- Every shipped grid says which entrances one can walk between (ground.py),
 -- or a walk with no way searches all the ground it reaches first.
 function tests.shippedGrids_carryTheirGround()

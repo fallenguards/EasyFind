@@ -742,7 +742,7 @@ local function OffRoute(route, ci, px, py)
     if ci ~= tci then return true end
     if ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
     local Engine = ns.GPSRoute
-    local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty, true)
+    local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty, true, step.near)
     -- Its way not drawn yet: nothing to be off.
     if way == nil then return false end
     local pts = way and way.pts or {}
@@ -1193,13 +1193,13 @@ GPS.AfterRoute = AfterRoute
 -- A walk the follower needs (from where the player strayed to), drawn in
 -- the planner's slices; the follower reads it once it is there. Refused
 -- while the planner runs or a job waits for it: asked again.
-function GPS.DrawWalk(ci, sx, sy, tx, ty)
+function GPS.DrawWalk(ci, sx, sy, tx, ty, near)
     local Engine = ns.GPSRoute
     if jobsPending > 0 or GPS:IsPlanning() or not (Engine and Engine.WalkPath) then return false end
     GPS:Plan(nil, function()
         local Nav = ns.GPSNav
         if Nav then Nav.yieldCo = coroutine.running() end
-        Engine.WalkPath(ci, sx, sy, tx, ty)
+        Engine.WalkPath(ci, sx, sy, tx, ty, nil, near)
         if Nav then Nav.yieldCo = nil end
         return true
     end, function()

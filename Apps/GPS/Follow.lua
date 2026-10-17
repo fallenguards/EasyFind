@@ -70,12 +70,12 @@ end
 local function Drawn(ci)
     local find = ns.GPSRoute and ns.GPSRoute.WalkPath
     if not find then walk.path = false return false end
-    local path = find(ci, walk.fx, walk.fy, walk.tx, walk.ty, true)
+    local path = find(ci, walk.fx, walk.fy, walk.tx, walk.ty, true, walk.near)
     if path == nil then
         local now = GetTime()
         if not (walk.asked and now - walk.asked < REFIND) then
             local draw = ns.GPS.DrawWalk
-            walk.asked = draw and draw(ci, walk.fx, walk.fy, walk.tx, walk.ty) and now or nil
+            walk.asked = draw and draw(ci, walk.fx, walk.fy, walk.tx, walk.ty, walk.near) and now or nil
         end
         return nil
     end
@@ -145,7 +145,7 @@ function Follow.Now()
     cur.ok = true
     if cur.ride then return cur end
     if walk.route ~= route or walk.index ~= index or walk.tx ~= tx or walk.ty ~= ty then
-        walk.route, walk.index, walk.tx, walk.ty = route, index, tx, ty
+        walk.route, walk.index, walk.tx, walk.ty, walk.near = route, index, tx, ty, step.near
         local sci, sx, sy = StartOf(route, index)
         if sci == ci and sx then Find(ci, sx, sy, -mhuge) else Find(ci, px, py, now) end
     end

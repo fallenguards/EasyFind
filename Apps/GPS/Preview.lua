@@ -366,10 +366,11 @@ local function WalkWorld(route, i, start, target)
     if not (c and c.route == route and c.key == key) then
         -- Not drawn yet: the planner is asked to draw it in its slices and
         -- the map asks again on its next showing, straight meanwhile.
-        local path = find(ci, sx, sy, tx, ty, true)
+        local near = route.steps[i] and route.steps[i].near
+        local path = find(ci, sx, sy, tx, ty, true, near)
         if path == nil then
             local draw = ns.GPS and ns.GPS.DrawWalk
-            if draw then draw(ci, sx, sy, tx, ty) end
+            if draw then draw(ci, sx, sy, tx, ty, near) end
             return nil
         end
         c = { route = route, key = key, ci = ci, path = path }

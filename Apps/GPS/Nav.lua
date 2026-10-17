@@ -1325,6 +1325,26 @@ function Nav.Straight(ci, ax, ay, bx, by, indoors)
     return true
 end
 
+-- Of tile t's floors within r of (x, y), the one a walk from floor g
+-- comes to cheapest, its distance from the point added as a near end's
+-- seeds have it; nil when none is reached.
+local function NearFloor(w, t, g, x, y, r)
+    local cost = TileSearch(w, t, g, nil, nil, nil, true)
+    local N, cell = w.N, w.cell
+    local best, bestC
+    for row = mmax(0, mfloor((x - r - t.sx) / cell)), mmin(N - 1, mfloor((x + r - t.sx) / cell)) do
+        for col = mmax(0, mfloor((y - r - t.sy) / cell)), mmin(N - 1, mfloor((y + r - t.sy) / cell)) do
+            local cc = row * N + col
+            for f = t.cellFirst[cc], t.cellFirst[cc + 1] - 1 do
+                local fx, fy = FloorXY(w, t, f)
+                local c = cost[f] and cost[f] + msqrt((fx - x) ^ 2 + (fy - y) ^ 2)
+                if c and (fx - x) ^ 2 + (fy - y) ^ 2 <= r * r and (not bestC or c < bestC) then best, bestC = f, c end
+            end
+        end
+    end
+    return best
+end
+
 -- Floor path inside tile t from a to b, pulled straight: world points
 -- appended to out.
 local function TilePath(w, t, a, b, out)
@@ -1364,7 +1384,8 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     local walk = Kept(w, ax, ay, bx, by, opts)
     if not walk or walk.beyond then return nil end
     local cost, chain, keyA, ga, keyB, gb = walk[1], walk[2], walk[3], walk[4], walk[5], walk[6]
-    if not keyB then return nil end
+    local near = opts and opts.near
+    if not (keyB or near) then return nil end
     local ev = Entrances(w).v
     local out = { ax, ay }
     local t, g = Tile(w, keyA), ga
@@ -1385,8 +1406,16 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
         end
         if not t then return nil end
     end
-    if t.key ~= keyB then return nil end
-    t = Tile(w, keyB)
+    if near then
+        -- A near end: the floor within reach of b this last tile's walk
+        -- comes to cheapest, then on to b.
+        gb = NearFloor(w, t, g, bx, by, near)
+        if not gb then return nil end
+    elseif t.key ~= keyB then
+        return nil
+    else
+        t = Tile(w, keyB)
+    end
     if not TilePath(w, t, g, gb, out) then return nil end
     out[#out + 1], out[#out + 2] = bx, by
     return out, cost, walk[7]

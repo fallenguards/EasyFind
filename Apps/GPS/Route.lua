@@ -271,7 +271,7 @@ local function BuildGraph(ctx)
         travelSpeed = travelSpeed, mountUp = mountUp, waitAt = ctx.waitAt,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
-        walkSec = {}, walkWind = {}, least = {}, travel = {}, rides = {},
+        walkSec = {}, walkWind = {}, walkNear = {}, least = {}, travel = {}, rides = {},
         data = data,
     }
 end
@@ -348,6 +348,12 @@ end
 -- this close (the trouble is the last few yards, not the way there).
 local CROSSING = { taxi = true, edgeFrom = true, edgeTo = true, teleportTo = true }
 local BOARD, BOARD_NEAR = { near = 40 }, 600
+-- The goal reached only a long way round (a trainer just off a bank the
+-- grid does not step down from) is walked to within this many yards, the
+-- arrival's own reach (GPS.lua ARRIVE.spot), when that is far shorter.
+-- Only then: a floor under an upstairs trainer is near too.
+local GOAL_NEAR = 8
+local goalOpts = { near = GOAL_NEAR }
 
 -- A walk's seconds on the walking grid by the cost it is chosen by (the
 -- chosen route's walks are timed by their real path afterwards), and its
@@ -358,7 +364,7 @@ local BOARD, BOARD_NEAR = { near = 40 }, 600
 local function PriceWalk(g, i, j, room)
     local key = i * WALK_KEY + j
     local sec = g.walkSec[key]
-    if sec then return sec, g.walkWind[key] end
+    if sec then return sec, g.walkWind[key], g.walkNear[key] end
     local a, b = g.nodes[i].p, g.nodes[j].p
     local straight = Dist(a, b)
     local wind
@@ -381,6 +387,16 @@ local function PriceWalk(g, i, j, room)
             cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy,
                                           limit and { near = BOARD.near, limit = limit } or BOARD)
         end
+        if j == g.goal and (not cost or cost > 2 * straight + 50) then
+            goalOpts.limit = limit
+            local nc, nb, nt = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, goalOpts)
+            if nc and (not cost or (nc * 2 < cost and cost - nc > 100)) then
+                cost, beyond, time = nc, nb, nt
+                g.walkNear[key] = GOAL_NEAR
+            elseif not cost and nb then
+                beyond = true
+            end
+        end
         if cost then
             -- Chosen by its cost, timed by its time (yards walked, swimming slower).
             sec, wind = g.mountUp + time / g.travelSpeed, time / straight
@@ -395,7 +411,7 @@ local function PriceWalk(g, i, j, room)
         sec = TravelCost(g, straight)
     end
     g.walkSec[key], g.walkWind[key] = sec, wind
-    return sec, wind
+    return sec, wind, g.walkNear[key]
 end
 
 -- A walk step's way drawn and kept, when it has one: the arrow follows
@@ -403,7 +419,7 @@ end
 local function DrawWalk(s, a)
     local b = s.go or s.arrive
     if s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci and Dist(a, b) > 5 then
-        Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy)
+        Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy, nil, s.near)
     end
 end
 
@@ -589,7 +605,7 @@ local function PathSeconds(g, path)
     for i = 1, #path do
         local e = path[i].edge
         if g.nav and e.kind == "travel" then
-            e.sec, e.wind = PriceWalk(g, i > 1 and path[i - 1].node or g.start, path[i].node)
+            e.sec, e.wind, e.near = PriceWalk(g, i > 1 and path[i - 1].node or g.start, path[i].node)
         end
         total = total + e.sec + (e.pen or 0)
     end
@@ -779,7 +795,7 @@ local function Steps(g, path, goalName)
             else
                 tinsert(steps, { kind = "travel", text = (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
-                                 wind = e.wind })
+                                 wind = e.wind, near = e.near })
             end
             i = i + 1
         elseif e.kind == "taxi" then
@@ -1297,9 +1313,10 @@ local walkPaths, walkPathCount = {}, 0
 -- Keyed under the grid's settings too (Nav.epoch): a way drawn around the
 -- dangers of one route stays good once those settings come back, and the
 -- other ways' trials in between never throw the shown route's ways out.
-local function WalkKey(ci, sx, sy, tx, ty)
+local function WalkKey(ci, sx, sy, tx, ty, near)
     local Nav = ns.GPSNav
     return (Nav and Nav.epoch or 0) .. ":" .. ci .. ":" .. mfloor(sx) .. ":" .. mfloor(sy) .. ":" .. mfloor(tx) .. ":" .. mfloor(ty)
+        .. (near and (":n" .. near) or "")
 end
 
 local function KeepPath(key, path)
@@ -1311,14 +1328,15 @@ end
 -- so far), len (yards walked), time (running yards: swimming takes longer) },
 -- false when no way leads there, nil without walking data for ci. lazy:
 -- nil too when it is not drawn yet; the planner draws, everything else
--- asks lazily and is told when it is there.
-function Route.WalkPath(ci, sx, sy, tx, ty, lazy)
+-- asks lazily and is told when it is there. near: it ends within that many
+-- yards of (tx, ty), as its step was priced (step.near).
+function Route.WalkPath(ci, sx, sy, tx, ty, lazy, near)
     local Nav = ns.GPSNav
     if not (Nav and Nav.Ensure(ci)) then return nil end
-    local key = WalkKey(ci, sx, sy, tx, ty)
+    local key = WalkKey(ci, sx, sy, tx, ty, near)
     local path = walkPaths[key]
     if path == nil and not lazy then
-        local pts, _, time = Nav.Path(ci, sx, sy, tx, ty)
+        local pts, _, time = Nav.Path(ci, sx, sy, tx, ty, near and { near = near } or nil)
         if pts then
             local cum = { 0 }
             for v = 2, #pts / 2 do
@@ -1336,7 +1354,7 @@ end
 -- The stretch of a drawn walk from `from` to `stop` yards along it, between
 -- (sx, sy) and (ex, ey), kept as the walk between those: a piece of a split
 -- walk is then followed and drawn without a search of its own.
-local function KeepStretch(ci, path, from, stop, sx, sy, ex, ey)
+local function KeepStretch(ci, path, from, stop, sx, sy, ex, ey, near)
     local pts, cum = path.pts, path.cum
     local out, ocum = { sx, sy }, { 0 }
     for v = 1, #pts / 2 do
@@ -1347,7 +1365,7 @@ local function KeepStretch(ci, path, from, stop, sx, sy, ex, ey)
     end
     out[#out + 1], out[#out + 2] = ex, ey
     ocum[#ocum + 1] = stop - from
-    KeepPath(WalkKey(ci, sx, sy, ex, ey), { pts = out, cum = ocum, len = stop - from,
+    KeepPath(WalkKey(ci, sx, sy, ex, ey, near), { pts = out, cum = ocum, len = stop - from,
                                              time = path.time * (stop - from) / mmax(1, path.len) })
 end
 
@@ -1369,7 +1387,7 @@ local function WalkPieces(step, from, data, env, first)
     local ci, fx, fy = PointWorld(from)
     local ci2, tx, ty = PointWorld(target)
     if not (ci and ci == ci2) then return nil end
-    local path = Route.WalkPath(ci, fx, fy, tx, ty, true)
+    local path = Route.WalkPath(ci, fx, fy, tx, ty, true, step.near)
     if not path then return nil end
     local pts, cum = path.pts, path.cum
     local runs = {}
@@ -1444,13 +1462,14 @@ local function WalkPieces(step, from, data, env, first)
             local spot = { ci = ci, wx = border.x, wy = border.y, m = run.map, x = mx, y = my }
             piece.mapID, piece.x, piece.y, piece.go, piece.arrive = run.map, mx, my, spot, spot
             piece.enter = border.map
+            piece.near = nil   -- a border is reached itself
             if k < count and env.isCity and env.isCity(run.map) then
                 piece.text = (L["GPS_STEP_EXIT_FMT"]):format(run.name)
             else
                 piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, border.name)
             end
         end
-        KeepStretch(ci, path, run.at, stop, run.x, run.y, ex, ey)
+        KeepStretch(ci, path, run.at, stop, run.x, run.y, ex, ey, piece.near)
         out[k] = piece
     end
     return out

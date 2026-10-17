@@ -587,6 +587,36 @@ function tests.walk_priceTheWalk()
     H.assertTrue(math.abs(left - 500 * steps[1].wind / 7) < 0.01, "the way left winds as the whole walk does")
 end
 
+-- A spot reached only round by a far shore (a trainer just off a bank the
+-- grid does not step down from) is walked to within 8 yards when that is
+-- far shorter; a way only somewhat longer keeps the spot itself.
+function tests.walk_aSpotReachedOnlyFarRoundEndsBesideIt()
+    local _, ns, Route = fresh()
+    withNav(ns, function(sx, sy, tx, ty)
+        if math.abs(tx - 1050) < 0.01 and math.abs(ty - 1000) < 0.01 then
+            return { sx, sy, 0, 3000, 3000, 3000, tx, ty }
+        end
+        return { sx, sy, tx, ty }
+    end)
+    local d = data()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local spot = { name = "Trainer", mapID = 1, x = 0.105, y = 0.1 }
+    local steps, total = build(Route, P(1, 0, -0.005), spot, { data = d, groundSpeed = 7 })
+    H.assertEq(steps[#steps].near, 8, "the walk ends within the arrival's reach")
+    H.assertTrue(total < 1484.6 / 7 + 1, "priced the short way: " .. tostring(total))
+
+    -- From the start only, 1.4 times the line: no near end anywhere.
+    withNav(ns, function(sx, sy, tx, ty)
+        if math.abs(sx) < 0.01 and math.abs(sy + 50) < 0.01 and math.abs(tx - 1050) < 0.01 and math.abs(ty - 1000) < 0.01 then
+            return { sx, sy, 0, 1000, tx, ty }
+        end
+        return { sx, sy, tx, ty }
+    end)
+    steps = build(Route, P(1, 0, -0.005), spot, { data = d, groundSpeed = 7 })
+    H.assertNil(steps[#steps].near, "somewhat longer: the spot itself")
+end
+
 -- Without a walking grid, the straight line stands, with the 1.x detour.
 function tests.walk_noGridKeepsTheStraightPrice()
     local _, _, Route = fresh()
