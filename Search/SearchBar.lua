@@ -378,6 +378,7 @@ end
 
 function Search:CreateSearchFrame()
     searchFrame = CreateFrame("Frame", "EasyFindSearchFrame", UIParent, "BackdropTemplate")
+    -- starts shown: the bar is up from login; OnShow mirrors later shows only.
     Search.searchFrame = searchFrame
     local barH = self:GetSearchBarHeight()
     searchFrame:SetSize(250, barH)

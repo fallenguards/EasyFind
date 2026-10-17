@@ -3190,6 +3190,8 @@ function UI:EnsureEasyNotesFrame()
 
     local db = NormalizeDB()
     frame = CreateFrame("Frame", "EasyNotesFrame", UIParent)
+    -- Built hidden: a new frame starts shown, so its first open ran no OnShow.
+    frame:Hide()
     UI._notes.frame = frame
     frame:SetSize(mmax(MIN_WIDTH, db.window.w or DEFAULT_WIDTH),
                   mmax(MIN_HEIGHT, db.window.h or DEFAULT_HEIGHT))

@@ -1538,6 +1538,7 @@ local function CreateFrameOnce()
     if frame then return frame end
 
     local f = CreateFrame("Frame", "EasyFindWizard", UIParent)
+    -- starts shown: Show retints it by hand, so the first open needs no OnShow.
     f:SetSize(WIZ_W, WIZ_H)
     f:SetScale(0.88)
     f:SetPoint("CENTER")

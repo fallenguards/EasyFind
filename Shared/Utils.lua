@@ -7820,6 +7820,9 @@ local function CreateCursorMenu(globalName)
     cursorMenuCounter = cursorMenuCounter + 1
     local frameName = globalName .. "_" .. cursorMenuCounter
     local menu = CreateFrame("Frame", frameName, UIParent, "BackdropTemplate")
+    -- Made hidden: a frame starts shown, so its first Show ran no OnShow and
+    -- the first menu of each kind never heard a click outside it.
+    menu:Hide()
     menu:EnableMouse(true)
     menu:SetClampedToScreen(true)
     menu.rows = {}
