@@ -78,6 +78,14 @@ end
 
 local function SnapOn(rec) return rec.snap ~= false end
 
+-- An app's own buttons (one app each) hidden from outside while it asks:
+-- the chat hides its button while its window is open. Folders and micro
+-- menu slots stay.
+local hiddenApps = {}
+local function AppHidden(rec)
+    return rec and not rec.micro and #rec.apps == 1 and hiddenApps[rec.apps[1]] == true
+end
+
 -- Border style: "easyfind" (the search bar's thin line, as a ring),
 -- "minimap" (the ring the game's minimap buttons wear), or "none". It
 -- is shared by group, never per button: every button on the minimap
@@ -1485,7 +1493,7 @@ function ExtensionButtons:CreateButtonAt(appID, x, y)
     local btn = CreateButtonFrame(#store, rec)
     buttons[#store] = btn
     self:Refresh(btn)
-    btn:Show()
+    btn:SetShown(not AppHidden(rec))
     return btn
 end
 
@@ -1519,6 +1527,16 @@ end
 -- The newest button that holds exactly this one extension (a scripted
 -- demonstration finds the button it just made), and whether a button is
 -- still one of ours.
+function ExtensionButtons:SetAppButtonsHidden(appID, hidden)
+    hiddenApps[appID] = hidden and true or nil
+    for i = 1, #buttons do
+        local b = buttons[i]
+        if b and b.rec and not b.rec.micro and #b.rec.apps == 1 and b.rec.apps[1] == appID then
+            b:SetShown(not hidden)
+        end
+    end
+end
+
 function ExtensionButtons:FindButtonFor(appID)
     for i = #buttons, 1, -1 do
         local b = buttons[i]
@@ -1676,7 +1694,7 @@ function ExtensionButtons:Initialize()
         btn.rec = store[i]
         buttons[i] = btn
         if store[i].micro then inBar[#inBar + 1] = btn else self:Refresh(btn) end
-        btn:Show()
+        btn:SetShown(not AppHidden(store[i]))
     end
     -- Micro menu slots go in ascending order, so each lands where it was
     -- saved; then the record takes the slot it actually got.
