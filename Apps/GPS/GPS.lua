@@ -2367,17 +2367,12 @@ local function BuildPage(frame)
     frame.headRule = Rule(frame)
     frame.headRule:SetPoint("TOP", frame.clearBtn, "BOTTOM", 0, -4)
     frame.headRule:Hide()
-    -- At its foot, under a rule: GPS is experimental and where to say so,
-    -- the pop-out at the right so the trip fields above keep one width.
-    local btn = frame.popoutBtn
-    btn:ClearAllPoints()
-    btn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 8)
-    frame.popoutAtFoot = true
+    -- At its foot, under a rule: GPS is experimental and where to say so.
     local note = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.note = note
     local exp = ns.CreateFeatureTag(frame, "exp", L["TAG_EXP_TITLE"], L["GPS_EXP_TT"])
     note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12 + exp:GetWidth() + 6, 10)
-    note:SetPoint("BOTTOMRIGHT", btn, "BOTTOMLEFT", -8, 2)
+    note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
     note:SetJustifyH("LEFT")
     note:SetText(L["GPS_EXP_TT"])
     note:SetTextColor(unpack(ns.TEXT_DIM))

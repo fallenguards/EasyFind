@@ -460,9 +460,16 @@ function Editor:Refresh(route)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
         -- The first row shares its line with the header's buttons: the
-        -- window's fold and close, a pop-out button still in the header.
-        if n == 1 and self.frame.popoutBtn and not self.frame.popoutAtFoot then
-            row:SetPoint("RIGHT", self.frame.popoutBtn, "LEFT", -6, 0)
+        -- window's fold and close, the page's pop-out centered on it 6 in
+        -- from the edge (the editor stops 14 short). On the page every row
+        -- ends where the first does, 5 short of the button.
+        local btn = self.frame.popoutBtn
+        if btn then
+            if n == 1 then
+                btn:ClearAllPoints()
+                btn:SetPoint("RIGHT", self, "TOPRIGHT", 8, -rowH / 2)
+            end
+            row:SetPoint("TOPRIGHT", self, "TOPRIGHT", -(btn:GetWidth() + 5 - 8), -y)
         elseif n == 1 then
             row:SetPoint("RIGHT", self, "RIGHT", -mmax(0, (self.frame.padRight or 0) - 14), 0)
         else
@@ -517,7 +524,10 @@ function Trip.BuildEditor(frame)
     for k, v in pairs(Editor) do ed[k] = v end
     ed.frame = frame
     ed.rows, ed.stopRows, ed.orderRows, ed.dropRows = {}, {}, {}, {}
-    ed:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", 0, 0)
+    -- With the pop-out button at the first field's end, the fields start
+    -- a little left of the icon to keep their width.
+    local shift = frame.popoutBtn and 6 or 0
+    ed:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", -shift, 0)
     ed:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     ed:SetHeight(1)
     frame.title:Hide()
@@ -576,15 +586,15 @@ function Trip.BuildEditor(frame)
     -- announcement too.
     local etaH = frame.eta:GetHeight() or 12
     frame.eta:ClearAllPoints()
-    frame.eta:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 22, -4)
+    frame.eta:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 22 + shift, -4)
     frame.eta:SetPoint("RIGHT", frame.clearBtn, "LEFT", -8, 0)
     -- The link's top hangs from the editor, not the time line, whose right
     -- end is anchored to the link: the client refuses the cycle.
     frame.clearBtn:ClearAllPoints()
     frame.clearBtn:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
     frame.clearBtn:SetPoint("TOP", ed, "BOTTOM", 0, -3)
-    frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6, -(4 + etaH + (frame.listGap or 8)))
-    if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 0, -10) end
+    frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6 + shift, -(4 + etaH + (frame.listGap or 8)))
+    if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", shift, -10) end
 
     frame.trip = ed
     ed:Refresh(Route())
