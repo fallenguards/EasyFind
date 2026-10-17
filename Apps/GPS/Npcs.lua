@@ -635,6 +635,28 @@ local function TitleWord(word)
     return false
 end
 
+-- Whether every word of query names a service or starts a word of a title
+-- (repair, inn, hunter trainer): a kind of creature asked for, not one.
+function N.KindQuery(query)
+    if not Load() then return false end
+    local any = false
+    for word in sgmatch(slower(query), "%S+") do
+        if #word < MIN_QUERY then return false end
+        local kind = TitleWord(word)
+        if not kind then
+            for _, s in ipairs(ServiceWords()) do
+                if sfind(s.word, word, 1, true) == 1 then
+                    kind = true
+                    break
+                end
+            end
+        end
+        if not kind then return false end
+        any = true
+    end
+    return any
+end
+
 -- Forever's towns (ns.GPSData.binds: each inn by area id), as places a
 -- word can name; retail has none here.
 local towns
@@ -953,4 +975,5 @@ function N.DangerTiles(level, faction)
 end
 
 MapSearch.AppendNpcRows = N.Append
+MapSearch.NpcKindQuery = N.KindQuery
 MapSearch.WarmNpcRows = Load

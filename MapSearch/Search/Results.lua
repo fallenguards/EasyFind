@@ -537,6 +537,15 @@ end
 -- The main bar's @map list in the map tab's two parts: the player's zone
 -- first under "This Zone (Zone)", the rest under "Across the World", each
 -- part in its own order. entries: the bar's { data, score } rows.
+-- A query for a kind of place rather than one (inn, repair, mailbox,
+-- hunter trainer): a remembered pick stands for the nearest of its kind.
+function MapSearch:IsKindQuery(query)
+    query = slower(query or "")
+    local _, _, exact = self:GetCategoryMatch(query)
+    if exact then return true end
+    return self.NpcKindQuery ~= nil and self.NpcKindQuery(query)
+end
+
 local splitHere, splitThere = {}, {}
 function MapSearch:SplitUIRowsByZone(entries)
     local zone = GetBestMapForUnit("player")
@@ -702,7 +711,7 @@ function MapSearch:SearchForUI(query)
             reuseUISearchResultData[ri] = d
         end
         FillUIRow(d, r, searchMapID, query)
-        d.mapRank = ri
+        d.mapRank, d.mapNear = ri, nearOf[r] or FAR
         local out = results[ri]
         if not out then
             out = {}

@@ -576,6 +576,18 @@ function Learned:RecordPick(data, typedQuery)
         picks[1] = { key = rec.key, n = rec.n, at = rec.at, w = rec.w, snapshot = rec.snapshot }
         for i = 1, #(rec.prev or {}) do picks[#picks + 1] = rec.prev[i] end
     end
+    -- A pick for a kind of place stands for the nearest of its kind, so
+    -- one is kept per kind: the query's others of it go.
+    local kind = data.mapSearchResult and data.category and ns.MapSearch and ns.MapSearch.IsKindQuery
+        and ns.MapSearch:IsKindQuery(query) and data.category
+    if kind then
+        for i = #picks, 1, -1 do
+            local s = picks[i].snapshot
+            if picks[i].key ~= key and s and s.mapSearchResult and s.category == kind then
+                table.remove(picks, i)
+            end
+        end
+    end
     local made
     for i = 1, #picks do
         if picks[i].key == key then made = picks[i] break end

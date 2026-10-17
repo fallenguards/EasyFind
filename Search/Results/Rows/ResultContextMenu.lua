@@ -194,9 +194,11 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
     -- text before (a misclick, or a habit that changed). Drops it from the
     -- query's remembered picks and repaints, so it is back in its natural
     -- place before the menu has faded. Shown only on remembered rows.
-    if ns.Learned and ns.Learned.FindPick and ns.Learned:FindPick(pinData, Search:GetTypedQuery()) then
+    -- A row standing in for a pick of its kind (the nearest inn) forgets that pick.
+    local pickData = pinData.learnedFrom or pinData
+    if ns.Learned and ns.Learned.FindPick and ns.Learned:FindPick(pickData, Search:GetTypedQuery()) then
         extra.onForgetPick = function()
-            if not ns.Learned:Forget(pinData, Search:GetTypedQuery()) then return end
+            if not ns.Learned:Forget(pickData, Search:GetTypedQuery()) then return end
             local editBox = Search:GetSearchFrame() and Search:GetSearchFrame().editBox
             local text = editBox and editBox:GetText() or ""
             if text ~= "" then Search:OnSearchTextChanged(text, true) end

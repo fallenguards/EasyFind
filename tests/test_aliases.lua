@@ -374,6 +374,33 @@ function tests.learned_recordAndBoost()
     ns.Database.uiSearchData = nil
 end
 
+-- A pick for a kind of place (inn) stands for the nearest of its kind: a
+-- second innkeeper picked replaces the first, a name query keeps both.
+function tests.learned_kindPickKeepsOnePerKind()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local function keeper(name, mapID)
+        return { name = name, nameLower = name:lower(), category = "npc", mapSearchResult = true,
+                 mapID = mapID, x = 0.5, y = 0.5 }
+    end
+    local far, near = keeper("Allison", 1453), keeper("Shaussiy", 1439)
+    ns.MapSearch = { IsKindQuery = function(_, q) return q == "inn" end }
+    ns.Learned:RecordPick(far, "inn")
+    env._clock:advance(60)
+    ns.Learned:RecordPick(near, "inn")
+    local first, others = ns.Learned:GetBoost("inn")
+    H.assertEq(first.name, "Shaussiy")
+    H.assertNil(others, "the earlier innkeeper went: one pick per kind")
+    ns.Learned:RecordPick(far, "allison")
+    env._clock:advance(60)
+    ns.Learned:RecordPick(keeper("Allison Two", 1453), "allison")
+    first, others = ns.Learned:GetBoost("allison")
+    H.assertEq(first.name, "Allison Two")
+    H.assertEq(others and others[1].name, "Allison", "a name query keeps each pick")
+    ns.MapSearch = nil
+end
+
 function tests.entryKey_catalogItem()
     H.assertEq(Aliases:GetEntryKey({ catalogItem = true, itemID = 2077, category = "Item" }),
         "catalogitem:2077")

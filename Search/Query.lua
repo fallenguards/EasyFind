@@ -593,11 +593,30 @@ function Search:OnSearchTextChangedNow(text, force)
                 end
             end
             if learned.mapSearchResult then
-                local wrapped = {}
-                for k, v in pairs(learned) do wrapped[k] = v end
-                wrapped.query = text
-                seenMapRows[MapRowKey(wrapped)] = true
-                tinsert(results, 1, { data = wrapped, score = LEARNED_SCORE, isAlias = true })
+                -- Picked for a kind of place (inn, repair): the nearest of
+                -- its kind among this search's map rows, not the one picked
+                -- somewhere else; none of it here, no boost.
+                local src = learned
+                if ns.MapSearch.IsKindQuery and ns.MapSearch:IsKindQuery(text) then
+                    src = nil
+                    local best = math.huge
+                    for ri = 1, mapResults and #mapResults or 0 do
+                        local d = mapResults[ri].data
+                        if d and d.category == learned.category then
+                            local near = d.mapNear or math.huge
+                            if not src or near < best then src, best = d, near end
+                        end
+                    end
+                end
+                if src then
+                    local wrapped = {}
+                    for k, v in pairs(src) do wrapped[k] = v end
+                    wrapped.query = text
+                    -- The pick it stands for, for Forget this pick.
+                    wrapped.learnedFrom = learned
+                    seenMapRows[MapRowKey(wrapped)] = true
+                    tinsert(results, 1, { data = wrapped, score = LEARNED_SCORE, isAlias = true })
+                end
             elseif LearnedAllowed(learned) and not IsPromoted(promoted, learned) then
                 MarkPromoted(promoted, learned)
                 if learned.catalogItem and learned.itemID then
