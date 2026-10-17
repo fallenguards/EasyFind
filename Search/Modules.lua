@@ -280,6 +280,14 @@ function ns.RequestChat()
     return false
 end
 
+-- Once opened, the messenger loads with EasyFind itself every session, so
+-- it hears chat from the first line (one said during the loading screen
+-- was otherwise never kept). Quiet when the companion is off.
+function ns.LoadChatIfInUse()
+    if ns.Chat or not (EasyFind.db and EasyFind.db.chatInUse) then return end
+    if ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Chat") then LoadCompanion("EasyFind_Chat") end
+end
+
 do
     local loader = CreateFrame("Frame")
     loader:RegisterEvent("PLAYER_LOGIN")

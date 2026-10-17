@@ -771,6 +771,7 @@ local function OnInitialize()
     end
 
     InstallWhatsNewHyperlinkHook()
+    if ns.LoadChatIfInUse then ns.LoadChatIfInUse() end
 end
 
 local SafeAfter = Utils.SafeAfter
