@@ -2841,10 +2841,13 @@ local function PlaceDock()
     local ref = above or below or (VisibleModules(t))[1] or t.modules[1]
     local margin = ref and ref.leftMargin or 0
     local refW = ref and ref.GetWidth and ref:GetWidth() or 0
-    -- Anchored again only when the place changed: this runs four times a second.
+    -- Anchored again only when the place changed (this runs four times a
+    -- second), or when something else anchored it since (a drag's ghost
+    -- rides the window): still hung where this left it.
     local placed = dockFrame.placed
-    if placed and placed.t == t and placed.above == above and placed.pad == pad and placed.height == height
-       and placed.margin == margin and placed.refW == refW then
+    local _, hungOn = dockFrame:GetPoint(1)
+    if placed and hungOn == (above or t) and placed.t == t and placed.above == above and placed.pad == pad
+       and placed.height == height and placed.margin == margin and placed.refW == refW then
         return
     end
     placed = placed or {}
