@@ -6,6 +6,7 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
+local Utils = ns.Utils
 
 local Nav = {}
 ns.GPSNav = Nav
@@ -65,9 +66,12 @@ Nav.Pause = Pause
 
 -- Unpacking -----------------------------------------------------------------
 
-local function Unpack(s)
+-- data: the continent's table; raw set once its blobs were decoded from
+-- base64 to deflated bytes (DecodeBlobs below).
+local function Unpack(s, data)
     local E = C_EncodingUtil
     local method = Enum and Enum.CompressionMethod and Enum.CompressionMethod.Deflate or 0
+    if data and data.raw then return E.DecompressString(s, method) end
     return E.DecompressString(E.DecodeBase64(s), method)
 end
 
@@ -135,9 +139,10 @@ local BIT = { [0] = 1, 2, 4, 8, 16, 32, 64, 128 }
 -- 2-4 the west link, 5-7 the north link, 8 the road. Links, weights and
 -- the east and south ways are read out of those as asked.
 local function DecodeTile(w, key)
-    local s = w.data.tiles[key]
+    local data = w.data
+    local s = data.tiles[key]
     if not s then return nil end
-    local raw = Unpack(s)
+    local raw = Unpack(s, data)
     local N = w.N
     local NN = N * N
     local cellFirst, fcell, b = {}, {}, {}
@@ -633,7 +638,8 @@ end
 -- side 2 node 2e; a side is one number, its tile key, cell and floor packed.
 local function Entrances(w)
     if w.ents then return w.ents end
-    local u = Reader(Unpack(w.data.ents))
+    local data = w.data
+    local u = Reader(Unpack(data.ents, data))
     local n = u()
     local e = { n = n, v = {} }
     local v = e.v
@@ -658,9 +664,10 @@ end
 local function TileCosts(w, key)
     local tc = w.costs[key]
     if tc ~= nil then return tc or nil end
-    local s = (roadsOnly and w.data.roads or w.data.costs)[key]
+    local data = w.data
+    local s = (roadsOnly and data.roads or data.costs)[key]
     if not s then w.costs[key] = false return nil end
-    local u, i = Reader(Unpack(s))
+    local u, i = Reader(Unpack(s, data))
     local n = u()
     local ents = Entrances(w)
     local side, at, last = {}, {}, 0
@@ -765,10 +772,11 @@ end
 -- (no tile decoded then), else searched once and kept, as every walk from
 -- one end asks the same.
 local function End(w, x, y, indoors)
-    local spots = w.data.spots
+    local data = w.data
+    local spots = data.spots
     local s = not indoors and spots and spots[mfloor(x) .. ":" .. mfloor(y)]
     if s then
-        local u = Reader(Unpack(s))
+        local u = Reader(Unpack(s, data))
         local key, g = u(), u()
         local rk = key * 131072 + g
         local kept = w.reach[rk]
@@ -796,7 +804,8 @@ local function NearEnd(w, x, y, r, fromKey)
     local kept = w.reach[rk]
     if kept then return kept[1], kept[2], kept[3], kept[4] end
     local N, cell = w.N, w.cell
-    local baked = w.data.near and w.data.near[rk]
+    local data = w.data
+    local baked = data.near and data.near[rk]
     if baked and fromKey then
         local touches = false
         for _, cx in ipairs({ x - r, x + r }) do
@@ -806,7 +815,7 @@ local function NearEnd(w, x, y, r, fromKey)
         end
         -- Not kept: only the full search below serves every walk.
         if not touches then
-            local out, outT = Baked(Reader(Unpack(baked)))
+            local out, outT = Baked(Reader(Unpack(baked, data)))
             return out, outT, nil, nil
         end
     end
@@ -852,10 +861,11 @@ local function Other(node) return node % 2 == 1 and node + 1 or node - 1 end
 -- walk joins two grounds. false: the data does not say.
 local function Ground(w)
     if w.ground ~= nil then return w.ground end
-    local s = w.data.ground
+    local data = w.data
+    local s = data.ground
     w.ground = false
     if not s then return false end
-    local u = Reader(Unpack(s))
+    local u = Reader(Unpack(s, data))
     local out = {}
     for e = 1, u() do
         if e % 8192 == 0 then Pause() end
@@ -873,9 +883,10 @@ local onGround = {}
 -- is at least the difference of their distances from any one landmark.
 local function Landmarks(w)
     if w.alt ~= nil then return w.alt or nil end
-    local a = w.data.alt
+    local data = w.data
+    local a = data.alt
     if not a then w.alt = false return nil end
-    local _, i = Reader(Unpack(a.d))
+    local _, i = Reader(Unpack(a.d, data))
     local n = Entrances(w).n
     -- Per landmark a string, three bytes an entrance.
     local tabs, parts = {}, {}
@@ -1190,6 +1201,46 @@ function Nav.Warm(ci)
     Entrances(w)
     Ground(w)
     Landmarks(w)
+    -- A use like any walk's: Release lets the decoded tables go after an
+    -- idle minute instead of keeping them for the session.
+    w.used = GetTime()
+end
+
+-- The grid's base64 decoded once to deflated bytes, a continent at a time
+-- in slices, and the base64 let go: a quarter less resident. A new table
+-- replaces the old whole, so a reader keeps the form it started with.
+function Nav.DecodeBlobs(onDone)
+    local E = C_EncodingUtil
+    if not (E and E.DecodeBase64 and ns.GPSNavData) then return end
+    local cis = {}
+    for ci, data in pairs(ns.GPSNavData) do
+        if not data.raw then cis[#cis + 1] = ci end
+    end
+    if #cis == 0 then return end
+    Utils.RunSliced(function()
+        for _, ci in ipairs(cis) do
+            local old = ns.GPSNavData[ci]
+            local new = {}
+            for k, v in pairs(old) do
+                if type(v) == "string" then
+                    new[k] = E.DecodeBase64(v)
+                elseif type(v) == "table" then
+                    local t = {}
+                    for kk, vv in pairs(v) do
+                        t[kk] = type(vv) == "string" and E.DecodeBase64(vv) or vv
+                        Utils.SliceCheckpoint()
+                    end
+                    new[k] = t
+                else
+                    new[k] = v
+                end
+            end
+            new.raw = true
+            ns.GPSNavData[ci] = new
+            local w = worlds[ci]
+            if w then w.data = new end
+        end
+    end, onDone, 6)
 end
 
 -- Decoded data idle for age seconds goes: a tile by its last read, and a

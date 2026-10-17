@@ -2826,20 +2826,29 @@ local function PlaceDock()
     local height = dockFrame:GetHeight() or DOCK_HEADER_H
     local above, below, ins = ApplyInsert(t, db and db.gpsDockSlot or { bottom = true }, height)
     if not ins then return end
+    local pad = (not above) and (ins.provider and ((t.topModulePadding or 0) - topPad.seen) or ins.pad or 0) or 0
+    -- Inset by the left margin on both sides, as the tracker's sections. A neighbor
+    -- with content is the reference: at the top slot, the section below.
+    local ref = above or below or (VisibleModules(t))[1] or t.modules[1]
+    local margin = ref and ref.leftMargin or 0
+    local refW = ref and ref.GetWidth and ref:GetWidth() or 0
+    -- Anchored again only when the place changed: this runs four times a second.
+    local placed = dockFrame.placed
+    if placed and placed.t == t and placed.above == above and placed.pad == pad and placed.height == height
+       and placed.margin == margin and placed.refW == refW then
+        return
+    end
+    placed = placed or {}
+    placed.t, placed.above, placed.pad, placed.height, placed.margin, placed.refW = t, above, pad, height, margin, refW
+    dockFrame.placed = placed
     dockFrame:ClearAllPoints()
     if above then
         -- Inside the room at the bottom of the section above: our bottom
         -- is its extended bottom, and the next section hangs off that.
         dockFrame:SetPoint("TOP", above, "BOTTOM", 0, height)
     else
-        local pad = ins.provider and ((t.topModulePadding or 0) - topPad.seen) or ins.pad or 0
         dockFrame:SetPoint("TOP", t, "TOP", 0, -pad)
     end
-    -- Inset by the left margin on both sides, as the tracker's sections. A neighbor
-    -- with content is the reference: at the top slot, the section below.
-    local ref = above or below or (VisibleModules(t))[1] or t.modules[1]
-    local margin = ref and ref.leftMargin or 0
-    local refW = ref and ref.GetWidth and ref:GetWidth() or 0
     dockFrame:SetPoint("LEFT", t, "LEFT", margin, 0)
     if refW and refW > 0 then
         dockFrame:SetWidth(refW)   -- exactly a section's width
@@ -4611,16 +4620,32 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     end
     -- What every plan decodes first, done now in the planner's slices
     -- rather than on the session's first click.
+    -- The player's continent only; another decodes inside the plan that
+    -- needs it. Warm counts as a use, so an idle minute lets it go.
     local Nav = ns.GPSNav
     if Nav and Nav.Warm and ns.GPSNavData then
         Utils.SafeAfter(2, function()
             if GPS:IsPlanning() then return end
+            local m = C_Map.GetBestMapForUnit("player")
+            if not m then return end
+            local ok, pos = pcall(C_Map.GetPlayerMapPosition, m, "player")
+            local ci = ok and pos and WorldPos(m, pos:GetXY())
+            if not (ci and ns.GPSNavData[ci]) then return end
             GPS:Plan(nil, function()
                 Nav.yieldCo = coroutine.running()
-                for ci in pairs(ns.GPSNavData) do Nav.Warm(ci) end
+                Nav.Warm(ci)
                 Nav.yieldCo = nil
             end, function() end)
         end)
+        -- The grid's base64 decoded once, at the pre-load moment, never
+        -- under a plan (its readers hold the table they started with).
+        if Nav.DecodeBlobs then
+            local function decode()
+                if GPS:IsPlanning() then Utils.SafeAfter(5, decode) return end
+                Nav.DecodeBlobs()
+            end
+            Utils.SafeAfter(12, decode)
+        end
     end
     local route = Route()
     if not route then return end

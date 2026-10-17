@@ -185,9 +185,15 @@ function Editor:ShowHits(results)
     self.drop:SetShown(n > 0 and self.editing ~= nil)
 end
 
+-- Per-frame work only while a drag or a pending close needs it.
+function Editor:Watch()
+    self:SetScript("OnUpdate", (self.drag or self.closeAt) and self.OnUpdate or nil)
+end
+
 function Editor:Open(row)
     self.editing = row
     self.closeAt = nil
+    self:Watch()
     self.drop:ClearAllPoints()
     self.drop:SetPoint("TOPLEFT", row.box, "BOTTOMLEFT", 0, -2)
     self.drop:SetPoint("RIGHT", row.box, "RIGHT", 0, 0)
@@ -200,6 +206,7 @@ function Editor:Close()
     local row = self.editing
     self.editing = nil
     self.closeAt = nil
+    self:Watch()
     self.drop:Hide()
     if row and row.adding then self.adding = nil end
     self:Refresh(Route())
@@ -208,6 +215,7 @@ end
 -- A click on a hit comes after the field loses focus: the close waits.
 function Editor:CloseSoon()
     self.closeAt = GetTime() + 0.25
+    self:Watch()
 end
 
 function Editor:Typed(row, text)
@@ -277,12 +285,14 @@ end
 function Editor:DragStart(row)
     self.drag = row.index + 1
     self.line:Show()
+    self:Watch()
 end
 
 function Editor:DragStop()
     local i = self.drag
     self.drag = nil
     self.line:Hide()
+    self:Watch()
     if not i then return end
     local j = self:Target()
     if j > i then j = j - 1 end
@@ -360,6 +370,15 @@ local function Field(ed, i)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
     grip:SetScript("OnDragStop", function() ed:DragStop() end)
+    -- Shown while the cursor is on the row (the grip is part of it), or
+    -- while a drag holds it; no per-frame poll.
+    local function SyncGrip()
+        grip:SetShown(row.canDrag and (ed.drag == row.index + 1 or row:IsMouseOver()))
+    end
+    row:HookScript("OnEnter", SyncGrip)
+    row:HookScript("OnLeave", SyncGrip)
+    grip:SetScript("OnEnter", SyncGrip)
+    grip:SetScript("OnLeave", SyncGrip)
     if Utils.AttachDelayedTooltip then
         Utils.AttachDelayedTooltip(grip, "ANCHOR_LEFT", function() return L["GPS_TRIP_DRAG"] end)
     end
@@ -567,7 +586,6 @@ function Trip.BuildEditor(frame)
     frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6, -(4 + etaH + (frame.listGap or 8)))
     if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 0, -10) end
 
-    ed:SetScript("OnUpdate", ed.OnUpdate)
     frame.trip = ed
     ed:Refresh(Route())
 end
