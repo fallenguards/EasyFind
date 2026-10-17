@@ -253,6 +253,21 @@ function tests.aWeaponFindsByItsType()
     H.assertEq(rows[1].matchNote, "Sells Crossbows")
 end
 
+-- Found by their stock alone, vendors score alike: each carries the best
+-- item matched and no title, so the map search puts the nearest first.
+function tests.vendorsFoundByStockScoreAlike()
+    local append = fresh(nil, nil, nil, { blob = WEAPONS.blob,
+                                          names = "Refreshing Spring Water\nWorn Shortbow\nShortbow of Light" })
+    local rows = find(append, "shortbow")
+    local brog, edwin = named(rows, "Brog Hamfist"), named(rows, "Edwin VanCleef")
+    H.assertEq(brog.soldName, "Worn Shortbow", "each says what it sells")
+    H.assertEq(edwin.soldName, "Shortbow of Light")
+    H.assertEq(table.concat(brog.keywords, ","), "Shortbow of Light", "scored as the best item, no title")
+    H.assertEq(table.concat(edwin.keywords, ","), "Shortbow of Light")
+    H.assertTrue(table.concat(find(append, "brog")[1].keywords, ","):find("General Supplies", 1, true),
+        "found by name: the title is back")
+end
+
 function tests.anItemFindsInEitherLanguage()
     local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = GOODS.names,
                                           localNames = "Erfrischendes Quellwasser\nScharfer Pfeil" })

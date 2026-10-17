@@ -74,6 +74,8 @@ local N = {
     -- Weapons: per item its type (item subclass), per type the client's
     -- name; soldType[j] when the query named the type, not the item.
     goodsType = {}, typeName = {}, typeLow = {}, typeScore = {}, soldType = {},
+    -- The query's best item, and per creature whether only its stock matched.
+    bestItem = nil, byItem = {},
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
@@ -352,6 +354,7 @@ local function MatchGoods()
         soldType[matched[m]] = nil
         matched[m] = nil
     end
+    N.bestItem = nil
     if not LoadGoods() then return false end
     local typeScore = N.typeScore
     for t, low in pairs(N.typeLow) do typeScore[t] = low and WordsScore(low) or 0 end
@@ -367,6 +370,7 @@ local function MatchGoods()
         if s > 0 then
             itemScore[j] = s
             matched[#matched + 1] = j
+            if not N.bestItem or s > itemScore[N.bestItem] then N.bestItem = j end
             for _, l in ipairs(N.listsOf[j]) do
                 local best = listHit[l]
                 if not best or s > itemScore[best] or (s == itemScore[best] and #N.goodsLow[j] < #N.goodsLow[best]) then
@@ -565,22 +569,30 @@ local function Row(i, k)
     local j = N.sold[i] or nil
     local t = j and N.soldType[j]
     local soldName = j and (t and N.typeName[t] or N.goodsName[j]) or nil
+    -- Found by its stock alone: scored as the query's best item, its title
+    -- left out, as every such vendor is, so the nearest leads (not a "Staff
+    -- & Mace Merchant" across the world for quarter staff).
+    local scoredAs = N.byItem[i] and N.bestItem or nil
     local placeKey = N.placeKey
-    if poi.soldName ~= soldName or poi.placeKey ~= placeKey then
-        poi.soldName, poi.placeKey = soldName, placeKey
+    if poi.soldName ~= soldName or poi.placeKey ~= placeKey or poi.scoredAs ~= scoredAs then
+        poi.soldName, poi.placeKey, poi.scoredAs = soldName, placeKey, scoredAs
         local keywords = poi.baseKeywords
         if soldName or placeKey then
             keywords = {}
-            if soldName then
-                keywords[1] = soldName
-                if not t and N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
+            local item = scoredAs or j
+            if item then
+                local it = N.soldType[item]
+                keywords[1] = it and N.typeName[it] or N.goodsName[item]
+                if not it and N.goodsLowEnglish[item] then keywords[2] = N.goodsLowEnglish[item] end
             end
             if placeKey then
                 for w = 1, #N.words do
                     if N.wordPlace[w] then keywords[#keywords + 1] = N.words[w] end
                 end
             end
-            for w = 1, #(poi.baseKeywords or {}) do keywords[#keywords + 1] = poi.baseKeywords[w] end
+            if not scoredAs then
+                for w = 1, #(poi.baseKeywords or {}) do keywords[#keywords + 1] = poi.baseKeywords[w] end
+            end
         end
         poi.keywords, poi.kwLower, poi.searchMask = keywords, nil, nil
         poi.matchNote = soldName and sformat(ns.L["NPC_SELLS"] or "Sells %s", soldName) or nil
@@ -803,7 +815,7 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         local j = goods and sells[i] and listHit[sells[i]] or false
         if j and N.itemScore[j] < 2 then j = false end
         local byItem = false
-        if s == 0 and j then s, byItem = N.itemScore[j], true end
+        if s == 0 and j then s, byItem = N.itemScore[N.bestItem], true end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
         if s > 0 and (service or byItem) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
@@ -812,6 +824,7 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
             hits[n] = i
             score[i] = s
             sold[i] = j
+            N.byItem[i] = byItem
         end
         if c % 256 == 0 then SliceCheckpoint() end
     end
