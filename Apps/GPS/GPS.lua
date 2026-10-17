@@ -1562,7 +1562,11 @@ local function TipRow(container, i)
     row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 30, -4)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
-    row:SetScript("OnClick", TipClick)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, button)
+        if button ~= "RightButton" then return TipClick(self) end
+        if container.ShowMenu then container.ShowMenu() end
+    end)
     row:SetScript("OnEnter", TipEnter)
     row:SetScript("OnLeave", GameTooltip_Hide)
     container.tips[i] = row
@@ -2977,7 +2981,11 @@ local function DockTipLine(f, i)
     row.text:SetPoint("TOPLEFT", row.dash, "TOPRIGHT", 0, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(true)
-    row:SetScript("OnClick", TipClick)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, button)
+        if button ~= "RightButton" then return TipClick(self) end
+        if f.ShowMenu then f.ShowMenu() end
+    end)
     row:SetScript("OnEnter", TipEnter)
     row:SetScript("OnLeave", GameTooltip_Hide)
     f.tipLines[i] = row
@@ -3005,9 +3013,17 @@ local function DockFromLine(f)
     reset:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
     reset:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1) end)
     reset:SetScript("OnLeave", function() label:SetTextColor(unpack(ns.TEXT_DIM)) end)
-    reset:SetScript("OnClick", function() GPS:SetStart(nil) end)
+    reset:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    reset:SetScript("OnClick", function(_, button)
+        if button ~= "RightButton" then return GPS:SetStart(nil) end
+        if f.ShowMenu then f.ShowMenu() end
+    end)
     row.reset = reset
-    row:SetScript("OnClick", function() GPS:PickStart(f) end)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(_, button)
+        if button ~= "RightButton" then return GPS:PickStart(f) end
+        if f.ShowMenu then f.ShowMenu() end
+    end)
     row:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(L["GPS_FROM_TT"], 1, 1, 1, 1, true)
@@ -3134,10 +3150,12 @@ function Look.EraLine(f, i)
     row.text:SetJustifyV("TOP")
     row.text:SetIndentedWordWrap(true)
     row:SetScript("OnClick", function(self, button)
-        if self.tip then return TipClick(self) end
-        if self.from then return GPS:PickStart(f) end
         if button == "RightButton" then
             if f.ShowMenu then f.ShowMenu() end
+        elseif self.tip then
+            TipClick(self)
+        elseif self.from then
+            GPS:PickStart(f)
         elseif self.index and IsShiftKeyDown() then
             GPS.GoToStep(self.index)
         end
@@ -3638,12 +3656,16 @@ local function BuildDock()
     title:SetTextColor(1, 0.82, 0)
     f.title = title
     -- The destination line opens the map's GPS page and lights up under the
-    -- cursor, as a quest header does. Steps keep their own click.
+    -- cursor, as a quest header does; a right-click, the section's options.
+    -- Steps keep their own click.
     local titleBtn = CreateFrame("Button", nil, f)
     titleBtn:SetAllPoints(title)
+    titleBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     titleBtn:SetScript("OnEnter", function() title:SetTextColor(1, 1, 1) end)
     titleBtn:SetScript("OnLeave", function() title:SetTextColor(1, 0.82, 0) end)
-    titleBtn:SetScript("OnClick", function() GPS:Open() end)
+    titleBtn:SetScript("OnClick", function(_, button)
+        if button == "RightButton" then ShowDockMenu() else GPS:Open() end
+    end)
     titleBtn:Hide()
     f.titleBtn = titleBtn
     -- With no route, a search box in the banner right of the name, from the

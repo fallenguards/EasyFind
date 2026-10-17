@@ -78,5 +78,28 @@ function tests.backInItsSlotAfterADrag()
     H.assertEq(rel, tracker, "back on the tracker, not on the window")
 end
 
+-- Every line of the section is a button, and a button that takes only the
+-- left click swallows the right one: each takes it and opens the menu.
+function tests.everyLineOpensTheMenuOnRightClick()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    for _, b in ipairs({
+        { "local function TipRow(" }, { "local function DockLine(" }, { "local function DockTipLine(" },
+        { "local function DockFromLine(" },
+        { "function Look.EraLine(" }, { "local eraGrip = CreateFrame", "f.eraGrip = eraGrip" },
+        { "local titleBtn = CreateFrame", "f.titleBtn = titleBtn" },
+    }) do
+        local s = assert(src:find(b[1], 1, true), b[1] .. " not in GPS.lua")
+        local e = b[2] and src:find(b[2], s, true) or src:find("\nend\r?\n", s)
+        local body = src:sub(s, assert(e, b[1] .. ": no end"))
+        local buttons = select(2, body:gsub('CreateFrame%("Button"', ""))
+        local right = select(2, body:gsub("RightButtonUp", ""))
+        H.assertTrue(right >= buttons, b[1] .. ": a button that takes no right click")
+        H.assertTrue(body:find("ShowMenu", 1, true) ~= nil or body:find("ShowDockMenu", 1, true) ~= nil,
+            b[1] .. ": no menu")
+    end
+end
+
 local pass, fail, failures = H.runSuite("GPSDock", tests)
 return { pass = pass, fail = fail, failures = failures }
