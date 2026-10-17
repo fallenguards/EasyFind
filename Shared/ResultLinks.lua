@@ -730,6 +730,10 @@ function ResultLinks:Install()
                 InsertRelink(key, name)
                 return
             end
+            if button == "RightButton" then
+                ResultLinks:ShowLinkMenu(key, text and smatch(text, "%[" .. MARKER .. ": ([^%]]-)%]"))
+                return
+            end
             if InCombatLockdown() then
                 if EasyFind and EasyFind.Print then EasyFind:Print(L["EFLINK_IN_COMBAT"]) end
                 return
@@ -755,6 +759,35 @@ end
 -- on one of ours is left to the frame's own menu.
 function ResultLinks:Linkify(text)
     return Linkify(text)
+end
+
+function ResultLinks:OpenKey(key)
+    OpenKey(key)
+end
+
+-- The first EasyFind link in a message's text: its key and name.
+function ResultLinks:FirstLink(text)
+    if not text then return nil end
+    local name, key = smatch(text, "%[" .. MARKER .. ": ([^%]]-)%]%s?{ef:([^}]+)}")
+    if name then return key, name end
+    name = smatch(text, "%[" .. MARKER .. ": ([^%]]-)%]")
+    if name then return "ui:" .. name, name end
+    return nil
+end
+
+-- A macro that runs the link, on the cursor to drop on a bar.
+function ResultLinks:CreateMacro(key, name)
+    if not (key and ns.Shortkeys and ns.Shortkeys.CreateMacro) then return end
+    local data = Resolve(key)
+    ns.Shortkeys:CreateMacro(key, data and data.name or name, data)
+end
+
+-- Right-click on a link in chat.
+function ResultLinks:ShowLinkMenu(key, name)
+    Utils.ShowCursorMenu("EasyFindLinkMenu", {
+        { text = L["CTX_CREATE_MACRO"], tooltip = L["CTX_CREATE_MACRO_TT"],
+          onClick = function() ResultLinks:CreateMacro(key, name) end },
+    }, { strata = "TOOLTIP", level = 100, rowHeight = 22, offsetX = 4, offsetY = -4 })
 end
 
 function ResultLinks:AttachHyperlinks(frame)

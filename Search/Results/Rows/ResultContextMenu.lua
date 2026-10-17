@@ -164,6 +164,12 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
     if skKey then
         extra.hasShortkey = ns.Shortkeys:Get(skKey) ~= nil
         extra.onAddShortkey = function() ns.Shortkeys:PromptForKey(pinData) end
+        -- The bar steps aside so the macro on the cursor reaches the bars.
+        extra.onCreateMacro = function()
+            if ns.Shortkeys:CreateMacro(skKey, pinData.name, pinData) and Handlers.FinishResultSelection then
+                Handlers:FinishResultSelection()
+            end
+        end
     end
     if ns.Quicklists and not pinData.quicklistID then
         extra.addQuicklistRows = ns.Quicklists:BuildAddRows(pinData)

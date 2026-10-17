@@ -369,7 +369,13 @@ function Quicklists:PromptForKey(id, onDone)
             Store.SetKey(id, nil)
             Quicklists:Changed()
             if onDone then onDone() end
-        end, id)
+        end, id, function() Quicklists:CreateMacro(id) end)
+end
+
+-- A macro that opens the list, on the cursor to drop on a bar.
+function Quicklists:CreateMacro(id)
+    local list = Store.Get(id)
+    if list and ns.Shortkeys then ns.Shortkeys:CreateMacro("quicklist:" .. tostring(id), list.name, nil, id) end
 end
 
 -- ==== changes ===============================================================

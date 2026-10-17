@@ -237,7 +237,7 @@ local function ShortkeyButtonData(self)
     local rowKey = self._rowKey
     local data = rowKey and ResolveData(rowKey)
     if not data and rowKey then
-        local info = Shortkeys:Get(rowKey)
+        local info = self._macroInfo or Shortkeys:Get(rowKey)
         data = info and info.data
     end
     return data
@@ -329,6 +329,7 @@ local function EnsureOwner()
             end
             return
         end
+        if event == "UPDATE_MACROS" then Shortkeys:PruneMacros() end
         Shortkeys:ApplyAll()
     end)
     -- Refresh secure attributes when the things they encode can change. The
@@ -435,6 +436,7 @@ function Shortkeys:ApplyAll()
         end
     end
     self._hasUnresolved = hadUnresolved
+    self:ApplyMacros()
 end
 
 -- Re-run ApplyAll only while some shortkey's provider has not loaded yet, so a
@@ -442,6 +444,191 @@ end
 -- churning every binding on each provider load once everything resolves.
 function Shortkeys:ReapplyIfPending()
     if self._hasUnresolved then self:ApplyAll() end
+end
+
+-- ==== macros ================================================================
+-- A result on an action bar without a key: its macro clicks one of these
+-- buttons, pressed then released as a key is, so it does what the row's
+-- shortkey would. A button's number never changes: the macro names it.
+local MACRO_PREFIX = "EasyFindMacro"
+local MACRO_NAME_MAX = 16
+local MACRO_FALLBACK_ICON = "Interface\\Icons\\INV_Misc_Spyglass_03"
+local macroPool = {}
+
+local function MacroStore()
+    if not (EasyFind and EasyFind.db) then return nil end
+    local store = EasyFind.db.macroButtons
+    if not store then
+        store = { nextID = 1, byID = {} }
+        EasyFind.db.macroButtons = store
+    end
+    return store
+end
+
+-- A quicklist's macro opens it; a key no row answers yet (a route, an
+-- item the bags lack) goes the way its chat link would.
+local function OnMacroButtonClick(self, button, down)
+    local info = self._macroInfo
+    if not info or InCombatLockdown() then return end
+    if info.quicklist then
+        if down and ns.Quicklists then ns.Quicklists:Toggle(info.quicklist) end
+        return
+    end
+    if not ShortkeyButtonData(self) then
+        if down and ns.ResultLinks and ns.ResultLinks.OpenKey then ns.ResultLinks:OpenKey(info.rowKey) end
+        return
+    end
+    OnShortkeyButtonClick(self, button, down)
+end
+
+local function MacroButton(id)
+    local b = macroPool[id]
+    if b then return b end
+    EnsureOwner()
+    b = CreateFrame("Button", MACRO_PREFIX .. id, owner, "SecureActionButtonTemplate")
+    b:SetSize(1, 1)
+    b:SetPoint("BOTTOMLEFT", owner, "BOTTOMLEFT", 0, 0)
+    b:RegisterForClicks("LeftButtonDown", "LeftButtonUp")
+    b:SetScript("PreClick", OnShortkeyButtonPreClick)
+    b:SetScript("PostClick", OnMacroButtonClick)
+    macroPool[id] = b
+    return b
+end
+
+-- Every macro's button armed with its row's action; a row not loaded yet
+-- arms from its snapshot, and the press re-reads it live.
+function Shortkeys:ApplyMacros()
+    local store = MacroStore()
+    if not store or InCombatLockdown() then return end
+    local Secure = ns.ResultSecureAttributes
+    for id, info in pairs(store.byID) do
+        local b = MacroButton(id)
+        b._macroInfo = info
+        b._rowKey = not info.quicklist and info.rowKey or nil
+        local data = b._rowKey and ResolveData(info.rowKey)
+        if data then
+            info.data = SnapshotData(data)
+            info.dataVer = info.data and SNAPSHOT_VER or nil
+        else
+            data = b._rowKey and info.data
+        end
+        if Secure and data and ns.ResultIcons and ns.ResultIcons:IsSecureActionResult(data) then
+            Secure.Apply(b, data)
+        elseif Secure then
+            Secure.Clear(b)
+        end
+    end
+end
+
+-- The macro clicking button id, by its place in the macro window.
+local function MacroIndexFor(id)
+    local tag = MACRO_PREFIX .. id .. " "
+    local numAccount, numChar = GetNumMacros()
+    local consts = _G["Constants"] and _G["Constants"].MacroConsts
+    local base = consts and consts.MAX_ACCOUNT_MACROS or 120
+    for i = 1, (numAccount or 0) do
+        local _, _, body = GetMacroInfo(i)
+        if body and body:find(tag, 1, true) then return i end
+    end
+    for i = base + 1, base + (numChar or 0) do
+        local _, _, body = GetMacroInfo(i)
+        if body and body:find(tag, 1, true) then return i end
+    end
+    return nil
+end
+
+-- A macro deleted in the macro window takes its button along. One on a
+-- character tab is only seen by that character.
+function Shortkeys:PruneMacros()
+    local store = EasyFind and EasyFind.db and EasyFind.db.macroButtons
+    if not store or InCombatLockdown() then return end
+    local numAccount, numChar = GetNumMacros()
+    if (numAccount or 0) + (numChar or 0) == 0 then return end
+    local here = CharKey()
+    for id, info in pairs(store.byID) do
+        if (not info.char or info.char == here) and not MacroIndexFor(id) then
+            store.byID[id] = nil
+            local b = macroPool[id]
+            if b then
+                b._macroInfo, b._rowKey = nil, nil
+                if ns.ResultSecureAttributes then ns.ResultSecureAttributes.Clear(b) end
+            end
+        end
+    end
+end
+
+-- The client takes 16 characters; a cut never splits a letter.
+local function MacroName(name)
+    name = tostring(name or "")
+    local chars = 0
+    for pos = 1, #name do
+        local c = name:byte(pos)
+        if c < 128 or c >= 192 then
+            chars = chars + 1
+            if chars > MACRO_NAME_MAX then
+                name = name:sub(1, pos - 1)
+                break
+            end
+        end
+    end
+    return name ~= "" and name or (_G["MACRO"] or "Macro")
+end
+
+local function MacroIcon(icon)
+    if type(icon) == "number" then return icon end
+    local GetFileIDFromPath = _G["GetFileIDFromPath"]
+    if not GetFileIDFromPath then return 134400 end
+    local fileID = type(icon) == "string" and GetFileIDFromPath(icon)
+    if fileID and fileID > 0 then return fileID end
+    return GetFileIDFromPath(MACRO_FALLBACK_ICON) or 134400
+end
+
+-- A row's (or a quicklist's) macro on the cursor, to drop on any bar: the
+-- one made before while it exists, else a new one on the account tab (the
+-- character tab when that is full). True once it is on the cursor.
+function Shortkeys:CreateMacro(rowKey, name, data, quicklistID)
+    local store = rowKey and MacroStore()
+    if not store then return false end
+    if InCombatLockdown() then
+        if EasyFind.Print then EasyFind:Print(ns.L["MACRO_IN_COMBAT"]) end
+        return false
+    end
+    local id
+    for eid, info in pairs(store.byID) do
+        if info.rowKey == rowKey then
+            id = eid
+            break
+        end
+    end
+    if not id then
+        id = store.nextID
+        store.nextID = id + 1
+        store.byID[id] = { rowKey = rowKey }
+    end
+    local info = store.byID[id]
+    info.name, info.quicklist = name, quicklistID
+    local snap = data and SnapshotData(data)
+    if snap then info.data, info.dataVer = snap, SNAPSHOT_VER end
+    self:ApplyMacros()
+    local index = MacroIndexFor(id)
+    if not index then
+        local button = MACRO_PREFIX .. id
+        local body = ("/click %s LeftButton 1\n/click %s LeftButton 0"):format(button, button)
+        local macroName, icon = MacroName(name), MacroIcon(data and data.icon)
+        local ok, made = pcall(CreateMacro, macroName, icon, body, nil)
+        info.char = nil
+        if not (ok and made) then
+            ok, made = pcall(CreateMacro, macroName, icon, body, true)
+            info.char = ok and made and CharKey() or nil
+        end
+        index = ok and made or nil
+    end
+    if not index then
+        if EasyFind.Print then EasyFind:Print(ns.L["MACRO_NO_ROOM"]) end
+        return false
+    end
+    PickupMacro(index)
+    return true
 end
 
 -- Capture popup: shown from the row's "Add shortkey" menu option.
@@ -663,6 +850,18 @@ local function BuildCapturePopup()
     f.combatNote:SetPoint("TOP", f.hint, "BOTTOM", 0, -6)
     f.combatNote:SetText(L["SHORTKEY_COMBAT_NOTE"])
 
+    f.macroBtn = ns.CreateModernButton(f, L["SHORTKEY_MAKE_MACRO"], 190, 22)
+    f.macroBtn:SetNormalFontObject("GameFontHighlightSmall")
+    f.macroBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    f.macroBtn:SetPoint("TOP", f.combatNote, "BOTTOM", 0, -10)
+    f.macroBtn:SetScript("OnClick", function()
+        local onMacro = f.onMacro
+        f:Hide()
+        if onMacro then onMacro() end
+    end)
+    f.macroBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["CTX_CREATE_MACRO_TT"]) end)
+    f.macroBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+
     local close = ns.CreateCloseX(f, 14)
     close:SetPoint("TOPRIGHT", -8, -8)
     close:SetScript("OnClick", function() f:Hide() end)
@@ -677,14 +876,22 @@ local function BuildCapturePopup()
         self.onClear = nil
         self.currentCombo = nil
         self.excludeListID = nil
+        self.onMacro = nil
     end)
     f:Hide()
     return f
 end
 
+-- The macro button shows when the caller has a macro to offer.
+local function ShowCapturePopup(f)
+    f.macroBtn:SetShown(f.onMacro ~= nil)
+    f:SetHeight(f.onMacro and 150 or 116)
+    f:Show()
+end
+
 -- The same capture popup for a key that is not a row's: onCombo(combo)
 -- gets the key, onClear runs on a right-click of the bind button.
-function Shortkeys:PromptForCombo(title, current, onCombo, onClear, excludeListID)
+function Shortkeys:PromptForCombo(title, current, onCombo, onClear, excludeListID, onMacro)
     if not capturePopup then capturePopup = BuildCapturePopup() end
     local f = capturePopup
     f:Hide()
@@ -692,9 +899,10 @@ function Shortkeys:PromptForCombo(title, current, onCombo, onClear, excludeListI
     f.onClear = onClear
     f.currentCombo = current
     f.excludeListID = excludeListID
+    f.onMacro = onMacro
     f.title:SetText(title or "")
     f.bindBtn:SetText(current or L["SHORTKEY_CLICK_TO_BIND"])
-    f:Show()
+    ShowCapturePopup(f)
 end
 
 function Shortkeys:PromptForKeyByKey(rowKey, name, charSpecific, data)
@@ -707,7 +915,12 @@ function Shortkeys:PromptForKeyByKey(rowKey, name, charSpecific, data)
     capturePopup.title:SetText((L["SHORTKEY_FOR"]):format(name or "?"))
     local existing = self:Get(rowKey)
     capturePopup.bindBtn:SetText((existing and existing.key) or L["SHORTKEY_CLICK_TO_BIND"])
-    capturePopup:Show()
+    capturePopup.onMacro = function()
+        if Shortkeys:CreateMacro(rowKey, name, data) and ns.ResultHandlers then
+            ns.ResultHandlers:FinishResultSelection()
+        end
+    end
+    ShowCapturePopup(capturePopup)
 end
 
 function Shortkeys:PromptForKey(data)

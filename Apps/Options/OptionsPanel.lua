@@ -4490,6 +4490,7 @@ local function BuildQuicklistsPage(ctx, page)
     local BTN_W = 20
     local KEY_W = 96
     local HOLD_W = 44
+    local MACRO_W = 50
     local HEADER_H = 14
     local HEADER_TOP = 7
     local DIVIDER_Y = HEADER_TOP + HEADER_H + 3
@@ -4571,7 +4572,15 @@ local function BuildQuicklistsPage(ctx, page)
             row.keyBtn:SetNormalFontObject("GameFontHighlightSmall")
             row.keyBtn:SetHighlightFontObject("GameFontHighlightSmall")
             row.keyBtn:SetPoint("RIGHT", row.holdCheck, "LEFT", -4, 0)
-            textRight = row.keyBtn
+            row.macroBtn = CreateModernButton(row, _G["MACRO"] or "Macro", MACRO_W, 18)
+            row.macroBtn:SetNormalFontObject("GameFontHighlightSmall")
+            row.macroBtn:SetHighlightFontObject("GameFontHighlightSmall")
+            row.macroBtn:SetPoint("RIGHT", row.keyBtn, "LEFT", -4, 0)
+            row.macroBtn:SetScript("OnEnter", function(self)
+                ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["QUICKLIST_MACRO_TT"])
+            end)
+            row.macroBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+            textRight = row.macroBtn
         end
         row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
@@ -4665,6 +4674,9 @@ local function BuildQuicklistsPage(ctx, page)
             row.keyBtn:SetText(list.key or L["SHORTKEY_CLICK_TO_BIND"])
             row.keyBtn:SetScript("OnClick", function()
                 if Quicklists then Quicklists:PromptForKey(id, RefreshQuicklistsPage) end
+            end)
+            row.macroBtn:SetScript("OnClick", function()
+                if Quicklists then Quicklists:CreateMacro(id) end
             end)
             row.holdCheck:SetChecked(list.hold and true or false)
             row.holdCheck:SetScript("OnClick", function(self)

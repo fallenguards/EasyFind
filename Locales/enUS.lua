@@ -1369,6 +1369,12 @@ L["OPT_SLOT_BACKDROP_BORDER"]           = "Backdrop border"
 -- Quicklists: named lists of results on a key
 -- =============================================================================
 L["FILTER_QUICKLISTS"]                  = "Quicklists"
+L["CTX_CREATE_MACRO"]                   = "Create macro"
+L["CTX_CREATE_MACRO_TT"]                = "A macro that does this, on your cursor: drop it on any action bar."
+L["MACRO_IN_COMBAT"]                    = "Macros can't be made in combat."
+L["MACRO_NO_ROOM"]                      = "Every macro slot is full: delete one in the macro window first."
+L["SHORTKEY_MAKE_MACRO"]                = "Make a macro instead"
+L["QUICKLIST_MACRO_TT"]                 = "A macro that opens this list, on your cursor: drop it on any action bar."
 L["CTX_ADD_QUICKLIST"]                  = "Add to quicklist"
 L["QUICKLIST_NEW"]                      = "New quicklist..."
 L["QUICKLIST_NEW_PROMPT"]               = "Name the new quicklist"

@@ -8382,6 +8382,12 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
             onClick = extra.onAddShortkey,
         }
     end
+    if extra and extra.onCreateMacro then
+        addRows[#addRows + 1] = {
+            text = _G["MACRO"] or "Macro", fullText = L["CTX_CREATE_MACRO"],
+            tooltip = L["CTX_CREATE_MACRO_TT"], onClick = extra.onCreateMacro,
+        }
+    end
     -- The exact glyph the pinned result rows wear (Utils.CreatePinGlyph),
     -- so the menu action and the row marker read as one concept; Unpin
     -- adds the red X corner badge. A clipboard history entry pins to the
