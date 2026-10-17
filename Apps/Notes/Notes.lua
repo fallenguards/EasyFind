@@ -6542,6 +6542,16 @@ local function AddShowsOnLines(tooltip, objType, objID)
     end
 end
 
+-- The same lines for another window (the chat's bubbles): whether a unit
+-- has a note to show, and its lines on a tooltip.
+function notesNS.HasUnitNote(objType, objID)
+    return EasyFind.db.notesTooltips ~= false and ShowsOnNotesFor(objType, objID) ~= nil
+end
+
+function notesNS.AddUnitNoteLines(tooltip, objType, objID)
+    AddShowsOnLines(tooltip, objType, objID)
+end
+
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
         local ok, err = pcall(function()
