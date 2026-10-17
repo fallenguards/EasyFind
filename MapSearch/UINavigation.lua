@@ -55,7 +55,7 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
             self:SetActivePinState({
                 mapID = data.mapID,
                 x = x, y = y,
-                icon = data.icon, category = data.category,
+                icon = data.icon, category = data.category, displayID = data.displayID,
                 isLocal = true,
             })
             self:RefreshAllClearButtons()
@@ -65,7 +65,7 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
             if WorldMapFrame and WorldMapFrame:GetMapID() ~= data.mapID then
                 WorldMapFrame:SetMapID(data.mapID)
             end
-            self:ShowWaypointAt(x, y, data.icon, data.category)
+            self:ShowWaypointAt(x, y, data.icon, data.category, nil, data.displayID)
             if not forceGuide and EasyFind.db.localMapDirectOpen then
                 self:TrackActivePin()
             end
