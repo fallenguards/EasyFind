@@ -836,6 +836,19 @@ function Utils.ReleaseGC(tag)
     end
 end
 
+-- A full collect at a quiet moment, in sub-millisecond steps across
+-- frames: one collect over a large shared heap was a 100 ms frame.
+function Utils.SettleGC()
+    local ticks = 600
+    local function tick()
+        ticks = ticks - 1
+        if ticks <= 0 or InCombatLockdown() then return end
+        if collectgarbage("step", 400) then return end
+        Utils.SafeAfter(0.02, tick)
+    end
+    tick()
+end
+
 function Utils.NoteSurfaceClosed(key, isOpenFn, trimFn)
     local serial = (gcSweepSerials[key] or 0) + 1
     gcSweepSerials[key] = serial
@@ -854,9 +867,7 @@ function Utils.NoteSurfaceClosed(key, isOpenFn, trimFn)
         if gcSweepSerials[key] ~= serial then return end
         if isOpenFn and isOpenFn() then return end
         if trimFn then trimFn() end
-        if not InCombatLockdown() then
-            collectgarbage("collect")
-        end
+        Utils.SettleGC()
     end)
 end
 
@@ -910,6 +921,9 @@ function Utils.CreateKeyRepeat(frame, initialDelay, fastDelay, accelDuration)
     accelDuration = accelDuration or 1.5
     local repeatKey, repeatAction, repeatNext, repeatHeld
     local repeatActive = false
+    -- The per-frame driver is a child shown only while a key repeats.
+    local driver = CreateFrame("Frame", nil, frame)
+    driver:Hide()
 
     local function Start(key, action)
         repeatKey = key
@@ -917,6 +931,7 @@ function Utils.CreateKeyRepeat(frame, initialDelay, fastDelay, accelDuration)
         repeatHeld = 0
         repeatNext = initialDelay
         repeatActive = true
+        driver:Show()
         action()
     end
     local function Stop(key)
@@ -924,11 +939,12 @@ function Utils.CreateKeyRepeat(frame, initialDelay, fastDelay, accelDuration)
             repeatActive = false
             repeatKey = nil
             repeatAction = nil
+            driver:Hide()
         end
     end
     local function IsKey(key) return repeatKey == key end
 
-    frame:HookScript("OnUpdate", function(_, elapsed)
+    driver:SetScript("OnUpdate", function(_, elapsed)
         if not repeatActive then return end
         -- Stop when the key is released. Arrow-key OnKeyUp is not reliably
         -- delivered to keyboard-enabled frames, so the OnKeyUp handlers

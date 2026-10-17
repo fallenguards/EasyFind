@@ -73,12 +73,12 @@ local dynamicProviders = {
     { key = "snippets", category = providerCategory["snippets"],        fn = "PopulateDynamicSnippets", eager = true },
     -- Never eager: pasted text and chat links must not land in normal
     -- results. Reached through @clipboard, the launcher row, and the words.
-    { key = "clipboard", category = providerCategory["clipboard"],      fn = "PopulateDynamicClipboard" },
+    { key = "clipboard", category = providerCategory["clipboard"],      fn = "PopulateDynamicClipboard", lazy = true },
     -- Notes are found by title in any search, once the companion is loaded
     -- (it loads at login as soon as there is a note).
     { key = "notes", category = providerCategory["notes"],              fn = "PopulateDynamicNotes", eager = true },
     -- Never eager: the messenger loads for the words or the filter only.
-    { key = "chat", category = providerCategory["chat"],                fn = "PopulateDynamicChat" },
+    { key = "chat", category = providerCategory["chat"],                fn = "PopulateDynamicChat", lazy = true },
     { key = "quicklists", category = providerCategory["quicklists"],    fn = "PopulateDynamicQuicklists", eager = true },
     { key = "professions", category = providerCategory["professions"],  fn = "PopulateDynamicProfessions", eager = true },
 }
@@ -448,7 +448,7 @@ function Database:LoadEagerDynamicProviders()
         if ns.SearchIndex and ns.SearchIndex.EnsureBudget then
             ns.SearchIndex:EnsureBudget(3)
         end
-        Utils.SafeAfter(0.05, function() collectgarbage("collect") end)
+        Utils.SafeAfter(0.05, function() Utils.SettleGC() end)
     end
     -- Deferred so the load lands after the login frame (which is kept light)
     -- and after the first few frames of API data settling.
@@ -474,7 +474,8 @@ function Database:LoadDeferredSyncProvidersStaggered()
         while index <= #dynamicProviders do
             local provider = dynamicProviders[index]
             index = index + 1
-            if not provider.asyncFn
+            -- lazy: reached by its words or filter only, never the chain.
+            if not provider.asyncFn and not provider.lazy
                and not (provider.loaded and not provider.dirty) then
                 RunDynamicProvider(self, provider, function()
                     -- Bounded GC step per provider: keeps the warm's peak
@@ -513,11 +514,7 @@ function Database:LoadDeferredSyncProvidersStaggered()
         -- Collect two frames out so the sweep never shares a frame with
         -- the warm's last step.
         Utils.ReleaseGC("staggeredProviders")
-        if ns.Utils and ns.Utils.SafeAfter then
-            ns.Utils.SafeAfter(0.05, function()
-                collectgarbage("collect")
-            end)
-        end
+        Utils.SafeAfter(0.05, function() Utils.SettleGC() end)
     end
     step()
 end

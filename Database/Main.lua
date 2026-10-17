@@ -1624,6 +1624,7 @@ function Database:EnrichLootStats(entry)
         -- never cache an incomplete read and cement gear out of stat search.
         if itemID then
             pendingStatEnrichment[itemID] = entry
+            if ns.OnStatEnrichmentQueued then ns.OnStatEnrichmentQueued() end
             if C_Item and C_Item.RequestLoadItemDataByID then
                 pcall(C_Item.RequestLoadItemDataByID, itemID)
             end
@@ -2753,7 +2754,8 @@ end
 -- on first use, as its filter or words ask for it.
 function Database:PopulateDynamicChat()
     RemoveEntriesByCategory("Chat")
-    if not ns.Chat and ns.RequestChat then ns.RequestChat() end
+    -- A chat never opened has nothing to find: no companion load mid-keystroke.
+    if not ns.Chat and ns.RequestChat and EasyFind.db and EasyFind.db.chatInUse then ns.RequestChat() end
     local entries = ns.Chat and ns.Chat.BuildSearchData and ns.Chat:BuildSearchData()
     if not entries then return false end
     for i = 1, #entries do

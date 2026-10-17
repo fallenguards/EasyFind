@@ -1305,7 +1305,7 @@ local function OnPlayerLogin()
     -- shown 16.6MB vs 8.2MB live; same mechanism as the post-warm collect
     -- in Database/Dynamic.lua). One settle pass once login I/O has quieted
     -- so the meter shows the real floor instead of collector debt.
-    SafeAfter(8, function() collectgarbage("collect") end)
+    SafeAfter(8, function() ns.Utils.SettleGC() end)
 
     -- LoadAddOn parses are synchronous C work that no slicing can spread
     -- (the item catalog's 6.3MB blob measured as the largest one-frame
@@ -1429,10 +1429,19 @@ end
 -- Debounced MarkDynamicCategoryDirty, one timer per category: streaming
 -- events (toy box, pet journal, faction pushes) arrive in bursts and only
 -- the settled state matters.
+-- One timer per category with a due stamp: a burst extends the stamp
+-- instead of cancelling and recreating a timer and closure per event.
 local dirtyTimers = {}
+local dirtyDue = {}
 local function MarkDirtyDebounced(category)
-    if dirtyTimers[category] then dirtyTimers[category]:Cancel() end
-    dirtyTimers[category] = C_Timer.NewTimer(1.0, function()
+    dirtyDue[category] = GetTime() + 1.0
+    if dirtyTimers[category] then return end
+    local function fire()
+        local left = dirtyDue[category] - GetTime()
+        if left > 0.05 then
+            dirtyTimers[category] = C_Timer.NewTimer(left, fire)
+            return
+        end
         dirtyTimers[category] = nil
         -- Self-echo guard, checked at fire time (rationale and trade-off
         -- documented at Database:WasProviderRecentlyRun).
@@ -1441,7 +1450,8 @@ local function MarkDirtyDebounced(category)
             return
         end
         MarkDynamicCategoryDirty(category)
-    end)
+    end
+    dirtyTimers[category] = C_Timer.NewTimer(1.0, fire)
 end
 eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
     local dirtyCategory = DIRTY_EVENT_CATEGORY[event]

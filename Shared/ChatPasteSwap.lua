@@ -33,12 +33,9 @@ loginFrame:SetScript("OnEvent", function(self)
     -- focus: no way to know every box up front, and a copy needs focus
     -- first. EasyFind's own boxes are excluded (the search box hands
     -- Ctrl+C to the row copy; the hidden clipboard box reports itself).
-    local watch = CreateFrame("Frame")
-    local lastFocus, elapsed = nil, 0
-    watch:SetScript("OnUpdate", function(_, dt)
-        elapsed = elapsed + dt
-        if elapsed < 0.1 then return end
-        elapsed = 0
+    -- A ticker, not a per-frame script: the poll is ten times a second.
+    local lastFocus
+    C_Timer.NewTicker(0.1, function()
         local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
         if focus == lastFocus then return end
         lastFocus = focus

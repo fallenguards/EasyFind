@@ -15,7 +15,7 @@ local SearchText = ns.SearchText
 local strtrim = strtrim
 local sformat = string.format
 local mfloor = Utils.mfloor
-local ssub = Utils.ssub
+local sfind = Utils.sfind
 local smatch = Utils.smatch
 local tinsert = Utils.tinsert
 local tsort = Utils.tsort
@@ -650,8 +650,11 @@ local function ResolveRecord(store, queryLower)
         for storedQuery, storedRec in pairs(store) do
             local ll, ql = #storedQuery, #queryLower
             if ll > bestLen and ll ~= ql and (ql > ll or ql >= LEARN_PREFIX_MIN) then
-                local shorter = ll < ql and ll or ql
-                if ssub(storedQuery, 1, shorter) == ssub(queryLower, 1, shorter) then
+                -- A plain find at position 1: "is a prefix", no substrings.
+                local isPrefix
+                if ll < ql then isPrefix = sfind(queryLower, storedQuery, 1, true) == 1
+                else isPrefix = sfind(storedQuery, queryLower, 1, true) == 1 end
+                if isPrefix then
                     bestLen = ll
                     rec = storedRec
                     learnedQuery = storedQuery

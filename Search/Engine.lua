@@ -8,7 +8,7 @@ local SearchText = ns.SearchText
 local Database = ns.Database
 
 local slower = SearchText.Normalize
-local ssub = Utils.ssub
+local sfind = Utils.sfind
 
 local OPTION_WORDS = {
     accessibility = true, audio = true, camera = true, chat = true, combat = true,
@@ -167,7 +167,7 @@ function Engine:HasAnyWord(ctx, lookup)
         if lookup[word] then return true end
         if #word >= 4 then
             for candidate in pairs(lookup) do
-                if #candidate >= #word and ssub(candidate, 1, #word) == word then
+                if sfind(candidate, word, 1, true) == 1 then
                     return true
                 end
             end

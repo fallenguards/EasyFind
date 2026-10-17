@@ -135,6 +135,7 @@ local carriedItemLink
 -- for genuinely-carried items; applying them to a link that never had a cursor
 -- item wipes it before the drop, which reads as an empty chat box.
 local carriedLinkCursorBacked = false
+local ArmDropWatcher   -- set with the watcher: listens only while a link is carried
 
 -- ESC must be able to put the carried item down. EasyFind holds an ESCAPE
 -- override binding while the bar has dismissable state, so the engine's own
@@ -234,10 +235,17 @@ local function EnsureItemDropRouting()
     -- editbox and wiped it: the link appeared and vanished as if backspaced.
     local pendingDrop
     local watcher = CreateFrame("Frame")
-    watcher:RegisterEvent("GLOBAL_MOUSE_DOWN")
-    watcher:RegisterEvent("GLOBAL_MOUSE_UP")
-    watcher:RegisterEvent("CURSOR_CHANGED")
+    ArmDropWatcher = function()
+        watcher:RegisterEvent("GLOBAL_MOUSE_DOWN")
+        watcher:RegisterEvent("GLOBAL_MOUSE_UP")
+        watcher:RegisterEvent("CURSOR_CHANGED")
+    end
     watcher:SetScript("OnEvent", function(_, event, button)
+        -- Nothing carried and no drop in flight: the next event lets go.
+        if not carriedItemLink and not pendingDrop then
+            watcher:UnregisterAllEvents()
+            return
+        end
         if event == "CURSOR_CHANGED" then
             if carriedLinkCursorBacked and carriedItemLink
                and not (GetCursorInfo and GetCursorInfo()) then
@@ -409,6 +417,7 @@ function Rows.InstallInteractions(resultRow, index)
         if ns.GetResultLink and (onCursor or Handlers:IsLookupRow(d)) then
             carriedItemLink = ns.GetResultLink(d)
             carriedLinkCursorBacked = onCursor and carriedItemLink ~= nil
+            if carriedItemLink and ArmDropWatcher then ArmDropWatcher() end
         end
         -- Carrying an item is dismissable state: re-arm ESC so the very next
         -- press puts it down instead of being swallowed by a stale predicate.

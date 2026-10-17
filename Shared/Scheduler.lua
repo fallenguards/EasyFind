@@ -154,7 +154,18 @@ function Scheduler:Enqueue(id)
     job.status = "queued"
     job.debounceUntil = job.spec.debounce and (self.now + job.spec.debounce) or 0
     table.insert(self.queue, id)
+    self:_ArmPump()
     return true
+end
+
+-- The pump runs only while something is queued: armed here, dropped by
+-- Step when the queue empties. A waiting job (debounce, deps) keeps it.
+function Scheduler:_ArmPump()
+    local frame = self._pumpFrame
+    if frame and not self._pumping then
+        self._pumping = true
+        frame:SetScript("OnUpdate", self._pumpFn)
+    end
 end
 
 ---Cancels all jobs whose cancelGroup matches. Pending/queued jobs are
@@ -257,7 +268,13 @@ function Scheduler:Step(elapsed, budgetSeconds)
     local startWall = budgetSeconds and wallClock() or nil
     while true do
         local id = pickReadyJob(self)
-        if not id then return end
+        if not id then
+            if self._pumping and #self.queue == 0 then
+                self._pumping = false
+                self._pumpFrame:SetScript("OnUpdate", nil)
+            end
+            return
+        end
         runJob(self, id)
         if startWall and (wallClock() - startWall) > budgetSeconds then
             return
@@ -273,9 +290,10 @@ function Scheduler:StartPump(frame)
     if self._pumpFrame then return end
     assert(frame and frame.SetScript, "Scheduler:StartPump requires a frame with SetScript")
     self._pumpFrame = frame
-    frame:SetScript("OnUpdate", function(_, dt)
+    self._pumpFn = function(_, dt)
         self:Step(dt or 0, self.budgetSeconds)
-    end)
+    end
+    if #self.queue > 0 then self:_ArmPump() end
 end
 
 -- Default singleton used by addon code; tests instantiate their own.

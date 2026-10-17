@@ -933,10 +933,16 @@ end
 local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
     if fieldWord == queryWord then return 100 end
     if sfind(fieldWord, queryWord, 1, true) == 1 then return 90 end
-    if fieldWord .. "s" == queryWord or queryWord .. "s" == fieldWord then return 82 end
+    -- The plural rule without building strings: one is the other plus s.
+    local fieldLen = #fieldWord
+    if (queryWordLen == fieldLen + 1 and sbyte(queryWord, queryWordLen) == 115
+            and sfind(queryWord, fieldWord, 1, true) == 1)
+       or (fieldLen == queryWordLen + 1 and sbyte(fieldWord, fieldLen) == 115
+            and sfind(fieldWord, queryWord, 1, true) == 1) then
+        return 82
+    end
     if sfind(fieldWord, queryWord, 1, true) then return 50 end
     if queryWordLen >= 3 then
-        local fieldLen = #fieldWord
         if fieldLen > queryWordLen and queryWordLen <= 8
            and queryWordLen / fieldLen >= 0.45
            and Database:IsSubsequence(fieldWord, queryWord, queryWordLen) then
@@ -944,7 +950,6 @@ local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
         end
     end
     if queryWordLen >= FUZZY_EDIT1_LEN and sbyte(fieldWord, 1) == sbyte(queryWord, 1) then
-        local fieldLen = #fieldWord
         local maxEdits = queryWordLen >= FUZZY_EDIT2_LEN and 2 or 1
         if fieldLen >= queryWordLen - maxEdits and fieldLen <= queryWordLen + maxEdits then
             local dist = Database:DamerauLevenshtein(fieldWord, queryWord, fieldLen, queryWordLen)

@@ -12,7 +12,7 @@ local pairs = Utils.pairs
 local InCombatLockdown = InCombatLockdown
 local GetTime = GetTime
 local slower = SearchText.Normalize
-local tinsert, tsort = Utils.tinsert, Utils.tsort
+local tinsert = Utils.tinsert
 local wipe = wipe
 
 local IsUIItemPinned = UIPins.IsPinned
@@ -133,14 +133,20 @@ local function RefreshSearchAfterItemInfo()
     pendingItemRefresh = false
     RefreshSearchAfterProviderLoad(true)
 end
-itemInfoFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-itemInfoFrame:SetScript("OnEvent", function(_, _, itemID, success)
+-- Listening only while an item's stats are awaited: the event fires for
+-- every item the client loads, all session.
+function ns.OnStatEnrichmentQueued()
+    itemInfoFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+end
+itemInfoFrame:SetScript("OnEvent", function(self, _, itemID, success)
     if not ns.Database or not ns.Database.ResolvePendingStatEnrichment then return end
     local enriched = ns.Database:ResolvePendingStatEnrichment(itemID, success)
     if enriched and not pendingItemRefresh then
         pendingItemRefresh = true
         Utils.SafeAfter(0.75, RefreshSearchAfterItemInfo)
     end
+    local pending = ns.Database._pendingStatEnrichment
+    if not (pending and next(pending)) then self:UnregisterEvent("GET_ITEM_INFO_RECEIVED") end
 end)
 
 -- The user-typed query, excluding any inline-autocomplete suffix. Every
@@ -211,6 +217,8 @@ function Search:OnSearchTextChanged(text, force)
     pendingSliceText, pendingSliceForce = text, force
     sliceHandle = Utils.RunSliced(RunPendingSearch, nil, 6)
 end
+
+local topBuf = {}   -- the top-15 selection's scratch
 
 function Search:OnSearchTextChangedNow(text, force)
     -- The search UI is dormant in combat (the bar hides at combat start
@@ -869,29 +877,33 @@ function Search:OnSearchTextChangedNow(text, force)
             } }
         end
     end
-    if #combined > 1 then tsort(combined, FlatNameLess) end
-
-    -- Hard cap on visible results. The scoring step already ranks by
-    -- relevance; everything past the cap is noise the user has to scroll
-    -- through. Pinned items aren't in this set (they only show on empty
-    -- query), so the cap is a clean top-N over the actual search match
-    -- list. 15 matches the original uiMaxResults default.
-    -- Fill the cap from the sorted list, skipping catalog rows this client
-    -- cannot resolve. Done HERE rather than in ItemSearch so the resolvable
-    -- check runs on roughly the number of rows actually shown, not on every
-    -- scored match -- a three-letter query can match thousands.
+    -- Hard cap on visible results: the scoring step already ranks by
+    -- relevance; everything past the cap is noise. Pinned items are not in
+    -- this set. The top 15 come from a bounded insertion (a full sort of
+    -- hundreds of rows cost up to half a millisecond a keystroke); catalog
+    -- rows this client cannot resolve are skipped as they would enter, so
+    -- the resolvable check runs on few rows, not on every scored match.
     local TOP_N = 15
     local kept = 0
     for ri = 1, #combined do
-        local d = combined[ri].data
-        if not (d and d.catalogItem and ns.ItemSearch
-                and not ns.ItemSearch:IsResolvable(d.itemID)) then
-            kept = kept + 1
-            combined[kept] = combined[ri]
-            if kept >= TOP_N then break end
+        local entry = combined[ri]
+        local d = entry.data
+        if kept < TOP_N or FlatNameLess(entry, topBuf[kept]) then
+            if not (d and d.catalogItem and ns.ItemSearch
+                    and not ns.ItemSearch:IsResolvable(d.itemID)) then
+                local at = kept < TOP_N and kept + 1 or kept
+                while at > 1 and FlatNameLess(entry, topBuf[at - 1]) do
+                    topBuf[at] = topBuf[at - 1]
+                    at = at - 1
+                end
+                topBuf[at] = entry
+                if kept < TOP_N then kept = kept + 1 end
+            end
         end
     end
+    for ri = 1, kept do combined[ri] = topBuf[ri] end
     for ri = #combined, kept + 1, -1 do combined[ri] = nil end
+    wipe(topBuf)
 
     -- Inline achievement results, requested above next to the search so
     -- a pending answer holds the paint; by the time this runs the rows

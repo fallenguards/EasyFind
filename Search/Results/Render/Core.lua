@@ -230,9 +230,11 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         local maxResultsH = EasyFind.db.uiResultsRows or 6
         -- The screen-fit clamp depends on where the dropdown sits, so a moved
         -- bar must invalidate the signature.
-        local frameEdge = mfloor((EasyFind.db.uiResultsAbove
-            and (resultsFrame:GetBottom() or 0)
-            or (resultsFrame:GetTop() or 0)) + 0.5)
+        -- The bar's edge, not the dropdown's own: above the bar the
+        -- dropdown's bottom moved with every row-count change and each
+        -- keystroke rendered twice.
+        local bar = Search:GetSearchFrame()
+        local frameEdge = mfloor(((bar and (EasyFind.db.uiResultsAbove and bar:GetTop() or bar:GetBottom())) or 0) + 0.5)
         local quickFilterHelp = self:IsQuickFilterSuggestionsActive() and 1 or 0
         local n = #hierarchical
         local last = self._lastRenderSig
@@ -319,12 +321,26 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if maxIconSize < (theme.iconSize or 16) then maxIconSize = theme.iconSize or 16 end
     if rowIconSize > maxIconSize then rowIconSize = maxIconSize end
 
-    resultsFrame:SetBackdrop(theme.resultsBackdrop)
-    if theme.resultsBackdropColor then
-        resultsFrame:SetBackdropColor(unpack(theme.resultsBackdropColor))
-    end
-    if theme.resultsBackdropBorderColor then
-        resultsFrame:SetBackdropBorderColor(unpack(theme.resultsBackdropBorderColor))
+    -- Once per theme generation, not per render: the backdrop never
+    -- changes between keystrokes (a theme flip bumps the generation).
+    local themeGen = ns.uiThemeGeneration or 0
+    if resultsFrame._efBackdropGen ~= themeGen or resultsFrame._efBackdropTheme ~= theme then
+        resultsFrame._efBackdropGen, resultsFrame._efBackdropTheme = themeGen, theme
+        resultsFrame:SetBackdrop(theme.resultsBackdrop)
+        if theme.resultsBackdropColor then
+            resultsFrame:SetBackdropColor(unpack(theme.resultsBackdropColor))
+        end
+        if theme.resultsBackdropBorderColor then
+            resultsFrame:SetBackdropBorderColor(unpack(theme.resultsBackdropBorderColor))
+        end
+        if theme.resultsBgAtlas then
+            resultsFrame.bgAtlasTex:SetAtlas(theme.resultsBgAtlas, false)
+            resultsFrame.bgAtlasTex:Show()
+            resultsFrame:SetClipsChildren(true)
+        else
+            resultsFrame.bgAtlasTex:Hide()
+            resultsFrame:SetClipsChildren(false)
+        end
     end
     -- Rounded search/results use one shared silhouette whether results
     -- open above or below, so the dropdown must match the bar width.
@@ -335,15 +351,6 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     else
         local customW = EasyFind.db.uiResultsWidth
         resultsFrame:SetWidth((customW and customW > 1) and customW or theme.resultsWidth)
-    end
-
-    if theme.resultsBgAtlas then
-        resultsFrame.bgAtlasTex:SetAtlas(theme.resultsBgAtlas, false)
-        resultsFrame.bgAtlasTex:Show()
-        resultsFrame:SetClipsChildren(true)
-    else
-        resultsFrame.bgAtlasTex:Hide()
-        resultsFrame:SetClipsChildren(false)
     end
 
     wipe(SCRATCH.visible)

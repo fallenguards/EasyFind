@@ -56,7 +56,7 @@ local getmetatable, rawget = getmetatable, rawget
 local SliceCheckpoint = ns.Utils.SliceCheckpoint
 
 -- Keep in sync with Database/Search.lua's fuzzy thresholds.
-local FUZZY_EDIT1_LEN, FUZZY_EDIT2_LEN = 4, 8
+local FUZZY_EDIT1_LEN, FUZZY_EDIT2_LEN = 5, 8
 local ALL_CHARS_MASK = lshift(1, 26) - 1
 
 local dirty = true

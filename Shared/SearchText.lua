@@ -114,6 +114,9 @@ function SearchText.Normalize(s)
     if not s or s == "" then return "" end
     -- ASCII fast path
     if not sfind(s, "[\128-\255]") then return sslower(s) end
+    -- No Latin-1 or Latin Extended-A lead byte: lowerCP is the identity
+    -- on everything else, so byte lowering gives the same string.
+    if not sfind(s, "[\195-\197]") then return sslower(s) end
     -- Walk codepoints, lowercase each.
     local out = {}
     local i = 1
