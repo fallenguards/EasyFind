@@ -564,7 +564,7 @@ function MapSearch:SearchForUI(query)
             RequestUISearchGlobalInstances(self)
         end
         AppendAlwaysFindableLocations(self, pois, existingNames, searchMapID)
-        if self.AppendNpcRows then self.AppendNpcRows(pois, existingNames, query) end
+        if self.AppendNpcRows then self.AppendNpcRows(pois, existingNames, query, nil, searchMapID) end
     end
 
     if #pois == 0 then return nil end

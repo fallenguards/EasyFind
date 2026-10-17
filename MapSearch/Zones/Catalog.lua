@@ -7,6 +7,7 @@ local MapUtils = ns.MapUtils
 local pairs, ipairs = Utils.pairs, Utils.ipairs
 local tinsert, tsort, tconcat, tremove = Utils.tinsert, Utils.tsort, Utils.tconcat, Utils.tremove
 local ssub, slower = Utils.ssub, Utils.slower
+local sfind, smatch = string.find, string.match
 local mmax = Utils.mmax
 local pcall, tostring = Utils.pcall, Utils.tostring
 local wipe = wipe
@@ -24,6 +25,7 @@ end
 
 local cachedWorldZones
 local worldZonePrefixIndex = {}
+local worldZoneByName = {}
 local worldZonePrefixSeen = {}
 local worldZonePrefixReady = false
 local emptyWorldZones = {}
@@ -35,6 +37,7 @@ function MapSearch:ResetWorldZoneCache()
     cachedWorldZones = nil
     zoneCacheGen = zoneCacheGen + 1
     wipe(worldZonePrefixIndex)
+    wipe(worldZoneByName)
     wipe(worldZonePrefixSeen)
     worldZonePrefixReady = false
 end
@@ -186,7 +189,8 @@ end
 
 local function BuildWorldZonePrefixIndex(zones)
     wipe(worldZonePrefixIndex)
-    local byName = {}
+    wipe(worldZoneByName)
+    local byName = worldZoneByName
     for i = 1, #zones do
         local zone = zones[i]
         zone.nameLower = zone.nameLower or slower(zone.name)
@@ -215,6 +219,40 @@ local function BuildWorldZonePrefixIndex(zones)
     end
     wipe(worldZonePrefixSeen)
     worldZonePrefixReady = true
+end
+
+-- The world zones a query word names: an abbreviation's target, a zone's
+-- whole name, or the start of it past a short first word (barrens for
+-- The Barrens, duro for Durotar). Nil before the world walk is done or
+-- when more than ZONES_NAMED_MAX match; the list is reused next call.
+local ZONES_NAMED_MAX = 8
+local zonesNamed = {}
+function MapSearch:ZonesNamed(word)
+    local zones = cachedWorldZones
+    if not zones or #word < 2 then return nil end
+    if not worldZonePrefixReady then BuildWorldZonePrefixIndex(zones) end
+    local target = ZONE_ABBREVIATIONS[word]
+    if target then return worldZoneByName[target] end
+    local bucket = worldZonePrefixIndex[ssub(word, 1, 2)]
+    if not bucket then return nil end
+    wipe(zonesNamed)
+    local prefix = #word >= 4
+    for i = 1, #bucket do
+        local zone = bucket[i]
+        local nameLower = zone.nameLower
+        local core = zone.nameCore
+        if not core then
+            core = smatch(nameLower, "^%S%S?%S? (.+)$") or nameLower
+            zone.nameCore = core
+        end
+        if nameLower == word or core == word
+           or (prefix and (sfind(nameLower, word, 1, true) == 1 or sfind(core, word, 1, true) == 1)) then
+            zonesNamed[#zonesNamed + 1] = zone
+            if #zonesNamed > ZONES_NAMED_MAX then return nil end
+        end
+    end
+    if #zonesNamed == 0 then return nil end
+    return zonesNamed
 end
 
 -- Sliced: the world walk (GetMapChildrenInfo recursion over every map)

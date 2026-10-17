@@ -12,13 +12,15 @@ if not (MapSearch and Search and Search.PreparePOI) then return end
 local sbyte, sfind, slower, sgmatch, ssub = string.byte, string.find, string.lower, string.gmatch, string.sub
 local sformat = string.format
 local mfloor, mmin = math.floor, math.min
-local tsort = table.sort
-local band, bor = bit.band, bit.bor
+local tsort, tconcat = table.sort, table.concat
+local band, bor, lshift = bit.band, bit.bor, bit.lshift
+local ZONE_ABBREVIATIONS = ns.MapUtils and ns.MapUtils.ZONE_ABBREVIATIONS or {}
 local PreparePOI = Search.PreparePOI
 local SliceCheckpoint = ns.Utils and ns.Utils.SliceCheckpoint or function() end
 
 local MIN_QUERY = 3
 local MAX_ROWS = 60     -- candidates handed to the map search's scoring
+local TOWN_RADIUS2 = 300 ^ 2   -- a town's spots: within this of its inn, in yards squared
 local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the map
 local DANGER_LEVELS = 3 -- the client's orange: three levels above
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
@@ -34,6 +36,10 @@ local SERVICES = {
     { bits = 1024, en = "ammo arrows bullets restock", key = "NPC_WORDS_AMMO" },
     { bits = 2048, en = "reagents restock", key = "NPC_WORDS_REAGENTS" },
     { bits = 8, en = "flight", key = "NPC_WORDS_FLIGHT" },
+    { bits = 16, en = "inn innkeeper", key = "NPC_WORDS_INN" },
+    { bits = 32, en = "bank banker", key = "NPC_WORDS_BANK" },
+    { bits = 64, en = "auction auctioneer", key = "NPC_WORDS_AUCTION" },
+    { bits = 128, en = "stable", key = "NPC_WORDS_STABLE" },
     { bits = 4096, en = "class trainer", key = "NPC_WORDS_CLASS_TRAINER" },
 }
 -- A trainer titled with a class's name (Hunter Trainer): no catalog role,
@@ -57,6 +63,9 @@ local N = {
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0,
+    -- Per query word whether it names a service or title (wordRole) or a
+    -- place (wordPlace); the places named and the maps of the chosen ones.
+    wordRole = {}, wordPlace = {}, placeHit = {}, placeWordsOf = {}, placeList = {}, placeWords = {}, mapSet = {},
     -- What vendors sell: per item (index j) its id and names, per stock list
     -- (index l) its items, per creature the list it sells (sells[i]).
     goodsN = nil, goodsId = {}, goodsName = {}, goodsLow = {}, goodsLowEnglish = {},
@@ -299,18 +308,21 @@ N.LoadGoods = LoadGoods
 -- Every word of the query in the item's name (either language): 3 when the
 -- name starts with the first, 2 when a word in it does, else 1; 0 when not.
 local function ItemScore(j)
-    local words, low, alt = N.words, N.goodsLow[j], N.goodsLowEnglish[j]
-    local score = 0
+    local words, wordPlace, low, alt = N.words, N.wordPlace, N.goodsLow[j], N.goodsLowEnglish[j]
+    local score, first = 0, true
     for w = 1, #words do
-        local word = words[w]
-        local at = sfind(low, word, 1, true)
-        local altAt = alt and sfind(alt, word, 1, true)
-        if not (at or altAt) then return 0 end
-        if w == 1 then
-            local s, pos = at and low or alt, at or altAt
-            if pos == 1 then score = 3
-            elseif ssub(s, pos - 1, pos - 1) == " " then score = 2
-            else score = 1 end
+        if not wordPlace[w] then
+            local word = words[w]
+            local at = sfind(low, word, 1, true)
+            local altAt = alt and sfind(alt, word, 1, true)
+            if not (at or altAt) then return 0 end
+            if first then
+                first = false
+                local s, pos = at and low or alt, at or altAt
+                if pos == 1 then score = 3
+                elseif ssub(s, pos - 1, pos - 1) == " " then score = 2
+                else score = 1 end
+            end
         end
     end
     return score
@@ -407,29 +419,33 @@ local function SpotWorld(k)
     return ci, N.spotWx[k], N.spotWy[k]
 end
 
-local function StandsOn(i, m)
+-- Whether creature i has a spot on the set's maps, within r2 of the
+-- point (continent pci, px, py) when given.
+local function Within(i, set, pci, px, py, r2)
     for k = N.first[i], N.first[i] + N.count[i] - 1 do
-        if N.spotMap[k] == m then return true end
+        if not set or set[N.spotMap[k]] then
+            if not r2 then return true end
+            local ci, wx, wy = SpotWorld(k)
+            if ci == pci and (wx - px) ^ 2 + (wy - py) ^ 2 <= r2 then return true end
+        end
     end
     return false
 end
 
--- The spot to show: on onlyMap when given, else the nearest on the
--- player's continent, else the one with the most spawns.
-local function BestSpot(i, onlyMap, pci, px, py)
+-- The spot to show: of those on the set's maps (within r2 of the point
+-- when given), the nearest to the point, else the one with the most spawns.
+local function BestSpot(i, set, pci, px, py, r2)
     local best, bestD, most, mostN
     for k = N.first[i], N.first[i] + N.count[i] - 1 do
-        local m = N.spotMap[k]
-        if onlyMap then
-            if m == onlyMap and (not most or N.spotN[k] > mostN) then most, mostN = k, N.spotN[k] end
-        else
-            if not most or N.spotN[k] > mostN then most, mostN = k, N.spotN[k] end
+        if not set or set[N.spotMap[k]] then
+            local d
             if pci then
                 local ci, wx, wy = SpotWorld(k)
-                if ci == pci then
-                    local d = (wx - px) ^ 2 + (wy - py) ^ 2
-                    if not bestD or d < bestD then best, bestD = k, d end
-                end
+                if ci == pci then d = (wx - px) ^ 2 + (wy - py) ^ 2 end
+            end
+            if not r2 or (d and d <= r2) then
+                if d and (not bestD or d < bestD) then best, bestD = k, d end
+                if not most or N.spotN[k] > mostN then most, mostN = k, N.spotN[k] end
             end
         end
     end
@@ -462,21 +478,24 @@ end
 -- the first word, 2 a word of the name does, 1 anywhere or by what it
 -- offers; 0 no match.
 local function Score(i)
-    local words, low, at, enLow, enAt = N.words, N.low, N.at, N.enLow, N.enAt
+    local words, wordPlace, low, at, enLow, enAt = N.words, N.wordPlace, N.low, N.at, N.enLow, N.enAt
     local tlow, tAlt = N.titleLow[N.title[i]], N.titleLowEnglish[N.title[i]]
-    local score = 0
+    local score, first = 0, true
     for w = 1, #words do
-        local word = words[w]
-        local p, blob, start = WordIn(low, at, i, word), low, at[i]
-        if not p and enLow then p, blob, start = WordIn(enLow, enAt, i, word), enLow, enAt[i] end
-        if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
-            and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
-            return 0
-        end
-        if w == 1 then
-            if p == start then score = 3
-            elseif p and sbyte(blob, p - 1) == 32 then score = 2
-            else score = 1 end
+        if not wordPlace[w] then
+            local word = words[w]
+            local p, blob, start = WordIn(low, at, i, word), low, at[i]
+            if not p and enLow then p, blob, start = WordIn(enLow, enAt, i, word), enLow, enAt[i] end
+            if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
+                and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
+                return 0
+            end
+            if first then
+                first = false
+                if p == start then score = 3
+                elseif p and sbyte(blob, p - 1) == 32 then score = 2
+                else score = 1 end
+            end
         end
     end
     return score
@@ -516,15 +535,25 @@ local function Row(i, k)
         PreparePOI(poi)
         N.pois[i] = poi
     end
-    -- Found by what it sells: the item rides along as a keyword so the map
-    -- search's own scoring keeps the row, and as the row's note.
+    -- Found by what it sells or where: the item and the place words typed
+    -- ride along as keywords so the map search's own scoring keeps the
+    -- row; the item is the row's note too.
     local j = N.sold[i] or nil
-    if poi.soldItem ~= j then
-        poi.soldItem = j
+    local placeKey = N.placeKey
+    if poi.soldItem ~= j or poi.placeKey ~= placeKey then
+        poi.soldItem, poi.placeKey = j, placeKey
         local keywords = poi.baseKeywords
-        if j then
-            keywords = { N.goodsName[j] }
-            if N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
+        if j or placeKey then
+            keywords = {}
+            if j then
+                keywords[1] = N.goodsName[j]
+                if N.goodsLowEnglish[j] then keywords[2] = N.goodsLowEnglish[j] end
+            end
+            if placeKey then
+                for w = 1, #N.words do
+                    if N.wordPlace[w] then keywords[#keywords + 1] = N.words[w] end
+                end
+            end
             for w = 1, #(poi.baseKeywords or {}) do keywords[#keywords + 1] = poi.baseKeywords[w] end
         end
         poi.keywords, poi.kwLower, poi.searchMask = keywords, nil, nil
@@ -584,18 +613,175 @@ local function MarkLines(blob, at, n, word)
     end
 end
 
--- Appends the creatures matching query to out (map POIs); onlyMap keeps
--- those standing on that map, and serviceMap does so for a query naming
--- only a service (repair, inn) unless the caller found a place in it.
--- True when more matched than were handed over.
-function N.Append(out, nameSet, query, onlyMap, serviceMap)
+-- Whether a word of low starts with word (hill in razor hill).
+local function WordStarts(low, word)
+    local p = sfind(low, word, 1, true)
+    while p do
+        if p == 1 or sbyte(low, p - 1) == 32 then return true end
+        p = sfind(low, word, p + 1, true)
+    end
+    return false
+end
+
+-- Whether a title's word starts with word, in either language.
+local function TitleWord(word)
+    local titleLow, titleLowEnglish = N.titleLow, N.titleLowEnglish
+    for t = 1, #titleLow do
+        if WordStarts(titleLow[t], word) or (titleLowEnglish[t] and WordStarts(titleLowEnglish[t], word)) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Forever's towns (ns.GPSData.binds: each inn by area id), as places a
+-- word can name; retail has none here.
+local towns
+local function Towns()
+    if towns then return towns end
+    towns = {}
+    local binds = ns.GPSData and ns.GPSData.binds
+    if not (binds and C_Map.GetAreaInfo) then return towns end
+    for area, p in pairs(binds) do
+        local ok, name = pcall(C_Map.GetAreaInfo, area)
+        if ok and name and p.ci then
+            towns[#towns + 1] = { town = true, low = slower(name), ci = p.ci, wx = p.wx, wy = p.wy }
+        end
+    end
+    return towns
+end
+
+-- Map m and every map inside it (a zone's cities) into set.
+local descendants = {}
+local function AddMaps(set, m)
+    set[m] = true
+    local kids = descendants[m]
+    if not kids then
+        kids = {}
+        local ok, list = pcall(C_Map.GetMapChildrenInfo, m, nil, true)
+        for _, c in ipairs(ok and list or {}) do kids[#kids + 1] = c.mapID end
+        descendants[m] = kids
+    end
+    for _, c in ipairs(kids) do set[c] = true end
+end
+
+local function Named(place, w)
+    local hit, wordsOf = N.placeHit, N.placeWordsOf
+    if not hit[place] then
+        N.placeList[#N.placeList + 1] = place
+        hit[place], wordsOf[place] = 0, 0
+    end
+    hit[place], wordsOf[place] = hit[place] + 1, bor(wordsOf[place], lshift(1, w - 1))
+end
+
+-- The place the words beside the service and title words name (org
+-- repair, inn barrens, razor hill inn): the one named by the most words,
+-- a town over a zone. N.wordPlace marks the words taken; the zones' maps
+-- fill N.mapSet, a town comes back. Nothing when every word named one.
+local function Places()
+    local words, wordRole, wordPlace = N.words, N.wordRole, N.wordPlace
+    local hit, wordsOf, list, mapSet = N.placeHit, N.placeWordsOf, N.placeList, N.mapSet
+    wipe(hit)
+    wipe(wordsOf)
+    wipe(mapSet)
+    for p = #list, 1, -1 do list[p] = nil end
+    local placeWords = 0
+    for w = 1, #words do
+        local word = words[w]
+        if not wordRole[w] then
+            local named = false
+            local prefix = #word >= 4
+            for _, t in ipairs(Towns()) do
+                if t.low == word or (prefix and WordStarts(t.low, word)) then
+                    Named(t, w)
+                    named = true
+                end
+            end
+            local zones = MapSearch.ZonesNamed and MapSearch:ZonesNamed(word)
+            for z = 1, zones and #zones or 0 do
+                Named(zones[z], w)
+                named = true
+            end
+            if named then placeWords = placeWords + 1 end
+        end
+    end
+    if placeWords == 0 or placeWords == #words then return nil end
+    local most = 0
+    for p = 1, #list do
+        if hit[list[p]] > most then most = hit[list[p]] end
+    end
+    local town, mask
+    for p = 1, #list do
+        local place = list[p]
+        if hit[place] == most and place.town then
+            town = place
+            break
+        end
+    end
+    if town then
+        mask = wordsOf[town]
+    else
+        mask = 0
+        for p = 1, #list do
+            local place = list[p]
+            if hit[place] == most then
+                AddMaps(mapSet, place.mapID)
+                mask = bor(mask, wordsOf[place])
+                -- A short first word of the zone's name typed too (the barrens).
+                for w = 1, #words do
+                    if not wordRole[w] and #words[w] <= 3 and sfind(place.nameLower or "", words[w] .. " ", 1, true) == 1 then
+                        mask = bor(mask, lshift(1, w - 1))
+                    end
+                end
+            end
+        end
+    end
+    for w = 1, #words do wordPlace[w] = band(mask, lshift(1, w - 1)) ~= 0 or nil end
+    return town, true
+end
+
+-- Scores the candidates, keeping those within the set's maps or r2 of the
+-- point, passing the filters and serving the player: hits, in no order.
+local function Keep(set, pci, px, py, r2, goods, f, horde, service)
+    local cand, hits, score = N.cand, N.hits, N.score
+    local listHit, sells, sold = N.listHit, N.sells, N.sold
+    local n = 0
+    for c = 1, #cand do
+        local i = cand[c]
+        local s = Score(i)
+        local j = false
+        if s == 0 and goods and sells[i] then
+            j = listHit[sells[i]] or false
+            if j then s = N.itemScore[j] end
+        end
+        if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
+        if s > 0 and f and not Passes(i, f, horde) then s = 0 end
+        if s > 0 and (service or j) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
+        if s > 0 then
+            n = n + 1
+            hits[n] = i
+            score[i] = s
+            sold[i] = j
+        end
+        if c % 256 == 0 then SliceCheckpoint() end
+    end
+    for j = #hits, n + 1, -1 do hits[j] = nil end
+    return n
+end
+
+-- Appends the creatures matching query to out (map POIs). onlyMap keeps
+-- those standing on that map; nearMap (the player's) does so for a query
+-- of services alone (repair, inn), everywhere when that map has none. A
+-- zone or town typed beside the services narrows to it (org repair,
+-- auberdine inn). True when more matched than were handed over.
+function N.Append(out, nameSet, query, onlyMap, nearMap)
     if not query or #query < MIN_QUERY or not Load() then return false end
-    local words, wordBits = N.words, N.wordBits
-    for w = #words, 1, -1 do words[w] = nil end
+    local words, wordBits, wordRole, wordPlace = N.words, N.wordBits, N.wordRole, N.wordPlace
+    for w = #words, 1, -1 do words[w], wordRole[w], wordPlace[w] = nil, nil, nil end
     for word in sgmatch(slower(query), "%S+") do words[#words + 1] = word end
     if #words == 0 then return false end
     -- A word naming a service: only creatures that will serve the player.
-    local service = false
+    local service, allService = false, true
     for w = 1, #words do
         local bits = 0
         if #words[w] >= MIN_QUERY then
@@ -604,29 +790,45 @@ function N.Append(out, nameSet, query, onlyMap, serviceMap)
             end
         end
         wordBits[w] = bits
-        if bits ~= 0 then service = true end
+        if bits ~= 0 then service = true else allService = false end
+        wordRole[w] = bits ~= 0 or (not ZONE_ABBREVIATIONS[words[w]] and TitleWord(words[w]))
     end
-    -- A query of services alone (repair, inn) means the ones near: the
-    -- player's map, unless the caller already narrowed it.
-    local allService = true
-    for w = 1, #words do
-        if wordBits[w] == 0 then allService = false end
+    local town, placed = Places()
+    local goods = MatchGoods()
+    if placed then
+        -- A plain name word beside the place (org thrall): no place meant.
+        for w = 1, #words do
+            if not (wordPlace[w] or wordRole[w] or goods) then
+                placed, town = false, nil
+                wipe(N.mapSet)
+                for v = 1, #words do wordPlace[v] = nil end
+                goods = MatchGoods()
+                break
+            end
+        end
     end
-    if allService and serviceMap and not onlyMap then onlyMap = serviceMap end
-    local hits, score, n = N.hits, N.score, 0
+    local placeKey
+    if placed then
+        local list = N.placeWords
+        for p = #list, 1, -1 do list[p] = nil end
+        for w = 1, #words do
+            if wordPlace[w] then list[#list + 1] = words[w] end
+        end
+        placeKey = tconcat(list, " ")
+    end
+    N.placeKey = placeKey
     local f = EasyFind.db and EasyFind.db.npcFilters
     local horde = UnitFactionGroup and UnitFactionGroup("player") == "Horde"
-    local goods = MatchGoods()
-    local listHit, sells, sold = N.listHit, N.sells, N.sold
+    local sells = N.sells
     -- Candidates: the creatures whose name, English name or title holds
     -- the longest word, those offering its service, and the vendors when
     -- an item matched; the rest can match nothing. Scoring runs on these.
     N.gen = N.gen + 1
     local cand = N.cand
     for c = #cand, 1, -1 do cand[c] = nil end
-    local lw = 1
-    for w = 2, #words do
-        if #words[w] > #words[lw] then lw = w end
+    local lw
+    for w = 1, #words do
+        if not wordPlace[w] and (not lw or #words[w] > #words[lw]) then lw = w end
     end
     local longest = words[lw]
     MarkLines(N.low, N.at, N.n, longest)
@@ -649,34 +851,38 @@ function N.Append(out, nameSet, query, onlyMap, serviceMap)
     if goods then
         for i in pairs(sells) do Mark(i) end
     end
-    for c = 1, #cand do
-        local i = cand[c]
-        local s = Score(i)
-        local j = false
-        if s == 0 and goods and sells[i] then
-            j = listHit[sells[i]] or false
-            if j then s = N.itemScore[j] end
+    -- Where to look: around the town's inn, on the zones named, on the
+    -- caller's map, or on the player's own map (and its cities) for
+    -- services alone; the nearest of equal matches first.
+    local set, r2, nearOnly
+    local pci, px, py
+    local mapSet = N.mapSet
+    if town then
+        pci, px, py, r2 = town.ci, town.wx, town.wy, TOWN_RADIUS2
+    else
+        pci, px, py = PlayerWorld()
+        if next(mapSet) then
+            set = mapSet
+        elseif onlyMap then
+            mapSet[onlyMap] = true
+            set = mapSet
+        elseif allService and nearMap then
+            AddMaps(mapSet, nearMap)
+            set, nearOnly = mapSet, true
         end
-        if s > 0 and onlyMap and not StandsOn(i, onlyMap) then s = 0 end
-        if s > 0 and f and not Passes(i, f, horde) then s = 0 end
-        if s > 0 and (service or j) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
-        if s > 0 then
-            n = n + 1
-            hits[n] = i
-            score[i] = s
-            sold[i] = j
-        end
-        if c % 256 == 0 then SliceCheckpoint() end
     end
-    for j = #hits, n + 1, -1 do hits[j] = nil end
+    local n = Keep(set, pci, px, py, r2, goods, f, horde, service)
+    if n == 0 and nearOnly then
+        wipe(mapSet)
+        set = nil
+        n = Keep(nil, pci, px, py, nil, goods, f, horde, service)
+    end
     if n == 0 then return false end
-    -- Past the cap, the nearest of equal matches get in.
-    local pci, px, py = PlayerWorld()
-    local spot, near = N.spot, N.near
+    local hits, spot, near = N.hits, N.spot, N.near
     local capped = n > MAX_ROWS
     for j = 1, n do
         local i = hits[j]
-        local k = capped and BestSpot(i, onlyMap, pci, px, py) or nil
+        local k = capped and BestSpot(i, set, pci, px, py, r2) or nil
         spot[i], near[i] = k, FAR
         if k and pci then
             local ci, wx, wy = SpotWorld(k)
@@ -686,7 +892,7 @@ function N.Append(out, nameSet, query, onlyMap, serviceMap)
     tsort(hits, HitLess)
     for j = 1, mmin(n, MAX_ROWS) do
         local i = hits[j]
-        local k = spot[i] or BestSpot(i, onlyMap, pci, px, py)
+        local k = spot[i] or BestSpot(i, set, pci, px, py, r2)
         local poi = k and Row(i, k)
         if poi and not (nameSet and nameSet[poi.nameLower]) then out[#out + 1] = poi end
     end

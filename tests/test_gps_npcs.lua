@@ -227,5 +227,68 @@ function tests.anItemFindsInEitherLanguage()
     H.assertEq(find(append, "sharp")[1].name, "Brog Hamfist", "English still finds")
 end
 
+-- Repairers on two maps, an innkeeper, a grunt named after Orgrimmar and
+-- a vendor on a third map; "org" names map 1433, Auberdine's inn is where
+-- Bea stands.
+local INN = 7 + 16 + 16 * 256
+local function places()
+    local list, names = { 5 }, {}
+    local function add(name, kind, m, x, y)
+        for _, v in ipairs({ 1, 10, 0, 0, kind, 0, 0, 1, m, xy(x, y), 1 }) do list[#list + 1] = v end
+        names[#names + 1] = name
+    end
+    add("Arnold", REPAIR, 1429, 0.9, 0.9)
+    add("Bea", REPAIR, 1433, 0.1, 0.1)
+    add("Dana", INN, 1433, 0.12, 0.1)
+    add("Orgrimmar Grunt", 7 + 16, 1429, 0.5, 0.5)
+    add("Ed", 7 + 16 + 2 * 256, 1426, 0.5, 0.5)
+    local append, _, env = fresh(nil, varints(list), table.concat(names, "\n"))
+    env.UnitFactionGroup = function() return "Alliance" end
+    local ns = env.EasyFind._ns
+    ns.MapSearch.ZonesNamed = function(_, word)
+        if word == "org" then return { { mapID = 1433, name = "Orgrimmar", nameLower = "orgrimmar" } } end
+        return nil
+    end
+    ns.GPSData = { binds = { [1] = { m = 1433, x = 0.1, y = 0.1, ci = 0, wx = 1533, wy = 100 } } }
+    env.C_Map.GetAreaInfo = function(a) return a == 1 and "Auberdine" or nil end
+    return function(query, onlyMap, nearMap)
+        local out = {}
+        append(out, {}, query, onlyMap, nearMap)
+        return out
+    end
+end
+
+function tests.servicesAloneStayOnThePlayersMap()
+    local find = places()
+    local rows = find("repair", nil, 1429)
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Arnold")
+    H.assertEq(#find("repair", nil, 1426), 2, "none on that map: everywhere")
+    H.assertEq(#find("repair"), 2, "no map given: everywhere")
+end
+
+function tests.aZoneWordNarrowsToIt()
+    local find = places()
+    local rows = find("org repair")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Bea")
+    H.assertTrue(table.concat(rows[1].keywords, ","):find("org", 1, true) ~= nil, "the word rides along")
+    H.assertEq(find("repair org")[1].name, "Bea", "in either order")
+    H.assertEq(#find("org repair", nil, 1429), 1, "the place beats the player's map")
+    H.assertEq(find("org")[1].name, "Orgrimmar Grunt", "alone it is a name")
+    local grunt = find("org grunt")
+    H.assertEq(grunt[1].name, "Orgrimmar Grunt", "beside a plain name word it is a name")
+    H.assertEq(grunt[1].mapID, 1429)
+end
+
+function tests.aTownWordNarrowsToItsInn()
+    local find = places()
+    local rows = find("auberdine repair")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Bea")
+    H.assertEq(find("auberdine inn")[1].name, "Dana", "inn is a service word")
+    H.assertEq(#find("aube inn"), 1, "a prefix names it")
+end
+
 local pass, fail, failures = H.runSuite("GPSNpcs", tests)
 return { pass = pass, fail = fail, failures = failures }
