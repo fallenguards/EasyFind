@@ -559,19 +559,24 @@ local function UrlEncode(str)
     end):gsub(" ", "+")
 end
 
-local function ShowFeedbackURL(url)
-    ns.CopyToClipboard(url)
+-- A GitHub form's link in a dialog: what it opens, the link selected for
+-- Ctrl+C. The game opens no browser.
+local function ShowFeedbackURL(url, about)
+    ns.ShowThemedDialog({
+        text = about, hasEditBox = true, editBoxDefault = url, maxLetters = 0, readOnly = true,
+        single = true, acceptText = _G["CLOSE"] or "Close",
+    })
 end
 
 local function OpenBugReport()
     local version = ns.version or "unknown"
     local url = GITHUB_ISSUES_URL .. "?template=bug_report.yml&version=" .. UrlEncode(version)
-    ShowFeedbackURL(url)
+    ShowFeedbackURL(url, L["FEEDBACK_LINK_BUG"])
 end
 
 local function OpenFeatureRequest()
     local url = GITHUB_ISSUES_URL .. "?template=feature_request.yml"
-    ShowFeedbackURL(url)
+    ShowFeedbackURL(url, L["FEEDBACK_LINK_FEATURE"])
 end
 
 function EasyFind:OpenBugReport() OpenBugReport() end
@@ -579,7 +584,7 @@ function EasyFind:OpenBugReport() OpenBugReport() end
 -- A GPS route report: the issue form with the route's line filled in.
 function EasyFind:OpenRouteReport(code)
     ShowFeedbackURL(GITHUB_ISSUES_URL .. "?template=route_report.yml&version=" .. UrlEncode(ns.version or "unknown")
-        .. "&route=" .. UrlEncode(code))
+        .. "&route=" .. UrlEncode(code), L["FEEDBACK_LINK_ROUTE"])
 end
 function EasyFind:OpenFeatureRequest() OpenFeatureRequest() end
 

@@ -5125,6 +5125,20 @@ local function EnsurePrompt()
     return prompt
 end
 
+-- "Copied" over anchor, fading as the prompt does after a copy.
+function Utils.FlashCopied(anchor)
+    local p = EnsurePrompt()
+    promptFade:Stop()
+    promptCopied = true
+    p.text:SetTextColor(ns.TooltipTextColor())
+    SizePrompt(L["COPIED"])
+    p:ClearAllPoints()
+    p:SetPoint("CENTER", anchor, "CENTER")
+    p:SetAlpha(1)
+    p:Show()
+    promptFade:Play()
+end
+
 promptClient = {
     OnCopied = function()
         promptCopied = true
@@ -5248,7 +5262,8 @@ end
 -- Themed replacement for Blizzard StaticPopup confirm/input dialogs, styled
 -- like the rest of EasyFind (StyleMenuPanel + CreateModernButton). One pooled
 -- frame. opts: { text, acceptText, cancelText, hasEditBox, editBoxDefault,
--- maxLetters, onAccept(value) }.
+-- maxLetters, onAccept(value), single (one button), readOnly (a text to
+-- copy: the box keeps it, Ctrl+C flashes Copied) }.
 local themedDialog
 
 function ns.ShowThemedDialog(opts)
@@ -5273,11 +5288,14 @@ function ns.ShowThemedDialog(opts)
         f.message._efOwnColor = true
         f.message:SetShadowColor(0, 0, 0, 0)
 
+        -- The field as the theme draws its search shells: rounded, in the
+        -- buttons' fill, painted at each show.
         local field = CreateFrame("Frame", nil, f)
         field:SetHeight(26)
-        local bg = field:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0, 0, 0, 0.45)
+        ns.CreateRoundedRectBorder(field)
+        ns.SetRoundedRectBarHeight(field, 10)
+        ns.SetRoundedRectBorderEdgeShown(field, false)
+        field._efControlFillKind = "BTN_FILL_NORMAL"
         local eb = CreateFrame("EditBox", nil, field)
         eb:SetPoint("LEFT", 8, 0)
         eb:SetPoint("RIGHT", -8, 0)
@@ -5338,6 +5356,18 @@ function ns.ShowThemedDialog(opts)
         end)
         eb:SetScript("OnEnterPressed", accept)
         eb:SetScript("OnEscapePressed", cancel)
+        -- A text to copy: typing puts it back, Ctrl+C says it landed.
+        eb:SetScript("OnTextChanged", function(self, user)
+            local o = f._opts
+            if user and o and o.readOnly then
+                self:SetText(o.editBoxDefault or "")
+                self:HighlightText()
+            end
+        end)
+        eb:SetScript("OnKeyDown", function(_, key)
+            local o = f._opts
+            if key == "C" and IsControlKeyDown() and o and o.readOnly then Utils.FlashCopied(field) end
+        end)
         -- ESC closes via the taint-free override-bind path (never
         -- UISpecialFrames); cancel is a bare hide, so this is the
         -- complete cancel path.
@@ -5380,6 +5410,8 @@ function ns.ShowThemedDialog(opts)
         f.field:ClearAllPoints()
         f.field:SetPoint("TOPLEFT", 16, -used)
         f.field:SetPoint("TOPRIGHT", -16, -used)
+        local c = ns.BTN_FILL_NORMAL
+        ns.SetRoundedRectFill(f.field, c[1], c[2], c[3], 1, true)
         f.field:Show()
         f.editBox:SetMaxLetters(opts.maxLetters or 128)
         f.editBox:SetText(opts.editBoxDefault or "")
@@ -5404,7 +5436,12 @@ function ns.ShowThemedDialog(opts)
     f.accept:ClearAllPoints()
     f.third:ClearAllPoints()
     f.cancel:ClearAllPoints()
-    if opts.thirdText then
+    f.cancel:SetShown(not opts.single)
+    if opts.single then
+        f.third:Hide()
+        f.accept:SetWidth(120)
+        f.accept:SetPoint("TOP", f, "TOP", 0, -used)
+    elseif opts.thirdText then
         -- Three across (e.g. Replace / Skip / Cancel), narrower to fit.
         f.third:SetText(opts.thirdText)
         f.third:Show()
