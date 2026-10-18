@@ -101,5 +101,61 @@ function tests.everyLineOpensTheMenuOnRightClick()
     end
 end
 
+-- GPS.MenuRows cut from GPS.lua, with a route on and the rows it calls stubbed.
+local function MenuRows()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function GPS.MenuRows(f)", 1, true), "GPS.MenuRows not in GPS.lua")
+    local _, e = src:find("\nend\r?\n", s)
+    assert(e, "end of GPS.MenuRows not found")
+    local function row(label) return function() return { kind = "check", label = label } end end
+    local GPS = {
+        WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
+        StyleRows = function() return { { kind = "title", label = "GPS_STYLE" } } end,
+    }
+    local env = setmetatable({
+        GPS = GPS,
+        L = setmetatable({}, { __index = function(_, k) return k end }),
+        ns = {
+            ResultLinks = { BuildRouteText = function() return "route link" end },
+            BuildSendLinkRows = function() return { { text = "Say" } } end,
+        },
+        Route = function() return { dest = { name = "Astaia" } } end,
+        RouteTracked = function() return false end,
+        ToggleRouteTracking = function() end,
+        DB = function() return {} end,
+        CharDB = function() return {} end,
+        PopoutSize = function() return 300 end,
+        SetPopoutSize = function() end,
+        SIZE_WIDTHS = { { 300, "GPS_SIZE_NORMAL" } },
+        SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" } },
+    }, { __index = _G })
+    assert(load(src:sub(s, e), "=GPS.lua MenuRows", "t", env))()
+    return GPS.MenuRows
+end
+
+-- The section snapped in, floating in either look, and the window: the
+-- route's actions and settings on every one, the size only on the window.
+function tests.everySurfaceHasTheSameMenu()
+    local rowsFor = MenuRows()
+    local shared = { "GPS_CLEAR", "GPS_FROM_PICK", "CTX_SEND_LINK", "GPS_REPORT",
+        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_AUTO_LEARN" }
+    for _, s in ipairs({
+        { name = "snapped in", f = { docked = true } },
+        { name = "floating", f = { floating = true, look = "game" }, style = true },
+        { name = "floating Era", f = { floating = true, look = "era" }, style = true },
+        { name = "window", f = { isPopout = true }, style = true, size = true },
+    }) do
+        local has = {}
+        for _, d in ipairs(rowsFor(s.f)) do
+            if d.label then has[d.label] = true end
+        end
+        for _, label in ipairs(shared) do H.assertTrue(has[label], s.name .. ": no " .. label) end
+        H.assertEq(has.GPS_STYLE == true, s.style == true, s.name .. ": style rows")
+        H.assertEq(has.GPS_SIZE_WIDTH == true, s.size == true, s.name .. ": width rows")
+    end
+end
+
 local pass, fail, failures = H.runSuite("GPSDock", tests)
 return { pass = pass, fail = fail, failures = failures }

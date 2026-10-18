@@ -2537,12 +2537,10 @@ ShowGameMenu = function(owner, defs)
                 end)
             elseif d.kind == "action" and d.onClick then
                 root:CreateButton(d.label, d.onClick)
-            elseif d.kind == "send" and ns.BuildSendLinkRows then
-                -- The channels, whisper and copy rows a shared result has.
-                local rows = ns.BuildSendLinkRows(d.link)
-                local sub = rows and root:CreateButton(d.label)
-                for i = 1, rows and #rows or 0 do
-                    local r = rows[i]
+            elseif d.kind == "submenu" then
+                local sub = root:CreateButton(d.label)
+                for i = 1, #d.rows do
+                    local r = d.rows[i]
                     if r.isSeparator then
                         sub:CreateDivider()
                     else
@@ -2563,7 +2561,7 @@ end
 local function HideMenus()
     if ns.HideTogglePopup then
         ns.HideTogglePopup("EasyFindGPSDockMenu")
-        ns.HideTogglePopup("EasyFindGPSSizePopup")
+        ns.HideTogglePopup("EasyFindGPSWindowMenu")
         ns.HideTogglePopup("EasyFindGPSBeaconMenu")
     end
 end
@@ -3576,43 +3574,7 @@ local function BuildDock()
     -- The section's options: on the game's own menu, as the tracker's
     -- sections have theirs; the styled popup only if that is missing.
     local function ShowDockMenu()
-            local defs = {}
-            if f.floating then
-                defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE"], onClick = function() GPS:TogglePopout(false) end }
-            else
-                defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() GPS:Undock() GPS:TogglePopout(true) end }
-                -- The section leaves the tracker; the route stays, and the window
-                -- or section returns through the map page or the app.
-                defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE_SECTION"], onClick = function()
-                    -- Closing the section ends the route with it.
-                    GPS:Clear()
-                    GPS:Undock()
-                    local c = CharDB()
-                    if c then c.popoutOpen = nil end
-                end }
-            end
-            defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end }
-            defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
-            local route = Route()
-            -- The Era look has no tracking button beside the title.
-            if f.look == "era" and route then
-                defs[#defs + 1] = { kind = "action", label = RouteTracked() and L["GPS_TRACK_OFF"] or L["GPS_TRACK_ON"],
-                    onClick = ToggleRouteTracking }
-            end
-            -- The route as a link another EasyFind user clicks to be routed there too.
-            local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
-                and ns.ResultLinks:BuildRouteText(route.dest)
-            if share then defs[#defs + 1] = { kind = "send", label = L["CTX_SEND_LINK"], link = share } end
-            defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end }
-            defs[#defs + 1] = GPS.WorldPinRow()
-            defs[#defs + 1] = GPS.SnapRow()
-            defs[#defs + 1] = GPS.AutoLearnRow()
-            -- The style is for the window outside the tracker; snapped in,
-            -- the section has one look.
-            if not f.docked then
-                defs[#defs + 1] = { kind = "separator" }
-                for _, d in ipairs(GPS.StyleRows()) do defs[#defs + 1] = d end
-            end
+            local defs = GPS.MenuRows(f)
             if ShowGameMenu(f, defs) then return end
             if not ns.ShowTogglePopup then return end
             local cx, cy = GetCursorPosition()
@@ -3933,11 +3895,70 @@ local function SetPopoutSize(w, h)
     end
 end
 
--- The cog's popup: width and height as radio rows, the menu convention.
-local function ShowSizePopup(anchor)
-    if not ns.ShowTogglePopup then return end
+-- One menu for every surface (the section, snapped in or floating, and
+-- the window): the route's actions, the settings, then the window's look.
+function GPS.MenuRows(f)
     local defs = {}
+    local route = Route()
+    if f.docked then
+        defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() GPS:Undock() GPS:TogglePopout(true) end }
+        -- Closing the section ends the route with it.
+        defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE_SECTION"], onClick = function()
+            GPS:Clear()
+            GPS:Undock()
+            local c = CharDB()
+            if c then c.popoutOpen = nil end
+        end }
+    else
+        defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE"], onClick = function() GPS:TogglePopout(false) end }
+    end
+    if route then defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end } end
+    defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
+    -- The Era look has no tracking button beside the title.
+    if f.look == "era" and route then
+        defs[#defs + 1] = { kind = "action", label = RouteTracked() and L["GPS_TRACK_OFF"] or L["GPS_TRACK_ON"],
+            onClick = ToggleRouteTracking }
+    end
+    -- The route as a link another EasyFind user clicks to be routed there too.
+    local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
+        and ns.ResultLinks:BuildRouteText(route.dest)
+    local sendRows = share and ns.BuildSendLinkRows and ns.BuildSendLinkRows(share)
+    if sendRows then defs[#defs + 1] = { kind = "submenu", label = L["CTX_SEND_LINK"], rows = sendRows } end
+    if route then defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end } end
+    defs[#defs + 1] = { kind = "separator" }
+    defs[#defs + 1] = GPS.WorldPinRow()
+    defs[#defs + 1] = GPS.SnapRow()
+    defs[#defs + 1] = GPS.AutoLearnRow()
+    -- Snapped in, the section has one look.
+    if f.docked then return defs end
+    if f.isPopout then
+        defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_BORDER"],
+            get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
+            set = function(v)
+                local db = DB()
+                -- Not "v and nil or false": that is false for both values.
+                if db then
+                    if v then db.gpsPopoutBorder = nil else db.gpsPopoutBorder = false end
+                end
+                if popoutFrame then
+                    popoutFrame:ApplyBorderShape(v)
+                    popoutFrame:Render()
+                end
+            end }
+        defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_NEXT_ONLY"],
+            get = function() local db = DB() return db and db.gpsPopoutNextOnly == true end,
+            set = function(v)
+                local db = DB()
+                if db then db.gpsPopoutNextOnly = v or nil end
+                if popoutFrame then
+                    popoutFrame.scrollOffset = 0
+                    popoutFrame:Render()
+                end
+            end }
+    end
+    defs[#defs + 1] = { kind = "separator" }
     for _, d in ipairs(GPS.StyleRows()) do defs[#defs + 1] = d end
+    if not f.isPopout then return defs end
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_WIDTH"] }
     for i = 1, #SIZE_WIDTHS do
@@ -3947,33 +3968,6 @@ local function ShowSizePopup(anchor)
             set = function() SetPopoutSize(px, (select(2, PopoutSize()))) end }
     end
     defs[#defs + 1] = { kind = "separator" }
-    defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_BORDER"],
-        get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
-        set = function(v)
-            local db = DB()
-            -- Not "v and nil or false": that is false for both values.
-            if db then
-                if v then db.gpsPopoutBorder = nil else db.gpsPopoutBorder = false end
-            end
-            if popoutFrame then
-                popoutFrame:ApplyBorderShape(v)
-                popoutFrame:Render()
-            end
-        end }
-    defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_NEXT_ONLY"],
-        get = function() local db = DB() return db and db.gpsPopoutNextOnly == true end,
-        set = function(v)
-            local db = DB()
-            if db then db.gpsPopoutNextOnly = v or nil end
-            if popoutFrame then
-                popoutFrame.scrollOffset = 0
-                popoutFrame:Render()
-            end
-        end }
-    defs[#defs + 1] = GPS.WorldPinRow()
-    defs[#defs + 1] = GPS.SnapRow()
-    defs[#defs + 1] = GPS.AutoLearnRow()
-    defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_HEIGHT"] }
     for i = 1, #SIZE_HEIGHTS do
         local px, key = SIZE_HEIGHTS[i][1], SIZE_HEIGHTS[i][2]
@@ -3981,7 +3975,7 @@ local function ShowSizePopup(anchor)
             get = function() return (select(2, PopoutSize())) or 0 end,
             set = function() SetPopoutSize((select(1, PopoutSize())), px) end }
     end
-    ns.ShowTogglePopup("EasyFindGPSSizePopup", anchor, defs, {})
+    return defs
 end
 
 local function BuildPopout()
@@ -4182,7 +4176,7 @@ local function BuildPopout()
         local scale = UIParent:GetEffectiveScale()
         menuAnchor:ClearAllPoints()
         menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
-        ShowSizePopup(menuAnchor)
+        if ns.ShowTogglePopup then ns.ShowTogglePopup("EasyFindGPSWindowMenu", menuAnchor, GPS.MenuRows(f), {}) end
     end
     f:SetScript("OnMouseUp", function(self, button)
         if button == "RightButton" then ShowWindowMenu() end

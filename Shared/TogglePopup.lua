@@ -3,7 +3,8 @@ local _, ns = ...
 -- A small themed popup of toggles beside a frame, in the filter menu's
 -- own row conventions: checkbox rows (the shared checkbox textures on a
 -- CheckButton), radio rows (the dropdown's radial bullet and tick on a
--- plain button), action rows, and separators. State never lives in the
+-- plain button), action rows, submenu rows (cursor menu rows in a flyout
+-- beside the row), and separators. State never lives in the
 -- popup: every row reads its value through `get` and writes through
 -- `set`, so the popup shows the truth each time it opens. One popup
 -- frame per `name`; check rows and plain rows are pooled separately so a
@@ -15,12 +16,14 @@ local _, ns = ...
 --       { kind = "separator" },
 --       { kind = "title", label = "..." },
 --       { kind = "action", label = "...", onClick = fn },
+--       { kind = "submenu", label = "...", rows = cursorMenuRows },
 --   }, { scale = 1, width = 180 })
 local Utils = ns.Utils
 
 local CreateFrame = CreateFrame
 local UIParent = UIParent
 local ipairs = ipairs
+local pairs = pairs
 
 local ROW_H = 22
 local PAD = 6
@@ -53,7 +56,11 @@ local function EnsurePopup(name)
     -- bar registers earlier, so the popup is on top of the ESC stack).
     Utils.AttachEscClose(popup)
     popup:HookScript("OnShow", function(self) self:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
-    popup:HookScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
+    popup:HookScript("OnHide", function(self)
+        self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
+        local fly = self.flyout
+        if fly and fly._togglePopup == self and fly:IsShown() then fly:Hide() end
+    end)
     -- Outside-click close in the menu convention: a press on the popup,
     -- on its anchor, or on a cursor menu is not "outside". The anchor's
     -- own CLICK toggles (ShowTogglePopup hides when already up for it);
@@ -71,6 +78,42 @@ local function EnsurePopup(name)
     return popup
 end
 
+-- A submenu row's rows in a cursor menu beside it, open until a click
+-- elsewhere or a hover on another row; a pick there closes the popup too.
+local function OpenFlyout(popup, row)
+    local fly = popup.flyout
+    if fly and fly:IsShown() and fly._togglePopup == popup and fly._togglePopupRow == row then return end
+    local rows = {}
+    for i, r in ipairs(row.def.rows) do
+        local onClick = r.onClick
+        if onClick then
+            local pick = {}
+            for k, v in pairs(r) do pick[k] = v end
+            pick.onClick = function()
+                popup:Hide()
+                onClick()
+            end
+            r = pick
+        end
+        rows[i] = r
+    end
+    fly = Utils.ShowCursorMenu("EasyFindTogglePopupFlyout", rows, {
+        anchorBeside = row, stayOpen = true, scale = popup:GetScale(),
+        strata = popup:GetFrameStrata(), level = popup:GetFrameLevel() + 20,
+    })
+    if fly then fly._togglePopup, fly._togglePopupRow = popup, row end
+    popup.flyout = fly
+end
+
+local function RowEntered(popup, row)
+    if row.def and row.def.kind == "submenu" then
+        OpenFlyout(popup, row)
+        return
+    end
+    local fly = popup.flyout
+    if fly and fly._togglePopup == popup and fly:IsShown() then fly:Hide() end
+end
+
 local function MakeCheckRow(popup)
     local row = CreateFrame("CheckButton", nil, popup)
     row:SetHeight(ROW_H)
@@ -82,6 +125,7 @@ local function MakeCheckRow(popup)
     row.label:SetPoint("RIGHT", row, "RIGHT", -2, 0)
     row._label = row.label
     Utils.InstallMenuRowHighlight(row)
+    row:HookScript("OnEnter", function(self) RowEntered(popup, self) end)
     row:SetScript("OnClick", function(self)
         local def = self.def
         if not def then return end
@@ -109,10 +153,13 @@ local function MakePlainRow(popup)
     row._label = row.label
     row._dimTex = { row.bullet, row.tick }
     Utils.InstallMenuRowHighlight(row)
+    row:HookScript("OnEnter", function(self) RowEntered(popup, self) end)
     row:SetScript("OnClick", function(self)
         local def = self.def
         if not def then return end
-        if def.kind == "radio" then
+        if def.kind == "submenu" then
+            OpenFlyout(popup, self)
+        elseif def.kind == "radio" then
             if def.set then def.set(def.value) end
             ns.RefreshTogglePopup(popup)
         elseif def.kind == "action" then
@@ -232,7 +279,14 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
                     popup.plainRows[nPlain] = row
                 end
                 row.label:ClearAllPoints()
-                row.label:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+                row.label:SetPoint("RIGHT", row, "RIGHT", def.kind == "submenu" and -20 or -2, 0)
+                if def.kind == "submenu" and not row.chevron then
+                    row.chevron = row:CreateTexture(nil, "OVERLAY")
+                    row.chevron:SetSize(12, 12)
+                    row.chevron:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+                    Utils.SetChevronTexture(row.chevron)
+                end
+                if row.chevron then row.chevron:SetShown(def.kind == "submenu") end
                 if def.kind == "radio" then
                     row.bullet:Show()
                     row.tick:SetShown(def.get and def.get() == def.value)
