@@ -6091,6 +6091,11 @@ local function PaintPaletteRow(row)
         end
         ns.SetRoundedRectFill(row, c[1], c[2], c[3], 1, true)
     end
+    -- The second line and the time in the theme's text color, a step
+    -- down: the dim gray read badly on the row fills.
+    local tr, tg, tb = ns.TooltipTextColor()
+    row.subtitle:SetTextColor(tr, tg, tb, 0.75)
+    row.timeText:SetTextColor(tr, tg, tb, 0.75)
     if row.actionBar then row.actionBar:SetShown(over) end
     -- Pinned notes show a gold pin even when not hovered, so pinned state is
     -- visible at a glance (the action bar only appears on hover).
@@ -6159,6 +6164,9 @@ function UI:EnsureEasyNotesPaletteRow(index)
     row.timeText = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     row.timeText:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -10, 7)
     row.timeText:SetJustifyH("RIGHT")
+    row.timeText._efOwnColor = true
+    -- A theme change repaints the row by its state (hover, selected).
+    row.RefreshVisual = PaintPaletteRow
 
     row.title = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 12, -7)
@@ -6193,6 +6201,7 @@ function UI:EnsureEasyNotesPaletteRow(index)
     end)
 
     row.subtitle = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.subtitle._efOwnColor = true
     row.subtitle:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 12, 7)
     row.subtitle:SetPoint("RIGHT", row.timeText, "LEFT", -8, 0)
     row.subtitle:SetJustifyH("LEFT")

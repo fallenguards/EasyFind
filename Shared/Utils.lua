@@ -2878,13 +2878,30 @@ end
 -- Paint fill color AND alpha, plus optionally disable pixel snapping so
 -- the texture renders at sub-pixel positions cleanly (used by buttons
 -- and cards that get color-animated, where snap can cause shimmering).
-function ns.SetRoundedRectFill(frame, r, g, b, a, snapOff)
-    if not (frame and frame.combinedBorder and frame.combinedBorder.fill) then return end
-    a = a or 1
-    for _, t in pairs(frame.combinedBorder.fill) do
-        t:SetVertexColor(r, g, b, a)
-        t:SetAlpha(a)
-        if snapOff then DisablePixelSnap(t) end
+do
+    -- The live tables a fill can be painted from, the plain button first
+    -- (the nav pills lift to the same color).
+    local TAGGED_FILLS = { "BTN_FILL_NORMAL", "BTN_FILL_HOVER", "BTN_FILL_PRESSED", "BTN_FILL_DISABLED",
+        "SECTION_TABLE_FILL", "PANEL_CARD_FILL", "EDITBOX_INSET_FILL", "CONTROL_ACCENT",
+        "NAV_SELECTED_FILL", "NAV_HOVER_FILL" }
+
+    function ns.SetRoundedRectFill(frame, r, g, b, a, snapOff)
+        if not (frame and frame.combinedBorder and frame.combinedBorder.fill) then return end
+        a = a or 1
+        -- Painted from a live theme color: the theme change repaints it from
+        -- that table (RetintControlFill); else it is classified there by color.
+        local kind
+        for i = 1, #TAGGED_FILLS do
+            local live = ns[TAGGED_FILLS[i]]
+            if live and live[1] == r and live[2] == g and live[3] == b then kind = TAGGED_FILLS[i] break end
+        end
+        frame._efControlFillKind = kind
+        if kind then frame._efControlFillAlpha = a end
+        for _, t in pairs(frame.combinedBorder.fill) do
+            t:SetVertexColor(r, g, b, a)
+            t:SetAlpha(a)
+            if snapOff then DisablePixelSnap(t) end
+        end
     end
 end
 
