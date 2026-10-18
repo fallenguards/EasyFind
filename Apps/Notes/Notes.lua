@@ -6339,7 +6339,7 @@ function UI:ShowEasyNotesRowMenu(row)
     end
     rows[#rows + 1] = { isSeparator = true }
     -- The row's note, or the whole selection when the row is part of one.
-    rows[#rows + 1] = { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
+    rows[#rows + 1] = { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
       onClick = function()
           local sel = UI._notes.paletteSelection
           local ids = {}
@@ -6853,7 +6853,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
         { text = L["NOTES_REMIND_ME"], submenu = remindSub },
         { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
-        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil,
+        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil, iconSide = "right",
           onClick = function() UI:ToggleEasyNotesAutoResize() end },
         { isSeparator = true },
         { text = _G.CATEGORY, submenu = (function()
@@ -6871,7 +6871,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
           end)() },
         { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
         { text = L["NOTES_ADD_APPLIES"], onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
-        { text = L["NOTES_OPENS_ITSELF_MENU"], icon = note.opensItself and MENU_CHECK_TEX or nil, onClick = function()
+        { text = L["NOTES_OPENS_ITSELF_MENU"], icon = note.opensItself and MENU_CHECK_TEX or nil, iconSide = "right", onClick = function()
               note.opensItself = (not note.opensItself) or nil
               note.updated = time()
           end },
@@ -6903,7 +6903,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
                   onClick = function() notesNS.EmptyTrash() end }
               return out
           end)() },
-        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash",
+        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
           onClick = function()
               local id = UI._notes.selectedID
               if id then ConfirmDeleteNote(id) end

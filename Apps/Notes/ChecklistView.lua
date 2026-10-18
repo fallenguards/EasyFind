@@ -892,7 +892,7 @@ function View.MenuRows(note, anchor)
     return {
         { text = sformat(L["CHECK_SCOPE_FMT"], OptionLabel(SCOPES, list.scope)), submenu = scopes },
         { text = L["CHECK_RESET_ROW"], onClick = function() PickReset(anchor, note) end },
-        { text = L["CHECK_BOARD"], icon = UI.board and MENU_CHECK_TEX or nil, onClick = function() View.ShowBoard(not UI.board) end },
+        { text = L["CHECK_BOARD"], icon = UI.board and MENU_CHECK_TEX or nil, iconSide = "right", onClick = function() View.ShowBoard(not UI.board) end },
         { text = L["CHECK_SEARCH_AH"], disabled = not AuctionOpen(), onClick = function() SearchNext(note) end },
     }
 end

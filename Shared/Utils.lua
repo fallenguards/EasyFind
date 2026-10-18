@@ -8015,14 +8015,14 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
     local width = opts.width or 96
     local shown = 0
     local lastRow
-    -- The left check column only exists when this menu actually HAS check
-    -- marks; menus of plain rows (e.g. submenu headers) keep the normal
-    -- text inset instead of an empty reserved column.
+    -- The left check column only when a row has a mark for it. A row's own
+    -- glyph (inlineIcon) sits before its text alone; iconSide "right" keeps
+    -- a toggle's check on the right.
     local leftIcons = false
     if menu._iconSide == "left" then
         for i = 1, #rows do
             local d = rows[i]
-            if d and d.icon then leftIcons = true break end
+            if d and d.icon and not d.inlineIcon and d.iconSide ~= "right" then leftIcons = true break end
         end
     end
     for i = 1, #rows do
@@ -8161,19 +8161,18 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 end
                 row.label:ClearAllPoints()
                 row.icon:ClearAllPoints()
-                local rightInset = def.submenu and -22 or -8
-                if leftIcons then
-                    row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
-                    row.label:SetPoint("LEFT", row, "LEFT", 28, 0)
-                    row.label:SetPoint("RIGHT", row, "RIGHT", rightInset, 0)
-                else
+                local iconRight = def.icon and not def.inlineIcon and (def.iconSide == "right" or not leftIcons)
+                row._efIconRight = iconRight
+                row._efLabelLeft = (leftIcons or (def.icon and def.inlineIcon)) and 28 or 8
+                row.label:SetPoint("LEFT", row, "LEFT", row._efLabelLeft, 0)
+                if iconRight then
                     -- The chevron owns the right edge on submenu rows; a
                     -- right-side icon steps inward beside it.
                     row.icon:SetPoint("RIGHT", row, "RIGHT", def.submenu and -26 or -8, 0)
-                    row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
-                    local labelRight = rightInset
-                    if def.icon then labelRight = def.submenu and -44 or -26 end
-                    row.label:SetPoint("RIGHT", row, "RIGHT", labelRight, 0)
+                    row.label:SetPoint("RIGHT", row, "RIGHT", def.submenu and -44 or -26, 0)
+                else
+                    row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+                    row.label:SetPoint("RIGHT", row, "RIGHT", def.submenu and -22 or -8, 0)
                 end
                 -- Copy rows carry their gesture in the icon lane: a dim
                 -- "Ctrl+C" the drive lights while the row is engaged and
@@ -8197,7 +8196,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                         -- A flyout row's shortcut sits just left of its chevron.
                         row.hint:SetPoint("RIGHT", row.chevron, "LEFT", -6, 0)
                     else
-                        row.hint:SetPoint("RIGHT", row, "RIGHT", def.icon and -26 or -8, 0)
+                        row.hint:SetPoint("RIGHT", row, "RIGHT", iconRight and -26 or -8, 0)
                     end
                     row.hint:Show()
                     MenuCopy.PaintHint(row, false)
@@ -8379,11 +8378,11 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     menu.measure:SetText(row.label:GetText() or "")
                     lblW = menu.measure:GetStringWidth() or 0
                 end
-                local leftPad = leftIcons and 28 or 8
+                local leftPad = row._efLabelLeft or 8
                 local rightPad = 8
                 if row.chevron and row.chevron:IsShown() then
-                    rightPad = (row.icon:IsShown() and not leftIcons) and 44 or 22
-                elseif row.icon:IsShown() and not leftIcons then
+                    rightPad = row._efIconRight and 44 or 22
+                elseif row._efIconRight then
                     rightPad = 26
                 end
                 if row._copyText and row.hint then
