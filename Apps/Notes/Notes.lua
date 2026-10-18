@@ -1833,9 +1833,7 @@ end
 function UI:ApplyEasyNotesEditorFont()
     local frame = UI._notes.frame
     if not (frame and frame.editor) then return end
-    local db = NormalizeDB()
-    local scale = db.uiScale or UI_SCALE_DEFAULT
-    local size = (db.fontSize or FONT_SIZE_DEFAULT) * UI_SCALE_DEFAULT / scale
+    local size = NormalizeDB().fontSize or FONT_SIZE_DEFAULT
     -- Always the custom Friz font: normal text renders as Friz, and the SMP
     -- math-bold codepoints (char-replace) render as bold Friz -- natively, while
     -- typing, with no overlay to drift.
