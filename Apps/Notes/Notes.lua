@@ -40,8 +40,8 @@ local OPACITY_DEFAULT = 1.00
 local OPACITY_STEP = 0.05
 local NOTES_MAX_BODY = 20000
 -- Deleted notes wait in the trash this long, this many at most.
-local TRASH_MAX = 50
-local TRASH_SECONDS = 30 * 24 * 3600
+-- The trash keeps this many notes, this many seconds.
+local TRASH_KEEP = { max = 50, seconds = 30 * 24 * 3600 }
 local NOTE_CODE_PREFIX = "EFN1!"
 local NOTE_CODE_PAYLOAD = "EFNOTE1"
 local NOTE_CODE_BODY_MAX = 8000
@@ -684,7 +684,7 @@ local function DeleteNote(id)
     note.deletedAt = time()
     tinsert(trash, 1, note)
     for i = #trash, 1, -1 do
-        if i > TRASH_MAX or time() - (trash[i].deletedAt or 0) > TRASH_SECONDS then
+        if i > TRASH_KEEP.max or time() - (trash[i].deletedAt or 0) > TRASH_KEEP.seconds then
             tremove(trash, i)
         end
     end
@@ -4267,6 +4267,15 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteListChild = CreateFrame("Frame", nil, frame.paletteList)
     frame.paletteListChild:SetSize(1, 1)
     frame.paletteList:SetScrollChild(frame.paletteListChild)
+    -- A resize fits the rows' tags to the new width.
+    frame.paletteList:SetScript("OnSizeChanged", function(_, w)
+        if not (w and w > 0) then return end
+        frame.paletteListChild:SetWidth(w)
+        local rows = UI._notes.paletteRows or {}
+        for i = 1, #rows do
+            if rows[i]:IsShown() then UI:LayoutEasyNotesRowTags(rows[i], rows[i].tagNote, w) end
+        end
+    end)
     frame.paletteList:EnableMouseWheel(true)
     -- Selection clearing lives in ONE owner: the GLOBAL_MOUSE_DOWN watcher
     -- installed at the end of frame construction (clicking anywhere that is
@@ -7495,48 +7504,52 @@ function UI:ShowEasyNotesContextOverflowMenu(anchor, matches)
     UI:ShowEasyNotesMenu("EasyNotesContextFilter", rows, { anchorFrame = anchor })
 end
 
-local function MakeRowTagPill(parent)
-    local p = CreateFrame("Button", nil, parent)
-    p:SetHeight(15)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(p)
-        ns.SetRoundedRectBarHeight(p, 7)
-        ns.SetRoundedRectBorderEdgeShown(p, false)
-    end
-    p.text = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    p.text:SetPoint("CENTER")
-    return p
-end
-
-local function RowTagMoreEnter(self)
-    if not (GameTooltip and self.allTags) then return end
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText(L["NOTES_APPLIES_IN"])
-    for i = 1, #self.allTags do
-        local t = self.allTags[i]
-        GameTooltip:AddLine(t.name or tostring(t.id), 0.9, 0.9, 0.92)
-    end
-    GameTooltip:Show()
-end
-
-local function RowTagLeave()
-    if GameTooltip then GameTooltip:Hide() end
-end
-
 -- Up to two tag pills after the note name, then a "+N" with a hover list.
-function UI:LayoutEasyNotesRowTags(row, note)
-    row.tagPills = row.tagPills or {}
-    local pool = row.tagPills
-    local tags = (note and note.appliesIn) or {}
-    for i = 1, #pool do pool[i]:Hide() end
-    if row.tagMore then row.tagMore:Hide() end
-    if #tags == 0 then
-        row.title:SetPoint("RIGHT", row, "RIGHT", -12, 0)
-        return
+-- The tags take at most half the row, so the name always shows.
+do
+    local function MakeRowTagPill(parent)
+        local p = CreateFrame("Button", nil, parent)
+        p:SetHeight(15)
+        if ns.CreateRoundedRectBorder then
+            ns.CreateRoundedRectBorder(p)
+            ns.SetRoundedRectBarHeight(p, 7)
+            ns.SetRoundedRectBorderEdgeShown(p, false)
+        end
+        p.text = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        p.text:SetPoint("CENTER")
+        p.text:SetWordWrap(false)
+        return p
     end
-    local x = -10
-    local overflow = #tags - 2
-    if overflow > 0 then
+
+    local function RowTagMoreEnter(self)
+        if not (GameTooltip and self.allTags) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["NOTES_APPLIES_IN"])
+        for i = 1, #self.allTags do
+            local t = self.allTags[i]
+            GameTooltip:AddLine(t.name or tostring(t.id), 0.9, 0.9, 0.92)
+        end
+        GameTooltip:Show()
+    end
+
+    local function RowTagLeave()
+        if GameTooltip then GameTooltip:Hide() end
+    end
+
+    local ROW_TAG_MAX_W = 110
+    local rowTagW = {}
+    function UI:LayoutEasyNotesRowTags(row, note, rowW)
+        row.tagPills = row.tagPills or {}
+        row.tagNote = note
+        local pool = row.tagPills
+        local tags = (note and note.appliesIn) or {}
+        for i = 1, #pool do pool[i]:Hide() end
+        if row.tagMore then row.tagMore:Hide() end
+        if #tags == 0 then
+            row.title:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+            return
+        end
+        local room = math.floor(((rowW or row:GetWidth() or 0) - 22) / 2)
         local more = row.tagMore
         if not more then
             more = MakeRowTagPill(row)
@@ -7544,41 +7557,62 @@ function UI:LayoutEasyNotesRowTags(row, note)
             more:SetScript("OnLeave", RowTagLeave)
             row.tagMore = more
         end
-        more.allTags = tags
-        more.text:SetText("+" .. overflow)
-        more.text:SetTextColor(0.82, 0.82, 0.86, 1)
-        if ns.SetRoundedRectFill then
-            ns.SetRoundedRectFill(more, 0.18, 0.18, 0.20, 1, true)
+        local nShown = mmin(2, #tags)
+        for i = 1, nShown do
+            local pill = pool[i]
+            if not pill then pill = MakeRowTagPill(row); pool[i] = pill end
+            local t = tags[i]
+            pill.text:SetWidth(0)
+            pill.text:SetText(t.name or tostring(t.id))
+            local w = pill.text.GetUnboundedStringWidth and pill.text:GetUnboundedStringWidth() or pill.text:GetStringWidth() or 20
+            rowTagW[i] = mmin(ROW_TAG_MAX_W, math.ceil(w)) + 12
         end
-        more:SetWidth((more.text:GetStringWidth() or 14) + 10)
-        more:ClearAllPoints()
-        more:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, -6)
-        more:Show()
-        x = x - more:GetWidth() - 3
-    end
-    local nShown = math.min(2, #tags)
-    for i = nShown, 1, -1 do
-        local pill = pool[i]
-        if not pill then pill = MakeRowTagPill(row); pool[i] = pill end
-        local t = tags[i]
-        local nm = t.name or tostring(t.id)
-        if #nm > 16 then nm = nm:sub(1, 16) .. "\226\128\166" end
-        pill.text:SetText(nm)
-        local tc = TagColor(CtxKey(t))
-        if ns.SetRoundedRectFill then
-            ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
+        -- The pills that fit, the "+N" set to the rest.
+        local function Total(k)
+            local w = 0
+            for i = 1, k do w = w + rowTagW[i] + 3 end
+            if #tags > k then
+                more.text:SetText("+" .. (#tags - k))
+                w = w + (more.text:GetStringWidth() or 14) + 13
+            end
+            return w - 3
         end
-        pill.text:SetTextColor(
-            math.min(1, tc[1] + 0.28),
-            math.min(1, tc[2] + 0.28),
-            math.min(1, tc[3] + 0.28), 1)
-        pill:SetWidth((pill.text:GetStringWidth() or 16) + 12)
-        pill:ClearAllPoints()
-        pill:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, -6)
-        pill:Show()
-        x = x - pill:GetWidth() - 3
+        while nShown > 1 and Total(nShown) > room do nShown = nShown - 1 end
+        local over = Total(nShown) - room
+        if over > 0 then rowTagW[1] = mmax(28, rowTagW[1] - over) end
+        local x = -10
+        if #tags > nShown then
+            more.allTags = tags
+            more.text:SetTextColor(0.82, 0.82, 0.86, 1)
+            if ns.SetRoundedRectFill then
+                ns.SetRoundedRectFill(more, 0.18, 0.18, 0.20, 1, true)
+            end
+            more:SetWidth((more.text:GetStringWidth() or 14) + 10)
+            more:ClearAllPoints()
+            more:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, -6)
+            more:Show()
+            x = x - more:GetWidth() - 3
+        end
+        for i = nShown, 1, -1 do
+            local pill = pool[i]
+            local t = tags[i]
+            local tc = TagColor(CtxKey(t))
+            if ns.SetRoundedRectFill then
+                ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
+            end
+            pill.text:SetTextColor(
+                math.min(1, tc[1] + 0.28),
+                math.min(1, tc[2] + 0.28),
+                math.min(1, tc[3] + 0.28), 1)
+            pill.text:SetWidth(rowTagW[i] - 12)
+            pill:SetWidth(rowTagW[i])
+            pill:ClearAllPoints()
+            pill:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, -6)
+            pill:Show()
+            x = x - pill:GetWidth() - 3
+        end
+        row.title:SetPoint("RIGHT", row, "RIGHT", x - 4, 0)
     end
-    row.title:SetPoint("RIGHT", row, "RIGHT", x - 4, 0)
 end
 
 function UI:RefreshEasyNotesPalette()
@@ -7620,7 +7654,7 @@ function UI:RefreshEasyNotesPalette()
         if not row then break end
         row.noteID = note.id
         row.title:SetText(NoteTitle(note))
-        self:LayoutEasyNotesRowTags(row, note)
+        self:LayoutEasyNotesRowTags(row, note, listW)
         if row.pinButton and row.pinButton.icon then
             if note.pinned then
                 row.pinButton.icon:SetVertexColor(0.95, 0.78, 0.36, 1)
