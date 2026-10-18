@@ -257,7 +257,7 @@ function WorldPin.NewPlate(parent)
         menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
         local defs = {}
         if not (ns.GPS.IsWindowOpen and ns.GPS:IsWindowOpen()) then
-            defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:TogglePopout(true) end }
+            defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:OpenWindow() end }
         end
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
         ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})

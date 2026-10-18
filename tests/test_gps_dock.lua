@@ -112,6 +112,7 @@ local function MenuRows()
     local function row(label) return function() return { kind = "check", label = label } end end
     local GPS = {
         WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
+        LaunchRow = row("GPS_LAUNCH_WINDOW"),
         StyleRows = function() return { { kind = "title", label = "GPS_STYLE" } } end,
     }
     local env = setmetatable({
@@ -140,7 +141,7 @@ end
 function tests.everySurfaceHasTheSameMenu()
     local rowsFor = MenuRows()
     local shared = { "GPS_CLEAR", "GPS_FROM_PICK", "CTX_SEND_LINK", "GPS_REPORT",
-        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_AUTO_LEARN" }
+        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_AUTO_LEARN", "GPS_LAUNCH_WINDOW" }
     for _, s in ipairs({
         { name = "snapped in", f = { docked = true } },
         { name = "floating", f = { floating = true, look = "game" }, style = true },
@@ -155,6 +156,73 @@ function tests.everySurfaceHasTheSameMenu()
         H.assertEq(has.GPS_STYLE == true, s.style == true, s.name .. ": style rows")
         H.assertEq(has.GPS_SIZE_WIDTH == true, s.size == true, s.name .. ": width rows")
     end
+end
+
+-- GPS:OpenWindow and GPS:CloseWindow cut from GPS.lua over a stub section
+-- and window: what shows, and what the saved state says.
+local function Windows(db)
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function GPS:OpenWindow()", 1, true), "GPS:OpenWindow not in GPS.lua")
+    local c2 = assert(src:find("function GPS:CloseWindow()", s, true), "GPS:CloseWindow not after it")
+    local _, e = src:find("\nend\r?\n", c2)
+    local c = {}
+    local dock = { shown = false }
+    function dock:IsShown() return self.shown end
+    local window = { shown = false }
+    local GPS = {}
+    function GPS:Dock()
+        db.gpsDocked = true
+        dock.docked, dock.shown = true, true
+        return true
+    end
+    function GPS:Undock()
+        db.gpsDocked = nil
+        dock.docked, dock.shown = nil, false
+    end
+    -- As GPS:TogglePopout: showing the window leaves the tracker.
+    function GPS:TogglePopout(show)
+        if show and db.gpsDocked then self:Undock() end
+        window.shown = show
+        c.popoutOpen = show or nil
+    end
+    local env = setmetatable({
+        GPS = GPS, DB = function() return db end, CharDB = function() return c end, dockFrame = dock,
+    }, { __index = _G })
+    assert(load(src:sub(s, e), "=GPS.lua OpenWindow", "t", env))()
+    return GPS, dock, window, c
+end
+
+function tests.closedSnappedInOpensSnappedIn()
+    local db = { gpsDocked = true }
+    local GPS, dock, window, c = Windows(db)
+    GPS:OpenWindow()
+    H.assertTrue(dock.shown and not window.shown, "snapped in")
+    GPS:CloseWindow()
+    H.assertFalse(dock.shown)
+    H.assertTrue(db.gpsDocked, "remembered as snapped in")
+    H.assertEq(c.popoutOpen, false, "closed")
+    GPS:OpenWindow()
+    H.assertTrue(dock.shown and not window.shown, "snapped back in")
+end
+
+function tests.closedWindowOpensAsTheWindow()
+    local db = {}
+    local GPS, dock, window = Windows(db)
+    GPS:OpenWindow()
+    H.assertTrue(window.shown and not dock.shown)
+    GPS:CloseWindow()
+    H.assertFalse(window.shown)
+    GPS:OpenWindow()
+    H.assertTrue(window.shown and not dock.shown, "the window again")
+end
+
+function tests.snappingOffOpensTheWindow()
+    local db = { gpsDocked = true, gpsNeverDock = true }
+    local GPS, dock, window = Windows(db)
+    GPS:OpenWindow()
+    H.assertTrue(window.shown and not dock.shown)
 end
 
 local pass, fail, failures = H.runSuite("GPSDock", tests)

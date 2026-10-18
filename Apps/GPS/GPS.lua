@@ -2267,7 +2267,7 @@ local function BuildSurface(frame, opts)
         btn:SetScript("OnEnter", function() tint(1, 1, 1) end)
         btn:SetScript("OnLeave", function() tint(unpack(ns.TEXT_DIM)) end)
         btn:SetScript("OnClick", function()
-            GPS:TogglePopout(true)
+            GPS:OpenWindow()
             -- Popping out is leaving the map for the small window.
             if WorldMapFrame and WorldMapFrame:IsShown() and HideUIPanel then HideUIPanel(WorldMapFrame) end
         end)
@@ -2461,8 +2461,10 @@ if ns.MapTab and ns.MapTab.RegisterPage then
         onBarMenu = function(anchor)
             if not ns.ShowTogglePopup then return end
             ns.ShowTogglePopup("EasyFindGPSBarPopup", anchor, {
-                { kind = "action", label = L["GPS_POPOUT"], onClick = function() GPS:TogglePopout(true) end },
+                { kind = "action", label = L["GPS_POPOUT"], onClick = function() GPS:OpenWindow() end },
                 { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end },
+                { kind = "separator" },
+                GPS.LaunchRow(),
             }, {})
         end,
         build = BuildPage,
@@ -2557,6 +2559,25 @@ function GPS.AutoLearnRow()
         end }
 end
 
+-- What Extensions' GPS opens: the map page, or the window as it was left.
+function GPS.LaunchesWindow()
+    local db = DB()
+    return db and db.gpsLaunchWindow == true or false
+end
+
+function GPS:Launch()
+    if GPS.LaunchesWindow() then return GPS:OpenWindow() end
+    return GPS:Open()
+end
+
+function GPS.LaunchRow()
+    return { kind = "check", label = L["GPS_LAUNCH_WINDOW"], get = GPS.LaunchesWindow,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsLaunchWindow = v or nil end
+        end }
+end
+
 -- The menu row for snapping into the tracker (on unless turned off); off
 -- while snapped in, the section leaves for the window.
 function GPS.SnapRow()
@@ -2565,7 +2586,13 @@ function GPS.SnapRow()
         set = function(v)
             local db = DB()
             if db then db.gpsNeverDock = (not v) or nil end
-            if not v and GPS:IsDocked() then GPS:TogglePopout(true) end
+            if not v and GPS:IsDocked() then
+                if dockFrame and dockFrame.docked and dockFrame:IsShown() then
+                    GPS:TogglePopout(true)
+                elseif db then
+                    db.gpsDocked = nil
+                end
+            end
         end }
 end
 
@@ -3888,6 +3915,31 @@ function GPS:Dock(slot)
     return true
 end
 
+-- The window as it was left: snapped into the tracker when it was there
+-- (and there is one), else the window at its last spot.
+function GPS:OpenWindow()
+    local db = DB()
+    if db and db.gpsDocked and not db.gpsNeverDock and GPS:Dock() then
+        local c = CharDB()
+        if c then c.popoutOpen = true end
+        return
+    end
+    GPS:TogglePopout(true)
+end
+
+-- Closed where it is: a snapped-in section snaps back in on the next open.
+function GPS:CloseWindow()
+    if dockFrame and dockFrame.docked and dockFrame:IsShown() then
+        GPS:Undock()
+        local db = DB()
+        if db then db.gpsDocked = true end
+    else
+        GPS:TogglePopout(false)
+    end
+    local c = CharDB()
+    if c then c.popoutOpen = false end
+end
+
 -- keepShown: the section stays on screen (about to float, or being dragged).
 -- Hiding a frame in its own drag-stop re-fires the handler and kills its grip until reload.
 function GPS:Undock(keepShown)
@@ -3962,9 +4014,7 @@ function GPS.MenuRows(f)
         -- Closing the section ends the route with it.
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE_SECTION"], onClick = function()
             GPS:Clear()
-            GPS:Undock()
-            local c = CharDB()
-            if c then c.popoutOpen = nil end
+            GPS:CloseWindow()
         end }
     else
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE"], onClick = function() GPS:TogglePopout(false) end }
@@ -3992,6 +4042,7 @@ function GPS.MenuRows(f)
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = GPS.AutoLearnRow()
+    defs[#defs + 1] = GPS.LaunchRow()
     -- Snapped in, the section has one look.
     if f.docked then return defs end
     if f.isPopout then
@@ -4706,12 +4757,9 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     -- handed to whichever character logs in next.
     if db then db.gpsRoute, db.gpsPopoutOpen = nil, nil end
     local c = CharDB()
-    if db and db.gpsDocked then
-        -- Nothing to snap into (ClassicUI's tracker hidden): the window.
-        if not GPS:Dock() then GPS:TogglePopout(true) end
-    elseif c and c.popoutOpen then
-        GPS:TogglePopout(true)
-    end
+    -- Open as it was left; nil while snapped in is a save from before
+    -- closing it was remembered.
+    if c and (c.popoutOpen or (c.popoutOpen == nil and db and db.gpsDocked)) then GPS:OpenWindow() end
     -- What every plan decodes first, done now in the planner's slices
     -- rather than on the session's first click.
     -- The player's continent only; another decodes inside the plan that

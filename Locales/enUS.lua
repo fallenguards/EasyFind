@@ -504,6 +504,7 @@ L["OPT_EXT_SORT_NAME_TT"]               = "Back to the alphabetical order; group
 L["GPS_SIZE_WRAP"]                      = "Wrap long steps"
 L["GPS_WORLD_PIN"]                      = "Pin in the world"
 L["GPS_SNAP_TRACKER"]                   = "Snap into the objective tracker"
+L["GPS_LAUNCH_WINDOW"]                  = "Open popped out from Extensions"
 L["GPS_SEARCH_PLACEHOLDER"]             = "Search point of interest"
 L["GPS_STYLE"]                          = "Style"
 L["GPS_STYLE_EASYFIND"]                 = "EasyFind"

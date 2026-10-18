@@ -89,7 +89,8 @@ function ns.BuildApplicationEntries()
         }
     end
     if ns.Quicklists then ns.Quicklists:AppEntries(apps) end
-    -- GPS opens its own page under the map search tab. Hidden when the GPS
+    -- GPS opens its page under the map search tab, or its window by its
+    -- menu's choice. Hidden when the GPS
     -- companion is disabled in the AddOns list.
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
         apps[#apps + 1] = {
@@ -99,7 +100,7 @@ function ns.BuildApplicationEntries()
             noPin = true,
             icon = ns.GPS_ICON_TEX,
             nativeRun = function()
-                if ns.GPS and ns.GPS.Open then ns.GPS:Open() end
+                if ns.GPS and ns.GPS.Launch then ns.GPS:Launch() end
             end,
         }
     end
@@ -213,6 +214,7 @@ function ns.IsApplicationOpen(app)
         return ns.Chat ~= nil and ns.Chat.IsOpen ~= nil and ns.Chat:IsOpen() or false
     end
     if app.gpsLauncher then
+        if ns.GPS and ns.GPS.LaunchesWindow and ns.GPS.LaunchesWindow() then return ns.GPS:IsWindowOpen() end
         local MapTab = ns.MapTab
         return WorldMapFrame ~= nil and WorldMapFrame:IsShown() and MapTab ~= nil and MapTab.IsPageShowing ~= nil
             and MapTab:IsPageShowing("gps") or false
@@ -246,6 +248,7 @@ function ns.CloseApplication(app)
     end
     -- The GPS opened the map at its page: the map closes the way it opened.
     if app.gpsLauncher then
+        if ns.GPS and ns.GPS.LaunchesWindow and ns.GPS.LaunchesWindow() then return ns.GPS:CloseWindow() end
         if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then ToggleWorldMap() end
         return
     end
