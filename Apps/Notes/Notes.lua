@@ -7029,9 +7029,19 @@ function UI:GetAppliesInResultRow(index)
     Utils.InstallMenuRowHighlight(row)
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.label:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.label:SetPoint("RIGHT", row, "RIGHT", -22, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(false)
+    -- A place already added: a trash on hover, the click takes it off.
+    row.trash = row:CreateTexture(nil, "OVERLAY")
+    row.trash:SetSize(12, 12)
+    row.trash:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.trash:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\trash")
+    row.trash:SetDesaturated(true)
+    row.trash:SetVertexColor(0.95, 0.45, 0.42, 1)
+    row.trash:Hide()
+    row:HookScript("OnEnter", function(self) self.trash:SetShown(self.added == true) end)
+    row:HookScript("OnLeave", function(self) self.trash:Hide() end)
     row:SetScript("OnClick", function(self)
         local note = GetSelectedNote()
         if note and self.entry then
@@ -7068,6 +7078,8 @@ function UI:RefreshAppliesInSearchResults()
         if r then
             row.entry = r.entry
             local added = note and NoteHasContext(note, CtxKey(r.entry))
+            row.added = added
+            row.trash:SetShown(added and row:IsMouseOver())
             row.label:SetText((added and "|cff6fcf6f+ |r" or "") .. r.name
                 .. "  |cff8a8a90" .. Ctx.KindLabel(r.entry) .. "|r")
             row:Show()
@@ -7080,24 +7092,40 @@ function UI:RefreshAppliesInSearchResults()
     if ns.RetintPanelText then ns.RetintPanelText(popup) end
 end
 
-function UI:ToggleEasyNotesAppliesInSearch(anchor)
-    local frame = UI._notes.frame
-    if not (frame and GetSelectedNote()) then return end
-    if not frame.appliesInSearch then
-        frame.appliesInSearch = Builders.BuildAppliesInSearch(frame)
+do
+    -- Below the anchor when it fits, else above; its left edge on the
+    -- anchor's unless that runs off the screen's right.
+    local function PlaceByAnchor(popup, anchor)
+        local s, as = popup:GetEffectiveScale(), anchor:GetEffectiveScale()
+        local left, bottom, top = (anchor:GetLeft() or 0) * as, (anchor:GetBottom() or 0) * as, (anchor:GetTop() or 0) * as
+        local w, h = popup:GetWidth() * s, popup:GetHeight() * s
+        local screenW = UIParent:GetWidth() * UIParent:GetEffectiveScale()
+        local screenH = UIParent:GetHeight() * UIParent:GetEffectiveScale()
+        local below = bottom - h - 4 >= 0 or bottom >= screenH - top
+        local side = left + w <= screenW and "LEFT" or "RIGHT"
+        popup:ClearAllPoints()
+        popup:SetPoint((below and "TOP" or "BOTTOM") .. side, anchor, (below and "BOTTOM" or "TOP") .. side, 0, below and -4 or 4)
+        popup:SetClampedToScreen(true)
     end
-    local popup = frame.appliesInSearch
-    if popup:IsShown() then
-        popup:Hide()
-        return
+
+    function UI:ToggleEasyNotesAppliesInSearch(anchor)
+        local frame = UI._notes.frame
+        if not (frame and GetSelectedNote()) then return end
+        if not frame.appliesInSearch then
+            frame.appliesInSearch = Builders.BuildAppliesInSearch(frame)
+        end
+        local popup = frame.appliesInSearch
+        if popup:IsShown() then
+            popup:Hide()
+            return
+        end
+        PlaceByAnchor(popup, anchor or frame.appliesInButton)
+        popup.auto:SetChecked(GetSelectedNote().opensItself == true)
+        popup.shell.edit:SetText("")
+        self:RefreshAppliesInSearchResults()
+        popup:Show()
+        popup.shell.edit:SetFocus()
     end
-    popup:ClearAllPoints()
-    popup:SetPoint("BOTTOMLEFT", anchor or frame.appliesInButton, "TOPLEFT", 0, 4)
-    popup.auto:SetChecked(GetSelectedNote().opensItself == true)
-    popup.shell.edit:SetText("")
-    self:RefreshAppliesInSearchResults()
-    popup:Show()
-    popup.shell.edit:SetFocus()
 end
 
 local function CursorObjectEntry()
