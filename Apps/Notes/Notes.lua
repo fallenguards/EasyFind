@@ -3966,8 +3966,8 @@ function UI:EnsureEasyNotesFrame()
         if GameTooltip then GameTooltip:Hide() end
     end)
 
-    -- the "+" context buttons moved into the overflow menu; keep the frames
-    -- (referenced as anchors and for state) but never display them
+    -- The places' + shows at the end of the Shows line; the tooltip
+    -- link's lives in the more menu.
     frame.appliesInButton:Hide()
     frame.showsOnButton:Hide()
 
@@ -6389,9 +6389,52 @@ local function ContextMatchSort(a, b)
     return a.label < b.label
 end
 
+-- Notes set to open by themselves: one whose place comes up opens the
+-- window on it, when the window is closed (never over a note in use);
+-- when its place ends, the window goes again if it still shows it.
+function UI:OpenNotesThatApply()
+    local any = false
+    local store = NotesStore()
+    for i = 1, #store do
+        if store[i].opensItself then any = true break end
+    end
+    local was, now = UI._notes.opensApplied or {}, {}
+    UI._notes.opensApplied = now
+    if any then
+        local _, set = Ctx.Active()
+        local visible = SortedNotes("")
+        for i = 1, #visible do
+            local n = visible[i]
+            if n.opensItself and Ctx.Applies(n, set) then now[n.id] = true end
+        end
+    end
+    local frame = UI._notes.frame
+    local opened = UI._notes.openedFor
+    if opened and not now[opened] then
+        UI._notes.openedFor = nil
+        if frame and frame:IsShown() and UI._notes.selectedID == opened then self:CloseEasyNotes() end
+    end
+    if frame and frame:IsShown() then return end
+    for i = 1, #store do
+        local id = store[i].id
+        if now[id] and not was[id] then
+            frame = self:EnsureEasyNotesFrame()
+            if not frame then return end
+            NormalizeDB()
+            UI._notes.selectedID = id
+            UI._notes.openedFor = id
+            frame:Show()
+            self:HideEasyNotesPalette()
+            self:RefreshEasyNotes()
+            return
+        end
+    end
+end
+
 -- A new place starts the filter fresh; a new target or group only refreshes.
 local PLACE_EVENTS = { ZONE_CHANGED_NEW_AREA = true, PLAYER_ENTERING_WORLD = true }
 function UI:OnEasyNotesContextChanged(event)
+    self:OpenNotesThatApply()
     if not event or PLACE_EVENTS[event] then UI._notes.contextFilterUserSet = false end
     if UI._notes.paletteShown then
         self:RefreshEasyNotesPalette()
@@ -6810,6 +6853,10 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
           end)() },
         { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
         { text = L["NOTES_ADD_APPLIES"], onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
+        { text = L["NOTES_OPENS_ITSELF_MENU"], icon = note.opensItself and MENU_CHECK_TEX or nil, onClick = function()
+              note.opensItself = (not note.opensItself) or nil
+              note.updated = time()
+          end },
         { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
         { text = L["NOTES_CONTEXT"], submenu = contextSub },
         { isSeparator = true },
@@ -6913,7 +6960,7 @@ end
 
 function Builders.BuildAppliesInSearch(frame)
     local popup = CreateFrame("Frame", nil, frame)
-    popup:SetSize(236, 226)
+    popup:SetSize(236, 252)
     popup:SetFrameLevel(frame:GetFrameLevel() + 30)
     popup:EnableMouse(true)
     -- A menu surface: the theme's fill and ring, refilled on each theme.
@@ -6924,6 +6971,24 @@ function Builders.BuildAppliesInSearch(frame)
     popup.shell.edit.onChanged = function() UI:RefreshAppliesInSearchResults() end
     popup.shell.edit:SetScript("OnEscapePressed", function() popup:Hide() end)
     popup.rows = {}
+    -- Under the places: whether the note opens by itself in them.
+    local auto = CreateFrame("CheckButton", nil, popup, "UICheckButtonTemplate")
+    auto:SetSize(18, 18)
+    auto:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 8, 6)
+    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(auto, 18) end
+    auto.label = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    auto.label:SetPoint("LEFT", auto, "RIGHT", 4, 0)
+    auto.label:SetPoint("RIGHT", popup, "RIGHT", -8, 0)
+    auto.label:SetJustifyH("LEFT")
+    auto.label:SetWordWrap(false)
+    auto.label:SetText(L["NOTES_OPENS_ITSELF"])
+    auto:SetScript("OnClick", function(self)
+        local note = GetSelectedNote()
+        if not note then return end
+        note.opensItself = self:GetChecked() and true or nil
+        note.updated = time()
+    end)
+    popup.auto = auto
     popup.catcher = CreateFrame("Frame", nil, frame)
     popup.catcher:SetAllPoints(UIParent)
     popup.catcher:SetFrameLevel(math.max(1, popup:GetFrameLevel() - 1))
@@ -7017,6 +7082,7 @@ function UI:ToggleEasyNotesAppliesInSearch(anchor)
     end
     popup:ClearAllPoints()
     popup:SetPoint("BOTTOMLEFT", anchor or frame.appliesInButton, "TOPLEFT", 0, 4)
+    popup.auto:SetChecked(GetSelectedNote().opensItself == true)
     popup.shell.edit:SetText("")
     self:RefreshAppliesInSearchResults()
     popup:Show()
@@ -7082,10 +7148,35 @@ function UI:RefreshEasyNotesAttachBar()
             entries[#entries + 1] = { kind = "showsOn", entry = e, idx = i, name = e.name or tostring(e.id) }
         end
     end
+    -- The Shows line: the label, the places as pills with an X (or
+    -- "anywhere"), then + for the picker.
     local x = 6
+    if not frame.showsLabel then
+        frame.showsLabel = frame.attachBar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        frame.showsLabel:SetText(L["NOTES_SHOWS_LABEL"])
+        local anywhere = CreateFrame("Button", nil, frame.attachBar)
+        anywhere.text = anywhere:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        anywhere.text:SetPoint("LEFT")
+        anywhere.text:SetText(L["NOTES_SHOWS_ANYWHERE"])
+        anywhere:SetSize((anywhere.text:GetStringWidth() or 40) + 2, 18)
+        anywhere:SetScript("OnClick", function(self) UI:ToggleEasyNotesAppliesInSearch(self) end)
+        frame.showsAnywhere = anywhere
+    end
+    local showsLabel = frame.showsLabel
+    showsLabel:SetShown(note ~= nil)
+    showsLabel:ClearAllPoints()
+    showsLabel:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+    x = x + (showsLabel:GetStringWidth() or 30) + 6
+    frame.showsAnywhere:SetShown(note ~= nil and #entries == 0)
+    if #entries == 0 then
+        frame.showsAnywhere:ClearAllPoints()
+        frame.showsAnywhere:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+        x = x + frame.showsAnywhere:GetWidth() + 6
+    end
     local barW = frame.attachBar:GetWidth()
     if not barW or barW < 50 then barW = 280 end
-    local maxX = barW - 36
+    -- Room kept for the + and a "+N" pill.
+    local maxX = barW - (frame.appliesInButton:GetWidth() or 20) - 40
     local shown, overflowCount = 0, 0
     for i = 1, #entries do
         local data = entries[i]
@@ -7100,7 +7191,13 @@ function UI:RefreshEasyNotesAttachBar()
             end
             pill.text = pill:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
             pill.text:SetPoint("LEFT", pill, "LEFT", 8, 0)
+            pill.text:SetWordWrap(false)
             pill:RegisterForClicks("RightButtonUp")
+            pill.close = ns.CreateCloseX and ns.CreateCloseX(pill, 10)
+            if pill.close then
+                pill.close:SetPoint("RIGHT", pill, "RIGHT", -4, 0)
+                pill.close:SetScript("OnClick", function() pill:GetScript("OnClick")(pill) end)
+            end
             pill:SetScript("OnClick", function(self)
                 local n = GetSelectedNote()
                 if not n then return end
@@ -7132,7 +7229,12 @@ function UI:RefreshEasyNotesAttachBar()
         local label = data.name
         if #label > 22 then label = label:sub(1, 22) .. "..." end
         pill.text:SetText(label)
-        pill:SetWidth((pill.text:GetStringWidth() or 20) + 16)
+        -- The first pill always shows, cut to the room the line has left.
+        local fixed = 16 + (pill.close and 12 or 0)
+        local textW = pill.text.GetUnboundedStringWidth and pill.text:GetUnboundedStringWidth() or pill.text:GetStringWidth() or 20
+        if shown == 0 then textW = math.min(textW, math.max(20, maxX - x - fixed)) end
+        pill.text:SetWidth(textW)
+        pill:SetWidth(textW + fixed)
         if ns.SetRoundedRectFill then
             local tc = TagColor(CtxKey(data.entry))
             ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
@@ -7178,12 +7280,18 @@ function UI:RefreshEasyNotesAttachBar()
         ov:ClearAllPoints()
         ov:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
         ov:Show()
+        x = x + ov:GetWidth() + 4
     elseif frame.attachOverflow then
         frame.attachOverflow:Hide()
     end
+    if note then
+        frame.appliesInButton:ClearAllPoints()
+        frame.appliesInButton:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+        frame.appliesInButton:Show()
+    end
 
-    -- Reserve the attach-bar height only when it actually shows something.
-    UI._notes.attachHasContent = (shown > 0) or (overflowCount > 0)
+    -- Every note has its Shows line.
+    UI._notes.attachHasContent = note ~= nil
     UI:UpdateEasyNotesEditorTop()
 end
 
