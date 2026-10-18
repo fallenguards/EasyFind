@@ -16,13 +16,16 @@ local CreateFrame, time = CreateFrame, time
 local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
 local ipairs, smatch, strtrim = ipairs, string.match, strtrim
 
-local ROW_H, ROW_H2, BAR_H, CELL_W, NAME_W, GRIP_W = 26, 36, 26, 56, 150, 14
+-- GRIP_W: the margin left of the boxes the drag grip shows in, outside
+-- the window's text edge.
+local ROW_H, ROW_H2, CELL_W, NAME_W, GRIP_W, CHECK_W = 26, 36, 56, 150, 14, 22
 local DONE_COLOR, OPEN_COLOR, FAINT_COLOR = { 0.45, 0.85, 0.45 }, { 1, 1, 1 }, { 0.65, 0.65, 0.65 }
 local READY_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 
 -- Frames and state in one table (upvalue budget); open: the rows of the
--- lines not ticked, in order, the ones a drag can move among.
+-- lines not ticked, in order, the ones a drag can move among; editing:
+-- the id of the line being typed in.
 local UI = { rows = {}, cells = {}, heads = {}, open = {}, allowed = false, board = false }
 
 local function Text(parent, template)
@@ -77,15 +80,6 @@ local function SearchNext(note)
 end
 
 -- Pickers
-
-local function Radio(owner, options, get, set)
-    local defs = {}
-    for _, o in ipairs(options) do
-        defs[#defs + 1] = { kind = "radio", label = o.label, value = o.value, get = get,
-            set = function(v) set(v) View.Refresh() end }
-    end
-    ns.ShowTogglePopup("EasyFindChecklistPick", owner, defs, {})
-end
 
 local function Menu(owner, rows)
     local menu = UI.menu
@@ -288,9 +282,7 @@ local function RowMenu(row)
         end
         rows[#rows + 1] = { text = L["CHECK_SET_STANDING"], submenu = sub }
     end
-    rows[#rows + 1] = { text = L["CHECK_RENAME"], onClick = function()
-        Ask(L["CHECK_RENAME_ASK"], CK.LineName(line), function(v) line.text = v CK.SyncBody(note) Changed(note) end)
-    end }
+    rows[#rows + 1] = { text = L["CHECK_RENAME"], onClick = function() View.Edit(line.id) end }
     rows[#rows + 1] = { text = L["CHECK_MOVE_UP"], onClick = function() CK.MoveLine(note, line.id, -1) CK.SyncBody(note) Changed(note) end }
     rows[#rows + 1] = { text = L["CHECK_MOVE_DOWN"], onClick = function() CK.MoveLine(note, line.id, 1) CK.SyncBody(note) Changed(note) end }
     rows[#rows + 1] = { isSeparator = true }
@@ -340,9 +332,9 @@ local function CreateRow(i)
     remove:Hide()
     row.remove = remove
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.check:SetSize(22, 22)
+    row.check:SetSize(CHECK_W, CHECK_W)
     row.check:SetPoint("TOPLEFT", row, "TOPLEFT", GRIP_W, -2)
-    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, 22) end
+    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, CHECK_W) end
     row.check:SetScript("OnClick", function(self)
         local note = Note()
         if not (note and row.line) then return end
@@ -361,19 +353,50 @@ local function CreateRow(i)
     row.progress:SetJustifyH("RIGHT")
     row.progress:SetPoint("TOPRIGHT", row.remove, "TOPLEFT", -4, -6)
     row.detail = Text(row, "GameFontDisableSmall")
+    -- A click on the line types in it; the auction search for an item
+    -- line is on its menu.
     row:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
             RowMenu(self)
-        elseif self.line and self.line.link == "item" and AuctionOpen() then
-            SearchAH(self.line)
+        elseif self.line and not UI.board then
+            View.Edit(self.line.id)
         end
     end)
     UI.rows[i] = row
     return row
 end
 
+-- The line under the open ones: a click starts a new line there; Track
+-- adds one the game ticks.
+local function AddRow()
+    local add = UI.addRow
+    if add then return add end
+    add = CreateFrame("Button", nil, UI.list)
+    add:SetHeight(ROW_H)
+    add:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
+    add:GetHighlightTexture():SetAlpha(0.2)
+    add.plus = Text(add, "GameFontDisable")
+    add.plus:SetPoint("CENTER", add, "LEFT", GRIP_W + CHECK_W / 2, 0)
+    add.plus:SetText("+")
+    add.track = ns.CreateModernButton(add, L["CHECK_TRACK"], 60, 18)
+    add.track:SetWidth(math.ceil(add.track._label:GetStringWidth()) + 20)
+    add.track:SetPoint("RIGHT", add, "RIGHT", -2, 0)
+    add.track:SetScript("OnClick", function(self)
+        local note = Note()
+        if note then LinkMenu(self, note) end
+    end)
+    add.label = Text(add, "GameFontDisable")
+    add.label:SetPoint("LEFT", add, "LEFT", GRIP_W + CHECK_W + 4, 0)
+    add.label:SetPoint("RIGHT", add.track, "LEFT", -6, 0)
+    add.label:SetText(L["CHECK_ADD_ITEM"])
+    add:SetScript("OnClick", function() View.AddNew() end)
+    UI.addRow = add
+    return add
+end
+
 local function FillRow(row, note, line, y)
     row.line = line
+    row.name:SetAlpha(1)
     local done, progress, detail = CK.LineState(note, line)
     row.done = done and true or false
     row.check:SetChecked(row.done)
@@ -437,12 +460,14 @@ end
 local function FillBoard(note)
     for _, row in ipairs(UI.rows) do row:Hide() end
     if UI.doneHead then UI.doneHead:Hide() end
+    if UI.addRow then UI.addRow:Hide() end
+    UI.empty:Hide()
     local chars = CK.Board(note)
     local lines = note.list.lines
     for i, charKey in ipairs(chars) do
         local head = Head(i)
         head:ClearAllPoints()
-        head:SetPoint("TOPLEFT", UI.list, "TOPLEFT", NAME_W + (i - 1) * CELL_W, 0)
+        head:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W + NAME_W + (i - 1) * CELL_W, 0)
         head:SetText(CK.CharName(charKey))
         head:Show()
     end
@@ -454,24 +479,25 @@ local function FillBoard(note)
         local row = UI.rows[r] or CreateRow(r)
         row.line = line
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", UI.list, "TOPLEFT", 0, -y)
+        row:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W, -y)
         row:SetSize(NAME_W, ROW_H)
         row.check:Hide()
         row.icon:Hide()
         row.progress:SetText("")
         row.detail:Hide()
         row.name:ClearAllPoints()
-        row.name:SetPoint("LEFT", row, "LEFT", 4, 0)
+        row.name:SetPoint("LEFT", row, "LEFT", 0, 0)
         row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         row.name:SetText(CK.LineName(line))
         row.name:SetTextColor(1, 1, 1, 1)
+        row.name:SetAlpha(1)
         row:Show()
         for c, charKey in ipairs(chars) do
             n = n + 1
             local cell = Cell(n)
             local done, progress = CK.BoardCell(note, line, charKey)
             cell:ClearAllPoints()
-            cell:SetPoint("TOPLEFT", UI.list, "TOPLEFT", NAME_W + (c - 1) * CELL_W, -y)
+            cell:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W + NAME_W + (c - 1) * CELL_W, -y)
             cell.tex:SetShown(done == true)
             cell.text:SetShown(done ~= true)
             cell.text:SetText(done == nil and "-" or (progress or ""))
@@ -483,8 +509,8 @@ local function FillBoard(note)
     return 18 + #lines * ROW_H
 end
 
--- The open lines first, in their order; the ticked ones under a Done
--- heading at the bottom, as a checklist keeps them.
+-- The open lines first, in their order, then the add line; the ticked
+-- ones under a Done heading at the bottom, as a checklist keeps them.
 local function FillList(note)
     for _, cell in ipairs(UI.cells) do cell:Hide() end
     for _, head in ipairs(UI.heads) do head:Hide() end
@@ -502,6 +528,14 @@ local function FillList(note)
             UI.open[#UI.open + 1] = row
         end
     end
+    local add = AddRow()
+    add:ClearAllPoints()
+    add:SetPoint("TOPLEFT", UI.list, "TOPLEFT", 0, -y)
+    add:SetPoint("RIGHT", UI.list, "RIGHT", 0, 0)
+    add:Show()
+    y = y + ROW_H
+    UI.empty:SetShown(#lines == 0)
+    if #lines == 0 then y = y + 8 + (UI.empty:GetStringHeight() or 0) end
     if UI.doneHead then UI.doneHead:Hide() end
     if #done > 0 then
         UI.doneHead = UI.doneHead or Text(UI.list, "GameFontNormalSmall")
@@ -553,6 +587,7 @@ end
 
 function View.DragStart(row)
     if UI.board or row.done then return end
+    if UI.editing then View.EndEdit() end
     UI.drag = row
     UI.line:Show()
 end
@@ -592,57 +627,10 @@ local function EnsureView()
     view:SetAllPoints(frame.editorScroll)
     view:Hide()
 
-    -- One line at the top: the box a new line is typed in, the Link
-    -- button and a cog with the list's settings; the rows under it.
-    local bar = CreateFrame("Frame", nil, view)
-    bar:SetPoint("TOPLEFT")
-    bar:SetPoint("TOPRIGHT")
-    bar:SetHeight(BAR_H)
-    UI.tools = ns.CreateCogButton and ns.CreateCogButton(bar) or CreateFrame("Button", nil, bar)
-    UI.tools:SetSize(18, 18)
-    UI.tools:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
-    UI.tools:SetScript("OnClick", function(self)
-        local note = Note()
-        if not note then return end
-        Menu(self, {
-            { text = sformat(L["CHECK_SCOPE_FMT"], OptionLabel(SCOPES, note.list.scope)), onClick = function()
-                Radio(self, SCOPES, function() return note.list.scope end, function(v) note.list.scope = v note.updated = time() end)
-            end },
-            { text = L["CHECK_RESET_ROW"], onClick = function() PickReset(self, note) end },
-            { text = L["CHECK_BOARD"], icon = UI.board and MENU_CHECK_TEX or nil,
-              onClick = function() View.ShowBoard(not UI.board) end },
-            { isSeparator = true },
-            { text = L["CHECK_SEARCH_AH"], disabled = not AuctionOpen(), onClick = function() SearchNext(note) end },
-        })
-    end)
-    UI.linkBtn = ns.CreateModernButton(bar, L["CHECK_LINK_BTN"], 66, 20)
-    UI.linkBtn:SetPoint("RIGHT", UI.tools, "LEFT", -6, 0)
-    UI.linkBtn:SetScript("OnClick", function(self)
-        local note = Note()
-        if note then LinkMenu(self, note) end
-    end)
-    local add = CreateFrame("EditBox", nil, bar, "InputBoxTemplate")
-    add:SetAutoFocus(false)
-    add:SetHeight(20)
-    add:SetPoint("LEFT", bar, "LEFT", 6, 0)
-    add:SetPoint("RIGHT", UI.linkBtn, "LEFT", -8, 0)
-    ns.RegisterAddonFont(add)
-    add.hint = Text(add, "GameFontDisableSmall")
-    add.hint:SetPoint("LEFT", add, "LEFT", 2, 0)
-    add.hint:SetText(L["CHECK_ADD_HINT"])
-    add:SetScript("OnTextChanged", function(self) self.hint:SetShown((self:GetText() or "") == "") end)
-    add:SetScript("OnEscapePressed", add.ClearFocus)
-    add:SetScript("OnEnterPressed", function(self)
-        local note, text = Note(), strtrim(self:GetText() or "")
-        if note and text ~= "" then
-            AddLine(note, CK.LineFromLink(text) or { text = text })
-            self:SetText("")
-        end
-    end)
-    UI.add = add
-
+    -- The rows start GRIP_W left of the text edge: the boxes sit on it,
+    -- the grip in the margin.
     local scroll = CreateFrame("ScrollFrame", nil, view)
-    scroll:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -6)
+    scroll:SetPoint("TOPLEFT", view, "TOPLEFT", -GRIP_W, 0)
     scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -12, 2)
     UI.scroll = scroll
     UI.list = CreateFrame("Frame", nil, scroll)
@@ -651,7 +639,7 @@ local function EnsureView()
     UI.bar = Utils.CreateMinimalScrollBar(scroll, view)
     -- In the gutter right of the rows, never over them.
     UI.bar:ClearAllPoints()
-    UI.bar:SetPoint("TOPRIGHT", view, "TOPRIGHT", -2, -(BAR_H + 8))
+    UI.bar:SetPoint("TOPRIGHT", view, "TOPRIGHT", -2, -2)
     UI.bar:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -2, 4)
     UI.line = UI.list:CreateTexture(nil, "OVERLAY")
     UI.line:SetHeight(2)
@@ -673,18 +661,22 @@ local function EnsureView()
         if UI.drag then View.PlaceDropLine() end
     end)
 
-    UI.empty = Text(view, "GameFontDisable")
-    UI.empty:SetPoint("TOPLEFT", scroll, "TOPLEFT", 12, -30)
-    UI.empty:SetPoint("TOPRIGHT", scroll, "TOPRIGHT", -12, -30)
-    UI.empty:SetJustifyH("CENTER")
+    -- An empty list's hint, under its add line.
+    UI.empty = Text(UI.list, "GameFontDisable")
+    UI.empty:SetPoint("TOPLEFT", AddRow(), "BOTTOMLEFT", GRIP_W, -8)
+    UI.empty:SetPoint("TOPRIGHT", AddRow(), "BOTTOMRIGHT", 0, -8)
     UI.empty:SetWordWrap(true)
     UI.empty:SetText(L["CHECK_EMPTY"])
 
-    -- Shift-clicked items, quests and spells join the open list.
+    -- Shift-clicked items, quests and spells join the open list; into the
+    -- line being typed, where one is.
     Utils.HookInsertLink(function(link)
         local note = Note()
         if not (view:IsVisible() and note and CK.Is(note)) then return end
-        if UI.add:HasFocus() then return end
+        if UI.edit and UI.edit:HasFocus() then
+            UI.edit:Insert(link)
+            return
+        end
         AddLine(note, CK.LineFromLink(link))
     end)
 
@@ -743,10 +735,16 @@ function View.Refresh()
     CK.Init(note)
     if CK.ApplyReset(note, time()) then note.updated = time() end
     local list = note.list
+    -- A line left empty goes, unless it is the one being typed.
+    for i = #list.lines, 1, -1 do
+        local line = list.lines[i]
+        if not line.link and (line.text or "") == "" and line.id ~= UI.editing then CK.RemoveLine(note, line.id) end
+    end
     local board = UI.board and #list.lines > 0
+    if board and UI.editing then View.EndEdit() return end
     local h = board and FillBoard(note) or FillList(note)
-    UI.empty:SetShown(#list.lines == 0)
-    UI.list:SetWidth(mmax(1, board and (NAME_W + #CK.Board(note) * CELL_W) or (UI.scroll:GetWidth() or 1)))
+    UI.list:SetWidth(mmax(1, board and (GRIP_W + NAME_W + #CK.Board(note) * CELL_W) or (UI.scroll:GetWidth() or 1)))
+    View.PlaceEdit()
     UI.list:SetHeight(mmax(1, h))
     local viewH = UI.scroll:GetHeight() or 0
     if UI.bar then
@@ -758,6 +756,145 @@ function View.Refresh()
             UI.bar:Hide()
         end
     end
+end
+
+-- Typing in place --------------------------------------------------------------
+
+local function LineByID(note, id)
+    for _, line in ipairs(note.list.lines) do
+        if line.id == id then return line end
+    end
+end
+
+-- The open line before or after line id in the list as shown.
+local function Neighbor(id, step)
+    for j, row in ipairs(UI.open) do
+        if row.line and row.line.id == id then
+            local other = UI.open[j + step]
+            return other and other.line and other.line.id
+        end
+    end
+end
+
+-- One box, laid over the words of the line being typed.
+local function EnsureEdit()
+    if UI.edit then return UI.edit end
+    local box = CreateFrame("EditBox", nil, UI.list)
+    box:SetAutoFocus(false)
+    box:SetFontObject("GameFontHighlight")
+    ns.RegisterAddonFont(box)
+    box:SetMaxLetters(120)
+    box:SetHeight(ROW_H - 6)
+    box:EnableMouse(true)
+    box:SetScript("OnEnterPressed", function() View.EndEdit("next") end)
+    box:SetScript("OnEscapePressed", function() View.EndEdit() end)
+    box:SetScript("OnEditFocusLost", function() View.EndEdit() end)
+    box:SetScript("OnKeyDown", function(self, key)
+        if key == "BACKSPACE" and (self:GetText() or "") == "" then View.EndEdit("back")
+        elseif key == "UP" then View.EndEdit("up")
+        elseif key == "DOWN" then View.EndEdit("down") end
+    end)
+    box:Hide()
+    UI.edit = box
+    return box
+end
+
+-- The box onto the row of the line being typed, its words under it hidden.
+function View.PlaceEdit()
+    local id = UI.editing
+    if not id then
+        if UI.edit then UI.edit:Hide() end
+        return
+    end
+    for _, row in ipairs(UI.rows) do
+        if row:IsShown() and row.line and row.line.id == id then
+            local box = EnsureEdit()
+            box:ClearAllPoints()
+            box:SetPoint("LEFT", row.name, "LEFT", 0, 0)
+            box:SetPoint("RIGHT", row.progress, "LEFT", -6, 0)
+            row.name:SetAlpha(0)
+            if not box:IsShown() then
+                local text = row.line.text or CK.LineName(row.line)
+                box:SetText(text)
+                box:Show()
+                box:SetFocus()
+                box:SetCursorPosition(#text)
+            end
+            return
+        end
+    end
+    UI.editing = nil
+    if UI.edit then UI.edit:Hide() end
+end
+
+-- Types in line id where it stands.
+function View.Edit(id)
+    if UI.board then return end
+    if UI.editing and UI.editing ~= id then View.EndEdit() end
+    UI.editing = id
+    View.Refresh()
+end
+
+-- A new line at the end of the open ones, typed in.
+function View.AddNew()
+    local note = Note()
+    if not (note and UI.view and UI.view:IsShown()) or UI.board then return end
+    if UI.editing then View.EndEdit() end
+    UI.editing = CK.AddLine(note, { text = "" }).id
+    Changed(note)
+end
+
+-- The typed words kept (a link typed in makes it a line the game ticks;
+-- emptied, a plain line goes); then on to the line move names: "next" a
+-- new line under it, "back" the one above with this one gone, "up" or
+-- "down" the one above or below.
+function View.EndEdit(move)
+    local id = UI.editing
+    if not id then return end
+    UI.editing = nil
+    local box = UI.edit
+    local text = strtrim(box:GetText() or "")
+    box:Hide()
+    box:ClearFocus()
+    local note = Note()
+    local line = note and LineByID(note, id)
+    if not line then View.Refresh() return end
+    local prev, nextID = Neighbor(id, -1), Neighbor(id, 1)
+    local from = CK.LineFromLink(text)
+    if from then
+        line.text = nil
+        for k, v in pairs(from) do line[k] = v end
+    elseif text == "" and not line.link then
+        CK.RemoveLine(note, id)
+        line = nil
+    elseif text ~= CK.LineName(line) or line.text then
+        line.text = text ~= "" and text or nil
+    end
+    CK.SyncBody(note)
+    if move == "next" and line then
+        UI.editing = CK.InsertLine(note, { text = "" }, line.id).id
+    elseif move == "back" or move == "up" then
+        UI.editing = prev
+    elseif move == "down" then
+        UI.editing = nextID
+    end
+    Changed(note)
+end
+
+-- The list's own settings, for the notes window's menu.
+function View.MenuRows(note, anchor)
+    local list = CK.Init(note)
+    local scopes = {}
+    for _, o in ipairs(SCOPES) do
+        scopes[#scopes + 1] = { text = o.label, icon = (list.scope or "account") == o.value and MENU_CHECK_TEX or nil,
+            onClick = function() list.scope = o.value Changed(note) end }
+    end
+    return {
+        { text = sformat(L["CHECK_SCOPE_FMT"], OptionLabel(SCOPES, list.scope)), submenu = scopes },
+        { text = L["CHECK_RESET_ROW"], onClick = function() PickReset(anchor, note) end },
+        { text = L["CHECK_BOARD"], icon = UI.board and MENU_CHECK_TEX or nil, onClick = function() View.ShowBoard(not UI.board) end },
+        { text = L["CHECK_SEARCH_AH"], disabled = not AuctionOpen(), onClick = function() SearchNext(note) end },
+    }
 end
 
 function View.ShowBoard(on)

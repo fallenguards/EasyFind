@@ -777,6 +777,8 @@ function notesNS.NewChecklist()
     if notesNS.Checklist then notesNS.Checklist.Init(note) end
     UI:HideEasyNotesPalette()
     UI:RefreshEasyNotes()
+    -- Straight to typing its first line.
+    if notesNS.ChecklistView then notesNS.ChecklistView.AddNew() end
     return note
 end
 
@@ -6842,6 +6844,13 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               if id then ConfirmDeleteNote(id) end
           end },
     }
+    -- A checklist's own settings lead.
+    local CKV = notesNS.ChecklistView
+    if CKV and notesNS.Checklist and notesNS.Checklist.Is(note) then
+        local own = CKV.MenuRows(note, anchor)
+        tinsert(rows, 1, { isSeparator = true })
+        for i = #own, 1, -1 do tinsert(rows, 1, own[i]) end
+    end
     -- Capture rows show only while there is something to capture.
     if notesNS.OpenMailIndex() then
         tinsert(rows, 3, { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end })

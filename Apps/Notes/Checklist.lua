@@ -47,13 +47,22 @@ local function Holder(list, charKey)
     return list.scope == "character" and charKey or "account"
 end
 
-function CK.AddLine(note, line)
+-- A line after line afterID, or last.
+function CK.InsertLine(note, line, afterID)
     local list = CK.Init(note)
     line.id = list.nextLine
     list.nextLine = list.nextLine + 1
-    list.lines[#list.lines + 1] = line
+    local at = #list.lines + 1
+    for i, l in ipairs(list.lines) do
+        if l.id == afterID then at = i + 1 break end
+    end
+    table.insert(list.lines, at, line)
     CK.SyncBody(note)
     return line
+end
+
+function CK.AddLine(note, line)
+    return CK.InsertLine(note, line, nil)
 end
 
 function CK.RemoveLine(note, id)

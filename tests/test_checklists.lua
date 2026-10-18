@@ -134,6 +134,15 @@ function tests.linksBecomeLines()
     H.assertNil(CK.LineFromLink("plain words"))
 end
 
+function tests.insertLine_goesAfterTheLineNamed()
+    local CK = Load()
+    local note = NewList(CK)
+    local a = CK.AddLine(note, { text = "A" })
+    CK.AddLine(note, { text = "C" })
+    CK.InsertLine(note, { text = "B" }, a.id)
+    H.assertEq(note.body, "A\nB\nC")
+end
+
 function tests.body_mirrorsLineNamesForSearch()
     local CK = Load()
     local note = NewList(CK)
@@ -158,7 +167,8 @@ end
 -- A frame that answers every method: Get* reads 0, the rest do nothing.
 local function Stub()
     local special = {
-        GetText = function() return "" end,
+        GetText = function(self) return self._text or "" end,
+        SetText = function(self, v) self._text = v end,
         GetChecked = function() return false end,
         IsShown = function(self) return self._shown ~= false end,
         IsVisible = function(self) return self._shown ~= false end,
@@ -180,9 +190,16 @@ local function Stub()
     end })
 end
 
-function tests.view_buildsTheListAndTheBoard()
+-- The view on stub frames over a list of lines; made: the frames by kind.
+local function LoadView(lines)
     local CK, w, env = Load()
-    env.CreateFrame = function() return Stub() end
+    local made = {}
+    env.CreateFrame = function(kind)
+        local f = Stub()
+        made[kind] = made[kind] or {}
+        made[kind][#made[kind] + 1] = f
+        return f
+    end
     local ns = env.EasyFind._ns
     ns.CreateModernButton = function() local b = Stub() b._label = Stub() return b end
     ns.RegisterAddonFont = function() end
@@ -203,12 +220,7 @@ function tests.view_buildsTheListAndTheBoard()
     env.C_Item.GetItemIconByID = function() return 1 end
     local note = { id = 1, list = nil }
     CK.Init(note)
-    for _, line in ipairs({ { text = "Plain" }, { link = "item", item = 1, target = 2 }, { link = "quest", quest = 9 },
-        { link = "rep", faction = 72, standing = 8 }, { link = "gold", target = 10000 }, { link = "level", target = 40 },
-        { link = "skill", skill = "Tailoring", target = 300 }, { link = "lockout", instance = "Molten Core" },
-        { link = "cooldown", spell = 18560 } }) do
-        CK.AddLine(note, line)
-    end
+    for _, line in ipairs(lines) do CK.AddLine(note, line) end
     local notesNS = {
         Checklist = CK, Context = {},
         UI = { _notes = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub() } } },
@@ -216,7 +228,14 @@ function tests.view_buildsTheListAndTheBoard()
         AllNotes = function() return { note } end,
     }
     assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/ChecklistView.lua", "t", env))("EasyFind_Notes", notesNS)
-    local View = notesNS.ChecklistView
+    return notesNS.ChecklistView, note, w, made
+end
+
+function tests.view_buildsTheListAndTheBoard()
+    local View, note, w = LoadView({ { text = "Plain" }, { link = "item", item = 1, target = 2 }, { link = "quest", quest = 9 },
+        { link = "rep", faction = 72, standing = 8 }, { link = "gold", target = 10000 }, { link = "level", target = 40 },
+        { link = "skill", skill = "Tailoring", target = 300 }, { link = "lockout", instance = "Molten Core" },
+        { link = "cooldown", spell = 18560 } })
     View.SetAllowed(true)
     w.insert("|Hitem:5:0|h[Thing]|h")
     H.assertEq(#note.list.lines, 10, "a shift-clicked item joined the list")
@@ -224,6 +243,36 @@ function tests.view_buildsTheListAndTheBoard()
     View.ShowBoard(false)
     View.Sweep()
     View.SetAllowed(false)
+end
+
+local function Texts(note)
+    local out = {}
+    for i, line in ipairs(note.list.lines) do out[i] = line.text or "" end
+    return table.concat(out, "|")
+end
+
+function tests.view_typesLinesInPlace()
+    local View, note, _, made = LoadView({ { text = "Plain" }, { text = "Other" } })
+    View.SetAllowed(true)
+    View.AddNew()
+    local box = made.EditBox and made.EditBox[1]
+    H.assertTrue(box ~= nil and box:IsShown(), "a new line opens for typing")
+    box:SetText("Bread")
+    box._scripts.OnEnterPressed()
+    H.assertEq(Texts(note), "Plain|Other|Bread|", "Enter keeps the line and opens one under it")
+    box._scripts.OnEnterPressed()
+    H.assertEq(Texts(note), "Plain|Other|Bread", "Enter on an empty line stops, the line gone")
+    H.assertTrue(not box:IsShown())
+    View.Edit(note.list.lines[2].id)
+    H.assertEq(box:GetText(), "Other", "a line's words to type over")
+    box:SetText("Others")
+    box._scripts.OnKeyDown(box, "UP")
+    H.assertEq(note.list.lines[2].text, "Others", "moving off keeps the words")
+    H.assertEq(box:GetText(), "Plain", "up: the line above")
+    box:SetText("")
+    box._scripts.OnKeyDown(box, "BACKSPACE")
+    H.assertEq(Texts(note), "Others|Bread", "Backspace on an emptied line removes it")
+    box._scripts.OnEditFocusLost()
 end
 
 local pass, fail, failures = H.runSuite("Checklists", tests)
