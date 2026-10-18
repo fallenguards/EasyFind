@@ -513,6 +513,30 @@ function GPS.ShowStep(index)
     if GPS:Open() then ns.GPSPreview:Toggle(index, true) end
 end
 
+-- A step's right-click: feedback on that step, the full route beside it so
+-- the two read apart. Surfaces without a menu of their own (the map's page)
+-- show it at the cursor.
+function GPS.ShowStepMenu(container, index)
+    local defs = {
+        { kind = "action", label = L["GPS_FEEDBACK_STEP"], onClick = function() GPS:ReportRoute(index) end },
+        { kind = "action", label = L["GPS_FEEDBACK_ROUTE"], onClick = function() GPS:ReportRoute() end },
+    }
+    if container.ShowMenu then return container.ShowMenu(defs) end
+    if not ns.ShowTogglePopup then return end
+    local anchor = GPS.stepMenuAnchor
+    if not anchor then
+        -- starts shown: an empty 1 px point the menu hangs from
+        anchor = CreateFrame("Frame", nil, UIParent)
+        anchor:SetSize(1, 1)
+        GPS.stepMenuAnchor = anchor
+    end
+    local cx, cy = GetCursorPosition()
+    local scale = UIParent:GetEffectiveScale()
+    anchor:ClearAllPoints()
+    anchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
+    ns.ShowTogglePopup("EasyFindGPSStepMenu", anchor, defs, {})
+end
+
 
 -- A crossing still a way off reads as reaching it (portal, dock, flight master),
 -- then as taking it once there.
@@ -1330,14 +1354,22 @@ function GPS:SetStart(data, quiet)
     Refresh()
 end
 
--- A route that went wrong: the issue form, filled in with the route.
-function GPS:ReportRoute()
+-- A route that went wrong: the issue form, filled in with the route, and
+-- with the step when the feedback is about one.
+function GPS:ReportRoute(stepIndex)
     local route = Route()
     local Engine = ns.GPSRoute
     if not (route and Engine and Engine.ReportCode and EasyFind.OpenRouteReport) then return end
     local db = DB()
     local code = Engine.ReportCode(route, { version = ns.version, avoid = db and db.gpsAvoid, hearth = HearthPoint() })
-    if code then EasyFind:OpenRouteReport(code) end
+    local step = stepIndex and route.steps and route.steps[stepIndex]
+    local line
+    if step then
+        local a = step.arrive
+        line = sformat("%d/%d %s%s %s", stepIndex, #route.steps, Engine.StepsCode({ step }),
+            (a and a.m and a.x) and sformat(" at %d:%.4f:%.4f", a.m, a.x, a.y or 0) or "", step.text or "")
+    end
+    if code then EasyFind:OpenRouteReport(code, line) end
 end
 
 function GPS:Clear()
@@ -1539,12 +1571,11 @@ local function StepRow(container, i)
     Utils.AttachDelayedTooltip(row.drop, "ANCHOR_TOP", function() return L["GPS_SKIP_LEARN"] end)
     row.drop:HookScript("OnLeave", function() if not row:IsMouseOver() then row.drop:Hide() end end)
     -- A plain click never moves the route: it shows the step's preview
-    -- (beside the map it pins it); Shift-click jumps; right-click offers the jump.
+    -- (beside the map it pins it); Shift-click jumps; right-click gives feedback.
     row:SetScript("OnClick", function(self, button)
         if not self.index then return end
         if button == "RightButton" then
-            -- The same menu the surface itself gives on a right-click.
-            if container.ShowMenu then container.ShowMenu() end
+            GPS.ShowStepMenu(container, self.index)
         elseif IsShiftKeyDown() then
             GPS.GoToStep(self.index)
         elseif container.previewOnHover and ns.GPSPreview then
@@ -3054,7 +3085,7 @@ local function DockLine(f, i)
     row:SetScript("OnClick", function(self, button)
         if not self.index then return end
         if button == "RightButton" then
-            if f.ShowMenu then f.ShowMenu() end
+            GPS.ShowStepMenu(f, self.index)
         elseif IsShiftKeyDown() then GPS.GoToStep(self.index)
         else GPS.ShowStep(self.index) end
     end)
@@ -3248,7 +3279,8 @@ function Look.EraLine(f, i)
     row.text:SetIndentedWordWrap(true)
     row:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
-            if f.ShowMenu then f.ShowMenu() end
+            if self.index and not (self.tip or self.from) then GPS.ShowStepMenu(f, self.index)
+            elseif f.ShowMenu then f.ShowMenu() end
         elseif self.tip then
             TipClick(self)
         elseif self.from then
@@ -3674,8 +3706,8 @@ local function BuildDock()
     menuAnchor:SetSize(1, 1)
     -- The section's options: on the game's own menu, as the tracker's
     -- sections have theirs; the styled popup only if that is missing.
-    local function ShowDockMenu()
-            local defs = GPS.MenuRows(f)
+    local function ShowDockMenu(defs)
+            defs = defs or GPS.MenuRows(f)
             if ShowGameMenu(f, defs) then return end
             if not ns.ShowTogglePopup then return end
             local cx, cy = GetCursorPosition()
@@ -4302,12 +4334,12 @@ local function BuildPopout()
     -- no cog in the header.
     local menuAnchor = CreateFrame("Frame", nil, f)
     menuAnchor:SetSize(1, 1)
-    local function ShowWindowMenu()
+    local function ShowWindowMenu(defs)
         local cx, cy = GetCursorPosition()
         local scale = UIParent:GetEffectiveScale()
         menuAnchor:ClearAllPoints()
         menuAnchor:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
-        if ns.ShowTogglePopup then ns.ShowTogglePopup("EasyFindGPSWindowMenu", menuAnchor, GPS.MenuRows(f), {}) end
+        if ns.ShowTogglePopup then ns.ShowTogglePopup("EasyFindGPSWindowMenu", menuAnchor, defs or GPS.MenuRows(f), {}) end
     end
     f:SetScript("OnMouseUp", function(self, button)
         if button == "RightButton" then ShowWindowMenu() end

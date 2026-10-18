@@ -79,7 +79,7 @@ function tests.backInItsSlotAfterADrag()
 end
 
 -- Every line of the section is a button, and a button that takes only the
--- left click swallows the right one: each takes it and opens the menu.
+-- left click swallows the right one: each takes it and opens a menu.
 function tests.everyLineOpensTheMenuOnRightClick()
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
     local src = f:read("*a")
@@ -96,8 +96,8 @@ function tests.everyLineOpensTheMenuOnRightClick()
         local buttons = select(2, body:gsub('CreateFrame%("Button"', ""))
         local right = select(2, body:gsub("RightButtonUp", ""))
         H.assertTrue(right >= buttons, b[1] .. ": a button that takes no right click")
-        H.assertTrue(body:find("ShowMenu", 1, true) ~= nil or body:find("ShowDockMenu", 1, true) ~= nil,
-            b[1] .. ": no menu")
+        H.assertTrue(body:find("ShowMenu", 1, true) ~= nil or body:find("ShowDockMenu", 1, true) ~= nil
+            or body:find("ShowStepMenu", 1, true) ~= nil, b[1] .. ": no menu")
     end
 end
 

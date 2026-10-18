@@ -19,6 +19,14 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: step
+    attributes:
+      label: Step
+      description: Filled in when the feedback is about one step ("Give feedback on this step" on a step's right-click). Empty for the whole route.
+    validations:
+      required: false
+
   - type: dropdown
     id: problem
     attributes:
