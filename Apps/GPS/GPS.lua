@@ -503,6 +503,14 @@ function GPS.GoToStep(index)
     TrackStep(index)
 end
 
+-- A click on a step away from the map: the map opens on the GPS page
+-- with the step shown.
+function GPS.ShowStep(index)
+    local route = Route()
+    if not (route and route.steps[index] and ns.GPSPreview) then return end
+    if GPS:Open() then ns.GPSPreview:Toggle(index, true) end
+end
+
 
 -- A crossing still a way off reads as reaching it (portal, dock, flight master),
 -- then as taking it once there.
@@ -1528,8 +1536,8 @@ local function StepRow(container, i)
     row.drop:SetScript("OnClick", function() if row.learnID then GPS:DropLearn(row.learnID) end end)
     Utils.AttachDelayedTooltip(row.drop, "ANCHOR_TOP", function() return L["GPS_SKIP_LEARN"] end)
     row.drop:HookScript("OnLeave", function() if not row:IsMouseOver() then row.drop:Hide() end end)
-    -- A plain click never moves the route: beside the map it pins the
-    -- step's preview; Shift-click jumps; right-click offers the jump.
+    -- A plain click never moves the route: it shows the step's preview
+    -- (beside the map it pins it); Shift-click jumps; right-click offers the jump.
     row:SetScript("OnClick", function(self, button)
         if not self.index then return end
         if button == "RightButton" then
@@ -1539,6 +1547,8 @@ local function StepRow(container, i)
             GPS.GoToStep(self.index)
         elseif container.previewOnHover and ns.GPSPreview then
             ns.GPSPreview:Toggle(self.index)
+        else
+            GPS.ShowStep(self.index)
         end
     end)
     row:SetScript("OnEnter", function(self)
@@ -3041,7 +3051,8 @@ local function DockLine(f, i)
         if not self.index then return end
         if button == "RightButton" then
             if f.ShowMenu then f.ShowMenu() end
-        elseif IsShiftKeyDown() then GPS.GoToStep(self.index) end
+        elseif IsShiftKeyDown() then GPS.GoToStep(self.index)
+        else GPS.ShowStep(self.index) end
     end)
     -- A teleport's icon at the line's right edge, flush with the section's.
     row.cast = CastButton(row, -4)
@@ -3240,6 +3251,8 @@ function Look.EraLine(f, i)
             GPS:PickStart(f)
         elseif self.index and IsShiftKeyDown() then
             GPS.GoToStep(self.index)
+        elseif self.index then
+            GPS.ShowStep(self.index)
         end
     end)
     row:SetScript("OnEnter", function(self) if self.tip then TipEnter(self) end end)

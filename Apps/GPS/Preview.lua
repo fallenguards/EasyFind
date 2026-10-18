@@ -706,14 +706,14 @@ function Preview:Follow()
 end
 
 -- A click on a step's number turns the map to that step and shows it; a
--- click on the step shown, its map up, puts it away.
-function Preview:Toggle(index)
+-- click on the step shown, its map up, puts it away unless keep.
+function Preview:Toggle(index, keep)
     local route = Route()
     if not (route and route.steps and (index == 0 or route.steps[index])) then return end
     local mapID = TargetMap(route, index)
     local here = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local followed = Following()
-    if Shown() == index and (not mapID or here == mapID) then
+    if not keep and Shown() == index and (not mapID or here == mapID) then
         if pinned == index and index ~= followed then pinned = nil else pinned = false end
     else
         if index == followed then pinned = nil else pinned = index end
