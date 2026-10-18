@@ -1,0 +1,42 @@
+name: GPS Route Report
+description: A route that went the wrong way, took too long or could not be followed
+labels: ["gps"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Addon version
+      description: Filled in when the report came from the game.
+    validations:
+      required: false
+
+  - type: textarea
+    id: route
+    attributes:
+      label: Route
+      description: Filled in when the report came from the game ("Report this route" in the route's menu, or on arrival). It holds where the route started and ended, its steps and how long it took; no character or realm names.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong?
+      options:
+        - It took much longer than it said
+        - There was a faster way
+        - It sent me into a wall, a cliff or deep water
+        - It used a flight path, boat or teleport I could not take
+        - It led to the wrong place
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Where it went wrong, and the way you would have taken.
+    validations:
+      required: false
