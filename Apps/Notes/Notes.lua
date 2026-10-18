@@ -3885,12 +3885,13 @@ function UI:EnsureEasyNotesFrame()
         b.dots = {}
         for i = 1, 3 do
             local dot = b:CreateTexture(nil, "OVERLAY")
-            dot:SetTexture("Interface\\Buttons\\WHITE8x8")
+            dot:SetColorTexture(1, 1, 1, 1)
             dot:SetSize(4, 4)
-            if dot.SetMask then
-                dot:SetMask("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
-            end
             dot:SetPoint("CENTER", b, "CENTER", 0, 5 - (i - 1) * 5)
+            local mask = b:CreateMaskTexture()
+            mask:SetTexture(ns.PORTRAIT_ALPHA_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            mask:SetAllPoints(dot)
+            dot:AddMaskTexture(mask)
             dot:SetVertexColor(0.78, 0.78, 0.82, 1)
             b.dots[i] = dot
         end
@@ -6660,20 +6661,6 @@ local MATCH_MODE_LABELS = {
     manual = L["NOTES_MATCH_MANUAL"],
 }
 
-function UI:RefreshEasyNotesContextButton()
-    local frame = UI._notes.frame
-    if not (frame and frame.overflowButton and frame.overflowButton.dots) then return end
-    local note = GetSelectedNote()
-    local r, g, b = 0.78, 0.78, 0.82
-    if note and note.appliesIn and #note.appliesIn > 0 then
-        r, g, b = 0.95, 0.78, 0.36
-    end
-    local dots = frame.overflowButton.dots
-    for i = 1, #dots do
-        dots[i]:SetVertexColor(r, g, b, 1)
-    end
-end
-
 local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 
 -- One themed context menu for the whole note UI (ShowCursorMenu, the same
@@ -7148,7 +7135,6 @@ function UI:ShowAddShowsOnMenu(anchor)
 end
 
 function UI:RefreshEasyNotesAttachBar()
-    self:RefreshEasyNotesContextButton()
     local frame = UI._notes.frame
     if not (frame and frame.attachBar) then return end
     local note = GetSelectedNote()
