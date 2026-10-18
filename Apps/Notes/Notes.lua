@@ -6620,6 +6620,42 @@ function notesNS.AddUnitNoteLines(tooltip, objType, objID)
     AddShowsOnLines(tooltip, objType, objID)
 end
 
+-- A player's notes on a hover over their name in chat (on unless turned
+-- off), in every chat window, whisper windows as they open.
+do
+    local hooked, tipFrame = {}, nil
+    local function NameEnter(chatFrame, link)
+        if EasyFind.db.notesChatNames == false or type(link) ~= "string" then return end
+        if _G.issecretvalue and _G.issecretvalue(link) then return end
+        local name = link:match("^player:([^:]+)")
+        local key = name and ns.NotesPlayerKey(name)
+        if not (key and notesNS.HasUnitNote("player", key)) then return end
+        GameTooltip:SetOwner(chatFrame, "ANCHOR_CURSOR")
+        GameTooltip:SetText(name:match("^[^%-]+"), 1, 1, 1)
+        AddShowsOnLines(GameTooltip, "player", key)
+        GameTooltip:Show()
+        tipFrame = chatFrame
+    end
+    local function NameLeave(chatFrame)
+        if tipFrame ~= chatFrame then return end
+        tipFrame = nil
+        if GameTooltip:IsOwned(chatFrame) then GameTooltip:Hide() end
+    end
+    local function HookChatWindows()
+        local names = CHAT_FRAMES
+        for i = 1, names and #names or (NUM_CHAT_WINDOWS or 10) do
+            local cf = _G[names and names[i] or ("ChatFrame" .. i)]
+            if cf and cf.HookScript and not hooked[cf] then
+                hooked[cf] = true
+                cf:HookScript("OnHyperlinkEnter", NameEnter)
+                cf:HookScript("OnHyperlinkLeave", NameLeave)
+            end
+        end
+    end
+    HookChatWindows()
+    if FCF_OpenTemporaryWindow then hooksecurefunc("FCF_OpenTemporaryWindow", HookChatWindows) end
+end
+
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
         local ok, err = pcall(function()

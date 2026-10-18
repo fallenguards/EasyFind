@@ -89,7 +89,7 @@ read_globals = {
     "IsInRaid", "IsInGuild", "UnitExists", "UnitIsPlayer", "SendChatMessage",
     "ChatEdit_GetActiveWindow", "ChatEdit_InsertLink", "ChatEdit_ChooseBoxForSend",
     "ChatEdit_UpdateHeader", "ChatEdit_ActivateChat", "ChatEdit_OnTextChanged",
-    "ChatFrameUtil", "NUM_CHAT_WINDOWS", "STATICPOPUP_NUMDIALOGS",
+    "ChatFrameUtil", "NUM_CHAT_WINDOWS", "CHAT_FRAMES", "FCF_OpenTemporaryWindow", "STATICPOPUP_NUMDIALOGS",
     "SELECTED_CHAT_FRAME", "COMBATLOG", "CombatLogClearEntries",
     "ChatFrame_OpenChat", "DEFAULT_CHAT_FRAME",
     "UnitFactionGroup", "IsSpellKnown", "PlayerHasToy", "IsFlyableArea", "IsPlayerMoving", "IsFalling", "UnitPosition",

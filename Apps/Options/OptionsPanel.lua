@@ -4761,6 +4761,7 @@ local function BuildNotesPage(ctx, page)
     local options = {
         { "notesHereFilter", "NOTES_OPT_HERE", "NOTES_OPT_HERE_TT", "NotesHere" },
         { "notesTooltips", "NOTES_OPT_TOOLTIPS", "NOTES_OPT_TOOLTIPS_TT", "NotesTooltips" },
+        { "notesChatNames", "NOTES_OPT_CHAT_NAMES", "NOTES_OPT_CHAT_NAMES_TT", "NotesChatNames" },
         { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU", "NOTES_OPT_PLAYER_MENU_TT", "NotesPlayerMenu" },
     }
     local anchor = hint

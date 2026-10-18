@@ -267,6 +267,7 @@ local UI_FILTER_OPTIONS = {
             checkboxOptions = {
                 { dbKey = "notesHereFilter", label = L["NOTES_OPT_HERE"], tooltip = L["NOTES_OPT_HERE_TT"] },
                 { dbKey = "notesTooltips", label = L["NOTES_OPT_TOOLTIPS"], tooltip = L["NOTES_OPT_TOOLTIPS_TT"] },
+                { dbKey = "notesChatNames", label = L["NOTES_OPT_CHAT_NAMES"], tooltip = L["NOTES_OPT_CHAT_NAMES_TT"] },
                 { dbKey = "notesPlayerMenu", label = L["NOTES_OPT_PLAYER_MENU"], tooltip = L["NOTES_OPT_PLAYER_MENU_TT"] },
                 { dbKey = "notesSurfaceHere", label = L["NOTES_OPT_SURFACE"], tooltip = L["NOTES_OPT_SURFACE_TT"] },
             } },
