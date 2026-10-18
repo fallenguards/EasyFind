@@ -95,6 +95,8 @@ local function SearchHint(frame)
     local s = Start()
     if GPS.picking == frame then
         box.Instructions:SetText(L["GPS_FROM_PLACEHOLDER"])
+    elseif GPS.along == frame then
+        box.Instructions:SetText(L["GPS_ALONG"])
     elseif s and not Route() then
         box.Instructions:SetText(sformat(L["GPS_SEARCH_FROM_FMT"], s.name or "?"))
     else
@@ -1224,7 +1226,13 @@ function GPS:TakeOtherWay(other)
 end
 
 -- Picking a start in a surface's search box: its hits set the start.
+-- Where the trip's fields show, the start's own field takes it.
 function GPS:PickStart(frame)
+    if frame and frame.trip then
+        if frame.collapsed and frame.collapseBtn then frame.collapseBtn:Click() end
+        if frame.trip:FocusStart() then return end
+    end
+    GPS:EndAlong()
     GPS.picking = frame
     Refresh()
     local box = frame and frame.search
@@ -1238,6 +1246,38 @@ end
 function GPS:EndPick()
     if not GPS.picking then return end
     GPS.picking = nil
+    Refresh()
+end
+
+-- Places along the route ahead in a surface's search: the trip's field
+-- before the destination where the trip's fields show, else the search
+-- box, tagged. A pick is a stop before the destination.
+function GPS:SearchAlong(frame)
+    local route = Route()
+    if not (route and not route.arrived and frame) then return end
+    GPS:EndPick()
+    if frame.collapsed and frame.collapseBtn then frame.collapseBtn:Click() end
+    if frame.trip then
+        frame.trip:SearchAlong()
+        return
+    end
+    local box = frame.search
+    if not box then return end
+    GPS.along = frame
+    ns.GPSTrip.Tag(box, true)
+    box:SetText("")
+    frame:ShowHits(nil)
+    Refresh()
+    box:Show()
+    box._blockAutoFocus = nil
+    box:SetFocus()
+end
+
+function GPS:EndAlong()
+    local frame = GPS.along
+    if not frame then return end
+    GPS.along = nil
+    if frame.search then ns.GPSTrip.Tag(frame.search, false) end
     Refresh()
 end
 
@@ -1296,6 +1336,7 @@ function GPS:Clear()
     local c = CharDB()
     if c then c.route, c.start = nil, nil end
     GPS.picking = nil
+    GPS:EndAlong()
     StopTicker()
     Refresh()
     if ns.MapTab and ns.MapTab.ShowSearchView then ns.MapTab:ShowSearchView() end
@@ -1824,10 +1865,18 @@ local function HitRow(frame, i)
     row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
+    ns.GPSTrip.Note(row)
     row:SetScript("OnClick", function(self)
         if not self.data then return end
         if GPS.picking == frame then
             GPS:SetStart(self.data)
+            return
+        end
+        if GPS.along == frame then
+            frame.search:SetText("")
+            frame.search:ClearFocus()
+            GPS:EndAlong()
+            ns.GPSTrip.Insert(GPS.Destination(self.data))
             return
         end
         frame.search:SetText("")
@@ -1914,9 +1963,11 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         self:ClearFocus()
         -- Escape leaves a start being picked; with no route, drops a start set.
         if GPS.picking == frame then GPS:EndPick() elseif Start() and not Route() then GPS:SetStart(nil) end
+        if GPS.along == frame then GPS:EndAlong() end
     end)
     box:HookScript("OnEditFocusLost", function(self)
         if GPS.picking == frame and (self:GetText() or "") == "" then GPS:EndPick() end
+        if GPS.along == frame and (self:GetText() or "") == "" then GPS:EndAlong() end
     end)
     -- The box covers most of a folded window: dragging it moves the window.
     box:RegisterForDrag("LeftButton")
@@ -1947,7 +1998,8 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         if scrolls then self.hitBar:UpdateThumb(content, h) end
     end
 
-    function frame:ShowHits(results)
+    -- secs, along the way: by place, the seconds a stop there adds.
+    function frame:ShowHits(results, secs)
         local n = 0
         if results then
             for i = 1, #results do
@@ -1961,6 +2013,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
                     row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
                     local where = r.zoneName or r.parentName or r.category
                     row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
+                    row.note:SetText(secs and secs[r] and ns.GPSTrip.AddsText(secs[r]) or "")
                     row:Show()
                 end
             end
@@ -1984,6 +2037,10 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             local MapSearch = ns.MapSearch
             local q = box:GetText() or ""
             if q == "" or not (MapSearch and MapSearch.BuildResults) then return end
+            if GPS.along == frame then
+                frame:ShowHits(ns.GPSTrip.AlongPlaces(q))
+                return
+            end
             local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
             frame:ShowHits(WithTowns(q, ok and results or nil))
         end)
@@ -3913,7 +3970,13 @@ function GPS.MenuRows(f)
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLOSE"], onClick = function() GPS:TogglePopout(false) end }
     end
     if route then defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() GPS:Clear() end } end
-    defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
+    -- The trip's fields have a start field only with a route.
+    if route or not f.trip then
+        defs[#defs + 1] = { kind = "action", label = L["GPS_FROM_PICK"], onClick = function() GPS:PickStart(f) end }
+    end
+    if route and not route.arrived then
+        defs[#defs + 1] = { kind = "action", label = L["GPS_ALONG"], onClick = function() GPS:SearchAlong(f) end }
+    end
     -- The Era look has no tracking button beside the title.
     if f.look == "era" and route then
         defs[#defs + 1] = { kind = "action", label = RouteTracked() and L["GPS_TRACK_OFF"] or L["GPS_TRACK_ON"],

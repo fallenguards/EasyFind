@@ -11,8 +11,9 @@ ns.GPSTrip = Trip
 
 local L = ns.L
 local Utils = ns.Utils
-local mmax, mmin = math.max, math.min
-local tremove, tinsert = table.remove, table.insert
+local mmax, mmin, msqrt = math.max, math.min, math.sqrt
+local tremove, tinsert, tsort = table.remove, table.insert, table.sort
+local sformat = string.format
 
 local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 14, 6, 20
 local DROP_PAD = 4
@@ -20,6 +21,8 @@ local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring"   -- a 1.5 
 local PIN = 22
 local RING = 13   -- a ring's size; MARK stays the column the marks center in
 local DIM, RING_GREY = { 0.55, 0.55, 0.58 }, { 0.8, 0.8, 0.82 }
+local ALONG_MAX = 300   -- the most seconds a stop may add and be along the way
+local ALONG_ROWS = 30
 
 local function Route() local g = ns.GPS return g and g.CurrentRoute and g.CurrentRoute() end
 
@@ -77,6 +80,15 @@ function Trip.Add(dest)
     if not route then return end
     local stops = Stops(route)
     stops[#stops + 1] = dest
+    Trip.Navigate({ quiet = true })
+end
+
+-- A stop on the way: before the destination.
+function Trip.Insert(dest)
+    local route = Route()
+    if not route then return end
+    local stops = Stops(route)
+    tinsert(stops, mmax(1, #stops), dest)
     Trip.Navigate({ quiet = true })
 end
 
@@ -141,6 +153,167 @@ function Trip.Reorder(i, j)
     Trip.Navigate({ quiet = true })
 end
 
+-- Along the way ------------------------------------------------------------
+
+local function World(p)
+    if not p then return nil end
+    if p.ci and p.wx then return p.ci, p.wx, p.wy end
+    return ns.GPS.WorldPos(p.m, p.x, p.y)
+end
+
+-- A piece of the way, flat: ci, a, b, the seconds a yard takes, then the
+-- circle (middle, radius squared) holding every spot within ALONG_MAX of
+-- it, and its length.
+local function Piece(out, ci, ax, ay, bx, by, pace)
+    if ax == bx and ay == by then return end
+    local len = msqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+    local reach = (len + ALONG_MAX / pace) / 2
+    local n = #out
+    out[n + 1], out[n + 2], out[n + 3], out[n + 4], out[n + 5], out[n + 6] = ci, ax, ay, bx, by, pace
+    out[n + 7], out[n + 8], out[n + 9], out[n + 10] = (ax + bx) / 2, (ay + by) / 2, reach * reach, len
+end
+
+-- The walks of the route ahead as straight pieces: as drawn, straight
+-- where not drawn yet, the current one from the player on. Flights,
+-- boats and portals are left out: no stop on those.
+local function Corridor(route)
+    local out = {}
+    local Engine, Follow = ns.GPSRoute, ns.GPSFollow
+    if not (Engine and Follow and route.steps) then return out end
+    local walkPace = 1 / Engine.GroundSpeed(ns.GPSData)
+    local now = Follow.Now and Follow.Now()
+    for i = route.active or 1, #route.steps do
+        local s = route.steps[i]
+        local ci, sx, sy = Follow.StartOf(route, i)
+        local tci, tx, ty = World(s.go or s.arrive)
+        if s.kind == "travel" and ci and ci == tci then
+            local path, first, ax, ay
+            if now and now.route == route and now.index == i and now.path then
+                path, first, ax, ay = now.path, (now.seg or 0) + 1, now.px, now.py
+            else
+                path = Engine.WalkPath(ci, sx, sy, tx, ty, true, s.near) or nil
+                first, ax, ay = 2, sx, sy
+                if path then ax, ay = path.pts[1], path.pts[2] end
+            end
+            local pace = path and s.sec and s.sec > 0 and path.len > 1 and s.sec / path.len or walkPace
+            if path then
+                local pts = path.pts
+                for v = first, #pts / 2 do
+                    Piece(out, ci, ax, ay, pts[2 * v - 1], pts[2 * v], pace)
+                    ax, ay = pts[2 * v - 1], pts[2 * v]
+                end
+            else
+                Piece(out, ci, ax, ay, tx, ty, pace)
+            end
+        end
+    end
+    return out
+end
+
+-- The seconds a stop at (ci, x, y) adds to the way: the least extra way
+-- through it off any piece, at that piece's pace; nil past ALONG_MAX.
+local function DetourOf(c, ci, x, y)
+    local best
+    for p = 1, #c, 10 do
+        if c[p] == ci then
+            local dx, dy = x - c[p + 6], y - c[p + 7]
+            if dx * dx + dy * dy <= c[p + 8] then
+                local extra = msqrt((x - c[p + 1]) ^ 2 + (y - c[p + 2]) ^ 2)
+                    + msqrt((x - c[p + 3]) ^ 2 + (y - c[p + 4]) ^ 2) - c[p + 9]
+                local sec = extra * c[p + 5]
+                if not best or sec < best then best = sec end
+            end
+        end
+    end
+    if best and best <= ALONG_MAX then return mmax(0, best) end
+    return nil
+end
+
+-- For the route ahead: a function of a world spot giving the seconds a
+-- stop there adds, nil when it is not along the way. Nil with no way left.
+function Trip.Detour(route)
+    local c = Corridor(route)
+    if #c == 0 then return nil end
+    return function(ci, x, y) return DetourOf(c, ci, x, y) end
+end
+
+local alongList, alongSec, alongFound = {}, {}, {}
+local function LeastOutOfTheWay(a, b) return alongSec[a] < alongSec[b] end
+
+local function KeepAlong(r, detour)
+    local g = ns.GPS
+    if alongSec[r] or not (r.x and r.y) or not g:CanNavigate(r) then return end
+    local ci, wx, wy = g.WorldPos(r.zoneMapID or r.mapID, r.x, r.y)
+    local sec = ci and detour(ci, wx, wy)
+    if sec then
+        alongList[#alongList + 1] = r
+        alongSec[r] = sec
+    end
+end
+
+-- Places for a typed name along the route ahead, the least out of the way
+-- first, and by place the seconds a stop there adds.
+function Trip.AlongPlaces(q)
+    wipe(alongList)
+    wipe(alongSec)
+    local route = Route()
+    local detour = route and not route.arrived and Trip.Detour(route)
+    if not detour then return alongList, alongSec end
+    -- The map search's places, less its creatures (those near the player);
+    -- then the creatures, each at its spot nearest the way.
+    local places = ns.GPS.SearchPlaces and ns.GPS.SearchPlaces(q)
+    for i = 1, places and #places or 0 do
+        if not places[i].catalog then KeepAlong(places[i], detour) end
+    end
+    local npcs = ns.GPSNpcs
+    wipe(alongFound)
+    if npcs and npcs.Append then npcs.Append(alongFound, nil, q, nil, nil, detour) end
+    for i = 1, #alongFound do KeepAlong(alongFound[i], detour) end
+    tsort(alongList, LeastOutOfTheWay)
+    for i = #alongList, ALONG_ROWS + 1, -1 do alongList[i] = nil end
+    return alongList, alongSec
+end
+
+-- What a stop adds, beside its place.
+function Trip.AddsText(sec)
+    if sec < 60 then return L["GPS_ALONG_ON_WAY"] end
+    return sformat(L["GPS_ALONG_ADDS_FMT"], ns.GPS.EtaText(sec))
+end
+
+-- The along-route tag at a search box's right end beside typed text (the
+-- empty box's hint says it then, never under it); typed text stops short.
+function Trip.Tag(box, on)
+    local tag = box.alongTag
+    if not tag then
+        if not on then return end
+        tag = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        tag:SetPoint("RIGHT", box, "RIGHT", -22, 0)
+        tag:SetText(L["GPS_ALONG_TAG"])
+        tag:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
+        tag._efOwnColor = true
+        box.alongTag = tag
+        box.tagInsets = { box:GetTextInsets() }
+        box:HookScript("OnTextChanged", function(self)
+            self.alongTag:SetShown(self.alongOn == true and (self:GetText() or "") ~= "")
+        end)
+    end
+    box.alongOn = on and true or nil
+    tag:SetShown(on and (box:GetText() or "") ~= "")
+    local i = box.tagInsets
+    box:SetTextInsets(i[1], i[2] + (on and (tag:GetStringWidth() + 8) or 0), i[3], i[4])
+end
+
+-- A hit row's note: what a stop there adds.
+function Trip.Note(row)
+    local note = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    note:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    note:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
+    note._efOwnColor = true
+    row.text:SetPoint("RIGHT", note, "LEFT", -6, 0)
+    row.note = note
+    return note
+end
+
 -- The editor ---------------------------------------------------------------
 
 local Editor = {}
@@ -158,14 +331,19 @@ local function DropRow(ed, i)
     row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     row.text:SetJustifyH("LEFT")
     row.text:SetWordWrap(false)
-    if ed.px and ns.GPS.SizeFont then ns.GPS.SizeFont(row.text, ed.px) end
+    Trip.Note(row)
+    if ed.px and ns.GPS.SizeFont then
+        ns.GPS.SizeFont(row.text, ed.px)
+        ns.GPS.SizeFont(row.note, ed.px)
+    end
     row:SetScript("OnClick", function(self) if self.data then ed:Pick(self.data) end end)
     ed.dropRows[i] = row
     return row
 end
 
--- The places found for what was typed, under the field being edited.
-function Editor:ShowHits(results)
+-- The places found for what was typed, under the field being edited;
+-- secs, along the way: by place, the seconds a stop there adds.
+function Editor:ShowHits(results, secs)
     local n = 0
     for i = 1, results and #results or 0 do
         local r = results[i]
@@ -176,6 +354,7 @@ function Editor:ShowHits(results)
             row:SetPoint("TOP", self.drop, "TOP", 0, -DROP_PAD - (n - 1) * DROP_ROW_H)
             local where = r.matchNote or r.zoneName or r.parentName or r.category
             row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
+            row.note:SetText(secs and secs[r] and Trip.AddsText(secs[r]) or "")
             row:Show()
         end
     end
@@ -208,7 +387,7 @@ function Editor:Close()
     self.closeAt = nil
     self:Watch()
     self.drop:Hide()
-    if row and row.adding then self.adding = nil end
+    if row and row.adding then self.adding, self.along = nil, nil end
     self:Refresh(Route())
 end
 
@@ -228,8 +407,28 @@ function Editor:Typed(row, text)
         local box = self.editing and self.editing.box
         local q = box and box:GetText() or ""
         if q == "" or not ns.GPS.SearchPlaces then return end
-        self:ShowHits(ns.GPS.SearchPlaces(q))
+        if self.along and self.editing.adding then
+            self:ShowHits(Trip.AlongPlaces(q))
+        else
+            self:ShowHits(ns.GPS.SearchPlaces(q))
+        end
     end)
+end
+
+-- The start's field, focused to type a place to start from; false with
+-- no route, where the trip has no start field.
+function Editor:FocusStart()
+    local row = self.orderRows[1]
+    if not (row and row.index == 0) then return false end
+    row.box._blockAutoFocus = nil
+    row.box:SetFocus()
+    return true
+end
+
+-- A field before the destination whose places are those along the way.
+function Editor:SearchAlong()
+    self.adding, self.along = "focus", true
+    self:Refresh(Route())
 end
 
 function Editor:Pick(data)
@@ -246,6 +445,9 @@ function Editor:Pick(data)
         -- The first field of all: the route starts here, where it was typed.
         self.adding = nil
         g:NavigateTo(data, { quiet = true })
+    elseif row.adding and self.along then
+        self.adding, self.along = nil, nil
+        Trip.Insert(g.Destination(data))
     elseif row.adding then
         self.adding = nil
         Trip.Add(g.Destination(data))
@@ -261,7 +463,7 @@ function Editor:Cleared(row)
     if row.index == 0 then
         ns.GPS:SetStart(nil)
     elseif row.adding then
-        self.adding = nil
+        self.adding, self.along = nil, nil
         self:Refresh(Route())
     else
         Trip.Remove(row.index)
@@ -437,6 +639,7 @@ function Editor:Refresh(route)
             row.box:SetText(text or "")
             if row.box.Instructions then row.box.Instructions:SetText(placeholder or "") end
         end
+        Trip.Tag(row.box, adding and self.along or false)
         if px and g.SizeFont then
             g.SizeFont(row.box, px)
             if row.box.Instructions then g.SizeFont(row.box.Instructions, px) end
@@ -485,17 +688,12 @@ function Editor:Refresh(route)
     -- once it is planned.
     local first = #stops == 0
     if first and self.adding ~= "focus" then self.adding = nil end
+    if first or not self.adding then self.along = nil end
     local adding = self.adding or first
-    if not first then
-        self.orderRows[1] = Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
-        -- The pin marks where the trip ends; every stop before it a ring.
-        for i = 1, #stops do
-            self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], i == #stops and not adding)
-            self.orderRows[i + 1] = self.stopRows[i]
-        end
-    end
-    if adding then
-        local row = Show(#stops + 1, "", L["GPS_TRIP_TO"], true, true)
+    local along = adding and self.along
+    local function AddRow()
+        -- Along the way the field is a stop before the destination: a ring.
+        local row = Show(#stops + 1, "", along and L["GPS_ALONG"] or L["GPS_TRIP_TO"], not along, true)
         if self.adding == "focus" then
             -- Focused after the click that made the row, not inside it.
             self.adding = true
@@ -505,6 +703,16 @@ function Editor:Refresh(route)
             end)
         end
     end
+    if not first then
+        self.orderRows[1] = Show(0, start and start.name or "", L["GPS_TRIP_FROM"], false)
+        -- The pin marks where the trip ends; every stop before it a ring.
+        for i = 1, #stops do
+            if along and i == #stops then AddRow() end
+            self.stopRows[i] = Show(i, stops[i].name or "?", L["GPS_TRIP_TO"], i == #stops and (along or not adding))
+            self.orderRows[i + 1] = self.stopRows[i]
+        end
+    end
+    if adding and not along then AddRow() end
     for i = n + 1, #self.rows do self.rows[i]:Hide() end
     if px and g.SizeFont then g.SizeFont(self.addText, px) end
     self.add:ClearAllPoints()

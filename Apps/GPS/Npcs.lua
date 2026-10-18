@@ -480,6 +480,21 @@ local function BestSpot(i, set, pci, px, py, r2)
     return best or most
 end
 
+-- Of creature i's spots on the set's maps, the one a stop at adds the
+-- least to the way (along: world spot to seconds, nil off the way), and
+-- those seconds; nil when none is along it.
+local function AlongSpot(i, set, along)
+    local best, bestSec
+    for k = N.first[i], N.first[i] + N.count[i] - 1 do
+        if not set or set[N.spotMap[k]] then
+            local ci, wx, wy = SpotWorld(k)
+            local sec = ci and along(ci, wx, wy)
+            if sec and (not bestSec or sec < bestSec) then best, bestSec = k, sec end
+        end
+    end
+    return best, bestSec
+end
+
 local function PlayerWorld()
     local m = C_Map.GetBestMapForUnit("player")
     if not m then return nil end
@@ -556,7 +571,7 @@ local function Row(i, k)
         for _, s in ipairs(ServiceWords()) do
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
         end
-        poi = { name = Name(i), category = "npc", isStatic = true, npcID = N.id[i],
+        poi = { name = Name(i), category = "npc", isStatic = true, npcID = N.id[i], catalog = true,
                 displayID = N.display[i] ~= 0 and N.display[i] or nil,
                 keywords = #keywords > 0 and keywords or nil }
         poi.baseKeywords = poi.keywords
@@ -836,8 +851,10 @@ end
 -- those standing on that map; nearMap (the player's) does so for a query
 -- of services alone (repair, inn), everywhere when that map has none. A
 -- zone or town typed beside the services narrows to it (org repair,
--- auberdine inn). True when more matched than were handed over.
-function N.Append(out, nameSet, query, onlyMap, nearMap)
+-- auberdine inn). along (world spot to seconds, nil off the way): only
+-- those along a route, each at its spot least out of the way. True when
+-- more matched than were handed over.
+function N.Append(out, nameSet, query, onlyMap, nearMap, along)
     if not query or #query < MIN_QUERY or not Load() then return false end
     local words, wordBits, wordRole, wordPlace = N.words, N.wordBits, N.wordRole, N.wordPlace
     for w = #words, 1, -1 do words[w], wordRole[w], wordPlace[w] = nil, nil, nil end
@@ -942,14 +959,29 @@ function N.Append(out, nameSet, query, onlyMap, nearMap)
     end
     if n == 0 then return false end
     local hits, spot, near = N.hits, N.spot, N.near
-    local capped = n > MAX_ROWS
-    for j = 1, n do
-        local i = hits[j]
-        local k = capped and BestSpot(i, set, pci, px, py, r2) or nil
-        spot[i], near[i] = k, FAR
-        if k and pci then
-            local ci, wx, wy = SpotWorld(k)
-            if ci == pci then near[i] = (wx - px) ^ 2 + (wy - py) ^ 2 end
+    if along then
+        local kept = 0
+        for j = 1, n do
+            local i = hits[j]
+            local k, sec = AlongSpot(i, set, along)
+            if k then
+                kept = kept + 1
+                hits[kept], spot[i], near[i] = i, k, sec
+            end
+        end
+        for j = n, kept + 1, -1 do hits[j] = nil end
+        n = kept
+        if n == 0 then return false end
+    else
+        local capped = n > MAX_ROWS
+        for j = 1, n do
+            local i = hits[j]
+            local k = capped and BestSpot(i, set, pci, px, py, r2) or nil
+            spot[i], near[i] = k, FAR
+            if k and pci then
+                local ci, wx, wy = SpotWorld(k)
+                if ci == pci then near[i] = (wx - px) ^ 2 + (wy - py) ^ 2 end
+            end
         end
     end
     tsort(hits, HitLess)

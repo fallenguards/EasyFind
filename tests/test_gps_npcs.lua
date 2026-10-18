@@ -104,6 +104,20 @@ function tests.nameFindsTheCreatureOnItsSpot()
     H.assertEq(find(fresh(), "vancleef")[1].displayID, nil)
 end
 
+-- Along a route: each creature at its spot least out of the way, those
+-- with none on it left out.
+function tests.alongARouteTheSpotOnTheWay()
+    local append = fresh()
+    local function along(ci, x) if ci == 0 and x < 1600 then return 42 end return nil end
+    local out = {}
+    append(out, nil, "kobold", nil, nil, along)
+    H.assertEq(#out, 1)
+    H.assertEq(out[1].mapID, 1433, "the spot on the way, not the one nearest the player")
+    out = {}
+    append(out, nil, "hogger", nil, nil, along)
+    H.assertEq(#out, 0, "no spot on the way")
+end
+
 function tests.dungeonCreatureStandsAtTheEntrance()
     local rows = find(fresh(), "vancleef")
     H.assertEq(rows[1].mapID, 1436)
