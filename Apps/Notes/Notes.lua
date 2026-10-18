@@ -7401,6 +7401,12 @@ function UI:GetEasyNotesContextChip(index)
         UI._notes.contextFilterUserSet = true
         UI:RefreshEasyNotesPalette()
     end)
+    chip:SetScript("OnEnter", function(self)
+        if self.isHere then UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_HERE_CHIP_TT"]) end
+    end)
+    chip:SetScript("OnLeave", function()
+        if GameTooltip then GameTooltip:Hide() end
+    end)
     pool[index] = chip
     return chip
 end
@@ -7420,7 +7426,7 @@ function UI:ResolveEasyNotesContextFilter()
         if Ctx.Applies(visible[i], set) then here = here + 1 end
     end
     if here > 0 then
-        matches[1] = { key = HERE_KEY, label = L["NOTES_HERE"], here = true, type = "here", count = here }
+        matches[1] = { key = HERE_KEY, label = L["NOTES_HERE_CHIP"], here = true, type = "here", count = here }
         present[HERE_KEY] = true
     end
     for i = 1, #active do
@@ -7470,6 +7476,7 @@ function UI:LayoutEasyNotesContextBar(matches)
         local chip = self:GetEasyNotesContextChip(i)
         if chip then
             chip.ctxKey = m.key
+            chip.isHere = m.here
             chip.text:SetText(m.label)
             chip:SetWidth((chip.text:GetStringWidth() or 24) + 20)
             local w = chip:GetWidth()
