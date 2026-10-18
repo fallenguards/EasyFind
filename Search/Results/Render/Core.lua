@@ -641,6 +641,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             Render.ApplyFlatResultAnchoring(resultRow, entry, renderState)
 
             Render.ApplyPinnedResultPrefix(resultRow, entry)
+            Render.ApplyGPSButton(resultRow, entry, renderState)
 
             -- Per-row Apply / Reset extension for settings that staged
             -- a pendingValue (CommitFlag.Apply -- graphics, resolution).

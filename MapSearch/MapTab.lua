@@ -638,6 +638,17 @@ local function SetRowIcon(row, data)
     if data.displayID and SetPortraitTextureFromCreatureDisplayID then
         SetPortraitTextureFromCreatureDisplayID(row.icon, data.displayID)
     end
+    -- A place it can navigate to: the GPS button first, the icon after it.
+    local GPS = ns.GPS
+    local gps = GPS and GPS.RowButton and GPS.RowButton(row, data, Scaled(ROW_ICON_SIZE))
+    row.icon:ClearAllPoints()
+    if gps then
+        gps:ClearAllPoints()
+        gps:SetPoint("LEFT", row, "LEFT", 4, 0)
+        row.icon:SetPoint("LEFT", gps, "RIGHT", 4, 0)
+    else
+        row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+    end
 end
 
 -- Suppress hover previews briefly after every keystroke: re-renders fire

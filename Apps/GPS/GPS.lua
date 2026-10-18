@@ -144,6 +144,47 @@ function GPS:CanNavigate(data)
     return WorldPos(mapID, data.x or 0.5, data.y or 0.5) ~= nil
 end
 
+-- The GPS button just left of a navigable result row's own icon: a click
+-- navigates there (onNavigate(data), else the GPS page). Made once per row;
+-- nil, hidden, with the option off or nowhere to go. glyph: { r, g, b }.
+function GPS.RowButton(row, data, size, onNavigate, glyph)
+    local btn = row.gpsBtn
+    local db = DB()
+    if (db and db.gpsRowButton == false) or not GPS:CanNavigate(data) then
+        if btn then btn:Hide() end
+        return nil
+    end
+    if not btn then
+        -- starts shown: placed and shown below, on a row being filled
+        btn = CreateFrame("Button", nil, row)
+        btn:RegisterForClicks("LeftButtonUp")
+        btn.tex = btn:CreateTexture(nil, "ARTWORK")
+        btn.tex:SetAllPoints()
+        btn.tex:SetTexture(ns.GPS_ICON_TEX)
+        btn:SetScript("OnClick", function(self)
+            if not self.data then return end
+            if self.onNavigate then self.onNavigate(self.data) else GPS:NavigateTo(self.data) end
+        end)
+        btn:SetScript("OnEnter", function(self)
+            self.tex:SetAlpha(1)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(L["CTX_GPS"])
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function(self)
+            self.tex:SetAlpha(0.75)
+            GameTooltip_Hide()
+        end)
+        row.gpsBtn = btn
+    end
+    btn.data, btn.onNavigate = data, onNavigate
+    btn:SetSize(size, size)
+    if glyph then btn.tex:SetVertexColor(glyph[1], glyph[2], glyph[3]) else btn.tex:SetVertexColor(1, 1, 1) end
+    btn.tex:SetAlpha(btn:IsMouseOver() and 1 or 0.75)
+    btn:Show()
+    return btn
+end
+
 -- Whether a left-click on a spot pinned on the world map starts the GPS
 -- there (the setting's default) rather than placing the game's waypoint.
 function GPS.MapClickNavigates()
@@ -4721,9 +4762,20 @@ local function BuildOptionsPage(ctx, page)
         local route = Route()
         if route and not route.arrived then Reroute(route) end
     end)
+    local rowBtn = ctx.CreateCheckbox(page, "GPSRowButton", L["GPS_ROW_BUTTON"], L["GPS_ROW_BUTTON_TT"], true)
+    rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
+    rowBtn:SetChecked(not (d0 and d0.gpsRowButton == false))
+    if rowBtn.RefreshVisual then rowBtn:RefreshVisual() end
+    rowBtn:SetScript("OnClick", function(self)
+        local d = DB()
+        if d then d.gpsRowButton = (not self:GetChecked()) and false or nil end
+        if self.RefreshVisual then self:RefreshVisual() end
+        if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
+        if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
+    end)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }

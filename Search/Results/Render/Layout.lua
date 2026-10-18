@@ -97,6 +97,39 @@ function Render.ApplyFlatResultAnchoring(resultRow, entry, state)
     resultRow.pathSubtext:Show()
 end
 
+-- A place: the GPS button just left of its own icon, which on these rows
+-- sits at the right. The rows are secure buttons, so the button hangs from
+-- the icon and the name stops short of it, never anchored to the button.
+local function NavigateFromResults(data)
+    local Handlers = ns.ResultHandlers
+    if ns.GPS:NavigateTo(data, { popout = true }) and Handlers and Handlers.FinishResultSelection then
+        Handlers:FinishResultSelection()
+    end
+end
+
+function Render.ApplyGPSButton(resultRow, entry, state)
+    local data = entry.data
+    local GPS = ns.GPS
+    local size = state.theme.iconSize or 15
+    local btn = data and not (entry.isSectionHeader or entry.isPinHeader or entry.isPathNode)
+        and GPS and GPS.RowButton and GPS.RowButton(resultRow, data, size, NavigateFromResults, state.theme.chromeGlyph)
+    if not btn then
+        if resultRow.gpsBtn then resultRow.gpsBtn:Hide() end
+        return
+    end
+    local icon = resultRow.icon
+    btn:ClearAllPoints()
+    if icon:IsShown() and IsRightSideIconData(data) then
+        btn:SetPoint("RIGHT", icon, "LEFT", -3, 0)
+        resultRow.text:SetPoint("RIGHT", icon, "LEFT", -(3 + size + 4), 0)
+        if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", icon, "LEFT", -(3 + size + 4), 0) end
+    else
+        btn:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)
+        resultRow.text:SetPoint("RIGHT", resultRow, "RIGHT", -(5 + size + 4), 0)
+        if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", resultRow, "RIGHT", -(5 + size + 4), 0) end
+    end
+end
+
 function Render.ApplyPinnedResultPrefix(resultRow, entry)
     if not entry.isPinned or not resultRow.pinIcon then return end
 
