@@ -1738,8 +1738,10 @@ local function Render(container)
             container:ShowHits(nil)
         end
     end
+    -- Folded, the title names the stop a trip heads for now, not its last.
+    local nowStep = not route.arrived and route.steps and route.steps[route.active or 1]
     container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?")
-        or sformat(L["GPS_TO_FMT"], route.dest.name or "?"))
+        or sformat(L["GPS_TO_FMT"], nowStep and nowStep.name or route.dest.name or "?"))
     if route.arrived then
         -- Arrived: the announcement in the body where the time line and
         -- the steps were, nothing left to follow.
