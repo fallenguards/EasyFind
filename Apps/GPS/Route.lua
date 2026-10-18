@@ -1439,9 +1439,16 @@ local function WalkPieces(step, from, data, env, first)
     local intoGoal = env.goalZone and count > 1 and runs[count].map == env.goalZone
     if intoGoal then count = count - 1 end
     if count < 2 and not intoGoal then return nil end
+    -- One step per walk (the setting): only a zone goal's border ends it early.
+    local firstRun = 1
+    if env.wholeWalks then
+        if not intoGoal then return nil end
+        firstRun = count
+        runs[count].at, runs[count].x, runs[count].y = 0, fx, fy
+    end
     local L = ns.L
     local out = {}
-    for k = 1, count do
+    for k = firstRun, count do
         local run, nxt = runs[k], runs[k + 1]
         local piece = {}
         for key, value in pairs(step) do piece[key] = value end
@@ -1463,20 +1470,23 @@ local function WalkPieces(step, from, data, env, first)
             piece.mapID, piece.x, piece.y, piece.go, piece.arrive = run.map, mx, my, spot, spot
             piece.enter = border.map
             piece.near = nil   -- a border is reached itself
-            if k < count and env.isCity and env.isCity(run.map) then
+            if env.wholeWalks then
+                piece.text = step.text
+            elseif k < count and env.isCity and env.isCity(run.map) then
                 piece.text = (L["GPS_STEP_EXIT_FMT"]):format(run.name)
             else
                 piece.text = (L["GPS_STEP_WALK_THROUGH_FMT"]):format(run.name, border.name)
             end
         end
         KeepStretch(ci, path, run.at, stop, run.x, run.y, ex, ey, piece.near)
-        out[k] = piece
+        out[#out + 1] = piece
     end
     return out
 end
 
 -- Each long walk as a step per zone crossed. env: zoneAt(ci, wx, wy) -> map, name;
--- mapPos(ci, wx, wy, mapID); isCity(mapID); startCity { map, name }; goalZone.
+-- mapPos(ci, wx, wy, mapID); isCity(mapID); startCity { map, name }; goalZone;
+-- wholeWalks: a walk stays one step.
 function Route.SplitWalks(steps, start, data, env)
     local out = {}
     for i = 1, #steps do

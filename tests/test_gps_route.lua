@@ -741,6 +741,30 @@ function tests.walk_fromInsideACityStartsWithLeavingIt()
     H.assertEq(out[1].enter, 10, "done on entering the zone around it")
 end
 
+function tests.walk_wholeWalksStayOneStep()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local steps, start = walk(Route)
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt, wholeWalks = true })
+    H.assertEq(#out, 1, "three zones, one step")
+    H.assertTrue(out[1] == steps[1], "the walk as planned")
+end
+
+function tests.walk_wholeIntoAZoneStillEndsAtItsBorder()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local steps, start, target = walk(Route)
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt, goalZone = 12, wholeWalks = true })
+    H.assertEq(#out, 1, "Alpha and Bravo in one step")
+    H.assertEq(out[1].text, "Travel to Spot", "in the walk's own words")
+    H.assertEq(out[1].enter, 12, "done on entering the goal zone")
+    H.assertTrue(out[1].arrive ~= target and out[1].arrive.wx >= 500 and out[1].arrive.wx <= 600, "at its border")
+    H.assertTrue(math.abs(out[1].sec - 210 * (1050 + out[1].arrive.wx) / 2100) < 1,
+        "the time runs to the border: " .. tostring(out[1].sec))
+    local way = Route.WalkPath(1, start.wx, start.wy, out[1].arrive.wx, out[1].arrive.wy)
+    H.assertTrue(way and math.abs(way.len - (1050 + out[1].arrive.wx)) < 1, "its way kept from the start: " .. tostring(way and way.len))
+end
+
 function tests.walk_inOneZoneOrWithoutAGridStaysOneStep()
     local _, ns, Route = fresh()
     withNav(ns, junction)

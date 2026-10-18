@@ -268,10 +268,12 @@ local function SplitWalks(steps, dest, origin)
     end
     local start = { ci = ci, wx = wx, wy = wy }
     local hereInfo = here and IsCity(here) and C_Map.GetMapInfo(here)
+    local db = DB()
     local ok, out = pcall(Route.SplitWalks, steps, start, ns.GPSData, {
         zoneAt = ZoneAt, mapPos = MapPos, isCity = IsCity,
         startCity = hereInfo and { map = here, name = hereInfo.name } or nil,
         goalZone = dest.zone and dest.mapID or nil,
+        wholeWalks = db ~= nil and db.gpsZoneSteps == false,
     })
     if ok and out and #out > 0 then return out end
     return steps
@@ -4674,9 +4676,20 @@ local function BuildOptionsPage(ctx, page)
         if self.RefreshVisual then self:RefreshVisual() end
         Refresh()
     end)
+    local zones = ctx.CreateCheckbox(page, "GPSZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], true)
+    zones:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, 0)
+    zones:SetChecked(not (d0 and d0.gpsZoneSteps == false))
+    if zones.RefreshVisual then zones:RefreshVisual() end
+    zones:SetScript("OnClick", function(self)
+        local d = DB()
+        if d then d.gpsZoneSteps = (not self:GetChecked()) and false or nil end
+        if self.RefreshVisual then self:RefreshVisual() end
+        local route = Route()
+        if route and not route.arrived then Reroute(route) end
+    end)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }
