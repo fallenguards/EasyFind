@@ -51,7 +51,7 @@ local MIN_WIDTH = 220
 local MIN_HEIGHT = 180
 local HEADER_H = 30
 local FOOTER_H = 24
-local ATTACH_H = 26
+local ATTACH_H = 16
 -- editor body sits below the header divider and the tag row
 local EDITOR_TOP = 14 + ATTACH_H
 local TOOLBAR_H = 28
@@ -3933,8 +3933,8 @@ function UI:EnsureEasyNotesFrame()
     frame.aliasButton:Hide()
 
     frame.attachBar = CreateFrame("Frame", nil, frame)
-    frame.attachBar:SetPoint("TOPLEFT", frame.headerDivider, "BOTTOMLEFT", 0, -6)
-    frame.attachBar:SetPoint("TOPRIGHT", frame.headerDivider, "BOTTOMRIGHT", 0, -6)
+    frame.attachBar:SetPoint("TOPLEFT", frame.headerDivider, "BOTTOMLEFT", 0, -4)
+    frame.attachBar:SetPoint("TOPRIGHT", frame.headerDivider, "BOTTOMRIGHT", 0, -4)
     frame.attachBar:SetHeight(ATTACH_H)
     frame.attachBar:SetScript("OnSizeChanged", function(self, w)
         if w and w > 0 and math.abs(w - (self._laidW or 0)) >= 1 then
@@ -7196,12 +7196,12 @@ function UI:RefreshEasyNotesAttachBar()
         local line = frame.attachBar:CreateTexture(nil, "ARTWORK")
         line:SetColorTexture(0.18, 0.18, 0.20, 0.7)
         line:SetHeight(1)
-        line:SetPoint("TOPLEFT", frame.attachBar, "BOTTOMLEFT", 0, -4)
-        line:SetPoint("TOPRIGHT", frame.attachBar, "BOTTOMRIGHT", 0, -4)
+        line:SetPoint("TOPLEFT", frame.attachBar, "BOTTOMLEFT", 0, -3)
+        line:SetPoint("TOPRIGHT", frame.attachBar, "BOTTOMRIGHT", 0, -3)
         frame.showsDivider = line
         -- Folds the line away for the text, and back.
         local fold = CreateFrame("Button", nil, frame.attachBar)
-        fold:SetSize(16, 16)
+        fold:SetSize(14, 14)
         fold:SetPoint("RIGHT", frame.attachBar, "RIGHT", -2, 0)
         fold.glyph = fold:CreateTexture(nil, "OVERLAY")
         fold.glyph:SetTexture(ns.FILTER_ARROW_TEX)
@@ -7225,7 +7225,7 @@ function UI:RefreshEasyNotesAttachBar()
         frame.showsFold = fold
     end
     -- Folded: a thin strip with the arrow.
-    UI._notes.attachH = folded and 14 or ATTACH_H
+    UI._notes.attachH = folded and 10 or ATTACH_H
     frame.attachBar:SetHeight(UI._notes.attachH)
     frame.showsDivider:SetShown(hasTags)
     frame.showsFold:SetShown(hasTags)
@@ -7235,8 +7235,10 @@ function UI:RefreshEasyNotesAttachBar()
     showsLabel:ClearAllPoints()
     showsLabel:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
     x = x + (showsLabel:GetStringWidth() or 30) + 6
-    local barW = frame.attachBar:GetWidth()
-    if not barW or barW < 50 then barW = 280 end
+    -- The window's own width (set, never waiting on layout), less the
+    -- divider's insets.
+    local barW = (frame:GetWidth() or 0) - 24
+    if barW < 50 then barW = 280 end
     -- Room kept for the +, a "+N" pill and the fold.
     local maxX = barW - (frame.appliesInButton:GetWidth() or 20) - 58
     local shown, overflowCount = 0, 0
@@ -7245,7 +7247,7 @@ function UI:RefreshEasyNotesAttachBar()
         local pill = pills[i]
         if not pill then
             pill = CreateFrame("Button", nil, frame.attachBar)
-            pill:SetHeight(18)
+            pill:SetHeight(ATTACH_H)
             if ns.CreateRoundedRectBorder then
                 ns.CreateRoundedRectBorder(pill)
                 ns.SetRoundedRectBarHeight(pill, 8)
@@ -7324,7 +7326,7 @@ function UI:RefreshEasyNotesAttachBar()
         local ov = frame.attachOverflow
         if not ov then
             ov = CreateFrame("Button", nil, frame.attachBar)
-            ov:SetHeight(18)
+            ov:SetHeight(ATTACH_H)
             if ns.CreateRoundedRectBorder then
                 ns.CreateRoundedRectBorder(ov)
                 ns.SetRoundedRectBarHeight(ov, 8)
@@ -7347,6 +7349,7 @@ function UI:RefreshEasyNotesAttachBar()
         frame.attachOverflow:Hide()
     end
     if open then
+        frame.appliesInButton:SetSize(18, ATTACH_H)
         frame.appliesInButton:ClearAllPoints()
         frame.appliesInButton:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
         frame.appliesInButton:Show()
