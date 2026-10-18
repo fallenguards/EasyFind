@@ -2410,6 +2410,7 @@ local function BuildSearchTab(ctx)
     Utils.AttachDelayedTooltip(forgetLearnedBtn, "ANCHOR_TOP", function()
         return L["OPT_FORGET_LEARNED"], L["OPT_FORGET_LEARNED_TT"]
     end)
+    ns.FitButtonRow({ resetUIBtn, resetUIPosBtn, forgetLearnedBtn }, ctx.FRAME_W - 24, 8, SEARCH_RESET_BTN_W)
 
 end
 
@@ -3770,6 +3771,7 @@ local function BuildAliasesTab(ctx)
     Utils.AttachDelayedTooltip(resetPosBtn, "ANCHOR_TOP", function()
         return L["OPT_RESET_ALL_POSITIONS"], L["OPT_RESET_POS_TT_DESC"], L["OPT_RESET_POS_TT_CMD"]
     end)
+    ns.FitButtonRow({ resetAllBtn, resetPosBtn }, FRAME_W - 24, 8, RESET_BTN_W)
 
 end
 
@@ -5105,6 +5107,7 @@ local function BuildFeedbackTab(ctx)
     Utils.AttachDelayedTooltip(featureBtn, "ANCHOR_TOP", function()
         return L["OPT_REQUEST_FEATURE"], L["OPT_REQUEST_FEATURE_TT_DESC"], L["OPT_REQUEST_FEATURE_TT_CMD"]
     end)
+    ns.FitButtonRow({ bugBtn, featureBtn }, ctx.FRAME_W - 24, 12, RESET_BTN_W)
 end
 
 -- ==== Profiles tab =========================================================

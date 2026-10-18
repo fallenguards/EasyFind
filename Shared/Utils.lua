@@ -2305,7 +2305,8 @@ ns.UPDATE_NOTICE_TOP_PAD = 1
 -- purpose; both frames read this pair. Height grows by one 28px settings
 -- row (408, 436, 464) each time the tabs run out of room.
 ns.OPTIONS_WINDOW_W = 544
-ns.OPTIONS_WINDOW_H = 464
+-- Room for General's six keybindings above its reset row (Classic chrome's too).
+ns.OPTIONS_WINDOW_H = 494
 ns.DEFAULT_FONT_SIZE = 0.9
 ns.CLEAR_BTN_SIZE = 12
 -- Blizzard's standard round-crop mask, used wherever a square icon has to
@@ -4063,6 +4064,20 @@ function ns.RestyleModernButtons()
             btn._efPaintState(btn, fill)
         end
     end
+end
+
+-- Buttons in a row as wide as their labels (minW at least), cut evenly
+-- only when the row has less room than that.
+function ns.FitButtonRow(buttons, room, gap, minW)
+    local widths, total = {}, gap * (#buttons - 1)
+    for i, btn in ipairs(buttons) do
+        btn._label:SetText(btn:GetText())
+        widths[i] = math.max(minW, math.ceil(btn._label:GetStringWidth() or 0) + 20)
+        total = total + widths[i]
+    end
+    local gaps = gap * (#buttons - 1)
+    local scale = total > room and (room - gaps) / (total - gaps) or 1
+    for i, btn in ipairs(buttons) do btn:SetSize(math.floor(widths[i] * scale), btn:GetHeight()) end
 end
 
 function ns.CreateModernButton(parent, text, width, height)
