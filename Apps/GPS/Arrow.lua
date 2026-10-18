@@ -128,10 +128,14 @@ local function Build()
     ns.GPSWorldPin.Tint(art, "arrow", 1)
     plate = ns.GPSWorldPin.NewPlate(frame)
     plate:SetPoint("TOP", frame, "BOTTOM", 0, -7)
-    plate:RegisterForDrag("LeftButton")
-    -- Clicks pass through to the world, unless Shift is held to move it
-    -- (by the arrow or its plate). The plate takes a right-click for its
-    -- menu at any time and hands clicks on to the world as well.
+    -- Clicks pass through to the world; Shift held, the arrow and a grip
+    -- over the plate take them to move it. The plate's right-click stays.
+    local grip = CreateFrame("Frame", nil, plate)
+    grip:SetAllPoints(plate)
+    grip:EnableMouse(false)
+    grip:RegisterForDrag("LeftButton")
+    grip:SetScript("OnMouseDown", function(_, button) plate:GetScript("OnMouseDown")(plate, button) end)
+    grip:SetScript("OnMouseUp", function(_, button) plate:GetScript("OnMouseUp")(plate, button) end)
     local function DragStart() if IsShiftKeyDown() then frame:StartMoving() end end
     local function DragStop()
         frame:StopMovingOrSizing()
@@ -140,13 +144,23 @@ local function Build()
     local function TakeMouse()
         local shift = IsShiftKeyDown()
         frame:EnableMouse(shift)
-        if plate.SetPropagateMouseClicks then plate:SetPropagateMouseClicks(not shift) end
+        grip:EnableMouse(shift)
+    end
+    -- The game refuses the pass-through in a fight: built in one, the plate
+    -- takes no clicks until it ends.
+    local function PassClicks()
+        local ok, why = ns.Utils.SafeCallMethod(plate, "SetPropagateMouseClicks", true)
+        if why == "combat" then return frame:RegisterEvent("PLAYER_REGEN_ENABLED") end
+        frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        plate:EnableMouse(ok)
     end
     frame:SetScript("OnDragStart", DragStart)
     frame:SetScript("OnDragStop", DragStop)
-    plate:SetScript("OnDragStart", DragStart)
-    plate:SetScript("OnDragStop", DragStop)
-    frame:SetScript("OnEvent", TakeMouse)
+    grip:SetScript("OnDragStart", DragStart)
+    grip:SetScript("OnDragStop", DragStop)
+    frame:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_ENABLED" then PassClicks() else TakeMouse() end
+    end)
     frame:SetScript("OnShow", function(self)
         self:RegisterEvent("MODIFIER_STATE_CHANGED")
         TakeMouse()
@@ -155,7 +169,8 @@ local function Build()
         self:UnregisterEvent("MODIFIER_STATE_CHANGED")
         self:EnableMouse(false)
     end)
-    plate:EnableMouse(true)
+    plate:EnableMouse(false)
+    PassClicks()
     frame:Hide()
 end
 
