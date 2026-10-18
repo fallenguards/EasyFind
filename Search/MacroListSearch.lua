@@ -2,7 +2,8 @@ local _, ns = ...
 
 -- A search bar in the game's own macro window, filtering the visible macro
 -- grid on the CURRENT tab (general or character) to macros whose name or
--- body matches. Heads the icon grid, as wide as a row of icons.
+-- body matches. Heads the icon grid, as wide as a row of icons; only the
+-- icons move down under it.
 --
 -- Identity model: while a query is active, the selector gets OUR data
 -- provider, returning one filtered entry table per shown position, and OUR
@@ -150,19 +151,17 @@ local function AttachMacroListSearch(frame)
 
     local searchBox = CreateFrame("EditBox", "EasyFindMacroListSearchBox", frame, "SearchBoxTemplate")
     searchBox:SetAutoFocus(false)
-    -- The bar heads the grid, flush with the outer icons; the grid starts
-    -- under it and scrolls in the rest. No window changes size.
+    -- The bar heads the grid, flush with the outer icons. Only the icons
+    -- move down (a third row scrolls in); the selector and its scroll bar
+    -- keep whatever place and size the window or a skin gives them.
     local padTop, _, padLeft, _, spacing = sel:GetPadding()
     local stride = sel:GetStride()
-    local strip = BAR_HEIGHT + BAR_GAP
-    local point, rel, relPoint, x, y = sel:GetPoint(1)
     searchBox:SetHeight(BAR_HEIGHT)
     -- The template's left border hangs 5 px past the box.
-    searchBox:SetPoint(point, rel, relPoint, x + padLeft + 5, y - padTop)
+    searchBox:SetPoint("TOPLEFT", sel, "TOPLEFT", padLeft + 5, -padTop)
     searchBox:SetWidth(stride * sel:GetButtonWidth() + (stride - 1) * spacing - 5)
     searchBox:SetFrameStrata(sel:GetFrameStrata())
-    sel:SetPoint(point, rel, relPoint, x, y - strip)
-    sel:SetHeight(sel:GetHeight() - strip)
+    sel.ScrollBox:SetPoint("TOP", sel, "TOP", 0, -(BAR_HEIGHT + BAR_GAP))
 
     searchBox:SetScript("OnTextChanged", function(self, userInput)
         if _G.SearchBoxTemplate_OnTextChanged then
