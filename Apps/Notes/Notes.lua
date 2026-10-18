@@ -3938,6 +3938,12 @@ function UI:EnsureEasyNotesFrame()
     frame.attachBar:SetPoint("TOPLEFT", frame.headerDivider, "BOTTOMLEFT", 0, -6)
     frame.attachBar:SetPoint("TOPRIGHT", frame.headerDivider, "BOTTOMRIGHT", 0, -6)
     frame.attachBar:SetHeight(ATTACH_H)
+    frame.attachBar:SetScript("OnSizeChanged", function(self, w)
+        if w and w > 0 and math.abs(w - (self._laidW or 0)) >= 1 then
+            self._laidW = w
+            UI:RefreshEasyNotesAttachBar()
+        end
+    end)
 
     frame.appliesInButton = CreateFrame("Button", nil, frame.attachBar)
     StyleSubtleButton(frame.appliesInButton, "+", BTN_W, BTN_H)
@@ -5623,7 +5629,7 @@ function UI:UpdateEasyNotesEditorTop()
     local frame = UI._notes.frame
     if not (frame and frame.editorScroll) then return end
     local top = HEADER_H + (EDITOR_TOP - ATTACH_H)          -- base gap below the divider
-    if UI._notes.attachHasContent then top = top + ATTACH_H end
+    if UI._notes.attachHasContent then top = top + (UI._notes.attachH or ATTACH_H) end
     if UI._notes.findBarShown then top = top + FIND_BAR_H end
     frame.editorScroll:ClearAllPoints()
     frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -top)
@@ -7152,37 +7158,63 @@ function UI:RefreshEasyNotesAttachBar()
             entries[#entries + 1] = { kind = "showsOn", entry = e, idx = i, name = e.name or tostring(e.id) }
         end
     end
-    -- The Shows line: the label, the places as pills with an X (or
-    -- "anywhere"), then + for the picker.
+    -- The Shows line, a second header while the note has places: the
+    -- label, the places as pills with an X, + for the picker, the fold.
+    local hasTags = note ~= nil and #entries > 0
+    local folded = hasTags and NormalizeDB().showsFolded == true
+    local open = hasTags and not folded
     local x = 6
     if not frame.showsLabel then
         frame.showsLabel = frame.attachBar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         frame.showsLabel:SetText(L["NOTES_SHOWS_LABEL"])
-        local anywhere = CreateFrame("Button", nil, frame.attachBar)
-        anywhere.text = anywhere:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        anywhere.text:SetPoint("LEFT")
-        anywhere.text:SetText(L["NOTES_SHOWS_ANYWHERE"])
-        anywhere:SetSize((anywhere.text:GetStringWidth() or 40) + 2, 18)
-        anywhere:SetScript("OnClick", function(self) UI:ToggleEasyNotesAppliesInSearch(self) end)
-        frame.showsAnywhere = anywhere
+        local line = frame.attachBar:CreateTexture(nil, "ARTWORK")
+        line:SetColorTexture(0.18, 0.18, 0.20, 0.7)
+        line:SetHeight(1)
+        line:SetPoint("TOPLEFT", frame.attachBar, "BOTTOMLEFT", 0, -4)
+        line:SetPoint("TOPRIGHT", frame.attachBar, "BOTTOMRIGHT", 0, -4)
+        frame.showsDivider = line
+        -- Folds the line away for the text, and back.
+        local fold = CreateFrame("Button", nil, frame.attachBar)
+        fold:SetSize(16, 16)
+        fold:SetPoint("RIGHT", frame.attachBar, "RIGHT", -2, 0)
+        fold.glyph = fold:CreateTexture(nil, "OVERLAY")
+        fold.glyph:SetTexture(ns.FILTER_ARROW_TEX)
+        fold.glyph:SetSize(10, 10)
+        fold.glyph:SetPoint("CENTER")
+        fold.glyph:SetVertexColor(0.7, 0.7, 0.74, 1)
+        fold:SetScript("OnClick", function()
+            local db = NormalizeDB()
+            db.showsFolded = not db.showsFolded or nil
+            UI:RefreshEasyNotesAttachBar()
+        end)
+        fold:SetScript("OnEnter", function(self)
+            self.glyph:SetVertexColor(1, 1, 1, 1)
+            UI:ShowNotesTipDelayed(self, "ANCHOR_TOP",
+                NormalizeDB().showsFolded and L["NOTES_SHOWS_UNFOLD"] or L["NOTES_SHOWS_FOLD"])
+        end)
+        fold:SetScript("OnLeave", function(self)
+            self.glyph:SetVertexColor(0.7, 0.7, 0.74, 1)
+            if GameTooltip then GameTooltip:Hide() end
+        end)
+        frame.showsFold = fold
     end
+    -- Folded: a thin strip with the arrow.
+    UI._notes.attachH = folded and 14 or ATTACH_H
+    frame.attachBar:SetHeight(UI._notes.attachH)
+    frame.showsDivider:SetShown(hasTags)
+    frame.showsFold:SetShown(hasTags)
+    frame.showsFold.glyph:SetRotation(folded and 0 or math.pi)
     local showsLabel = frame.showsLabel
-    showsLabel:SetShown(note ~= nil)
+    showsLabel:SetShown(open)
     showsLabel:ClearAllPoints()
     showsLabel:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
     x = x + (showsLabel:GetStringWidth() or 30) + 6
-    frame.showsAnywhere:SetShown(note ~= nil and #entries == 0)
-    if #entries == 0 then
-        frame.showsAnywhere:ClearAllPoints()
-        frame.showsAnywhere:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
-        x = x + frame.showsAnywhere:GetWidth() + 6
-    end
     local barW = frame.attachBar:GetWidth()
     if not barW or barW < 50 then barW = 280 end
-    -- Room kept for the + and a "+N" pill.
-    local maxX = barW - (frame.appliesInButton:GetWidth() or 20) - 40
+    -- Room kept for the +, a "+N" pill and the fold.
+    local maxX = barW - (frame.appliesInButton:GetWidth() or 20) - 58
     local shown, overflowCount = 0, 0
-    for i = 1, #entries do
+    for i = 1, open and #entries or 0 do
         local data = entries[i]
         local pill = pills[i]
         if not pill then
@@ -7288,14 +7320,13 @@ function UI:RefreshEasyNotesAttachBar()
     elseif frame.attachOverflow then
         frame.attachOverflow:Hide()
     end
-    if note then
+    if open then
         frame.appliesInButton:ClearAllPoints()
         frame.appliesInButton:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
         frame.appliesInButton:Show()
     end
 
-    -- Every note has its Shows line.
-    UI._notes.attachHasContent = note ~= nil
+    UI._notes.attachHasContent = hasTags
     UI:UpdateEasyNotesEditorTop()
 end
 
