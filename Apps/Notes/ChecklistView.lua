@@ -17,8 +17,11 @@ local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.
 local ipairs, smatch, strtrim = ipairs, string.match, strtrim
 
 -- GRIP_W: the margin left of the boxes the drag grip shows in, outside
--- the window's text edge.
-local ROW_H, ROW_H2, CELL_W, NAME_W, GRIP_W, CHECK_W = 26, 36, 56, 150, 14, 22
+-- the window's text edge, so a row starts where the header's buttons do;
+-- EDGE_R: past the text edge on the right, to the header's X.
+local ROW_H, ROW_H2, CELL_W, NAME_W, GRIP_W, CHECK_W, EDGE_R = 26, 36, 56, 150, 12, 22, 8
+-- The middle of a row's first line, where its box, X and count sit.
+local LINE_MID = -13
 local DONE_COLOR, OPEN_COLOR, FAINT_COLOR = { 0.45, 0.85, 0.45 }, { 1, 1, 1 }, { 0.65, 0.65, 0.65 }
 local READY_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
@@ -291,11 +294,18 @@ local function RowMenu(row)
 end
 
 local function ItemIcon(line)
-    if line.link == "item" then return C_Item.GetItemIconByID and C_Item.GetItemIconByID(line.item) end
+    if line.item then return C_Item.GetItemIconByID and C_Item.GetItemIconByID(line.item) end
     if line.link == "cooldown" then
-        if line.item then return C_Item.GetItemIconByID and C_Item.GetItemIconByID(line.item) end
         return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(line.spell)
     end
+end
+
+-- Every state of the box over the box: the template's glow and pressed
+-- art otherwise sit at its own size beside it.
+local function FitBox(tex, box)
+    if not tex then return end
+    tex:ClearAllPoints()
+    tex:SetAllPoints(box)
 end
 
 local function CreateRow(i)
@@ -317,7 +327,7 @@ local function CreateRow(i)
     row.grip = grip
     -- The X at the right, under the cursor too, drops the line.
     local remove = ns.CreateCloseX(row, 12)
-    remove:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+    remove:SetPoint("RIGHT", row, "TOPRIGHT", -2, LINE_MID)
     remove:SetScript("OnClick", function()
         local note = Note()
         if note and row.line then CK.RemoveLine(note, row.line.id) Changed(note) end
@@ -328,6 +338,15 @@ local function CreateRow(i)
     row.check:SetSize(CHECK_W, CHECK_W)
     row.check:SetPoint("TOPLEFT", row, "TOPLEFT", GRIP_W, -2)
     if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, CHECK_W) end
+    local check = row.check
+    FitBox(check:GetNormalTexture(), check)
+    FitBox(check:GetCheckedTexture(), check)
+    FitBox(check:GetHighlightTexture(), check)
+    FitBox(check:GetPushedTexture(), check)
+    FitBox(check:GetDisabledCheckedTexture(), check)
+    Utils.AttachDelayedTooltip(check, "ANCHOR_RIGHT", function()
+        return row.line and row.line.link and L["CHECK_AUTO_TT"] or nil
+    end)
     row.check:SetScript("OnClick", function(self)
         local note = Note()
         if not (note and row.line) then return end
@@ -344,7 +363,8 @@ local function CreateRow(i)
     row.name = Text(row, "GameFontHighlight")
     row.progress = Text(row, "GameFontHighlight")
     row.progress:SetJustifyH("RIGHT")
-    row.progress:SetPoint("TOPRIGHT", row.remove, "TOPLEFT", -4, -6)
+    -- On the name's line, left of the X: the detail line runs under it.
+    row.progress:SetPoint("TOPRIGHT", row, "TOPRIGHT", -18, -6)
     row.detail = Text(row, "GameFontDisableSmall")
     -- A click on the line types in it; the auction search for an item
     -- line is on its menu.
@@ -534,7 +554,7 @@ local function FillList(note)
         UI.doneHead = UI.doneHead or Text(UI.list, "GameFontNormalSmall")
         local head = UI.doneHead
         head:ClearAllPoints()
-        head:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W + 4, -y - 6)
+        head:SetPoint("TOPLEFT", UI.list, "TOPLEFT", GRIP_W, -y - 6)
         head:SetText(sformat(L["CHECK_DONE_FMT"], #done))
         head:SetTextColor(FAINT_COLOR[1], FAINT_COLOR[2], FAINT_COLOR[3], 1)
         head:Show()
@@ -624,7 +644,7 @@ local function EnsureView()
     -- the grip in the margin.
     local scroll = CreateFrame("ScrollFrame", nil, view)
     scroll:SetPoint("TOPLEFT", view, "TOPLEFT", -GRIP_W, 0)
-    scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -12, 2)
+    scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", EDGE_R, 2)
     UI.scroll = scroll
     UI.list = CreateFrame("Frame", nil, scroll)
     UI.list:SetSize(1, 1)
@@ -731,17 +751,22 @@ function View.Refresh()
     -- A line left empty goes, unless it is the one being typed.
     for i = #list.lines, 1, -1 do
         local line = list.lines[i]
-        if not line.link and (line.text or "") == "" and line.id ~= UI.editing then CK.RemoveLine(note, line.id) end
+        if not (line.link or line.item) and (line.text or "") == "" and line.id ~= UI.editing then
+            CK.RemoveLine(note, line.id)
+        end
     end
     local board = UI.board and #list.lines > 0
     if board and UI.editing then View.EndEdit() return end
     local h = board and FillBoard(note) or FillList(note)
+    -- The rows reach the header's X, or stop short of the bar while it shows.
+    local viewH = UI.scroll:GetHeight() or 0
+    local overflow = h > viewH + 1
+    UI.scroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", overflow and -12 or EDGE_R, 2)
     UI.list:SetWidth(mmax(1, board and (GRIP_W + NAME_W + #CK.Board(note) * CELL_W) or (UI.scroll:GetWidth() or 1)))
     View.PlaceEdit()
     UI.list:SetHeight(mmax(1, h))
-    local viewH = UI.scroll:GetHeight() or 0
     if UI.bar then
-        if h > viewH + 1 then
+        if overflow then
             UI.bar:Show()
             UI.bar:UpdateThumb(h, viewH)
         else
@@ -803,7 +828,8 @@ function View.PlaceEdit()
         if row:IsShown() and row.line and row.line.id == id then
             local box = EnsureEdit()
             box:ClearAllPoints()
-            box:SetPoint("LEFT", row.name, "LEFT", 0, 0)
+            -- Centered on the box, not on the name: emptied, the name has no height.
+            box:SetPoint("LEFT", row.icon:IsShown() and row.icon or row.check, "RIGHT", 4, 0)
             box:SetPoint("RIGHT", row.progress, "LEFT", -6, 0)
             row.name:SetAlpha(0)
             if not box:IsShown() then

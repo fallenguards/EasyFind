@@ -318,6 +318,7 @@ end
 
 function CK.LineName(line)
     if line.text and line.text ~= "" then return line.text end
+    if line.item and not line.link then return ItemName(line.item) end
     local link = line.link and LINKS[line.link]
     return link and link.Name(line) or ""
 end
@@ -429,10 +430,12 @@ function CK.Preview(note)
     return sformat(L["CHECK_PREVIEW_FMT"], done, total)
 end
 
--- A line from a pasted or shift-clicked link: item, quest or spell.
+-- A line from a pasted or shift-clicked link: item, quest or spell. An
+-- item is one to tick by hand (it came from the bags it would count);
+-- Track counts one.
 function CK.LineFromLink(link)
     local item = tonumber(smatch(link or "", "|Hitem:(%d+)"))
-    if item then return { link = "item", item = item, target = 1 } end
+    if item then return { item = item } end
     local quest = tonumber(smatch(link or "", "|Hquest:(%d+)"))
     if quest then return { link = "quest", quest = quest } end
     local spell = tonumber(smatch(link or "", "|Hspell:(%d+)"))

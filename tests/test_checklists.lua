@@ -128,7 +128,9 @@ end
 
 function tests.linksBecomeLines()
     local CK = Load()
-    H.assertEq(CK.LineFromLink("|cff1eff00|Hitem:13468::::|h[Black Lotus]|h|r").item, 13468)
+    local item = CK.LineFromLink("|cff1eff00|Hitem:13468::::|h[Black Lotus]|h|r")
+    H.assertEq(item.item, 13468)
+    H.assertNil(item.link, "ticked by hand: it came from the bags it would count")
     H.assertEq(CK.LineFromLink("|Hquest:4321:60|h[Quest]|h").quest, 4321)
     H.assertEq(CK.LineFromLink("|Hspell:18560:0|h[Mooncloth]|h").link, "cooldown")
     H.assertNil(CK.LineFromLink("plain words"))
@@ -185,6 +187,7 @@ local function Stub()
     local t = { _scripts = {} }
     return setmetatable(t, { __index = function(_, k)
         if special[k] then return special[k] end
+        if k:match("^Get%w*Texture$") then return function() return Stub() end end
         if k:sub(1, 3) == "Get" then return function() return 0 end end
         return function() end
     end })
@@ -229,17 +232,20 @@ local function LoadView(lines)
         AllNotes = function() return { note } end,
     }
     assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/ChecklistView.lua", "t", env))("EasyFind_Notes", notesNS)
-    return notesNS.ChecklistView, note, w, made
+    return notesNS.ChecklistView, note, w, made, CK
 end
 
 function tests.view_buildsTheListAndTheBoard()
-    local View, note, w = LoadView({ { text = "Plain" }, { link = "item", item = 1, target = 2 }, { link = "quest", quest = 9 },
+    local View, note, w, _, CK = LoadView({ { text = "Plain" }, { link = "item", item = 1, target = 2 }, { link = "quest", quest = 9 },
         { link = "rep", faction = 72, standing = 8 }, { link = "gold", target = 10000 }, { link = "level", target = 40 },
         { link = "skill", skill = "Tailoring", target = 300 }, { link = "lockout", instance = "Molten Core" },
         { link = "cooldown", spell = 18560 } })
     View.SetAllowed(true)
     w.insert("|Hitem:5:0|h[Thing]|h")
     H.assertEq(#note.list.lines, 10, "a shift-clicked item joined the list")
+    local added = note.list.lines[10]
+    H.assertEq(added.item, 5)
+    H.assertFalse((CK.LineState(note, added)), "not ticked on arrival")
     View.ShowBoard(true)
     View.ShowBoard(false)
     View.Sweep()
