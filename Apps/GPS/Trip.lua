@@ -15,7 +15,7 @@ local mmax, mmin, msqrt = math.max, math.min, math.sqrt
 local tremove, tinsert, tsort = table.remove, table.insert, table.sort
 local sformat = string.format
 
-local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 14, 6, 20
+local ROW_H, ADD_H, MARK, GRIP_W, DROP_ROWS, DROP_ROW_H = 30, 26, 16, 9, 6, 20
 local DROP_PAD = 4
 local TEX_RING = "Interface\\AddOns\\EasyFind\\textures\\clock-ring"   -- a 1.5 px line at 16 px
 local PIN = 22
@@ -562,6 +562,26 @@ local function Mark(parent)
     return mark
 end
 
+-- A field in the theme's own well (its control fill, the theme's ring or
+-- the stock soft one), not the stock search art; repainted with the theme.
+local wells = {}
+local function PaintWell(well)
+    local fill = ns.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
+    local palette = ns.ACTIVE_UI_PALETTE
+    local ring = palette and palette.borderColor
+    ns.SetRoundedRectFill(well, fill[1], fill[2], fill[3], 1, true)
+    if ring then
+        ns.SetRoundedRectBorderColor(well, ring[1], ring[2], ring[3], ring[4] or 1, true)
+    else
+        ns.SetRoundedRectBorderColor(well, 0.28, 0.28, 0.30, 0.75, true)
+    end
+end
+if ns.ApplyUITheme then
+    hooksecurefunc(ns, "ApplyUITheme", function()
+        for i = 1, #wells do PaintWell(wells[i]) end
+    end)
+end
+
 local function Field(ed, i)
     local row = ed.rows[i]
     if row then return row end
@@ -603,6 +623,21 @@ local function Field(ed, i)
     box:SetPoint("RIGHT", row, "RIGHT", 0, 0)
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
+    if ns.CreateRoundedRectBorder then
+        for _, key in ipairs({ "Left", "Middle", "Right" }) do
+            if box[key] then box[key]:SetAlpha(0) end
+        end
+        -- The stock art reached 5 left of the box, round its search glass.
+        local well = CreateFrame("Frame", nil, row)
+        well:SetPoint("TOPLEFT", box, "TOPLEFT", -5, 1)
+        well:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, -1)
+        well:SetFrameLevel(row:GetFrameLevel())
+        ns.CreateRoundedRectBorder(well)
+        ns.SetRoundedRectBarHeight(well, 10)
+        ns.SetRoundedRectBorderBgAlpha(well, 1)
+        PaintWell(well)
+        wells[#wells + 1] = well
+    end
     if box.Instructions then
         box.Instructions:SetWordWrap(false)
         box.Instructions:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
@@ -806,7 +841,7 @@ function Trip.BuildEditor(frame)
     -- announcement too.
     local etaH = frame.eta:GetHeight() or 12
     frame.eta:ClearAllPoints()
-    frame.eta:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", 22 + shift, -4)
+    frame.eta:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", GRIP_W + MARK / 2 + shift, -4)
     frame.eta:SetPoint("RIGHT", frame.clearBtn, "LEFT", -8, 0)
     -- The link's top hangs from the editor, not the time line, whose right
     -- end is anchored to the link: the client refuses the cycle.

@@ -4301,7 +4301,7 @@ local function BuildPopout()
 
     -- The calculator's stroke close, not a stock round button. The header's
     -- buttons are small, a click a little round each.
-    local BTN, BTN_GAP = 10, 14
+    local BTN, BTN_GAP = 14, 18
     local close = CreateFrame("Button", nil, f)
     close:SetSize(BTN, BTN)
     close:SetHitRectInsets(-3, -3, -3, -3)
@@ -4309,7 +4309,7 @@ local function BuildPopout()
     local function stroke()
         local tex = close:CreateTexture(nil, "OVERLAY")
         tex:SetTexture("Interface\\Buttons\\WHITE8x8")
-        tex:SetSize(8, 1.5)
+        tex:SetSize(11, 1.5)
         tex:SetPoint("CENTER")
         return tex
     end
@@ -4330,10 +4330,10 @@ local function BuildPopout()
     -- header hangs off the glyph and the close. above: the buttons in a
     -- strip of their own over the trip's fields, so the first field keeps
     -- its full width; else centered on the folded title row.
-    f.headStrip = 4
+    f.headStrip = 8
     function f:SetHeaderPad(pad, above)
         self.glyph:ClearAllPoints()
-        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 12, -(pad + (above and self.headStrip or 0)))
+        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 8, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
         if above then
             close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -4)
@@ -4356,10 +4356,10 @@ local function BuildPopout()
         tex:SetPoint(point, maximize, "CENTER", x, y)
         edges[#edges + 1] = tex
     end
-    edge(7, 1.5, "TOP", 0, 3.5)
-    edge(7, 1.5, "BOTTOM", 0, -3.5)
-    edge(1.5, 7, "LEFT", -3.5, 0)
-    edge(1.5, 7, "RIGHT", 3.5, 0)
+    edge(9, 1.5, "TOP", 0, 4.5)
+    edge(9, 1.5, "BOTTOM", 0, -4.5)
+    edge(1.5, 9, "LEFT", -4.5, 0)
+    edge(1.5, 9, "RIGHT", 4.5, 0)
     local function tintMax(r, g, b)
         for i = 1, #edges do edges[i]:SetVertexColor(r, g, b, 1) end
     end
@@ -4379,11 +4379,11 @@ local function BuildPopout()
     collapse:SetPoint("CENTER", maximize, "CENTER", -BTN_GAP, 0)
     local bar = collapse:CreateTexture(nil, "OVERLAY")
     bar:SetTexture("Interface\\Buttons\\WHITE8x8")
-    bar:SetSize(7, 1.5)
+    bar:SetSize(9, 1.5)
     bar:SetPoint("CENTER")
     local post = collapse:CreateTexture(nil, "OVERLAY")
     post:SetTexture("Interface\\Buttons\\WHITE8x8")
-    post:SetSize(1.5, 7)
+    post:SetSize(1.5, 9)
     post:SetPoint("CENTER")
     local function tintFold(r, g, b)
         bar:SetVertexColor(r, g, b, 1)
@@ -4429,7 +4429,7 @@ local function BuildPopout()
     f.isPopout = true
 
     BuildSurface(f, {
-        padX = 12, padY = 9, padRight = 52, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
+        padX = 12, padY = 9, padRight = 64, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
         onRouteChanged = function(self)
             -- The fold button folds a route; with none there is nothing to fold.
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
@@ -4509,11 +4509,11 @@ local function BuildPopout()
     local function chevron(x)
         local tex = fields:CreateTexture(nil, "OVERLAY")
         tex:SetTexture("Interface\\Buttons\\WHITE8x8")
-        tex:SetSize(6, 1.5)
+        tex:SetSize(7, 1.5)
         tex:SetPoint("CENTER", fields, "CENTER", x, 0)
         return tex
     end
-    local left, right = chevron(-2), chevron(2)
+    local left, right = chevron(-2.5), chevron(2.5)
     local function tintFields(r, g, b)
         left:SetVertexColor(r, g, b, 1)
         right:SetVertexColor(r, g, b, 1)
