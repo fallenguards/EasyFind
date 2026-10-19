@@ -2647,11 +2647,11 @@ end
 
 -- The menu row for the beacon in the world (on unless turned off).
 function GPS.WorldPinRow()
-    return { kind = "check", label = L["GPS_WORLD_PIN"],
+    return { kind = "check", label = L["GPS_WORLD_PIN"], tooltip = L["GPS_WORLD_PIN_TT"],
         get = function() local db = DB() return not (db and db.gpsWorldPin == false) end,
         set = function(v)
             local db = DB()
-            if db then db.gpsWorldPin = (not v) and false or nil end
+            if db then db.gpsWorldPin = Utils.OffOrNil(v) end
             Refresh()
         end }
 end
@@ -2663,7 +2663,7 @@ function GPS.AutoLearnRow()
         get = function() local db = DB() return not (db and db.gpsAutoLearn == false) end,
         set = function(v)
             local db = DB()
-            if db then db.gpsAutoLearn = (not v) and false or nil end
+            if db then db.gpsAutoLearn = Utils.OffOrNil(v) end
             local route = Route()
             if route and route.dest and not route.arrived then
                 GPS:Plan(route.dest.name, function() return GPS:BuildStops(route, nil, nil, nil, "first") end,
@@ -4745,7 +4745,7 @@ local function BuildOptionsPage(ctx, page)
         function(v)
             local db = DB()
             if not db then return end
-            db.gpsWorldPin = (v == "off") and false or nil
+            db.gpsWorldPin = Utils.OffOrNil(v ~= "off")
             if v ~= "off" then db.gpsBeaconStyle = v end
             Refresh()
         end,
@@ -4842,7 +4842,7 @@ local function BuildOptionsPage(ctx, page)
     if arrow.RefreshVisual then arrow:RefreshVisual() end
     arrow:SetScript("OnClick", function(self)
         local d = DB()
-        if d then d.gpsArrow = (not self:GetChecked()) and false or nil end
+        if d then d.gpsArrow = Utils.OffOrNil(self:GetChecked()) end
         if self.RefreshVisual then self:RefreshVisual() end
         Refresh()
     end)
@@ -4867,7 +4867,7 @@ local function BuildOptionsPage(ctx, page)
     if mini.RefreshVisual then mini:RefreshVisual() end
     mini:SetScript("OnClick", function(self)
         local d = DB()
-        if d then d.gpsMinimap = (not self:GetChecked()) and false or nil end
+        if d then d.gpsMinimap = Utils.OffOrNil(self:GetChecked()) end
         if self.RefreshVisual then self:RefreshVisual() end
         Refresh()
     end)
@@ -4877,7 +4877,7 @@ local function BuildOptionsPage(ctx, page)
     if zones.RefreshVisual then zones:RefreshVisual() end
     zones:SetScript("OnClick", function(self)
         local d = DB()
-        if d then d.gpsZoneSteps = (not self:GetChecked()) and false or nil end
+        if d then d.gpsZoneSteps = Utils.OffOrNil(self:GetChecked()) end
         if self.RefreshVisual then self:RefreshVisual() end
         local route = Route()
         if route and not route.arrived then Reroute(route) end
@@ -4888,7 +4888,7 @@ local function BuildOptionsPage(ctx, page)
     if rowBtn.RefreshVisual then rowBtn:RefreshVisual() end
     rowBtn:SetScript("OnClick", function(self)
         local d = DB()
-        if d then d.gpsRowButton = (not self:GetChecked()) and false or nil end
+        if d then d.gpsRowButton = Utils.OffOrNil(self:GetChecked()) end
         if self.RefreshVisual then self:RefreshVisual() end
         if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
         if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end

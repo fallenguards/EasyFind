@@ -1077,7 +1077,7 @@ local function ShowButtonMenu(btn)
         kind = "check", label = L["EXTBTN_SNAP"],
         get = function() return SnapOn(rec) end,
         set = function(v)
-            rec.snap = v and nil or false
+            rec.snap = Utils.OffOrNil(v)
             if not v and rec.angle then
                 -- Leaving the ring: keep the spot it sits at as a free spot.
                 local cx, cy = btn:GetCenter()

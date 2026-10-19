@@ -666,7 +666,7 @@ local function AttachRecipeFilterFlyout(row)
                 local on = self:GetChecked() and true or false
                 -- Store only real unchecks; checked = default = no entry, so
                 -- stale entries can never accumulate and re-deliver.
-                SlotState()[self._slotIndex] = (not on) and false or nil
+                SlotState()[self._slotIndex] = Utils.OffOrNil(on)
                 ApplySlot(self._slotIndex, on)
             end)
             slotChecks[i] = r
@@ -698,7 +698,7 @@ local function AttachRecipeFilterFlyout(row)
             local val = actions[i].value
             r:SetScript("OnClick", function()
                 for si = 1, #slots do
-                    slotState[si] = (not val) and false or nil
+                    slotState[si] = Utils.OffOrNil(val)
                     ApplySlot(si, val)
                     if slotChecks[si] then slotChecks[si]:SetChecked(val) end
                 end
@@ -970,7 +970,7 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
             r:SetScript("OnClick", function(self)
                 local t = EasyFind.db.professionFilters
                 if not t then t = {}; EasyFind.db.professionFilters = t end
-                t[self._skillLine] = self:GetChecked() and nil or false
+                t[self._skillLine] = Utils.OffOrNil(self:GetChecked())
                 if ns.Database and ns.Database.RefreshDynamicCategory then
                     ns.Database:RefreshDynamicCategory("professions")
                 end

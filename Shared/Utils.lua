@@ -82,6 +82,14 @@ Utils.ErrorHandler = ErrorHandler
 -- Combat vetoes are not queued: callers owning combat-sensitive state must
 -- arrange their own regen replay. Did-not-run paths return false plus a
 -- reason ("combat", "no-object", "no-method").
+-- A setting stored only when off: false off, nil (the default) on. An
+-- and/or chain cannot say it: `x and false or nil` is always nil and
+-- `x and nil or false` always false (tests/test_and_or_constant.lua).
+function Utils.OffOrNil(on)
+    if on then return nil end
+    return false
+end
+
 function Utils.SafeCallMethod(obj, method, ...)
     if InCombatLockdown() then return false, "combat" end
     if not obj then return false, "no-object" end
