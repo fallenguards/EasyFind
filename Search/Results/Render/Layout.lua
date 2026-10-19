@@ -100,6 +100,8 @@ end
 -- A place: the GPS button just left of its own icon, which on these rows
 -- sits at the right. The rows are secure buttons, so the button hangs from
 -- the icon and the name stops short of it, never anchored to the button.
+local GPS_ICON_GAP = 6
+
 local function NavigateFromResults(data)
     local Handlers = ns.ResultHandlers
     if EasyFind.API.CallAction("gps", "navigate", data, { popout = true }) and Handlers and Handlers.FinishResultSelection then
@@ -119,15 +121,18 @@ function Render.ApplyGPSButton(resultRow, entry, state)
     end
     local icon = resultRow.icon
     btn:ClearAllPoints()
+    local edge, edgePoint, x
     if icon:IsShown() and IsRightSideIconData(data) then
-        btn:SetPoint("RIGHT", icon, "LEFT", -3, 0)
-        resultRow.text:SetPoint("RIGHT", icon, "LEFT", -(3 + size + 4), 0)
-        if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", icon, "LEFT", -(3 + size + 4), 0) end
+        edge, edgePoint, x = icon, "LEFT", -GPS_ICON_GAP
+    elseif resultRow.shortcutGroup and Render.ShouldShowShortcutHints() then
+        -- Where the row's own icon would sit, clear of its Alt shortcut.
+        edge, edgePoint, x = resultRow.shortcutGroup, "LEFT", -ns.ResultShortcuts.RESULT_SHORTCUT.gap
     else
-        btn:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)
-        resultRow.text:SetPoint("RIGHT", resultRow, "RIGHT", -(5 + size + 4), 0)
-        if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", resultRow, "RIGHT", -(5 + size + 4), 0) end
+        edge, edgePoint, x = resultRow, "RIGHT", -5
     end
+    btn:SetPoint("RIGHT", edge, edgePoint, x, 0)
+    resultRow.text:SetPoint("RIGHT", edge, edgePoint, x - size - 4, 0)
+    if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", edge, edgePoint, x - size - 4, 0) end
 end
 
 function Render.ApplyPinnedResultPrefix(resultRow, entry)
