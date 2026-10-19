@@ -2131,9 +2131,26 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
                     row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
                     local where = r.matchNote or r.zoneName or r.parentName or r.category
                     row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
+                    row.text:SetTextColor(1, 1, 1)
                     row.note:SetText(secs and secs[r] and ns.GPSTrip.AddsText(secs[r]) or "")
+                    row:EnableMouse(true)
                     row:Show()
                 end
+            end
+            -- Searched and nothing found: says so in the list's place, never
+            -- the route's steps back under a search.
+            if n == 0 then
+                n = 1
+                local row = HitRow(self, 1)
+                row.data = nil
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", hitChild, "TOPLEFT", 0, 0)
+                row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
+                row.text:SetText(L["MAP_NO_MATCHES"])
+                row.text:SetTextColor(unpack(ns.TEXT_DIM))
+                row.note:SetText("")
+                row:EnableMouse(false)
+                row:Show()
             end
         end
         for i = n + 1, #self.hits do self.hits[i]:Hide() end

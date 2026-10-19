@@ -362,9 +362,23 @@ function Editor:ShowHits(results, secs)
             row:SetPoint("TOP", self.drop, "TOP", 0, -DROP_PAD - (n - 1) * DROP_ROW_H)
             local where = r.matchNote or r.zoneName or r.parentName or r.category
             row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
+            row.text:SetTextColor(1, 1, 1)
             row.note:SetText(secs and secs[r] and Trip.AddsText(secs[r]) or "")
+            row:EnableMouse(true)
             row:Show()
         end
+    end
+    -- Searched and nothing found: says so, as the window does.
+    if results and n == 0 then
+        n = 1
+        local row = DropRow(self, 1)
+        row.data = nil
+        row:SetPoint("TOP", self.drop, "TOP", 0, -DROP_PAD)
+        row.text:SetText(L["MAP_NO_MATCHES"])
+        row.text:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
+        row.note:SetText("")
+        row:EnableMouse(false)
+        row:Show()
     end
     for i = n + 1, #self.dropRows do self.dropRows[i]:Hide() end
     if ns.StripShadows then ns.StripShadows(self.drop) end
