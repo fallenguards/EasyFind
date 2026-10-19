@@ -441,11 +441,6 @@ local function PaintIcon(btn)
     btn.icon:SetTexture(tex)
     if coords then btn.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else btn.icon:SetTexCoord(0, 1, 0, 1) end
-    local only = #rec.apps == 1 and AppEntry(rec.apps[1]) or nil
-    if only and only.extensionID and not only.iconTint then
-        ns.PaintAppGlyph(btn.icon, only)
-        return
-    end
     btn.icon:SetDesaturated(true)
     if rec.micro then
         -- On the game's dark button background the glyph is plain white.
@@ -935,7 +930,7 @@ local function OpenFolderMenu(btn)
             row.icon:SetTexture(tex)
             if coords then row.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
             else row.icon:SetTexCoord(0, 1, 0, 1) end
-            ns.PaintAppGlyph(row.icon, row.app)
+            ns.PaintAppGlyph(row.icon)
             row.icon:Show()
         else
             row.icon:Hide()
@@ -1620,7 +1615,7 @@ function ExtensionButtons:BeginDragFromMenu(app)
     g.icon:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
     if coords then g.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else g.icon:SetTexCoord(0, 1, 0, 1) end
-    ns.PaintAppGlyph(g.icon, app)
+    ns.PaintAppGlyph(g.icon)
     PaintDisc(g, nil)
     -- Under the cursor before it shows: a frame at its last resting spot
     -- would flash there and then leap to the pointer.

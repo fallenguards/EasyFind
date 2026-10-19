@@ -565,7 +565,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             resultRow.icon:SetTexCoord(0, 1, 0, 1)
             resultRow.icon:SetTexture(appGlyph.tex)
             if appGlyph.coords then resultRow.icon:SetTexCoord(unpack(appGlyph.coords)) end
-            ns.PaintAppGlyph(resultRow.icon, data)
+            ns.PaintAppGlyph(resultRow.icon)
             resultRow.icon:SetSize(rowIconSize, rowIconSize)
             resultRow.icon:ClearAllPoints()
             resultRow.icon:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)

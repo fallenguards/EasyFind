@@ -108,7 +108,7 @@ end
 
 -- An extension's results (EasyFind.API), as Snippets registers them.
 env.EasyFind.API.RegisterSearchProvider({
-    key = "snippets", category = "Snippet", label = "Snippets", eager = true, lowResults = true,
+    key = "snippets", category = "Snippet", label = "Snippets", icon = 1, eager = true, lowResults = true,
     words = { "snippet", "snippets", "snip" }, aliases = { "snip", "snippets" },
 })
 

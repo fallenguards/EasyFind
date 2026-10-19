@@ -28,7 +28,7 @@ Extensions.LEGACY_FLAGS = LEGACY_FLAGS
 
 local FIELDS = {
     id = "string", name = "string", description = "string", icon = "texture", iconCoords = "table",
-    tint = "boolean", addon = "string", loadInCombat = "boolean", open = "function", close = "function",
+    addon = "string", loadInCombat = "boolean", open = "function", close = "function",
     isOpen = "function", menu = "function", settings = "function", keywords = "table",
     hideFromSearch = "boolean", experimental = "string", scope = "string",
 }
@@ -84,7 +84,7 @@ function Extensions.Entry(id)
         def._entry = entry
     end
     entry.name, entry.nameLower = def.name, def.name and slower(def.name)
-    entry.icon, entry.iconCoords, entry.iconTint = def.icon, def.iconCoords, def.tint
+    entry.icon, entry.iconCoords = def.icon, def.iconCoords
     entry.experimental = def.experimental
     -- A row key (shortkeys, aliases) names an entry by path and name: a
     -- bundled extension keeps the one its keys were saved under.
@@ -242,12 +242,12 @@ end
 
 -- ==== public: extensions =====================================================
 
--- def: id (required, stable: layouts and buttons save it), name (required
--- the first time), description, icon, iconCoords, tint (white line art
--- tinted to the theme), addon (a load-on-demand addon loaded on first
--- open), loadInCombat, open, close, isOpen, menu (rows for its right-click
--- menu), settings(page, kit), keywords, hideFromSearch, experimental,
--- scope (its surface is that @scope's list in the results).
+-- def: id (required, stable: layouts and buttons save it), name and icon
+-- (required the first time; the icon is painted in the theme's icon
+-- color), iconCoords, description, addon (a load-on-demand addon loaded
+-- on first open), loadInCombat, open, close, isOpen, menu (rows for its
+-- right-click menu), settings(page, kit), keywords, hideFromSearch,
+-- experimental, scope (its surface is that @scope's list in the results).
 -- Registering an id again adds to it: a stub's tile, then the rest.
 function API.RegisterExtension(def)
     if type(def) ~= "table" then Fail("RegisterExtension", "expects a table") end
@@ -260,6 +260,7 @@ function API.RegisterExtension(def)
     local rec = Extensions.byID[id]
     if not rec then
         if type(def.name) ~= "string" then Fail("RegisterExtension", "name is required") end
+        if def.icon == nil then Fail("RegisterExtension", "icon is required") end
         rec = {}
         Extensions.byID[id] = rec
         Extensions.order[#Extensions.order + 1] = id
@@ -307,7 +308,7 @@ Extensions.Providers = Providers
 
 local PROVIDER_FIELDS = {
     key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table",
-    tint = "boolean", words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
+    words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
     leave = "function", extension = "string", loadOnSearch = "any",
 }
@@ -376,8 +377,9 @@ end
 -- ==== public: search ==========================================================
 
 -- def: key (required, stable: the filter and @scope key), label
--- (required the first time), category (the name its rows carry; key
--- when not given), icon, iconCoords, tint, words (typing one loads the
+-- and icon (required the first time; its extension's icon when it has
+-- none), category (the name its rows carry; key when not given),
+-- iconCoords, words (typing one loads the
 -- rows), eager (small: searched from the first keystroke), lazy (only by
 -- its words, its filter or its scope), lowResults (also when a search
 -- finds little), aliases (an @scope: "@" and one of these lists only its
@@ -408,9 +410,12 @@ function API.RegisterSearchProvider(def)
         end
     else
         if type(def.label) ~= "string" then Fail("RegisterSearchProvider", "label is required") end
+        local owner = Extensions.Get(def.extension)
+        if def.icon == nil and not (owner and owner.icon) then
+            Fail("RegisterSearchProvider", "icon is required (or an extension that has one)")
+        end
         -- Its extension's addon turned off in the AddOns list: no filter
         -- row or scope for results that can never come.
-        local owner = Extensions.Get(def.extension)
         if owner and not Extensions.Available(owner) then return false end
         local category = def.category or key
         if ns.CategoryMap.ProviderCategory[key] or Providers.byCategory[category] then
@@ -418,6 +423,7 @@ function API.RegisterSearchProvider(def)
         end
         p = {}
         for k, v in pairs(def) do p[k] = v end
+        if p.icon == nil then p.icon, p.iconCoords = owner.icon, owner.iconCoords end
         p.category = category
         Providers.byKey[key], Providers.byCategory[category] = p, p
         ns.CategoryMap.Add({ key = key, parent = "extensions", categories = { category } })
@@ -427,14 +433,14 @@ function API.RegisterSearchProvider(def)
         })
         ns.SearchEngine:AddProvider({ key = key, words = p.words or {}, loadOnLowResults = p.lowResults })
         ns.Filters.AddExtensionFilter({
-            key = key, label = p.label, iconTex = p.icon, iconCoords = p.iconCoords,
+            key = key, label = p.label, iconTex = p.icon, iconCoords = p.iconCoords, glyph = true,
             hasOptions = p.options ~= nil, checkboxOptions = p.options,
         })
         if p.aliases then
             ns.Filters:AddQuickFilter({ key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases })
         end
     end
-    p.glyph = p.icon and { tex = p.icon, coords = p.iconCoords, chromeTint = p.tint or nil } or nil
+    p.glyph = { tex = p.icon, coords = p.iconCoords, chromeTint = true }
     return true
 end
 

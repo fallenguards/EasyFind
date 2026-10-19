@@ -4925,7 +4925,7 @@ end
 -- menu's choice, and closes it the way it opened.
 EasyFind.API.RegisterExtension({
     id = "gps", name = L["APP_GPS"], description = L["APP_DESC_GPS"],
-    icon = ns.GPS_ICON_TEX, tint = true, experimental = L["GPS_EXP_TT"],
+    icon = ns.GPS_ICON_TEX, experimental = L["GPS_EXP_TT"],
     open = function() GPS:Launch() end,
     isOpen = function()
         if GPS.LaunchesWindow() then return GPS:IsWindowOpen() end

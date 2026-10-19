@@ -29,14 +29,15 @@ function tests.register_refusesWhatCannotWork()
     raises(function() API.RegisterExtension({ id = "a b", name = "X" }) end, "id must be")
     raises(function() API.RegisterExtension({ id = "menu", name = "X" }) end, "taken by EasyFind")
     raises(function() API.RegisterExtension({ id = "x" }) end, "name is required")
+    raises(function() API.RegisterExtension({ id = "x", name = "X" }) end, "icon is required")
     raises(function() API.RegisterExtension({ id = "x", name = "X", open = "no" }) end, "open must be a function")
     raises(function() API.RegisterExtension({ id = "x", name = "X", icon = {} }) end, "icon must be")
 end
 
 function tests.register_stubThenTheRest()
     local _, ns, API = fresh()
-    API.RegisterExtension({ id = "b", name = "Bee" })
-    API.RegisterExtension({ id = "a", name = "Ay", icon = 123, tint = true })
+    API.RegisterExtension({ id = "b", name = "Bee", icon = 1 })
+    API.RegisterExtension({ id = "a", name = "Ay", icon = 123 })
     API.RegisterExtension({ id = "b", open = function() end })
     local entries = ns.Extensions.Entries()
     H.assertEq(#entries, 2)
@@ -44,7 +45,6 @@ function tests.register_stubThenTheRest()
     H.assertEq(entries[1].name, "Bee", "the stub's name kept")
     H.assertNotNil(ns.Extensions.Get("b").open, "the rest added")
     H.assertEq(entries[2].icon, 123)
-    H.assertTrue(entries[2].iconTint)
     H.assertTrue(entries[1] == ns.Extensions.Entry("b"), "one entry per extension")
 end
 
@@ -52,15 +52,15 @@ end
 -- tile keeps the path its saved keys carry.
 function tests.entry_keepsABundledPath()
     local _, ns, API = fresh()
-    API.RegisterExtension({ id = "calc", name = "Calculator", _path = { "Calculator" } })
+    API.RegisterExtension({ id = "calc", name = "Calculator", icon = 1, _path = { "Calculator" } })
     H.assertEq(ns.Extensions.Entry("calc").path[1], "Calculator")
 end
 
 function tests.entries_hideAnExtensionWhoseAddonIsOff()
     local _, ns, API = fresh()
     ns.IsCompanionLoadable = function(name) return name ~= "Off_Addon" end
-    API.RegisterExtension({ id = "on", name = "On", addon = "On_Addon" })
-    API.RegisterExtension({ id = "off", name = "Off", addon = "Off_Addon" })
+    API.RegisterExtension({ id = "on", name = "On", icon = 1, addon = "On_Addon" })
+    API.RegisterExtension({ id = "off", name = "Off", icon = 1, addon = "Off_Addon" })
     local entries = ns.Extensions.Entries()
     H.assertEq(#entries, 1)
     H.assertEq(entries[1].extensionID, "on")
@@ -77,7 +77,7 @@ function tests.launch_loadsTheAddonFirst()
         end,
         GetAddOnMetadata = function() return "LoD" end,
     }
-    API.RegisterExtension({ id = "lod", name = "LoD", addon = "My_LoD" })
+    API.RegisterExtension({ id = "lod", name = "LoD", icon = 1, addon = "My_LoD" })
     H.assertTrue(API.OpenExtension("lod"))
     H.assertEq(loaded, "My_LoD")
     H.assertEq(opened, 1)
@@ -89,10 +89,10 @@ function tests.launch_noLoadInCombatUnlessAllowed()
     local loads = 0
     env.C_AddOns = { LoadAddOn = function() loads = loads + 1 end }
     env.InCombatLockdown = function() return true end
-    API.RegisterExtension({ id = "x", name = "X", addon = "X_LoD" })
+    API.RegisterExtension({ id = "x", name = "X", icon = 1, addon = "X_LoD" })
     H.assertFalse(API.OpenExtension("x"))
     H.assertEq(loads, 0)
-    API.RegisterExtension({ id = "y", name = "Y", addon = "Y_LoD", loadInCombat = true })
+    API.RegisterExtension({ id = "y", name = "Y", icon = 1, addon = "Y_LoD", loadInCombat = true })
     API.OpenExtension("y")
     H.assertEq(loads, 1)
 end
@@ -100,7 +100,7 @@ end
 function tests.anExtensionsErrorStaysWithIt()
     local _, _, API, errors = fresh()
     API.RegisterExtension({
-        id = "x", name = "X",
+        id = "x", name = "X", icon = 1,
         open = function() error("boom") end,
         isOpen = function() error("bang") end,
     })
@@ -113,7 +113,7 @@ function tests.toggle_closesWhatIsOpen()
     local _, _, API = fresh()
     local open = false
     API.RegisterExtension({
-        id = "x", name = "X",
+        id = "x", name = "X", icon = 1,
         open = function() open = true end,
         close = function() open = false end,
         isOpen = function() return open end,
@@ -143,7 +143,7 @@ function tests.scope_isOpenWhileItsPillIsUp()
     ns.Filters.ClearQuickFilter = function() key = nil end
     ns.Search.GetResultsFrame = function() return { IsShown = function() return shown end } end
     ns.Results.HideResults = function() shown = false end
-    API.RegisterExtension({ id = "x", name = "X", scope = "clips" })
+    API.RegisterExtension({ id = "x", name = "X", icon = 1, scope = "clips" })
     H.assertTrue(API.IsExtensionOpen("x"))
     H.assertEq(ns.Extensions.ScopeShowing(), "x")
     API.CloseExtension("x")
@@ -152,8 +152,8 @@ end
 
 function tests.launcherRows_byNameOrWords()
     local _, ns, API = fresh()
-    API.RegisterExtension({ id = "a", name = "Bookmarks", keywords = { "saved places" } })
-    API.RegisterExtension({ id = "b", name = "Calculator", hideFromSearch = true })
+    API.RegisterExtension({ id = "a", name = "Bookmarks", icon = 1, keywords = { "saved places" } })
+    API.RegisterExtension({ id = "b", name = "Calculator", icon = 1, hideFromSearch = true })
     local function ids(text)
         local out = {}
         for _, e in ipairs(ns.Extensions.LauncherMatches(text, {})) do out[#out + 1] = e.extensionID end
@@ -204,8 +204,19 @@ function tests.provider_refusesWhatCannotWork()
     raises(function() API.RegisterSearchProvider({ key = "x" }) end, "label is required")
     raises(function() API.RegisterSearchProvider({ key = "a b", label = "X" }) end, "key must be")
     raises(function() API.RegisterSearchProvider({ key = "x", label = "X", rows = {} }) end, "rows must be a function")
-    API.RegisterSearchProvider({ key = "x", label = "X" })
-    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y", category = "x" }) end, "taken")
+    API.RegisterSearchProvider({ key = "x", label = "X", icon = 1 })
+    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y" }) end, "icon is required")
+    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y", icon = 1, category = "x" }) end, "taken")
+end
+
+function tests.provider_borrowsItsExtensionIcon()
+    local _, ns, API = fresh()
+    API.RegisterExtension({ id = "m", name = "Marks", icon = 42, iconCoords = { 0, 1, 0, 1 } })
+    API.RegisterSearchProvider({ key = "m", label = "Marks", extension = "m" })
+    local glyph = ns.Extensions.Provider("m").glyph
+    H.assertEq(glyph.tex, 42)
+    H.assertEq(glyph.coords[2], 1)
+    H.assertTrue(glyph.chromeTint, "painted in the theme's color")
 end
 
 function tests.provider_plugsInEverywhere()
@@ -214,7 +225,7 @@ function tests.provider_plugsInEverywhere()
     local opt = { label = "Show all", get = function() return true end, set = function() end }
     API.RegisterSearchProvider({
         key = "marks", label = "Bookmarks", category = "Bookmark", words = { "mark" }, lowResults = true,
-        eager = true, aliases = { "bm" }, options = { opt }, icon = 7, tint = true,
+        eager = true, aliases = { "bm" }, options = { opt }, icon = 7,
     })
     H.assertEq(w.cats[1].key, "marks")
     H.assertEq(w.cats[1].parent, "extensions", "under the Extensions filter")
@@ -231,7 +242,7 @@ end
 function tests.provider_rowsTakeItsCategory()
     local _, ns, API = fresh()
     local w = wired(ns)
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", rows = function() return { { name = "Home" } } end })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1, rows = function() return { { name = "Home" } } end })
     H.assertTrue(w.providers.marks.fn(ns.Database))
     H.assertEq(w.replaced.marks[1].category, "marks")
 end
@@ -239,7 +250,7 @@ end
 function tests.provider_noRowsYetIsNotReady()
     local _, ns, API = fresh()
     local w = wired(ns)
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks" })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1 })
     H.assertFalse(w.providers.marks.fn(ns.Database), "retried later")
     H.assertEq(w.replaced.marks, false, "its category emptied")
 end
@@ -251,10 +262,10 @@ function tests.provider_loadsItsAddonForSearchWhenAsked()
     local inUse = false
     env.C_AddOns = { LoadAddOn = function()
         API.RegisterExtension({ id = "msg", open = function() end })
-        API.RegisterSearchProvider({ key = "msg", rows = function() return { { name = "Hi" } } end })
+        API.RegisterSearchProvider({ key = "msg", rows = function() return { { name = "Hi", icon = 1 } } end })
     end }
-    API.RegisterExtension({ id = "msg", name = "Messages", addon = "Msg_LoD" })
-    API.RegisterSearchProvider({ key = "msg", label = "Messages", extension = "msg",
+    API.RegisterExtension({ id = "msg", name = "Messages", icon = 1, addon = "Msg_LoD" })
+    API.RegisterSearchProvider({ key = "msg", label = "Messages", icon = 1, extension = "msg",
         loadOnSearch = function() return inUse end })
     H.assertFalse(w.providers.msg.fn(ns.Database), "never used: no load")
     inUse = true
@@ -265,8 +276,8 @@ function tests.provider_offWithItsAddon()
     local _, ns, API = fresh()
     local w = wired(ns)
     ns.IsCompanionLoadable = function() return false end
-    API.RegisterExtension({ id = "msg", name = "Messages", addon = "Msg_LoD" })
-    H.assertFalse(API.RegisterSearchProvider({ key = "msg", label = "Messages", extension = "msg", aliases = { "m" } }))
+    API.RegisterExtension({ id = "msg", name = "Messages", icon = 1, addon = "Msg_LoD" })
+    H.assertFalse(API.RegisterSearchProvider({ key = "msg", label = "Messages", icon = 1, extension = "msg", aliases = { "m" } }))
     H.assertNil(w.filters.msg, "no filter row")
     H.assertNil(w.scopes.msg, "no scope")
 end
@@ -275,7 +286,7 @@ function tests.selectRow_getsACopyAfterTheBarCloses()
     local _, ns, API = fresh()
     wired(ns)
     local got, finished
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks",
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1,
         select = function(row) got = row end })
     local data = { category = "marks", name = "Home", id = 4 }
     H.assertTrue(ns.Extensions.SelectRow(data, function() finished = true end))
@@ -316,7 +327,7 @@ function tests.action_loadsItsOwnerFirst()
     env.C_AddOns = { LoadAddOn = function()
         API.RegisterAction("notes", "flatten", function(doc) return doc.body end)
     end }
-    API.RegisterExtension({ id = "notes", name = "Notes", addon = "Notes_LoD", loadInCombat = true })
+    API.RegisterExtension({ id = "notes", name = "Notes", icon = 1, addon = "Notes_LoD", loadInCombat = true })
     H.assertFalse(API.HasAction("notes", "flatten"), "not loaded yet")
     H.assertEq(API.CallAction("notes", "flatten", { body = "hi" }), "hi")
 end
@@ -366,7 +377,7 @@ function tests.settings_pageAndKitInTheirPlaces()
     local _, ns, API = fresh()
     local page, gotPage, gotKit = {}, nil, nil
     ns.RegisterExtensionPage = function(def) ns._page = def end
-    API.RegisterExtension({ id = "x", name = "X", settings = function(p, kit) gotPage, gotKit = p, kit end })
+    API.RegisterExtension({ id = "x", name = "X", icon = 1, settings = function(p, kit) gotPage, gotKit = p, kit end })
     ns._page.build(page, { SELECTOR_ROW_W = 330, SELECTOR_BTN_W = 120 })
     H.assertTrue(gotPage == page, "the page first")
     H.assertEq(gotKit.ROW_WIDTH, 330, "then the kit")

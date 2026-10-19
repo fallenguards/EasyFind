@@ -748,7 +748,7 @@ end
 -- The extension: its list is the @clipboard scope in the results.
 EasyFind.API.RegisterExtension({
     id = "clipboard", name = L["FILTER_CLIPBOARD"], description = L["APP_DESC_CLIPBOARD"],
-    icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS, tint = true,
+    icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS,
     keywords = { "clipboard", "clipboard history", "history" },
     scope = "clipboard", settings = BuildSettings,
 })

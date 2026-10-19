@@ -1012,11 +1012,19 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
             for ni = 1, #nestedFlyouts do
                 hoverGuards[#hoverGuards + 1] = nestedFlyouts[ni]
             end
+            -- Extension icons follow the theme's glyph color.
+            local function PaintSubGlyphs()
+                for gi, sub in ipairs(opt.flyoutSubFilters) do
+                    local icon = sub.glyph and subRows[gi] and subRows[gi]._icon
+                    if icon then ns.PaintAppGlyph(icon) end
+                end
+            end
             local hover = Utils.AttachHoverPopup(row, popup, {
                 extraGuards = hoverGuards,
                 onShow = function()
                     SetActiveFlyout(popup)
                     SyncSubChecks()
+                    PaintSubGlyphs()
                     popup:SetScale(EasyFind.db.uiSearchScale or 1.0)
                     PositionPopup()
                     popup:Show()

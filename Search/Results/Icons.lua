@@ -206,7 +206,7 @@ function Icons:GetAppGlyphIcon(data)
     if not (def and def.icon) then return nil end
     local glyph = appGlyphs[def]
     if not glyph or glyph.tex ~= def.icon then
-        glyph = { tex = def.icon, coords = def.iconCoords, chromeTint = def.tint or nil }
+        glyph = { tex = def.icon, coords = def.iconCoords, chromeTint = true }
         appGlyphs[def] = glyph
     end
     return glyph

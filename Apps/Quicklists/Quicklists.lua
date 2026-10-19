@@ -503,7 +503,7 @@ end
 -- The extension: its tile opens its settings page, the lists' one home.
 EasyFind.API.RegisterExtension({
     id = "quicklists", name = L["FILTER_QUICKLISTS"], description = L["APP_DESC_QUICKLISTS"],
-    icon = ns.QUICKLIST_ICON_TEX, tint = true,
+    icon = ns.QUICKLIST_ICON_TEX,
     open = function() EasyFind.API.OpenSettings("quicklists") end,
     isOpen = function() return EasyFind.API.IsSettingsOpen("quicklists") end,
     close = EasyFind.API.CloseSettings,
@@ -512,7 +512,7 @@ EasyFind.API.RegisterExtension({
 -- The lists a search finds; a click opens that list in the bar.
 EasyFind.API.RegisterSearchProvider({
     key = "quicklists", category = "Quicklist", extension = "quicklists",
-    label = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX, tint = true,
+    label = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX,
     eager = true, aliases = { "ql", "quicklist", "quicklists" },
     rows = function() return Quicklists:BuildSearchData() end,
     select = function(row) if row.quicklistID then Quicklists:OpenSoon(row.quicklistID) end end,

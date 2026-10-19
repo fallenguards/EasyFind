@@ -9,7 +9,7 @@ local API = EasyFind.API
 API.RegisterExtension({
     id = "icons", addon = "EasyFind_Icons",
     name = L["ICON_SEARCH_APP"], description = L["APP_DESC_ICONS"],
-    icon = ns.ICON_SEARCH_ICON_TEX, tint = true,
+    icon = ns.ICON_SEARCH_ICON_TEX,
     keywords = { "icons", "icon search" },
 })
 
@@ -36,21 +36,21 @@ end
 API.RegisterExtension({
     id = "notes", addon = "EasyFind_Notes", loadInCombat = true,
     name = L["APP_NOTES"], description = L["APP_DESC_NOTES"],
-    icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS, tint = true,
+    icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS,
     keywords = { "notes" }, settings = BuildNotesSettings,
 })
 
 API.RegisterExtension({
     id = "chat", addon = "EasyFind_Chat", loadInCombat = true,
     name = L["APP_CHAT"], description = L["APP_DESC_CHAT"],
-    icon = ns.CHAT_ICON_TEX, tint = true,
+    icon = ns.CHAT_ICON_TEX,
     keywords = { "chat" },
 })
 
 -- Their search results, the same way: the rows come with the addon.
 API.RegisterSearchProvider({
     key = "notes", category = "Notes", extension = "notes",
-    label = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS, tint = true,
+    label = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS,
     words = { "note", "notes" }, lowResults = true, eager = true, aliases = { "note", "notes" },
     options = {
         ns.Extensions.DbOption("notesHereFilter", L["NOTES_OPT_HERE"], L["NOTES_OPT_HERE_TT"]),
@@ -65,7 +65,7 @@ API.RegisterSearchProvider({
 -- addon loads for a search only once it has been used.
 API.RegisterSearchProvider({
     key = "chat", category = "Chat", extension = "chat",
-    label = L["APP_CHAT"], icon = ns.CHAT_ICON_TEX, tint = true,
+    label = L["APP_CHAT"], icon = ns.CHAT_ICON_TEX,
     words = { "chat", "message", "messages", "whisper", "whispers", "conversation" },
     loadOnSearch = function() return EasyFind.db and EasyFind.db.chatInUse end,
 })

@@ -403,16 +403,8 @@ local function TintGlyph(tex)
     tex:SetVertexColor(gc[1], gc[2], gc[3], 1)
 end
 
--- An extension's icon: white line art (tint) in the theme's glyph color,
--- else in its own colors. Everywhere an extension's icon shows.
-function ns.PaintAppGlyph(tex, app)
-    if app and app.extensionID and not app.iconTint then
-        tex:SetDesaturated(false)
-        tex:SetVertexColor(1, 1, 1, 1)
-    else
-        TintGlyph(tex)
-    end
-end
+-- An extension's icon, in the theme's glyph color wherever it shows.
+ns.PaintAppGlyph = TintGlyph
 
 local function AppGlyph(app)
     -- The app's own glyph, not GetFlatCategoryIcon: launcher data resolves
@@ -575,7 +567,7 @@ local function PaintTile(row, item, dropdown)
                 local tex, coords = AppGlyph(app)
                 mini:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
                 mini:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-                ns.PaintAppGlyph(mini, app)
+                ns.PaintAppGlyph(mini)
                 mini:Show()
             end
         end
@@ -585,7 +577,7 @@ local function PaintTile(row, item, dropdown)
         if tex then
             row.icon:SetTexture(tex)
             row.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-            ns.PaintAppGlyph(row.icon, item.app)
+            ns.PaintAppGlyph(row.icon)
             row.icon:Show()
         else
             row.icon:Hide()
@@ -852,7 +844,7 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
     if row.item.group then tex = ns.EXTENSIONS_ICON_TEX else tex, coords = AppGlyph(row.item.app) end
     ghost.icon:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
     ghost.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-    ns.PaintAppGlyph(ghost.icon, not row.item.group and row.item.app or nil)
+    ns.PaintAppGlyph(ghost.icon)
     ghost.from = row
     ghost.resting, ghost.restSince = nil, nil
     row:SetAlpha(0.35)
