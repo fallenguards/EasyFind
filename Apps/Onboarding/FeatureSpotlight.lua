@@ -211,7 +211,7 @@ function Spotlight:Initialize()
     -- 3.1.0: Snippets. Two-step path: the apps button
     -- pulses, then the Snippets row takes over while the menu is open.
     -- Completed by reaching the snippets tab through any front door
-    -- (Options:OpenAtSnippets is the single funnel).
+    -- (Options:OpenAtExtension is the single funnel).
     self:Register{
         id = "snippets31",
         steps = {

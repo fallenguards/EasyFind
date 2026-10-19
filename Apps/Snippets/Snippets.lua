@@ -730,12 +730,7 @@ function Snippets:BuildSearchData()
         nameLower = slower(L["FILTER_SNIPPETS"]),
         category = "Snippet",
         keywords = SNIPPET_KEYWORDS,
-        nativeRun = function()
-            if ns.RequestOptionsPanel and ns.RequestOptionsPanel()
-               and ns.Options and ns.Options.OpenAtSnippets then
-                ns.Options:OpenAtSnippets()
-            end
-        end,
+        nativeRun = function() EasyFind.API.OpenSettings("snippets") end,
         noPin = true,
         snippetsLauncher = true,
     }

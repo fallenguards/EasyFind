@@ -989,11 +989,7 @@ local function SettingsRow(appID)
     if not has then return nil end
     return {
         kind = "action", label = _G["SETTINGS"] or "Settings",
-        onClick = function()
-            if ns.RequestOptionsPanel and ns.RequestOptionsPanel() and ns.Options and ns.Options.OpenAtExtension then
-                ns.Options:OpenAtExtension(appID)
-            end
-        end,
+        onClick = function() EasyFind.API.OpenSettings(appID) end,
     }
 end
 

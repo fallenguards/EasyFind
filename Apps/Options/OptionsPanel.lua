@@ -4964,6 +4964,8 @@ function Options:OpenAtExtension(id)
         optionsFrame.SwitchToTab(self._extensionsTabIndex)
     end
     if extensionsTab and id then SelectExtensionPage(id) end
+    -- Every way to the snippets page completes its spotlight.
+    if id == "snippets" and ns.FeatureSpotlight then ns.FeatureSpotlight:Complete("snippets31") end
 end
 
 -- The page the Extensions tab is showing (nil until the tab exists).
@@ -6284,7 +6286,6 @@ end
 
 function Options:OpenAtSnippets()
     self:OpenAtExtension("snippets")
-    if ns.FeatureSpotlight then ns.FeatureSpotlight:Complete("snippets31") end
 end
 
 function Options:Show()
