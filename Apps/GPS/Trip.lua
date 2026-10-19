@@ -564,11 +564,14 @@ end
 
 -- A field in the theme's own well, not the stock search art: the dark
 -- inset its edit boxes use (a button's fill read washed out under the
--- dim placeholder), ringed as its results are. Repainted with the theme.
+-- dim placeholder), ringed in the theme's line color, softened (its
+-- results border is no color on Classic: white, a tint for its art).
+-- Repainted with the theme.
 local wells = {}
 local function PaintWell(well)
     local palette = ns.ACTIVE_UI_PALETTE
-    local ring = palette and (palette.borderColor or palette.backdropBorder) or { 0.50, 0.48, 0.45 }
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
     ns.PaintRingedWell(well, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
 end
 if ns.ApplyUITheme then
