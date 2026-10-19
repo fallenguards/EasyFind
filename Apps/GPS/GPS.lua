@@ -677,19 +677,20 @@ local function Arrive(route)
 end
 
 -- The step followed: the yards along its way at the last tick and when,
--- the yards and seconds moved since the step began (its speed, once
--- enough), what the last tick answered, and the estimate smoothed.
+-- the seconds moved on it and the fastest pace the game gave meanwhile
+-- (its speed, once enough), what the last tick answered, and the estimate.
 local closing = {}
 local walkOpts = {}
-local SPEED_AFTER_YARDS, SPEED_AFTER_SECONDS = 40, 6
+local SPEED_AFTER_SECONDS = 6
 local ETA_SMOOTH = 0.3
 
 -- The time still to go, as a car's navigation reckons it: the way left to
 -- the current step's spot along its drawn way, at the speed planned until
--- the speed seen on this step tells more (mounted under level 40, a buff),
--- then that step's crossing and every step after it, their walks at the
--- speed seen too. Off a drawn way the straight line stands in. Standing
--- still holds the estimate, and it is smoothed so the minute shown holds.
+-- the game's pace on this step tells more (on foot, mounted under level
+-- 40, a buff), then that step's crossing and every step after it, their
+-- walks at that pace too. The pace is the game's, never the yards gained
+-- along the way: a step aside or across a bend jumps those. Off a drawn
+-- way the straight line stands in. Standing still holds the estimate.
 local function RemainingSeconds(route)
     local i = route.active or 1
     local step = route.steps[i]
@@ -698,7 +699,7 @@ local function RemainingSeconds(route)
     local now = GetTime and GetTime() or 0
     if closing.step ~= i then
         closing.step, closing.along, closing.at, closing.d = i, nil, nil, nil
-        closing.moved, closing.secs, closing.speed, closing.held, closing.eta = 0, 0, nil, nil, nil
+        closing.secs, closing.fastest, closing.speed, closing.held, closing.eta = 0, 0, nil, nil, nil
     end
     local planned = Engine.GroundSpeed(ns.GPSData)
     local total
@@ -710,13 +711,11 @@ local function RemainingSeconds(route)
         local moved = false
         if f and f.path then
             if closing.at and now > closing.at then
-                local gain = f.along - closing.along
-                if gain > 0.5 then
-                    moved = true
-                    closing.moved, closing.secs = closing.moved + gain, closing.secs + (now - closing.at)
-                    if closing.moved >= SPEED_AFTER_YARDS and closing.secs >= SPEED_AFTER_SECONDS then
-                        closing.speed = closing.moved / closing.secs
-                    end
+                moved = math.abs(f.along - closing.along) > 0.5
+                local cur, run = GetUnitSpeed("player")
+                if not (issecretvalue and (issecretvalue(cur) or issecretvalue(run))) and cur > 0 and run > 0 then
+                    closing.secs, closing.fastest = closing.secs + math.min(2, now - closing.at), mmax(closing.fastest, run)
+                    if closing.secs >= SPEED_AFTER_SECONDS then closing.speed = closing.fastest end
                 end
             end
             closing.along, closing.at = f.along, now
