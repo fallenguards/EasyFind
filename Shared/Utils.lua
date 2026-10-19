@@ -7425,6 +7425,8 @@ local function CursorMenuRowEntered(menu, row)
         labelFontObject = menu._labelFontObject,
         iconSide = menu._iconSide,
         rowsProvider = provider,
+        search = row._efSubmenuSearch,
+        maxRows = row._efSubmenuMaxRows,
     })
     child._submenuDepth = depth
     menu._openSubmenu = child
@@ -7594,8 +7596,9 @@ MenuCopy.client = {
     -- OnKey is attached below CursorMenuOnKeyDown.
 }
 
+-- Listed: a row the menu's search keeps, shown or scrolled out of view.
 local function CursorMenuIsSelectableRow(row)
-    return row and row:IsShown() and not row.isSeparator and not row.disabled
+    return row and (row:IsShown() or row._efListed) and not row.isSeparator and not row.disabled
 end
 
 -- The locked highlight IS the keyboard-focus visual: the same themed pill
@@ -7643,6 +7646,17 @@ local function CursorMenuSetKeyboardIndex(self, index)
         local row = self.rows[index]
         if CursorMenuIsSelectableRow(row) then
             self.keyboardIndex = index
+            -- Scrolled out of view: the rows move until it shows.
+            local o, listed = self._lastOpts, self._listed
+            if not row:IsShown() and o and o.maxRows and listed then
+                for k = 1, #listed do
+                    if listed[k] == row then
+                        o._scrollOffset = k <= (o._scrollOffset or 0) and k - 1 or k - o.maxRows
+                        Utils.LayoutCursorMenuRows(self)
+                        break
+                    end
+                end
+            end
             CursorMenuPaintKeyboardSelection(self)
             return true
         end
@@ -7985,6 +7999,13 @@ local function CreateCursorMenu(globalName)
     Utils.SafeOnUpdate(menu, CursorMenuOnUpdate)
     menu:SetScript("OnEvent", CursorMenuOnEvent)
     menu:SetScript("OnKeyDown", CursorMenuOnKeyDown)
+    -- A long menu (opts.maxRows) scrolls its rows under the wheel.
+    menu:SetScript("OnMouseWheel", function(self, delta)
+        local o = self._lastOpts
+        if not (o and o.maxRows) then return end
+        o._scrollOffset = (o._scrollOffset or 0) - delta
+        Utils.LayoutCursorMenuRows(self)
+    end)
 
     cursorMenuPool[globalName] = cursorMenuPool[globalName] or {}
     local pool = cursorMenuPool[globalName]
@@ -7997,6 +8018,137 @@ end
 -- fit-to-content width measures labels in ROW space, so it has to add this
 -- back to reach menu space -- they must stay in step.
 local MENU_ROW_INSET = 4
+
+-- The rows a menu's search keeps, maxRows of them at a time from its
+-- scroll offset (opts.search, opts.maxRows), the rest hidden; the menu
+-- takes the height of what shows, a thumb marking the place in a long list.
+function Utils.LayoutCursorMenuRows(menu)
+    local opts = menu._lastOpts or {}
+    local typed = opts._searchText or ""
+    local query = slower(typed)
+    local listed = menu._listed or {}
+    wipe(listed)
+    menu._listed = listed
+    -- A searchAdd row offers what is typed, unless a row already is it.
+    local exact = false
+    for i = 1, menu._shownRows or 0 do
+        local row = menu.rows[i]
+        if not row._efSearchAdd and slower(row.label:GetText() or "") == query then exact = true end
+    end
+    for i = 1, menu._shownRows or 0 do
+        local row = menu.rows[i]
+        local keep
+        if row._efSearchAdd then
+            keep = strtrim(typed) ~= "" and not exact
+            if keep then row.label:SetText(sformat(row._efSearchAdd, strtrim(typed))) end
+        else
+            keep = query == "" or (not row.isSeparator and sfind(slower(row.label:GetText() or ""), query, 1, true))
+        end
+        row._efListed = keep and true or nil
+        if keep then listed[#listed + 1] = row end
+        row:Hide()
+    end
+    local cap = opts.maxRows
+    local first, last = 1, #listed
+    if cap and #listed > cap then
+        opts._scrollOffset = mmax(0, mmin(opts._scrollOffset or 0, #listed - cap))
+        first, last = opts._scrollOffset + 1, opts._scrollOffset + cap
+    else
+        opts._scrollOffset = 0
+    end
+    local search = menu.searchShell
+    local top = (search and search:IsShown()) and 32 or 4
+    local prev, h = nil, 0
+    for k = first, last do
+        local row = listed[k]
+        row:ClearAllPoints()
+        if prev then
+            row:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 0)
+            row:SetPoint("TOPRIGHT", prev, "BOTTOMRIGHT", 0, 0)
+        else
+            row:SetPoint("TOPLEFT", menu, "TOPLEFT", MENU_ROW_INSET, -top)
+            row:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -MENU_ROW_INSET, -top)
+        end
+        row:Show()
+        prev = row
+        h = h + (row:GetHeight() or 22)
+    end
+    local thumb = menu.scrollThumb
+    if cap and #listed > cap then
+        if not thumb then
+            thumb = menu:CreateTexture(nil, "OVERLAY")
+            thumb:SetWidth(3)
+            thumb:SetColorTexture(1, 1, 1, 0.25)
+            menu.scrollThumb = thumb
+        end
+        local thumbH = mmax(12, h * cap / #listed)
+        thumb:ClearAllPoints()
+        thumb:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -2, -(top + (h - thumbH) * opts._scrollOffset / (#listed - cap)))
+        thumb:SetHeight(thumbH)
+        thumb:Show()
+    elseif thumb then
+        thumb:Hide()
+    end
+    menu:SetHeight(top + h + 4)
+end
+
+-- A search box over a menu's rows: typing keeps the rows that hold it.
+function Utils.CursorMenuSearch(menu, placeholder)
+    local shell = menu.searchShell
+    if not shell then
+        shell = CreateFrame("Frame", nil, menu)
+        shell:SetHeight(22)
+        shell:SetPoint("TOPLEFT", menu, "TOPLEFT", 8, -6)
+        shell:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -8, -6)
+        ns.CreateRingedWell(shell, 6)
+        local edit = CreateFrame("EditBox", nil, shell)
+        edit:SetPoint("LEFT", shell, "LEFT", 8, 0)
+        edit:SetPoint("RIGHT", shell, "RIGHT", -8, 0)
+        edit:SetHeight(20)
+        edit:SetFrameLevel(shell.ringInset:GetFrameLevel() + 2)
+        edit:SetAutoFocus(false)
+        edit:SetFontObject("GameFontHighlightSmall")
+        edit:SetTextColor(0.96, 0.96, 0.96, 1)
+        local hint = edit:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        hint:SetPoint("LEFT", edit, "LEFT", 0, 0)
+        hint:SetPoint("RIGHT", edit, "RIGHT", 0, 0)
+        hint:SetJustifyH("LEFT")
+        hint:SetWordWrap(false)
+        edit.hint = hint
+        edit:SetScript("OnTextChanged", function(self)
+            local text = self:GetText() or ""
+            self.hint:SetShown(text == "")
+            local o = menu._lastOpts
+            if o and o._searchText ~= text then
+                o._searchText, o._scrollOffset = text, 0
+                Utils.LayoutCursorMenuRows(menu)
+            end
+        end)
+        -- Enter takes the add row when it shows.
+        edit:SetScript("OnEnterPressed", function(self)
+            for _, row in ipairs(menu._listed or {}) do
+                if row._efSearchAdd then
+                    local press = row:GetScript("OnMouseDown")
+                    if press then press(row, "LeftButton") end
+                    return
+                end
+            end
+            self:ClearFocus()
+        end)
+        edit:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+            CursorMenuRoot(menu):Hide()
+        end)
+        shell.edit = edit
+        menu.searchShell = shell
+    end
+    local palette = ns.ACTIVE_UI_PALETTE
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    ns.PaintRingedWell(shell, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+    shell.edit.hint:SetText(placeholder)
+    return shell
+end
 
 function Utils.ShowCursorMenu(globalName, rows, opts)
     opts = opts or {}
@@ -8074,7 +8226,6 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
     local rowH = opts.rowHeight or 22
     local width = opts.width or 96
     local shown = 0
-    local lastRow
     -- The left check column only when a row has a mark for it. A row's own
     -- glyph (inlineIcon) sits before its text alone; iconSide "right" keeps
     -- a toggle's check on the right.
@@ -8359,8 +8510,16 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                         -- user is mid-multi-select; instead the menu reshows
                         -- with fresh rows so its check marks track the state.
                         if keepOpen then
-                            if onClick then onClick() end
+                            -- A row gets what the menu's search holds; the add
+                            -- row's word, once added, is a row of its own.
+                            local o = menu._lastOpts
+                            if onClick then onClick(o and o._searchText) end
+                            if row._efSearchAdd and o then o._searchText = "" end
                             local fresh = menu._rowsProvider and menu._rowsProvider()
+                            local search = menu.searchShell
+                            if search and search:IsShown() and search.edit:HasFocus() then
+                                o._searchTyping = true
+                            end
                             if fresh then
                                 Utils.ShowCursorMenu(menu._lastName, fresh, menu._lastOpts)
                             end
@@ -8385,22 +8544,17 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 end
                 row:SetScript("OnClick", nil)
             end
-            row:ClearAllPoints()
-            if shown == 1 then
-                row:SetPoint("TOPLEFT", menu, "TOPLEFT", MENU_ROW_INSET, -4)
-                row:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -MENU_ROW_INSET, -4)
-            else
-                row:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, 0)
-                row:SetPoint("TOPRIGHT", lastRow, "BOTTOMRIGHT", 0, 0)
-            end
-            row:Show()
-            lastRow = row
+            -- Placed and shown by LayoutCursorMenuRows, after the width.
+            row._efSubmenuSearch, row._efSubmenuMaxRows = def.submenuSearch, def.submenuMaxRows
+            row._efSearchAdd = def.searchAdd and def.text or nil
         end
     end
+    menu._shownRows = shown
     for i = shown + 1, #menu.rows do
         local row = menu.rows[i]
         if row then
             row:Hide()
+            row._efListed = nil
             row.isSeparator = nil
             row.disabled = nil
             row.onClick = nil
@@ -8422,12 +8576,17 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
         menu.measure = menu:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         menu.measure:Hide()
     end
+    -- Room to type in, with a search box, and its whole placeholder: the
+    -- box sits 8 in from each side and its text 8 more.
     local needed = width
-    local totalH = 0
+    if opts.search then
+        menu.measure:SetFontObject(GameFontDisableSmall)
+        menu.measure:SetText(opts.search)
+        needed = mmax(width, 180, math.ceil(menu.measure:GetStringWidth() or 0) + 34)
+    end
     for i = 1, shown do
         local row = menu.rows[i]
         if row then
-            totalH = totalH + (row:GetHeight() or rowH)
             if row.label and not row.isSeparator then
                 local lblW
                 if row.label.GetUnboundedStringWidth then
@@ -8466,7 +8625,19 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
             end
         end
     end
-    menu:SetSize(needed, totalH + 8)
+    menu:SetWidth(needed)
+    if opts.search then
+        local search = Utils.CursorMenuSearch(menu, opts.search)
+        search:Show()
+        search.edit:SetText(opts._searchText or "")
+        -- A toggle's reshow keeps the box typing on.
+        if opts._searchTyping then search.edit:SetFocus() end
+        opts._searchTyping = nil
+    elseif menu.searchShell then
+        menu.searchShell:Hide()
+    end
+    menu:EnableMouseWheel(opts.maxRows ~= nil)
+    Utils.LayoutCursorMenuRows(menu)
     menu:ClearAllPoints()
     if opts.anchorBeside then
         -- Cascade flyout: sit beside the owning row, flipping/clamping on-screen,
