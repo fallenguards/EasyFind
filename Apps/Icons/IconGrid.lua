@@ -581,5 +581,6 @@ function Results:OpenIconSearch()
     end
 end
 
--- The searchable launcher row lives in CORE (Search/AppsMenu.lua): it is
--- an entry point and must exist before this companion has ever loaded.
+-- The extension's tile stands in core (Core/Extensions.lua) before this
+-- loads; its surface is the @icons grid in the results.
+EasyFind.API.RegisterExtension({ id = "icons", scope = "icons" })

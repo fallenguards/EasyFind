@@ -30,7 +30,7 @@ local function CalculatorRow()
         local row = rows[i]
         if row:IsShown() and row.app then
             first = first or row
-            if row.app.calculatorLauncher then return row end
+            if row.app.extensionID == "calculator" then return row end
         end
     end
     return first

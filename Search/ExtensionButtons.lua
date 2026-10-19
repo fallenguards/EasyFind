@@ -441,6 +441,11 @@ local function PaintIcon(btn)
     btn.icon:SetTexture(tex)
     if coords then btn.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else btn.icon:SetTexCoord(0, 1, 0, 1) end
+    local only = #rec.apps == 1 and AppEntry(rec.apps[1]) or nil
+    if only and only.extensionID and not only.iconTint then
+        ns.PaintAppGlyph(btn.icon, only)
+        return
+    end
     btn.icon:SetDesaturated(true)
     if rec.micro then
         -- On the game's dark button background the glyph is plain white.
@@ -492,23 +497,17 @@ local function RefreshMicroStates()
     end
 end
 
--- The pushed state follows the surfaces: the results (icon grid, clipboard
--- list), the calculator popup, the options panel. Hooked once each, as
--- they come to exist.
+-- The pushed state follows the surfaces: the results (an @scope's list),
+-- the options panel, and any extension that says its own changed
+-- (EasyFind.API.NotifyOpenChanged). Hooked once each, as they come to exist.
 local microHooks = {}
+function ExtensionButtons:RefreshOpenStates() Utils.SafeAfter(0, RefreshMicroStates) end
 local function EnsureMicroStateHooks()
     local function Later() Utils.SafeAfter(0, RefreshMicroStates) end
     if not microHooks.core then
         microHooks.core = true
         if Results and Results.HideResults then hooksecurefunc(Results, "HideResults", Later) end
         if ns.Search and ns.Search.Hide then hooksecurefunc(ns.Search, "Hide", Later) end
-    end
-    local calc = ns.Calculator and ns.Calculator._calculator
-    local popup = calc and calc.popupFrame
-    if popup and not microHooks[popup] then
-        microHooks[popup] = true
-        popup:HookScript("OnShow", Later)
-        popup:HookScript("OnHide", Later)
     end
     local opts = ns.optionsFrame
     if opts and not microHooks[opts] then
@@ -801,7 +800,7 @@ local function FolderDragBegin(row)
     local g = EnsureRowGhost(menu)
     g.icon:SetTexture(row.icon:GetTexture())
     g.icon:SetTexCoord(row.icon:GetTexCoord())
-    g.icon:SetDesaturated(true)
+    g.icon:SetDesaturated(row.icon:IsDesaturated())
     g.icon:SetVertexColor(row.icon:GetVertexColor())
     g.label:SetText(row.label:GetText())
     g:SetScale(menu:GetEffectiveScale() / UIParent:GetEffectiveScale())
@@ -936,9 +935,7 @@ local function OpenFolderMenu(btn)
             row.icon:SetTexture(tex)
             if coords then row.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
             else row.icon:SetTexCoord(0, 1, 0, 1) end
-            local gc = ns.ChromeGlyphColor and ns.ChromeGlyphColor() or { 1, 1, 1 }
-            row.icon:SetDesaturated(true)
-            row.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
+            ns.PaintAppGlyph(row.icon, row.app)
             row.icon:Show()
         else
             row.icon:Hide()
@@ -1627,9 +1624,7 @@ function ExtensionButtons:BeginDragFromMenu(app)
     g.icon:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
     if coords then g.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
     else g.icon:SetTexCoord(0, 1, 0, 1) end
-    local gc = ns.ChromeGlyphColor and ns.ChromeGlyphColor() or { 1, 1, 1 }
-    g.icon:SetDesaturated(true)
-    g.icon:SetVertexColor(gc[1], gc[2], gc[3], 1)
+    ns.PaintAppGlyph(g.icon, app)
     PaintDisc(g, nil)
     -- Under the cursor before it shows: a frame at its last resting spot
     -- would flash there and then leap to the pointer.

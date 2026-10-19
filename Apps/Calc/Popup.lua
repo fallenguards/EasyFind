@@ -584,7 +584,9 @@ function Calculator:EnsureCalculatorFrame()
             Calculator:ClearCalculatorCopyHighlight()
             Calculator:ReleaseCalculatorCopyBox()
         end
+        EasyFind.API.NotifyOpenChanged("calculator")
     end)
+    frame:SetScript("OnShow", function() EasyFind.API.NotifyOpenChanged("calculator") end)
     frame:Hide()
     self:RefreshCalculatorPopup()
     return frame
@@ -1167,3 +1169,19 @@ function Calculator:ArmCalculatorSelectionForKeyboard(row)
     return self:ArmCalculatorResultFromRow(row, "key")
 end
 
+
+EasyFind.API.RegisterExtension({
+    id = "calculator", name = L["UITREE_CALCULATOR"], description = L["APP_DESC_CALCULATOR"],
+    icon = ns.CALCULATOR_ICON_TEX, tint = true,
+    -- The math rows and their own launcher row stand in the results.
+    hideFromSearch = true,
+    open = function() ns.ResultHandlers:OpenCalculator("") end,
+    isOpen = function()
+        local frame = Calculator._calculator.popupFrame
+        return frame ~= nil and frame:IsShown()
+    end,
+    close = function()
+        local frame = Calculator._calculator.popupFrame
+        if frame then frame:Hide() end
+    end,
+})

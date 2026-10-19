@@ -17,139 +17,29 @@ local ROW_H = 24
 local PAD = 6
 local ICON = 16
 
--- The launcher list. App entries join this list as they release.
+-- The launcher list: every extension registered through EasyFind.API
+-- (Core/API.lua) whose addon is enabled.
 function ns.BuildApplicationEntries()
-    local apps = {}
-    local calculator = ns.Calculator and ns.Calculator._calculator
-    if calculator and calculator.LAUNCHER then
-        apps[#apps + 1] = calculator.LAUNCHER
-    end
-    -- Icon Search (GitHub #22): opens the @icons grid, same entry point as
-    -- the searchable launcher row. iconSearchLauncher picks its own glyph in
-    -- GetFlatCategoryIcon; without it, nativeRun lands on the command icon.
-    -- Hidden when its LoadOnDemand companion is disabled in the AddOns list.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Icons")) then
-        apps[#apps + 1] = {
-            name = ns.L["ICON_SEARCH_APP"],
-            iconSearchLauncher = true,
-            noPin = true,
-            nativeRun = function()
-                if ns.RequestIconSearch and ns.RequestIconSearch() then
-                    ns.Results:OpenIconSearch()
-                end
-            end,
-        }
-    end
-    -- Snippets opens the options panel landed on its tab: the tab is the
-    -- one management surface (list, search, create, edit), and the menu is
-    -- its discoverable front door. category "Snippet" gives the row its
-    -- glyph; nativeRun runs BEFORE the snippet-category branch in
-    -- SelectResult, so this opens the list, not the per-snippet editor.
-    -- The panel is a LoadOnDemand companion: request it before touching
-    -- ns.Options (the options tutorial button shipped broken for skipping
-    -- exactly this).
-    -- Hidden when the snippets companion is disabled in the AddOns list.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then
-        apps[#apps + 1] = {
-            name = L["FILTER_SNIPPETS"],
-            category = "Snippet",
-            snippetsLauncher = true,
-            noPin = true,
-            nativeRun = function()
-                if ns.RequestOptionsPanel and ns.RequestOptionsPanel()
-                   and ns.Options and ns.Options.OpenAtSnippets then
-                    ns.Options:OpenAtSnippets()
-                end
-            end,
-        }
-    end
-    -- Clipboard history opens its own list (@clipboard). Hidden when the
-    -- clipboard companion is disabled in the AddOns list.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clipboard")) then
-        apps[#apps + 1] = {
-            name = L["FILTER_CLIPBOARD"],
-            clipboardLauncher = true,
-            noPin = true,
-            icon = ns.CLIPBOARD_ICON_TEX,
-            nativeRun = function()
-                if ns.Clipboard and ns.Clipboard.OpenList then ns.Clipboard:OpenList() end
-            end,
-        }
-    end
-    -- Notes opens its window. Hidden when the notes companion is disabled.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
-        apps[#apps + 1] = {
-            name = L["APP_NOTES"],
-            notesLauncher = true,
-            noPin = true,
-            icon = ns.NOTES_ICON_TEX,
-            nativeRun = function()
-                if ns.RequestNotes() then ns.Notes.Open() end
-            end,
-        }
-    end
-    if ns.Quicklists then ns.Quicklists:AppEntries(apps) end
-    -- GPS opens its page under the map search tab, or its window by its
-    -- menu's choice. Hidden when the GPS
-    -- companion is disabled in the AddOns list.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_GPS")) then
-        apps[#apps + 1] = {
-            name = L["APP_GPS"],
-            experimental = L["GPS_EXP_TT"],
-            gpsLauncher = true,
-            noPin = true,
-            icon = ns.GPS_ICON_TEX,
-            nativeRun = function()
-                if ns.GPS and ns.GPS.Launch then ns.GPS:Launch() end
-            end,
-        }
-    end
-    -- Chat opens the messenger. Hidden when its companion is disabled.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat")) then
-        apps[#apps + 1] = {
-            name = L["APP_CHAT"],
-            chatLauncher = true,
-            noPin = true,
-            icon = ns.CHAT_ICON_TEX,
-            nativeRun = function()
-                if ns.RequestChat and ns.RequestChat() then ns.Chat:Open() end
-            end,
-        }
-    end
-    return apps
+    return ns.Extensions.Entries()
 end
 
--- Stable ids for the extension buttons (Search/ExtensionButtons.lua): an
--- app is known by its launcher flag, never by its localized name.
-local APP_ID_FLAGS = {
-    { "calculator", "calculatorLauncher" },
-    { "icons", "iconSearchLauncher" },
-    { "snippets", "snippetsLauncher" },
-    { "clipboard", "clipboardLauncher" },
-    { "notes", "notesLauncher" },
-    { "gps", "gpsLauncher" },
-    { "quicklists", "quicklistsLauncher" },
-    { "chat", "chatLauncher" },
-}
--- What each extension does, one line under its name in its tooltips.
-local APP_DESC_KEYS = {
-    calculator = "APP_DESC_CALCULATOR", icons = "APP_DESC_ICONS", snippets = "APP_DESC_SNIPPETS",
-    clipboard = "APP_DESC_CLIPBOARD", notes = "APP_DESC_NOTES", gps = "APP_DESC_GPS",
-    quicklists = "APP_DESC_QUICKLISTS", chat = "APP_DESC_CHAT",
-}
 function ns.ApplicationDescription(app)
-    local key = APP_DESC_KEYS[ns.ApplicationEntryID(app) or ""]
-    return key and L[key] or app and app.description or nil
+    local def = ns.Extensions.Get(ns.ApplicationEntryID(app))
+    return def and def.description or app and app.description or nil
 end
 
+-- An extension is known by its id, never by its localized name; a stored
+-- copy from before the registry by the flag it kept.
 function ns.ApplicationEntryID(app)
     if not app then return nil end
+    if app.extensionID then return app.extensionID end
     if app.quicklistID then return "quicklist:" .. app.quicklistID end
-    for i = 1, #APP_ID_FLAGS do
-        if app[APP_ID_FLAGS[i][2]] then return APP_ID_FLAGS[i][1] end
+    for flag, id in pairs(ns.Extensions.LEGACY_FLAGS) do
+        if app[flag] then return id end
     end
     return nil
 end
+
 -- An extension's launcher row (calculator, chat, GPS, ...): the apps glyph
 -- on its left, its own on its right. Snippets' menu row and a single
 -- quicklist keep their own looks. Every place that asks uses this.
@@ -172,102 +62,37 @@ function ns.FindApplicationEntry(idOrData)
 end
 
 -- Whether an extension's own surface is up right now, and how to take it
--- down: the calculator popup, the icon grid or the clipboard list in the
--- results (the pill comes off and the results close, leaving the bar),
--- the options panel on the snippets page. Every launch surface (menu row,
--- extension button, compartment) toggles through these, so a second
--- click closes what the first opened.
-function ns.IsApplicationOpen(app)
-    if not app then return false end
-    if app.calculatorLauncher then
-        local calc = ns.Calculator and ns.Calculator._calculator
-        local frame = calc and calc.popupFrame
-        return frame ~= nil and frame:IsShown()
-    end
+-- down. Every launch surface (menu row, extension button, compartment)
+-- toggles through these, so a second click closes what the first opened.
+local function QuicklistShowing(listID)
     local Filters = ns.Filters
     local qf = Filters and Filters.GetQuickFilter and Filters:GetQuickFilter()
-    local resultsShown = ns.Search and ns.Search.GetResultsFrame and ns.Search:GetResultsFrame()
-        and ns.Search:GetResultsFrame():IsShown()
-    if app.iconSearchLauncher then
-        return resultsShown and qf ~= nil and qf.key == "icons"
-    end
-    if app.clipboardLauncher then
-        return resultsShown and qf ~= nil and qf.key == "clipboard"
-    end
-    if app.quicklistID then
-        return resultsShown and qf ~= nil and qf.quicklistID == app.quicklistID
-    end
-    if app.quicklistsLauncher then
-        local frame = ns.optionsFrame
-        return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
-            and ns.Options:CurrentExtensionPage() == "quicklists"
-    end
-    if app.notesLauncher then
-        return ns.Notes ~= nil and ns.Notes.IsOpen ~= nil and ns.Notes.IsOpen()
-    end
-    if app.snippetsLauncher then
-        local frame = ns.optionsFrame
-        return frame ~= nil and frame:IsShown() and ns.Options and ns.Options.CurrentExtensionPage
-            and ns.Options:CurrentExtensionPage() == "snippets"
-    end
-    if app.chatLauncher then
-        return ns.Chat ~= nil and ns.Chat.IsOpen ~= nil and ns.Chat:IsOpen() or false
-    end
-    if app.gpsLauncher then
-        if ns.GPS and ns.GPS.LaunchesWindow and ns.GPS.LaunchesWindow() then return ns.GPS:IsWindowOpen() end
-        local MapTab = ns.MapTab
-        return WorldMapFrame ~= nil and WorldMapFrame:IsShown() and MapTab ~= nil and MapTab.IsPageShowing ~= nil
-            and MapTab:IsPageShowing("gps") or false
-    end
-    return false
+    local rf = ns.Search and ns.Search.GetResultsFrame and ns.Search:GetResultsFrame()
+    return rf ~= nil and rf:IsShown() and qf ~= nil and qf.quicklistID ~= nil
+        and (listID == nil or qf.quicklistID == listID)
+end
+
+function ns.IsApplicationOpen(app)
+    if not app then return false end
+    if app.quicklistID then return QuicklistShowing(app.quicklistID) end
+    return ns.Extensions.IsOpen(ns.ApplicationEntryID(app))
 end
 
 function ns.CloseApplication(app)
     if not app then return end
-    if app.calculatorLauncher then
-        local calc = ns.Calculator and ns.Calculator._calculator
-        if calc and calc.popupFrame then calc.popupFrame:Hide() end
-        return
-    end
-    if app.iconSearchLauncher or app.clipboardLauncher or app.quicklistID then
+    if app.quicklistID then
         if ns.Filters and ns.Filters.ClearQuickFilter then ns.Filters:ClearQuickFilter(false) end
         if Results and Results.HideResults then Results:HideResults() end
         return
     end
-    if app.quicklistsLauncher and ns.Options and ns.Options.Hide then
-        ns.Options:Hide()
-        return
-    end
-    if app.notesLauncher then
-        if ns.Notes and ns.Notes.Close then ns.Notes.Close() end
-        return
-    end
-    if app.chatLauncher then
-        if ns.Chat and ns.Chat.Close then ns.Chat:Close() end
-        return
-    end
-    -- The GPS opened the map at its page: the map closes the way it opened.
-    if app.gpsLauncher then
-        if ns.GPS and ns.GPS.LaunchesWindow and ns.GPS.LaunchesWindow() then return ns.GPS:CloseWindow() end
-        if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then ToggleWorldMap() end
-        return
-    end
-    if app.snippetsLauncher and ns.Options and ns.Options.Hide then
-        ns.Options:Hide()
-    end
+    ns.Extensions.Close(ns.ApplicationEntryID(app))
 end
 
--- The results-based extension showing right now ("icons", "clipboard"),
--- or nil. The outside-click closers ask before they hide.
+-- The results-based extension showing right now (its scope's list, a
+-- quicklist), or nil. The outside-click closers ask before they hide.
 function ns.CurrentApplicationSurfaceID()
-    local Filters = ns.Filters
-    local qf = Filters and Filters.GetQuickFilter and Filters:GetQuickFilter()
-    local key = qf and qf.key
-    if qf and qf.quicklistID then key = "quicklist:" .. qf.quicklistID end
-    if key ~= "icons" and key ~= "clipboard" and not (qf and qf.quicklistID) then return nil end
-    local rf = ns.Search and ns.Search.GetResultsFrame and ns.Search:GetResultsFrame()
-    if not (rf and rf:IsShown()) then return nil end
-    return key
+    if QuicklistShowing() then return "quicklist:" .. ns.Filters:GetQuickFilter().quicklistID end
+    return ns.Extensions.ScopeShowing()
 end
 
 -- An outside mouse-down takes the icon grid or the clipboard list down a
@@ -416,15 +241,12 @@ PaintTileBadge = function(row)
 end
 
 -- An extension's own rows on its icon's right-click menu (Chat: Mark all
--- as read), as ShowTogglePopup defs: fn() returns a list, or nil for none.
-local appMenuRows = {}
-function ns.RegisterApplicationMenuRows(id, fn)
-    if id then appMenuRows[id] = fn end
-end
-
+-- as read), as ShowTogglePopup defs: its menu() returns a list, or nil.
 function ns.ApplicationMenuRows(id)
-    local fn = id and appMenuRows[id]
-    return fn and fn() or nil
+    local def = ns.Extensions.Get(id)
+    if not (def and def.menu) then return nil end
+    local ok, rows = ns.Extensions.Run(def.menu)
+    return ok and rows or nil
 end
 
 function ns.ToggleApplication(app)
@@ -461,121 +283,9 @@ function ns.RegisterExtensionPage(def)
     if ns.Options and ns.Options.RefreshExtensionPages then ns.Options:RefreshExtensionPages() end
 end
 
--- The searchable launcher row: typing "icons" / "icon search" (or the
--- localized app name) offers a row that opens the icon grid. CORE-owned:
--- it is an entry point to the LoadOnDemand companion, so it must exist
--- before the companion has ever loaded (and hide when the companion is
--- disabled outright).
-local iconLauncherRow
-function ns.Results:GetIconSearchLauncherMatch(text)
-    if not text or #text < 3 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Icons") then
-        return nil
-    end
-    local q = text:lower()
-    local target = (ns.L["ICON_SEARCH_APP"] or ""):lower()
-    local sfind = ns.Utils.sfind
-    if not (sfind(target, q, 1, true)
-            or sfind("icon search", q, 1, true)
-            or sfind("icons", q, 1, true)) then
-        return nil
-    end
-    iconLauncherRow = iconLauncherRow or {
-        name = ns.L["ICON_SEARCH_APP"],
-        iconSearchLauncher = true,
-        noPin = true,
-        -- Injected at match time, never in uiSearchData: a learned key for
-        -- it can never resolve, so the record would only be dead weight.
-        noLearn = true,
-        nativeRun = function()
-            if ns.RequestIconSearch and ns.RequestIconSearch() then
-                ns.Results:OpenIconSearch()
-            end
-        end,
-    }
-    return iconLauncherRow
-end
-
 -- The waffle: 3x3 round dots, drawn rather than shipped so it tints with the
 -- theme like the rest of the bar chrome. A white square gets a circular alpha
 -- mask -- SetColorTexture alone draws hard squares, which is not a dot grid.
--- The clipboard history launcher row: typing "clipboard" / "clip" /
--- "history" (or the localized app name) offers the row that opens the
--- @clipboard list. Core-owned like the icon launcher: the entries
--- themselves never appear in a search, only this door to them.
-local clipboardLauncherRow
-function ns.Results:GetClipboardLauncherMatch(text)
-    if not text or #text < 3 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clipboard") then return nil end
-    local q = ns.Utils.slower(text)
-    local target = ns.Utils.slower(ns.L["FILTER_CLIPBOARD"] or "clipboard")
-    local sfind = ns.Utils.sfind
-    if not (sfind(target, q, 1, true)
-            or sfind("clipboard", q, 1, true)
-            or sfind("clipboard history", q, 1, true)
-            or sfind("history", q, 1, true)) then
-        return nil
-    end
-    clipboardLauncherRow = clipboardLauncherRow or {
-        name = ns.L["FILTER_CLIPBOARD"],
-        clipboardLauncher = true,
-        noPin = true,
-        noLearn = true,
-        icon = ns.CLIPBOARD_ICON_TEX,
-        nativeRun = function()
-            if ns.Clipboard and ns.Clipboard.OpenList then ns.Clipboard:OpenList() end
-        end,
-    }
-    return clipboardLauncherRow
-end
-
--- The chat launcher row: typing "chat" (or the localized app name)
--- offers the row that opens the messenger, before it ever loaded.
-local chatLauncherRow
-function ns.Results:GetChatLauncherMatch(text)
-    if not text or #text < 3 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat") then return nil end
-    local q = ns.Utils.slower(text)
-    local sfind = ns.Utils.sfind
-    if not (sfind(ns.Utils.slower(L["APP_CHAT"]), q, 1, true) or sfind("chat", q, 1, true)) then
-        return nil
-    end
-    chatLauncherRow = chatLauncherRow or {
-        name = L["APP_CHAT"],
-        chatLauncher = true,
-        noPin = true,
-        noLearn = true,
-        icon = ns.CHAT_ICON_TEX,
-        nativeRun = function()
-            if ns.RequestChat and ns.RequestChat() then ns.Chat:Open() end
-        end,
-    }
-    return chatLauncherRow
-end
-
--- The notes launcher row: typing "notes" (or the localized app name)
--- offers the row that opens the Notes window, before it ever loaded.
-local notesLauncherRow
-function ns.Results:GetNotesLauncherMatch(text)
-    if not text or #text < 3 then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes") then return nil end
-    local q = ns.Utils.slower(text)
-    local sfind = ns.Utils.sfind
-    if not (sfind(ns.Utils.slower(L["APP_NOTES"]), q, 1, true) or sfind("notes", q, 1, true)) then
-        return nil
-    end
-    notesLauncherRow = notesLauncherRow or {
-        name = L["APP_NOTES"],
-        notesLauncher = true,
-        noPin = true,
-        noLearn = true,
-        icon = ns.NOTES_ICON_TEX,
-        nativeRun = function()
-            if ns.RequestNotes() then ns.Notes.Open() end
-        end,
-    }
-    return notesLauncherRow
-end
 
 local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 
@@ -691,6 +401,17 @@ local function TintGlyph(tex)
     local gc = ns.ChromeGlyphColor()
     tex:SetDesaturated(true)
     tex:SetVertexColor(gc[1], gc[2], gc[3], 1)
+end
+
+-- An extension's icon: white line art (tint) in the theme's glyph color,
+-- else in its own colors. Everywhere an extension's icon shows.
+function ns.PaintAppGlyph(tex, app)
+    if app and app.extensionID and not app.iconTint then
+        tex:SetDesaturated(false)
+        tex:SetVertexColor(1, 1, 1, 1)
+    else
+        TintGlyph(tex)
+    end
 end
 
 local function AppGlyph(app)
@@ -854,7 +575,7 @@ local function PaintTile(row, item, dropdown)
                 local tex, coords = AppGlyph(app)
                 mini:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
                 mini:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-                TintGlyph(mini)
+                ns.PaintAppGlyph(mini, app)
                 mini:Show()
             end
         end
@@ -864,7 +585,7 @@ local function PaintTile(row, item, dropdown)
         if tex then
             row.icon:SetTexture(tex)
             row.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-            TintGlyph(row.icon)
+            ns.PaintAppGlyph(row.icon, item.app)
             row.icon:Show()
         else
             row.icon:Hide()
@@ -1131,7 +852,7 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
     if row.item.group then tex = ns.EXTENSIONS_ICON_TEX else tex, coords = AppGlyph(row.item.app) end
     ghost.icon:SetTexture(tex or ns.EXTENSIONS_ICON_TEX)
     ghost.icon:SetTexCoord(unpack(coords or { 0, 1, 0, 1 }))
-    TintGlyph(ghost.icon)
+    ns.PaintAppGlyph(ghost.icon, not row.item.group and row.item.app or nil)
     ghost.from = row
     ghost.resting, ghost.restSince = nil, nil
     row:SetAlpha(0.35)

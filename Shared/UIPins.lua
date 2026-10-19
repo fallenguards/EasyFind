@@ -24,8 +24,9 @@ local SIMPLE_FIELDS = {
     -- lookupRow drives the click/drag pickup; without them a pinned catalog
     -- row showed "?" and acted like nothing.
     "catalogItem", "lookupRow", "quality",
-    -- Extension launcher flags: a stored copy (a shortkey's snapshot) keeps
-    -- which extension it opens; the live entry is looked up by the flag.
+    -- Which extension a stored copy (a shortkey's snapshot) opens: its id,
+    -- or the flag one stored before ids; the live entry is looked up by it.
+    "extensionID",
     "calculatorLauncher", "iconSearchLauncher", "snippetsLauncher", "clipboardLauncher", "notesLauncher",
     "quicklistsLauncher", "gpsLauncher", "chatLauncher",
     "noteID", "quicklistID",

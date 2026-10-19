@@ -908,7 +908,7 @@ do
     local clipBtn = CreateFrame("Button", "EasyFindKeybindClipboardButton", UIParent)
     clipBtn:Hide()
     clipBtn:SetScript("OnClick", function()
-        if ns.Clipboard and ns.Clipboard.OpenList then ns.Clipboard:OpenList() end
+        EasyFind.API.OpenExtension("clipboard")
     end)
     -- The note for whatever the tooltip shows (an ability on the bar, an item).
     local noteBtn = CreateFrame("Button", "EasyFindKeybindNoteButton", UIParent)

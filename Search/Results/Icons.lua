@@ -4,9 +4,9 @@ local Icons = ns.ResultIcons
 local Handlers = ns.ResultHandlers
 local Utils = ns.Utils
 
-local CALCULATOR_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\calculator-icon"
+local CALCULATOR_ICON_TEX = ns.CALCULATOR_ICON_TEX
 local APPS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
-local ICON_SEARCH_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\icon-search-icon"
+local ICON_SEARCH_ICON_TEX = ns.ICON_SEARCH_ICON_TEX
 
 local BUTTON_ICON_REGIONS = {"Icon", "icon", "NormalTexture", "normalTexture"}
 local buttonIconCache = {}
@@ -202,16 +202,19 @@ local BOSS_PORTRAIT_TEXCOORD = { 0.22, 0.78, 0, 1 }
 
 -- The app's OWN glyph for app rows: the launcher row's right-side icon and
 -- the apps menu row icon (where the shared waffle would say nothing).
+local appGlyphs = setmetatable({}, { __mode = "k" })
 function Icons:GetAppGlyphIcon(data)
     if not data then return nil end
-    if data.calculatorLauncher or data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
-    if data.iconSearchLauncher then return FLAT_CATEGORY_ICONS.iconSearch end
-    if data.clipboardLauncher then return FLAT_CATEGORY_ICONS.clipboard end
-    if data.gpsLauncher then return FLAT_CATEGORY_ICONS.gps end
-    if data.notesLauncher then return FLAT_CATEGORY_ICONS.notes end
-    if data.quicklistsLauncher or data.quicklistID then return FLAT_CATEGORY_ICONS.quicklist end
-    if data.chatLauncher then return FLAT_CATEGORY_ICONS.chat end
-    return nil
+    if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
+    if data.quicklistID then return FLAT_CATEGORY_ICONS.quicklist end
+    local def = ns.Extensions and ns.Extensions.Get(ns.ApplicationEntryID and ns.ApplicationEntryID(data))
+    if not (def and def.icon) then return nil end
+    local glyph = appGlyphs[def]
+    if not glyph or glyph.tex ~= def.icon then
+        glyph = { tex = def.icon, coords = def.iconCoords, chromeTint = def.tint or nil }
+        appGlyphs[def] = glyph
+    end
+    return glyph
 end
 
 function Icons:IsBossResultData(data)

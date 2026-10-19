@@ -854,37 +854,13 @@ function Search:OnSearchTextChangedNow(text, force)
         end
     end
 
-    -- Icon Search launcher row (GitHub #22): typing "icons" / "icon search"
-    -- offers the row that opens the @icons grid. Scored into the band above
-    -- natural matches but below aliases and learned picks.
-    if not quickFilter and not calculatorData and not calculatorLauncher
-       and Results.GetIconSearchLauncherMatch then
-        local iconLauncher = Results:GetIconSearchLauncherMatch(text)
-        if iconLauncher then
-            combined[#combined + 1] = { data = iconLauncher, score = 2e6 }
-        end
-    end
-    -- Clipboard history launcher row, the same way: the door to the
-    -- @clipboard list, since its entries never surface in a search.
-    if not quickFilter and not calculatorData and not calculatorLauncher
-       and Results.GetClipboardLauncherMatch then
-        local clipLauncher = Results:GetClipboardLauncherMatch(text)
-        if clipLauncher then
-            combined[#combined + 1] = { data = clipLauncher, score = 2e6 }
-        end
-    end
-    if not quickFilter and not calculatorData and not calculatorLauncher
-       and Results.GetNotesLauncherMatch then
-        local notesLauncher = Results:GetNotesLauncherMatch(text)
-        if notesLauncher then
-            combined[#combined + 1] = { data = notesLauncher, score = 2e6 }
-        end
-    end
-    if not quickFilter and not calculatorData and not calculatorLauncher
-       and Results.GetChatLauncherMatch then
-        local chatLauncher = Results:GetChatLauncherMatch(text)
-        if chatLauncher then
-            combined[#combined + 1] = { data = chatLauncher, score = 2e6 }
+    -- Extension launcher rows (GitHub #22): typing an extension's name or
+    -- one of its words offers the row that opens it. Scored into the band
+    -- above natural matches but below aliases and learned picks.
+    if not quickFilter and not calculatorData and not calculatorLauncher and ns.Extensions then
+        local launchers = ns.Extensions.LauncherMatches(text, wipe(SCRATCH.launchers))
+        for li = 1, #launchers do
+            combined[#combined + 1] = { data = launchers[li], score = 2e6 }
         end
     end
     -- Under @notes a query that is no note's title offers to make one so

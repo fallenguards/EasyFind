@@ -2212,6 +2212,8 @@ ns.CHAT_ICON_TEX       = "Interface\\AddOns\\EasyFind\\textures\\chat-icon"
 ns.QUICKLIST_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\quicklists-icon"
 ns.NOTES_ICON_COORDS   = { 0, 1, 0, 1 }
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
+ns.CALCULATOR_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\calculator-icon"
+ns.ICON_SEARCH_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\icon-search-icon"
 -- Sort glyph (bars shrinking downward plus a down arrow = descending);
 -- flip the tex coords vertically for ascending.
 ns.SORT_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\sort-icon"

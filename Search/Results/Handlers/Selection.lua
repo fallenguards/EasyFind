@@ -388,11 +388,6 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
-    if data.calculatorLauncher then
-        self:OpenCalculator("")
-        return
-    end
-
     if data.calculatorResult then
         self:ArmCalculatorResultForData(data)
         return

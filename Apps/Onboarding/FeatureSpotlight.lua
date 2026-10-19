@@ -231,7 +231,7 @@ function Spotlight:Initialize()
                 if not (dropdown and dropdown:IsShown() and dropdown.rows) then return nil end
                 for i = 1, #dropdown.rows do
                     local row = dropdown.rows[i]
-                    if row:IsShown() and row.app and row.app.snippetsLauncher then
+                    if row:IsShown() and row.app and row.app.extensionID == "snippets" then
                         return row
                     end
                 end

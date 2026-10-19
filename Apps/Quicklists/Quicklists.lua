@@ -502,20 +502,14 @@ end
 
 -- The extensions menu: the settings page alone; a list opens by its key
 -- or its name typed as a tag, never from the menu.
-function Quicklists:AppEntries(apps)
-    apps[#apps + 1] = {
-        name = L["FILTER_QUICKLISTS"],
-        quicklistsLauncher = true,
-        noPin = true,
-        icon = ns.QUICKLIST_ICON_TEX,
-        nativeRun = function()
-            if ns.RequestOptionsPanel and ns.RequestOptionsPanel()
-               and ns.Options and ns.Options.OpenAtExtension then
-                ns.Options:OpenAtExtension("quicklists")
-            end
-        end,
-    }
-end
+-- The extension: its tile opens its settings page, the lists' one home.
+EasyFind.API.RegisterExtension({
+    id = "quicklists", name = L["FILTER_QUICKLISTS"], description = L["APP_DESC_QUICKLISTS"],
+    icon = ns.QUICKLIST_ICON_TEX, tint = true,
+    open = function() EasyFind.API.OpenSettings("quicklists") end,
+    isOpen = function() return EasyFind.API.IsSettingsOpen("quicklists") end,
+    close = EasyFind.API.CloseSettings,
+})
 
 -- ==== wiring ================================================================
 

@@ -4748,14 +4748,14 @@ end
 
 -- The GPS page in the options' Extensions tab: how the beacon looks, or
 -- no beacon (the same switch as the beacon row in the GPS menu).
-local function BuildOptionsPage(ctx, page)
+local function BuildOptionsPage(page, kit)
     local WorldPin = ns.GPSWorldPin
     local choices = {
         { label = L["GPS_BEACON_CALM"], value = "calm" },
         { label = L["GPS_BEACON_FLAME"], value = "flame" },
         { label = _G["OFF"] or "Off", value = "off" },
     }
-    local row = ctx.CreateFlyoutPresetRow(page, L["GPS_BEACON_STYLE"], choices,
+    local row = kit.Choice(page, L["GPS_BEACON_STYLE"], choices,
         function()
             local db = DB()
             if db and db.gpsWorldPin == false then return "off" end
@@ -4768,32 +4768,32 @@ local function BuildOptionsPage(ctx, page)
             if v ~= "off" then db.gpsBeaconStyle = v end
             Refresh()
         end,
-        "EasyFindGPSBeaconStyle", WorldPin and WorldPin.DefaultStyle() or "calm", L["GPS_BEACON_STYLE_TT"])
+        L["GPS_BEACON_STYLE_TT"], WorldPin and WorldPin.DefaultStyle() or "calm")
     row:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -8)
     local widths = {
         { label = L["GPS_LINE_THIN"], value = "thin" },
         { label = L["GPS_SIZE_NORMAL"], value = "normal" },
         { label = L["GPS_LINE_THICK"], value = "thick" },
     }
-    local lineRow = ctx.CreateFlyoutPresetRow(page, L["GPS_LINE_WIDTH"], widths,
+    local lineRow = kit.Choice(page, L["GPS_LINE_WIDTH"], widths,
         function() local db = DB() return db and db.gpsLineWidth or "normal" end,
         function(v)
             local db = DB()
             if db then db.gpsLineWidth = (v ~= "normal") and v or nil end
         end,
-        "EasyFindGPSLineWidth", "normal", L["GPS_LINE_WIDTH_TT"])
+        L["GPS_LINE_WIDTH_TT"], "normal")
     lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
     local clicks = {
         { label = L["CTX_GPS"], value = "gps" },
         { label = L["GPS_MAP_CLICK_PIN"], value = "pin" },
     }
-    local clickRow = ctx.CreateFlyoutPresetRow(page, L["GPS_MAP_CLICK"], clicks,
+    local clickRow = kit.Choice(page, L["GPS_MAP_CLICK"], clicks,
         function() local db = DB() return db and db.gpsMapClick or "gps" end,
         function(v)
             local db = DB()
             if db then db.gpsMapClick = (v ~= "gps") and v or nil end
         end,
-        "EasyFindGPSMapClick", "gps", L["GPS_MAP_CLICK_TT"])
+        L["GPS_MAP_CLICK_TT"], "gps")
     clickRow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -4)
     -- The lines' colors: a swatch per way of travel, the theme's beacon
     -- color until one is picked, and again on a right-click.
@@ -4814,14 +4814,14 @@ local function BuildOptionsPage(ctx, page)
     for _, way in ipairs(ways) do
         local kind, label = way[1], way[2]
         local wrow = CreateFrame("Frame", nil, page)
-        wrow:SetSize(ctx.SELECTOR_ROW_W, 22)
+        wrow:SetSize(kit.ROW_WIDTH, 22)
         wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", prevRow == colorHead and -8 or 0, prevRow == colorHead and -4 or 0)
         local text = wrow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         text:SetPoint("LEFT", wrow, "LEFT", 8, 0)
         text:SetText(label)
         local swatch = CreateFrame("Button", nil, wrow)
         swatch:SetSize(18, 18)
-        swatch:SetPoint("LEFT", wrow, "RIGHT", -ctx.SELECTOR_BTN_W - 18, 0)
+        swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 18, 0)
         swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         if ns.CreateRoundedRectBorder then ns.CreateRoundedRectBorder(swatch) end
         local fill = swatch:CreateTexture(nil, "ARTWORK")
@@ -4853,65 +4853,45 @@ local function BuildOptionsPage(ctx, page)
         prevRow = wrow
     end
     PaintSwatches()
-    if not ctx.CreateCheckbox then return end
-    local arrow = ctx.CreateCheckbox(page, "GPSArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], true)
+    -- A switch stored only when off.
+    local function Switch(key, label, tip, after)
+        return kit.Checkbox(page, label,
+            function() local d = DB() return not (d and d[key] == false) end,
+            function(on)
+                local d = DB()
+                if d then d[key] = Utils.OffOrNil(on) end
+                after()
+            end, tip)
+    end
+    local arrow = Switch("gpsArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], Refresh)
     arrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 0, -6)
-    local d0 = DB()
-    arrow:SetChecked(not (d0 and d0.gpsArrow == false))
-    if arrow.RefreshVisual then arrow:RefreshVisual() end
-    arrow:SetScript("OnClick", function(self)
-        local d = DB()
-        if d then d.gpsArrow = Utils.OffOrNil(self:GetChecked()) end
-        if self.RefreshVisual then self:RefreshVisual() end
-        Refresh()
-    end)
     local texts = {
         { label = L["GPS_ARROW_TEXT_FULL"], value = "full" },
         { label = L["GPS_ARROW_TEXT_RANGE"], value = "range" },
         { label = L["GPS_ARROW_TEXT_STEP"], value = "step" },
         { label = _G["OFF"] or "Off", value = "off" },
     }
-    local textRow = ctx.CreateFlyoutPresetRow(page, L["GPS_ARROW_TEXT"], texts,
+    local textRow = kit.Choice(page, L["GPS_ARROW_TEXT"], texts,
         function() local db = DB() return db and db.gpsArrowText or "full" end,
         function(v)
             local db = DB()
             if db then db.gpsArrowText = (v ~= "full") and v or nil end
             Refresh()
         end,
-        "EasyFindGPSArrowText", "full", L["GPS_ARROW_TEXT_TT"])
+        L["GPS_ARROW_TEXT_TT"], "full")
     textRow:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, -4)
-    local mini = ctx.CreateCheckbox(page, "GPSMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], true)
+    local mini = Switch("gpsMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], Refresh)
     mini:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -6)
-    mini:SetChecked(not (d0 and d0.gpsMinimap == false))
-    if mini.RefreshVisual then mini:RefreshVisual() end
-    mini:SetScript("OnClick", function(self)
-        local d = DB()
-        if d then d.gpsMinimap = Utils.OffOrNil(self:GetChecked()) end
-        if self.RefreshVisual then self:RefreshVisual() end
-        Refresh()
-    end)
-    local zones = ctx.CreateCheckbox(page, "GPSZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], true)
-    zones:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, 0)
-    zones:SetChecked(not (d0 and d0.gpsZoneSteps == false))
-    if zones.RefreshVisual then zones:RefreshVisual() end
-    zones:SetScript("OnClick", function(self)
-        local d = DB()
-        if d then d.gpsZoneSteps = Utils.OffOrNil(self:GetChecked()) end
-        if self.RefreshVisual then self:RefreshVisual() end
+    local zones = Switch("gpsZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], function()
         local route = Route()
         if route and not route.arrived then Reroute(route) end
     end)
-    local rowBtn = ctx.CreateCheckbox(page, "GPSRowButton", L["GPS_ROW_BUTTON"], L["GPS_ROW_BUTTON_TT"], true)
-    rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
-    rowBtn:SetChecked(not (d0 and d0.gpsRowButton == false))
-    if rowBtn.RefreshVisual then rowBtn:RefreshVisual() end
-    rowBtn:SetScript("OnClick", function(self)
-        local d = DB()
-        if d then d.gpsRowButton = Utils.OffOrNil(self:GetChecked()) end
-        if self.RefreshVisual then self:RefreshVisual() end
+    zones:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, 0)
+    local rowBtn = Switch("gpsRowButton", L["GPS_ROW_BUTTON"], L["GPS_ROW_BUTTON_TT"], function()
         if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
         if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
     end)
+    rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     head:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, -14)
@@ -4923,27 +4903,39 @@ local function BuildOptionsPage(ctx, page)
     if ns.GPSNav and ns.GPSNav.HasRoads and ns.GPSNav.HasRoads(0) then kinds[#kinds + 1] = "offroad" end
     for _, kind in ipairs(kinds) do
         local tip = (kind == "danger" or kind == "offroad") and L["GPS_AVOID_" .. kind:upper() .. "_TT"] or L["GPS_AVOID_TT"]
-        local box = ctx.CreateCheckbox(page, "GPSAvoid" .. kind, L["GPS_AVOID_" .. kind:upper()], tip, true)
+        local box = kit.Checkbox(page, L["GPS_AVOID_" .. kind:upper()],
+            function() local d = DB() return d and d.gpsAvoid and d.gpsAvoid[kind] or false end,
+            function(on)
+                local d = DB()
+                if not d then return end
+                d.gpsAvoid = d.gpsAvoid or {}
+                d.gpsAvoid[kind] = on or nil
+                local route = Route()
+                if route and not route.arrived then Reroute(route) end
+            end, tip)
         box:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, prev == head and -4 or 0)
-        local db = DB()
-        box:SetChecked(db and db.gpsAvoid and db.gpsAvoid[kind] or false)
-        if box.RefreshVisual then box:RefreshVisual() end
-        box:SetScript("OnClick", function(self)
-            local d = DB()
-            if not d then return end
-            d.gpsAvoid = d.gpsAvoid or {}
-            d.gpsAvoid[kind] = self:GetChecked() or nil
-            if self.RefreshVisual then self:RefreshVisual() end
-            local route = Route()
-            if route and not route.arrived then Reroute(route) end
-        end)
         prev = box
     end
 end
 
-if ns.RegisterExtensionPage then
-    ns.RegisterExtensionPage({ id = "gps", name = L["APP_GPS"], icon = ns.GPS_ICON_TEX, companion = "EasyFind_GPS", build = BuildOptionsPage })
-end
+-- The extension: its tile opens the map's GPS page or the window, by the
+-- menu's choice, and closes it the way it opened.
+EasyFind.API.RegisterExtension({
+    id = "gps", name = L["APP_GPS"], description = L["APP_DESC_GPS"],
+    icon = ns.GPS_ICON_TEX, tint = true, experimental = L["GPS_EXP_TT"],
+    open = function() GPS:Launch() end,
+    isOpen = function()
+        if GPS.LaunchesWindow() then return GPS:IsWindowOpen() end
+        local MapTab = ns.MapTab
+        return WorldMapFrame ~= nil and WorldMapFrame:IsShown() and MapTab ~= nil and MapTab.IsPageShowing ~= nil
+            and MapTab:IsPageShowing("gps") or false
+    end,
+    close = function()
+        if GPS.LaunchesWindow() then return GPS:CloseWindow() end
+        if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then ToggleWorldMap() end
+    end,
+    settings = BuildOptionsPage,
+})
 
 local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("TAXIMAP_OPENED")

@@ -1384,4 +1384,15 @@ function Snippets:OpenEditorPrefilled(body, name)
     f.keywordBox:SetFocus()
 end
 
+-- The extension: its tile opens its settings page (the list, search,
+-- create, edit); its own row stands in the results.
+EasyFind.API.RegisterExtension({
+    id = "snippets", name = L["FILTER_SNIPPETS"], description = L["APP_DESC_SNIPPETS"],
+    icon = ns.SNIPPET_ICON_TEX, iconCoords = ns.SNIPPET_ICON_COORDS, tint = true,
+    hideFromSearch = true,
+    open = function() EasyFind.API.OpenSettings("snippets") end,
+    isOpen = function() return EasyFind.API.IsSettingsOpen("snippets") end,
+    close = EasyFind.API.CloseSettings,
+})
+
 return Snippets

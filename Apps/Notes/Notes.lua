@@ -8447,3 +8447,9 @@ function notesNS.InsertAtCursor(text)
     if type(text) ~= "string" or text == "" then return false end
     return notesNS.InsertDocumentAtCursor(notesNS.DocumentFromMarkdown(text))
 end
+
+-- The extension's tile stands in core (Core/Extensions.lua) before this
+-- loads; the window is the rest.
+EasyFind.API.RegisterExtension({
+    id = "notes", open = notesNS.Open, close = notesNS.Close, isOpen = notesNS.IsOpen,
+})

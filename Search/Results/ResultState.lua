@@ -20,6 +20,7 @@ local SCRATCH = {
     skipCategories = {},
     currencyInfoCache = {},
     renderState = {},
+    launchers = {},
 }
 
 Results._cachedHierarchical = nil

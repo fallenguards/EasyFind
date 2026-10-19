@@ -411,6 +411,8 @@ function Harness.newNs(env)
     ns.GOLD_COLOR = { 1.0, 0.82, 0.0 }
     ns.TEXT_PRIMARY = { 1.00, 0.97, 0.86 }
     Harness.loadCharKeyCode(env, ns)
+    -- The public API (Core/API.lua): every companion registers through it.
+    if env and env.EasyFind then Harness.loadModule("Core/API.lua", env, ns) end
     return ns
 end
 

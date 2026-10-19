@@ -652,22 +652,7 @@ end
 -- itself. A frame later: a bound key's own character must not land in
 -- the box that takes focus.
 function Clipboard:OpenList()
-    Utils.SafeAfter(0, function()
-        -- The app row's own selection closes the search; open it back first,
-        -- as the icon app does, then put the @clipboard pill in.
-        local Search = ns.Search
-        if Search and Search.Show then Search:Show(false) end
-        local searchFrame = Search and Search.GetSearchFrame and Search:GetSearchFrame()
-        if not (searchFrame and searchFrame:IsShown()) then return end
-        local defs = ns.Filters and ns.Filters.quickFilterOptions
-        if not defs then return end
-        for i = 1, #defs do
-            if defs[i].key == "clipboard" then
-                ns.Filters:ApplyQuickFilter(defs[i], "")
-                return
-            end
-        end
-    end)
+    EasyFind.API.ShowScope("clipboard")
 end
 
 -- ==== wiring ================================================================
@@ -721,3 +706,11 @@ loginFrame:SetScript("OnEvent", function(self, event, addonName)
         Utils.AttachPasteLinkSwap(MacroFrameText)
     end
 end)
+
+-- The extension: its list is the @clipboard scope in the results.
+EasyFind.API.RegisterExtension({
+    id = "clipboard", name = L["FILTER_CLIPBOARD"], description = L["APP_DESC_CLIPBOARD"],
+    icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS, tint = true,
+    keywords = { "clipboard", "clipboard history", "history" },
+    scope = "clipboard",
+})

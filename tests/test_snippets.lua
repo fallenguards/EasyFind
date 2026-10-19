@@ -7,7 +7,7 @@ local ns = H.newNs(env)
 
 env.date = os.date
 env.EasyFindDB = { snippets = {} }
-env.EasyFind = { db = { snippetChatExpansion = true } }
+env.EasyFind = { db = { snippetChatExpansion = true }, API = env.EasyFind.API }
 
 -- Macro-commit stubs, bound at module load: EditMacro writes this store and
 -- GetMacroInfo reads it back, mirroring the client's persistence for the

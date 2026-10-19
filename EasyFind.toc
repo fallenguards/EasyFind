@@ -39,6 +39,7 @@ MapSearch/Indicators.lua
 MapSearch/Frames.lua
 Core/Main.lua
 Core/VersionCheck.lua
+Core/API.lua
 Database/TeleportData.lua
 Database/Main.lua
 Database/SearchIndex.lua
@@ -152,3 +153,4 @@ MapSearch/Search/Results.lua
 MapSearch/Zones/Catalog.lua
 MapSearch/MapTab.lua
 Search/Rescaler.lua
+Core/Extensions.lua
