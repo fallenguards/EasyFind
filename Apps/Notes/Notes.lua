@@ -8465,6 +8465,7 @@ EasyFind.API.RegisterAction("notes", "hasUnitNote", notesNS.HasUnitNote)
 EasyFind.API.RegisterAction("notes", "findUnitNote", notesNS.FindUnitNote)
 EasyFind.API.RegisterAction("notes", "openUnitNote", notesNS.OpenUnitNote)
 EasyFind.API.RegisterAction("notes", "addUnitNoteLines", notesNS.AddUnitNoteLines)
+EasyFind.API.RegisterAction("notes", "refresh", notesNS.Refresh)
 EasyFind.API.RegisterSearchProvider({
     key = "notes", rows = notesNS.BuildSearchData,
     select = function(row) if row.noteID then notesNS.OpenNote(row.noteID) end end,

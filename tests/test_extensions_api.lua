@@ -352,5 +352,19 @@ function tests.theme_colorsByRole()
     raises(function() API.GetThemeColor("plaid") end, "no color named")
 end
 
+-- The options panel builds an extension's page as build(page, ctx): the
+-- extension's settings get the page and the kit made from ctx.
+function tests.settings_pageAndKitInTheirPlaces()
+    local _, ns, API = fresh()
+    local page, gotPage, gotKit = {}, nil, nil
+    ns.RegisterExtensionPage = function(def) ns._page = def end
+    API.RegisterExtension({ id = "x", name = "X", settings = function(p, kit) gotPage, gotKit = p, kit end })
+    ns._page.build(page, { SELECTOR_ROW_W = 330, SELECTOR_BTN_W = 120 })
+    H.assertTrue(gotPage == page, "the page first")
+    H.assertEq(gotKit.ROW_WIDTH, 330, "then the kit")
+    H.assertEq(type(gotKit.Checkbox), "function")
+    H.assertEq(type(gotKit.Title), "function")
+end
+
 local pass, fail, failures = H.runSuite("ExtensionsAPI", tests)
 return { pass = pass, fail = fail, failures = failures }

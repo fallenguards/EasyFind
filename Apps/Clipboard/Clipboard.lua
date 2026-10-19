@@ -705,12 +705,52 @@ loginFrame:SetScript("OnEvent", function(self, event, addonName)
     end
 end)
 
+-- Its settings: what it keeps, how much and for how long (pins are
+-- exempt), and clearing it.
+local function BuildSettings(page, kit)
+    local anchor = kit.Title(page, L["FILTER_CLIPBOARD"], L["OPT_CLIPBOARD_HINT"])
+    local sources = {
+        { "clipboardCopied", "CLIP_OPT_COPIED" }, { "clipboardPasted", "CLIP_OPT_PASTED" },
+        { "clipboardChat", "CLIP_OPT_CHAT" }, { "clipboardWhispers", "CLIP_OPT_WHISPERS" },
+        { "clipboardSent", "CLIP_OPT_SENT" }, { "clipboardLastCopiedRow", "CLIP_OPT_LAST_ROW" },
+    }
+    for i, s in ipairs(sources) do
+        local key = s[1]
+        local box = kit.Checkbox(page, L[s[2]], function() return EasyFind.db[key] ~= false end,
+            function(on) EasyFind.db[key] = on end, L[s[2] .. "_TT"])
+        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+        anchor = box
+    end
+    local counts = {}
+    for _, n in ipairs({ 100, 200, 500, 1000 }) do counts[#counts + 1] = { label = tostring(n), value = n } end
+    local keepCount = kit.Choice(page, L["CLIP_OPT_KEEP_COUNT"], counts,
+        function() return tonumber(EasyFind.db.clipboardMaxEntries) or 200 end,
+        function(v)
+            EasyFind.db.clipboardMaxEntries = v
+            Clipboard:PruneNow()
+        end, L["CLIP_OPT_KEEP_COUNT_TT"], 200)
+    keepCount:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -8)
+    local days = {}
+    for _, d in ipairs({ 7, 30, 90 }) do days[#days + 1] = { label = Utils.sformat(L["CLIP_DAYS_FMT"], d), value = d } end
+    days[#days + 1] = { label = L["CLIP_KEEP_FOREVER"], value = 0 }
+    local keepDays = kit.Choice(page, L["CLIP_OPT_KEEP_DAYS"], days,
+        function() return tonumber(EasyFind.db.clipboardMaxDays) or 30 end,
+        function(v)
+            EasyFind.db.clipboardMaxDays = v
+            Clipboard:PruneNow()
+        end, L["CLIP_OPT_KEEP_DAYS_TT"], 30)
+    keepDays:SetPoint("TOPLEFT", keepCount, "BOTTOMLEFT", 0, -4)
+    local clear = EasyFind.API.CreateButton(page, L["CTX_CLIP_CLEAR"], 140, 22)
+    clear:SetPoint("TOPLEFT", keepDays, "BOTTOMLEFT", 8, -12)
+    clear:SetScript("OnClick", function() Clipboard:ClearWithConfirm() end)
+end
+
 -- The extension: its list is the @clipboard scope in the results.
 EasyFind.API.RegisterExtension({
     id = "clipboard", name = L["FILTER_CLIPBOARD"], description = L["APP_DESC_CLIPBOARD"],
     icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS, tint = true,
     keywords = { "clipboard", "clipboard history", "history" },
-    scope = "clipboard",
+    scope = "clipboard", settings = BuildSettings,
 })
 
 -- The history a search lists: only under @clipboard and its launcher,

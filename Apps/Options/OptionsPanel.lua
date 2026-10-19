@@ -4315,69 +4315,6 @@ end
 
 -- Clipboard history: what gets recorded, and the one-click clear. The
 -- list itself is the @clipboard results view; this tab is its settings.
-local function BuildClipboardPage(ctx, page)
-    local clipTab = page
-    local title = clipTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", clipTab, "TOPLEFT", 8, -8)
-    title:SetText(L["FILTER_CLIPBOARD"])
-    local hint = clipTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-    hint:SetPoint("RIGHT", clipTab, "RIGHT", -10, 0)
-    hint:SetJustifyH("LEFT")
-    hint:SetText(L["OPT_CLIPBOARD_HINT"])
-    local sources = {
-        { "clipboardCopied", "CLIP_OPT_COPIED", "CLIP_OPT_COPIED_TT", "ClipCopied" },
-        { "clipboardPasted", "CLIP_OPT_PASTED", "CLIP_OPT_PASTED_TT", "ClipPasted" },
-        { "clipboardChat", "CLIP_OPT_CHAT", "CLIP_OPT_CHAT_TT", "ClipChat" },
-        { "clipboardWhispers", "CLIP_OPT_WHISPERS", "CLIP_OPT_WHISPERS_TT", "ClipWhispers" },
-        { "clipboardSent", "CLIP_OPT_SENT", "CLIP_OPT_SENT_TT", "ClipSent" },
-        { "clipboardLastCopiedRow", "CLIP_OPT_LAST_ROW", "CLIP_OPT_LAST_ROW_TT", "ClipLastRow" },
-    }
-    local anchor = hint
-    for i = 1, #sources do
-        local dbKey, labelKey, tipKey, name = unpack(sources[i])
-        local box = CreateCheckbox(clipTab, name, L[labelKey], L[tipKey], true)
-        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
-        box:SetChecked(EasyFind.db[dbKey] ~= false)
-        box:SetScript("OnClick", function(self)
-            EasyFind.db[dbKey] = self:GetChecked() and true or false
-        end)
-        anchor = box
-    end
-    -- Retention: how many entries, and for how long (pins are exempt).
-    local countChoices = {}
-    for _, n in ipairs({ 100, 200, 500, 1000 }) do
-        countChoices[#countChoices + 1] = { label = tostring(n), value = n }
-    end
-    local keepCount = ctx.CreateFlyoutPresetRow(clipTab, L["CLIP_OPT_KEEP_COUNT"], countChoices,
-        function() return tonumber(EasyFind.db.clipboardMaxEntries) or 200 end,
-        function(v)
-            EasyFind.db.clipboardMaxEntries = v
-            if ns.Clipboard and ns.Clipboard.PruneNow then ns.Clipboard:PruneNow() end
-        end,
-        "EasyFindClipKeepCount", 200, L["CLIP_OPT_KEEP_COUNT_TT"])
-    keepCount:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -8)
-    local dayChoices = {}
-    for _, d in ipairs({ 7, 30, 90 }) do
-        dayChoices[#dayChoices + 1] = { label = Utils.sformat(L["CLIP_DAYS_FMT"], d), value = d }
-    end
-    dayChoices[#dayChoices + 1] = { label = L["CLIP_KEEP_FOREVER"], value = 0 }
-    local keepDays = ctx.CreateFlyoutPresetRow(clipTab, L["CLIP_OPT_KEEP_DAYS"], dayChoices,
-        function() return tonumber(EasyFind.db.clipboardMaxDays) or 30 end,
-        function(v)
-            EasyFind.db.clipboardMaxDays = v
-            if ns.Clipboard and ns.Clipboard.PruneNow then ns.Clipboard:PruneNow() end
-        end,
-        "EasyFindClipKeepDays", 30, L["CLIP_OPT_KEEP_DAYS_TT"])
-    keepDays:SetPoint("TOPLEFT", keepCount, "BOTTOMLEFT", 0, -4)
-    anchor = keepDays
-    local clearBtn = CreateModernButton(clipTab, L["CTX_CLIP_CLEAR"], 140, 22)
-    clearBtn:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
-    clearBtn:SetScript("OnClick", function()
-        if ns.Clipboard and ns.Clipboard.ClearWithConfirm then ns.Clipboard:ClearWithConfirm() end
-    end)
-end
-
 function Options:OpenAtClipboard()
     self:OpenAtExtension("clipboard")
 end
@@ -4749,40 +4686,6 @@ end
 
 -- Notes: how notes find you (by place, on tooltips, from player menus).
 -- Kept in the core db so the page works before the companion ever loads.
-local function BuildNotesPage(ctx, page)
-    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
-    title:SetText(L["APP_NOTES"])
-    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-    hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
-    hint:SetJustifyH("LEFT")
-    hint:SetText(L["NOTES_OPT_HINT"])
-    local options = {
-        { "notesHereFilter", "NOTES_OPT_HERE", "NOTES_OPT_HERE_TT", "NotesHere" },
-        { "notesTooltips", "NOTES_OPT_TOOLTIPS", "NOTES_OPT_TOOLTIPS_TT", "NotesTooltips" },
-        { "notesChatNames", "NOTES_OPT_CHAT_NAMES", "NOTES_OPT_CHAT_NAMES_TT", "NotesChatNames" },
-        { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU", "NOTES_OPT_PLAYER_MENU_TT", "NotesPlayerMenu" },
-    }
-    local anchor = hint
-    for i = 1, #options do
-        local dbKey, labelKey, tipKey, name = unpack(options[i])
-        local box = CreateCheckbox(page, name, L[labelKey], L[tipKey], true)
-        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
-        box:SetChecked(EasyFind.db[dbKey] ~= false)
-        box:SetScript("OnClick", function(self)
-            EasyFind.db[dbKey] = self:GetChecked() and true or false
-            if ns.Notes and ns.Notes.Refresh then ns.Notes.Refresh() end
-        end)
-        anchor = box
-    end
-    local open = CreateModernButton(page, L["NOTES_OPT_OPEN"], 140, 22)
-    open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
-    open:SetScript("OnClick", function()
-        if ns.RequestNotes() then ns.Notes.Open() end
-    end)
-end
-
 -- The Extensions tab: one settings page per extension, picked from a
 -- strip of chips at the top of the tab. Bundled pages come first; any
 -- page registered through ns.RegisterExtensionPage follows, so an
@@ -4842,14 +4745,6 @@ local function ExtensionPageDefs()
         defs[#defs + 1] = { id = "snippets", name = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX,
             coords = ns.SNIPPET_ICON_COORDS, core = true, fills = true, build = BuildSnippetsPage }
     end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Clipboard")) then
-        defs[#defs + 1] = { id = "clipboard", name = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX,
-            coords = ns.CLIPBOARD_ICON_COORDS, core = true, build = BuildClipboardPage }
-    end
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Notes")) then
-        defs[#defs + 1] = { id = "notes", name = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX,
-            core = true, build = BuildNotesPage }
-    end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Quicklists")) then
         defs[#defs + 1] = { id = "quicklists", name = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX,
             core = true, fills = true, build = BuildQuicklistsPage }
@@ -4863,9 +4758,9 @@ local function ExtensionPageDefs()
 end
 
 -- The page for an id, built on first use under the picker.
--- A bundled page that flows top down scrolls when taller than the tab: its
--- builder fills a scroll child as tall as its lowest control. A page that
--- fills the tab itself (fills = true) and any registered page get the tab.
+-- A page that flows top down scrolls when taller than the tab: its builder
+-- fills a scroll child as tall as its lowest control. A bundled page that
+-- fills the tab itself (fills = true) gets the tab.
 local function ScrollingPage(holder)
     local scroll = CreateFrame("ScrollFrame", nil, holder)
     scroll:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
@@ -4927,9 +4822,11 @@ local function EnsureExtensionPage(entry)
     elseif entry.def.core then
         entry.def.build(extensionCtx, holder)
     else
-        -- A companion's page gets the panel's own controls too (CreateCheckbox,
-        -- CreateFlyoutPresetRow), so it looks like the rest.
-        entry.def.build(holder, extensionCtx)
+        -- An extension's page (EasyFind.API): built with the panel's own
+        -- controls, so it looks like the rest.
+        local page, Fit = ScrollingPage(holder)
+        entry.def.build(page, extensionCtx)
+        Utils.SafeAfter(0, Fit)
     end
     -- Built after the panel's theme pass ran: its text gets the pass now.
     if ns.RetintPanelText then ns.RetintPanelText(holder) end

@@ -13,11 +13,31 @@ API.RegisterExtension({
     keywords = { "icons", "icon search" },
 })
 
+-- Notes' settings live in EasyFind's save, so its page needs no load.
+local function BuildNotesSettings(page, kit)
+    local anchor = kit.Title(page, L["APP_NOTES"], L["NOTES_OPT_HINT"])
+    local options = { { "notesHereFilter", "NOTES_OPT_HERE" }, { "notesTooltips", "NOTES_OPT_TOOLTIPS" },
+                      { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" } }
+    for i, o in ipairs(options) do
+        local key = o[1]
+        local box = kit.Checkbox(page, L[o[2]], function() return EasyFind.db[key] ~= false end,
+            function(on)
+                EasyFind.db[key] = on
+                if API.HasAction("notes", "refresh") then API.CallAction("notes", "refresh") end
+            end, L[o[2] .. "_TT"])
+        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+        anchor = box
+    end
+    local open = API.CreateButton(page, L["NOTES_OPT_OPEN"], 140, 22)
+    open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
+    open:SetScript("OnClick", function() API.OpenExtension("notes") end)
+end
+
 API.RegisterExtension({
     id = "notes", addon = "EasyFind_Notes", loadInCombat = true,
     name = L["APP_NOTES"], description = L["APP_DESC_NOTES"],
     icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS, tint = true,
-    keywords = { "notes" },
+    keywords = { "notes" }, settings = BuildNotesSettings,
 })
 
 API.RegisterExtension({

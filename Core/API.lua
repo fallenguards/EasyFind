@@ -196,6 +196,19 @@ end
 local kitNames = 0
 local function Kit(ctx)
     local kit = { ROW_WIDTH = ctx.SELECTOR_ROW_W, BUTTON_WIDTH = ctx.SELECTOR_BTN_W }
+    -- The page's title and a line under it; returns what to anchor below.
+    function kit.Title(parent, title, hint)
+        local head = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        head:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -8)
+        head:SetText(title)
+        if not hint then return head end
+        local line = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        line:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
+        line:SetPoint("RIGHT", parent, "RIGHT", -10, 0)
+        line:SetJustifyH("LEFT")
+        line:SetText(hint)
+        return line
+    end
     function kit.Checkbox(parent, label, get, set, tooltip)
         local box = ctx.CreateCheckbox(parent, nil, label, tooltip, true)
         box:SetChecked(get() and true or false)
@@ -211,8 +224,8 @@ local function Kit(ctx)
         return ctx.CreateFlyoutPresetRow(parent, label, choices, get, function(v) Run(set, v) end,
             "EasyFindExtChoice" .. kitNames, default, tooltip)
     end
-    function kit.Stepper(parent, label, min, max, step, get, set, tooltip)
-        return ctx.CreateStepperRow(parent, label, min, max, get, function(v) Run(set, v) end, tooltip, nil, step)
+    function kit.Stepper(parent, label, min, max, step, get, set, tooltip, width)
+        return ctx.CreateStepperRow(parent, label, min, max, get, function(v) Run(set, v) end, tooltip, width, step)
     end
     return kit
 end
@@ -245,7 +258,7 @@ function API.RegisterExtension(def)
     if def.settings and ns.RegisterExtensionPage then
         ns.RegisterExtensionPage({
             id = id, name = rec.name, icon = rec.icon, coords = rec.iconCoords, companion = rec.addon,
-            build = function(ctx, page) Run(rec.settings, page, Kit(ctx)) end,
+            build = function(page, ctx) Run(rec.settings, page, Kit(ctx)) end,
         })
     end
     RefreshSurfaces()
