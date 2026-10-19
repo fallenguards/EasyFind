@@ -5486,25 +5486,35 @@ function UI:ToggleEasyNotesSettings()
     end
 end
 
+-- An input's well: the theme's line as a ring round the dark inset.
+function Builders.PaintFindInput(shell)
+    if not shell.ringInset then return end
+    local palette = ns.ACTIVE_UI_PALETTE
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    ns.PaintRingedWell(shell, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+end
+
 function Builders.MakeFindInput(parent, placeholderText)
     local shell = CreateFrame("Frame", nil, parent)
     shell:SetHeight(22)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(shell)
-        ns.SetRoundedRectBarHeight(shell, 9)
-        ns.SetRoundedRectFill(shell, 0.14, 0.14, 0.16, 1, true)
-        ns.SetRoundedRectBorderEdgeShown(shell, false)
-    end
+    ns.CreateRingedWell(shell, 6)
+    Builders.PaintFindInput(shell)
     local edit = CreateFrame("EditBox", nil, shell)
     edit:SetPoint("LEFT", shell, "LEFT", 8, 0)
     edit:SetPoint("RIGHT", shell, "RIGHT", -8, 0)
     edit:SetHeight(20)
+    edit:SetFrameLevel(shell.ringInset:GetFrameLevel() + 2)
     edit:SetAutoFocus(false)
     edit:SetFontObject("GameFontHighlightSmall")
     edit:SetTextColor(0.96, 0.96, 0.96, 1)
     edit:SetMaxLetters(200)
-    local ph = shell:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    ph:SetPoint("LEFT", shell, "LEFT", 8, 0)
+    -- On the box and as wide as it: cut short, never past the well.
+    local ph = edit:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    ph:SetPoint("LEFT", edit, "LEFT", 0, 0)
+    ph:SetPoint("RIGHT", edit, "RIGHT", 0, 0)
+    ph:SetJustifyH("LEFT")
+    ph:SetWordWrap(false)
     ph:SetText(placeholderText)
     ph:SetTextColor(0.46, 0.46, 0.5, 1)
     edit.placeholder = ph
@@ -5517,19 +5527,18 @@ function Builders.MakeFindInput(parent, placeholderText)
 end
 
 function Builders.BuildEasyNotesFindBar(frame)
-    -- the find bar sits just below the note window so it never covers content
+    -- Part of the window, over its footer: the note above gives it room,
+    -- a line like the header's between them.
     local bar = CreateFrame("Frame", nil, frame)
-    bar:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 12, -3)
-    bar:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -12, -3)
+    bar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, FOOTER_H + 2)
+    bar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, FOOTER_H + 2)
     bar:SetHeight(FIND_BAR_H)
-    bar:SetFrameLevel(frame:GetFrameLevel() + 12)
     bar:EnableMouse(true)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(bar)
-        ns.SetRoundedRectBarHeight(bar, 10)
-        ns.SetRoundedRectFill(bar, 0.09, 0.09, 0.10, 1, true)
-        ns.SetRoundedRectBorderEdgeShown(bar, false)
-    end
+    bar.divider = bar:CreateTexture(nil, "ARTWORK")
+    bar.divider:SetColorTexture(0.18, 0.18, 0.20, 0.7)
+    bar.divider:SetHeight(1)
+    bar.divider:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+    bar.divider:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
 
     local function closeAndFocusEditor()
         UI:CloseEasyNotesFindBar()
@@ -5628,10 +5637,10 @@ function UI:UpdateEasyNotesEditorTop()
     if not (frame and frame.editorScroll) then return end
     local top = HEADER_H + (EDITOR_TOP - ATTACH_H)          -- base gap below the divider
     if UI._notes.attachHasContent then top = top + (UI._notes.attachH or ATTACH_H) end
-    if UI._notes.findBarShown then top = top + FIND_BAR_H end
+    local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0)
     frame.editorScroll:ClearAllPoints()
     frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -top)
-    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, FOOTER_H + 4)
+    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, bottom)
 end
 
 function UI:OpenEasyNotesFindBar()
@@ -5640,6 +5649,8 @@ function UI:OpenEasyNotesFindBar()
     -- Reserving the find-bar space resizes the editor scroll frame, which snaps
     -- its scroll to the bottom; capture the reader's position and restore it.
     local savedScroll = frame.editorScroll and frame.editorScroll:GetVerticalScroll() or 0
+    Builders.PaintFindInput(frame.findBar.findShell)
+    Builders.PaintFindInput(frame.findBar.replaceShell)
     frame.findBar:Show()
     UI._notes.findBarShown = true
     UI:UpdateEasyNotesEditorTop()
