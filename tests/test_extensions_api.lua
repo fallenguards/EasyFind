@@ -173,6 +173,19 @@ function tests.badge_reachesTheIcon()
     H.assertEq(got, "x=3")
 end
 
+function tests.animateClose_intoItsButtonWhenThereIsOne()
+    local _, ns, API = fresh()
+    raises(function() API.AnimateClose("x", "frame") end, "expects a frame")
+    local hidden
+    local frame = { Hide = function() hidden = true end }
+    H.assertFalse(API.AnimateClose("x", frame), "no buttons yet")
+    H.assertTrue(hidden, "closed at once")
+    local into
+    ns.ExtensionButtons = { PlayCloseInto = function(_, id, f) into = f return id == "x" end }
+    H.assertTrue(API.AnimateClose("x", frame))
+    H.assertTrue(into == frame)
+end
+
 function tests.legacyFlags_nameEveryBundledExtension()
     local _, ns = fresh()
     local seen = {}

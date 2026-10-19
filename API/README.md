@@ -187,6 +187,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `LoadExtension(id)` | Loads its addon if it loads on demand. True when it is registered and its addon (if any) is loaded. |
 | `SetBadge(id, count)` | A count on its icon wherever the icon shows. `0` or `nil` clears it. |
 | `NotifyOpenChanged(id)` | Call when your window shows or hides, so its button on the micro menu shows pressed or not. |
+| `AnimateClose(id, frame)` | Closes your window where you would call `frame:Hide()`: when the user has the extension's button on screen, the window shrinks into it first; otherwise it hides at once. Give users a switch for it, as Chat does. True when it animates. |
 
 ## Search results
 

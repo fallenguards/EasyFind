@@ -296,6 +296,16 @@ function API.NotifyOpenChanged(id)
     if ns.ExtensionButtons and ns.ExtensionButtons.RefreshOpenStates then ns.ExtensionButtons:RefreshOpenStates() end
 end
 
+-- Closes the window: into the extension's button first when the user has
+-- one on screen, else at once. True when it animates.
+function API.AnimateClose(id, frame)
+    if type(frame) ~= "table" or not frame.Hide then Fail("AnimateClose", "expects a frame") end
+    local buttons = ns.ExtensionButtons
+    if buttons and buttons.PlayCloseInto then return buttons:PlayCloseInto(id, frame) end
+    frame:Hide()
+    return false
+end
+
 -- A count on the extension's icon (unread messages): 0 or nil clears it.
 function API.SetBadge(id, count)
     if ns.SetApplicationBadge then ns.SetApplicationBadge(id, count) end

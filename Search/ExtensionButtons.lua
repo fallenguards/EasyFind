@@ -1554,6 +1554,77 @@ function ExtensionButtons:FindButtonFor(appID)
     return nil
 end
 
+-- ==== closing into a button =================================================
+
+local CLOSE_TIME = 0.22
+
+-- Where a closing window of that app lands: its own button (one stepped
+-- aside while the window was open too), else a folder holding it.
+local function CloseTarget(appID)
+    local folder
+    for i = 1, #buttons do
+        local b = buttons[i]
+        local apps = b and b.rec and b.rec.apps
+        if apps and (b:IsVisible() or AppHidden(b.rec)) then
+            if #apps == 1 and apps[1] == appID then return b end
+            for j = 1, #apps do
+                if apps[j] == appID then folder = folder or b end
+            end
+        end
+    end
+    return folder
+end
+
+-- The window itself shrinks toward the button's middle, fading as it
+-- nears it, then hides; shown again it is as it was.
+local function CloseAnimation(frame)
+    local play = frame._efCloseAnimation
+    if play then return play end
+    play = frame:CreateAnimationGroup()
+    play.shrink = play:CreateAnimation("Scale")
+    play.shrink:SetDuration(CLOSE_TIME)
+    play.shrink:SetSmoothing("IN")
+    play.fade = play:CreateAnimation("Alpha")
+    play.fade:SetFromAlpha(1)
+    play.fade:SetToAlpha(0)
+    play.fade:SetStartDelay(CLOSE_TIME * 0.4)
+    play.fade:SetDuration(CLOSE_TIME * 0.6)
+    play.fade:SetSmoothing("IN")
+    play:SetToFinalAlpha(true)
+    play:SetScript("OnFinished", function()
+        frame:Hide()
+        frame:SetAlpha(play.alpha or 1)
+    end)
+    frame._efCloseAnimation = play
+    return play
+end
+
+-- EasyFind.API.AnimateClose: closes the window, into its button when the
+-- app has one on screen. True when it animates.
+function ExtensionButtons:PlayCloseInto(appID, frame)
+    local play = frame._efCloseAnimation
+    if play and play:IsPlaying() then return true end
+    local btn = frame:IsVisible() and CloseTarget(appID)
+    local fx, fy = frame:GetCenter()
+    local bx, by
+    if btn then bx, by = btn:GetCenter() end
+    if not (fx and bx) then
+        frame:Hide()
+        return false
+    end
+    -- Scaled about the button's middle, every point of the window heads
+    -- there: the origin in the window's own units, from its middle.
+    local fs, bs = frame:GetEffectiveScale(), btn:GetEffectiveScale()
+    local size = mmax(btn:GetWidth() * bs / (frame:GetWidth() * fs), btn:GetHeight() * bs / (frame:GetHeight() * fs))
+    play = CloseAnimation(frame)
+    play.alpha = frame:GetAlpha()
+    play.shrink:SetOrigin("CENTER", (bx * bs - fx * fs) / fs, (by * bs - fy * fs) / fs)
+    play.shrink:SetScaleFrom(1, 1)
+    play.shrink:SetScaleTo(size, size)
+    play:Play()
+    return true
+end
+
 function ExtensionButtons:HasButtonsFor(appID)
     for i = 1, #buttons do
         local apps = buttons[i] and buttons[i].rec and buttons[i].rec.apps

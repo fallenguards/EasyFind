@@ -128,6 +128,11 @@ function API.LoadExtension(id) end
 function API.SetBadge(id, count) end
 ---Your window showed or hid: its micro menu button follows.
 function API.NotifyOpenChanged(id) end
+---Closes your window (in place of frame:Hide()): into the extension's
+---button first when the user has one on screen. True when it animates.
+---@param frame Frame
+---@return boolean
+function API.AnimateClose(id, frame) end
 
 -- ==== search ==================================================================
 
