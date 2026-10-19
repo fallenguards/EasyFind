@@ -48,6 +48,14 @@ function tests.register_stubThenTheRest()
     H.assertTrue(entries[1] == ns.Extensions.Entry("b"), "one entry per extension")
 end
 
+-- Shortkeys and aliases key an entry by path and name: the calculator's
+-- tile keeps the path its saved keys carry.
+function tests.entry_keepsABundledPath()
+    local _, ns, API = fresh()
+    API.RegisterExtension({ id = "calc", name = "Calculator", _path = { "Calculator" } })
+    H.assertEq(ns.Extensions.Entry("calc").path[1], "Calculator")
+end
+
 function tests.entries_hideAnExtensionWhoseAddonIsOff()
     local _, ns, API = fresh()
     ns.IsCompanionLoadable = function(name) return name ~= "Off_Addon" end

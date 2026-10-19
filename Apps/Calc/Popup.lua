@@ -1172,7 +1172,7 @@ end
 
 EasyFind.API.RegisterExtension({
     id = "calculator", name = L["UITREE_CALCULATOR"], description = L["APP_DESC_CALCULATOR"],
-    icon = ns.CALCULATOR_ICON_TEX, tint = true,
+    icon = ns.CALCULATOR_ICON_TEX, tint = true, _path = Calculator._calculator.PATH,
     -- The math rows and their own launcher row stand in the results.
     hideFromSearch = true,
     open = function() ns.ResultHandlers:OpenCalculator("") end,

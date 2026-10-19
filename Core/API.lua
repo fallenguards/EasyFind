@@ -86,6 +86,9 @@ function Extensions.Entry(id)
     entry.name, entry.nameLower = def.name, def.name and slower(def.name)
     entry.icon, entry.iconCoords, entry.iconTint = def.icon, def.iconCoords, def.tint
     entry.experimental = def.experimental
+    -- A row key (shortkeys, aliases) names an entry by path and name: a
+    -- bundled extension keeps the one its keys were saved under.
+    entry.path = def._path
     return entry
 end
 
