@@ -7,9 +7,8 @@
 ---@field id string Required. Letters, digits, - and _; keep it stable.
 ---@field name? string Required the first time: the tile's name.
 ---@field description? string One line under the name in tooltips.
----@field icon? string|number Texture path or file id.
+---@field icon? string|number Required the first time: white line art, painted in the theme's icon color.
 ---@field iconCoords? number[] { left, right, top, bottom }
----@field tint? boolean White line art drawn in the theme's icon color.
 ---@field open? fun() Opens the extension.
 ---@field close? fun() Closes it.
 ---@field isOpen? fun(): boolean
@@ -34,9 +33,8 @@
 ---@field key string Required: its filter key and @scope key.
 ---@field label? string Required the first time: its filter row and scope pill.
 ---@field category? string The name its rows carry; key when not given.
----@field icon? string|number The glyph left of each of its rows.
+---@field icon? string|number Required the first time, unless its extension has one: the glyph left of each of its rows.
 ---@field iconCoords? number[]
----@field tint? boolean
 ---@field rows? fun(): EasyFindRow[] Its rows.
 ---@field select? fun(row: EasyFindRow) A click or Enter on a row (a copy).
 ---@field tooltip? fun(row: EasyFindRow, tooltip: GameTooltip): boolean Fill it; true shows it.
@@ -52,7 +50,7 @@
 
 ---@class EasyFindRow
 ---@field name string What is searched and shown.
----@field icon? string|number Shown at the row's right.
+---@field icon? string|number Shown at the row's right, in its own colors.
 ---@field keywords? string[] More words that find it.
 ---@field searchCommandDesc? string Its subtext.
 

@@ -9,6 +9,8 @@ What an extension can add:
 - A settings page in Options > Extensions, built with EasyFind's own controls.
 - Actions other extensions can call, and events they can listen to.
 
+Most of this guide is reference. Start with [Fitting in](#fitting-in): what EasyFind requires is short, and the rest is how to make an extension feel like part of EasyFind.
+
 ## Version
 
 ```lua
@@ -46,7 +48,7 @@ API.RegisterExtension({
     id = "hello",
     name = "Hello",
     description = "Says hello.",
-    icon = 134400,
+    icon = "Interface\\AddOns\\EasyFind\\textures\\apps-icon", -- EasyFind's own, until you draw yours
     open = function() print("Hello from an EasyFind extension") end,
 })
 ```
@@ -71,6 +73,73 @@ end
 
 That is the whole cost: users without EasyFind see nothing different.
 
+## Fitting in
+
+Your extension sits right next to EasyFind's own: in the extensions menu, in search results, in the filter menu and in the settings panel. Users notice when something matches, and an extension that looks and behaves like the rest feels like part of EasyFind rather than something bolted on. EasyFind requires very little; the rest of this section is what makes the difference.
+
+### What EasyFind requires
+
+Only a few things, and EasyFind checks them when you register, with an error that names what is missing:
+
+- An extension has an `id`, a `name` and an `icon`.
+- A search provider has a `key`, a `label` and an icon. One that names its extension with `extension` and has no icon of its own uses the extension's.
+- Each field has the type this guide gives it.
+
+One thing EasyFind does for every extension: it paints the icon in the theme's icon color wherever it shows (the menu tile, buttons on screen, launcher rows, the glyph by your rows, your filter row). That is how every icon follows the user's theme, dark or light, with no work from you. Icons you put on your own rows, such as an item's icon, keep their colors.
+
+### Icons
+
+![EasyFind's icons in three themes, with the example's bookmark at the end](icons/easyfind-icons.png)
+
+EasyFind's icons share one simple style, and an icon drawn the same way looks like it always belonged in the menu. Since EasyFind paints it, it changes with every theme just like the others.
+
+| | |
+| --- | --- |
+| Size | 64x64 pixels, a TGA file with transparency. |
+| Color | White. EasyFind paints it, so any other color is lost. |
+| Lines | Outlines about 5 px wide, with rounded ends and corners. Small dots and short bars inside a shape can be filled. |
+| Margin | 5 to 10 px clear on each side, the drawing centered. A small detail can come closer, but not touch the edge. |
+| Subject | One simple object that says what the extension does. No text, no background square, no shading. |
+
+A game icon (the square pictures in your spellbook) still works, but painted in one color it turns into a solid square, so a drawn one is worth it. You don't need to be an artist; the kit in [`API/icons`](icons) does the fiddly parts:
+
+- [`template.svg`](icons/template.svg): a 64x64 canvas with the margins marked and a sample drawn at the right line width. It opens in Inkscape, Figma, Illustrator or any editor that reads SVG.
+- [`make_icon.py`](icons/make_icon.py) (Python 3 with Pillow) turns your drawing into the icon file and tells you how close it is to the style:
+
+```
+python make_icon.py convert my-drawing.png icon.tga
+python make_icon.py check icon.tga
+```
+
+It also draws in code at EasyFind's line width: the example's bookmark is `draw_bookmark()` in that file, ready to copy and change.
+
+Ship the `.tga` in your addon's folder and give its path without the extension:
+
+```lua
+icon = "Interface\\AddOns\\MyAddon\\icon",
+```
+
+### Colors and windows
+
+- Take colors from `GetThemeColor` instead of fixed values, and repaint in `OnThemeChanged`. Users pick from many themes, light ones included, and your window then changes along with EasyFind's.
+- `StylePanel` gives a window EasyFind's border and fill, and keeps them in step with theme and opacity changes for you. `CreateButton` and `ShowDialog` match EasyFind's own. See [Looking like EasyFind](#looking-like-easyfind).
+- Build a settings page with the kit `settings` receives: the same checkboxes, flyouts and steppers as the rest of the panel.
+
+### Text
+
+- A name of one or two words reads best on a tile. The description is one short sentence.
+- Text should fit at the largest font and in EasyFind's narrowest window: anchor wrapping text to both sides of what holds it rather than giving it a fixed width.
+- Translating what users see (names, descriptions, menu rows, settings) makes an extension feel at home for players in every language.
+
+### Staying light
+
+EasyFind loads with every character, so an extension is at its best when it costs nothing until it is used.
+
+- Put a large extension's work in a load-on-demand addon (see [Load on demand](#load-on-demand)).
+- Run no per-frame code while your window is closed.
+- Mark a provider `eager` only for a small list; a large one waits for its `words`, its filter or its scope (`lazy`).
+- Call `NotifyOpenChanged` when your window shows or hides, so buttons users placed on screen show it right.
+
 ## Extensions
 
 ### RegisterExtension(def)
@@ -80,9 +149,8 @@ That is the whole cost: users without EasyFind see nothing different.
 | `id` | string | Required. Letters, digits, `-` and `_`. Keep it the same across versions: menu layouts and buttons on screen save it. |
 | `name` | string | Required the first time. Shown on the tile, its tooltip and its launcher row. |
 | `description` | string | One line under the name in tooltips. |
-| `icon` | texture path or file id | The tile's icon. |
+| `icon` | texture path or file id | Required the first time. Painted in the theme's icon color wherever it shows. See [Icons](#icons). |
 | `iconCoords` | `{ left, right, top, bottom }` | Texture coordinates for `icon`. |
-| `tint` | boolean | `true` for white line art: drawn in the theme's icon color, like EasyFind's own. Otherwise the icon keeps its colors. |
 | `open` | function | Opens the extension. |
 | `close` | function | Closes it. |
 | `isOpen` | function | Returns whether it is open. With `close`, a second click on the tile closes what the first opened. |
@@ -129,7 +197,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `key` | string | Required. Its filter key, and its `@scope` key when it has `aliases`. |
 | `label` | string | Required the first time. Its row in the filter menu and its scope's pill. |
 | `category` | string | The name its rows carry. Defaults to `key`. |
-| `icon`, `iconCoords`, `tint` | | The glyph left of each of its rows, as for an extension. |
+| `icon`, `iconCoords` | | Required the first time, unless `extension` names one with an icon: then that one is used. The glyph left of each of its rows, painted like an extension's. |
 | `rows` | function | Returns its rows (below). Called when its rows are first needed and after `RefreshSearchProvider`. |
 | `select` | function `(row)` | A click or Enter on one of its rows. Gets a copy of the row. |
 | `tooltip` | function `(row, tooltip)` | Fills `GameTooltip` for a row. Return `true` to show it. |
@@ -148,14 +216,14 @@ A row is a table:
 | Field | |
 | --- | --- |
 | `name` | Required. What is searched and shown. |
-| `icon` | Texture path or file id, shown at the row's right. |
+| `icon` | Texture path or file id, shown at the row's right in its own colors. |
 | `keywords` | More words that find it. |
 | `searchCommandDesc` | Its subtext: a dim note shown with the name. |
 | anything else | Kept on the row: `select` and `tooltip` get it back. |
 
 ```lua
 API.RegisterSearchProvider({
-    key = "bookmarks", label = "Bookmarks", icon = 134400,
+    key = "bookmarks", label = "Bookmarks", icon = "Interface\\AddOns\\MyBookmarks\\icon",
     words = { "bookmark", "bookmarks" }, eager = true, aliases = { "bm" },
     rows = function()
         local out = {}
@@ -271,7 +339,7 @@ An extension whose addon loads on demand registers its tile from a small part th
 
 ```lua
 -- Always loaded:
-API.RegisterExtension({ id = "big", name = "Big", icon = 134400, addon = "MyBig_LoD" })
+API.RegisterExtension({ id = "big", name = "Big", icon = "Interface\\AddOns\\MyBig\\icon", addon = "MyBig_LoD" })
 API.RegisterSearchProvider({ key = "big", label = "Big", extension = "big", loadOnSearch = true })
 
 -- In MyBig_LoD, loaded on the first click:
@@ -285,7 +353,7 @@ The tile, its launcher row, the filter row and the scope are there before the ad
 
 - An error in your code (`open`, `rows`, an action, a listener) reaches the game's error frame, and EasyFind carries on.
 - A function you register is called with `select`'s row as a copy: change it freely.
-- A misuse of the API (a missing name, a wrong type) raises an error at once, naming the field.
+- A misuse of the API (a missing name or icon, a wrong type) raises an error at once, naming the field.
 
 ## Editor support
 

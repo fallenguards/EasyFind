@@ -5,7 +5,8 @@
 local API = EasyFind and EasyFind.API
 if not (API and API.VERSION == 1) then return end
 
-local ICON = "Interface\\Icons\\INV_Misc_Book_09"
+-- Drawn with API/icons/make_icon.py (draw_bookmark) in EasyFind's style.
+local ICON = "Interface\\AddOns\\EasyFind_Bookmarks\\bookmark"
 
 -- Saved variables arrive after this file runs: read them when needed.
 local function DB()
@@ -87,7 +88,6 @@ API.RegisterSearchProvider({
     key = "bookmarks",
     label = "Bookmarks",
     extension = "bookmarks",
-    icon = ICON,
     words = { "bookmark", "bookmarks" },
     eager = true,
     aliases = { "bm", "bookmarks" },
