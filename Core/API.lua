@@ -5,7 +5,7 @@ local L = ns.L
 local slower, sfind = Utils.slower, Utils.sfind
 
 -- EasyFind.API: what extensions are built on, EasyFind's own included
--- (docs/API.md). VERSION rises only for a change that breaks an extension;
+-- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
 local API = { VERSION = 1, MINOR = 0 }
 EasyFind.API = API
@@ -322,7 +322,18 @@ local function Populate(key, database)
         local ok, got = Run(p.rows)
         rows = ok and type(got) == "table" and got or nil
     end
-    for i = 1, rows and #rows or 0 do rows[i].category = p.category end
+    -- Search matches the lowercased name and words: filled in when a row
+    -- does not carry them.
+    for i = 1, rows and #rows or 0 do
+        local row = rows[i]
+        row.category = p.category
+        if not row.nameLower and type(row.name) == "string" then row.nameLower = slower(row.name) end
+        if row.keywords and not row.keywordsLower then
+            local low = {}
+            for k = 1, #row.keywords do low[k] = slower(tostring(row.keywords[k])) end
+            row.keywordsLower = low
+        end
+    end
     return database:ReplaceCategoryEntries(p.category, rows)
 end
 

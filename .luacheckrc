@@ -223,4 +223,6 @@ self = false
 
 exclude_files = {
     "dev/tests/vendor/*",
+    -- The developer docs: annotations for editors and an example addon.
+    "API/**",
 }
