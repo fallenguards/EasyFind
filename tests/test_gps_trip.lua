@@ -157,5 +157,34 @@ function tests.along_theLeastOutOfTheWayFirst()
     H.assertEq(Trip.AddsText(secs[list[3]]), "+4 min")
 end
 
+-- Editor:ShowHits and DropHits cut from Trip.lua: in a window with a list
+-- of its own a field's finds go there, never into a panel under the field.
+local function EditorHits()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Trip.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function Editor:ShowHits", 1, true), "Editor:ShowHits not in Trip.lua")
+    local e = assert(src:find("-- Per-frame work only while", s, true), "end of DropHits not found")
+    local env = setmetatable({ Editor = {} }, { __index = _G })
+    assert(load(src:sub(s, e - 1), "=Trip.lua hits", "t", env))()
+    return env.Editor
+end
+
+function tests.windowFinds_listInTheWindow()
+    local Editor = EditorHits()
+    local shown = false
+    local frame = { ShowHits = function(_, results) shown = results end }
+    local drop = { shown = true, Hide = function(self) self.shown = false end }
+    local ed = setmetatable({ frame = frame, drop = drop, editing = { index = 1 } }, { __index = Editor })
+    local finds = { { name = "Tanaris" } }
+    ed:ShowHits(finds)
+    H.assertTrue(shown == finds, "the window lists them")
+    H.assertFalse(drop.shown, "the panel under the field stays away")
+    H.assertTrue(frame.hitsFor == ed, "the window's rows pick for this field")
+    ed:DropHits()
+    H.assertNil(shown, "put away with the field")
+    H.assertNil(frame.hitsFor)
+end
+
 local pass, fail, failures = H.runSuite("GPSTrip", tests)
 return { pass = pass, fail = fail, failures = failures }

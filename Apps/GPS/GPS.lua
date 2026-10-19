@@ -1964,6 +1964,12 @@ local function HitRow(frame, i)
     ns.GPSTrip.Note(row)
     row:SetScript("OnClick", function(self)
         if not self.data then return end
+        -- A trip field's finds: that field takes the place.
+        local ed = frame.trip
+        if ed and frame.hitsFor == ed then
+            ed:Pick(self.data)
+            return
+        end
         if GPS.picking == frame then
             GPS:SetStart(self.data)
             return
@@ -2107,7 +2113,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
                     row:ClearAllPoints()
                     row:SetPoint("TOPLEFT", hitChild, "TOPLEFT", 0, -(n - 1) * ROW_H)
                     row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
-                    local where = r.zoneName or r.parentName or r.category
+                    local where = r.matchNote or r.zoneName or r.parentName or r.category
                     row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
                     row.note:SetText(secs and secs[r] and ns.GPSTrip.AddsText(secs[r]) or "")
                     row:Show()
@@ -2388,7 +2394,12 @@ local function BuildSurface(frame, opts)
             else
                 box:SetPoint("LEFT", glyph, "RIGHT", 12, 0)
                 box:SetPoint("RIGHT", self, "RIGHT", -padRight, 0)
-                hits:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6, -8)
+                -- Under the trip's fields where they show, as the steps start.
+                if self.trip then
+                    hits:SetPoint("TOPLEFT", self.trip, "BOTTOMLEFT", self.trip.listX or -6, -8)
+                else
+                    hits:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6, -8)
+                end
                 hits:SetPoint("RIGHT", self, "RIGHT", -(bodyPad - 4), 0)
             end
         end
@@ -2431,7 +2442,8 @@ local function BuildSurface(frame, opts)
             -- With the trip editor up, its fields do the searching.
             local searching = not GPS.planning and not self.trip
             self.search:SetShown(searching)
-            self.hitList:SetShown(searching and (not hasRoute or (self.hitCount or 0) > 0))
+            local typed = (self.hitCount or 0) > 0
+            self.hitList:SetShown((searching and (not hasRoute or typed)) or (self.hitsFor ~= nil and typed))
             self:PlaceSearch(hasRoute)
         end
         if opts.onRouteChanged then opts.onRouteChanged(self, hasRoute) end

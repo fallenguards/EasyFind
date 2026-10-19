@@ -341,9 +341,17 @@ local function DropRow(ed, i)
     return row
 end
 
--- The places found for what was typed, under the field being edited;
--- secs, along the way: by place, the seconds a stop there adds.
+-- The places found for what was typed: in a window with a list of its
+-- own, in the steps' place; else under the field being edited. secs,
+-- along the way: by place, the seconds a stop there adds.
 function Editor:ShowHits(results, secs)
+    local frame = self.frame
+    if frame.ShowHits then
+        self.drop:Hide()
+        frame.hitsFor = (results and self.editing) and self or nil
+        frame:ShowHits(frame.hitsFor and results or nil, secs)
+        return
+    end
     local n = 0
     for i = 1, results and #results or 0 do
         local r = results[i]
@@ -362,6 +370,16 @@ function Editor:ShowHits(results, secs)
     if ns.StripShadows then ns.StripShadows(self.drop) end
     self.drop:SetHeight(mmax(1, n * DROP_ROW_H + DROP_PAD * 2))
     self.drop:SetShown(n > 0 and self.editing ~= nil)
+end
+
+-- The finds put away, wherever they show.
+function Editor:DropHits()
+    self.drop:Hide()
+    local frame = self.frame
+    if frame.hitsFor == self then
+        frame.hitsFor = nil
+        frame:ShowHits(nil)
+    end
 end
 
 -- Per-frame work only while a drag or a pending close needs it.
@@ -386,7 +404,7 @@ function Editor:Close()
     self.editing = nil
     self.closeAt = nil
     self:Watch()
-    self.drop:Hide()
+    self:DropHits()
     if row and row.adding then self.adding, self.along = nil, nil end
     self:Refresh(Route())
 end
@@ -438,7 +456,7 @@ function Editor:Pick(data)
     local index = row.index
     row.box:ClearFocus()
     self.editing, self.closeAt = nil, nil
-    self.drop:Hide()
+    self:DropHits()
     if index == 0 then
         g:SetStart(data)
     elseif row.adding and not Route() then
@@ -524,7 +542,9 @@ function Editor:OnUpdate()
         end
     end
     if self.closeAt and GetTime() >= self.closeAt then
-        if self.drop:IsShown() and self.drop:IsMouseOver() then
+        local frame = self.frame
+        if (self.drop:IsShown() and self.drop:IsMouseOver())
+            or (frame.hitsFor == self and frame.hitList:IsMouseOver()) then
             self.closeAt = GetTime() + 0.25
         else
             self:Close()
@@ -607,7 +627,8 @@ local function Field(ed, i)
     box:HookScript("OnMouseDown", function(self) self._blockAutoFocus = nil end)
     box:HookScript("OnEscapePressed", function(self) self:ClearFocus() end)
     box:HookScript("OnEnterPressed", function()
-        local first = ed.dropRows[1]
+        local frame = ed.frame
+        local first = (frame.hitsFor == ed and frame.hits[1]) or ed.dropRows[1]
         if first and first:IsShown() and first.data then ed:Pick(first.data) end
     end)
     box:HookScript("OnEditFocusLost", function() ed:CloseSoon() end)
@@ -735,6 +756,7 @@ function Trip.BuildEditor(frame)
     -- With the pop-out button at the first field's end, the fields start
     -- a little left of the icon to keep their width.
     local shift = frame.popoutBtn and 6 or 0
+    ed.listX = -6 + shift   -- where the steps start, left of the fields
     ed:SetPoint("TOPLEFT", frame.glyph, "TOPLEFT", -shift, 0)
     ed:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     ed:SetHeight(1)
