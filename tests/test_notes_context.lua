@@ -54,8 +54,14 @@ local function Load(opts)
     env.GetSpecializationInfo = function() return 62, "Arcane", "", 0, "DAMAGER" end
     env.DAMAGER, env.TANK, env.HEALER = "Damage", "Tank", "Healer"
     env.C_ChallengeMode = { IsChallengeModeActive = function() return true end }
+    env.InCombatLockdown = function() return opts.combat == true end
+    env.IsResting = function() return opts.resting == true end
+    env._frames = {}
     env.CreateFrame = function()
-        return { RegisterEvent = function() end, SetScript = function() end }
+        local f = { RegisterEvent = function() end }
+        f.SetScript = function(self, _, fn) self.onEvent = fn end
+        env._frames[#env._frames + 1] = f
+        return f
     end
     local ns = H.newNs(env)
     ns.Caps = { forever = opts.forever, retail = not opts.forever, specs = not opts.forever }
@@ -68,7 +74,13 @@ local function Load(opts)
     local chunk = assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/Context.lua", "t", env))
     env.EasyFind = { _ns = ns }
     chunk("EasyFind_Notes", notesNS)
-    return notesNS.Context, ns
+    -- The game's events, as the watcher hears them.
+    local function fire(event, arg)
+        for _, f in ipairs(env._frames) do
+            if f.onEvent then f.onEvent(f, event, arg) end
+        end
+    end
+    return notesNS.Context, ns, fire
 end
 
 local function has(set, key) return set[key] == true end
@@ -126,15 +138,32 @@ function tests.options_areWhatThisClientHas()
     H.assertTrue(retail["uistate:greatvault"] and retail["role:TANK"] and retail["warmode:warmode"] ~= nil)
 end
 
-function tests.matchModes()
+function tests.comesUp_byAnyCondition_orAllOfARule()
     local Ctx = Load()
     local _, set = Ctx.Active()
     local westfall, mage, raid = { type = "map", id = 1436 }, { type = "class", id = "MAGE" }, { type = "raid", id = 409 }
-    H.assertTrue(Ctx.Applies({ appliesIn = { westfall, raid } }, set), "any: one tag is enough")
-    H.assertFalse(Ctx.Applies({ appliesIn = { westfall, raid }, matchMode = "all" }, set), "all: every tag")
-    H.assertTrue(Ctx.Applies({ appliesIn = { westfall, mage }, matchMode = "all" }, set))
-    H.assertFalse(Ctx.Applies({ appliesIn = { westfall }, matchMode = "manual" }, set), "manual: never on its own")
-    H.assertFalse(Ctx.Applies({ appliesIn = {} }, set), "no tags, nothing to apply")
+    H.assertTrue(Ctx.Applies({ appliesIn = { westfall, raid } }, set), "any one of its own conditions")
+    H.assertFalse(Ctx.Applies({ rules = { { conds = { westfall, raid } } } }, set), "a rule needs every condition")
+    H.assertTrue(Ctx.Applies({ rules = { { conds = { westfall, mage } } } }, set))
+    H.assertFalse(Ctx.Applies({ appliesIn = {} }, set), "nothing set, nothing to come up")
+end
+
+function tests.activities_aDuelItsOpponentTargetCombatResting()
+    local Ctx, _, fire = Load({ target = "Bren Oakhart-Stormrage", combat = true, resting = true })
+    local _, set = Ctx.Active()
+    H.assertTrue(has(set, "targetclass:MAGE"), "the target's class, apart from mine")
+    H.assertTrue(has(set, "combat:combat"))
+    H.assertTrue(has(set, "resting:resting"))
+    H.assertFalse(has(set, "duel:duel"), "no duel yet")
+    fire("DUEL_REQUESTED", "Bren")
+    _, set = Ctx.Active()
+    H.assertTrue(has(set, "duel:duel"), "challenged: in a duel")
+    H.assertTrue(has(set, "duelclass:MAGE"), "the challenger is the target, a mage")
+    local druids = { rules = { { conds = { { type = "duel", id = "duel" }, { type = "duelclass", id = "DRUID" } } } } }
+    H.assertFalse(Ctx.Applies(druids, set), "a druid-duel note waits for a druid")
+    fire("DUEL_FINISHED")
+    _, set = Ctx.Active()
+    H.assertFalse(has(set, "duel:duel"), "over")
 end
 
 function tests.players_oneKeyFromMenusAndUnits()
@@ -148,7 +177,8 @@ function tests.players_oneKeyFromMenusAndUnits()
     H.assertTrue(has(set, "player:Bren-Stormrage"), "the target")
     H.assertTrue(has(set, "player:Cass-Stormrage"), "a party member")
     local cass = { { type = "player", id = "Cass-Stormrage" } }
-    H.assertTrue(Ctx.Applies({ appliesIn = {}, showsOn = cass }, set), "a note shown on a party member applies")
+    H.assertTrue(Ctx.Applies({ appliesIn = cass }, set), "a party member as a condition")
+    H.assertFalse(Ctx.Applies({ appliesIn = {}, showsOn = cass }, set), "a tooltip it rides brings nothing up")
 end
 
 function tests.npcs_areUnitsToo_andAPresentUnitAppliesItsNote()
@@ -160,9 +190,9 @@ function tests.npcs_areUnitsToo_andAPresentUnitAppliesItsNote()
     local _, set = Ctx.Active()
     H.assertTrue(has(set, "npc:5678"), "the targeted creature by its id")
     local here = { { type = "npc", id = 5678 } }
-    H.assertTrue(Ctx.Applies({ appliesIn = {}, showsOn = here }, set), "a note shown on the target applies")
-    H.assertFalse(Ctx.Applies({ appliesIn = {}, showsOn = { { type = "npc", id = 99 } } }, set), "another creature's note")
-    H.assertFalse(Ctx.Applies({ showsOn = here, matchMode = "manual" }, set), "manual stays manual")
+    H.assertTrue(Ctx.Applies({ appliesIn = here }, set), "the target as a condition")
+    H.assertFalse(Ctx.Applies({ appliesIn = { { type = "npc", id = 99 } } }, set), "another creature")
+    H.assertFalse(Ctx.Applies({ showsOn = here }, set), "its tooltip alone brings nothing up")
 end
 
 function tests.search_ranksWordStartsFirst()

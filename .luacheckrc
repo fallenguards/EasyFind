@@ -37,7 +37,7 @@ read_globals = {
     "format", "time", "date", "C_EventUtils",
 
     -- Alerts
-    "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting",
+    "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting", "StartDuel",
     "GetXPExhaustion", "GetWeaponEnchantInfo", "GetSavedInstanceInfo", "GetNumSavedInstances",
     "GetMaxPlayerLevel", "GetInboxNumItems", "GetInboxHeaderInfo", "UnitIsDead", "UnitClassification",
     -- Notes capture: the open mail and the selected quest

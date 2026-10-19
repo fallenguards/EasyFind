@@ -15,7 +15,7 @@ local Ctx = {}
 notesNS.Context = Ctx
 
 local tostring, pairs, ipairs, type = tostring, pairs, ipairs, type
-local sfind, slower = string.find, string.lower
+local sfind, slower, sformat = string.find, string.lower, string.format
 local issecret = _G.issecretvalue or function() return false end
 
 local function Key(entry) return tostring(entry.type) .. ":" .. tostring(entry.id) end
@@ -28,7 +28,9 @@ local KINDS = {
     instance = { "NOTES_KIND_INSTANCE", 8 }, player = { "PLAYER", 7 }, map = { "ZONE", 6 },
     mythicplus = { "NOTES_KIND_GAME", 5 }, pvp = { "NOTES_KIND_GAME", 5 }, warmode = { "NOTES_KIND_GAME", 4 },
     group = { "GROUP", 4 }, spec = { "SPECIALIZATION", 4 }, role = { "ROLE", 4 },
-    class = { "CLASS", 3 }, faction = { "FACTION", 2 }, character = { "CHARACTER", 2 },
+    class = { "NOTES_KIND_MY_CLASS", 3 }, faction = { "FACTION", 2 }, character = { "CHARACTER", 2 },
+    duel = { "NOTES_KIND_DOING", 7 }, combat = { "NOTES_KIND_DOING", 6 }, resting = { "NOTES_KIND_DOING", 3 },
+    duelclass = { "NOTES_KIND_OPPONENT", 7 }, targetclass = { "NOTES_KIND_TARGET", 6 },
 }
 
 local function Text(key)
@@ -152,6 +154,54 @@ local function AddUnits(list, set)
     unit("target")
     local raid = IsInRaid and IsInRaid()
     for i = 1, raid and 40 or 4 do unit((raid and "raid" or "party") .. i) end
+    if UnitExists("target") and UnitIsPlayer("target") then
+        local className, classFile = UnitClass("target")
+        if classFile and not issecret(classFile) then
+            Add(list, set, { type = "targetclass", id = classFile, name = sformat(L["NOTES_CTX_TARGET_CLASS_FMT"], className) })
+        end
+    end
+end
+
+-- A duel, from its challenge (sent or received) to its end, with the
+-- other player's class when a unit near is them.
+local duel
+local NEAR = { "target", "focus", "mouseover", "party1", "party2", "party3", "party4" }
+
+-- The first name alone: Forever's units add a surname, a realm follows a dash.
+local function Short(name)
+    return type(name) == "string" and not issecret(name) and name:match("^[^%s%-]+") or nil
+end
+
+local function BeginDuel(name, unit)
+    local want = Short(name)
+    if not unit and want then
+        for _, u in ipairs(NEAR) do
+            if UnitExists(u) and UnitIsPlayer(u) and Short(GetUnitName(u, false)) == want then
+                unit = u
+                break
+            end
+        end
+    end
+    local className, classFile
+    if unit and UnitExists(unit) then className, classFile = UnitClass(unit) end
+    if issecret(classFile) then className, classFile = nil, nil end
+    duel = { name = want, class = classFile, className = className }
+end
+
+local function AddDoing(list, set)
+    if duel then
+        Add(list, set, { type = "duel", id = "duel", name = L["NOTES_CTX_DUEL"] })
+        if duel.class then
+            Add(list, set, { type = "duelclass", id = duel.class,
+                name = sformat(L["NOTES_CTX_DUEL_CLASS_FMT"], duel.className or duel.class) })
+        end
+    end
+    if InCombatLockdown and InCombatLockdown() then
+        Add(list, set, { type = "combat", id = "combat", name = L["NOTES_CTX_COMBAT"] })
+    end
+    if IsResting and IsResting() then
+        Add(list, set, { type = "resting", id = "resting", name = L["NOTES_CTX_RESTING"] })
+    end
 end
 
 local function AddGame(list, set)
@@ -177,27 +227,32 @@ function Ctx.Active()
     AddGroup(list, set)
     AddSelf(list, set)
     AddGame(list, set)
+    AddDoing(list, set)
     return list, set
 end
 
--- Whether a note applies in the situations of set: a unit it shows on is
--- there, or its tags match by its mode (any of them, all of them, or
--- never on its own).
+-- Whether a note comes up in the situations of set: one of its own
+-- conditions holds, or every condition of one of its rules does. What
+-- tooltips it shows on has no part in it.
 function Ctx.Applies(note, set)
-    if not note or note.matchMode == "manual" then return false end
-    local shows = note.showsOn
-    for i = 1, shows and #shows or 0 do
-        if set[Key(shows[i])] == true then return true end
+    if not note then return false end
+    local singles = note.appliesIn
+    for i = 1, singles and #singles or 0 do
+        if set[Key(singles[i])] == true then return true end
     end
-    local tags = note.appliesIn
-    if not (tags and #tags > 0) then return false end
-    local all, hit = note.matchMode == "all", false
-    for i = 1, #tags do
-        local on = set[Key(tags[i])] == true
-        if all and not on then return false end
-        hit = hit or on
+    local rules = note.rules
+    for r = 1, rules and #rules or 0 do
+        local conds = rules[r].conds
+        local all = conds ~= nil and #conds > 0
+        for c = 1, conds and #conds or 0 do
+            if set[Key(conds[c])] ~= true then
+                all = false
+                break
+            end
+        end
+        if all then return true end
     end
-    return hit
+    return false
 end
 
 -- Options -------------------------------------------------------------------------
@@ -256,11 +311,16 @@ local function Instances()
     return instances
 end
 
+-- Each class three ways: mine, my target's, my duel opponent's.
 local function Classes()
     local out = {}
     for id = 1, (GetNumClasses and GetNumClasses() or 0) do
         local name, file = GetClassInfo(id)
-        if name and file then out[#out + 1] = { type = "class", id = file, name = name } end
+        if name and file then
+            out[#out + 1] = { type = "class", id = file, name = name }
+            out[#out + 1] = { type = "targetclass", id = file, name = sformat(L["NOTES_CTX_TARGET_CLASS_FMT"], name) }
+            out[#out + 1] = { type = "duelclass", id = file, name = sformat(L["NOTES_CTX_DUEL_CLASS_FMT"], name) }
+        end
     end
     return out
 end
@@ -276,6 +336,9 @@ local function Fixed()
     out[#out + 1] = { type = "faction", id = "Alliance", name = Text("FACTION_ALLIANCE") or "Alliance" }
     out[#out + 1] = { type = "faction", id = "Horde", name = Text("FACTION_HORDE") or "Horde" }
     out[#out + 1] = { type = "pvp", id = "pvp", name = L["NOTES_CTX_PVP"] }
+    out[#out + 1] = { type = "duel", id = "duel", name = L["NOTES_CTX_DUEL"] }
+    out[#out + 1] = { type = "combat", id = "combat", name = L["NOTES_CTX_COMBAT"] }
+    out[#out + 1] = { type = "resting", id = "resting", name = L["NOTES_CTX_RESTING"] }
     if Caps.specs then
         for _, role in ipairs({ "TANK", "HEALER", "DAMAGER" }) do
             out[#out + 1] = { type = "role", id = role, name = Text(role) }
@@ -324,6 +387,7 @@ local CHANGE_EVENTS = {
     "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS", "PLAYER_ENTERING_WORLD",
     "GROUP_ROSTER_UPDATE", "PLAYER_TARGET_CHANGED", "PLAYER_SPECIALIZATION_CHANGED",
     "CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED", "PLAYER_FLAGS_CHANGED",
+    "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_UPDATE_RESTING", "DUEL_REQUESTED", "DUEL_FINISHED",
 }
 
 local watcher = CreateFrame("Frame")
@@ -333,12 +397,26 @@ for _, w in ipairs(WINDOWS) do
 end
 for ev in pairs(byEvent) do pcall(watcher.RegisterEvent, watcher, ev) end
 for _, ev in ipairs(CHANGE_EVENTS) do pcall(watcher.RegisterEvent, watcher, ev) end
-watcher:SetScript("OnEvent", function(_, event, unit)
-    if event == "PLAYER_FLAGS_CHANGED" and unit ~= "player" then return end
+watcher:SetScript("OnEvent", function(_, event, arg)
+    if event == "PLAYER_FLAGS_CHANGED" and arg ~= "player" then return end
+    if event == "DUEL_REQUESTED" then
+        BeginDuel(arg)
+    elseif event == "DUEL_FINISHED" or event == "PLAYER_ENTERING_WORLD" then
+        duel = nil
+    end
     local w = byEvent[event]
     if w then windowOpen[w[1]] = w[2] or nil end
     if onChange then onChange(event) end
 end)
+
+-- A challenge sent: to the target, or to the unit or name given.
+if StartDuel then
+    hooksecurefunc("StartDuel", function(who)
+        local unit = (who == nil or who == "") and "target" or (type(who) == "string" and UnitExists(who) and who) or nil
+        BeginDuel(unit and GetUnitName(unit, false) or who, unit)
+        if onChange then onChange("DUEL") end
+    end)
+end
 
 -- fn(event) runs whenever what is active may have changed.
 function Ctx.SetOnChange(fn) onChange = fn end
