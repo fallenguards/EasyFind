@@ -175,7 +175,7 @@ function Extensions.Load(id)
     local def = Extensions.byID[id]
     if not def then return false end
     if def.open or def.settings or def.scope then return true end
-    if not def.addon then return false end
+    if not def.addon or (InCombatLockdown() and not def.loadInCombat) then return false end
     LoadAddon(def)
     def = Extensions.byID[id]
     if def.open or def.settings or def.scope then return true end
@@ -212,9 +212,16 @@ local function Kit(ctx)
         line:SetText(hint)
         return line
     end
+    -- An extension's get runs guarded: its error never breaks the panel.
+    local function Read(get)
+        return function()
+            local _, value = Run(get)
+            return value
+        end
+    end
     function kit.Checkbox(parent, label, get, set, tooltip)
         local box = ctx.CreateCheckbox(parent, nil, label, tooltip, true)
-        box:SetChecked(get() and true or false)
+        box:SetChecked(Read(get)() and true or false)
         if box.RefreshVisual then box:RefreshVisual() end
         box:SetScript("OnClick", function(self)
             if self.RefreshVisual then self:RefreshVisual() end
@@ -224,11 +231,11 @@ local function Kit(ctx)
     end
     function kit.Choice(parent, label, choices, get, set, tooltip, default)
         kitNames = kitNames + 1
-        return ctx.CreateFlyoutPresetRow(parent, label, choices, get, function(v) Run(set, v) end,
+        return ctx.CreateFlyoutPresetRow(parent, label, choices, Read(get), function(v) Run(set, v) end,
             "EasyFindExtChoice" .. kitNames, default, tooltip)
     end
     function kit.Stepper(parent, label, min, max, step, get, set, tooltip, width)
-        return ctx.CreateStepperRow(parent, label, min, max, get, function(v) Run(set, v) end, tooltip, width, step)
+        return ctx.CreateStepperRow(parent, label, min, max, Read(get), function(v) Run(set, v) end, tooltip, width, step)
     end
     return kit
 end
@@ -396,7 +403,9 @@ function API.RegisterSearchProvider(def)
     end
     local p = Providers.byKey[key]
     if p then
-        for k, v in pairs(def) do p[k] = v end
+        for k, v in pairs(def) do
+            if k ~= "category" then p[k] = v end
+        end
     else
         if type(def.label) ~= "string" then Fail("RegisterSearchProvider", "label is required") end
         -- Its extension's addon turned off in the AddOns list: no filter
@@ -433,7 +442,6 @@ end
 function API.RefreshSearchProvider(key)
     if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory(key) end
 end
-
 
 -- Opens the search bar on an @scope's list (its pill in), text typed after
 -- it. A frame later: a launch from a result row closes the bar first.
