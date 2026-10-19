@@ -717,8 +717,9 @@ function Editor:Refresh(route)
                 btn:SetPoint("RIGHT", self, "TOPRIGHT", 8, -rowH / 2)
             end
             row:SetPoint("TOPRIGHT", self, "TOPRIGHT", -(btn:GetWidth() + 5 - 8), -y)
-        elseif n == 1 and not self.frame.buttonsAbove then
-            row:SetPoint("RIGHT", self, "RIGHT", -mmax(0, (self.frame.padRight or 0) - 14), 0)
+        elseif n == 1 and not (self.frame.buttonsAbove and route) then
+            -- The header's buttons share this row (in the window, with no route).
+            row:SetPoint("RIGHT", self, "RIGHT", -(self.frame.firstRowRight or mmax(0, (self.frame.padRight or 0) - 14)), 0)
         else
             row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
         end

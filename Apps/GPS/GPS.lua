@@ -4338,7 +4338,10 @@ local function BuildPopout()
         if above then
             close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -4)
         else
-            close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + self.glyph:GetHeight() / 2))
+            -- On the header row: the trip's one field, else the folded title.
+            local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
+            local h = row and row:GetHeight() or self.glyph:GetHeight()
+            close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + h / 2))
         end
     end
 
@@ -4447,12 +4450,15 @@ local function BuildPopout()
             -- The header row: the trip's fields while they show (one pixel
             -- hidden, the time line then at the top), else the icon.
             local headRow = (self.trip and (self.trip:IsShown() or bare)) and self.trip:GetHeight() or 20
-            local strip = folded and 0 or self.headStrip
+            -- The buttons' own strip over a route's fields; with none, or
+            -- folded, they share the one header row (typing keeps it so).
+            local above = Route() ~= nil and not folded
+            local strip = above and self.headStrip or 0
             local tight = (not Route() and not hits) or folded
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
-                self:SetHeaderPad(8, not folded)
+                self:SetHeaderPad(8, above)
                 self:SetHeight(8 + strip + headRow + 8)
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
@@ -4461,7 +4467,7 @@ local function BuildPopout()
                 end
                 return
             end
-            self:SetHeaderPad(9, true)
+            self:SetHeaderPad(9, above)
             local _, fixed = PopoutSize()
             local head = 9 + strip + headRow + 8   -- pad, the buttons' strip, the header row, gap
             local line = 4 + 14 + 8   -- the time line under the name
@@ -4497,6 +4503,7 @@ local function BuildPopout()
     -- The trip's fields in the window too, as on the map page, the first
     -- its full width under the buttons' strip.
     f.buttonsAbove = true
+    f.firstRowRight = 30   -- with no route, the field ends short of map and close
     if ns.GPSTrip then ns.GPSTrip.BuildEditor(f) end
 
     -- In Clear route's place an arrow hides the fields, the steps alone
