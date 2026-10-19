@@ -2728,8 +2728,12 @@ ShowGameMenu = function(owner, defs)
                         if r.copy and ns.CopyToClipboard then
                             onClick = function() ns.CopyToClipboard(r.copy, r.copyLink) end
                         end
-                        local b = sub:CreateButton(r.text, onClick or function() end)
-                        if r.disabled and b.SetEnabled then b:SetEnabled(false) end
+                        if r.picked ~= nil then
+                            sub:CreateRadio(r.text, function() return r.picked end, onClick or function() end)
+                        else
+                            local b = sub:CreateButton(r.text, onClick or function() end)
+                            if r.disabled and b.SetEnabled then b:SetEnabled(false) end
+                        end
                     end
                 end
             end
@@ -3963,8 +3967,21 @@ function GPS.FloatDockAt(left, top)
     if c then c.popoutOpen = true end
 end
 
--- Style rows for the cog popup and the section's menu.
-function GPS.StyleRows()
+-- A setting's picks as a flyout row: choices { { value, key }, ... }, the
+-- one in use ticked (a radio on the game's own menu).
+function GPS.PicksMenu(label, choices, current, pick)
+    local rows = {}
+    for i = 1, #choices do
+        local value, key = choices[i][1], choices[i][2]
+        local on = current == value
+        rows[i] = { text = L[key], icon = on and "Interface\\Buttons\\UI-CheckBox-Check" or nil, picked = on,
+                    onClick = function() pick(value) end }
+    end
+    return { kind = "submenu", label = label, rows = rows }
+end
+
+-- The style flyout for the cog popup and the section's menu.
+function GPS.StyleMenu()
     local function pick(style)
         return function()
             local db = DB()
@@ -3990,12 +4007,9 @@ function GPS.StyleRows()
             end
         end
     end
-    return {
-        { kind = "title", label = L["GPS_STYLE"] },
-        { kind = "radio", label = L["GPS_STYLE_EASYFIND"], value = "easyfind", get = PopoutStyle, set = pick("easyfind") },
-        { kind = "radio", label = L["GPS_STYLE_TRACKER"], value = "tracker", get = PopoutStyle, set = pick("tracker") },
-        { kind = "radio", label = L["GPS_STYLE_ERA"], value = "era", get = PopoutStyle, set = pick("era") },
-    }
+    return GPS.PicksMenu(L["GPS_STYLE"],
+        { { "easyfind", "GPS_STYLE_EASYFIND" }, { "tracker", "GPS_STYLE_TRACKER" }, { "era", "GPS_STYLE_ERA" } },
+        PopoutStyle(), function(style) pick(style)() end)
 end
 
 function GPS:Dock(slot)
@@ -4171,24 +4185,13 @@ function GPS.MenuRows(f)
             end }
     end
     defs[#defs + 1] = { kind = "separator" }
-    for _, d in ipairs(GPS.StyleRows()) do defs[#defs + 1] = d end
+    defs[#defs + 1] = GPS.StyleMenu()
     if not f.isPopout then return defs end
-    defs[#defs + 1] = { kind = "separator" }
-    defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_WIDTH"] }
-    for i = 1, #SIZE_WIDTHS do
-        local px, key = SIZE_WIDTHS[i][1], SIZE_WIDTHS[i][2]
-        defs[#defs + 1] = { kind = "radio", label = L[key], value = px,
-            get = function() return (select(1, PopoutSize())) end,
-            set = function() SetPopoutSize(px, (select(2, PopoutSize()))) end }
-    end
-    defs[#defs + 1] = { kind = "separator" }
-    defs[#defs + 1] = { kind = "title", label = L["GPS_SIZE_HEIGHT"] }
-    for i = 1, #SIZE_HEIGHTS do
-        local px, key = SIZE_HEIGHTS[i][1], SIZE_HEIGHTS[i][2]
-        defs[#defs + 1] = { kind = "radio", label = L[key], value = px or 0,
-            get = function() return (select(2, PopoutSize())) or 0 end,
-            set = function() SetPopoutSize((select(1, PopoutSize())), px) end }
-    end
+    local width, height = PopoutSize()
+    defs[#defs + 1] = GPS.PicksMenu(L["GPS_SIZE_WIDTH"], SIZE_WIDTHS, width,
+        function(px) SetPopoutSize(px, (select(2, PopoutSize()))) end)
+    defs[#defs + 1] = GPS.PicksMenu(L["GPS_SIZE_HEIGHT"], SIZE_HEIGHTS, height,
+        function(px) SetPopoutSize((select(1, PopoutSize())), px) end)
     return defs
 end
 

@@ -113,8 +113,13 @@ local function MenuRows()
     local GPS = {
         WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
         LaunchRow = row("GPS_LAUNCH_WINDOW"),
-        StyleRows = function() return { { kind = "title", label = "GPS_STYLE" } } end,
+        StyleMenu = function() return { kind = "submenu", label = "GPS_STYLE", rows = {} } end,
     }
+    function GPS.PicksMenu(label, choices, current)
+        local rows = {}
+        for i = 1, #choices do rows[i] = { text = choices[i][2], picked = current == choices[i][1] } end
+        return { kind = "submenu", label = label, rows = rows }
+    end
     local env = setmetatable({
         GPS = GPS,
         L = setmetatable({}, { __index = function(_, k) return k end }),
@@ -129,8 +134,8 @@ local function MenuRows()
         CharDB = function() return {} end,
         PopoutSize = function() return 300 end,
         SetPopoutSize = function() end,
-        SIZE_WIDTHS = { { 300, "GPS_SIZE_NORMAL" } },
-        SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" } },
+        SIZE_WIDTHS = { { 240, "GPS_SIZE_NARROW" }, { 300, "GPS_SIZE_NORMAL" } },
+        SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" }, { 160, "GPS_SIZE_SHORT" } },
     }, { __index = _G })
     assert(load(src:sub(s, e), "=GPS.lua MenuRows", "t", env))()
     return GPS.MenuRows
@@ -156,6 +161,24 @@ function tests.everySurfaceHasTheSameMenu()
         H.assertEq(has.GPS_STYLE == true, s.style == true, s.name .. ": style rows")
         H.assertEq(has.GPS_SIZE_WIDTH == true, s.size == true, s.name .. ": width rows")
     end
+end
+
+-- Style, width and height are flyouts holding their picks, the one in use
+-- picked; their picks never sit in the menu itself.
+function tests.settingsWithPicksAreFlyouts()
+    local defs = MenuRows()({ isPopout = true })
+    local flyouts = {}
+    for _, d in ipairs(defs) do
+        H.assertTrue(d.kind ~= "radio" and d.kind ~= "title", "a pick or a heading in the menu itself: " .. tostring(d.label))
+        if d.kind == "submenu" then flyouts[d.label] = d end
+    end
+    for _, label in ipairs({ "GPS_STYLE", "GPS_SIZE_WIDTH", "GPS_SIZE_HEIGHT" }) do
+        H.assertTrue(flyouts[label] ~= nil, label .. " is a flyout")
+    end
+    local width, height = flyouts.GPS_SIZE_WIDTH.rows, flyouts.GPS_SIZE_HEIGHT.rows
+    H.assertEq(#width, 2)
+    H.assertTrue(width[2].picked and not width[1].picked, "the width in use is picked")
+    H.assertTrue(height[1].picked and not height[2].picked, "fit to steps, as no height is set")
 end
 
 -- GPS:OpenWindow and GPS:CloseWindow cut from GPS.lua over a stub section
