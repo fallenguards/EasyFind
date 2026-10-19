@@ -20,6 +20,7 @@ local tinsert, tsort, tconcat = table.insert, table.sort, table.concat
 local sformat = string.format
 
 local MOUNT_UP = 2          -- seconds to get on a mount
+local RUN = 7               -- the game's run, yards a second
 local BOARD_TAXI = 4        -- seconds at the flight master
 local ABILITY_WAIT_MAX = 600 -- a cooldown longer than this is not worth waiting for
 local TELEPORT_MIN_YARDS = 1000 -- a teleport landing closer than this to the start is no trip
@@ -137,7 +138,7 @@ local function BuildGraph(ctx)
     local function Avoided(kind) return avoid[AVOID_KIND[kind] or kind] and AVOID_SECONDS or 0 end
     local data = ctx.data
     local speeds = data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
-    local travelSpeed = ctx.canFly and speeds.fly or (ctx.groundSpeed or speeds.mount or 14)
+    local travelSpeed = ctx.canFly and (ctx.flySpeed or speeds.fly) or (ctx.groundSpeed or speeds.mount or 14)
     local nodes = {}          -- array of { p = point, kind, ... }
     local byCi = {}           -- continent -> array of node indexes
 
@@ -264,7 +265,7 @@ local function BuildGraph(ctx)
         end
     end
 
-    local mountUp = (not ctx.canFly and travelSpeed <= (speeds.run or 7) + 0.5) and 0 or MOUNT_UP
+    local mountUp = (not ctx.canFly and travelSpeed <= RUN + 0.5) and 0 or MOUNT_UP
     return {
         nodes = nodes, byCi = byCi, start = startIdx, goal = goalIdx,
         legs = legs, hops = hops, teleports = teleports, taxiIdx = taxiIdx,
@@ -1011,27 +1012,153 @@ Route.KnownFlightNodes = KnownFlightNodes
 -- Flight masters seen as known at a flight master (filled from saved
 -- variables): known whatever the map listing says.
 Route.recordedKnown = nil
--- This character's mounted ground speed as last seen (the GPS surface
--- fills it); nil until seen.
-Route.seenGroundSpeed = nil
+-- Riding as the client rules it: the riding skill each riding spell
+-- gives, and per mount type what it can do, best first:
+-- { riding skill, spell to know (0 none), ground %, flying % or "sky", steady style }.
+-- gps_riding.py: begin
+local RIDING = {
+    forever = {
+        skill = { [33388] = 75, [33391] = 150 },
+        sets = {
+            { { 75, 0, 60 } },
+            { { 150, 0, 100 } },
+            { { 75, 825, 60 } },
+            { { 150, 825, 100 } },
+            { { 75, 828, 60 } },
+            { { 150, 828, 100 } },
+            { { 75, 826, 60 } },
+            { { 150, 826, 100 } },
+            { { 75, 10861, 60 } },
+            { { 150, 10861, 100 } },
+            { { 75, 18995, 60 } },
+            { { 150, 18995, 100 } },
+            { { 75, 10907, 60 } },
+            { { 150, 10907, 100 } },
+            { { 75, 10906, 60 } },
+            { { 150, 10906, 100 } },
+            { { 75, 824, 60 } },
+            { { 150, 824, 100 } },
+            { { 0, 0, 60 } },
+            { { 0, 0, 100 } },
+            { { 150, 1285849, 100 } },
+            { { 75, 1285849, 60 } },
+            { { 150, 0, 100 }, { 75, 0, 60 } },
+        },
+        types = {
+            [453] = 1, [454] = 2, [455] = 3, [456] = 4, [457] = 5, [458] = 6, [459] = 7, [460] = 8,
+            [461] = 9, [462] = 10, [463] = 11, [464] = 12, [465] = 13, [466] = 14, [467] = 15, [468] = 16,
+            [469] = 17, [470] = 18, [471] = 19, [472] = 20, [473] = 21, [474] = 22, [475] = 19, [476] = 2,
+            [485] = 23, [487] = 20,
+        },
+    },
+    retail = {
+        skill = { [33388] = 75, [33391] = 150, [34090] = 225, [34091] = 300, [90265] = 375 },
+        sets = {
+            { { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 0, 0, 100, 320 } },
+            { { 375, 0, 100, 420, true }, { 300, 0, 100, 320, true }, { 225, 0, 100, 220, true }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 0, 0, 60 } },
+            { { 0, 0, 100 } },
+            { { 75, 376777, 100, "sky" }, { 375, 0, 100, 420, true }, { 300, 0, 100, 320, true }, { 225, 0, 100, 220, true }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 375, 0, 100, 310, true }, { 300, 0, 100, 280, true }, { 225, 0, 100, 150, true }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 0, 0, 0, "sky" } },
+            { { 1, 0, 100, "sky" }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 0, 0, 100, "sky" } },
+            { { 0, 0, 100, "sky" }, { 75, 0, 60 } },
+            { { 75, 376777, 100, "sky" }, { 0, 0, 0, "sky" } },
+            { { 75, 376777, 100, "sky" }, { 375, 0, 100, 310, true }, { 300, 0, 100, 280, true }, { 225, 0, 100, 150, true }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 375, 0, 100, 420, true }, { 300, 0, 100, 320, true }, { 225, 0, 100, 220, true }, { 0, 0, 0, "sky" } },
+        },
+        types = {
+            [230] = 1, [242] = 2, [247] = 3, [284] = 4, [291] = 5, [402] = 6, [407] = 7, [409] = 8,
+            [411] = 9, [412] = 1, [424] = 6, [426] = 10, [430] = 11, [435] = 12, [436] = 13, [437] = 6,
+            [442] = 14, [444] = 6, [445] = 6, [446] = 10, [447] = 5,
+        },
+    },
+}
+-- gps_riding.py: end
+
+local STEADY_STYLE = 404468   -- the "Flight Style: Steady" aura
+-- The capability sets of the mounts this character owns; nil until the
+-- journal is walked again (a mount learned or lost).
+local ownedSets
 
 function Route.ForgetKnown() knownCache = nil end
+function Route.ForgetMounts() ownedSets = nil end
 
 if CreateFrame then
     local f = CreateFrame("Frame")
     f:RegisterEvent("TAXI_NODE_STATUS_CHANGED")
     f:SetScript("OnEvent", function() knownCache = nil end)
+    local mounts = CreateFrame("Frame")
+    for _, event in ipairs({ "NEW_MOUNT_ADDED", "COMPANION_LEARNED", "COMPANION_UNLEARNED" }) do
+        if C_EventUtils and C_EventUtils.IsEventValid and C_EventUtils.IsEventValid(event) then mounts:RegisterEvent(event) end
+    end
+    mounts:SetScript("OnEvent", Route.ForgetMounts)
 end
 
--- This character's pace where it cannot fly: the fastest it was seen
--- riding, else on the 1.x game a run (a level says nothing of owning a
--- mount; a level 40 on foot was planned as if riding).
-function Route.GroundSpeed(data)
-    local speeds = data and data.speeds or {}
-    if Route.seenGroundSpeed and Route.seenGroundSpeed > 0 then return Route.seenGroundSpeed end
-    if data and data.classic then return speeds.run or 7 end
-    return speeds.mount or 14
+local function OwnedSets(rules)
+    if ownedSets then return ownedSets end
+    ownedSets = {}
+    local J = C_MountJournal
+    local ids = J and J.GetMountIDs and J.GetMountIDs()
+    for i = 1, ids and #ids or 0 do
+        local _, _, _, _, _, _, _, _, _, hidden, collected = J.GetMountInfoByID(ids[i])
+        if collected and not hidden then
+            local set = rules.types[select(5, J.GetMountInfoExtraByID(ids[i]))]
+            if set then ownedSets[set] = true end
+        end
+    end
+    return ownedSets
 end
+
+-- The capability the game picks: the first whose needs are met.
+local function Capability(set, riding, flyable, sky, steady)
+    for i = 1, #set do
+        local c = set[i]
+        if riding >= c[1] and (c[2] == 0 or (IsPlayerSpell and IsPlayerSpell(c[2]))) then
+            local fly = c[4]
+            if not fly or (fly == "sky" and sky and not steady) or (fly ~= "sky" and flyable and (steady or not c[5])) then
+                return c[3], fly
+            end
+        end
+    end
+end
+
+-- This character's pace on the ground and, where it can fly here, in the
+-- air, yards a second (flying nil). Riding skill, mounts owned and the
+-- zone, all as the client has them now.
+function Route.Riding(data)
+    local rules = RIDING[(data and data.classic) and "forever" or "retail"]
+    local riding = 0
+    for spell, skill in pairs(rules.skill) do
+        if skill > riding and IsPlayerSpell and IsPlayerSpell(spell) then riding = skill end
+    end
+    local okFly, flyable = pcall(IsFlyableArea)
+    flyable = okFly and flyable and true or false
+    local sky, steady = false, false
+    if flyable then
+        sky = IsAdvancedFlyableArea and IsAdvancedFlyableArea() and true or false
+        local aura = C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID and C_UnitAuras.GetPlayerAuraBySpellID(STEADY_STYLE)
+        if not (issecretvalue and issecretvalue(aura)) then steady = aura ~= nil end
+    end
+    local skySpeed = data and data.speeds and data.speeds.fly or 30
+    local groundPct, fly = nil, nil
+    for set in pairs(OwnedSets(rules)) do
+        local pct = Capability(rules.sets[set], riding, false, false, false)
+        if pct and (not groundPct or pct > groundPct) then groundPct = pct end
+        if flyable then
+            local _, flies = Capability(rules.sets[set], riding, flyable, sky, steady)
+            local speed = flies == "sky" and skySpeed or flies and RUN * (1 + flies / 100) or nil
+            if speed and (not fly or speed > fly) then fly = speed end
+        end
+    end
+    return groundPct and RUN * (1 + groundPct / 100) or RUN, fly
+end
+
+function Route.GroundSpeed(data) return (Route.Riding(data)) end
+-- For the dev tools' riding probe.
+Route.RIDING, Route.RidingCapability = RIDING, Capability
 
 -- Seconds for this many yards from a standstill, as the engine prices travel.
 -- opts.taxi: on a flight. opts.wind: a walk's yards walked per straight yard.
@@ -1040,14 +1167,14 @@ function Route:TravelSeconds(yards, opts)
     local speeds = data and data.speeds or { run = 7, mount = 14, fly = 30, taxi = 32 }
     if not yards or yards <= 5 then return 0 end
     if opts and opts.taxi then return yards / (speeds.taxi or 32) end
-    local canFly = opts and opts.canFly
+    local canFly, flySpeed = opts and opts.canFly, opts and opts.flySpeed
     if canFly == nil then
-        local ok, fly = pcall(IsFlyableArea)
-        canFly = ok and fly and true or false
+        local _, fly = Route.Riding(data)
+        canFly, flySpeed = fly ~= nil, fly
     end
-    if canFly then return MOUNT_UP + yards / (speeds.fly or 30) end
+    if canFly then return MOUNT_UP + yards / (flySpeed or speeds.fly or 30) end
     local speed = (opts and opts.groundSpeed) or Route.GroundSpeed(data)
-    local mountUp = speed <= (speeds.run or 7) + 0.5 and 0 or MOUNT_UP
+    local mountUp = speed <= RUN + 0.5 and 0 or MOUNT_UP
     return mountUp + yards * ((opts and opts.wind) or ((data and data.classic) and WALK_DETOUR or 1)) / speed
 end
 
@@ -1256,6 +1383,7 @@ function Route:Build(dest, opts)
         race = opts.race or (UnitRace and select(2, UnitRace("player"))) or nil,
         meets = opts.meets or Meets,
         canFly = opts.canFly,
+        flySpeed = opts.flySpeed,
         groundSpeed = opts.groundSpeed,
         hearth = opts.hearth,
         avoid = opts.avoid,
@@ -1269,11 +1397,11 @@ function Route:Build(dest, opts)
         cooldown = opts.cooldown or Cooldown,
         owns = opts.owns or Owns,
     }
-    if ctx.canFly == nil then
-        local ok, fly = pcall(IsFlyableArea)
-        ctx.canFly = ok and fly and true or false
+    if ctx.canFly == nil or not ctx.groundSpeed then
+        local ground, fly = Route.Riding(data)
+        if ctx.canFly == nil then ctx.canFly, ctx.flySpeed = fly ~= nil, fly end
+        ctx.groundSpeed = ctx.groundSpeed or ground
     end
-    if not ctx.groundSpeed and not ctx.canFly then ctx.groundSpeed = Route.GroundSpeed(data) end
     local g = BuildGraph(ctx)
     if dest.zone then ZoneGoal(g) end
     local path = Solve(g)

@@ -4,7 +4,8 @@ local H = require("Harness")
 
 -- Two continents: map 1 is continent 1, map 2 is continent 2. Map units
 -- are 10000 yards square so distances are easy to read.
-local function fresh()
+-- pre(env): the client as it is before Route.lua loads.
+local function fresh(pre)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -20,6 +21,7 @@ local function fresh()
         end,
     }
     env.GetTime = function() return 0 end
+    if pre then pre(env) end
     H.loadModule("Apps/GPS/Route.lua", env, ns)
     H.assertNotNil(ns.GPSRoute, "Route.lua must populate ns.GPSRoute")
     return env, ns, ns.GPSRoute
@@ -48,9 +50,10 @@ local function data()
     }
 end
 
--- Every step, the ways to a flight master, dock or portal included.
+-- Every step, the ways to a flight master, dock or portal included; a
+-- rider at 10 yards a second unless a test says.
 local function buildAll(Route, startPoint, dest, extra)
-    local opts = { data = data(), start = startPoint, faction = "Alliance", canFly = false,
+    local opts = { data = data(), start = startPoint, faction = "Alliance", canFly = false, groundSpeed = 10,
                    owns = function() return false end, cooldown = function() return 0 end }
     for k, v in pairs(extra or {}) do opts[k] = v end
     return Route:Build(dest, opts)
@@ -830,18 +833,104 @@ function tests.boat_timedWaitsForItsNextDeparture()
     H.assertTrue(boat.live, "the step says its wait is live")
 end
 
--- The 1.x game plans on foot until this character is seen riding, at any
--- level; once seen, at the pace it rode.
-function tests.groundSpeed_onFootUntilSeenRiding()
-    local env, _, Route = fresh()
+-- A character as the client has it: riding spells known, mounts owned
+-- ({ mount type, hidden on this character }), the zone's flying.
+local function rider(env, spells, mounts, zone)
+    local known = {}
+    for _, s in ipairs(spells) do known[s] = true end
+    env.IsPlayerSpell = function(s) return known[s] or false end
+    env.C_MountJournal = {
+        GetMountIDs = function()
+            local ids = {}
+            for i = 1, #mounts + 1 do ids[i] = i end   -- one not collected
+            return ids
+        end,
+        GetMountInfoByID = function(id)
+            local m = mounts[id]
+            return "Mount " .. id, id, 0, false, true, 0, false, false, nil, m and m[2] or false, m ~= nil
+        end,
+        GetMountInfoExtraByID = function(id) return nil, "", "", false, mounts[id] and mounts[id][1] or 230 end,
+    }
+    zone = zone or {}
+    env.IsFlyableArea = function() return zone.fly or false end
+    env.IsAdvancedFlyableArea = function() return zone.sky or false end
+    env.C_UnitAuras = { GetPlayerAuraBySpellID = function(s) return (zone.steady and s == 404468) and {} or nil end }
+end
+
+-- The 1.x game: a mount owned, the riding it needs known, at that mount's
+-- pace; a level says nothing.
+function tests.riding_foreverByMountsAndSkill()
     local d = data()
     d.classic = true
-    env.UnitLevel = function() return 60 end
-    Route.seenGroundSpeed = nil
-    H.assertEq(Route.GroundSpeed(d), d.speeds.run or 7, "level 60, no mount seen: a run")
-    Route.seenGroundSpeed = 11.2
-    H.assertEq(Route.GroundSpeed(d), 11.2, "seen riding: its pace")
-    Route.seenGroundSpeed = nil
+    local cases = {
+        { "no riding, a horse owned", {}, { { 469 } }, 7 },
+        { "apprentice and horse riding, a horse", { 33388, 824 }, { { 469 } }, 11.2 },
+        { "apprentice, a swift horse only", { 33388, 824 }, { { 470 } }, 7 },
+        { "journeyman, a horse and a swift horse", { 33388, 33391, 824 }, { { 469 }, { 470 } }, 14 },
+        { "apprentice, a ram without ram riding", { 33388, 824 }, { { 459 } }, 7 },
+        { "a warlock's felsteed, no riding", {}, { { 471 } }, 11.2 },
+        { "the other side's mount", { 33388, 825 }, { { 455, true } }, 7 },
+    }
+    for _, c in ipairs(cases) do
+        local env, _, Route = fresh()
+        rider(env, c[2], c[3])
+        local ground, fly = Route.Riding(d)
+        H.assertTrue(math.abs(ground - c[4]) < 0.01, c[1] .. ": " .. ground)
+        H.assertEq(fly, nil, c[1] .. ": no flying")
+    end
+end
+
+-- Retail: flying where the zone lets this character, skyriding at the
+-- recorded pace, steady flight at its riding's.
+function tests.riding_retailFliesWhereItCan()
+    local d = data()
+    local function ride(spells, mounts, zone)
+        local env, _, Route = fresh()
+        rider(env, spells, mounts, zone)
+        return Route.Riding(d)
+    end
+    local sky = { 33388, 33391, 34090, 90265, 376777 }
+    local _
+    local ground, fly = ride(sky, { { 424 } }, { fly = true, sky = true })
+    H.assertTrue(math.abs(ground - 14) < 0.01, "ground at 100%: " .. ground)
+    H.assertEq(fly, d.speeds.fly, "skyriding: the recorded pace")
+    _, fly = ride(sky, { { 424 } }, { fly = true, sky = true, steady = true })
+    H.assertTrue(math.abs(fly - 36.4) < 0.01, "steady at master riding, 420%: " .. tostring(fly))
+    _, fly = ride(sky, { { 424 } }, { fly = false })
+    H.assertEq(fly, nil, "no flying zone")
+    _, fly = ride(sky, { { 230 } }, { fly = true, sky = true })
+    H.assertEq(fly, nil, "a ground mount only")
+    _, fly = ride({ 33388, 33391 }, { { 424 } }, { fly = true, sky = true, steady = true })
+    H.assertEq(fly, nil, "steady style without expert riding")
+    ground = ride({}, { { 284 } })
+    H.assertTrue(math.abs(ground - 11.2) < 0.01, "chauffeured, no riding: " .. ground)
+end
+
+-- The journal walks once; a mount learned walks it again.
+function tests.riding_mountLearnedRereads()
+    local frames = {}
+    local env, _, Route = fresh(function(e)
+        e.C_EventUtils = { IsEventValid = function() return true end }
+        local make = e.CreateFrame
+        e.CreateFrame = function(...)
+            local f, events = make(...), {}
+            f.RegisterEvent = function(_, ev) events[ev] = true end
+            f._events = events
+            frames[#frames + 1] = f
+            return f
+        end
+    end)
+    local d = data()
+    d.classic = true
+    local mounts = {}
+    rider(env, { 33388, 824 }, mounts)
+    H.assertEq(Route.Riding(d), 7, "nothing owned")
+    mounts[1] = { 469 }
+    H.assertEq(Route.Riding(d), 7, "held until the journal changes")
+    for _, f in ipairs(frames) do
+        if f._events.NEW_MOUNT_ADDED then f._handlers.OnEvent(f, "NEW_MOUNT_ADDED") end
+    end
+    H.assertTrue(math.abs(Route.Riding(d) - 11.2) < 0.01, "the new horse")
 end
 
 -- A report: one line the dev replay reads back, every field in its place.

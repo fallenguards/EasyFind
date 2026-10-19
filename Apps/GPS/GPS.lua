@@ -52,7 +52,6 @@ local SIZE_HEIGHTS = { { nil, "GPS_SIZE_FIT" }, { 160, "GPS_SIZE_SHORT" }, { 240
 local ticker
 local surfaces = {}     -- every container that renders the route
 GPS.Surfaces = function() return surfaces end   -- dev tools
-local SampleGroundSpeed -- defined with the recorders at the end
 local popoutFrame       -- built on first use by the pop-out below
 
 local function DB()
@@ -928,7 +927,6 @@ local function Tick()
     if not route or route.arrived then StopTicker() return end
     local step = route.steps[route.active or 1]
     if not step then StopTicker() return end
-    SampleGroundSpeed()
     -- Planned from elsewhere: no countdown and no starting over until the
     -- player reaches the start.
     local planned = route.origin and not route.joined
@@ -1054,8 +1052,8 @@ function GPS.Navigated(dest, steps, total, advice, stops)
     local ci, wx, wy
     if origin then ci, wx, wy = origin.ci, origin.wx, origin.wy else ci, wx, wy = PlayerWorldPos() end
     local from = ci and { ci = ci, wx = wx, wy = wy } or nil
-    local okFly, fly = pcall(IsFlyableArea)
     local Engine = ns.GPSRoute
+    local flies = Engine and select(2, Engine.Riding(ns.GPSData)) ~= nil
     -- The report's start: the world spot and the map spot it was on.
     local start = from and { ci = ci, wx = wx, wy = wy } or nil
     if start and origin then
@@ -1070,7 +1068,7 @@ function GPS.Navigated(dest, steps, total, advice, stops)
     local skip = old and old.dest and old.dest.name == dest.name and old.dest.mapID == dest.mapID and old.skipLearn or nil
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
                        from = from, origin = origin, stops = stops or { dest }, skipLearn = skip,
-                       report = { from = start, total = total, t = time(), fly = okFly and fly and true or false,
+                       report = { from = start, total = total, t = time(), fly = flies,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     if GPS.AfterRoute then GPS.AfterRoute() end
     -- A new route opens up, whatever the last one was folded to.
@@ -4748,26 +4746,6 @@ local function RecordKnownFlights()
     end)
 end
 
--- This character's mounted pace on the ground, the fastest seen.
-SampleGroundSpeed = function()
-    if not (IsMounted and IsMounted()) or (UnitOnTaxi and UnitOnTaxi("player")) then return end
-    if (IsFlying and IsFlying()) or (IsSwimming and IsSwimming()) then return end
-    -- The run pace is the mount's, standing too.
-    local _, speed = GetUnitSpeed("player")
-    if not speed or (issecretvalue and issecretvalue(speed)) or speed <= 7.5 or speed > 40 then return end
-    local c = CharDB()
-    if c and (not c.groundSpeed or speed > c.groundSpeed + 0.05) then
-        c.groundSpeed = speed
-        if ns.GPSRoute then ns.GPSRoute.seenGroundSpeed = speed end
-    end
-end
-if C_EventUtils and C_EventUtils.IsEventValid and C_EventUtils.IsEventValid("PLAYER_MOUNT_DISPLAY_CHANGED") then
-    -- Mounting anywhere records the pace, not only while a route ticks.
-    local mountWatch = CreateFrame("Frame")
-    mountWatch:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
-    mountWatch:SetScript("OnEvent", function() Utils.SafeAfter(0.5, SampleGroundSpeed) end)
-end
-
 -- The GPS page in the options' Extensions tab: how the beacon looks, or
 -- no beacon (the same switch as the beacon row in the GPS menu).
 local function BuildOptionsPage(ctx, page)
@@ -5024,8 +5002,9 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     local cc = CharDB()
     if cc and ns.GPSRoute then
         ns.GPSRoute.recordedKnown = cc.flights
-        ns.GPSRoute.seenGroundSpeed = cc.groundSpeed
     end
+    -- A stale field of older saves.
+    if cc then cc.groundSpeed = nil end
     -- Routes once lived on the account; one left there is dropped, not
     -- handed to whichever character logs in next.
     if db then db.gpsRoute, db.gpsPopoutOpen = nil, nil end
