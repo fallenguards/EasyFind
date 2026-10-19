@@ -2795,6 +2795,32 @@ function ns.CreateRoundedRectBorder(frame)
     frame:HookScript("OnSizeChanged", ApplyContainerCornerSize)
 end
 
+-- A small rounded well with a crisp 1 px ring: a filled shape in the
+-- ring's color, the fill drawn 1 px inside it. The ring art's line is 2 px
+-- of a 256 px texture: scaled to corners under 16 px it draws under a
+-- pixel, gone on the edges and broken on the corners (test_thin_rings).
+-- radius: the outer corner. Paint it with ns.PaintRingedWell.
+function ns.CreateRingedWell(frame, radius)
+    local inset = CreateFrame("Frame", nil, frame)
+    inset:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+    inset:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    inset:SetFrameLevel(frame:GetFrameLevel() + 1)
+    for _, shape in ipairs({ frame, inset }) do
+        ns.CreateRoundedRectBorder(shape)
+        ns.SetRoundedRectBorderEdgeShown(shape, false)
+        ns.SetRoundedRectBorderBgAlpha(shape, 1)
+    end
+    ns.SetRoundedRectBarHeight(frame, radius * 2)
+    ns.SetRoundedRectBarHeight(inset, (radius - 1) * 2)
+    frame.ringInset = inset
+    return inset
+end
+
+function ns.PaintRingedWell(frame, ring, fill)
+    ns.SetRoundedRectFill(frame, ring[1], ring[2], ring[3], ring[4] or 1, true)
+    ns.SetRoundedRectFill(frame.ringInset, fill[1], fill[2], fill[3], fill[4] or 1, true)
+end
+
 -- Corner radius tracks BAR height, not container height (which grows
 -- when results open). Callers must pin it via this setter on creation
 -- and again whenever fontSize / theme changes the bar's pixel height.
