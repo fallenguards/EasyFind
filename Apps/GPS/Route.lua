@@ -1023,15 +1023,13 @@ if CreateFrame then
     f:SetScript("OnEvent", function() knownCache = nil end)
 end
 
--- This character's pace where it cannot fly: its mounted speed as last
--- seen, else on the 1.x game a mount from level 40 and a run before it.
+-- This character's pace where it cannot fly: the fastest it was seen
+-- riding, else on the 1.x game a run (a level says nothing of owning a
+-- mount; a level 40 on foot was planned as if riding).
 function Route.GroundSpeed(data)
     local speeds = data and data.speeds or {}
     if Route.seenGroundSpeed and Route.seenGroundSpeed > 0 then return Route.seenGroundSpeed end
-    if data and data.classic then
-        local lvl = UnitLevel and UnitLevel("player") or 0
-        return lvl >= 40 and (speeds.mount or 11.2) or (speeds.run or 7)
-    end
+    if data and data.classic then return speeds.run or 7 end
     return speeds.mount or 14
 end
 

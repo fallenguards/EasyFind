@@ -34,7 +34,7 @@ read_globals = {
     -- WoW Lua extensions
     "bit",
     "debugstack", "debugprofilestart", "debugprofilestop", "strsplit", "strtrim", "wipe", "hooksecurefunc",
-    "format", "time", "date",
+    "format", "time", "date", "C_EventUtils",
 
     -- Alerts
     "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting",
