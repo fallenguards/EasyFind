@@ -441,7 +441,8 @@ local Planner = { frame = CreateFrame("Frame"), IDLE_RELEASE = 60 }
 
 -- A minute after the last plan the grid's decoded data goes (Nav.Release);
 -- what the arrow still reads stays, and the check comes round again
--- while anything is held.
+-- while anything is held. With no route left, the drawn walks and the
+-- searches' grown tables go too.
 function Planner.ReleaseLater()
     if Planner.releaseWaits then return end
     Planner.releaseWaits = true
@@ -449,6 +450,11 @@ function Planner.ReleaseLater()
         Planner.releaseWaits = false
         local Nav = ns.GPSNav
         if GPS:IsPlanning() or (Nav and Nav.Release(Planner.IDLE_RELEASE)) then Planner.ReleaseLater() end
+        local route = Route()
+        if Nav and not GPS:IsPlanning() and not (route and not route.arrived) then
+            Nav.FreshScratch()
+            ns.GPSRoute.ForgetWalkPaths()
+        end
     end)
 end
 
@@ -1420,6 +1426,8 @@ function GPS:Clear()
     GPS.picking = nil
     GPS:EndAlong()
     StopTicker()
+    -- Nothing to follow now: what its walks decoded goes after a minute.
+    Planner.ReleaseLater()
     Refresh()
     if ns.MapTab and ns.MapTab.ShowSearchView then ns.MapTab:ShowSearchView() end
 end

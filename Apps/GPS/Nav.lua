@@ -499,8 +499,8 @@ end
 -- and time tables are fresh, the caller's to hold on to.
 local function NewScratch() return { prev = {}, closed = {}, cost = {}, time = {}, buckets = {}, lists = {}, heap = NewHeap() } end
 local scratchMain, scratchPlan = NewScratch(), NewScratch()
--- dev tools: a wiped table keeps its grown size; fresh ones let it go
-function Nav._FreshScratch() scratchMain, scratchPlan = NewScratch(), NewScratch() end
+-- A wiped table keeps its grown size; fresh ones let it go.
+function Nav.FreshScratch() scratchMain, scratchPlan = NewScratch(), NewScratch() end
 local function TileSearch(w, t, g0, goal, want, left, keep)
     local s = (Nav.yieldCo and corunning() == Nav.yieldCo) and scratchPlan or scratchMain
     local prev, closed = s.prev, s.closed
