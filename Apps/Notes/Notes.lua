@@ -6647,13 +6647,14 @@ end
 
 -- "Shows on" tooltip annotations: surface a brief note line on the linked
 -- object's tooltip. Independent of the legacy per-item itemNotes store.
+-- A note with nothing written in it yet has no line to show.
 local function ShowsOnNotesFor(objType, objID)
     if objID == nil then return nil end
     local notes = NotesStore()
     local out
     for i = 1, #notes do
         local n = notes[i]
-        if n and n.showsOn then
+        if n and n.showsOn and sfind(PlainSearchText(n), "%S") then
             for j = 1, #n.showsOn do
                 local s = n.showsOn[j]
                 if s.type == objType and s.id == objID then
@@ -6675,9 +6676,10 @@ local function AddShowsOnLines(tooltip, objType, objID)
         local n = hits[i]
         local body = StripColorEscapes(MapSelection((n.body or ""):gsub("\n+", "  "), GlyphPlain))
         if #body > 120 then body = body:sub(1, 120) .. "..." end
-        if body == "" then body = NoteTitle(n) end
-        local c = UI:GetEasyNotesTooltipColor()
-        tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), c.r, c.g, c.b, true)
+        if body ~= "" then
+            local c = UI:GetEasyNotesTooltipColor()
+            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), c.r, c.g, c.b, true)
+        end
     end
 end
 
