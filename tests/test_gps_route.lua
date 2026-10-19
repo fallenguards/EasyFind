@@ -173,6 +173,8 @@ function tests.advice_namesTheFlightPathWorthLearning()
     H.assertEq(advice.learn.id, 3)
     H.assertTrue(advice.learn.save > 500, "8000 yd on a mount against a 200 s flight: " .. tostring(advice.learn.save))
     H.assertTrue(advice.learn.total < total, "the trip with it learned is shorter")
+    H.assertTrue(advice.learn.from ~= nil, "it names the master that trip flies to it from")
+    H.assertTrue(advice.learn.from ~= advice.learn.name, "another master: " .. tostring(advice.learn.from))
 end
 
 -- A stop to learn a flight master: there, learn it, then fly on from it.

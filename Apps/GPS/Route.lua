@@ -927,6 +927,13 @@ local function BestToLearn(ctx, g, total, usedAsOrigin)
         local save = total - t2
         if save >= SUGGEST_MIN_SECONDS and save >= total / 6 and (not best or save > best.save) then
             best = { id = trip.c.id, name = trip.c.n.name, p = trip.c.n.p, save = save, total = t2 }
+            -- The master that trip flies to it from, as the tip names it.
+            local into = trip.g.taxiIdx[trip.c.id]
+            for k = 2, #path2 do
+                if path2[k].node == into and path2[k].edge.kind == "taxi" then
+                    best.from = trip.g.nodes[path2[k - 1].node].name
+                end
+            end
         end
     end
     return best
