@@ -112,6 +112,20 @@ local function RowEntered(popup, row)
     end
     local fly = popup.flyout
     if fly and fly._togglePopup == popup and fly:IsShown() then fly:Hide() end
+    -- A row with a tooltip says what it does beside the popup.
+    local tip = row.def and row.def.tooltip
+    if tip then
+        GameTooltip:SetOwner(popup, "ANCHOR_NONE")
+        GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("TOPLEFT", popup, "TOPRIGHT", 4, 0)
+        GameTooltip:SetText(row.def.label or "", 1, 1, 1)
+        GameTooltip:AddLine(tip, nil, nil, nil, true)
+        GameTooltip:Show()
+    end
+end
+
+local function RowLeft(popup, row)
+    if row.def and row.def.tooltip and GameTooltip:GetOwner() == popup then GameTooltip_Hide() end
 end
 
 local function MakeCheckRow(popup)
@@ -126,6 +140,7 @@ local function MakeCheckRow(popup)
     row._label = row.label
     Utils.InstallMenuRowHighlight(row)
     row:HookScript("OnEnter", function(self) RowEntered(popup, self) end)
+    row:HookScript("OnLeave", function(self) RowLeft(popup, self) end)
     row:SetScript("OnClick", function(self)
         local def = self.def
         if not def then return end
@@ -154,6 +169,7 @@ local function MakePlainRow(popup)
     row._dimTex = { row.bullet, row.tick }
     Utils.InstallMenuRowHighlight(row)
     row:HookScript("OnEnter", function(self) RowEntered(popup, self) end)
+    row:HookScript("OnLeave", function(self) RowLeft(popup, self) end)
     row:SetScript("OnClick", function(self)
         local def = self.def
         if not def then return end

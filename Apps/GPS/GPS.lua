@@ -2686,7 +2686,7 @@ function GPS:Launch()
 end
 
 function GPS.LaunchRow()
-    return { kind = "check", label = L["GPS_LAUNCH_WINDOW"], get = GPS.LaunchesWindow,
+    return { kind = "check", label = L["GPS_LAUNCH_WINDOW"], tooltip = L["GPS_LAUNCH_WINDOW_TT"], get = GPS.LaunchesWindow,
         set = function(v)
             local db = DB()
             if db then db.gpsLaunchWindow = v or nil end
@@ -2724,11 +2724,17 @@ ShowGameMenu = function(owner, defs)
             elseif d.kind == "check" then
                 -- The menu stays up and redraws the box after a click; an
                 -- error in the flip is reported, not swallowed.
-                root:CreateCheckbox(d.label, function() return d.get() and true or false end, function()
+                local box = root:CreateCheckbox(d.label, function() return d.get() and true or false end, function()
                     local ok2, err = pcall(d.set, not d.get())
                     if not ok2 and EasyFind.Print then EasyFind:Print("GPS menu: " .. tostring(err)) end
                     return MenuResponse and MenuResponse.Refresh or nil
                 end)
+                if d.tooltip and box and box.SetTooltip then
+                    box:SetTooltip(function(tip)
+                        tip:SetText(d.label, 1, 1, 1)
+                        tip:AddLine(d.tooltip, nil, nil, nil, true)
+                    end)
+                end
             elseif d.kind == "radio" then
                 root:CreateRadio(d.label, function() return d.get() == d.value end, function()
                     local ok2, err = pcall(d.set)
