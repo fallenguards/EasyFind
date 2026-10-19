@@ -382,9 +382,7 @@ end
 
 -- Rows, keys, the options page and an open list all follow the data.
 function Quicklists:Changed()
-    if ns.Database and ns.Database.RefreshDynamicCategory then
-        ns.Database:RefreshDynamicCategory("quicklists")
-    end
+    EasyFind.API.RefreshSearchProvider("quicklists")
     self:ApplyBindings()
     if ns.Options and ns.Options.RefreshQuicklistsPage then ns.Options:RefreshQuicklistsPage() end
     local qf = ns.Filters and ns.Filters:GetQuickFilter()
@@ -509,6 +507,15 @@ EasyFind.API.RegisterExtension({
     open = function() EasyFind.API.OpenSettings("quicklists") end,
     isOpen = function() return EasyFind.API.IsSettingsOpen("quicklists") end,
     close = EasyFind.API.CloseSettings,
+})
+
+-- The lists a search finds; a click opens that list in the bar.
+EasyFind.API.RegisterSearchProvider({
+    key = "quicklists", category = "Quicklist", extension = "quicklists",
+    label = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX, tint = true,
+    eager = true, aliases = { "ql", "quicklist", "quicklists" },
+    rows = function() return Quicklists:BuildSearchData() end,
+    select = function(row) if row.quicklistID then Quicklists:OpenSoon(row.quicklistID) end end,
 })
 
 -- ==== wiring ================================================================

@@ -27,10 +27,18 @@ local BUNDLED = {
     chat = { "Core/Extensions.lua" },
 }
 
-local function Registers(path, id)
+local function Registers(path, id, fn, field)
     local src = Read(path) or ""
-    for call in src:gmatch("RegisterExtension%b()") do
-        if call:find('id%s*=%s*"' .. id .. '"') then return true end
+    for call in src:gmatch((fn or "RegisterExtension") .. "%b()") do
+        if call:find((field or "id") .. '%s*=%s*"' .. id .. '"') then return true end
+    end
+    return false
+end
+
+local function RegistersIn(place, id, fn, field)
+    local files = place:match("%.lua$") and { place } or LuaFiles(place)
+    for _, f in ipairs(files) do
+        if Registers(f, id, fn, field) then return true end
     end
     return false
 end
@@ -40,12 +48,32 @@ local tests = {}
 function tests.eachBundledExtension_registersThroughTheAPI()
     for id, places in pairs(BUNDLED) do
         for _, place in ipairs(places) do
-            local files = place:match("%.lua$") and { place } or LuaFiles(place)
-            local found = false
-            for _, f in ipairs(files) do found = found or Registers(f, id) end
-            H.assertTrue(found, id .. " registers in " .. place)
+            H.assertTrue(RegistersIn(place, id), id .. " registers in " .. place)
         end
     end
+end
+
+-- The extensions' search results, the same way.
+local PROVIDERS = {
+    snippets = { "Apps/Snippets" }, clipboard = { "Apps/Clipboard" }, quicklists = { "Apps/Quicklists" },
+    notes = { "Apps/Notes", "Core/Extensions.lua" }, chat = { "Core/Extensions.lua" },
+}
+
+function tests.eachBundledProvider_registersThroughTheAPI()
+    for key, places in pairs(PROVIDERS) do
+        for _, place in ipairs(places) do
+            H.assertTrue(RegistersIn(place, key, "RegisterSearchProvider", "key"),
+                key .. " results register in " .. place)
+        end
+    end
+end
+
+function tests.core_listsNoExtensionCategory()
+    H.assertNil((Read("Shared/CategoryMap.lua") or ""):find('parent = "extensions"', 1, true),
+        "an extension's category comes with its registration")
+    local config = (Read("Search/Filters/Config.lua") or ""):gsub("\r", "")
+    H.assertTrue(config:find('key = "extensions",%s+label = [^\n]+\n%s+flyoutSubFilters = {} }') ~= nil,
+        "the Extensions filter row starts empty")
 end
 
 -- The flags core once kept per extension live on only where old stored

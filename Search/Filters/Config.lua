@@ -16,11 +16,6 @@ local ACHIEVEMENT_FILTER_LABELS = {
     incomplete = ns.ACH_LABEL_INCOMPLETE,
 }
 
--- Clipboard History's view rows (kinds shown, order) rebuild the list
--- that is open.
-local function RefreshClipboardView()
-    if ns.Clipboard and ns.Clipboard.Refresh then ns.Clipboard:Refresh(true) end
-end
 local UI_FILTER_OPTIONS = {
     -- Abilities: boss-skull icon from the Encounter Journal boss tab
     -- spritesheet (texture 522972).
@@ -219,62 +214,10 @@ local UI_FILTER_OPTIONS = {
               { dbKey = "hideTooltips.talents", label = L["FILTER_HIDE_TOOLTIPS"] },
           },
       } },
-    -- Extensions: the umbrella for the extension apps' own result
-    -- categories; each sub-filter's settings live on its Options tab.
+    -- Extensions: the umbrella for the extensions' own results; each adds
+    -- its row here when it registers (EasyFind.API.RegisterSearchProvider).
     { key = "extensions",  label = L["FILTER_EXTENSIONS"], iconTex = ns.EXTENSIONS_ICON_TEX,
-      flyoutSubFilters = {
-          { key = "snippets", label = L["FILTER_SNIPPETS"], iconTex = ns.SNIPPET_ICON_TEX,
-            iconCoords = ns.SNIPPET_ICON_COORDS, companion = "EasyFind_Snippets",
-            hasOptions = true,
-            checkboxOptions = {
-                { dbKey = "snippetChatExpansion",
-                  label = function()
-                      return Utils.sformat(L["SNIPPET_EXPAND_IN_CHAT"],
-                          ns.Snippets and ns.Snippets.TriggerChar() or "\\")
-                  end,
-                  tooltip = function()
-                      return Utils.sformat(L["SNIPPET_KEYWORD_HINT"],
-                          ns.Snippets and ns.Snippets.TriggerChar() or "\\")
-                  end },
-            } },
-          { key = "clipboard", label = L["FILTER_CLIPBOARD"], iconTex = ns.CLIPBOARD_ICON_TEX,
-            iconCoords = ns.CLIPBOARD_ICON_COORDS, companion = "EasyFind_Clipboard",
-            hasOptions = true,
-            checkboxOptions = {
-                { dbKey = "clipboardCopied", label = L["CLIP_OPT_COPIED"], tooltip = L["CLIP_OPT_COPIED_TT"] },
-                { dbKey = "clipboardPasted", label = L["CLIP_OPT_PASTED"], tooltip = L["CLIP_OPT_PASTED_TT"] },
-                { dbKey = "clipboardChat", label = L["CLIP_OPT_CHAT"], tooltip = L["CLIP_OPT_CHAT_TT"] },
-                { dbKey = "clipboardWhispers", label = L["CLIP_OPT_WHISPERS"], tooltip = L["CLIP_OPT_WHISPERS_TT"] },
-                { dbKey = "clipboardSent", label = L["CLIP_OPT_SENT"], tooltip = L["CLIP_OPT_SENT_TT"] },
-                { dbKey = "clipboardLastCopiedRow", label = L["CLIP_OPT_LAST_ROW"], tooltip = L["CLIP_OPT_LAST_ROW_TT"] },
-                -- The view: which kinds show, and the order. Each change
-                -- rebuilds the open list.
-                { header = L["CLIP_OPT_SHOW"] },
-                { dbKey = "clipboardKindLink", label = L["CLIP_KIND_LINK"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindEflink", label = L["CLIP_KIND_EFLINK"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindMappin", label = L["CLIP_KIND_MAPPIN"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindUrl", label = L["CLIP_KIND_URL"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindCommand", label = L["CLIP_KIND_COMMAND"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindNumber", label = L["CLIP_KIND_NUMBER"], onChange = RefreshClipboardView },
-                { dbKey = "clipboardKindText", label = L["CLIP_KIND_TEXT"], onChange = RefreshClipboardView },
-                { separator = true },
-                { dbKey = "clipboardOldestFirst", label = L["CLIP_OPT_OLDEST_FIRST"],
-                  tooltip = L["CLIP_OPT_OLDEST_FIRST_TT"], onChange = RefreshClipboardView },
-            } },
-          { key = "notes", label = L["APP_NOTES"], iconTex = ns.NOTES_ICON_TEX,
-            iconCoords = ns.NOTES_ICON_COORDS, companion = "EasyFind_Notes",
-            hasOptions = true,
-            checkboxOptions = {
-                { dbKey = "notesHereFilter", label = L["NOTES_OPT_HERE"], tooltip = L["NOTES_OPT_HERE_TT"] },
-                { dbKey = "notesTooltips", label = L["NOTES_OPT_TOOLTIPS"], tooltip = L["NOTES_OPT_TOOLTIPS_TT"] },
-                { dbKey = "notesChatNames", label = L["NOTES_OPT_CHAT_NAMES"], tooltip = L["NOTES_OPT_CHAT_NAMES_TT"] },
-                { dbKey = "notesPlayerMenu", label = L["NOTES_OPT_PLAYER_MENU"], tooltip = L["NOTES_OPT_PLAYER_MENU_TT"] },
-                { dbKey = "notesSurfaceHere", label = L["NOTES_OPT_SURFACE"], tooltip = L["NOTES_OPT_SURFACE_TT"] },
-            } },
-          { key = "chat", label = L["APP_CHAT"], iconTex = ns.CHAT_ICON_TEX, companion = "EasyFind_Chat" },
-          { key = "quicklists", label = L["FILTER_QUICKLISTS"], iconTex = ns.QUICKLIST_ICON_TEX,
-            companion = "EasyFind_Quicklists" },
-      } },
+      flyoutSubFilters = {} },
     -- Title icon from PaperDollSidebarTab2 (Titles tab) spritesheet 514608.
     -- Titles you have not earned are opt-in: they outnumber earned ones many
     -- times over, so the default stays Earned and the other modes are a
@@ -514,5 +457,19 @@ end
 if ns.Caps and ns.Caps.PruneRows then ns.Caps.PruneRows(UI_FILTER_OPTIONS) end
 
 Filters.UI_FILTER_OPTIONS = UI_FILTER_OPTIONS
+
+-- An extension's filter row under Extensions (EasyFind.API). The menu is
+-- built once: a row added later shows from the next session on.
+function Filters.AddExtensionFilter(sub)
+    for _, opt in ipairs(UI_FILTER_OPTIONS) do
+        if opt.key == "extensions" then
+            for _, s in ipairs(opt.flyoutSubFilters) do
+                if s.key == sub.key then return end
+            end
+            opt.flyoutSubFilters[#opt.flyoutSubFilters + 1] = sub
+            return
+        end
+    end
+end
 Filters.ForEachFilterKey = ForEachFilterKey
 Filters.GetUIBucket = GetUIBucket

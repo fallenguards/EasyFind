@@ -9,9 +9,10 @@ local ipairs = Utils.ipairs
 local type = Utils.type
 
 -- A sub-filter's options flyout when those options are a few plain
--- toggles on EasyFind.db keys (Snippets, Clipboard History under
--- Extensions): built from the sub-filter's `checkboxOptions` list, each
--- { dbKey, label, tooltip, onChange } with label and tooltip either a
+-- toggles (an extension's filter options under Extensions): built from
+-- the sub-filter's `checkboxOptions` list, each { get, set, label,
+-- tooltip } or { dbKey, label, tooltip, onChange } (an EasyFind.db key),
+-- label and tooltip either a
 -- string or a function (labels that carry the live snippet trigger). A
 -- { header = text } entry is a dim caption over the rows that follow; a
 -- { separator = true } entry is a rule between groups.
@@ -73,7 +74,11 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
         row.def = def
         row:SetScript("OnClick", function(self)
             local value = self:GetChecked() and true or false
-            EasyFind.db[def.dbKey] = value
+            if def.set then
+                ns.Extensions.Run(def.set, value)
+            else
+                EasyFind.db[def.dbKey] = value
+            end
             if def.onChange then def.onChange(value) end
         end)
         if def.tooltip then
@@ -91,7 +96,12 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
         for i = 1, #rows do
             local def = rows[i].def
             rows[i]._label:SetText(Resolve(def.label) or "")
-            rows[i]:SetChecked(EasyFind.db[def.dbKey] ~= false)
+            if def.get then
+                local ok, on = ns.Extensions.Run(def.get)
+                rows[i]:SetChecked(ok and on and true or false)
+            else
+                rows[i]:SetChecked(EasyFind.db[def.dbKey] ~= false)
+            end
         end
     end
     return popup, sync

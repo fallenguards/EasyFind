@@ -1313,7 +1313,7 @@ local function RefreshSearchRows()
     searchRefreshDue = true
     Utils.SafeAfter(0.3, function()
         searchRefreshDue = nil
-        if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory("notes") end
+        EasyFind.API.RefreshSearchProvider("notes")
     end)
 end
 
@@ -8452,4 +8452,8 @@ end
 -- loads; the window is the rest.
 EasyFind.API.RegisterExtension({
     id = "notes", open = notesNS.Open, close = notesNS.Close, isOpen = notesNS.IsOpen,
+})
+EasyFind.API.RegisterSearchProvider({
+    key = "notes", rows = notesNS.BuildSearchData,
+    select = function(row) if row.noteID then notesNS.OpenNote(row.noteID) end end,
 })

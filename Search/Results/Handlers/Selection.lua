@@ -325,46 +325,16 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
-    -- Snippet rows resolve by name (stable across pins and list edits;
-    -- the create row carries nativeRun and never reaches this branch).
-    -- Selecting opens the editor; chat use goes through the keyword
-    -- expansion, a snippet shortkey, or the row's Send menu.
-    if data.category == "Snippet" and ns.Snippets then
-        local snippetName = data.name
-        self:FinishResultSelection()
-        ns.Snippets:EditByName(snippetName)
+    -- An extension's own rows (EasyFind.API.RegisterSearchProvider).
+    if ns.Extensions and ns.Extensions.SelectRow(data, function() self:FinishResultSelection() end) then
         return
     end
 
-    -- Clipboard rows: the entry goes into the chat box, live link and all
-    -- (the launcher row carries nativeRun and never reaches this branch).
-    if data.clipID and ns.Clipboard then
-        local clipID = data.clipID
-        self:FinishResultSelection()
-        ns.Clipboard:Activate(clipID)
-        return
-    end
-
-    -- A quicklist row opens that list in the bar.
+    -- A single quicklist's button opens that list in the bar.
     if data.quicklistID and ns.Quicklists then
         local listID = data.quicklistID
         self:FinishResultSelection()
         ns.Quicklists:OpenSoon(listID)
-        return
-    end
-
-    -- Note rows open the note (the "New note" row carries nativeRun).
-    if data.noteID and ns.RequestNotes then
-        local noteID = data.noteID
-        self:FinishResultSelection()
-        if ns.RequestNotes() and ns.Notes.OpenNote then ns.Notes.OpenNote(noteID) end
-        return
-    end
-    -- Chat rows open the messenger at the conversation, at the message.
-    if data.chatKey and ns.RequestChat then
-        local key, index = data.chatKey, data.chatMessageIndex
-        self:FinishResultSelection()
-        if ns.RequestChat() and ns.Chat.OpenConversation then ns.Chat:OpenConversation(key, index) end
         return
     end
 

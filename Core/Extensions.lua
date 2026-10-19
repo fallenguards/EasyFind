@@ -26,3 +26,26 @@ API.RegisterExtension({
     icon = ns.CHAT_ICON_TEX, tint = true,
     keywords = { "chat" },
 })
+
+-- Their search results, the same way: the rows come with the addon.
+API.RegisterSearchProvider({
+    key = "notes", category = "Notes", extension = "notes",
+    label = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS, tint = true,
+    words = { "note", "notes" }, lowResults = true, eager = true, aliases = { "note", "notes" },
+    options = {
+        ns.Extensions.DbOption("notesHereFilter", L["NOTES_OPT_HERE"], L["NOTES_OPT_HERE_TT"]),
+        ns.Extensions.DbOption("notesTooltips", L["NOTES_OPT_TOOLTIPS"], L["NOTES_OPT_TOOLTIPS_TT"]),
+        ns.Extensions.DbOption("notesChatNames", L["NOTES_OPT_CHAT_NAMES"], L["NOTES_OPT_CHAT_NAMES_TT"]),
+        ns.Extensions.DbOption("notesPlayerMenu", L["NOTES_OPT_PLAYER_MENU"], L["NOTES_OPT_PLAYER_MENU_TT"]),
+        ns.Extensions.DbOption("notesSurfaceHere", L["NOTES_OPT_SURFACE"], L["NOTES_OPT_SURFACE_TT"]),
+    },
+})
+
+-- Chat's messages: a messenger never opened has nothing to find, so its
+-- addon loads for a search only once it has been used.
+API.RegisterSearchProvider({
+    key = "chat", category = "Chat", extension = "chat",
+    label = L["APP_CHAT"], icon = ns.CHAT_ICON_TEX, tint = true,
+    words = { "chat", "message", "messages", "whisper", "whispers", "conversation" },
+    loadOnSearch = function() return EasyFind.db and EasyFind.db.chatInUse end,
+})

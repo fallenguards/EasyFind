@@ -2718,54 +2718,10 @@ function Database:PopulateDynamicOutfits()
     return true
 end
 
-function Database:PopulateDynamicSnippets()
-    RemoveEntriesByCategory("Snippet")
-    local entries = ns.Snippets and ns.Snippets.BuildSearchData
-        and ns.Snippets:BuildSearchData()
-    if not entries then return false end
-    for i = 1, #entries do
-        uiSearchData[#uiSearchData + 1] = entries[i]
-    end
-    return true
-end
-
-function Database:PopulateDynamicClipboard()
-    RemoveEntriesByCategory("Clipboard")
-    local entries = ns.Clipboard and ns.Clipboard.BuildSearchData
-        and ns.Clipboard:BuildSearchData()
-    if not entries then return false end
-    for i = 1, #entries do
-        uiSearchData[#uiSearchData + 1] = entries[i]
-    end
-    return true
-end
-
-function Database:PopulateDynamicNotes()
-    RemoveEntriesByCategory("Notes")
-    local entries = ns.Notes and ns.Notes.BuildSearchData and ns.Notes.BuildSearchData()
-    if not entries then return false end
-    for i = 1, #entries do
-        uiSearchData[#uiSearchData + 1] = entries[i]
-    end
-    return true
-end
-
--- The messenger's conversations and messages; the companion loads here
--- on first use, as its filter or words ask for it.
-function Database:PopulateDynamicChat()
-    RemoveEntriesByCategory("Chat")
-    -- A chat never opened has nothing to find: no companion load mid-keystroke.
-    if not ns.Chat and ns.RequestChat and EasyFind.db and EasyFind.db.chatInUse then ns.RequestChat() end
-    local entries = ns.Chat and ns.Chat.BuildSearchData and ns.Chat:BuildSearchData()
-    if not entries then return false end
-    for i = 1, #entries do
-        uiSearchData[#uiSearchData + 1] = entries[i]
-    end
-    return true
-end
-function Database:PopulateDynamicQuicklists()
-    RemoveEntriesByCategory("Quicklist")
-    local entries = ns.Quicklists and ns.Quicklists:BuildSearchData()
+-- An extension's rows replace its category's (EasyFind.API providers);
+-- none yet (its addon not loaded) leaves the category empty.
+function Database:ReplaceCategoryEntries(category, entries)
+    RemoveEntriesByCategory(category)
     if not entries then return false end
     for i = 1, #entries do
         uiSearchData[#uiSearchData + 1] = entries[i]

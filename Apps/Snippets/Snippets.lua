@@ -802,9 +802,7 @@ local function RefreshSnippetRows()
     -- Repopulate NOW (and refresh the open search): a bare dirty-mark waits
     -- for a provider request that eager categories never receive again after
     -- their first load, so a freshly saved snippet would stay invisible.
-    if ns.Database and ns.Database.RefreshDynamicCategory then
-        ns.Database:RefreshDynamicCategory("snippets")
-    end
+    EasyFind.API.RefreshSearchProvider("snippets")
     if ns.Options and ns.Options.RefreshSnippetsList then
         ns.Options.RefreshSnippetsList()
     end
@@ -1393,6 +1391,24 @@ EasyFind.API.RegisterExtension({
     open = function() EasyFind.API.OpenSettings("snippets") end,
     isOpen = function() return EasyFind.API.IsSettingsOpen("snippets") end,
     close = EasyFind.API.CloseSettings,
+})
+
+-- The snippets a search finds, by name, keyword or text; a click opens
+-- the editor (chat use goes through the keyword, a shortkey or Send).
+local function TriggerText(fmt)
+    return function() return Utils.sformat(L[fmt], Snippets.TriggerChar() or "\\") end
+end
+EasyFind.API.RegisterSearchProvider({
+    key = "snippets", category = "Snippet", extension = "snippets",
+    label = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX, iconCoords = ns.SNIPPET_ICON_COORDS,
+    words = { "snippet", "snippets", "snip" }, lowResults = true, eager = true,
+    aliases = { "snip", "snips", "snippet", "snippets" },
+    options = {
+        ns.Extensions.DbOption("snippetChatExpansion", TriggerText("SNIPPET_EXPAND_IN_CHAT"),
+            TriggerText("SNIPPET_KEYWORD_HINT")),
+    },
+    rows = function() return Snippets:BuildSearchData() end,
+    select = function(row) Snippets:EditByName(row.name) end,
 })
 
 return Snippets

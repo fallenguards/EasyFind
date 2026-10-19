@@ -412,6 +412,12 @@ function Harness.newNs(env)
     ns.TEXT_PRIMARY = { 1.00, 0.97, 0.86 }
     Harness.loadCharKeyCode(env, ns)
     -- The public API (Core/API.lua): every companion registers through it.
+    -- Where a provider's rows plug in, until a test loads the real module.
+    ns.CategoryMap = { Add = function() end, ProviderCategory = {} }
+    ns.SearchEngine = { AddProvider = function() end }
+    ns.Database.AddDynamicProvider = function() end
+    ns.Filters.AddExtensionFilter = function() end
+    ns.Filters.AddQuickFilter = function() end
     if env and env.EasyFind then Harness.loadModule("Core/API.lua", env, ns) end
     return ns
 end

@@ -176,8 +176,6 @@ local FLAT_CATEGORY_ICONS = {
     -- glance from the silvery-grey game-settings cogwheel.
     settingAddon  = { atlas = "QuestLog-icon-setting", color = { 1.0, 0.78, 0.35 } },
     title         = ns.ART.title,
-    snippet       = { tex = ns.SNIPPET_ICON_TEX, coords = ns.SNIPPET_ICON_COORDS },
-    clipboard     = { tex = ns.CLIPBOARD_ICON_TEX, coords = ns.CLIPBOARD_ICON_COORDS },
     -- chromeTint: white line art tinted with the theme's chrome-glyph color
     -- at render time, so this icon matches the apps menu and popup glyphs.
     calculator    = { tex = CALCULATOR_ICON_TEX, chromeTint = true },
@@ -186,11 +184,8 @@ local FLAT_CATEGORY_ICONS = {
     -- Icon Search's own glyph: rounded action-slot square with a lens,
     -- same custom line-art family as the calculator.
     iconSearch    = { tex = ICON_SEARCH_ICON_TEX, chromeTint = true },
-    -- GPS: the map pin, same family.
-    gps           = { tex = ns.GPS_ICON_TEX, chromeTint = true },
-    notes         = { tex = ns.NOTES_ICON_TEX, chromeTint = true },
+    -- A single quicklist's button.
     quicklist     = { tex = ns.QUICKLIST_ICON_TEX, chromeTint = true },
-    chat          = { tex = ns.CHAT_ICON_TEX, chromeTint = true },
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = ns.ART.gear_set,
@@ -239,16 +234,17 @@ function Icons:GetFlatCategoryIcon(data)
     if ns.IsApplicationLauncher and ns.IsApplicationLauncher(data) then
         return FLAT_CATEGORY_ICONS.apps
     end
-    if data.category == "Quicklist" then return FLAT_CATEGORY_ICONS.quicklist end
+    -- An extension's rows (EasyFind.API.RegisterSearchProvider).
+    local provider = ns.Extensions and ns.Extensions.ProviderOf(data)
+    if provider and provider.glyph then return provider.glyph end
     -- Category, not nativeRun: nativeRun rows that belong to a real
     -- category (the snippet create row, the snippets app) must fall
     -- through to their own category glyph below.
     if data.searchCommand or data.category == "Command" then return FLAT_CATEGORY_ICONS.command end
-    if data.category == "Notes" then return FLAT_CATEGORY_ICONS.notes end
-    if data.category == "Chat" then return FLAT_CATEGORY_ICONS.chat end
     if data.quickFilterDef then
         local key = data.quickFilterDef.key
-        if key == "notes" then return FLAT_CATEGORY_ICONS.notes end
+        local scoped = ns.Extensions and ns.Extensions.Provider(key)
+        if scoped and scoped.glyph then return scoped.glyph end
         if key == "abilities" then return FLAT_CATEGORY_ICONS.ability end
         if key == "achievements" then return FLAT_CATEGORY_ICONS.achievement end
         if key == "statistics" then return FLAT_CATEGORY_ICONS.statistic end
@@ -306,10 +302,6 @@ function Icons:GetFlatCategoryIcon(data)
     if data.category == "Reputation" and data.factionID then
         return REP_FACTION_ICONS[data.factionSide or "either"]
     end
-    if data.category == "Snippet" then return FLAT_CATEGORY_ICONS.snippet end
-    -- Clipboard rows: the app glyph on the left; each row's own icon (the
-    -- copied row's face, the linked item's) sits on the right.
-    if data.category == "Clipboard" then return FLAT_CATEGORY_ICONS.clipboard end
     if data.mapSearchResult then return FLAT_CATEGORY_ICONS.map end
     -- Action rows without a better category: nativeRun is the run mechanism,
     -- not a category, so it only decides as a last resort -- the snippet

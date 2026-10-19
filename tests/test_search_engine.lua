@@ -106,10 +106,17 @@ function tests.quickFilterOverridesDisabledFilterMenu()
         "an explicit quick filter must override the filter menu state")
 end
 
+-- An extension's results (EasyFind.API), as Snippets registers them.
+env.EasyFind.API.RegisterSearchProvider({
+    key = "snippets", category = "Snippet", label = "Snippets", eager = true, lowResults = true,
+    words = { "snippet", "snippets", "snip" }, aliases = { "snip", "snippets" },
+})
+
 function tests.typedSnippetsWordDemandLoadsSnippetsProvider()
     -- Regression: the snippets port shipped without a PROVIDERS row, so
     -- typing "snippets" after a reload could not demand-load the provider
-    -- and waited ~2s for the eager chain to reach it (second-to-last).
+    -- and waited ~2s for the eager chain to reach it (second-to-last). An
+    -- extension's words reach the engine at registration now.
     local requested = withProviderCapture()
     local ctx = Engine:BuildContext("snippets", nil, { snippets = true })
 

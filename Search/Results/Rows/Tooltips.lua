@@ -52,21 +52,13 @@ function Rows.InstallTooltips(resultRow)
         if Results.IsResultsScrollBusy and Results:IsResultsScrollBusy() then return end
         -- Hover-based action hint (mirrors keyboard selection hint).
         Handlers:ApplyActionHint(self)
-        -- Clipboard history rows: a link entry shows the link's own tooltip
-        -- (the item, the spell), a text entry shows its full text.
-        if self.data and self.data.clipID then
-            -- The detail pane is the description surface for these rows
-            -- (full text, or the link's tooltip embedded). A row of its
-            -- own only shows a link's game tooltip when no pane is up,
-            -- and never a themed text box: a hint panel owned by a row
-            -- that a re-render recycles has no OnLeave to hide it.
-            local pane = ns.Clipboard and ns.Clipboard.Pane
-            if pane and pane.IsActive and pane:IsActive() then return end
-            if self.data.clipLink then
-                AnchorRowTooltip(GameTooltip, self)
-                GameTooltip:SetHyperlink(self.data.clipLink)
-                GameTooltip:Show()
-            end
+        -- An extension's own rows (EasyFind.API.RegisterSearchProvider):
+        -- its tooltip(row, tooltip) fills the tooltip, or says none.
+        local provider = self.data and ns.Extensions and ns.Extensions.ProviderOf(self.data)
+        if provider and provider.tooltip then
+            AnchorRowTooltip(GameTooltip, self)
+            local ok, filled = ns.Extensions.Run(provider.tooltip, self.data, GameTooltip)
+            if ok and filled then GameTooltip:Show() else GameTooltip:Hide() end
             return
         end
         -- Housing decor: quality-colored name, owned/placed/stored counts
@@ -573,11 +565,10 @@ function Rows.InstallTooltips(resultRow)
         if GameTooltip:IsOwned(self) then
             GameTooltip:Hide()
         end
-        if self.data and self.data.clipID then
+        local provider = self.data and ns.Extensions and ns.Extensions.ProviderOf(self.data)
+        if provider and provider.leave then
             if ns.HideHintTooltip then ns.HideHintTooltip(self) end
-            -- The detail pane goes with the hover it came from.
-            local pane = ns.Clipboard and ns.Clipboard.Pane
-            if pane and pane.OnRowLeave then pane:OnRowLeave() end
+            ns.Extensions.Run(provider.leave, self.data)
         end
         -- BattlePetTooltip is a separate frame; hide it on row leave so
         -- the pet card doesn't linger after the cursor moves away.

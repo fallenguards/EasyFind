@@ -52,13 +52,6 @@ local PROVIDERS = {
     { key = "abilities", words = { "ability", "abilities", "spell", "spells" }, teleportTriggers = true, loadOnLowResults = true },
     { key = "talents", words = { "talent", "talents", "spec", "specialization" }, loadOnLowResults = true },
     { key = "macros", words = { "macro", "macros" }, loadOnLowResults = true },
-    { key = "snippets", words = { "snippet", "snippets", "snip" }, loadOnLowResults = true },
-    -- No trigger words: the list is only reached through @clipboard (the
-    -- pill requests the provider); a typed "clipboard" finds the launcher.
-    { key = "clipboard", words = {} },
-    { key = "notes", words = { "note", "notes" }, loadOnLowResults = true },
-    -- Its words only, never low results: the provider loads the messenger.
-    { key = "chat", words = { "chat", "message", "messages", "whisper", "whispers", "conversation" } },
     { key = "currencies", words = { "currency", "currencies", "cur" }, loadOnLowResults = true },
     { key = "reputations", words = { "rep", "reps", "reputation", "reputations", "faction" }, loadOnLowResults = true },
     { key = "achievements", words = { "ach", "achievement", "achievements" }, loadOnLowResults = true },
@@ -102,6 +95,15 @@ for i = 1, #PROVIDERS do
     if not PROVIDERS[i].lookup then
         PROVIDERS[i].lookup = makeLookup(PROVIDERS[i].words)
     end
+end
+
+-- An extension's trigger words (EasyFind.API.RegisterSearchProvider).
+function Engine:AddProvider(spec)
+    for i = 1, #PROVIDERS do
+        if PROVIDERS[i].key == spec.key then return end
+    end
+    spec.lookup = spec.lookup or makeLookup(spec.words or {})
+    PROVIDERS[#PROVIDERS + 1] = spec
 end
 
 local function cleanWord(word)

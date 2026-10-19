@@ -35,14 +35,9 @@ local ENTRIES = {
     { key = "titles",          categories = { "Title" } },
     { key = "gearSets",        categories = { "Gear Set" } },
     { key = "commands",        categories = { "Command" } },
-    -- extensions is the umbrella gate for the extension apps; its children
-    -- carry the real categories.
+    -- extensions is the umbrella gate for the extensions' own results;
+    -- each adds its category under it when it registers (EasyFind.API).
     { key = "extensions",      categories = {} },
-    { key = "snippets",        parent = "extensions", categories = { "Snippet" } },
-    { key = "clipboard",       parent = "extensions", categories = { "Clipboard" } },
-    { key = "notes",           parent = "extensions", categories = { "Notes" } },
-    { key = "chat",            parent = "extensions", categories = { "Chat" } },
-    { key = "quicklists",      parent = "extensions", categories = { "Quicklist" } },
     { key = "professions",     categories = { "Profession" } },
     { key = "gameOptions",     parent = "options", categories = { "Game Settings" } },
     { key = "addonOptions",    parent = "options", categories = { "AddOn Settings" } },
@@ -119,6 +114,22 @@ end
 local ProviderEntry = {}
 for i = 1, #ENTRIES do
     ProviderEntry[ENTRIES[i].providerKey or ENTRIES[i].key] = ENTRIES[i]
+end
+
+-- An extension's category, added when it registers (EasyFind.API).
+function CategoryMap.Add(e)
+    local key = e.providerKey or e.key
+    if ProviderEntry[key] then return end
+    ENTRIES[#ENTRIES + 1] = e
+    ProviderEntry[key] = e
+    ProviderCategory[key] = e.categories[1]
+    for j = 1, #e.categories do
+        local cat = e.categories[j]
+        if not skipSeen[cat] then
+            skipSeen[cat] = true
+            SkipKeyOrder[#SkipKeyOrder + 1] = cat
+        end
+    end
 end
 
 -- True when the provider's filter (or an ancestor filter) is unchecked in the

@@ -174,5 +174,120 @@ function tests.legacyFlags_nameEveryBundledExtension()
     end
 end
 
+-- ==== search providers ======================================================
+
+-- Where a provider plugs in, recorded.
+local function wired(ns)
+    local w = { cats = {}, providers = {}, engine = {}, filters = {}, scopes = {}, replaced = {} }
+    ns.CategoryMap.Add = function(e) w.cats[#w.cats + 1] = e end
+    ns.Database.AddDynamicProvider = function(_, p) w.providers[p.key] = p end
+    ns.Database.ReplaceCategoryEntries = function(_, cat, rows)
+        w.replaced[cat] = rows or false
+        return rows ~= nil
+    end
+    ns.SearchEngine.AddProvider = function(_, spec) w.engine[spec.key] = spec end
+    ns.Filters.AddExtensionFilter = function(sub) w.filters[sub.key] = sub end
+    ns.Filters.AddQuickFilter = function(_, def) w.scopes[def.key] = def end
+    return w
+end
+
+function tests.provider_refusesWhatCannotWork()
+    local _, _, API = fresh()
+    raises(function() API.RegisterSearchProvider({ key = "x" }) end, "label is required")
+    raises(function() API.RegisterSearchProvider({ key = "a b", label = "X" }) end, "key must be")
+    raises(function() API.RegisterSearchProvider({ key = "x", label = "X", rows = {} }) end, "rows must be a function")
+    API.RegisterSearchProvider({ key = "x", label = "X" })
+    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y", category = "x" }) end, "taken")
+end
+
+function tests.provider_plugsInEverywhere()
+    local _, ns, API = fresh()
+    local w = wired(ns)
+    local opt = { label = "Show all", get = function() return true end, set = function() end }
+    API.RegisterSearchProvider({
+        key = "marks", label = "Bookmarks", category = "Bookmark", words = { "mark" }, lowResults = true,
+        eager = true, aliases = { "bm" }, options = { opt }, icon = 7, tint = true,
+    })
+    H.assertEq(w.cats[1].key, "marks")
+    H.assertEq(w.cats[1].parent, "extensions", "under the Extensions filter")
+    H.assertEq(w.cats[1].categories[1], "Bookmark")
+    H.assertTrue(w.providers.marks.eager)
+    H.assertEq(type(w.providers.marks.fn), "function")
+    H.assertEq(w.engine.marks.words[1], "mark")
+    H.assertTrue(w.engine.marks.loadOnLowResults)
+    H.assertTrue(w.filters.marks.checkboxOptions[1] == opt, "its options on its filter row")
+    H.assertEq(w.scopes.marks.aliases[1], "bm")
+    H.assertEq(ns.Extensions.ProviderOf({ category = "Bookmark" }).glyph.tex, 7)
+end
+
+function tests.provider_rowsTakeItsCategory()
+    local _, ns, API = fresh()
+    local w = wired(ns)
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", rows = function() return { { name = "Home" } } end })
+    H.assertTrue(w.providers.marks.fn(ns.Database))
+    H.assertEq(w.replaced.marks[1].category, "marks")
+end
+
+function tests.provider_noRowsYetIsNotReady()
+    local _, ns, API = fresh()
+    local w = wired(ns)
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks" })
+    H.assertFalse(w.providers.marks.fn(ns.Database), "retried later")
+    H.assertEq(w.replaced.marks, false, "its category emptied")
+end
+
+function tests.provider_loadsItsAddonForSearchWhenAsked()
+    local env, ns, API = fresh()
+    local w = wired(ns)
+    ns.IsCompanionLoadable = function() return true end
+    local inUse = false
+    env.C_AddOns = { LoadAddOn = function()
+        API.RegisterExtension({ id = "msg", open = function() end })
+        API.RegisterSearchProvider({ key = "msg", rows = function() return { { name = "Hi" } } end })
+    end }
+    API.RegisterExtension({ id = "msg", name = "Messages", addon = "Msg_LoD" })
+    API.RegisterSearchProvider({ key = "msg", label = "Messages", extension = "msg",
+        loadOnSearch = function() return inUse end })
+    H.assertFalse(w.providers.msg.fn(ns.Database), "never used: no load")
+    inUse = true
+    H.assertTrue(w.providers.msg.fn(ns.Database), "used: loaded, then its rows")
+end
+
+function tests.provider_offWithItsAddon()
+    local _, ns, API = fresh()
+    local w = wired(ns)
+    ns.IsCompanionLoadable = function() return false end
+    API.RegisterExtension({ id = "msg", name = "Messages", addon = "Msg_LoD" })
+    H.assertFalse(API.RegisterSearchProvider({ key = "msg", label = "Messages", extension = "msg", aliases = { "m" } }))
+    H.assertNil(w.filters.msg, "no filter row")
+    H.assertNil(w.scopes.msg, "no scope")
+end
+
+function tests.selectRow_getsACopyAfterTheBarCloses()
+    local _, ns, API = fresh()
+    wired(ns)
+    local got, finished
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks",
+        select = function(row) got = row end })
+    local data = { category = "marks", name = "Home", id = 4 }
+    H.assertTrue(ns.Extensions.SelectRow(data, function() finished = true end))
+    H.assertTrue(finished)
+    H.assertEq(got.id, 4)
+    H.assertFalse(got == data, "a copy")
+    H.assertFalse(ns.Extensions.SelectRow({ category = "Mount" }, function() end), "no provider's row")
+end
+
+function tests.dbOption_readsOnUnlessFalse()
+    local env, ns = fresh()
+    env.EasyFind.db = {}
+    local changed
+    local opt = ns.Extensions.DbOption("flag", "Flag", nil, function(v) changed = v end)
+    H.assertTrue(opt.get())
+    opt.set(false)
+    H.assertEq(env.EasyFind.db.flag, false)
+    H.assertFalse(opt.get())
+    H.assertEq(changed, false)
+end
+
 local pass, fail, failures = H.runSuite("ExtensionsAPI", tests)
 return { pass = pass, fail = fail, failures = failures }

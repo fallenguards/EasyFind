@@ -70,17 +70,6 @@ local dynamicProviders = {
     { key = "loot", category = providerCategory["loot"],           fn = "PopulateDynamicLoot", asyncFn = "PopulateDynamicLootAsync" },
     { key = "bosses", category = providerCategory["bosses"],           fn = "PopulateDynamicBosses", asyncFn = "PopulateDynamicBossesAsync" },
     { key = "commands", category = providerCategory["commands"],        fn = "PopulateDynamicCommands", eager = true },
-    { key = "snippets", category = providerCategory["snippets"],        fn = "PopulateDynamicSnippets", eager = true },
-    -- Never eager: pasted text and chat links must not land in normal
-    -- results. Reached through @clipboard, the launcher row, and the words.
-    { key = "clipboard", category = providerCategory["clipboard"],      fn = "PopulateDynamicClipboard", lazy = true },
-    -- Notes are found by title in any search, once the companion is loaded
-    -- (it loads at login as soon as there is a note).
-    { key = "notes", category = providerCategory["notes"],              fn = "PopulateDynamicNotes", eager = true },
-    -- Not eager: filled after login with the rest, only once the
-    -- messenger has been used (PopulateDynamicChat checks).
-    { key = "chat", category = providerCategory["chat"],                fn = "PopulateDynamicChat" },
-    { key = "quicklists", category = providerCategory["quicklists"],    fn = "PopulateDynamicQuicklists", eager = true },
     { key = "professions", category = providerCategory["professions"],  fn = "PopulateDynamicProfessions", eager = true },
 }
 
@@ -199,7 +188,7 @@ local function runProviderJob(database, provider, schedDone)
         return
     end
 
-    local fn = database[provider.fn]
+    local fn = type(provider.fn) == "function" and provider.fn or database[provider.fn]
     if not fn then
         NotifyProviderWaiters(provider, false)
         schedDone()
@@ -253,6 +242,22 @@ local function ensureJobsRegistered(database)
         })
     end
     return sched
+end
+
+-- An extension's provider (EasyFind.API.RegisterSearchProvider): its fn
+-- is the populate itself. Registered as a job at once when the jobs were.
+function Database:AddDynamicProvider(provider)
+    if dynamicProviderByKey[provider.key] then return end
+    provider.loaded, provider.dirty = false, true
+    dynamicProviders[#dynamicProviders + 1] = provider
+    dynamicProviderByKey[provider.key] = provider
+    local sched = getScheduler()
+    if sched and self._dynamicJobsRegistered == sched then
+        sched:Register(jobIdForProvider(provider), {
+            cancelGroup = "dynamic",
+            run = function(_, done) runProviderJob(self, provider, done) end,
+        })
+    end
 end
 
 -- The ONE gate for whether a category's data may load: is its filter unchecked

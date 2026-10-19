@@ -67,7 +67,7 @@ function Extensions.Get(id) return id and Extensions.byID[id] or nil end
 -- Registered, and its addon (if any) enabled in the AddOns list.
 function Extensions.Available(def)
     if not def or not def.name then return false end
-    return not def.addon or (ns.IsCompanionLoadable and ns.IsCompanionLoadable(def.addon)) or false
+    return not def.addon or not ns.IsCompanionLoadable or ns.IsCompanionLoadable(def.addon) or false
 end
 
 -- The one row that stands for an extension everywhere: the menu tile, its
@@ -270,7 +270,136 @@ function API.SetBadge(id, count)
     if ns.SetApplicationBadge then ns.SetApplicationBadge(id, count) end
 end
 
+-- ==== search providers ========================================================
+
+local Providers = { byKey = {}, byCategory = {} }
+Extensions.Providers = Providers
+
+local PROVIDER_FIELDS = {
+    key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table",
+    tint = "boolean", words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
+    aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
+    leave = "function", extension = "string", loadOnSearch = "any",
+}
+
+function Extensions.Provider(key) return key and Providers.byKey[key] or nil end
+function Extensions.ProviderOf(data) return data and data.category and Providers.byCategory[data.category] or nil end
+
+-- A provider's rows into the search data. Its extension's addon loads
+-- first when it asks to be (loadOnSearch) and has not yet.
+local function Populate(key, database)
+    local p = Providers.byKey[key]
+    if not p.rows and p.extension then
+        local load = p.loadOnSearch
+        if type(load) == "function" then
+            local ok, want = Run(load)
+            load = ok and want
+        end
+        if load then Extensions.Load(p.extension) end
+    end
+    local rows
+    if p.rows then
+        local ok, got = Run(p.rows)
+        rows = ok and type(got) == "table" and got or nil
+    end
+    for i = 1, rows and #rows or 0 do rows[i].category = p.category end
+    return database:ReplaceCategoryEntries(p.category, rows)
+end
+
+-- An option row on an EasyFind.db switch that is on unless set false.
+function Extensions.DbOption(key, label, tooltip, onChange)
+    return {
+        label = label, tooltip = tooltip,
+        get = function() return EasyFind.db[key] ~= false end,
+        set = function(on)
+            EasyFind.db[key] = on
+            if onChange then onChange(on) end
+        end,
+    }
+end
+
+-- A click on a provider's row: its select(row), on a copy (finishing the
+-- selection may recycle the row). False when it is no provider's.
+function Extensions.SelectRow(data, finish)
+    local p = Extensions.ProviderOf(data)
+    if not p then return false end
+    if not p.select and p.extension then Extensions.Load(p.extension) end
+    if not p.select then return false end
+    local row = {}
+    for k, v in pairs(data) do row[k] = v end
+    finish()
+    Run(p.select, row)
+    return true
+end
+
 -- ==== public: search ==========================================================
+
+-- def: key (required, stable: the filter and @scope key), label
+-- (required the first time), category (the name its rows carry; key
+-- when not given), icon, iconCoords, tint, words (typing one loads the
+-- rows), eager (small: searched from the first keystroke), lazy (only by
+-- its words, its filter or its scope), lowResults (also when a search
+-- finds little), aliases (an @scope: "@" and one of these lists only its
+-- rows), options (its filter row's toggles: { label, tooltip, get, set },
+-- { header = text }, { separator = true }), rows() -> list of
+-- { name, icon, ... }, select(row), tooltip(row, tooltip) -> true when
+-- it filled it, leave(row), extension (the extension whose addon holds
+-- the rest), loadOnSearch (true or a function: load that addon for
+-- search). Registering a key again adds to it.
+function API.RegisterSearchProvider(def)
+    if type(def) ~= "table" then Fail("RegisterSearchProvider", "expects a table") end
+    local key = def.key
+    if type(key) ~= "string" or not key:match("^[%w_%-]+$") then
+        Fail("RegisterSearchProvider", "key must be letters, digits, - or _")
+    end
+    for k, v in pairs(def) do
+        local want = PROVIDER_FIELDS[k]
+        if want == "texture" then
+            if type(v) ~= "string" and type(v) ~= "number" then Fail("RegisterSearchProvider", "icon must be a texture path or file id") end
+        elseif want and want ~= "any" and type(v) ~= want then
+            Fail("RegisterSearchProvider", k .. " must be a " .. want)
+        end
+    end
+    local p = Providers.byKey[key]
+    if p then
+        for k, v in pairs(def) do p[k] = v end
+    else
+        if type(def.label) ~= "string" then Fail("RegisterSearchProvider", "label is required") end
+        -- Its extension's addon turned off in the AddOns list: no filter
+        -- row or scope for results that can never come.
+        local owner = Extensions.Get(def.extension)
+        if owner and not Extensions.Available(owner) then return false end
+        local category = def.category or key
+        if ns.CategoryMap.ProviderCategory[key] or Providers.byCategory[category] then
+            Fail("RegisterSearchProvider", "key '" .. key .. "' is taken")
+        end
+        p = {}
+        for k, v in pairs(def) do p[k] = v end
+        p.category = category
+        Providers.byKey[key], Providers.byCategory[category] = p, p
+        ns.CategoryMap.Add({ key = key, parent = "extensions", categories = { category } })
+        ns.Database:AddDynamicProvider({
+            key = key, category = category, eager = p.eager, lazy = p.lazy,
+            fn = function(database) return Populate(key, database) end,
+        })
+        ns.SearchEngine:AddProvider({ key = key, words = p.words or {}, loadOnLowResults = p.lowResults })
+        ns.Filters.AddExtensionFilter({
+            key = key, label = p.label, iconTex = p.icon, iconCoords = p.iconCoords,
+            hasOptions = p.options ~= nil, checkboxOptions = p.options,
+        })
+        if p.aliases then
+            ns.Filters:AddQuickFilter({ key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases })
+        end
+    end
+    p.glyph = p.icon and { tex = p.icon, coords = p.iconCoords, chromeTint = p.tint or nil } or nil
+    return true
+end
+
+-- The rows changed: rebuilt now, and an open search shows them.
+function API.RefreshSearchProvider(key)
+    if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory(key) end
+end
+
 
 -- Opens the search bar on an @scope's list (its pill in), text typed after
 -- it. A frame later: a launch from a result row closes the bar first.

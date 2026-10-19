@@ -64,9 +64,7 @@ function Clipboard:Refresh(now)
     if now then
         self._refreshQueued = nil
         self._stale = nil
-        if ns.Database and ns.Database.RefreshDynamicCategory then
-            ns.Database:RefreshDynamicCategory("clipboard")
-        end
+        EasyFind.API.RefreshSearchProvider("clipboard")
         return
     end
     if self._refreshQueued then return end
@@ -713,4 +711,48 @@ EasyFind.API.RegisterExtension({
     icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS, tint = true,
     keywords = { "clipboard", "clipboard history", "history" },
     scope = "clipboard",
+})
+
+-- The history a search lists: only under @clipboard and its launcher,
+-- never in plain results (pasted text and links do not belong there).
+-- The view toggles (kinds shown, order) rebuild the open list.
+local function RefreshView() Clipboard:Refresh(true) end
+local Opt = ns.Extensions.DbOption
+EasyFind.API.RegisterSearchProvider({
+    key = "clipboard", category = "Clipboard", extension = "clipboard",
+    label = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS,
+    lazy = true, aliases = { "clip", "clips", "clipboard", "history" },
+    options = {
+        Opt("clipboardCopied", L["CLIP_OPT_COPIED"], L["CLIP_OPT_COPIED_TT"]),
+        Opt("clipboardPasted", L["CLIP_OPT_PASTED"], L["CLIP_OPT_PASTED_TT"]),
+        Opt("clipboardChat", L["CLIP_OPT_CHAT"], L["CLIP_OPT_CHAT_TT"]),
+        Opt("clipboardWhispers", L["CLIP_OPT_WHISPERS"], L["CLIP_OPT_WHISPERS_TT"]),
+        Opt("clipboardSent", L["CLIP_OPT_SENT"], L["CLIP_OPT_SENT_TT"]),
+        Opt("clipboardLastCopiedRow", L["CLIP_OPT_LAST_ROW"], L["CLIP_OPT_LAST_ROW_TT"]),
+        { header = L["CLIP_OPT_SHOW"] },
+        Opt("clipboardKindLink", L["CLIP_KIND_LINK"], nil, RefreshView),
+        Opt("clipboardKindEflink", L["CLIP_KIND_EFLINK"], nil, RefreshView),
+        Opt("clipboardKindMappin", L["CLIP_KIND_MAPPIN"], nil, RefreshView),
+        Opt("clipboardKindUrl", L["CLIP_KIND_URL"], nil, RefreshView),
+        Opt("clipboardKindCommand", L["CLIP_KIND_COMMAND"], nil, RefreshView),
+        Opt("clipboardKindNumber", L["CLIP_KIND_NUMBER"], nil, RefreshView),
+        Opt("clipboardKindText", L["CLIP_KIND_TEXT"], nil, RefreshView),
+        { separator = true },
+        Opt("clipboardOldestFirst", L["CLIP_OPT_OLDEST_FIRST"], L["CLIP_OPT_OLDEST_FIRST_TT"], RefreshView),
+    },
+    rows = function() return Clipboard:BuildSearchData() end,
+    -- The entry goes into the chat box, live link and all.
+    select = function(row) if row.clipID then Clipboard:Activate(row.clipID) end end,
+    -- The detail pane describes a row; without one up, a link entry shows
+    -- the link's own tooltip.
+    tooltip = function(row, tip)
+        local pane = Clipboard.Pane
+        if not row.clipID or not row.clipLink or (pane and pane.IsActive and pane:IsActive()) then return false end
+        tip:SetHyperlink(row.clipLink)
+        return true
+    end,
+    leave = function(row)
+        local pane = Clipboard.Pane
+        if row.clipID and pane and pane.OnRowLeave then pane:OnRowLeave() end
+    end,
 })
