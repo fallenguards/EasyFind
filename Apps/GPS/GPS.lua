@@ -4347,7 +4347,7 @@ local function BuildPopout()
         self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 8, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
         if above then
-            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -4)
+            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -6)
         else
             -- On the header row: the trip's one field, else the folded title.
             local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
