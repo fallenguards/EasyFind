@@ -3917,12 +3917,12 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.headerNavButton:Hide()
 
-    -- Top-right: trash (acts on the selection / open note), more-options,
-    -- close; find, auto-resize, theme, alias and context fold into the more
-    -- menu. Upper-left keeps New and Settings; the title centres between.
+    -- Top-right: more options and close on a note (its delete is in the
+    -- menu), the trash for the selection and close on the list; two a
+    -- side with the left's Home or New and Settings.
     frame.overflowButton:SetParent(frame.header)
     frame.overflowButton:ClearAllPoints()
-    frame.overflowButton:SetPoint("RIGHT", frame.deleteButton, "LEFT", -4, 0)
+    frame.overflowButton:SetPoint("RIGHT", frame.close, "LEFT", -4, 0)
     frame.titleButton:ClearAllPoints()
     frame.titleButton:SetPoint("LEFT", frame.settingsButton, "RIGHT", 8, 0)
     frame.titleButton:SetPoint("RIGHT", frame.overflowButton, "LEFT", -8, 0)
@@ -6023,11 +6023,9 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if frame.findButton then frame.findButton:Hide() end
     if frame.autoResizeButton then frame.autoResizeButton:Hide() end
     if frame.headerNavButton then frame.headerNavButton:Hide() end
-    -- The trash button is a standalone header control again (left of X), in
-    -- BOTH views: it acts on the list selection, or the open note in the
-    -- editor view, and grays out when there is neither.
+    -- The trash, on the list only: it acts on the selection, grayed with none.
     if frame.deleteButton then
-        frame.deleteButton:Show()
+        frame.deleteButton:SetShown(not shown)
         UI:UpdateEasyNotesDeleteButton()
     end
     -- First left slot is contextual: Home (back to the note list) while a note is
@@ -6870,7 +6868,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
           onClick = function() note.reminderAt = nil; note.updated = time() end },
     }
 
-    local rows = {
+    local newSub = {
         { text = L["NOTES_NEW"], onClick = function()
               CreateNote("")
               UI:HideEasyNotesPalette()
@@ -6878,42 +6876,63 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               UI:FocusEasyNoteEditor()
           end },
         { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
-        { text = L["NOTES_REMIND_ME"], submenu = remindSub },
-        { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
-        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil, iconSide = "right",
-          onClick = function() UI:ToggleEasyNotesAutoResize() end },
-        { isSeparator = true },
-        { text = _G.CATEGORY, submenu = (function()
-              local cats, out = self:GetEasyNotesCategories(), {}
-              for i = 1, #cats do
-                  local cat = cats[i]
-                  out[i] = { text = UI:EasyNotesCategoryLabel(cat), icon = (note.category or "General") == cat and MENU_CHECK_TEX or nil,
-                      onClick = function()
-                          note.category = cat
-                          note.updated = time()
-                          if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-                      end }
-              end
-              return out
-          end)() },
-        { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
+        { text = L["NOTES_IMPORT_CODE"], onClick = function() notesNS.PromptImportCode() end },
+    }
+    -- Capture rows show only while there is something to capture.
+    local questID, mailIndex = notesNS.SelectedQuestID(), notesNS.OpenMailIndex()
+    if questID or mailIndex then newSub[#newSub + 1] = { isSeparator = true } end
+    if questID then
+        newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_QUEST"], onClick = function() notesNS.CaptureQuest() end }
+    end
+    if mailIndex then
+        newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end }
+    end
+
+    local categorySub = {}
+    local cats = self:GetEasyNotesCategories()
+    for i = 1, #cats do
+        local cat = cats[i]
+        categorySub[i] = { text = UI:EasyNotesCategoryLabel(cat), icon = (note.category or "General") == cat and MENU_CHECK_TEX or nil,
+            onClick = function()
+                note.category = cat
+                note.updated = time()
+                if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+            end }
+    end
+
+    local contextGroup = {
         { text = L["NOTES_ADD_APPLIES"], onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
+        { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
         { text = L["NOTES_OPENS_ITSELF_MENU"], icon = note.opensItself and MENU_CHECK_TEX or nil, iconSide = "right", onClick = function()
               note.opensItself = (not note.opensItself) or nil
               note.updated = time()
           end },
-        { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
-        { text = L["NOTES_CONTEXT"], submenu = contextSub },
+        { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
         { isSeparator = true },
-        { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
+        { text = L["NOTES_CONTEXT"], submenu = contextSub },
+    }
+
+    local copySub = {
         { text = L["NOTES_COPY_TEXT"], onClick = function() notesNS.CopyAsText(note.id) end },
         { text = L["NOTES_COPY_MARKDOWN"], onClick = function() notesNS.CopyAsMarkdown(note.id) end },
         { text = L["NOTES_COPY_CODE"], onClick = function()
               local code = notesNS.ExportCode(note.id)
               if code then Utils.CopyToClipboard(code) end
           end },
-        { text = L["NOTES_IMPORT_CODE"], onClick = function() notesNS.PromptImportCode() end },
+    }
+
+    local rows = {
+        { text = L["NOTES_MENU_NEW"], submenu = newSub },
+        { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
+        { text = L["NOTES_REMIND_ME"], submenu = remindSub },
+        { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
         { isSeparator = true },
+        { text = _G.CATEGORY, submenu = categorySub },
+        { text = L["NOTES_MENU_CONTEXT"], submenu = contextGroup },
+        { text = L["NOTES_MENU_COPY"], submenu = copySub },
+        { isSeparator = true },
+        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil, iconSide = "right",
+          onClick = function() UI:ToggleEasyNotesAutoResize() end },
         { text = L["NOTES_TRASH"], submenu = (function()
               local trashed, out = notesNS.TrashList(), {}
               for i = 1, math.min(#trashed, 15) do
@@ -6939,16 +6958,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
     -- A checklist's own settings lead.
     local CKV = notesNS.ChecklistView
     if CKV and notesNS.Checklist and notesNS.Checklist.Is(note) then
-        local own = CKV.MenuRows(note, anchor)
-        tinsert(rows, 1, { isSeparator = true })
-        for i = #own, 1, -1 do tinsert(rows, 1, own[i]) end
-    end
-    -- Capture rows show only while there is something to capture.
-    if notesNS.OpenMailIndex() then
-        tinsert(rows, 3, { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end })
-    end
-    if notesNS.SelectedQuestID() then
-        tinsert(rows, 3, { text = L["NOTES_CAPTURE_QUEST"], onClick = function() notesNS.CaptureQuest() end })
+        tinsert(rows, 1, { text = L["CHECK_MENU"], submenu = CKV.MenuRows(note, anchor) })
     end
     UI._notes._moreMenu = self:ShowEasyNotesMenu("EasyNotesMoreMenu", rows, {
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
