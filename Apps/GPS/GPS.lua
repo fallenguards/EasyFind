@@ -1806,12 +1806,17 @@ local function Render(container)
         if container.fromRow then container.fromRow:Hide() end
         container.list:SetHeight(1)
         container.contentHeight = 0
-        if container.search then
-            container.search:Show()
-            container.empty:Hide()   -- the search box says what to do
-        else
-            container.empty:Show()
+        if container.search then container.search:Show() end
+        -- A first way being found says so in the hint's place, under the
+        -- trip's fields (the title saying it sits behind them); else the
+        -- search box says what to do, or the hint does.
+        local finding = container.trip and GPS.planning
+        if finding then
+            container.empty:SetText(sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?"))
+        elseif not container.search then
+            container.empty:SetText(L["GPS_EMPTY"])
         end
+        container.empty:SetShown(finding or not container.search)
         if container.trip then container.trip:Refresh(nil) end
         if container.OnRouteChanged then container:OnRouteChanged(false) end
         return
@@ -4472,7 +4477,7 @@ local function BuildPopout()
             -- folded, they share the one header row (typing keeps it so).
             local above = Route() ~= nil and not folded
             local strip = above and self.headStrip or 0
-            local tight = (not Route() and not hits) or folded
+            local tight = (not Route() and not hits and not GPS.planning) or folded
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
@@ -4498,6 +4503,8 @@ local function BuildPopout()
                 h = head + line + (self.contentHeight or 0) + 4   -- the last row carries its own padding
             elseif hits then
                 h = head + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
+            elseif GPS.planning then
+                h = head + 2 + (self.empty:GetStringHeight() or 14) + 12   -- "Finding a way to ..."
             elseif self.search then
                 h = head + 4   -- the search box alone, in the header row
             else
