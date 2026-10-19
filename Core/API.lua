@@ -538,6 +538,7 @@ end
 
 local actions = {}     -- extension id -> action name -> function
 local listeners = {}   -- "id:event" -> list of functions
+Extensions.actions, Extensions.listeners = actions, listeners   -- dev tools
 
 local function CheckName(fn, what, v)
     if type(v) ~= "string" or v == "" then Fail(fn, what .. " must be a string") end
