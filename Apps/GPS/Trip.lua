@@ -564,14 +564,16 @@ end
 
 -- A field in the theme's own well, not the stock search art: the dark
 -- inset its edit boxes use (a button's fill read washed out under the
--- dim placeholder), ringed as its results are. Repainted with the theme.
+-- dim placeholder), ringed as its results are. The ring is a filled shape
+-- with the inset 1 px inside it: the border art's line, scaled to a
+-- field's corners, came out a fifth of a pixel. Repainted with the theme.
 local wells = {}
 local function PaintWell(well)
     local fill = ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 }
     local palette = ns.ACTIVE_UI_PALETTE
     local ring = palette and (palette.borderColor or palette.backdropBorder) or { 0.50, 0.48, 0.45 }
-    ns.SetRoundedRectFill(well, fill[1], fill[2], fill[3], 1, true)
-    ns.SetRoundedRectBorderColor(well, ring[1], ring[2], ring[3], ring[4] or 1, true)
+    ns.SetRoundedRectFill(well, ring[1], ring[2], ring[3], ring[4] or 1, true)
+    ns.SetRoundedRectFill(well.inset, fill[1], fill[2], fill[3], 1, true)
 end
 if ns.ApplyUITheme then
     hooksecurefunc(ns, "ApplyUITheme", function()
@@ -629,9 +631,21 @@ local function Field(ed, i)
         well:SetPoint("TOPLEFT", box, "TOPLEFT", -5, 1)
         well:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, -1)
         well:SetFrameLevel(row:GetFrameLevel())
-        ns.CreateRoundedRectBorder(well)
-        ns.SetRoundedRectBarHeight(well, 10)
-        ns.SetRoundedRectBorderBgAlpha(well, 1)
+        local inset = CreateFrame("Frame", nil, well)
+        inset:SetPoint("TOPLEFT", well, "TOPLEFT", 1, -1)
+        inset:SetPoint("BOTTOMRIGHT", well, "BOTTOMRIGHT", -1, 1)
+        well.inset = inset
+        for _, shape in ipairs({ well, inset }) do
+            ns.CreateRoundedRectBorder(shape)
+            ns.SetRoundedRectBorderEdgeShown(shape, false)
+            ns.SetRoundedRectBorderBgAlpha(shape, 1)
+        end
+        -- Concentric corners: 6 out, 5 in. The ring, the inset over it,
+        -- the box over both.
+        ns.SetRoundedRectBarHeight(well, 12)
+        ns.SetRoundedRectBarHeight(inset, 10)
+        inset:SetFrameLevel(well:GetFrameLevel() + 1)
+        box:SetFrameLevel(well:GetFrameLevel() + 2)
         PaintWell(well)
         wells[#wells + 1] = well
     end
