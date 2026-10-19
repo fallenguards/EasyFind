@@ -1319,6 +1319,8 @@ local function WalkKey(ci, sx, sy, tx, ty, near)
         .. (near and (":n" .. near) or "")
 end
 
+function Route._ForgetWalkPaths() walkPaths, walkPathCount = {}, 0 end   -- dev tools
+
 local function KeepPath(key, path)
     if walkPathCount >= WALK_PATHS_KEPT then walkPaths, walkPathCount = {}, 0 end
     walkPaths[key], walkPathCount = path, walkPathCount + 1
