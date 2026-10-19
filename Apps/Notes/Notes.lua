@@ -616,6 +616,51 @@ local function PlainSearchText(note)
     return plain
 end
 
+-- A note's own tags: words its owner picks, several a note, alike without
+-- case; the list of all of them is every word on any note.
+local NoteTags = {}
+function NoteTags.Index(note, tag)
+    local want = slower(tag)
+    local tags = note.tags or {}
+    for i = 1, #tags do
+        if slower(tags[i]) == want then return i end
+    end
+end
+
+function NoteTags.Toggle(note, tag)
+    note.tags = note.tags or {}
+    local i = NoteTags.Index(note, tag)
+    if i then tremove(note.tags, i) else note.tags[#note.tags + 1] = tag end
+    note.updated = time()
+end
+
+function NoteTags.All()
+    local seen, out = {}, {}
+    local notes = NotesStore()
+    for i = 1, #notes do
+        local tags = notes[i].tags or {}
+        for j = 1, #tags do
+            local low = slower(tags[j])
+            if not seen[low] then
+                seen[low] = true
+                out[#out + 1] = tags[j]
+            end
+        end
+    end
+    tsort(out, function(a, b) return slower(a) < slower(b) end)
+    return out
+end
+
+-- In set (lower words), or holding text, for the list's filter and search.
+function NoteTags.Matches(note, set, text)
+    local tags = note.tags or {}
+    for i = 1, #tags do
+        local low = slower(tags[i])
+        if (set and set[low]) or (text and sfind(low, text, 1, true)) then return true end
+    end
+    return false
+end
+
 local function SortedNotes(filter)
     local notes = NotesStore()
     local list = {}
@@ -626,6 +671,9 @@ local function SortedNotes(filter)
     -- character key) and categoryFilter (nil = all, or a set of category names).
     local charFilter = UI._notes and UI._notes.charFilter
     local catFilter = UI._notes and UI._notes.categoryFilter
+    local tagFilter = UI._notes and UI._notes.tagFilter
+    -- "#raid" searches the tags alone.
+    local tagWord = filter:match("^#(.*)")
     for i = 1, #notes do
         local n = notes[i]
         local charOK
@@ -637,8 +685,15 @@ local function SortedNotes(filter)
             charOK = shareAll or n.scope == "account" or not n.character or n.character == charKey
         end
         local catOK = (not catFilter) or catFilter[n.category or "General"] == true
-        if charOK and catOK and (filter == "" or sfind(PlainSearchText(n), filter, 1, true)
-                       or sfind(slower(n.alias or ""), filter, 1, true)) then
+        local tagOK = (not tagFilter) or NoteTags.Matches(n, tagFilter)
+        local textOK
+        if tagWord then
+            textOK = NoteTags.Matches(n, nil, tagWord)
+        else
+            textOK = filter == "" or sfind(PlainSearchText(n), filter, 1, true)
+                or sfind(slower(n.alias or ""), filter, 1, true) or NoteTags.Matches(n, nil, filter)
+        end
+        if charOK and catOK and tagOK and textOK then
             list[#list + 1] = n
         end
     end
@@ -945,7 +1000,9 @@ function notesNS.ExportCode(id)
     local md = NoteToMarkdown(note)
     if #md > NOTE_CODE_BODY_MAX then md = md:sub(1, NOTE_CODE_BODY_MAX) end
     local encS = codec.encS
-    local parts = { NOTE_CODE_PAYLOAD, encS(NoteTitle(note)), encS(note.category or "General"), encS(md) }
+    -- Tags last: a code made before them reads the same without.
+    local parts = { NOTE_CODE_PAYLOAD, encS(NoteTitle(note)), encS(note.category or "General"), encS(md),
+        encS(table.concat(note.tags or {}, "\n")) }
     return NOTE_CODE_PREFIX .. codec.base64enc(table.concat(parts))
 end
 
@@ -960,18 +1017,19 @@ function notesNS.DecodeCode(str)
     end
     local decS = codec.decS
     local pos = #NOTE_CODE_PAYLOAD + 1
-    local name, category, md
+    local name, category, md, tags
     name, pos = decS(blob, pos)
     category, pos = decS(blob, pos)
-    md = decS(blob, pos)
+    md, pos = decS(blob, pos)
     if not (name and md) then return nil end
-    return name, category, md
+    if pos and pos <= #blob then tags = decS(blob, pos) end
+    return name, category, md, tags
 end
 
 -- An imported note is a new note of this character; its markdown becomes
 -- the live styled body. Returns the note, or nil for a bad code.
 function notesNS.ImportCode(str)
-    local name, category, md = notesNS.DecodeCode(str)
+    local name, category, md, tags = notesNS.DecodeCode(str)
     if not name then return nil end
     if #md > NOTE_CODE_BODY_MAX then md = md:sub(1, NOTE_CODE_BODY_MAX) end
     local doc = notesNS.DocumentFromMarkdown(md)
@@ -981,6 +1039,10 @@ function notesNS.ImportCode(str)
     local cats = UI:GetEasyNotesCategories()
     for i = 1, #cats do
         if cats[i] == category then note.category = category end
+    end
+    for word in (tags or ""):gmatch("[^\n]+") do
+        local tag = strtrim((word:gsub("|", ""))):sub(1, 24)
+        if tag ~= "" and not NoteTags.Index(note, tag) then note.tags[#note.tags + 1] = tag end
     end
     EasyFind:Print(Utils.sformat(L["NOTES_IMPORTED_FMT"], NoteTitle(note)))
     UI:OpenEasyNotes()
@@ -6807,9 +6869,33 @@ function UI:ShowEasyNotesFilterMenu(anchor)
         end
         return t
     end
+    -- Tags pick several at once too, searched and scrolled when there are
+    -- many; none picked is every note.
+    local function tagRows()
+        local picked = UI._notes.tagFilter
+        local t = { { text = L["NOTES_ALL_TAGS"], keepOpen = true, icon = not picked and MENU_CHECK_TEX or nil,
+            onClick = function()
+                UI._notes.tagFilter = nil
+                UI:RefreshEasyNotesPalette()
+            end } }
+        local tags = NoteTags.All()
+        for _, tag in ipairs(tags) do
+            local low = slower(tag)
+            t[#t + 1] = { text = tag, keepOpen = true, icon = picked and picked[low] and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    local set = UI._notes.tagFilter or {}
+                    set[low] = not set[low] or nil
+                    UI._notes.tagFilter = next(set) and set or nil
+                    UI:RefreshEasyNotesPalette()
+                end }
+        end
+        if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS"], disabled = true } end
+        return t
+    end
     local rows = {
         { text = _G.CHARACTER, submenu = charRows },
         { text = _G.CATEGORY, submenu = catRows },
+        { text = L["NOTES_TAGS"], submenu = tagRows, submenuSearch = L["NOTES_TAG_FILTER_SEARCH"], submenuMaxRows = 10 },
     }
     UI._notes._filterMenu = self:ShowEasyNotesMenu("EasyNotesFilterMenu", rows, {
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
@@ -6911,6 +6997,25 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
             end }
     end
 
+    -- Every tag in use, ticked on this note; a new word typed is offered.
+    local function tagEditRows()
+        local t = { { searchAdd = true, text = L["NOTES_TAG_ADD_FMT"], keepOpen = true, onClick = function(typed)
+            local tag = strtrim(((typed or ""):gsub("|", ""):gsub("^#", ""))):sub(1, 24)
+            if tag ~= "" and not NoteTags.Index(note, tag) then NoteTags.Toggle(note, tag) end
+            if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+        end } }
+        local tags = NoteTags.All()
+        for _, tag in ipairs(tags) do
+            t[#t + 1] = { text = tag, keepOpen = true, icon = NoteTags.Index(note, tag) and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    NoteTags.Toggle(note, tag)
+                    if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                end }
+        end
+        if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS_YET"], disabled = true } end
+        return t
+    end
+
     local contextGroup = {
         { text = L["NOTES_ADD_APPLIES"], onClick = function() UI:ToggleEasyNotesAppliesInSearch(anchor) end },
         { text = L["NOTES_ADD_SHOWS"], onClick = function() UI:ShowAddShowsOnMenu(anchor) end },
@@ -6939,6 +7044,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
         { isSeparator = true },
         { text = _G.CATEGORY, submenu = categorySub },
+        { text = L["NOTES_TAGS"], submenu = tagEditRows, submenuSearch = L["NOTES_TAG_FIND_ADD"], submenuMaxRows = 10 },
         { text = L["NOTES_MENU_CONTEXT"], submenu = contextGroup },
         { text = L["NOTES_MENU_COPY"], submenu = copySub },
         { isSeparator = true },
@@ -7631,13 +7737,19 @@ do
         return p
     end
 
+    -- The note's own tags (words), then where it shows (places).
     local function RowTagMoreEnter(self)
         if not (GameTooltip and self.allTags) then return end
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L["NOTES_APPLIES_IN"])
+        local heading
         for i = 1, #self.allTags do
             local t = self.allTags[i]
-            GameTooltip:AddLine(t.name or tostring(t.id), 0.9, 0.9, 0.92)
+            local kind = type(t) == "string" and "NOTES_TAGS" or "NOTES_APPLIES_IN"
+            if heading ~= kind then
+                if heading then GameTooltip:AddLine(L[kind], 1, 0.82, 0) else GameTooltip:SetText(L[kind]) end
+                heading = kind
+            end
+            GameTooltip:AddLine(type(t) == "string" and ("#" .. t) or (t.name or tostring(t.id)), 0.9, 0.9, 0.92)
         end
         GameTooltip:Show()
     end
@@ -7652,7 +7764,12 @@ do
         row.tagPills = row.tagPills or {}
         row.tagNote = note
         local pool = row.tagPills
-        local tags = (note and note.appliesIn) or {}
+        -- The note's tags first, as #words, then the places it shows in.
+        local tags = row.tagItems or {}
+        row.tagItems = tags
+        for i = #tags, 1, -1 do tags[i] = nil end
+        for _, word in ipairs(note and note.tags or {}) do tags[#tags + 1] = word end
+        for _, place in ipairs(note and note.appliesIn or {}) do tags[#tags + 1] = place end
         for i = 1, #pool do pool[i]:Hide() end
         if row.tagMore then row.tagMore:Hide() end
         if #tags == 0 then
@@ -7673,7 +7790,7 @@ do
             if not pill then pill = MakeRowTagPill(row); pool[i] = pill end
             local t = tags[i]
             pill.text:SetWidth(0)
-            pill.text:SetText(t.name or tostring(t.id))
+            pill.text:SetText(type(t) == "string" and ("#" .. t) or (t.name or tostring(t.id)))
             local w = pill.text.GetUnboundedStringWidth and pill.text:GetUnboundedStringWidth() or pill.text:GetStringWidth() or 20
             rowTagW[i] = mmin(ROW_TAG_MAX_W, math.ceil(w)) + 12
         end
@@ -7706,7 +7823,7 @@ do
         for i = nShown, 1, -1 do
             local pill = pool[i]
             local t = tags[i]
-            local tc = TagColor(CtxKey(t))
+            local tc = TagColor(type(t) == "string" and ("tag:" .. slower(t)) or CtxKey(t))
             if ns.SetRoundedRectFill then
                 ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
             end

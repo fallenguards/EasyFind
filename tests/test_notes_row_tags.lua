@@ -39,7 +39,7 @@ local function Load()
     local _, e = src:find("\nend\r?\n", s)
     local UI = {}
     local env = setmetatable({
-        UI = UI, ns = {}, mmin = math.min, mmax = math.max,
+        UI = UI, ns = {}, mmin = math.min, mmax = math.max, slower = string.lower,
         CreateFrame = function() return Pill() end,
         TagColor = function() return { 0.5, 0.5, 0.5 } end,
         CtxKey = function(t) return t.name end,
@@ -66,6 +66,15 @@ local function LeftEdge(row)
 end
 
 local tests = {}
+
+function tests.ownTagsLeadAsWords()
+    local UI = Load()
+    local row = Row()
+    local note = { tags = { "raid" }, appliesIn = { { name = "Orgrimmar" } } }
+    UI:LayoutEasyNotesRowTags(row, note, 400)
+    H.assertEq(row.tagPills[1].text.text, "#raid", "the note's own tag first, as a word")
+    H.assertEq(row.tagPills[2].text.text, "Orgrimmar", "then where it shows")
+end
 
 function tests.longTagsOnANarrowRowLeaveTheNameHalf()
     local UI = Load()
