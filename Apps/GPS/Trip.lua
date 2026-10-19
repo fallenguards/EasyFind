@@ -694,7 +694,7 @@ function Editor:Refresh(route)
                 btn:SetPoint("RIGHT", self, "TOPRIGHT", 8, -rowH / 2)
             end
             row:SetPoint("TOPRIGHT", self, "TOPRIGHT", -(btn:GetWidth() + 5 - 8), -y)
-        elseif n == 1 then
+        elseif n == 1 and not self.frame.buttonsAbove then
             row:SetPoint("RIGHT", self, "RIGHT", -mmax(0, (self.frame.padRight or 0) - 14), 0)
         else
             row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
@@ -742,7 +742,8 @@ function Editor:Refresh(route)
     for k = 1, 3 do self.addDots[k]:SetShown(not adding) end
     self.add:SetShown(not adding)
     if not adding then y = y + ADD_H end
-    self:SetHeight(mmax(1, y))
+    -- Hidden in the window, the fields take no room: the time line rises.
+    self:SetHeight((self.frame.fieldsHidden and route) and 1 or mmax(1, y))
 end
 
 -- The editor at the top of a route page, in the title line's place: the

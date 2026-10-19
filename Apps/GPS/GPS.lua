@@ -1851,7 +1851,8 @@ local function Render(container)
         if px and linkText then
             SizeFont(container.eta, px)
             SizeFont(linkText, px)
-            container.clearBtn:SetWidth((linkText:GetStringWidth() or 60) + 4)
+            container.clearBtn:SetWidth(container.noClear and container.fieldsBtn:GetWidth()
+                or (linkText:GetStringWidth() or 60) + 4)
             if container.note then SizeFont(container.note, px) end
         end
     end
@@ -2438,7 +2439,7 @@ local function BuildSurface(frame, opts)
     frame.list = list
 
     frame.OnRouteChanged = function(self, hasRoute)
-        self.clearBtn:SetShown(hasRoute)
+        self.clearBtn:SetShown(hasRoute and not self.noClear)
         self.eta:SetShown(hasRoute)
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
         -- With the trip's fields the track toggle sits on the time line.
@@ -4298,14 +4299,17 @@ local function BuildPopout()
     local db0 = DB()
     f:ApplyBorderShape(not (db0 and db0.gpsPopoutBorder == false))
 
-    -- The calculator's stroke close, not a stock round button.
+    -- The calculator's stroke close, not a stock round button. The header's
+    -- buttons are small, a click a little round each.
+    local BTN, BTN_GAP = 10, 14
     local close = CreateFrame("Button", nil, f)
-    close:SetSize(18, 18)
+    close:SetSize(BTN, BTN)
+    close:SetHitRectInsets(-3, -3, -3, -3)
     close:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -10)
     local function stroke()
         local tex = close:CreateTexture(nil, "OVERLAY")
         tex:SetTexture("Interface\\Buttons\\WHITE8x8")
-        tex:SetSize(14, 1.5)
+        tex:SetSize(8, 1.5)
         tex:SetPoint("CENTER")
         return tex
     end
@@ -4322,25 +4326,28 @@ local function BuildPopout()
     close:SetScript("OnClick", function() GPS:TogglePopout(false) end)
     f.closeBtn = close
 
-    -- Header top padding: 9 open, 5 folded (one tight title row).
-    -- The rest of the header hangs off the glyph and the close.
-    function f:SetHeaderPad(pad)
+    -- Header top padding: 9 open, 8 in one tight row. The rest of the
+    -- header hangs off the glyph and the close. above: the buttons in a
+    -- strip of their own over the trip's fields, so the first field keeps
+    -- its full width; else centered on the folded title row.
+    f.headStrip = 4
+    function f:SetHeaderPad(pad, above)
         self.glyph:ClearAllPoints()
-        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 12, -pad)
-        -- The close centered on the header row: the trip's first field (30
-        -- tall and up with the text size), else the icon; the other
-        -- buttons center on the close.
-        local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
-        local h = row and row:GetHeight() or self.glyph:GetHeight()
+        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 12, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
-        close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + h / 2))
+        if above then
+            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -4)
+        else
+            close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + self.glyph:GetHeight() / 2))
+        end
     end
 
     -- Left of the close: maximize, back to the GPS page on the map. A
     -- square outline in the close's stroke style.
     local maximize = CreateFrame("Button", nil, f)
-    maximize:SetSize(18, 18)
-    maximize:SetPoint("CENTER", close, "CENTER", -24, 0)
+    maximize:SetSize(BTN, BTN)
+    maximize:SetHitRectInsets(-3, -3, -3, -3)
+    maximize:SetPoint("CENTER", close, "CENTER", -BTN_GAP, 0)
     local edges = {}
     local function edge(w, h, point, x, y)
         local tex = maximize:CreateTexture(nil, "OVERLAY")
@@ -4349,10 +4356,10 @@ local function BuildPopout()
         tex:SetPoint(point, maximize, "CENTER", x, y)
         edges[#edges + 1] = tex
     end
-    edge(11, 1.5, "TOP", 0, 5.5)
-    edge(11, 1.5, "BOTTOM", 0, -5.5)
-    edge(1.5, 11, "LEFT", -5.5, 0)
-    edge(1.5, 11, "RIGHT", 5.5, 0)
+    edge(7, 1.5, "TOP", 0, 3.5)
+    edge(7, 1.5, "BOTTOM", 0, -3.5)
+    edge(1.5, 7, "LEFT", -3.5, 0)
+    edge(1.5, 7, "RIGHT", 3.5, 0)
     local function tintMax(r, g, b)
         for i = 1, #edges do edges[i]:SetVertexColor(r, g, b, 1) end
     end
@@ -4367,15 +4374,16 @@ local function BuildPopout()
     -- Then minimize: the window folds to its title line and back. One
     -- stroke when open, a plus when folded.
     local collapse = CreateFrame("Button", nil, f)
-    collapse:SetSize(18, 18)
-    collapse:SetPoint("CENTER", maximize, "CENTER", -24, 0)
+    collapse:SetSize(BTN, BTN)
+    collapse:SetHitRectInsets(-3, -3, -3, -3)
+    collapse:SetPoint("CENTER", maximize, "CENTER", -BTN_GAP, 0)
     local bar = collapse:CreateTexture(nil, "OVERLAY")
     bar:SetTexture("Interface\\Buttons\\WHITE8x8")
-    bar:SetSize(11, 1.5)
+    bar:SetSize(7, 1.5)
     bar:SetPoint("CENTER")
     local post = collapse:CreateTexture(nil, "OVERLAY")
     post:SetTexture("Interface\\Buttons\\WHITE8x8")
-    post:SetSize(1.5, 11)
+    post:SetSize(1.5, 7)
     post:SetPoint("CENTER")
     local function tintFold(r, g, b)
         bar:SetVertexColor(r, g, b, 1)
@@ -4421,21 +4429,31 @@ local function BuildPopout()
     f.isPopout = true
 
     BuildSurface(f, {
-        padX = 12, padY = 9, padRight = 84, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
+        padX = 12, padY = 9, padRight = 52, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
         onRouteChanged = function(self)
             -- The fold button folds a route; with none there is nothing to fold.
             if self.collapseBtn then self.collapseBtn:SetShown(Route() ~= nil) end
             local hits = self.search ~= nil and (self.hitCount or 0) > 0
             local folded = self.collapsed == true and Route() ~= nil
-            if self.trip then ns.GPSTrip.Fold(self, folded) end
-            -- The header row: the trip's fields while they show, else the icon.
-            local headRow = (self.trip and self.trip:IsShown()) and self.trip:GetHeight() or 20
+            local bare = self.fieldsHidden and Route() ~= nil and not folded
+            if self.trip then
+                ns.GPSTrip.Fold(self, folded)
+                if bare then self.trip:Hide() end
+            end
+            if self.fieldsBtn then
+                self.fieldsBtn:SetShown(Route() ~= nil and not folded)
+                self.fieldsBtn:Point(not bare)
+            end
+            -- The header row: the trip's fields while they show (one pixel
+            -- hidden, the time line then at the top), else the icon.
+            local headRow = (self.trip and (self.trip:IsShown() or bare)) and self.trip:GetHeight() or 20
+            local strip = folded and 0 or self.headStrip
             local tight = (not Route() and not hits) or folded
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
-                self:SetHeaderPad(8)
-                self:SetHeight(8 + headRow + 8)
+                self:SetHeaderPad(8, not folded)
+                self:SetHeight(8 + strip + headRow + 8)
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
                     self.search:SetShown(not (Route() or GPS.planning or self.trip))
@@ -4443,9 +4461,9 @@ local function BuildPopout()
                 end
                 return
             end
-            self:SetHeaderPad(9)
+            self:SetHeaderPad(9, true)
             local _, fixed = PopoutSize()
-            local head = 9 + headRow + 8   -- pad, the header row, gap
+            local head = 9 + strip + headRow + 8   -- pad, the buttons' strip, the header row, gap
             local line = 4 + 14 + 8   -- the time line under the name
             local h
             -- With a route, typed places take the steps' place.
@@ -4476,8 +4494,60 @@ local function BuildPopout()
             end
         end,
     })
-    -- The trip's fields in the window too, as on the map page.
+    -- The trip's fields in the window too, as on the map page, the first
+    -- its full width under the buttons' strip.
+    f.buttonsAbove = true
     if ns.GPSTrip then ns.GPSTrip.BuildEditor(f) end
+
+    -- In Clear route's place an arrow hides the fields, the steps alone
+    -- under the time line; the destination's own clear button ends a route.
+    f.noClear = true
+    local fields = CreateFrame("Button", nil, f)
+    fields:SetSize(BTN + 2, BTN + 2)
+    fields:SetHitRectInsets(-3, -3, -3, -3)
+    fields:SetPoint("RIGHT", f.clearBtn, "RIGHT", 0, 0)
+    local function chevron(x)
+        local tex = fields:CreateTexture(nil, "OVERLAY")
+        tex:SetTexture("Interface\\Buttons\\WHITE8x8")
+        tex:SetSize(6, 1.5)
+        tex:SetPoint("CENTER", fields, "CENTER", x, 0)
+        return tex
+    end
+    local left, right = chevron(-2), chevron(2)
+    local function tintFields(r, g, b)
+        left:SetVertexColor(r, g, b, 1)
+        right:SetVertexColor(r, g, b, 1)
+    end
+    tintFields(unpack(ns.TEXT_DIM))
+    -- up: the fields show, a click hides them.
+    function fields:Point(up)
+        self.up = up
+        left:SetRotation(up and mpi / 4 or -mpi / 4)
+        right:SetRotation(up and -mpi / 4 or mpi / 4)
+    end
+    fields:SetScript("OnEnter", function(self)
+        tintFields(1, 1, 1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.up and L["GPS_FIELDS_HIDE"] or L["GPS_FIELDS_SHOW"])
+        GameTooltip:Show()
+    end)
+    fields:SetScript("OnLeave", function()
+        tintFields(unpack(ns.TEXT_DIM))
+        GameTooltip_Hide()
+    end)
+    fields:SetScript("OnClick", function(self)
+        f.fieldsHidden = not f.fieldsHidden or nil
+        local db = DB()
+        if db then db.gpsPopoutFieldsHidden = f.fieldsHidden end
+        if self:IsMouseOver() then self:GetScript("OnEnter")(self) end
+        f:Render()
+    end)
+    local db2 = DB()
+    f.fieldsHidden = db2 and db2.gpsPopoutFieldsHidden or nil
+    fields:Point(not f.fieldsHidden)
+    fields:Hide()
+    f.fieldsBtn = fields
+    f.clearBtn:SetWidth(fields:GetWidth())   -- the time line runs up to the arrow
     -- While the window is dragged over the tracker, the tracker opens the
     -- gap the section would take.
     local dragSince = 0
