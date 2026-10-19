@@ -84,8 +84,7 @@ end
 -- Whether a click on a pinned spot starts the GPS there (the GPS loaded
 -- and its setting on) rather than placing a waypoint.
 local function GPSNavigates()
-    local GPS = ns.GPS
-    return GPS ~= nil and GPS.MapClickNavigates ~= nil and GPS.MapClickNavigates()
+    return EasyFind.API.CallAction("gps", "mapClickNavigates") and true or false
 end
 
 local function PinEnter(self)
@@ -112,8 +111,8 @@ local function PinClick(self, button)
     local viewingMapID = WorldMapFrame:GetMapID()
     if not viewingMapID then return end
     local sel = MapSearch._selected
-    if sel and GPSNavigates() and ns.GPS:NavigateTo({ name = sel.name, mapID = viewingMapID, x = x, y = y,
-            icon = sel.icon, category = sel.category or cat, displayID = sel.displayID }) then
+    if sel and GPSNavigates() and EasyFind.API.CallAction("gps", "navigate", { name = sel.name, mapID = viewingMapID,
+            x = x, y = y, icon = sel.icon, category = sel.category or cat, displayID = sel.displayID }) then
         return
     end
     PlaceTrackedWaypoint(viewingMapID, x, y)

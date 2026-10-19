@@ -506,9 +506,9 @@ function Handlers:SelectResult(data, forceGuide)
         -- No journal (WoW Forever): directions to the instance that drops it.
         if not (ns.Caps and ns.Caps.journal) then
             for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
-                if e.id == data.instanceID and ns.GPS and ns.GPS.NavigateTo then
-                    ns.GPS:NavigateTo({ name = data.lootInstanceName or e.n, mapID = e.m, x = e.x, y = e.y,
-                                        isDungeonEntrance = true, category = e.raid and "raid" or "dungeon" })
+                if e.id == data.instanceID and EasyFind.API.HasAction("gps", "navigate") then
+                    EasyFind.API.CallAction("gps", "navigate", { name = data.lootInstanceName or e.n, mapID = e.m,
+                        x = e.x, y = e.y, isDungeonEntrance = true, category = e.raid and "raid" or "dungeon" })
                     return
                 end
             end

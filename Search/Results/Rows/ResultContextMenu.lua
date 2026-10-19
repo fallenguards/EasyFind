@@ -111,7 +111,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         local entry = ns.ClipboardStore and ns.ClipboardStore:Get(clipID)
         extra.clipPinned = entry and entry.pinned and true or false
         extra.onClipPin = function() ns.Clipboard:TogglePin(clipID) end
-        if ns.Snippets and ns.Snippets.OpenEditorPrefilled then
+        if EasyFind.API.HasAction("snippets", "create") then
             extra.onClipSaveSnippet = function() ns.Clipboard:SaveAsSnippet(clipID) end
         end
         -- An entry goes into a note as its text, or its live link.
@@ -144,7 +144,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         -- the bar steps aside as it does after any chosen result (hidden
         -- outright when it auto-hides).
         extra.onGPS = function()
-            if ns.GPS:NavigateTo(pinData, { popout = true }) and Handlers.FinishResultSelection then
+            if EasyFind.API.CallAction("gps", "navigate", pinData, { popout = true }) and Handlers.FinishResultSelection then
                 Handlers:FinishResultSelection()
             end
         end

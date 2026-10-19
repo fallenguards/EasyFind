@@ -661,6 +661,7 @@ end
 
 local function Arrive(route)
     route.arrived = true
+    EasyFind.API.Fire("gps", "arrived", route.dest)
     if route.report and route.report.t then route.tookSec = time() - route.report.t end
     StopTicker()
     LiftPin(route)
@@ -1071,6 +1072,7 @@ function GPS.Navigated(dest, steps, total, advice, stops)
                        report = { from = start, total = total, t = time(), fly = flies,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     if GPS.AfterRoute then GPS.AfterRoute() end
+    EasyFind.API.Fire("gps", "routeStarted", dest)
     -- A new route opens up, whatever the last one was folded to.
     db.gpsPopoutCollapsed = nil
     for i = 1, #surfaces do
@@ -1418,6 +1420,7 @@ end
 
 function GPS:Clear()
     local route = Route()
+    if route then EasyFind.API.Fire("gps", "routeCleared") end
     if route and not route.arrived then LiftPin(route) end
     local c = CharDB()
     if c then c.route, c.start = nil, nil end
@@ -4936,6 +4939,13 @@ EasyFind.API.RegisterExtension({
     end,
     settings = BuildOptionsPage,
 })
+-- What other extensions ask of it. dest: { name, mapID, x, y } (map
+-- coordinates 0..1). Events: routeStarted(dest), arrived(dest), routeCleared.
+EasyFind.API.RegisterAction("gps", "navigate", function(dest, opts) return GPS:NavigateTo(dest, opts) end)
+EasyFind.API.RegisterAction("gps", "canNavigate", function(dest) return GPS:CanNavigate(dest) end)
+EasyFind.API.RegisterAction("gps", "setStart", function(dest) return GPS:SetStart(dest) end)
+EasyFind.API.RegisterAction("gps", "clear", function() GPS:Clear() end)
+EasyFind.API.RegisterAction("gps", "mapClickNavigates", function() return GPS.MapClickNavigates() end)
 
 local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("TAXIMAP_OPENED")

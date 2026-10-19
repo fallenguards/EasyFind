@@ -62,7 +62,7 @@ function tests.routeLinkRoutesTheReaderThere()
     n.L.GPS_TO_FMT = "To %s"
     n.LINK_COLOR = { 0, 1, 1 }
     local went
-    n.GPS = { NavigateTo = function(_, dest) went = dest end }
+    e.EasyFind.API.RegisterAction("gps", "navigate", function(dest) went = dest end)
     RL:Install()
     local text = RL:BuildRouteText({ name = "Booty Bay", mapID = 210, x = 0.4123, y = 0.7712 })
     H.assertEq(text, "[EasyFind: To Booty Bay] {ef:route:210:0.4123:0.7712:Booty Bay}")

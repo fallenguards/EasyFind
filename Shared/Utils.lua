@@ -8815,7 +8815,7 @@ function ns.BuildChatSendRows(link)
     if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat") then return nil end
     local rows = {
         { text = L["CHAT_NEW_CONVERSATION"], onClick = function()
-            if ns.RequestChat and ns.RequestChat() and ns.Chat.ComposeWith then ns.Chat:ComposeWith(nil, link) end
+            EasyFind.API.CallAction("chat", "compose", link)
         end },
     }
     local Chat = ns.Chat

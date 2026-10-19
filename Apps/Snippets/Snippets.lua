@@ -426,29 +426,18 @@ end
 -- The notes editor lives in the separate EasyFind_Notes addon; load it on
 -- demand and detect its exported handle. (The WIP's ns.Companions loader
 -- never landed on this line; this is the funnel-style equivalent.)
-local function LoadNotesAddon()
-    if ns.Notes then return true end
-    if C_AddOns and C_AddOns.LoadAddOn then
-        pcall(C_AddOns.LoadAddOn, "EasyFind_Notes")
-    end
-    return ns.Notes ~= nil
-end
-
 function Snippets:InsertIntoNote(name)
     local snippet = FindByName(name)
     if not snippet then return end
-    if not LoadNotesAddon() then return end
-    local notes = ns.Notes
-    if not notes then return end
-    if (snippet.flat or snippet.decorations) and notes.InsertDocumentAtCursor then
+    if snippet.flat or snippet.decorations then
         -- Rich document: inserted natively (placeholder tokens stay literal;
         -- resolving them would shift the decoration byte ranges).
-        notes.InsertDocumentAtCursor({
+        EasyFind.API.CallAction("notes", "insertDocument", {
             body = snippet.body,
             decorations = snippet.decorations,
         })
-    elseif notes.InsertAtCursor then
-        notes.InsertAtCursor(self.ResolvePlaceholders(snippet.body))
+    else
+        EasyFind.API.CallAction("notes", "insertText", self.ResolvePlaceholders(snippet.body))
     end
 end
 
@@ -1007,8 +996,7 @@ local function SaveEditor()
         snippet.body = doc.body or ""
         snippet.decorations = doc.decorations and #doc.decorations > 0
             and doc.decorations or nil
-        snippet.flat = ns.Notes and ns.Notes.FlattenDocument
-            and ns.Notes.FlattenDocument(doc) or snippet.body
+        snippet.flat = EasyFind.API.CallAction("notes", "flatten", doc) or snippet.body
     else
         snippet.body = f.bodyBox:GetText() or ""
         snippet.decorations = nil
@@ -1185,11 +1173,11 @@ local function EnsureEditor()
     -- decorations, lists, the full toolbar with active states). Without the
     -- companion, a plain editbox: chat receives plain text anyway, so the
     -- fallback loses nothing chat-visible.
-    if LoadNotesAddon() and ns.Notes.AttachSnippetBodyEditor then
+    if EasyFind.API.LoadExtension("notes") and EasyFind.API.HasAction("notes", "attachEditor") then
         bodyLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         bodyLabel:SetPoint("TOPLEFT", DIALOG_PAD, y)
         bodyLabel:SetText(L["SNIPPET_TEXT"])
-        local host = ns.Notes.AttachSnippetBodyEditor(f, {
+        local host = EasyFind.API.CallAction("notes", "attachEditor", f, {
             width = DIALOG_W - DIALOG_PAD * 2,
             height = BODY_H,
             maxLetters = CHAT_MAX,
@@ -1349,10 +1337,10 @@ function Snippets:OpenEditor(index)
         if snippet and (snippet.flat or snippet.decorations) then
             doc = { body = snippet.body or "", decorations = snippet.decorations }
         elseif snippet and snippet.body and snippet.body ~= ""
-           and ns.Notes and ns.Notes.DocumentFromMarkdown then
+           and EasyFind.API.HasAction("notes", "fromMarkdown") then
             -- Snippet saved before the notes-model editor: convert its
             -- markdown once on open.
-            doc = ns.Notes.DocumentFromMarkdown(snippet.body)
+            doc = EasyFind.API.CallAction("notes", "fromMarkdown", snippet.body)
         else
             doc = { body = snippet and snippet.body or "", decorations = {} }
         end
@@ -1392,6 +1380,13 @@ EasyFind.API.RegisterExtension({
     isOpen = function() return EasyFind.API.IsSettingsOpen("snippets") end,
     close = EasyFind.API.CloseSettings,
 })
+
+-- What other extensions ask of it: fire a snippet by name as its keyword
+-- would, or open the editor on a new one.
+EasyFind.API.RegisterAction("snippets", "run", function(name) return Snippets:RunByName(name) end)
+EasyFind.API.RegisterAction("snippets", "create", function(body, name) Snippets:OpenEditorPrefilled(body, name) end)
+-- Keywords typed into this edit box expand, as in the chat box.
+EasyFind.API.RegisterAction("snippets", "attachExpansion", Snippets.AttachExpansion)
 
 -- The snippets a search finds, by name, keyword or text; a click opens
 -- the editor (chat use goes through the keyword, a shortkey or Send).

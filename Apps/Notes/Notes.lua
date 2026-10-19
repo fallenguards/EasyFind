@@ -6338,8 +6338,8 @@ function UI:ShowEasyNotesRowMenu(row)
         rows[#rows + 1] = { text = L["NOTES_SEND_MESSAGE"], onClick = function()
             local idx = FindNoteIndex(row.noteID)
             local note = idx and NotesStore()[idx] or nil
-            if not (note and ns.RequestChat and ns.RequestChat() and ns.Chat.ComposeWith) then return end
-            ns.Chat:ComposeWith(nil, strtrim(StripColorEscapes(MapSelection(note.body or "", GlyphPlain))))
+            if not note then return end
+            EasyFind.API.CallAction("chat", "compose", strtrim(StripColorEscapes(MapSelection(note.body or "", GlyphPlain))))
         end }
     end
     rows[#rows + 1] = { isSeparator = true }
@@ -8453,6 +8453,18 @@ end
 EasyFind.API.RegisterExtension({
     id = "notes", open = notesNS.Open, close = notesNS.Close, isOpen = notesNS.IsOpen,
 })
+-- Its rich text editor and document model (the snippet editor uses
+-- them), and text put in at the open note's cursor.
+EasyFind.API.RegisterAction("notes", "attachEditor", notesNS.AttachSnippetBodyEditor)
+EasyFind.API.RegisterAction("notes", "flatten", notesNS.FlattenDocument)
+EasyFind.API.RegisterAction("notes", "fromMarkdown", notesNS.DocumentFromMarkdown)
+EasyFind.API.RegisterAction("notes", "insertDocument", notesNS.InsertDocumentAtCursor)
+EasyFind.API.RegisterAction("notes", "insertText", notesNS.InsertAtCursor)
+-- A player's or a thing's note: whether one exists, and the note opened.
+EasyFind.API.RegisterAction("notes", "hasUnitNote", notesNS.HasUnitNote)
+EasyFind.API.RegisterAction("notes", "findUnitNote", notesNS.FindUnitNote)
+EasyFind.API.RegisterAction("notes", "openUnitNote", notesNS.OpenUnitNote)
+EasyFind.API.RegisterAction("notes", "addUnitNoteLines", notesNS.AddUnitNoteLines)
 EasyFind.API.RegisterSearchProvider({
     key = "notes", rows = notesNS.BuildSearchData,
     select = function(row) if row.noteID then notesNS.OpenNote(row.noteID) end end,

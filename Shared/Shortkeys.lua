@@ -301,8 +301,8 @@ local function OnShortkeyButtonClick(self, _, down)
         -- shortkey FIRES the snippet into chat, exactly as if its keyword
         -- had been typed -- a bound snippet is for using, not editing.
         -- (The create row keeps the default action: it has nothing to fire.)
-        if data.category == "Snippet" and not data.snippetCreate and ns.Snippets then
-            ns.Snippets:RunByName(data.name)
+        if data.category == "Snippet" and not data.snippetCreate and EasyFind.API.HasAction("snippets", "run") then
+            EasyFind.API.CallAction("snippets", "run", data.name)
         elseif not (ns.ResultRows and ns.ResultRows.ActivateSettingResult
                 and ns.ResultRows:ActivateSettingResult(data)) then
             ns.ResultHandlers:SelectResult(data)

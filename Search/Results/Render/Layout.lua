@@ -102,7 +102,7 @@ end
 -- the icon and the name stops short of it, never anchored to the button.
 local function NavigateFromResults(data)
     local Handlers = ns.ResultHandlers
-    if ns.GPS:NavigateTo(data, { popout = true }) and Handlers and Handlers.FinishResultSelection then
+    if EasyFind.API.CallAction("gps", "navigate", data, { popout = true }) and Handlers and Handlers.FinishResultSelection then
         Handlers:FinishResultSelection()
     end
 end

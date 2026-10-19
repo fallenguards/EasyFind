@@ -289,5 +289,68 @@ function tests.dbOption_readsOnUnlessFalse()
     H.assertEq(changed, false)
 end
 
+-- ==== actions and events ======================================================
+
+function tests.action_callsAcrossExtensions()
+    local _, _, API = fresh()
+    API.RegisterAction("gps", "navigate", function(dest, opts) return dest.name, opts and opts.popout end)
+    H.assertTrue(API.HasAction("gps", "navigate"))
+    local name, popout = API.CallAction("gps", "navigate", { name = "Booty Bay" }, { popout = true })
+    H.assertEq(name, "Booty Bay")
+    H.assertTrue(popout, "every result comes back")
+    H.assertNil(API.CallAction("gps", "fly"), "no such action: nothing")
+    H.assertNil(API.CallAction("nobody", "x"))
+end
+
+function tests.action_loadsItsOwnerFirst()
+    local env, ns, API = fresh()
+    ns.IsCompanionLoadable = function() return true end
+    env.C_AddOns = { LoadAddOn = function()
+        API.RegisterAction("notes", "flatten", function(doc) return doc.body end)
+    end }
+    API.RegisterExtension({ id = "notes", name = "Notes", addon = "Notes_LoD", loadInCombat = true })
+    H.assertFalse(API.HasAction("notes", "flatten"), "not loaded yet")
+    H.assertEq(API.CallAction("notes", "flatten", { body = "hi" }), "hi")
+end
+
+function tests.action_errorStaysWithIt()
+    local _, _, API, errors = fresh()
+    API.RegisterAction("x", "boom", function() error("boom") end)
+    H.assertNil(API.CallAction("x", "boom"))
+    H.assertEq(#errors, 1)
+end
+
+function tests.action_refusesWhatCannotWork()
+    local _, _, API = fresh()
+    raises(function() API.RegisterAction("x", "y", "z") end, "fn must be a function")
+    raises(function() API.RegisterAction(nil, "y", function() end) end, "id must be a string")
+end
+
+function tests.events_reachEveryListener()
+    local _, _, API, errors = fresh()
+    local heard = {}
+    local function one(dest) heard[#heard + 1] = "one:" .. dest end
+    API.On("gps", "arrived", one)
+    API.On("gps", "arrived", function() error("listener bug") end)
+    API.On("gps", "arrived", function(dest) heard[#heard + 1] = "two:" .. dest end)
+    API.Fire("gps", "arrived", "Ironforge")
+    H.assertEq(table.concat(heard, ","), "one:Ironforge,two:Ironforge", "one listener's error stops no other")
+    H.assertEq(#errors, 1)
+    API.Off("gps", "arrived", one)
+    API.Fire("gps", "arrived", "Stormwind")
+    H.assertEq(heard[#heard], "two:Stormwind")
+    H.assertEq(#heard, 3, "the one taken off hears nothing")
+end
+
+function tests.theme_colorsByRole()
+    local _, ns, API = fresh()
+    ns.ACTIVE_UI_PALETTE = { leafColor = { 0.9, 0.8, 0.7 }, accent = { 0.1, 0.2, 0.3, 0.5 }, light = true }
+    local r, g, b, a = API.GetThemeColor("text")
+    H.assertEq(r .. "," .. g .. "," .. b .. "," .. a, "0.9,0.8,0.7,1")
+    H.assertEq(select(4, API.GetThemeColor("accent")), 0.5)
+    H.assertTrue(API.IsLightTheme())
+    raises(function() API.GetThemeColor("plaid") end, "no color named")
+end
+
 local pass, fail, failures = H.runSuite("ExtensionsAPI", tests)
 return { pass = pass, fail = fail, failures = failures }

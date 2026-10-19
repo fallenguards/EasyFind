@@ -158,15 +158,22 @@ function Extensions.ScopeShowing()
     return nil
 end
 
+-- A load-on-demand extension's addon, loaded if it can be now.
+local function LoadAddon(def)
+    if not (def and def.addon and C_AddOns and C_AddOns.LoadAddOn) then return end
+    if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(def.addon) then return end
+    if InCombatLockdown() and not def.loadInCombat then return end
+    pcall(C_AddOns.LoadAddOn, def.addon)
+end
+
 -- Loads the extension's addon when it has not loaded yet; true when it
 -- can open now.
 function Extensions.Load(id)
     local def = Extensions.byID[id]
     if not def then return false end
     if def.open or def.settings or def.scope then return true end
-    if not def.addon or not (C_AddOns and C_AddOns.LoadAddOn) then return false end
-    if InCombatLockdown() and not def.loadInCombat then return false end
-    pcall(C_AddOns.LoadAddOn, def.addon)
+    if not def.addon then return false end
+    LoadAddon(def)
     def = Extensions.byID[id]
     if def.open or def.settings or def.scope then return true end
     local title = C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(def.addon, "Title") or def.addon
@@ -418,6 +425,152 @@ function API.ShowScope(key, text)
         end
     end)
     return true
+end
+
+-- Shows the search bar focused, with this text searched when given.
+function API.OpenSearch(text)
+    local Search = ns.Search
+    if not (Search and Search.Show) then return false end
+    Search:Show(true)
+    if type(text) == "string" and text ~= "" then
+        Utils.SafeAfter(0, function()
+            local frame = Search:GetSearchFrame()
+            local box = frame and frame:IsShown() and frame.editBox
+            if not box then return end
+            box:SetText(text)
+            box:SetCursorPosition(#text)
+        end)
+    end
+    return true
+end
+
+-- ==== public: theme and look ===================================================
+
+-- The theme's colors by role; r, g, b, a.
+local THEME_SLOTS = {
+    background = "windowFill", panel = "backdropColor", border = "backdropBorder", line = "separator",
+    text = "leafColor", textDim = "textFaint", heading = "pathColor", accent = "accent",
+    selection = "selection", glyph = "chromeGlyph",
+}
+
+function API.GetThemeColor(role)
+    local slot = THEME_SLOTS[role]
+    if not slot then Fail("GetThemeColor", "no color named '" .. tostring(role) .. "'") end
+    local palette = ns.ACTIVE_UI_PALETTE or (ns.UI_THEME_PALETTES and ns.UI_THEME_PALETTES.Black) or {}
+    local c = palette[slot] or { 1, 1, 1 }
+    return c[1], c[2], c[3], c[4] or 1
+end
+
+-- A light theme wants dark text and icons.
+function API.IsLightTheme()
+    local palette = ns.ACTIVE_UI_PALETTE
+    return palette ~= nil and palette.light == true
+end
+
+-- fn() runs after the user picks another theme.
+function API.OnThemeChanged(fn)
+    if type(fn) ~= "function" then Fail("OnThemeChanged", "expects a function") end
+    ns.RegisterThemeCallback(function() Run(fn) end)
+end
+
+-- Gives a frame EasyFind's panel look: rounded border and the theme's
+-- fill, following theme and opacity changes.
+function API.StylePanel(frame)
+    if type(frame) ~= "table" or not frame.CreateTexture then Fail("StylePanel", "expects a frame") end
+    ns.StyleMenuPanel(frame)
+    return frame
+end
+
+-- A button in EasyFind's look.
+function API.CreateButton(parent, text, width, height)
+    return ns.CreateModernButton(parent, text, width or 120, height or 22)
+end
+
+-- A confirm or input dialog in EasyFind's look. opts: text, acceptText,
+-- cancelText, hasEditBox, editBoxDefault, onAccept(value), single (one
+-- button only).
+function API.ShowDialog(opts)
+    if type(opts) ~= "table" then Fail("ShowDialog", "expects a table") end
+    local onAccept = opts.onAccept
+    ns.ShowThemedDialog({
+        text = opts.text, acceptText = opts.acceptText, cancelText = opts.cancelText,
+        hasEditBox = opts.hasEditBox, editBoxDefault = opts.editBoxDefault, single = opts.single,
+        onAccept = onAccept and function(value) Run(onAccept, value) end,
+    })
+end
+
+-- ==== public: extensions talking to each other =================================
+
+local actions = {}     -- extension id -> action name -> function
+local listeners = {}   -- "id:event" -> list of functions
+
+local function CheckName(fn, what, v)
+    if type(v) ~= "string" or v == "" then Fail(fn, what .. " must be a string") end
+end
+
+-- An action other extensions call by name: CallAction(id, name, ...).
+function API.RegisterAction(id, name, fn)
+    CheckName("RegisterAction", "id", id)
+    CheckName("RegisterAction", "name", name)
+    if type(fn) ~= "function" then Fail("RegisterAction", "fn must be a function") end
+    actions[id] = actions[id] or {}
+    actions[id][name] = fn
+end
+
+function API.HasAction(id, name)
+    local own = actions[id]
+    return own ~= nil and own[name] ~= nil
+end
+
+local function Results(ok, ...)
+    if ok then return ... end
+end
+
+-- Loads the extension's addon if it loads on demand; true when the
+-- extension is registered and its addon (if any) is in.
+function API.LoadExtension(id)
+    local def = Extensions.byID[id]
+    if not def then return false end
+    LoadAddon(def)
+    return not def.addon or not (C_AddOns and C_AddOns.IsAddOnLoaded) or C_AddOns.IsAddOnLoaded(def.addon) or false
+end
+
+-- Runs another extension's action and returns what it returns: nothing
+-- when it has none (or it failed; the error reaches the error frame). One
+-- that loads on demand is loaded first.
+function API.CallAction(id, name, ...)
+    local own = actions[id]
+    if not (own and own[name]) then
+        LoadAddon(Extensions.byID[id])
+        own = actions[id]
+        if not (own and own[name]) then return nil end
+    end
+    return Results(xpcall(own[name], Report, ...))
+end
+
+-- fn(...) runs each time the extension fires the event.
+function API.On(id, event, fn)
+    CheckName("On", "id", id)
+    CheckName("On", "event", event)
+    if type(fn) ~= "function" then Fail("On", "fn must be a function") end
+    local key = id .. ":" .. event
+    listeners[key] = listeners[key] or {}
+    local list = listeners[key]
+    list[#list + 1] = fn
+end
+
+function API.Off(id, event, fn)
+    local list = listeners[tostring(id) .. ":" .. tostring(event)]
+    for i = #(list or {}), 1, -1 do
+        if list[i] == fn then table.remove(list, i) end
+    end
+end
+
+-- Tells every listener the extension's event happened.
+function API.Fire(id, event, ...)
+    local list = listeners[tostring(id) .. ":" .. tostring(event)]
+    if not list then return end
+    for i = 1, #list do Run(list[i], ...) end
 end
 
 -- ==== public: settings ========================================================

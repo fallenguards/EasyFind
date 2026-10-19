@@ -100,5 +100,27 @@ function tests.core_wiresNoExtensionByHand()
     H.assertEq(table.concat(bad, "; "), "", "registered through EasyFind.API instead")
 end
 
+-- One extension asks another through its actions, never its internals.
+-- (Core's own modules may still reach an extension's table.)
+local REACH = { "ns%.GPS[:.]NavigateTo", "ns%.Chat[:.]ComposeWith", "ns%.Snippets[:.]RunByName",
+                "ns%.Snippets[:.]OpenEditorPrefilled", "ns%.Notes%.FlattenDocument",
+                "ns%.Notes%.AttachSnippetBodyEditor", "ns%.Notes%.DocumentFromMarkdown",
+                "ns%.Notes%.OpenUnitNote", "ns%.Notes%.FindUnitNote", "ns%.Notes%.HasUnitNote" }
+
+function tests.extensions_callEachOtherThroughActions()
+    local p = io.popen('cd "' .. H.ADDON_ROOT .. '" && git ls-files "*.lua"')
+    local bad = {}
+    for f in p:lines() do
+        if not f:match("^tests/") then
+            local src = Read(f) or ""
+            for _, pat in ipairs(REACH) do
+                if src:find(pat) then bad[#bad + 1] = f .. ": " .. pat:gsub("%%", "") end
+            end
+        end
+    end
+    p:close()
+    H.assertEq(table.concat(bad, "; "), "", "EasyFind.API.CallAction instead")
+end
+
 local pass, fail, failures = H.runSuite("ExtensionsRegistered", tests)
 return { pass = pass, fail = fail, failures = failures }

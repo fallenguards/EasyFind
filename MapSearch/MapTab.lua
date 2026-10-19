@@ -548,10 +548,10 @@ local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data, row)
         extra = extra or {}
         extra.sendLink = { link = mapPinLink }
     end
-    if data and ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(data) then
+    if data and EasyFind.API.CallAction("gps", "canNavigate", data) then
         extra = extra or {}
-        extra.onGPS = function() ns.GPS:NavigateTo(data) end
-        if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(data) end end
+        extra.onGPS = function() EasyFind.API.CallAction("gps", "navigate", data) end
+        extra.onGPSFrom = function() EasyFind.API.CallAction("gps", "setStart", data) end
     end
     if ShowGameMenu(row, isPinned, onPin, onGuide, onAddAlias, data, extra or {}) then return end
     Utils.ShowPinMenu("EasyFindPinPopup", isPinned, onPin, onGuide, onAddAlias, {

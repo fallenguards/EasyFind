@@ -192,9 +192,7 @@ end
 local function OpenRoute(key)
     local m, x, y, name = smatch(key, "^route:(%d+):([%d.]+):([%d.]+):(.*)$")
     if not m then return false end
-    if ns.GPS and ns.GPS.NavigateTo then
-        ns.GPS:NavigateTo({ name = name, mapID = tonumber(m), x = tonumber(x), y = tonumber(y) })
-    end
+    EasyFind.API.CallAction("gps", "navigate", { name = name, mapID = tonumber(m), x = tonumber(x), y = tonumber(y) })
     return true
 end
 

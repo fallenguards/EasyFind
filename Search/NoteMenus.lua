@@ -70,10 +70,10 @@ local function AddMakeNote(_, root, contextData)
     if not (ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes")) then return end
     local entry = MenuUnit(contextData)
     if not entry then return end
-    local has = ns.Notes and ns.Notes.FindUnitNote and ns.Notes.FindUnitNote(entry)
+    local has = EasyFind.API.HasAction("notes", "findUnitNote") and EasyFind.API.CallAction("notes", "findUnitNote", entry)
     root:CreateDivider()
     root:CreateButton(has and L["NOTES_OPEN_NOTE"] or L["NOTES_MAKE_NOTE"], function()
-        if ns.RequestNotes() and ns.Notes.OpenUnitNote then ns.Notes.OpenUnitNote(entry) end
+        EasyFind.API.CallAction("notes", "openUnitNote", entry)
     end)
 end
 
@@ -96,7 +96,7 @@ end
 local function OpenObjectNote(entry, bound)
     if not bound and not (EasyFind.db and EasyFind.db.notesPlayerMenu ~= false) then return end
     if not (ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes")) then return end
-    if ns.RequestNotes() and ns.Notes.OpenUnitNote then ns.Notes.OpenUnitNote(entry) end
+    EasyFind.API.CallAction("notes", "openUnitNote", entry)
 end
 
 if hooksecurefunc then

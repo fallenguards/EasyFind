@@ -622,8 +622,8 @@ end
 -- the name; the keyword is the one thing left to type.
 function Clipboard:SaveAsSnippet(id)
     local entry = Store:Get(id)
-    if not (entry and ns.Snippets and ns.Snippets.OpenEditorPrefilled) then return end
-    ns.Snippets:OpenEditorPrefilled(entry.link or entry.text, Store.FirstLine(entry.text))
+    if not entry then return end
+    EasyFind.API.CallAction("snippets", "create", entry.link or entry.text, Store.FirstLine(entry.text))
 end
 
 function Clipboard:Delete(id)
