@@ -562,19 +562,16 @@ local function Mark(parent)
     return mark
 end
 
--- A field in the theme's own well (its control fill, the theme's ring or
--- the stock soft one), not the stock search art; repainted with the theme.
+-- A field in the theme's own well, not the stock search art: the dark
+-- inset its edit boxes use (a button's fill read washed out under the
+-- dim placeholder), ringed as its results are. Repainted with the theme.
 local wells = {}
 local function PaintWell(well)
-    local fill = ns.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
+    local fill = ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 }
     local palette = ns.ACTIVE_UI_PALETTE
-    local ring = palette and palette.borderColor
+    local ring = palette and (palette.borderColor or palette.backdropBorder) or { 0.50, 0.48, 0.45 }
     ns.SetRoundedRectFill(well, fill[1], fill[2], fill[3], 1, true)
-    if ring then
-        ns.SetRoundedRectBorderColor(well, ring[1], ring[2], ring[3], ring[4] or 1, true)
-    else
-        ns.SetRoundedRectBorderColor(well, 0.28, 0.28, 0.30, 0.75, true)
-    end
+    ns.SetRoundedRectBorderColor(well, ring[1], ring[2], ring[3], ring[4] or 1, true)
 end
 if ns.ApplyUITheme then
     hooksecurefunc(ns, "ApplyUITheme", function()
