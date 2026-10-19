@@ -616,6 +616,15 @@ local function PlainSearchText(note)
     return plain
 end
 
+-- Whether one of the note's tags (where it shows, the tooltips it rides) is in set.
+local function NoteHasTagIn(n, set)
+    local key = notesNS.Context.Key
+    local applies, shows = n.appliesIn or {}, n.showsOn or {}
+    for i = 1, #applies do if set[key(applies[i])] then return true end end
+    for i = 1, #shows do if set[key(shows[i])] then return true end end
+    return false
+end
+
 local function SortedNotes(filter)
     local notes = NotesStore()
     local list = {}
@@ -626,6 +635,7 @@ local function SortedNotes(filter)
     -- character key) and categoryFilter (nil = all, or a set of category names).
     local charFilter = UI._notes and UI._notes.charFilter
     local catFilter = UI._notes and UI._notes.categoryFilter
+    local tagFilter = UI._notes and UI._notes.tagFilter
     for i = 1, #notes do
         local n = notes[i]
         local charOK
@@ -637,7 +647,8 @@ local function SortedNotes(filter)
             charOK = shareAll or n.scope == "account" or not n.character or n.character == charKey
         end
         local catOK = (not catFilter) or catFilter[n.category or "General"] == true
-        if charOK and catOK and (filter == "" or sfind(PlainSearchText(n), filter, 1, true)
+        local tagOK = (not tagFilter) or NoteHasTagIn(n, tagFilter)
+        if charOK and catOK and tagOK and (filter == "" or sfind(PlainSearchText(n), filter, 1, true)
                        or sfind(slower(n.alias or ""), filter, 1, true)) then
             list[#list + 1] = n
         end
@@ -6807,9 +6818,48 @@ function UI:ShowEasyNotesFilterMenu(anchor)
         end
         return t
     end
+    -- Tags pick several at once too, from every tag on a note, searched
+    -- and scrolled when there are many; none picked is every note.
+    local function tagRows()
+        local key, seen, tags = notesNS.Context.Key, {}, {}
+        local notes = NotesStore()
+        local function Collect(list)
+            for j = 1, #(list or {}) do
+                local tag = list[j]
+                local k = key(tag)
+                if k and not seen[k] then
+                    seen[k] = true
+                    tags[#tags + 1] = { key = k, name = tag.name or tostring(tag.id) }
+                end
+            end
+        end
+        for i = 1, #notes do
+            Collect(notes[i].appliesIn)
+            Collect(notes[i].showsOn)
+        end
+        table.sort(tags, function(a, b) return a.name < b.name end)
+        local picked = UI._notes.tagFilter
+        local t = { { text = L["NOTES_ALL_TAGS"], keepOpen = true, icon = not picked and MENU_CHECK_TEX or nil,
+            onClick = function()
+                UI._notes.tagFilter = nil
+                UI:RefreshEasyNotesPalette()
+            end } }
+        for _, tag in ipairs(tags) do
+            t[#t + 1] = { text = tag.name, keepOpen = true, icon = picked and picked[tag.key] and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    local set = UI._notes.tagFilter or {}
+                    set[tag.key] = not set[tag.key] or nil
+                    UI._notes.tagFilter = next(set) and set or nil
+                    UI:RefreshEasyNotesPalette()
+                end }
+        end
+        if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS"], disabled = true } end
+        return t
+    end
     local rows = {
         { text = _G.CHARACTER, submenu = charRows },
         { text = _G.CATEGORY, submenu = catRows },
+        { text = L["NOTES_TAGS"], submenu = tagRows, submenuSearch = L["NOTES_TAG_FILTER_SEARCH"], submenuMaxRows = 10 },
     }
     UI._notes._filterMenu = self:ShowEasyNotesMenu("EasyNotesFilterMenu", rows, {
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
