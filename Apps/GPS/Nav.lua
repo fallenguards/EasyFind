@@ -789,12 +789,25 @@ local function EntranceCosts(w, t, cost, time)
     return out, outT
 end
 
+-- A kept end, stamped with the walk that read it last: Release lets it
+-- go on its own, as a followed route keeps the continent in use.
+local function Reach(w, rk)
+    local kept = w.reach[rk]
+    if kept then kept.used = w.used or kept.used end
+    return kept
+end
+local function KeepReach(w, rk, kept)
+    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
+    kept.used = w.used
+    w.reach[rk], w.reachN = kept, w.reachN + 1
+    return kept
+end
+
 -- Kept per floor, as every walk from one spot asks the same.
 local function ToEntrances(w, t, g)
     local rk = t.key * 131072 + g
-    local kept = w.reach[rk]
+    local kept = Reach(w, rk)
     if kept then return kept[1], kept[2] end
-    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
     local tc, ents = TileCosts(w, t.key), Entrances(w)
     local want, left = {}, 0
     for k = 1, tc and tc.n or 0 do
@@ -803,7 +816,7 @@ local function ToEntrances(w, t, g)
     end
     local cost, _, time = TileSearch(w, t, g, nil, want, left)
     local out, outT = EntranceCosts(w, t, cost, time)
-    w.reach[rk], w.reachN = { out, outT }, w.reachN + 1
+    KeepReach(w, rk, { out, outT })
     return out, outT
 end
 
@@ -833,12 +846,7 @@ local function End(w, x, y, indoors)
         local u = Reader(Unpack(s, data))
         local key, g = u(), u()
         local rk = key * 131072 + g
-        local kept = w.reach[rk]
-        if not kept then
-            if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
-            kept = { Baked(u) }
-            w.reach[rk], w.reachN = kept, w.reachN + 1
-        end
+        local kept = Reach(w, rk) or KeepReach(w, rk, { Baked(u) })
         return key, g, kept[1], kept[2]
     end
     local t, g = Locate(w, x, y, indoors)
@@ -855,7 +863,7 @@ end
 -- where the way inside that tile is needed.
 local function NearEnd(w, x, y, r, fromKey)
     local rk = mfloor(x) .. ":" .. mfloor(y) .. ":" .. r
-    local kept = w.reach[rk]
+    local kept = Reach(w, rk)
     if kept then return kept[1], kept[2], kept[3], kept[4] end
     local N, cell = w.N, w.cell
     local data = w.data
@@ -904,8 +912,7 @@ local function NearEnd(w, x, y, r, fromKey)
         end
     end
     if not out then return nil end
-    if w.reachN >= REACH_KEPT then w.reach, w.reachN = {}, 0 end
-    w.reach[rk], w.reachN = { out, outT, floors, floorsT }, w.reachN + 1
+    KeepReach(w, rk, { out, outT, floors, floorsT })
     return out, outT, floors, floorsT
 end
 
@@ -1298,9 +1305,9 @@ function Nav.DecodeBlobs(onDone)
 end
 
 -- Decoded data idle for age seconds goes: a tile by its last read, a
--- tile's walking costs by the last walk that read them, and a continent's
--- entrance sides, grounds, landmarks and kept searches once no walk has
--- asked for them. True while anything a walk decoded remains.
+-- tile's walking costs and a kept end by the last walk that read them,
+-- and a continent's entrance sides, grounds, landmarks and kept walks
+-- once no walk has asked for them. True while anything decoded remains.
 function Nav.Release(age)
     local now = GetTime()
     local held = false
@@ -1316,6 +1323,13 @@ function Nav.Release(age)
         if #order > 0 then held = true end
         for key, tc in pairs(w.costs) do
             if tc and (tc.used or 0) + age <= now then w.costs[key] = nil elseif tc then held = true end
+        end
+        for rk, kept in pairs(w.reach) do
+            if (kept.used or 0) + age <= now then
+                w.reach[rk], w.reachN = nil, w.reachN - 1
+            else
+                held = true
+            end
         end
         if w.used then
             if w.used + age <= now then

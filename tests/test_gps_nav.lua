@@ -280,6 +280,12 @@ function tests.release_letsATilesCostsGoWhileTheContinentIsInUse()
     H.assertTrue(Nav.Release(60), "held")
     H.assertNil(w.costs[home], "the idle tile's costs went")
     H.assertTrue(w.costs[east] ~= nil, "the tile walked since keeps its")
+    local kept = 0
+    for _, end_ in pairs(w.reach) do
+        kept = kept + 1
+        H.assertTrue(end_.used == env.GetTime(), "only ends the later walk read stay")
+    end
+    H.assertEq(w.reachN, kept, "the count follows")
     H.assertTrue(w.ents ~= nil, "the continent is still in use")
 end
 
