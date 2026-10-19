@@ -308,14 +308,7 @@ local function CreateRow(i)
     local grip = CreateFrame("Button", nil, row)
     grip:SetSize(GRIP_W, 20)
     grip:SetPoint("LEFT", row, "LEFT", 0, 0)
-    for col = -1, 1, 2 do
-        for k = -1, 1 do
-            local dot = grip:CreateTexture(nil, "ARTWORK")
-            dot:SetSize(2, 2)
-            dot:SetPoint("CENTER", grip, "CENTER", col * 2, k * 4)
-            dot:SetColorTexture(FAINT_COLOR[1], FAINT_COLOR[2], FAINT_COLOR[3], 1)
-        end
-    end
+    Utils.AddGripDots(grip, FAINT_COLOR)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() View.DragStart(row) end)
     grip:SetScript("OnDragStop", function() View.DragStop() end)

@@ -570,10 +570,8 @@ local function Field(ed, i)
     row.mark = Mark(row)
     row.dots = {}
     for k = 1, 3 do
-        local dot = row:CreateTexture(nil, "ARTWORK")
-        dot:SetSize(2, 2)
+        local dot = Utils.CreateDot(row, 2.5, DIM)
         dot:SetPoint("CENTER", row, "TOPLEFT", GRIP_W + MARK / 2, (2 - k) * 3)
-        dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
         row.dots[k] = dot
     end
     -- The drag grip, six dots left of the mark, shown while the cursor
@@ -581,14 +579,7 @@ local function Field(ed, i)
     local grip = CreateFrame("Button", nil, row)
     grip:SetSize(GRIP_W, 20)
     grip:SetPoint("LEFT", row, "LEFT", 0, 0)
-    for col = -1, 1, 2 do
-        for k = -1, 1 do
-            local dot = grip:CreateTexture(nil, "ARTWORK")
-            dot:SetSize(2, 2)
-            dot:SetPoint("CENTER", grip, "CENTER", col * 2, k * 4)
-            dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
-        end
-    end
+    Utils.AddGripDots(grip, DIM)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
     grip:SetScript("OnDragStop", function() ed:DragStop() end)
@@ -778,10 +769,8 @@ function Trip.BuildEditor(frame)
     plus._efOwnColor = true
     ed.addDots = {}
     for k = 1, 3 do
-        local dot = add:CreateTexture(nil, "ARTWORK")
-        dot:SetSize(2, 2)
+        local dot = Utils.CreateDot(add, 2.5, DIM)
         dot:SetPoint("CENTER", add, "TOPLEFT", GRIP_W + MARK / 2, (2 - k) * 3)
-        dot:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
         ed.addDots[k] = dot
     end
     local addText = add:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")

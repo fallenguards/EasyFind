@@ -2876,6 +2876,30 @@ local function DisablePixelSnap(t)
     if t.SetTexelSnappingBias then t:SetTexelSnappingBias(0) end
 end
 
+-- A round dot: a flat color under the round mask, off the pixel grid so
+-- every dot draws the same size at any scale (a snapped square drew one,
+-- two or three pixels wide).
+function Utils.CreateDot(parent, size, color, layer)
+    local dot = parent:CreateTexture(nil, layer or "ARTWORK")
+    dot:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
+    dot:SetSize(size, size)
+    DisablePixelSnap(dot)
+    local mask = parent:CreateMaskTexture()
+    mask:SetTexture(ns.PORTRAIT_ALPHA_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(dot)
+    dot:AddMaskTexture(mask)
+    return dot
+end
+
+-- A drag grip's six dots: two columns of three, centered on the grip.
+function Utils.AddGripDots(grip, color)
+    for col = -1, 1, 2 do
+        for k = -1, 1 do
+            Utils.CreateDot(grip, 3, color):SetPoint("CENTER", grip, "CENTER", col * 2.5, k * 5)
+        end
+    end
+end
+
 -- Paint fill color AND alpha, plus optionally disable pixel snapping so
 -- the texture renders at sub-pixel positions cleanly (used by buttons
 -- and cards that get color-animated, where snap can cause shimmering).
