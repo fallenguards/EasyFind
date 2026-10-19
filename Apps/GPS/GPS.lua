@@ -4406,6 +4406,18 @@ local function BuildPopout()
     f.collapsed = db1 and db1.gpsPopoutCollapsed or nil
     post:SetShown(f.collapsed == true)
     f.collapseBtn = collapse
+    -- The header's buttons are glyphs only: each says what it does.
+    local function Tip(btn, text)
+        btn:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(text(), 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        btn:HookScript("OnLeave", GameTooltip_Hide)
+    end
+    Tip(maximize, function() return L["GPS_TO_MAP_PAGE"] end)
+    Tip(collapse, function() return f.collapsed and L["GPS_UNFOLD"] or L["GPS_FOLD"] end)
+    Tip(close, function() return L["GPS_CLOSE"] end)
     -- The saved fold state, shared with the tracker section.
     f.SyncFold = function(self)
         local db = DB()
