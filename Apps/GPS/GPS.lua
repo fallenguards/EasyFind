@@ -1676,9 +1676,15 @@ local function TipEnter(self)
     local tip = self.tip
     local key = tip and (tip.report and "GPS_REPORT_TT" or tip.other and "GPS_OTHER_WAY_TT"
         or tip.detour and "GPS_ADVICE_DETOUR_TT") or "GPS_ADVICE_TT"
-    -- A detour names the master the later trips fly to it from.
-    local line = (tip and tip.detour and tip.from) and sformat(L["GPS_ADVICE_DETOUR_FROM_TT"], tip.from) or L[key]
-    GameTooltip:AddLine(line, 1, 1, 1, true)
+    -- A detour lists the way trips like this would go once it is learned.
+    local way = tip and tip.detour and tip.way
+    if way and #way > 0 then
+        GameTooltip:AddLine(L["GPS_ADVICE_DETOUR_WAY_TT"], 1, 1, 1, true)
+        for _, text in ipairs(way) do GameTooltip:AddLine("- " .. text, 0.8, 0.8, 0.8, true) end
+        GameTooltip:AddLine(L["GPS_ADVICE_ADD_STOP_TT"], 1, 1, 1, true)
+    else
+        GameTooltip:AddLine(L[key], 1, 1, 1, true)
+    end
     GameTooltip:Show()
 end
 
@@ -1732,7 +1738,7 @@ local function AdviceLines(route)
         -- Out of the way: what it costs now, what it saves every time after.
         out[#out + 1] = { text = sformat(L["GPS_ADVICE_DETOUR_FMT"], learn.name or "?", EtaText(learn.extra), EtaText(learn.save)),
                           id = learn.id, name = learn.name, p = learn.p, viaTotal = learn.viaTotal, after = learn.total, detour = true,
-                          from = learn.from }
+                          way = learn.way }
     end
     for _, other in ipairs(route.others or {}) do
         local way = sformat(L["GPS_WAY_" .. other.way:upper() .. "_FMT"], EtaText(other.total))
