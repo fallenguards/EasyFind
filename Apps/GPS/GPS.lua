@@ -1741,7 +1741,11 @@ local function AdviceLines(route)
                           way = learn.way }
     end
     for _, other in ipairs(route.others or {}) do
-        local way = sformat(L["GPS_WAY_" .. other.way:upper() .. "_FMT"], EtaText(other.total))
+        -- Against the route shown, both as planned: the header runs at the
+        -- pace seen (on foot where a mount was planned), a planned total never.
+        local more = other.total - (route.total or other.total)
+        local diff = sformat(L[more >= 0 and "GPS_WAY_LONGER_FMT" or "GPS_WAY_SHORTER_FMT"], EtaText(math.abs(more)))
+        local way = sformat(L["GPS_WAY_" .. other.way:upper() .. "_FMT"], diff)
         out[#out + 1] = { text = sformat(L["GPS_OTHER_WAY_FMT"], way), other = other }
     end
     return #out > 0 and out or nil
