@@ -4597,8 +4597,8 @@ end
 SampleGroundSpeed = function()
     if not (IsMounted and IsMounted()) or (UnitOnTaxi and UnitOnTaxi("player")) then return end
     if (IsFlying and IsFlying()) or (IsSwimming and IsSwimming()) then return end
-    local ok, speed = pcall(GetUnitSpeed, "player")
-    if not (ok and speed) or speed <= 7.5 or speed > 40 then return end
+    local speed = GetUnitSpeed("player")
+    if not speed or (issecretvalue and issecretvalue(speed)) or speed <= 7.5 or speed > 40 then return end
     local c = CharDB()
     if c and (not c.groundSpeed or speed > c.groundSpeed + 0.05) then
         c.groundSpeed = speed
