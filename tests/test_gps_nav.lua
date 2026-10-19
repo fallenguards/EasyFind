@@ -260,5 +260,28 @@ function tests.release_letsIdleDataGo_keepsWhatWasRead()
     H.assertEq(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]), cost, "the same walk after")
 end
 
+-- A route's walks keep the continent in use; a tile's walking costs go
+-- on their own once no walk has read them for a minute.
+function tests.release_letsATilesCostsGoWhileTheContinentIsInUse()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
+    env.C_EncodingUtil = { DecodeBase64 = Inflate.DecodeBase64, DecompressString = function(s) return Inflate.Raw(s) end }
+    H.loadModule("tests/fixtures/nav_elwynn.lua", env, ns)
+    H.loadModule("Apps/GPS/Nav.lua", env, ns)
+    local Nav = ns.GPSNav
+    Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local w = Nav._worlds[0]
+    local home, east = Nav.TileOf(GOLDSHIRE[1], GOLDSHIRE[2]), Nav.TileOf(EAST[1], EAST[2])
+    H.assertTrue(w.costs[home] and w.costs[east], "the walk read both tiles' costs")
+    env._clock:advance(61)
+    Nav.Walk(0, EAST[1], EAST[2], EAST[1] + 60, EAST[2] + 40)
+    H.assertTrue(Nav.Release(60), "held")
+    H.assertNil(w.costs[home], "the idle tile's costs went")
+    H.assertTrue(w.costs[east] ~= nil, "the tile walked since keeps its")
+    H.assertTrue(w.ents ~= nil, "the continent is still in use")
+end
+
 local pass, fail, failures = H.runSuite("GPSNav", tests)
 return { pass = pass, fail = fail, failures = failures }

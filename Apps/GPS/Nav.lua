@@ -709,9 +709,15 @@ local function SideXY(w, v)
     return ORIGIN - ty * TILE - TILE + (mfloor(c / N) + 0.5) * cell, ORIGIN - tx * TILE - TILE + (c % N + 0.5) * cell
 end
 
+-- Stamped with the walk that read them last, so Release lets a tile's
+-- go on its own once idle (a route's re-found walks keep the continent
+-- in use, and a plan reads hundreds of tiles' costs).
 local function TileCosts(w, key)
     local tc = w.costs[key]
-    if tc ~= nil then return tc or nil end
+    if tc ~= nil then
+        if tc then tc.used = w.used or tc.used end
+        return tc or nil
+    end
     local data = w.data
     local s = (roadsOnly and data.roads or data.costs)[key]
     if not s then w.costs[key] = false return nil end
@@ -763,7 +769,7 @@ local function TileCosts(w, key)
             end
         end
     end
-    tc = { side = side, at = at, n = n, cost = cost, time = time }
+    tc = { side = side, at = at, n = n, cost = cost, time = time, used = w.used }
     w.costs[key] = tc
     return tc
 end
@@ -1291,9 +1297,10 @@ function Nav.DecodeBlobs(onDone)
     end, onDone, 6)
 end
 
--- Decoded data idle for age seconds goes: a tile by its last read, and a
--- continent's entrance sides, grounds, landmarks and kept searches once
--- no walk has asked for them. True while anything a walk decoded remains.
+-- Decoded data idle for age seconds goes: a tile by its last read, a
+-- tile's walking costs by the last walk that read them, and a continent's
+-- entrance sides, grounds, landmarks and kept searches once no walk has
+-- asked for them. True while anything a walk decoded remains.
 function Nav.Release(age)
     local now = GetTime()
     local held = false
@@ -1307,6 +1314,9 @@ function Nav.Release(age)
             end
         end
         if #order > 0 then held = true end
+        for key, tc in pairs(w.costs) do
+            if tc and (tc.used or 0) + age <= now then w.costs[key] = nil elseif tc then held = true end
+        end
         if w.used then
             if w.used + age <= now then
                 w.used, w.ents, w.ground, w.alt = nil, nil, nil, nil
