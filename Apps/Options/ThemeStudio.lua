@@ -4,11 +4,12 @@ local ns = EasyFind and EasyFind._ns
 if not ns then return end
 
 -- Theme Studio: a standalone three-pane window. Left: every installed theme
--- (builtin and custom) to start from. Middle: a live mock of the search bar
--- and result rows painted straight from the working draft, so every element
--- being edited is visible at once. Right: the editing controls. The REAL UI
--- also previews live through a reserved palette name that never touches the
--- saved theme. Opened from the palette button beside the theme selector.
+-- (builtin and custom) to start from. Middle: a page per window that can be
+-- themed, flipped with the arrows: a live mock of it painted from the draft,
+-- every element being edited visible at once. Each page wears the shared
+-- look unless its box gives it its own. Right: the editing controls. The REAL
+-- UI also previews live through a reserved palette name that never touches
+-- the saved theme. Opened from the palette button beside the theme selector.
 
 local ThemeStudio = {}
 ns.ThemeStudio = ThemeStudio
@@ -30,11 +31,13 @@ local NAME_MAX = 24
 local DEFAULT_DRAFT_COLOR = { 0.5, 0.5, 0.5 }
 local CIRCLE_TEX = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 
-local WINDOW_W, WINDOW_H = 780, 508
+local WINDOW_W, WINDOW_H = 780, 530
 -- Mock geometry: the card is exactly bar + two result rows tall, like the
 -- real bar showing two results; the slot grid lives beneath it.
 local MOCK_ROW_H = 38
 local MOCK_ROW_COUNT = 2
+-- Below the history and page row and the page's own-look box.
+local MOCK_TOP = -94
 local LIST_W = 168
 local PANEL_PAD = 12
 local CONTROLS_W = 216
@@ -72,9 +75,11 @@ local studio
 local draft
 local swatchRows = {}
 local themeListRows = {}
-local lightCheck, borderCheck, nameBox, deleteBtn
-local iconModeButtons = {}
+local borderCheck, nameBox, deleteBtn, iconModeMenu
 local preview
+-- The page on show, and its own-look box, name and arrows.
+local pageIndex = 1
+local pageUI = {}
 local previewToken = 0
 
 -- Studio chrome text follows the theme like every other surface: one
@@ -120,7 +125,8 @@ end
 
 -- Field-by-field copy through the shared schema; never a blind pairs() copy
 -- of untrusted or live palette tables.
-local function CopyPaletteInto(dst, src)
+local CopyPaletteInto
+function CopyPaletteInto(dst, src)
     wipe(dst)
     local slots = ns.ThemeShare and ns.ThemeShare.COLOR_SLOTS or {}
     for i = 1, #slots do
@@ -128,7 +134,18 @@ local function CopyPaletteInto(dst, src)
         dst[key] = CopyColor(src and src[key])
     end
     if src and src.light then dst.light = true end
+    if src and src.borderHidden then dst.borderHidden = true end
     if src and type(src.fillTexture) == "string" then dst.fillTexture = src.fillTexture end
+    if src and type(src.surfaces) == "table" then
+        for id, look in pairs(src.surfaces) do
+            if type(look) == "table" then
+                dst.surfaces = dst.surfaces or {}
+                dst.surfaces[id] = {}
+                CopyPaletteInto(dst.surfaces[id], look)
+                dst.surfaces[id].surfaces = nil
+            end
+        end
+    end
 end
 
 local function DraftValid()
@@ -148,14 +165,73 @@ local function DraftColor(key, fallback)
     return f[1], f[2], f[3], f[4]
 end
 
+-- The studio's pages: the shared look, then each window that can wear its
+-- own (ns.THEME_SURFACES).
+local function Pages()
+    local out = { { label = L["THEME_PAGE_ALL"] } }
+    for _, surface in ipairs(ns.THEME_SURFACES or {}) do out[#out + 1] = surface end
+    return out
+end
+
+local function CurrentPage()
+    local pages = Pages()
+    if pageIndex > #pages then pageIndex = 1 end
+    return pages[pageIndex]
+end
+
+local function OwnLook(id)
+    local surfaces = draft and draft.palette.surfaces
+    return id and surfaces and surfaces[id] or nil
+end
+
+-- The look an edit lands on: the page's own while its box is ticked, else
+-- the shared look every window without its own wears.
+local function TargetLook()
+    return OwnLook(CurrentPage().id) or draft.palette
+end
+
 -- The middle pane is the REAL search bar in miniature: its panel is fed by
 -- StyleMenuPanel (true art/gradient/flat fills, real ring behavior and the
 -- borderColor/borderHidden slots), its text wears the real scaled fonts, and
 -- every color below reads the APPLIED preview theme -- the same getters the
 -- live renderer uses -- never a hand-approximation of the draft. Runs AFTER
 -- ApplyUITheme so the mock and the real bar can never disagree.
+local RepaintWindowMock
+
+-- A page's window in miniature, built by that window's own code (its addon
+-- loaded for it) so the two look the same; the small stand-in window else.
+local function PageMock(page)
+    if not page.preview and page.addon and C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, page.addon)
+    end
+    if not page.preview then return nil end
+    preview.mocks = preview.mocks or {}
+    local mock = preview.mocks[page.id]
+    if not mock then
+        mock = page.preview(studio, preview.card:GetWidth())
+        mock:SetPoint("TOPLEFT", preview.card, "TOPLEFT", 0, 0)
+        preview.mocks[page.id] = mock
+    end
+    return mock
+end
+
 local function RepaintPreviewCard()
     if not (preview and draft) then return end
+    local page = CurrentPage()
+    local mock = page.id and PageMock(page)
+    for _, m in pairs(preview.mocks or {}) do m:SetShown(m == mock) end
+    preview.card:SetShown(page.id == nil)
+    preview.card:SetHeight(mock and mock.pageHeight or preview.cardHeight)
+    if preview.window then preview.window.card:SetShown(page.id ~= nil and not mock) end
+    if mock then
+        if mock.Repaint then mock.Repaint() end
+        return
+    end
+    if page.id then
+        RepaintWindowMock(page)
+        return
+    end
+    if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(preview.card, not draft.palette.borderHidden) end
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     if not theme then return end
     local light = theme.lightTheme
@@ -217,10 +293,24 @@ local function RepaintPreviewCard()
     end
 end
 
+-- A look is light when its window background is: dark text and controls
+-- then, as the shipped light themes have.
+local function SetLightFromFill(look)
+    local c = look and look.windowFill
+    if not c then return end
+    look.light = (0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3] > 0.5) or nil
+end
+
+local function SetLightEverywhere()
+    SetLightFromFill(draft.palette)
+    for _, look in pairs(draft.palette.surfaces or {}) do SetLightFromFill(look) end
+end
+
 -- The real UI previews too: the draft registers under a reserved name and
 -- ApplyUITheme repaints everything from it. Never written to db.uiTheme.
 local function RunPreview()
     if not (draft and DraftValid() and ns.UI_THEME_PALETTES and ns.ApplyUITheme) then return end
+    SetLightEverywhere()
     ns.UI_THEME_PALETTES[PREVIEW_NAME] = draft.palette
     -- ApplyUITheme repaints the real UI AND the mock card's panel (it is a
     -- registered menu panel); the mock's chrome/text repaint reads the
@@ -259,7 +349,7 @@ local function ClearPreview()
 end
 
 local function PaintSwatch(row)
-    local color = draft and draft.palette[row.slotKey]
+    local color = draft and TargetLook()[row.slotKey]
     if color then
         row.swatch:SetColorTexture(color[1], color[2], color[3], 1)
     else
@@ -274,19 +364,52 @@ end
 
 local RefreshThemeList
 
+local ICON_MODES = {
+    { value = "all",      label = L["OPT_ICONS_ALL"] },
+    { value = "general",  label = L["OPT_ICONS_GENERAL"] },
+    { value = "specific", label = L["OPT_ICONS_SPECIFIC"] },
+}
+
 local function RefreshIconModeButtons()
     local mode = EasyFind.db.iconVisibility or "all"
-    for i = 1, #iconModeButtons do
-        local btn = iconModeButtons[i]
-        btn:SetAlpha(btn.iconMode == mode and 1.0 or 0.55)
+    for _, m in ipairs(ICON_MODES) do
+        if m.value == mode and iconModeMenu then iconModeMenu:SetLabel(m.label) end
     end
+end
+
+-- A dropdown in the studio's buttons: the choice on show and a chevron; a
+-- click lists the choices.
+local function Dropdown(parent, name, width, choices)
+    local btn = ns.CreateModernButton(parent, "", width, 20)
+    local label = btn._label
+    label:ClearAllPoints()
+    label:SetPoint("LEFT", btn, "LEFT", 8, 0)
+    label:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+    label:SetJustifyH("LEFT")
+    label:SetWordWrap(false)
+    btn.chevron = btn:CreateTexture(nil, "OVERLAY")
+    btn.chevron:SetSize(10, 10)
+    btn.chevron:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+    Utils.SetChevronTexture(btn.chevron)
+    btn:SetScript("OnClick", function(self) ns.ShowTogglePopup(name, self, choices()) end)
+    function btn:SetLabel(text) label:SetText(text) end
+    return btn
 end
 
 local function RefreshEditor()
     if not draft then return end
     for i = 1, #swatchRows do PaintSwatch(swatchRows[i]) end
-    if lightCheck then lightCheck:SetChecked(draft.palette.light and true or false) end
-    if borderCheck then borderCheck:SetChecked(not draft.palette.borderHidden) end
+    local page = CurrentPage()
+    -- The outline is the search bar's and its menus': the shared page's.
+    if borderCheck then
+        borderCheck:SetShown(page.id == nil)
+        borderCheck:SetChecked(not draft.palette.borderHidden)
+    end
+    if pageUI.menu then pageUI.menu:SetLabel(page.label) end
+    if pageUI.check then
+        pageUI.check:SetShown(page.id ~= nil)
+        pageUI.check:SetChecked(OwnLook(page.id) ~= nil)
+    end
     RefreshIconModeButtons()
     if nameBox and not nameBox:HasFocus() then nameBox:SetText(draft.name or "") end
     if deleteBtn then
@@ -399,10 +522,11 @@ local function ApplyPickerColor()
     if not (draft and pickerSlotKey) then return end
     local r, g, b, a = ReadPickerColor()
     if not r then return end
-    local color = draft.palette[pickerSlotKey]
+    local look = TargetLook()
+    local color = look[pickerSlotKey]
     if not color then
         color = {}
-        draft.palette[pickerSlotKey] = color
+        look[pickerSlotKey] = color
     end
     color[1], color[2], color[3] = r, g, b
     if SLOT_HAS_ALPHA[pickerSlotKey] and a then
@@ -417,7 +541,7 @@ end
 
 local function CancelPickerColor()
     if not (draft and pickerSlotKey) then return end
-    draft.palette[pickerSlotKey] = pickerPrior and CopyColor(pickerPrior) or nil
+    TargetLook()[pickerSlotKey] = pickerPrior and CopyColor(pickerPrior) or nil
     RefreshEditor()
     SchedulePreview()
 end
@@ -425,8 +549,9 @@ end
 local function OpenPickerForSlot(slotKey)
     if not (draft and ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then return end
     pickerSlotKey = slotKey
-    pickerPrior = CopyColor(draft.palette[slotKey])
-    local seed = draft.palette[slotKey] or draft.palette.windowFill or DEFAULT_DRAFT_COLOR
+    local look = TargetLook()
+    pickerPrior = CopyColor(look[slotKey])
+    local seed = look[slotKey] or look.windowFill or DEFAULT_DRAFT_COLOR
     local info = {
         hasOpacity = SLOT_HAS_ALPHA[slotKey] or false,
         opacity = seed[4] or 1,
@@ -496,6 +621,7 @@ local function DoSave()
         end
         return
     end
+    SetLightEverywhere()
     local finalName = ns.ThemeShare:SaveCustomTheme(draft.name or "", draft.palette)
     if not finalName then return end
     draft.name = finalName
@@ -622,10 +748,11 @@ local function BuildPreviewCard(parent)
     preview = {}
     local card = CreateFrame("Frame", nil, parent)
     preview.card = card
-    -- Below the undo/redo/reset row that sits directly above the mock.
-    card:SetPoint("TOPLEFT", parent, "TOPLEFT", LIST_W + PANEL_PAD, -72)
+    -- Below the history and page row and the page's own-look box.
+    card:SetPoint("TOPLEFT", parent, "TOPLEFT", LIST_W + PANEL_PAD, MOCK_TOP)
     card:SetPoint("RIGHT", parent, "RIGHT", -(CONTROLS_W + PANEL_PAD), 0)
-    card:SetHeight((ns.SEARCHBAR_HEIGHT or 30) + 8 + MOCK_ROW_COUNT * MOCK_ROW_H)
+    preview.cardHeight = (ns.SEARCHBAR_HEIGHT or 30) + 8 + MOCK_ROW_COUNT * MOCK_ROW_H
+    card:SetHeight(preview.cardHeight)
     -- The REAL panel pipeline: registered like every menu surface, so each
     -- preview apply refills it with the true theme fill (art viewport,
     -- gradients, flat) and the real ring behavior including the
@@ -727,6 +854,95 @@ local function BuildPreviewCard(parent)
     end
 end
 
+-- A window's page: a small window in that window's look (its own when the
+-- page's box is ticked): title over a rule, a line of text and its faint
+-- note, a button, a selected pill and an input, on the real panel pipeline
+-- tagged with the page's window, so the fill and ring are that window's.
+local function BuildWindowMock(parent)
+    local w = {}
+    preview.window = w
+    local card = CreateFrame("Frame", nil, parent)
+    w.card = card
+    card:SetAllPoints(preview.card)
+    ns.StyleMenuPanel(card)
+    card:Hide()
+    local function Text(font, x, y)
+        local fs = card:CreateFontString(nil, "OVERLAY", font)
+        fs._efOwnColor = true
+        fs:SetPoint("TOPLEFT", card, "TOPLEFT", x, y)
+        fs:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+        fs:SetJustifyH("LEFT")
+        fs:SetWordWrap(false)
+        return fs
+    end
+    w.title = Text("GameFontNormal", 10, -8)
+    w.rule = card:CreateTexture(nil, "ARTWORK")
+    w.rule:SetHeight(1)
+    w.rule:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -26)
+    w.rule:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    w.body = Text("GameFontHighlight", 10, -34)
+    w.body:SetText(L["THEME_PREVIEW_PRIMARY"])
+    w.note = Text("GameFontHighlightSmall", 10, -52)
+    w.note:SetText(L["THEME_PREVIEW_SECONDARY"])
+    local function Pill(label, x)
+        local pill = CreateFrame("Frame", nil, card)
+        pill:SetSize(84, 22)
+        pill:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", x, 10)
+        ns.CreateRoundedRectBorder(pill)
+        ns.SetRoundedRectBarHeight(pill, 10)
+        ns.SetRoundedRectBorderEdgeShown(pill, false)
+        pill.text = pill:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        pill.text._efOwnColor = true
+        pill.text:SetPoint("LEFT", pill, "LEFT", 4, 0)
+        pill.text:SetPoint("RIGHT", pill, "RIGHT", -4, 0)
+        pill.text:SetWordWrap(false)
+        pill.text:SetText(label)
+        return pill
+    end
+    w.button = Pill(_G["OKAY"] or "Okay", 10)
+    w.selected = Pill(L["THEME_PREVIEW_SELECTED"], 100)
+    w.input = CreateFrame("Frame", nil, card)
+    w.input:SetHeight(22)
+    w.input:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 192, 10)
+    w.input:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    ns.CreateRingedWell(w.input, 6)
+    w.inputText = w.input:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    w.inputText._efOwnColor = true
+    w.inputText:SetPoint("LEFT", w.input, "LEFT", 8, 0)
+    w.inputText:SetPoint("RIGHT", w.input, "RIGHT", -8, 0)
+    w.inputText:SetJustifyH("LEFT")
+    w.inputText:SetWordWrap(false)
+    w.inputText:SetText(L["THEME_PREVIEW_INPUT"])
+end
+
+-- The page's window in the applied preview: the same set its real window
+-- reads, so the two can never disagree.
+function RepaintWindowMock(page)
+    local w = preview.window
+    if not w then return end
+    w.card._efSurface = page.id
+    ns.ApplyThemeFill(w.card)
+    local set = ns.ThemeSet(page.id)
+    local theme = set.theme
+    local function Ink(fs, c, a) fs:SetTextColor(c[1], c[2], c[3], a or c[4] or 1) end
+    w.title:SetText(page.label)
+    Ink(w.title, theme.leafColor)
+    local sep = theme.separatorColor
+    w.rule:SetColorTexture(sep[1], sep[2], sep[3], sep[4] or 0.35)
+    Ink(w.body, theme.leafColor)
+    Ink(w.note, theme.pathColor)
+    local btn, sel = set.BTN_FILL_NORMAL, set.NAV_SELECTED_FILL
+    ns.SetRoundedRectFill(w.button, btn[1], btn[2], btn[3], 1, true)
+    ns.SetRoundedRectFill(w.selected, sel[1], sel[2], sel[3], 1, true)
+    Ink(w.button.text, set.TEXT_PRIMARY, 1)
+    Ink(w.selected.text, set.TEXT_PRIMARY, 1)
+    local palette = set.palette or ns.ACTIVE_UI_PALETTE or {}
+    local line = palette.separator or { 0.42, 0.42, 0.42 }
+    ns.PaintRingedWell(w.input, palette.borderColor or { line[1], line[2], line[3], 0.7 },
+        set.EDITBOX_INSET_FILL)
+    Ink(w.inputText, theme.textFaint, 1)
+end
+
 -- Hovering a slot cell outlines the mock element that slot paints: a gold
 -- ring around the region, or the group of regions, breathing while the
 -- cursor stays. Rings are pooled, one per outlined element.
@@ -737,7 +953,7 @@ local function Ring()
     ringsUsed = ringsUsed + 1
     local ring = rings[ringsUsed]
     if ring then return ring end
-    ring = CreateFrame("Frame", nil, preview.card)
+    ring = CreateFrame("Frame", nil, preview.card:GetParent())
     ring:SetFrameLevel(preview.card:GetFrameLevel() + 20)
     local function Edge(p1, p2)
         local e = ring:CreateTexture(nil, "OVERLAY")
@@ -800,6 +1016,25 @@ local function ShowSlotHighlight(slotKey)
     HideSlotHighlights()
     if not preview then return end
     if EasyFind and EasyFind.db and EasyFind.db.themeStudioHoverPreview == false then return end
+    local w = preview.window
+    if w and w.card:IsShown() then
+        if slotKey == "windowFill" or slotKey == "windowFillBottom" or slotKey == "windowFillTop" then
+            Outline(-3, w.card)
+        elseif slotKey == "borderColor" then
+            Outline(3, w.card, w.input)
+        elseif slotKey == "leafColor" then
+            Outline(2, w.title, w.body)
+        elseif slotKey == "pathColor" then
+            Outline(2, w.note)
+        elseif slotKey == "textFaint" then
+            Outline(2, w.inputText)
+        elseif slotKey == "separator" then
+            Outline(3, w.rule)
+        elseif slotKey == "controlAccent" or slotKey == "accent" then
+            Outline(2, w.button, w.selected)
+        end
+        return
+    end
     local card = preview.card
     local rows = preview.rows
     if slotKey == "windowFill" or slotKey == "windowFillBottom"
@@ -887,7 +1122,7 @@ local function BuildSlotGrid(parent)
         cell:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         cell:SetScript("OnClick", function(self, button)
             if button == "RightButton" and self.optional and draft then
-                draft.palette[self.slotKey] = nil
+                TargetLook()[self.slotKey] = nil
                 RefreshEditor()
                 SchedulePreview()
                 PushHistoryNow()
@@ -946,48 +1181,121 @@ local function BuildStudio()
     x:SetScript("OnClick", function() studio:Hide() end)
     ns.AttachEscClose(studio)
 
-    -- Undo / redo arrows and Reset beside the close X. The usual binds
-    -- (Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo) arm as override binds only
-    -- while the studio is shown -- taint-free, combat-guarded, cleared on
-    -- hide (deferred to combat end if hidden mid-fight).
-    -- History row directly above the mock card, right-aligned to it.
-    -- Visual order, right to left: [>] [<] [Reset].
-    redoBtn = CreateFrame("Button", "EasyFindStudioRedoBtn", studio)
-    redoBtn:SetSize(18, 18)
-    redoBtn:SetPoint("TOPRIGHT", studio, "TOPRIGHT", -(CONTROLS_W + PANEL_PAD) - 2, -48)
-    redoBtn.arrow = redoBtn:CreateTexture(nil, "OVERLAY")
-    redoBtn.arrow:SetSize(12, 12)
-    redoBtn.arrow:SetPoint("CENTER")
-    Utils.SetChevronTexture(redoBtn.arrow)
-    redoBtn.arrow:SetRotation(Utils.mpi / 2)
-    redoBtn:SetScript("OnClick", DoRedo)
-    redoBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["OPT_STUDIO_REDO"]) end)
-    redoBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
-    local redoHl = redoBtn:CreateTexture(nil, "HIGHLIGHT")
-    redoHl:SetAllPoints()
-    redoHl:SetColorTexture(1, 1, 1, 0.08)
-
-    undoBtn = CreateFrame("Button", "EasyFindStudioUndoBtn", studio)
-    undoBtn:SetSize(18, 18)
-    undoBtn:SetPoint("RIGHT", redoBtn, "LEFT", -2, 0)
-    undoBtn.arrow = undoBtn:CreateTexture(nil, "OVERLAY")
-    undoBtn.arrow:SetSize(12, 12)
-    undoBtn.arrow:SetPoint("CENTER")
-    Utils.SetChevronTexture(undoBtn.arrow)
-    undoBtn.arrow:SetRotation(-Utils.mpi / 2)
-    undoBtn:SetScript("OnClick", DoUndo)
-    undoBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["OPT_STUDIO_UNDO"]) end)
-    undoBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
-    local undoHl = undoBtn:CreateTexture(nil, "HIGHLIGHT")
-    undoHl:SetAllPoints()
-    undoHl:SetColorTexture(1, 1, 1, 0.08)
+    -- The middle pane's top row. Left: undo, redo and Reset, away from the
+    -- page arrows. The usual binds (Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo)
+    -- arm as override binds only while the studio is shown: taint-free,
+    -- combat-guarded, cleared on hide (deferred to combat end mid-fight).
+    local MID_LEFT = LIST_W + PANEL_PAD
+    local MID_RIGHT = CONTROLS_W + PANEL_PAD
+    local undoAtlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("common-icon-undo")
+    local function HistoryButton(name, mirrored, tip, onClick)
+        local btn = CreateFrame("Button", name, studio)
+        btn:SetSize(20, 20)
+        btn.icon = btn:CreateTexture(nil, "OVERLAY")
+        btn.icon:SetSize(16, 16)
+        btn.icon:SetPoint("CENTER")
+        -- One undo arrow; redo is its mirror image.
+        if undoAtlas then
+            btn.icon:SetTexture(undoAtlas.file)
+            local l, r = undoAtlas.leftTexCoord, undoAtlas.rightTexCoord
+            if mirrored then l, r = r, l end
+            btn.icon:SetTexCoord(l, r, undoAtlas.topTexCoord, undoAtlas.bottomTexCoord)
+        end
+        btn:SetScript("OnClick", onClick)
+        btn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, tip) end)
+        btn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, 0.08)
+        return btn
+    end
+    undoBtn = HistoryButton("EasyFindStudioUndoBtn", false, L["OPT_STUDIO_UNDO"], DoUndo)
+    undoBtn:SetPoint("TOPLEFT", studio, "TOPLEFT", MID_LEFT, -48)
+    redoBtn = HistoryButton("EasyFindStudioRedoBtn", true, L["OPT_STUDIO_REDO"], DoRedo)
+    redoBtn:SetPoint("LEFT", undoBtn, "RIGHT", 2, 0)
 
     local resetBtn = ns.CreateModernButton(studio, _G["RESET"] or "Reset", 56, 20)
-    resetBtn:SetPoint("RIGHT", undoBtn, "LEFT", -10, 0)
+    resetBtn:SetPoint("LEFT", redoBtn, "RIGHT", 8, 0)
     resetBtn:SetScript("OnClick", function()
         -- Back to the loaded base; undoable like any other change.
         if draft and draft.baseName then LoadBase(draft.baseName) end
     end)
+
+    -- Right: the page arrows round the page's name, which is as wide as the
+    -- widest page so the arrows never move.
+    local function PageArrow(step, rotation, tip)
+        local btn = CreateFrame("Button", nil, studio)
+        btn:SetSize(18, 18)
+        btn.arrow = btn:CreateTexture(nil, "OVERLAY")
+        btn.arrow:SetSize(12, 12)
+        btn.arrow:SetPoint("CENTER")
+        Utils.SetChevronTexture(btn.arrow)
+        btn.arrow:SetRotation(rotation)
+        btn:SetScript("OnClick", function()
+            local n = #Pages()
+            pageIndex = (pageIndex - 1 + step) % n + 1
+            HideSlotHighlights()
+            RefreshEditor()
+        end)
+        btn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, tip) end)
+        btn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, 0.08)
+        return btn
+    end
+    pageUI.next = PageArrow(1, Utils.mpi / 2, L["OPT_STUDIO_NEXT_PAGE"])
+    pageUI.next:SetPoint("TOPRIGHT", studio, "TOPRIGHT", -MID_RIGHT - 2, -49)
+    pageUI.menu = Dropdown(studio, "EasyFindStudioPagePopup", 120, function()
+        local defs = {}
+        for i, page in ipairs(Pages()) do
+            defs[i] = { kind = "radio", label = page.label, value = i,
+                get = function() return pageIndex end,
+                set = function(v)
+                    pageIndex = v
+                    HideSlotHighlights()
+                    RefreshEditor()
+                end }
+        end
+        return defs
+    end)
+    pageUI.menu:SetPoint("RIGHT", pageUI.next, "LEFT", -4, 0)
+    pageUI.prev = PageArrow(-1, -Utils.mpi / 2, L["OPT_STUDIO_PREV_PAGE"])
+    pageUI.prev:SetPoint("RIGHT", pageUI.menu, "LEFT", -4, 0)
+
+    -- Under them, the page's own-look box: off, the window wears the shared
+    -- look and edits here change it everywhere; on, they stay on this window.
+    pageUI.check = CreateFrame("CheckButton", nil, studio, "UICheckButtonTemplate")
+    pageUI.check:SetSize(18, 18)
+    pageUI.check:SetPoint("TOPLEFT", studio, "TOPLEFT", MID_LEFT - 2, -71)
+    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(pageUI.check, 15) end
+    local ownLabel = pageUI.check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ownLabel:SetPoint("LEFT", pageUI.check, "RIGHT", 3, 0)
+    ownLabel:SetText(L["OPT_STUDIO_OWN_LOOK"])
+    RegisterStudioText(ownLabel)
+    pageUI.check:SetScript("OnClick", function(self)
+        local id = CurrentPage().id
+        if not (draft and id) then return end
+        local surfaces = draft.palette.surfaces
+        if self:GetChecked() then
+            -- Starts as the shared look; edits from here stay on this window.
+            local own = {}
+            CopyPaletteInto(own, draft.palette)
+            own.surfaces = nil
+            draft.palette.surfaces = surfaces or {}
+            draft.palette.surfaces[id] = own
+        elseif surfaces then
+            surfaces[id] = nil
+            if next(surfaces) == nil then draft.palette.surfaces = nil end
+        end
+        RefreshEditor()
+        SchedulePreview()
+        PushHistoryNow()
+    end)
+    pageUI.check:SetScript("OnEnter", function(self)
+        ns.ShowHintTooltip(self, "ANCHOR_TOP", L["OPT_STUDIO_OWN_LOOK"], L["OPT_STUDIO_OWN_LOOK_TT"])
+    end)
+    pageUI.check:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
 
     local bindsArmed = false
     local bindRegenWatcher
@@ -1062,6 +1370,7 @@ local function BuildStudio()
     ns.RetintMenuSeparators(studio)
 
     BuildPreviewCard(studio)
+    BuildWindowMock(studio)
     BuildSlotGrid(studio)
 
     -- Right pane: controls.
@@ -1102,27 +1411,38 @@ local function BuildStudio()
     nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
-    lightCheck = CreateFrame("CheckButton", nil, controls, "UICheckButtonTemplate")
-    lightCheck:SetSize(20, 20)
-    lightCheck:SetPoint("TOPLEFT", nameShell, "BOTTOMLEFT", -2, -6)
-    if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(lightCheck, 16) end
-    local lightLabel = controls:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    lightLabel:SetPoint("LEFT", lightCheck, "RIGHT", 4, 0)
-    lightLabel:SetText(L["OPT_STUDIO_LIGHT"])
-    RegisterStudioText(lightLabel)
-    lightCheck:SetScript("OnClick", function(self)
-        if not draft then return end
-        draft.palette.light = self:GetChecked() and true or nil
-        SchedulePreview()
-        PushHistoryNow()
+    -- Icon visibility, the same setting General carries: which result icons
+    -- render. Mirrored here because the mock rows demonstrate it live.
+    local iconVisLabel = controls:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    iconVisLabel:SetPoint("TOPLEFT", nameShell, "BOTTOMLEFT", 0, -10)
+    iconVisLabel:SetText(L["OPT_ICON_VISIBILITY"])
+    RegisterStudioText(iconVisLabel, 0.85)
+    iconModeMenu = Dropdown(controls, "EasyFindStudioIconPopup", CONTROLS_W - 16, function()
+        local defs = {}
+        for i, mode in ipairs(ICON_MODES) do
+            defs[i] = { kind = "radio", label = mode.label, value = mode.value,
+                get = function() return EasyFind.db.iconVisibility or "all" end,
+                set = function(v)
+                    EasyFind.db.iconVisibility = v
+                    RefreshIconModeButtons()
+                    RepaintPreviewCard()
+                    if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
+                end }
+        end
+        return defs
     end)
+    iconModeMenu:SetPoint("TOPLEFT", iconVisLabel, "BOTTOMLEFT", 0, -4)
+    iconModeMenu:HookScript("OnEnter", function(self)
+        ns.ShowHintTooltip(self, "ANCHOR_TOP", L["OPT_ICON_VISIBILITY"], L["OPT_ICON_VISIBILITY_TT"])
+    end)
+    iconModeMenu:HookScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
 
-    -- Theme-level border toggle (the ring): a theme can ship borderless.
+    -- The outline round the search bar and its menus; a theme can go without.
     borderCheck = CreateFrame("CheckButton", nil, controls, "UICheckButtonTemplate")
     borderCheck:SetSize(20, 20)
-    borderCheck:SetPoint("TOPLEFT", lightCheck, "BOTTOMLEFT", 0, -2)
+    borderCheck:SetPoint("TOPLEFT", iconModeMenu, "BOTTOMLEFT", -2, -8)
     if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(borderCheck, 16) end
-    local borderLabel = controls:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local borderLabel = borderCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     borderLabel:SetPoint("LEFT", borderCheck, "RIGHT", 4, 0)
     borderLabel:SetText(L["OPT_WINDOW_BORDER"])
     RegisterStudioText(borderLabel)
@@ -1132,37 +1452,10 @@ local function BuildStudio()
         SchedulePreview()
         PushHistoryNow()
     end)
-
-    -- Icon visibility, the same setting General carries: which result icons
-    -- render. Mirrored here because the mock rows demonstrate it live.
-    local iconVisLabel = controls:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    iconVisLabel:SetPoint("TOPLEFT", borderCheck, "BOTTOMLEFT", 2, -6)
-    iconVisLabel:SetText(L["OPT_ICON_VISIBILITY"])
-    RegisterStudioText(iconVisLabel, 0.85)
-    local ICON_MODES = {
-        { value = "all",      label = L["OPT_ICONS_ALL"] },
-        { value = "general",  label = L["OPT_ICONS_GENERAL"] },
-        { value = "specific", label = L["OPT_ICONS_SPECIFIC"] },
-    }
-    local prevModeBtn
-    for i = 1, #ICON_MODES do
-        local mode = ICON_MODES[i]
-        local btn = ns.CreateModernButton(controls, mode.label, 62, 18)
-        if prevModeBtn then
-            btn:SetPoint("LEFT", prevModeBtn, "RIGHT", 4, 0)
-        else
-            btn:SetPoint("TOPLEFT", iconVisLabel, "BOTTOMLEFT", 0, -4)
-        end
-        btn.iconMode = mode.value
-        btn:SetScript("OnClick", function(self)
-            EasyFind.db.iconVisibility = self.iconMode
-            RefreshIconModeButtons()
-            RepaintPreviewCard()
-            if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
-        end)
-        iconModeButtons[i] = btn
-        prevModeBtn = btn
-    end
+    borderCheck:SetScript("OnEnter", function(self)
+        ns.ShowHintTooltip(self, "ANCHOR_TOP", L["OPT_WINDOW_BORDER"], L["OPT_WINDOW_BORDER_TT"])
+    end)
+    borderCheck:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
 
     local saveBtn = ns.CreateModernButton(controls, _G["SAVE"] or "Save", 64, 22)
     saveBtn:SetPoint("BOTTOMLEFT", controls, "BOTTOMLEFT", 0, 2)
@@ -1203,6 +1496,15 @@ function ThemeStudio:Open()
         draft.name = draft.name ~= "" and draft.name or active
         draft.baseName = active
     end
+    -- The page dropdown as wide as its widest page, so the arrows never move.
+    local label = pageUI.menu._label
+    local measure = label.GetUnboundedStringWidth or label.GetStringWidth
+    local widest = 0
+    for _, page in ipairs(Pages()) do
+        label:SetText(page.label)
+        widest = math.max(widest, measure(label) or 0)
+    end
+    pageUI.menu:SetWidth(mceil(widest) + 30)
     studio:Show()
     if studio.Raise then studio:Raise() end
     RefreshEditor()
