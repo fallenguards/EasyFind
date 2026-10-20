@@ -63,7 +63,7 @@ local N = {
     spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
-    mark = {}, cand = {}, titleHit = {}, gen = 0,
+    mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {},
     -- Per query word whether it names a service or title (wordRole) or a
     -- place (wordPlace); the places named and the maps of the chosen ones.
     wordRole = {}, wordPlace = {}, placeHit = {}, placeWordsOf = {}, placeList = {}, placeWords = {}, mapSet = {},
@@ -510,11 +510,30 @@ local function MapName(m)
     return info and info.name
 end
 
--- Where word sits in creature i's line of a names text, or nil.
-local function WordIn(blob, at, i, word)
-    local p = sfind(blob, word, at[i], true)
-    if p and p <= at[i + 1] - 2 then return p end
-    return nil
+-- Per creature line holding word, where its first hit sits: one find per
+-- such line. A find per candidate ran on to the next hit anywhere in the
+-- text, the whole text for a service word (repair) few names hold.
+local function LineHits(blob, at, n, word, into)
+    local p = sfind(blob, word, 1, true)
+    while p do
+        local i = LineAt(at, n, p)
+        into[i] = p
+        p = sfind(blob, word, at[i + 1], true)
+    end
+end
+
+-- The query words' line hits in both texts (hitLow[w], hitEn[w]).
+local function MarkWordHits()
+    local words, wordPlace = N.words, N.wordPlace
+    for w = 1, #words do
+        local low, en = N.hitLow[w], N.hitEn[w]
+        if low then wipe(low) else low = {}; N.hitLow[w] = low end
+        if en then wipe(en) else en = {}; N.hitEn[w] = en end
+        if not wordPlace[w] then
+            LineHits(N.low, N.at, N.n, words[w], low)
+            if N.enLow then LineHits(N.enLow, N.enAt, N.n, words[w], en) end
+        end
+    end
 end
 
 -- How well creature i matches the query words: 3 the name starts with
@@ -527,8 +546,8 @@ local function Score(i)
     for w = 1, #words do
         if not wordPlace[w] then
             local word = words[w]
-            local p, blob, start = WordIn(low, at, i, word), low, at[i]
-            if not p and enLow then p, blob, start = WordIn(enLow, enAt, i, word), enLow, enAt[i] end
+            local p, blob, start = N.hitLow[w][i], low, at[i]
+            if not p and enLow then p, blob, start = N.hitEn[w][i], enLow, enAt[i] end
             if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
                 and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
                 return 0
@@ -951,6 +970,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
             set, nearOnly = mapSet, true
         end
     end
+    MarkWordHits()
     local n = Keep(set, pci, px, py, r2, goods, f, horde, service)
     if n == 0 and nearOnly then
         wipe(mapSet)
