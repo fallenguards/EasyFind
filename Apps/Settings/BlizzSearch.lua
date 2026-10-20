@@ -673,55 +673,70 @@ local function GetInitializerOptions(init, setting)
     return found
 end
 
-local function SettingMatchesVariable(setting, variable)
-    if not setting or not setting.GetVariable then return false end
-    if variable == nil then return true end
-    local ok, v = pcall(setting.GetVariable, setting)
-    return ok and v == variable
-end
+-- Every settings variable's initializer and setting, first in panel order:
+-- ONE walk of the layouts. A scan per lookup ran on every render for a
+-- variable with no dropdown options (misses were never kept), 100+ ms the
+-- first time a page of settings rows drew.
+local initByVariable, settingByVariable
+local indexGen = 0
 
-local function FindSettingInValue(value, variable, depth, seen)
-    if type(value) ~= "table" or depth > 4 then return nil end
-    if SettingMatchesVariable(value, variable) then return value end
-    seen = seen or {}
-    if seen[value] then return nil end
+local function CollectSettings(value, depth, seen, init, inits, settings)
+    if type(value) ~= "table" or depth > 4 or seen[value] then return end
     seen[value] = true
-
-    local preferred = { "setting", "cbSetting", "sliderSetting" }
-    for i = 1, #preferred do
-        local child = value[preferred[i]]
-        local hit = FindSettingInValue(child, variable, depth + 1, seen)
-        if hit then return hit end
+    if value.GetVariable then
+        local ok, v = pcall(value.GetVariable, value)
+        if ok and v ~= nil and inits[v] == nil then inits[v], settings[v] = init, value end
     end
     for _, child in pairs(value) do
-        if type(child) == "table" then
-            local hit = FindSettingInValue(child, variable, depth + 1, seen)
-            if hit then return hit end
-        end
+        if type(child) == "table" then CollectSettings(child, depth + 1, seen, init, inits, settings) end
     end
-    return nil
 end
 
-local function GetInitializerSetting(init, variable)
-    local setting
-    if init and init.GetSetting then
-        local sok, s = pcall(init.GetSetting, init)
-        if sok then setting = s end
-    end
-    local d = init and init.data
-    if setting and SettingMatchesVariable(setting, variable) then return setting end
-    if d and d.setting and SettingMatchesVariable(d.setting, variable) then
-        return d.setting
-    end
-    if init and init.GetData then
-        local dok, dd = pcall(init.GetData, init)
-        if dok and dd and SettingMatchesVariable(dd.setting, variable) then
-            return dd.setting
+-- sliced: run from a sliced run with no pcall around it. A rebuild asked
+-- for while this one yielded supersedes it.
+local function IndexSettings(sliced)
+    if not (SettingsPanel and SettingsPanel.GetLayout and HasSettingsCategoryAccess()) then return false end
+    local gen = indexGen
+    local inits, settings = {}, {}
+    local function scan(cat)
+        if not cat then return end
+        local lok, layout = pcall(SettingsPanel.GetLayout, SettingsPanel, cat)
+        if lok and layout and layout.GetInitializers then
+            local iok, list = pcall(layout.GetInitializers, layout)
+            if iok and list then
+                for i, init in ipairs(list) do
+                    if sliced and i % 16 == 0 then Utils.SliceCheckpoint() end
+                    local seen = {}
+                    if init.GetSetting then
+                        local sok, setting = pcall(init.GetSetting, init)
+                        if sok then CollectSettings(setting, 0, seen, init, inits, settings) end
+                    end
+                    CollectSettings(init.data, 0, seen, init, inits, settings)
+                    if init.GetData then
+                        local dok, dd = pcall(init.GetData, init)
+                        if dok then CollectSettings(dd, 0, seen, init, inits, settings) end
+                    end
+                end
+            end
         end
-        local hit = dok and FindSettingInValue(dd, variable, 0, nil)
-        if hit then return hit end
+        if cat.GetSubcategories then
+            local sok, subs = pcall(cat.GetSubcategories, cat)
+            if sok and type(subs) == "table" then
+                for _, sub in ipairs(subs) do scan(sub) end
+            end
+        end
     end
-    return FindSettingInValue(d, variable, 0, nil)
+    local list = GetSettingsCategoryList()
+    if type(list) == "table" then
+        for _, cat in ipairs(list) do scan(cat) end
+    end
+    if gen == indexGen then initByVariable, settingByVariable = inits, settings end
+    return true
+end
+
+local function IndexedInitializer(variable)
+    if not initByVariable and not IndexSettings(false) then return nil end
+    return initByVariable[variable], settingByVariable[variable]
 end
 
 local function GetOptionsForVariable(variable)
@@ -740,37 +755,9 @@ local function GetOptionsForVariable(variable)
     if not (SettingsPanel and SettingsPanel.GetLayout and HasSettingsCategoryAccess()) then
         return nil
     end
-    local found
-    local function scan(cat)
-        if found or not cat then return end
-        local lok, layout = pcall(SettingsPanel.GetLayout, SettingsPanel, cat)
-        if lok and layout and layout.GetInitializers then
-            local iok, inits = pcall(layout.GetInitializers, layout)
-            if iok and inits then
-                for _, init in ipairs(inits) do
-                    local setting = GetInitializerSetting(init, variable)
-                    if setting and setting.GetVariable then
-                        local vok, v = pcall(setting.GetVariable, setting)
-                        if vok and v == variable then
-                            found = GetInitializerOptions(init, setting)
-                            return
-                        end
-                    end
-                end
-            end
-        end
-        if cat.GetSubcategories then
-            local sok, subs = pcall(cat.GetSubcategories, cat)
-            if sok and type(subs) == "table" then
-                for _, sub in ipairs(subs) do scan(sub) end
-            end
-        end
-    end
-    local list = GetSettingsCategoryList()
-    if type(list) == "table" then
-        for _, cat in ipairs(list) do scan(cat) end
-    end
-    if found then optionsByVariable[variable] = found end
+    local init, setting = IndexedInitializer(variable)
+    local found = init and GetInitializerOptions(init, setting) or nil
+    optionsByVariable[variable] = found or false
     return found
 end
 BlizzOptionsSearch.GetOptionsForVariable = GetOptionsForVariable
@@ -801,58 +788,31 @@ local function GetSliderOptionsForVariable(variable)
         return nil
     end
     local found
-    local function scan(cat)
-        if found or not cat then return end
-        local lok, layout = pcall(SettingsPanel.GetLayout, SettingsPanel, cat)
-        if lok and layout and layout.GetInitializers then
-            local iok, inits = pcall(layout.GetInitializers, layout)
-            if iok and inits then
-                for _, init in ipairs(inits) do
-                    local setting = GetInitializerSetting(init, variable)
-                    if setting and setting.GetVariable then
-                        local vok, v = pcall(setting.GetVariable, setting)
-                        if vok and v == variable then
-                            local d = init.data
-                            local opts = (type(d) == "table") and (d.options or d.sliderOptions) or nil
-                            if type(opts) == "function" then
-                                local ook, o = pcall(opts, setting)
-                                if not ook then ook, o = pcall(opts) end
-                                if ook then opts = o end
-                            end
-                            if type(opts) == "table" then
-                                local fmt = PickFormatter(opts.formatters)
-                                local minV, maxV = opts.minValue, opts.maxValue
-                                local step
-                                if minV ~= nil and maxV ~= nil then
-                                    -- opts.steps = number of steps, not per-tick delta.
-                                    if opts.stepSize then
-                                        step = opts.stepSize
-                                    elseif opts.steps and opts.steps > 0 and maxV > minV then
-                                        step = (maxV - minV) / opts.steps
-                                    else
-                                        step = 1
-                                    end
-                                end
-                                if fmt or (minV ~= nil and maxV ~= nil) then
-                                    found = { min = minV, max = maxV, step = step, formatter = fmt }
-                                end
-                            end
-                            return
-                        end
-                    end
-                end
-            end
-        end
-        if cat.GetSubcategories then
-            local sok, subs = pcall(cat.GetSubcategories, cat)
-            if sok and type(subs) == "table" then
-                for _, sub in ipairs(subs) do scan(sub) end
-            end
-        end
+    local init, setting = IndexedInitializer(variable)
+    local d = init and init.data
+    local opts = (type(d) == "table") and (d.options or d.sliderOptions) or nil
+    if type(opts) == "function" then
+        local ook, o = pcall(opts, setting)
+        if not ook then ook, o = pcall(opts) end
+        if ook then opts = o end
     end
-    local list = GetSettingsCategoryList()
-    if type(list) == "table" then
-        for _, cat in ipairs(list) do scan(cat) end
+    if type(opts) == "table" then
+        local fmt = PickFormatter(opts.formatters)
+        local minV, maxV = opts.minValue, opts.maxValue
+        local step
+        if minV ~= nil and maxV ~= nil then
+            -- opts.steps = number of steps, not per-tick delta.
+            if opts.stepSize then
+                step = opts.stepSize
+            elseif opts.steps and opts.steps > 0 and maxV > minV then
+                step = (maxV - minV) / opts.steps
+            else
+                step = 1
+            end
+        end
+        if fmt or (minV ~= nil and maxV ~= nil) then
+            found = { min = minV, max = maxV, step = step, formatter = fmt }
+        end
     end
     sliderOptionsByVariable[variable] = found or false
     return found
@@ -864,6 +824,22 @@ local function GetFormatterForVariable(variable)
     return info and info.formatter or nil
 end
 BlizzOptionsSearch.GetFormatterForVariable = GetFormatterForVariable
+
+-- The live walk can bring settings registered late: lookups start over,
+-- and the index is rebuilt in slices before the next settings row draws.
+function BlizzOptionsSearch.ReindexSettings()
+    wipe(optionsByVariable)
+    wipe(sliderOptionsByVariable)
+    initByVariable, settingByVariable = nil, nil
+    indexGen = indexGen + 1
+    local gen = indexGen
+    SafeAfter(0, function()
+        if initByVariable or gen ~= indexGen then return end
+        Utils.RunSliced(function() IndexSettings(true) end, function(ok, err)
+            if not ok then Utils.ErrorHandler(err) end
+        end, 2)
+    end)
+end
 
 -- Apply-flagged settings (graphics, resolution, etc.) stage into
 -- setting.pendingValue. Mirror Blizzard's bottom-bar batch UX.
@@ -3599,6 +3575,7 @@ function BlizzOptionsSearch:EnsureLivePopulatedAsync(onDone)
     local function finish(ok, changed)
         livePopulatePending = false
         if not populatePending then optionsPopulateUrgent = false end
+        if ok then BlizzOptionsSearch.ReindexSettings() end
         NotifyWaiters(livePopulateWaiters, ok and changed)
     end
 

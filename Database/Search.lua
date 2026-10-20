@@ -539,12 +539,16 @@ local function ScheduleGateMaskFill()
     Utils.SafeAfter(0, FillGateMasksStep)
 end
 
+-- Bounded by time as well: 400 corpus stubs were an 8 ms step.
+local GATE_FILL_MS = 1.5
 FillGateMasksStep = function()
     local data = Database.uiSearchData
     local i = GATE.fillIdx or 1
     local n = #data
     local filled = 0
-    while i <= n and filled < GATE_FILL_STEP do
+    local clock = debugprofilestop
+    local stop = clock and clock() + GATE_FILL_MS
+    while i <= n and filled < GATE_FILL_STEP and not (stop and band(filled, 15) == 15 and clock() > stop) do
         local e = data[i]
         if e._efGateMask == nil then
             FillEntryGateMask(e)
