@@ -561,11 +561,12 @@ function GPS.ShowStep(index)
     if GPS:Open() then ns.GPSPreview:Toggle(index, true) end
 end
 
--- A step's right-click: feedback on that step, the full route beside it so
--- the two read apart. Surfaces without a menu of their own (the map's page)
--- show it at the cursor.
+-- A step's right-click: the route restarted there (as Shift-click), then
+-- feedback on that step, the full route beside it so the two read apart.
+-- Surfaces without a menu of their own (the map's page) show it at the cursor.
 function GPS.ShowStepMenu(container, index)
     local defs = {
+        { kind = "action", label = L["GPS_RESTART_FROM_STEP"], onClick = function() GPS.GoToStep(index) end },
         { kind = "action", label = L["GPS_FEEDBACK_STEP"], onClick = function() GPS:ReportRoute(index) end },
         { kind = "action", label = L["GPS_FEEDBACK_ROUTE"], onClick = function() GPS:ReportRoute() end },
     }

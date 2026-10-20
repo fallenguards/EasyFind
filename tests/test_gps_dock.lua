@@ -181,6 +181,26 @@ function tests.settingsWithPicksAreFlyouts()
     H.assertTrue(height[1].picked and not height[2].picked, "fit to steps, as no height is set")
 end
 
+-- A step's right-click: restarting the route there comes first.
+function tests.stepMenu_opensWithRestartFromThisStep()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function GPS.ShowStepMenu(container, index)", 1, true), "GPS.ShowStepMenu not in GPS.lua")
+    local _, e = src:find("\nend\r?\n", s)
+    local jumped
+    local GPS = { GoToStep = function(i) jumped = i end }
+    function GPS:ReportRoute() end
+    local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }) },
+        { __index = _G })
+    assert(load(src:sub(s, e), "=GPS.lua ShowStepMenu", "t", env))()
+    local shown
+    GPS.ShowStepMenu({ ShowMenu = function(defs) shown = defs end }, 3)
+    H.assertEq(shown[1].label, "GPS_RESTART_FROM_STEP", "the top entry")
+    shown[1].onClick()
+    H.assertEq(jumped, 3, "the route restarts at that step")
+end
+
 -- GPS:OpenWindow to GPS:CloseWindow cut from GPS.lua over a stub section
 -- and window: what shows, and what the saved state says.
 local function Windows(db)
