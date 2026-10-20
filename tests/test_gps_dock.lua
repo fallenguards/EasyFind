@@ -112,7 +112,7 @@ local function MenuRows()
     local function row(label) return function() return { kind = "check", label = label } end end
     local GPS = {
         WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
-        LaunchRow = row("GPS_LAUNCH_WINDOW"),
+        DetoursRow = row("GPS_SHOW_DETOURS"), OtherWaysRow = row("GPS_SHOW_OTHER_WAYS"), LaunchRow = row("GPS_LAUNCH_WINDOW"),
         StyleMenu = function() return { kind = "submenu", label = "GPS_STYLE", rows = {} } end,
     }
     function GPS.PicksMenu(label, choices, current)

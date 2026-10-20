@@ -350,7 +350,9 @@ function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom)
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
                        start = origin, draw = draw,
                        autoLearn = not (db and db.gpsAutoLearn == false), skipLearn = GPS.SkipFor(dest) }
-        if quick then opts.advise = false end
+        -- The advice feeds the lines and the stops learned on the way: with
+        -- both off it is not worked out.
+        if quick or (db and db.gpsShowDetours == false and db.gpsAutoLearn == false) then opts.advise = false end
         local ok, steps, advice, _
         local co = coroutine.running()
         local Nav = ns.GPSNav
@@ -1184,6 +1186,7 @@ end
 
 local function OtherWays(route)
     local db = DB()
+    if db and db.gpsShowOtherWays == false then return nil end
     local base = route.wayAvoid or (db and db.gpsAvoid) or {}
     local best = WayOf(route.steps)
     local found, ways = { [best] = true }, {}
@@ -1718,7 +1721,9 @@ end
 local function AdviceLines(route)
     if route and route.arrived then return { { text = L["GPS_REPORT"], report = true } } end
     if not route then return nil end
-    local a = route.advice or {}
+    -- Suggest detours off: no flight path to learn, on the way or off it.
+    local db = DB()
+    local a = (db and db.gpsShowDetours == false) and {} or route.advice or {}
     local out = {}
     local learn = a.learn
     for i = 1, #(a.pickups or {}) do
@@ -2684,6 +2689,33 @@ end
 
 -- The menu row for learning cheap flight points on the way (on unless
 -- turned off); the trip on screen is planned again either way.
+-- The menu rows for two of the advice lines: a detour to learn a flight
+-- master, and the other ways there (not planned while hidden).
+function GPS.DetoursRow()
+    return { kind = "check", label = L["GPS_SHOW_DETOURS"], tooltip = L["GPS_SHOW_DETOURS_TT"],
+        get = function() local db = DB() return not (db and db.gpsShowDetours == false) end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsShowDetours = Utils.OffOrNil(v) end
+            -- Not worked out while both it and learning on the way were off.
+            if v and Route() then PlanOtherWays() end
+            Refresh()
+        end }
+end
+
+function GPS.OtherWaysRow()
+    return { kind = "check", label = L["GPS_SHOW_OTHER_WAYS"], tooltip = L["GPS_SHOW_OTHER_WAYS_TT"],
+        get = function() local db = DB() return not (db and db.gpsShowOtherWays == false) end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsShowOtherWays = Utils.OffOrNil(v) end
+            local route = Route()
+            if route and not v then route.others = nil end
+            if route and v then PlanOtherWays() end
+            Refresh()
+        end }
+end
+
 function GPS.AutoLearnRow()
     return { kind = "check", label = L["GPS_AUTO_LEARN"], tooltip = L["GPS_AUTO_LEARN_TT"],
         get = function() local db = DB() return not (db and db.gpsAutoLearn == false) end,
@@ -4213,6 +4245,8 @@ function GPS.MenuRows(f)
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = GPS.AutoLearnRow()
+    defs[#defs + 1] = GPS.DetoursRow()
+    defs[#defs + 1] = GPS.OtherWaysRow()
     defs[#defs + 1] = GPS.LaunchRow()
     -- Snapped in, the section has one look.
     if f.docked then return defs end
