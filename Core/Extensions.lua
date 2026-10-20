@@ -61,11 +61,22 @@ API.RegisterSearchProvider({
     },
 })
 
--- Chat's messages: a messenger never opened has nothing to find, so its
--- addon loads for a search only once it has been used.
+-- Chat's conversations, and its messages only when asked: a row for every
+-- message crowded other searches out. A messenger never opened has nothing
+-- to find, so its addon loads for a search only once it has been used.
+local function RefreshChatRows() API.RefreshSearchProvider("chat") end
 API.RegisterSearchProvider({
     key = "chat", category = "Chat", extension = "chat",
     label = L["APP_CHAT"], icon = ns.CHAT_ICON_TEX,
     words = { "chat", "message", "messages", "whisper", "whispers", "conversation" },
     loadOnSearch = function() return EasyFind.db and EasyFind.db.chatInUse end,
+    options = {
+        ns.Extensions.DbOption("chatFindChats", L["CHAT_OPT_CHATS"], L["CHAT_OPT_CHATS_TT"], RefreshChatRows),
+        { label = L["CHAT_OPT_MESSAGES"], tooltip = L["CHAT_OPT_MESSAGES_TT"],
+          get = function() return EasyFind.db.chatFindMessages == true end,
+          set = function(on)
+              EasyFind.db.chatFindMessages = on
+              RefreshChatRows()
+          end },
+    },
 })
