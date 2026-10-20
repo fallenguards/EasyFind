@@ -427,12 +427,8 @@ function Database:LoadEagerDynamicProviders()
                     -- allocation from stacking every provider's build
                     -- garbage before the end-of-chain full collect.
                     collectgarbage("step", 400)
-                    -- Index this provider's appended entries NOW, in
-                    -- budgeted slices across frames: the first query used
-                    -- to pay the whole index build in one 100-400ms
-                    -- keystroke frame. While the chain is loading, an
-                    -- oversized query-time build refuses and falls back
-                    -- to the full scan instead (SearchIndex.Ensure).
+                    -- Index this provider's entries in budgeted slices
+                    -- before the next one loads.
                     local function indexSlice()
                         if ns.SearchIndex and ns.SearchIndex.EnsureBudget
                            and not ns.SearchIndex:EnsureBudget(3) then
@@ -488,12 +484,8 @@ function Database:LoadDeferredSyncProvidersStaggered()
                     -- allocation from stacking every provider's build
                     -- garbage before the end-of-chain full collect.
                     collectgarbage("step", 400)
-                    -- Index this provider's appended entries NOW, in
-                    -- budgeted slices across frames: the first query used
-                    -- to pay the whole index build in one 100-400ms
-                    -- keystroke frame. While the chain is loading, an
-                    -- oversized query-time build refuses and falls back
-                    -- to the full scan instead (SearchIndex.Ensure).
+                    -- Index this provider's entries in budgeted slices
+                    -- before the next one loads.
                     local function indexSlice()
                         if ns.SearchIndex and ns.SearchIndex.EnsureBudget
                            and not ns.SearchIndex:EnsureBudget(3) then

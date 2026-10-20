@@ -247,5 +247,51 @@ function tests.noteReplaced_swapsCandidacy()
     H.assertTrue(not oldSet[old], "old object retired")
 end
 
+-- Each clock read advances 1 ms, so a 2 ms query allowance indexes one or
+-- two entries and leaves the rest of the tail unindexed.
+local function withSlowClock(fn)
+    local t = 0
+    env.debugprofilestop = function() t = t + 1; return t end
+    local ok, err = pcall(fn)
+    env.debugprofilestop = nil
+    assert(ok, err)
+end
+
+function tests.unindexedTail_servedWithoutBuilding()
+    candidateSet({ "shadow" })
+    local dataArr = ns.Database.uiSearchData
+    local fresh = {}
+    for i = 1, 40 do
+        local e = { name = "tail quagmire " .. i, nameLower = "tail quagmire " .. i,
+            keywordsLower = {}, category = "Test" }
+        fresh[i] = e
+        dataArr[#dataArr + 1] = e
+    end
+    withSlowClock(function()
+        local set = candidateSet({ "quagmire" })
+        for i = 1, 40 do
+            H.assertTrue(set[fresh[i]], "unindexed tail entry is a candidate: " .. i)
+        end
+        H.assertTrue(SearchIndex:_DebugPeek().builtCount < #dataArr,
+            "the query indexed only its allowance")
+    end)
+    local set = candidateSet({ "quagmire" })
+    for i = 1, 40 do
+        H.assertTrue(set[fresh[i]], "indexed later, still a candidate: " .. i)
+    end
+end
+
+function tests.restart_servedWithoutBuilding()
+    withSlowClock(function()
+        SearchIndex:MarkDirty()
+        local set = candidateSet({ "zephyr" })
+        local lonely
+        for i = 1, #corpus do
+            if corpus[i].nameLower == "lonely unique zephyr" then lonely = corpus[i] end
+        end
+        H.assertTrue(set[lonely], "a rebuild under way still finds every match")
+    end)
+end
+
 local pass, fail, failures = H.runSuite("SearchIndex", tests)
 return { pass = pass, fail = fail, failures = failures }

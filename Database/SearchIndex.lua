@@ -279,7 +279,8 @@ local function IndexEntry(data)
     entryMask[sid] = m
 end
 
-local function Rebuild()
+-- A rebuild starts over empty; the entries index again through Grow.
+local function Restart()
     wipe(gramStr); wipe(gramTail)
     wipe(wordStr); wipe(wordTail)
     wipe(initStr); wipe(initTail)
@@ -290,52 +291,28 @@ local function Rebuild()
     wipe(alive)
     nextSerial = 0
     deadCount = 0
-    local dataArr = Database.uiSearchData
-    for i = 1, #dataArr do
-        IndexEntry(dataArr[i])
-    end
-    builtCount = #dataArr
+    builtCount = 0
     dirty = false
 end
 
--- Above this many unindexed appends, a QUERY-TIME Ensure refuses the
--- synchronous build while the warm chain is still loading: paying the
--- whole append in one keystroke frame was a 100-400ms stall. The caller
--- falls back to the full scan (the pre-index behavior) and the chain's
--- budgeted slices finish the build in the background.
-local SYNC_BUILD_MAX = 800
+-- A search never builds the index past this: the rest of the unindexed
+-- tail is scored by the sliced scan, and the background build catches up.
+local QUERY_BUILD_MS = 2
+local GROW_SLICE_MS = 4
+-- Set while a search sits between its index reads: the background build
+-- waits, so postings never change under a half-read query.
+local reading = false
+local growing = false
 
-local function Ensure()
-    if dirty then
-        Rebuild()
-        return true
-    end
+-- Indexes appended entries until budgetMs is spent (all of them with no
+-- clock); true when caught up.
+local function Grow(budgetMs)
+    if reading then return false end
+    if dirty then Restart() end
     local dataArr = Database.uiSearchData
     local n = #dataArr
-    if builtCount < n then
-        if n - builtCount > SYNC_BUILD_MAX and Database._dynamicBatchLoading then
-            return false
-        end
-        for i = builtCount + 1, n do
-            IndexEntry(dataArr[i])
-        end
-    end
     -- Removal compactions can shrink the array; ref-keyed postings do not
     -- care (NoteRemoved handled liveness), only the append watermark moves.
-    builtCount = n
-    return true
-end
-
--- Budgeted incremental build for the warm chain: index appended entries
--- until budgetMs is spent; returns true when caught up. The chain calls
--- this between provider loads so first queries never pay the whole build.
-function SearchIndex:EnsureBudget(budgetMs)
-    if dirty then
-        Rebuild()
-        return true
-    end
-    local dataArr = Database.uiSearchData
-    local n = #dataArr
     if builtCount >= n then
         builtCount = n
         return true
@@ -350,6 +327,42 @@ function SearchIndex:EnsureBudget(budgetMs)
     end
     builtCount = i - 1
     return builtCount >= n
+end
+
+-- The watermark is read afresh per entry, so a query's own Grow or a
+-- compaction between slices never makes this index an entry twice.
+local function GrowSliced()
+    while true do
+        while reading do coroutine.yield() end
+        if dirty then Restart() end
+        local data = Database.uiSearchData[builtCount + 1]
+        if not data then return end
+        IndexEntry(data)
+        builtCount = builtCount + 1
+        if band(builtCount, 31) == 0 then SliceCheckpoint() end
+    end
+end
+
+-- Next frame, never inline: a sliced run started inside another one
+-- would end the outer run's slice deadline.
+local function ScheduleGrow()
+    if growing then return end
+    growing = true
+    ns.Utils.SafeAfter(0, function()
+        ns.Utils.RunSliced(GrowSliced, function(ok, err)
+            growing = false
+            if not ok then return ns.Utils.ErrorHandler(err) end
+            if dirty or builtCount < #Database.uiSearchData then ScheduleGrow() end
+        end, GROW_SLICE_MS)
+    end)
+end
+
+-- Budgeted build for the warm chain, between provider loads; true when
+-- caught up.
+function SearchIndex:EnsureBudget(budgetMs)
+    if Grow(budgetMs) then return true end
+    ScheduleGrow()
+    return false
 end
 
 function SearchIndex:MarkDirty()
@@ -372,7 +385,7 @@ local function TryCompact()
         return
     end
     dirty = true
-    Ensure()
+    ScheduleGrow()
 end
 
 -- Compactions can remove K entries and later appends can restore the SAME
@@ -522,9 +535,15 @@ end
 -- index cannot serve the query (no usable word). Candidates come out in
 -- ascending uiSearchData position -- the same iteration order as the full
 -- scan -- so the result cap keeps the exact same tie subset the scan would.
+-- Entries past the watermark the index has not seen come last, unfiltered.
 function SearchIndex:Candidates(queryWords)
-    if not Ensure() then return nil end
+    -- A query cancelled between its reads never cleared the flag.
+    reading = false
+    local dataArr = Database.uiSearchData
+    if not Grow(QUERY_BUILD_MS) then ScheduleGrow() end
     if builtCount == 0 then return nil end
+    local tailFrom, readSerial = builtCount, nextSerial
+    reading = true
     wipe(resultSet)
     local first = true
     local usable = 0
@@ -547,6 +566,7 @@ function SearchIndex:Candidates(queryWords)
             end
         end
     end
+    reading = false
     if usable == 0 then return nil end
     local n = 0
     for sid in pairs(resultSet) do
@@ -563,6 +583,16 @@ function SearchIndex:Candidates(queryWords)
     tsort(candBuf)
     for i = 1, n do
         candBuf[i] = slotEntry[candBuf[i]]
+    end
+    -- A compaction while this query yielded can lower the watermark.
+    if builtCount < tailFrom then tailFrom = builtCount end
+    for i = tailFrom + 1, #dataArr do
+        local data = dataArr[i]
+        local sid = serials[data]
+        if not sid or sid > readSerial then
+            n = n + 1
+            candBuf[n] = data
+        end
     end
     return candBuf, n
 end
