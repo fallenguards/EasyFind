@@ -439,16 +439,22 @@ local function DeriveSet(palette, set)
 end
 
 -- The windows with a page of their own in the theme studio, in its order;
--- each joins once its painting reads its own colors (ns.ThemeSetOf).
+-- each joins once its painting reads its own colors (ns.ThemeSetOf). opts:
+-- preview(parent, width) builds the window in miniature for its page,
+-- addon is the companion that brings that builder.
 ns.THEME_SURFACES = ns.THEME_SURFACES or {}
-function ns.AddThemeSurface(id, label)
+function ns.AddThemeSurface(id, label, opts)
+    local entry
     for _, s in ipairs(ns.THEME_SURFACES) do
-        if s.id == id then
-            s.label = label or s.label
-            return
-        end
+        if s.id == id then entry = s end
     end
-    ns.THEME_SURFACES[#ns.THEME_SURFACES + 1] = { id = id, label = label or id }
+    if not entry then
+        entry = { id = id, label = label or id }
+        ns.THEME_SURFACES[#ns.THEME_SURFACES + 1] = entry
+    elseif label then
+        entry.label = label
+    end
+    for k, v in pairs(opts or {}) do entry[k] = v end
 end
 
 -- A window's set: its own look when the active theme gives it one, else the

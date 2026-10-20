@@ -1736,6 +1736,175 @@ local function StyleAccentButton(btn, label, w, h)
     PaintAccentButton(btn)
 end
 
+-- The window's parts, shared by the window and its preview in the theme
+-- studio, so the two can never differ.
+local function IconButton(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(STD_BTN_W, STD_BTN_H)
+    if ns.CreateRoundedRectBorder then
+        ns.CreateRoundedRectBorder(b)
+        ns.SetRoundedRectBarHeight(b, 10)
+        ns.SetRoundedRectBorderBgAlpha(b, 1)
+        ns.SetRoundedRectBorderEdgeShown(b, false)
+    end
+    TrackThemedButton(b)
+    PaintSubtleButton(b, false)
+    return b
+end
+
+function Builders.HomeButton(parent)
+    local p = IconButton(parent)
+    p.houseIcon = p:CreateTexture(nil, "OVERLAY")
+    p.houseIcon:SetAtlas("UI-HUD-MicroMenu-Housing-Up", false)
+    p.houseIcon:SetSize(15, 15)
+    p.houseIcon:SetPoint("CENTER", p, "CENTER", 0, 0)
+    p.houseIcon:SetDesaturated(true)
+    p.houseIcon:SetVertexColor(1, 1, 1, 1)
+    p:SetScript("OnEnter", function(self) PaintSubtleButton(self, true) end)
+    p:SetScript("OnLeave", function(self) PaintSubtleButton(self, false) end)
+    return p
+end
+
+function Builders.GearButton(parent)
+    local g = IconButton(parent)
+    g.gearIcon = g:CreateTexture(nil, "OVERLAY")
+    g.gearIcon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    g.gearIcon:SetSize(13, 13)
+    g.gearIcon:SetPoint("CENTER", g, "CENTER", 0, 0)
+    g.gearIcon:SetDesaturated(true)
+    g.gearIcon:SetVertexColor(0.84, 0.84, 0.86, 1)
+    g:SetScript("OnEnter", function(self)
+        PaintSubtleButton(self, true)
+        self.gearIcon:SetVertexColor(1, 1, 1, 1)
+    end)
+    g:SetScript("OnLeave", function(self)
+        PaintSubtleButton(self, false)
+        self.gearIcon:SetVertexColor(0.84, 0.84, 0.86, 1)
+    end)
+    return g
+end
+
+function Builders.CloseButton(parent)
+    local c = CreateFrame("Button", nil, parent)
+    StyleSubtleButton(c, "", STD_BTN_W, STD_BTN_H)
+    if c.text then c.text:Hide() end
+    local idle = { 0.84, 0.84, 0.86, 1 }
+    c.x1 = c:CreateTexture(nil, "OVERLAY")
+    c.x1:SetSize(9, 1.4)
+    c.x1:SetPoint("CENTER", c, "CENTER", 0, 0)
+    c.x1:SetRotation(math.rad(45))
+    c.x1:SetColorTexture(unpack(idle))
+    c.x2 = c:CreateTexture(nil, "OVERLAY")
+    c.x2:SetSize(9, 1.4)
+    c.x2:SetPoint("CENTER", c, "CENTER", 0, 0)
+    c.x2:SetRotation(math.rad(-45))
+    c.x2:SetColorTexture(unpack(idle))
+    c:HookScript("OnEnter", function()
+        c.x1:SetColorTexture(1, 1, 1, 1)
+        c.x2:SetColorTexture(1, 1, 1, 1)
+    end)
+    c:HookScript("OnLeave", function()
+        c.x1:SetColorTexture(unpack(idle))
+        c.x2:SetColorTexture(unpack(idle))
+    end)
+    return c
+end
+
+function Builders.MoreButton(parent)
+    local b = CreateFrame("Button", nil, parent)
+    StyleSubtleButton(b, "", STD_BTN_W, STD_BTN_H)
+    if b.text then b.text:Hide() end
+    b.dots = {}
+    for i = 1, 3 do
+        local dot = b:CreateTexture(nil, "OVERLAY")
+        dot:SetColorTexture(1, 1, 1, 1)
+        dot:SetSize(4, 4)
+        dot:SetPoint("CENTER", b, "CENTER", 0, 5 - (i - 1) * 5)
+        local mask = b:CreateMaskTexture()
+        mask:SetTexture(ns.PORTRAIT_ALPHA_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(dot)
+        dot:AddMaskTexture(mask)
+        dot:SetVertexColor(0.78, 0.78, 0.82, 1)
+        b.dots[i] = dot
+    end
+    return b
+end
+
+-- The formatting toolbar: an extension of the window, exactly like the
+-- search results window under the search bar. It overlaps the window bottom
+-- (no gap), shares the themed fill, squares its top to butt flush, and a
+-- line marks the seam.
+function Builders.Toolbar(window)
+    local bar = CreateFrame("Frame", nil, window)
+    bar:SetPoint("TOPLEFT", window, "BOTTOMLEFT", 0, 2)
+    bar:SetPoint("TOPRIGHT", window, "BOTTOMRIGHT", 0, 2)
+    bar:SetHeight(TOOLBAR_H)
+    bar:SetFrameLevel(window:GetFrameLevel() + 10)
+    if ns.CreateRoundedRectBorder then
+        ns.CreateRoundedRectBorder(bar)
+        ns.SetRoundedRectBarHeight(bar, 12)
+        ns.SetRoundedRectBorderEdgeShown(bar, false)
+    end
+    if ns.ApplyThemeFill then ns.ApplyThemeFill(bar) end
+    if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(bar) end
+    bar.divider = bar:CreateTexture(nil, "OVERLAY")
+    bar.divider:SetColorTexture(0.30, 0.30, 0.33, 0.6)
+    bar.divider:SetHeight(1)
+    bar.divider:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -2)
+    bar.divider:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -8, -2)
+    if ns.RegisterThemeCallback then
+        ns.RegisterThemeCallback(function()
+            if ns.ApplyThemeFill then
+                ns.ApplyThemeFill(bar)
+                if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(bar) end
+            end
+        end)
+    end
+    return bar
+end
+
+-- A format button's look: its letter in the note font, or the list icon,
+-- the color bar, the underline or the strike.
+function Builders.ToolbarButtonLook(btn, action)
+    local label = action.buttonLabel or action.key
+    if action.mode == "italic" and UI._notes.puaGlyphs then
+        label = ITALIC_MAP[label] or label
+    end
+    StyleSubtleButton(btn, label, STD_BTN_W, STD_BTN_H)
+    btn.tip = action.tip
+    btn.actionKey = action.mode
+    if btn.text then
+        local font = action.buttonFont
+        if font and _G[font] then btn.text:SetFontObject(_G[font]) end
+        -- No outline: THICKOUTLINE's halo read as a shadow behind B and A.
+        UI:ApplyEasyNotesCustomFont(btn.text, action.fontSize)
+    end
+    if action.isListMenu then
+        btn.text:Hide()
+        btn.listIcon = btn:CreateTexture(nil, "OVERLAY")
+        btn.listIcon:SetSize(14, 14)
+        btn.listIcon:SetPoint("CENTER")
+        btn.listIcon:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\list")
+        btn.listIcon:SetVertexColor(0.84, 0.84, 0.86, 1)
+    end
+    if action.isColor then
+        btn.colorBar = btn:CreateTexture(nil, "OVERLAY")
+        btn.colorBar:SetSize(11, 2)
+        btn.colorBar:SetPoint("CENTER", btn, "CENTER", 0, -7)
+        btn.colorBar:SetColorTexture(0.74, 0.74, 0.78, 1)
+    elseif action.mode == "underline" then
+        btn.underBar = btn:CreateTexture(nil, "OVERLAY")
+        btn.underBar:SetSize(10, 1.6)
+        btn.underBar:SetPoint("CENTER", btn, "CENTER", 0, -7)
+        btn.underBar:SetColorTexture(0.84, 0.84, 0.86, 1)
+    elseif action.mode == "strike" then
+        btn.strikeBar = btn:CreateTexture(nil, "OVERLAY")
+        btn.strikeBar:SetSize(11, 1.6)
+        btn.strikeBar:SetPoint("CENTER", btn, "CENTER", 0, 0)
+        btn.strikeBar:SetColorTexture(0.84, 0.84, 0.86, 1)
+    end
+end
+
 -- Custom note font built from the user's Friz screenshot: regular Friz at ASCII,
 -- emboldened Friz at the SMP math-bold codepoints. Bold is char-replace (swap
 -- letters to those codepoints), so it renders bold Friz natively while typing --
@@ -3709,91 +3878,17 @@ function UI:EnsureEasyNotesFrame()
         UI:HideNotesTip(self)
     end)
 
-    frame.settingsButton = CreateFrame("Button", nil, frame.header)
-    frame.settingsButton:SetSize(BTN_W, BTN_H)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(frame.settingsButton)
-        ns.SetRoundedRectBarHeight(frame.settingsButton, 10)
-        ns.SetRoundedRectBorderBgAlpha(frame.settingsButton, 1)
-        ns.SetRoundedRectBorderEdgeShown(frame.settingsButton, false)
-    end
-    TrackThemedButton(frame.settingsButton)
-    PaintSubtleButton(frame.settingsButton, false)
-    do
-        local g = frame.settingsButton
-        g.gearIcon = g:CreateTexture(nil, "OVERLAY")
-        g.gearIcon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-        g.gearIcon:SetSize(13, 13)
-        g.gearIcon:SetPoint("CENTER", g, "CENTER", 0, 0)
-        g.gearIcon:SetDesaturated(true)
-        g.gearIcon:SetVertexColor(0.84, 0.84, 0.86, 1)
-    end
+    frame.settingsButton = Builders.GearButton(frame.header)
     frame.settingsButton:SetPoint("LEFT", frame.newButton, "RIGHT", 4, 0)
-    frame.settingsButton:SetScript("OnEnter", function(self)
-        PaintSubtleButton(self, true)
-        if self.gearIcon then self.gearIcon:SetVertexColor(1, 1, 1, 1) end
-    end)
-    frame.settingsButton:SetScript("OnLeave", function(self)
-        PaintSubtleButton(self, false)
-        if self.gearIcon then self.gearIcon:SetVertexColor(0.84, 0.84, 0.86, 1) end
-    end)
     frame.settingsButton:SetScript("OnClick", function() UI:ToggleEasyNotesSettings() end)
 
-    frame.paletteButton = CreateFrame("Button", nil, frame.header)
-    frame.paletteButton:SetSize(BTN_W, BTN_H)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(frame.paletteButton)
-        ns.SetRoundedRectBarHeight(frame.paletteButton, 10)
-        ns.SetRoundedRectBorderBgAlpha(frame.paletteButton, 1)
-        ns.SetRoundedRectBorderEdgeShown(frame.paletteButton, false)
-    end
-    TrackThemedButton(frame.paletteButton)
-    PaintSubtleButton(frame.paletteButton, false)
-    do
-        local p = frame.paletteButton
-        p.houseIcon = p:CreateTexture(nil, "OVERLAY")
-        p.houseIcon:SetAtlas("UI-HUD-MicroMenu-Housing-Up", false)
-        p.houseIcon:SetSize(15, 15)
-        p.houseIcon:SetPoint("CENTER", p, "CENTER", 0, 0)
-        p.houseIcon:SetDesaturated(true)
-        p.houseIcon:SetVertexColor(1, 1, 1, 1)
-    end
-    frame.paletteButton:SetScript("OnEnter", function(self)
-        PaintSubtleButton(self, true)
-    end)
-    frame.paletteButton:SetScript("OnLeave", function(self)
-        PaintSubtleButton(self, false)
-    end)
+    frame.paletteButton = Builders.HomeButton(frame.header)
     -- Home button: shares the New button's left slot (only one shows per view).
     frame.paletteButton:SetPoint("LEFT", frame.header, "LEFT", 8, 0)
     frame.paletteButton:SetScript("OnClick", function() UI:ToggleEasyNotesPalette() end)
 
-    frame.close = CreateFrame("Button", nil, frame.header)
-    StyleSubtleButton(frame.close, "", BTN_W, BTN_H)
+    frame.close = Builders.CloseButton(frame.header)
     frame.close:SetPoint("RIGHT", frame.header, "RIGHT", -8, 0)
-    if frame.close.text then frame.close.text:Hide() end
-    do
-        local c = frame.close
-        local idle = { 0.84, 0.84, 0.86, 1 }
-        c.x1 = c:CreateTexture(nil, "OVERLAY")
-        c.x1:SetSize(9, 1.4)
-        c.x1:SetPoint("CENTER", c, "CENTER", 0, 0)
-        c.x1:SetRotation(math.rad(45))
-        c.x1:SetColorTexture(unpack(idle))
-        c.x2 = c:CreateTexture(nil, "OVERLAY")
-        c.x2:SetSize(9, 1.4)
-        c.x2:SetPoint("CENTER", c, "CENTER", 0, 0)
-        c.x2:SetRotation(math.rad(-45))
-        c.x2:SetColorTexture(unpack(idle))
-        c:HookScript("OnEnter", function()
-            c.x1:SetColorTexture(1, 1, 1, 1)
-            c.x2:SetColorTexture(1, 1, 1, 1)
-        end)
-        c:HookScript("OnLeave", function()
-            c.x1:SetColorTexture(unpack(idle))
-            c.x2:SetColorTexture(unpack(idle))
-        end)
-    end
     frame.close:SetScript("OnClick", function() UI:CloseEasyNotes() end)
 
     frame.deleteButton = CreateFrame("Button", nil, frame.header)
@@ -4275,24 +4370,9 @@ function UI:EnsureEasyNotesFrame()
     end
     frame.findButton:SetScript("OnClick", function() UI:ToggleEasyNotesFindBar() end)
 
-    frame.overflowButton = CreateFrame("Button", nil, frame.footer)
-    StyleSubtleButton(frame.overflowButton, "", BTN_W, BTN_H)
-    if frame.overflowButton.text then frame.overflowButton.text:Hide() end
+    frame.overflowButton = Builders.MoreButton(frame.footer)
     do
         local b = frame.overflowButton
-        b.dots = {}
-        for i = 1, 3 do
-            local dot = b:CreateTexture(nil, "OVERLAY")
-            dot:SetColorTexture(1, 1, 1, 1)
-            dot:SetSize(4, 4)
-            dot:SetPoint("CENTER", b, "CENTER", 0, 5 - (i - 1) * 5)
-            local mask = b:CreateMaskTexture()
-            mask:SetTexture(ns.PORTRAIT_ALPHA_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-            mask:SetAllPoints(dot)
-            dot:AddMaskTexture(mask)
-            dot:SetVertexColor(0.78, 0.78, 0.82, 1)
-            b.dots[i] = dot
-        end
         b:SetScript("OnClick", function(self) UI:ShowEasyNotesOverflowMenu(self) end)
         b:HookScript("OnEnter", function(self)
             UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_MORE"])
@@ -4331,36 +4411,8 @@ function UI:EnsureEasyNotesFrame()
     frame.headerNavButton:Hide()
     frame.aliasButton:Hide()
 
-    -- The formatting toolbar is an extension of the note window, exactly like the
-    -- search results window under the search bar: it overlaps the window bottom
-    -- (no gap), shares the themed fill, and a horizontal divider marks the seam.
-    frame.toolbar = CreateFrame("Frame", nil, frame)
-    frame.toolbar:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 2)
-    frame.toolbar:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", 0, 2)
-    frame.toolbar:SetHeight(TOOLBAR_H)
-    frame.toolbar:SetFrameLevel(frame:GetFrameLevel() + 10)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(frame.toolbar)
-        ns.SetRoundedRectBarHeight(frame.toolbar, 12)
-        ns.SetRoundedRectBorderEdgeShown(frame.toolbar, false)
-    end
-    if ns.ApplyThemeFill then ns.ApplyThemeFill(frame.toolbar) end
-    -- Square the toolbar's top so it butts flush under the window (no rounded
-    -- notches showing the background at the seam).
-    if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(frame.toolbar) end
-    frame.toolbarDivider = frame.toolbar:CreateTexture(nil, "OVERLAY")
-    frame.toolbarDivider:SetColorTexture(0.30, 0.30, 0.33, 0.6)
-    frame.toolbarDivider:SetHeight(1)
-    frame.toolbarDivider:SetPoint("TOPLEFT", frame.toolbar, "TOPLEFT", 8, -2)
-    frame.toolbarDivider:SetPoint("TOPRIGHT", frame.toolbar, "TOPRIGHT", -8, -2)
-    if ns.RegisterThemeCallback then
-        ns.RegisterThemeCallback(function()
-            if ns.ApplyThemeFill and frame.toolbar then
-                ns.ApplyThemeFill(frame.toolbar)
-                if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(frame.toolbar) end
-            end
-        end)
-    end
+    frame.toolbar = Builders.Toolbar(frame)
+    frame.toolbarDivider = frame.toolbar.divider
     frame.toolbarButtons = {}
     frame.toolbar:SetScript("OnSizeChanged", function()
         UI:LayoutEasyNotesToolbar()
@@ -4369,46 +4421,10 @@ function UI:EnsureEasyNotesFrame()
     for i = 1, #FORMAT_ACTIONS do
         local action = FORMAT_ACTIONS[i]
         local btn = CreateFrame("Button", nil, frame.toolbar)
-        local label = action.buttonLabel or action.key
-        if action.mode == "italic" and UI._notes.puaGlyphs then
-            label = ITALIC_MAP[label] or label
-        end
-        StyleSubtleButton(btn, label, BTN_W, BTN_H)
-        btn.tip = action.tip
-        btn.actionKey = action.mode
+        Builders.ToolbarButtonLook(btn, action)
         btn.actionIndex = i
-        if btn.text then
-            local font = action.buttonFont
-            if font and _G[font] then btn.text:SetFontObject(_G[font]) end
-            -- No outline: THICKOUTLINE's halo read as a shadow behind B and A.
-            UI:ApplyEasyNotesCustomFont(btn.text, action.fontSize)
-        end
-        if action.isListMenu then
-            btn.text:Hide()
-            btn.listIcon = btn:CreateTexture(nil, "OVERLAY")
-            btn.listIcon:SetSize(14, 14)
-            btn.listIcon:SetPoint("CENTER")
-            btn.listIcon:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\list")
-            btn.listIcon:SetVertexColor(0.84, 0.84, 0.86, 1)
-            UI:BuildEasyNotesListMenu(frame, btn, action.listMenu)
-        end
-        if action.isColor then
-            btn.colorBar = btn:CreateTexture(nil, "OVERLAY")
-            btn.colorBar:SetSize(11, 2)
-            btn.colorBar:SetPoint("CENTER", btn, "CENTER", 0, -7)
-            btn.colorBar:SetColorTexture(0.74, 0.74, 0.78, 1)
-            UI._notes.colorButton = btn
-        elseif action.mode == "underline" then
-            btn.underBar = btn:CreateTexture(nil, "OVERLAY")
-            btn.underBar:SetSize(10, 1.6)
-            btn.underBar:SetPoint("CENTER", btn, "CENTER", 0, -7)
-            btn.underBar:SetColorTexture(0.84, 0.84, 0.86, 1)
-        elseif action.mode == "strike" then
-            btn.strikeBar = btn:CreateTexture(nil, "OVERLAY")
-            btn.strikeBar:SetSize(11, 1.6)
-            btn.strikeBar:SetPoint("CENTER", btn, "CENTER", 0, 0)
-            btn.strikeBar:SetColorTexture(0.84, 0.84, 0.86, 1)
-        end
+        if action.isListMenu then UI:BuildEasyNotesListMenu(frame, btn, action.listMenu) end
+        if action.isColor then UI._notes.colorButton = btn end
         btn:SetScript("OnMouseDown", function(self)
             local f = UI._notes.frame
             if f and f.editor then
@@ -5056,25 +5072,28 @@ function UI:CloseEasyNotesOpenMenus()
     return closed
 end
 
-function UI:LayoutEasyNotesToolbar()
-    local frame = UI._notes.frame
-    if not (frame and frame.toolbar and frame.toolbarButtons) then return end
-    local n = #frame.toolbarButtons
+-- The toolbar spans the window width (anchored below it); the button row
+-- centers in it, clamped to the left pad when the window is narrow.
+function Builders.LayoutToolbar(bar, buttons)
+    local n = #buttons
     if n == 0 then return end
-    -- The toolbar spans the window width (anchored below it); center the button
-    -- row in it, clamped to the left pad when the window is narrow.
     local pad = 8
     local gap = 4
     local totalW = n * STD_BTN_W + (n - 1) * gap
-    local barW = frame.toolbar:GetWidth() or 0
-    local x = math.max(pad, (barW - totalW) / 2)
+    local x = math.max(pad, ((bar:GetWidth() or 0) - totalW) / 2)
     for i = 1, n do
-        local btn = frame.toolbarButtons[i]
+        local btn = buttons[i]
         btn:ClearAllPoints()
-        btn:SetPoint("LEFT", frame.toolbar, "LEFT", x, 0)
+        btn:SetPoint("LEFT", bar, "LEFT", x, 0)
         btn:SetWidth(STD_BTN_W)
         x = x + STD_BTN_W + gap
     end
+end
+
+function UI:LayoutEasyNotesToolbar()
+    local frame = UI._notes.frame
+    if not (frame and frame.toolbar and frame.toolbarButtons) then return end
+    Builders.LayoutToolbar(frame.toolbar, frame.toolbarButtons)
 end
 
 function UI:RefreshEasyNotesToolbarButton(btn)
@@ -8259,6 +8278,145 @@ function Fmt.ShiftDecorationsForEdit(decorations, oldText, newText)
         end
     end
 end
+
+-- The theme studio's Notes page: this window as a note shows it, built from
+-- its own parts (header buttons, divider, toolbar, the editor's font and
+-- drawn checkboxes) and tagged as the Notes window, so it wears the Notes
+-- look exactly. Nothing in it acts.
+function notesNS.BuildThemePreview(parent, width)
+    local db = NormalizeDB()
+    UI._notes.activeModes = UI._notes.activeModes or {}
+    local win = CreateFrame("Frame", nil, parent)
+    win._efSurface = "notes"
+    win:SetWidth(width)
+    if ns.CreateRoundedRectBorder then
+        ns.CreateRoundedRectBorder(win)
+        ns.SetRoundedRectBarHeight(win, 14)
+        ns.SetRoundedRectBorderEdgeShown(win, false)
+    end
+
+    local header = CreateFrame("Frame", nil, win)
+    header:SetPoint("TOPLEFT", win, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", win, "TOPRIGHT", 0, 0)
+    header:SetHeight(HEADER_H)
+    local home = Builders.HomeButton(header)
+    home:SetPoint("LEFT", header, "LEFT", 8, 0)
+    local gear = Builders.GearButton(header)
+    gear:SetPoint("LEFT", home, "RIGHT", 4, 0)
+    local close = Builders.CloseButton(header)
+    close:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+    local more = Builders.MoreButton(header)
+    more:SetPoint("RIGHT", close, "LEFT", -4, 0)
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    title:SetPoint("LEFT", gear, "RIGHT", 8, 0)
+    title:SetPoint("RIGHT", more, "LEFT", -8, 0)
+    title:SetJustifyH("CENTER")
+    title:SetWordWrap(false)
+    title:SetTextColor(0.96, 0.96, 0.97, 1)
+    title:SetText(L["THEME_PREVIEW_NOTE_TITLE"])
+    local divider = win:CreateTexture(nil, "ARTWORK")
+    divider:SetColorTexture(0.18, 0.18, 0.20, 0.7)
+    divider:SetHeight(1)
+    divider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 12, 0)
+    divider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -12, 0)
+
+    -- A checklist as the editor draws it: a ticked line struck through, an
+    -- open one, then a line of text.
+    local size = db.fontSize or FONT_SIZE_DEFAULT
+    local meter = win:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    UI:ApplyEasyNotesCustomFont(meter, size)
+    meter:SetText("M")
+    local lineH = meter:GetStringHeight() or size
+    meter:SetText(CHECK_EMPTY_PREFIX)
+    local prefixW = meter:GetStringWidth() or size
+    meter:Hide()
+    local advance = lineH + 2
+    local top = HEADER_H + EDITOR_TOP
+    local lines = {
+        { box = "ticked", text = L["THEME_PREVIEW_NOTE_DONE"] },
+        { box = "open", text = L["THEME_PREVIEW_NOTE_TODO"] },
+        { text = L["THEME_PREVIEW_NOTE_TEXT"] },
+    }
+    local boxes = {}
+    for i, line in ipairs(lines) do
+        local y = -(top + (i - 1) * advance)
+        local fs = win:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        UI:ApplyEasyNotesCustomFont(fs, size)
+        fs:SetTextColor(0.74, 0.74, 0.78, 1)
+        fs:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (line.box and prefixW or 0), y)
+        fs:SetText(line.text)
+        if line.box then
+            local side = Fmt.BoxSide(fs)
+            local box = CreateFrame("Frame", nil, win)
+            box:SetSize(side, side)
+            local cx = mmin(size * 0.3, prefixW - mmax(2, size * 0.15) - side / 2)
+            box:SetPoint("CENTER", win, "TOPLEFT", 16 + cx, y - lineH / 2)
+            ns.CreateRingedWell(box, 3)
+            box.tick = box.ringInset:CreateTexture(nil, "OVERLAY")
+            box.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+            box.tick:SetPoint("CENTER", box, "CENTER", 0, 0)
+            box.tick:SetSize(side * 1.3, side * 1.3)
+            box.tick:SetShown(line.box == "ticked")
+            boxes[#boxes + 1] = box
+            if line.box == "ticked" then
+                local strike = win:CreateTexture(nil, "OVERLAY")
+                strike:SetColorTexture(0.92, 0.92, 0.94, 1)
+                strike:SetHeight(1)
+                strike:SetPoint("TOPLEFT", fs, "TOPLEFT", 0, -math.floor(lineH * 0.5 + 0.5))
+                strike:SetWidth(fs:GetStringWidth() or 0)
+            end
+        end
+    end
+
+    -- The toolbar's toggle at the footer's left, an x while the toolbar shows.
+    local toggle = CreateFrame("Button", nil, win)
+    StyleSubtleButton(toggle, "x", STD_BTN_W, STD_BTN_H)
+    toggle:SetPoint("LEFT", win, "BOTTOMLEFT", 8, FOOTER_H / 2 + 2)
+    toggle.text:SetTextColor(0.78, 0.78, 0.82, 1)
+    win:SetHeight(top + #lines * advance + 8 + FOOTER_H + 4)
+
+    local bar = Builders.Toolbar(win)
+    local buttons = {}
+    for i = 1, #FORMAT_ACTIONS do
+        local btn = CreateFrame("Button", nil, bar)
+        Builders.ToolbarButtonLook(btn, FORMAT_ACTIONS[i])
+        btn:SetScript("OnEnter", function(self)
+            self._hover = true
+            UI:RefreshEasyNotesToolbarButton(self)
+        end)
+        btn:SetScript("OnLeave", function(self)
+            self._hover = nil
+            UI:RefreshEasyNotesToolbarButton(self)
+        end)
+        buttons[i] = btn
+    end
+    local sizeBtn = CreateFrame("Button", nil, bar)
+    StyleSubtleButton(sizeBtn, tostring(size), STD_BTN_W, STD_BTN_H)
+    if ns.SetRoundedRectFill then ns.SetRoundedRectFill(sizeBtn, 0, 0, 0, 0, true) end
+    sizeBtn:SetScript("OnEnter", nil)
+    sizeBtn:SetScript("OnLeave", nil)
+    buttons[#buttons + 1] = sizeBtn
+    bar:SetScript("OnSizeChanged", function() Builders.LayoutToolbar(bar, buttons) end)
+    Builders.LayoutToolbar(bar, buttons)
+
+    local function Paint()
+        if ns.Results and ns.Results.ApplySearchWindowFill then ns.Results:ApplySearchWindowFill(win) end
+        ns.SetRoundedRectBorderBgAlpha(win, NormalizeDB().opacity or OPACITY_DEFAULT)
+        local look = ns.ThemeSetOf(win)
+        local ring = look.palette and look.palette.borderColor or { 0.42, 0.42, 0.42 }
+        ring = { ring[1], ring[2], ring[3], 1 }
+        for _, box in ipairs(boxes) do ns.PaintRingedWell(box, ring, look.EDITBOX_INSET_FILL) end
+        for i = 1, #FORMAT_ACTIONS do UI:RefreshEasyNotesToolbarButton(buttons[i]) end
+        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(sizeBtn, 0, 0, 0, 0, true) end
+    end
+    Paint()
+    if ns.RegisterThemeCallback then ns.RegisterThemeCallback(Paint) end
+    win.Repaint = Paint
+    -- The whole page: the window and the toolbar under it.
+    win.pageHeight = win:GetHeight() + TOOLBAR_H - 2
+    return win
+end
+ns.AddThemeSurface("notes", nil, { preview = notesNS.BuildThemePreview })
 
 function notesNS.AttachSnippetBodyEditor(parent, opts)
     if not parent then return nil end
