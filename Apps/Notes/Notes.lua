@@ -5172,9 +5172,11 @@ function UI:ApplyEasyNotesFormat(action, capturedLo, capturedHi, capturedCursor)
                 if pn then num = tonumber(pn) + 1 end
             end
             local prefix = num .. ". "
-            text = text:sub(1, lineStart - 1) .. prefix .. text:sub(lineStart)
+            -- One list mark a line: a bullet or box gives way to the number.
+            local old = MatchLinePrefix(text, lineStart)
+            text = text:sub(1, lineStart - 1) .. prefix .. text:sub(lineStart + old)
             editor:SetText(text)
-            editor:SetCursorPosition(cursor + #prefix)
+            editor:SetCursorPosition(mmax(lineStart - 1, cursor - old) + #prefix)
             UI._notes.activeModes.numlist = true
             for k in pairs(UI._notes.activeModes) do
                 if k == "list" or k == "check" then
@@ -5211,12 +5213,14 @@ function UI:ApplyEasyNotesFormat(action, capturedLo, capturedHi, capturedCursor)
             editor:SetCursorPosition(math.max(lineStart - 1, cursor - #action.linePrefix))
             UI._notes.activeModes[action.mode] = nil
         else
-            text = text:sub(1, lineStart - 1) .. action.linePrefix .. text:sub(lineStart)
+            -- One list mark a line: a number or the other mark gives way.
+            local old = MatchLinePrefix(text, lineStart)
+            text = text:sub(1, lineStart - 1) .. action.linePrefix .. text:sub(lineStart + old)
             editor:SetText(text)
-            editor:SetCursorPosition(cursor + #action.linePrefix)
+            editor:SetCursorPosition(mmax(lineStart - 1, cursor - old) + #action.linePrefix)
             UI._notes.activeModes[action.mode] = true
             for k in pairs(UI._notes.activeModes) do
-                if (k == "list" or k == "check" or k == "heading") and k ~= action.mode then
+                if (k == "list" or k == "check" or k == "heading" or k == "numlist") and k ~= action.mode then
                     UI._notes.activeModes[k] = nil
                 end
             end
