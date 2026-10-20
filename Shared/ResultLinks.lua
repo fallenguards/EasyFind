@@ -791,6 +791,8 @@ end
 function ResultLinks:AttachHyperlinks(frame)
     if not (frame and frame.SetHyperlinksEnabled) or frame._efLinkHover then return end
     frame:SetHyperlinksEnabled(true)
+    -- Its links open notes on Ctrl+right-click (the tooltip hint reads this).
+    frame._efNoteClicks = true
     WrapLinkHover(frame, function(self, link)
         if not (GameTooltip and link) then return end
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")

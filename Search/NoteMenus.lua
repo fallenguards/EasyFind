@@ -173,3 +173,45 @@ do
         watch:UnregisterAllEvents()
     end
 end
+
+-- The tooltip of an item or spell Ctrl+right-click makes a note for says
+-- so, where that click reaches us: bag and bank items, the character's
+-- slots, loot, the spellbook and the messenger's links. Action bars cast on
+-- a modified right-click, so they get no hint.
+local function NoteClickOwner(owner)
+    if not owner then return false end
+    if owner._efNoteClicks then return true end
+    local modified = owner.OnModifiedClick
+    local bag, bank = _G.ContainerFrameItemButtonMixin, _G.BankPanelItemButtonMixin
+    if modified and ((bag and modified == bag.OnModifiedClick) or (bank and modified == bank.OnModifiedClick)) then
+        return true
+    end
+    local name = owner.GetName and owner:GetName()
+    if type(name) == "string" and not issecret(name) and name:match("^Character%a+Slot$") then return true end
+    local parent = owner.GetParent and owner:GetParent()
+    if parent and parent.Item == owner and parent.GetSlotIndex then return true end
+    return owner.spellBookItemInfo ~= nil or (parent and parent.spellBookItemInfo ~= nil) or false
+end
+
+local function AddNoteClickHint(tooltip, kind, id)
+    local db = EasyFind.db
+    if not (db and db.notesClickHint ~= false and db.notesPlayerMenu ~= false) then return end
+    if tooltip ~= GameTooltip or type(id) ~= "number" or issecret(id) then return end
+    if not (ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes")) then return end
+    if not NoteClickOwner(tooltip:GetOwner()) then return end
+    local API = EasyFind.API
+    local has = API.HasAction("notes", "findUnitNote") and API.CallAction("notes", "findUnitNote", { type = kind, id = id })
+    local c = _G.GREEN_FONT_COLOR
+    tooltip:AddLine(has and L["NOTES_HINT_OPEN"] or L["NOTES_HINT_MAKE"], c and c.r or 0.1, c and c.g or 1, c and c.b or 0.1)
+end
+
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
+        AddNoteClickHint(tooltip, "item", data and data.id)
+    end)
+    if Enum.TooltipDataType.Spell then
+        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(tooltip, data)
+            AddNoteClickHint(tooltip, "spell", data and data.id)
+        end)
+    end
+end

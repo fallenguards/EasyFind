@@ -17,7 +17,8 @@ API.RegisterExtension({
 local function BuildNotesSettings(page, kit)
     local anchor = kit.Title(page, L["APP_NOTES"], L["NOTES_OPT_HINT"])
     local options = { { "notesHereFilter", "NOTES_OPT_HERE" }, { "notesTooltips", "NOTES_OPT_TOOLTIPS" },
-                      { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" } }
+                      { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" },
+                      { "notesClickHint", "NOTES_OPT_CLICK_HINT" } }
     for i, o in ipairs(options) do
         local key = o[1]
         local box = kit.Checkbox(page, L[o[2]], function() return EasyFind.db[key] ~= false end,
@@ -57,6 +58,7 @@ API.RegisterSearchProvider({
         ns.Extensions.DbOption("notesTooltips", L["NOTES_OPT_TOOLTIPS"], L["NOTES_OPT_TOOLTIPS_TT"]),
         ns.Extensions.DbOption("notesChatNames", L["NOTES_OPT_CHAT_NAMES"], L["NOTES_OPT_CHAT_NAMES_TT"]),
         ns.Extensions.DbOption("notesPlayerMenu", L["NOTES_OPT_PLAYER_MENU"], L["NOTES_OPT_PLAYER_MENU_TT"]),
+        ns.Extensions.DbOption("notesClickHint", L["NOTES_OPT_CLICK_HINT"], L["NOTES_OPT_CLICK_HINT_TT"]),
         ns.Extensions.DbOption("notesSurfaceHere", L["NOTES_OPT_SURFACE"], L["NOTES_OPT_SURFACE_TT"]),
     },
 })
