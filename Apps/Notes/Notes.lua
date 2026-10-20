@@ -4827,11 +4827,11 @@ local LIST_GLYPH_COLOR = { 0.90, 0.90, 0.92 }
 -- Each list style keeps the graphic it had as its own toolbar button before the
 -- three were folded into one menu: bulleted draws dots + lines, checklist shows
 -- the checkbox texture, numbered draws numerals + lines. Drawn into a 16px box
--- anchored at the row's left edge.
+-- centered on its button.
 local function BuildListMenuGlyph(row, key)
     local g = CreateFrame("Frame", nil, row)
     g:SetSize(16, 16)
-    g:SetPoint("LEFT", row, "LEFT", 8, 0)
+    g:SetPoint("CENTER", row, "CENTER", 0, 0)
     local col = LIST_GLYPH_COLOR
     if key == "checklist" then
         local check = g:CreateTexture(nil, "OVERLAY")
@@ -4846,11 +4846,11 @@ local function BuildListMenuGlyph(row, key)
             num:SetFont("Fonts\\FRIZQT__.TTF", 8, "")
             num:SetText(tostring(r))
             num:SetTextColor(col[1], col[2], col[3], 1)
-            num:SetPoint("LEFT", g, "LEFT", 0, yOff)
+            num:SetPoint("LEFT", g, "LEFT", 1, yOff)
             local line = g:CreateTexture(nil, "OVERLAY")
             line:SetSize(8, 1)
             line:SetColorTexture(col[1], col[2], col[3], 1)
-            line:SetPoint("LEFT", g, "LEFT", 6, yOff)
+            line:SetPoint("LEFT", g, "LEFT", 7, yOff)
         end
     else
         for r = 1, 3 do
