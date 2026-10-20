@@ -321,103 +321,193 @@ local function CopySlot(dst, src)
     for i = 1, n do dst[i] = src[i] end
 end
 
-function ns.ApplyUITheme(themeName, skipRepaint)
-    local palette = ns.UI_THEME_PALETTES[themeName] or ns.UI_THEME_PALETTES.Black
+-- A window's colors. The shared set is the live tables every reader without
+-- a window of its own uses (ns.BTN_FILL_NORMAL, Modern's slots, ...); a
+-- window with its own look in the theme gets a set of the same shape,
+-- derived the same way from that look.
+local SET_FILLS = { "SEARCH_WINDOW_FILL_COLOR", "BTN_FILL_NORMAL", "BTN_FILL_HOVER", "BTN_FILL_PRESSED",
+    "SECTION_TABLE_FILL", "NAV_SELECTED_FILL", "NAV_HOVER_FILL", "PANEL_CARD_FILL", "EDITBOX_INSET_FILL",
+    "LINK_COLOR", "LINK_HOVER", "TEXT_PRIMARY", "TEXT_BODY", "CONTROL_ACCENT" }
+local THEME_COLORS = { "pathColor", "pathColorHover", "leafColor", "chromeGlyph", "mutedGlyph", "textFaint",
+    "selectionColor", "separatorColor", "resultsBackdropColor", "resultsBackdropBorderColor" }
+
+local sharedSet
+local function SharedSet()
+    if not sharedSet then
+        sharedSet = { theme = THEMES["Modern"], shared = true }
+        for i = 1, #SET_FILLS do sharedSet[SET_FILLS[i]] = ns[SET_FILLS[i]] end
+    end
+    return sharedSet
+end
+
+-- A window's own set: its own tables, Modern's fonts and sizes beneath.
+local function NewSet()
     local modern = THEMES["Modern"]
-    ns.ACTIVE_UI_PALETTE = palette
-    CopySlot(ns.SEARCH_WINDOW_FILL_COLOR, palette.windowFill)
-    CopySlot(modern.pathColor, palette.pathColor)
-    CopySlot(modern.pathColorHover, palette.pathColorHover)
-    CopySlot(modern.leafColor, palette.leafColor)
-    CopySlot(modern.chromeGlyph, palette.chromeGlyph)
-    CopySlot(modern.mutedGlyph, palette.mutedGlyph)
-    CopySlot(modern.textFaint, palette.textFaint)
-    CopySlot(modern.selectionColor, palette.selection)
-    CopySlot(modern.separatorColor, palette.separator)
-    CopySlot(modern.resultsBackdropColor, palette.backdropColor)
-    CopySlot(modern.resultsBackdropBorderColor, palette.backdropBorder)
-    for i = 1, #modern.indentColors do
-        CopySlot(modern.indentColors[i], palette.accent)
+    local theme = setmetatable({ indentColors = {} }, { __index = modern })
+    for i = 1, #THEME_COLORS do theme[THEME_COLORS[i]] = {} end
+    for i = 1, #modern.indentColors do theme.indentColors[i] = {} end
+    local set = { theme = theme }
+    for i = 1, #SET_FILLS do
+        local live = ns[SET_FILLS[i]]
+        set[SET_FILLS[i]] = { live[1], live[2], live[3], live[4] }
     end
-    modern.lightTheme = palette.light or nil
-    modern.flatGlyphs = palette.flatGlyphs or nil
-    -- The bar and results are one window with a line between on every
-    -- theme; the classic skin drops the parchment behind results.
-    local classic = palette.chrome == "classic" and ns.FrameArtOn()
-    modern.searchBarRounded = true
-    modern.resultsBgAtlas = classic and nil or "QuestLog-main-background"
-    -- Shared control colors (tab text, button/table fills) are LIVE ns
-    -- tables consumed by creation paints, state handlers, and hover
-    -- closures alike; mutating them here rethemes all three uniformly.
-    -- Light themes derive theme-hued darks; dark themes restore canon.
-    local function setColor(dst, r, g, b, a)
-        dst[1], dst[2], dst[3] = r, g, b
-        if dst[4] ~= nil or a ~= nil then dst[4] = a end
+    return set
+end
+
+local function setColor(dst, r, g, b, a)
+    dst[1], dst[2], dst[3] = r, g, b
+    if dst[4] ~= nil or a ~= nil then dst[4] = a end
+end
+
+-- One look's colors into a set: the text and line slots, then the control
+-- fills light and dark themes each derive from the window fill.
+local function DeriveSet(palette, set)
+    local theme = set.theme
+    local fillC = set.SEARCH_WINDOW_FILL_COLOR
+    CopySlot(fillC, palette.windowFill)
+    CopySlot(theme.pathColor, palette.pathColor)
+    CopySlot(theme.pathColorHover, palette.pathColorHover)
+    CopySlot(theme.leafColor, palette.leafColor)
+    CopySlot(theme.chromeGlyph, palette.chromeGlyph)
+    CopySlot(theme.mutedGlyph, palette.mutedGlyph)
+    CopySlot(theme.textFaint, palette.textFaint)
+    CopySlot(theme.selectionColor, palette.selection)
+    CopySlot(theme.separatorColor, palette.separator)
+    CopySlot(theme.resultsBackdropColor, palette.backdropColor)
+    CopySlot(theme.resultsBackdropBorderColor, palette.backdropBorder)
+    for i = 1, #theme.indentColors do
+        CopySlot(theme.indentColors[i], palette.accent)
     end
+    theme.lightTheme = palette.light or nil
+    theme.flatGlyphs = palette.flatGlyphs or nil
+    local leaf = theme.leafColor
     if palette.light then
-        local leaf = modern.leafColor
-        local fillC = ns.SEARCH_WINDOW_FILL_COLOR
+        -- Light themes derive theme-hued darks.
         local function mixDark(dst, f, a)
             setColor(dst,
                 leaf[1] * (1 - f) + fillC[1] * f,
                 leaf[2] * (1 - f) + fillC[2] * f,
                 leaf[3] * (1 - f) + fillC[3] * f, a)
         end
-        mixDark(ns.BTN_FILL_NORMAL, 0.30)
-        -- Hover sits a step LIGHTER than resting (more fill in the mix),
-        -- matching how the nav tabs behave, instead of the dark-canon slate.
-        mixDark(ns.BTN_FILL_HOVER, 0.45)
-        mixDark(ns.BTN_FILL_PRESSED, 0.18)
-        mixDark(ns.SECTION_TABLE_FILL, 0.32, 0.92)
-        -- Nav pills invert against the card-colored column (the keybind
-        -- scheme): selected = window-fill pill, hover = a step lighter
-        -- than the column, both carrying window-fill text.
-        setColor(ns.NAV_SELECTED_FILL, fillC[1], fillC[2], fillC[3], 0.95)
-        mixDark(ns.NAV_HOVER_FILL, 0.45, 0.85)
-        -- The panel gloss renders near 0.8x the window fill, so anything
-        -- meant to read as a card or inset must sit clearly below that.
-        -- Between the panel gloss (~0.8x) and the old too-dark 0.6x:
-        -- dark enough to read as a card, light enough for dark text.
-        setColor(ns.PANEL_CARD_FILL, fillC[1] * 0.70, fillC[2] * 0.70, fillC[3] * 0.70)
-        setColor(ns.EDITBOX_INSET_FILL, fillC[1] * 0.55, fillC[2] * 0.55, fillC[3] * 0.55)
-        -- Cyan links vanish on light fills; the live link tables flip to
-        -- dark blues so event-time readers stay correct.
-        setColor(ns.LINK_COLOR, 0.05, 0.28, 0.58)
-        setColor(ns.LINK_HOVER, 0.10, 0.40, 0.78)
-        setColor(ns.TEXT_PRIMARY, modern.pathColorHover[1], modern.pathColorHover[2], modern.pathColorHover[3])
-        setColor(ns.TEXT_BODY, modern.textFaint[1], modern.textFaint[2], modern.textFaint[3])
+        mixDark(set.BTN_FILL_NORMAL, 0.30)
+        -- Hover a step LIGHTER than resting, as the nav tabs do.
+        mixDark(set.BTN_FILL_HOVER, 0.45)
+        mixDark(set.BTN_FILL_PRESSED, 0.18)
+        mixDark(set.SECTION_TABLE_FILL, 0.32, 0.92)
+        -- Nav pills invert against the card-colored column: selected is a
+        -- window-fill pill, hover a step lighter than the column.
+        setColor(set.NAV_SELECTED_FILL, fillC[1], fillC[2], fillC[3], 0.95)
+        mixDark(set.NAV_HOVER_FILL, 0.45, 0.85)
+        -- The panel gloss renders near 0.8x the window fill: a card or
+        -- inset sits clearly below it, light enough for dark text.
+        setColor(set.PANEL_CARD_FILL, fillC[1] * 0.70, fillC[2] * 0.70, fillC[3] * 0.70)
+        setColor(set.EDITBOX_INSET_FILL, fillC[1] * 0.55, fillC[2] * 0.55, fillC[3] * 0.55)
+        -- Cyan links vanish on light fills: dark blues instead.
+        setColor(set.LINK_COLOR, 0.05, 0.28, 0.58)
+        setColor(set.LINK_HOVER, 0.10, 0.40, 0.78)
+        local hover = theme.pathColorHover
+        setColor(set.TEXT_PRIMARY, hover[1], hover[2], hover[3])
+        setColor(set.TEXT_BODY, theme.textFaint[1], theme.textFaint[2], theme.textFaint[3])
     else
-        -- Dark themes: the window fill lifted toward the theme's control
-        -- accent and a little toward its text makes the buttons (hover a
-        -- step more, pressed a step less) and the nav pills; cards and
-        -- insets sit a shade under the window.
-        local fillC = ns.SEARCH_WINDOW_FILL_COLOR
+        -- Dark themes: the window fill lifted toward the control accent and
+        -- a little toward the text makes the buttons and nav pills; cards
+        -- and insets sit a shade under the window.
         local tint = palette.controlAccent or palette.accent
-        local leaf = modern.leafColor
         local function lift(dst, f, up, a)
             local r = fillC[1] * (1 - f) + tint[1] * f
             local g = fillC[2] * (1 - f) + tint[2] * f
             local b = fillC[3] * (1 - f) + tint[3] * f
             setColor(dst, r + (leaf[1] - r) * up, g + (leaf[2] - g) * up, b + (leaf[3] - b) * up, a)
         end
-        lift(ns.BTN_FILL_NORMAL, 0.30, 0.08)
-        lift(ns.BTN_FILL_HOVER, 0.40, 0.16)
-        lift(ns.BTN_FILL_PRESSED, 0.22, 0.03)
-        lift(ns.NAV_SELECTED_FILL, 0.30, 0.08, 0.95)
-        lift(ns.NAV_HOVER_FILL, 0.15, 0.04, 0.85)
-        setColor(ns.SECTION_TABLE_FILL, fillC[1] * 0.85, fillC[2] * 0.85, fillC[3] * 0.85, 0.92)
-        setColor(ns.PANEL_CARD_FILL, fillC[1] * 0.75, fillC[2] * 0.75, fillC[3] * 0.75)
-        setColor(ns.EDITBOX_INSET_FILL, fillC[1] * 0.5, fillC[2] * 0.5, fillC[3] * 0.5)
-        setColor(ns.LINK_COLOR, 0.44, 0.84, 1.0)
-        setColor(ns.LINK_HOVER, 0.72, 0.94, 1.0)
-        setColor(ns.TEXT_PRIMARY, 1.00, 0.97, 0.86)
-        setColor(ns.TEXT_BODY, 0.78, 0.78, 0.80)
+        lift(set.BTN_FILL_NORMAL, 0.30, 0.08)
+        lift(set.BTN_FILL_HOVER, 0.40, 0.16)
+        lift(set.BTN_FILL_PRESSED, 0.22, 0.03)
+        lift(set.NAV_SELECTED_FILL, 0.30, 0.08, 0.95)
+        lift(set.NAV_HOVER_FILL, 0.15, 0.04, 0.85)
+        setColor(set.SECTION_TABLE_FILL, fillC[1] * 0.85, fillC[2] * 0.85, fillC[3] * 0.85, 0.92)
+        setColor(set.PANEL_CARD_FILL, fillC[1] * 0.75, fillC[2] * 0.75, fillC[3] * 0.75)
+        setColor(set.EDITBOX_INSET_FILL, fillC[1] * 0.5, fillC[2] * 0.5, fillC[3] * 0.5)
+        setColor(set.LINK_COLOR, 0.44, 0.84, 1.0)
+        setColor(set.LINK_HOVER, 0.72, 0.94, 1.0)
+        setColor(set.TEXT_PRIMARY, 1.00, 0.97, 0.86)
+        setColor(set.TEXT_BODY, 0.78, 0.78, 0.80)
     end
-    -- Toggle/segment accent follows the theme (Black pins the classic blue
-    -- via controlAccent; its gold accent drives indents and glow, which
-    -- would read wrong on control fills).
+    -- Toggles follow the control accent (Black pins the classic blue; its
+    -- gold accent would read wrong on control fills).
     local controlAccent = palette.controlAccent or palette.accent
-    setColor(ns.CONTROL_ACCENT, controlAccent[1], controlAccent[2], controlAccent[3])
+    setColor(set.CONTROL_ACCENT, controlAccent[1], controlAccent[2], controlAccent[3])
+end
+
+-- The windows with a page of their own in the theme studio, in its order;
+-- each joins once its painting reads its own colors (ns.ThemeSetOf).
+ns.THEME_SURFACES = ns.THEME_SURFACES or {}
+function ns.AddThemeSurface(id, label)
+    for _, s in ipairs(ns.THEME_SURFACES) do
+        if s.id == id then
+            s.label = label or s.label
+            return
+        end
+    end
+    ns.THEME_SURFACES[#ns.THEME_SURFACES + 1] = { id = id, label = label or id }
+end
+
+-- A window's set: its own look when the active theme gives it one, else the
+-- shared set. Rebuilt once per theme apply.
+local surfaceSets = {}
+function ns.ThemeSet(id)
+    local palette = ns.ACTIVE_UI_PALETTE
+    local own = id and palette and palette.surfaces and palette.surfaces[id]
+    if not own then return SharedSet() end
+    local set = surfaceSets[id]
+    if not set then
+        set = NewSet()
+        surfaceSets[id] = set
+    end
+    if set.gen ~= ns.uiThemeGeneration or set.palette ~= own then
+        set.palette, set.gen = own, ns.uiThemeGeneration
+        DeriveSet(own, set)
+    end
+    return set
+end
+
+-- The window a frame belongs to: the first _efSurface up its parents.
+function ns.ThemeSurfaceOf(frame)
+    local f = frame
+    while f do
+        local id = f._efSurface
+        if id then return id end
+        f = f.GetParent and f:GetParent() or nil
+    end
+end
+
+function ns.ThemeSetOf(frame)
+    return ns.ThemeSet(frame and ns.ThemeSurfaceOf(frame))
+end
+
+-- A window's look: its own when the theme gives it one, else the theme's.
+function ns.ThemePaletteOf(frame)
+    local set = ns.ThemeSetOf(frame)
+    return set.palette or ns.ACTIVE_UI_PALETTE
+end
+
+function ns.ApplyUITheme(themeName, skipRepaint)
+    local palette = ns.UI_THEME_PALETTES[themeName] or ns.UI_THEME_PALETTES.Black
+    local modern = THEMES["Modern"]
+    ns.ACTIVE_UI_PALETTE = palette
+    -- Shared control colors (tab text, button/table fills) are LIVE ns
+    -- tables consumed by creation paints, state handlers, and hover
+    -- closures alike; filling them here rethemes all three uniformly.
+    local shared = SharedSet()
+    shared.palette = palette
+    DeriveSet(palette, shared)
+    -- The bar and results are one window with a line between on every
+    -- theme; the classic skin drops the parchment behind results.
+    local classic = palette.chrome == "classic" and ns.FrameArtOn()
+    modern.searchBarRounded = true
+    modern.resultsBgAtlas = classic and nil or "QuestLog-main-background"
+    -- Rows retint their hover glow lazily against this generation, and each
+    -- window's own set rebuilds against it.
+    ns.uiThemeGeneration = (ns.uiThemeGeneration or 0) + 1
     -- Menus that are OPEN during the flip never get their OnShow refill;
     -- restyle them right now so nothing wears the previous theme.
     if ns.RestyleShownMenuPanels then
@@ -441,9 +531,6 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     -- glyphs in the theme's colors.
     if ns.FlatTextEverywhere then ns.FlatTextEverywhere() end
     if ns.RetintCogs then ns.RetintCogs() end
-    -- Rows retint their hover glow lazily against this generation (the
-    -- per-render cost is one field compare on pooled rows).
-    ns.uiThemeGeneration = (ns.uiThemeGeneration or 0) + 1
     -- Let registered windows (calculator popup) restyle to the new palette
     -- while open.
     if ns.FireThemeCallbacks then ns.FireThemeCallbacks() end

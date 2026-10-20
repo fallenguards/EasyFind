@@ -410,6 +410,8 @@ function Harness.newNs(env)
     -- Shared constants that some modules reference.
     ns.GOLD_COLOR = { 1.0, 0.82, 0.0 }
     ns.TEXT_PRIMARY = { 1.00, 0.97, 0.86 }
+    -- Search/Results/Theme.lua's, which loads before any extension.
+    ns.AddThemeSurface = function() end
     -- The icon paths, as Shared/Utils.lua sets them: an extension needs one.
     local f = assert(io.open(resolvePath("Shared/Utils.lua"), "rb"))
     for name, path in f:read("*a"):gmatch('\nns%.([%u_]+_ICON_TEX)%s*=%s*"([^"]+)"') do

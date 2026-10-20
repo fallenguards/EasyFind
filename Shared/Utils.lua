@@ -3031,7 +3031,8 @@ local function RetintFontString(fs, theme, shadowOnly)
     -- its build-time color is whatever theme was active then, so neither
     -- restore-to-original nor color classification can handle it.
     if fs._efLinkText then
-        local link = ns.LINK_COLOR
+        -- The link color of the window the retint walk is in.
+        local link = Utils.retintLinkColor or ns.LINK_COLOR
         fs:SetTextColor(link[1], link[2], link[3], orig[4])
         return
     end
@@ -3120,9 +3121,12 @@ end
 
 function ns.RetintPanelText(root)
     if not root then return end
-    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(root)
+    local theme = set and set.theme or (ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme())
     if not theme then return end
+    Utils.retintLinkColor = set and set.LINK_COLOR
     RetintWalk(root, theme)
+    Utils.retintLinkColor = nil
 end
 
 -- Our text carries no font shadow, on either polarity: the game's font
@@ -3282,7 +3286,7 @@ function ns.UpdateThemeFillGradient(frame)
     -- (buttons, toggle tracks) with the window ramp: the long-standing
     -- "wrong color until hovered" bug on gradient themes.
     if not frame._efThemeFillTarget then return end
-    local palette = ns.ACTIVE_UI_PALETTE
+    local palette = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
     local bottom = palette and palette.windowFillBottom
     local top = palette and palette.windowFillTop
     if not (bottom and top and CreateColor) then return end
@@ -3334,7 +3338,9 @@ function ns.ApplyThemeFill(frame)
     frame._efThemeFillTarget = true
     if ns.ApplySkin(frame) then return end
     local fill = frame.combinedBorder.fill
-    local palette = ns.ACTIVE_UI_PALETTE
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
+    local palette = set and set.palette or ns.ACTIVE_UI_PALETTE
+    local windowFill = set and set.SEARCH_WINDOW_FILL_COLOR or ns.SEARCH_WINDOW_FILL_COLOR
     local cWhite = CreateColor and CreateColor(1, 1, 1, 1)
     -- A studio theme tints the ring; the stock tint returns when the
     -- next theme has no borderColor slot.
@@ -3373,7 +3379,7 @@ function ns.ApplyThemeFill(frame)
             end
             -- Base fill goes flat under the (opaque) art so nothing of a
             -- previous theme shows through the corners' antialiased rim.
-            local flatBase = palette.windowFill or ns.SEARCH_WINDOW_FILL_COLOR
+            local flatBase = palette.windowFill or windowFill
             for _, cell in pairs(fill) do
                 if cWhite and cell.SetGradient then
                     cell:SetGradient("VERTICAL", cWhite, cWhite)
@@ -3393,7 +3399,7 @@ function ns.ApplyThemeFill(frame)
         ns.UpdateThemeFillGradient(frame)
         return
     end
-    local flat = ns.SEARCH_WINDOW_FILL_COLOR
+    local flat = windowFill
     for _, cell in pairs(fill) do
         if cWhite and cell.SetGradient then
             cell:SetGradient("VERTICAL", cWhite, cWhite)
@@ -3825,14 +3831,16 @@ function ns.ApplyCardFill(frame)
     frame._efClassicSurface = true
     frame._efClassicStyle = frame._efClassicStyle or "thin"
     frame._efNoAutoRetint = true
-    local sectionAlpha = ns.SECTION_TABLE_FILL[4] or 0.92
-    local pal = ns.ACTIVE_UI_PALETTE
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
+    local section = set and set.SECTION_TABLE_FILL or ns.SECTION_TABLE_FILL
+    local sectionAlpha = section[4] or 0.92
+    local pal = set and set.palette or ns.ACTIVE_UI_PALETTE
     if pal and pal.light then
         frame._efThemeFillTarget = nil
         if frame._efArtCells then
             for _, cell in pairs(frame._efArtCells) do cell:Hide() end
         end
-        ns.SetRoundedRectFill(frame, ns.SECTION_TABLE_FILL[1], ns.SECTION_TABLE_FILL[2], ns.SECTION_TABLE_FILL[3], 1, true)
+        ns.SetRoundedRectFill(frame, section[1], section[2], section[3], 1, true)
     else
         ns.ApplyThemeFill(frame)
     end
@@ -4720,8 +4728,9 @@ end
 -- ONE rule for text color on themed dialog chrome (labels, hints): theme
 -- leaf on dark fills, the darker hover accent on light fills. Gold is
 -- never correct on themed fills.
-function ns.TooltipTextColor()
-    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+function ns.TooltipTextColor(frame)
+    local theme = ns.ThemeSetOf and ns.ThemeSetOf(frame).theme
+        or (ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme())
     if theme and theme.lightTheme then
         local c = theme.pathColorHover or theme.leafColor
         return c[1], c[2], c[3]

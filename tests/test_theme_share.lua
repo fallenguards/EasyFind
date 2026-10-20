@@ -132,5 +132,42 @@ function tests.delete_fallsBackTheActiveTheme()
     H.assertTrue(not Share:DeleteCustomTheme("Amber"), "second delete finds nothing")
 end
 
+-- A theme with the Notes window in a light look of its own.
+local function withNotes()
+    return palette({ surfaces = { notes = palette({ light = true, windowFill = { 0.8, 0.8, 0.7 } }) } })
+end
+
+function tests.roundTrip_keepsEachWindowsOwnLook()
+    local _, _, Share = fresh()
+    local name, out = Share:Decode(Share:ExportPalette("Split", withNotes()))
+    H.assertEq(name, "Split")
+    local notes = out.surfaces and out.surfaces.notes
+    H.assertNotNil(notes, "the Notes window's look came through")
+    H.assertEq(notes.light, true)
+    H.assertEq(notes.windowFill[1], 0.8)
+    H.assertEq(out.light, nil, "the shared look stays dark")
+end
+
+function tests.save_keepsEachWindowsOwnLook()
+    local env, _, Share = fresh()
+    local saved = Share:Import(Share:ExportPalette("Split", withNotes()))
+    local stored = env.EasyFindDB.customThemes[saved]
+    H.assertNotNil(stored.surfaces and stored.surfaces.notes, "saved with the Notes look")
+end
+
+function tests.validate_dropsABadWindowLookNotTheTheme()
+    local _, _, Share = fresh()
+    local raw = withNotes()
+    raw.surfaces["bad id!"] = palette()
+    raw.surfaces.gps = { windowFill = { 0.1, 0.1, 0.1 } }
+    raw.surfaces.notes.surfaces = { deeper = palette() }
+    local clean = Share.ValidatePalette(raw)
+    H.assertNotNil(clean, "the theme stands")
+    H.assertNotNil(clean.surfaces.notes, "the good look stays")
+    H.assertNil(clean.surfaces["bad id!"], "a bad window id goes")
+    H.assertNil(clean.surfaces.gps, "a look missing its slots goes")
+    H.assertNil(clean.surfaces.notes.surfaces, "looks never nest")
+end
+
 local pass, fail, failures = H.runSuite("ThemeShare", tests)
 return { pass = pass, fail = fail, failures = failures }

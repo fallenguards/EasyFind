@@ -110,10 +110,18 @@ local function ValidColor(c, minLen)
     return out
 end
 
+-- A window's id in a theme's surfaces: letters, digits, - and _ only.
+local SURFACE_ID_MAX = 32
+local function ValidSurfaceID(id)
+    return type(id) == "string" and #id > 0 and #id <= SURFACE_ID_MAX and id:match("^[%w_%-]+$") ~= nil
+end
+ThemeShare.ValidSurfaceID = ValidSurfaceID
+
 -- Returns a cleaned palette table or nil, err. Copies field by field:
 -- pairs() over untrusted data must never leak unknown keys into the live
--- palette tables.
-local function ValidatePalette(raw)
+-- palette tables. A theme's windows with their own look (surfaces) are
+-- palettes themselves; one that fails is dropped, not the theme.
+local function ValidatePalette(raw, nested)
     if type(raw) ~= "table" then return nil, "not a table" end
     local clean = {}
     for i = 1, #COLOR_SLOTS do
@@ -133,8 +141,18 @@ local function ValidatePalette(raw)
        and raw.fillTexture:sub(1, #SHIPPED_TEXTURE_PREFIX) == SHIPPED_TEXTURE_PREFIX then
         clean.fillTexture = raw.fillTexture
     end
+    if not nested and type(raw.surfaces) == "table" then
+        for id, look in pairs(raw.surfaces) do
+            local own = ValidSurfaceID(id) and ValidatePalette(look, true)
+            if own then
+                clean.surfaces = clean.surfaces or {}
+                clean.surfaces[id] = own
+            end
+        end
+    end
     return clean
 end
+ThemeShare.ValidatePalette = ValidatePalette
 
 -- Register every stored custom theme into the live palette tables. Runs at
 -- login BEFORE the theme seed (Core), and after a save/import. Stored data
@@ -219,16 +237,11 @@ function ThemeShare:Export(name)
     return self:ExportPalette(name, palette)
 end
 
--- Same encoding for a palette that is not (yet) registered -- the studio
--- exports unsaved drafts through this.
-function ThemeShare:ExportPalette(name, palette)
-    if not (name and palette) then return nil end
-    local codec = ns.ShareCodec
-    if not codec then return nil end
-    local encS = codec.encS
-    local parts = { PAYLOAD_MARKER, encS(name), encS(palette.light and "1" or "0"),
-        encS(palette.borderHidden and "1" or "0"),
-        encS(palette.fillTexture or "") }
+-- One look's flags and color slots onto the code's parts.
+local function EncodeLook(parts, encS, palette)
+    parts[#parts + 1] = encS(palette.light and "1" or "0")
+    parts[#parts + 1] = encS(palette.borderHidden and "1" or "0")
+    parts[#parts + 1] = encS(palette.fillTexture or "")
     local colorParts = {}
     for i = 1, #COLOR_SLOTS do
         local key = COLOR_SLOTS[i].key
@@ -247,6 +260,31 @@ function ThemeShare:ExportPalette(name, palette)
             parts[#parts + 1] = encS(sformat("%.4f", entry.color[c]))
         end
     end
+end
+
+-- Same encoding for a palette that is not (yet) registered -- the studio
+-- exports unsaved drafts through this. A theme's windows with their own
+-- look follow its slots, so an older reader still takes the shared look.
+function ThemeShare:ExportPalette(name, palette)
+    if not (name and palette) then return nil end
+    local codec = ns.ShareCodec
+    if not codec then return nil end
+    local encS = codec.encS
+    local parts = { PAYLOAD_MARKER, encS(name) }
+    EncodeLook(parts, encS, palette)
+    local ids = {}
+    for id in pairs(palette.surfaces or {}) do
+        if ValidSurfaceID(id) then ids[#ids + 1] = id end
+    end
+    if #ids > 0 then
+        tsort(ids)
+        parts[#parts + 1] = encS("S")
+        parts[#parts + 1] = encS(#ids)
+        for i = 1, #ids do
+            parts[#parts + 1] = encS(ids[i])
+            EncodeLook(parts, encS, palette.surfaces[ids[i]])
+        end
+    end
     return CODE_PREFIX .. codec.base64enc(tconcat(parts))
 end
 
@@ -262,15 +300,40 @@ function ThemeShare:Decode(str)
         return nil
     end
     local decS = codec.decS
-    local pos = #PAYLOAD_MARKER + 1
-    local name, lightFlag, borderFlag, fillTexture, slotCountStr
-    name, pos = decS(blob, pos)
+    local name, pos = decS(blob, #PAYLOAD_MARKER + 1)
+    if not name then return nil end
+    local palette
+    palette, pos = self.DecodeLook(decS, blob, pos)
+    if not palette then return nil end
+    local marker, countPos = decS(blob, pos)
+    if marker == "S" then
+        local countStr
+        countStr, pos = decS(blob, countPos)
+        local count = tonumber(countStr) or 0
+        if count < 0 or count > 64 then return nil end
+        for _ = 1, count do
+            local id, look
+            id, pos = decS(blob, pos)
+            if not id then return nil end
+            look, pos = self.DecodeLook(decS, blob, pos)
+            if not look then return nil end
+            palette.surfaces = palette.surfaces or {}
+            palette.surfaces[id] = look
+        end
+    end
+    return name, palette
+end
+
+-- One look's flags and slots from the code at pos: the look and the next
+-- pos, or nil.
+function ThemeShare.DecodeLook(decS, blob, pos)
+    local lightFlag, borderFlag, fillTexture, slotCountStr
     lightFlag, pos = decS(blob, pos)
     borderFlag, pos = decS(blob, pos)
     fillTexture, pos = decS(blob, pos)
     slotCountStr, pos = decS(blob, pos)
     local slotCount = tonumber(slotCountStr) or 0
-    if not name or slotCount <= 0 or slotCount > #COLOR_SLOTS then return nil end
+    if slotCount <= 0 or slotCount > #COLOR_SLOTS then return nil end
     local palette = {}
     if lightFlag == "1" then palette.light = true end
     if borderFlag == "1" then palette.borderHidden = true end
@@ -291,7 +354,7 @@ function ThemeShare:Decode(str)
         end
         palette[key] = color
     end
-    return name, palette
+    return palette, pos
 end
 
 -- Full import: decode, validate, persist, register. Returns the saved name
