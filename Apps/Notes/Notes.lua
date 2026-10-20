@@ -51,9 +51,8 @@ local MIN_WIDTH = 220
 local MIN_HEIGHT = 180
 local HEADER_H = 30
 local FOOTER_H = 24
-local ATTACH_H = 16
 -- editor body sits below the header divider and the tag row
-local EDITOR_TOP = 14 + ATTACH_H
+local EDITOR_TOP = 14
 local TOOLBAR_H = 28
 local PALETTE_ROW_H = 40
 local FIND_BAR_H = 58
@@ -4247,52 +4246,6 @@ function UI:EnsureEasyNotesFrame()
     frame.headerNavButton:Hide()
     frame.aliasButton:Hide()
 
-    frame.attachBar = CreateFrame("Frame", nil, frame)
-    frame.attachBar:SetPoint("TOPLEFT", frame.headerDivider, "BOTTOMLEFT", 0, -4)
-    frame.attachBar:SetPoint("TOPRIGHT", frame.headerDivider, "BOTTOMRIGHT", 0, -4)
-    frame.attachBar:SetHeight(ATTACH_H)
-    frame.attachBar:SetScript("OnSizeChanged", function(self, w)
-        if w and w > 0 and math.abs(w - (self._laidW or 0)) >= 1 then
-            self._laidW = w
-            UI:RefreshEasyNotesAttachBar()
-        end
-    end)
-
-    frame.appliesInButton = CreateFrame("Button", nil, frame.attachBar)
-    StyleSubtleButton(frame.appliesInButton, "+", BTN_W, BTN_H)
-    frame.appliesInButton:SetPoint("LEFT", frame.attachBar, "LEFT", 6, 0)
-    if frame.appliesInButton.text then
-        frame.appliesInButton.text:SetTextColor(0.95, 0.82, 0.52, 1)
-    end
-    frame.appliesInButton:SetScript("OnClick", function(self) UI:ToggleEasyNotesAppliesInSearch(self) end)
-    frame.appliesInButton:HookScript("OnEnter", function(self)
-        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_ADD_APPLIES_TT"])
-    end)
-    frame.appliesInButton:HookScript("OnLeave", function()
-        if GameTooltip then GameTooltip:Hide() end
-    end)
-
-    frame.showsOnButton = CreateFrame("Button", nil, frame.attachBar)
-    StyleSubtleButton(frame.showsOnButton, "+", BTN_W, BTN_H)
-    frame.showsOnButton:SetPoint("LEFT", frame.appliesInButton, "RIGHT", 4, 0)
-    if frame.showsOnButton.text then
-        frame.showsOnButton.text:SetTextColor(0.62, 0.78, 0.95, 1)
-    end
-    frame.showsOnButton:SetScript("OnClick", function(self) UI:ShowAddShowsOnMenu(self) end)
-    frame.showsOnButton:HookScript("OnEnter", function(self)
-        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_ADD_SHOWS_TT"])
-    end)
-    frame.showsOnButton:HookScript("OnLeave", function()
-        if GameTooltip then GameTooltip:Hide() end
-    end)
-
-    -- The places' + shows at the end of the Shows line; the tooltip
-    -- link's lives in the more menu.
-    frame.appliesInButton:Hide()
-    frame.showsOnButton:Hide()
-
-    frame.attachPills = {}
-
     -- The formatting toolbar is an extension of the note window, exactly like the
     -- search results window under the search bar: it overlaps the window bottom
     -- (no gap), shares the themed fill, and a horizontal divider marks the seam.
@@ -4784,7 +4737,6 @@ function UI:RefreshEasyNotes()
     self:RefreshEasyNotesHeaderOnly()
     -- Render the read view unless the editbox is being actively edited.
     self:SetEasyNotesRendered(not frame.editor:HasFocus())
-    self:RefreshEasyNotesAttachBar()
     self:RefreshEasyNotesHeaderNav()
     self:RefreshEasyNotesDragHandles()
     if UI._notes.paletteShown then self:RefreshEasyNotesPalette() end
@@ -5950,11 +5902,10 @@ end
 function UI:UpdateEasyNotesEditorTop()
     local frame = UI._notes.frame
     if not (frame and frame.editorScroll) then return end
-    local top = HEADER_H + (EDITOR_TOP - ATTACH_H)          -- base gap below the divider
-    if UI._notes.attachHasContent then top = top + (UI._notes.attachH or ATTACH_H) end
+    local top = HEADER_H + EDITOR_TOP
     local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0)
     frame.editorScroll:ClearAllPoints()
-    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -top)
+    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -top)
     frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, bottom)
     UI:QueueEasyNotesDragHandleRefresh()
 end
@@ -6336,7 +6287,6 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if frame.editorScroll then frame.editorScroll:SetShown(shown) end
     if frame.toolbar then frame.toolbar:SetShown(shown and UI._notes.toolbarShown == true) end
     UI:UpdateEasyNotesToolbarSeam()
-    if frame.attachBar then frame.attachBar:SetShown(shown) end
     if frame.footer then frame.footer:SetShown(shown) end
     if frame.charCounter then
         frame.charCounter:SetShown(shown and not UI._notes.toolbarShown)
@@ -6368,10 +6318,8 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if not shown then
         if frame.headerNavButton then frame.headerNavButton:Hide() end
         if frame.headerPanel then frame.headerPanel:Hide() end
-        if frame.appliesInSearch then frame.appliesInSearch:Hide() end
     end
     self:RefreshEasyNotesDragHandles()
-    if shown then self:RefreshEasyNotesAttachBar() end
     if notesNS.ChecklistView then notesNS.ChecklistView.SetAllowed(shown) end
 end
 
@@ -6787,7 +6735,6 @@ function UI:OnEasyNotesContextChanged(event)
     if UI._notes.paletteShown then
         self:RefreshEasyNotesPalette()
     end
-    self:RefreshEasyNotesAttachBar()
 end
 
 local function ItemIDFromLink(link)
@@ -7253,8 +7200,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         return t
     end
 
-    -- When it comes up and its tooltips have their own panel; here, the
-    -- name it is found by and who keeps it.
+    -- The name it is found by and who keeps it.
     local contextGroup = {
         { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
         { isSeparator = true },
@@ -7278,7 +7224,9 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         { text = L["NOTES_REMIND_ME"], submenu = remindSub },
         { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
         { isSeparator = true },
-        { text = L["NOTES_WHEN_MENU"], onClick = function() UI:OpenEasyNotesWhenPanel() end },
+        { text = L["NOTES_AUTO_MENU"], submenu = function(t) return NoteWhen.MenuRows(note, t) end,
+          submenuSearch = L["NOTES_TAG_SEARCH"], submenuLiveSearch = true, submenuMaxRows = 14 },
+        { text = L["NOTES_TIPS_MENU"], submenu = function() return NoteWhen.TipRows(note) end },
         { text = _G.CATEGORY, submenu = categorySub },
         { text = L["NOTES_TAGS"], submenu = tagEditRows, submenuSearch = L["NOTES_TAG_FIND_ADD"], submenuMaxRows = 10 },
         { text = L["NOTES_MENU_CONTEXT"], submenu = contextGroup },
@@ -7322,156 +7270,6 @@ end
 
 
 
-local function AppliesInResultSort(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.name < b.name
-end
-
-function Builders.BuildAppliesInSearch(frame)
-    local popup = CreateFrame("Frame", nil, frame)
-    -- The search and nine result rows.
-    popup:SetSize(236, 224)
-    popup:SetFrameLevel(frame:GetFrameLevel() + 30)
-    popup:EnableMouse(true)
-    -- A menu surface: the theme's fill and ring, refilled on each theme.
-    ns.StyleMenuPanel(popup)
-    popup.shell = Builders.MakeFindInput(popup, L["NOTES_TAG_SEARCH"])
-    popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 8, -8)
-    popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -8, -8)
-    popup.shell.edit.onChanged = function() UI:RefreshAppliesInSearchResults() end
-    popup.shell.edit:SetScript("OnEscapePressed", function() popup:Hide() end)
-    popup.rows = {}
-    popup.catcher = CreateFrame("Frame", nil, frame)
-    popup.catcher:SetAllPoints(UIParent)
-    popup.catcher:SetFrameLevel(math.max(1, popup:GetFrameLevel() - 1))
-    popup.catcher:EnableMouse(true)
-    popup.catcher:Hide()
-    popup.catcher:SetScript("OnMouseDown", function() popup:Hide() end)
-    popup:SetScript("OnShow", function() popup.catcher:Show() end)
-    popup:SetScript("OnHide", function()
-        if popup.catcher then popup.catcher:Hide() end
-    end)
-    popup:Hide()
-    return popup
-end
-
-function UI:GetAppliesInResultRow(index)
-    local frame = UI._notes.frame
-    local popup = frame and frame.appliesInSearch
-    if not popup then return nil end
-    local row = popup.rows[index]
-    if row then return row end
-    local y = -36 - (index - 1) * 20
-    row = CreateFrame("Button", nil, popup)
-    row:SetHeight(20)
-    row:SetPoint("TOPLEFT", popup, "TOPLEFT", 8, y)
-    row:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -8, y)
-    -- The hover pill every menu row wears, in the theme's colors.
-    Utils.InstallMenuRowHighlight(row)
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.label:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.label:SetPoint("RIGHT", row, "RIGHT", -22, 0)
-    row.label:SetJustifyH("LEFT")
-    row.label:SetWordWrap(false)
-    -- A place already added: a trash on hover, the click takes it off.
-    row.trash = row:CreateTexture(nil, "OVERLAY")
-    row.trash:SetSize(12, 12)
-    row.trash:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.trash:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\trash")
-    row.trash:SetDesaturated(true)
-    row.trash:SetVertexColor(0.95, 0.45, 0.42, 1)
-    row.trash:Hide()
-    row:HookScript("OnEnter", function(self) self.trash:SetShown(self.added == true) end)
-    row:HookScript("OnLeave", function(self) self.trash:Hide() end)
-    row:SetScript("OnClick", function(self)
-        local note = GetSelectedNote()
-        if note and self.entry then
-            local rule = popup.rule
-            if rule then NoteWhen.ToggleRuleCond(note, rule, self.entry) else ToggleNoteContext(note, self.entry) end
-            UI:RefreshEasyNotesAttachBar()
-            if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-            UI:RefreshAppliesInSearchResults()
-        end
-    end)
-    popup.rows[index] = row
-    return row
-end
-
-function UI:RefreshAppliesInSearchResults()
-    local frame = UI._notes.frame
-    local popup = frame and frame.appliesInSearch
-    if not popup then return end
-    local note = GetSelectedNote()
-    local query = slower(strtrim(popup.shell.edit:GetText() or ""))
-    local opts = Ctx.Options()
-    local results = {}
-    for i = 1, #opts do
-        local e = opts[i]
-        local score = Ctx.MatchScore(e, query)
-        if score then
-            results[#results + 1] = { entry = e, name = e.name or tostring(e.id), score = score }
-        end
-    end
-    tsort(results, AppliesInResultSort)
-    for i = 1, 9 do
-        local row = self:GetAppliesInResultRow(i)
-        if not row then break end
-        local r = results[i]
-        if r then
-            row.entry = r.entry
-            local key = CtxKey(r.entry)
-            local added = note and (popup.rule and NoteWhen.RuleHas(note, popup.rule, key) or (not popup.rule and NoteHasContext(note, key)))
-            row.added = added
-            row.trash:SetShown(added and row:IsMouseOver())
-            row.label:SetText((added and "|cff6fcf6f+ |r" or "") .. r.name
-                .. "  |cff8a8a90" .. Ctx.KindLabel(r.entry) .. "|r")
-            row:Show()
-        else
-            row:Hide()
-        end
-    end
-    -- Rows made this pass take the theme's hover pill and text color.
-    if Utils.RefreshMenuRowHighlights then Utils.RefreshMenuRowHighlights(popup, popup.rows) end
-    if ns.RetintPanelText then ns.RetintPanelText(popup) end
-end
-
-do
-    -- Below the anchor when it fits, else above; its left edge on the
-    -- anchor's unless that runs off the screen's right.
-    local function PlaceByAnchor(popup, anchor)
-        local s, as = popup:GetEffectiveScale(), anchor:GetEffectiveScale()
-        local left, bottom, top = (anchor:GetLeft() or 0) * as, (anchor:GetBottom() or 0) * as, (anchor:GetTop() or 0) * as
-        local w, h = popup:GetWidth() * s, popup:GetHeight() * s
-        local screenW = UIParent:GetWidth() * UIParent:GetEffectiveScale()
-        local screenH = UIParent:GetHeight() * UIParent:GetEffectiveScale()
-        local below = bottom - h - 4 >= 0 or bottom >= screenH - top
-        local side = left + w <= screenW and "LEFT" or "RIGHT"
-        popup:ClearAllPoints()
-        popup:SetPoint((below and "TOP" or "BOTTOM") .. side, anchor, (below and "BOTTOM" or "TOP") .. side, 0, below and -4 or 4)
-        popup:SetClampedToScreen(true)
-    end
-
-    -- rule: the index of the note's rule a pick goes into, else its own list.
-    function UI:ToggleEasyNotesAppliesInSearch(anchor, rule)
-        local frame = UI._notes.frame
-        if not (frame and GetSelectedNote()) then return end
-        if not frame.appliesInSearch then
-            frame.appliesInSearch = Builders.BuildAppliesInSearch(frame)
-        end
-        local popup = frame.appliesInSearch
-        if popup:IsShown() then
-            popup:Hide()
-            return
-        end
-        PlaceByAnchor(popup, anchor or frame.appliesInButton)
-        popup.rule = rule
-        popup.shell.edit:SetText("")
-        self:RefreshAppliesInSearchResults()
-        popup:Show()
-        popup.shell.edit:SetFocus()
-    end
-end
-
 local function CursorObjectEntry()
     if not GetCursorInfo then return nil end
     local kind, id = GetCursorInfo()
@@ -7490,434 +7288,193 @@ local function TargetEntry()
     return ns.NotesUnitEntry("target")
 end
 
-function UI:ShowAddShowsOnMenu(anchor)
-    local note = GetSelectedNote()
-    if not note then return end
-    local rows = { { text = L["NOTES_SHOW_ON_TT"], disabled = true } }
-    local function addEntry(entry)
-        rows[#rows + 1] = { text = entry.name, icon = NoteHasShowsOn(note, CtxKey(entry)) and MENU_CHECK_TEX or nil,
-            onClick = function()
-                ToggleNoteShowsOn(note, entry)
-                UI:RefreshEasyNotesAttachBar()
-            end }
-    end
-    local cursorEntry = CursorObjectEntry()
-    if cursorEntry then addEntry(cursorEntry) end
-    local targetEntry = TargetEntry()
-    if targetEntry then addEntry(targetEntry) end
-    if not (cursorEntry or targetEntry) then
-        rows[#rows + 1] = { text = L["NOTES_PICK_UP"], disabled = true }
-    end
-    UI:ShowEasyNotesMenu("EasyNotesShowsOn", rows, { anchorFrame = anchor })
-end
-
--- The note's panel under the header: when it comes up (any one of its
--- conditions), what it does then, and the tooltips it shows on; rules
--- needing several things at once and the tooltip's timing fold under
--- Advanced. Shown while the note has any of it, or once More options asks.
+-- More options > Auto-show and On tooltips. Auto-show: what brings the note
+-- up (any one thing, or every part of a combination at once) and what it
+-- does then; its search finds anything this client can tell.
 do
-    local ROW = ATTACH_H + 4
     -- Its parts in one table: the file is near Lua's 200 locals.
-    local P = {}
+    local Auto = { FOUND_MAX = 40, NOW_MAX = 6, SEARCH_ROWS = 14 }
 
-    function P.PillTip(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(self.tipTitle or "")
-        GameTooltip:AddLine(self.fullName or "", 0.9, 0.9, 0.9, true)
-        GameTooltip:AddLine(L["NOTES_RIGHT_REMOVE"], 0.6, 0.6, 0.62)
-        GameTooltip:Show()
+    function Auto.Label(e)
+        return (e.name or tostring(e.id)) .. "  |cff8a8a90" .. Ctx.KindLabel(e) .. "|r"
     end
 
-    function P.NewPill(bar)
-        local pill = CreateFrame("Button", nil, bar)
-        pill:SetHeight(ATTACH_H)
-        ns.CreateRoundedRectBorder(pill)
-        ns.SetRoundedRectBarHeight(pill, 8)
-        ns.SetRoundedRectBorderEdgeShown(pill, false)
-        pill.text = pill:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        pill.text:SetPoint("LEFT", pill, "LEFT", 8, 0)
-        pill.text:SetWordWrap(false)
-        pill.close = ns.CreateCloseX(pill, 10)
-        pill.close:SetPoint("RIGHT", pill, "RIGHT", -4, 0)
-        pill.close:SetScript("OnClick", function() if pill.onRemove then pill.onRemove() end end)
-        pill:RegisterForClicks("RightButtonUp")
-        pill:SetScript("OnClick", function(self) if self.onRemove then self.onRemove() end end)
-        pill:SetScript("OnEnter", P.PillTip)
-        pill:SetScript("OnLeave", GameTooltip_Hide)
-        return pill
-    end
-
-    -- A line's own frames: its label, pills, "+N" for the rest, its +, the
-    -- hint while it has nothing, and an X for a rule line.
-    function P.Line(frame, i)
-        frame.whenLines = frame.whenLines or {}
-        local w = frame.whenLines[i]
-        if w then return w end
-        local bar = frame.attachBar
-        w = { pills = {}, rest = {} }
-        w.label = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        w.hint = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        w.hint:SetWordWrap(false)
-        w.hint:SetJustifyH("LEFT")
-        w.add = CreateFrame("Button", nil, bar)
-        StyleSubtleButton(w.add, "+", 18, ATTACH_H)
-        w.add:SetScript("OnClick", function(self) if w.onAdd then w.onAdd(self) end end)
-        w.add:HookScript("OnEnter", function(self) UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", w.addTip) end)
-        w.add:HookScript("OnLeave", GameTooltip_Hide)
-        w.more = CreateFrame("Button", nil, bar)
-        w.more:SetHeight(ATTACH_H)
-        ns.CreateRoundedRectBorder(w.more)
-        ns.SetRoundedRectBarHeight(w.more, 8)
-        ns.SetRoundedRectFill(w.more, 0.16, 0.16, 0.18, 1, true)
-        ns.SetRoundedRectBorderEdgeShown(w.more, false)
-        w.more.text = w.more:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        w.more.text:SetPoint("CENTER")
-        w.more.text:SetTextColor(0.82, 0.82, 0.86, 1)
-        w.more:SetScript("OnClick", function(self)
-            local rows = {}
-            for k = 1, #w.rest do
-                local item = w.rest[k]
-                rows[k] = { text = Utils.sformat(L["NOTES_REMOVE_FMT"], item.name), onClick = item.onRemove }
-            end
-            UI:ShowEasyNotesMenu("EasyNotesWhenMore", rows, { anchorFrame = self })
-        end)
-        w.drop = ns.CreateCloseX(bar, 10)
-        w.drop:SetScript("OnClick", function() if w.onDrop then w.onDrop() end end)
-        Utils.AttachDelayedTooltip(w.drop, "ANCHOR_TOP", function() return L["NOTES_RULE_DROP_TT"] end)
-        frame.whenLines[i] = w
-        return w
-    end
-
-    function P.HideLine(w)
-        w.label:Hide()
-        w.hint:Hide()
-        w.add:Hide()
-        w.more:Hide()
-        w.drop:Hide()
-        for k = 1, #w.pills do w.pills[k]:Hide() end
-    end
-
-    -- One line at y: the label, the items as pills (the rest under "+N"),
-    -- its +, a hint while it has none; reserve: room kept at the right.
-    function P.LayoutLine(frame, i, y, spec)
-        local w = P.Line(frame, i)
-        local bar = frame.attachBar
-        local barW = mmax(120, (frame:GetWidth() or 0) - 24)
-        local mid = -y - ATTACH_H / 2
-        local x = 6
-        w.label:SetText(spec.label)
-        w.label:ClearAllPoints()
-        w.label:SetPoint("LEFT", bar, "TOPLEFT", x, mid)
-        w.label:Show()
-        x = x + math.ceil(w.label:GetStringWidth() or 40) + 6
-        local right = 22 + (spec.reserve or 0) + (spec.onDrop and 16 or 0)
-        local maxX = barW - right - 22
-        local items = spec.items
-        for k = #w.rest, 1, -1 do w.rest[k] = nil end
-        local shown = 0
-        for k = 1, #items do
-            local item = items[k]
-            local pill = w.pills[k] or P.NewPill(bar)
-            w.pills[k] = pill
-            pill.onRemove, pill.fullName, pill.tipTitle = item.onRemove, item.name, spec.label
-            pill.text:SetWidth(0)
-            pill.text:SetText(item.name)
-            local textW = pill.text.GetUnboundedStringWidth and pill.text:GetUnboundedStringWidth() or pill.text:GetStringWidth() or 20
-            textW = mmin(140, math.ceil(textW))
-            local fixed = 28
-            -- The first pill always shows, cut to the room the line has.
-            if shown == 0 then textW = mmin(textW, mmax(20, maxX - x - fixed)) end
-            if shown > 0 and x + textW + fixed > maxX then
-                for r = k, #items do w.rest[#w.rest + 1] = items[r] end
-                break
-            end
-            pill.text:SetWidth(textW)
-            pill:SetWidth(textW + fixed)
-            local tc = TagColor(item.colorKey)
-            ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
-            pill.text:SetTextColor(mmin(1, tc[1] + 0.28), mmin(1, tc[2] + 0.28), mmin(1, tc[3] + 0.28), 1)
-            pill:ClearAllPoints()
-            pill:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y)
-            pill:Show()
-            x = x + pill:GetWidth() + 4
-            shown = k
-        end
-        for k = shown + 1, #w.pills do w.pills[k]:Hide() end
-        if #w.rest > 0 then
-            w.more.text:SetText("+" .. #w.rest)
-            w.more:SetWidth(math.ceil(w.more.text:GetStringWidth() or 16) + 14)
-            w.more:ClearAllPoints()
-            w.more:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y)
-            w.more:Show()
-            x = x + w.more:GetWidth() + 4
-        else
-            w.more:Hide()
-        end
-        w.onAdd, w.addTip = spec.onAdd, spec.addTip
-        w.add:ClearAllPoints()
-        w.add:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y)
-        w.add:Show()
-        if #items == 0 and spec.hint then
-            w.hint:SetText(spec.hint)
-            w.hint:ClearAllPoints()
-            w.hint:SetPoint("LEFT", w.add, "RIGHT", 6, 0)
-            w.hint:SetPoint("RIGHT", bar, "TOPRIGHT", -right, mid)
-            w.hint:Show()
-        else
-            w.hint:Hide()
-        end
-        w.onDrop = spec.onDrop
-        w.drop:ClearAllPoints()
-        w.drop:SetPoint("RIGHT", bar, "TOPRIGHT", -22, mid)
-        w.drop:SetShown(spec.onDrop ~= nil)
-    end
-
-    -- A checkbox on the panel; its click reads the open note then.
-    function P.Check(frame, key, label, tip, onClick)
-        local box = frame[key]
-        if box then return box end
-        local bar = frame.attachBar
-        box = CreateFrame("CheckButton", nil, bar, "UICheckButtonTemplate")
-        box:SetSize(14, 14)
-        Utils.SetCheckboxTextures(box, 14)
-        -- Every state of the box over the box, the glow and press included.
-        for _, tex in ipairs({ box:GetNormalTexture(), box:GetCheckedTexture(), box:GetHighlightTexture(),
-                box:GetPushedTexture(), box:GetDisabledCheckedTexture() }) do
-            tex:ClearAllPoints()
-            tex:SetAllPoints(box)
-        end
-        box.label = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        box.label:SetPoint("LEFT", box, "RIGHT", 3, 0)
-        box.label:SetText(label)
-        box:SetScript("OnClick", function(self)
-            local note = GetSelectedNote()
-            if note then onClick(note, self:GetChecked() and true or false) end
-        end)
-        Utils.AttachDelayedTooltip(box, "ANCHOR_TOP", function() return label, tip end)
-        frame[key] = box
-        return box
-    end
-
-    function P.Place(box, bar, x, y)
-        box:ClearAllPoints()
-        box:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -y - 1)
-        box:Show()
-        box.label:Show()
-        return x + 14 + 3 + math.ceil(box.label:GetStringWidth() or 60)
-    end
-
-    function P.Chrome(frame)
-        if frame.whenFold then return end
-        local bar = frame.attachBar
-        local line = bar:CreateTexture(nil, "ARTWORK")
-        line:SetColorTexture(0.18, 0.18, 0.20, 0.7)
-        line:SetHeight(1)
-        line:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -3)
-        line:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -3)
-        frame.whenDivider = line
-        -- Folds the panel away for the text, and back.
-        local fold = CreateFrame("Button", nil, bar)
-        fold:SetSize(14, 14)
-        fold:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -2, -1)
-        fold.glyph = fold:CreateTexture(nil, "OVERLAY")
-        fold.glyph:SetTexture(ns.FILTER_ARROW_TEX)
-        fold.glyph:SetSize(10, 10)
-        fold.glyph:SetPoint("CENTER")
-        fold.glyph:SetVertexColor(0.7, 0.7, 0.74, 1)
-        fold:SetScript("OnClick", function()
-            local db = NormalizeDB()
-            db.showsFolded = not db.showsFolded or nil
-            UI:RefreshEasyNotesAttachBar()
-        end)
-        fold:SetScript("OnEnter", function(self)
-            self.glyph:SetVertexColor(1, 1, 1, 1)
-            UI:ShowNotesTipDelayed(self, "ANCHOR_TOP",
-                NormalizeDB().showsFolded and L["NOTES_WHEN_UNFOLD"] or L["NOTES_WHEN_FOLD"])
-        end)
-        fold:SetScript("OnLeave", function(self)
-            self.glyph:SetVertexColor(0.7, 0.7, 0.74, 1)
-            GameTooltip_Hide()
-        end)
-        frame.whenFold = fold
-        -- Advanced: the rules and the tooltip's timing, folded out on asking.
-        local adv = CreateFrame("Button", nil, bar)
-        adv:SetHeight(ATTACH_H)
-        adv.text = adv:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        adv.text:SetPoint("RIGHT", adv, "RIGHT", -11, 0)
-        adv.text:SetText(L["NOTES_WHEN_ADVANCED"])
-        adv.glyph = adv:CreateTexture(nil, "OVERLAY")
-        adv.glyph:SetTexture(ns.FILTER_ARROW_TEX)
-        adv.glyph:SetSize(8, 8)
-        adv.glyph:SetPoint("RIGHT", adv, "RIGHT", 0, 0)
-        adv:SetWidth(math.ceil(adv.text:GetStringWidth() or 50) + 13)
-        adv:SetScript("OnClick", function()
-            local db = NormalizeDB()
-            db.whenAdvanced = not db.whenAdvanced or nil
-            UI:RefreshEasyNotesAttachBar()
-        end)
-        adv:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1, 1) end)
-        adv:SetScript("OnLeave", function(self) self.text:SetTextColor(0.5, 0.5, 0.54, 1) end)
-        adv.text:SetTextColor(0.5, 0.5, 0.54, 1)
-        frame.whenAdvanced = adv
-        local addRule = CreateFrame("Button", nil, bar)
-        StyleSubtleButton(addRule, L["NOTES_RULE_NEW"], 60, ATTACH_H)
-        addRule:SetWidth(math.ceil(addRule.text:GetStringWidth() or 120) + 16)
-        addRule:SetScript("OnClick", function(self)
-            local note = GetSelectedNote()
-            if not note then return end
-            note.rules = note.rules or {}
-            note.rules[#note.rules + 1] = { conds = {} }
-            note.updated = time()
-            UI:RefreshEasyNotesAttachBar()
-            UI:ToggleEasyNotesAppliesInSearch(self, #note.rules)
-        end)
-        Utils.AttachDelayedTooltip(addRule, "ANCHOR_TOP", function() return L["NOTES_RULE_NEW"], L["NOTES_RULE_NEW_TT"] end)
-        frame.whenAddRule = addRule
-    end
-
-    function P.Changed()
-        UI:RefreshEasyNotesAttachBar()
+    function Auto.Changed()
         if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
     end
 
-    function P.Item(entry, onRemove)
-        return { name = entry.name or tostring(entry.id), colorKey = CtxKey(entry), onRemove = onRemove }
+    function Auto.RuleIndex(note, rule)
+        for i, r in ipairs(note.rules or {}) do
+            if r == rule then return i end
+        end
+        return nil
     end
 
-    -- More options > When it comes up: the panel shows for this note,
-    -- empty or not.
-    function UI:OpenEasyNotesWhenPanel()
-        local note = GetSelectedNote()
-        if not note then return end
-        UI._notes.whenOpenFor = note.id
-        NormalizeDB().showsFolded = nil
-        self:RefreshEasyNotesAttachBar()
+    function Auto.HasAny(note)
+        if note.appliesIn and #note.appliesIn > 0 then return true end
+        for _, r in ipairs(note.rules or {}) do
+            if #r.conds > 0 then return true end
+        end
+        return false
     end
 
-    function UI:RefreshEasyNotesAttachBar()
-        local frame = UI._notes.frame
-        if not (frame and frame.attachBar) then return end
-        local note = GetSelectedNote()
-        local bar = frame.attachBar
-        P.Chrome(frame)
-        if frame.appliesInButton then frame.appliesInButton:Hide() end
-        if frame.showsOnButton then frame.showsOnButton:Hide() end
-        for _, w in ipairs(frame.whenLines or {}) do P.HideLine(w) end
-        for _, key in ipairs({ "whenTop", "whenOpen", "whenTipsOnly" }) do
-            if frame[key] then
-                frame[key]:Hide()
-                frame[key].label:Hide()
+    -- One thing to pick: into state's combination when there is a state (a
+    -- first pick starts it), else into the note's own list.
+    function Auto.Pick(note, e, state)
+        local key = CtxKey(e)
+        local on
+        if state then
+            local r = Auto.RuleIndex(note, state.rule)
+            on = r ~= nil and NoteWhen.RuleHas(note, r, key)
+        else
+            on = NoteHasContext(note, key)
+        end
+        return { text = Auto.Label(e), keepOpen = true, icon = on and MENU_CHECK_TEX or nil, onClick = function()
+            if not state then
+                ToggleNoteContext(note, e)
+            else
+                if not Auto.RuleIndex(note, state.rule) then
+                    state.rule = { conds = {} }
+                    note.rules = note.rules or {}
+                    note.rules[#note.rules + 1] = state.rule
+                end
+                NoteWhen.ToggleRuleCond(note, Auto.RuleIndex(note, state.rule), e)
+            end
+            Auto.Changed()
+        end }
+    end
+
+    function Auto.SortFound(a, b)
+        if a.score ~= b.score then return a.score > b.score end
+        return a.name < b.name
+    end
+
+    function Auto.Found(note, typed, state)
+        local q = slower(strtrim(typed))
+        local hits = {}
+        for _, e in ipairs(Ctx.Options()) do
+            local score = Ctx.MatchScore(e, q)
+            if score then hits[#hits + 1] = { e = e, score = score, name = e.name or tostring(e.id) } end
+        end
+        tsort(hits, Auto.SortFound)
+        local rows = {}
+        for i = 1, mmin(#hits, Auto.FOUND_MAX) do rows[i] = Auto.Pick(note, hits[i].e, state) end
+        if #rows == 0 then rows[1] = { text = L["MAP_NO_MATCHES"], disabled = true } end
+        return rows
+    end
+
+    -- What is true right now and not picked yet, a click each.
+    function Auto.Now(note, rows, have, state)
+        local list = Ctx.Active()
+        local shown = 0
+        for _, e in ipairs(list) do
+            if shown == Auto.NOW_MAX then break end
+            if not have[CtxKey(e)] then
+                if shown == 0 then rows[#rows + 1] = { text = L["NOTES_AUTO_NOW"], disabled = true } end
+                shown = shown + 1
+                rows[#rows + 1] = Auto.Pick(note, e, state)
             end
         end
-        frame.whenAdvanced:Hide()
-        frame.whenAddRule:Hide()
+    end
 
-        local singles = note and note.appliesIn or {}
-        local rules = note and note.rules or {}
-        local shows = note and note.showsOn or {}
-        local any = #singles > 0 or #rules > 0 or #shows > 0
-        local shown = note ~= nil and (any or UI._notes.whenOpenFor == note.id)
-        local db = NormalizeDB()
-        local folded = shown and db.showsFolded == true
-        local open = shown and not folded
-        frame.whenDivider:SetShown(shown)
-        frame.whenFold:SetShown(shown)
-        frame.whenFold.glyph:SetRotation(folded and 0 or math.pi)
+    function Auto.Searching(row)
+        row.submenuSearch, row.submenuLiveSearch, row.submenuMaxRows = L["NOTES_TAG_SEARCH"], true, Auto.SEARCH_ROWS
+        return row
+    end
 
-        local y, used = 0, 0
-        local function Next(spec)
-            used = used + 1
-            P.LayoutLine(frame, used, y, spec)
-            y = y + ROW
+    -- A combination's own flyout: its parts, what is true now, its removal.
+    function NoteWhen.RuleRows(note, state, typed)
+        if strtrim(typed or "") ~= "" then return Auto.Found(note, typed, state) end
+        local rows = { { text = L["NOTES_AUTO_ALL_HINT"], disabled = true } }
+        local r = Auto.RuleIndex(note, state.rule)
+        local have = {}
+        for _, c in ipairs(r and note.rules[r].conds or {}) do
+            rows[#rows + 1] = Auto.Pick(note, c, state)
+            have[CtxKey(c)] = true
         end
-        if open then
-            -- Comes up when: its own conditions, then its rules, one pill each.
-            local items = {}
-            for _, c in ipairs(singles) do
-                items[#items + 1] = P.Item(c, function() ToggleNoteContext(note, c) P.Changed() end)
-            end
-            for r, rule in ipairs(rules) do
-                if #rule.conds > 0 then
-                    local names = {}
-                    for _, c in ipairs(rule.conds) do names[#names + 1] = c.name or tostring(c.id) end
-                    items[#items + 1] = { name = table.concat(names, " + "), colorKey = "rule:" .. r,
-                        onRemove = function() tremove(note.rules, r) note.updated = time() P.Changed() end }
+        Auto.Now(note, rows, have, state)
+        if r then
+            rows[#rows + 1] = { isSeparator = true }
+            rows[#rows + 1] = { text = L["NOTES_AUTO_DROP_ALL"], onClick = function()
+                local i = Auto.RuleIndex(note, state.rule)
+                if i then
+                    tremove(note.rules, i)
+                    note.updated = time()
+                    Auto.Changed()
                 end
-            end
-            local adv = frame.whenAdvanced
-            Next({ label = L["NOTES_WHEN_LABEL"], items = items, reserve = adv:GetWidth() + 4,
-                onAdd = function(btn) UI:ToggleEasyNotesAppliesInSearch(btn) end,
-                addTip = L["NOTES_WHEN_ADD_TT"], hint = L["NOTES_WHEN_HINT"] })
-            adv:ClearAllPoints()
-            adv:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -20, 0)
-            adv.glyph:SetRotation(db.whenAdvanced and math.pi or 0)
-            adv:Show()
+            end }
+        end
+        return rows
+    end
 
-            -- Then: what it does once it comes up.
-            if #items > 0 then
-                local top = P.Check(frame, "whenTop", L["NOTES_WHEN_TOP"], L["NOTES_WHEN_TOP_TT"], function(n, on)
-                    n.surface = Utils.OffOrNil(on)
-                    n.updated = time()
-                    if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-                end)
-                top:SetChecked(note.surface ~= false)
-                local x = P.Place(top, bar, 6, y) + 12
-                local opens = P.Check(frame, "whenOpen", L["NOTES_WHEN_OPEN"], L["NOTES_WHEN_OPEN_TT"], function(n, on)
-                    n.opensItself = on or nil
-                    n.updated = time()
-                end)
-                opens:SetChecked(note.opensItself == true)
-                -- Side by side when they fit, else one a line.
-                local barW = mmax(120, (frame:GetWidth() or 0) - 24)
-                if x + 17 + math.ceil(opens.label:GetStringWidth() or 60) > barW - 22 then
-                    y = y + ROW
-                    x = 6
-                end
-                P.Place(opens, bar, x, y)
-                y = y + ROW
-            end
-
-            -- On the tooltip of: the things whose tooltip shows its line.
-            local tips = {}
-            for _, s in ipairs(shows) do
-                tips[#tips + 1] = P.Item(s, function() ToggleNoteShowsOn(note, s) P.Changed() end)
-            end
-            Next({ label = L["NOTES_TIPS_LABEL"], items = tips,
-                onAdd = function(btn) UI:ShowAddShowsOnMenu(btn) end,
-                addTip = L["NOTES_ADD_SHOWS_TT"], hint = L["NOTES_TIPS_HINT"] })
-
-            if db.whenAdvanced then
-                -- Rules: each needs every one of its conditions at once.
-                for r, rule in ipairs(rules) do
-                    local conds = {}
-                    for _, c in ipairs(rule.conds) do
-                        conds[#conds + 1] = P.Item(c, function() NoteWhen.ToggleRuleCond(note, r, c) P.Changed() end)
-                    end
-                    Next({ label = L["NOTES_RULE_LABEL"], items = conds,
-                        onAdd = function(btn) UI:ToggleEasyNotesAppliesInSearch(btn, r) end,
-                        addTip = L["NOTES_RULE_ADD_TT"], hint = L["NOTES_RULE_HINT"],
-                        onDrop = function() tremove(note.rules, r) note.updated = time() P.Changed() end })
-                end
-                local addRule = frame.whenAddRule
-                addRule:ClearAllPoints()
-                addRule:SetPoint("TOPLEFT", bar, "TOPLEFT", 6, -y)
-                addRule:Show()
-                y = y + ROW
-                if #shows > 0 then
-                    local only = P.Check(frame, "whenTipsOnly", L["NOTES_TIPS_ONLY"], L["NOTES_TIPS_ONLY_TT"], function(n, on)
-                        n.tooltipWhen = on and "comesUp" or nil
-                        n.updated = time()
-                    end)
-                    only:SetChecked(note.tooltipWhen == "comesUp")
-                    P.Place(only, bar, 6, y)
-                    y = y + ROW
-                end
+    function NoteWhen.MenuRows(note, typed)
+        if strtrim(typed or "") ~= "" then return Auto.Found(note, typed) end
+        local rows = { { text = L["NOTES_AUTO_ANY"], disabled = true } }
+        local have = {}
+        for _, c in ipairs(note.appliesIn or {}) do
+            rows[#rows + 1] = Auto.Pick(note, c)
+            have[CtxKey(c)] = true
+        end
+        for _, rule in ipairs(note.rules or {}) do
+            if #rule.conds > 0 then
+                local names = {}
+                for _, c in ipairs(rule.conds) do names[#names + 1] = c.name or tostring(c.id) end
+                local state = { rule = rule }
+                rows[#rows + 1] = Auto.Searching({ text = table.concat(names, " + "), icon = MENU_CHECK_TEX,
+                    submenu = function(t) return NoteWhen.RuleRows(note, state, t) end })
             end
         end
-        UI._notes.attachH = folded and 10 or mmax(ATTACH_H, y - 4)
-        bar:SetHeight(shown and UI._notes.attachH or ATTACH_H)
-        UI._notes.attachHasContent = shown
-        UI:UpdateEasyNotesEditorTop()
+        Auto.Now(note, rows, have)
+        local fresh = {}
+        rows[#rows + 1] = Auto.Searching({ text = L["NOTES_AUTO_ALL_OF"], tooltip = L["NOTES_AUTO_ALL_OF_TT"],
+            submenu = function(t) return NoteWhen.RuleRows(note, fresh, t) end })
+        rows[#rows + 1] = { isSeparator = true }
+        local any = Auto.HasAny(note)
+        rows[#rows + 1] = { text = L["NOTES_AUTO_TOP"], tooltip = L["NOTES_AUTO_TOP_TT"], keepOpen = true,
+            disabled = not any, icon = any and note.surface ~= false and MENU_CHECK_TEX or nil,
+            onClick = function()
+                note.surface = Utils.OffOrNil(note.surface == false)
+                note.updated = time()
+                Auto.Changed()
+            end }
+        rows[#rows + 1] = { text = L["NOTES_AUTO_OPEN"], tooltip = L["NOTES_AUTO_OPEN_TT"], keepOpen = true,
+            disabled = not any, icon = any and note.opensItself and MENU_CHECK_TEX or nil,
+            onClick = function()
+                note.opensItself = not note.opensItself or nil
+                note.updated = time()
+            end }
+        return rows
+    end
+
+    -- The items, NPCs and players whose tooltip shows the note's line: the
+    -- item or spell on the cursor and the target to add.
+    function NoteWhen.TipRows(note)
+        local rows, have = {}, {}
+        for _, s in ipairs(note.showsOn or {}) do
+            rows[#rows + 1] = { text = Auto.Label(s), keepOpen = true, icon = MENU_CHECK_TEX,
+                onClick = function() ToggleNoteShowsOn(note, s) Auto.Changed() end }
+            have[CtxKey(s)] = true
+        end
+        local added = false
+        for _, e in ipairs({ CursorObjectEntry() or false, TargetEntry() or false }) do
+            if e and not have[CtxKey(e)] then
+                added = true
+                rows[#rows + 1] = { text = Utils.sformat(L["NOTES_TIPS_ADD_FMT"], Auto.Label(e)), keepOpen = true,
+                    onClick = function() ToggleNoteShowsOn(note, e) Auto.Changed() end }
+            end
+        end
+        if not added then rows[#rows + 1] = { text = L["NOTES_PICK_UP"], disabled = true } end
+        if note.showsOn and #note.showsOn > 0 then
+            rows[#rows + 1] = { isSeparator = true }
+            rows[#rows + 1] = { text = L["NOTES_TIPS_ONLY_AUTO"], tooltip = L["NOTES_TIPS_ONLY_AUTO_TT"],
+                keepOpen = true, disabled = not Auto.HasAny(note),
+                icon = note.tooltipWhen == "comesUp" and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    if note.tooltipWhen == "comesUp" then note.tooltipWhen = nil else note.tooltipWhen = "comesUp" end
+                    note.updated = time()
+                end }
+        end
+        return rows
     end
 end
 
