@@ -3034,38 +3034,44 @@ function UI:QueueEasyNotesOverlayUpdate()
     end
 end
 
-local DRAG_HANDLE_W = 12
-local DRAG_HANDLE_H = 16
-local DRAG_HANDLE_MARGIN = 8
 local DRAG_THROTTLE = 0.03
+-- The grip's dots, as on a trip stop's.
+local DRAG_DOT = { 0.55, 0.55, 0.58 }
 
+-- Each list line: its offset down the editor and the left edge of its mark
+-- (the drawn checkbox, else the bullet or number).
 local function BuildDragLineMap(editor)
     local text = editor:GetText() or ""
     local wrapWidth = editor:GetWidth() or 1
     local positions = LayoutCharacters(text, editor, wrapWidth)
-    local lineYs, lineH = MeasureLineYMap(text, editor, positions)
+    local _, lineH, advance = MeasureLineYMap(text, editor, positions)
     local _, starts = SplitLogicalLines(text)
-    local visualLineOf = {}
+    local firstAt = {}
     for idx = 1, #positions do
         local p = positions[idx]
-        if p.byteStart and p.line then
-            if not visualLineOf[p.byteStart] then visualLineOf[p.byteStart] = p.line end
-        end
+        if p.byteStart and p.line and not firstAt[p.byteStart] then firstAt[p.byteStart] = idx end
     end
+    local side, size = Fmt.BoxSide(editor)
     local rows = {}
     for li = 1, #starts do
         local startByte = starts[li]
         if MatchLinePrefix(text, startByte) > 0 then
-            local vline = visualLineOf[startByte] or 1
+            local k = firstAt[startByte]
+            local p = k and positions[k]
+            local markX = p and p.x or 0
+            if p and Fmt.IsBoxGlyph(p) then markX = Fmt.BoxCenterX(positions, k, size, side) - side / 2 end
             rows[#rows + 1] = {
                 logicalIndex = li,
-                y = lineYs[vline] or ((vline - 1) * lineH),
+                y = ((p and p.line or 1) - 1) * advance,
+                markX = markX,
             }
         end
     end
-    return rows, lineH
+    return rows, lineH, advance
 end
 
+-- The margin left of a list line's mark: its dots show while the cursor is
+-- in it, or while a drag holds that line.
 function UI:GetEasyNotesDragHandle(index)
     UI._notes.dragHandles = UI._notes.dragHandles or {}
     local pool = UI._notes.dragHandles
@@ -3074,25 +3080,16 @@ function UI:GetEasyNotesDragHandle(index)
     local frame = UI._notes.frame
     if not frame then return nil end
     handle = CreateFrame("Button", nil, frame)
-    handle:SetSize(DRAG_HANDLE_W, DRAG_HANDLE_H)
     handle:RegisterForClicks("LeftButtonUp")
     handle:EnableMouse(true)
-    handle.dots = {}
-    for d = 1, 6 do
-        local dot = handle:CreateTexture(nil, "OVERLAY")
-        dot:SetColorTexture(0.55, 0.55, 0.60, 0.9)
-        dot:SetSize(2, 2)
-        local col = (d - 1) % 2
-        local row = math.floor((d - 1) / 2)
-        dot:SetPoint("TOPLEFT", handle, "TOPLEFT", 3 + col * 4, -(3 + row * 4))
-        handle.dots[d] = dot
-    end
-    handle:SetScript("OnEnter", function(self)
-        for _, dot in ipairs(self.dots) do dot:SetColorTexture(0.85, 0.85, 0.90, 1) end
-    end)
+    handle.face = CreateFrame("Frame", nil, handle)
+    handle.face:SetAllPoints()
+    handle.face:Hide()
+    Utils.AddGripDots(handle.face, DRAG_DOT)
+    handle:SetScript("OnEnter", function(self) self.face:Show() end)
     handle:SetScript("OnLeave", function(self)
-        if UI._notes.dragActive and UI._notes.dragActive.handle == self then return end
-        for _, dot in ipairs(self.dots) do dot:SetColorTexture(0.55, 0.55, 0.60, 0.9) end
+        local drag = UI._notes.dragActive
+        self.face:SetShown(drag and drag.logicalIndex == self.logicalIndex or false)
     end)
     handle:SetScript("OnMouseDown", function(self, button)
         if button == "LeftButton" then UI:BeginEasyNotesLineDrag(self) end
@@ -3114,24 +3111,27 @@ function UI:RefreshEasyNotesDragHandles()
     end
     local editor = frame.editor
     local scroll = frame.editorScroll
-    local rows, lineH = BuildDragLineMap(editor)
+    local rows, lineH, advance = BuildDragLineMap(editor)
     local scrollY = scroll:GetVerticalScroll() or 0
     local viewH = scroll:GetHeight() or 0
-    -- Center the handle vertically on the line instead of pinning its top to the
-    -- line top (that was the visible offset).
-    local centerAdjust = ((lineH or DRAG_HANDLE_H) - DRAG_HANDLE_H) / 2
+    -- From the window's edge to the mark, a line's full pitch tall: the dots
+    -- sit midway, level with the box.
+    local inset = (editor:GetLeft() or 0) - (frame:GetLeft() or 0)
+    local drag = UI._notes.dragActive
     local used = 0
     for _, row in ipairs(rows) do
         local localY = row.y - scrollY
         -- Only a line wholly in view: the grips sit outside the editor's clip.
-        if localY >= 0 and localY + (lineH or DRAG_HANDLE_H) <= viewH then
+        if localY >= 0 and localY + lineH <= viewH then
             used = used + 1
             local handle = UI:GetEasyNotesDragHandle(used)
             if handle then
                 handle.logicalIndex = row.logicalIndex
                 handle:ClearAllPoints()
-                handle:SetPoint("TOPRIGHT", scroll, "TOPLEFT", -DRAG_HANDLE_MARGIN, -(localY + centerAdjust))
+                handle:SetPoint("TOPRIGHT", editor, "TOPLEFT", row.markX, -(row.y - (advance - lineH) / 2))
+                handle:SetSize(mmax(1, inset + row.markX), advance)
                 handle:Show()
+                handle.face:SetShown(drag and drag.logicalIndex == row.logicalIndex or handle:IsMouseOver())
             end
         end
     end
@@ -3251,12 +3251,7 @@ function UI:EndEasyNotesLineDrag()
         driver._dragAccum = 0
         driver:Hide()
     end
-    if state and state.handle then
-        state.handle:UnlockHighlight()
-        for _, dot in ipairs(state.handle.dots or {}) do
-            dot:SetColorTexture(0.55, 0.55, 0.60, 0.9)
-        end
-    end
+    if state and state.handle then state.handle:UnlockHighlight() end
     UI:RefreshEasyNotesDragHandles()
 end
 
