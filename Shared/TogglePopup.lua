@@ -78,15 +78,13 @@ local function EnsurePopup(name)
     return popup
 end
 
--- A submenu row's rows in a cursor menu beside it, open until a click
--- elsewhere or a hover on another row; a pick there closes the popup too.
-local function OpenFlyout(popup, row)
-    local fly = popup.flyout
-    if fly and fly:IsShown() and fly._togglePopup == popup and fly._togglePopupRow == row then return end
+-- A submenu row's rows (a table, or a builder for rows that change) for its
+-- flyout: a pick closes the popup too; a toggle (keepOpen) leaves it open.
+local function FlyoutRows(popup, def)
     local rows = {}
-    for i, r in ipairs(row.def.rows) do
+    for i, r in ipairs(type(def.rows) == "function" and def.rows() or def.rows) do
         local onClick = r.onClick
-        if onClick then
+        if onClick and not r.keepOpen then
             local pick = {}
             for k, v in pairs(r) do pick[k] = v end
             pick.onClick = function()
@@ -97,9 +95,20 @@ local function OpenFlyout(popup, row)
         end
         rows[i] = r
     end
-    fly = Utils.ShowCursorMenu("EasyFindTogglePopupFlyout", rows, {
+    return rows
+end
+
+-- A submenu row's rows in a cursor menu beside it, open until a click
+-- elsewhere or a hover on another row.
+local function OpenFlyout(popup, row)
+    local fly = popup.flyout
+    if fly and fly:IsShown() and fly._togglePopup == popup and fly._togglePopupRow == row then return end
+    local def = row.def
+    fly = Utils.ShowCursorMenu("EasyFindTogglePopupFlyout", FlyoutRows(popup, def), {
         anchorBeside = row, stayOpen = true, scale = popup:GetScale(),
         strata = popup:GetFrameStrata(), level = popup:GetFrameLevel() + 20,
+        -- A toggle's click lists the rows anew, its tick moved.
+        rowsProvider = function() return FlyoutRows(popup, def) end,
     })
     if fly then fly._togglePopup, fly._togglePopupRow = popup, row end
     popup.flyout = fly

@@ -114,6 +114,7 @@ local function MenuRows()
         WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
         DetoursRow = row("GPS_SHOW_DETOURS"), OtherWaysRow = row("GPS_SHOW_OTHER_WAYS"), LaunchRow = row("GPS_LAUNCH_WINDOW"),
         StyleMenu = function() return { kind = "submenu", label = "GPS_STYLE", rows = {} } end,
+        PlanningMenu = function() return { kind = "submenu", label = "GPS_PLANNING", rows = {} } end,
     }
     function GPS.PicksMenu(label, choices, current)
         local rows = {}
@@ -146,7 +147,7 @@ end
 function tests.everySurfaceHasTheSameMenu()
     local rowsFor = MenuRows()
     local shared = { "GPS_CLEAR", "GPS_FROM_PICK", "CTX_SEND_LINK", "GPS_REPORT",
-        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_AUTO_LEARN", "GPS_LAUNCH_WINDOW" }
+        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_PLANNING", "GPS_LAUNCH_WINDOW" }
     for _, s in ipairs({
         { name = "snapped in", f = { docked = true } },
         { name = "floating", f = { floating = true, look = "game" }, style = true },
@@ -172,13 +173,50 @@ function tests.settingsWithPicksAreFlyouts()
         H.assertTrue(d.kind ~= "radio" and d.kind ~= "title", "a pick or a heading in the menu itself: " .. tostring(d.label))
         if d.kind == "submenu" then flyouts[d.label] = d end
     end
-    for _, label in ipairs({ "GPS_STYLE", "GPS_SIZE_WIDTH", "GPS_SIZE_HEIGHT" }) do
+    for _, label in ipairs({ "GPS_STYLE", "GPS_PLANNING", "GPS_SIZE_WIDTH", "GPS_SIZE_HEIGHT" }) do
         H.assertTrue(flyouts[label] ~= nil, label .. " is a flyout")
     end
     local width, height = flyouts.GPS_SIZE_WIDTH.rows, flyouts.GPS_SIZE_HEIGHT.rows
     H.assertEq(#width, 2)
     H.assertTrue(width[2].picked and not width[1].picked, "the width in use is picked")
     H.assertTrue(height[1].picked and not height[2].picked, "fit to steps, as no height is set")
+end
+
+-- Route planning's three switches share one flyout, the window's border
+-- sits under the looks in the style flyout, and a switch flips in place.
+function tests.planningAndBorderAreFlyoutSwitches()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("local MENU_CHECK", 1, true), "MENU_CHECK not in GPS.lua")
+    local s2 = assert(src:find("function GPS.StyleMenu(border)", s, true), "GPS.StyleMenu(border) not after it")
+    local _, e = src:find("\nend\r?\n", s2)
+    local on = { learn = true, detours = false, ways = true }
+    local function check(key, label)
+        return function()
+            return { kind = "check", label = label, get = function() return on[key] end, set = function(v) on[key] = v end }
+        end
+    end
+    local GPS = { AutoLearnRow = check("learn", "GPS_AUTO_LEARN"), DetoursRow = check("detours", "GPS_SHOW_DETOURS"),
+        OtherWaysRow = check("ways", "GPS_SHOW_OTHER_WAYS") }
+    local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }),
+        PopoutStyle = function() return "easyfind" end }, { __index = _G })
+    assert(load(src:sub(s, e), "=GPS.lua flyouts", "t", env))()
+    local planning = GPS.PlanningMenu()
+    H.assertEq(planning.kind, "submenu")
+    local rows = planning.rows()
+    H.assertEq(#rows, 3)
+    H.assertEq(rows[1].text, "GPS_AUTO_LEARN")
+    H.assertTrue(rows[1].keepOpen and rows[1].icon ~= nil, "on: ticked, and a click keeps the flyout open")
+    H.assertNil(rows[2].icon, "off: no tick")
+    rows[2].onClick()
+    H.assertTrue(on.detours, "the click flips it")
+    H.assertTrue(planning.rows()[2].icon ~= nil, "listed anew, it is ticked")
+    local border = { label = "GPS_SIZE_BORDER", get = function() return true end, set = function() end }
+    local style = GPS.StyleMenu(border).rows()
+    H.assertEq(style[#style].text, "GPS_SIZE_BORDER", "the border under the looks")
+    H.assertTrue(style[#style - 1].isSeparator)
+    H.assertEq(#GPS.StyleMenu(nil).rows(), 3, "no border row off the window")
 end
 
 -- A step's right-click: restarting the route there comes first.

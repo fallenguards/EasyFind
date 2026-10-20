@@ -2778,6 +2778,22 @@ function GPS.SnapRow()
         end }
 end
 
+-- A check row on the game's own menu: it stays up and redraws the box
+-- after a click; an error in the flip is reported, not swallowed.
+local function AddGameCheck(parent, d)
+    local box = parent:CreateCheckbox(d.label, function() return d.get() and true or false end, function()
+        local ok, err = pcall(d.set, not d.get())
+        if not ok and EasyFind.Print then EasyFind:Print("GPS menu: " .. tostring(err)) end
+        return MenuResponse and MenuResponse.Refresh or nil
+    end)
+    if d.tooltip and box and box.SetTooltip then
+        box:SetTooltip(function(tip)
+            tip:SetText(d.label, 1, 1, 1)
+            tip:AddLine(d.tooltip, nil, nil, nil, true)
+        end)
+    end
+end
+
 -- Our menu rows on the game's own context menu, for surfaces in the game's look.
 -- False when the game's menu API is missing.
 ShowGameMenu = function(owner, defs)
@@ -2789,19 +2805,7 @@ ShowGameMenu = function(owner, defs)
             elseif d.kind == "title" then
                 root:CreateTitle(d.label)
             elseif d.kind == "check" then
-                -- The menu stays up and redraws the box after a click; an
-                -- error in the flip is reported, not swallowed.
-                local box = root:CreateCheckbox(d.label, function() return d.get() and true or false end, function()
-                    local ok2, err = pcall(d.set, not d.get())
-                    if not ok2 and EasyFind.Print then EasyFind:Print("GPS menu: " .. tostring(err)) end
-                    return MenuResponse and MenuResponse.Refresh or nil
-                end)
-                if d.tooltip and box and box.SetTooltip then
-                    box:SetTooltip(function(tip)
-                        tip:SetText(d.label, 1, 1, 1)
-                        tip:AddLine(d.tooltip, nil, nil, nil, true)
-                    end)
-                end
+                AddGameCheck(root, d)
             elseif d.kind == "radio" then
                 root:CreateRadio(d.label, function() return d.get() == d.value end, function()
                     local ok2, err = pcall(d.set)
@@ -2811,10 +2815,13 @@ ShowGameMenu = function(owner, defs)
                 root:CreateButton(d.label, d.onClick)
             elseif d.kind == "submenu" then
                 local sub = root:CreateButton(d.label)
-                for i = 1, #d.rows do
-                    local r = d.rows[i]
+                local rows = type(d.rows) == "function" and d.rows() or d.rows
+                for i = 1, #rows do
+                    local r = rows[i]
                     if r.isSeparator then
                         sub:CreateDivider()
+                    elseif r.check then
+                        AddGameCheck(sub, r.check)
                     else
                         local onClick = r.onClick
                         if r.copy and ns.CopyToClipboard then
@@ -4059,21 +4066,42 @@ function GPS.FloatDockAt(left, top)
     if c then c.popoutOpen = true end
 end
 
--- A setting's picks as a flyout row: choices { { value, key }, ... }, the
+local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
+
+-- A setting's picks as flyout rows: choices { { value, key }, ... }, the
 -- one in use ticked (a radio on the game's own menu).
-function GPS.PicksMenu(label, choices, current, pick)
+local function PickRows(choices, current, pick)
     local rows = {}
     for i = 1, #choices do
         local value, key = choices[i][1], choices[i][2]
         local on = current == value
-        rows[i] = { text = L[key], icon = on and "Interface\\Buttons\\UI-CheckBox-Check" or nil, picked = on,
+        rows[i] = { text = L[key], icon = on and MENU_CHECK or nil, picked = on,
                     onClick = function() pick(value) end }
     end
-    return { kind = "submenu", label = label, rows = rows }
+    return rows
 end
 
--- The style flyout for the cog popup and the section's menu.
-function GPS.StyleMenu()
+function GPS.PicksMenu(label, choices, current, pick)
+    return { kind = "submenu", label = label, rows = PickRows(choices, current, pick) }
+end
+
+-- A check row inside a flyout: ticked while on; a click leaves it open.
+local function CheckFlyoutRow(d)
+    return { text = d.label, tooltip = d.tooltip, keepOpen = true, check = d,
+             icon = d.get() and MENU_CHECK or nil, onClick = function() d.set(not d.get()) end }
+end
+
+-- Learning flight paths on the way and the advice lines under the route.
+function GPS.PlanningMenu()
+    return { kind = "submenu", label = L["GPS_PLANNING"], rows = function()
+        return { CheckFlyoutRow(GPS.AutoLearnRow()), CheckFlyoutRow(GPS.DetoursRow()),
+                 CheckFlyoutRow(GPS.OtherWaysRow()) }
+    end }
+end
+
+-- The style flyout for the cog popup and the section's menu; border: the
+-- window's border row, under the looks.
+function GPS.StyleMenu(border)
     local function pick(style)
         return function()
             local db = DB()
@@ -4099,9 +4127,15 @@ function GPS.StyleMenu()
             end
         end
     end
-    return GPS.PicksMenu(L["GPS_STYLE"],
-        { { "easyfind", "GPS_STYLE_EASYFIND" }, { "tracker", "GPS_STYLE_TRACKER" }, { "era", "GPS_STYLE_ERA" } },
-        PopoutStyle(), function(style) pick(style)() end)
+    local looks = { { "easyfind", "GPS_STYLE_EASYFIND" }, { "tracker", "GPS_STYLE_TRACKER" }, { "era", "GPS_STYLE_ERA" } }
+    return { kind = "submenu", label = L["GPS_STYLE"], rows = function()
+        local rows = PickRows(looks, PopoutStyle(), function(style) pick(style)() end)
+        if border then
+            rows[#rows + 1] = { isSeparator = true }
+            rows[#rows + 1] = CheckFlyoutRow(border)
+        end
+        return rows
+    end }
 end
 
 function GPS:Dock(slot)
@@ -4253,26 +4287,11 @@ function GPS.MenuRows(f)
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
-    defs[#defs + 1] = GPS.AutoLearnRow()
-    defs[#defs + 1] = GPS.DetoursRow()
-    defs[#defs + 1] = GPS.OtherWaysRow()
+    defs[#defs + 1] = GPS.PlanningMenu()
     defs[#defs + 1] = GPS.LaunchRow()
     -- Snapped in, the section has one look.
     if f.docked then return defs end
     if f.isPopout then
-        defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_BORDER"],
-            get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
-            set = function(v)
-                local db = DB()
-                -- Not "v and nil or false": that is false for both values.
-                if db then
-                    if v then db.gpsPopoutBorder = nil else db.gpsPopoutBorder = false end
-                end
-                if popoutFrame then
-                    popoutFrame:ApplyBorderShape(v)
-                    popoutFrame:Render()
-                end
-            end }
         defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_NEXT_ONLY"],
             get = function() local db = DB() return db and db.gpsPopoutNextOnly == true end,
             set = function(v)
@@ -4285,7 +4304,17 @@ function GPS.MenuRows(f)
             end }
     end
     defs[#defs + 1] = { kind = "separator" }
-    defs[#defs + 1] = GPS.StyleMenu()
+    defs[#defs + 1] = GPS.StyleMenu(f.isPopout and {
+        label = L["GPS_SIZE_BORDER"],
+        get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsPopoutBorder = Utils.OffOrNil(v) end
+            if popoutFrame then
+                popoutFrame:ApplyBorderShape(v)
+                popoutFrame:Render()
+            end
+        end } or nil)
     if not f.isPopout then return defs end
     local width, height = PopoutSize()
     defs[#defs + 1] = GPS.PicksMenu(L["GPS_SIZE_WIDTH"], SIZE_WIDTHS, width,
