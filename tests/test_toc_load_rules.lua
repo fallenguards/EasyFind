@@ -2,71 +2,80 @@
 -- another locale) is kept off it by its toc line, never parsed there
 -- just to return. Retail parsed the Forever walk grids (6 MB of strings)
 -- at every login under EasyFind_GPS; Forever parsed retail's 7 MB item
--- catalog; every client parsed all ten translations.
+-- catalog; every client parsed all ten translations and every locale's
+-- creature names.
 local H = require("Harness")
-
-local RULE = {
-    forever = "[AllowLoadGameType camelot]",
-    retail = "[AllowLoadGameType standard]",
-}
 
 local PRELUDE = {
     "^%s*$", "^%-%-", "^local EasyFind = EasyFind%s*$", "^local ns = EasyFind and EasyFind%._ns%s*$",
     "^local _, ns = %.%.%.%s*$", "^if not ns then return end%s*$",
 }
 
-local function OpeningGate(path)
+local function IsPrelude(line)
+    for _, p in ipairs(PRELUDE) do
+        if line:find(p) then return true end
+    end
+    return false
+end
+
+-- The toc rule an opening guard line asks for, or nil.
+local function GateRule(line)
+    if line:find("^if not %(ns and ns%.Caps and ns%.Caps%.forever%) then return end")
+       or line:find("^if not %(ns%.Caps and ns%.Caps%.forever%) then return end") then
+        return "[AllowLoadGameType camelot]"
+    elseif line:find("^if ns%.Caps and ns%.Caps%.forever then return end") then
+        return "[AllowLoadGameType standard]"
+    end
+    local loc = line:match('^if GetLocale%(%) ~= "(%a%a%a%a)" then return end')
+    return loc and ("[AllowLoadTextLocale " .. loc .. "]") or nil
+end
+
+-- The rules a file's opening guards ask for, sorted into one string.
+local function WantedRules(path)
     local fh = io.open(H.ADDON_ROOT .. "/" .. path, "r")
-    if not fh then return nil end
-    local gate
+    if not fh then return "" end
+    local wanted = {}
     for line in fh:lines() do
-        local prelude = false
-        for _, p in ipairs(PRELUDE) do
-            if line:find(p) then prelude = true break end
-        end
-        if not prelude then
-            if line:find("^if not %(ns and ns%.Caps and ns%.Caps%.forever%) then return end")
-               or line:find("^if not %(ns%.Caps and ns%.Caps%.forever%) then return end") then
-                gate = "forever"
-            elseif line:find("^if ns%.Caps and ns%.Caps%.forever then return end") then
-                gate = "retail"
-            else
-                local loc = line:match('^if GetLocale%(%) ~= "(%a%a%a%a)" then return end')
-                if loc then
-                    gate = loc
-                    RULE[loc] = "[AllowLoadTextLocale " .. loc .. "]"
-                end
-            end
+        local rule = GateRule(line)
+        if rule then
+            wanted[#wanted + 1] = rule
+        elseif not IsPrelude(line) then
             break
         end
     end
     fh:close()
-    return gate
+    table.sort(wanted)
+    return table.concat(wanted, " ")
+end
+
+local function Sorted(rules)
+    local list = {}
+    for r in rules:gmatch("%[[^%]]*%]") do list[#list + 1] = r end
+    table.sort(list)
+    return table.concat(list, " ")
 end
 
 local tests = {}
 
 function tests.everyClientOnlyFile_isKeptOffTheOtherClient()
-    local bad, checked = {}, 0
+    local bad, checked, gated = {}, 0, 0
     for _, toc in ipairs(H.TOCS) do
         local dir = toc:match("^(.*)/[^/]+$")
         local fh = assert(io.open(H.ADDON_ROOT .. "/" .. toc, "r"))
         for raw in fh:lines() do
             local file, rules = H.TocLine(raw)
             if file:find("%.lua$") and not file:find("^#") then
-                local path = dir and (dir .. "/" .. file) or file
-                local gate = OpeningGate(path)
                 checked = checked + 1
-                if gate and rules ~= RULE[gate] then
-                    bad[#bad + 1] = toc .. ": " .. file .. " opens " .. gate .. "-only, wants " .. RULE[gate]
-                elseif not gate and rules ~= "" then
-                    bad[#bad + 1] = toc .. ": " .. file .. " has " .. rules .. " but no opening guard"
+                local wanted = WantedRules(dir and (dir .. "/" .. file) or file)
+                if wanted ~= "" then gated = gated + 1 end
+                if Sorted(rules) ~= wanted then
+                    bad[#bad + 1] = toc .. ": " .. file .. " has '" .. rules .. "', its guards want '" .. wanted .. "'"
                 end
             end
         end
         fh:close()
     end
-    H.assertTrue(checked > 100, "read the toc file lines")
+    H.assertTrue(checked > 100 and gated > 20, "read the toc file lines")
     H.assertTrue(#bad == 0, table.concat(bad, "\n"))
 end
 
