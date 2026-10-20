@@ -269,9 +269,19 @@ function Search:WarmSearchHotPath()
     -- Warm only what a render can show at once; the pool grows on demand
     -- (EnsureResultButton) for the rare deep container browse. Building
     -- all 100 rows here was over a MB of frames nothing ever displayed.
-    for i = 1, 20 do
-        Results:EnsureResultButton(i):Hide()
+    -- Two a frame from first focus: built inside the first render they
+    -- were a 30 ms frame. Secure rows cannot be anchored in combat.
+    local i = 0
+    local function step()
+        if InCombatLockdown() then return end
+        for _ = 1, 2 do
+            i = i + 1
+            if i > 20 then return end
+            Results:EnsureResultButton(i)
+        end
+        Utils.SafeAfter(0, step)
     end
+    step()
 end
 
 -- Kept-visible-in-combat state: the bar is a protected frame in combat
@@ -596,6 +606,7 @@ function Search:CreateSearchFrame()
         -- so the searchable database exists only in sessions that search.
         if not searchFrame._efProvidersWarmed then
             searchFrame._efProvidersWarmed = true
+            Search:WarmSearchHotPath()
             if ns.Database and ns.Database.LoadDeferredSyncProvidersStaggered then
                 ns.Database:LoadDeferredSyncProvidersStaggered()
             elseif ns.Database and ns.Database.WarmSearchHotPath then
