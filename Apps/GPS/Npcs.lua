@@ -653,6 +653,9 @@ local function Score(i)
     for w = 1, #words do
         if not wordPlace[w] then
             local word = words[w]
+            -- Every word names a service (repair, inn): who offers it, not a
+            -- name holding the word (Repaired Bomber above every repairer).
+            if N.allService and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then return 0 end
             local p, blob, start = N.hitLow[w][i], low, at[i]
             if not p and enLow then p, blob, start = N.hitEn[w][i], enLow, enAt[i] end
             if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
@@ -1003,6 +1006,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
         if bits ~= 0 then service = true else allService = false end
         wordRole[w] = bits ~= 0 or (not ZONE_ABBREVIATIONS[words[w]] and TitleWord(words[w]))
     end
+    N.allService = service and allService
     local town, placed = Places()
     local goods = MatchGoods()
     if placed then

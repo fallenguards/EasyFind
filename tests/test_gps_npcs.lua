@@ -66,8 +66,8 @@ end
 -- "Bea Longername" beside the player, "Cid" repairing for the Horde only,
 -- and "Dana" selling food.
 local REPAIR = 7 + 16 + (2 + 256) * 256
-local function vendors(count)
-    local list, names = { count + 2 }, {}
+local function vendors(count, extra)
+    local list, names = { count + 2 + (extra and #extra or 0) }, {}
     local function add(name, flags, kind, x, y)
         for _, v in ipairs({ 1, 10, 0, flags, kind, 0, 0, 1, 1429, xy(x, y), 1 }) do list[#list + 1] = v end
         names[#names + 1] = name
@@ -76,6 +76,7 @@ local function vendors(count)
     add("Bea Longername", 0, REPAIR, 0.32, 0.42)
     add("Cid", 2 * 8, REPAIR, 0.31, 0.41)
     add("Dana", 0, 7 + 16 + (2 + 512) * 256, 0.5, 0.5)
+    for _, name in ipairs(extra or {}) do add(name, 0, 7 + 16, 0.31, 0.41) end
     local append, _, env = fresh(nil, varints(list), table.concat(names, "\n"))
     env.UnitFactionGroup = function() return "Alliance" end
     return append
@@ -214,6 +215,14 @@ function tests.aServiceWordFindsWhoOffersIt()
     H.assertTrue(kw:find("repair", 1, true) ~= nil, "the word rides along for the map search: " .. kw)
     H.assertEq(find(vendors(3), "food")[1].name, "Dana", "what a vendor sells counts too")
     H.assertEq(#find(vendors(3), "rep"), 3, "found while typing")
+end
+
+function tests.aServiceWordWantsWhoOffersIt_notANameHoldingIt()
+    local rows = find(vendors(3, { "Repaired Bomber" }), "repair")
+    H.assertNil(named(rows, "Repaired Bomber"), "does not repair, so not for repair")
+    H.assertEq(#rows, 3, "the repairers")
+    H.assertEq(find(vendors(3, { "Repaired Bomber" }), "repaired bomber")[1].name, "Repaired Bomber",
+        "its own name still finds it")
 end
 
 -- More matches than are handed over: the nearest of equal ones get in,
