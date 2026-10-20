@@ -38,5 +38,32 @@ function tests.thePinGoesOnlyOnTheCurrentStepsEnd()
     H.assertEq(placed, 1, "one pin, placed in TrackStep")
 end
 
+-- WaypointPoint cut from GPS.lua: a step ending just past its map's edge
+-- (Stormwind City left at its gate) is pinned on the map around it, as the
+-- game refuses a point off its map.
+function tests.pointPastItsMapsEdge_goesOnTheMapAround()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("local function WaypointPoint(step)", 1, true), "WaypointPoint not in GPS.lua")
+    local _, e = src:find("\nend\r?\n", s)
+    local vec = function(x, y) return { x = x, y = y, GetXY = function(v) return v.x, v.y end } end
+    local env = setmetatable({
+        CreateVector2D = vec,
+        C_Map = {
+            CanSetUserWaypointOnMap = function() return true end,
+            GetMapInfo = function(m) return { parentMapID = m == 1453 and 1429 or nil } end,
+            GetMapPosFromWorldPos = function(_, _, m) return m, vec(0.3, 0.4) end,
+        },
+    }, { __index = _G })
+    local WaypointPoint = assert(load(src:sub(s, e):gsub("^local function", "function") .. "\nreturn WaypointPoint",
+        "=GPS.lua WaypointPoint", "t", env))()
+    local m, x, y = WaypointPoint({ mapID = 1453, x = 1.03, y = 0.5, arrive = { ci = 0, wx = -9000, wy = 400 } })
+    H.assertEq(m, 1429, "Elwynn Forest, around the city")
+    H.assertEq(x, 0.3)
+    H.assertEq(y, 0.4)
+    H.assertEq((WaypointPoint({ mapID = 1453, x = 0.5, y = 0.5 })), 1453, "a point on its map stays there")
+end
+
 local pass, fail, failures = H.runSuite("GPSPin", tests)
 return { pass = pass, fail = fail, failures = failures }

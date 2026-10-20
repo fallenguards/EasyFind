@@ -503,12 +503,14 @@ end
 function GPS:IsPlanning() return Planner.co ~= nil end
 
 -- The map point for a step's waypoint. A map that refuses user waypoints
--- (dungeon-type cities, underground continents) hands it to the nearest ancestor that takes one.
+-- (dungeon-type cities, underground continents), or a point past its map's
+-- edge (a city left at its gate), hands it to the nearest ancestor that takes one.
 local function WaypointPoint(step)
     local mapID, x, y = step.mapID, step.x, step.y
     if not (mapID and x and y) then return nil end
     local can = C_Map and C_Map.CanSetUserWaypointOnMap
-    if not can or can(mapID) then return mapID, x, y end
+    local onMap = x >= 0 and x <= 1 and y >= 0 and y <= 1
+    if onMap and (not can or can(mapID)) then return mapID, x, y end
     local p = step.go or step.arrive
     local ci, wx, wy
     if p and p.wx then ci, wx, wy = p.ci, p.wx, p.wy else ci, wx, wy = WorldPos(mapID, x, y) end
