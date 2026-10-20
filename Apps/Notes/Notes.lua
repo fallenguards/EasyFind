@@ -580,6 +580,12 @@ function notesNS.AllNotes() return NotesStore() end
 local Fmt = {}
 local Builders = {}
 
+-- A list line's box as the checkbox art, for text no editor shows.
+function Fmt.BoxIcons(s)
+    return (s:gsub(CHECK_EMPTY_PREFIX, "|TInterface\\Buttons\\UI-CheckBox-Up:0|t ")
+        :gsub(CHECK_FILLED_PREFIX, "|TInterface\\Buttons\\UI-CheckBox-Check:0|t "))
+end
+
 -- Active format host. The formatting engine (selection tracking, format apply,
 -- colour, toolbar state) targets either the notes editor or an attached snippet
 -- editor (notesNS.AttachSnippetBodyEditor); snippetFocus tracks which of the two
@@ -1961,6 +1967,24 @@ function UI:RefreshEasyNotesFontSizeButton()
     end
 end
 
+-- Spacing for a whole-pixel line step: lines draw whole pixels apart while
+-- the caret and clicks keep the unrounded step, a pixel off per line.
+function Fmt.SetPixelSpacing(editor, units)
+    if not editor.SetSpacing then return end
+    local _, physH = GetPhysicalScreenSize()
+    local px = (physH or 768) / 768 * editor:GetEffectiveScale()
+    local meter = GetMeasureMeter(editor)
+    meter:SetText("M")
+    local lineH = meter:GetStringHeight() or 0
+    if px <= 0 or lineH <= 0 then
+        editor:SetSpacing(units)
+        return
+    end
+    -- Just under the whole pixel, so it never rounds up past it.
+    local step = math.floor((lineH + units) * px + 0.5)
+    editor:SetSpacing(mmax(0, (step - 0.01) / px - lineH))
+end
+
 -- The note body must look the same regardless of the window's UI scale,
 -- so the editbox font is divided by the scale relative to the default.
 function UI:ApplyEasyNotesEditorFont()
@@ -1971,11 +1995,8 @@ function UI:ApplyEasyNotesEditorFont()
     -- math-bold codepoints (char-replace) render as bold Friz -- natively, while
     -- typing, with no overlay to drift.
     self:ApplyEasyNotesCustomFont(frame.editor, size)
-    -- A little breathing room between lines. WoW draws the selection highlight as
-    -- line-height + spacing, so large spacing makes the highlight hang below the
-    -- text; keep it small. Overlays measure actual line Y (GetSpacing), so they
-    -- stay aligned regardless.
-    if frame.editor.SetSpacing then frame.editor:SetSpacing(2) end
+    -- A little room between lines; more hangs the selection below the text.
+    Fmt.SetPixelSpacing(frame.editor, 2)
 end
 
 function UI:AdjustEasyNotesFontSize(delta, reset, absolute)
@@ -2211,6 +2232,153 @@ function Fmt.AcquireRunOverlay(editor, pool, index)
     return fs
 end
 
+-- In-text checkboxes: the font has no box glyph, so a drawn box covers each
+-- list line's, on a layer clipped to the editor's view like its text but
+-- reaching a little into the margin at its left.
+do
+    local BOX_GLYPH, TICKED_GLYPH = CHECK_EMPTY_PREFIX:sub(1, 3), CHECK_FILLED_PREFIX:sub(1, 3)
+    local OVERHANG = 6
+
+    function Fmt.CheckLayer(editor)
+        local layer = editor._efCheckLayer
+        if layer then return layer end
+        local scroll = editor:GetParent()
+        layer = CreateFrame("Frame", nil, scroll:GetParent())
+        layer:SetPoint("TOPLEFT", scroll, "TOPLEFT", -OVERHANG, 0)
+        layer:SetPoint("BOTTOMRIGHT", scroll, "BOTTOMRIGHT", 0, 0)
+        layer:SetClipsChildren(true)
+        layer:SetFrameLevel(editor:GetFrameLevel() + 4)
+        layer:EnableMouse(false)
+        layer:SetShown(scroll:IsShown())
+        scroll:HookScript("OnShow", function() layer:Show() end)
+        scroll:HookScript("OnHide", function() layer:Hide() end)
+        layer.boxes = {}
+        editor._efCheckLayer = layer
+        return layer
+    end
+
+    function Fmt.BoxSide(editor)
+        local _, size = editor:GetFont()
+        size = size or 12
+        return mmax(9, math.floor(size * 0.96 + 0.5)), size
+    end
+
+    -- Over the missing-glyph box, clear of the line's first letter.
+    function Fmt.BoxCenterX(positions, k, size, side)
+        local p, after = positions[k], positions[k + 1]
+        local textX = (after and after.line == p.line) and (after.x + after.width) or (p.x + p.width)
+        return mmin(p.x + size * 0.3, textX - mmax(2, size * 0.15) - side / 2)
+    end
+
+    function Fmt.IsBoxGlyph(p)
+        return p.isPrefix and (p.glyph == BOX_GLYPH or p.glyph == TICKED_GLYPH)
+    end
+
+    -- The line start of the drawn box under the mouse, a little slack round it.
+    function Fmt.BoxUnderMouse(editor)
+        local layer = editor._efCheckLayer
+        for _, box in ipairs(layer and layer.boxes or {}) do
+            if box:IsShown() and box:IsMouseOver(2, -2, -2, 2) then return box.lineStart end
+        end
+    end
+
+    -- Text never goes before a checkbox: the caret lands just past it, and
+    -- Left from there goes on to the line above. Not while selecting.
+    function Fmt.KeepCaretPastBox(editor, caret, before)
+        if editor._notesDragging or UI._notes.curSelection or (IsShiftKeyDown and IsShiftKeyDown()) then return end
+        local text = editor:GetText() or ""
+        local ls = FindLineStartByte(text, caret)
+        local head = text:sub(ls, ls + #CHECK_EMPTY_PREFIX - 1)
+        if head ~= CHECK_EMPTY_PREFIX and head ~= CHECK_FILLED_PREFIX then return end
+        local past = ls - 1 + #head
+        if caret >= past then return end
+        local to = (before == past and caret == past - 1 and ls > 1) and (ls - 2) or past
+        editor:SetCursorPosition(to)
+        return to
+    end
+
+    -- Typed before a checkbox anyway (a caret some path left there): the
+    -- words go after it.
+    function Fmt.KeepTypingPastBox(editor)
+        local text = editor:GetText() or ""
+        local caret = editor:GetCursorPosition() or 0
+        local head = text:sub(caret + 1, caret + #CHECK_EMPTY_PREFIX)
+        if head ~= CHECK_EMPTY_PREFIX and head ~= CHECK_FILLED_PREFIX then return end
+        local ls = FindLineStartByte(text, caret)
+        if caret < ls then return end
+        UI._notes.inputBusy = true
+        editor:SetText(text:sub(1, ls - 1) .. head .. text:sub(ls, caret) .. text:sub(caret + #head + 1))
+        editor:SetCursorPosition(caret + #head)
+        UI._notes.inputBusy = nil
+    end
+
+    -- Backspace past a checkbox takes the space; the box goes with it, and a
+    -- ticked one's strike.
+    function Fmt.DropBrokenBox(editor)
+        local text = editor:GetText() or ""
+        local caret = editor:GetCursorPosition() or 0
+        local ls = FindLineStartByte(text, caret)
+        local glyph = text:sub(ls, ls + 2)
+        if caret ~= ls + 2 or (glyph ~= BOX_GLYPH and glyph ~= TICKED_GLYPH) or text:sub(ls + 3, ls + 3) == " " then
+            return
+        end
+        text = text:sub(1, ls - 1) .. text:sub(ls + 3)
+        editor:SetText(text)
+        editor:SetCursorPosition(ls - 1)
+        local doc = Fmt.ActiveFormatDoc()
+        if glyph == TICKED_GLYPH and doc and doc.decorations then
+            RemoveDecorationRange(doc.decorations, "strike", ls, FindLineEndByte(text, ls - 1) + 1)
+        end
+    end
+
+    local function Box(layer, i)
+        local box = layer.boxes[i]
+        if box then return box end
+        box = CreateFrame("Frame", nil, layer)
+        box:EnableMouse(false)
+        ns.CreateRingedWell(box, 3)
+        box.tick = box.ringInset:CreateTexture(nil, "OVERLAY")
+        box.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        box.tick:SetPoint("CENTER", box, "CENTER", 0, 0)
+        layer.boxes[i] = box
+        return box
+    end
+
+    -- positions nil: no list line has a box. Unrounded line offsets: the box
+    -- clears the missing-glyph box by about a pixel.
+    function Fmt.PlaceCheckboxes(editor, positions, advance, lineH)
+        local layer = editor._efCheckLayer
+        if not positions then
+            if layer then for _, box in ipairs(layer.boxes) do box:Hide() end end
+            return
+        end
+        layer = layer or Fmt.CheckLayer(editor)
+        local side, size = Fmt.BoxSide(editor)
+        local palette = ns.ACTIVE_UI_PALETTE
+        local ring = palette and palette.borderColor or { 0.42, 0.42, 0.42 }
+        ring = { ring[1], ring[2], ring[3], 1 }
+        local fill = ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 }
+        local used = 0
+        for k = 1, #positions do
+            local p = positions[k]
+            if Fmt.IsBoxGlyph(p) then
+                used = used + 1
+                local box = Box(layer, used)
+                local cx = Fmt.BoxCenterX(positions, k, size, side)
+                box.lineStart = p.byteStart
+                box:SetSize(side, side)
+                box:ClearAllPoints()
+                box:SetPoint("CENTER", editor, "TOPLEFT", cx, -((p.line - 1) * advance + lineH / 2))
+                ns.PaintRingedWell(box, ring, fill)
+                box.tick:SetSize(side * 1.3, side * 1.3)
+                box.tick:SetShown(p.glyph == TICKED_GLYPH)
+                box:Show()
+            end
+        end
+        for i = used + 1, #layer.boxes do layer.boxes[i]:Hide() end
+    end
+end
+
 function UI:GetEasyNotesDecorationTexture(index)
     UI._notes.decoTextures = UI._notes.decoTextures or {}
     local frame = UI._notes.frame
@@ -2409,6 +2577,16 @@ function UI:MigrateNoteToMarkdown(note)
     note.decorations = color
 end
 
+-- The editor lays its lines out an unrounded advance apart (what the caret
+-- and the meter report) but draws them a whole number of screen pixels
+-- apart, rounded up: 28.05 px laid out drew 29, a box a pixel off per line.
+function Fmt.DrawnAdvance(editor, advance)
+    local _, physH = GetPhysicalScreenSize()
+    local px = (physH or 768) / 768 * editor:GetEffectiveScale()
+    if px <= 0 then return advance end
+    return math.ceil(advance * px - 0.01) / px
+end
+
 local function MeasureLineYMap(text, editor, positions)
     local meter = GetMeasureMeter(editor)
     meter:SetWidth(4096)
@@ -2416,10 +2594,7 @@ local function MeasureLineYMap(text, editor, positions)
     local h2 = meter:GetStringHeight() or 0
     meter:SetText("M")
     local h1 = meter:GetStringHeight() or 0
-    -- Keep the advance FRACTIONAL. Fonts report non-integer line heights,
-    -- and rounding here multiplies the error by the line index -- overlays
-    -- drift further off the text every row down the note. Round only the
-    -- final per-line offset.
+    -- Unrounded: a rounded advance multiplies its error by the line index.
     local lineH = h2 - h1
     if lineH <= 0 then lineH = h1 end
     if lineH <= 0 then
@@ -2430,27 +2605,28 @@ local function MeasureLineYMap(text, editor, positions)
     for _, p in ipairs(positions) do
         if p.line > maxLine then maxLine = p.line end
     end
-    -- The editor's line-to-line advance is the font line height PLUS its line
-    -- spacing (SetSpacing); the meter has no spacing, so add it here or every
-    -- line after the first drifts up (misaligned bold overlays / underlines).
+    -- The meter has no line spacing (SetSpacing); the editor adds it.
     local spacing = (editor.GetSpacing and editor:GetSpacing()) or 0
-    local advance = lineH + spacing
+    local advance = Fmt.DrawnAdvance(editor, lineH + spacing)
     local lineYs = {}
     for i = 1, maxLine do lineYs[i] = math.floor((i - 1) * advance + 0.5) end
-    return lineYs, lineH
+    return lineYs, lineH, advance
 end
 
 -- Renders one host's decorations (underline/strike lines, colour runs, faux-bold
 -- copies) over its editor. Pools are per host, so hiding one host's regions never
 -- touches the other's.
 function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
-    if not decos or #decos == 0 then
+    local text = editor:GetText() or ""
+    local boxed = text:find(CHECK_EMPTY_PREFIX, 1, true) or text:find(CHECK_FILLED_PREFIX, 1, true)
+    if (not decos or #decos == 0) and not boxed then
         for i = 1, #texPool do texPool[i]:Hide() end
         for i = 1, #runPool do runPool[i]:Hide() end
+        Fmt.PlaceCheckboxes(editor, nil)
         return
     end
+    decos = decos or {}
     local used = 0
-    local text = editor:GetText() or ""
     local wrapWidth = editor:GetWidth() or 1
     local meter = GetMeasureMeter(editor)
     meter:SetText("M")
@@ -2460,7 +2636,8 @@ function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
         oneLineH = (fontSize or 12) * 1.20
     end
     local positions = LayoutCharacters(text, editor, wrapWidth)
-    local lineYs = MeasureLineYMap(text, editor, positions)
+    local lineYs, _, advance = MeasureLineYMap(text, editor, positions)
+    Fmt.PlaceCheckboxes(editor, boxed and positions or nil, advance, oneLineH)
     local strikeY = math.floor(oneLineH * 0.50 + 0.5)
     local underlineY = math.floor(oneLineH * 0.92 + 0.5)
     local usedRuns = 0
@@ -2947,7 +3124,8 @@ function UI:RefreshEasyNotesDragHandles()
     local used = 0
     for _, row in ipairs(rows) do
         local localY = row.y - scrollY
-        if localY >= -DRAG_HANDLE_H and localY <= viewH then
+        -- Only a line wholly in view: the grips sit outside the editor's clip.
+        if localY >= 0 and localY + (lineH or DRAG_HANDLE_H) <= viewH then
             used = used + 1
             local handle = UI:GetEasyNotesDragHandle(used)
             if handle then
@@ -3747,7 +3925,11 @@ function UI:EnsureEasyNotesFrame()
     -- snippet host had it. Registered before the drag hook so the swap lands
     -- before NotesBeginDrag reads the active editor.
     frame.editor:HookScript("OnMouseDown", function() Fmt.SetSnippetFocus(false) end)
-    frame.editor:HookScript("OnEditFocusGained", function() Fmt.SetSnippetFocus(false) end)
+    frame.editor:HookScript("OnEditFocusGained", function(self)
+        Fmt.SetSnippetFocus(false)
+        -- A note opens with the caret at 0, before a first-line box.
+        Fmt.KeepCaretPastBox(self, self:GetCursorPosition() or 0)
+    end)
     -- Undo history capture: appended hooks run even when the main handler
     -- early-returns, so HistoryRecord carries its own loadingNote guard.
     frame.editor:HookScript("OnTextChanged", function()
@@ -3756,6 +3938,7 @@ function UI:EnsureEasyNotesFrame()
     frame.editor:SetScript("OnChar", function(self, c)
         if not c or c == "" then return end
         if UI._notes.inputBusy then return end
+        Fmt.KeepTypingPastBox(self)
         -- Typing under any sticky style keeps that intent through the refresh the
         -- keystroke triggers, even for glyph-less chars like space.
         local am = UI._notes.activeModes
@@ -3858,6 +4041,7 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.editor:HookScript("OnMouseDown", function(self, button)
         if button == "LeftButton" then
+            self._efBoxDown = Fmt.BoxUnderMouse(self)
             UI:NotesBeginDrag(IsShiftKeyDown and IsShiftKeyDown())
         end
     end)
@@ -3882,6 +4066,8 @@ function UI:EnsureEasyNotesFrame()
                     self._notesAnchorProvisional = nil
                 else
                     UI:NotesEndDrag(self:GetCursorPosition())
+                    -- A click on a box lands the caret before it.
+                    Fmt.KeepCaretPastBox(self, self:GetCursorPosition())
                 end
                 UI:RefreshFormatButtonStates()
             end)
@@ -3889,23 +4075,31 @@ function UI:EnsureEasyNotesFrame()
             UI:NotesEndDrag(self:GetCursorPosition())
             UI:RefreshFormatButtonStates()
         end
-        local txt = self:GetText() or ""
-        local pos = self:GetCursorPosition() or 0
-        local lineStart = FindLineStartByte(txt, pos)
-        local relPos = pos - lineStart + 1
-        if relPos <= #CHECK_EMPTY_PREFIX then
+        -- Pressed and let go on a drawn box: not where the caret lands, which
+        -- is the box for a click past an empty item or a drag to a line start.
+        local lineStart = self._efBoxDown
+        self._efBoxDown = nil
+        if lineStart and lineStart == Fmt.BoxUnderMouse(self) then
+            local txt = self:GetText() or ""
             local newTxt = UI:ToggleEasyNotesCheckbox(txt, lineStart)
             if newTxt ~= txt then
                 UI._notes.inputBusy = true
                 self:SetText(newTxt)
-                self:SetCursorPosition(pos)
+                -- A click, past the box: a landing reported a frame late
+                -- kept the old caret as a drag anchor, a hidden selection.
+                self._notesDragAnchor = nil
+                self:SetCursorPosition(lineStart - 1 + #CHECK_EMPTY_PREFIX)
                 UI._notes.inputBusy = nil
                 UI:QueueEasyNotesOverlayUpdate()
             end
         end
     end)
-    frame.editor:HookScript("OnTextChanged", function()
+    frame.editor:HookScript("OnTextChanged", function(self)
         if UI._notes.applyingFormat then return end
+        if not (UI._notes.loadingNote or UI._notes.inputBusy) then
+            Fmt.FinishEnter(self)
+            Fmt.DropBrokenBox(self)
+        end
         UI._notes.lastSelection = nil
         UI._notes.curSelection = nil
         UI._notes.selAnchor = nil
@@ -3913,10 +4107,12 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.editor:HookScript("OnCursorChanged", function(self)
         local c = self:GetCursorPosition()
+        local before = UI._notes.lastCursor
         UI._notes.lastCursor = c
         -- The finalize owns the caret/selection while a format applies; a raw<->
         -- rendered swap (loadingNote) must not recompute the selection either.
         if UI._notes.applyingFormat or UI._notes.loadingNote then return end
+        c = Fmt.KeepCaretPastBox(self, c, before) or c
         UI:NotesRecomputeSelection(c)
         if c ~= UI._notes.lastFmtCursor then
             UI._notes.lastFmtCursor = c
@@ -5760,6 +5956,7 @@ function UI:UpdateEasyNotesEditorTop()
     frame.editorScroll:ClearAllPoints()
     frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -top)
     frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, bottom)
+    UI:QueueEasyNotesDragHandleRefresh()
 end
 
 function UI:OpenEasyNotesFindBar()
@@ -6739,7 +6936,7 @@ local function AddShowsOnLines(tooltip, objType, objID)
         if #body > 120 then body = body:sub(1, 120) .. "..." end
         if body ~= "" then
             local c = UI:GetEasyNotesTooltipColor()
-            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], body), c.r, c.g, c.b, true)
+            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], Fmt.BoxIcons(body)), c.r, c.g, c.b, true)
         end
     end
 end
@@ -8080,7 +8277,7 @@ function UI:RefreshEasyNotesPalette()
         if note.alias and note.alias ~= "" then
             preview = "@" .. note.alias .. "  " .. preview
         end
-        row.subtitle:SetText(preview)
+        row.subtitle:SetText(Fmt.BoxIcons(preview))
         row.timeText:SetText(FormatRelTime(note.updated))
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", frame.paletteListChild, "TOPLEFT", 0, -y)
@@ -8345,26 +8542,35 @@ function Fmt.HandleEditorEnterKey(editor)
     if modes.list then prefix = BULLET_PREFIX
     elseif modes.check then prefix = CHECK_EMPTY_PREFIX
     end
+    -- The new line's mark goes in with the line itself (FinishEnter on its
+    -- text change): a frame later, keys typed meanwhile were already on it.
+    UI._notes.pendingEnter = { editor = editor, at = editor:GetCursorPosition() or 0, ins = prefix }
     if not Utils.SafeAfter then return end
     Utils.SafeAfter(0, function()
-        if not editor:IsShown() then return end
-        local txt = editor:GetText() or ""
-        local pos = editor:GetCursorPosition() or 0
-        local ins = prefix
-        if not ins then
-            local lsNow = FindLineStartByte(txt, pos)
-            if lsNow > 2 then
-                local pStart = FindLineStartByte(txt, lsNow - 2)
-                local pn = txt:sub(pStart, pStart + 12):match("^(%d+)%. ")
-                if pn then ins = (tonumber(pn) + 1) .. ". " end
-            end
-        end
-        if not ins then return end
-        UI._notes.inputBusy = true
-        editor:SetText(txt:sub(1, pos) .. ins .. txt:sub(pos + 1))
-        editor:SetCursorPosition(pos + #ins)
-        UI._notes.inputBusy = nil
+        if editor:IsShown() then Fmt.FinishEnter(editor) end
+        UI._notes.pendingEnter = nil
     end)
+end
+
+-- The mark at the start of the line Enter made, before anything typed on it.
+function Fmt.FinishEnter(editor)
+    local p = UI._notes.pendingEnter
+    if not p or p.editor ~= editor then return end
+    local txt = editor:GetText() or ""
+    local nl = p.at + 1
+    if txt:sub(nl, nl) ~= "\n" then return end
+    UI._notes.pendingEnter = nil
+    local ins = p.ins
+    if not ins then
+        local pn = txt:sub(FindLineStartByte(txt, nl - 1), nl - 1):match("^(%d+)%. ")
+        if pn then ins = (tonumber(pn) + 1) .. ". " end
+    end
+    if not ins then return end
+    local caret = editor:GetCursorPosition() or nl
+    UI._notes.inputBusy = true
+    editor:SetText(txt:sub(1, nl) .. ins .. txt:sub(nl + 1))
+    editor:SetCursorPosition(caret >= nl and caret + #ins or caret)
+    UI._notes.inputBusy = nil
 end
 
 -- Single-region byte diff for the snippet host: an editbox change is always
@@ -8438,7 +8644,7 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
     if editor.SetWordWrap then editor:SetWordWrap(true) end
     if editor.SetNonSpaceWrap then editor:SetNonSpaceWrap(true) end
     if editor.SetTextInsets then editor:SetTextInsets(0, 0, 0, 0) end
-    if editor.SetSpacing then editor:SetSpacing(2) end
+    Fmt.SetPixelSpacing(editor, 2)
     editor:SetWidth(width - 16)
     scroll:SetScrollChild(editor)
 
@@ -8542,6 +8748,9 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
         if opts.onTextChanged then opts.onTextChanged(self) end
         Fmt.HistoryRecord(UI._notes.applyingFormat and true or false)
         UI:QueueEasyNotesOverlayUpdate()
+    end)
+    editor:HookScript("OnTextChanged", function(self)
+        if not (UI._notes.applyingFormat or UI._notes.inputBusy) then Fmt.FinishEnter(self) end
     end)
     editor:SetScript("OnKeyDown", function(self, key)
         local kup = tostring(key or ""):upper()
