@@ -607,6 +607,7 @@ function Search:CreateSearchFrame()
         if not searchFrame._efProvidersWarmed then
             searchFrame._efProvidersWarmed = true
             Search:WarmSearchHotPath()
+            if ns.GPSNpcs and ns.GPSNpcs.Warm then ns.GPSNpcs.Warm() end
             if ns.Database and ns.Database.LoadDeferredSyncProvidersStaggered then
                 ns.Database:LoadDeferredSyncProvidersStaggered()
             elseif ns.Database and ns.Database.WarmSearchHotPath then

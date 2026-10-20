@@ -1828,6 +1828,11 @@ function MapTab:RunSearch(text)
     restoreScroll()
 end
 
+-- The open query again, once a source it searched has finished loading.
+function MapTab:RefreshSearch()
+    if panel and panel:IsShown() and currentQuery ~= "" then MapTab:RunSearch(currentQuery) end
+end
+
 -- Search box captures arrow / Alt+J/K / Enter / Esc while focused and
 -- falls back to typing. Navigating down hands focus to navFrame, which
 -- captures j/k/Enter/Esc so the user can keep moving without reclaiming
@@ -2243,6 +2248,7 @@ local function CreateSearchBox(parent)
             Utils.SafeCallMethod(navFrame, "EnableKeyboard", false)
         end
         if navKeyRepeat then navKeyRepeat.Stop() end
+        if ns.GPSNpcs and ns.GPSNpcs.Warm then ns.GPSNpcs.Warm() end
     end)
 
     editBox:HookScript("OnEnterPressed", function(self)

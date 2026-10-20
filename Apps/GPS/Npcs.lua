@@ -152,7 +152,7 @@ local function Reader(s)
     end
 end
 
-local function Lines(blob, out)
+local function Lines(blob, out, sliced)
     if not blob then return out end
     local ok, text = pcall(Unpack, blob)
     if not (ok and text) then return out end
@@ -160,6 +160,7 @@ local function Lines(blob, out)
     for line in sgmatch(text .. "\n", "(.-)\n") do
         i = i + 1
         out[i] = line
+        if sliced and i % 1024 == 0 then SliceCheckpoint() end
     end
     return out
 end
@@ -175,11 +176,12 @@ end
 
 -- A names text as one string, a line per creature between newlines, and
 -- the line starts: at[i] for creature i, at[count + 1] past the last.
-local function Text(text, count)
+local function Text(text, count, sliced)
     text = (text or ""):gsub("\n$", "")
     local blob = "\n" .. text .. "\n"
     local at, pos = {}, 2
     for i = 1, count do
+        if sliced and i % 1024 == 0 then SliceCheckpoint() end
         at[i] = pos
         local nl = sfind(blob, "\n", pos, true)
         if not nl then
@@ -194,28 +196,34 @@ end
 
 -- The client's names: its own where it has one, else its base locale's,
 -- else English, merged line by line (English clients skip the merge).
-local function MergedNames(data, count, key, localKey, baseKey)
+local function MergedNames(data, count, key, localKey, baseKey, sliced)
     local english = data[key]
     if not english then return "" end
     local ok, text = pcall(Unpack, english)
     if not (ok and text) then return "" end
     if not (data[localKey] or data[baseKey]) then return text end
-    local en, own, base = Lines(english, {}), Lines(data[localKey], {}), Lines(data[baseKey], {})
+    local en = Lines(english, {}, sliced)
+    local own, base = Lines(data[localKey], {}, sliced), Lines(data[baseKey], {}, sliced)
     local out = {}
-    for i = 1, count do out[i] = Pick(own, base, en, i) or "?" end
+    for i = 1, count do
+        if sliced and i % 1024 == 0 then SliceCheckpoint() end
+        out[i] = Pick(own, base, en, i) or "?"
+    end
     return table.concat(out, "\n")
 end
 
-local function Load()
-    if N.n then return N.n > 0 end
-    N.n = 0
+-- Decodes the catalog into N; N.n is set only once it is whole. Rewrites
+-- the same slots each run, so a cancelled sliced run can be redone.
+-- sliced: the caller's sliced run has no pcall around this.
+local function Decode(sliced)
     local data = ns.NPC_DATA
-    if not (data and C_EncodingUtil and C_EncodingUtil.DecompressString) then return false end
+    if not (data and C_EncodingUtil and C_EncodingUtil.DecompressString) then N.n = 0 return end
     local ok, raw = pcall(Unpack, data.rows)
-    if not (ok and raw) then return false end
+    if not (ok and raw) then N.n = 0 return end
     local u = Reader(raw)
     local count, last, k = u(), 0, 0
     for i = 1, count do
+        if sliced and i % 256 == 0 then SliceCheckpoint() end
         last = last + u()
         N.id[i], N.lo[i], N.span[i], N.flags[i], N.kind[i], N.display[i], N.title[i] = last, u(), u(), u(), u(), u(), u()
         local c = u()
@@ -225,11 +233,11 @@ local function Load()
             N.spotMap[k], N.spotXY[k], N.spotN[k] = u(), u(), u()
         end
     end
-    N.names, N.at = Text(MergedNames(data, count, "names", "localNames", "baseNames"), count)
+    N.names, N.at = Text(MergedNames(data, count, "names", "localNames", "baseNames", sliced), count, sliced)
     N.low = slower(N.names)
     if data.localNames or data.baseNames then
         local okEn, en = pcall(Unpack, data.names)
-        N.enNames, N.enAt = Text(okEn and en or "", count)
+        N.enNames, N.enAt = Text(okEn and en or "", count, sliced)
         N.enLow = slower(N.enNames)
     end
     local tEnglish, tOwn, tBase = Lines(data.titles, {}), Lines(data.localTitles, {}), Lines(data.baseTitles, {})
@@ -265,7 +273,43 @@ local function Load()
         end
     end
     N.n = count
-    return count > 0
+end
+
+local warmHandle, warmQueued
+
+local function Load()
+    if N.n then return N.n > 0 end
+    if warmHandle then
+        warmHandle:Cancel()
+        warmHandle = nil
+    end
+    Decode(false)
+    return N.n > 0
+end
+
+-- The decode in slices from first focus: the first creature search of a
+-- session ran all of it, 23,000 creatures, inside its keystroke.
+function N.Warm()
+    if N.n or warmQueued then return end
+    warmQueued = true
+    ns.Utils.SafeAfter(0, function()
+        if N.n then return end
+        warmHandle = ns.Utils.RunSliced(function() Decode(true) end, function(ok, err)
+            warmHandle, warmQueued = nil, nil
+            if not ok then return ns.Utils.ErrorHandler(err) end
+            if not (N.n and N.n > 0) then return end
+            if ns.Search and ns.Search.RefreshActiveSearch then ns.Search:RefreshActiveSearch() end
+            if ns.MapTab and ns.MapTab.RefreshSearch then ns.MapTab:RefreshSearch() end
+        end, 4)
+    end)
+end
+
+-- The keystroke path never decodes: until the warm lands, searches go on
+-- without creatures and repaint when it does.
+local function Ready()
+    if N.n then return N.n > 0 end
+    N.Warm()
+    return false
 end
 
 N.Load = Load
@@ -709,7 +753,7 @@ end
 -- Whether every word of query names a service or starts a word of a title
 -- (repair, inn, hunter trainer): a kind of creature asked for, not one.
 function N.KindQuery(query)
-    if not Load() then return false end
+    if not Ready() then return false end
     local any = false
     for word in sgmatch(slower(query), "%S+") do
         if #word < MIN_QUERY then return false end
@@ -874,7 +918,10 @@ end
 -- those along a route, each at its spot least out of the way. True when
 -- more matched than were handed over.
 function N.Append(out, nameSet, query, onlyMap, nearMap, along)
-    if not query or #query < MIN_QUERY or not Load() then return false end
+    if not query or #query < MIN_QUERY then return false end
+    -- A route's along-the-way search waits for the catalog; typing never.
+    if along then Load() end
+    if not Ready() then return false end
     local words, wordBits, wordRole, wordPlace = N.words, N.wordBits, N.wordRole, N.wordPlace
     for w = #words, 1, -1 do words[w], wordRole[w], wordPlace[w] = nil, nil, nil end
     for word in sgmatch(slower(query), "%S+") do words[#words + 1] = word end

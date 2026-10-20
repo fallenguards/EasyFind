@@ -30,7 +30,7 @@ local ROWS = varints({
 -- Alliance and 0 (none) to the Horde, tile 3105 from level 60 to both.
 local DANGER = varints({ 2, 3100, 20, 0, 5, 60, 60 })
 
-local function fresh(localNames, rows, names, goods)
+local function fresh(localNames, rows, names, goods, noLoad)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -56,6 +56,8 @@ local function fresh(localNames, rows, names, goods)
     env.EasyFind.db = {}
     ns.L.NPC_SELLS = "Sells %s"
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
+    -- As if the first-focus warm had landed: typing never decodes.
+    if not noLoad then ns.GPSNpcs.Load() end
     return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
 end
 
@@ -91,6 +93,15 @@ local function find(append, query, onlyMap)
 end
 
 local tests = {}
+
+function tests.typingNeverDecodes_theWarmDoes()
+    local append, N, env = fresh(nil, nil, nil, nil, true)
+    H.assertEq(#find(append, "hogger"), 0, "no creatures before the catalog is in")
+    H.assertTrue(N.n == nil, "the keystroke did not decode")
+    env._clock:advance(0.1)
+    H.assertTrue(N.n and N.n > 0, "the warm decoded it")
+    H.assertEq(#find(append, "hogger"), 1, "found once it is in")
+end
 
 function tests.nameFindsTheCreatureOnItsSpot()
     local rows = find(fresh(), "hog")
