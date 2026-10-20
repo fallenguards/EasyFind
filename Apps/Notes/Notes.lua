@@ -579,6 +579,33 @@ function notesNS.AllNotes() return NotesStore() end
 local Fmt = {}
 local Builders = {}
 
+-- An item's quality color as a |c code, once the client knows the item.
+function Fmt.ItemColorCode(id)
+    local quality = type(id) == "number" and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id)
+    if not quality then return nil end
+    local hex = C_Item.GetItemQualityColor and select(4, C_Item.GetItemQualityColor(quality))
+    if hex then return "|c" .. hex end
+    local colors = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+    return colors and colors.hex or nil
+end
+
+-- An item as its link reads: [Name], in its quality color.
+function Fmt.ItemLabel(id, name)
+    local label = "[" .. (name or tostring(id)) .. "]"
+    local code = Fmt.ItemColorCode(id)
+    return code and (code .. label .. "|r") or label
+end
+
+-- The title on a label: an item note still titled as its item reads wears
+-- the item's quality color (an edit box would show the color code).
+function Fmt.ShownTitle(note)
+    local title = NoteTitle(note)
+    for _, s in ipairs(note and note.showsOn or {}) do
+        if s.type == "item" and title == "[" .. (s.name or "") .. "]" then return Fmt.ItemLabel(s.id, s.name) end
+    end
+    return title
+end
+
 -- A list line's box as the checkbox art, for text no editor shows.
 function Fmt.BoxIcons(s)
     return (s:gsub(CHECK_EMPTY_PREFIX, "|TInterface\\Buttons\\UI-CheckBox-Up:0|t ")
@@ -1143,7 +1170,7 @@ end
 local function ReaderShow(note)
     local f = reader
     f.noteID = note.id
-    f.title:SetText(NoteTitle(note))
+    f.title:SetText(Fmt.ShownTitle(note))
     UI:ApplyEasyNotesCustomFont(f.body, NormalizeDB().fontSize)
     f.body:SetText(note.body or "")
     local r, g, b = ns.TooltipTextColor()
@@ -1547,7 +1574,7 @@ function notesNS.OpenUnitNote(entry)
     local note = notesNS.FindUnitNote(entry)
     if not note then
         note = CreateNote("")
-        note.name = entry.name
+        note.name = entry.type == "item" and ("[" .. (entry.name or tostring(entry.id)) .. "]") or entry.name
         note.scope = "account"
         note.category = (entry.type == "player" and "Players") or (entry.type == "item" and "Items")
             or (entry.type == "spell" and "Abilities") or "NPCs"
@@ -4699,7 +4726,7 @@ function UI:RefreshEasyNotesHeaderOnly()
     local frame = UI._notes.frame
     if not frame then return end
     local note = GetSelectedNote()
-    frame.title:SetText(note and NoteTitle(note) or L["NOTES_NO_NOTE"])
+    frame.title:SetText(note and Fmt.ShownTitle(note) or L["NOTES_NO_NOTE"])
 end
 
 -- Ctrl+S: the open note is stored as typed already; this stores it now and
@@ -4776,7 +4803,7 @@ function UI:RefreshEasyNotes()
             frame.editor:SetText(wantText)
             frame.editor:SetCursorPosition(0)
         end
-        frame.title:SetText(NoteTitle(note))
+        frame.title:SetText(Fmt.ShownTitle(note))
         -- Only the more-options button shows here; delete/find/auto-resize are
         -- folded into that menu and must stay hidden or they reflow the header.
         -- Only in the note-editing view, never the palette (home) list, so it
@@ -6726,7 +6753,7 @@ function UI:CommitEasyNotesRowRename()
         row.titleEdit:Hide()
     end
     if row.title then
-        if note then row.title:SetText(NoteTitle(note)) end
+        if note then row.title:SetText(Fmt.ShownTitle(note)) end
         row.title:Show()
     end
 end
@@ -7360,7 +7387,8 @@ do
     local Auto = { FOUND_MAX = 40, NOW_MAX = 6, SEARCH_ROWS = 14 }
 
     function Auto.Label(e)
-        return (e.name or tostring(e.id)) .. "  |cff8a8a90" .. Ctx.KindLabel(e) .. "|r"
+        local name = e.type == "item" and Fmt.ItemLabel(e.id, e.name) or (e.name or tostring(e.id))
+        return name .. "  |cff8a8a90" .. Ctx.KindLabel(e) .. "|r"
     end
 
     function Auto.Changed()
@@ -7883,7 +7911,7 @@ function UI:RefreshEasyNotesPalette()
         local row = self:EnsureEasyNotesPaletteRow(i)
         if not row then break end
         row.noteID = note.id
-        row.title:SetText(NoteTitle(note))
+        row.title:SetText(Fmt.ShownTitle(note))
         self:LayoutEasyNotesRowTags(row, note, listW)
         if row.pinButton and row.pinButton.icon then
             if note.pinned then
