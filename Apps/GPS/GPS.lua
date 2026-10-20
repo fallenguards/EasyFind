@@ -1312,11 +1312,18 @@ function GPS:TakeOtherWay(other)
         end)
 end
 
+-- A folded surface opens for a field to type in: the window's fold or
+-- the section's, which share one saved state.
+function GPS.Unfold(frame)
+    if frame.collapsed and frame.collapseBtn then frame.collapseBtn:Click() end
+    if frame.expanded == false and frame.fold then frame.fold:Click() end
+end
+
 -- Picking a start in a surface's search box: its hits set the start.
 -- Where the trip's fields show, the start's own field takes it.
 function GPS:PickStart(frame)
     if frame and frame.trip then
-        if frame.collapsed and frame.collapseBtn then frame.collapseBtn:Click() end
+        GPS.Unfold(frame)
         if frame.trip:FocusStart() then return end
     end
     GPS:EndAlong()
@@ -1343,7 +1350,7 @@ function GPS:SearchAlong(frame)
     local route = Route()
     if not (route and not route.arrived and frame) then return end
     GPS:EndPick()
-    if frame.collapsed and frame.collapseBtn then frame.collapseBtn:Click() end
+    GPS.Unfold(frame)
     if frame.trip then
         frame.trip:SearchAlong()
         return
@@ -1358,13 +1365,20 @@ function GPS:SearchAlong(frame)
     box:Show()
     box._blockAutoFocus = nil
     box:SetFocus()
+    -- Its X ends the search; the client's box hides it when empty and
+    -- unfocused, and a box that never took focus had no way out.
+    if box.clearButton then box.clearButton:Show() end
 end
 
 function GPS:EndAlong()
     local frame = GPS.along
     if not frame then return end
     GPS.along = nil
-    if frame.search then ns.GPSTrip.Tag(frame.search, false) end
+    local box = frame.search
+    if box then
+        ns.GPSTrip.Tag(box, false)
+        if box.clearButton and not box:HasFocus() and (box:GetText() or "") == "" then box.clearButton:Hide() end
+    end
     Refresh()
 end
 
@@ -2100,6 +2114,9 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         if GPS.picking == frame and (self:GetText() or "") == "" then GPS:EndPick() end
         if GPS.along == frame and (self:GetText() or "") == "" then GPS:EndAlong() end
     end)
+    if box.clearButton then
+        box.clearButton:HookScript("OnClick", function() if GPS.along == frame then GPS:EndAlong() end end)
+    end
     -- The box covers most of a folded window: dragging it moves the window.
     box:RegisterForDrag("LeftButton")
     box:SetScript("OnDragStart", function() if frame.BeginWindowDrag then frame:BeginWindowDrag() end end)

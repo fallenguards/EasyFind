@@ -700,6 +700,12 @@ function Editor:Refresh(route)
             if row.box.Instructions then row.box.Instructions:SetText(placeholder or "") end
         end
         Trip.Tag(row.box, adding and self.along or false)
+        -- The along field keeps its X while open, typed in or not: the
+        -- client's box hid it when empty and unfocused, and a field that
+        -- never took focus had no way to close.
+        row.along = (adding and self.along) or nil
+        local clear = row.box.clearButton
+        if clear then clear:SetShown(row.along or row.box:HasFocus() or (row.box:GetText() or "") ~= "") end
         if px and g.SizeFont then
             g.SizeFont(row.box, px)
             if row.box.Instructions then g.SizeFont(row.box.Instructions, px) end
