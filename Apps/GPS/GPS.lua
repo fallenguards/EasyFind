@@ -108,12 +108,14 @@ end
 local WorldPos   -- defined below with the position helpers
 
 -- Not places: battlegrounds and arenas (orphan maps, and newer zones sharing
--- an orphan's name), dungeon insides, the world and the cosmos.
+-- an orphan's name), dungeon insides, the world and the cosmos. The client
+-- filters by map type: unfiltered, every map in the game came back as a
+-- table to keep a few dozen (24 ms in the first render with a zone row).
 local orphanNames
 local function IsOrphanName(name)
     if not orphanNames then
         orphanNames = {}
-        local ok, kids = pcall(C_Map.GetMapChildrenInfo, 946, nil, true)
+        local ok, kids = pcall(C_Map.GetMapChildrenInfo, 946, Enum.UIMapType.Orphan, true)
         if ok and kids then
             for i = 1, #kids do
                 local k = kids[i]

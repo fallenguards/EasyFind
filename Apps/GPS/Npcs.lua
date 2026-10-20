@@ -276,25 +276,38 @@ local function Decode(sliced)
 end
 
 local warmHandle, warmQueued
+local LoadGoods
 
-local function Load()
-    if N.n then return N.n > 0 end
+-- A caller that needs the catalog now stops a sliced decode under way and
+-- decodes at once (the decodes rewrite the same slots, so none interleave).
+local function CancelWarm()
     if warmHandle then
         warmHandle:Cancel()
         warmHandle = nil
     end
-    Decode(false)
+    warmQueued = nil
+end
+
+-- sliced: called from the warm's own run.
+local function Load(sliced)
+    if N.n then return N.n > 0 end
+    if not sliced then CancelWarm() end
+    Decode(sliced)
     return N.n > 0
 end
 
--- The decode in slices from first focus: the first creature search of a
--- session ran all of it, 23,000 creatures, inside its keystroke.
+-- The decode in slices from first focus, creatures then what vendors
+-- sell: the first creature search of a session ran all of it, 23,000
+-- creatures and the goods, inside its keystroke.
 function N.Warm()
-    if N.n or warmQueued then return end
+    if (N.n and N.goodsN) or warmQueued then return end
     warmQueued = true
     ns.Utils.SafeAfter(0, function()
-        if N.n then return end
-        warmHandle = ns.Utils.RunSliced(function() Decode(true) end, function(ok, err)
+        if not warmQueued then return end
+        warmHandle = ns.Utils.RunSliced(function()
+            Load(true)
+            LoadGoods(true)
+        end, function(ok, err)
             warmHandle, warmQueued = nil, nil
             if not ok then return ns.Utils.ErrorHandler(err) end
             if not (N.n and N.n > 0) then return end
@@ -307,7 +320,7 @@ end
 -- The keystroke path never decodes: until the warm lands, searches go on
 -- without creatures and repaint when it does.
 local function Ready()
-    if N.n then return N.n > 0 end
+    if N.n and N.goodsN then return N.n > 0 end
     N.Warm()
     return false
 end
@@ -316,16 +329,18 @@ N.Load = Load
 
 -- The goods blob (dev/tools/npc_catalog.py): items, the lists that share
 -- them, and which creature (by row index) sells which list.
-local function LoadGoods()
+-- Like Decode, sets N.goodsN only once whole and can be redone.
+LoadGoods = function(sliced)
     if N.goodsN then return N.goodsN > 0 end
-    N.goodsN = 0
+    if not sliced then CancelWarm() end
     local data = ns.NPC_DATA
-    if not (data and data.goods and Load()) then return false end
+    if not (data and data.goods and Load(sliced)) then N.goodsN = 0 return false end
     local ok, raw = pcall(Unpack, data.goods)
-    if not (ok and raw) then return false end
+    if not (ok and raw) then N.goodsN = 0 return false end
     local u = Reader(raw)
     local count, last = u(), 0
     for j = 1, count do
+        if sliced and j % 512 == 0 then SliceCheckpoint() end
         last = last + u()
         N.goodsId[j] = last
         N.listsOf[j] = {}
@@ -341,6 +356,7 @@ local function LoadGoods()
         end
     end
     for l = 1, u() do
+        if sliced and l % 256 == 0 then SliceCheckpoint() end
         local at = 0
         for _ = 1, u() do
             at = at + u()
@@ -353,8 +369,10 @@ local function LoadGoods()
         row = row + u()
         N.sells[row + 1] = u() + 1
     end
-    local english, own, base = Lines(data.goodsNames, {}), Lines(data.localGoods, {}), Lines(data.baseGoods, {})
+    local english = Lines(data.goodsNames, {}, sliced)
+    local own, base = Lines(data.localGoods, {}, sliced), Lines(data.baseGoods, {}, sliced)
     for j = 1, count do
+        if sliced and j % 512 == 0 then SliceCheckpoint() end
         local name = Pick(own, base, english, j) or "?"
         N.goodsName[j] = name
         N.goodsLow[j] = slower(name)

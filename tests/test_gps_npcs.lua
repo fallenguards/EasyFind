@@ -57,7 +57,7 @@ local function fresh(localNames, rows, names, goods, noLoad)
     ns.L.NPC_SELLS = "Sells %s"
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
     -- As if the first-focus warm had landed: typing never decodes.
-    if not noLoad then ns.GPSNpcs.Load() end
+    if not noLoad then ns.GPSNpcs.Load(); ns.GPSNpcs.LoadGoods() end
     return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
 end
 
