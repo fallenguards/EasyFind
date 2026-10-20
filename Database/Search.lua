@@ -327,11 +327,7 @@ function Database:IsSubsequence(word, query, queryLen)
     return (wi - 1) - firstPos + 1 <= queryLen * 2 - 1
 end
 
--- Damerau-Levenshtein with transpositions, capped at 2.
-function Database:DamerauLevenshtein(s1, s2, len1, len2)
-    if Database._disableFuzzy then return 3 end
-    if mabs(len1 - len2) > 2 then return 3 end
-
+local function DistanceCapped2(s1, s2, len1, len2)
     local prev2, prev, curr = dlPrev2, dlPrev, dlCurr
 
     for j = 0, len2 do prev[j] = j end
@@ -360,6 +356,31 @@ function Database:DamerauLevenshtein(s1, s2, len1, len2)
         prev2, prev, curr = prev, curr, prev2
     end
     return prev[len2]
+end
+
+-- Damerau-Levenshtein with transpositions, capped at 2. Pure, and a search
+-- asks the same pairs over and over (one keyword on a thousand rows), so
+-- results are kept per first string; callers pass the query word first.
+local dlMemo, dlMemoRows = {}, 0
+function Database:DamerauLevenshtein(s1, s2, len1, len2)
+    if Database._disableFuzzy then return 3 end
+    if mabs(len1 - len2) > 2 then return 3 end
+    local row = dlMemo[s1]
+    if row then
+        local d = row[s2]
+        if d then return d end
+    else
+        if dlMemoRows >= 64 then
+            wipe(dlMemo)
+            dlMemoRows = 0
+        end
+        row = {}
+        dlMemo[s1] = row
+        dlMemoRows = dlMemoRows + 1
+    end
+    local d = DistanceCapped2(s1, s2, len1, len2)
+    row[s2] = d
+    return d
 end
 
 -- Character-presence prefilter: every non-space query byte must appear in the
@@ -952,7 +973,7 @@ local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
     if queryWordLen >= FUZZY_EDIT1_LEN and sbyte(fieldWord, 1) == sbyte(queryWord, 1) then
         local maxEdits = queryWordLen >= FUZZY_EDIT2_LEN and 2 or 1
         if fieldLen >= queryWordLen - maxEdits and fieldLen <= queryWordLen + maxEdits then
-            local dist = Database:DamerauLevenshtein(fieldWord, queryWord, fieldLen, queryWordLen)
+            local dist = Database:DamerauLevenshtein(queryWord, fieldWord, queryWordLen, fieldLen)
             if dist <= maxEdits then return mmax(45, 85 - dist * 20) end
         end
     end

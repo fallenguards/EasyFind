@@ -48,7 +48,7 @@ local SearchIndex = {}
 ns.SearchIndex = SearchIndex
 
 local sbyte, ssub, sfind = string.byte, string.sub, string.find
-local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
+local band, bor, bnot, lshift, rshift = bit.band, bit.bor, bit.bnot, bit.lshift, bit.rshift
 local wipe = wipe
 local pairs = pairs
 local tsort = table.sort
@@ -168,7 +168,6 @@ local counts = {}
 local wordSet = {}
 local resultSet = {}
 local candBuf = {}
-local queryGramsBuf = {}
 
 local function maskOf(s, m)
     for i = 1, #s do
@@ -183,7 +182,7 @@ end
 -- hold it. Typo and abbreviation matches are word against word with the
 -- first letter fixed, so a query word tests only the words under its
 -- first letter instead of masking every entry.
-local dictId, dictWord, dictByFirst = {}, {}, {}
+local dictId, dictWord, dictMask, dictByFirst = {}, {}, {}, {}
 -- Most words sit in one entry: the first entry is kept in dictOne and
 -- only a second one opens a posting bucket.
 local dictOne, dictStr, dictTail = {}, {}, {}
@@ -199,6 +198,7 @@ local function PostWord(e, w)
         dictCount = dictCount + 1
         id = dictCount
         dictId[w], dictWord[id] = id, w
+        dictMask[id] = maskOf(w, 0)
         local b = sbyte(w, 1)
         local list = dictByFirst[b]
         if not list then list = {}; dictByFirst[b] = list end
@@ -338,7 +338,7 @@ local function Restart()
     wipe(gramStr); wipe(gramTail)
     wipe(wordStr); wipe(wordTail)
     wipe(initStr); wipe(initTail)
-    wipe(dictId); wipe(dictWord); wipe(dictByFirst)
+    wipe(dictId); wipe(dictWord); wipe(dictMask); wipe(dictByFirst)
     wipe(dictOne); wipe(dictStr); wipe(dictTail)
     dictCount = 0
     wipe(entryMask)
@@ -501,11 +501,25 @@ local function Subsequence(x, q, qLen, xLen)
     return xi - 1 <= qLen * 2 - 1
 end
 
+-- More than k bits set in m.
+local function OverBits(m, k)
+    local n = 0
+    while m ~= 0 do
+        m = band(m, m - 1)
+        n = n + 1
+        if n > k then return true end
+    end
+    return false
+end
+
 -- Search.lua's DamerauLevenshtein (optimal string alignment) is at most k.
+-- Each edit drops or adds at most one distinct letter, so more than k
+-- letters missing either way rules a pair out before the table.
 local osaPrev2, osaPrev, osaCurr = {}, {}, {}
-local function WithinEdits(a, b, la, lb, k)
+local function WithinEdits(a, b, la, lb, k, am, bm)
     local d = la - lb
     if d > k or -d > k then return false end
+    if OverBits(band(am, bnot(bm)), k) or OverBits(band(bm, bnot(am)), k) then return false end
     local prev2, prev, curr = osaPrev2, osaPrev, osaCurr
     for j = 0, lb do prev[j] = j end
     for i = 1, la do
@@ -547,6 +561,7 @@ local function MatchingWords(qw, L)
     if hit then return hit end
     hit = {}
     local q1, q2 = sbyte(qw, 1, 2)
+    local qm = maskOf(qw, 0)
     local k = L >= FUZZY_EDIT2_LEN and 2 or (L >= FUZZY_EDIT1_LEN and 1 or 0)
     local list = dictByFirst[q1]
     for i = 1, list and #list or 0 do
@@ -555,7 +570,7 @@ local function MatchingWords(qw, L)
         local x = dictWord[id]
         local xl = #x
         if (xl > L and L <= 8 and Subsequence(x, qw, L, xl))
-           or (k > 0 and WithinEdits(qw, x, L, xl, k)) then
+           or (k > 0 and WithinEdits(qw, x, L, xl, k, qm, dictMask[id])) then
             hit[#hit + 1] = id
         end
     end
@@ -564,38 +579,57 @@ local function MatchingWords(qw, L)
         for i = 1, list and #list or 0 do
             local id = list[i]
             local x = dictWord[id]
-            if sbyte(x, 2) == q1 and WithinEdits(qw, x, L, #x, k) then hit[#hit + 1] = id end
+            if sbyte(x, 2) == q1 and WithinEdits(qw, x, L, #x, k, qm, dictMask[id]) then hit[#hit + 1] = id end
         end
     end
     matchMemo[qw] = hit
     return hit
 end
 
--- Class A: entries containing every bigram of w (count filtering).
+-- How many serials a bucket holds, without decoding it.
+local function PostingCount(strMap, tailMap, key)
+    local str = strMap[key]
+    local n = 0
+    if type(str) == "table" then
+        for i = 1, #str do n = n + #str[i] end
+    elseif str then
+        n = #str
+    end
+    local tail = tailMap[key]
+    return n / 3 + (tail and #tail or 0)
+end
+
+-- Class A: entries holding w's two rarest bigrams, a superset of those
+-- holding all of them. Decoding every bigram's bucket was most of a
+-- search's cost (common pairs hold thousands of serials).
 local function AddContiguous(w)
     local wl = #w
     if wl < 2 then return end
-    wipe(seenGrams)
-    local nGrams = 0
+    local rare1, rare2, n1, n2
     for g = 1, wl - 1 do
         local g1, g2 = sbyte(w, g, g + 1)
         local gram = g1 * 256 + g2
-        if not seenGrams[gram] then
-            seenGrams[gram] = true
-            nGrams = nGrams + 1
-            queryGramsBuf[nGrams] = gram
+        if gram ~= rare1 and gram ~= rare2 then
+            local n = PostingCount(gramStr, gramTail, gram)
+            if n == 0 then return end
+            if not n1 or n < n1 then
+                rare2, n2, rare1, n1 = rare1, n1, gram, n
+            elseif not n2 or n < n2 then
+                rare2, n2 = gram, n
+            end
         end
     end
+    local pn = DecodePostings(gramStr, gramTail, rare1)
+    if not rare2 then
+        for pi = 1, pn do wordSet[postScratch[pi]] = true end
+        return
+    end
     wipe(counts)
-    for gi = 1, nGrams do
-        local pn = DecodePostings(gramStr, gramTail, queryGramsBuf[gi])
-        if pn == 0 then return end
-        for pi = 1, pn do
-            local e = postScratch[pi]
-            local c = (counts[e] or 0) + 1
-            counts[e] = c
-            if c == nGrams then wordSet[e] = true end
-        end
+    for pi = 1, pn do counts[postScratch[pi]] = true end
+    pn = DecodePostings(gramStr, gramTail, rare2)
+    for pi = 1, pn do
+        local e = postScratch[pi]
+        if counts[e] then wordSet[e] = true end
     end
 end
 
