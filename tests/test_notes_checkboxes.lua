@@ -303,5 +303,48 @@ function tests.enter_withNoNewLine_addsNoBox()
     H.assertEq(ed.text, BOX .. "a\nf", "a later new line is not this Enter's")
 end
 
+local function LoadRenumber()
+    local src = Source()
+    local env = Run({ Fmt = {}, mmin = math.min, mmax = math.max },
+        (Extract(src, "local function SplitLogicalLines("):gsub("^local ", "")),
+        (Extract(src, "local function ShiftDecorations("):gsub("^local ", "")),
+        Extract(src, "function Fmt.RenumberLists("))
+    return env.Fmt
+end
+
+function tests.renumber_countsAMovedRunAgain()
+    local Fmt = LoadRenumber()
+    H.assertEq(Fmt.RenumberLists("1. a\n3. b\n2. c", {}), "1. a\n2. b\n3. c", "in order after a move")
+end
+
+function tests.renumber_eachRunFromItsLowest()
+    local Fmt = LoadRenumber()
+    H.assertEq(Fmt.RenumberLists("2. a\n1. b\nx\n5. c\n4. d", {}), "1. a\n2. b\nx\n4. c\n5. d",
+        "a plain line splits the runs")
+end
+
+function tests.renumber_movesRangesAndCaretWithTheDigits()
+    local Fmt = LoadRenumber()
+    local decos = { { kind = "bold", startByte = 5, endByte = 6 } }
+    local text, caret = Fmt.RenumberLists("10. a\n1. b", decos, 10)
+    H.assertEq(text, "1. a\n2. b", "10 and 1 become 1 and 2")
+    H.assertEq(decos[1].startByte .. ".." .. decos[1].endByte, "4..5", "the bold stays on a")
+    H.assertEq(caret, 9, "caret stays after b")
+end
+
+function tests.caretInView_scrollsTheLineIn()
+    local env = Run({ Fmt = {} }, Extract(Source(), "function Fmt.KeepCaretInView("))
+    local scroll = { at = 0 }
+    function scroll:GetVerticalScroll() return self.at end
+    function scroll:GetHeight() return 50 end
+    function scroll:SetVerticalScroll(v) self.at = v end
+    env.Fmt.KeepCaretInView(scroll, -60, 12)
+    H.assertEq(scroll.at, 22, "a line below the view scrolls up into it")
+    env.Fmt.KeepCaretInView(scroll, -30, 12)
+    H.assertEq(scroll.at, 22, "a line in view stays put")
+    env.Fmt.KeepCaretInView(scroll, -5, 12)
+    H.assertEq(scroll.at, 5, "a line above the view scrolls down to it")
+end
+
 local pass, fail, failures = H.runSuite("NotesCheckboxes", tests)
 return { pass = pass, fail = fail, failures = failures }

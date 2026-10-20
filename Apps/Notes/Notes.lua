@@ -3008,6 +3008,53 @@ local function MoveLogicalLine(text, decorations, fromIdx, beforeIdx)
     return newText, insertPos
 end
 
+-- Each run of numbered lines counts on from its lowest number, after a
+-- line moved or was added inside it. Returns the text and the caret moved
+-- with any number that grew or shrank before it.
+function Fmt.RenumberLists(text, decorations, caret)
+    local lines, starts = SplitLogicalLines(text)
+    local edits = {}
+    local i = 1
+    while i <= #lines do
+        local j, low = i, math.huge
+        while j <= #lines and lines[j]:match("^%d+%. ") do
+            low = mmin(low, tonumber(lines[j]:match("^%d+")))
+            j = j + 1
+        end
+        for k = i, j - 1 do
+            local old, new = lines[k]:match("^%d+"), tostring(low + k - i)
+            if old ~= new then edits[#edits + 1] = { at = starts[k], old = old, new = new } end
+        end
+        i = mmax(j, i + 1)
+    end
+    for e = #edits, 1, -1 do
+        local d = edits[e]
+        text = text:sub(1, d.at - 1) .. d.new .. text:sub(d.at + #d.old)
+        local delta = #d.new - #d.old
+        ShiftDecorations(decorations, d.at + mmin(#d.old, #d.new), delta)
+        if caret and caret >= d.at + #d.old - 1 then caret = caret + delta end
+    end
+    return text, caret
+end
+
+-- The open note's numbered runs counted again; ranges move with the digits.
+function UI:RenumberEasyNotesLists()
+    local frame = UI._notes.frame
+    local editor = frame and frame.editor
+    local note = GetSelectedNote()
+    if not (editor and note) then return end
+    local text = editor:GetText() or ""
+    local newText, caret = Fmt.RenumberLists(text, note.decorations, editor:GetCursorPosition())
+    if newText == text then return end
+    UI._notes.loadingNote = true
+    editor:SetText(newText)
+    editor:SetCursorPosition(caret)
+    UI._notes.loadingNote = nil
+    UI._notes.lastEditorText = newText
+    if UI._notes.selectedID then UpdateBody(UI._notes.selectedID, newText) end
+    UI:QueueEasyNotesOverlayUpdate()
+end
+
 -- After a font-size / UI-scale change the editbox re-lays-out its glyphs over the
 -- next frame or two, and the measure meter's first read at the new size can lag a
 -- frame -- so the single overlay render right after the change measures the
@@ -3206,6 +3253,7 @@ local function EasyNotesDragUpdate(driver)
     local cursor = editor:GetCursorPosition()
     local newText, newIdx = MoveLogicalLine(text, note.decorations, fromIdx, targetBefore)
     if newText == text then return end
+    newText = Fmt.RenumberLists(newText, note.decorations)
     state.logicalIndex = newIdx
     UI._notes.loadingNote = true
     editor:SetText(newText)
@@ -8139,6 +8187,9 @@ function Fmt.FinishEnter(editor)
     editor:SetText(txt:sub(1, nl) .. ins .. txt:sub(nl + 1))
     editor:SetCursorPosition(caret >= nl and caret + #ins or caret)
     UI._notes.inputBusy = nil
+    -- A number added inside a run: the ones after it count on.
+    local frame = UI._notes.frame
+    if not p.ins and frame and editor == frame.editor then UI:RenumberEasyNotesLists() end
 end
 
 -- Single-region byte diff for the snippet host: an editbox change is always
