@@ -152,9 +152,11 @@ function MapSearch:RunHoverPreview(data)
                 composite[#composite + 1] = saved.instances[i]
             end
         elseif saved.x and saved.y then
+            -- The face too: without it the clicked creature fell back to
+            -- the category's placeholder while another one was previewed.
             composite[#composite + 1] = {
                 x = saved.x, y = saved.y,
-                icon = saved.icon, category = saved.category,
+                icon = saved.icon, category = saved.category, displayID = saved.displayID,
             }
         end
     end
