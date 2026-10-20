@@ -635,7 +635,9 @@ local function Field(ed, i)
     box:SetPoint("RIGHT", row, "RIGHT", 0, 0)
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
-    if ns.CreateRingedWell then
+    -- Beside the world map the fields keep the client's own search box, as
+    -- the map tab's search does; the theme's well is for EasyFind's window.
+    if ns.CreateRingedWell and not ed.frame.gameLook then
         for _, key in ipairs({ "Left", "Middle", "Right" }) do
             if box[key] then box[key]:SetAlpha(0) end
         end

@@ -2075,11 +2075,14 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         box.Instructions:SetText(L["GPS_SEARCH_PLACEHOLDER"] or SEARCH or "Search")
         box.Instructions:SetWordWrap(false)   -- cut with an ellipsis when the box is narrow
         -- Faint, as the main search bar's placeholder is: the theme's faint
-        -- text where a theme is active, the dim text otherwise.
-        local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-        local c = (theme and theme.textFaint) or ns.TEXT_DIM
-        box.Instructions:SetTextColor(c[1], c[2], c[3], 1)
-        box.Instructions._efOwnColor = true
+        -- text where a theme is active, the dim text otherwise; beside the
+        -- map, the client's own.
+        if not frame.gameLook then
+            local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+            local c = (theme and theme.textFaint) or ns.TEXT_DIM
+            box.Instructions:SetTextColor(c[1], c[2], c[3], 1)
+            box.Instructions._efOwnColor = true
+        end
     end
     -- The client focuses a fresh visible EditBox on its own; refuse that.
     box._blockAutoFocus = true
@@ -2546,6 +2549,7 @@ local function Rule(frame)
 end
 
 local function BuildPage(frame)
+    frame.gameLook = true         -- its fields are the map's own, not the theme's
     BuildSurface(frame, { popoutButton = true, listGap = 14, onRouteChanged = FitPage })
     frame.previewOnHover = true   -- this surface sits beside the map
     frame.mapFont = true          -- its steps follow the map search's font size
