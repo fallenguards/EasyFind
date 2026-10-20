@@ -115,6 +115,25 @@ function tests.findByKey_dispatchesThroughRegisteredResolver()
     ns.Database = prevDatabase
 end
 
+function tests.findByKey_memoKeepsRowsButNotMapRows()
+    local mount = { mountID = 4242, name = "Memo Mount" }
+    local spot = { category = "inn", mapID = 84, x = 0.5, y = 0.5, name = "Old Inn" }
+    local prevDatabase = ns.Database
+    ns.Database = { uiSearchData = { mount, spot } }
+    Aliases:InvalidateKeyIndex()
+    H.assertEq(Aliases:FindEntryByKey("mount:4242"), mount)
+    local oldKey = Aliases:GetEntryKey(spot)
+    H.assertEq(Aliases:FindEntryByKey(oldKey), spot)
+    -- A pooled map row comes back as another place.
+    spot.name, spot.x = "New Inn", 0.25
+    Aliases:InvalidateKeyIndex()
+    H.assertEq(Aliases:FindEntryByKey(Aliases:GetEntryKey(spot)), spot)
+    H.assertTrue(Aliases:FindEntryByKey(oldKey) ~= spot, "the old place's key no longer finds the row")
+    H.assertEq(Aliases:FindEntryByKey("mount:4242"), mount)
+    Aliases:InvalidateKeyIndex()
+    ns.Database = prevDatabase
+end
+
 function tests.findByKey_snapshotBeatsResolver()
     -- An alias's captured snapshot renders exactly as saved; a registered
     -- resolver is the fallback, not an override.

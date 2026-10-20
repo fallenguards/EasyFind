@@ -147,8 +147,45 @@ end
 local keyIndex
 local keyIndexLen
 
+-- A row in uiSearchData keeps its key for life (a refresh brings new
+-- tables), so a rebuild reads keys back instead of working each out
+-- again. Map rows stay out: their pools reuse tables.
+local keyMemo = setmetatable({}, { __mode = "k" })
+
+local function MemoKey(entry)
+    local k = keyMemo[entry]
+    if k == nil then
+        k = Aliases:GetEntryKey(entry) or false
+        if not IsMapAliasTarget(entry) then keyMemo[entry] = k end
+    end
+    return k
+end
+
+-- Keys for new rows are worked out in slices once search is in use, so
+-- the lookup after a category load never does it in one frame.
+local warmGen = 0
+local function WarmKeys()
+    local sf = ns.Search and ns.Search.GetSearchFrame and ns.Search:GetSearchFrame()
+    if not (sf and sf._efProvidersWarmed) then return end
+    warmGen = warmGen + 1
+    local gen = warmGen
+    Utils.SafeAfter(0, function()
+        if gen ~= warmGen then return end
+        Utils.RunSliced(function()
+            local data = ns.Database and ns.Database.uiSearchData
+            for i = 1, data and #data or 0 do
+                if gen ~= warmGen then return end
+                local entry = data[i]
+                if entry then MemoKey(entry) end
+                if i % 64 == 0 then Utils.SliceCheckpoint() end
+            end
+        end, function() end, 2)
+    end)
+end
+
 function Aliases:InvalidateKeyIndex()
     keyIndex = nil
+    WarmKeys()
 end
 
 local function EntryKeyIndex(data)
@@ -156,7 +193,7 @@ local function EntryKeyIndex(data)
     local idx = {}
     for i = 1, #data do
         local entry = data[i]
-        local k = Aliases:GetEntryKey(entry)
+        local k = MemoKey(entry)
         if k and idx[k] == nil then idx[k] = entry end
     end
     keyIndex = idx
