@@ -98,6 +98,30 @@ function tests.frame_findsItsWindowUpItsParents()
     H.assertTrue(ns.ThemePaletteOf(row) == P.Test.surfaces.notes, "its look")
 end
 
+-- A rounded control inside a frame, its fill texture keeping its color.
+local function Control(parent)
+    local tex = {}
+    function tex:SetVertexColor(r, g, b) self.color = { r, g, b } end
+    function tex:SetAlpha() end
+    local frame = { combinedBorder = { fill = { mm = tex } } }
+    function frame:GetParent() return parent end
+    return frame, tex
+end
+
+function tests.sharedRoleFill_inAWindowWithItsOwnLook_wearsItsColor()
+    Apply(true)
+    local notes = ns.ThemeSet("notes")
+    local window = { _efSurface = "notes" }
+    local button, tex = Control(window)
+    local b = ns.BTN_FILL_NORMAL
+    ns.SetRoundedRectFill(button, b[1], b[2], b[3], 1)
+    H.assertTrue(Same(tex.color, notes.BTN_FILL_NORMAL), "the Notes button color")
+    H.assertEq(button._efControlFillKind, "BTN_FILL_NORMAL", "still known as a button fill")
+    local plain, plainTex = Control({})
+    ns.SetRoundedRectFill(plain, b[1], b[2], b[3], 1)
+    H.assertTrue(Same(plainTex.color, b), "a frame of no window keeps the shared color")
+end
+
 function tests.surfaces_registerOnceInOrder()
     ns.AddThemeSurface("notes", "Notes")
     ns.AddThemeSurface("gps", "GPS")

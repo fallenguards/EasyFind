@@ -2878,6 +2878,7 @@ end
 
 function ns.SetRoundedRectBorderFillColor(frame, r, g, b, a)
     if not frame.combinedBorder then return end
+    if ns.OwnFill then r, g, b = ns.OwnFill(frame, r, g, b) end
     for _, t in pairs(frame.combinedBorder.fill) do
         t:SetVertexColor(r, g, b, a or 1)
     end
@@ -2945,6 +2946,21 @@ do
         "SECTION_TABLE_FILL", "PANEL_CARD_FILL", "EDITBOX_INSET_FILL", "CONTROL_ACCENT",
         "NAV_SELECTED_FILL", "NAV_HOVER_FILL" }
 
+    -- A control in a window with its own look: a fill given as one of the
+    -- shared roles (button, card, window...) is that role in its colors.
+    function ns.OwnFill(frame, r, g, b)
+        local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
+        if not set or set.shared then return r, g, b end
+        for i = 0, #TAGGED_FILLS do
+            local role = i == 0 and "SEARCH_WINDOW_FILL_COLOR" or TAGGED_FILLS[i]
+            local live, own = ns[role], set[role]
+            if own and live and live[1] == r and live[2] == g and live[3] == b then
+                return own[1], own[2], own[3]
+            end
+        end
+        return r, g, b
+    end
+
     function ns.SetRoundedRectFill(frame, r, g, b, a, snapOff)
         if not (frame and frame.combinedBorder and frame.combinedBorder.fill) then return end
         a = a or 1
@@ -2957,6 +2973,7 @@ do
         end
         frame._efControlFillKind = kind
         if kind then frame._efControlFillAlpha = a end
+        r, g, b = ns.OwnFill(frame, r, g, b)
         for _, t in pairs(frame.combinedBorder.fill) do
             t:SetVertexColor(r, g, b, a)
             t:SetAlpha(a)
