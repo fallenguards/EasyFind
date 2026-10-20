@@ -1966,6 +1966,17 @@ function UI:RefreshEasyNotesFontSizeButton()
     end
 end
 
+-- Typing past the view's edge scrolls the caret's line back in.
+function Fmt.KeepCaretInView(scroll, y, caretH)
+    y, caretH = -(y or 0), caretH or 0
+    local cur, viewH = scroll:GetVerticalScroll() or 0, scroll:GetHeight() or 0
+    if y < cur then
+        scroll:SetVerticalScroll(y)
+    elseif y + caretH > cur + viewH then
+        scroll:SetVerticalScroll(y + caretH - viewH)
+    end
+end
+
 -- Spacing for a whole-pixel line step: lines draw whole pixels apart while
 -- the caret and clicks keep the unrounded step, a pixel off per line.
 function Fmt.SetPixelSpacing(editor, units)
@@ -4099,13 +4110,14 @@ function UI:EnsureEasyNotesFrame()
         UI._notes.selAnchor = nil
         UI:UpdateEasyNotesCaretVisibility()
     end)
-    frame.editor:HookScript("OnCursorChanged", function(self)
+    frame.editor:HookScript("OnCursorChanged", function(self, _, y, _, caretH)
         local c = self:GetCursorPosition()
         local before = UI._notes.lastCursor
         UI._notes.lastCursor = c
         -- The finalize owns the caret/selection while a format applies; a raw<->
         -- rendered swap (loadingNote) must not recompute the selection either.
         if UI._notes.applyingFormat or UI._notes.loadingNote then return end
+        Fmt.KeepCaretInView(frame.editorScroll, y, caretH)
         c = Fmt.KeepCaretPastBox(self, c, before) or c
         UI:NotesRecomputeSelection(c)
         if c ~= UI._notes.lastFmtCursor then
@@ -8272,16 +8284,7 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
         if not UI._notes.applyingFormat then
             UI:NotesRecomputeSelection(self:GetCursorPosition())
         end
-        -- keep the caret line in view
-        y = -(y or 0)
-        cursorH = cursorH or 0
-        local cur = scroll:GetVerticalScroll() or 0
-        local viewH = scroll:GetHeight() or 0
-        if y < cur then
-            scroll:SetVerticalScroll(y)
-        elseif y + cursorH > cur + viewH then
-            scroll:SetVerticalScroll(y + cursorH - viewH)
-        end
+        Fmt.KeepCaretInView(scroll, y, cursorH)
     end)
     editor:SetScript("OnTextChanged", function(self)
         -- Hide bold/colour overlays instantly; their positions are stale until
