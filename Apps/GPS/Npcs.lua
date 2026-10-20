@@ -9,7 +9,7 @@ local MapSearch = ns.MapSearch
 local Search = ns.MapSearchSearch
 if not (MapSearch and Search and Search.PreparePOI) then return end
 
-local sbyte, sfind, slower, sgmatch, ssub = string.byte, string.find, string.lower, string.gmatch, string.sub
+local sbyte, schar, sfind, slower, sgmatch, ssub = string.byte, string.char, string.find, string.lower, string.gmatch, string.sub
 local sformat = string.format
 local mfloor, mmin = math.floor, math.min
 local tsort, tconcat = table.sort, table.concat
@@ -55,12 +55,15 @@ local FAR = math.huge
 -- (names) and one lowercase text (low), a line per creature starting at
 -- at[i]; the English texts beside them on other clients (enNames, enLow,
 -- enAt), nil where the client's names are English.
+-- Per creature its kind and title as arrays (every query reads them for
+-- all creatures), the rest packed in rec; per spot its map, place and
+-- spawns packed in spots (Rec, Spot below).
 local N = {
     n = nil,
-    id = {}, lo = {}, span = {}, flags = {}, kind = {}, display = {}, title = {}, first = {}, count = {},
+    kind = {}, title = {}, rec = "", spots = "",
     names = "", low = "", at = {}, enNames = nil, enLow = nil, enAt = nil,
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
-    spotMap = {}, spotXY = {}, spotN = {}, spotCi = {}, spotWx = {}, spotWy = {},
+    spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {},
@@ -79,6 +82,35 @@ local N = {
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
+
+-- Unpacked these were ten arrays, 8 MB of the 11 a decoded catalog held.
+-- A creature's record: id (3 bytes), flags (1), display id (3), first
+-- spot (3), spot count (2). A spot's: map (2), x * GRID + y (3), spawns (2).
+local REC, SPOT = 12, 7
+local function U16(s, p)
+    local a, b = sbyte(s, p, p + 1)
+    return a + b * 256
+end
+local function U24(s, p)
+    local a, b, c = sbyte(s, p, p + 2)
+    return a + b * 256 + c * 65536
+end
+local function B3(v)
+    return v % 256, mfloor(v / 256) % 256, mfloor(v / 65536)
+end
+local Rec = {
+    id = function(i) return U24(N.rec, (i - 1) * REC + 1) end,
+    flags = function(i) return sbyte(N.rec, (i - 1) * REC + 4) end,
+    display = function(i) return U24(N.rec, (i - 1) * REC + 5) end,
+    first = function(i) return U24(N.rec, (i - 1) * REC + 8) end,
+    count = function(i) return U16(N.rec, (i - 1) * REC + 11) end,
+}
+local Spot = {
+    map = function(k) return U16(N.spots, (k - 1) * SPOT + 1) end,
+    xy = function(k) return U24(N.spots, (k - 1) * SPOT + 3) end,
+    spawns = function(k) return U16(N.spots, (k - 1) * SPOT + 6) end,
+}
+N.Rec, N.Spot = Rec, Spot
 
 -- The creature whose line holds byte position p of a names text.
 local function LineAt(at, n, p)
@@ -112,7 +144,8 @@ function N.ByName(name)
     local p = sfind(N.low, "\n" .. string.lower(name) .. "\n", 1, true)
     if not p then return nil end
     local i = LineAt(N.at, N.n, p + 1)
-    return { name = Name(i), npcID = N.id[i], displayID = N.display[i] ~= 0 and N.display[i] or nil }
+    local display = Rec.display(i)
+    return { name = Name(i), npcID = Rec.id(i), displayID = display ~= 0 and display or nil }
 end
 
 -- Every service word with its bits, from SERVICES and the locale.
@@ -222,17 +255,25 @@ local function Decode(sliced)
     if not (ok and raw) then N.n = 0 return end
     local u = Reader(raw)
     local count, last, k = u(), 0, 0
+    local recs, spots = {}, {}
     for i = 1, count do
         if sliced and i % 256 == 0 then SliceCheckpoint() end
         last = last + u()
-        N.id[i], N.lo[i], N.span[i], N.flags[i], N.kind[i], N.display[i], N.title[i] = last, u(), u(), u(), u(), u(), u()
+        local _, _, flags, kind, display, title = u(), u(), u(), u(), u(), u()
+        N.kind[i], N.title[i] = kind, title
         local c = u()
-        N.first[i], N.count[i] = k + 1, c
+        local i1, i2, i3 = B3(last)
+        local d1, d2, d3 = B3(display)
+        local f1, f2, f3 = B3(k + 1)
+        recs[i] = schar(i1, i2, i3, flags, d1, d2, d3, f1, f2, f3, c % 256, mfloor(c / 256))
         for _ = 1, c do
             k = k + 1
-            N.spotMap[k], N.spotXY[k], N.spotN[k] = u(), u(), u()
+            local m, xy, spawns = u(), u(), u()
+            local x1, x2, x3 = B3(xy)
+            spots[k] = schar(m % 256, mfloor(m / 256), x1, x2, x3, spawns % 256, mfloor(spawns / 256))
         end
     end
+    N.rec, N.spots = tconcat(recs), tconcat(spots)
     N.names, N.at = Text(MergedNames(data, count, "names", "localNames", "baseNames", sliced), count, sliced)
     N.low = slower(N.names)
     if data.localNames or data.baseNames then
@@ -482,14 +523,14 @@ end
 
 -- A spot's zone map, x and y; an instance spot is its entrance.
 local function SpotPoint(k)
-    local m = N.spotMap[k]
+    local m = Spot.map(k)
     if m == 0 then
         local e
-        if ns.Caps and ns.Caps.forever then e = Entrance(N.spotXY[k]) else e = RetailEntrance(N.spotXY[k]) end
+        if ns.Caps and ns.Caps.forever then e = Entrance(Spot.xy(k)) else e = RetailEntrance(Spot.xy(k)) end
         if e then return e.m, e.x, e.y, e end
         return nil
     end
-    local xy = N.spotXY[k]
+    local xy = Spot.xy(k)
     return m, mfloor(xy / GRID) / (GRID - 1), (xy % GRID) / (GRID - 1)
 end
 
@@ -512,8 +553,9 @@ end
 -- Whether creature i has a spot on the set's maps, within r2 of the
 -- point (continent pci, px, py) when given.
 local function Within(i, set, pci, px, py, r2)
-    for k = N.first[i], N.first[i] + N.count[i] - 1 do
-        if not set or set[N.spotMap[k]] then
+    local first = Rec.first(i)
+    for k = first, first + Rec.count(i) - 1 do
+        if not set or set[Spot.map(k)] then
             if not r2 then return true end
             local ci, wx, wy = SpotWorld(k)
             if ci == pci and (wx - px) ^ 2 + (wy - py) ^ 2 <= r2 then return true end
@@ -526,8 +568,9 @@ end
 -- when given), the nearest to the point, else the one with the most spawns.
 local function BestSpot(i, set, pci, px, py, r2)
     local best, bestD, most, mostN
-    for k = N.first[i], N.first[i] + N.count[i] - 1 do
-        if not set or set[N.spotMap[k]] then
+    local first = Rec.first(i)
+    for k = first, first + Rec.count(i) - 1 do
+        if not set or set[Spot.map(k)] then
             local d
             if pci then
                 local ci, wx, wy = SpotWorld(k)
@@ -535,7 +578,8 @@ local function BestSpot(i, set, pci, px, py, r2)
             end
             if not r2 or (d and d <= r2) then
                 if d and (not bestD or d < bestD) then best, bestD = k, d end
-                if not most or N.spotN[k] > mostN then most, mostN = k, N.spotN[k] end
+                local spawns = Spot.spawns(k)
+                if not most or spawns > mostN then most, mostN = k, spawns end
             end
         end
     end
@@ -547,8 +591,9 @@ end
 -- those seconds; nil when none is along it.
 local function AlongSpot(i, set, along)
     local best, bestSec
-    for k = N.first[i], N.first[i] + N.count[i] - 1 do
-        if not set or set[N.spotMap[k]] then
+    local first = Rec.first(i)
+    for k = first, first + Rec.count(i) - 1 do
+        if not set or set[Spot.map(k)] then
             local ci, wx, wy = SpotWorld(k)
             local sec = ci and along(ci, wx, wy)
             if sec and (not bestSec or sec < bestSec) then best, bestSec = k, sec end
@@ -652,8 +697,9 @@ local function Row(i, k)
         for _, s in ipairs(ServiceWords()) do
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
         end
-        poi = { name = Name(i), category = "npc", isStatic = true, npcID = N.id[i], catalog = true,
-                displayID = N.display[i] ~= 0 and N.display[i] or nil,
+        local display = Rec.display(i)
+        poi = { name = Name(i), category = "npc", isStatic = true, npcID = Rec.id(i), catalog = true,
+                displayID = display ~= 0 and display or nil,
                 keywords = #keywords > 0 and keywords or nil }
         poi.baseKeywords = poi.keywords
         PreparePOI(poi)
@@ -724,7 +770,7 @@ local function Passes(i, f, horde)
             if not any then return false end
         end
     end
-    if f.reaction and f.reaction[mfloor(N.flags[i] / (horde and 32 or 8)) % 4] == false then return false end
+    if f.reaction and f.reaction[mfloor(Rec.flags(i) / (horde and 32 or 8)) % 4] == false then return false end
     return true
 end
 
@@ -914,7 +960,7 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         if s == 0 and j then s, byItem = N.itemScore[N.bestItem], true end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
-        if s > 0 and (service or byItem) and mfloor(N.flags[i] / (horde and 32 or 8)) % 4 == 2 then s = 0 end
+        if s > 0 and (service or byItem) and mfloor(Rec.flags(i) / (horde and 32 or 8)) % 4 == 2 then s = 0 end
         if s > 0 then
             n = n + 1
             hits[n] = i
