@@ -22,7 +22,10 @@ local ApplyResultShortcutGutter = Shortcuts.ApplyResultShortcutGutter
 local MAX_BUTTON_POOL = Render.MAX_BUTTON_POOL
 local MAX_SEARCH_RESULT_ROWS = Render.MAX_SEARCH_RESULT_ROWS
 local MAX_DEPTH = Render.MAX_DEPTH
+local PIN_SEP_HEIGHT = 9  -- 4px gap + 1px line + 4px gap
 local deferredRepRefreshPending = false
+-- Bumped per render: the rows past the viewport land a frame later.
+local renderGen = 0
 local repDeferredJustRan = false
 
 -- Single owner of the per-row viewport math: one visible row is the themed
@@ -185,6 +188,201 @@ function Render:ApplyResultsFrameLayout(resultsFrame, totalContentHeight,
     resultsFrame:Show()
 end
 
+-- One result row laid out at st.yOffset, which it advances; st carries
+-- the render's settings (ShowHierarchicalResults fills it).
+local function LayoutRow(owner, resultRow, i, st)
+    local entry = st.visible[i]
+    local data = entry.data
+    local depth = entry.depth or 0
+
+    -- Pin separator gap: add once at the transition row
+    if st.hasResultsAfterPins and i == st.lastPinIndex + 1 then
+        st.pinEndYOffset = st.yOffset
+        st.yOffset = st.yOffset + PIN_SEP_HEIGHT
+    end
+
+    -- Small gap between pinned items (not after pin header)
+    if entry.isPinned and i > 1 and st.visible[i - 1] and not st.visible[i - 1].isPinHeader then
+        st.yOffset = st.yOffset + 4
+    end
+
+    -- Reposition for theme row height. Flat-list entries are taller
+    -- to fit the name + path subtext stack with breathing room above
+    -- the name and below the path so neither bleeds into the rep bar.
+    local padL = st.theme.resultsPadLeft or 10
+    -- A section divider (a date line in the clipboard history) has
+    -- no text stack: the single-line height, not the flat two-line
+    -- one, or it opens a gap under whatever sits above it.
+    local entryRowH = (entry.isFlat and not entry.isSectionHeader) and (st.rowH + st.flatExtraH) or st.rowH
+    if data and data.calculatorResult and not entry.isPathNode then
+        -- Sized to fit the math card itself; the old 86 was sized
+        -- for card + launcher action bar combined, which is now a
+        -- separate row.
+        local calcRowH = mfloor(56 * st.fontScale + 0.5)
+        if calcRowH < 50 then calcRowH = 50 end
+        if entryRowH < calcRowH then entryRowH = calcRowH end
+    end
+    local rowContentTop = st.yOffset
+    resultRow:SetSize(st.resultsFrame:GetWidth() - padL * 2 - st.scrollInset, entryRowH)
+    resultRow:ClearAllPoints()
+    resultRow:SetPoint("TOPLEFT", st.resultsFrame.scrollChild, "TOPLEFT", padL, -st.yOffset)
+    st.rowIndex = i
+    st.entryRowH = entryRowH
+
+    -- Selection visual is now carried by the row's built-in
+    -- HighlightTexture (atlas set in CreateResultRow), shared
+    -- with mouse hover; no separate selectionHighlight texture.
+    if resultRow.UnlockHighlight and not resultRow._efContextMenuHeld then
+        Results:SetRowHighlightLocked(resultRow, false)
+    end
+
+    -- Always hide section-label visuals up front. The section-
+    -- header branch below re-shows them when applicable; rows
+    -- recycled from a previous section-header role would
+    -- otherwise leak the gold rules across normal rows.
+    if resultRow.sectionLabelText then
+        resultRow.sectionLabelText:Hide()
+        resultRow.sectionLabelLeft:Hide()
+        resultRow.sectionLabelRight:Hide()
+    end
+    if resultRow.calcCard then resultRow.calcCard:Hide() end
+    if resultRow.calcDivider then resultRow.calcDivider:Hide() end
+    if resultRow.calcDividerTop then resultRow.calcDividerTop:Hide() end
+    if resultRow.calcDividerBottom then resultRow.calcDividerBottom:Hide() end
+    if resultRow.calcArrowText then resultRow.calcArrowText:Hide() end
+    if resultRow.calcExpressionHighlight then resultRow.calcExpressionHighlight:Hide() end
+    if resultRow.calcResultHighlight then resultRow.calcResultHighlight:Hide() end
+    if resultRow.calcExpressionFlash then resultRow.calcExpressionFlash:Hide() end
+    if resultRow.calcResultFlash then resultRow.calcResultFlash:Hide() end
+    if resultRow.calcExpressionHint then resultRow.calcExpressionHint:Hide() end
+    if resultRow.calcResultHint then resultRow.calcResultHint:Hide() end
+    if resultRow.calcExpressionButton then resultRow.calcExpressionButton:Hide() end
+    if resultRow.calcResultButton then resultRow.calcResultButton:Hide() end
+
+    resultRow.data = data
+    -- Recycled rows can leak icon.mountID etc. into the OnEnter
+    -- tooltip; clear before the per-category branch sets fields.
+    if resultRow.icon then
+        Icons.ClearRowIconLeafIDs(resultRow.icon)
+    end
+    ApplySecureResultAttributes(resultRow, data)
+    resultRow.isPathNode = entry.isPathNode
+    resultRow.isSectionHeader = entry.isSectionHeader or false
+    resultRow.isPinHeader = entry.isPinHeader or false
+    resultRow.isPinned = entry.isPinned or false
+    resultRow.pathNodeName = entry.isPathNode and entry.name or nil
+    resultRow.pathNodeDepth = entry.isPathNode and depth or nil
+    if resultRow.pinIcon then resultRow.pinIcon:Hide() end
+    if resultRow.pinToggle then resultRow.pinToggle:Hide() end
+    if resultRow.pinHeaderLine then resultRow.pinHeaderLine:Hide() end
+    if resultRow.snippetCreateBadge then
+        local showCreate = data and data.snippetCreate or false
+        resultRow.snippetCreateBadge:SetShown(showCreate)
+        if resultRow.snippetCreateGlow then
+            resultRow.snippetCreateGlow:SetShown(showCreate)
+        end
+    end
+    resultRow._efShortcutIndex = nil
+    resultRow._efShortcutBindingReady = nil
+    resultRow._efContentTop = rowContentTop
+    resultRow._efContentBottom = rowContentTop + entryRowH
+    if resultRow.shortcutNumberText then resultRow.shortcutNumberText:SetText("") end
+    if resultRow.shortcutGroup then resultRow.shortcutGroup:Hide() end
+    RestoreResultShortcutGutter(resultRow)
+
+    for d = 1, MAX_DEPTH do
+        resultRow.treeVert[d]:Hide()
+        resultRow.treeElbow[d]:Hide()
+        resultRow.treeBranch[d]:Hide()
+    end
+
+    Render.TreeLines(resultRow, st, i, depth)
+
+    Render.ResultHeader(resultRow, entry, st, depth)
+
+    local isUnearnedCurrency = Render.IsUnearnedCurrencyEntry(entry, st)
+    resultRow.isUnearnedCurrency = isUnearnedCurrency
+    resultRow.isPathNode = entry.isPathNode  -- Store for tooltip text
+    local lockedReason
+    if not isUnearnedCurrency and data then
+        if data.quicklistMissing then
+            lockedReason = ns.L["QUICKLIST_ROW_MISSING"]
+        elseif data.quicklistHint then
+            lockedReason = data.name
+        else
+            lockedReason = Database:GetEntryLockedReason(data)
+        end
+    end
+    resultRow.lockedReason = lockedReason
+    -- An unearned title dims like any unavailable row, but is NOT
+    -- locked: its click still opens the achievement that awards it,
+    -- which is the whole point of listing it. lockedReason would have
+    -- suppressed that click, so the two are kept separate here.
+    local isInertRow = isUnearnedCurrency or lockedReason ~= nil
+        or (data and data.titleUnearned) or false
+
+    Render.BaseRowText(resultRow, entry, st)
+
+    local repSideBySide = Render.RowContent(owner, resultRow, entry, st, isInertRow)
+    if repSideBySide then st.anyRepSideBySide = true end
+
+    if resultRow._efDesat ~= isInertRow then
+        resultRow._efDesat = isInertRow
+        resultRow.icon:SetDesaturated(isInertRow)
+        if resultRow.flatCatIcon then
+            resultRow.flatCatIcon:SetDesaturated(isInertRow)
+        end
+    end
+    if isInertRow then
+        resultRow.icon:SetVertexColor(0.55, 0.55, 0.55, 1.0)
+        if resultRow.flatCatIcon then
+            resultRow.flatCatIcon:SetVertexColor(0.55, 0.55, 0.55, 1.0)
+        end
+    end
+
+    Render.ApplyFlatResultSizing(resultRow, entry, st)
+    Render.ApplyIconVisibility(resultRow, entry)
+
+    -- Flat-mode positioning fixup: category-specific blocks above
+    -- (currency, mount/toy/pet, loot, map, repBar) re-anchor text using
+    -- LEFT (vertical center) which collapses the name+path stack.
+    -- Re-apply flat anchoring last so layout is consistent across
+    -- all categories and the path subtext is bounded by the rep bar
+    -- when one is shown (so it stays out of the bar's horizontal area).
+    Render.ApplyFlatResultAnchoring(resultRow, entry, st)
+
+    Render.ApplyPinnedResultPrefix(resultRow, entry)
+    Render.ApplyGPSButton(resultRow, entry, st)
+
+    -- Per-row Apply / Reset extension for settings that staged
+    -- a pendingValue (CommitFlag.Apply -- graphics, resolution).
+    -- The extension sits BELOW the row as a separate visual
+    -- element so the row's own contents (icon, name, inline
+    -- editors) don't shift; only the y-cursor below advances to
+    -- make room.
+    local hasPendingApply = Render.GetResultPendingApply(data)
+    if resultRow.settingApplyExt then
+        resultRow.settingApplyExt:SetShown(hasPendingApply)
+    end
+
+    local actualH = Render.MeasureResultRowHeight(resultRow, entry, st)
+
+    Render.ApplyOffSpecResultStyle(resultRow, data)
+
+    -- Reserve y-cursor space for the apply extension (sits below
+    -- the row at -2 offset). Row's own bounds are unchanged.
+    if hasPendingApply and resultRow.settingApplyExtH then
+        actualH = actualH + resultRow.settingApplyExtH + 2
+    end
+    resultRow._efContentBottom = rowContentTop + actualH
+    if st.showShortcutHints and resultRow.data and not resultRow.isPinHeader
+       and not resultRow.isSectionHeader then
+        ApplyResultShortcutGutter(resultRow)
+    end
+    st.yOffset = st.yOffset + actualH
+    resultRow:Show()
+end
+
 function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if not hierarchical or #hierarchical == 0 then
         self:HideResults()
@@ -262,6 +460,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             end
         end
         if same then return end
+        renderGen = renderGen + 1
         if not last then last = {}; self._lastRenderSig = last end
         last.n = n
         last.theme = theme
@@ -446,7 +645,6 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     end
 
     -- Determine pin separator placement
-    local PIN_SEP_HEIGHT = 9  -- 4px gap + 1px line + 4px gap
     local lastPinIndex = 0
     local hasResultsAfterPins = false
     for i = 1, count do
@@ -458,12 +656,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         hasResultsAfterPins = true
     end
 
-    local yOffset = 0
-    local pinEndYOffset = 0
     local showShortcutHints = Render.ShouldShowShortcutHints()
-    wipe(SCRATCH.catSepYPositions)
-    local catSepYPositions = SCRATCH.catSepYPositions
-    local hasSideBySideRepBar = false
     local renderState = SCRATCH.renderState
     wipe(renderState)
     renderState.theme = theme
@@ -477,256 +670,82 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     renderState.count = count
     renderState.isLastChild = isLastChild
     renderState.hasSideBySideRepBar = false
-    for i = 1, MAX_BUTTON_POOL do
-        local resultRow = i <= count and Results:EnsureResultButton(i) or Search:GetResultButtons()[i]
-        if resultRow and i <= count then
-            local entry = visible[i]
-            local data = entry.data
-            local depth = entry.depth or 0
-
-            -- Pin separator gap: add once at the transition row
-            if hasResultsAfterPins and i == lastPinIndex + 1 then
-                pinEndYOffset = yOffset
-                yOffset = yOffset + PIN_SEP_HEIGHT
-            end
-
-            -- Small gap between pinned items (not after pin header)
-            if entry.isPinned and i > 1 and visible[i - 1] and not visible[i - 1].isPinHeader then
-                yOffset = yOffset + 4
-            end
-
-            -- Reposition for theme row height. Flat-list entries are taller
-            -- to fit the name + path subtext stack with breathing room above
-            -- the name and below the path so neither bleeds into the rep bar.
-            local padL = theme.resultsPadLeft or 10
-            -- A section divider (a date line in the clipboard history) has
-            -- no text stack: the single-line height, not the flat two-line
-            -- one, or it opens a gap under whatever sits above it.
-            local entryRowH = (entry.isFlat and not entry.isSectionHeader) and (rowH + flatExtraH) or rowH
-            if data and data.calculatorResult and not entry.isPathNode then
-                -- Sized to fit the math card itself; the old 86 was sized
-                -- for card + launcher action bar combined, which is now a
-                -- separate row.
-                local calcRowH = mfloor(56 * fontScale + 0.5)
-                if calcRowH < 50 then calcRowH = 50 end
-                if entryRowH < calcRowH then entryRowH = calcRowH end
-            end
-            local rowContentTop = yOffset
-            resultRow:SetSize(resultsFrame:GetWidth() - padL * 2 - scrollInset, entryRowH)
-            resultRow:ClearAllPoints()
-            resultRow:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", padL, -yOffset)
-            renderState.rowIndex = i
-            renderState.entryRowH = entryRowH
-
-            -- Selection visual is now carried by the row's built-in
-            -- HighlightTexture (atlas set in CreateResultRow), shared
-            -- with mouse hover; no separate selectionHighlight texture.
-            if resultRow.UnlockHighlight and not resultRow._efContextMenuHeld then
-                Results:SetRowHighlightLocked(resultRow, false)
-            end
-
-            -- Always hide section-label visuals up front. The section-
-            -- header branch below re-shows them when applicable; rows
-            -- recycled from a previous section-header role would
-            -- otherwise leak the gold rules across normal rows.
-            if resultRow.sectionLabelText then
-                resultRow.sectionLabelText:Hide()
-                resultRow.sectionLabelLeft:Hide()
-                resultRow.sectionLabelRight:Hide()
-            end
-            if resultRow.calcCard then resultRow.calcCard:Hide() end
-            if resultRow.calcDivider then resultRow.calcDivider:Hide() end
-            if resultRow.calcDividerTop then resultRow.calcDividerTop:Hide() end
-            if resultRow.calcDividerBottom then resultRow.calcDividerBottom:Hide() end
-            if resultRow.calcArrowText then resultRow.calcArrowText:Hide() end
-            if resultRow.calcExpressionHighlight then resultRow.calcExpressionHighlight:Hide() end
-            if resultRow.calcResultHighlight then resultRow.calcResultHighlight:Hide() end
-            if resultRow.calcExpressionFlash then resultRow.calcExpressionFlash:Hide() end
-            if resultRow.calcResultFlash then resultRow.calcResultFlash:Hide() end
-            if resultRow.calcExpressionHint then resultRow.calcExpressionHint:Hide() end
-            if resultRow.calcResultHint then resultRow.calcResultHint:Hide() end
-            if resultRow.calcExpressionButton then resultRow.calcExpressionButton:Hide() end
-            if resultRow.calcResultButton then resultRow.calcResultButton:Hide() end
-
-            resultRow.data = data
-            -- Recycled rows can leak icon.mountID etc. into the OnEnter
-            -- tooltip; clear before the per-category branch sets fields.
-            if resultRow.icon then
-                Icons.ClearRowIconLeafIDs(resultRow.icon)
-            end
-            ApplySecureResultAttributes(resultRow, data)
-            resultRow.isPathNode = entry.isPathNode
-            resultRow.isSectionHeader = entry.isSectionHeader or false
-            resultRow.isPinHeader = entry.isPinHeader or false
-            resultRow.isPinned = entry.isPinned or false
-            resultRow.pathNodeName = entry.isPathNode and entry.name or nil
-            resultRow.pathNodeDepth = entry.isPathNode and depth or nil
-            if resultRow.pinIcon then resultRow.pinIcon:Hide() end
-            if resultRow.pinToggle then resultRow.pinToggle:Hide() end
-            if resultRow.pinHeaderLine then resultRow.pinHeaderLine:Hide() end
-            if resultRow.snippetCreateBadge then
-                local showCreate = data and data.snippetCreate or false
-                resultRow.snippetCreateBadge:SetShown(showCreate)
-                if resultRow.snippetCreateGlow then
-                    resultRow.snippetCreateGlow:SetShown(showCreate)
-                end
-            end
-            resultRow._efShortcutIndex = nil
-            resultRow._efShortcutBindingReady = nil
-            resultRow._efContentTop = rowContentTop
-            resultRow._efContentBottom = rowContentTop + entryRowH
-            if resultRow.shortcutNumberText then resultRow.shortcutNumberText:SetText("") end
-            if resultRow.shortcutGroup then resultRow.shortcutGroup:Hide() end
-            RestoreResultShortcutGutter(resultRow)
-
-            for d = 1, MAX_DEPTH do
-                resultRow.treeVert[d]:Hide()
-                resultRow.treeElbow[d]:Hide()
-                resultRow.treeBranch[d]:Hide()
-            end
-
-            Render.TreeLines(resultRow, renderState, i, depth)
-
-            Render.ResultHeader(resultRow, entry, renderState, depth)
-
-            local isUnearnedCurrency = Render.IsUnearnedCurrencyEntry(entry, renderState)
-            resultRow.isUnearnedCurrency = isUnearnedCurrency
-            resultRow.isPathNode = entry.isPathNode  -- Store for tooltip text
-            local lockedReason
-            if not isUnearnedCurrency and data then
-                if data.quicklistMissing then
-                    lockedReason = ns.L["QUICKLIST_ROW_MISSING"]
-                elseif data.quicklistHint then
-                    lockedReason = data.name
-                else
-                    lockedReason = Database:GetEntryLockedReason(data)
-                end
-            end
-            resultRow.lockedReason = lockedReason
-            -- An unearned title dims like any unavailable row, but is NOT
-            -- locked: its click still opens the achievement that awards it,
-            -- which is the whole point of listing it. lockedReason would have
-            -- suppressed that click, so the two are kept separate here.
-            local isInertRow = isUnearnedCurrency or lockedReason ~= nil
-                or (data and data.titleUnearned) or false
-
-            Render.BaseRowText(resultRow, entry, renderState)
-
-            local repSideBySide = Render.RowContent(self, resultRow, entry, renderState, isInertRow)
-            if repSideBySide then hasSideBySideRepBar = true end
-
-            if resultRow._efDesat ~= isInertRow then
-                resultRow._efDesat = isInertRow
-                resultRow.icon:SetDesaturated(isInertRow)
-                if resultRow.flatCatIcon then
-                    resultRow.flatCatIcon:SetDesaturated(isInertRow)
-                end
-            end
-            if isInertRow then
-                resultRow.icon:SetVertexColor(0.55, 0.55, 0.55, 1.0)
-                if resultRow.flatCatIcon then
-                    resultRow.flatCatIcon:SetVertexColor(0.55, 0.55, 0.55, 1.0)
-                end
-            end
-
-            Render.ApplyFlatResultSizing(resultRow, entry, renderState)
-            Render.ApplyIconVisibility(resultRow, entry)
-
-            -- Flat-mode positioning fixup: category-specific blocks above
-            -- (currency, mount/toy/pet, loot, map, repBar) re-anchor text using
-            -- LEFT (vertical center) which collapses the name+path stack.
-            -- Re-apply flat anchoring last so layout is consistent across
-            -- all categories and the path subtext is bounded by the rep bar
-            -- when one is shown (so it stays out of the bar's horizontal area).
-            Render.ApplyFlatResultAnchoring(resultRow, entry, renderState)
-
-            Render.ApplyPinnedResultPrefix(resultRow, entry)
-            Render.ApplyGPSButton(resultRow, entry, renderState)
-
-            -- Per-row Apply / Reset extension for settings that staged
-            -- a pendingValue (CommitFlag.Apply -- graphics, resolution).
-            -- The extension sits BELOW the row as a separate visual
-            -- element so the row's own contents (icon, name, inline
-            -- editors) don't shift; only the y-cursor below advances to
-            -- make room.
-            local hasPendingApply = Render.GetResultPendingApply(data)
-            if resultRow.settingApplyExt then
-                resultRow.settingApplyExt:SetShown(hasPendingApply)
-            end
-
-            local actualH = Render.MeasureResultRowHeight(resultRow, entry, renderState)
-
-            Render.ApplyOffSpecResultStyle(resultRow, data)
-
-            -- Reserve y-cursor space for the apply extension (sits below
-            -- the row at -2 offset). Row's own bounds are unchanged.
-            if hasPendingApply and resultRow.settingApplyExtH then
-                actualH = actualH + resultRow.settingApplyExtH + 2
-            end
-            resultRow._efContentBottom = rowContentTop + actualH
-            if showShortcutHints and resultRow.data and not resultRow.isPinHeader
-               and not resultRow.isSectionHeader then
-                ApplyResultShortcutGutter(resultRow)
-            end
-            yOffset = yOffset + actualH
-            resultRow:Show()
-        elseif resultRow then
-            Render.HideUnusedResultRow(resultRow)
+    local st = renderState
+    st.yOffset, st.pinEndYOffset = 0, 0
+    st.hasResultsAfterPins, st.lastPinIndex = hasResultsAfterPins, lastPinIndex
+    st.showShortcutHints, st.flatExtraH = showShortcutHints, flatExtraH
+    st.scrollInset, st.resultsFrame = scrollInset, resultsFrame
+    st.anyRepSideBySide = false
+    -- Rows past the viewport wait a frame: all fifteen in the keystroke's
+    -- frame were 20-25 ms of item rows. The viewport fills first, so
+    -- nothing on screen waits; the rows that wait are hidden meanwhile.
+    local split = count
+    for i = 1, count do
+        LayoutRow(self, Results:EnsureResultButton(i), i, st)
+        if i < count and st.yOffset > maxVisibleHeight + rowH then
+            split = i
+            break
+        end
+    end
+    local buttons = Search:GetResultButtons()
+    for i = split + 1, MAX_BUTTON_POOL do
+        local resultRow = buttons[i]
+        if resultRow then
+            if i <= count then resultRow:Hide() else Render.HideUnusedResultRow(resultRow) end
         end
     end
 
-    -- Show/hide pin separator between pinned items and search results
-    if resultsFrame.pinSeparator then
-        if hasResultsAfterPins then
-            resultsFrame.pinSeparator:ClearAllPoints()
-            resultsFrame.pinSeparator:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, -pinEndYOffset - 4)
-            resultsFrame.pinSeparator:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, -pinEndYOffset - 4)
-            resultsFrame.pinSeparator:Show()
-        else
-            resultsFrame.pinSeparator:Hide()
-        end
-    end
-
-    -- Show/hide category separator lines (between Search, Mount, Toy groups)
-    if resultsFrame.categorySeps then
-        for si = 1, #resultsFrame.categorySeps do
-            local sep = resultsFrame.categorySeps[si]
-            if catSepYPositions[si] then
-                sep:ClearAllPoints()
-                sep:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, -catSepYPositions[si] - 4)
-                sep:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, -catSepYPositions[si] - 4)
-                sep:Show()
+    -- Separators, the frame's height and scroll range, shortcuts: after the
+    -- viewport's rows, and again once the rows that waited are in.
+    local function finish(preserve)
+        if resultsFrame.pinSeparator then
+            if hasResultsAfterPins then
+                resultsFrame.pinSeparator:ClearAllPoints()
+                resultsFrame.pinSeparator:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, -st.pinEndYOffset - 4)
+                resultsFrame.pinSeparator:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, -st.pinEndYOffset - 4)
+                resultsFrame.pinSeparator:Show()
             else
-                sep:Hide()
+                resultsFrame.pinSeparator:Hide()
+            end
+        end
+        if resultsFrame.categorySeps then
+            for si = 1, #resultsFrame.categorySeps do resultsFrame.categorySeps[si]:Hide() end
+        end
+        Render:ApplyResultsFrameLayout(resultsFrame, st.yOffset, maxVisibleHeight,
+            padT, padB, scrollInset, preserve)
+        self:UpdateVisibleResultShortcuts()
+
+        -- If any rep bar row is in side-by-side mode, schedule one deferred re-render so
+        -- IsTruncated() can reflect the layout we just set (it reads the previous frame's state).
+        -- CONVERGENCE LATCH: the re-render this schedules still sees the same
+        -- side-by-side row, so without the latch it re-scheduled itself every
+        -- frame forever. The deferred pass consumes the latch and does not
+        -- re-arm; any later USER-driven render arms it fresh.
+        if st.anyRepSideBySide and not deferredRepRefreshPending then
+            if repDeferredJustRan then
+                repDeferredJustRan = false
+            else
+                deferredRepRefreshPending = true
+                local selfRef = self
+                ns.Utils.SafeAfter(0, function()
+                    deferredRepRefreshPending = false
+                    repDeferredJustRan = true
+                    selfRef:RefreshResults()
+                end)
             end
         end
     end
+    finish(preserveScroll)
 
-    Render:ApplyResultsFrameLayout(resultsFrame, yOffset, maxVisibleHeight,
-        padT, padB, scrollInset, preserveScroll)
-    self:UpdateVisibleResultShortcuts()
-
-    -- If any rep bar row is in side-by-side mode, schedule one deferred re-render so
-    -- IsTruncated() can reflect the layout we just set (it reads the previous frame's state).
-    -- CONVERGENCE LATCH: the re-render this schedules still sees the same
-    -- side-by-side row, so without the latch it re-scheduled itself every
-    -- frame forever -- a full 15-row re-render at frame rate whenever a
-    -- rep row was visible (the measured 360 renders / 6s idle loop, and
-    -- the 30-90MB GC sawtooth its allocations produced). The deferred
-    -- pass consumes the latch and does not re-arm; any later USER-driven
-    -- render arms it fresh.
-    if hasSideBySideRepBar and not deferredRepRefreshPending then
-        if repDeferredJustRan then
-            repDeferredJustRan = false
-        else
-            deferredRepRefreshPending = true
-            local selfRef = self
-            ns.Utils.SafeAfter(0, function()
-                deferredRepRefreshPending = false
-                repDeferredJustRan = true
-                selfRef:RefreshResults()
-            end)
-        end
+    if split < count then
+        local gen = renderGen
+        ns.Utils.SafeAfter(0, function()
+            if gen ~= renderGen or InCombatLockdown() or not resultsFrame:IsShown() then return end
+            for i = split + 1, count do
+                LayoutRow(self, Results:EnsureResultButton(i), i, st)
+            end
+            finish(true)
+        end)
     end
 
     Search:SetSelectedIndex(0)
