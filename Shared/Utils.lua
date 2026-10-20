@@ -2311,9 +2311,8 @@ ns.UPDATE_NOTICE_FONT_SCALE = 0.85
 ns.UPDATE_NOTICE_BOTTOM_PAD = 6
 -- Gap between the last result row and the notice; deliberately slim.
 ns.UPDATE_NOTICE_TOP_PAD = 1
--- The options window and the tutorial wizard share one silhouette on
--- purpose; both frames read this pair. Height grows by one 28px settings
--- row (408, 436, 464) each time the tabs run out of room.
+-- The options window: its height grows by one 28px settings row each time
+-- its tabs run out of room.
 ns.OPTIONS_WINDOW_W = 544
 -- Room for General's six keybindings above its reset row (Classic chrome's too).
 ns.OPTIONS_WINDOW_H = 494
