@@ -1031,10 +1031,9 @@ function GPS:NavigateTo(data, opts)
     local db = DB()
     if not db then return false end
     local dest = Destination(data)
-    -- Started from the window: it shows there; the map is not opened.
-    -- Started from the main search bar: the window opens, not the map.
+    -- Started from the main search bar: the window, not the map.
     if opts and opts.popout then
-        self:TogglePopout(true)
+        self:ShowWindow()
     elseif not (opts and opts.quiet) then
         self:Open()
     end
@@ -4091,6 +4090,12 @@ function GPS:OpenWindow()
         return
     end
     GPS:TogglePopout(true)
+end
+
+-- A route started from a search row: a window on screen stays where it
+-- is, snapped in or floating; else it opens as it was left.
+function GPS:ShowWindow()
+    if not self:IsWindowOpen() then self:OpenWindow() end
 end
 
 -- Closed where it is: a snapped-in section snaps back in on the next open.

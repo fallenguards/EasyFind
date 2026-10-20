@@ -181,7 +181,7 @@ function tests.settingsWithPicksAreFlyouts()
     H.assertTrue(height[1].picked and not height[2].picked, "fit to steps, as no height is set")
 end
 
--- GPS:OpenWindow and GPS:CloseWindow cut from GPS.lua over a stub section
+-- GPS:OpenWindow to GPS:CloseWindow cut from GPS.lua over a stub section
 -- and window: what shows, and what the saved state says.
 local function Windows(db)
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
@@ -204,6 +204,7 @@ local function Windows(db)
         db.gpsDocked = nil
         dock.docked, dock.shown = nil, false
     end
+    function GPS:IsWindowOpen() return dock.shown or window.shown end
     -- As GPS:TogglePopout: showing the window leaves the tracker.
     function GPS:TogglePopout(show)
         if show and db.gpsDocked then self:Undock() end
@@ -239,6 +240,25 @@ function tests.closedWindowOpensAsTheWindow()
     H.assertFalse(window.shown)
     GPS:OpenWindow()
     H.assertTrue(window.shown and not dock.shown, "the window again")
+end
+
+-- A route from a search row: snapped in, it stays in the tracker.
+function tests.routeFromARowKeepsItSnappedIn()
+    local db = { gpsDocked = true }
+    local GPS, dock, window = Windows(db)
+    GPS:OpenWindow()
+    GPS:ShowWindow()
+    H.assertTrue(dock.shown and db.gpsDocked and not window.shown, "still snapped in")
+    GPS:CloseWindow()
+    GPS:ShowWindow()
+    H.assertTrue(dock.shown and not window.shown, "closed, it opens snapped in")
+end
+
+function tests.routeFromARowKeepsTheWindow()
+    local db = {}
+    local GPS, dock, window = Windows(db)
+    GPS:ShowWindow()
+    H.assertTrue(window.shown and not dock.shown, "the window")
 end
 
 function tests.snappingOffOpensTheWindow()
