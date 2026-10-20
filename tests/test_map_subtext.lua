@@ -38,5 +38,14 @@ function tests.mapRows_ofAnUnnamedKind_keepThePlace()
         "Valdrakken")
 end
 
+-- A list of a kind of place (repair) comes nearest first: how far leads.
+function tests.mapRows_ofAKindQuery_leadWithHowFar()
+    ns.L["GPS_UNIT_YD"] = "%d yd"
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Orgrimmar",
+        nearYards = 119.6 }), "120 yd, MAP_KIND_NPC: Orgrimmar")
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Orgrimmar" }),
+        "MAP_KIND_NPC: Orgrimmar", "no distance: as before")
+end
+
 local pass, fail, failures = H.runSuite("MapSubtext", tests)
 return { pass = pass, fail = fail, failures = failures }

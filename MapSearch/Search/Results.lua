@@ -576,9 +576,12 @@ function MapSearch:SplitUIRowsByZone(entries)
     end
 end
 
--- A bar row's data from a scored map row.
-local function FillUIRow(d, r, searchMapID, query)
+-- A bar row's data from a scored map row. showNear: the row says how far
+-- it is (a list of a kind of place, nearest first).
+local function FillUIRow(d, r, searchMapID, query, showNear)
     local cat = r.category or "location"
+    local near = showNear and nearOf[r]
+    d.nearYards = near and near < FAR and near ^ 0.5 or nil
     d.name = r.name
     d.nameLower = GetNameLower(r)
     d.category = cat
@@ -703,6 +706,7 @@ function MapSearch:SearchForUI(query)
 
     local results = reuseUISearchResults
     local resultCap = mmin(#scored, UI_MAP_RESULT_CAP)
+    local kindQuery = self:IsKindQuery(query)
     for ri = 1, resultCap do
         local r = scored[ri]
         local d = reuseUISearchResultData[ri]
@@ -710,7 +714,7 @@ function MapSearch:SearchForUI(query)
             d = {}
             reuseUISearchResultData[ri] = d
         end
-        FillUIRow(d, r, searchMapID, query)
+        FillUIRow(d, r, searchMapID, query, kindQuery)
         d.mapRank, d.mapNear = ri, nearOf[r] or FAR
         local out = results[ri]
         if not out then
@@ -772,7 +776,7 @@ function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, local
                             d = {}
                             reuseUICategoryData[n] = d
                         end
-                        FillUIRow(d, r, mapID, text)
+                        FillUIRow(d, r, mapID, text, true)
                         out[n] = d
                     end
                 end

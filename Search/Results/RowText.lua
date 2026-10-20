@@ -146,6 +146,33 @@ local function MapKind(data)
     return key and L[key] or nil
 end
 
+-- A map row's subtext: its kind and zone, or what it sells.
+local function MapSubtext(data)
+    local typeLabel = MapKind(data)
+    -- Use only the immediate parent zone, not the full continent path.
+    -- pathPrefix can be "Continent > Region > Zone"; take the last segment.
+    local zone = data.zoneName or data.pathPrefix
+    if zone then
+        local lastSep = zone:find(">[^>]*$")
+        if lastSep then
+            zone = zone:sub(lastSep + 1):match("^%s*(.-)%s*$")
+        end
+    end
+    -- A vendor whose stock holds what was typed: its kind, where, the item.
+    if data.soldName and typeLabel and zone and zone ~= "" then
+        return sformat(L["NPC_SUBTEXT_SELLS_FMT"], typeLabel, zone, data.soldName)
+    end
+    if data.matchNote then
+        return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
+    end
+    if typeLabel and zone and zone ~= "" then
+        return typeLabel .. ": " .. zone
+    elseif typeLabel then
+        return typeLabel
+    end
+    return zone or _G["WORLD_MAP"] or "Map"
+end
+
 function Text:GetFlatSubtext(data)
     if not data then return "" end
     if data.calculatorResult then return L["SUBTEXT_EXPRESSION"] end
@@ -160,29 +187,11 @@ function Text:GetFlatSubtext(data)
         return data.path[#data.path]
     end
     if data.mapSearchResult then
-        local typeLabel = MapKind(data)
-        -- Use only the immediate parent zone, not the full continent path.
-        -- pathPrefix can be "Continent > Region > Zone"; take the last segment.
-        local zone = data.zoneName or data.pathPrefix
-        if zone then
-            local lastSep = zone:find(">[^>]*$")
-            if lastSep then
-                zone = zone:sub(lastSep + 1):match("^%s*(.-)%s*$")
-            end
-        end
-        -- A vendor whose stock holds what was typed: its kind, where, the item.
-        if data.soldName and typeLabel and zone and zone ~= "" then
-            return sformat(L["NPC_SUBTEXT_SELLS_FMT"], typeLabel, zone, data.soldName)
-        end
-        if data.matchNote then
-            return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
-        end
-        if typeLabel and zone and zone ~= "" then
-            return typeLabel .. ": " .. zone
-        elseif typeLabel then
-            return typeLabel
-        end
-        return zone or _G["WORLD_MAP"] or "Map"
+        local text = MapSubtext(data)
+        -- A list of a kind of place (repair, ammo) comes nearest first:
+        -- each row says how far, ahead of the rest so it is never cut.
+        if data.nearYards then return sformat(L["GPS_UNIT_YD"], math.floor(data.nearYards + 0.5)) .. ", " .. text end
+        return text
     end
     if data.mountID then return _G["MOUNT"] or "Mount" end
     if data.toyItemID then return _G["TOY"] or "Toy" end
