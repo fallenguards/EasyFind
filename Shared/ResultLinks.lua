@@ -800,6 +800,15 @@ function ResultLinks:AttachHyperlinks(frame)
     end)
     frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
         if IsOurLink(link) and button ~= "LeftButton" then return end
+        -- Ctrl+right-click opens the item's or spell's note, as on a bag
+        -- item; the game would dress the item up instead.
+        if button == "RightButton" and IsControlKeyDown() and not IsShiftKeyDown() and not IsAltKeyDown() then
+            local kind, id = tostring(link):match("^(%a+):(%d+)")
+            if (kind == "item" or kind == "spell") and EasyFind.OpenObjectNote then
+                EasyFind:OpenObjectNote(kind, tonumber(id), type(text) == "string" and text:match("%[(.-)%]") or nil)
+                return
+            end
+        end
         if _G["SetItemRef"] then _G["SetItemRef"](link, text, button, self) end
     end)
 end
