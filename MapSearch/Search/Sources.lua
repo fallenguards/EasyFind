@@ -800,8 +800,6 @@ function MapSearch:WarmUISearchCaches()
         GetLocalScans(self, mapID)
         self:GetStaticLocations(mapID)
     end
-    -- The creature catalog unpacks here, not on the first query that reaches it.
-    if self.WarmNpcRows then self.WarmNpcRows() end
 end
 
 

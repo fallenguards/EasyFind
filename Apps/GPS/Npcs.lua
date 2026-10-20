@@ -1128,4 +1128,3 @@ end
 
 MapSearch.AppendNpcRows = N.Append
 MapSearch.NpcKindQuery = N.KindQuery
-MapSearch.WarmNpcRows = Load
