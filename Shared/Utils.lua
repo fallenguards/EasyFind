@@ -241,12 +241,14 @@ end
 -- Emits every field into one flat buffer and concatenates once, rather than
 -- building a throwaway string per row: on a 5000-row cache that is 5000 fewer
 -- allocations, and this garbage lands on the shared heap every addon pays to
--- collect.
-function Utils.PackRows(rows, spec)
+-- collect. sliced: the caller's sliced run has no pcall around this call,
+-- so the row loop may yield (the corpus builders take the same flag).
+function Utils.PackRows(rows, spec, sliced)
     if type(rows) ~= "table" or type(spec) ~= "table" then return "" end
     local specLen = #spec
     local parts, n = {}, 0
     for i = 1, #rows do
+        if sliced and i % 64 == 0 then Utils.SliceCheckpoint() end
         local row = rows[i]
         if type(row) == "table" then
             if n > 0 then
@@ -475,9 +477,10 @@ end
 -- Decodes every row into one reused scratch table for inclusion filters.
 -- The scratch is only valid inside the callback. wanted (optional) limits
 -- decoding to those field names.
-function Corpus:EachRow(fn, wanted)
+function Corpus:EachRow(fn, wanted, sliced)
     local scratch = {}
     for ri = 1, self.count do
+        if sliced and ri % 64 == 0 then Utils.SliceCheckpoint() end
         wipe(scratch)
         fn(ri, CorpusDecodeRow(self, ri, scratch, wanted))
     end
@@ -570,6 +573,7 @@ function Utils.NewPackedCorpus(packed, spec, proto, opts)
     end
     corpus.nameIdx = nameIdx
 
+    local sliced = opts and opts.sliced
     local offsets, rowN = {}, 0
     local blob = corpus.packed
     if blob ~= "" then
@@ -580,6 +584,7 @@ function Utils.NewPackedCorpus(packed, spec, proto, opts)
             offsets[rowN] = pos
             local rowSep = sfind(blob, SEP_ROW, pos, true)
             pos = (rowSep or blobLen) + 1
+            if sliced and rowN % 256 == 0 then Utils.SliceCheckpoint() end
         end
     end
     corpus.offsets = offsets
@@ -617,6 +622,7 @@ function Utils.NewPackedCorpus(packed, spec, proto, opts)
             for k in pairs(corpus.keywordFields) do maskWanted[k] = true end
         end
         for ri = 1, rowN do
+            if sliced and ri % 64 == 0 then Utils.SliceCheckpoint() end
             local cm, im = protoCm, protoIm
             if maskScratch then
                 wipe(maskScratch)
@@ -672,6 +678,7 @@ function Utils.NewPackedCorpus(packed, spec, proto, opts)
             if fieldIdx then
                 local arr = {}
                 for ri = 1, rowN do
+                    if sliced and ri % 64 == 0 then Utils.SliceCheckpoint() end
                     local chunk = CorpusFieldChunk(corpus, ri, fieldIdx)
                     if chunk then arr[ri] = DecodeScalar(chunk) end
                 end
@@ -765,9 +772,11 @@ function Utils.RunSliced(fn, onDone, budgetMs)
     function handle:Cancel() handle.cancelled = true end
     local pump
     local pumpStart
-    local function step(ok, ...)
-        frameSpent = frameSpent + (dpstop() - pumpStart)
-        sliceDeadline = nil
+    -- outer: the deadline of a sliced run this one started inside, which
+    -- keeps slicing after this returns and counts this one's time itself.
+    local function step(outer, ok, ...)
+        if not outer then frameSpent = frameSpent + (dpstop() - pumpStart) end
+        sliceDeadline = outer
         if not ok then
             slicedDone(onDone, false, ...)
             return
@@ -792,9 +801,11 @@ function Utils.RunSliced(fn, onDone, budgetMs)
         local allowance = budgetMs
         local remaining = FRAME_CAP_MS - frameSpent
         if remaining < allowance then allowance = remaining end
+        local outer = sliceDeadline
         pumpStart = dpstop()
         sliceDeadline = pumpStart + allowance
-        step(coroutine.resume(co))
+        if outer and outer < sliceDeadline then sliceDeadline = outer end
+        step(outer, coroutine.resume(co))
     end
     pump()
     return handle

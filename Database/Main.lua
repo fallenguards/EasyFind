@@ -1715,7 +1715,7 @@ function Corpora.MountCorpusFor(packed)
     local corpus = Utils.GetCorpus("mounts")
     if not (corpus and corpus.packed == packed) then
         corpus = Utils.NewPackedCorpus(packed, MOUNT_ROW_SPEC, MOUNT_PROTO,
-            { computed = Corpora.MOUNT_COMPUTED })
+            { computed = Corpora.MOUNT_COMPUTED, sliced = true })
         Utils.RegisterCorpus("mounts", corpus)
     end
     return corpus
@@ -1738,7 +1738,7 @@ function Corpora.InsertMountStubs(corpus)
     corpus:EachRow(function(ri, row)
         inserted = inserted + Corpora.MountIncludeRow(corpus, ri, row, typeFilterActive)
     end, { name = true, mountID = true, isCollected = true, isUsable = true,
-           shouldHideOnChar = true, mountSourceType = true })
+           shouldHideOnChar = true, mountSourceType = true }, true)
     return inserted
 end
 
@@ -1939,7 +1939,7 @@ local function PersistHousingCache(entries, guid)
     db.housingCache = {
         version = ns.HOUSING_CACHE_VER,
         guid = guid,
-        packed = Utils.PackRows(entries, HOUSING_ROW_SPEC),
+        packed = Utils.PackRows(entries, HOUSING_ROW_SPEC, true),
     }
     db.housingCacheVer = ns.HOUSING_CACHE_VER
 end
@@ -1958,7 +1958,7 @@ local function HydratePersistedHousingCache()
     -- The blob stays the store: stubs hydrate on demand (the whole
     -- category is small, but the unpack transient and repopulate churn
     -- are not).
-    local corpus = Utils.NewPackedCorpus(saved.packed, HOUSING_ROW_SPEC, HOUSING_PROTO)
+    local corpus = Utils.NewPackedCorpus(saved.packed, HOUSING_ROW_SPEC, HOUSING_PROTO, { sliced = true })
     if corpus.count == 0 then return false end
     Utils.RegisterCorpus("housing", corpus)
 
@@ -1969,7 +1969,7 @@ local function HydratePersistedHousingCache()
             uiSearchData[#uiSearchData + 1] = corpus:StubAt(ri)
             inserted = inserted + 1
         end
-    end, { name = true, housingEntryID = true })
+    end, { name = true, housingEntryID = true }, true)
     if inserted == 0 then return false end
     if Database.ResetSearchCache then Database:ResetSearchCache() end
     return true
@@ -1986,43 +1986,58 @@ function Database:FinishHousingResults(done)
         done(false, "cancelled")
         return
     end
-    -- Build the replacement set fully before touching uiSearchData. A
-    -- repopulate can land mid-search (HOUSING_STORAGE_UPDATED marks the
-    -- provider dirty liberally), and wiping before the searcher proves it
-    -- has data made live results vanish until the next retry.
-    local GetCatalogEntryInfo = C_HousingCatalog.GetCatalogEntryInfo
-    local fresh = {}
-    for i = 1, #entryIDs do
-        local okInfo, info = pcall(GetCatalogEntryInfo, entryIDs[i])
-        if okInfo and info and info.name and info.name ~= "" then
-            fresh[#fresh + 1] = setmetatable({
-                name = info.name,
-                nameLower = slower(info.name),
-                icon = info.iconTexture,
-                housingEntryID = entryIDs[i],
-                housingRecordID = info.recordID,
-                housingNumStored = info.totalNumStored,
-                housingNumPlaced = info.totalNumPlaced,
-                housingQuality = info.quality,
-                housingSourceText = info.sourceText,
-                isRoom = info.entryType == HOUSING_ROOM_TYPE or nil,
-            }, HOUSING_MT)
+    -- Its own sliced run: the client can deliver results inside our
+    -- pcall'd RunSearch, where nothing may yield. A newer result set
+    -- supersedes one still building.
+    Corpora.housingFinishGen = (Corpora.housingFinishGen or 0) + 1
+    local gen = Corpora.housingFinishGen
+    Utils.RunSliced(function()
+        -- Build the replacement set fully before touching uiSearchData. A
+        -- repopulate can land mid-search (HOUSING_STORAGE_UPDATED marks the
+        -- provider dirty liberally), and wiping before the searcher proves it
+        -- has data made live results vanish until the next retry.
+        local GetCatalogEntryInfo = C_HousingCatalog.GetCatalogEntryInfo
+        local fresh = {}
+        for i = 1, #entryIDs do
+            if i % 64 == 0 then Utils.SliceCheckpoint() end
+            local okInfo, info = pcall(GetCatalogEntryInfo, entryIDs[i])
+            if okInfo and info and info.name and info.name ~= "" then
+                fresh[#fresh + 1] = setmetatable({
+                    name = info.name,
+                    nameLower = slower(info.name),
+                    icon = info.iconTexture,
+                    housingEntryID = entryIDs[i],
+                    housingRecordID = info.recordID,
+                    housingNumStored = info.totalNumStored,
+                    housingNumPlaced = info.totalNumPlaced,
+                    housingQuality = info.quality,
+                    housingSourceText = info.sourceText,
+                    isRoom = info.entryType == HOUSING_ROOM_TYPE or nil,
+                }, HOUSING_MT)
+            end
         end
-    end
-    -- Zero entries usually means the catalog wasn't streamed in yet (login
-    -- warm path). Keep the existing entries and report "cancelled" so the
-    -- provider stays dirty and retries on the next query instead of caching
-    -- an empty category all session.
-    if #fresh == 0 then
-        done(false, "cancelled")
-        return
-    end
-    RemoveEntriesByCategory("Housing")
-    for i = 1, #fresh do
-        uiSearchData[#uiSearchData + 1] = fresh[i]
-    end
-    PersistHousingCache(fresh, UnitGUID and UnitGUID("player"))
-    done(true)
+        -- Zero entries usually means the catalog wasn't streamed in yet (login
+        -- warm path). Keep the existing entries and report "cancelled" so the
+        -- provider stays dirty and retries on the next query instead of caching
+        -- an empty category all session.
+        if #fresh == 0 or gen ~= Corpora.housingFinishGen then return "cancelled" end
+        PersistHousingCache(fresh, UnitGUID and UnitGUID("player"))
+        if gen ~= Corpora.housingFinishGen then return "cancelled" end
+        -- The swap and the completion share one slice, so the populate
+        -- bookkeeping is never left set across frames.
+        RemoveEntriesByCategory("Housing")
+        for i = 1, #fresh do
+            uiSearchData[#uiSearchData + 1] = fresh[i]
+        end
+    end, function(ok, result)
+        if not ok then
+            done(false, result)
+        elseif result == "cancelled" then
+            done(false, "cancelled")
+        else
+            done(true)
+        end
+    end)
 end
 
 -- Blizzard's live catalog searcher exists only while the housing catalog UI is
@@ -2893,7 +2908,7 @@ function Corpora.InsertTransmogSetStubs(packed, wantMask, showCollected, showNot
     if not (corpus and corpus.packed == packed) then
         corpus = Utils.NewPackedCorpus(packed, Corpora.TMOG_SET_ROW_SPEC, TRANSMOG_SET_PROTO,
             { computed = Corpora.TMOG_SET_COMPUTED, keywordsFor = Corpora.TmogSetRowKeywords,
-              keywordFields = { labelLower = true, descKw = true } })
+              keywordFields = { labelLower = true, descKw = true }, sliced = true })
         Utils.RegisterCorpus("transmogSets", corpus)
     end
     local inserted = 0
@@ -2903,7 +2918,7 @@ function Corpora.InsertTransmogSetStubs(packed, wantMask, showCollected, showNot
             uiSearchData[#uiSearchData + 1] = corpus:StubAt(ri)
             inserted = inserted + 1
         end
-    end)
+    end, nil, true)
     return inserted
 end
 

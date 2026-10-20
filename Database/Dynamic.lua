@@ -177,14 +177,19 @@ local function runProviderJob(database, provider, schedDone)
     local pre = provider.pre and database[provider.pre]
     if pre then pre(database) end
 
+    -- Async providers start sliced too: the cache hydrates and corpus
+    -- builds before their first wait yield at the corpus checkpoints.
     local asyncFn = provider.asyncFn and database[provider.asyncFn]
     if asyncFn then
-        local ok, err = xpcall(asyncFn, Utils.ErrorHandler, database, function(changed, asyncErr)
-            FinishDynamicProvider(database, provider, not asyncErr, asyncErr, changed, finishWaiters)
+        Utils.RunSliced(function()
+            asyncFn(database, function(changed, asyncErr)
+                FinishDynamicProvider(database, provider, not asyncErr, asyncErr, changed, finishWaiters)
+            end)
+        end, function(ok, err)
+            if not ok then
+                FinishDynamicProvider(database, provider, false, err, false, finishWaiters)
+            end
         end)
-        if not ok then
-            FinishDynamicProvider(database, provider, false, err, false, finishWaiters)
-        end
         return
     end
 

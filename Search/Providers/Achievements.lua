@@ -198,23 +198,24 @@ local function ClientBuildKey()
     return tostring(version) .. "-" .. tostring(build)
 end
 
-local function PersistFallbackIndex(rows)
+local function PersistFallbackIndex(rows, sliced)
     local db = EasyFind and EasyFind.db
     if not db then return end
     db.achievementIndex = {
         version = ACH_INDEX_VER,
         build = ClientBuildKey(),
-        packed = Utils.PackRows(rows, ACH_ROW_SPEC),
+        packed = Utils.PackRows(rows, ACH_ROW_SPEC, sliced),
     }
 end
 
 local ACH_NAME_ONLY = { name = true }
 
-local function ArmFallbackScan(packed)
+-- sliced: the caller's sliced run has no pcall around this call.
+local function ArmFallbackScan(packed, sliced)
     -- ungated: these stubs never enter the main scoring gate, so skip the
     -- mask build. noShed: completed flips in place on ACHIEVEMENT_EARNED.
     local corpus = Utils.NewPackedCorpus(packed, ACH_ROW_SPEC, nil,
-        { ungated = true, noShed = true })
+        { ungated = true, noShed = true, sliced = sliced })
     if corpus.count == 0 then return false end
     local parts, riAt = {}, {}
     local pos = 1
@@ -223,7 +224,7 @@ local function ArmFallbackScan(packed)
         parts[ri] = nm
         riAt[ri] = pos
         pos = pos + #nm + 1
-    end, ACH_NAME_ONLY)
+    end, ACH_NAME_ONLY, sliced)
     fallbackScan = {
         corpus = corpus,
         names = tconcat(parts, "\n"),
@@ -233,7 +234,7 @@ local function ArmFallbackScan(packed)
     return true
 end
 
-local function TryHydrateFallbackIndex()
+local function TryHydrateFallbackIndex(sliced)
     if fallbackScan then return true end
     local db = EasyFind and EasyFind.db
     local saved = db and db.achievementIndex
@@ -242,7 +243,7 @@ local function TryHydrateFallbackIndex()
        or saved.packed == "" then
         return false
     end
-    return ArmFallbackScan(saved.packed)
+    return ArmFallbackScan(saved.packed, sliced)
 end
 
 local function ClientHasAchievements()
@@ -317,16 +318,43 @@ local function BuildFallbackIndex()
             catIdx = catIdx + 1
             achIdx = 1
         end
-        fallbackBuilding = false
-        PersistFallbackIndex(rows)
-        local db = EasyFind and EasyFind.db
-        local saved = db and db.achievementIndex
-        if saved and type(saved.packed) == "string" and saved.packed ~= "" then
-            ArmFallbackScan(saved.packed)
-        end
-        RefreshOpenQuery(nil)
+        Utils.RunSliced(function()
+            PersistFallbackIndex(rows, true)
+            local db = EasyFind and EasyFind.db
+            local saved = db and db.achievementIndex
+            if saved and type(saved.packed) == "string" and saved.packed ~= "" then
+                ArmFallbackScan(saved.packed, true)
+            end
+        end, function(ok, err)
+            fallbackBuilding = false
+            if not ok then Utils.ErrorHandler(err) end
+            RefreshOpenQuery(nil)
+        end, 2)
     end
     Utils.SafeAfter(0, step)
+end
+
+-- The proactive arm runs off the keystroke in its own sliced run: the
+-- hydrate's corpus build and name walk were a 33 ms frame inside the
+-- first achievement query of a session.
+local fallbackArming, fallbackWanted = false, false
+local function ArmFallbackInBackground()
+    if fallbackScan or fallbackBuilding or fallbackArming then return end
+    fallbackArming = true
+    Utils.SafeAfter(0, function()
+        Utils.RunSliced(function()
+            return TryHydrateFallbackIndex(true)
+        end, function(ok, armed)
+            fallbackArming = false
+            if not ok then return Utils.ErrorHandler(armed) end
+            if not armed then
+                BuildFallbackIndex()
+            elseif fallbackWanted then
+                fallbackWanted = false
+                RefreshOpenQuery(nil)
+            end
+        end, 2)
+    end)
 end
 
 local function CollectFallbackResults(query, mode)
@@ -361,6 +389,11 @@ end
 -- empty answer hydrates or builds our own index instead of writing the
 -- cache, and later empties are re-checked against it.
 local function ResolveEmptySearchResults(query, mode)
+    -- An arm under way answers through its own refresh.
+    if fallbackArming then
+        fallbackWanted = true
+        return nil
+    end
     if fallbackScan or TryHydrateFallbackIndex() then
         return CollectFallbackResults(query, mode)
     end
@@ -466,9 +499,7 @@ function Providers:RequestAchievementSearch(query)
     -- session with no valid cache start the background build now, while
     -- enumeration is (usually) healthy and cheap. Users then carry a
     -- ready index into any future broken session.
-    if not fallbackScan and not fallbackBuilding and not TryHydrateFallbackIndex() then
-        BuildFallbackIndex()
-    end
+    ArmFallbackInBackground()
 
     local mode = GetAchievementFilterMode()
     local cacheKey = AchievementSearchCacheKey(query, mode)
