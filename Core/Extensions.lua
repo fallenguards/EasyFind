@@ -61,6 +61,9 @@ API.RegisterSearchProvider({
     },
 })
 
+-- The windows that can wear their own look, as pages of the theme studio.
+ns.AddThemeSurface("notes", L["APP_NOTES"])
+
 -- Chat's conversations, and its messages only when asked: a row for every
 -- message crowded other searches out. A messenger never opened has nothing
 -- to find, so its addon loads for a search only once it has been used.

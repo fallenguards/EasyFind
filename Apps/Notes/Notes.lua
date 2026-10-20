@@ -1645,14 +1645,14 @@ local function PaintSubtleButton(btn, hovered)
     -- exactly like EasyFind's theme/font/indicator selector buttons: constant
     -- color and font before and after hover. Control fills stay dark on every
     -- theme, so white text reads on light themes too.
-    local fill = (hovered and ns.BTN_FILL_HOVER or ns.BTN_FILL_NORMAL) or { 0.13, 0.13, 0.14 }
+    local fill = (hovered and ns.ThemeSetOf(btn).BTN_FILL_HOVER or ns.ThemeSetOf(btn).BTN_FILL_NORMAL) or { 0.13, 0.13, 0.14 }
     ns.SetRoundedRectFill(btn, fill[1], fill[2], fill[3], 1, true)
 end
 
 -- The same fill as the window's other buttons, so the header reads as one.
 local function PaintAccentButton(btn)
     if not ns.SetRoundedRectFill then return end
-    local ac = ns.BTN_FILL_NORMAL or ns.NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
+    local ac = ns.ThemeSetOf(btn).BTN_FILL_NORMAL or ns.ThemeSetOf(btn).NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
     ns.SetRoundedRectFill(btn, ac[1], ac[2], ac[3], 1, true)
 end
 
@@ -2364,10 +2364,11 @@ do
         end
         layer = layer or Fmt.CheckLayer(editor)
         local side, size = Fmt.BoxSide(editor)
-        local palette = ns.ACTIVE_UI_PALETTE
+        local look = ns.ThemeSetOf(editor)
+        local palette = look.palette
         local ring = palette and palette.borderColor or { 0.42, 0.42, 0.42 }
         ring = { ring[1], ring[2], ring[3], 1 }
-        local fill = ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 }
+        local fill = look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 }
         local used = 0
         for k = 1, #positions do
             local p = positions[k]
@@ -3554,6 +3555,8 @@ function UI:EnsureEasyNotesFrame()
 
     local db = NormalizeDB()
     frame = CreateFrame("Frame", "EasyNotesFrame", UIParent)
+    -- Its colors: the Notes page of the theme (ns.ThemeSetOf).
+    frame._efSurface = "notes"
     -- Built hidden: a new frame starts shown, so its first open ran no OnShow.
     frame:Hide()
     UI._notes.frame = frame
@@ -3632,7 +3635,7 @@ function UI:EnsureEasyNotesFrame()
                 end)
             end
         else
-            local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
+            local c = ns.ThemeSetOf(frame).SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(frame, c[1], c[2], c[3], 1)
         end
         ns.SetRoundedRectBorderColor(frame, 0.30, 0.30, 0.33, 0.6, true)
@@ -3671,11 +3674,11 @@ function UI:EnsureEasyNotesFrame()
         UI:FocusEasyNoteEditor()
     end)
     frame.newButton:SetScript("OnEnter", function(self)
-        if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
+        if ns.SetRoundedRectFill then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
         UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW_TT"])
     end)
     frame.newButton:SetScript("OnLeave", function(self)
-        if ns.SetRoundedRectFill then local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
+        if ns.SetRoundedRectFill then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
         UI:HideNotesTip(self)
     end)
 
@@ -4433,7 +4436,7 @@ function UI:EnsureEasyNotesFrame()
         if ns.CreateRoundedRectBorder then
             ns.CreateRoundedRectBorder(flyout)
             ns.SetRoundedRectBarHeight(flyout, 10)
-            local c = ns.PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
+            local c = ns.ThemeSetOf(flyout).PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
             ns.SetRoundedRectFill(flyout, c[1], c[2], c[3], 1, true)
             ns.SetRoundedRectBorderEdgeShown(flyout, false)
         end
@@ -4525,7 +4528,7 @@ function UI:EnsureEasyNotesFrame()
     if ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(frame.paletteSearchShell)
         ns.SetRoundedRectBarHeight(frame.paletteSearchShell, 10)
-        local c = ns.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
+        local c = ns.ThemeSetOf(frame).BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
         ns.SetRoundedRectFill(frame.paletteSearchShell, c[1], c[2], c[3], 1, true)
         ns.SetRoundedRectBorderEdgeShown(frame.paletteSearchShell, false)
     end
@@ -4837,9 +4840,9 @@ function UI:RefreshEasyNotesAutoResizeButton()
     local frame = UI._notes.frame
     if not (frame and frame.autoResizeButton and ns.SetRoundedRectFill) then return end
     if NormalizeDB().autoResize then
-        local c = ns.NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(frame.autoResizeButton, c[1], c[2], c[3], 1, true)
+        local c = ns.ThemeSetOf(frame).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(frame.autoResizeButton, c[1], c[2], c[3], 1, true)
     else
-        local c = ns.BTN_FILL_NORMAL or {0.13,0.13,0.14}; ns.SetRoundedRectFill(frame.autoResizeButton, c[1], c[2], c[3], 1, true)
+        local c = ns.ThemeSetOf(frame).BTN_FILL_NORMAL or {0.13,0.13,0.14}; ns.SetRoundedRectFill(frame.autoResizeButton, c[1], c[2], c[3], 1, true)
     end
 end
 
@@ -4870,7 +4873,7 @@ end
 -- Colour used for a toggled-on toolbar button. Reads EasyFind's live theme
 -- selection colour so it tracks the theme instead of the old hardcoded red.
 local function ActiveButtonColor()
-    local c = ns.NAV_SELECTED_FILL
+    local c = ns.ThemeSet("notes").NAV_SELECTED_FILL
     if c then return c[1], c[2], c[3], c[4] or 1 end
     return 0.20, 0.30, 0.45, 1
 end
@@ -4933,7 +4936,7 @@ function UI:BuildEasyNotesListMenu(frame, btn, items)
     elseif ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(flyout)
         ns.SetRoundedRectBarHeight(flyout, 10)
-        local c = ns.PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
+        local c = ns.ThemeSetOf(flyout).PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
         ns.SetRoundedRectFill(flyout, c[1], c[2], c[3], 1, true)
     end
     flyout:SetPoint("TOP", btn, "BOTTOM", 0, -4)
@@ -4991,7 +4994,7 @@ function UI:PaintEasyNotesListButton(opt)
     if active then
         ns.SetRoundedRectFill(opt, ActiveButtonColor())
     elseif opt._hover then
-        local c = ns.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
+        local c = ns.ThemeSetOf(opt).BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
         ns.SetRoundedRectFill(opt, c[1], c[2], c[3], 1, true)
     else
         ns.SetRoundedRectFill(opt, 0, 0, 0, 0, true)
@@ -5052,22 +5055,22 @@ function UI:RefreshEasyNotesToolbarButton(btn)
     local active = UI._notes.activeModes[btn.actionKey]
     -- A light theme's toolbar is pale: the engaged fill takes the theme's
     -- control accent and resting ink its dark text, or neither shows.
-    local pal = ns.ACTIVE_UI_PALETTE
-    local light = pal and pal.light
+    local look = ns.ThemeSetOf(btn)
+    local light = look.palette and look.palette.light
     if ns.SetRoundedRectFill then
         if active then
-            local c = light and ns.CONTROL_ACCENT
+            local c = light and look.CONTROL_ACCENT
             if c then ns.SetRoundedRectFill(btn, c[1], c[2], c[3], 1, true)
             else ns.SetRoundedRectFill(btn, ActiveButtonColor()) end
         elseif btn._hover then
-            local c = light and ns.BTN_FILL_HOVER
+            local c = light and look.BTN_FILL_HOVER
             if c then ns.SetRoundedRectFill(btn, c[1], c[2], c[3], 1, true)
             else ns.SetRoundedRectFill(btn, 0.20, 0.20, 0.22, 1, true) end
         else
             ns.SetRoundedRectFill(btn, 0, 0, 0, 0, true)
         end
     end
-    local ink = light and not active and ns.TEXT_PRIMARY
+    local ink = light and not active and look.TEXT_PRIMARY
     local ir, ig, ib = 0.84, 0.84, 0.86
     if active then ir, ig, ib = 1, 1, 1 elseif ink then ir, ig, ib = ink[1], ink[2], ink[3] end
     if btn.text then btn.text:SetTextColor(ir, ig, ib, 1) end
@@ -5707,7 +5710,7 @@ function Builders.BuildSettingsPanel(frame)
     elseif ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(panel)
         ns.SetRoundedRectBarHeight(panel, 10)
-        local c = ns.PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
+        local c = ns.ThemeSetOf(panel).PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
         ns.SetRoundedRectFill(panel, c[1], c[2], c[3], 1, true)
     end
 
@@ -5815,10 +5818,11 @@ end
 -- An input's well: the theme's line as a ring round the dark inset.
 function Builders.PaintFindInput(shell)
     if not shell.ringInset then return end
-    local palette = ns.ACTIVE_UI_PALETTE
+    local look = ns.ThemeSetOf(shell)
+    local palette = look.palette
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
-    ns.PaintRingedWell(shell, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+    ns.PaintRingedWell(shell, ring, look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
 end
 
 function Builders.MakeFindInput(parent, placeholderText)
@@ -6138,7 +6142,7 @@ function Builders.BuildEasyNotesHeaderPanel(frame)
                 ns.RegisterThemeCallback(function() ns.Results:ApplySearchWindowFill(panel) end)
             end
         else
-            local c = ns.SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
+            local c = ns.ThemeSetOf(panel).SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
             ns.SetRoundedRectBorderFillColor(panel, c[1], c[2], c[3], 1)
         end
         ns.SetRoundedRectBorderColor(panel, 0.30, 0.30, 0.33, 0.6, true)
@@ -6428,12 +6432,13 @@ local function PaintPaletteRow(row)
         -- step lighter on hover, and the theme control accent when selected, so
         -- the list reads as one surface with the buttons instead of black slabs.
         local c
+        local look = ns.ThemeSetOf(row)
         if selected then
-            c = ns.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }
+            c = look.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }
         elseif over then
-            c = ns.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
+            c = look.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
         else
-            c = ns.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
+            c = look.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
         end
         ns.SetRoundedRectFill(row, c[1], c[2], c[3], 1, true)
     end
@@ -6564,7 +6569,7 @@ function UI:EnsureEasyNotesPaletteRow(index)
     if ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(row.actionBar)
         ns.SetRoundedRectBarHeight(row.actionBar, 10)
-        local c = ns.BTN_FILL_NORMAL or { 0.19, 0.19, 0.21 }
+        local c = ns.ThemeSetOf(row).BTN_FILL_NORMAL or { 0.19, 0.19, 0.21 }
         ns.SetRoundedRectFill(row.actionBar, c[1], c[2], c[3], 1, true)
         ns.SetRoundedRectBorderEdgeShown(row.actionBar, false)
     end
