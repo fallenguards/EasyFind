@@ -7427,6 +7427,7 @@ local function CursorMenuRowEntered(menu, row)
         rowsProvider = provider,
         search = row._efSubmenuSearch,
         maxRows = row._efSubmenuMaxRows,
+        liveSearch = row._efSubmenuLive,
     })
     child._submenuDepth = depth
     menu._openSubmenu = child
@@ -7780,6 +7781,18 @@ local function CursorMenuOnHide(self)
         self._openSubmenuRow = nil
         child:Hide()
     end
+    -- A flyout whose toggles changed things: the menu it hangs from, still
+    -- open, lists them anew next frame.
+    local parent = self._efEdited and self._parentMenu
+    self._efEdited = nil
+    if parent and parent._rowsProvider then
+        Utils.SafeAfter(0, function()
+            local o = parent._lastOpts
+            if not (parent:IsShown() and o) or parent._openSubmenu then return end
+            o._reuseMenu = parent
+            Utils.ShowCursorMenu(parent._lastName, parent._rowsProvider(o._searchText), o)
+        end)
+    end
     if self._parentMenu then
         if self._parentMenu._openSubmenu == self then
             local ownerRow = self._parentMenu._openSubmenuRow
@@ -8042,7 +8055,9 @@ function Utils.LayoutCursorMenuRows(menu)
             keep = strtrim(typed) ~= "" and not exact
             if keep then row.label:SetText(sformat(row._efSearchAdd, strtrim(typed))) end
         else
-            keep = query == "" or (not row.isSeparator and sfind(slower(row.label:GetText() or ""), query, 1, true))
+            -- A live search's rows are already what the words find.
+            keep = query == "" or opts.liveSearch
+                or (not row.isSeparator and sfind(slower(row.label:GetText() or ""), query, 1, true))
         end
         row._efListed = keep and true or nil
         if keep then listed[#listed + 1] = row end
@@ -8115,19 +8130,32 @@ function Utils.CursorMenuSearch(menu, placeholder)
         hint:SetJustifyH("LEFT")
         hint:SetWordWrap(false)
         edit.hint = hint
-        edit:SetScript("OnTextChanged", function(self)
+        edit:SetScript("OnTextChanged", function(self, userInput)
             local text = self:GetText() or ""
             self.hint:SetShown(text == "")
+            -- Typing only: a menu opening clears a pooled box's old words,
+            -- and taking that as typing focused the box.
+            if not userInput then return end
             local o = menu._lastOpts
             if o and o._searchText ~= text then
                 o._searchText, o._scrollOffset = text, 0
-                Utils.LayoutCursorMenuRows(menu)
+                if o.liveSearch and menu._rowsProvider then
+                    -- Its rows come from the words, rebuilt in this same
+                    -- frame so the box keeps its focus and composition.
+                    CursorMenuCloseSubmenu(menu)
+                    o._reuseMenu, o._searchTyping = menu, true
+                    Utils.ShowCursorMenu(menu._lastName, menu._rowsProvider(text), o)
+                else
+                    Utils.LayoutCursorMenuRows(menu)
+                end
             end
         end)
-        -- Enter takes the add row when it shows.
+        -- Enter takes the add row when it shows; in a live search, the
+        -- first thing found.
         edit:SetScript("OnEnterPressed", function(self)
+            local live = menu._lastOpts and menu._lastOpts.liveSearch
             for _, row in ipairs(menu._listed or {}) do
-                if row._efSearchAdd then
+                if row._efSearchAdd or (live and row.onClick and not row.disabled) then
                     local press = row:GetScript("OnMouseDown")
                     if press then press(row, "LeftButton") end
                     return
@@ -8175,9 +8203,12 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
         end
     end
 
-    HideOtherMenus(globalName, nil)
+    -- A live search fills its own frame again.
+    local reuse = opts._reuseMenu
+    opts._reuseMenu = nil
+    HideOtherMenus(globalName, reuse)
 
-    local menu = FindFreeMenu(globalName) or CreateCursorMenu(globalName)
+    local menu = reuse or FindFreeMenu(globalName) or CreateCursorMenu(globalName)
 
     local menuScale = opts.scale or 1
     menu:SetScale(menuScale)
@@ -8514,14 +8545,17 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                             -- row's word, once added, is a row of its own.
                             local o = menu._lastOpts
                             if onClick then onClick(o and o._searchText) end
+                            menu._efEdited = true
                             if row._efSearchAdd and o then o._searchText = "" end
-                            local fresh = menu._rowsProvider and menu._rowsProvider()
+                            local fresh = menu._rowsProvider and menu._rowsProvider(o and o._searchText)
                             local search = menu.searchShell
                             if search and search:IsShown() and search.edit:HasFocus() then
                                 o._searchTyping = true
                             end
                             if fresh then
-                                Utils.ShowCursorMenu(menu._lastName, fresh, menu._lastOpts)
+                                if o.liveSearch then o._reuseMenu = menu end
+                                local shownMenu = Utils.ShowCursorMenu(menu._lastName, fresh, menu._lastOpts)
+                                if shownMenu then shownMenu._efEdited = true end
                             end
                             return
                         end
@@ -8546,6 +8580,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
             end
             -- Placed and shown by LayoutCursorMenuRows, after the width.
             row._efSubmenuSearch, row._efSubmenuMaxRows = def.submenuSearch, def.submenuMaxRows
+            row._efSubmenuLive = def.submenuLiveSearch
             row._efSearchAdd = def.searchAdd and def.text or nil
         end
     end
@@ -8625,11 +8660,18 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
             end
         end
     end
+    -- A live search's width only grows while it is open: no jump per word.
+    if opts.liveSearch then
+        needed = mmax(needed, opts._liveW or 0)
+        opts._liveW = needed
+    end
     menu:SetWidth(needed)
     if opts.search then
         local search = Utils.CursorMenuSearch(menu, opts.search)
         search:Show()
-        search.edit:SetText(opts._searchText or "")
+        -- Set only when it differs, or the caret jumps to the end.
+        local want = opts._searchText or ""
+        if search.edit:GetText() ~= want then search.edit:SetText(want) end
         -- A toggle's reshow keeps the box typing on.
         if opts._searchTyping then search.edit:SetFocus() end
         opts._searchTyping = nil
