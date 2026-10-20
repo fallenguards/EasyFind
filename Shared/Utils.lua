@@ -3453,7 +3453,7 @@ end
 
 local function GlossLerp(a, b, t) return a + (b - a) * t end
 
-local function GlossColorAt(y, height)
+local function GlossColorAt(y, height, base)
     local t = y / height
     if t < GLOSS_DARK_FRAC then
         t = 0
@@ -3464,8 +3464,8 @@ local function GlossColorAt(y, height)
     -- panels (options, tutorial, What's New) match the selected theme.
     -- Factors are tuned so the Black default reproduces the original
     -- fixed ramp (0.022 -> ~0.21). Light fills get a subtle inverse
-    -- gloss (slightly darker body, slightly brighter lip).
-    local base = ns.SEARCH_WINDOW_FILL_COLOR
+    -- gloss (slightly darker body, slightly brighter lip). base: the
+    -- panel's window fill.
     local br, bg, bb = base[1], base[2], base[3]
     local lum = 0.3 * br + 0.5 * bg + 0.2 * bb
     local mmin = math.min
@@ -3479,10 +3479,10 @@ local function GlossColorAt(y, height)
            GlossLerp(bb * 0.45, mmin(1, bb * 2.8 + 0.06), t)
 end
 
-local function GlossRamp(cell, yTop, yBot, height)
+local function GlossRamp(cell, yTop, yBot, height, base)
     if not cell then return end
-    local r1, g1, b1 = GlossColorAt(yTop, height)
-    local r2, g2, b2 = GlossColorAt(yBot, height)
+    local r1, g1, b1 = GlossColorAt(yTop, height, base)
+    local r2, g2, b2 = GlossColorAt(yBot, height, base)
     -- VERTICAL: first color is bottom, second is top.
     cell:SetGradient("VERTICAL", CreateColor(r2, g2, b2, 1), CreateColor(r1, g1, b1, 1))
 end
@@ -3493,15 +3493,17 @@ function ns.ApplyWizardPanelGloss(frame)
     local height = frame:GetHeight()
     if not height or height <= 0 then return end
     local corner = (frame.cbBarHeight or 32) / 2
-    GlossRamp(fill.tl, 0, corner, height)
-    GlossRamp(fill.tm, 0, corner, height)
-    GlossRamp(fill.tr, 0, corner, height)
-    GlossRamp(fill.ml, corner, height - corner, height)
-    GlossRamp(fill.mm, corner, height - corner, height)
-    GlossRamp(fill.mr, corner, height - corner, height)
-    GlossRamp(fill.bl, height - corner, height, height)
-    GlossRamp(fill.bm, height - corner, height, height)
-    GlossRamp(fill.br, height - corner, height, height)
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
+    local base = set and set.SEARCH_WINDOW_FILL_COLOR or ns.SEARCH_WINDOW_FILL_COLOR
+    GlossRamp(fill.tl, 0, corner, height, base)
+    GlossRamp(fill.tm, 0, corner, height, base)
+    GlossRamp(fill.tr, 0, corner, height, base)
+    GlossRamp(fill.ml, corner, height - corner, height, base)
+    GlossRamp(fill.mm, corner, height - corner, height, base)
+    GlossRamp(fill.mr, corner, height - corner, height, base)
+    GlossRamp(fill.bl, height - corner, height, height, base)
+    GlossRamp(fill.bm, height - corner, height, height, base)
+    GlossRamp(fill.br, height - corner, height, height, base)
 end
 
 -- One-call background for wizard-style panels: near-black rounded fill with
@@ -3539,7 +3541,8 @@ function ns.StyleWizardPanel(frame, alpha)
     ns.SetRoundedRectBorderEdgeShown(frame, false)
     -- A theme with background art (Forever's quest log page, Classic's
     -- marble) wears it here as the search window does; the rest the gloss.
-    local pal = ns.ACTIVE_UI_PALETTE
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
+    local pal = set and set.palette or ns.ACTIVE_UI_PALETTE
     if pal and (pal.fillAtlas or pal.fillTexture) then
         ns.ApplyThemeFill(frame)
         ns.SetRoundedRectBorderBgAlpha(frame, frame._efWizardAlpha)
@@ -3547,7 +3550,7 @@ function ns.StyleWizardPanel(frame, alpha)
         if frame._efArtCells then
             for _, cell in pairs(frame._efArtCells) do cell:Hide() end
         end
-        local base = ns.SEARCH_WINDOW_FILL_COLOR
+        local base = set and set.SEARCH_WINDOW_FILL_COLOR or ns.SEARCH_WINDOW_FILL_COLOR
         ns.SetRoundedRectFill(frame, base[1] * 0.8, base[2] * 0.8, base[3] * 0.8, 1, true)
         ns.SetRoundedRectBorderBgAlpha(frame, frame._efWizardAlpha)
         ns.ApplyWizardPanelGloss(frame)

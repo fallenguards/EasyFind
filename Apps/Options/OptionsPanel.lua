@@ -308,6 +308,9 @@ local function SyncOptionControls()
 end
 
 local PaintRoundedFill = ns.SetRoundedRectFill
+-- The options window's colors: its own look in the theme, else the shared
+-- one. Fills name the shared roles; the fill wears this window's (OwnFill).
+local function Look() return ns.ThemeSet("options") end
 -- One fill for the panel's table/section backdrops (alias+shortkey table,
 -- keybinding and map setting groups) so they read as a single surface.
 local SECTION_TABLE_FILL = ns.SECTION_TABLE_FILL
@@ -586,9 +589,9 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width)
         -- On a dark settings-group card the label stays light on every
         -- theme; on the bare panel it goes theme-dark on light themes.
         if enabled then
-            local pal = ns.ACTIVE_UI_PALETTE
+            local pal = Look().palette
             local theme = not InRoundedCard(self) and pal and pal.light
-                and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+                and Look().theme
             if theme and theme.leafColor then
                 text:SetTextColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3], 1)
             else
@@ -597,7 +600,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width)
         else
             text:SetTextColor(0.50, 0.50, 0.50, 1)
         end
-        local accent = ns.CONTROL_ACCENT
+        local accent = Look().CONTROL_ACCENT
         if checked and enabled then
             PaintRoundedFill(track, accent[1], accent[2], accent[3], 1)
         elseif checked then
@@ -665,8 +668,6 @@ end
 local DISABLED_TEXT = { 0.5, 0.5, 0.5 }
 local NORMAL_TEXT = {1.0, 1.0, 1.0}
 local OPTIONS_PANEL_SCALE = 0.88
-local TEXT_PRIMARY = ns.TEXT_PRIMARY
-local TEXT_BODY = ns.TEXT_BODY
 local TEXT_DIM = ns.TEXT_DIM
 local SECTION_TITLE_TEXT = ns.GOLD_COLOR
 local NAV_SELECTED = ns.NAV_SELECTED_FILL
@@ -771,7 +772,7 @@ local function PaintPresetButton(btn, active, hover, enabled)
     elseif active then
         PaintControlFill(btn, ns.CONTROL_ACCENT, 1)
         if btn._label then
-            local windowFill = ns.SEARCH_WINDOW_FILL_COLOR
+            local windowFill = Look().SEARCH_WINDOW_FILL_COLOR
             btn._label:SetTextColor(windowFill[1], windowFill[2], windowFill[3], 1)
         end
     elseif hover then
@@ -779,10 +780,10 @@ local function PaintPresetButton(btn, active, hover, enabled)
         if btn._label then
             -- The pills stay dark on light themes, where the theme text
             -- tables go dark; keep the labels light there.
-            if ns.ACTIVE_UI_PALETTE and ns.ACTIVE_UI_PALETTE.light then
+            if Look().palette and Look().palette.light then
                 btn._label:SetTextColor(0.96, 0.96, 0.96, 1)
             else
-                btn._label:SetTextColor(Utils.RGB(TEXT_PRIMARY, 1))
+                btn._label:SetTextColor(Utils.RGB(Look().TEXT_PRIMARY, 1))
             end
         end
     else
@@ -790,12 +791,12 @@ local function PaintPresetButton(btn, active, hover, enabled)
         -- theme's main text color (Raycast-flat), on every theme.
         PaintControlFill(btn, ns.SEARCH_WINDOW_FILL_COLOR, 1)
         if btn._label then
-            local presetTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+            local presetTheme = Look().theme
             local presetLeaf = presetTheme and presetTheme.leafColor
             if presetLeaf then
                 btn._label:SetTextColor(presetLeaf[1], presetLeaf[2], presetLeaf[3], 1)
             else
-                btn._label:SetTextColor(Utils.RGB(TEXT_BODY, 1))
+                btn._label:SetTextColor(Utils.RGB(Look().TEXT_BODY, 1))
             end
         end
     end
@@ -819,8 +820,8 @@ local function ApplyRowLabelColor(label, enabled, host)
         label:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
         return
     end
-    local pal = ns.ACTIVE_UI_PALETTE
-    local theme = pal and pal.light and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    local pal = Look().palette
+    local theme = pal and pal.light and Look().theme
     if theme and theme.leafColor then
         label:SetTextColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3], 1)
     else
@@ -905,7 +906,7 @@ local function CreateSegmentedPresetRow(parent, labelText, choices, getter, sett
         -- Selected segment wears the window background with the theme's
         -- main text color; unselected labels stay white on the dark track.
         PaintControlFill(node, ns.SEARCH_WINDOW_FILL_COLOR, 1)
-        local segTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local segTheme = Look().theme
         local segLeaf = segTheme and segTheme.leafColor
         for i = 1, #self.buttons do
             local active = activeIndex == i
@@ -1027,7 +1028,7 @@ local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, sette
         else
             PaintControlFill(stepBtn, ns.BTN_FILL_NORMAL, 1)
         end
-        local stepTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local stepTheme = Look().theme
         local stepLeaf = stepTheme and stepTheme.leafColor
         if stepBtn._label then
             if stepLeaf and stepBtn:IsEnabled() then
@@ -1217,8 +1218,8 @@ local function BuildHomeTab(ctx)
     -- out); dark themes keep the classic muted gray. Runs after the
     -- walker on theme pick and show, so this setting wins.
     local function UpdateHomeVersion()
-        local pal = ns.ACTIVE_UI_PALETTE
-        local theme = pal and pal.light and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local pal = Look().palette
+        local theme = pal and pal.light and Look().theme
         if theme and theme.pathColor then
             homeVersion:SetTextColor(theme.pathColor[1], theme.pathColor[2], theme.pathColor[3], 1)
         else
@@ -1459,14 +1460,14 @@ local function BuildGeneralBindsTab(ctx)
             (d == 1 and -4) or (d == 2 and 4) or 0, (d == 3 and -4) or 3)
     end
     local function PaintStudioRing()
-        local ringTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local ringTheme = Look().theme
         local glyph = ringTheme and ringTheme.chromeGlyph
         if glyph then
             studioRing:SetVertexColor(glyph[1], glyph[2], glyph[3], 0.35)
         else
             studioRing:SetVertexColor(1, 1, 1, 0.35)
         end
-        local buttonFill = ns.BTN_FILL_NORMAL or { 0.13, 0.13, 0.14 }
+        local buttonFill = Look().BTN_FILL_NORMAL or { 0.13, 0.13, 0.14 }
         studioFill:SetVertexColor(buttonFill[1], buttonFill[2], buttonFill[3], 1)
     end
     PaintStudioRing()
@@ -2017,7 +2018,7 @@ local function BuildSearchTab(ctx)
     resultShortcutHintsCheckbox.Text:SetPoint("RIGHT", resultShortcutHintsCheckbox, "RIGHT", -36, 0)
     local function UpdateAltHintExample()
         local r, g, b = 255, 255, 255
-        local theme = ns.Results and ns.Results:GetActiveTheme()
+        local theme = Look().theme
         if theme and theme.lightTheme and theme.chromeGlyph then
             r = mfloor(theme.chromeGlyph[1] * 255 + 0.5)
             g = mfloor(theme.chromeGlyph[2] * 255 + 0.5)
@@ -2452,7 +2453,7 @@ local function BuildMapTab(ctx)
     -- Gold reads fine on dark fills only; light themes use their own
     -- separator tone.
     local function RestyleMapSep()
-        local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local theme = Look().theme
         local sep = theme and theme.lightTheme and theme.separatorColor
         if sep then
             mapSep:SetColorTexture(sep[1], sep[2], sep[3], 0.8)
@@ -2664,7 +2665,7 @@ local function BuildShortcutsTab(ctx)
     -- source string.
     local function UpdateShortcutColors()
         local body = L["OPT_SHORTCUTS_TEXT"]
-        local theme = ns.Results and ns.Results:GetActiveTheme()
+        local theme = Look().theme
         if theme and theme.lightTheme then
             local acc = theme.pathColorHover or theme.leafColor
             local accHex = ("%02X%02X%02X"):format(
@@ -2785,6 +2786,7 @@ local function BuildAliasesTab(ctx)
     local sharePopup
     local function BuildSharePopup()
         local f = CreateFrame("Frame", "EasyFindSharePopup", UIParent, "BackdropTemplate")
+        f._efSurface = "options"
         f:SetSize(440, 200)
         f:SetPoint("CENTER")
         f:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -2892,6 +2894,7 @@ local function BuildAliasesTab(ctx)
     local previewFrame
     local function BuildPreviewFrame()
         local f = CreateFrame("Frame", "EasyFindImportPreview", UIParent, "BackdropTemplate")
+        f._efSurface = "options"
         f:SetSize(PV_W, 300)
         f:SetPoint("CENTER")
         f:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -3011,7 +3014,7 @@ local function BuildAliasesTab(ctx)
     function ns.ShowImportPreview(opts)
         if not previewFrame then previewFrame = BuildPreviewFrame() end
         local f = previewFrame
-        local shareTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local shareTheme = Look().theme
         if shareTheme and shareTheme.lightTheme then
             f.title:SetTextColor(unpack(shareTheme.leafColor))
         else
@@ -3173,7 +3176,7 @@ local function BuildAliasesTab(ctx)
         if not sharePopup then sharePopup = BuildSharePopup() end
         local f = sharePopup
         -- GameFontNormal's default gold is unreadable on light theme fills.
-        local shareTheme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        local shareTheme = Look().theme
         if shareTheme and shareTheme.lightTheme then
             f.title:SetTextColor(unpack(shareTheme.leafColor))
         else
@@ -3622,7 +3625,7 @@ local function BuildAliasesTab(ctx)
         -- value coding is unreadable, so show the value plain and let the
         -- pill's dark leaf label (StyleNavPillButton) paint it; dark themes
         -- keep the blue value coding on the slate pill.
-        local lightCells = ns.ACTIVE_UI_PALETTE and ns.ACTIVE_UI_PALETTE.light
+        local lightCells = Look().palette and Look().palette.light
         local function CellText(value)
             if not value or value == "" then return L["SHORTKEY_CELL_ADD"] end
             if lightCells then return value end
@@ -5340,6 +5343,8 @@ function Options:Initialize()
     end
 
     optionsFrame = CreateFrame("Frame", "EasyFindOptionsFrame", UIParent, "BackdropTemplate")
+    -- Its colors: the Options page of the theme (ns.ThemeSetOf).
+    optionsFrame._efSurface = "options"
     ns.optionsFrame = optionsFrame
     optionsFrame:SetSize(WINDOW_W, WINDOW_H)
     optionsFrame:SetScale(OPTIONS_PANEL_SCALE)
@@ -5395,7 +5400,7 @@ function Options:Initialize()
             ns.StyleWizardPanel(self.bgTex, 1)
             if ns.ApplyClassicHeader then ns.ApplyClassicHeader(self.bgTex, "EasyFind") end
             if self.PlaceFrameEdges then self.PlaceFrameEdges() end
-            local theme = ns.Results and ns.Results:GetActiveTheme()
+            local theme = Look().theme
             self.bgTex:SetAlpha((theme and theme.lightTheme) and 1 or OPTIONS_PANEL_ALPHA)
         end
         if ns.RetintPanelText then ns.RetintPanelText(self) end
@@ -5459,7 +5464,7 @@ function Options:Initialize()
         if sidebar:GetFrameLevel() <= glossLevel then
             sidebar:SetFrameLevel(glossLevel + 1)
         end
-        local pal = ns.ACTIVE_UI_PALETTE
+        local pal = Look().palette
         if pal and pal.light then
             -- Light themes wear the settings-group card color (the
             -- keybind-group scheme): a leaf-dark column that the
@@ -5483,7 +5488,7 @@ function Options:Initialize()
             if pal and pal.light then
                 optionsFrame.titleText:SetTextColor(1, 1, 1, 1)
             else
-                optionsFrame.titleText:SetTextColor(Utils.RGB(TEXT_BODY, 1))
+                optionsFrame.titleText:SetTextColor(Utils.RGB(Look().TEXT_BODY, 1))
             end
         end
         -- The close X follows the active theme on its own (faint stroke at
@@ -5500,7 +5505,7 @@ function Options:Initialize()
     local title = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     title:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 4, -6)
     title:SetText(L["OPT_SETTINGS_TITLE"])
-    title:SetTextColor(Utils.RGB(TEXT_BODY, 1))
+    title:SetTextColor(Utils.RGB(Look().TEXT_BODY, 1))
     optionsFrame.titleText = title
     -- The first RestyleSidebar ran before the title existed.
     RestyleSidebar()
@@ -5539,14 +5544,14 @@ function Options:Initialize()
     -- column wears the card color, and unselected tab names read in
     -- plain white on it (the tinted window fill was harder to read).
     local function PaintTabLabel(label, hovered)
-        local pal = ns.ACTIVE_UI_PALETTE
+        local pal = Look().palette
         if ns.IsClassicChrome() then
             -- The 1.x lists: gold names, white under the cursor.
             if hovered then label:SetTextColor(1, 1, 1, 1) else label:SetTextColor(1, 0.82, 0, 1) end
         elseif pal and pal.light then
             label:SetTextColor(1, 1, 1, 1)
         else
-            label:SetTextColor(Utils.RGB(hovered and TEXT_PRIMARY or TEXT_BODY, 1))
+            label:SetTextColor(Utils.RGB(hovered and Look().TEXT_PRIMARY or Look().TEXT_BODY, 1))
         end
     end
 
@@ -5556,14 +5561,14 @@ function Options:Initialize()
             SetNavButtonBg(btn, NAV_SELECTED)
             -- Light themes: window-fill pill on the card-colored column,
             -- so the label inverts to the column color.
-            local pal = ns.ACTIVE_UI_PALETTE
+            local pal = Look().palette
             if ns.IsClassicChrome() then
                 btn.label:SetTextColor(1, 1, 1, 1)
             elseif pal and pal.light then
                 local card = ns.SECTION_TABLE_FILL
                 btn.label:SetTextColor(card[1], card[2], card[3], 1)
             else
-                btn.label:SetTextColor(Utils.RGB(TEXT_PRIMARY, 1))
+                btn.label:SetTextColor(Utils.RGB(Look().TEXT_PRIMARY, 1))
             end
         else
             SetNavButtonBg(btn, NAV_CLEAR)
@@ -5988,6 +5993,7 @@ function Options:Initialize()
         optionsFrame.InvalidateSettingsIndex = function() index = nil end
 
         local results = CreateFrame("Frame", "EasyFindSettingsSearchResults", UIParent, "BackdropTemplate")
+        results._efSurface = "options"
         results:SetFrameStrata("TOOLTIP")
         results:SetFrameLevel(9600)
         results:EnableMouse(true)
