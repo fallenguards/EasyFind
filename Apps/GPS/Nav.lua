@@ -1200,6 +1200,33 @@ function Nav.Bound(ci, ax, ay, bx, by)
     return best
 end
 
+-- The ground nearest (x, y), within cells of it in its tile, that leads out
+-- of the tile: a goal off the grid (a zone's middle on a peak) stands
+-- there. World x, y, or nil.
+function Nav.Ground(ci, x, y, cells)
+    local w = World(ci)
+    if not w then return nil end
+    local key, sx, sy = TileOf(x, y)
+    local t = Tile(w, key)
+    if not t then return nil end
+    local N, cell = w.N, w.cell
+    local r0, c0 = mfloor((x - sx) / cell), mfloor((y - sy) / cell)
+    for ring = 0, cells do
+        for r = r0 - ring, r0 + ring do
+            for c = c0 - ring, c0 + ring do
+                if (mabs(r - r0) == ring or mabs(c - c0) == ring) and r >= 0 and c >= 0 and r < N and c < N then
+                    local cc = r * N + c
+                    for g = U16(t.cf, cc + 1), U16(t.cf, cc + 2) - 1 do
+                        local out = ToEntrances(w, t, g)
+                        if out and next(out) then return FloorXY(w, t, g) end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 -- For dev/tools/navmesh/bake_spots.lua: a fixed spot's key and costs to
 -- its tile's entrance sides, or with near its boarding circle's.
 function Nav.SpotReach(ci, x, y, near)

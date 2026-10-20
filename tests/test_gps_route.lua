@@ -595,6 +595,25 @@ function tests.walk_priceTheWalk()
     H.assertTrue(math.abs(left - 500 * steps[1].wind / 7) < 0.01, "the way left winds as the whole walk does")
 end
 
+-- A zone's middle off the ground the walks know (Winterspring's): the
+-- nearest ground stands for it, so the route walks there, not nowhere.
+function tests.walk_zoneMiddleOffTheGround_walksToTheNearestGround()
+    local _, ns, Route = fresh()
+    withNav(ns, function(sx, sy, tx, ty)
+        if math.abs(tx - 5000) < 20 and math.abs(ty - 5000) < 20 then return nil end
+        return { sx, sy, tx, ty }
+    end)
+    local d = data()
+    d.classic = true
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local zone = { name = "Zone", mapID = 3, x = 0.5, y = 0.5, zone = true }
+    H.assertNil(build(Route, P(1, 0.1, 0.1), zone, { data = d, groundSpeed = 7 }), "no way to the middle itself")
+    ns.GPSNav.Ground = function(_, x, y) return x + 100, y end
+    local steps = build(Route, P(1, 0.1, 0.1), zone, { data = d, groundSpeed = 7 })
+    H.assertNotNil(steps, "a route")
+    H.assertEq(steps[#steps].arrive.wx, 5100, "it ends on the ground beside the middle")
+end
+
 -- A spot reached only round by a far shore (a trainer just off a bank the
 -- grid does not step down from) is walked to within 8 yards when that is
 -- far shorter; a way only somewhat longer keeps the spot itself.

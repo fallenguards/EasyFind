@@ -355,6 +355,10 @@ local BOARD, BOARD_NEAR = { near = 40 }, 600
 -- Only then: a floor under an upstairs trainer is near too.
 local GOAL_NEAR = 8
 local goalOpts = { near = GOAL_NEAR }
+-- A zone's goal is its map's middle, which can be off the ground the walks
+-- know (Winterspring's is): the nearest ground this many cells off stands
+-- for it.
+local ZONE_GROUND_CELLS = 64
 
 -- A walk's seconds on the walking grid by the cost it is chosen by (the
 -- chosen route's walks are timed by their real path afterwards), and its
@@ -1349,6 +1353,11 @@ function Route:Build(dest, opts)
     if not data then return nil end
     local goal = Resolve({ m = dest.mapID, x = dest.x, y = dest.y })
     if not goal then return nil end
+    local Nav = ns.GPSNav
+    if dest.zone and Nav and Nav.Ground then
+        local wx, wy = Nav.Ground(goal.ci, goal.wx, goal.wy, ZONE_GROUND_CELLS)
+        if wx then goal = { m = goal.m, x = goal.x, y = goal.y, ci = goal.ci, wx = wx, wy = wy } end
+    end
     local start = opts.start
     if not start then
         local m = C_Map.GetBestMapForUnit("player")
@@ -1368,7 +1377,7 @@ function Route:Build(dest, opts)
     end
     -- Walks go around what this character should not walk through
     -- (opts.level: the character's level, the player's by default).
-    local Nav, Npcs = ns.GPSNav, ns.GPSNpcs
+    local Npcs = ns.GPSNpcs
     if Nav and Nav.SetDanger then
         local on = opts.avoid and opts.avoid.danger and Npcs and Npcs.DangerTiles
         Nav.SetDanger(on and Npcs.DangerTiles(opts.level or (UnitLevel and UnitLevel("player")),
