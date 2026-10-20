@@ -59,13 +59,20 @@ Harness.TOCS = {
     "Apps/Quicklists/EasyFind_Quicklists.toc",
 }
 
+-- A toc line's file and its load rules ([AllowLoadGameType camelot]).
+function Harness.TocLine(line)
+    line = line:gsub("\r$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local file, rules = line:match("^(.-)%s+(%[.*%])$")
+    return file or line, rules or ""
+end
+
 -- The Lua files a .toc lists, relative to the addon root; false when unreadable.
 function Harness.TocFiles(tocPath)
     local files = {}
     local fh = io.open(ADDON_ROOT .. "/" .. tocPath, "r")
     if not fh then return files, false end
     for line in fh:lines() do
-        line = line:gsub("\r$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        line = Harness.TocLine(line)
         if line ~= "" and not line:find("^#") and line:find("%.lua$") then
             local dir = tocPath:match("^(.*)/[^/]+$")
             files[#files + 1] = dir and (dir .. "/" .. line) or line

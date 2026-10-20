@@ -9,13 +9,13 @@
 ## RequiredDeps: EasyFind
 ## DefaultState: enabled
 
-Data.lua
-Data_Forever.lua
-Walk_EasternKingdoms.lua
-Walk_Kalimdor.lua
-Walk_ZephrasIsle.lua
-Npcs_Forever.lua
-Npcs_Retail.lua
+Data.lua [AllowLoadGameType standard]
+Data_Forever.lua [AllowLoadGameType camelot]
+Walk_EasternKingdoms.lua [AllowLoadGameType camelot]
+Walk_Kalimdor.lua [AllowLoadGameType camelot]
+Walk_ZephrasIsle.lua [AllowLoadGameType camelot]
+Npcs_Forever.lua [AllowLoadGameType camelot]
+Npcs_Retail.lua [AllowLoadGameType standard]
 Nav.lua
 Route.lua
 Flights.lua

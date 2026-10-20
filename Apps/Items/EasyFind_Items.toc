@@ -10,6 +10,6 @@
 ## LoadOnDemand: 1
 ## DefaultState: enabled
 
-Data.lua
-Data_Forever.lua
+Data.lua [AllowLoadGameType standard]
+Data_Forever.lua [AllowLoadGameType camelot]
 ItemSearch.lua

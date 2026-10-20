@@ -15,16 +15,16 @@
 Shared/Localization.lua
 Shared/Caps.lua
 Locales/enUS.lua
-Locales/deDE.lua
-Locales/esES.lua
-Locales/esMX.lua
-Locales/frFR.lua
-Locales/itIT.lua
-Locales/koKR.lua
-Locales/ptBR.lua
-Locales/ruRU.lua
-Locales/zhCN.lua
-Locales/zhTW.lua
+Locales/deDE.lua [AllowLoadTextLocale deDE]
+Locales/esES.lua [AllowLoadTextLocale esES]
+Locales/esMX.lua [AllowLoadTextLocale esMX]
+Locales/frFR.lua [AllowLoadTextLocale frFR]
+Locales/itIT.lua [AllowLoadTextLocale itIT]
+Locales/koKR.lua [AllowLoadTextLocale koKR]
+Locales/ptBR.lua [AllowLoadTextLocale ptBR]
+Locales/ruRU.lua [AllowLoadTextLocale ruRU]
+Locales/zhCN.lua [AllowLoadTextLocale zhCN]
+Locales/zhTW.lua [AllowLoadTextLocale zhTW]
 Shared/Utils.lua
 Shared/TogglePopup.lua
 Shared/SecureOpeners.lua
@@ -46,10 +46,10 @@ Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua
 Database/Instances_Forever.lua
-Database/Loot_Forever.lua
+Database/Loot_Forever.lua [AllowLoadGameType camelot]
 Database/StaticLocations.lua
-Database/StaticLocations_Retail.lua
-Database/StaticLocations_Forever.lua
+Database/StaticLocations_Retail.lua [AllowLoadGameType standard]
+Database/StaticLocations_Forever.lua [AllowLoadGameType camelot]
 Shared/Aliases.lua
 Shared/Shortkeys.lua
 Shared/UIPins.lua
@@ -143,7 +143,7 @@ MapSearch/Zones/Navigation.lua
 MapSearch/Zones/Breadcrumbs.lua
 MapSearch/Navigation.lua
 MapSearch/Pins.lua
-MapSearch/InstancePins.lua
+MapSearch/InstancePins.lua [AllowLoadGameType camelot]
 MapSearch/Preview.lua
 MapSearch/UINavigation.lua
 MapSearch/Search/Core.lua

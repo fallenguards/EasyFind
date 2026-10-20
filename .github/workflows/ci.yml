@@ -42,7 +42,8 @@ jobs:
           while IFS= read -r toc; do
             tocdir="$(dirname "$toc")"
             while IFS= read -r line; do
-              line="$(echo "$line" | sed 's/\r$//')"
+              # Trailing load rules ([AllowLoadGameType camelot]) are not part of the path.
+              line="$(echo "$line" | sed -E 's/\r$//; s/([[:space:]]+\[[^]]*\])+[[:space:]]*$//')"
               [[ -z "$line" ]] && continue
               [[ "$line" =~ ^## ]] && continue
               filepath="$tocdir/$(echo "$line" | tr '\\' '/')"
