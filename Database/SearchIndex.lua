@@ -47,7 +47,7 @@ local Database = ns.Database
 local SearchIndex = {}
 ns.SearchIndex = SearchIndex
 
-local sbyte, ssub = string.byte, string.sub
+local sbyte, ssub, sfind = string.byte, string.sub, string.find
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 local wipe = wipe
 local pairs = pairs
@@ -178,33 +178,69 @@ local function maskOf(s, m)
     return m
 end
 
--- Word-splits text, appending each word's bigrams to gramPost and its
--- leading bigram to wordPost, deduped per entry through seenGrams (the
--- caller wipes it per entry). Query words never contain spaces, so
--- within-word bigrams are sufficient for the contiguous class.
-local function IndexText(e, text)
+-- The word dictionary (class D): every word of 3+ bytes the scorers cut
+-- from names and keywords, and each whole keyword, with the serials that
+-- hold it. Typo and abbreviation matches are word against word with the
+-- first letter fixed, so a query word tests only the words under its
+-- first letter instead of masking every entry.
+local dictId, dictWord, dictByFirst = {}, {}, {}
+-- Most words sit in one entry: the first entry is kept in dictOne and
+-- only a second one opens a posting bucket.
+local dictOne, dictStr, dictTail = {}, {}, {}
+local dictCount = 0
+local seenWords = {}
+local tokenBuf = {}
+local gmatch = string.gmatch
+
+local function PostWord(e, w)
+    if #w < 3 then return end
+    local id = dictId[w]
+    if not id then
+        dictCount = dictCount + 1
+        id = dictCount
+        dictId[w], dictWord[id] = id, w
+        local b = sbyte(w, 1)
+        local list = dictByFirst[b]
+        if not list then list = {}; dictByFirst[b] = list end
+        list[#list + 1] = id
+    end
+    if not seenWords[id] then
+        seenWords[id] = true
+        if dictOne[id] then
+            PostAppend(dictStr, dictTail, id, e)
+        else
+            dictOne[id] = e
+        end
+    end
+end
+
+-- Words as the scorers cut text (Search.lua GetWords).
+local function Cut(text)
+    if not sfind(text, "[\128-\255]") then
+        local n = 0
+        for w in gmatch(text, "[%w']+") do
+            n = n + 1
+            tokenBuf[n] = w
+        end
+        for i = n + 1, #tokenBuf do tokenBuf[i] = nil end
+        return tokenBuf, n
+    end
+    local words = ns.SearchText.Tokenize(text)
+    return words, #words
+end
+
+-- Indexes one text of entry e, deduped per entry through seenGrams and
+-- seenWords (the caller wipes both per entry). The contiguous class takes
+-- the bigrams of space-cut chunks: query words never contain spaces, so
+-- that is a superset however the scorers cut. Word leads, initials and
+-- the dictionary follow the scorers' own words.
+local function IndexText(e, text, isKeyword)
     local wordStart = 1
     local len = #text
-    local init1, init2
     for p = 1, len + 1 do
         local b = p <= len and sbyte(text, p) or 32
         if b == 32 then
-            if p > wordStart then
-                -- First letters of the two leading words anchor the pure-
-                -- initials class (1-char words count as words there).
-                if not init1 then
-                    init1 = sbyte(text, wordStart)
-                elseif not init2 then
-                    init2 = sbyte(text, wordStart)
-                end
-            end
             if p - wordStart >= 2 then
-                local b1, b2 = sbyte(text, wordStart, wordStart + 1)
-                local lead = b1 * 256 + b2
-                if not seenGrams[WORD_SEEN_BASE + lead] then
-                    seenGrams[WORD_SEEN_BASE + lead] = true
-                    PostAppend(wordStr, wordTail, lead, e)
-                end
                 for g = wordStart, p - 2 do
                     local g1, g2 = sbyte(text, g, g + 1)
                     local gram = g1 * 256 + g2
@@ -217,8 +253,25 @@ local function IndexText(e, text)
             wordStart = p + 1
         end
     end
-    if init1 and init2 then
-        local key = init1 * 256 + init2
+    local words, n = Cut(text)
+    for i = 1, n do
+        local w = words[i]
+        if #w >= 2 then
+            local b1, b2 = sbyte(w, 1, 2)
+            local lead = b1 * 256 + b2
+            if not seenGrams[WORD_SEEN_BASE + lead] then
+                seenGrams[WORD_SEEN_BASE + lead] = true
+                PostAppend(wordStr, wordTail, lead, e)
+            end
+        end
+        PostWord(e, w)
+    end
+    -- A whole keyword is compared as one word too (ScoreSingleFieldWord).
+    if isKeyword and not (n == 1 and words[1] == text) then PostWord(e, text) end
+    -- First letters of the two leading words anchor the pure-initials
+    -- class (1-char words count as words there).
+    if n >= 2 then
+        local key = sbyte(words[1], 1) * 256 + sbyte(words[2], 1)
         if not seenGrams[INIT_SEEN_BASE + key] then
             seenGrams[INIT_SEEN_BASE + key] = true
             PostAppend(initStr, initTail, key, e)
@@ -247,6 +300,7 @@ local function IndexEntry(data)
         return
     end
     wipe(seenGrams)
+    wipe(seenWords)
     local m = 0
     -- Corpus stubs (metatable-tagged) index from transient decodes so the
     -- index build never hydrates them; the values are dropped after this.
@@ -272,7 +326,7 @@ local function IndexEntry(data)
             local kw = kws[k]
             if kw then
                 m = maskOf(kw, m)
-                IndexText(sid, kw)
+                IndexText(sid, kw, true)
             end
         end
     end
@@ -284,6 +338,9 @@ local function Restart()
     wipe(gramStr); wipe(gramTail)
     wipe(wordStr); wipe(wordTail)
     wipe(initStr); wipe(initTail)
+    wipe(dictId); wipe(dictWord); wipe(dictByFirst)
+    wipe(dictOne); wipe(dictStr); wipe(dictTail)
+    dictCount = 0
     wipe(entryMask)
     wipe(lootIdx)
     wipe(slotEntry)
@@ -431,18 +488,87 @@ function SearchIndex:NoteRemoved(entry)
     end
 end
 
-local function MissingWithin(qm, tm, allowed)
-    local present = band(qm, tm)
-    if present == qm then return true end
-    if allowed == 0 then return false end
-    local missing = qm - present
-    local n = 0
-    while missing ~= 0 do
-        missing = band(missing, missing - 1)
-        n = n + 1
-        if n > allowed then return false end
+-- Search.lua's IsSubsequence: the first letters equal, the rest in order,
+-- the greedy match ending within 2 * qLen - 1 bytes.
+local function Subsequence(x, q, qLen, xLen)
+    local xi = 1
+    for qi = 1, qLen do
+        local qc = sbyte(q, qi)
+        while xi <= xLen and sbyte(x, xi) ~= qc do xi = xi + 1 end
+        if xi > xLen then return false end
+        xi = xi + 1
     end
-    return true
+    return xi - 1 <= qLen * 2 - 1
+end
+
+-- Search.lua's DamerauLevenshtein (optimal string alignment) is at most k.
+local osaPrev2, osaPrev, osaCurr = {}, {}, {}
+local function WithinEdits(a, b, la, lb, k)
+    local d = la - lb
+    if d > k or -d > k then return false end
+    local prev2, prev, curr = osaPrev2, osaPrev, osaCurr
+    for j = 0, lb do prev[j] = j end
+    for i = 1, la do
+        curr[0] = i
+        local rowMin = i
+        local ca = sbyte(a, i)
+        local caPrev = i > 1 and sbyte(a, i - 1) or nil
+        for j = 1, lb do
+            local cb = sbyte(b, j)
+            local cost = ca == cb and 0 or 1
+            local v = prev[j] + 1
+            local ins = curr[j - 1] + 1
+            if ins < v then v = ins end
+            local sub = prev[j - 1] + cost
+            if sub < v then v = sub end
+            if i > 1 and j > 1 and ca == sbyte(b, j - 1) and caPrev == cb then
+                local t = prev2[j - 2] + cost
+                if t < v then v = t end
+            end
+            curr[j] = v
+            if v < rowMin then rowMin = v end
+        end
+        if rowMin > k then return false end
+        prev2, prev, curr = prev, curr, prev2
+    end
+    return prev[lb] <= k
+end
+
+-- The dictionary words a query word can reach by typo or abbreviation:
+-- the first letters equal (or the first pair swapped, for a typo), as
+-- every scorer path requires. Memoized until the dictionary grows.
+local matchMemo, matchMemoCount = {}, -1
+local function MatchingWords(qw, L)
+    if matchMemoCount ~= dictCount then
+        wipe(matchMemo)
+        matchMemoCount = dictCount
+    end
+    local hit = matchMemo[qw]
+    if hit then return hit end
+    hit = {}
+    local q1, q2 = sbyte(qw, 1, 2)
+    local k = L >= FUZZY_EDIT2_LEN and 2 or (L >= FUZZY_EDIT1_LEN and 1 or 0)
+    local list = dictByFirst[q1]
+    for i = 1, list and #list or 0 do
+        if band(i, 511) == 0 then SliceCheckpoint() end
+        local id = list[i]
+        local x = dictWord[id]
+        local xl = #x
+        if (xl > L and L <= 8 and Subsequence(x, qw, L, xl))
+           or (k > 0 and WithinEdits(qw, x, L, xl, k)) then
+            hit[#hit + 1] = id
+        end
+    end
+    if k > 0 and q2 and q2 ~= q1 then
+        list = dictByFirst[q2]
+        for i = 1, list and #list or 0 do
+            local id = list[i]
+            local x = dictWord[id]
+            if sbyte(x, 2) == q1 and WithinEdits(qw, x, L, #x, k) then hit[#hit + 1] = id end
+        end
+    end
+    matchMemo[qw] = hit
+    return hit
 end
 
 -- Class A: entries containing every bigram of w (count filtering).
@@ -510,20 +636,15 @@ local function CollectWord(qw)
             end
         end
     end
+    -- D: the entries holding a word the query word reaches by typo or
+    -- abbreviation (2-char words have neither).
     if L >= 3 then
-        local qm = maskOf(qw, 0)
-        local allowed = 0
-        if L >= FUZZY_EDIT2_LEN then
-            allowed = 2
-        elseif L >= FUZZY_EDIT1_LEN then
-            allowed = 1
-        end
-        for sid = 1, nextSerial do
-            if band(sid, 511) == 0 then SliceCheckpoint() end
-            if alive[sid] and not wordSet[sid]
-               and MissingWithin(qm, entryMask[sid], allowed) then
-                wordSet[sid] = true
-            end
+        local ids = MatchingWords(qw, L)
+        for i = 1, #ids do
+            local id = ids[i]
+            wordSet[dictOne[id]] = true
+            local pn = DecodePostings(dictStr, dictTail, id)
+            for pi = 1, pn do wordSet[postScratch[pi]] = true end
         end
     end
     for li = 1, #lootIdx do
@@ -606,5 +727,6 @@ function SearchIndex:_DebugPeek()
         wordTail = wordTail, initStr = initStr, initTail = initTail,
         entryMask = entryMask, lootIdx = lootIdx, slotEntry = slotEntry,
         serials = serials, alive = alive, builtCount = builtCount,
+        dictId = dictId, dictOne = dictOne, dictTail = dictTail, dictStr = dictStr, dictCount = dictCount,
     }
 end
