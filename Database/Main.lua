@@ -3772,7 +3772,7 @@ function Database:PopulateDynamicLoot(scanAllSpecs)
     -- specs, so the journal would otherwise show the last-scanned spec.
     Database:SyncEJLootFilter()
     Utils.SafeAfter(0, function()
-        collectgarbage("step", 200)
+        Utils.GCStep(1)
     end)
 end
 
@@ -3914,7 +3914,7 @@ function Database:PopulateDynamicLootAsync(done, scanAllSpecs)
             PersistLootCache()
             RebuildLootSearchData()
             Database:SyncEJLootFilter()
-            collectgarbage("step", 200)
+            Utils.GCStep(1)
         end
         done(changed, err)
     end

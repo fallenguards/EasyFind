@@ -473,7 +473,7 @@ local function PlanStep()
     -- The collector keeps pace with the slice: what the plan left behind
     -- goes now, not once the heap has doubled.
     local grew = collectgarbage("count") - before
-    if grew > 0 then collectgarbage("step", mfloor(grew)) end
+    if grew > 0 then ns.Utils.GCStep(1) end
     if coroutine.status(co) ~= "dead" or Planner.co ~= co then return end
     Planner.co = nil
     Planner.frame:SetScript("OnUpdate", nil)

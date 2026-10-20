@@ -251,8 +251,7 @@ end
 
 local function CollectMapGarbage()
     if collectgarbage then
-        collectgarbage("step", 300)
-        collectgarbage("step", 300)
+        Utils.GCStep(1)
     end
 end
 

@@ -431,7 +431,7 @@ function Database:LoadEagerDynamicProviders()
                     -- Bounded GC step per provider: keeps the warm's peak
                     -- allocation from stacking every provider's build
                     -- garbage before the end-of-chain full collect.
-                    collectgarbage("step", 400)
+                    Utils.GCStep(1)
                     -- Index this provider's entries in budgeted slices
                     -- before the next one loads.
                     local function indexSlice()
@@ -488,7 +488,7 @@ function Database:LoadDeferredSyncProvidersStaggered()
                     -- Bounded GC step per provider: keeps the warm's peak
                     -- allocation from stacking every provider's build
                     -- garbage before the end-of-chain full collect.
-                    collectgarbage("step", 400)
+                    Utils.GCStep(1)
                     -- Index this provider's entries in budgeted slices
                     -- before the next one loads.
                     local function indexSlice()

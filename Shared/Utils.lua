@@ -855,14 +855,28 @@ function Utils.ReleaseGC(tag)
     end
 end
 
--- A full collect at a quiet moment, in sub-millisecond steps across
--- frames: one collect over a large shared heap was a 100 ms frame.
+-- A collector step bounded by time, not size: a sized step (step 400)
+-- that lands in the sweep frees tens of thousands of objects, a 32 ms
+-- frame on the shared heap (Perfy, 2026-10-20). The smallest steps stop
+-- at the budget; only the atomic pass stays whole. True when a cycle ends.
+function Utils.GCStep(ms)
+    local clock = debugprofilestop
+    if not clock then return collectgarbage("step", 0) end
+    local start = clock()
+    repeat
+        if collectgarbage("step", 0) then return true end
+    until clock() - start >= ms
+    return false
+end
+
+-- A full collect at a quiet moment, a millisecond a tick across frames:
+-- one collect over a large shared heap was a 100 ms frame.
 function Utils.SettleGC()
     local ticks = 600
     local function tick()
         ticks = ticks - 1
         if ticks <= 0 or InCombatLockdown() then return end
-        if collectgarbage("step", 400) then return end
+        if Utils.GCStep(1) then return end
         Utils.SafeAfter(0.02, tick)
     end
     tick()
@@ -875,7 +889,7 @@ function Utils.NoteSurfaceClosed(key, isOpenFn, trimFn)
     local function sweepTick()
         if gcSweepSerials[key] ~= serial then return end
         if isOpenFn and isOpenFn() then return end
-        collectgarbage("step", 400)
+        Utils.GCStep(1)
         sweepsLeft = sweepsLeft - 1
         if sweepsLeft > 0 then
             Utils.SafeAfter(0.05, sweepTick)
