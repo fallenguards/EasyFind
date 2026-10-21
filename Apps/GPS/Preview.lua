@@ -665,6 +665,9 @@ end
 local function MapOf(route, index)
     local step = route.steps[index]
     if step.kind == "teleport" then return step.arrive and step.arrive.m end
+    -- A walk through a zone to its border shows that zone: the border sat
+    -- a hair past its map's edge, and the leg showed the continent.
+    if step.enter and step.walkZone then return step.walkZone end
     local start, target = Ends(route, index)
     local mapID = step.mapID or (target and target.m)
     if not mapID then return nil end
