@@ -302,17 +302,22 @@ L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließ
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r Wegbeschreibung zu jedem Ort: Flüge, Schiffe, Portale, Teleports und der Fußweg, mit Pfeil, der Route auf der Karte und Reisen mit Zwischenstopps\n" ..
+    "    |cff999999-|r Wegbeschreibung zu jedem Ort: Flüge, Schiffe, Portale, Teleports und der Fußweg, mit einem Pfeil an deinem Charakter, der Route auf der Karte und Reisen mit mehreren Zwischenstopps\n" ..
+    "    |cff999999-|r Auf WoW Forever, Classic Era und TBC Anniversary folgt der Fußweg dem Gelände: um Klippen, Wasser und Kreaturen weit über deiner Stufe herum\n" ..
+    "    |cff999999-|r Benannte Kreaturen in der Kartensuche, nach Name, Dienst oder Warenangebot, jede an ihrem nächsten Standort, damit die Wegbeschreibung zu jeder von ihnen führt\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotizen|r\n" ..
-    "    |cff999999-|r Notizen, die dort erscheinen, wo sie gelten: in Tooltips, an Namen im Chat oder von selbst; Checklisten, die das Spiel abhakt\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat, Zwischenablage-Verlauf, Schnelllisten|r\n" ..
-    "    |cff999999-|r Ein separat installierter Messenger, Kopiertes und jeder Chat-Link unter @clipboard, Ergebnislisten auf einer Taste\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffKreaturen in der Kartensuche|r\n" ..
-    "    |cff999999-|r Benannte Kreaturen nach Name, Dienst oder Warenangebot, jede an ihrem nächsten Standort\n" ..
+    "    |cff999999-|r Ein vollständiger Notizen-Begleiter: Notizen für Orte, Aktivitäten, Klassen, Ziele und Spieler, Checklisten, die das Spiel abhakt, Tags, ein Papierkorb mit Rückgängig und Teilen-Codes\n" ..
+    "    |cff999999-|r Eine Notiz erscheint, wo sie gilt: in Tooltips, an Namen im Chat oder von selbst; Strg+Rechtsklick auf ein Item oder einen Zauber öffnet seine Notiz\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat|r\n" ..
+    "    |cff999999-|r Ein Messenger für Flüstern und Kanäle, mit Threads und Verlauf, separat installiert als EasyFind Chat\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffZwischenablage-Verlauf|r\n" ..
+    "    |cff999999-|r Was du kopiert hast und jeder Link, der durch den Chat ging, unter @clipboard oder auf einer Taste, mit Zur Notiz hinzufügen bei jedem Eintrag\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSchnelllisten|r\n" ..
+    "    |cff999999-|r Benannte Ergebnislisten auf einer Taste, gedrückt oder gehalten, oder aus einem Makro auf einer Aktionsleiste\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDesigns|r\n" ..
+    "    |cff999999-|r Das Design-Studio gibt jedem Fenster ein eigenes Aussehen, mit einem Classic-Design und einem Forever-Design im Stil von 1.x\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era und TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind läuft auch dort, GPS inklusive\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffFür andere Addons|r\n" ..
-    "    |cff999999-|r EasyFind.API: Ergebnisse, Erweiterungen und Einstellungsseiten registrieren; das Design-Studio gibt jedem Fenster ein eigenes Aussehen"
+    "    |cff999999-|r EasyFind läuft auf beiden, GPS inklusive"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

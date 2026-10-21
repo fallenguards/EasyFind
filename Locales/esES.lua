@@ -300,17 +300,22 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerra
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r Cómo llegar a cualquier lugar: vuelos, barcos, portales, teletransportes y la caminata, con una flecha, la ruta en el mapa y viajes con paradas\n" ..
+    "    |cff999999-|r Cómo llegar a cualquier lugar: vuelos, barcos, portales, teletransportes y la caminata, con una flecha en tu personaje, la ruta en el mapa y viajes con varias paradas\n" ..
+    "    |cff999999-|r En WoW Forever, Classic Era y TBC Anniversary la caminata sigue el terreno: rodea acantilados, agua y criaturas muy por encima de tu nivel\n" ..
+    "    |cff999999-|r Criaturas con nombre en la búsqueda del mapa, por nombre, servicio o mercancía, cada una en su lugar más cercano, para que las indicaciones lleven a cualquiera de ellas\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
-    "    |cff999999-|r Notas que aparecen donde se aplican: en las descripciones emergentes, en los nombres del chat o por sí solas; listas de tareas que el juego marca\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat, historial del portapapeles, listas rápidas|r\n" ..
-    "    |cff999999-|r Un mensajero que se instala aparte, lo que copias y cada enlace del chat bajo @clipboard, listas de resultados en una tecla\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCriaturas en la búsqueda del mapa|r\n" ..
-    "    |cff999999-|r Criaturas con nombre por nombre, servicio o mercancía, cada una en su lugar más cercano\n" ..
+    "    |cff999999-|r Un compañero de notas completo: notas para lugares, actividades, clases, objetivos y jugadores, listas que el juego marca, etiquetas, una papelera con deshacer y códigos para compartir\n" ..
+    "    |cff999999-|r Una nota aparece donde se aplica: en las descripciones emergentes, en los nombres del chat o por sí sola; Ctrl+clic derecho en un objeto o hechizo abre su nota\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat|r\n" ..
+    "    |cff999999-|r Un mensajero para susurros y canales, con hilos e historial, instalado aparte como EasyFind Chat\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffHistorial del portapapeles|r\n" ..
+    "    |cff999999-|r Lo que copiaste y cada enlace que pasó por el chat, bajo @clipboard o en una tecla, con Añadir a nota en cada entrada\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffListas rápidas|r\n" ..
+    "    |cff999999-|r Listas de resultados con nombre en una tecla, pulsada o mantenida, o desde una macro en una barra de acción\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTemas|r\n" ..
+    "    |cff999999-|r El Estudio de temas da a cada ventana su propio aspecto, con un tema Classic y un tema Forever al estilo 1.x\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era y TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind también funciona allí, GPS incluido\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffPara otros addons|r\n" ..
-    "    |cff999999-|r EasyFind.API: registra resultados, extensiones y páginas de ajustes; el Estudio de temas da a cada ventana su propio aspecto"
+    "    |cff999999-|r EasyFind funciona en ambos, GPS incluido"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

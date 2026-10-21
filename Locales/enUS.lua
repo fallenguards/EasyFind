@@ -331,17 +331,22 @@ L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r Directions to any place: flights, boats, portals, teleports and the walk, with an arrow, the route on the map and a trip with stops\n" ..
+    "    |cff999999-|r Directions to any place: flights, boats, portals, teleports and the walk, with an arrow at your character, the route on the map and trips with several stops\n" ..
+    "    |cff999999-|r On WoW Forever, Classic Era and TBC Anniversary the walk follows the ground: around cliffs, water and creatures far above your level\n" ..
+    "    |cff999999-|r Named creatures on the map search, by name, service or what they sell, each on its nearest spot, so directions lead to any of them\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
-    "    |cff999999-|r Notes that show where they apply: in tooltips, on names in chat, or by themselves; checklists the game ticks off\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat, Clipboard History, Quicklists|r\n" ..
-    "    |cff999999-|r A messenger installed separately, what you copied and every chat link under @clipboard, result lists on a key\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCreatures on the map search|r\n" ..
-    "    |cff999999-|r Named creatures by name, service or what they sell, each on its nearest spot\n" ..
+    "    |cff999999-|r A full notes companion: notes for places, activities, classes, targets and players, checklists the game ticks off, tags, a trash with undo and share codes\n" ..
+    "    |cff999999-|r A note shows where it applies, in tooltips, on names in chat or by itself; Ctrl+Right-click on any item or spell opens its note\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat|r\n" ..
+    "    |cff999999-|r A messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClipboard History|r\n" ..
+    "    |cff999999-|r What you copied and every link that passed through chat, under @clipboard or on a key, with Add to note on any entry\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffQuicklists|r\n" ..
+    "    |cff999999-|r Named result lists on a key, pressed or held, or from a macro on an action bar\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffThemes|r\n" ..
+    "    |cff999999-|r Theme Studio gives each window its own look, with a Classic theme and a Forever theme in the 1.x style\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind runs there too, GPS included\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffFor other addons|r\n" ..
-    "    |cff999999-|r EasyFind.API: register results, extensions and settings pages; Theme Studio gives each window its own look"
+    "    |cff999999-|r EasyFind runs on both, GPS included"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels
