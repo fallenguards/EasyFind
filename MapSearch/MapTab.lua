@@ -338,7 +338,7 @@ local function SelectPage(id)
         if w then w:SetShown(id == nil) end
     end
     if panel.anchor then panel:SetPoint("TOPLEFT", panel.anchor, "TOPLEFT", 0, id and 0 or -29) end
-    if id and panel.filterDropdown then panel.filterDropdown:Hide() end
+    if id then ns.HideTogglePopup("EasyFindMapTabOptions") end
     UpdatePageBar()
     for pid, def in pairs(pages) do
         if pid == id then
@@ -2337,106 +2337,90 @@ end
 
 -- Sub-row that only shows while the parent Rares filter is checked.
 -- Mirrors `alwaysShowRares` in SavedVariables (shared with Options/OptionsPanel.lua).
-local AUTO_TRACK_ROW_H = 18
-local function AttachAutoTrackRow(dropdown)
-    local raresRow
-    for _, row in ipairs(dropdown.rows) do
-        if row.optKey == "rares" then raresRow = row; break end
-    end
-    if not raresRow then return end
+-- The cog's menu: the "Show" buckets as check rows, each bucket's kinds
+-- in a flyout beside it (auto-track under Rares), the text size last.
+local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 
-    local subRow = CreateFrame("CheckButton", nil, dropdown)
-    subRow:SetSize(raresRow:GetWidth() - 20, AUTO_TRACK_ROW_H)
-    subRow:SetPoint("TOPLEFT", raresRow, "BOTTOMLEFT", 20, 0)
-    subRow:SetHitRectInsets(0, 0, 0, 0)
-    Utils.SetCheckboxTextures(subRow, 14)
-
-    local label = subRow:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", subRow:GetNormalTexture(), "RIGHT", 4, 0)
-    label:SetText(L["MAP_AUTO_TRACK"])
-
-    local hl = subRow:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.1)
-
-    subRow:SetScript("OnClick", function(self)
-        EasyFind.db.alwaysShowRares = self:GetChecked() and true or false
-        local MapSearch = ns.MapSearch
-        if MapSearch and MapSearch.UpdateRareTracking then
-            -- Defer one frame: a synchronous rescan+render during the click
-            -- doesn't repaint the canvas (it only recovered on map reopen).
-            -- Matches the Options panel's RunSoon(UpdateRareTracking).
-            SafeAfter(0, function() MapSearch:UpdateRareTracking() end)
-        end
-        if ns.optionsFrame and ns.optionsFrame.rareTrackCheckbox then
-            ns.optionsFrame.rareTrackCheckbox:SetChecked(EasyFind.db.alwaysShowRares)
-        end
-    end)
-    Utils.AttachDelayedTooltip(subRow, "ANCHOR_RIGHT", function()
-        return L["MAP_AUTO_TRACK_RARES"], L["MAP_AUTO_TRACK_RARES_TT"]
-    end)
-
-    dropdown.autoTrackRow = subRow
-    local baseHeight = dropdown:GetHeight()
-
-    -- The sub-row stays visible when Rares is off; it just grays out and stops
-    -- taking clicks (the same dimming the flyout uses for unavailable options),
-    -- so auto-track is always discoverable rather than vanishing.
-    function dropdown:UpdateAutoTrackRow()
-        local raresOn = (EasyFind.db.mapTabFilters or {}).rares ~= false
-        subRow:SetChecked(EasyFind.db.alwaysShowRares and true or false)
-        subRow:EnableMouse(raresOn)
-        label:SetFontObject(raresOn and "GameFontHighlightSmall" or "GameFontDisableSmall")
-        local dim = not raresOn
-        local normalTex = subRow:GetNormalTexture()
-        local checkedTex = subRow:GetCheckedTexture()
-        if normalTex then normalTex:SetDesaturated(dim); normalTex:SetAlpha(dim and 0.5 or 1) end
-        if checkedTex then checkedTex:SetDesaturated(dim); checkedTex:SetAlpha(dim and 0.5 or 1) end
-        hl:SetAlpha(raresOn and 1 or 0)
-        self:SetHeight(baseHeight + AUTO_TRACK_ROW_H)
-    end
-
-    dropdown:HookScript("OnShow", function(self) self:UpdateAutoTrackRow() end)
-    dropdown:UpdateAutoTrackRow()
+local function Filters()
+    EasyFind.db.mapTabFilters = EasyFind.db.mapTabFilters or {}
+    return EasyFind.db.mapTabFilters
 end
 
--- The text size choices under the filters, one checked at a time.
-local FONT_ROW_H, FONT_HEADER_H = 20, 19
-local function AttachFontSizeRows(dropdown, onPick)
-    local sec = CreateFrame("Frame", nil, dropdown)
-    local h = FONT_HEADER_H + #FONT_SIZES * FONT_ROW_H
-    sec:SetHeight(h)
-    sec:SetPoint("BOTTOMLEFT", dropdown, "BOTTOMLEFT", 8, 8)
-    sec:SetPoint("BOTTOMRIGHT", dropdown, "BOTTOMRIGHT", -8, 8)
-    local header = sec:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    header:SetPoint("TOPLEFT", sec, "TOPLEFT", 4, 0)
-    header:SetText(L["OPT_FONT_SIZE"] .. ":")
-    header:SetTextColor(Utils.RGB(GOLD_COLOR, 1))
-    local rows = {}
-    for i, choice in ipairs(FONT_SIZES) do
-        local row = CreateFrame("CheckButton", nil, sec)
-        row:SetHeight(FONT_ROW_H)
-        row:SetPoint("TOPLEFT", sec, "TOPLEFT", 0, -FONT_HEADER_H - (i - 1) * FONT_ROW_H)
-        row:SetPoint("RIGHT", sec, "RIGHT", 0, 0)
-        Utils.SetCheckboxTextures(row, 16)
-        local label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        label:SetPoint("LEFT", row:GetNormalTexture(), "RIGHT", 4, 0)
-        label:SetText(L[choice[1]])
-        local hl = row:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetAllPoints()
-        hl:SetColorTexture(1, 1, 1, 0.1)
-        row:SetScript("OnClick", function(self)
-            EasyFind.db.mapTabFontSize = choice[2]
-            for _, r in ipairs(rows) do r:SetChecked(r == self) end
-            onPick()
-        end)
-        rows[i] = row
+local function SetAutoTrack(on)
+    EasyFind.db.alwaysShowRares = on and true or false
+    local MapSearch = ns.MapSearch
+    -- Deferred: a synchronous rescan during the click leaves the canvas unpainted.
+    if MapSearch and MapSearch.UpdateRareTracking then
+        SafeAfter(0, function() MapSearch:UpdateRareTracking() end)
     end
-    dropdown:HookScript("OnShow", function()
+    if ns.optionsFrame and ns.optionsFrame.rareTrackCheckbox then
+        ns.optionsFrame.rareTrackCheckbox:SetChecked(EasyFind.db.alwaysShowRares)
+    end
+end
+
+-- A bucket's kinds, ticked while on and dim while the bucket is off.
+local function BucketRows(parent, onChanged)
+    return function()
+        local filters = Filters()
+        local off = filters[parent.key] == false
+        local rows = {}
+        for _, opt in ipairs(FILTER_OPTIONS) do
+            if opt.parentKey == parent.key then
+                rows[#rows + 1] = { text = opt.label, keepOpen = true, disabled = off,
+                    icon = filters[opt.key] ~= false and MENU_CHECK or nil,
+                    onClick = function()
+                        filters[opt.key] = filters[opt.key] == false
+                        onChanged(opt.key, filters[opt.key])
+                    end }
+            end
+        end
+        if parent.key == "rares" then
+            rows[#rows + 1] = { text = L["MAP_AUTO_TRACK"], tooltip = L["MAP_AUTO_TRACK_RARES_TT"], keepOpen = true,
+                disabled = off, icon = EasyFind.db.alwaysShowRares and MENU_CHECK or nil,
+                onClick = function() SetAutoTrack(not EasyFind.db.alwaysShowRares) end }
+        end
+        return rows
+    end
+end
+
+-- The text size choices, one ticked.
+local function FontRows(onPick)
+    return function()
         local cur = FontScale()
-        for i, r in ipairs(rows) do r:SetChecked(math.abs(FONT_SIZES[i][2] - cur) < 0.01) end
-    end)
-    dropdown:SetHeight(dropdown:GetHeight() + h + 6)
+        local rows = {}
+        for _, choice in ipairs(FONT_SIZES) do
+            rows[#rows + 1] = { text = L[choice[1]], keepOpen = true,
+                icon = math.abs(choice[2] - cur) < 0.01 and MENU_CHECK or nil,
+                onClick = function()
+                    EasyFind.db.mapTabFontSize = choice[2]
+                    onPick()
+                end }
+        end
+        return rows
+    end
+end
+
+local function MapOptionsDefs(onChanged, onFontPick)
+    local filters = Filters()
+    local defs = { { kind = "title", label = (_G["SHOW"] or "Show") .. ":" } }
+    for _, opt in ipairs(FILTER_OPTIONS) do
+        if not opt.parentKey then
+            local kinds = opt.key == "rares"
+            for _, o in ipairs(FILTER_OPTIONS) do
+                if o.parentKey == opt.key then kinds = true end
+            end
+            defs[#defs + 1] = { kind = "check", label = opt.label, tooltip = opt.tooltip,
+                rows = kinds and BucketRows(opt, onChanged) or nil,
+                get = function() return filters[opt.key] ~= false end,
+                set = function(v)
+                    filters[opt.key] = v and true or false
+                    onChanged(opt.key, v)
+                end }
+        end
+    end
+    defs[#defs + 1] = { kind = "separator" }
+    defs[#defs + 1] = { kind = "submenu", label = L["OPT_FONT_SIZE"], rows = FontRows(onFontPick) }
+    return defs
 end
 
 local function CreateFilterCog(parent)
@@ -2689,50 +2673,31 @@ local function CreatePanel(qmf)
     searchBox:SetPoint("RIGHT", cog, "LEFT", -6, 0)
     p.searchBox = searchBox
 
-    if ns.MapSearch and ns.MapSearch.CreateFilterDropdown then
-        local dropdown
-        dropdown = ns.MapSearch:CreateFilterDropdown(
-            "EasyFindMapTabFilterDropdown", FILTER_OPTIONS,
-            "mapTabFilters", cog, outer,
-            function(key)
-                if key == "flights" and ns.MapSearch and ns.MapSearch.ReleaseIdleSearchMemory then
-                    ns.MapSearch:ReleaseIdleSearchMemory()
-                end
-                RefreshCurrentSearch()
-                if key == "rares" then
-                    if dropdown.UpdateAutoTrackRow then dropdown:UpdateAutoTrackRow() end
-                    -- Rares is the parent of auto-track: toggling it must start
-                    -- or stop tracking too (deferred, like the sub-row click).
-                    if ns.MapSearch and ns.MapSearch.UpdateRareTracking then
-                        SafeAfter(0, function() ns.MapSearch:UpdateRareTracking() end)
-                    end
-                end
-                local uiMod = ns.Search
-                local uiSb = uiMod and uiMod.searchFrame and uiMod.searchFrame.editBox
-                if uiMod and uiMod.OnSearchTextChanged
-                   and uiSb and uiSb:IsShown() then
-                    local txt = uiSb:GetText() or ""
-                    if txt ~= "" then uiMod:OnSearchTextChanged(txt) end
-                end
-            end
-        )
-        AttachFontSizeRows(dropdown, function()
-            RefreshCurrentSearch()
-            -- The GPS page's steps follow the same size.
-            if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
-        end)
-        AttachAutoTrackRow(dropdown)
-        cog:SetScript("OnClick", function()
-            if dropdown:IsShown() then
-                dropdown:Hide()
-            else
-                dropdown:ClearAllPoints()
-                dropdown:SetPoint("TOPLEFT", cog, "BOTTOMLEFT", -2, -2)
-                dropdown:Show()
-            end
-        end)
-        p.filterDropdown = dropdown
+    local function OnFilterChanged(key)
+        if key == "flights" and ns.MapSearch and ns.MapSearch.ReleaseIdleSearchMemory then
+            ns.MapSearch:ReleaseIdleSearchMemory()
+        end
+        RefreshCurrentSearch()
+        -- Rares is the parent of auto-track: toggling it starts or stops
+        -- tracking too (deferred, as the auto-track row's own click is).
+        if key == "rares" and ns.MapSearch and ns.MapSearch.UpdateRareTracking then
+            SafeAfter(0, function() ns.MapSearch:UpdateRareTracking() end)
+        end
+        local uiMod = ns.Search
+        local uiSb = uiMod and uiMod.searchFrame and uiMod.searchFrame.editBox
+        if uiMod and uiMod.OnSearchTextChanged and uiSb and uiSb:IsShown() then
+            local txt = uiSb:GetText() or ""
+            if txt ~= "" then uiMod:OnSearchTextChanged(txt) end
+        end
     end
+    local function OnFontPicked()
+        RefreshCurrentSearch()
+        -- The GPS page's steps follow the same size.
+        if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
+    end
+    cog:SetScript("OnClick", function()
+        ns.ShowTogglePopup("EasyFindMapTabOptions", cog, MapOptionsDefs(OnFilterChanged, OnFontPicked), {})
+    end)
 
     p.AlignToBlizzardSearch = function()
         local qsb = _G["QuestScrollFrame"] and QuestScrollFrame.SearchBox

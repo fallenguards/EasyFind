@@ -105,7 +105,7 @@ local function OpenFlyout(popup, row)
     if fly and fly:IsShown() and fly._togglePopup == popup and fly._togglePopupRow == row then return end
     local def = row.def
     fly = Utils.ShowCursorMenu("EasyFindTogglePopupFlyout", FlyoutRows(popup, def), {
-        anchorBeside = row, stayOpen = true, scale = popup:GetScale(),
+        anchorBeside = row, stayOpen = true, scale = popup:GetScale(), iconSide = "left",
         strata = popup:GetFrameStrata(), level = popup:GetFrameLevel() + 20,
         -- A toggle's click lists the rows anew, its tick moved.
         rowsProvider = function() return FlyoutRows(popup, def) end,
@@ -115,7 +115,7 @@ local function OpenFlyout(popup, row)
 end
 
 local function RowEntered(popup, row)
-    if row.def and row.def.kind == "submenu" then
+    if row.def and (row.def.kind == "submenu" or row.def.rows) then
         OpenFlyout(popup, row)
         return
     end
@@ -156,6 +156,12 @@ local function MakeCheckRow(popup)
         local v = self:GetChecked() and true or false
         if def.set then def.set(v) end
         self:SetChecked(def.get and def.get() and true or false)
+        -- A check row with a flyout: its rows follow the parent's state.
+        local fly = popup.flyout
+        if def.rows and fly and fly:IsShown() and fly._togglePopupRow == self then
+            fly:Hide()
+            OpenFlyout(popup, self)
+        end
     end)
     return row
 end
@@ -248,7 +254,9 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     for _, def in ipairs(defs) do
         if def.kind ~= "separator" then
             popup.measure:SetText(def.label or "")
-            widest = math.max(widest, popup.measure:GetStringWidth() or 0)
+            local w = popup.measure:GetStringWidth() or 0
+            if def.kind == "submenu" or def.rows then w = w + 18 end   -- the chevron's room
+            widest = math.max(widest, w)
         end
     end
     local width = math.max(opts.width or 0, math.ceil(PAD * 2 + 4 + CHECK_SIZE + 6 + widest + 10))
@@ -296,6 +304,15 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
                     popup.checkRows[nCheck] = row
                 end
                 row:SetChecked(def.get and def.get() and true or false)
+                -- A check row may carry a flyout of its own rows too.
+                row.label:SetPoint("RIGHT", row, "RIGHT", def.rows and -20 or -2, 0)
+                if def.rows and not row.chevron then
+                    row.chevron = row:CreateTexture(nil, "OVERLAY")
+                    row.chevron:SetSize(12, 12)
+                    row.chevron:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+                    Utils.SetChevronTexture(row.chevron)
+                end
+                if row.chevron then row.chevron:SetShown(def.rows ~= nil) end
             else
                 nPlain = nPlain + 1
                 row = popup.plainRows[nPlain]
