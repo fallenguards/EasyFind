@@ -1,11 +1,11 @@
 -- MapSearch/InstancePins.lua
--- Dungeon and raid entrance pins on WoW Forever's world map. Retail's map
--- draws them from the encounter journal; Forever has no journal, so
--- EasyFind draws its own from the same entrance list the map search uses
--- (ns.GetDungeonEntrancesForMap). Our own frame watches the map and the
+-- Dungeon and raid entrance pins on the world map of WoW Forever, Classic
+-- Era and TBC Anniversary. Retail's map draws them from the encounter
+-- journal; these clients have none, so EasyFind draws its own from the same
+-- entrance list the map search uses (ns.GetDungeonEntrancesForMap). Our own frame watches the map and the
 -- zoom; nothing hooks the map's refresh.
 local _, ns = ...
-if not (ns.Caps and ns.Caps.forever) then return end
+if not (ns.Caps and (ns.Caps.forever or ns.Caps.classic)) then return end
 
 local L = ns.L
 local Utils = ns.Utils

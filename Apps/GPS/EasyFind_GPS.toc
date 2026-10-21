@@ -11,6 +11,8 @@
 
 Data.lua [AllowLoadGameType standard]
 Data_Forever.lua [AllowLoadGameType camelot]
+Data_Era.lua [AllowLoadGameType classic]
+Data_TBC.lua [AllowLoadGameType tbc]
 Walk_EasternKingdoms.lua [AllowLoadGameType camelot]
 Walk_Kalimdor.lua [AllowLoadGameType camelot]
 Walk_ZephrasIsle.lua [AllowLoadGameType camelot]

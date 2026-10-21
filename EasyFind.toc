@@ -46,6 +46,8 @@ Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua
 Database/Instances_Forever.lua
+Database/Instances_Era.lua [AllowLoadGameType classic]
+Database/Instances_TBC.lua [AllowLoadGameType tbc]
 Database/Loot_Forever.lua [AllowLoadGameType camelot]
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua [AllowLoadGameType standard]
@@ -143,7 +145,7 @@ MapSearch/Zones/Navigation.lua
 MapSearch/Zones/Breadcrumbs.lua
 MapSearch/Navigation.lua
 MapSearch/Pins.lua
-MapSearch/InstancePins.lua [AllowLoadGameType camelot]
+MapSearch/InstancePins.lua [AllowLoadGameType camelot, classic, tbc]
 MapSearch/Preview.lua
 MapSearch/UINavigation.lua
 MapSearch/Search/Core.lua

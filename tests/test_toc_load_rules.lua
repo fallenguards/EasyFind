@@ -25,6 +25,12 @@ local function GateRule(line)
         return "[AllowLoadGameType camelot]"
     elseif line:find("^if ns%.Caps and ns%.Caps%.forever then return end") then
         return "[AllowLoadGameType standard]"
+    elseif line:find("^if not %(ns%.Caps and ns%.Caps%.era%) then return end") then
+        return "[AllowLoadGameType classic]"
+    elseif line:find("^if not %(ns%.Caps and ns%.Caps%.tbc%) then return end") then
+        return "[AllowLoadGameType tbc]"
+    elseif line:find("^if not %(ns%.Caps and %(ns%.Caps%.forever or ns%.Caps%.classic%)%) then return end") then
+        return "[AllowLoadGameType camelot, classic, tbc]"
     end
     local loc = line:match('^if GetLocale%(%) ~= "(%a%a%a%a)" then return end')
     return loc and ("[AllowLoadTextLocale " .. loc .. "]") or nil
