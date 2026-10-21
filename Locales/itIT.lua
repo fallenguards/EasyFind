@@ -299,11 +299,18 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffPronto per la patch 12.1.5|r\n" ..
-    "    |cff999999-|r Niente più errori in chat all'accesso: i risultati di bottino e borse mostrano di nuovo nomi e icone\n" ..
-    "    |cff999999-|r Le icone di mappa, statistiche e reputazione mostrano di nuovo l'immagine giusta\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEtichette tradotte|r\n" ..
-    "    |cff999999-|r Le etichette di filtri e menu rimaste in inglese ora compaiono nella lingua del tuo gioco"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r Indicazioni per qualsiasi luogo: voli, navi, portali, teletrasporti e la camminata, con una freccia, il percorso sulla mappa e viaggi con fermate\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNote|r\n" ..
+    "    |cff999999-|r Note che compaiono dove si applicano: nei tooltip, sui nomi in chat o da sole; liste di controllo che il gioco spunta\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat, cronologia degli appunti, liste rapide|r\n" ..
+    "    |cff999999-|r Un messenger installato a parte, ciò che copi e ogni link della chat sotto @clipboard, elenchi di risultati su un tasto\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCreature nella ricerca sulla mappa|r\n" ..
+    "    |cff999999-|r Creature con nome per nome, servizio o merce, ognuna nel suo punto più vicino\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
+    "    |cff999999-|r EasyFind funziona anche lì, GPS compreso\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffPer gli altri addon|r\n" ..
+    "    |cff999999-|r EasyFind.API: registra risultati, estensioni e pagine di impostazioni; lo Studio dei temi dà a ogni finestra il suo aspetto"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

@@ -299,11 +299,18 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffPrêt pour le patch 12.1.5|r\n" ..
-    "    |cff999999-|r Plus d'erreur dans la discussion à la connexion : les résultats de butin et de sacs affichent de nouveau leurs noms et icônes\n" ..
-    "    |cff999999-|r Les icônes de la carte, des statistiques et de la réputation affichent de nouveau la bonne image\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLibellés traduits|r\n" ..
-    "    |cff999999-|r Les libellés de filtres et de menus restés en anglais s'affichent désormais dans la langue de votre jeu"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r L'itinéraire vers n'importe quel lieu : vols, bateaux, portails, téléportations et la marche, avec une flèche, le trajet sur la carte et des voyages à escales\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
+    "    |cff999999-|r Des notes qui s'affichent là où elles s'appliquent : dans les infobulles, sur les noms du chat ou d'elles-mêmes ; des listes que le jeu coche\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDiscussion, historique du presse-papiers, listes rapides|r\n" ..
+    "    |cff999999-|r Une messagerie installée à part, ce que vous copiez et chaque lien du chat sous @clipboard, des listes de résultats sur une touche\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCréatures dans la recherche de carte|r\n" ..
+    "    |cff999999-|r Les créatures nommées par nom, service ou marchandise, chacune à son emplacement le plus proche\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era et TBC Anniversary|r\n" ..
+    "    |cff999999-|r EasyFind y fonctionne aussi, GPS compris\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffPour les autres addons|r\n" ..
+    "    |cff999999-|r EasyFind.API : enregistrez résultats, extensions et pages de réglages ; le Studio de thèmes donne à chaque fenêtre son propre look"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

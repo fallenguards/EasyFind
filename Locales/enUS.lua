@@ -330,11 +330,18 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffReady for patch 12.1.5|r\n" ..
-    "    |cff999999-|r No more error in chat at login: loot and bag results show their names and icons again\n" ..
-    "    |cff999999-|r The map, statistics and reputation icons show the right art again\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTranslated labels|r\n" ..
-    "    |cff999999-|r Filter and menu labels that stayed in English now read in your game's language"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r Directions to any place: flights, boats, portals, teleports and the walk, with an arrow, the route on the map and a trip with stops\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
+    "    |cff999999-|r Notes that show where they apply: in tooltips, on names in chat, or by themselves; checklists the game ticks off\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat, Clipboard History, Quicklists|r\n" ..
+    "    |cff999999-|r A messenger installed separately, what you copied and every chat link under @clipboard, result lists on a key\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCreatures on the map search|r\n" ..
+    "    |cff999999-|r Named creatures by name, service or what they sell, each on its nearest spot\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
+    "    |cff999999-|r EasyFind runs there too, GPS included\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffFor other addons|r\n" ..
+    "    |cff999999-|r EasyFind.API: register results, extensions and settings pages; Theme Studio gives each window its own look"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

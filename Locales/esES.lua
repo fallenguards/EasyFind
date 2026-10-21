@@ -299,11 +299,18 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffListo para el parche 12.1.5|r\n" ..
-    "    |cff999999-|r Ya no aparece un error en el chat al entrar: los resultados de botín y de bolsas vuelven a mostrar sus nombres e iconos\n" ..
-    "    |cff999999-|r Los iconos del mapa, las estadísticas y la reputación vuelven a mostrar la imagen correcta\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEtiquetas traducidas|r\n" ..
-    "    |cff999999-|r Las etiquetas de filtros y menús que seguían en inglés ahora aparecen en el idioma de tu juego"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r Cómo llegar a cualquier lugar: vuelos, barcos, portales, teletransportes y la caminata, con una flecha, la ruta en el mapa y viajes con paradas\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
+    "    |cff999999-|r Notas que aparecen donde se aplican: en las descripciones emergentes, en los nombres del chat o por sí solas; listas de tareas que el juego marca\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat, historial del portapapeles, listas rápidas|r\n" ..
+    "    |cff999999-|r Un mensajero que se instala aparte, lo que copias y cada enlace del chat bajo @clipboard, listas de resultados en una tecla\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCriaturas en la búsqueda del mapa|r\n" ..
+    "    |cff999999-|r Criaturas con nombre por nombre, servicio o mercancía, cada una en su lugar más cercano\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era y TBC Anniversary|r\n" ..
+    "    |cff999999-|r EasyFind también funciona allí, GPS incluido\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffPara otros addons|r\n" ..
+    "    |cff999999-|r EasyFind.API: registra resultados, extensiones y páginas de ajustes; el Estudio de temas da a cada ventana su propio aspecto"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

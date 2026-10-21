@@ -301,11 +301,18 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffBereit für Patch 12.1.5|r\n" ..
-    "    |cff999999-|r Kein Fehler mehr im Chat beim Einloggen: Beute- und Taschenergebnisse zeigen wieder Namen und Symbole\n" ..
-    "    |cff999999-|r Die Symbole für Karte, Statistiken und Ruf zeigen wieder das richtige Bild\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffÜbersetzte Beschriftungen|r\n" ..
-    "    |cff999999-|r Filter- und Menübeschriftungen, die auf Englisch blieben, erscheinen jetzt in der Sprache deines Spiels"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r Wegbeschreibung zu jedem Ort: Flüge, Schiffe, Portale, Teleports und der Fußweg, mit Pfeil, der Route auf der Karte und Reisen mit Zwischenstopps\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotizen|r\n" ..
+    "    |cff999999-|r Notizen, die dort erscheinen, wo sie gelten: in Tooltips, an Namen im Chat oder von selbst; Checklisten, die das Spiel abhakt\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat, Zwischenablage-Verlauf, Schnelllisten|r\n" ..
+    "    |cff999999-|r Ein separat installierter Messenger, Kopiertes und jeder Chat-Link unter @clipboard, Ergebnislisten auf einer Taste\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffKreaturen in der Kartensuche|r\n" ..
+    "    |cff999999-|r Benannte Kreaturen nach Name, Dienst oder Warenangebot, jede an ihrem nächsten Standort\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era und TBC Anniversary|r\n" ..
+    "    |cff999999-|r EasyFind läuft auch dort, GPS inklusive\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffFür andere Addons|r\n" ..
+    "    |cff999999-|r EasyFind.API: Ergebnisse, Erweiterungen und Einstellungsseiten registrieren; das Design-Studio gibt jedem Fenster ein eigenes Aussehen"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

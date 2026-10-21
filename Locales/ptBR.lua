@@ -299,11 +299,18 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffPronto para o patch 12.1.5|r\n" ..
-    "    |cff999999-|r Nada de erro no bate-papo ao entrar: os resultados de saque e de bolsas voltam a mostrar nomes e ícones\n" ..
-    "    |cff999999-|r Os ícones do mapa, das estatísticas e da reputação voltam a mostrar a imagem certa\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffRótulos traduzidos|r\n" ..
-    "    |cff999999-|r Rótulos de filtros e menus que ficavam em inglês agora aparecem no idioma do seu jogo"
+    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
+    "    |cff999999-|r Como chegar a qualquer lugar: voos, navios, portais, teleportes e a caminhada, com uma seta, a rota no mapa e viagens com paradas\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
+    "    |cff999999-|r Notas que aparecem onde se aplicam: nas dicas de tela, nos nomes do chat ou sozinhas; listas de tarefas que o jogo marca\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBate-papo, histórico da área de transferência, listas rápidas|r\n" ..
+    "    |cff999999-|r Um mensageiro instalado à parte, o que você copia e cada link do chat em @clipboard, listas de resultados numa tecla\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCriaturas na busca do mapa|r\n" ..
+    "    |cff999999-|r Criaturas nomeadas por nome, serviço ou mercadoria, cada uma no seu lugar mais próximo\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
+    "    |cff999999-|r O EasyFind também funciona lá, GPS incluído\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffPara outros addons|r\n" ..
+    "    |cff999999-|r EasyFind.API: registre resultados, extensões e páginas de configurações; o Estúdio de temas dá a cada janela um visual próprio"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

@@ -4,6 +4,34 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [4.0.0] - 2026-10-21
+
+### Added
+- **GPS**: directions to any place EasyFind can find. Plan a route from where you stand, or from any start, and it works out flights, boats, zeppelins, the tram, portals, teleports and the hearthstone, then walks the rest. The steps show in a small window, on the map's GPS page or as a section in the objective tracker; an arrow at your character leads along the walk, the route draws on the map and the minimap, and a beacon marks where the current step leads. A trip can take several stops, you can search along the route, share a route as a link, and a red line warns when the route crosses creatures far above your level. On WoW Forever, Classic Era and TBC Anniversary, walks follow a baked walking grid of the world: around cliffs and water, down the ledges your character can take, and around dangerous ground when you ask
+- **Notes**: a companion for notes that know where they apply. Notes for places, activities, classes, targets and players show in tooltips, on names in chat, or open by themselves; checklists the game ticks off; tags, a trash with undo, share codes, and Ctrl+Right-click on any item or spell for its note
+- **Chat**: a messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat and searched from the bar
+- **Clipboard History**: what you copied and pasted in game and every link that passed through chat, under @clipboard, with a key to open it and Add to note on any entry
+- **Quicklists**: named result lists on a key, pressed or held, and a macro that opens one from an action bar
+- **Creatures on the map search**: named creatures found by name, title, service or what they sell, each on its nearest spot and with their portrait; "repair", "food" or "ammo" finds who offers it
+- **Classic Era and TBC Anniversary**: EasyFind runs on both, with the Skills tab searchable and everything the client lacks kept out of the results
+- **Extensions API**: other addons register search results, extensions, settings pages and actions through EasyFind.API, with a developer guide and an example extension
+- **Themes**: Theme Studio gives each window its own look; a Classic theme and a Forever theme in the 1.x style; the extensions menu arranges by drag and pops an extension out from a right-click
+- **Create macro**: on any result's menu, a macro that does it lands on your cursor for any action bar
+
+### Changed
+- Per-character settings are keyed by the full name, so WoW Forever surnames stay apart
+- Search: typos and abbreviations look words up instead of every entry, and result rows build in slices, so the first search never stalls the game
+- Map search: equal matches list nearest first, and every row's subtext names its kind and place
+- Options: the tabs sit in the game's settings list under EasyFind, and every companion's settings page uses the panel's own controls
+
+### Fixed
+- The Notes and Chat windows close on Escape through EasyFind's own dispatch, and the GPS section writes nothing into the objective tracker: both could taint the game's protected actions for the rest of the session (collapsing the tracker in combat errored)
+- Search: Alt-click on a spell no longer opens the game's talents too
+- Map search: a double click no longer starts GPS directions; a row on another map opens that map before it pins
+- WoW Forever: item and coin calls go through the replacements the client has, no spec rows where there are no specializations, Titles and the Equipment Manager follow the new sidebar
+
+---
+
 ## [3.4.4] - 2026-10-15
 
 ### Fixed
