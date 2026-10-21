@@ -2232,18 +2232,6 @@ local function WithTowns(q, results)
                 towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = p.m, x = p.x, y = p.y, zoneName = info.name } }
             end
         end
-        -- Every subzone the map draws, at the middle of its patch; a town
-        -- with a bind spot keeps that spot.
-        for m, list in pairs(data and data.areas or {}) do
-            local info = C_Map.GetMapInfo(m)
-            for i = 1, info and #list or 0, 3 do
-                local area = list[i]
-                local name = not binds[area] and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
-                if name and name ~= info.name then
-                    towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = m, x = list[i + 1], y = list[i + 2], zoneName = info.name } }
-                end
-            end
-        end
     end
     wipe(mergedHits)
     wipe(listedNames)

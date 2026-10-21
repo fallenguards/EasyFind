@@ -194,6 +194,35 @@ function MapSearch:GetAlwaysFindableLocations()
     return results
 end
 
+-- Every subzone the GPS data carries (each at the middle of its map
+-- patch), named by the client: places to find from anywhere.
+local subzoneCache
+local SUBZONE_KEYWORDS = { "subzone", "area" }
+function MapSearch:GetSubzoneLocations()
+    if subzoneCache then return subzoneCache end
+    local results = {}
+    local areas = ns.GPSData and ns.GPSData.areas
+    local GetAreaInfo = C_Map and C_Map.GetAreaInfo
+    if areas and GetAreaInfo then
+        for mapID, list in pairs(areas) do
+            local info = GetMapInfo(mapID)
+            local zoneName = info and info.name
+            for i = 1, #list, 3 do
+                local name = GetAreaInfo(list[i])
+                if name and name ~= "" and name ~= zoneName then
+                    results[#results + 1] = PreparePOI({
+                        name = name, category = "subzone", isStatic = true,
+                        mapID = mapID, coordMapID = mapID, zoneName = zoneName,
+                        x = list[i + 1], y = list[i + 2], keywords = SUBZONE_KEYWORDS,
+                    })
+                end
+            end
+        end
+    end
+    subzoneCache = results
+    return results
+end
+
 function MapSearch:GetStaticLocations(mapID)
     mapID = mapID or (WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID())
     if not mapID then return emptyStaticLocations end
@@ -219,6 +248,10 @@ function MapSearch:GetStaticLocations(mapID)
             }
             tinsert(results, PreparePOI(entry))
         end
+    end
+    -- The map's own subzones stand with its statics, under "This Zone".
+    for _, loc in ipairs(self:GetSubzoneLocations()) do
+        if loc.mapID == mapID then tinsert(results, loc) end
     end
 
     staticLocationCache[mapID] = results

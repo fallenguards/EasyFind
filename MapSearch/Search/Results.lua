@@ -26,6 +26,7 @@ local AppendLocalSearchSources = Search.AppendLocalSearchSources
 local AppendZoneSearchResults = Search.AppendZoneSearchResults
 local AppendGlobalInstanceSearchSources = Search.AppendGlobalInstanceSearchSources
 local AppendAlwaysFindableLocations = Search.AppendAlwaysFindableLocations
+local AppendSubzones = Search.AppendSubzones
 local ReleaseGlobalMapCaches = Search.ReleaseGlobalMapCaches
 local CollectMapGarbage = Search.CollectMapGarbage
 
@@ -105,6 +106,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
     if isGlobal then
         AppendGlobalInstanceSearchSources(self, allPOIs, zoneNames, fresh)
         AppendAlwaysFindableLocations(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
+        AppendSubzones(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
         if self.AppendNpcRows then self.AppendNpcRows(fresh, zoneNames, text) end
 
         if FlightPathsEnabledAnywhere() then
@@ -162,7 +164,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
             local dominated = false
             if blacklistActive and ns.Blacklist:Contains(r) then
                 dominated = true
-            elseif r.isZone and filters.zones == false then
+            elseif (r.isZone or r.category == "subzone") and filters.zones == false then
                 dominated = true
             elseif r.category == "dungeon" and filters.dungeons == false then
                 dominated = true
@@ -671,6 +673,7 @@ function MapSearch:SearchForUI(query)
             RequestUISearchGlobalInstances(self)
         end
         AppendAlwaysFindableLocations(self, pois, existingNames, searchMapID)
+        AppendSubzones(self, pois, existingNames, searchMapID)
         if self.AppendNpcRows then self.AppendNpcRows(fresh, existingNames, query, nil, searchMapID) end
     end
 

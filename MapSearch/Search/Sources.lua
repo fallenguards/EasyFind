@@ -818,4 +818,20 @@ Search.AppendLocalSearchSources = AppendLocalSearchSources
 Search.BuildPromotedInstanceCache = BuildPromotedInstanceCache
 Search.AppendZoneSearchResults = AppendZoneSearchResults
 Search.AppendGlobalInstanceSearchSources = AppendGlobalInstanceSearchSources
+-- The GPS data's subzones, found from anywhere; the viewed zone's own
+-- stand among its statics already.
+local function AppendSubzones(self, out, nameSet, excludeMapID)
+    for _, loc in ipairs(self:GetSubzoneLocations()) do
+        if loc.mapID ~= excludeMapID then
+            local nameLower = GetNameLower(loc)
+            if not (nameSet and nameSet[nameLower]) then
+                ClearPerQueryResultState(loc)
+                out[#out + 1] = loc
+                if nameSet then nameSet[nameLower] = true end
+            end
+        end
+    end
+end
+
 Search.AppendAlwaysFindableLocations = AppendAlwaysFindableLocations
+Search.AppendSubzones = AppendSubzones

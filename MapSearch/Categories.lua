@@ -13,6 +13,7 @@ Data.CATEGORY_ICONS = {
     boat = 1126431,
     portal = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
     tram = "Interface\\Icons\\INV_Misc_Gear_01",
+    subzone = 237382,
     -- The 1121272 sheet's icons are wrapped in a wide soft glow that gets
     -- clipped inside the row's icon slot; these atlases are tight, no-bleed.
     dungeon = "atlas:Dungeon",
@@ -92,6 +93,7 @@ if ns.Caps and ns.Caps.classic then
     icons.boat = "Interface\\Icons\\INV_Misc_Spyglass_02"
     icons.portal = "atlas:MagePortalAlliance"
     icons.rare = "atlas:VignetteKill"
+    icons.subzone = "Interface\\Icons\\INV_Misc_Map_01"
     icons.classtrainer = "atlas:Class"
     icons.pvpvendor = "atlas:BattleMaster"
     icons.pvpquest = "atlas:BattleMaster"
@@ -102,6 +104,7 @@ Data.CATEGORIES = {
     travel = { keywords = {"travel", "transport", "transportation", "getting around"} },
     instance = { keywords = {"instance", "instances", "group content"} },
     service = { keywords = {"service", "services", "npc"} },
+    subzone = { keywords = {"subzone", "subzones", "area"} },
 
     flightmaster = { keywords = {"flight", "fly", "flight master", "flight point", "fp", "fm", "taxi"}, parent = "travel" },
     zeppelin = { keywords = {"zeppelin", "zep", "airship", "blimp"}, parent = "travel" },
