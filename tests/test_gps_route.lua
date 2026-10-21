@@ -734,6 +734,28 @@ function tests.walk_splitsIntoAStepPerZone()
     H.assertTrue(out[2].wind > 1.3, "Bravo turns at the junction: " .. tostring(out[2].wind))
 end
 
+-- Along a border the way crosses it back and forth: Alpha and Bravo by
+-- turns in 200 yd bands on the way west, Charlie past 500 yd north.
+local function zoneAlongBorder(_, x, y)
+    if x >= 500 then return 12, "Charlie" end
+    if y < 200 or (y >= 400 and y < 600) then return 10, "Alpha" end
+    return 11, "Bravo"
+end
+
+function tests.walk_alongABorderEachZoneIsOneStep()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local steps, start = walk(Route)
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAlongBorder })
+    H.assertEq(#out, 3, "Alpha, Bravo, Charlie, not Alpha and Bravo by turns: " .. #out)
+    H.assertEq(out[1].walkZone, 10)
+    H.assertEq(out[1].enter, 11)
+    H.assertTrue(out[1].arrive.wy >= 600 and out[1].arrive.wy <= 700,
+        "Alpha runs to where the way leaves it last: " .. tostring(out[1].arrive.wy))
+    H.assertEq(out[2].walkZone, 11)
+    H.assertEq(out[2].enter, 12)
+end
+
 function tests.walk_toAZoneEndsOnEnteringIt()
     local _, ns, Route = fresh()
     withNav(ns, junction)

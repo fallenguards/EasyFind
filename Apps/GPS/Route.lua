@@ -1588,6 +1588,17 @@ local function WalkPieces(step, from, data, env, first)
             r = r + 1
         end
     end
+    -- A way along a border crosses it back and forth: a zone left and come
+    -- back to is one step, through to where the way leaves it last.
+    for k = 1, #runs do
+        if not runs[k] then break end
+        for j = #runs, k + 1, -1 do
+            if runs[j].map == runs[k].map then
+                for _ = k + 1, j do table.remove(runs, k + 1) end
+                break
+            end
+        end
+    end
     -- Setting out from inside a city: getting out of it is the first
     -- step, up to the way's first turn.
     local city = first and env.startCity
