@@ -4473,7 +4473,7 @@ local function BuildQuicklistsPage(ctx, page)
         card.content = CreateFrame("Frame", nil, card.scroll)
         card.content:SetSize(FRAME_W - 42, 1)
         card.scroll:SetScrollChild(card.content)
-        card.bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(card.scroll, card)
+        card.bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(card.scroll, card, { moreBelow = true })
         ParkScrollBarInMargin(card.bar, card, SCROLL_TOP)
         card.empty = card.content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         card.empty:SetPoint("TOPLEFT", card.content, "TOPLEFT", 8, -8)
@@ -4562,7 +4562,10 @@ local function BuildQuicklistsPage(ctx, page)
         for i = shown + 1, #card.pool do card.pool[i]:Hide() end
         card.empty:SetText(emptyText)
         card.empty:SetShown(shown == 0)
-        card.content:SetHeight(math.max(32, shown * ROW_H + 8))
+        -- Padding under the rows only where the card scrolls: rows that
+        -- fit must not gain a few pixels of scroll from it.
+        local rowsH, view = shown * ROW_H, card.scroll:GetHeight() or 0
+        card.content:SetHeight(rowsH > view and rowsH + 8 or math.max(32, view))
         card.UpdateBar()
         Utils.SafeAfter(0, card.UpdateBar)
     end
@@ -4778,7 +4781,7 @@ local function ScrollingPage(holder)
     local page = CreateFrame("Frame", nil, scroll)
     page:SetSize(1, 1)
     scroll:SetScrollChild(page)
-    local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, holder)
+    local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, holder, { moreBelow = true })
     -- In the gutter right of the page, never over its rows.
     if bar then
         bar:ClearAllPoints()
@@ -4795,9 +4798,12 @@ local function ScrollingPage(holder)
         end
         for _, kid in ipairs({ page:GetChildren() }) do Lower(kid) end
         for _, region in ipairs({ page:GetRegions() }) do Lower(region) end
-        local height = low and (top - low + 12) or 1
-        page:SetHeight(height)
+        -- Padding under the lowest control only where the page scrolls: a
+        -- page that fits must not gain a few pixels of scroll from it.
         local view = scroll:GetHeight() or 0
+        local height = low and (top - low) or 1
+        height = height > view and height + 12 or math.max(1, view)
+        page:SetHeight(height)
         if not bar then return end
         if height > view + 1 then
             bar:Show()

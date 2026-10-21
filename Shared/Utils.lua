@@ -6961,7 +6961,8 @@ function Utils.GetFrameByPath(path)
     return current
 end
 
-function Utils.CreateMinimalScrollBar(scrollFrame, parent)
+-- opts.moreBelow: a chevron at the view's foot while content lies past it (settings pages).
+function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
     local THUMB_W = ns.SCROLLBAR_THUMB_W
     local EDGE_INSET = ns.SCROLLBAR_EDGE_INSET
     local VERT_PAD = 4
@@ -7220,6 +7221,39 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent)
             if self:IsShown() then self:UpdateThumb() end
         end)
     end)
+
+    -- More below: a faint chevron at the view's bottom while content lies
+    -- past it, gone once scrolled to the end, so a page never reads as
+    -- all there is. Only where asked for: a chat or a list says enough.
+    if not (opts and opts.moreBelow) then
+        bar:Hide()
+        return bar
+    end
+    local moreFrame = CreateFrame("Frame", nil, parent)
+    -- A new frame starts shown; a page that fits never updates it.
+    moreFrame:Hide()
+    moreFrame:SetSize(14, 10)
+    -- Under the view, in the page's margin: never over its last row.
+    moreFrame:SetPoint("TOP", scrollFrame, "BOTTOM", 0, -2)
+    moreFrame:SetFrameLevel(parent:GetFrameLevel() + 6)
+    local more = moreFrame:CreateTexture(nil, "OVERLAY")
+    more:SetAllPoints()
+    Utils.SetChevronTexture(more)
+    more:SetRotation(0)   -- the art as drawn points down
+    more:SetAlpha(0.55)
+    local function UpdateMore()
+        local range = scrollFrame:GetVerticalScrollRange() or 0
+        moreFrame:SetShown(bar:IsShown() and range > 1 and scrollFrame:GetVerticalScroll() < range - 1)
+    end
+    bar.UpdateMore = UpdateMore
+    local updateThumb = bar.UpdateThumb
+    bar.UpdateThumb = function(self, ...)
+        updateThumb(self, ...)
+        UpdateMore()
+    end
+    bar:HookScript("OnShow", function() Utils.SafeAfter(0, UpdateMore) end)
+    bar:HookScript("OnHide", function() moreFrame:Hide() end)
+    scrollFrame:HookScript("OnVerticalScroll", UpdateMore)
 
     bar:Hide()
     return bar
