@@ -2254,6 +2254,7 @@ ns.SEARCH_WINDOW_FILL_COLOR = {0.052, 0.052, 0.060}
 ns.TEXT_PRIMARY = {1.00, 0.97, 0.86}
 ns.TEXT_BODY = {0.78, 0.78, 0.80}
 ns.TEXT_DIM = {0.55, 0.55, 0.58}
+ns.TEXT_ASIDE = {0.56, 0.74, 0.82}   -- an aside among steps (advice), apart from the done gray
 -- "Copied" confirmation green, shared by the calculator card and the
 -- copy-row hints.
 ns.COPIED_COLOR = {0.48, 1.0, 0.62}

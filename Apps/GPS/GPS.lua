@@ -1835,6 +1835,37 @@ end
 
 -- The advice as lines: masters on the way first (with what learning one
 -- saves when the engine priced it), then the best one elsewhere.
+-- The step whose leg passes nearest a spot: where a tip about that spot
+-- is read among the steps.
+function GPS.StepNear(route, p)
+    local Follow = ns.GPSFollow
+    if not (Follow and p and p.ci and p.wx and route.steps) then return nil end
+    local best, bestD
+    for i = 1, #route.steps do
+        local s = route.steps[i]
+        if s.kind == "travel" then
+            local sci, sx, sy = Follow.StartOf(route, i)
+            local tci, tx, ty = Follow.World(s.go or s.arrive)
+            if sci == p.ci and tci == p.ci and sx and tx then
+                local d = ToSegment(p.wx, p.wy, sx, sy, tx, ty)
+                if not bestD or d < bestD then best, bestD = i, d end
+            end
+        end
+    end
+    return best
+end
+
+-- The tips read after step i (their spot lies along it), or, with i nil,
+-- those read after the last step: the route's other ways, the shop.
+local function TipsAfter(tips, i, n)
+    local out = {}
+    for t = 1, tips and #tips or 0 do
+        local step = tips[t].step
+        if (i and step == i) or (not i and (not step or step > n)) then out[#out + 1] = tips[t] end
+    end
+    return out
+end
+
 local function AdviceLines(route)
     if route and route.arrived then return { { text = L["GPS_REPORT"], report = true } } end
     if not route then return nil end
@@ -1854,13 +1885,14 @@ local function AdviceLines(route)
         else
             text = sformat(L["GPS_ADVICE_PICKUP_FMT"], p.name or "?")
         end
-        out[#out + 1] = { text = text, id = p.id, name = p.name, p = p.p, viaTotal = p.viaTotal, after = after }
+        out[#out + 1] = { text = text, id = p.id, name = p.name, p = p.p, viaTotal = p.viaTotal, after = after,
+                          step = GPS.StepNear(route, p.p) }
     end
     if learn and learn.extra then
         -- Out of the way: what it costs now, what it saves every time after.
         out[#out + 1] = { text = sformat(L["GPS_ADVICE_DETOUR_FMT"], learn.name or "?", EtaText(learn.extra), EtaText(learn.save)),
                           id = learn.id, name = learn.name, p = learn.p, viaTotal = learn.viaTotal, after = learn.total, detour = true,
-                          way = learn.way }
+                          way = learn.way, step = GPS.StepNear(route, learn.p) }
     end
     for _, other in ipairs(route.others or {}) do
         -- Against the route shown, both as planned: the header runs at the
@@ -2100,6 +2132,29 @@ local function Render(container)
     elseif container.dangerLine then
         container.dangerLine:Hide()
     end
+    local tips = not only and AdviceLines(route)
+    local nTips = 0
+    local function PlaceTips(list)
+        for t = 1, #list do
+            nTips = nTips + 1
+            local row = TipRow(container, nTips)
+            row.tip = list[t]
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
+            row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
+            if scale and row.fontScale ~= scale then
+                row.fontScale = scale
+                SizeFont(row.text, (MAP_STEP_PX - 1) * scale)
+            end
+            row.text:SetWidth(mmax(40, listW - 36))
+            row.text:SetText(list[t].text)
+            row.text:SetTextColor(unpack(ns.TEXT_ASIDE))
+            local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
+            row:SetHeight(rowH)
+            row:Show()
+            y = y + rowH
+        end
+    end
     for i = only or 1, only or shown do
         local step = route.steps[i]
         local row = StepRow(container, i)
@@ -2137,34 +2192,16 @@ local function Render(container)
         end
         row:Show()
         y = y + rowH
+        if tips then PlaceTips(TipsAfter(tips, i, #route.steps)) end
     end
     for i = 1, (only or 1) - 1 do rows[i]:Hide() end
     for i = (only or shown) + 1, #rows do rows[i]:Hide() end
-    local tips = not only and AdviceLines(route)
-    local nTips = tips and #tips or 0
     -- Arrived: the report line goes under the announcement.
     if route.arrived and container.empty:IsShown() then
         local eb, lt = container.empty:GetBottom(), container.list:GetTop()
         y = (eb and lt) and mmax(0, lt - eb + 4) or ((container.empty:GetStringHeight() or 12) + 8)
     end
-    for t = 1, nTips do
-        local row = TipRow(container, t)
-        row.tip = tips[t]
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
-        row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
-        if scale and row.fontScale ~= scale then
-            row.fontScale = scale
-            SizeFont(row.text, (MAP_STEP_PX - 1) * scale)
-        end
-        row.text:SetWidth(mmax(40, listW - 36))
-        row.text:SetText(tips[t].text)
-        row.text:SetTextColor(unpack(ns.TEXT_DIM))
-        local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
-        row:SetHeight(rowH)
-        row:Show()
-        y = y + rowH
-    end
+    if tips then PlaceTips(TipsAfter(tips, nil, #route.steps)) end
     for t = nTips + 1, #(container.tips or {}) do container.tips[t]:Hide() end
     container.contentHeight = y
     container.list:SetHeight(mmax(1, y))
@@ -3681,6 +3718,16 @@ function Look.RenderEra(f)
             items = { { text = L["GPS_ARRIVED_AT_FMT"] and sformat(L["GPS_ARRIVED_AT_FMT"], route.dest.name or "?") or L["GPS_ARRIVED"] } }
         end
         local at = route.active or 1
+        local tips = AdviceLines(route)
+        local function EraTips(list)
+            for _, tip in ipairs(list) do
+                n = n + 1
+                row, w, tall = Look.EraRow(f, n, tip.text, 1, tall)
+                row.shade, row.tip = ns.TEXT_ASIDE, tip
+                Look.ShadeLine(row)
+                widest = mmax(widest, w)
+            end
+        end
         for i = 1, #items do
             local active = at == i and not route.arrived
             n = n + 1
@@ -3688,15 +3735,9 @@ function Look.RenderEra(f)
             row.index = (not route.arrived) and i or nil
             Look.ShadeLine(row)
             widest = mmax(widest, w + (SetupCast(row.cast, items[i], active) and 20 or 0))
+            EraTips(TipsAfter(tips, i, #items))
         end
-        local tips = AdviceLines(route)
-        for t = 1, tips and #tips or 0 do
-            n = n + 1
-            row, w, tall = Look.EraRow(f, n, tips[t].text, 1, tall)
-            row.shade, row.tip = ns.TEXT_DIM, tips[t]
-            Look.ShadeLine(row)
-            widest = mmax(widest, w)
-        end
+        EraTips(TipsAfter(tips, nil, #items))
     elseif f.search then
         -- The search box right of the name, and the places it finds under it.
         f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
@@ -3806,6 +3847,27 @@ RenderDock = function(f)
             if route.arrived then
                 items = { { text = L["GPS_ARRIVED_AT_FMT"] and sformat(L["GPS_ARRIVED_AT_FMT"], route.dest.name or "?") or L["GPS_ARRIVED"] } }
             end
+            local tips = AdviceLines(route)
+            local function DockTips(list)
+                for _, tip in ipairs(list) do
+                    nTips = nTips + 1
+                    local row = DockTipLine(f, nTips)
+                    Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
+                    Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
+                    row.tip = tip
+                    row.text:SetText(tip.text)
+                    row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
+                    row.shade = ns.TEXT_ASIDE
+                    Look.ShadeLine(row)
+                    row:ClearAllPoints()
+                    row:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
+                    row:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+                    local h = mmax(12, row.text:GetStringHeight() or 12)
+                    row:SetHeight(h)
+                    row:Show()
+                    y = y - h - DOCK_LINE_GAP
+                end
+            end
             for i = 1, #items do
                 n = n + 1
                 local row = DockLine(f, n)
@@ -3826,26 +3888,9 @@ RenderDock = function(f)
                 row:SetHeight(h)
                 row:Show()
                 y = y - h - DOCK_LINE_GAP
+                DockTips(TipsAfter(tips, i, #items))
             end
-            local tips = AdviceLines(route)
-            for t = 1, tips and #tips or 0 do
-                nTips = t
-                local row = DockTipLine(f, t)
-                Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
-                Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
-                row.tip = tips[t]
-                row.text:SetText(tips[t].text)
-                row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
-                row.shade = ns.TEXT_DIM
-                Look.ShadeLine(row)
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
-                row:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
-                local h = mmax(12, row.text:GetStringHeight() or 12)
-                row:SetHeight(h)
-                row:Show()
-                y = y - h - DOCK_LINE_GAP
-            end
+            DockTips(TipsAfter(tips, nil, #items))
         end
         for i = n + 1, #f.lines do f.lines[i]:Hide() end
         y = y + DOCK_LINE_GAP   -- no gap after the last line

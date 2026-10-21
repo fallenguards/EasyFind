@@ -18,6 +18,7 @@ local function Load(db)
         },
         EtaText = function(sec) return math.floor(sec / 60 + 0.5) .. " min" end,
         DB = function() return db or {} end,
+        GPS = { StepNear = function() return nil end },
         sformat = string.format,
     }, { __index = _G })
     return assert(load(src:sub(s, e) .. "\nreturn AdviceLines", "=GPS.lua AdviceLines", "t", env))()
