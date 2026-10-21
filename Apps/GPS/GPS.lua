@@ -1790,7 +1790,10 @@ local function TipClick(self)
     end
     local route = Route()
     if not (tip and tip.p and tip.viaTotal and route) then return end
-    local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
+    -- What the stop costs this trip, then what it gives the trips after.
+    local now = route.total or route.eta or tip.viaTotal
+    local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(mmax(0, tip.viaTotal - now)),
+        EtaText(tip.viaTotal), EtaText(now))
     if tip.after then text = text .. " " .. sformat(L["GPS_STOP_AFTER_FMT"], EtaText(tip.after)) end
     ns.ShowThemedDialog({ text = text, acceptText = L["GPS_STOP_ADD"], cancelText = _G["CANCEL"],
                           onAccept = function() GPS:AddStop(tip) end })
