@@ -2098,6 +2098,8 @@ local function Render(container)
     -- The window set to the next step alone: that step, nothing else.
     local dbo = DB()
     local only = container.isPopout and dbo and dbo.gpsPopoutNextOnly and shown > 0 and (route.active or 1) or nil
+    -- Done steps hidden (the setting): the list starts at the active step.
+    local first = only or ((dbo and dbo.gpsHideDone and not route.arrived) and (route.active or 1)) or 1
     local scale = MapScale(container)
     local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
     -- A wrapped line is measured at the width it is given outright: a new
@@ -2160,7 +2162,7 @@ local function Render(container)
             y = y + rowH
         end
     end
-    for i = only or 1, only or shown do
+    for i = first, only or shown do
         local step = route.steps[i]
         local row = StepRow(container, i)
         row.index = i
@@ -2199,7 +2201,7 @@ local function Render(container)
         y = y + rowH
         if tips then PlaceTips(TipsAfter(tips, i, #route.steps)) end
     end
-    for i = 1, (only or 1) - 1 do rows[i]:Hide() end
+    for i = 1, first - 1 do rows[i]:Hide() end
     for i = (only or shown) + 1, #rows do rows[i]:Hide() end
     -- Arrived: the report line goes under the announcement.
     if route.arrived and container.empty:IsShown() then
@@ -3025,6 +3027,17 @@ function GPS:Launch()
     return GPS:Open()
 end
 
+-- The menu row hiding the steps already done (off unless turned on).
+function GPS.HideDoneRow()
+    return { kind = "check", label = L["GPS_HIDE_DONE"], tooltip = L["GPS_HIDE_DONE_TT"],
+        get = function() local db = DB() return db ~= nil and db.gpsHideDone == true end,
+        set = function(v)
+            local db = DB()
+            if db then db.gpsHideDone = v or nil end
+            Refresh()
+        end }
+end
+
 function GPS.LaunchRow()
     return { kind = "check", label = L["GPS_LAUNCH_WINDOW"], tooltip = L["GPS_LAUNCH_WINDOW_TT"], get = GPS.LaunchesWindow,
         set = function(v)
@@ -3733,7 +3746,8 @@ function Look.RenderEra(f)
                 widest = mmax(widest, w)
             end
         end
-        for i = 1, #items do
+        local hideDone = DB() and DB().gpsHideDone and not route.arrived
+        for i = hideDone and at or 1, #items do
             local active = at == i and not route.arrived
             n = n + 1
             row, w, tall = Look.EraRow(f, n, StepText(items[i], active), (active or route.arrived) and 1 or (i < at and 0.5 or 0.8), tall)
@@ -3873,7 +3887,8 @@ RenderDock = function(f)
                     y = y - h - DOCK_LINE_GAP
                 end
             end
-            for i = 1, #items do
+            local hideDone = DB() and DB().gpsHideDone and not route.arrived
+            for i = hideDone and (route.active or 1) or 1, #items do
                 n = n + 1
                 local row = DockLine(f, n)
                 Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
@@ -4533,6 +4548,7 @@ function GPS.MenuRows(f)
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
     defs[#defs + 1] = GPS.LaunchRow()
+    defs[#defs + 1] = GPS.HideDoneRow()
     -- Snapped in, the section has one look.
     if f.docked then
         defs[#defs + 1] = GPS.PlanningMenu()
@@ -5227,9 +5243,17 @@ local function BuildOptionsPage(page, kit)
     rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
     local chat = Switch("gpsChatArrive", L["GPS_CHAT_ARRIVE"], L["GPS_CHAT_ARRIVE_TT"], function() end)
     chat:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, 0)
+    local hideDone = kit.Checkbox(page, L["GPS_HIDE_DONE"],
+        function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
+        function(on)
+            local d = DB()
+            if d then d.gpsHideDone = on or nil end
+            Refresh()
+        end, L["GPS_HIDE_DONE_TT"])
+    hideDone:SetPoint("TOPLEFT", chat, "BOTTOMLEFT", 0, 0)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", chat, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", hideDone, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }

@@ -125,6 +125,7 @@ local function MenuRows()
     local GPS = {
         WorldPinRow = row("GPS_WORLD_PIN"), SnapRow = row("GPS_SNAP_TRACKER"), AutoLearnRow = row("GPS_AUTO_LEARN"),
         DetoursRow = row("GPS_SHOW_DETOURS"), OtherWaysRow = row("GPS_SHOW_OTHER_WAYS"), LaunchRow = row("GPS_LAUNCH_WINDOW"),
+        HideDoneRow = row("GPS_HIDE_DONE"),
         StyleMenu = function() return { kind = "submenu", label = "GPS_STYLE", rows = {} } end,
         PlanningMenu = function() return { kind = "submenu", label = "GPS_PLANNING", rows = {} } end,
     }
@@ -159,7 +160,7 @@ end
 function tests.everySurfaceHasTheSameMenu()
     local rowsFor = MenuRows()
     local shared = { "GPS_CLEAR", "GPS_FROM_PICK", "CTX_SEND_LINK", "GPS_REPORT",
-        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_PLANNING", "GPS_LAUNCH_WINDOW" }
+        "GPS_WORLD_PIN", "GPS_SNAP_TRACKER", "GPS_PLANNING", "GPS_LAUNCH_WINDOW", "GPS_HIDE_DONE" }
     for _, s in ipairs({
         { name = "snapped in", f = { docked = true } },
         { name = "floating", f = { floating = true, look = "game" }, style = true },
