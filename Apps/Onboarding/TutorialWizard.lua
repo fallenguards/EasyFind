@@ -45,9 +45,15 @@ local DOT_FILLED = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 -- indicator style), reused for slide overlay hints. texCoord is read-only.
 local GAUNTLET_CURSOR_TEX = 6116532
 local GAUNTLET_CURSOR_TEXCOORD = { 0.0, 0.24, 0.0, 0.42 }
+-- Classic clients lack the HD sheet; their own gauntlet is the whole file.
+if ns.Caps and ns.Caps.classic then
+    GAUNTLET_CURSOR_TEX = "Interface\\CURSOR\\Point"
+    GAUNTLET_CURSOR_TEXCOORD = { 0, 1, 0, 1 }
+end
 local SEARCH_TUTORIAL_SLIDES = {
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-search-gearstats-hires",
+        caps = "journal",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_SEARCH_INTRO"],
@@ -58,6 +64,7 @@ local SEARCH_TUTORIAL_SLIDES = {
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-search-pets-hires",
+        caps = "pets",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_ALT_NUMBERS"],
@@ -142,6 +149,7 @@ local SEARCH_TUTORIAL_SLIDES = {
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-search-currency-hires",
+        caps = "currencies",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_CURRENCY_REP"],
@@ -170,12 +178,14 @@ local SEARCH_TUTORIAL_SLIDES = {
 local USE_TUTORIAL_SLIDES = {
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-use-gear-outfit-title-hires",
+        caps = "outfits",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_USE_GEAR_OUTFIT_TITLE"],
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-use-mounts-hires",
+        caps = "mounts",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_USE_MOUNTS"],
@@ -195,6 +205,7 @@ local USE_TUTORIAL_SLIDES = {
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-use-toys-commands-hires",
+        caps = "toys",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_USE_TOYS_COMMANDS"],
@@ -238,6 +249,7 @@ local APPS_TUTORIAL_SLIDES = {
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_SLIDE_ICONSEARCH"],
+        companion = "EasyFind_Icons",
         title = sformat(L["TUT_APPS_SLIDE_HEADER"], L["ICON_SEARCH_APP"]),
     },
     {
@@ -716,20 +728,20 @@ local function FeatureTile(parent, atlas, file, coords, title, desc, onClick)
     ApplyInter(body, "regular")
     body._efOwnColor = true
 
-    tile:SetScript("OnEnter", function(self)
-        self:SetScale(1.04)
-        -- The band fill is dark on every theme, so hover brightens by
-        -- mixing toward white (clamped) instead of scaling the color.
-        local hr, hg, hb = ThemeBandFill()
-        ns.SetRoundedRectBorderFillColor(self,
-            hr + (1 - hr) * 0.12, hg + (1 - hg) * 0.12, hb + (1 - hb) * 0.12, 1)
-    end)
-    tile:SetScript("OnLeave", function(self)
-        self:SetScale(1.00)
-        local lr, lg, lb = ThemeBandFill()
-        ns.SetRoundedRectBorderFillColor(self, lr, lg, lb, 1)
-    end)
     if onClick then
+        tile:SetScript("OnEnter", function(self)
+            self:SetScale(1.04)
+            -- The band fill is dark on every theme, so hover brightens by
+            -- mixing toward white (clamped) instead of scaling the color.
+            local hr, hg, hb = ThemeBandFill()
+            ns.SetRoundedRectBorderFillColor(self,
+                hr + (1 - hr) * 0.12, hg + (1 - hg) * 0.12, hb + (1 - hb) * 0.12, 1)
+        end)
+        tile:SetScript("OnLeave", function(self)
+            self:SetScale(1.00)
+            local lr, lg, lb = ThemeBandFill()
+            ns.SetRoundedRectBorderFillColor(self, lr, lg, lb, 1)
+        end)
         tile:SetScript("OnClick", onClick)
     end
 
@@ -883,6 +895,16 @@ local function BuildPage2(parent)
     end
 
     local function CreateCarouselDetailView(headerText, slides)
+        -- Only slides for systems this client has (no pets on Classic Era).
+        local Caps = ns.Caps
+        if Caps then
+            local kept = {}
+            for i = 1, #slides do
+                local need = slides[i].caps
+                if not (need and Caps[need] == false) then kept[#kept + 1] = slides[i] end
+            end
+            slides = kept
+        end
         local d = CreateFrame("Frame", nil, p)
         d:SetAllPoints(p)
         d:Hide()
@@ -1029,27 +1051,36 @@ local function BuildPage2(parent)
         return d
     end
 
+    local classic = ns.Caps and ns.Caps.classic
     local d1 = CreateCarouselDetailView(L["TUT_FEATURE_SEARCH"], SEARCH_TUTORIAL_SLIDES)
-    local d2 = CreateCarouselDetailView(L["TUT_FEATURE_MAP"], MAP_SEARCH_TUTORIAL_SLIDES)
     local d3 = CreateCarouselDetailView(L["TUT_FEATURE_ACTIONS"], USE_TUTORIAL_SLIDES)
     actionsDeck = d3
     local d4 = CreateCarouselDetailView(L["TUT_FEATURE_APPS"], APPS_TUTORIAL_SLIDES)
 
     local t1 = FeatureTile(grid, nil, "Interface\\AddOns\\EasyFind\\textures\\Spyglass", nil,
         L["TUT_FEATURE_SEARCH"],
-        L["TUT_FEATURE_SEARCH_DESC"],
+        classic and L["TUT_FEATURE_SEARCH_DESC_CLASSIC"] or L["TUT_FEATURE_SEARCH_DESC"],
         function() ShowDetail(d1) end)
     t1:SetPoint("TOPLEFT", grid, "TOPLEFT", 38, -96)
 
-    local t2 = FeatureTile(grid, nil, nil, nil,
-        L["TUT_FEATURE_MAP"],
-        L["TUT_FEATURE_MAP_DESC"],
-        function() ShowDetail(d2) end)
-    BuildMapSideTabReplica(t2.tile, t2.tile.icon)
+    -- Classic has no map side tabs: the card covers map search from the bar.
+    local t2
+    if classic then
+        t2 = FeatureTile(grid, nil, "Interface\\Icons\\INV_Misc_Map_01", { 0.08, 0.92, 0.08, 0.92 },
+            L["FILTER_MAP_SEARCH"], L["MAP_SEARCH_TT"])
+    else
+        local d2 = CreateCarouselDetailView(L["TUT_FEATURE_MAP"], MAP_SEARCH_TUTORIAL_SLIDES)
+        t2 = FeatureTile(grid, nil, nil, nil,
+            L["TUT_FEATURE_MAP"],
+            L["TUT_FEATURE_MAP_DESC"],
+            function() ShowDetail(d2) end)
+        BuildMapSideTabReplica(t2.tile, t2.tile.icon)
+    end
     t2:SetPoint("TOPRIGHT", grid, "TOPRIGHT", -38, -96)
 
     -- Anchor each lower tile to the grid so a hover scale doesn't move its sibling.
-    local t3 = FeatureTile(grid, "UI-HUD-MicroMenu-SpellbookAbilities-Up", nil, nil,
+    local t3 = FeatureTile(grid, not classic and "UI-HUD-MicroMenu-SpellbookAbilities-Up" or nil,
+        classic and "Interface\\Spellbook\\Spellbook-Icon" or nil, nil,
         L["TUT_FEATURE_ACTIONS"],
         L["TUT_FEATURE_ACTIONS_DESC"],
         function() ShowDetail(d3) end)
@@ -1506,15 +1537,19 @@ local function BuildPage3(parent)
     sub:SetWidth(WIZ_W - 100)
 
     local uiKb  = CreateKbWidget(p, TOGGLE_ACTION, L["TUT_KEYBIND_SEARCH_BAR"])
-    local mapKb = CreateKbWidget(p, MAP_ACTION,    L["TUT_KEYBIND_MAP_TAB"])
-    kbWidgets = { uiKb, mapKb }
-
-    local KB_GROUP_GAP = 44
-    uiKb.btn:SetPoint("BOTTOM", p, "CENTER", 0, KB_GROUP_GAP / 2)
     uiKb.label:SetPoint("BOTTOM", uiKb.btn, "TOP", 0, 6)
-
-    mapKb.btn:SetPoint("TOP", uiKb.btn, "BOTTOM", 0, -KB_GROUP_GAP)
-    mapKb.label:SetPoint("BOTTOM", mapKb.btn, "TOP", 0, 6)
+    -- Classic has no map search tab to bind.
+    if ns.Caps and ns.Caps.classic then
+        kbWidgets = { uiKb }
+        uiKb.btn:SetPoint("CENTER", p, "CENTER", 0, 0)
+    else
+        local KB_GROUP_GAP = 44
+        local mapKb = CreateKbWidget(p, MAP_ACTION, L["TUT_KEYBIND_MAP_TAB"])
+        kbWidgets = { uiKb, mapKb }
+        uiKb.btn:SetPoint("BOTTOM", p, "CENTER", 0, KB_GROUP_GAP / 2)
+        mapKb.btn:SetPoint("TOP", uiKb.btn, "BOTTOM", 0, -KB_GROUP_GAP)
+        mapKb.label:SetPoint("BOTTOM", mapKb.btn, "TOP", 0, 6)
+    end
 
     local hint = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hint:SetText(L["TUT_KEYBIND_CAPTURE_HINT"])

@@ -253,7 +253,7 @@ end
 
 function ns.RequestIconSearch()
     if ns.Results.ShowIconGrid then return true end
-    if InCombatLockdown() then return false end
+    if InCombatLockdown() or not ns.Caps.iconSearch then return false end
     LoadCompanion("EasyFind_Icons")
     if ns.Results.ShowIconGrid then return true end
     WarnCompanion("EasyFind_Icons", "ICON_MODULE_DISABLED")
@@ -319,7 +319,7 @@ end
 -- so a disabled companion explains itself once per session.
 function ns.RequestItemCatalog(announce)
     if ns.ItemSearch then return true end
-    if InCombatLockdown() then return false end
+    if InCombatLockdown() or not ns.Caps.itemCatalog then return false end
     LoadCompanion("EasyFind_Items")
     if ns.ItemSearch then return true end
     if announce then WarnCompanion("EasyFind_Items", "ITEMS_MODULE_DISABLED") end
@@ -379,7 +379,9 @@ end
 -- (filter rows, quick filter suggestions, app rows, launchers) hides when
 -- the companion is disabled in the AddOns list, instead of advertising a
 -- feature that can only answer with an error notice.
+local COMPANION_CAP = { EasyFind_Items = "itemCatalog", EasyFind_Icons = "iconSearch" }
 function ns.IsCompanionLoadable(name)
+    if COMPANION_CAP[name] and ns.Caps[COMPANION_CAP[name]] == false then return false end
     if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(name) then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)

@@ -38,7 +38,11 @@ function Rows:CreateResultButton(index)
     -- Single highlight texture for both mouse hover and keyboard
     -- selection via LockHighlight, so the two paths look identical.
     -- Uses Blizzard's tapered quest-log row glow atlas.
-    resultRow:SetHighlightAtlas("QuestLog-quest-glow-yellow")
+    if ns.Caps.questLogAtlas then
+        resultRow:SetHighlightAtlas("QuestLog-quest-glow-yellow")
+    else
+        resultRow:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    end
     local hlTex = resultRow:GetHighlightTexture()
     if hlTex then hlTex:SetBlendMode("ADD") end
     -- The hover wash lives in InstallTooltips' OnEnter/OnLeave:
@@ -110,7 +114,7 @@ function Rows:CreateResultButton(index)
     local pinToggle = resultRow:CreateTexture(nil, "ARTWORK")
     pinToggle:SetSize(14, 14)
     pinToggle:SetPoint("RIGHT", resultRow, "RIGHT", -8, 0)
-    pinToggle:SetAtlas("QuestLog-icon-shrink")
+    ns.SetQuestLogToggle(pinToggle, false)
     pinToggle:Hide()
     resultRow.pinToggle = pinToggle
 

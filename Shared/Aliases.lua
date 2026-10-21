@@ -739,6 +739,18 @@ function Learned:GetBoost(queryLower)
             end
         end
     end
+    -- A pick whose target this client lacks stays out, as the entry
+    -- itself does; the next pick in rank takes the lead.
+    if extras then
+        for i = #extras, 1, -1 do
+            local e = extras[i]
+            if e.available and not e.available() then table.remove(extras, i) end
+        end
+    end
+    if entry and entry.available and not entry.available() then
+        entry = extras and table.remove(extras, 1) or nil
+    end
+    if extras and #extras == 0 then extras = nil end
     return entry, extras
 end
 
@@ -837,7 +849,9 @@ function Aliases:GetMatches(queryLower)
             else
                 entry = Aliases:FindEntryByKey(info.key)
             end
-            if entry then
+            -- An alias to an entry this client lacks stays out, as the
+            -- entry itself does.
+            if entry and not (entry.available and not entry.available()) then
                 out = out or {}
                 tinsert(out, { data = entry, alias = info, score = score })
             end

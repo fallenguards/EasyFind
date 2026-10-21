@@ -646,5 +646,268 @@ function tests.learned_prefixPrefersLongestQuery()
     ns.Database.uiSearchData = nil
 end
 
+-- Era kept showing "Titles" after the entry was blocked there: the pick
+-- remembered for the query brought it back by key.
+function tests.learned_unavailableEntryStaysOut()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local here = true
+    local titles = { name = "Titles", path = { "Character Info" }, available = function() return here end }
+    local stats = { name = "Title Stats", path = { "Character Info" } }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { titles, stats }
+    ns.Learned:RecordPick(stats, "titles")
+    ns.Learned:RecordPick(titles, "titles")
+    H.assertEq(ns.Learned:GetBoost("titles"), titles, "offered while the client has it")
+    here = false
+    H.assertEq(ns.Learned:GetBoost("titles"), stats, "the next pick takes the lead")
+    env.EasyFind.db.queryLearn = {}
+    ns.Learned:RecordPick(titles, "titles")
+    H.assertNil(ns.Learned:GetBoost("titles"), "a lone unavailable pick stays out")
+    ns.Database.uiSearchData = nil
+end
+
+function tests.alias_unavailableEntryStaysOut()
+    env.EasyFind.db.aliases = {}
+    local here = true
+    local titles = { name = "Titles", path = { "Character Info" }, available = function() return here end }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { titles }
+    H.assertTrue(Aliases:Add("tt", titles), "alias saved")
+    local hits = Aliases:GetMatches("tt")
+    H.assertEq(hits and hits[1].data, titles, "offered while the client has it")
+    here = false
+    H.assertNil(Aliases:GetMatches("tt"), "gone with its entry")
+    ns.Database.uiSearchData = nil
+    env.EasyFind.db.aliases = {}
+end
+
+function tests.entryKey_catalogItem()
+    H.assertEq(Aliases:GetEntryKey({ catalogItem = true, itemID = 2077, category = "Item" }),
+        "catalogitem:2077")
+end
+
+function tests.learned_picksRankByFrecency()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local a = { toyItemID = 1, name = "Rated Battlegrounds" }
+    local b = { toyItemID = 2, name = "Rated Arena" }
+    local c = { toyItemID = 3, name = "Rated Solo Shuffle" }
+    local d = { toyItemID = 4, name = "Rated Blitz" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { a, b, c, d }
+    local clock = env._clock
+    -- Picked once each: the more recent one leads, the other follows.
+    ns.Learned:RecordPick(a, "rated")
+    clock:advance(60)
+    ns.Learned:RecordPick(b, "rated")
+    local first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, b, "equal use: the more recent pick leads")
+    H.assertEq(others and others[1], a, "the earlier pick follows")
+    -- A third row: all three stack, most recent first.
+    clock:advance(60)
+    ns.Learned:RecordPick(c, "rated")
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, c)
+    H.assertEq(others[1], b)
+    H.assertEq(others[2], a)
+    -- Frequency counts: a picked twice more outranks rows picked once.
+    clock:advance(60)
+    ns.Learned:RecordPick(a, "rated")
+    clock:advance(60)
+    ns.Learned:RecordPick(a, "rated")
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, a, "the row picked most leads")
+    H.assertEq(others[1], c)
+    H.assertEq(others[2], b)
+    -- One stray pick does not unseat a habit of three.
+    clock:advance(60)
+    ns.Learned:RecordPick(c, "rated")
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, a, "a single stray pick does not flip the habit")
+    H.assertEq(others[1], c)
+    -- Weight fades: a month unused, the habit yields to a fresh pick.
+    clock:advance(30 * 86400)
+    ns.Learned:RecordPick(b, "rated")
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, b, "an old habit fades under a fresh pick")
+    H.assertEq(others[1], a)
+    H.assertEq(others[2], c)
+    -- A fourth row: three picks per query at most, the weakest dropped.
+    clock:advance(60)
+    ns.Learned:RecordPick(d, "rated")
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, b)
+    H.assertEq(others[1], d)
+    H.assertEq(others[2], a)
+    H.assertEq(others[3], nil, "three picks per query at most")
+    clock.now = 0
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_forgetOnePick()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local a = { toyItemID = 1, name = "Rated Battlegrounds" }
+    local b = { toyItemID = 2, name = "Rated Arena" }
+    local c = { toyItemID = 3, name = "Rated Solo Shuffle" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { a, b, c }
+    local clock = env._clock
+    ns.Learned:RecordPick(a, "rated")
+    clock:advance(60)
+    ns.Learned:RecordPick(b, "rated")
+    clock:advance(60)
+    ns.Learned:RecordPick(c, "rated")
+    H.assertEq(ns.Learned:FindPick(a, "rated"), "rated", "an older pick is still remembered")
+    H.assertEq(ns.Learned:FindPick(c, "Rated "), "rated", "typed text normalizes like the store")
+    H.assertEq(ns.Learned:FindPick(c, "rate"), "rated", "prefix typing resolves to the same record")
+    H.assertNil(ns.Learned:FindPick({ toyItemID = 9, name = "Other" }, "rated"), "not a pick")
+    H.assertNil(ns.Learned:FindPick(a, "arena"), "other queries do not remember it")
+    -- Forget the lead: the next pick takes over, the rest keep their order.
+    H.assertTrue(ns.Learned:Forget(c, "rated"))
+    local first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, b)
+    H.assertEq(others[1], a)
+    H.assertNil(ns.Learned:FindPick(c, "rated"), "forgotten")
+    -- Forget an older one: the lead stays.
+    H.assertTrue(ns.Learned:Forget(a, "rated"))
+    first, others = ns.Learned:GetBoost("rated")
+    H.assertEq(first, b)
+    H.assertNil(others)
+    -- Forgetting the last pick removes the record; nothing left to forget.
+    H.assertTrue(ns.Learned:Forget(b, "rated"))
+    H.assertNil(env.EasyFind.db.queryLearn["rated"], "empty record goes away")
+    H.assertNil(ns.Learned:GetBoost("rated"))
+    H.assertFalse(ns.Learned:Forget(b, "rated"), "nothing to forget")
+    clock.now = 0
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_catalogItemRoundTrip()
+    -- Catalog rows never live in uiSearchData (rebuilt per query from the
+    -- packed blob), so the learned pick must come back from the snapshot
+    -- with the full working field set.
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = {}
+    local catalogEntry = { catalogItem = true, lookupRow = true, itemID = 19019,
+        category = "Item", name = "thunderfury", nameLower = "thunderfury", quality = 5 }
+    ns.Learned:RecordPick(catalogEntry, "thund")
+    local rec = env.EasyFind.db.queryLearn["thund"]
+    H.assertNotNil(rec, "pick was not recorded")
+    H.assertEq(rec.key, "catalogitem:19019")
+    local boosted = ns.Learned:GetBoost("thund")
+    H.assertNotNil(boosted, "catalog pick must boost")
+    H.assertEq(boosted.itemID, 19019)
+    H.assertEq(boosted.catalogItem, true)
+    H.assertEq(boosted.lookupRow, true, "snapshot must stay a lookup row")
+    H.assertEq(boosted.nameLower, "thunderfury")
+    H.assertEq(boosted.quality, 5)
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_lastPickWins()
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local toyEntry = { toyItemID = 110560, name = "Garrison Hearthstone" }
+    local mountEntry = { mountID = 71, name = "Grand Gryphon" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { toyEntry, mountEntry }
+    ns.Learned:RecordPick(toyEntry, "gar")
+    ns.Learned:RecordPick(mountEntry, "gar")
+    H.assertEq(ns.Learned:GetBoost("gar"), mountEntry, "last pick must win")
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_disabledOptionStopsBoth()
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = false
+    local toyEntry = { toyItemID = 110560, name = "Garrison Hearthstone" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { toyEntry }
+    ns.Learned:RecordPick(toyEntry, "gar")
+    H.assertNil(next(env.EasyFind.db.queryLearn), "must not record while disabled")
+    env.EasyFind.db.queryLearn = { gar = { key = "toy:110560", n = 1, at = 1 } }
+    H.assertNil(ns.Learned:GetBoost("gar"), "must not boost while disabled")
+    env.EasyFind.db.learnFromPicks = true
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_capEvictsOldest()
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local toyEntry = { toyItemID = 110560, name = "Garrison Hearthstone" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { toyEntry }
+    local store = env.EasyFind.db.queryLearn
+    -- Pre-fill to the cap with picks older than "now" (the fake clock sits
+    -- at 0), q1 oldest, so the new pick evicts exactly q1.
+    for i = 1, 200 do
+        store["q" .. i] = { key = "toy:110560", n = 1, at = i - 300 }
+    end
+    ns.Learned:RecordPick(toyEntry, "newest")
+    local count = 0
+    for _ in pairs(store) do count = count + 1 end
+    H.assertEq(count, 200, "cap must hold at 200")
+    H.assertNil(store["q1"], "oldest entry must be evicted")
+    H.assertNotNil(store["newest"], "new pick must survive the trim")
+    ns.Database.uiSearchData = nil
+end
+
+function tests.getMatches_nilQueryReturnsNil()
+    H.assertNil(Aliases:GetMatches(nil))
+    H.assertNil(Aliases:GetMatches(""))
+end
+
+
+function tests.learned_prefixFallback()
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local toyEntry = { toyItemID = 110560, name = "Garrison Hearthstone" }
+    local mountEntry = { mountID = 71, name = "Grand Gryphon" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { toyEntry, mountEntry }
+    ns.Learned:RecordPick(toyEntry, "glad mount")
+    H.assertEq(ns.Learned:GetBoost("glad mo"), toyEntry, "shorter typing must still surface the pick")
+    H.assertEq(ns.Learned:GetBoost("glad"), toyEntry, "4 chars is enough for the fallback")
+    -- Typing past the learned query keeps the pick only while the pick
+    -- still matches the text: "glad mounts" is not the Garrison Hearthstone.
+    H.assertNil(ns.Learned:GetBoost("glad mounts"), "typing past a pick the text no longer matches drops it")
+    ns.Learned:RecordPick(mountEntry, "gran")
+    H.assertEq(ns.Learned:GetBoost("grand gr"), mountEntry, "typing past keeps a pick the text still matches")
+    H.assertNil(ns.Learned:GetBoost("gl"), "short fragments stay natural, no habit hijack")
+    H.assertNil(ns.Learned:GetBoost("gla"), "3 chars is still below the fallback floor")
+    H.assertNil(ns.Learned:GetBoost("g"), "1-char queries stay exact-only")
+    -- A SHORT query the user explicitly taught is a different case from the
+    -- fallback: exact records are honored at any length.
+    ns.Learned:RecordPick(mountEntry, "gr")
+    H.assertEq(ns.Learned:GetBoost("gr"), mountEntry, "explicit 2-char pick must still learn and boost")
+    H.assertEq(ns.Learned:GetBoost("gra"), mountEntry, "extending an explicit short record keeps it while it matches")
+    -- Exact beats prefix: a different pick learned under the short form wins there.
+    ns.Learned:RecordPick(mountEntry, "glad mo")
+    H.assertEq(ns.Learned:GetBoost("glad mo"), mountEntry, "exact record must beat prefix fallback")
+    H.assertEq(ns.Learned:GetBoost("glad mount"), toyEntry, "longer exact record unaffected")
+    ns.Database.uiSearchData = nil
+end
+
+function tests.learned_prefixPrefersLongestQuery()
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local toyEntry = { toyItemID = 110560, name = "Garrison Hearthstone" }
+    local mountEntry = { mountID = 71, name = "Grand Gryphon" }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { toyEntry, mountEntry }
+    ns.Learned:RecordPick(mountEntry, "glad")
+    ns.Learned:RecordPick(toyEntry, "glad mount")
+    H.assertEq(ns.Learned:GetBoost("glad mo"), toyEntry, "longest learned query must win")
+    ns.Database.uiSearchData = nil
+end
+
 local pass, fail, failures = H.runSuite("Aliases", tests)
 return { pass = pass, fail = fail, failures = failures }

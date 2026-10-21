@@ -84,6 +84,19 @@ Data.CATEGORY_ICONS = {
     areapoi = "Interface\\Icons\\INV_Misc_QuestionMark",
     unknown = "Interface\\Icons\\INV_Misc_QuestionMark",
 }
+-- Classic lacks these files and holds an older 1121272 layout: its own
+-- map glyphs instead.
+if ns.Caps and ns.Caps.classic then
+    local icons = Data.CATEGORY_ICONS
+    icons.zeppelin = "atlas:Vehicle-Air-Horde"
+    icons.boat = "Interface\\Icons\\INV_Misc_Spyglass_02"
+    icons.portal = "atlas:MagePortalAlliance"
+    icons.rare = "atlas:VignetteKill"
+    icons.classtrainer = "atlas:Class"
+    icons.pvpvendor = "atlas:BattleMaster"
+    icons.pvpquest = "atlas:BattleMaster"
+    icons.battlemasters = "atlas:BattleMaster"
+end
 
 Data.CATEGORIES = {
     travel = { keywords = {"travel", "transport", "transportation", "getting around"} },

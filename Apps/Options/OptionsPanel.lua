@@ -88,7 +88,7 @@ local DEFAULT_UI_FILTERS = {
     appearanceSets = true,
     bags = true, macros = true, options = true, abilities = true,
     bosses = true, gearSets = true, talents = true, titles = true,
-    map = true,
+    skills = true, map = true,
 }
 local UI_DEFAULTS = {
     smartShow = false,
@@ -1489,6 +1489,7 @@ local function BuildGeneralBindsTab(ctx)
     local indicatorRow, indicatorLabel = CreateSelectorRow(themeRow, L["OPT_INDICATOR_STYLE"])
 
     local indicatorChoices = {"EasyFind Arrow", "Classic Quest Arrow", "Minimap Player Arrow", "Low-res Gauntlet", "HD Gauntlet"}
+    if ns.Caps and ns.Caps.classic then table.remove(indicatorChoices) end
 
     local indicatorBtnFrame, indicatorBtnText = CreateFlyoutSelector(
         indicatorRow, "EasyFindIndicator", SELECTOR_BTN_W, indicatorLabel, StyleLabel(EasyFind.db.indicatorStyle or "EasyFind Arrow")
@@ -1692,6 +1693,8 @@ local function BuildGeneralBindsTab(ctx)
         { label = L["OPT_KEYBIND_CLIPBOARD"],     action = "EASYFIND_CLIPBOARD" },
         { label = L["OPT_KEYBIND_HOVER_NOTE"],    action = "EASYFIND_HOVER_NOTE" },
     }
+    -- Classic has no map search tab.
+    if ns.Caps and ns.Caps.classic then table.remove(keybindDefs, 3) end
 
     local keybindTooltips = {
         EASYFIND_TOGGLE_FOCUS = { L["OPT_KEYBIND_TOGGLE_SEARCH"], L["OPT_KB_TOGGLE_TT_DESC"] },
@@ -2167,6 +2170,7 @@ local function BuildSearchTab(ctx)
         end
     end)
     optionsFrame.macroPickerSearchCheckbox = macroPickerSearchCheckbox
+    if not ns.Caps.iconSearch then macroPickerSearchCheckbox:Hide() end
 
     local iconVisChoices = {
         { label = L["OPT_ICONS_ALL"],      value = "all" },

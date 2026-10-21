@@ -68,6 +68,7 @@ local PROVIDERS = {
     { key = "heirlooms", words = { "heirloom", "heirlooms" }, loadOnLowResults = true },
     { key = "titles", words = { "title", "titles" }, loadOnLowResults = true },
     { key = "gearSets", words = { "gearset", "gearsets", "equipment", "equipmentset" }, loadOnLowResults = true },
+    { key = "skills", words = { "skill", "skills" }, loadOnLowResults = true },
     { key = "bags", words = { "bag", "bags", "inventory" }, loadOnLowResults = true },
     { key = "bank", words = { "bank", "banked", "vault", "warband" }, loadWhenEnabled = true },
     { key = "transmogSets", words = { "appearance", "appearances", "appset", "appsets", "set", "sets", "tmog", "transmog", "xmog" }, loadOnLowResults = true },

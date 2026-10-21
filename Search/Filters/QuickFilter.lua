@@ -57,7 +57,8 @@ Filters.quickFilterOptions = {
     { key = "pets",           canonical = "pets",            label = _G["PETS"] or "Pets",            categories = { "Pet" }, aliases = { "p", "pet", "pets" } },
     { key = "toys",           canonical = "toys",            label = _G["TOYS"] or "Toys",            categories = { "Toy" }, aliases = { "to", "toy", "toys" } },
     { key = "gearSets",       canonical = "gear-sets",       label = _G["EQUIPMENT_MANAGER"] or "Gear Sets",       categories = { "Gear Set" }, aliases = { "gs", "gearset", "gearsets", "gear-set", "gear-sets", "equipment-set", "equipment-sets" } },
-    { key = "currencies",     canonical = "currencies",      label = _G["CURRENCY"] or "Currencies",      categories = { "Currency" }, aliases = { "c", "cur", "currency", "currencies" } },
+    { key = "skills",         canonical = "skills",          label = _G["SKILLS"] or "Skills",          categories = { "Skill" }, aliases = { "sk", "skill", "skills" } },
+    { key = "currencies",     canonical = "currencies",     label = _G["CURRENCY"] or "Currencies",      categories = { "Currency" }, aliases = { "c", "cur", "currency", "currencies" } },
     -- "l" for Loot. "g"/"gear" are kept only because this filter was called
     -- Gear before it was renamed, so muscle memory still works. "item"/"items"
     -- are NOT listed: they belong to the Items filter above, and because

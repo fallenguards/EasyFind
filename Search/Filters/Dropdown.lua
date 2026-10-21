@@ -422,6 +422,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     if sub.iconColor then
                         subIcon:SetVertexColor(unpack(sub.iconColor))
                     end
+                    if sub.iconDesaturate then subIcon:SetDesaturated(true) end
                 end
 
                 local subLabel = subRow:CreateFontString(nil, "ARTWORK", "GameFontHighlight")

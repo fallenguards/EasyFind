@@ -128,7 +128,7 @@ function Render.BaseRowText(resultRow, entry, state)
                 resultRow.flatCatIcon:SetDesaturated(false)
                 resultRow.flatCatIcon:SetVertexColor(unpack(catIconDef.color))
             else
-                resultRow.flatCatIcon:SetDesaturated(false)
+                resultRow.flatCatIcon:SetDesaturated(catIconDef and catIconDef.desaturate or false)
                 resultRow.flatCatIcon:SetVertexColor(1, 1, 1, 1)
             end
             ns.SizeIconAspect(resultRow.flatCatIcon, sz, catIconDef and catIconDef.aspect)

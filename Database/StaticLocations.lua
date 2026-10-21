@@ -15,7 +15,7 @@ ns.POIName = POIName
 -- loads next (StaticLocations_Forever.lua).
 ns.STATIC_LOCATIONS = {}
 EasyFind.staticLocations = ns.STATIC_LOCATIONS
-if ns.Caps and ns.Caps.forever then return end
+if ns.Caps and (ns.Caps.forever or ns.Caps.classic) then return end
 
 -- Retail's map ids and coordinates, recorded on retail.
 local RETAIL_LOCATIONS = {

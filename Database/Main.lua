@@ -391,6 +391,62 @@ function Database:PopulateDynamicCurrencies()
     return true
 end
 
+-- Classic's skill list (character window, Skills tab): one entry per skill.
+function Database:PopulateDynamicSkills()
+    if not (GetNumSkillLines and GetSkillLineInfo) then return false end
+    if GetNumSkillLines() == 0 then return false end
+
+    RemoveEntriesByCategory("Skill")
+
+    -- Skills under a folded header are not listed: unfold, read, fold back.
+    local folded
+    for i = GetNumSkillLines(), 1, -1 do
+        local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
+        if isHeader and not isExpanded then
+            folded = folded or {}
+            folded[headerName] = true
+            ns.skillHeadersToggledAt = GetTime()
+            ExpandSkillHeader(i)
+        end
+    end
+
+    local characterLabel = _G["CHARACTER_BUTTON"] or "Character Info"
+    local skillsLabel = _G["SKILLS"] or "Skills"
+    local header, headerLower
+    for i = 1, GetNumSkillLines() do
+        local skillName, isHeader = GetSkillLineInfo(i)
+        if isHeader then
+            header, headerLower = skillName, slower(skillName or "")
+        elseif skillName and skillName ~= "" then
+            local nameLower = slower(skillName)
+            local keywords = { nameLower, "skill", headerLower }
+            uiSearchData[#uiSearchData + 1] = {
+                name = skillName,
+                nameLower = nameLower,
+                keywords = keywords,
+                keywordsLower = keywords,
+                category = "Skill",
+                buttonFrame = "CharacterMicroButton",
+                path = { characterLabel, skillsLabel, header },
+                skillLine = skillName,
+                steps = {
+                    { buttonFrame = "CharacterMicroButton" },
+                    { waitForFrame = "CharacterFrame", tabFrame = "SkillsFrame" },
+                    { waitForFrame = "CharacterFrame", skillLine = skillName, skillHeader = header },
+                },
+            }
+        end
+    end
+
+    if folded then
+        for i = GetNumSkillLines(), 1, -1 do
+            local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
+            if isHeader and isExpanded and folded[headerName] then CollapseSkillHeader(i) end
+        end
+    end
+    return true
+end
+
 function Database:PopulateDynamicReputations()
     if not C_Reputation or not C_Reputation.GetNumFactions then return false end
     local liveFactions = C_Reputation.GetNumFactions()
@@ -6899,7 +6955,7 @@ function Database:BuildUIDatabase()
                     },
                 },
                 {
-                    name = _G["PVP"] or "PvP",
+                    name = ns.Caps.era and _G["HONOR"] or _G["PVP"] or "PvP",
                     keywords = {"pvp", "honor", "rank", "player vs player", "battlegrounds"},
                     category = "Character Info",
                     steps = {
@@ -7108,6 +7164,7 @@ function Database:BuildUIDatabase()
             name = _G["TRANSMOGRIFICATION"] or "Transmogrification",
             keywords = {"transmogrification", "transmog", "tmog", "xmog", "mog", "wardrobe", "appearance"},
             category = "Transmogrification",
+            caps = "transmog",
             icon = { file = ns.ART.transmog.tex, coords = ns.ART.transmog.coords },
             steps = {{ loadTransmog = true }},
         },
@@ -7180,9 +7237,9 @@ function Database:BuildUIDatabase()
             steps = {{ portraitMenu = true }},
             children = {
                 { name = _G["SET_FOCUS"] or "Set Focus", keywords = {"set focus", "focus target", "focus frame", "focus"}, steps = {{ portraitMenuOption = _G["SET_FOCUS"] or "Set Focus" }} },
-                { name = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight", keywords = {"self highlight", "highlight self", "outline", "self outline"}, steps = {{ portraitMenuOption = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight" }} },
+                { name = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight", caps = "selfHighlight", keywords = {"self highlight", "highlight self", "outline", "self outline"}, steps = {{ portraitMenuOption = _G["SELF_HIGHLIGHT_OPTION"] or "Self Highlight" }} },
                 { name = _G["RAID_TARGET_ICON"] or "Target Marker Icon", keywords = {"target marker", "raid marker", "skull", "cross", "star", "moon", "marker icon", "raid icon", "world marker"}, steps = {{ portraitMenuOption = _G["RAID_TARGET_ICON"] or "Target Marker Icon" }} },
-                { name = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization", keywords = {"loot spec", "loot specialization", "loot preference"}, steps = {{ portraitMenuOption = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization" }} },
+                { name = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization", caps = "specs", keywords = {"loot spec", "loot specialization", "loot preference"}, steps = {{ portraitMenuOption = _G["SELECT_LOOT_SPECIALIZATION"] or "Loot Specialization" }} },
                 { name = _G["DUNGEON_DIFFICULTY"] or "Dungeon Difficulty", keywords = {"dungeon difficulty", "normal dungeon", "heroic dungeon", "mythic dungeon", "instance difficulty"}, steps = {{ portraitMenuOption = _G["DUNGEON_DIFFICULTY"] or "Dungeon Difficulty" }} },
                 { name = _G["RAID_DIFFICULTY"] or "Raid Difficulty", keywords = {"raid difficulty", "normal raid", "heroic raid", "mythic raid", "raid size"}, steps = {{ portraitMenuOption = _G["RAID_DIFFICULTY"] or "Raid Difficulty" }} },
                 {
@@ -7196,7 +7253,7 @@ function Database:BuildUIDatabase()
                     end,
                     steps = {{ portraitMenuOption = _G["RESET_INSTANCES"] or "Reset All Instances" }},
                 },
-                { name = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode", keywords = {"edit mode", "ui layout", "customize ui", "move frames", "hud edit", "ui editor"}, steps = {{ portraitMenuOption = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode" }} },
+                { name = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode", caps = "editMode", keywords = {"edit mode", "ui layout", "customize ui", "move frames", "hud edit", "ui editor"}, steps = {{ portraitMenuOption = _G["HUD_EDIT_MODE_MENU"] or _G["EDIT_MODE"] or "Edit Mode" }} },
                 { name = _G["VOICE_CHAT"] or "Voice Chat", keywords = {"voice chat", "voice", "voip", "talk", "microphone", "mic"}, steps = {{ portraitMenuOption = _G["VOICE_CHAT"] or "Voice Chat" }} },
                 { name = _G["PVP_FLAG"] or "PvP Flag", isPvP = true, keywords = {"pvp flag", "pvp toggle", "player vs player flag", "pvp enable", "war mode"}, steps = {{ portraitMenuOption = _G["PVP_FLAG"] or "PvP Flag" }} },
             },
@@ -7206,7 +7263,8 @@ function Database:BuildUIDatabase()
             name = _G["BAGSLOT"] or _G["INVENTORY_TOOLTIP"] or "Bags / Inventory",
             keywords = {"bags", "bag", "inventory", "backpack", "items", "storage"},
             category = "Inventory",
-            iconAtlas = "bag-main",
+            iconAtlas = ns.BAG_ICON_ATLAS,
+            icon = ns.BAG_ICON_TEX,
             steps = {{ buttonFrame = "MainMenuBarBackpackButton" }},
         },
         {
@@ -7214,6 +7272,8 @@ function Database:BuildUIDatabase()
             keywords = {"calendar", "events", "holidays", "schedule"},
             category = "Social",
             icon = 134939,
+            -- Era and TBC have no calendar behind the clock.
+            available = function() return ns.Caps.calendar end,
             slashCommand = "/click GameTimeFrame",
         },
 

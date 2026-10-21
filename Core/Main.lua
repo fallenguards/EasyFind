@@ -214,6 +214,7 @@ local DB_DEFAULTS = {
         abilities      = true,
         bosses         = true,
         gearSets       = true,
+        skills         = true,
         talents        = true,
         titles         = true,
         map            = true,
@@ -593,7 +594,8 @@ function EasyFind:OpenFeatureRequest() OpenFeatureRequest() end
 -- Account-wide binds a brand-new install starts with; seeded once at login.
 local SUGGESTED_KEYBINDS = {
     EASYFIND_TOGGLE_FOCUS = "CTRL-SPACE",
-    EASYFIND_MAP_FOCUS = "CTRL-M",
+    -- Classic has no map search tab.
+    EASYFIND_MAP_FOCUS = not ns.Caps.classic and "CTRL-M" or nil,
 }
 
 -- Chat-hello hyperlink. Clicking the link in the welcome message opens the
@@ -1389,6 +1391,8 @@ local DIRTY_EVENT_CATEGORY = {
     SKILL_LINES_CHANGED = "professions",
     TRADE_SKILL_SHOW = "professions",
 }
+-- Classic has no professions provider; its skill list is searched instead.
+if ns.Caps and ns.Caps.skills then DIRTY_EVENT_CATEGORY.SKILL_LINES_CHANGED = "skills" end
 for dirtyEvent in pairs(DIRTY_EVENT_CATEGORY) do
     -- pcall: event names vary across client builds, and this runs at file
     -- load where an error would abort the whole module. A missing event
@@ -1462,6 +1466,8 @@ local function MarkDirtyDebounced(category)
 end
 eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
     local dirtyCategory = DIRTY_EVENT_CATEGORY[event]
+    -- The skills read unfolds headers itself: its own event is no news.
+    if dirtyCategory == "skills" and ns.skillHeadersToggledAt and GetTime() - ns.skillHeadersToggledAt < 1 then return end
     if dirtyCategory then
         MarkDirtyDebounced(dirtyCategory)
         return

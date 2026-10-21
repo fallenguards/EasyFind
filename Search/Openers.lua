@@ -61,9 +61,8 @@ end
 
 local function SecureShowUIPanel(frame)
     if not frame or not ShowUIPanel then return false end
-    -- Protected panels cannot be shown by insecure code in combat; refuse
-    -- only those (capability check, not a category list) so the hard
-    -- ADDON_ACTION_BLOCKED path can't fire. Unprotected panels open fine.
+    -- Protected panels cannot be shown by insecure code in combat: refuse
+    -- those by capability, so ADDON_ACTION_BLOCKED never fires.
     if InCombatLockdown() and frame.IsProtected and frame:IsProtected() then
         return false
     end
@@ -89,14 +88,8 @@ local function IsPlayerSpellsTabSelected(tabIndex)
     return false
 end
 
--- Switching the PlayerSpells tab from addon execution writes the action
--- bars' drag-grid flag tainted (measured: MultiBarBottomLeft.showAllButtons
--- flips the moment the tab is clicked), so NO
--- code path may ClickButton these tabs. Row clicks steer securely on
--- their release edge (Shared/SecureOpeners.lua); when that steer did not
--- land (non-row flows, first-open gaps), highlight the tab so the user's
--- own hardware click does the switch. Returns true when the requested tab
--- is already active (or no specific tab was requested).
+-- Never ClickButton a PlayerSpells tab: it taints the action bars' drag-grid flag.
+-- Rows steer securely on release; otherwise the tab is highlighted. True when already there.
 local function EnsurePlayerSpellsTab(tabIndex)
     if not tabIndex or IsPlayerSpellsTabSelected(tabIndex) then return true end
     if Replacement(tabIndex == (ns.SecureOpeners and ns.SecureOpeners.TAB_TALENTS) and "talents" or "spellBook") then
@@ -123,18 +116,15 @@ local function OpenPlayerSpellsFrame(tabIndex)
         return true
     end
 
-    -- The Blizzard opener path below reaches TrySetTab -> SetShown, which is
-    -- protected on this frame in combat even through securecallfunction
-    -- (measured ADDON_ACTION_BLOCKED). Refuse by capability, not category.
+    -- The Blizzard opener reaches TrySetTab -> SetShown, protected here in combat
+    -- even through securecallfunction. Refuse by capability.
     if InCombatLockdown() and (not frame
         or (frame.IsProtected and frame:IsProtected())) then
         return false
     end
 
-    -- Opening PlayerSpellsFrame through the microbutton taints Blizzard's
-    -- ShowUIPanel/UIParent path. Call Blizzard's opener through
-    -- securecallfunction so later protected panel work, including
-    -- CharacterFrame status bars, does not inherit EasyFind taint.
+    -- The microbutton path taints ShowUIPanel: call Blizzard's opener through
+    -- securecallfunction so later protected panel work stays clean.
     local util = _G.PlayerSpellsUtil
     if util and SecureCall(util.TogglePlayerSpellsFrame, tabIndex) then
         return true
@@ -165,6 +155,7 @@ end
 local function OpenCharacterFrame(tabIndex)
     -- A subframe name ("SkillsFrame") opens as itself on either client.
     if type(tabIndex) == "string" then
+        tabIndex = ns.Caps.CharacterSubframe(tabIndex) or tabIndex
         local sub = _G[tabIndex]
         if sub and sub:IsShown() and CharacterFrame and CharacterFrame:IsShown() then return true end
         if SecureCall(_G.ToggleCharacter, tabIndex) then return true end
@@ -225,9 +216,8 @@ function Openers:SecureShowUIPanel(frame)
     return SecureShowUIPanel(frame)
 end
 
--- Enter the in-game Quick Keybind overlay directly, the same as clicking the
--- button in Settings > Keybindings. Returns false (so the caller can fall back
--- to opening that settings category) when in combat or the frame isn't present.
+-- Enters the Quick Keybind overlay as the Settings button does.
+-- False in combat or without the frame, so the caller can open the settings page.
 function Openers:ActivateQuickKeybindMode()
     if InCombatLockdown() then return false end
     local frame = _G["QuickKeybindFrame"]

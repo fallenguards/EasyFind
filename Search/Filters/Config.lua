@@ -68,7 +68,7 @@ local UI_FILTER_OPTIONS = {
       iconAspect = ns.ITEMS_CATEGORY_ICON_ASPECT,
       flyoutSubFilters = {
           { key = "catalog", label = L["FILTER_GENERAL_CATALOG"], iconTex = ns.ITEMS_CATEGORY_ICON_TEX, iconCoords = ns.ITEMS_CATEGORY_ICON_COORDS, iconAspect = ns.ITEMS_CATEGORY_ICON_ASPECT, hasOptions = true, companion = "EasyFind_Items" },
-          { key = "bags", label = _G["BAGSLOT"] or "Bags", iconAtlas = "bag-main", hasOptions = true },
+          { key = "bags", label = _G["BAGSLOT"] or "Bags", iconAtlas = ns.BAG_ICON_ATLAS, iconTex = ns.BAG_ICON_TEX, hasOptions = true },
           { key = "bank", label = _G["BANK"] or "Bank", iconTex = ns.BANK_CATEGORY_ICON_TEX, iconCoords = ns.BANK_CATEGORY_ICON_COORDS, hasOptions = true },
       } },
     -- Bosses: EJ overview tab icon from texture 522972.
@@ -177,10 +177,12 @@ local UI_FILTER_OPTIONS = {
     { key = "housing",     label = _G["HOUSING_SETTINGS_LABEL"] or _G["BINDING_HEADER_HOUSING_SYSTEM"] or "Housing",
       iconAtlas = "UI-HUD-MicroMenu-Housing-Up", hasFlyout = true },
     -- Interact crosshair cursor file, used whole (not a sheet crop).
-    { key = "options",     label = _G["OPTIONS"] or "Options",     iconTex = 4675635,
+    { key = "options",     label = _G["OPTIONS"] or "Options",     iconTex = ns.OPTIONS_CATEGORY_ICON_TEX,
       flyoutSubFilters = {
-          { key = "gameOptions",  label = L["FILTER_GAME_OPTIONS"],  iconAtlas = "QuestLog-icon-setting", companion = "EasyFind_Settings" },
-          { key = "addonOptions", label = L["FILTER_ADDON_OPTIONS"], iconAtlas = "QuestLog-icon-setting", iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings" },
+          { key = "gameOptions",  label = L["FILTER_GAME_OPTIONS"],  iconAtlas = ns.SETTING_ICON.atlas, iconTex = ns.SETTING_ICON.tex,
+            iconDesaturate = ns.SETTING_ICON.desaturate, companion = "EasyFind_Settings" },
+          { key = "addonOptions", label = L["FILTER_ADDON_OPTIONS"], iconAtlas = ns.SETTING_ICON.atlas, iconTex = ns.SETTING_ICON.tex,
+            iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings" },
       } },
     { key = "professions", label = _G["TRADE_SKILLS"] or "Professions",
       iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = true,
@@ -189,6 +191,7 @@ local UI_FILTER_OPTIONS = {
           local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
           return (prof1 or prof2 or archaeology or fishing or cooking) ~= nil
       end },
+    { key = "skills",      label = _G["SKILLS"] or "Skills",       iconTex = 133741 },
     { key = "reputations", label = _G["REPUTATION"] or "Reputations", iconTex = ns.PlayerRepCategoryIcon().tex,
       iconCoords = ns.PlayerRepCategoryIcon().coords,
       flyoutRadio = {

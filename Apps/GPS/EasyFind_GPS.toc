@@ -1,4 +1,4 @@
-## Interface: 16001, 120105, 120100, 120007, 120001, 120000
+## Interface: 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
 ## Title: EasyFind [GPS]
 ## Notes: GPS companion for EasyFind: step by step directions to any zone or point of interest
 ## Author: justawower

@@ -166,15 +166,15 @@ local FLAT_CATEGORY_ICONS = {
     talent        = { atlas = "UI-HUD-MicroMenu-SpecTalents-Up" },
     achievement   = { atlas = "UI-HUD-MicroMenu-Achievements-Up" },
     macro         = { tex = "Interface\\MacroFrame\\MacroFrame-Icon" },
-    bag           = { atlas = "bag-main" },
+    bag           = { atlas = ns.BAG_ICON_ATLAS, tex = ns.BAG_ICON_TEX },
     bank          = { tex = ns.BANK_CATEGORY_ICON_TEX, coords = ns.BANK_CATEGORY_ICON_COORDS },
     loot          = ns.ART.loot,
     menuBar       = { tex = "Interface\\AddOns\\EasyFind\\Search\\Images\\menu-bar" },
-    setting       = { atlas = "QuestLog-icon-setting" },
+    setting       = ns.SETTING_ICON,
     command       = { tex = ns.COMMANDS_ICON_TEX },
     -- Addon settings get a warm tint so they're distinguishable at a
     -- glance from the silvery-grey game-settings cogwheel.
-    settingAddon  = { atlas = "QuestLog-icon-setting", color = { 1.0, 0.78, 0.35 } },
+    settingAddon  = { atlas = ns.SETTING_ICON.atlas, tex = ns.SETTING_ICON.tex, color = { 1.0, 0.78, 0.35 } },
     title         = ns.ART.title,
     -- chromeTint: white line art tinted with the theme's chrome-glyph color
     -- at render time, so this icon matches the apps menu and popup glyphs.
@@ -189,6 +189,7 @@ local FLAT_CATEGORY_ICONS = {
     -- Equipment Manager sidebar tab icon (PaperDollSidebarTab3 ARTWORK
     -- region of the PaperDollSidebarTabs sheet, same sheet as `title`).
     gearSet       = ns.ART.gear_set,
+    skill         = { tex = 133741 },
     housing       = { atlas = "UI-HUD-MicroMenu-Housing-Up" },
     profession    = { atlas = "UI-HUD-MicroMenu-Professions-Up" },
 }
@@ -261,6 +262,7 @@ function Icons:GetFlatCategoryIcon(data)
         if key == "pets" then return FLAT_CATEGORY_ICONS.pet end
         if key == "toys" then return FLAT_CATEGORY_ICONS.toy end
         if key == "gearSets" then return FLAT_CATEGORY_ICONS.gearSet end
+        if key == "skills" then return FLAT_CATEGORY_ICONS.skill end
         if key == "currencies" then return FLAT_CATEGORY_ICONS.currency end
         if key == "items" then return FLAT_CATEGORY_ICONS.item end
         if key == "catalog" then return FLAT_CATEGORY_ICONS.item end
@@ -299,6 +301,7 @@ function Icons:GetFlatCategoryIcon(data)
     if data.statisticID or data.category == "Statistic" then return FLAT_CATEGORY_ICONS.statistic end
     if data.titleID then return FLAT_CATEGORY_ICONS.title end
     if data.gearSetID then return FLAT_CATEGORY_ICONS.gearSet end
+    if data.skillLine then return FLAT_CATEGORY_ICONS.skill end
     if data.category == "Reputation" and data.factionID then
         return REP_FACTION_ICONS[data.factionSide or "either"]
     end

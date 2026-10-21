@@ -33,7 +33,7 @@ local SIMPLE_FIELDS = {
     "transmogSetID",
     -- Collection action IDs each SelectResult branch gates on; absent, a cold
     -- title/gear-set/talent/appearance shortkey fell through to a panel open.
-    "titleID", "gearSetID", "talentNodeID",
+    "titleID", "gearSetID", "talentNodeID", "skillLine",
     "appearanceItemID", "appearanceVisualID", "appearanceSlot",
     "factionID", "hasRepBar", "canQueue", "isPvP", "isPvE",
     -- Required for the row renderer to recognize a map result and
