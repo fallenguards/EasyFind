@@ -169,6 +169,29 @@ function tests.dangerTiles_byLevelAndFaction()
     H.assertNil(Npcs.DangerTiles(60, "Horde")[0][3105], "at 60 nothing is")
 end
 
+-- A walk 300 yd east: tile 3100 (Alliance threat 20) its first 100 yd,
+-- tile 3105 (60) its last 100. Red from five levels under a threat, skull
+-- from ten; read every 16 yd or so.
+function tests.deadlyAlong_redAndSkullStretches()
+    local _, Npcs, env = fresh()
+    env.EasyFind._ns.GPSNav = { TileOf = function(x) return x < 100 and 3100 or (x < 200 and 3000 or 3105) end }
+    local function walk() return { pts = { 0, 0, 300, 0 }, cum = { 0, 300 }, len = 300 } end
+    local d = Npcs.DeadlyAlong(walk(), 0, 15, "Alliance")
+    H.assertEq(d.n, 4, "two stretches")
+    H.assertEq(d[1], 0)
+    H.assertTrue(math.abs(d[2] - 100) < 16 and math.abs(d[3] - 200) < 16, d[2] .. ", " .. d[3])
+    H.assertEq(d[4], 300)
+    H.assertTrue(math.abs(d.skull - 200) < 16 and math.abs(d.sx - 200) < 16, "the skull met at the second")
+    d = Npcs.DeadlyAlong(walk(), 0, 18, "Alliance")
+    H.assertEq(d.n, 2, "at 18 the first is only orange")
+    d = Npcs.DeadlyAlong(walk(), 0, 52, "Alliance")
+    H.assertEq(d.n, 2)
+    H.assertNil(d.skull, "at 52 nothing is ten above")
+    local path = walk()
+    H.assertTrue(Npcs.DeadlyAlong(path, 0, 15, "Alliance") == Npcs.DeadlyAlong(path, 0, 15, "Alliance"), "kept on the walk")
+    H.assertNil(Npcs.DeadlyAlong(walk(), 1, 15, "Alliance"), "no danger map for that continent")
+end
+
 function tests.filtersLeaveOutWhatIsUnchecked()
     local append, _, env = fresh()
     local f = {}

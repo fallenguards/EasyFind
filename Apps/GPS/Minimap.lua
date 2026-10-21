@@ -111,6 +111,12 @@ local function To(wx, wy)
     lastX, lastY = x, y
 end
 
+-- Trace's pen here: the leg's own color, red where deadly.
+local traceColor, traceAlpha
+local function TracePen(red)
+    Pen(red and ns.GPSPreview.DANGER_COLOR or traceColor, traceAlpha)
+end
+
 local function Walk(route, i, ci, sci, sx, sy, tx, ty)
     local c = legs[i]
     if c and c.route == route and c.sx == sx and c.sy == sy and c.tx == tx and c.ty == ty then return c.path end
@@ -167,9 +173,8 @@ local function Draw()
                 Pen(passed, passedAlpha)
                 for v = 1, seg do To(pts[2 * v - 1], pts[2 * v]) end
                 To(f.qx, f.qy)
-                Pen(color, alpha)
-                To(f.qx, f.qy)
-                for v = seg + 1, #pts / 2 do To(pts[2 * v - 1], pts[2 * v]) end
+                traceColor, traceAlpha = color, alpha
+                Preview.Trace(f.path, f.ci, seg, f.qx, f.qy, f.along, TracePen, To)
             else
                 local sci, sx, sy, tci, tx, ty
                 if Follow.RIDES[step.kind] then
@@ -184,7 +189,8 @@ local function Draw()
                     local path = step.kind == "travel" and Walk(route, i, ci, sci, sx, sy, tx, ty)
                     if path then
                         local pts = path.pts
-                        for v = 1, #pts / 2 do To(pts[2 * v - 1], pts[2 * v]) end
+                        traceColor, traceAlpha = color, alpha
+                        Preview.Trace(path, i >= active and ci or nil, 1, pts[1], pts[2], 0, TracePen, To)
                     else
                         To(sx, sy)
                         To(tx, ty)

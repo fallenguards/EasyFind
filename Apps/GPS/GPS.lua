@@ -939,7 +939,7 @@ function GPS.Rerouted(route, via, steps, total, advice)
     if report then report.re = (report.re or 0) + 1 end
     CharDB().route = { dest = route.dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
                        via = via, from = ci and { ci = ci, wx = wx, wy = wy } or nil, report = report,
-                       wayAvoid = route.wayAvoid }
+                       wayAvoid = route.wayAvoid, dangerSeen = route.dangerSeen }
     closing.step = nil
     if GPS.AfterRoute then GPS.AfterRoute() end
     if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
@@ -1131,9 +1131,10 @@ function GPS.Navigated(dest, steps, total, advice, stops)
     local start = here and { ci = here.ci, wx = here.wx, wy = here.wy, m = here.m, x = here.x, y = here.y } or nil
     -- The same trip planned again keeps the flight points dropped from it.
     local old = Route()
-    local skip = old and old.dest and old.dest.name == dest.name and old.dest.mapID == dest.mapID and old.skipLearn or nil
+    local same = old and old.dest and old.dest.name == dest.name and old.dest.mapID == dest.mapID
     CharDB().route = { dest = dest, steps = steps, active = 1, t = time(), eta = total, total = total, advice = advice,
-                       from = from, origin = origin, stops = stops or { dest }, skipLearn = skip,
+                       from = from, origin = origin, stops = stops or { dest }, skipLearn = same and old.skipLearn or nil,
+                       dangerSeen = same and old.dangerSeen or nil,
                        report = { from = start, total = total, t = time(), fly = flies,
                                   steps = Engine and Engine.StepsCode and Engine.StepsCode(steps) or nil } }
     if GPS.AfterRoute then GPS.AfterRoute() end
@@ -1851,6 +1852,70 @@ local function AdviceLines(route)
     return #out > 0 and out or nil
 end
 
+-- The warning that the route ahead walks through ground whose creatures
+-- con skull to the player, naming the zone it starts in; nil with none,
+-- once put away, or while its walks are not all drawn. Kept per steps.
+GPS.dangerFound = setmetatable({}, { __mode = "k" })
+function GPS.DangerText(route)
+    if route.dangerSeen or route.arrived then return nil end
+    local Npcs, Engine, Follow = ns.GPSNpcs, ns.GPSRoute, ns.GPSFollow
+    local level = UnitLevel("player")
+    if not (Npcs and Npcs.DeadlyAlong and Engine and Engine.WalkPath and Follow and level) then return nil end
+    local steps, active = route.steps, route.active or 1
+    local c = GPS.dangerFound[steps]
+    if c and c.n == #steps and c.active == active and c.level == level then return c.text or nil end
+    local faction = UnitFactionGroup("player")
+    local text, drawn = false, true
+    for i = active, #steps do
+        local step = steps[i]
+        if step.kind == "travel" and not step.corpse then
+            local sci, sx, sy = Follow.StartOf(route, i)
+            local tci, tx, ty = Follow.World(step.go or step.arrive)
+            local path = sci and sci == tci and Engine.WalkPath(sci, sx, sy, tx, ty, true, step.near)
+            if path == nil then
+                drawn = false
+            elseif path then
+                local d = Npcs.DeadlyAlong(path, sci, level, faction)
+                if not d then return nil end
+                if d.skull then
+                    local _, zone = ZoneAt(sci, d.sx, d.sy)
+                    text = zone and sformat(L["GPS_DANGER_FMT"], zone) or L["GPS_DANGER"]
+                    break
+                end
+            end
+        end
+    end
+    if text or drawn then GPS.dangerFound[steps] = { n = #steps, active = active, level = level, text = text } end
+    return text or nil
+end
+
+-- The client's red; a font set anew takes its own color, so set after.
+GPS.DANGER_RGB = RED_FONT_COLOR and { RED_FONT_COLOR.r, RED_FONT_COLOR.g, RED_FONT_COLOR.b } or { 1, 0.13, 0.13 }
+
+-- A surface's red warning line, built on first use: its X puts it away
+-- for the trip.
+function GPS.DangerLine(holder, parent, font)
+    local row = holder.dangerLine
+    if row then return row end
+    row = CreateFrame("Frame", nil, parent)
+    row.text = row:CreateFontString(nil, "ARTWORK", font)
+    row.text._efOwnColor = true
+    row.text:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetJustifyV("TOP")
+    row.text:SetWordWrap(true)
+    row.text:SetTextColor(unpack(GPS.DANGER_RGB))
+    row.close = ns.CreateCloseX(row, 10)
+    row.close:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -1)
+    row.close:SetScript("OnClick", function()
+        local route = Route()
+        if route then route.dangerSeen = true end
+        GPS.RefreshSurfaces()
+    end)
+    holder.dangerLine = row
+    return row
+end
+
 local StyleTrackButton, RouteTracked   -- defined with the tracking toggle below; the surfaces render before it
 
 -- The route's start in the panel: where the player stands or the place
@@ -1992,6 +2057,25 @@ local function Render(container)
         from:SetHeight(rowBase)
         from:Show()
         y = y + rowBase
+    end
+    local warn = not only and GPS.DangerText(route)
+    if warn then
+        local row = GPS.DangerLine(container, container.list, "GameFontHighlightSmall")
+        if scale and row.fontScale ~= scale then
+            row.fontScale = scale
+            SizeFont(row.text, MAP_STEP_PX * scale)
+        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 6, -y - 4 + offset)
+        row:SetPoint("RIGHT", container.list, "RIGHT", -8, 0)
+        row.text:SetWidth(mmax(40, listW - 30))
+        row.text:SetText(warn)
+        local h = row.text:GetStringHeight() or 0
+        row:SetHeight(mmax(10, h))
+        row:Show()
+        y = y + mmax(rowBase, h + 8)
+    elseif container.dangerLine then
+        container.dangerLine:Hide()
     end
     for i = only or 1, only or shown do
         local step = route.steps[i]
@@ -3612,6 +3696,7 @@ function Look.RenderEra(f)
     local route = Route()
     SearchHint(f)
     if GPS.picking == f then route = nil end
+    if f.dangerLine then f.dangerLine:Hide() end
     local text = route and DestText(route) or L["APP_GPS"]
     local widest, tall = Look.EraFill(f.eraTitle, text)
     if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
@@ -3637,6 +3722,19 @@ function Look.RenderEra(f)
             row.shade, row.from = ns.TEXT_DIM, true
             Look.ShadeLine(row)
             widest = mmax(widest, w)
+        end
+        local warn = GPS.DangerText(route)
+        if warn then
+            local line = GPS.DangerLine(f, f, "GameFontHighlight")
+            Look.Restyle(line.text, "era", 10, "GameFontHighlight")
+            line.text:SetTextColor(unpack(GPS.DANGER_RGB))
+            local lw, lh = Look.EraFill(line.text, warn)
+            line:ClearAllPoints()
+            line:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -tall)
+            line:SetSize(lw + 16, lh)
+            line:Show()
+            widest = mmax(widest, lw + 16)
+            tall = tall + lh
         end
         local items = route.steps
         if route.arrived then
@@ -3685,6 +3783,7 @@ RenderDock = function(f)
     SearchHint(f)
     if GPS.picking == f then route = nil end
     if f.fromLine then f.fromLine:Hide() end
+    if f.dangerLine then f.dangerLine:Hide() end
     local hits = route and f.search and (f.hitCount or 0) > 0
     if route and f.search then
         -- The box after the name in the banner; the places it finds take
@@ -3739,6 +3838,21 @@ RenderDock = function(f)
                 line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
                 line.shade = ns.TEXT_DIM
                 Look.ShadeLine(line)
+                line:ClearAllPoints()
+                line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
+                line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+                local h = mmax(12, line.text:GetStringHeight() or 12)
+                line:SetHeight(h)
+                line:Show()
+                y = y - h - DOCK_LINE_GAP
+            end
+            local warn = GPS.DangerText(route)
+            if warn then
+                local line = GPS.DangerLine(f, f, "ObjectiveTrackerLineFont")
+                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont")
+                line.text:SetTextColor(unpack(GPS.DANGER_RGB))
+                line.text:SetWidth(mmax(40, lineW - 16))
+                line.text:SetText(warn)
                 line:ClearAllPoints()
                 line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
                 line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)

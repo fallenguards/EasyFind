@@ -38,6 +38,7 @@ local KIND_COLOR = { walk = ROUTE_BLUE, taxi = { 1, 0.55, 0.1 }, boat = { 0.1, 0
                      zeppelin = { 0.72, 0.42, 1 }, tram = { 0.78, 0.78, 0.78 } }
 -- The part of the route already walked, faded so it does not read as the way.
 local PASSED_COLOR, PASSED_ALPHA = { 0.78, 0.8, 0.84 }, 0.45
+Preview.DANGER_COLOR = { 0.95, 0.18, 0.15 }   -- ground deadly to the player
 local CASING, CASING_COLOR = 1.5, { 0.06, 0.05, 0.08 }
 local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
 local TEX_CORE = "Interface\\AddOns\\EasyFind_GPS\\textures\\route_core"
@@ -461,6 +462,43 @@ local function PenTo(x, y)
     if t1 < 1 then PenUp() end
 end
 
+-- A walk traced from `from` yards along it (x, y, on stretch s) to its
+-- end: pen(red) as it starts and wherever it enters or leaves ground
+-- deadly to the player on continent ci (nil: none), to(x, y) per point.
+function Preview.Trace(path, ci, s, x, y, from, pen, to)
+    local Npcs = ns.GPSNpcs
+    local d = ci and Npcs and Npcs.DeadlyAlong
+        and Npcs.DeadlyAlong(path, ci, UnitLevel("player"), UnitFactionGroup("player"))
+    local n, r = d and d.n or 0, 1
+    while r < n and d[r + 1] <= from do r = r + 2 end
+    local red = r < n and d[r] <= from
+    pen(red)
+    to(x, y)
+    local pts, cum = path.pts, path.cum
+    for v = s + 1, #pts / 2 do
+        while r < n do
+            local edge = red and d[r + 1] or d[r]
+            if edge >= cum[v] then break end
+            local ex, ey = ns.GPSFollow.PointAt(path, edge, v - 1)
+            to(ex, ey)
+            if red then r = r + 2 end
+            red = not red
+            pen(red)
+            to(ex, ey)
+        end
+        to(pts[2 * v - 1], pts[2 * v])
+    end
+end
+
+-- Trace's pen on the shown map: the leg's own color, red where deadly.
+local trace = {}
+local function TracePen(red)
+    Pen(red and Preview.DANGER_COLOR or trace.color, trace.alpha, trace.trim)
+end
+local function TraceTo(x, y)
+    PenTo(Frac(trace.affine, x, y))
+end
+
 -- A clicked step stays the one shown; with none clicked it is the step
 -- being followed. false: none, until the map opens or the route moves on.
 local pinned
@@ -540,9 +578,8 @@ local function Draw()
                 Pen(PASSED_COLOR, PASSED_ALPHA)
                 for v = 1, seg do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
                 PenTo(Frac(affine, f.qx, f.qy))
-                Pen(color, alpha, trim)
-                PenTo(Frac(affine, f.qx, f.qy))
-                for v = seg + 1, #pts / 2 do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
+                trace.affine, trace.color, trace.alpha, trace.trim = affine, color, alpha, trim
+                Preview.Trace(f.path, f.ci, seg, f.qx, f.qy, f.along, TracePen, TraceTo)
             elseif affine then
                 -- Its way on foot for a walk, straight otherwise; drawn where
                 -- it lies on this map.
@@ -551,7 +588,8 @@ local function Draw()
                 if step.kind == "travel" then path, pci = WalkWorld(route, i, start, target) end
                 if path and pci == affine.ci then
                     local pts = path.pts
-                    for v = 1, #pts / 2 do PenTo(Frac(affine, pts[2 * v - 1], pts[2 * v])) end
+                    trace.affine, trace.color, trace.alpha, trace.trim = affine, color, alpha, trim
+                    Preview.Trace(path, color ~= PASSED_COLOR and pci or nil, 1, pts[1], pts[2], 0, TracePen, TraceTo)
                 elseif start and target then
                     local sci, sx, sy = World(start)
                     local tci, tx, ty = World(target)

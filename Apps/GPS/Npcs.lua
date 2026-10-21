@@ -11,7 +11,7 @@ if not (MapSearch and Search and Search.PreparePOI) then return end
 
 local sbyte, schar, sfind, slower, sgmatch, ssub = string.byte, string.char, string.find, string.lower, string.gmatch, string.sub
 local sformat = string.format
-local mfloor, mmin = math.floor, math.min
+local mfloor, mmin, mmax, mceil = math.floor, math.min, math.max, math.ceil
 local tsort, tconcat = table.sort, table.concat
 local band, bor, lshift = bit.band, bit.bor, bit.lshift
 local ZONE_ABBREVIATIONS = ns.MapUtils and ns.MapUtils.ZONE_ABBREVIATIONS or {}
@@ -23,6 +23,9 @@ local MAX_ROWS = 60     -- candidates handed to the map search's scoring
 local TOWN_RADIUS2 = 300 ^ 2   -- a town's spots: within this of its inn, in yards squared
 local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the map
 local DANGER_LEVELS = 3 -- the client's orange: three levels above
+local RED_LEVELS = 5    -- the client's red: drawn red on a route
+local SKULL_LEVELS = 10 -- the client's skull: a route through it is warned of
+local DEADLY_STEP = 16  -- yards between the points a walk is read at
 local WEAPON = 2        -- Enum.ItemClass.Weapon
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
 -- the filter offers; a creature with none is "other".
@@ -1149,15 +1152,14 @@ function N.FilterChoices()
     return { types = types, expansions = list }
 end
 
--- The walking tiles a character of this level and faction goes around:
--- those whose hostile creatures con orange or red to it (DANGER_LEVELS
--- or more above). { [continent] = { [tile] = true } }, or nil.
-function N.DangerTiles(level, faction)
+-- Each walking tile's threat to a faction, decoded once: the level from
+-- which its hostile creatures stop being one. { [continent] = { [tile] =
+-- level } }, or nil without the catalog's danger map.
+function N.Threats(faction)
     local data = ns.NPC_DATA
-    if not (data and data.danger and level) then return nil end
-    local key = level .. (faction or "")
-    if N.dangerKey == key then return N.dangerSet end
+    if not (data and data.danger) then return nil end
     local horde = faction == "Horde"
+    if N.threats and N.threatsHorde == horde then return N.threats end
     local set = {}
     for ci, blob in pairs(data.danger) do
         local ok, raw = pcall(Unpack, blob)
@@ -1167,13 +1169,76 @@ function N.DangerTiles(level, faction)
             for _ = 1, u() do
                 last = last + u()
                 local alliance, hordeLevel = u(), u()
-                if (horde and hordeLevel or alliance) >= level + DANGER_LEVELS then tiles[last] = true end
+                local level = horde and hordeLevel or alliance
+                if level > 0 then tiles[last] = level end
             end
             set[ci] = tiles
         end
     end
+    N.threats, N.threatsHorde = set, horde
+    return set
+end
+
+-- The walking tiles a character of this level and faction goes around:
+-- those whose hostile creatures con orange or red to it (DANGER_LEVELS
+-- or more above). { [continent] = { [tile] = true } }, or nil.
+function N.DangerTiles(level, faction)
+    local threats = level and N.Threats(faction)
+    if not threats then return nil end
+    local key = level .. (faction or "")
+    if N.dangerKey == key then return N.dangerSet end
+    local set = {}
+    for ci, tiles in pairs(threats) do
+        local out = {}
+        for tile, at in pairs(tiles) do
+            if at >= level + DANGER_LEVELS then out[tile] = true end
+        end
+        set[ci] = out
+    end
     N.dangerKey, N.dangerSet = key, set
     return set
+end
+
+-- Where a walk on continent ci crosses ground whose hostile creatures con
+-- red to a character of this level or worse: yards along it as runs
+-- { from, to, ... } (n of them), and skull, how far along the first one
+-- that cons skull is met, at sx, sy. Kept on the walk for its level; nil
+-- without the catalog's danger map.
+function N.DeadlyAlong(path, ci, level, faction)
+    local threats = level and N.Threats(faction)
+    local tiles = threats and threats[ci]
+    local TileOf = ns.GPSNav and ns.GPSNav.TileOf
+    if not (tiles and TileOf and path and path.pts) then return nil end
+    local d = path.deadly
+    if d and d.level == level and d.ci == ci then return d end
+    d = { level = level, ci = ci, n = 0 }
+    local red, skull = level + RED_LEVELS, level + SKULL_LEVELS
+    local pts, cum = path.pts, path.cum
+    local inside = false
+    for v = 1, #pts / 2 - 1 do
+        local ax, ay = pts[2 * v - 1], pts[2 * v]
+        local dx, dy = pts[2 * v + 1] - ax, pts[2 * v + 2] - ay
+        local len = cum[v + 1] - cum[v]
+        local k = mmax(1, mceil(len / DEADLY_STEP))
+        for j = 0, k - 1 do
+            local t = (j + 0.5) / k
+            local at = tiles[(TileOf(ax + dx * t, ay + dy * t))] or 0
+            if (at >= red) ~= inside then
+                inside = not inside
+                d.n = d.n + 1
+                d[d.n] = cum[v] + len * j / k
+            end
+            if at >= skull and not d.skull then
+                d.skull, d.sx, d.sy = cum[v] + len * j / k, ax + dx * j / k, ay + dy * j / k
+            end
+        end
+    end
+    if inside then
+        d.n = d.n + 1
+        d[d.n] = path.len
+    end
+    path.deadly = d
+    return d
 end
 
 MapSearch.AppendNpcRows = N.Append

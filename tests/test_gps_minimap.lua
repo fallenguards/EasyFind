@@ -3,11 +3,23 @@
 -- with a turning minimap, and nothing drawn again while standing still.
 local H = require("Harness")
 
-local PASSED, BLUE = { 0.7, 0.7, 0.7 }, { 0, 0, 1 }
+local PASSED, BLUE, RED = { 0.7, 0.7, 0.7 }, { 0, 0, 1 }, { 1, 0, 0 }
+
+-- Preview.Trace as shipped, onto the stubbed preview.
+local function LoadTrace(env, ns)
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Preview.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function Preview.Trace", 1, true), "Trace not in Preview.lua")
+    local _, e = src:find("\nend\r?\n", s)
+    local chunk = "local Preview, ns = ...\n" .. src:sub(s, e)
+    assert(load(chunk, "=Preview.lua Trace", "t", env))(ns.GPSPreview, ns)
+end
 
 -- A walk planned 100 yd south of the player to 300 yd north of them, the
--- player on it; a minimap 100 px wide showing 100 yd each way.
-local function fresh()
+-- player on it; a minimap 100 px wide showing 100 yd each way. deadly:
+-- the yards along the walk over ground deadly to the player.
+local function fresh(deadly)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -49,7 +61,12 @@ local function fresh()
         NewLines = function() return lines end,
         Span = function() return 10 end,
         PASSED_COLOR = PASSED, PASSED_ALPHA = 0.5, LineColor = function() return BLUE end,
+        DANGER_COLOR = RED,
     }
+    env.UnitLevel = function() return 15 end
+    env.UnitFactionGroup = function() return "Alliance" end
+    ns.GPSNpcs = { DeadlyAlong = function() return deadly end }
+    LoadTrace(env, ns)
     H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Minimap.lua", env, ns)
     ns.GPSMinimap:Refresh()
@@ -75,6 +92,24 @@ function tests.walkedPartFadedAndTheWayAheadInBlue()
     H.assertTrue(near(b[#b - 1], 0) and near(b[#b], -7), "to the player's arrow, short of it")
     H.assertTrue(near(a[1], 0) and near(a[2], 7), "on past the arrow")
     H.assertTrue(near(a[#a - 1], 0) and near(a[#a], RIM), "up to the rim")
+end
+
+-- Deadly ground from 20 to 60 yd ahead of the player: red there, the way
+-- on either side blue.
+function tests.deadlyGroundAheadIsRed()
+    local drawn = fresh({ n = 2, 120, 160 })
+    local colors = {}
+    for i = 1, #drawn.pieces do colors[i] = drawn.pieces[i].color end
+    H.assertEq(#drawn.pieces, 4)
+    H.assertTrue(colors[1] == PASSED and colors[2] == BLUE and colors[3] == RED and colors[4] == BLUE)
+    local red = drawn.pieces[3].pts
+    H.assertTrue(near(red[2], 10) and near(red[#red], 30), "from 20 to 60 yd: " .. red[2] .. "," .. red[#red])
+end
+
+function tests.deadlyGroundAlreadyWalkedIsNotRed()
+    local drawn = fresh({ n = 2, 20, 60 })
+    H.assertEq(#drawn.pieces, 2)
+    H.assertTrue(drawn.pieces[1].color == PASSED and drawn.pieces[2].color == BLUE)
 end
 
 function tests.aTurningMinimapTurnsTheLine()
