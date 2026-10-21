@@ -1440,7 +1440,10 @@ local function BuildGeneralBindsTab(ctx)
     -- The palette button beside the theme selector opens the Theme Studio.
     local studioBtn = CreateFrame("Button", nil, themeRow)
     studioBtn:SetSize(20, 20)
-    studioBtn:SetPoint("RIGHT", themeBtnFrame, "LEFT", -5, 0)
+    -- Its EXP tag rides the icon's right shoulder, clear of the selector.
+    local studioExp = ns.CreateFeatureTag(themeRow, "exp", L["TAG_EXP_TITLE"], L["THEME_STUDIO_EXP_TT"], true)
+    studioBtn:SetPoint("RIGHT", themeBtnFrame, "LEFT", -7 - studioExp:GetWidth(), 0)
+    studioExp:SetPoint("BOTTOMLEFT", studioBtn, "RIGHT", 0, 2)
     local studioFill = studioBtn:CreateTexture(nil, "BACKGROUND")
     studioFill:SetAllPoints()
     studioFill:SetTexture("Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle")

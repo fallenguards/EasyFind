@@ -1175,6 +1175,9 @@ local function BuildStudio()
     studio.title:SetPoint("TOPLEFT", studio, "TOPLEFT", 16, -14)
     studio.title:SetText(L["OPT_THEME_STUDIO"])
     RegisterStudioText(studio.title)
+    -- Experimental: the EXP badge rides the title.
+    local exp = ns.CreateFeatureTag(studio, "exp", L["TAG_EXP_TITLE"], L["THEME_STUDIO_EXP_TT"], true)
+    ns.SuperscriptTag(exp, studio.title)
 
     local x = ns.CreateCloseX(studio, 14)
     x:SetPoint("TOPRIGHT", -10, -10)
