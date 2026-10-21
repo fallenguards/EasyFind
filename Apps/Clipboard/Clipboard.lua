@@ -753,15 +753,15 @@ EasyFind.API.RegisterExtension({
     scope = "clipboard", settings = BuildSettings,
 })
 
--- The history a search lists: only under @clipboard and its launcher,
--- never in plain results (pasted text and links do not belong there).
--- The view toggles (kinds shown, order) rebuild the open list.
+-- The history a search lists: in plain results from the first keystroke
+-- (a link just seen in chat is found by its name), the whole list under
+-- @clipboard. The view toggles (kinds shown, order) rebuild the open list.
 local function RefreshView() Clipboard:Refresh(true) end
 local Opt = ns.Extensions.DbOption
 EasyFind.API.RegisterSearchProvider({
     key = "clipboard", category = "Clipboard", extension = "clipboard",
     label = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS,
-    lazy = true, aliases = { "clip", "clips", "clipboard", "history" },
+    eager = true, aliases = { "clip", "clips", "clipboard", "history" },
     options = {
         Opt("clipboardCopied", L["CLIP_OPT_COPIED"], L["CLIP_OPT_COPIED_TT"]),
         Opt("clipboardPasted", L["CLIP_OPT_PASTED"], L["CLIP_OPT_PASTED_TT"]),
