@@ -1,9 +1,10 @@
 -- EasyFind GPS: the walk being followed.
 --
 -- The active step's way on foot, from where the step starts, and where
--- along it the player stands. Straying off it finds the way again from
--- where the player is. The arrow, the map line and the minimap line all
--- read it, taken once a frame at most.
+-- along it the player stands. Straying off it weighs a way from where the
+-- player is against going back; that way takes over only once it stays
+-- clearly faster. The arrow, the map line and the minimap line all read
+-- it, taken once a frame at most.
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
 local Follow = {}
@@ -13,6 +14,11 @@ local msqrt, mmax, mmin, mhuge = math.sqrt, math.max, math.min, math.huge
 
 local OFF_WAY = 20             -- yards off the walk before it is found again
 local REFIND = 4               -- seconds at least between two findings
+-- A way found from off the walk takes over only once faster by this much,
+-- and still so after this long and this far: no swing to a way hardly
+-- better that the next finding swings back from.
+local MARGIN_YD, MARGIN = 25, 0.1
+local HOLD_SECONDS, HOLD_YD = 6, 30
 local BACK, ON = 2, 12         -- stretches searched behind and ahead of the last one matched
 local RIDES = { taxi = true, boat = true, ferry = true, zeppelin = true, skyship = true, tram = true }
 Follow.RIDES = RIDES
@@ -67,35 +73,36 @@ end
 -- by the planner, one from where the player strayed to by GPS.DrawWalk
 -- in the planner's slices, asked here and again while it was busy. nil
 -- until then; the arrow points straight meanwhile.
-local function Drawn(ci)
+local function Drawn(ci, w)
     local find = ns.GPSRoute and ns.GPSRoute.WalkPath
-    if not find then walk.path = false return false end
-    local path = find(ci, walk.fx, walk.fy, walk.tx, walk.ty, true, walk.near)
+    if not find then w.path = false return false end
+    local path = find(ci, w.fx, w.fy, walk.tx, walk.ty, true, walk.near)
     if path == nil then
         local now = GetTime()
-        if not (walk.asked and now - walk.asked < REFIND) then
+        if not (w.asked and now - w.asked < REFIND) then
             local draw = ns.GPS.DrawWalk
-            walk.asked = draw and draw(ci, walk.fx, walk.fy, walk.tx, walk.ty, walk.near) and now or nil
+            w.asked = draw and draw(ci, w.fx, w.fy, walk.tx, walk.ty, walk.near) and now or nil
         end
         return nil
     end
-    walk.path = path
+    w.path = path
     return path
 end
 
 local function Find(ci, sx, sy, now)
     walk.found, walk.fx, walk.fy, walk.seg, walk.wide, walk.path, walk.asked = now, sx, sy, 1, true, nil, nil
-    Drawn(ci)
+    walk.cand = nil
+    Drawn(ci, walk)
 end
 
--- The walk's nearest point to (x, y), looked for near the stretch matched
+-- A walk's nearest point to (x, y), looked for near the stretch w matched
 -- last (all of a walk just found): its stretch, the yards along the walk
 -- there, how far off, and the point.
-local function Nearest(path, x, y)
+local function Nearest(path, x, y, w)
     local pts, cum = path.pts, path.cum
-    local bestD, bestSeg, bestAlong, bestX, bestY = mhuge, walk.seg, 0, x, y
-    local lo, hi = mmax(1, walk.seg - BACK), mmin(#pts / 2 - 1, walk.seg + ON)
-    if walk.wide then lo, hi, walk.wide = 1, #pts / 2 - 1, false end
+    local bestD, bestSeg, bestAlong, bestX, bestY = mhuge, w.seg, 0, x, y
+    local lo, hi = mmax(1, w.seg - BACK), mmin(#pts / 2 - 1, w.seg + ON)
+    if w.wide then lo, hi, w.wide = 1, #pts / 2 - 1, false end
     for s = lo, hi do
         local ax, ay = pts[2 * s - 1], pts[2 * s]
         local dx, dy = pts[2 * s + 1] - ax, pts[2 * s + 2] - ay
@@ -109,6 +116,47 @@ local function Nearest(path, x, y)
         end
     end
     return bestSeg, bestAlong, bestD, bestX, bestY
+end
+
+-- Yards of walking left by a way from a point off it: back onto it, then
+-- on to its end (its time, swimming slower).
+local function Left(path, along, off)
+    local len = path.len
+    return off + (len > 0 and (path.time or len) * (len - along) / len or 0)
+end
+
+-- Off the walk: a way from here is asked for and weighed against going
+-- back onto the walk. It takes over only once clearly faster, and still so
+-- a while and a way on; a way no faster is dropped, asked again further
+-- on. True when it took over.
+local function Challenge(ci, px, py, now, path, along, off)
+    local c = walk.cand
+    if not c then
+        if now - walk.found < REFIND then return false end
+        c = { fx = px, fy = py, at = now, seg = 1, wide = true }
+        walk.cand = c
+    end
+    local way = c.path
+    if way == nil then way = Drawn(ci, c) end
+    if not way then
+        if way == false then walk.cand = nil end
+        return false
+    end
+    local seg, along2, off2 = Nearest(way, px, py, c)
+    c.seg = seg
+    local stay = Left(path, along, off)
+    if Left(way, along2, off2) < stay - mmax(MARGIN_YD, stay * MARGIN) then
+        if not c.since then c.since, c.sx, c.sy = now, px, py end
+        if now - c.since >= HOLD_SECONDS and (px - c.sx) ^ 2 + (py - c.sy) ^ 2 >= HOLD_YD * HOLD_YD then
+            walk.found, walk.fx, walk.fy, walk.seg, walk.wide, walk.path, walk.asked = now, c.fx, c.fy, 1, true, way, nil
+            walk.cand = nil
+            return true
+        end
+    else
+        c.since = nil
+        if now - c.at >= REFIND and (c.fx - px) ^ 2 + (c.fy - py) ^ 2 > OFF_WAY * OFF_WAY then walk.cand = nil end
+    end
+    return false
 end
 
 -- The point `along` yards into the walk, searched from stretch s on.
@@ -155,15 +203,23 @@ function Follow.Now()
         if sci == ci and sx then Find(ci, sx, sy, -mhuge) else Find(ci, px, py, now) end
     end
     local path = walk.path
-    if path == nil then path = Drawn(ci) end
+    if path == nil then path = Drawn(ci, walk) end
     local seg, along, off, qx, qy
-    if path then seg, along, off, qx, qy = Nearest(path, px, py) end
-    -- Off the way, or with none: found again from here, once moved on.
-    if (path == false or (path and off > OFF_WAY)) and now - walk.found > REFIND
-        and (walk.fx - px) ^ 2 + (walk.fy - py) ^ 2 > OFF_WAY * OFF_WAY then
-        Find(ci, px, py, now)
-        path = walk.path
-        if path then seg, along, off, qx, qy = Nearest(path, px, py) end
+    if path then seg, along, off, qx, qy = Nearest(path, px, py, walk) end
+    if path == false then
+        -- No way from where it was found: found again from here, once moved on.
+        if now - walk.found > REFIND and (walk.fx - px) ^ 2 + (walk.fy - py) ^ 2 > OFF_WAY * OFF_WAY then
+            Find(ci, px, py, now)
+            path = walk.path
+            if path then seg, along, off, qx, qy = Nearest(path, px, py, walk) end
+        end
+    elseif path and off > OFF_WAY then
+        if Challenge(ci, px, py, now, path, along, off) then
+            path = walk.path
+            seg, along, off, qx, qy = Nearest(path, px, py, walk)
+        end
+    elseif path then
+        walk.cand = nil
     end
     if not path then return cur end
     walk.seg = seg

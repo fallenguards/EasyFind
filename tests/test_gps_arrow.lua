@@ -19,7 +19,7 @@ local function fresh(planned, opts)
     local player = { x = 0, y = 0 }
     local finds = {}
     local clear = { v = true }
-    local route = { steps = { { kind = "travel", go = { ci = 1, wx = 100, wy = opts.ty or 100 } } }, active = 1,
+    local route = { steps = { { kind = "travel", go = { ci = 1, wx = opts.tx or 100, wy = opts.ty or 100 } } }, active = 1,
                     from = planned and { ci = 1, wx = 0, wy = 0 } or nil }
     local planner = { asked = {}, drawn = {} }
     function planner.draw()
@@ -99,18 +99,54 @@ function tests.aWalkFoundAgainIsDrawnByThePlanner()
     player.y = 40
     now.t = now.t + 5
     local _, _, ax, ay = Aim()
-    H.assertEq(#planner.asked, 1, "the walk from here is asked of the planner")
+    H.assertEq(#planner.asked, 1, "a walk from here is asked of the planner")
     H.assertEq(planner.asked[1][2], 40)
-    H.assertEq(ax, 100, "straight at the spot meanwhile")
-    H.assertEq(ay, 100)
+    H.assertEq(ax, 75, "the drawn walk meanwhile, led back alongside it")
+    H.assertEq(ay, 10)
     now.t = now.t + 1
     Aim()
     H.assertEq(#planner.asked, 1, "asked once while it draws")
-    planner.draw()
+end
+
+-- Off the walk, a faster way from here takes over only once it stays
+-- faster a while and a way on; till then the arrow keeps to the walk.
+local function wayRound(sx, sy, tx, ty)
+    if sx == 0 and sy == 0 then return { 0, 0, 500, 0, tx, ty } end
+    return { sx, sy, tx, ty }
+end
+
+function tests.aFasterWayTakesOverOnlyOnceItStaysFaster()
+    local Aim, player, _, now = fresh(true, { tx = 500, ty = 500, pts = wayRound })
+    player.x = 50
+    Aim()
+    player.y = 40
+    now.t = now.t + 5
+    local _, _, _, ay = Aim()
+    H.assertTrue(ay < 30, "the drawn walk still: " .. ay)
+    now.t = now.t + 10
+    _, _, _, ay = Aim()
+    H.assertTrue(ay < 30, "not taken standing still: " .. ay)
+    player.x, player.y = 75, 66
     now.t = now.t + 1
-    _, _, ax, ay = Aim()
-    H.assertEq(ax, 75, "then followed from here")
-    H.assertEq(ay, 40)
+    _, _, _, ay = Aim()
+    H.assertEq(ay, 500, "taken 36 yards on: straight along it to the spot")
+end
+
+function tests.aWayNoFasterIsNeverTaken()
+    local Aim, player, finds, now = fresh(true, { pts = function(sx, sy, tx, ty)
+        if sx == 0 and sy == 0 then return { 0, 0, 100, 0, tx, ty } end
+        return { sx, sy, sx, -200, 100, -200, tx, ty }
+    end })
+    player.x = 50
+    Aim()
+    player.y = 40
+    for _ = 1, 6 do
+        now.t = now.t + 5
+        player.x = player.x - 21
+        local _, _, _, ay = Aim()
+        H.assertTrue(ay <= 30, "kept to the drawn walk: " .. ay)
+    end
+    H.assertTrue(#finds > 2, "asked again further on: " .. #finds)
 end
 
 function tests.offTheWayTheWalkIsFoundAgain()
