@@ -1,4 +1,4 @@
-## Interface: 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
+## Interface: 50504, 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
 ## Title: EasyFind [Quicklists]
 ## Notes: Quicklists companion for EasyFind: named lists of results on a key, pressed or held
 ## Author: justawower

@@ -1,4 +1,4 @@
-## Interface: 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
+## Interface: 50504, 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
 ## Title: EasyFind [Options]
 ## Notes: Settings panel companion for EasyFind, loaded when you open the options
 ## Author: justawower

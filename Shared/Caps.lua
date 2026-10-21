@@ -33,7 +33,8 @@ local project = WOW_PROJECT_ID
 local interface = tonumber((select(4, GetBuildInfo()))) or 0
 local forever = (WOW_PROJECT_CAMELOT ~= nil and project == WOW_PROJECT_CAMELOT)
     or (project == nil and interface >= 16000 and interface < 20000)
-local classic = project ~= nil and (project == WOW_PROJECT_CLASSIC or project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+local classic = project ~= nil and (project == WOW_PROJECT_CLASSIC or project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
+    or (WOW_PROJECT_MISTS_CLASSIC ~= nil and project == WOW_PROJECT_MISTS_CLASSIC))
 function Caps.PanelEnabled(addonName)
     if classic then
         -- The classic UI ships different panels: one that is not an addon
@@ -93,6 +94,8 @@ Caps.forever = forever
 Caps.classic = classic
 Caps.era = classic and project == WOW_PROJECT_CLASSIC
 Caps.tbc = classic and project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
+-- MoP Classic: the classic family too, its own windows for most systems.
+Caps.mists = classic and project == WOW_PROJECT_MISTS_CLASSIC
 Caps.retail = not forever and not classic
 
 -- Systems. Each is a plain boolean, decided once at load.

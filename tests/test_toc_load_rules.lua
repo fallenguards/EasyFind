@@ -29,6 +29,8 @@ local function GateRule(line)
         return "[AllowLoadGameType classic]"
     elseif line:find("^if not %(ns%.Caps and ns%.Caps%.tbc%) then return end") then
         return "[AllowLoadGameType tbc]"
+    elseif line:find("^if not %(ns%.Caps and ns%.Caps%.mists%) then return end") then
+        return "[AllowLoadGameType mists]"
     elseif line:find("^if not %(ns%.Caps and %(ns%.Caps%.forever or ns%.Caps%.classic%)%) then return end") then
         return "[AllowLoadGameType camelot, classic, tbc]"
     end

@@ -42,7 +42,25 @@ local tests = {}
 function tests.detectsEra()
     H.assertTrue(Caps.classic, "classic")
     H.assertTrue(Caps.era, "era")
+    H.assertFalse(Caps.mists, "not MoP")
     H.assertFalse(Caps.retail, "not retail")
+end
+
+-- MoP Classic is of the classic family too, with its own flag.
+function tests.detectsMists()
+    local env2 = H.newEnv()
+    local ns2 = H.newNs(env2)
+    env2._G = env2
+    env2.WOW_PROJECT_CLASSIC, env2.WOW_PROJECT_BURNING_CRUSADE_CLASSIC, env2.WOW_PROJECT_MISTS_CLASSIC = 2, 5, 19
+    env2.WOW_PROJECT_ID = 19
+    env2.GetBuildInfo = function() return "5.5.4", "70268", "Oct 1 2026", 50504 end
+    env2.GetNumBindings = function() return 0 end
+    env2.C_AddOns = env.C_AddOns
+    H.loadModule("Shared/Caps.lua", env2, ns2)
+    H.assertTrue(ns2.Caps.classic, "classic family")
+    H.assertTrue(ns2.Caps.mists, "MoP")
+    H.assertFalse(ns2.Caps.era)
+    H.assertFalse(ns2.Caps.retail)
 end
 
 function tests.characterTabs_resolveByFrame()

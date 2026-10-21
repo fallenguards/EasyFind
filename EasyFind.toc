@@ -1,4 +1,4 @@
-## Interface: 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
+## Interface: 50504, 11509, 16001, 20506, 120105, 120100, 120007, 120001, 120000
 ## Title: EasyFind
 ## Notes: Search and locate UI elements and map locations with ease
 ## Author: justawower
