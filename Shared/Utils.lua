@@ -2114,9 +2114,7 @@ end
 local warbandBankLabel
 function ns.WarbandBankLabel()
     if warbandBankLabel then return warbandBankLabel end
-    warbandBankLabel = _G["ACCOUNT_BANK_PANEL_TITLE"]
-        or _G["BANK_TYPE_ACCOUNT"]
-        or ns.L["BANK_WARBAND"]
+    warbandBankLabel = _G["ACCOUNT_BANK_PANEL_TITLE"] or ns.L["BANK_WARBAND"]
     return warbandBankLabel
 end
 
@@ -2124,7 +2122,7 @@ end
 function ns.StoredCategoryLabel(category)
     if category == "Warband" then return ns.WarbandBankLabel() end
     if category == "Bank" then return _G["BANK"] or "Bank" end
-    return _G["BAGSLOT"] or _G["BAGS"] or "Bags"
+    return _G["BAGSLOT"] or "Bags"
 end
 
 -- "Bank: Alt (5), Otheralt" for a stored-item row. Built once per populate,
@@ -2160,11 +2158,8 @@ function ns.SizeIconAspect(tex, sz, aspect)
     end
 end
 
--- Achievement completion-status labels, single-sourced for the tooltip status
--- line and the achievement filter dropdown. WARNING: _G["ACHIEVEMENT_FILTER_EARNED"]
--- is a NUMERIC filter-mode constant (value 3), not the word "Earned" -- using it
--- as a label printed a raw "3". Only accept a candidate that is a non-empty
--- string; fall through to the next candidate otherwise.
+-- Achievement status labels. Strings only: ACHIEVEMENT_FILTER_EARNED
+-- is the number 3 and printed as "3".
 local function StringGlobal(key, fallback)
     local v = _G[key]
     return (type(v) == "string" and v ~= "") and v or fallback

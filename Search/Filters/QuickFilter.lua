@@ -38,7 +38,7 @@ Filters.quickFilterOptions = {
     { key = "items",          canonical = "items",           label = _G["ITEMS"] or "Items",          categories = { "Item", "Bag", "Bank", "Warband" }, aliases = { "i", "item", "items" } },
     { key = "catalog",        canonical = "gen",             label = L["FILTER_GENERAL_CATALOG"],      categories = { "Item" }, aliases = { "cat", "catalog", "general" }, companion = "EasyFind_Items" },
     { key = "icons",          canonical = "icons",           label = L["FILTER_ICONS"],       categories = { "Icon" }, aliases = { "ic", "icon", "icons", "texture", "textures" }, companion = "EasyFind_Icons" },
-    { key = "bags",           canonical = "bags",            label = _G["BAGS"] or "Bags",            categories = { "Bag" }, aliases = { "b", "bag", "bags" } },
+    { key = "bags",           canonical = "bags",            label = _G["HUD_EDIT_MODE_BAGS_LABEL"] or "Bags",            categories = { "Bag" }, aliases = { "b", "bag", "bags" } },
     { key = "bank",           canonical = "bank",            label = _G["BANK"] or "Bank",            categories = { "Bank" }, aliases = { "bank", "banked" } },
     -- The warband bank is a separate place from a character's own bank, so it
     -- gets its own token rather than being folded into @bank.

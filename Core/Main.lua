@@ -607,10 +607,9 @@ local SUGGESTED_KEYBINDS = {
 -- Chat-hello hyperlink. Clicking the link in the welcome message opens the
 -- restyled What's New popup. SetItemRef receives any |H...|h chat link, so
 -- our custom prefix is detected before falling through to Blizzard's handler.
--- The version whose features the What's New popup currently describes. Bump
--- ONLY when the popup content is rewritten; patch releases that keep the same
--- content must not re-announce it to users who already saw it.
-local WHATSNEW_CONTENT_VERSION = "3.4.0"
+-- The release the What's New popup describes: bumped, and the body
+-- rewritten, with every release.
+local WHATSNEW_CONTENT_VERSION = "3.4.4"
 
 local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"

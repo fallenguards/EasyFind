@@ -2286,7 +2286,7 @@ local FILTER_OPTIONS = {
     { key = "dungeon",    label = _G["DUNGEONS"] or "Dungeons",             parentKey = "instances" },
     { key = "delve",      label = _G["DELVES_LABEL"] or "Delves",           parentKey = "instances", caps = "delves" },
     { key = "travel",     label = L["MAP_FILTER_TRAVEL"],   tooltip = L["MAP_FILTER_TRAVEL_TT"] },
-    { key = "flights",    label = _G["FLIGHT_PATHS_TAB"] or "Flight Paths", parentKey = "travel" },
+    { key = "flights",    label = L["MAP_FILTER_FLIGHTS"],                  parentKey = "travel" },
     { key = "boats",      label = L["MAP_FILTER_BOATS"],                    parentKey = "travel" },
     { key = "portals",    label = L["MAP_FILTER_PORTALS"],                  parentKey = "travel" },
     { key = "services",   label = L["MAP_FILTER_SERVICES"], tooltip = L["MAP_FILTER_SERVICES_TT"] },
