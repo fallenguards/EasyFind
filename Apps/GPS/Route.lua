@@ -1388,6 +1388,12 @@ function Route:Build(dest, opts)
             opts.faction or (UnitFactionGroup and UnitFactionGroup("player"))) or nil)
         Nav.SetRoads(opts.avoid and opts.avoid.offroad)
     end
+    -- The highest drop walks take (Jumps.lua): the safe one when jumps are avoided.
+    if Nav and Nav.SetDropLimit then
+        local J = ns.GPSJumps
+        local jumps = not (opts.avoid and opts.avoid.jumps)
+        Nav.SetDropLimit(jumps and (opts.dropLimit or (J and J.Limit(start.ci))) or nil)
+    end
     if opts.via then return ViaStop(self, dest, opts, start, known, listed) end
     local ctx = {
         start = start, goal = goal, data = data,
@@ -1473,7 +1479,9 @@ local function KeepPath(key, path)
 end
 
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
--- so far), len (yards walked), time (running yards: swimming takes longer) },
+-- so far), len (yards walked), time (running yards: swimming takes longer),
+-- jumps (each drop that costs health: at, yards along it to its ledge, the
+-- ledge x, y and its height h) },
 -- false when no way leads there, nil without walking data for ci. lazy:
 -- nil too when it is not drawn yet; the planner draws, everything else
 -- asks lazily and is told when it is there. near: it ends within that many
@@ -1484,13 +1492,19 @@ function Route.WalkPath(ci, sx, sy, tx, ty, lazy, near)
     local key = WalkKey(ci, sx, sy, tx, ty, near)
     local path = walkPaths[key]
     if path == nil and not lazy then
-        local pts, _, time = Nav.Path(ci, sx, sy, tx, ty, near and { near = near } or nil)
+        local pts, _, time, jumps = Nav.Path(ci, sx, sy, tx, ty, near and { near = near } or nil)
         if pts then
             local cum = { 0 }
             for v = 2, #pts / 2 do
                 cum[v] = cum[v - 1] + msqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
             end
-            path = { pts = pts, cum = cum, len = cum[#cum], time = time or cum[#cum] }
+            local list
+            for k = 1, jumps and #jumps or 0 do
+                local v = mmax(1, jumps[k].v - 1)
+                list = list or {}
+                list[#list + 1] = { at = cum[v], x = pts[2 * v - 1], y = pts[2 * v], h = jumps[k].h }
+            end
+            path = { pts = pts, cum = cum, len = cum[#cum], time = time or cum[#cum], jumps = list }
         else
             path = false
         end
@@ -1537,6 +1551,7 @@ local function WalkPieces(step, from, data, env, first)
     if not (ci and ci == ci2) then return nil end
     local path = Route.WalkPath(ci, fx, fy, tx, ty, true, step.near)
     if not path then return nil end
+    step.jumps = path.jumps
     local pts, cum = path.pts, path.cum
     local runs = {}
     local function Read(x, y, at)
@@ -1602,6 +1617,13 @@ local function WalkPieces(step, from, data, env, first)
         for key, value in pairs(step) do piece[key] = value end
         local border = (k < count or intoGoal) and nxt or nil
         local stop = border and border.at or path.len
+        piece.jumps = nil
+        for _, j in ipairs(path.jumps or {}) do
+            if j.at >= run.at and j.at < stop then
+                piece.jumps = piece.jumps or {}
+                piece.jumps[#piece.jumps + 1] = j
+            end
+        end
         if step.sec then piece.sec = step.sec * (stop - run.at) / path.len end
         local ex, ey = tx, ty
         if border then ex, ey = border.x, border.y end

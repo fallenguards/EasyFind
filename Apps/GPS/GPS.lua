@@ -343,14 +343,14 @@ function GPS.SkipFor(dest)
     return nil
 end
 
-function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom)
+function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom, dropLimit)
     local Route = ns.GPSRoute
     local origin = startFrom or StartPoint()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
-                       start = origin, draw = draw,
+                       start = origin, draw = draw, dropLimit = dropLimit,
                        autoLearn = not (db and db.gpsAutoLearn == false), skipLearn = GPS.SkipFor(dest) }
         -- The advice feeds the lines and the stops learned on the way: with
         -- both off it is not worked out.
@@ -628,6 +628,9 @@ local function DepartureText(step)
 end
 
 local function StepText(step, active)
+    -- A walk that jumps down a ledge says how (Jumps.lua).
+    local jump = ns.GPSJumps and ns.GPSJumps.StepText(step)
+    if jump then return (step.text or "") .. ". " .. jump end
     local departs = active and step and step.route and DepartureText(step)
     if departs then return (step.text or "") .. " " .. departs end
     if not (active and step and step.reach and step.go) or step.reached then return step and step.text or "" end
@@ -1221,17 +1224,20 @@ local function OtherWays(route)
     local base = route.wayAvoid or (db and db.gpsAvoid) or {}
     local best = WayOf(route.steps)
     local found, ways = { [best] = true }, {}
-    local function Try(extra)
+    local function Try(extra, label)
         local avoid = {}
         for k, v in pairs(base) do avoid[k] = v end
         for i = 1, #extra do avoid[extra[i]] = true end
         local steps, total = GPS:BuildStops(route, nil, avoid, true)
         if not (steps and total and total > 0) then return end
-        local way = WayOf(steps)
+        local way = label or WayOf(steps)
         if found[way] then return end
         found[way] = true
         ways[#ways + 1] = { way = way, total = total, avoid = avoid }
     end
+    -- A route that jumps down a ledge: the way without, for who would rather not.
+    local J = ns.GPSJumps
+    if J and J.Any(route.steps) then Try({ "jumps" }, "nojump") end
     if best ~= "walk" then Try({ best }) end
     Try(NO_TRANSPORT)
     table.sort(ways, function(a, b) return a.total < b.total end)
@@ -1257,10 +1263,13 @@ local function PlanOtherWays()
         if not (route and route.dest and not route.arrived) or GPS:IsPlanning() then return end
         GPS:Plan(nil, function()
             local _, _, advice = GPS:BuildStops(route, route.via, route.wayAvoid)
-            return advice, OtherWays(route)
-        end, function(advice, ways)
+            local ways = OtherWays(route)
+            -- What a parachute would save, beside the other ways.
+            local J = ns.GPSJumps
+            return advice, ways, ways and J and J.ShopTip(route)
+        end, function(advice, ways, shop)
             if Route() ~= route then return end
-            route.advice, route.others = advice or route.advice, ways
+            route.advice, route.others, route.shop = advice or route.advice, ways, shop or nil
         end)
     end)
 end
@@ -1710,6 +1719,14 @@ local function TipClick(self)
         GPS:TakeOtherWay(tip.other)
         return
     end
+    -- The shop tip searches for the item.
+    local S = ns.Search
+    local bar = tip and tip.shop and S and S.GetSearchFrame and S:GetSearchFrame()
+    if bar and bar.editBox then
+        S:Show(true)
+        bar.editBox:SetText(tip.shop.name)
+        return
+    end
     local route = Route()
     if not (tip and tip.p and tip.viaTotal and route) then return end
     local text = sformat(L["GPS_STOP_CONFIRM_FMT"], tip.name or "?", EtaText(tip.viaTotal), EtaText(route.total or route.eta))
@@ -1723,7 +1740,7 @@ local function TipEnter(self)
     GameTooltip:SetText(self.text:GetText() or "", nil, nil, nil, nil, true)
     local tip = self.tip
     local key = tip and (tip.report and "GPS_REPORT_TT" or tip.other and "GPS_OTHER_WAY_TT"
-        or tip.detour and "GPS_ADVICE_DETOUR_TT") or "GPS_ADVICE_TT"
+        or tip.detour and "GPS_ADVICE_DETOUR_TT" or tip.shop and "GPS_SHOP_TT") or "GPS_ADVICE_TT"
     -- A detour lists the way trips like this would go once it is learned.
     local way = tip and tip.detour and tip.way
     if way and #way > 0 then
@@ -1798,6 +1815,8 @@ local function AdviceLines(route)
         local way = sformat(L["GPS_WAY_" .. other.way:upper() .. "_FMT"], diff)
         out[#out + 1] = { text = sformat(L["GPS_OTHER_WAY_FMT"], way), other = other }
     end
+    local shop = route.shop
+    if shop then out[#out + 1] = { text = sformat(L["GPS_SHOP_FMT"], shop.name, EtaText(shop.save)), shop = shop } end
     return #out > 0 and out or nil
 end
 
@@ -5069,8 +5088,11 @@ local function BuildOptionsPage(page, kit)
     -- Danger needs the creature catalog, roads the walking grid (WoW Forever).
     if ns.NPC_DATA and ns.NPC_DATA.danger then kinds[#kinds + 1] = "danger" end
     if ns.GPSNav and ns.GPSNav.HasRoads and ns.GPSNav.HasRoads(0) then kinds[#kinds + 1] = "offroad" end
+    -- Jumps where the walking grid has drops.
+    if ns.GPSNav and ns.GPSNav.DropHeights and ns.GPSNav.DropHeights(0) then kinds[#kinds + 1] = "jumps" end
+    local ownTip = { danger = true, offroad = true, jumps = true }
     for _, kind in ipairs(kinds) do
-        local tip = (kind == "danger" or kind == "offroad") and L["GPS_AVOID_" .. kind:upper() .. "_TT"] or L["GPS_AVOID_TT"]
+        local tip = ownTip[kind] and L["GPS_AVOID_" .. kind:upper() .. "_TT"] or L["GPS_AVOID_TT"]
         local box = kit.Checkbox(page, L["GPS_AVOID_" .. kind:upper()],
             function() local d = DB() return d and d.gpsAvoid and d.gpsAvoid[kind] or false end,
             function(on)

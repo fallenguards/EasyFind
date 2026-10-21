@@ -37,6 +37,7 @@ Npcs_Retail_ruRU.lua [AllowLoadGameType standard] [AllowLoadTextLocale ruRU]
 Npcs_Retail_zhCN.lua [AllowLoadGameType standard] [AllowLoadTextLocale zhCN]
 Npcs_Retail_zhTW.lua [AllowLoadGameType standard] [AllowLoadTextLocale zhTW]
 Nav.lua
+Jumps.lua
 Route.lua
 Flights.lua
 Boats.lua
