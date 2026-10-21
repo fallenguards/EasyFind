@@ -4,8 +4,10 @@
 
 local H = require("Harness")
 
-local function Frame(height)
-    local f = { points = {} }
+local function Frame(height, left, bottom, width)
+    local f = { points = {}, rect = { left or 0, bottom or 0, width or 0, height or 40 } }
+    function f:GetRect() return self.rect[1], self.rect[2], self.rect[3], self.rect[4] end
+    function f:GetEffectiveScale() return 1 end
     function f:ClearAllPoints() self.points = {} end
     function f:SetPoint(p, rel, rp, x, y) self.points[#self.points + 1] = { p, rel, rp, x, y } end
     function f:GetPoint(i)
@@ -30,52 +32,62 @@ local function Load()
     f:close()
     local s = assert(src:find("local function PlaceDock()", 1, true), "PlaceDock not in GPS.lua")
     local e = assert(src:find("-- A drag in progress over the tracker", s, true), "end of PlaceDock not found")
-    local tracker = Frame(400)
+    local tracker = Frame(400, 100, 300, 272)
     function tracker:IsCollapsed() return false end
-    local quests = Frame(200)
+    local quests = Frame(200, 112, 450, 248)
     quests.leftMargin, quests.width = 12, 248
     tracker.modules = { quests }
     local dock = Frame(40)
     dock.docked = true
+    local uiParent = Frame(1000)
     local env = setmetatable({
         dockFrame = dock,
+        UIParent = uiParent,
         SectionLook = function() return dock.look end,
         Host = function() return "game" end,
         Watch = function() return nil end,
         Tracker = function() return tracker end,
-        ApplyInsert = function() return nil, quests, { pad = 0 } end,
         VisibleModules = function() return { quests } end,
         DB = function() return {} end,
         DockMouse = function() end,
         Refresh = function() end,
-        topPad = { seen = 0 },
+        Look = { ScreenRect = function(r)
+            local l, b, w, h = r:GetRect()
+            local k = r:GetEffectiveScale()
+            return l * k, (b + h) * k, (l + w) * k, b * k
+        end },
+        mmax = math.max,
         DOCK_HEADER_H = 25,
     }, { __index = _G })
-    return assert(load(src:sub(s, e - 1) .. "\nreturn PlaceDock", "=GPS.lua PlaceDock", "t", env))(), dock, tracker
+    return assert(load(src:sub(s, e - 1) .. "\nreturn PlaceDock", "=GPS.lua PlaceDock", "t", env))(), dock, tracker, uiParent
 end
 
 local tests = {}
 
-function tests.hangsInItsSlot()
-    local PlaceDock, dock, tracker = Load()
+-- Under the tracker's last section, a section's spacing below it, hung
+-- on the screen: nothing of ours is written into the tracker.
+function tests.hangsUnderTheLastSection()
+    local PlaceDock, dock, _, uiParent = Load()
     PlaceDock()
-    local p, rel = dock:GetPoint(1)
-    H.assertEq(p, "TOP")
-    H.assertEq(rel, tracker)
+    local p, rel, _, x, y = dock:GetPoint(1)
+    H.assertEq(p, "TOPLEFT")
+    H.assertEq(rel, uiParent)
+    H.assertEq(x, 112, "the tracker's left plus the sections' margin")
+    H.assertEq(y, 440, "the quests' bottom less the spacing")
     H.assertEq(dock.width, 248, "a section's width")
 end
 
 -- Dragged out and dropped back in the same slot: the drag's ghost hung it
 -- on the window, and the same place must not leave it there.
 function tests.backInItsSlotAfterADrag()
-    local PlaceDock, dock, tracker = Load()
+    local PlaceDock, dock, _, uiParent = Load()
     PlaceDock()
     local window = Frame(80)
     dock:ClearAllPoints()
     dock:SetPoint("TOPLEFT", window, "TOPLEFT", 0, 0)
     PlaceDock()
     local _, rel = dock:GetPoint(1)
-    H.assertEq(rel, tracker, "back on the tracker, not on the window")
+    H.assertEq(rel, uiParent, "back under the tracker, not on the window")
 end
 
 -- Every line of the section is a button, and a button that takes only the

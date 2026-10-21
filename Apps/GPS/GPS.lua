@@ -3106,12 +3106,9 @@ VisibleModules = function(t)
     return out
 end
 
-local function ModuleKey(m, i)
-    return (m.GetName and m:GetName()) or ("#" .. tostring(i))
-end
-
--- The slot a frame whose top edge is at screen height y lands in: above
--- the first section, or after the last section whose middle is above y.
+-- The slot a frame whose top edge is at screen height y lands in: over or
+-- under the Era watch's quests; in the game's tracker always under its
+-- sections, the one place that needs no room made inside it.
 local function SlotAt(y)
     local watch = Watch()
     if watch then
@@ -3120,16 +3117,7 @@ local function SlotAt(y)
         local s = UIParent:GetEffectiveScale()
         return (wt and y * s > (wt + wb) / 2) and { top = true } or { bottom = true }
     end
-    local t = Tracker()
-    if not t then return { bottom = true } end
-    local mods = VisibleModules(t)
-    local slot = { top = true }
-    for i = 1, #mods do
-        local m = mods[i]
-        local top, bottom = m:GetTop(), m:GetBottom()
-        if top and bottom and y < (top + bottom) / 2 then slot = { after = ModuleKey(m, i) } end
-    end
-    return slot
+    return { bottom = true }
 end
 
 local function SameSlot(a, b)
@@ -3137,89 +3125,14 @@ local function SameSlot(a, b)
     return a.top == b.top and a.after == b.after and a.bottom == b.bottom
 end
 
-local function TrackerRelayout(t)
-    if t.MarkDirty then t:MarkDirty() elseif t.Update then t:Update() end
-end
-
--- The sections around a slot: the one above it and the one below it.
-local function SlotNeighbors(t, slot)
-    local mods = VisibleModules(t)
-    if slot.top then return nil, mods[1] end
-    if slot.after then
-        for i = 1, #mods do
-            if ModuleKey(mods[i], i) == slot.after then return mods[i], mods[i + 1] end
-        end
-    end
-    return mods[#mods], nil
-end
-
--- Room for a height at a slot by the tracker's own means: a height modifier on the
--- section above, or top padding for the top slot. A drag toward a slot opens it there.
-local INSERT_KEY = "EasyFindGPS"
-
--- Forever recomputes top padding from providers on every update, asking twice a frame:
--- room above the first section, then the header's place. 0 the second time keeps the header put.
-local topPad = { height = 0, seen = 0 }
-function topPad:GetTopPadding()
-    local now = GetTime()
-    if self.headerAsk == now then
-        self.headerAsk = nil
-        return 0
-    end
-    self.headerAsk = now
-    self.seen = self.height
-    return self.height
-end
-GPS._topPad = topPad   -- dev tools
-local topPadAdded
-local function TopPadProvider(t)
-    if topPadAdded then return true end
-    if not (t and type(t.topPaddingProviders) == "table" and EventRegistry and EventRegistry.TriggerEvent) then return false end
-    EventRegistry:TriggerEvent("ObjectiveTrackerContainerMixin.AddTopPaddingProvider", topPad)
-    topPadAdded = t.topPaddingProviders[topPad] == true
-    return topPadAdded
-end
-
-local function ClearInsert(t)
+-- The room the Era watch keeps for the section, given back. The game's
+-- tracker never holds anything of ours: a value it reads taints its every
+-- layout, and in a fight that layout reads secret auras.
+local function ClearInsert()
     if not dockFrame then return end
     local ins = dockFrame.insert
     dockFrame.insert = nil
-    if not ins then return end
-    if ins.api then ins.api.WatchRoom(ins.side, nil) return end
-    if ins.module and ins.module.ClearHeightModifier then ins.module:ClearHeightModifier(INSERT_KEY) end
-    if ins.provider then
-        topPad.height = 0
-    elseif ins.pad ~= nil and t then
-        t.topModulePadding = ins.pad
-    end
-end
-
-local function ApplyInsert(t, slot, height)
-    local spacing = t.moduleSpacing or 10
-    local above, below = SlotNeighbors(t, slot)
-    local ins = dockFrame.insert
-    local changes = not ins or ins.module ~= above or ins.height ~= height
-    -- The tracker's sections hold secure quest item buttons, so they are
-    -- not resized in a fight: the change waits for its end.
-    if changes and InCombatLockdown and InCombatLockdown() then return nil end
-    if ins and changes then ClearInsert(t) ins = nil end
-    if not ins then
-        ins = { module = above, height = height }
-        if above then
-            if above.SetHeightModifier then above:SetHeightModifier(INSERT_KEY, height + spacing) end
-        else
-            ins.pad = (t.topModulePadding or 0) - topPad.seen
-            if TopPadProvider(t) then
-                ins.provider = true
-                topPad.height = height + spacing
-            else
-                t.topModulePadding = ins.pad + height + spacing
-            end
-        end
-        dockFrame.insert = ins
-        TrackerRelayout(t)
-    end
-    return above, below, ins
+    if ins and ins.api then ins.api.WatchRoom(ins.side, nil) end
 end
 
 -- Room in the Era watch above or under its quests, in its scale; kept
@@ -3230,7 +3143,7 @@ function Look.WatchInsert(api, watch, slot, height, width)
     local h, w = mfloor(height * k + 0.5), mfloor(width * k + 0.5)
     local ins = dockFrame.insert
     if ins and ins.api and ins.side == side and ins.height == h and ins.width == w then return side end
-    ClearInsert(ClientTracker())
+    ClearInsert()
     api.WatchRoom(side, h, w)
     dockFrame.insert = { api = api, side = side, height = h, width = w }
     return side
@@ -3300,12 +3213,7 @@ local function PlaceDock()
     if watch then return Look.PlaceInWatch(watch, api) end
     local t = Tracker()
     if not t then return end
-    local gap = dockFrame.dragGap
-    if gap then
-        ApplyInsert(t, gap.slot, gap.height)
-        return
-    end
-    if not dockFrame.docked or dockFrame.dragging or dockFrame.ghost then return end
+    if dockFrame.dragGap or not dockFrame.docked or dockFrame.dragging or dockFrame.ghost then return end
     -- Above the tracker's own blocks: they take the mouse, and where the
     -- two overlap they would swallow the header's clicks and drags.
     local lvl = (t:GetFrameLevel() or 0) + 40
@@ -3318,41 +3226,47 @@ local function PlaceDock()
         Refresh()
     end
     DockMouse(not collapsed)
-    local db = DB()
-    local height = dockFrame:GetHeight() or DOCK_HEADER_H
-    local above, below, ins = ApplyInsert(t, db and db.gpsDockSlot or { bottom = true }, height)
-    if not ins then return end
-    local pad = (not above) and (ins.provider and ((t.topModulePadding or 0) - topPad.seen) or ins.pad or 0) or 0
-    -- Inset by the left margin on both sides, as the tracker's sections. A neighbor
-    -- with content is the reference: at the top slot, the section below.
-    local ref = above or below or (VisibleModules(t))[1] or t.modules[1]
+    -- Under the tracker's last shown section, under its header with none;
+    -- hung on the screen from what the tracker's frames read, never on them.
+    local mods = VisibleModules(t)
+    local last = mods[#mods]
+    local ref = last or t.modules[1]
     local margin = ref and ref.leftMargin or 0
     local refW = ref and ref.GetWidth and ref:GetWidth() or 0
+    local tl, tt, tr = Look.ScreenRect(t)
+    local top
+    if last then
+        local _, _, _, lb = Look.ScreenRect(last)
+        top = lb and lb - (t.moduleSpacing or 10) * t:GetEffectiveScale()
+    elseif tt then
+        local head = t.Header
+        local _, _, _, hb
+        if head then _, _, _, hb = Look.ScreenRect(head) end
+        top = hb or (tt - DOCK_HEADER_H * t:GetEffectiveScale())
+    end
+    if not (tl and top) then return end
+    local s = dockFrame:GetEffectiveScale()
+    local left = tl / s + margin
+    top = top / s
     -- Anchored again only when the place changed (this runs four times a
     -- second), or when something else anchored it since (a drag's ghost
     -- rides the window): still hung where this left it.
     local placed = dockFrame.placed
     local _, hungOn = dockFrame:GetPoint(1)
-    if placed and hungOn == (above or t) and placed.t == t and placed.above == above and placed.pad == pad
-       and placed.height == height and placed.margin == margin and placed.refW == refW then
+    if placed and hungOn == UIParent and placed.left == left and placed.top == top
+       and placed.margin == margin and placed.refW == refW then
         return
     end
     placed = placed or {}
-    placed.t, placed.above, placed.pad, placed.height, placed.margin, placed.refW = t, above, pad, height, margin, refW
+    placed.left, placed.top, placed.margin, placed.refW = left, top, margin, refW
     dockFrame.placed = placed
     dockFrame:ClearAllPoints()
-    if above then
-        -- Inside the room at the bottom of the section above: our bottom
-        -- is its extended bottom, and the next section hangs off that.
-        dockFrame:SetPoint("TOP", above, "BOTTOM", 0, height)
-    else
-        dockFrame:SetPoint("TOP", t, "TOP", 0, -pad)
-    end
-    dockFrame:SetPoint("LEFT", t, "LEFT", margin, 0)
+    dockFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    -- Inset by the left margin on both sides, as the tracker's sections.
     if refW and refW > 0 then
         dockFrame:SetWidth(refW)   -- exactly a section's width
     else
-        dockFrame:SetPoint("RIGHT", t, "RIGHT", -margin, 0)
+        dockFrame:SetWidth(mmax(1, (tr - tl) / s - 2 * margin))
     end
 end
 
@@ -3369,10 +3283,7 @@ local function DragGap(frame, height)
     local had = dockFrame.dragGap
     if (want == nil) ~= (had == nil) or (want and had and (not SameSlot(want.slot, had.slot) or want.height ~= had.height)) then
         dockFrame.dragGap = want
-        if not want then
-            ClearInsert(t)
-            if t then TrackerRelayout(t) end
-        end
+        if not want then ClearInsert() end
         PlaceDock()
     end
 end
@@ -4073,8 +3984,6 @@ local function BuildDock()
         elseif near then
             SaveDockSlot(slot)
             PlaceDock()
-            local t = Tracker()
-            if t then TrackerRelayout(t) end
             DLog("-> placed: %s", FrameState(f))
         elseif PopoutStyle() ~= "easyfind" then
             -- Stays a section, floating where it was dropped, never hidden
@@ -4221,8 +4130,8 @@ local function BuildDock()
     -- Follow the tracker's own relayouts, and check on a light throttle
     -- for anything that moves without one.
     local t = ClientTracker()
-    if t and not t._efGPSHooked then
-        t._efGPSHooked = true
+    if t and not GPS.trackerHooked then
+        GPS.trackerHooked = true
         pcall(hooksecurefunc, t, "Update", function() PlaceDock() end)
     end
     local since = 0
@@ -4402,8 +4311,7 @@ function GPS:Dock(slot)
     dockFrame.floating = nil
     dockFrame:Show()
     RenderDock(dockFrame)
-    local t = Tracker()
-    if t and t.MarkDirty then t:MarkDirty() end
+    PlaceDock()
     return true
 end
 
@@ -4449,9 +4357,7 @@ function GPS:Undock(keepShown)
         dockFrame.ghost = nil
         if not keepShown then dockFrame:Hide() end
         dockFrame:SetFrameStrata("LOW")
-        local t = Tracker()
-        ClearInsert(t)   -- the sections close ranks, now
-        if t then TrackerRelayout(t) end
+        ClearInsert()   -- the Era watch closes ranks, now
     end
 end
 
