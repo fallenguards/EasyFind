@@ -440,7 +440,31 @@ GPS.RefreshSurfaces = Refresh
 -- running. A plan that fails runs once more at once, guarded, so its
 -- fallback still comes.
 local PLAN_BUDGET_MS, PLAN_BUDGET_BACK_MS = 12, 6
-local Planner = { frame = CreateFrame("Frame"), IDLE_RELEASE = 60 }
+local Planner = { frame = CreateFrame("Frame"), IDLE_RELEASE = 60, dots = 1,
+                  labels = setmetatable({}, { __mode = "k" }) }
+
+-- A label saying a way is being found, its dots counting one to three
+-- while the plan runs; the locale's own trailing dots make way for them.
+function Planner.Show(fs)
+    local text = sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?")
+    text = text:gsub("%.%.%.$", ""):gsub("\226\128\166$", "") .. string.rep(".", Planner.dots)
+    fs:SetText(text)
+    Planner.labels[fs] = text
+end
+
+-- Every 0.35 s of a plan: the next count on each label still saying it.
+function Planner.Tick()
+    if not GPS.planning then
+        if Planner.dotTicker then Planner.dotTicker:Cancel() end
+        Planner.dotTicker = nil
+        wipe(Planner.labels)
+        return
+    end
+    Planner.dots = Planner.dots % 3 + 1
+    for fs, shown in pairs(Planner.labels) do
+        if fs:GetText() == shown then Planner.Show(fs) else Planner.labels[fs] = nil end
+    end
+end
 
 -- A minute after the last plan the grid's decoded data goes (Nav.Release);
 -- what the arrow still reads stays, and the check comes round again
@@ -497,6 +521,8 @@ function GPS:Plan(name, build, done)
     Planner.co = coroutine.create(build)
     Planner.done, Planner.build = done, build
     GPS.planning = name and { name = name } or nil
+    Planner.dots = 1
+    if name and not Planner.dotTicker then Planner.dotTicker = C_Timer.NewTicker(0.35, Planner.Tick) end
     Refresh()
     Planner.frame:SetScript("OnUpdate", PlanStep)
     PlanStep()
@@ -1828,7 +1854,7 @@ local function Render(container)
     if container.track then StyleTrackButton(container.track, route ~= nil and RouteTracked()) end
     if not route then
         if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
-        container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?") or "")
+        if GPS.planning then Planner.Show(container.title) else container.title:SetText("") end
         for i = 1, #rows do rows[i]:Hide() end
         for i = 1, #(container.tips or {}) do container.tips[i]:Hide() end
         if container.fromRow then container.fromRow:Hide() end
@@ -1840,7 +1866,7 @@ local function Render(container)
         -- search box says what to do, or the hint does.
         local finding = container.trip and GPS.planning
         if finding then
-            container.empty:SetText(sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?"))
+            Planner.Show(container.empty)
         elseif not container.search then
             container.empty:SetText(L["GPS_EMPTY"])
         end
@@ -1861,8 +1887,11 @@ local function Render(container)
     end
     -- Folded, the title names the stop a trip heads for now, not its last.
     local nowStep = not route.arrived and route.steps and route.steps[route.active or 1]
-    container.title:SetText(GPS.planning and sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?")
-        or sformat(L["GPS_TO_FMT"], nowStep and nowStep.name or route.dest.name or "?"))
+    if GPS.planning then
+        Planner.Show(container.title)
+    else
+        container.title:SetText(sformat(L["GPS_TO_FMT"], nowStep and nowStep.name or route.dest.name or "?"))
+    end
     if route.arrived then
         -- Arrived: the announcement in the body where the time line and
         -- the steps were, nothing left to follow.
@@ -1873,8 +1902,7 @@ local function Render(container)
         local eta = ""
         if route.eta and route.eta > 0 then eta = EtaText(route.eta) end
         -- The trip editor stands where the title was: a plan under way says so here.
-        if container.trip and GPS.planning then eta = sformat(L["GPS_PLANNING_FMT"], GPS.planning.name or "?") end
-        container.eta:SetText(eta)
+        if container.trip and GPS.planning then Planner.Show(container.eta) else container.eta:SetText(eta) end
     end
     if container.trip then
         container.trip:Refresh(route)
