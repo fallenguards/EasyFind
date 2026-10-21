@@ -382,19 +382,23 @@ local function PriceWalk(g, i, j, room)
         -- either way costs the same.
         local ni, nj = g.nodes[i], g.nodes[j]
         local from, to = a, b
-        if CROSSING[ni.kind] and not CROSSING[nj.kind] then from, to = b, a end
+        -- A drop goes one way: searched backwards, the walk is still priced
+        -- the way it is walked.
+        local rev = CROSSING[ni.kind] and not CROSSING[nj.kind] or nil
+        if rev then from, to = b, a end
         -- The room in running yards; the search gives up by cost, which a
         -- yard off the road raises, so its limit is that much wider.
         local yards = room and room < mhuge and (room - g.mountUp) * g.travelSpeed or nil
         local limit = yards and yards * (Nav.CostOverTime and Nav.CostOverTime() or 1) or nil
-        local cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, limit and { limit = limit } or nil)
+        local cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy,
+                                            (limit or rev) and { limit = limit, reverse = rev } or nil)
         if not cost and not beyond and (CROSSING[ni.kind] or CROSSING[nj.kind]) and straight <= BOARD_NEAR then
             cost, beyond, time = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy,
-                                          limit and { near = BOARD.near, limit = limit } or BOARD)
+                                          (limit or rev) and { near = BOARD.near, limit = limit, reverse = rev } or BOARD)
         end
         if j == g.goal and (not cost or cost > 2 * straight + 50) then
             goalOpts.limit = limit
-            local nc, nb, nt = Nav.Walk(a.ci, from.wx, from.wy, to.wx, to.wy, goalOpts)
+            local nc, nb, nt = Nav.Walk(a.ci, a.wx, a.wy, b.wx, b.wy, goalOpts)
             if nc and (not cost or (nc * 2 < cost and cost - nc > 100)) then
                 cost, beyond, time = nc, nb, nt
                 g.walkNear[key] = GOAL_NEAR

@@ -145,6 +145,78 @@ function tests.roads_weighOffRoadGround()
     H.assertTrue(math.abs(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]) - cost) < 0.01, "and back")
 end
 
+-- A drop goes one way: off a 7 yd ledge in one step, back up the long way
+-- round (the fixture is baked with safe drops up to 10 yd, survived 15).
+local LEDGE, BELOW = { -9185.0, -310.8 }, { -9181.0, -310.8 }
+
+function tests.drop_oneWayDown()
+    local Nav = fresh()
+    local down = Nav.Walk(0, LEDGE[1], LEDGE[2], BELOW[1], BELOW[2])
+    local up = Nav.Walk(0, BELOW[1], BELOW[2], LEDGE[1], LEDGE[2])
+    H.assertTrue(down ~= nil and down < 20, "off the ledge in a step: " .. tostring(down))
+    H.assertTrue(up ~= nil and up > 200, "back up the long way: " .. tostring(up))
+    local pts = Nav.Path(0, LEDGE[1], LEDGE[2], BELOW[1], BELOW[2])
+    H.assertTrue(pts ~= nil and #pts <= 8, "the drawn walk is the drop")
+end
+
+-- Searched from its end, a walk costs what it does the way it is walked:
+-- inside a tile and across the seam.
+function tests.reverse_pricesTheWayItIsWalked()
+    local Nav = fresh()
+    local down = Nav.Walk(0, LEDGE[1], LEDGE[2], BELOW[1], BELOW[2])
+    local back = Nav.Walk(0, BELOW[1], BELOW[2], LEDGE[1], LEDGE[2], { reverse = true })
+    H.assertTrue(math.abs(down - back) < 1, "off the ledge either way it is searched: " .. down .. " and " .. back)
+    local there = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local fromEnd = Nav.Walk(0, EAST[1], EAST[2], GOLDSHIRE[1], GOLDSHIRE[2], { reverse = true })
+    H.assertTrue(math.abs(there - fromEnd) < 1, "across the seam: " .. there .. " and " .. fromEnd)
+    H.assertNil(Nav.Path(0, BELOW[1], BELOW[2], LEDGE[1], LEDGE[2], { reverse = true }), "drawn only the way walked")
+end
+
+function tests.dropLimit_aTallerLedgeIsAShortcutOnlyWhenAllowed()
+    local Nav = fresh()
+    local top, below = { -9140.9, -210.5 }, { -9136.8, -210.5 }   -- a 15 yd ledge
+    H.assertEq(Nav.DropHeights(0), 10)
+    local safe = Nav.Walk(0, top[1], top[2], below[1], below[2])
+    local _, _, _, none = Nav.Path(0, top[1], top[2], below[1], below[2])
+    local epoch = Nav.epoch
+    Nav.SetDropLimit(15)
+    H.assertTrue(Nav.epoch ~= epoch, "walks kept under the old limit are told apart")
+    local survive = Nav.Walk(0, top[1], top[2], below[1], below[2])
+    local _, _, _, jumps = Nav.Path(0, top[1], top[2], below[1], below[2])
+    Nav.SetDropLimit(nil)
+    H.assertTrue(safe > survive + 20, "around at the safe limit: " .. tostring(safe) .. " vs " .. tostring(survive))
+    H.assertEq(#none, 0, "no jump the limit does not allow")
+    H.assertEq(#jumps, 1, "the jump is reported")
+    H.assertTrue(jumps[1].h > 14 and jumps[1].h < 16, "with its height")
+    H.assertEq(Nav.Walk(0, top[1], top[2], below[1], below[2]), safe, "back to the safe limit")
+    H.assertEq(Nav.epoch, epoch)
+end
+
+function tests.dropLimit_anyHeightTakesTheTallestLevel()
+    local Nav = fresh()
+    local top, below = { -9136.8, -202.5 }, { -9132.8, -202.5 }   -- a 16.8 yd ledge
+    Nav.SetDropLimit(15)
+    local survive = Nav.Walk(0, top[1], top[2], below[1], below[2])
+    Nav.SetDropLimit(math.huge)
+    local any = Nav.Walk(0, top[1], top[2], below[1], below[2])
+    H.assertTrue(any ~= nil and survive ~= nil and any < survive, "past what a fall lets one live through")
+end
+
+-- An end no side of its tile leads from (a pit a drop leads into): no way
+-- out of the tile, only the way inside it, with landmarks too.
+function tests.walk_anEndNoSideLeaves_keepsToItsTile()
+    local Nav = fresh()
+    Nav.SetDropLimit(15)
+    local key, g = Nav.Probe(0, GOLDSHIRE[1], GOLDSHIRE[2])
+    local w = Nav._worlds[0]
+    w.reach[(key * 131072 + g) * 2] = { {}, {} }
+    w.alt = { string.rep("\1\0\0", 64) }
+    H.assertNil(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]), "no way out of the tile")
+    local inside = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], GOLDSHIRE[1] + 20, GOLDSHIRE[2])
+    H.assertTrue(inside ~= nil and inside < 40, "the way inside it: " .. tostring(inside))
+    Nav.SetDropLimit(nil)
+end
+
 function tests.walk_noDataNoWalk()
     local Nav = fresh()
     H.assertNil(Nav.Walk(0, -5000, 0, GOLDSHIRE[1], GOLDSHIRE[2]), "a point outside the data")
@@ -229,6 +301,21 @@ function tests.shippedGrids_carryTheirGround()
         f:close()
         H.assertTrue(tail:find('ground = "', 1, true) ~= nil, name .. " carries no ground")
     end
+end
+
+-- A point on a city street takes the street: a grid keeping ground one
+-- only drops into started Stormwind walks under the city.
+function tests.shippedGrid_aStreetPointTakesTheStreet()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    ns.Caps = { forever = true }
+    env.C_EncodingUtil = { DecodeBase64 = Inflate.DecodeBase64, DecompressString = function(s) return Inflate.Raw(s) end }
+    H.loadModule("Apps/GPS/Walk_EasternKingdoms.lua", env, ns)
+    H.loadModule("Apps/GPS/Nav.lua", env, ns)
+    local trade, gate = { -8830, 630 }, { -9050, 440 }
+    local cost = ns.GPSNav.Walk(0, trade[1], trade[2], gate[1], gate[2])
+    H.assertTrue(cost ~= nil and cost < Straight(trade, gate) * 1.8, "along the streets: " .. tostring(cost))
 end
 
 -- Decoded data idle for a while goes and comes back on the next walk the
