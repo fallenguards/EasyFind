@@ -35,8 +35,10 @@ local function fresh(planned, opts)
             if opts.planner and lazy and not (sx == 0 and sy == 0) and not planner.drawn[sx .. ":" .. sy] then
                 return nil
             end
-            finds[#finds + 1] = { sx, sy }
-            local pts = opts.pts and opts.pts(sx, sy, tx, ty) or { sx, sy, 100, sy, tx, ty }
+            finds[#finds + 1] = { sx, sy, tx, ty }
+            local pts = { sx, sy, 100, sy, tx, ty }
+            if opts.pts then pts = opts.pts(sx, sy, tx, ty) end
+            if pts == false then return false end
             local cum, len = { 0 }, 0
             for v = 2, #pts / 2 do
                 len = len + math.sqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
@@ -49,6 +51,12 @@ local function fresh(planned, opts)
     H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Arrow.lua", env, ns)
     return ns.GPSArrow._Aim, player, finds, now, clear, planner
+end
+
+-- The L-shaped walk from the planned start; a straight way from anywhere else.
+local function straightOff(sx, sy, tx, ty)
+    if sx == 0 and sy == 0 then return { 0, 0, 100, 0, tx, ty } end
+    return { sx, sy, tx, ty }
 end
 
 local tests = {}
@@ -92,7 +100,7 @@ function tests.aWayRoundHardlyLongerIsFollowed()
 end
 
 function tests.aWalkFoundAgainIsDrawnByThePlanner()
-    local Aim, player, _, now, _, planner = fresh(true, { planner = true })
+    local Aim, player, _, now, _, planner = fresh(true, { planner = true, pts = straightOff })
     player.x = 50
     Aim()
     H.assertEq(#planner.asked, 0, "the walk from the planned start is drawn already")
@@ -106,12 +114,39 @@ function tests.aWalkFoundAgainIsDrawnByThePlanner()
     now.t = now.t + 1
     Aim()
     H.assertEq(#planner.asked, 1, "asked once while it draws")
+    planner.draw()
+    now.t = now.t + 1
+    local left
+    _, _, ax, ay, left = Aim()
+    H.assertTrue(ax > 50 and ax < 90 and ay > 0 and ay < 40, "then along the way back onto the walk: " .. ax .. "," .. ay)
+    H.assertTrue(math.abs(left - (math.sqrt(2) * 40 + 110)) < 0.01, "the way back, then the walk's rest: " .. left)
 end
 
--- Off the walk, a faster way from here takes over only once it stays
--- faster a while and a way on; till then the arrow keeps to the walk.
+-- Straying 40 yd off the walk at 50 yd along: the way back joins it 40 yd
+-- ahead, at (90, 0), and the arrow leads along that way at once.
+function tests.offTheWayItLeadsBackOntoTheWalkAhead()
+    local Aim, player, finds, now = fresh(true, { pts = straightOff })
+    player.x = 50
+    Aim()
+    player.y = 40
+    now.t = now.t + 5
+    local _, _, ax, ay, left = Aim()
+    H.assertEq(finds[#finds][3], 90, "the way back asked to a point ahead on the walk")
+    H.assertEq(finds[#finds][4], 0)
+    H.assertTrue(ax > 50 and ay < 40 and ay > 0, "led along the way back: " .. ax .. "," .. ay)
+    H.assertTrue(math.abs(left - (math.sqrt(2) * 40 + 110)) < 0.01, "the walk's rest kept: " .. left)
+    now.t = now.t + 1
+    player.x, player.y = 60, 30
+    Aim()
+    H.assertEq(#finds, 2, "on the joined walk: nothing asked again")
+end
+
+-- With no way back onto the walk, a faster whole way from here takes over
+-- only once it stays faster a while and a way on; till then the arrow
+-- keeps to the walk.
 local function wayRound(sx, sy, tx, ty)
     if sx == 0 and sy == 0 then return { 0, 0, 500, 0, tx, ty } end
+    if not (tx == 500 and ty == 500) then return false end
     return { sx, sy, tx, ty }
 end
 
@@ -130,6 +165,29 @@ function tests.aFasterWayTakesOverOnlyOnceItStaysFaster()
     now.t = now.t + 1
     _, _, _, ay = Aim()
     H.assertEq(ay, 500, "taken 36 yards on: straight along it to the spot")
+end
+
+-- The way back onto the walk goes far round (300 yd south and back for 40
+-- yd off): the arrow leads along it, and the straight way from here takes
+-- over once it stays faster.
+function tests.aWayBackFarRoundGivesWayToAWholeWay()
+    local Aim, player, _, now = fresh(true, { tx = 500, ty = 500, pts = function(sx, sy, tx, ty)
+        if sx == 0 and sy == 0 then return { 0, 0, 500, 0, tx, ty } end
+        if not (tx == 500 and ty == 500) then return { sx, sy, sx, -300, tx, -300, tx, ty } end
+        return { sx, sy, tx, ty }
+    end })
+    player.x = 50
+    Aim()
+    player.y = 40
+    now.t = now.t + 5
+    local _, _, ax, ay = Aim()
+    H.assertTrue(ax == 50 and ay < 40, "along the way back meanwhile: " .. ax .. "," .. ay)
+    now.t = now.t + 5
+    Aim()
+    now.t = now.t + 7
+    player.x, player.y = 75, 66
+    _, _, _, ay = Aim()
+    H.assertEq(ay, 500, "the whole way taken: straight to the spot")
 end
 
 function tests.aWayNoFasterIsNeverTaken()
