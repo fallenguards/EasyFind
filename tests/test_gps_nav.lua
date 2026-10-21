@@ -210,6 +210,16 @@ function tests.walk_swimmerComesAshoreOnASlopingBank()
     H.assertTrue(cost ~= nil and cost < 20, "out of the water onto the bank: " .. tostring(cost))
 end
 
+-- The water's surface alone in a cell: nowhere to stand (a boat's deck
+-- over it); ground, or ground beside the water, is not.
+function tests.openWater_onlyWhereTheCellIsWater()
+    local Nav = fresh()
+    H.assertEq(Nav.OpenWater(0, -9365.4, 515.3), true, "the lake")
+    H.assertEq(Nav.OpenWater(0, -9357.4, 515.3), false, "its bank")
+    H.assertEq(Nav.OpenWater(0, GOLDSHIRE[1], GOLDSHIRE[2]), false, "the crossroads")
+    H.assertEq(Nav.OpenWater(1, -9365.4, 515.3), false, "a continent without data")
+end
+
 -- A cell with ground and the water's surface: a point stands on the ground.
 function tests.locate_takesTheGroundOverTheWater()
     local Nav = fresh()

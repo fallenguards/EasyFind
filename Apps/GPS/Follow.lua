@@ -138,6 +138,11 @@ function Follow.Now()
     if not step or step.kind == "teleport" or (UnitOnTaxi and UnitOnTaxi("player")) then return nil end
     local ci, px, py = ns.GPS.PlayerWorldPos()
     local tci, tx, ty = World(step.go or step.arrive)
+    -- On board a crossing: what is left is the ride to where it lands.
+    local Boats = ns.GPSBoats
+    if RIDES[step.kind] and step.arrive and Boats and Boats.Aboard and Boats.Aboard(ci, px, py, tci, tx, ty) then
+        tci, tx, ty = World(step.arrive)
+    end
     if not (ci and tci == ci and tx) then return nil end
     cur.route, cur.index, cur.ci, cur.px, cur.py, cur.tx, cur.ty = route, index, ci, px, py, tx, ty
     cur.straight = msqrt((tx - px) ^ 2 + (ty - py) ^ 2)

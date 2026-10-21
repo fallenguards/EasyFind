@@ -62,5 +62,26 @@ function tests.walkingIsNoRide()
     H.assertNil(Boats.WaitAt(7, 2, 0), "running along the shore times nothing")
 end
 
+-- On board: standing still on a docked boat's deck (only open water under
+-- it on the walking grid, beside its boarding spot), or carried once it sails.
+function tests.aboard_onTheDeckOrUnderWay()
+    local Boats, step, _, env = fresh()
+    local open = { ["20:0"] = true }
+    env.EasyFind._ns.GPSNav = { OpenWater = function(_, x, y) return open[x .. ":" .. y] or false end }
+    env.IsSwimming = function() return false end
+    env.IsFalling = function() return false end
+    H.assertFalse(Boats.Aboard(1, 0, 0, 1, 0, 0), "on the pier")
+    H.assertTrue(Boats.Aboard(1, 20, 0, 1, 0, 0), "on the deck at the dock")
+    H.assertFalse(Boats.Aboard(1, 20, 0, 1, 100, 0), "open water far from where it is boarded")
+    env.IsSwimming = function() return true end
+    H.assertFalse(Boats.Aboard(1, 20, 0, 1, 0, 0), "swimming beside it")
+    env.IsSwimming = function() return false end
+    step(0, 0)
+    step(0, 0)
+    for x = 30, 300, 30 do step(x, 0) end
+    H.assertTrue(Boats.Carried(), "under way")
+    H.assertTrue(Boats.Aboard(1, 300, 0, 1, 0, 0), "on board wherever it is")
+end
+
 local pass, fail, failures = H.runSuite("GPSBoats", tests)
 return { pass = pass, fail = fail, failures = failures }

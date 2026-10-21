@@ -631,6 +631,17 @@ local function StepText(step, active)
     -- A walk that jumps down a ledge says how (Jumps.lua).
     local jump = ns.GPSJumps and ns.GPSJumps.StepText(step)
     if jump then return (step.text or "") .. ". " .. jump end
+    -- On board, docked or under way: stay on until it lands.
+    local Boats = ns.GPSBoats
+    if active and step and step.aboardText and step.go and Boats and Boats.Aboard then
+        local ci, px, py = PlayerWorldPos()
+        local bci, bx, by = step.go.ci, step.go.wx, step.go.wy
+        if not bx then bci, bx, by = WorldPos(step.go.m, step.go.x, step.go.y) end
+        if Boats.Aboard(ci, px, py, bci, bx, by) then
+            local leaves = not Boats.Carried() and step.route and DepartureText(step)
+            return leaves and (step.aboardText .. " " .. leaves) or step.aboardText
+        end
+    end
     local departs = active and step and step.route and DepartureText(step)
     if departs then return (step.text or "") .. " " .. departs end
     if not (active and step and step.reach and step.go) or step.reached then return step and step.text or "" end

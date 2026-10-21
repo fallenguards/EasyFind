@@ -634,6 +634,11 @@ local REACH_KEY = {
     boat = "GPS_REACH_BOAT_FMT", ferry = "GPS_REACH_BOAT_FMT", zeppelin = "GPS_REACH_ZEPPELIN_FMT",
     skyship = "GPS_REACH_SKYSHIP_FMT", tram = "GPS_REACH_TRAM_FMT", portal = "GPS_REACH_PORTAL_FMT",
 }
+-- And once aboard: stay on until it lands.
+local ABOARD_KEY = {
+    boat = "GPS_STEP_BOAT_ABOARD_FMT", ferry = "GPS_STEP_BOAT_ABOARD_FMT", zeppelin = "GPS_STEP_ZEPPELIN_ABOARD_FMT",
+    skyship = "GPS_STEP_SKYSHIP_ABOARD_FMT", tram = "GPS_STEP_TRAM_ABOARD_FMT",
+}
 
 -- Where a crossing leads: the dock area's own name, else its label;
 -- the far map's name when ridden backwards or with neither.
@@ -854,6 +859,7 @@ local function Steps(g, path, goalName)
                              live = e.liveWait and true or nil,
                              route = not e.reverse and e.edge.route or nil, stop = not e.reverse and e.edge.stop or nil,
                              reach = e.edge.n, reachText = reachText,
+                             aboardText = ABOARD_KEY[e.kind] and (L[ABOARD_KEY[e.kind]]):format(dest) or nil,
                              floor = floor })
             i = i + 1
         end

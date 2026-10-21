@@ -253,6 +253,19 @@ function tests.transportWait_isPartOfTheCost()
     H.assertTrue(steps[1].text:find("Harbor", 1, true) ~= nil, "the dock's name: " .. steps[1].text)
 end
 
+-- On board, a crossing's step says to stay on until it lands.
+function tests.transport_onBoardSaysStayOnUntilItLands()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_BOAT_FMT = "Board the boat to %s"
+    ns.L.GPS_STEP_BOAT_ABOARD_FMT = "Stay on the boat until %s"
+    local d = data()
+    d.edges = { { kind = "boat", n = "Boat to Map 2", dest = "Harbor", from = P(1, 0.1, 0.12), to = P(2, 0.5, 0.59), sec = 60, wait = 120 } }
+    d.abilities = {}
+    local steps = build(Route, P(1, 0.1, 0.1), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = d })
+    H.assertEq(steps[1].kind, "boat")
+    H.assertEq(steps[1].aboardText, "Stay on the boat until Harbor")
+end
+
 -- The recorder stores Enum.FlightPathFaction: 1 Horde, 2 Alliance.
 function tests.factionDigits_areFactions()
     local _, _, Route = fresh()

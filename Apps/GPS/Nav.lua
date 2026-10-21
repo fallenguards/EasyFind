@@ -1347,6 +1347,23 @@ function Nav.Ground(ci, x, y, cells)
     return nil
 end
 
+-- Whether the cell under (x, y) holds only the water's surface: nothing
+-- there to stand on, so one standing still is on a boat's deck.
+function Nav.OpenWater(ci, x, y)
+    local w = World(ci)
+    if not w then return false end
+    local key, sx, sy = TileOf(x, y)
+    local t = Tile(w, key)
+    if not t then return false end
+    local cc = mfloor((x - sx) / w.cell) * w.N + mfloor((y - sy) / w.cell)
+    local first, past = U16(t.cf, cc + 1), U16(t.cf, cc + 2)
+    if past <= first then return false end
+    for g = first, past - 1 do
+        if sbyte(t.fb, g) % 2 == 0 then return false end
+    end
+    return true
+end
+
 -- For dev/tools/navmesh/bake_spots.lua: a fixed spot's key and costs to
 -- its tile's entrance sides, or with near its boarding circle's; rev: the
 -- costs from the sides instead.

@@ -12,6 +12,7 @@ ns.GPSBoats = Boats
 local DOCK_YD = 60               -- a stop this close is where one boards or lands
 local CARRIED_YD = 8             -- moved this far in a sample without walking: aboard
 local NEAR_YD = 300              -- watched this close to a stop, and while aboard
+local ABOARD_YD = 40             -- a docked boat's deck lies this close to where it is boarded
 local SAMPLE_SECONDS = 1
 local STILL_SAMPLES = 3          -- not carried this long: landed
 local STALE_SECONDS = 6 * 3600   -- a sighting this old no longer times a route
@@ -105,6 +106,20 @@ local function Watch()
     if not ci or #StopsNear(ci, x, y, NEAR_YD) == 0 then return end
     still = 0
     ticker = C_Timer.NewTicker(SAMPLE_SECONDS, Sample)
+end
+
+-- Carried by a boat since it left a stop.
+function Boats.Carried() return ride ~= nil end
+
+-- On board at (ci, x, y), its boarding spot at (bci, bx, by): carried by it,
+-- or standing beside that spot where the walking grid has only open water
+-- (the deck of a boat at the dock), not swimming nor falling.
+function Boats.Aboard(ci, x, y, bci, bx, by)
+    if ride then return true end
+    if not (ci and bx and ci == bci) or (bx - x) ^ 2 + (by - y) ^ 2 > ABOARD_YD * ABOARD_YD then return false end
+    if (IsSwimming and IsSwimming()) or (IsFalling and IsFalling()) then return false end
+    local Nav = ns.GPSNav
+    return Nav and Nav.OpenWater and Nav.OpenWater(ci, x, y) or false
 end
 
 -- Seconds one waits at a route's stop on arriving there arriveIn seconds
