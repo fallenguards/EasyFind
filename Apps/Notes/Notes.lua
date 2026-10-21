@@ -3946,6 +3946,10 @@ function UI:EnsureEasyNotesFrame()
     frame.homeTitle:SetText(L["APP_NOTES"])
     frame.homeTitle:SetTextColor(0.96, 0.96, 0.97, 1)
     frame.homeTitle:Hide()
+    -- Experimental: the EXP badge rides the list's title.
+    frame.homeExp = ns.CreateFeatureTag(frame.header, "exp", L["TAG_EXP_TITLE"], L["NOTES_EXP_TT"], true)
+    ns.SuperscriptTag(frame.homeExp, frame.homeTitle)
+    frame.homeExp:Hide()
 
     frame.titleEdit = CreateFrame("EditBox", nil, frame.header)
     frame.titleEdit:SetAllPoints(frame.titleButton)
@@ -6420,6 +6424,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if frame.newButton then frame.newButton:SetShown(not shown) end
     if frame.settingsButton then frame.settingsButton:Show() end
     if frame.homeTitle then frame.homeTitle:SetShown(not shown) end
+    if frame.homeExp then frame.homeExp:SetShown(not shown) end
     if shown and frame.settingsPanel then frame.settingsPanel:Hide() end
     if not shown and frame.findBar and frame.findBar:IsShown() then
         self:CloseEasyNotesFindBar()

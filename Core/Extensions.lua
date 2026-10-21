@@ -37,14 +37,14 @@ end
 API.RegisterExtension({
     id = "notes", addon = "EasyFind_Notes", loadInCombat = true,
     name = L["APP_NOTES"], description = L["APP_DESC_NOTES"],
-    icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS,
+    icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS, experimental = L["NOTES_EXP_TT"],
     keywords = { "notes" }, settings = BuildNotesSettings,
 })
 
 API.RegisterExtension({
     id = "chat", addon = "EasyFind_Chat", loadInCombat = true,
     name = L["APP_CHAT"], description = L["APP_DESC_CHAT"],
-    icon = ns.CHAT_ICON_TEX,
+    icon = ns.CHAT_ICON_TEX, experimental = L["CHAT_EXP_TT"],
     keywords = { "chat" },
 })
 
