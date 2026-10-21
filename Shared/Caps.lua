@@ -335,8 +335,9 @@ Caps.calendar = not classic
 -- TBC picks one from a dropdown on the character sheet.
 Caps.titles = not Caps.era
 
--- Era lacks the quest log atlas sheet (cog, plus, minus, row glow).
-Caps.questLogAtlas = not Caps.era
+-- Era lacks the quest log atlas sheet (cog, plus, minus, row glow); MoP
+-- Classic keeps its old quest log, so it is not counted on there either.
+Caps.questLogAtlas = not (Caps.era or Caps.mists)
 
 -- The item catalog and icon list are built from retail's files.
 Caps.itemCatalog = not classic
