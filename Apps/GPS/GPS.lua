@@ -2382,9 +2382,16 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         for i = n + 1, #self.hits do self.hits[i]:Hide() end
         hitChild:SetHeight(mmax(1, n * ROW_H))
         hitList:SetVerticalScroll(0)
+        local had = (self.hitCount or 0) > 0
         self.hitCount = n
         self:SetHitView(HIT_ROWS * ROW_H)
-        if self.OnRouteChanged then self:OnRouteChanged(Route() ~= nil and GPS.picking ~= self) end
+        -- Hits over the steps, or the steps back: drawn again, so what
+        -- belongs to the steps alone (the danger line) goes and returns with them.
+        if (n > 0) ~= had and self.Render then
+            self:Render()
+        elseif self.OnRouteChanged then
+            self:OnRouteChanged(Route() ~= nil and GPS.picking ~= self)
+        end
     end
 
     local pending
