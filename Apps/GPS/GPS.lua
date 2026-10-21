@@ -1199,11 +1199,26 @@ function GPS:Status()
             b and b:GetBottom() and f:GetBottom() and sformat("%.0f", f:GetBottom() - b:GetBottom()) or "?",
             f.glyph and f.glyph:GetTop() and f:GetTop() and sformat("%.0f", f:GetTop() - f.glyph:GetTop()) or "?")
     end
+    local h = HearthPoint()
+    out[#out + 1] = h and sformat("hearth lands at %s (bound %s): map %s %.3f,%.3f, continent %s at %.0f,%.0f",
+        tostring(h.m and C_Map.GetMapInfo(h.m) and C_Map.GetMapInfo(h.m).name), tostring(h.bind), tostring(h.m), h.x or 0, h.y or 0,
+        tostring(h.ci), h.wx or 0, h.wy or 0) or "hearth landing not learned yet"
     local route = Route()
     if not route then out[#out + 1] = "no route" return out end
     local step = route.steps[route.active or 1]
-    out[#out + 1] = sformat("route to %s: step %d of %d%s, ticker %s", tostring(route.dest and route.dest.name),
+    local d = route.dest
+    out[#out + 1] = sformat("route to %s: step %d of %d%s, ticker %s", tostring(d and d.name),
         route.active or 1, #route.steps, route.arrived and " (arrived)" or "", ticker and "running" or "stopped")
+    if d then
+        out[#out + 1] = sformat("destination: map %s at %.3f,%.3f, %s, category %s", tostring(d.mapID), d.x or 0, d.y or 0,
+            d.zone and "a zone (reached on entering it)" or "a spot", tostring(d.category))
+    end
+    for i = 1, #route.steps do
+        local s = route.steps[i]
+        local a = s.arrive or s.go
+        out[#out + 1] = sformat("  %d. %s %q: map %s at %.3f,%.3f%s", i, tostring(s.kind), tostring(s.text), tostring(s.mapID),
+            s.x or 0, s.y or 0, a and a.wx and sformat(", lands on continent %s at %.0f,%.0f", tostring(a.ci), a.wx, a.wy) or "")
+    end
     if step then
         local mapID, x, y = WaypointPoint(step)
         out[#out + 1] = sformat("step: %s | pin map %s at %.3f,%.3f (step map %s%s)", tostring(step.text), tostring(mapID),
