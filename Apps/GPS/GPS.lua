@@ -757,7 +757,7 @@ local function Arrive(route)
         ns.MapSearch:ClearPinAt(dest.mapID, dest.x, dest.y)
     end
     Refresh()
-    if L["GPS_ARRIVED_AT_FMT"] and EasyFind.Print then
+    if L["GPS_ARRIVED_AT_FMT"] and EasyFind.Print and EasyFind.db.gpsChatArrive ~= false then
         EasyFind:Print(sformat(L["GPS_ARRIVED_AT_FMT"], route.dest and route.dest.name or "?"))
     end
     if PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_COMPLETE then
@@ -5220,9 +5220,11 @@ local function BuildOptionsPage(page, kit)
         if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
     end)
     rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
+    local chat = Switch("gpsChatArrive", L["GPS_CHAT_ARRIVE"], L["GPS_CHAT_ARRIVE_TT"], function() end)
+    chat:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, 0)
     -- Ways of travel a route leaves out unless nothing else gets there.
     local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, -14)
+    head:SetPoint("TOPLEFT", chat, "BOTTOMLEFT", 0, -14)
     head:SetText(L["GPS_AVOID"])
     local prev = head
     local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }
