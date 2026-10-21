@@ -4521,15 +4521,18 @@ function GPS.MenuRows(f)
     local share = route and ns.ResultLinks and ns.ResultLinks.BuildRouteText
         and ns.ResultLinks:BuildRouteText(route.dest)
     local sendRows = share and ns.BuildSendLinkRows and ns.BuildSendLinkRows(share)
-    if sendRows then defs[#defs + 1] = { kind = "submenu", label = L["CTX_SEND_LINK"], rows = sendRows } end
     if route then defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end } end
+    -- A section's flyouts come after its rows, on every surface alike.
+    if sendRows then defs[#defs + 1] = { kind = "submenu", label = L["CTX_SEND_LINK"], rows = sendRows } end
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
-    defs[#defs + 1] = GPS.PlanningMenu()
     defs[#defs + 1] = GPS.LaunchRow()
     -- Snapped in, the section has one look.
-    if f.docked then return defs end
+    if f.docked then
+        defs[#defs + 1] = GPS.PlanningMenu()
+        return defs
+    end
     if f.isPopout then
         defs[#defs + 1] = { kind = "check", label = L["GPS_SIZE_NEXT_ONLY"],
             get = function() local db = DB() return db and db.gpsPopoutNextOnly == true end,
@@ -4542,7 +4545,7 @@ function GPS.MenuRows(f)
                 end
             end }
     end
-    defs[#defs + 1] = { kind = "separator" }
+    defs[#defs + 1] = GPS.PlanningMenu()
     defs[#defs + 1] = GPS.StyleMenu(f.isPopout and {
         label = L["GPS_SIZE_BORDER"],
         get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
