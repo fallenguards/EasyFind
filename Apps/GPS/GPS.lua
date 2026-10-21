@@ -321,6 +321,43 @@ local function SplitWalks(steps, dest, origin)
     return steps
 end
 
+-- A ghost's corpse as a world point, on the ghost's map or one above it.
+local function CorpsePoint()
+    local get = C_DeathInfo and C_DeathInfo.GetCorpseMapPosition
+    local mapID = get and C_Map.GetBestMapForUnit("player")
+    for _ = 1, 4 do
+        if not mapID then return nil end
+        local pos = get(mapID)
+        local x, y
+        if pos and pos.GetXY then x, y = pos:GetXY() elseif pos then x, y = pos.x, pos.y end
+        if x and (x ~= 0 or y ~= 0) then
+            local ci, wx, wy = WorldPos(mapID, x, y)
+            if ci then return { m = mapID, x = x, y = y, ci = ci, wx = wx, wy = wy } end
+        end
+        local info = C_Map.GetMapInfo(mapID)
+        mapID = info and info.parentMapID
+    end
+    return nil
+end
+
+-- Where a plan starts with no start picked: where the player stands, or a
+-- ghost's corpse, where it rises; one point the whole plan reads.
+function GPS.PlayerStart()
+    if UnitIsGhost and UnitIsGhost("player") then
+        local p = CorpsePoint()
+        if p then return p end
+    end
+    local m = C_Map.GetBestMapForUnit("player")
+    local ok, pos
+    if m then ok, pos = pcall(C_Map.GetPlayerMapPosition, m, "player") end
+    if not (ok and pos) then return nil end
+    local x, y = pos:GetXY()
+    if not x or (x == 0 and y == 0) then return nil end
+    local ci, wx, wy = WorldPos(m, x, y)
+    if not ci then return nil end
+    return { m = m, x = x, y = y, ci = ci, wx = wx, wy = wy }
+end
+
 -- The start as a world point { m, x, y, ci, wx, wy }, or nil for the player.
 local function StartPoint()
     local s = Start()
@@ -345,7 +382,7 @@ end
 
 function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom, dropLimit)
     local Route = ns.GPSRoute
-    local origin = startFrom or StartPoint()
+    local origin = startFrom or StartPoint() or GPS.PlayerStart()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
@@ -894,7 +931,9 @@ local function Reroute(route)
 end
 
 function GPS.Rerouted(route, via, steps, total, advice)
-    local ci, wx, wy = PlayerWorldPos()
+    local here = GPS.PlayerStart()
+    local ci, wx, wy
+    if here then ci, wx, wy = here.ci, here.wx, here.wy end
     -- The report keeps the first plan, and counts the starts over.
     local report = route.report
     if report then report.re = (report.re or 0) + 1 end
@@ -905,28 +944,12 @@ function GPS.Rerouted(route, via, steps, total, advice)
     if GPS.AfterRoute then GPS.AfterRoute() end
     if ns.GPSPreview and ns.GPSPreview.Reset then ns.GPSPreview:Reset() end
     TrackStep(1)
+    if UnitIsGhost("player") then GPS.LeadToCorpse() end
 end
 
 -- Dead on the way: released, the ghost is led to its corpse first, a step
 -- of its own before the one it was on; risen, that step goes and the
 -- route carries on from there.
-local function CorpsePoint()
-    local get = C_DeathInfo and C_DeathInfo.GetCorpseMapPosition
-    local mapID = get and C_Map.GetBestMapForUnit("player")
-    for _ = 1, 4 do
-        if not mapID then return nil end
-        local pos = get(mapID)
-        local x, y
-        if pos and pos.GetXY then x, y = pos:GetXY() elseif pos then x, y = pos.x, pos.y end
-        if x and (x ~= 0 or y ~= 0) then
-            local ci, wx, wy = WorldPos(mapID, x, y)
-            if ci then return { m = mapID, x = x, y = y, ci = ci, wx = wx, wy = wy } end
-        end
-        local info = C_Map.GetMapInfo(mapID)
-        mapID = info and info.parentMapID
-    end
-    return nil
-end
 
 -- The steps changed under the route: every surface starts afresh and the
 -- walks are drawn again from their new starts.
@@ -959,7 +982,11 @@ local function Risen()
             table.remove(route.steps, i)
             local active = route.active or 1
             if active > i then active = active - 1 end
-            if route.steps[active] then StepsChanged(route, active) else Arrive(route) end
+            if not route.steps[active] then return Arrive(route) end
+            StepsChanged(route, active)
+            -- Risen away from where it goes on (a spirit healer): from here.
+            local ci, px, py = PlayerWorldPos()
+            if ci and OffRoute(route, ci, px, py) then Reroute(route) end
             return
         end
     end
@@ -1096,20 +1123,12 @@ function GPS.Navigated(dest, steps, total, advice, stops)
     if not db then return end
     -- Planned from elsewhere: the route waits there until the player comes.
     local origin = StartPoint()
-    local ci, wx, wy
-    if origin then ci, wx, wy = origin.ci, origin.wx, origin.wy else ci, wx, wy = PlayerWorldPos() end
-    local from = ci and { ci = ci, wx = wx, wy = wy } or nil
+    local here = origin or GPS.PlayerStart()
+    local from = here and { ci = here.ci, wx = here.wx, wy = here.wy } or nil
     local Engine = ns.GPSRoute
     local flies = Engine and select(2, Engine.Riding(ns.GPSData)) ~= nil
     -- The report's start: the world spot and the map spot it was on.
-    local start = from and { ci = ci, wx = wx, wy = wy } or nil
-    if start and origin then
-        start.m, start.x, start.y = origin.m, origin.x, origin.y
-    elseif start then
-        local hereMap = C_Map.GetBestMapForUnit("player")
-        local okPos, herePos = pcall(C_Map.GetPlayerMapPosition, hereMap, "player")
-        if okPos and herePos then start.m, start.x, start.y = hereMap, herePos:GetXY() end
-    end
+    local start = here and { ci = here.ci, wx = here.wx, wy = here.wy, m = here.m, x = here.x, y = here.y } or nil
     -- The same trip planned again keeps the flight points dropped from it.
     local old = Route()
     local skip = old and old.dest and old.dest.name == dest.name and old.dest.mapID == dest.mapID and old.skipLearn or nil
@@ -1125,6 +1144,7 @@ function GPS.Navigated(dest, steps, total, advice, stops)
         if surfaces[i].SyncFold then surfaces[i]:SyncFold() end
     end
     TrackStep(1)
+    if UnitIsGhost("player") then GPS.LeadToCorpse() end
     StartTicker()
 end
 
