@@ -13,6 +13,8 @@ local function fresh(api)
     ns.Utils.GetFrameByPath = function(path) return env[path] end
     env.GuildMicroButton = { name = "GuildMicroButton" }
     env.QuestLogMicroButton = { name = "QuestLogMicroButton" }
+    env.SpellbookMicroButton = { name = "SpellbookMicroButton" }
+    env.TalentMicroButton = { name = "TalentMicroButton" }
     env.ClassicUIForeverAPI = api
     H.loadModule("Search/Openers.lua", env, ns)
     return ns.SearchOpeners, clicked
@@ -54,6 +56,16 @@ function tests.noApi_opensTheClients()
     local Openers, clicked = fresh(nil)
     Openers:OpenButtonFrame("QuestLogMicroButton")
     H.assertEq(clicked[1] and clicked[1].name, "QuestLogMicroButton")
+end
+
+function tests.spellbookAndTalentButtons_openTheirReplacements()
+    local api = fakeApi({ spellBook = true, talents = true }, true)
+    local Openers, clicked = fresh(api)
+    H.assertTrue(Openers:OpenButtonFrame("SpellbookMicroButton"))
+    H.assertTrue(Openers:OpenButtonFrame("TalentMicroButton"))
+    H.assertEq(api.opened[1], "spellBook")
+    H.assertEq(api.opened[2], "talents")
+    H.assertEq(#clicked, 0)
 end
 
 function tests.apiError_fallsBackToTheClient()

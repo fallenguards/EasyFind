@@ -2108,6 +2108,19 @@ local function FriendsToggler(tabConstName)
     end
 end
 
+-- A window ClassicUI Forever replaces opens as its version instead
+-- (Search/Openers.lua); a nil perform stays nil, like FriendsToggler's.
+local function OrReplaced(name, perform)
+    if not perform then return nil end
+    return function()
+        local openers = ns.SearchOpeners
+        local api = openers and openers.Replacement and openers.Replacement(name)
+        if not api then return perform() end
+        local ok, opened = pcall(api.Open, name)
+        return (ok and opened) and true or false
+    end
+end
+
 local PERFORM_ONLY_BINDINGS = {
     TOGGLEBACKPACK = function()
         if ToggleBackpack then
@@ -2159,12 +2172,12 @@ local PERFORM_ONLY_BINDINGS = {
             return true
         end
     end,
-    TOGGLEQUESTLOG = function()
+    TOGGLEQUESTLOG = OrReplaced("questLog", function()
         if ToggleQuestLog then
             ToggleQuestLog()
             return true
         end
-    end,
+    end),
     TOGGLESOCIAL = function()
         if ToggleFriendsFrame then
             ToggleFriendsFrame()
@@ -2172,7 +2185,7 @@ local PERFORM_ONLY_BINDINGS = {
         end
     end,
     TOGGLEFRIENDSTAB = FriendsToggler("FRIEND_TAB_FRIENDS"),
-    TOGGLEWHOTAB = FriendsToggler("FRIEND_TAB_WHO"),
+    TOGGLEWHOTAB = OrReplaced("whoList", FriendsToggler("FRIEND_TAB_WHO")),
     TOGGLECHATTAB = function()
         if ToggleChannelFrame then
             ToggleChannelFrame()
@@ -2191,12 +2204,12 @@ local PERFORM_ONLY_BINDINGS = {
             return true
         end
     end,
-    TOGGLEGUILDTAB = function()
+    TOGGLEGUILDTAB = OrReplaced("guildRoster", function()
         if ToggleGuildFrame then
             ToggleGuildFrame()
             return true
         end
-    end,
+    end),
     TOGGLEGROUPFINDER = function()
         if PVEFrame_ToggleFrame then
             PVEFrame_ToggleFrame()

@@ -187,6 +187,7 @@ end
 local REPLACED_BY = {
     GuildMicroButton = "guildRoster",
     QuestLogMicroButton = "questLog",
+    SpellbookMicroButton = "spellBook",
     TalentMicroButton = "talents",
     LegacyMicroButton = "legacyWindow",
 }
