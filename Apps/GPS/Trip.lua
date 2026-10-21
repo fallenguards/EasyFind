@@ -403,6 +403,7 @@ end
 
 function Editor:Open(row)
     self.editing = row
+    row.typed = nil
     self.closeAt = nil
     self:Watch()
     self.drop:ClearAllPoints()
@@ -431,6 +432,7 @@ end
 
 function Editor:Typed(row, text)
     if self.editing ~= row then self:Open(row) end
+    row.typed = text ~= "" or nil
     if text == "" then self:ShowHits(nil) return end
     if self.pending then return end
     self.pending = true
@@ -491,7 +493,9 @@ end
 -- The field's own clear button drops the stop, or sets the start back
 -- to the player; while a place is being typed it only clears the text.
 function Editor:Cleared(row)
-    if self.editing == row then return end
+    -- Mid-typing the x clears the words only; a field merely focused
+    -- still stands for its stop, and the x drops that stop.
+    if self.editing == row and row.typed then return end
     if row.index == 0 then
         ns.GPS:SetStart(nil)
     elseif row.adding then
