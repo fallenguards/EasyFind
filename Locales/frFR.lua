@@ -269,13 +269,11 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffProfils|r\n" ..
-    "    |cff999999-|r Tout ce que vous avez personnalisé, dans un profil à part : réglages, alias, raccourcis, liste noire, snippets, boutons d'extension, épingles et touches. Chaque personnage retient son choix, et les profils de spécialisation changent avec votre spécialisation\n" ..
-    "    |cff999999-|r Exportez un profil sous forme de code ou importez-en un depuis le nouvel onglet Profils des options\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCodes de snippets|r\n" ..
-    "    |cff999999-|r Exportez vos snippets sous forme de code depuis la page de réglages Snippets, et importez un code que quelqu'un vous a partagé\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffAperçu d'import|r\n" ..
-    "    |cff999999-|r Coller un code d'alias, de raccourcis, de liste noire ou de snippets montre ce qu'il contient avant que quoi que ce soit s'applique, et prévient quand il place des commandes sur des touches ou dans des macros. N'importez que depuis une source de confiance"
+    "|cffFFD100\226\128\162|r |cffffffffPrêt pour le patch 12.1.5|r\n" ..
+    "    |cff999999-|r Plus d'erreur dans la discussion à la connexion : les résultats de butin et de sacs affichent de nouveau leurs noms et icônes\n" ..
+    "    |cff999999-|r Les icônes de la carte, des statistiques et de la réputation affichent de nouveau la bonne image\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLibellés traduits|r\n" ..
+    "    |cff999999-|r Les libellés de filtres et de menus restés en anglais s'affichent désormais dans la langue de votre jeu"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"
@@ -657,6 +655,7 @@ L["MAP_FILTER_SERVICES"]                = "Services"
 L["MAP_FILTER_TRAVEL_TT"]               = "Trajets de vol, zeppelins, bateaux, portails et métros."
 L["MAP_FILTER_SERVICES_TT"]             = "Précepteurs de classe et de métier, banque de guilde et autres PNJ de services."
 L["MAP_FILTER_RARES"]                   = "Rares"
+L["MAP_FILTER_FLIGHTS"]                 = "Trajets de vol"
 L["MAP_FILTER_BOATS"]                   = "Bateaux"
 L["MAP_FILTER_PORTALS"]                 = "Portails"
 L["MAP_FILTER_BANKS"]                   = "Banques"

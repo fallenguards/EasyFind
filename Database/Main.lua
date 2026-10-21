@@ -23,6 +23,8 @@ local C_MountJournal = C_MountJournal
 local C_ToyBox = C_ToyBox
 local C_PetJournal = C_PetJournal
 local C_EncounterJournal = C_EncounterJournal
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 local band, lshift = bit.band, bit.lshift
 
 local uiSearchData = {}
@@ -3671,8 +3673,6 @@ function Database:PopulateDynamicLoot(scanAllSpecs)
     collectInstances(false)
     collectInstances(true)
 
-    local GetItemInfoInstant = GetItemInfoInstant
-
     for _, inst in ipairs(instances) do
         if myGen ~= lootScanGeneration then break end
         EJ_SelectInstance(inst.id)
@@ -6752,7 +6752,7 @@ function Database:BuildUIDatabase()
                     },
                 },
                 {
-                    name = _G["PAPERDOLL_SIDEBAR_TITLES"] or _G["TITLES"] or "Titles",
+                    name = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",
                     keywords = {"titles", "title", "name title"},
                     category = "Character Info",
                     steps = {
@@ -6842,13 +6842,13 @@ function Database:BuildUIDatabase()
                     steps = {{ waitForFrame = "PlayerSpellsFrame", tabIndex = 2 }},
                     children = {
                         {
-                            name = _G["TALENT_FRAME_DROP_DOWN_PVP_TALENTS"] or _G["PVP_TALENTS"] or "PvP Talents",
+                            name = _G["PVP_TALENTS"] or "PvP Talents",
                             isPvP = true,
                             keywords = {"pvp talents", "pvp abilities", "battleground talents", "pvp"},
                             steps = {{ waitForFrame = "PlayerSpellsFrame", regionFrames = { "PlayerSpellsFrame.TalentsFrame.PvPTalentSlotTray" } }},
                         },
                         {
-                            name = _G["WAR_MODE"] or _G["PVP_LABEL_WAR_MODE"] or "War Mode",
+                            name = _G["PVP_LABEL_WAR_MODE"] or "War Mode",
                             isPvP = true,
                             keywords = {"war mode", "warmode", "pvp toggle", "world pvp", "pvp on", "pvp off", "pvp"},
                             steps = {{ waitForFrame = "PlayerSpellsFrame", regionFrames = { "PlayerSpellsFrame.TalentsFrame.WarmodeButton" } }},
@@ -6918,7 +6918,7 @@ function Database:BuildUIDatabase()
                     category = "Group Finder",
                     steps = {{ waitForFrame = "PVEFrame", tabIndex = 1 }},
                     children = {
-                        { name = _G["LOOKING_FOR_DUNGEON"] or _G["DUNGEON_FINDER"] or "Dungeon Finder", keywords = {"dungeon finder", "lfd", "random dungeon", "heroic dungeon", "normal dungeon", "dungeon queue"}, canQueue = true, steps = {{ waitForFrame = "PVEFrame", sideTabIndex = 1 }} },
+                        { name = _G["LOOKING_FOR_DUNGEON"] or "Dungeon Finder", keywords = {"dungeon finder", "lfd", "random dungeon", "heroic dungeon", "normal dungeon", "dungeon queue"}, canQueue = true, steps = {{ waitForFrame = "PVEFrame", sideTabIndex = 1 }} },
                         { name = _G["RAID_FINDER"] or _G["LOOKING_FOR_RAID"] or "Raid Finder", keywords = {"raid finder", "lfr", "looking for raid", "raid queue", "random raid"}, canQueue = true, steps = {{ waitForFrame = "PVEFrame", sideTabIndex = 2 }} },
                         { name = (_G["GUILD_INTEREST_QUEST"] or "Questing") .. L["UITREE_SUFFIX_PREMADE"], keywords = {"questing", "quest", "quest group", "quest lfg", "find quest group", "premade questing", "premade"}, steps = {{ waitForFrame = "PVEFrame", sideTabIndex = 3 }, { waitForFrame = "PVEFrame", lfgCategoryID = 1 }} },
                         { name = (_G["DELVES_LABEL"] or "Delves") .. L["UITREE_SUFFIX_PREMADE"], keywords = {"delves", "delve group", "delve lfg", "find delve group", "premade delves", "delve", "premade"}, steps = {{ waitForFrame = "PVEFrame", sideTabIndex = 3 }, { waitForFrame = "PVEFrame", lfgCategoryID = 121 }} },
@@ -7033,7 +7033,7 @@ function Database:BuildUIDatabase()
         -- fires from a hardware event; ToggleGameMenu's ClearTarget needs that.
         -- /run ShowUIPanel(GameMenuFrame) here forbid-errors on ClearTarget.
         {
-            name = _G["MAINMENU_BUTTON"] or _G["GAMEMENU_BUTTON"] or "Game Menu",
+            name = _G["MAINMENU_BUTTON"] or "Game Menu",
             -- "options"/"settings" belong to the guided Options child below;
             -- carrying them here made the direct-open menu row outrank it.
             keywords = {"menu", "escape", "esc", "logout", "quit", "exit", "interface"},

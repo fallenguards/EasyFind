@@ -271,13 +271,11 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffProfile|r\n" ..
-    "    |cff999999-|r Alles, was du angepasst hast, in einem eigenen Profil: Einstellungen, Aliase, Kurztasten, Blacklist, Snippets, Erweiterungsbuttons, Pins und Tastenbelegungen. Jeder Charakter merkt sich seine Wahl, und Spezialisierungsprofile wechseln mit deiner Spezialisierung\n" ..
-    "    |cff999999-|r Exportiere ein Profil als Code oder importiere eines im neuen Reiter Profile in den Optionen\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSnippet-Codes|r\n" ..
-    "    |cff999999-|r Exportiere deine Snippets als Code auf der Snippets-Einstellungsseite und importiere einen Code, den jemand mit dir geteilt hat\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffImport-Vorschau|r\n" ..
-    "    |cff999999-|r Das Einfügen eines Alias-, Kurztasten-, Blacklist- oder Snippet-Codes zeigt vor dem Anwenden, was er enthält, und warnt, wenn er Befehle auf Tasten oder in Makros legt. Importiere nur aus einer vertrauenswürdigen Quelle"
+    "|cffFFD100\226\128\162|r |cffffffffBereit für Patch 12.1.5|r\n" ..
+    "    |cff999999-|r Kein Fehler mehr im Chat beim Einloggen: Beute- und Taschenergebnisse zeigen wieder Namen und Symbole\n" ..
+    "    |cff999999-|r Die Symbole für Karte, Statistiken und Ruf zeigen wieder das richtige Bild\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffÜbersetzte Beschriftungen|r\n" ..
+    "    |cff999999-|r Filter- und Menübeschriftungen, die auf Englisch blieben, erscheinen jetzt in der Sprache deines Spiels"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"
@@ -659,6 +657,7 @@ L["MAP_FILTER_SERVICES"]                = "Dienstleistungen"
 L["MAP_FILTER_TRAVEL_TT"]               = "Flugrouten, Zeppeline, Schiffe, Portale und Bahnen."
 L["MAP_FILTER_SERVICES_TT"]             = "Klassen- und Berufslehrer, Gildenbank und andere Dienstleister-NSCs."
 L["MAP_FILTER_RARES"]                   = "Seltene Gegner"
+L["MAP_FILTER_FLIGHTS"]                 = "Flugrouten"
 L["MAP_FILTER_BOATS"]                   = "Boote"
 L["MAP_FILTER_PORTALS"]                 = "Portale"
 L["MAP_FILTER_BANKS"]                   = "Banken"

@@ -269,13 +269,11 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型菜单"
 L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff配置文件|r\n" ..
-    "    |cff999999-|r 你自定义的一切都放在一个配置文件里：设置、别名、快捷键、黑名单、片段、扩展按钮、固定项目和按键。每个角色记住自己的选择，专精配置文件随专精切换\n" ..
-    "    |cff999999-|r 在选项中新的配置文件标签页里，把配置文件导出为代码或导入一个\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff片段代码|r\n" ..
-    "    |cff999999-|r 在片段设置页面把你的片段导出为代码，并导入别人分享给你的代码\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff导入预览|r\n" ..
-    "    |cff999999-|r 粘贴别名、快捷键、黑名单或片段代码时，会在应用前显示其内容，并在它把命令放到按键或宏中时发出警告。只从你信任的来源导入"
+    "|cffFFD100\226\128\162|r |cffffffff适配 12.1.5 补丁|r\n" ..
+    "    |cff999999-|r 登录时聊天框不再报错：战利品和背包结果重新显示名称和图标\n" ..
+    "    |cff999999-|r 地图、统计和声望图标重新显示正确的图案\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff翻译后的标签|r\n" ..
+    "    |cff999999-|r 原本仍为英文的筛选和菜单标签，现在以游戏语言显示"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"
@@ -657,6 +655,7 @@ L["MAP_FILTER_SERVICES"]                = "服务"
 L["MAP_FILTER_TRAVEL_TT"]               = "飞行路线、飞艇、船只、传送门和地铁。"
 L["MAP_FILTER_SERVICES_TT"]             = "职业和专业训练师、公会银行以及其他服务NPC。"
 L["MAP_FILTER_RARES"]                   = "稀有怪"
+L["MAP_FILTER_FLIGHTS"]                 = "飞行路线"
 L["MAP_FILTER_BOATS"]                   = "船只"
 L["MAP_FILTER_PORTALS"]                 = "传送门"
 L["MAP_FILTER_BANKS"]                   = "银行"

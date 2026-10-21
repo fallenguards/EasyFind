@@ -73,7 +73,7 @@ local UI_FILTER_OPTIONS = {
       iconAspect = ns.ITEMS_CATEGORY_ICON_ASPECT,
       flyoutSubFilters = {
           { key = "catalog", label = L["FILTER_GENERAL_CATALOG"], iconTex = ns.ITEMS_CATEGORY_ICON_TEX, iconCoords = ns.ITEMS_CATEGORY_ICON_COORDS, iconAspect = ns.ITEMS_CATEGORY_ICON_ASPECT, hasOptions = true, companion = "EasyFind_Items" },
-          { key = "bags", label = _G["BAGSLOT"] or _G["BAGS"] or "Bags", iconAtlas = ns.BAG_ICON_ATLAS, iconTex = ns.BAG_ICON_TEX, hasOptions = true },
+          { key = "bags", label = _G["BAGSLOT"] or "Bags", iconAtlas = ns.BAG_ICON_ATLAS, iconTex = ns.BAG_ICON_TEX, hasOptions = true },
           { key = "bank", label = _G["BANK"] or "Bank", iconTex = ns.BANK_CATEGORY_ICON_TEX, iconCoords = ns.BANK_CATEGORY_ICON_COORDS, hasOptions = true },
       } },
     -- Bosses: EJ overview tab icon from texture 522972.
@@ -160,7 +160,7 @@ local UI_FILTER_OPTIONS = {
             } },
           { key = "travel",     label = L["FILTER_TRAVEL"],       dbTable = "uiMapFilters",
             subFilters = {
-                { key = "flights", label = _G["FLIGHT_PATHS_TAB"] or "Flight Paths", dbTable = "uiMapFilters" },
+                { key = "flights", label = L["MAP_FILTER_FLIGHTS"], dbTable = "uiMapFilters" },
                 { key = "boats",   label = L["MAP_FILTER_BOATS"],   dbTable = "uiMapFilters" },
                 { key = "portals", label = L["MAP_FILTER_PORTALS"], dbTable = "uiMapFilters" },
             } },
@@ -201,7 +201,7 @@ local UI_FILTER_OPTIONS = {
           dbKey = "reputationFilterMode",
           options = {
               { value = "all",     label = _G["ALL"] or "All" },
-              { value = "warband", label = _G["WARBAND"] or "Warband", caps = "warbandRep" },
+              { value = "warband", label = _G["REPUTATION_SORT_TYPE_ACCOUNT"] or "Warband", caps = "warbandRep" },
               { value = "char",    label = (UnitName and UnitName("player")) or "This Character" },
           },
           onChange = function(v) if Search.ApplyReputationFilter then Search:ApplyReputationFilter(v) end end,
@@ -266,7 +266,7 @@ local UI_FILTER_OPTIONS = {
     -- times over, so the default stays Earned and the other modes are a
     -- deliberate "show me what I am missing". Same three-way shape, and the
     -- same localized labels, as the achievements filter.
-    { key = "titles",      label = _G["TITLES"] or _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = ns.ART.title.tex,
+    { key = "titles",      label = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",      iconTex = ns.ART.title.tex,
       iconCoords = ns.ART.title.coords,
       flyoutRadio = {
           dbKey = "titleFilterMode",

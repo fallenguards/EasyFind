@@ -94,7 +94,7 @@ function Filters:BuildToyOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrame
     local filterDefs = {
         { dbKey = "toyFilterCollected",    label = _G["COLLECTED"] or "Collected" },
         { dbKey = "toyFilterNotCollected", label = _G["NOT_COLLECTED"] or "Not Collected" },
-        { dbKey = "toyFilterUnusable",     label = _G["UNUSABLE"] or "Unusable" },
+        { dbKey = "toyFilterUnusable",     label = _G["MOUNT_JOURNAL_FILTER_UNUSABLE"] or "Unusable" },
     }
     for _, def in ipairs(filterDefs) do
         rows[#rows + 1] = CreateCheckRow(def, y)
@@ -120,7 +120,7 @@ function Filters:BuildToyOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrame
 
     local sourcesRow = CreateFlyoutRow(_G["SOURCES"] or "Sources", y)
     y = y - ROW_H
-    local expansionsRow = CreateFlyoutRow(_G["EXPANSIONS"] or "Expansions", y)
+    local expansionsRow = CreateFlyoutRow(_G["EXPANSION_FILTER_TEXT"] or "Expansion", y)
 
     local contentW = 0
     for i = 1, #rows do

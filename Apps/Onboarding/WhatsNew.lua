@@ -10,6 +10,7 @@ local Utils = ns.Utils
 
 local CreateFrame = CreateFrame
 local UIParent = UIParent
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 local mmax, mmin, mceil = math.max, math.min, math.ceil
 
 local GOLD     = ns.GOLD_COLOR

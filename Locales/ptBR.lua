@@ -269,13 +269,11 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffPerfis|r\n" ..
-    "    |cff999999-|r Tudo o que você personalizou, em um perfil próprio: configurações, apelidos, atalhos, lista negra, snippets, botões de extensão, fixados e teclas. Cada personagem lembra sua escolha e os perfis por especialização trocam com a sua especialização\n" ..
-    "    |cff999999-|r Exporte um perfil como código ou importe um na nova aba Perfis das opções\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCódigos de snippets|r\n" ..
-    "    |cff999999-|r Exporte seus snippets como um código na página de configurações de Snippets e importe um código que alguém compartilhou com você\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffPrévia da importação|r\n" ..
-    "    |cff999999-|r Colar um código de apelidos, atalhos, lista negra ou snippets mostra o que ele contém antes de aplicar qualquer coisa e avisa quando coloca comandos em teclas ou em macros. Importe apenas de uma fonte confiável"
+    "|cffFFD100\226\128\162|r |cffffffffPronto para o patch 12.1.5|r\n" ..
+    "    |cff999999-|r Nada de erro no bate-papo ao entrar: os resultados de saque e de bolsas voltam a mostrar nomes e ícones\n" ..
+    "    |cff999999-|r Os ícones do mapa, das estatísticas e da reputação voltam a mostrar a imagem certa\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRótulos traduzidos|r\n" ..
+    "    |cff999999-|r Rótulos de filtros e menus que ficavam em inglês agora aparecem no idioma do seu jogo"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"
@@ -657,6 +655,7 @@ L["MAP_FILTER_SERVICES"]                = "Serviços"
 L["MAP_FILTER_TRAVEL_TT"]               = "Rotas de voo, zepelins, barcos, portais e metrôs."
 L["MAP_FILTER_SERVICES_TT"]             = "Treinadores de classe e profissão, banco da guilda e outros NPCs de serviços."
 L["MAP_FILTER_RARES"]                   = "Raros"
+L["MAP_FILTER_FLIGHTS"]                 = "Rotas de voo"
 L["MAP_FILTER_BOATS"]                   = "Barcos"
 L["MAP_FILTER_PORTALS"]                 = "Portais"
 L["MAP_FILTER_BANKS"]                   = "Bancos"

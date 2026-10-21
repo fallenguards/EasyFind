@@ -768,13 +768,8 @@ function Results:ApplyTransmogBrowseMode()
     local wardrobeCollection = TransmogFrame.WardrobeCollection
     local tabHeaders = wardrobeCollection and wardrobeCollection.TabHeaders
     if tabHeaders then
-        -- Try Blizzard's localized global first, fall back to English so
-        -- the literal still works on enUS even if the global moves. Tab
-        -- text is rendered with localized labels on non-English clients,
-        -- so a raw "Situations" compare fails everywhere except enUS.
-        local situationsLabel = (_G["TRANSMOG_OUTFITS_SITUATIONS"]
-            or _G["TRANSMOG_SITUATION"]
-            or "Situations")
+        -- Tabs carry localized text, so match on the client's own string
+        local situationsLabel = _G["TRANSMOG_TAB_SITUATIONS"] or "Situations"
         for _, tab in ipairs({ tabHeaders:GetChildren() }) do
             if tab.GetText and tab:GetText() == situationsLabel then
                 tab:Hide()

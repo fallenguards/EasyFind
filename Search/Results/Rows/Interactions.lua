@@ -349,14 +349,10 @@ function Rows.InstallInteractions(resultRow, index)
             PickupSpell(spellID)
         end
     end
-    -- The same for items: WoW Forever has no PickupItem global at all,
-    -- only the namespaced call.
+    -- The same for items: WoW Forever has no PickupItem global at all.
+    local pickupItem = (C_Item and C_Item.PickupItem) or PickupItem
     local function PickupItemCompat(itemID)
-        if C_Item and C_Item.PickupItem then
-            C_Item.PickupItem(itemID)
-        elseif PickupItem then
-            PickupItem(itemID)
-        end
+        if pickupItem then pickupItem(itemID) end
     end
     local function CanPickupRowAction(d)
         if not d then return false end

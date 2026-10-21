@@ -21,6 +21,8 @@ end
 local select, ipairs = Utils.select, Utils.ipairs
 local sfind = Utils.sfind
 local InCombatLockdown = InCombatLockdown
+local GetItemCooldown = (C_Item and C_Item.GetItemCooldown) or GetItemCooldown
+local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 local sgsub, supper = string.gsub, string.upper
 
 -- The catalog blob stores names lowercase-only (the in-place scan needs a

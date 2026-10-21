@@ -269,13 +269,11 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffProfili|r\n" ..
-    "    |cff999999-|r Tutto ciò che hai personalizzato, in un profilo tutto suo: impostazioni, alias, scorciatoie, lista nera, snippet, pulsanti delle estensioni, elementi fissati e tasti. Ogni personaggio ricorda la sua scelta e i profili per specializzazione cambiano con la tua specializzazione\n" ..
-    "    |cff999999-|r Esporta un profilo come codice o importane uno dalla nuova scheda Profili nelle opzioni\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCodici snippet|r\n" ..
-    "    |cff999999-|r Esporta i tuoi snippet come codice dalla pagina delle impostazioni Snippet e importa un codice che qualcuno ha condiviso con te\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffAnteprima di importazione|r\n" ..
-    "    |cff999999-|r Incollare un codice di alias, scorciatoie, lista nera o snippet mostra cosa contiene prima che qualcosa venga applicato e avvisa quando mette comandi su tasti o in macro. Importa solo da una fonte di cui ti fidi"
+    "|cffFFD100\226\128\162|r |cffffffffPronto per la patch 12.1.5|r\n" ..
+    "    |cff999999-|r Niente più errori in chat all'accesso: i risultati di bottino e borse mostrano di nuovo nomi e icone\n" ..
+    "    |cff999999-|r Le icone di mappa, statistiche e reputazione mostrano di nuovo l'immagine giusta\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEtichette tradotte|r\n" ..
+    "    |cff999999-|r Le etichette di filtri e menu rimaste in inglese ora compaiono nella lingua del tuo gioco"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"
@@ -657,6 +655,7 @@ L["MAP_FILTER_SERVICES"]                = "Servizi"
 L["MAP_FILTER_TRAVEL_TT"]               = "Vie di volo, zeppelin, navi, portali e tram."
 L["MAP_FILTER_SERVICES_TT"]             = "Addestratori di classe e professione, banca di gilda e altri PNG di servizi."
 L["MAP_FILTER_RARES"]                   = "Rari"
+L["MAP_FILTER_FLIGHTS"]                 = "Vie di volo"
 L["MAP_FILTER_BOATS"]                   = "Navi"
 L["MAP_FILTER_PORTALS"]                 = "Portali"
 L["MAP_FILTER_BANKS"]                   = "Banche"
