@@ -37,7 +37,7 @@ local function Load(skullAt)
     }
     local env = setmetatable({
         GPS = GPS, ns = ns, sformat = string.format,
-        L = { GPS_DANGER_FMT = "Deadly in %s.", GPS_DANGER = "Deadly." },
+        L = { GPS_DANGER = "Deadly." },
         UnitLevel = function() return state.level or 15 end,
         UnitFactionGroup = function() return "Alliance" end,
         ZoneAt = function(_, x) return 400, x >= 100 and "Thousand Needles" or "The Barrens" end,
@@ -50,9 +50,9 @@ end
 
 local tests = {}
 
-function tests.skullGroundAhead_namesTheZoneItIsMetIn()
+function tests.skullGroundAhead_warnsWithNoZoneNamed()
     local GPS, route = Load(30)
-    H.assertEq(GPS.DangerText(route), "Deadly in Thousand Needles.")
+    H.assertEq(GPS.DangerText(route), "Deadly.")
 end
 
 function tests.noSkullGround_noWarning()
@@ -75,7 +75,7 @@ function tests.walksNotDrawn_askedAgainOnceTheyAre()
     state.drawn = false
     H.assertNil(GPS.DangerText(route), "nothing to read yet")
     state.drawn = true
-    H.assertEq(GPS.DangerText(route), "Deadly in Thousand Needles.")
+    H.assertEq(GPS.DangerText(route), "Deadly.")
 end
 
 function tests.keptUntilTheLevelChanges()

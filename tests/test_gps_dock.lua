@@ -238,17 +238,25 @@ function tests.stepMenu_opensWithRestartFromThisStep()
     f:close()
     local s = assert(src:find("function GPS.ShowStepMenu(container, index)", 1, true), "GPS.ShowStepMenu not in GPS.lua")
     local _, e = src:find("\nend\r?\n", s)
-    local jumped
+    local jumped, dropped
     local GPS = { GoToStep = function(i) jumped = i end }
     function GPS:ReportRoute() end
-    local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }) },
-        { __index = _G })
+    function GPS:DropLearn(id) dropped = id end
+    local route = { steps = { {}, {}, { kind = "travel" }, { kind = "learn", nodeID = 77 } } }
+    local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }),
+        Route = function() return route end }, { __index = _G })
     assert(load(src:sub(s, e), "=GPS.lua ShowStepMenu", "t", env))()
     local shown
     GPS.ShowStepMenu({ ShowMenu = function(defs) shown = defs end }, 3)
     H.assertEq(shown[1].label, "GPS_RESTART_FROM_STEP", "the top entry")
+    H.assertEq(shown[2].label, "GPS_FEEDBACK_STEP", "a planned step cannot be removed")
     shown[1].onClick()
     H.assertEq(jumped, 3, "the route restarts at that step")
+    -- A stop taken up from a suggestion offers to go again.
+    GPS.ShowStepMenu({ ShowMenu = function(defs) shown = defs end }, 4)
+    H.assertEq(shown[2].label, "GPS_REMOVE_STEP")
+    shown[2].onClick()
+    H.assertEq(dropped, 77, "dropped by its flight master")
 end
 
 -- GPS:OpenWindow to GPS:CloseWindow cut from GPS.lua over a stub section

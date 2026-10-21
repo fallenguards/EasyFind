@@ -639,6 +639,12 @@ function GPS.ShowStepMenu(container, index)
         { kind = "action", label = L["GPS_FEEDBACK_STEP"], onClick = function() GPS:ReportRoute(index) end },
         { kind = "action", label = L["GPS_FEEDBACK_ROUTE"], onClick = function() GPS:ReportRoute() end },
     }
+    -- A stop taken up from a suggestion is optional: it can go again.
+    local route = Route()
+    local step = route and not route.arrived and route.steps[index]
+    if step and step.kind == "learn" and step.nodeID then
+        table.insert(defs, 2, { kind = "action", label = L["GPS_REMOVE_STEP"], onClick = function() GPS:DropLearn(step.nodeID) end })
+    end
     if container.ShowMenu then return container.ShowMenu(defs) end
     if not ns.ShowTogglePopup then return end
     local anchor = GPS.stepMenuAnchor
@@ -1933,8 +1939,7 @@ function GPS.DangerText(route)
                 local d = Npcs.DeadlyAlong(path, sci, level, faction)
                 if not d then return nil end
                 if d.skull then
-                    local _, zone = ZoneAt(sci, d.sx, d.sy)
-                    text = zone and sformat(L["GPS_DANGER_FMT"], zone) or L["GPS_DANGER"]
+                    text = L["GPS_DANGER"]   -- the red stretches say where; no zone named
                     break
                 end
             end
