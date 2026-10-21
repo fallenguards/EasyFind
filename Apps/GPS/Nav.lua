@@ -435,8 +435,9 @@ function Nav.CostOverTime() return offRoad end
 -- over twelve trips on both continents).
 local PULLED = 0.955
 
--- The floor under (x, y): indoors an indoor one, else one outdoors, else
--- the highest; off the grid the nearest within SNAP_CELLS (or snap).
+-- The floor under (x, y): indoors an indoor one, else one outdoors, then
+-- ground over water (one stands on the ground beside a swim), else the
+-- highest; off the grid the nearest within SNAP_CELLS (or snap).
 local function Locate(w, x, y, indoors, snap)
     local key, sx, sy = TileOf(x, y)
     local t = Tile(w, key)
@@ -453,6 +454,7 @@ local function Locate(w, x, y, indoors, snap)
                     for g = first, U16(t.cf, cc + 2) - 1 do
                         local inside = sbyte(t.fl, g) % 4 >= 2
                         local score = ((indoors and inside) or (not indoors and not inside)) and 100 or 0
+                        if sbyte(t.fb, g) % 2 == 0 then score = score + 50 end
                         score = score + (g - first) - ring * 1000
                         if not bestScore or score > bestScore then best, bestScore = g, score end
                     end
@@ -1502,6 +1504,8 @@ local function Clear(w, t, a, b)
     local sr, sc = dr > 0 and 1 or -1, dc > 0 and 1 or -1
     local nr, ncl = mabs(dr), mabs(dc)
     local g = a
+    -- From dry ground the line may end in water, not cross it.
+    local dry = sbyte(t.fb, a) % 2 == 0
     local ir, ic = 0, 0
     while ir < nr or ic < ncl do
         -- Step along whichever axis the line crosses next.
@@ -1512,13 +1516,14 @@ local function Clear(w, t, a, b)
         local u, o = Step(w, t, g, d)
         if not o or u ~= t then return false end
         g = o
+        if dry and (ir < nr or ic < ncl) and sbyte(t.fb, g) % 2 == 1 then return false end
     end
     return g == b
 end
 
 -- Whether one walks straight from (ax, ay) to (bx, by): each cell along
 -- the line reached from the one before by a link, across tiles, and none
--- of them water unless the start is. nil off the grid.
+-- before the last of them water unless the start is. nil off the grid.
 function Nav.Straight(ci, ax, ay, bx, by, indoors)
     local w = World(ci)
     if not w then return nil end
@@ -1539,7 +1544,7 @@ function Nav.Straight(ci, ax, ay, bx, by, indoors)
         local d
         if stepRow then d, ir = alongRow, ir + 1 else d, ic = alongCol, ic + 1 end
         t, g = Step(w, t, g, d)
-        if not g or (dry and sbyte(t.fb, g) % 2 == 1) then return false end
+        if not g or (dry and sbyte(t.fb, g) % 2 == 1 and (ir < nr or ic < ncl)) then return false end
     end
     return true
 end

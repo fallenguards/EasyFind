@@ -202,6 +202,22 @@ function tests.dropLimit_anyHeightTakesTheTallestLevel()
     H.assertTrue(any ~= nil and survive ~= nil and any < survive, "past what a fall lets one live through")
 end
 
+-- A swimmer comes ashore where the bank slopes into the water (no step to
+-- climb: the feet touch); without the shore links it swam 480 yd round.
+function tests.walk_swimmerComesAshoreOnASlopingBank()
+    local Nav = fresh()
+    local cost = Nav.Walk(0, -9365.4, 515.3, -9357.4, 515.3)
+    H.assertTrue(cost ~= nil and cost < 20, "out of the water onto the bank: " .. tostring(cost))
+end
+
+-- A cell with ground and the water's surface: a point stands on the ground.
+function tests.locate_takesTheGroundOverTheWater()
+    local Nav = fresh()
+    local key, g = Nav.Probe(0, -9325.3, -138.3, false, true)
+    local t = Nav._worlds[0].tiles[key]
+    H.assertTrue(g ~= nil and string.byte(t.fb, g) % 2 == 0, "the ground, not the water")
+end
+
 -- An end no side of its tile leads from (a pit a drop leads into): no way
 -- out of the tile, only the way inside it, with landmarks too.
 function tests.walk_anEndNoSideLeaves_keepsToItsTile()
