@@ -4686,36 +4686,19 @@ function UI:EnsureEasyNotesFrame()
         end)
     end
 
-    -- ESC closes the notes window when nothing has keyboard focus, without the
-    -- window ever capturing keys itself: a named companion frame rides
-    -- UISpecialFrames, so WoW hides IT on ESC and the handler translates that
-    -- into closing menus first, then the window.
-    local escCatcher = CreateFrame("Frame", "EasyNotesEscCatcher", UIParent)
-    escCatcher:Hide()
-    escCatcher:SetScript("OnHide", function(self)
-        local nf = UI._notes.frame
-        if not (nf and nf:IsShown()) then return end
-        local consumed = UI:CloseEasyNotesOpenMenus()
-        if not consumed and next(UI._notes.paletteSelection) then
-            -- ESC clears the row selection before it closes the window.
+    -- ESC closes the notes window when nothing has keyboard focus, through
+    -- EasyFind's own ESC dispatch (never UISpecialFrames, which the game
+    -- walks): menus first, then the row selection, then the window.
+    Utils.AttachEscClose(frame, function()
+        if UI:CloseEasyNotesOpenMenus() then return true end
+        if next(UI._notes.paletteSelection) then
             for k in next, UI._notes.paletteSelection do UI._notes.paletteSelection[k] = nil end
             UI:RepaintEasyNotesPaletteRows()
-            consumed = true
-        end
-        if consumed then
-            -- Something consumed this ESC; re-arm for the next press.
-            if Utils.SafeAfter then Utils.SafeAfter(0, function()
-                if nf:IsShown() then self:Show() end
-            end) end
-            return
+            return true
         end
         UI:CloseEasyNotes()
+        return true
     end)
-    if not tContains(UISpecialFrames, "EasyNotesEscCatcher") then
-        tinsert(UISpecialFrames, "EasyNotesEscCatcher")
-    end
-    frame:HookScript("OnShow", function() escCatcher:Show() end)
-    frame:HookScript("OnHide", function() escCatcher:Hide() end)
 
     -- Left-clicking anywhere that is not a note row clears the list selection.
     -- Single owner for outside-click deselect: rows' own handlers manage row
