@@ -1199,6 +1199,11 @@ function GPS:Status()
             b and b:GetBottom() and f:GetBottom() and sformat("%.0f", f:GetBottom() - b:GetBottom()) or "?",
             f.glyph and f.glyph:GetTop() and f:GetTop() and sformat("%.0f", f:GetTop() - f.glyph:GetTop()) or "?")
     end
+    local ed = popoutFrame and popoutFrame.trip
+    out[#out + 1] = sformat("window drag %s (stops missed %d) | planning %s, plan %s | fields: editing %s, closing %s, drag %s",
+        tostring(popoutFrame and popoutFrame.dragging == true), popoutFrame and popoutFrame.dragLost or 0,
+        tostring(GPS.planning and GPS.planning.name), Planner.co and coroutine.status(Planner.co) or "none",
+        tostring(ed and ed.editing ~= nil), tostring(ed and ed.closeAt ~= nil), tostring(ed and ed.drag ~= nil))
     local h = HearthPoint()
     out[#out + 1] = h and sformat("hearth lands at %s (bound %s): map %s %.3f,%.3f, continent %s at %.0f,%.0f",
         tostring(h.m and C_Map.GetMapInfo(h.m) and C_Map.GetMapInfo(h.m).name), tostring(h.bind), tostring(h.m), h.x or 0, h.y or 0,
@@ -4164,6 +4169,12 @@ local function BuildDock()
     f:SetScript("OnUpdate", function(self, dt)
         since = since + dt
         if self.dragging then
+            -- The button up with no drag stop delivered: the drag is over.
+            if not IsMouseButtonDown("LeftButton") then
+                self.dragLost = (self.dragLost or 0) + 1
+                DragStop()
+                return
+            end
             if since < 0.05 then return end
             since = 0
             if NearTracker(self) then
@@ -4393,9 +4404,10 @@ function GPS.DockStatus()
     if dockFrame then
         local d = dockFrame
         local ins = d.insert
-        out[#out + 1] = sformat("section: shown %s alpha %.1f strata %s | docked %s floating %s ghost %s dragging %s | size %.0fx%.0f | room on %s height %s pad %s",
+        out[#out + 1] = sformat("section: shown %s alpha %.1f strata %s | docked %s floating %s ghost %s dragging %s (stops missed %d, stopping %s, gap %s) | size %.0fx%.0f | room on %s height %s pad %s",
             tostring(d:IsShown()), d:GetAlpha() or 1, tostring(d:GetFrameStrata()), tostring(d.docked == true), tostring(d.floating == true),
-            tostring(d.ghost == true), tostring(d.dragging == true), d:GetWidth() or 0, d:GetHeight() or 0,
+            tostring(d.ghost == true), tostring(d.dragging == true), d.dragLost or 0, tostring(d.stopping == true), tostring(d.dragGap ~= nil),
+            d:GetWidth() or 0, d:GetHeight() or 0,
             ins and (ins.side and ("watch " .. ins.side) or ins.module and (ins.module:GetName() or "?")) or "none",
             tostring(ins and ins.height), tostring(ins and ins.pad))
         local watch = Watch()
@@ -4868,6 +4880,12 @@ local function BuildPopout()
     local dragSince = 0
     f:SetScript("OnUpdate", function(self, dt)
         if not self.dragging then return end
+        -- The button up with no drag stop delivered: the drag is over.
+        if not IsMouseButtonDown("LeftButton") then
+            self.dragLost = (self.dragLost or 0) + 1
+            EndWindowDrag(self)
+            return
+        end
         dragSince = dragSince + dt
         if dragSince < 0.05 then return end
         dragSince = 0
