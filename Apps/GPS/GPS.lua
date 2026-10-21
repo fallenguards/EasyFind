@@ -2195,38 +2195,49 @@ end
 -- GPS data. A name starting with the query goes above the map rows, one containing it below.
 local towns
 local mergedHits = {}
-
-local function Listed(results, name)
-    for i = 1, results and #results or 0 do
-        if results[i].name == name then return true end
-    end
-    return false
-end
+local listedNames = {}   -- the map search's names this keystroke, for the towns to skip
 
 local function WithTowns(q, results)
     if not towns then
         towns = {}
         local data = ns.GPSData
-        for area, p in pairs(data and data.binds or {}) do
+        local binds = data and data.binds or {}
+        for area, p in pairs(binds) do
             local name = C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
             local info = name and C_Map.GetMapInfo(p.m)
             if info then
                 towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = p.m, x = p.x, y = p.y, zoneName = info.name } }
             end
         end
+        -- Every subzone the map draws, at the middle of its patch; a town
+        -- with a bind spot keeps that spot.
+        for m, list in pairs(data and data.areas or {}) do
+            local info = C_Map.GetMapInfo(m)
+            for i = 1, info and #list or 0, 3 do
+                local area = list[i]
+                local name = not binds[area] and C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
+                if name and name ~= info.name then
+                    towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = m, x = list[i + 1], y = list[i + 2], zoneName = info.name } }
+                end
+            end
+        end
     end
     wipe(mergedHits)
+    wipe(listedNames)
+    for i = 1, results and #results or 0 do
+        local name = results[i].name
+        if name then listedNames[name] = true end
+    end
     local lq = q:lower()
     for i = 1, #towns do
         local t = towns[i]
-        if t.lower:sub(1, #lq) == lq and not Listed(results, t.row.name) then mergedHits[#mergedHits + 1] = t.row end
+        if t.lower:find(lq, 1, true) == 1 and not listedNames[t.row.name] then mergedHits[#mergedHits + 1] = t.row end
     end
     for i = 1, results and #results or 0 do mergedHits[#mergedHits + 1] = results[i] end
     for i = 1, #towns do
         local t = towns[i]
-        if t.lower:sub(1, #lq) ~= lq and t.lower:find(lq, 1, true) and not Listed(results, t.row.name) then
-            mergedHits[#mergedHits + 1] = t.row
-        end
+        local at = t.lower:find(lq, 1, true)
+        if at and at > 1 and not listedNames[t.row.name] then mergedHits[#mergedHits + 1] = t.row end
     end
     return mergedHits
 end
