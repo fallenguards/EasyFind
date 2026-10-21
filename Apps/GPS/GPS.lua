@@ -2686,7 +2686,30 @@ local DOCK_LINE_GAP = 4
 
 -- The section's other looks: the Era watch's (its lines wrap past W, are
 -- LINE tall, its titles in TITLE) and ClassicUI's restyled tracker's.
-local Look = { W = 280, LINE = 13, TITLE = { 0.75, 0.61, 0 } }
+local Look = { W = 280, LINE = 13, TITLE = { 0.75, 0.61, 0 }, greys = {} }
+
+function Look.Grey(c)
+    local g = Look.greys[c]
+    if not g then
+        g = { c, c, c }
+        Look.greys[c] = g
+    end
+    return g
+end
+
+-- A tracker line in its color, gold while the cursor is on a line that
+-- does something: the game's tracker brightens a hovered quest's lines.
+function Look.ShadeLine(row)
+    local c = row.shade or ns.TEXT_DIM
+    if row.hovered and (row.index or row.tip or row.from) then c = ns.GOLD_COLOR end
+    row.text:SetTextColor(c[1], c[2], c[3])
+    if row.dash then row.dash:SetTextColor(c[1], c[2], c[3]) end
+end
+
+function Look.HoverLine(row, on)
+    row.hovered = on or nil
+    Look.ShadeLine(row)
+end
 
 local function ClientTracker()
     local t = _G.ObjectiveTrackerFrame
@@ -3288,6 +3311,8 @@ local function DockLine(f, i)
         elseif IsShiftKeyDown() then GPS.GoToStep(self.index)
         else GPS.ShowStep(self.index) end
     end)
+    row:SetScript("OnEnter", function(self) Look.HoverLine(self, true) end)
+    row:SetScript("OnLeave", function(self) Look.HoverLine(self, false) end)
     -- A teleport's icon at the line's right edge, flush with the section's.
     row.cast = CastButton(row, -4)
     row.cast:SetSize(16, 16)
@@ -3313,8 +3338,14 @@ local function DockTipLine(f, i)
         if button ~= "RightButton" then return TipClick(self) end
         if f.ShowMenu then f.ShowMenu() end
     end)
-    row:SetScript("OnEnter", TipEnter)
-    row:SetScript("OnLeave", GameTooltip_Hide)
+    row:SetScript("OnEnter", function(self)
+        Look.HoverLine(self, true)
+        TipEnter(self)
+    end)
+    row:SetScript("OnLeave", function(self)
+        Look.HoverLine(self, false)
+        GameTooltip_Hide()
+    end)
     f.tipLines[i] = row
     return row
 end
@@ -3351,12 +3382,17 @@ local function DockFromLine(f)
         if button ~= "RightButton" then return GPS:PickStart(f) end
         if f.ShowMenu then f.ShowMenu() end
     end)
+    row.from = true
     row:SetScript("OnEnter", function(self)
+        Look.HoverLine(self, true)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(L["GPS_FROM_TT"], 1, 1, 1, 1, true)
         GameTooltip:Show()
     end)
-    row:SetScript("OnLeave", GameTooltip_Hide)
+    row:SetScript("OnLeave", function(self)
+        Look.HoverLine(self, false)
+        GameTooltip_Hide()
+    end)
     f.fromLine = row
     return row
 end
@@ -3490,8 +3526,14 @@ function Look.EraLine(f, i)
             GPS.ShowStep(self.index)
         end
     end)
-    row:SetScript("OnEnter", function(self) if self.tip then TipEnter(self) end end)
-    row:SetScript("OnLeave", GameTooltip_Hide)
+    row:SetScript("OnEnter", function(self)
+        Look.HoverLine(self, true)
+        if self.tip then TipEnter(self) end
+    end)
+    row:SetScript("OnLeave", function(self)
+        Look.HoverLine(self, false)
+        GameTooltip_Hide()
+    end)
     -- A teleport's icon just past the line's end.
     row.cast = CastButton(row, 18)
     row.cast:SetSize(16, 16)
@@ -3504,8 +3546,9 @@ end
 function Look.EraRow(f, n, text, c, tall)
     local row = Look.EraLine(f, n)
     local w, h = Look.EraFill(row.text, " - " .. text)
-    row.text:SetTextColor(c, c, c)
     row.index, row.tip, row.from = nil, nil, nil
+    row.shade = Look.Grey(c)
+    Look.ShadeLine(row)
     row:ClearAllPoints()
     row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -tall)
     row:SetSize(mmax(1, w), h)
@@ -3541,8 +3584,8 @@ function Look.RenderEra(f)
         if start then
             n = n + 1
             row, w, tall = Look.EraRow(f, n, sformat(L["GPS_FROM_FMT"], start.name or "?"), 1, tall)
-            row.text:SetTextColor(unpack(ns.TEXT_DIM))
-            row.from = true
+            row.shade, row.from = ns.TEXT_DIM, true
+            Look.ShadeLine(row)
             widest = mmax(widest, w)
         end
         local items = route.steps
@@ -3555,14 +3598,15 @@ function Look.RenderEra(f)
             n = n + 1
             row, w, tall = Look.EraRow(f, n, StepText(items[i], active), (active or route.arrived) and 1 or (i < at and 0.5 or 0.8), tall)
             row.index = (not route.arrived) and i or nil
+            Look.ShadeLine(row)
             widest = mmax(widest, w + (SetupCast(row.cast, items[i], active) and 20 or 0))
         end
         local tips = AdviceLines(route)
         for t = 1, tips and #tips or 0 do
             n = n + 1
             row, w, tall = Look.EraRow(f, n, tips[t].text, 1, tall)
-            row.text:SetTextColor(unpack(ns.TEXT_DIM))
-            row.tip = tips[t]
+            row.shade, row.tip = ns.TEXT_DIM, tips[t]
+            Look.ShadeLine(row)
             widest = mmax(widest, w)
         end
     elseif f.search then
@@ -3643,8 +3687,8 @@ RenderDock = function(f)
                 Look.Restyle(line.dash, look, 10, "ObjectiveTrackerLineFont")
                 line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
                 line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
-                line.text:SetTextColor(unpack(ns.TEXT_DIM))
-                line.dash:SetTextColor(unpack(ns.TEXT_DIM))
+                line.shade = ns.TEXT_DIM
+                Look.ShadeLine(line)
                 line:ClearAllPoints()
                 line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
                 line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
@@ -3669,9 +3713,8 @@ RenderDock = function(f)
                 row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8) - (cast and 24 or 0)))
                 local active = (route.active or 1) == i and not route.arrived
                 local done = i < (route.active or 1)
-                local c = (active or route.arrived) and 1 or (done and 0.5 or 0.8)
-                row.text:SetTextColor(c, c, c)
-                row.dash:SetTextColor(c, c, c)
+                row.shade = Look.Grey((active or route.arrived) and 1 or (done and 0.5 or 0.8))
+                Look.ShadeLine(row)
                 row:ClearAllPoints()
                 row:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
                 row:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)   -- the section's visual width
@@ -3689,8 +3732,8 @@ RenderDock = function(f)
                 row.tip = tips[t]
                 row.text:SetText(tips[t].text)
                 row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
-                row.text:SetTextColor(unpack(ns.TEXT_DIM))
-                row.dash:SetTextColor(unpack(ns.TEXT_DIM))
+                row.shade = ns.TEXT_DIM
+                Look.ShadeLine(row)
                 row:ClearAllPoints()
                 row:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
                 row:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
