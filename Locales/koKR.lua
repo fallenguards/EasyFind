@@ -422,6 +422,7 @@ L["GPS_TAB_TT"]                         = "지역이나 관심 지점까지의 �
 L["GPS_EMPTY"]                          = "아직 경로가 없습니다. 결과에서 지역이나 관심 지점을 우클릭하여 그곳으로 길찾기를 시작하세요."
 L["GPS_TO_FMT"]                         = "%s(으)로"
 L["GPS_STEP_TRAVEL_FMT"]                = "%s(으)로 이동"
+L["GPS_STEP_NO_WAY_FMT"]                = "여기서 %s(으)로 가는 길을 찾지 못했습니다"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "%s을(를) 지나 %s(으)로 이동"
 L["GPS_STEP_EXIT_FMT"]                  = "%s에서 나가기"
 L["GPS_STEP_REACH_FMT"]                 = "%s(으)로 이동"

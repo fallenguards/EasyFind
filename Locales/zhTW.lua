@@ -422,6 +422,7 @@ L["GPS_TAB_TT"]                         = "前往區域或興趣點的分步路�
 L["GPS_EMPTY"]                          = "還沒有路線。在結果中右鍵點擊區域或興趣點，即可導航到那裡。"
 L["GPS_TO_FMT"]                         = "前往 %s"
 L["GPS_STEP_TRAVEL_FMT"]                = "前往 %s"
+L["GPS_STEP_NO_WAY_FMT"]                = "未找到從此處前往 %s 的路線"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "穿過 %s 前往 %s"
 L["GPS_STEP_EXIT_FMT"]                  = "離開 %s"
 L["GPS_STEP_REACH_FMT"]                 = "前往：%s"

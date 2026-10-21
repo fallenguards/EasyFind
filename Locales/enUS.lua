@@ -462,6 +462,7 @@ L["GPS_EMPTY"]                          = "No route yet. Right-click a zone or p
 L["GPS_TO_FMT"]                         = "To %s"
 L["GPS_TO_ETA_FMT"]                     = "To %s: %s"
 L["GPS_STEP_TRAVEL_FMT"]                = "Travel to %s"
+L["GPS_STEP_NO_WAY_FMT"]                = "No way found to %s from here"
 L["GPS_STEP_ARRIVE_IN_FMT"]             = "Arrive in %s"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "Walk through %s to %s"
 L["GPS_STEP_EXIT_FMT"]                  = "Exit %s"

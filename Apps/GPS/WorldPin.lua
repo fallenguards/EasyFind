@@ -671,7 +671,7 @@ local function Update(dt)
     -- A step that is a spell or an item has nowhere to walk to: no beacon,
     -- and the game's own marker stays hidden too.
     local current = route.steps and route.steps[route.active or 1]
-    if current and current.kind == "teleport" then
+    if current and (current.kind == "teleport" or current.noWay) then
         frame:Hide()
         HideFace(host)
         return

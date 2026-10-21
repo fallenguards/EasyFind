@@ -414,19 +414,21 @@ function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom, dropLimit)
         if via then return nil end   -- no way with that stop: the route stays as it was
     end
     -- No way through the data: a plain leg, priced as the crow flies when
-    -- the spot is on this continent, unpriced when it is not.
+    -- the spot is on this continent; on another, the step says there is
+    -- no way from here, and nothing follows it.
     local sec
     local Engine = ns.GPSRoute
     local ci, px, py
     if origin then ci, px, py = origin.ci, origin.wx, origin.wy else ci, px, py = PlayerWorldPos() end
     local tci, tx, ty = WorldPos(dest.mapID, dest.x or 0.5, dest.y or 0.5)
+    local noWay = ci ~= nil and tci ~= nil and tci ~= ci
     if ci and tci == ci and tx and Engine and Engine.TravelSeconds then
         sec = Engine:TravelSeconds(((px - tx) ^ 2 + (py - ty) ^ 2) ^ 0.5)
     end
     return {
-        { kind = "travel", name = dest.name, mapID = dest.mapID, x = dest.x, y = dest.y, sec = sec,
+        { kind = "travel", name = dest.name, mapID = dest.mapID, x = dest.x, y = dest.y, sec = sec, noWay = noWay or nil,
           arrive = tci and { m = dest.mapID, x = dest.x, y = dest.y, ci = tci, wx = tx, wy = ty } or nil,
-          text = sformat(L["GPS_STEP_TRAVEL_FMT"], dest.name or "?") },
+          text = sformat(L[noWay and "GPS_STEP_NO_WAY_FMT" or "GPS_STEP_TRAVEL_FMT"], dest.name or "?") },
     }, sec
 end
 
@@ -710,7 +712,8 @@ TrackStep = function(index)
     route.stepCi = PlayerWorldPos()
     -- The game's pin, at this step's end only: the beacon stands on it.
     local MapSearch = ns.MapSearch
-    local mapID, x, y = WaypointPoint(step)
+    local mapID, x, y
+    if not step.noWay then mapID, x, y = WaypointPoint(step) end
     if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
         if not route.untracked and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then

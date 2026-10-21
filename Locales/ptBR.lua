@@ -422,6 +422,7 @@ L["GPS_TAB_TT"]                         = "Direções até uma zona ou ponto de 
 L["GPS_EMPTY"]                          = "Nenhuma rota ainda. Clique com o botão direito em uma zona ou ponto de interesse nos resultados para navegar até lá."
 L["GPS_TO_FMT"]                         = "Para %s"
 L["GPS_STEP_TRAVEL_FMT"]                = "Viajar para %s"
+L["GPS_STEP_NO_WAY_FMT"]                = "Nenhum caminho encontrado daqui até %s"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "Atravessar %s até %s"
 L["GPS_STEP_EXIT_FMT"]                  = "Sair de %s"
 L["GPS_STEP_REACH_FMT"]                 = "Chegue a: %s"

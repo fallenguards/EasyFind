@@ -240,7 +240,7 @@ function Follow.Now()
     if not (route and route.steps and not route.arrived) then return nil end
     local index = route.active or 1
     local step = route.steps[index]
-    if not step or step.kind == "teleport" or (UnitOnTaxi and UnitOnTaxi("player")) then return nil end
+    if not step or step.kind == "teleport" or step.noWay or (UnitOnTaxi and UnitOnTaxi("player")) then return nil end
     local ci, px, py = ns.GPS.PlayerWorldPos()
     local tci, tx, ty = World(step.go or step.arrive)
     -- On board a crossing: what is left is the ride to where it lands.

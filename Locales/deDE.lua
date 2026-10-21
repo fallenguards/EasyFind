@@ -424,6 +424,7 @@ L["GPS_TAB_TT"]                         = "Wegbeschreibung zu einer Zone oder ei
 L["GPS_EMPTY"]                          = "Noch keine Route. Rechtsklicke in den Ergebnissen auf eine Zone oder einen Ort, um dorthin zu navigieren."
 L["GPS_TO_FMT"]                         = "Nach %s"
 L["GPS_STEP_TRAVEL_FMT"]                = "Reise nach %s"
+L["GPS_STEP_NO_WAY_FMT"]                = "Kein Weg von hier nach %s gefunden"
 L["GPS_STEP_WALK_THROUGH_FMT"]          = "Geh durch %s nach %s"
 L["GPS_STEP_EXIT_FMT"]                  = "Verlasse %s"
 L["GPS_STEP_REACH_FMT"]                 = "Erreiche: %s"
