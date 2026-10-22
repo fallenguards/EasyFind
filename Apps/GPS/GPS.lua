@@ -1730,10 +1730,12 @@ local function StepRow(container, i)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     -- The menus' own rounded hover wash, not a flat square.
     Utils.InstallMenuRowHighlight(row)
+    -- Numbers start at the list's left edge, where the From and danger
+    -- lines start too; the text column sits after the number's box.
     row.num = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.num:SetPoint("LEFT", row, "LEFT", 6, 0)
     row.num:SetWidth(18)
-    row.num:SetJustifyH("RIGHT")
+    row.num:SetJustifyH("LEFT")
     row.num._efOwnColor = true
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text._efOwnColor = true
@@ -2053,6 +2055,7 @@ local function Render(container)
         for i = 1, #rows do rows[i]:Hide() end
         for i = 1, #(container.tips or {}) do container.tips[i]:Hide() end
         if container.fromRow then container.fromRow:Hide() end
+        if container.dangerLine then container.dangerLine:Hide() end
         container.list:SetHeight(1)
         container.contentHeight = 0
         if container.search then container.search:Show() end
