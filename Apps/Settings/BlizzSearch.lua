@@ -3466,6 +3466,7 @@ local function CanvasRows(cat, addon)
     end
     return rows, frame
 end
+BlizzOptionsSearch.CanvasRows = CanvasRows   -- dev probe
 local canvasPushed = {}
 local function PushCanvasRows(data, cat, addon)
     local rows, frame = CanvasRows(cat, addon)
