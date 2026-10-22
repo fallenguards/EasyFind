@@ -47,6 +47,14 @@ local function EnsurePopup(name)
     -- label, never to a guess.
     popup.measure = popup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     popup.measure:Hide()
+    -- Rows wear the font the flyouts (cursor menus) wear: the results'
+    -- title font at the Font setting, so a popup and its flyout read alike.
+    popup.MenuFont = function(fs)
+        local Results = ns.Results
+        if not (Results and Results.SetScaledFont) then return end
+        local theme = Results.GetActiveTheme and Results:GetActiveTheme()
+        Results:SetScaledFont(fs, (theme and theme.pathFont) or ns.LEAF_FONT)
+    end
     -- The search bar's and results' outside-click closers consult the
     -- shared guard registry; without this, a click on a row here would
     -- close the bar underneath.
@@ -251,6 +259,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     -- Width fits the widest label plus its check or bullet column; an
     -- opts.width is only ever a minimum.
     local widest = 0
+    popup.MenuFont(popup.measure)
     for _, def in ipairs(defs) do
         if def.kind ~= "separator" then
             popup.measure:SetText(def.label or "")
@@ -340,6 +349,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
                 end
             end
             row.def = def
+            popup.MenuFont(row.label)
             row.label:SetText(def.label or "")
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD, y)
