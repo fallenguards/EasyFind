@@ -2,7 +2,7 @@
 ## Title: EasyFind [Calculator]
 ## Notes: Inline and popup calculator companion for EasyFind
 ## Author: justawower
-## Version: 4.0.0-beta1
+## Version: 4.0.0
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI

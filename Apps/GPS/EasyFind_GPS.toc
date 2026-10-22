@@ -2,7 +2,7 @@
 ## Title: EasyFind [GPS]
 ## Notes: GPS companion for EasyFind: step by step directions to any zone or point of interest
 ## Author: justawower
-## Version: 4.0.0-beta1
+## Version: 4.0.0
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI

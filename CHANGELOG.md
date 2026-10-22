@@ -4,13 +4,9 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
-## [4.0.0-beta1] - 2026-10-22
+## [4.0.0] - 2026-10-22
 
 ### Added
-- **Addon settings in the search bar**: every addon's settings, from the game's settings panel, from AceConfig options tables and from EasyFind's own panel, each changed on its row: a check box, a slider, a drop-down or a button, with Alt-click opening where it lives; other addons feed the settings of their own windows through the API
-- **Extensions**: a row says what its click does on hover, carries the extension's data in its EasyFind link, has a menu of its own on right-click, lists only what it chooses when its @scope is empty, and is found from the map search and the GPS window when it knows where it is
-- **GPS**: a border for the caption under the arrow, in the settings and the caption's menu; creatures as a filter in both map searches, off until picked
-- **Notes**: the window's border is a choice, EasyFind's line or the theme's own frame art
 - **GPS**: directions to any place EasyFind can find. Plan a route from where you stand, or from any start, and it works out flights, boats, zeppelins, the tram, portals, teleports and the hearthstone, then walks the rest. The steps show in a small window, on the map's GPS page or as a section in the objective tracker; an arrow at your character leads along the walk, the route draws on the map and the minimap, and a beacon marks where the current step leads. A trip can take several stops, you can search along the route, share a route as a link, and a red line warns when the route crosses creatures far above your level. On WoW Forever, Classic Era and TBC Anniversary, walks follow a baked walking grid of the world: around cliffs and water, down the ledges your character can take, and around dangerous ground when you ask
 - **Notes**: a companion for notes that know where they apply. Notes for places, activities, classes, targets and players show in tooltips, on names in chat, or open by themselves; checklists the game ticks off; tags, a trash with undo, share codes, and Ctrl+Right-click on any item or spell for its note
 - **Chat**: a messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat and searched from the bar
@@ -18,9 +14,13 @@ All notable changes to EasyFind will be documented in this file.
 - **Quicklists**: named result lists on a key, pressed or held, and a macro that opens one from an action bar
 - **Creatures on the map search**: named creatures found by name, title, service or what they sell, each on its nearest spot and with their portrait; "repair", "food" or "ammo" finds who offers it
 - **Classic Era and TBC Anniversary**: EasyFind runs on both, with the Skills tab searchable and everything the client lacks kept out of the results
+- **Addon settings in the search bar**: every addon's settings, from the game's settings panel, from AceConfig options tables and from EasyFind's own panel, each changed on its row: a check box, a slider, a drop-down or a button, with Alt-click opening where it lives; other addons feed the settings of their own windows through the API
 - **Extensions API**: other addons register search results, extensions, settings pages and actions through EasyFind.API, with a developer guide and an example extension
+- **Extensions**: a row says what its click does on hover, carries the extension's data in its EasyFind link, has a menu of its own on right-click, lists only what it chooses when its @scope is empty, and is found from the map search and the GPS window when it knows where it is
 - **Themes**: Theme Studio gives each window its own look; a Classic theme and a Forever theme in the 1.x style; the extensions menu arranges by drag and pops an extension out from a right-click
 - **Create macro**: on any result's menu, a macro that does it lands on your cursor for any action bar
+- **GPS**: a border for the caption under the arrow, in the settings and the caption's menu; creatures as a filter in both map searches, off until picked
+- **Notes**: the window's border is a choice, EasyFind's line or the theme's own frame art
 
 ### Changed
 - Per-character settings are keyed by the full name, so WoW Forever surnames stay apart

@@ -2,7 +2,7 @@
 ## Title: EasyFind [Quicklists]
 ## Notes: Quicklists companion for EasyFind: named lists of results on a key, pressed or held
 ## Author: justawower
-## Version: 4.0.0-beta1
+## Version: 4.0.0
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI
