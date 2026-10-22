@@ -5766,7 +5766,9 @@ function Builders.MakeFindInput(parent, placeholderText)
     ph:SetJustifyH("LEFT")
     ph:SetWordWrap(false)
     ph:SetText(placeholderText)
-    ph:SetTextColor(0.46, 0.46, 0.5, 1)
+    -- Light enough on a dark inset, and no shadow to smear it.
+    ph:SetTextColor(0.66, 0.66, 0.70, 1)
+    ph:SetShadowColor(0, 0, 0, 0)
     edit.placeholder = ph
     edit:SetScript("OnTextChanged", function(self)
         self.placeholder:SetShown((self:GetText() or "") == "")
