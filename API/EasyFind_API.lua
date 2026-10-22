@@ -82,6 +82,12 @@ function kit.Choice(page, label, choices, get, set, tooltip, default) end
 ---@return Frame
 function kit.Stepper(page, label, min, max, step, get, set, tooltip, width) end
 
+---@class EasyFindSettingsRow
+---@field name string The setting's label.
+---@field path? string|string[] Where it sits in your window.
+---@field keywords? string[] More words that find it.
+---@field open fun() Shows your window at it.
+
 ---@class EasyFindDialog
 ---@field text string
 ---@field acceptText? string
@@ -168,6 +174,13 @@ function API.OpenSettings(id) end
 ---@return boolean
 function API.IsSettingsOpen(id) end
 function API.CloseSettings() end
+---Settings of your own window, found from the search bar.
+---@param addon string Your name as the game's AddOns list shows it.
+---@param rows fun(): EasyFindSettingsRow[]
+---@return boolean
+function API.RegisterSettingsIndex(addon, rows) end
+---Its rows changed: read again.
+function API.RefreshSettingsIndex(addon) end
 
 -- ==== chat ====================================================================
 

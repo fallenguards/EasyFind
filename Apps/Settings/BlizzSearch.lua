@@ -3469,6 +3469,7 @@ end
 BlizzOptionsSearch.CanvasRows = CanvasRows   -- dev probe
 local canvasPushed = {}
 local function PushCanvasRows(data, cat, addon)
+    if ns.settingsFeeds and ns.settingsFeeds[addon] then return false end
     local rows, frame = CanvasRows(cat, addon)
     if not rows then return false end
     local added = false
@@ -3512,6 +3513,70 @@ local function PushCanvasEntries(data)
     return added
 end
 
+-- Rows other addons feed us (API.RegisterSettingsIndex): settings of
+-- their own windows, each opened by its row's open(). Never cached.
+local feedRows = {}
+local function FeedPath(addon, path)
+    local out = { addon .. " " .. (_G["SETTINGS"] or "Settings") }
+    if type(path) == "string" and path ~= "" then
+        out[2] = path
+    elseif type(path) == "table" then
+        for i = 1, #path do out[#out + 1] = tostring(path[i]) end
+    end
+    return out
+end
+local function PullFeed(data, addon, rows)
+    local ok, list = xpcall(rows, Utils.ErrorHandler)
+    if not ok or type(list) ~= "table" then return false end
+    local old = feedRows[addon]
+    if old then
+        local kept = 0
+        for i = 1, #data do
+            if not old[data[i]] then
+                kept = kept + 1
+                data[kept] = data[i]
+            end
+        end
+        for i = #data, kept + 1, -1 do data[i] = nil end
+    end
+    local mine = {}
+    for _, r in ipairs(list) do
+        if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and type(r.open) == "function" then
+            local nameLower = SearchLower(r.name)
+            local keywords = { "addon", "setting", "option", nameLower, SearchLower(addon) }
+            for _, w in ipairs(type(r.keywords) == "table" and r.keywords or {}) do
+                keywords[#keywords + 1] = SearchLower(tostring(w))
+            end
+            local e = setmetatable({
+                name = r.name, nameLower = nameLower, keywords = keywords,
+                steps = { { open = r.open } }, addon = addon,
+            }, GetSettingsCatMT("AddOn Settings", nil, nil, FeedPath(addon, r.path)))
+            mine[e] = true
+            tinsert(data, e)
+        end
+    end
+    feedRows[addon] = mine
+    return true
+end
+local function PushFeedEntries(data, only)
+    local changed = false
+    for addon, rows in pairs(ns.settingsFeeds or {}) do
+        if only and only == addon or not only and not feedRows[addon] then
+            if PullFeed(data, addon, rows) then changed = true end
+        end
+    end
+    return changed
+end
+
+-- A feed registered or changed after the index was built.
+local populated = false
+function BlizzOptionsSearch:PullSettingsFeed(addon)
+    if not (populated and ns.Database and ns.Database.uiSearchData) then return end
+    if PushFeedEntries(ns.Database.uiSearchData, addon) and ns.Database.ResetSearchCache then
+        ns.Database:ResetSearchCache()
+    end
+end
+
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     if not ns.Database or not ns.Database.uiSearchData then return end
     local data = ns.Database.uiSearchData
@@ -3520,7 +3585,10 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     -- the settings-tree walk when the cache signature still matches. Live game
     -- settings always take the full walk.
     if not includeLiveGameSettings and RestoreOptionsFromCache(data) then
-        if PushCanvasEntries(data) and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
+        local changed = PushCanvasEntries(data)
+        if PushFeedEntries(data) then changed = true end
+        if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
+        populated = true
         return
     end
 
@@ -3531,6 +3599,8 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
 
     local changed = PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
     if PushCanvasEntries(data) then changed = true end
+    if PushFeedEntries(data) then changed = true end
+    populated = true
 
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
 
@@ -3558,6 +3628,8 @@ end
 
 function BlizzOptionsSearch:HandleStep(step)
     if not step then return false end
+    -- A setting of an addon's own window (API.RegisterSettingsIndex).
+    if step.open then return (xpcall(step.open, Utils.ErrorHandler)) end
     -- OpenSettingsPanel is protected in combat; silently decline unless
     -- the panel is already open (in-panel category navigation is fine).
     if InCombatLockdown() and not (SettingsPanel and SettingsPanel:IsShown()) then

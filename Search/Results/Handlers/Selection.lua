@@ -440,8 +440,9 @@ function Handlers:SelectResult(data, forceGuide)
     -- directly; Guide walks the real path (Game Menu -> Options via the
     -- user's own clicks), then hands the open panel to the settings
     -- machinery for category/control navigation.
-    if data.steps and data.steps[1] and data.steps[1].settingsCategory then
-        if forceGuide then
+    local firstStep = data.steps and data.steps[1]
+    if firstStep and (firstStep.settingsCategory or firstStep.open) then
+        if forceGuide and firstStep.settingsCategory then
             local settingsStep = data.steps[1]
             EasyFind:StartGuide({
                 name = data.name,

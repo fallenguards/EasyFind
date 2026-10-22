@@ -31,6 +31,12 @@ local function AddonSubFilters()
             names[#names + 1] = name
         end
     end
+    for name in pairs(ns.settingsFeeds or {}) do
+        if not seen[name] then
+            seen[name] = true
+            names[#names + 1] = name
+        end
+    end
     table.sort(names)
     local out = {}
     for i = 1, #names do

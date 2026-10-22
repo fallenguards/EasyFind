@@ -322,6 +322,21 @@ end,
 | `IsSettingsOpen(id)` | |
 | `CloseSettings()` | |
 
+### Your settings in the search bar
+
+Settings that live in the game's Settings panel are found from the search bar as they are, under AddOn Options. Settings in a window of your own are found too once `RegisterSettingsIndex(addon, rows)` hands EasyFind their names:
+
+```lua
+EasyFind.API.RegisterSettingsIndex("Hello", function()
+    return {
+        { name = "Show the zone", path = "Bookmarks", keywords = { "map" },
+          open = function() HelloOptions:Open("bookmarks", "showZone") end },
+    }
+end)
+```
+
+`rows()` is read when the search first needs it. Each row names one setting (`name`), where it sits in your window (`path`, a string or a list of names, shown under the row), more words that find it (`keywords`) and `open()`, which shows your window at it. Pass the name the game's AddOns list shows for you: one filter row then covers both. `RefreshSettingsIndex(addon)` reads the rows again after they change.
+
 ## Beside the chat
 
 A button or opener you place beside the game's chat goes with it when the user hides the chat through EasyFind's "Toggle Chat Frame" entry: `RegisterChatPiece(frame)` hides and shows it along with the chat frames, and hides it right away when the chat is already hidden.

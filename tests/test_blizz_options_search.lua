@@ -231,5 +231,44 @@ function tests.windowToggleBindingYieldsToTheWindowsEntry()
     H.assertNil(Row("TOGGLEMUSIC").available, "other bindings left alone")
 end
 
+function tests.settingsFeedRowsOpenThroughTheirOwnFunction()
+    local ns = loadOptionsSearch()
+    local opened = 0
+    ns.settingsFeeds = {
+        ["ClassicUI Forever"] = function()
+            return {
+                { name = "Border thickness", path = { "Chat" }, keywords = { "edge" },
+                  open = function() opened = opened + 1 end },
+                { name = "", open = function() end },
+                { name = "No opener" },
+            }
+        end,
+    }
+    local function Rows()
+        local out = {}
+        for _, e in ipairs(ns.Database.uiSearchData) do
+            if e.addon == "ClassicUI Forever" then out[#out + 1] = e end
+        end
+        return out
+    end
+    ns.BlizzOptionsSearch:Populate(false)
+    local rows = Rows()
+    H.assertEq(#rows, 1, "only rows with a name and an opener")
+    H.assertEq(rows[1].category, "AddOn Settings")
+    H.assertEq(rows[1].path[2], "Chat")
+    H.assertTrue(hasKeyword(rows[1], "edge"), "its keywords")
+    H.assertTrue(hasKeyword(rows[1], "classicui forever"), "its addon's name")
+    H.assertTrue(ns.BlizzOptionsSearch:HandleStep(rows[1].steps[1]), "handled")
+    H.assertEq(opened, 1, "opened through its own function")
+
+    ns.settingsFeeds["ClassicUI Forever"] = function()
+        return { { name = "Bubbles", open = function() end } }
+    end
+    ns.BlizzOptionsSearch:PullSettingsFeed("ClassicUI Forever")
+    rows = Rows()
+    H.assertEq(#rows, 1, "a second pull replaces the addon's rows")
+    H.assertEq(rows[1].name, "Bubbles")
+end
+
 local pass, fail, failures = H.runSuite("BlizzOptionsSearch", tests)
 return { pass = pass, fail = fail, failures = failures }

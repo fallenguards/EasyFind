@@ -644,3 +644,23 @@ end
 function API.CloseSettings()
     if ns.Options and ns.Options.Hide then ns.Options:Hide() end
 end
+
+-- Your own window's settings, found from the search bar: rows() returns
+-- a list of { name, path, keywords, open }. name is the setting's label,
+-- path where it sits in your window (a string or a list of names),
+-- keywords more words that find it, open() shows your window at it.
+-- Read when the search first needs it. addon is your name as the game's
+-- AddOns list shows it, so one filter row covers both.
+function API.RegisterSettingsIndex(addon, rows)
+    if type(addon) ~= "string" or addon == "" then Fail("RegisterSettingsIndex", "addon must be a name") end
+    if type(rows) ~= "function" then Fail("RegisterSettingsIndex", "rows must be a function") end
+    ns.settingsFeeds = ns.settingsFeeds or {}
+    ns.settingsFeeds[addon] = rows
+    if ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.PullSettingsFeed then ns.BlizzOptionsSearch:PullSettingsFeed(addon) end
+    return true
+end
+
+-- Its rows changed: read again.
+function API.RefreshSettingsIndex(addon)
+    if ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.PullSettingsFeed then ns.BlizzOptionsSearch:PullSettingsFeed(addon) end
+end

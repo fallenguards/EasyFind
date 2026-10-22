@@ -4964,6 +4964,26 @@ function Options:RefreshExtensionPages()
 end
 
 -- For the sidebar search: every page's controls, with the page they sit on.
+-- The panel's own settings as search bar rows (API.RegisterSettingsIndex):
+-- the sidebar search's index, each row opening the panel at its control.
+function Options:SettingsIndexRows()
+    self:Initialize()
+    if not (optionsFrame and optionsFrame.SettingsIndex) then return nil end
+    local rows = {}
+    for _, hit in ipairs(optionsFrame.SettingsIndex()) do
+        local path = { optionsFrame.TabName(hit.tab) }
+        if hit.pageName then path[2] = hit.pageName end
+        rows[#rows + 1] = {
+            name = hit.label, path = path,
+            open = function()
+                Options:Show()
+                optionsFrame.JumpToSetting(hit)
+            end,
+        }
+    end
+    return rows
+end
+
 function Options:ExtensionPageFrames()
     if not extensionsTab then return {} end
     EnsureAllExtensionPages()
@@ -6012,6 +6032,14 @@ function Options:Initialize()
             end
         end
         optionsFrame.InvalidateSettingsIndex = function() index = nil end
+        optionsFrame.SettingsIndex = function()
+            if not index then BuildIndex() end
+            return index
+        end
+        optionsFrame.TabName = function(i)
+            local btn = tabButtons[i]
+            return btn and btn.label and btn.label:GetText() or ""
+        end
 
         local results = CreateFrame("Frame", "EasyFindSettingsSearchResults", UIParent, "BackdropTemplate")
         results._efSurface = "options"
@@ -6040,6 +6068,7 @@ function Options:Initialize()
             end
             FlashFrame(hit.target)
         end
+        optionsFrame.JumpToSetting = Jump
         local function PaintSelection()
             for i, row in ipairs(results.rows) do
                 if row:IsShown() and row.SetMenuHighlightFocused then
