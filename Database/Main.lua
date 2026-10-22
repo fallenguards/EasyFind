@@ -1551,6 +1551,7 @@ local function RebuildLootSearchData()
         end
     end
     lootSearchDataHydrated = true
+    EasyFind.API.Fire("loot", "changed")
 end
 
 local DIFF_PRIORITY = { "mythic", "heroic", "normal", "lfr" }
@@ -1647,6 +1648,41 @@ function Database:GetLootItemLink(entry)
     end
     return nil
 end
+
+-- The loot actions other extensions call (EasyFind.API, id "loot"): a
+-- load that calls back once the provider is in, the cached drops as
+-- plain copies, the link a row shows, and the row's own click. The
+-- "changed" event follows every rebuild and a difficulty change.
+EasyFind.API.RegisterAction("loot", "ensure", function(fn)
+    return Database:EnsureDynamicProviderLoaded("loot", type(fn) == "function" and fn or nil)
+end)
+EasyFind.API.RegisterAction("loot", "entries", function()
+    if not Corpora.HasLootCache() then return nil end
+    if Corpora.lootCorpus and Corpora.lootItemRi then
+        for itemID, ri in pairs(Corpora.lootItemRi) do
+            if rawget(lootItemCache, itemID) == nil then lootItemCache[itemID] = Corpora.lootCorpus:StubAt(ri) end
+        end
+    end
+    local out = {}
+    for itemID, e in pairs(lootItemCache) do
+        local links = {}
+        for k, v in pairs(e.lootItemLinks or {}) do links[k] = v end
+        out[#out + 1] = { itemID = itemID, name = e.name, icon = e.icon, slotName = e.lootSlotName, links = links,
+            bossName = e.lootSourceName, encounterID = e.encounterID, instanceName = e.lootInstanceName,
+            instanceID = e.instanceID, isRaid = e.lootSourceType == "Raid" }
+    end
+    return out
+end)
+EasyFind.API.RegisterAction("loot", "link", function(itemID)
+    local e = itemID and lootItemCache[itemID]
+    return e and Database:GetLootItemLink(e) or nil
+end)
+EasyFind.API.RegisterAction("loot", "open", function(itemID)
+    local e = itemID and lootItemCache[itemID]
+    if not (e and ns.ResultHandlers and ns.ResultHandlers.OpenLootSource) then return false end
+    ns.ResultHandlers:OpenLootSource(e, true)
+    return true
+end)
 
 -- Loot entries whose stats weren't in the client cache when we tried
 -- to enrich them. GET_ITEM_INFO_RECEIVED retries these once the server

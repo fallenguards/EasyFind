@@ -283,6 +283,11 @@ What EasyFind's own extensions offer:
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |
+| `loot` | `ensure(fn)` | Loads the loot rows and calls `fn()` once they are in (at once when they are). Returns false on a client without loot. |
+| `loot` | `entries()` | A fresh list of the cached drops, one table each: `{ itemID, name, icon, slotName, links = { [difficulty] = itemLink }, bossName, encounterID, instanceName, instanceID, isRaid }`. Nil before `ensure`. |
+| `loot` | `link(itemID)` | The item link EasyFind's own loot row shows for it (the chosen difficulty, then the best known), or nil when it is not a cached drop. |
+| `loot` | `open(itemID)` | What a plain click on that loot row does: its boss's journal page, or directions to the instance on WoW Forever. Returns true when the item is a cached drop. |
+| `loot` | event `changed` | Fired after the drops are rebuilt (a scan finished) and when the loot difficulty choice changes. |
 | `notes` | `openUnitNote(entry)` | Opens the note on a player or thing: `{ type = "player", id = "Name-Realm", name = "Name" }`. |
 | `notes` | `findUnitNote(entry)` | Whether there is one. |
 | `notes` | `insertText(text)` | Puts text into the open note at its cursor. |

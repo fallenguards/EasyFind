@@ -94,7 +94,11 @@ function Filters:AttachLootOptionsFlyout(row, dropdown, ctx)
         width = LOOT_POPUP_WIDTH - LOOT_POPUP_PAD * 2,
         options = DIFF_OPTIONS,
         getValue = function() return EasyFind.db.lootDifficulty or "normal" end,
-        setValue = function(v) EasyFind.db.lootDifficulty = v end,
+        setValue = function(v)
+            EasyFind.db.lootDifficulty = v
+            -- The link a loot row shows follows the difficulty: listeners re-rate.
+            EasyFind.API.Fire("loot", "changed")
+        end,
         formatLabel = function(_, optLabel) return optLabel or (_G["PLAYER_DIFFICULTY1"] or "Normal") end,
         onChange = function() Filters:ApplyFilterSelection("loot") end,
         stylePopup = StylePopup,

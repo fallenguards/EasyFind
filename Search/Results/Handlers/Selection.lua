@@ -233,6 +233,44 @@ local function OpenProfessionTarget(data)
     OpenPageOrBook(openID)
 end
 
+-- Where a loot item drops: on retail its boss's journal page, on WoW
+-- Forever directions to the instance (its link into chat when the
+-- instance is not placed). useFast goes straight there; else the guide
+-- walks it. The loot "open" action other extensions call lands here too.
+function Handlers:OpenLootSource(data, useFast)
+    if not (ns.Caps and ns.Caps.journal) then
+        for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
+            if e.id == data.instanceID and EasyFind.API.HasAction("gps", "navigate") then
+                EasyFind.API.CallAction("gps", "navigate", { name = data.lootInstanceName or e.n, mapID = e.m,
+                    x = e.x, y = e.y, isDungeonEntrance = true, category = e.raid and "raid" or "dungeon" })
+                return
+            end
+        end
+        local lootLink = ns.Database and ns.Database:GetLootItemLink(data)
+        if lootLink and ChatEdit_InsertLink then ChatEdit_InsertLink(lootLink) end
+        return
+    end
+    -- The journal's loot filter synced first, so the item is in view there.
+    if ns.Database then ns.Database:SyncEJLootFilter() end
+    local tabIndex = data.lootSourceType == "Raid" and 5 or 4
+    local ejDiffID = ns.Database and ns.Database:GetEJDifficultyID(data.lootSourceType)
+    local guideData = {
+        steps = {
+            { buttonFrame = "EJMicroButton" },
+            { waitForFrame = "EncounterJournal", tabIndex = tabIndex },
+            { waitForFrame = "EncounterJournal", ejInstance = data.lootInstanceName, ejInstanceID = data.instanceID },
+            { waitForFrame = "EncounterJournal", ejBoss = data.lootSourceName, ejEncounterID = data.encounterID },
+            { waitForFrame = "EncounterJournal", ejLootTab = true, ejDifficultyID = ejDiffID },
+            { waitForFrame = "EncounterJournal", ejLootItem = data.itemID, ejLootItemName = data.name },
+        },
+    }
+    if useFast then
+        self:DirectOpen(guideData)
+    else
+        EasyFind:StartGuide(guideData)
+    end
+end
+
 function Handlers:SelectResult(data, forceGuide)
     if not data then return end
     -- The search UI is dormant in combat, so no user path reaches this;
@@ -496,7 +534,7 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
-    -- Loot: Ctrl+click opens dressing room, regular click navigates EJ
+    -- Loot: the preview gesture dresses it, the plain click goes to its source.
     if data.itemID and data.category == "Loot" then
         local lootLink = ns.Database and ns.Database:GetLootItemLink(data)
         if Handlers:IsSourceCtrlHeld(data) and lootLink then
@@ -504,42 +542,7 @@ function Handlers:SelectResult(data, forceGuide)
                 return
             end
         end
-
-        -- No journal (WoW Forever): directions to the instance that drops it.
-        if not (ns.Caps and ns.Caps.journal) then
-            for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
-                if e.id == data.instanceID and EasyFind.API.HasAction("gps", "navigate") then
-                    EasyFind.API.CallAction("gps", "navigate", { name = data.lootInstanceName or e.n, mapID = e.m,
-                        x = e.x, y = e.y, isDungeonEntrance = true, category = e.raid and "raid" or "dungeon" })
-                    return
-                end
-            end
-            if lootLink and ChatEdit_InsertLink then ChatEdit_InsertLink(lootLink) end
-            return
-        end
-
-        -- Sync EJ loot filter so the item is visible when we navigate there
-        if ns.Database then ns.Database:SyncEJLootFilter() end
-
-        local isRaid = data.lootSourceType == "Raid"
-        local tabIndex = isRaid and 5 or 4
-        local ejDiffID = ns.Database and ns.Database:GetEJDifficultyID(data.lootSourceType)
-        local guideData = {
-            steps = {
-                { buttonFrame = "EJMicroButton" },
-                { waitForFrame = "EncounterJournal", tabIndex = tabIndex },
-                { waitForFrame = "EncounterJournal", ejInstance = data.lootInstanceName, ejInstanceID = data.instanceID },
-                { waitForFrame = "EncounterJournal", ejBoss = data.lootSourceName, ejEncounterID = data.encounterID },
-                { waitForFrame = "EncounterJournal", ejLootTab = true, ejDifficultyID = ejDiffID },
-                { waitForFrame = "EncounterJournal", ejLootItem = data.itemID, ejLootItemName = data.name },
-            },
-        }
-
-        if useFast then
-            self:DirectOpen(guideData)
-        else
-            EasyFind:StartGuide(guideData)
-        end
+        self:OpenLootSource(data, useFast)
         return
     end
 
