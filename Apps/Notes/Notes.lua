@@ -8843,11 +8843,32 @@ function notesNS.InsertAtCursor(text)
 end
 
 -- The window's lock (no drag, no resize) and its border, as set.
+-- The window's border by its setting: none, the line, or the theme's own
+-- frame art where it has one (the line where it has none).
 function UI:ApplyEasyNotesWindowLook()
     local frame, db = UI._notes.frame, NormalizeDB()
     if not frame then return end
     if frame.resizeGrip then frame.resizeGrip:SetShown(not db.locked) end
-    if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, db.border ~= false) end
+    local on = db.border ~= false
+    local iron = on and db.borderStyle == "iron"
+    frame._efForeverSurface, frame._efClassicSurface = iron or nil, iron or nil
+    frame._efSkinOff, frame._efSkinForced = (not iron) or nil, iron or nil
+    local dressed = ns.ApplySkin ~= nil and ns.ApplySkin(frame)
+    if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, on and not dressed) end
+    if ns.SetRoundedRectBarHeight then ns.SetRoundedRectBarHeight(frame, dressed and 2 or 14) end
+end
+
+-- The border row's choices and value, the iron only where the theme has it.
+local function NotesBorderChoices()
+    local t = { { label = _G["OFF"] or "Off", value = "off" }, { label = L["GPS_BORDER_LINE"], value = "line" } }
+    if ns.ThemeHasChrome and ns.ThemeHasChrome() then t[#t + 1] = { label = L["GPS_BORDER_IRON"], value = "iron" } end
+    return t
+end
+local function NotesBorderValue()
+    local db = NormalizeDB()
+    if db.border == false then return "off" end
+    if db.borderStyle == "iron" and ns.ThemeHasChrome and ns.ThemeHasChrome() then return "iron" end
+    return "line"
 end
 
 -- The extension's settings page: how the window sits and looks.
@@ -8873,10 +8894,10 @@ function notesNS.BuildSettingsPage(page, kit)
     local swatch = CreateFrame("Button", nil, colorRow)
     swatch:SetSize(18, 18)
     swatch:SetPoint("LEFT", colorRow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
-    if ns.CreateRoundedRectBorder then ns.CreateRoundedRectBorder(swatch) end
+    if ns.SquareOutline then ns.SquareOutline(swatch) end
     local fill = swatch:CreateTexture(nil, "ARTWORK")
-    fill:SetPoint("TOPLEFT", 2, -2)
-    fill:SetPoint("BOTTOMRIGHT", -2, 2)
+    fill:SetPoint("TOPLEFT", 1, -1)
+    fill:SetPoint("BOTTOMRIGHT", -1, 1)
     local function PaintSwatch()
         local c = UI:GetEasyNotesTooltipColor()
         fill:SetColorTexture(c.r, c.g, c.b, 1)
@@ -8897,13 +8918,21 @@ function notesNS.BuildSettingsPage(page, kit)
             UI:ApplyEasyNotesWindowLook()
         end, L["NOTES_LOCK_TT"])
     lock:SetPoint("TOPLEFT", colorRow, "BOTTOMLEFT", 0, -6)
-    local border = kit.Checkbox(page, L["NOTES_BORDER"],
-        function() return NormalizeDB().border ~= false end,
-        function(on)
-            NormalizeDB().border = Utils.OffOrNil(on)
+    local border = kit.Choice(page, L["NOTES_BORDER"], NotesBorderChoices(), NotesBorderValue,
+        function(v)
+            local db = NormalizeDB()
+            db.border = Utils.OffOrNil(v ~= "off")
+            db.borderStyle = v == "iron" and "iron" or nil
             UI:ApplyEasyNotesWindowLook()
-        end, L["NOTES_BORDER_TT"])
-    border:SetPoint("TOPLEFT", lock, "BOTTOMLEFT", 0, 0)
+        end, L["NOTES_BORDER_TT"], "line")
+    border:SetPoint("TOPLEFT", lock, "BOTTOMLEFT", 0, -2)
+    if ns.RegisterThemeCallback then
+        ns.RegisterThemeCallback(function()
+            if border.SetChoices then border:SetChoices(NotesBorderChoices()) end
+            if border.SetValue then border:SetValue(NotesBorderValue()) end
+            UI:ApplyEasyNotesWindowLook()
+        end)
+    end
     local resize = kit.Checkbox(page, L["NOTES_AUTO_RESIZE"],
         function() return NormalizeDB().autoResize and true or false end,
         function(on)
