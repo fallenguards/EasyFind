@@ -2126,6 +2126,7 @@ local function CreateSearchBox(parent)
         FitPlaceholder()
         editBox:HookScript("OnSizeChanged", FitPlaceholder)
         Utils.SafeAfter(0, FitPlaceholder)
+        editBox.FitPlaceholder = FitPlaceholder
     end
 
     -- WoW silently focuses visible EditBoxes after creation despite
@@ -2388,6 +2389,21 @@ local function BucketRows(parent, onChanged)
         end
         return rows
     end
+end
+
+-- The text size on the panel's chrome too: the search box and its
+-- placeholder, the empty hint, the footer's two labels.
+function MapTab.ScaleChrome(p)
+    local s = FontScale()
+    local box = p.searchBox
+    if box then
+        ScaleFont(box, "ChatFontSmall", s)
+        if box.Instructions then ScaleFont(box.Instructions, "GameFontDisableSmall", s) end
+        if box.FitPlaceholder then box.FitPlaceholder() end
+    end
+    if p.emptyMsg then ScaleFont(p.emptyMsg, "GameFontHighlight", s) end
+    if p.recentLabel then ScaleFont(p.recentLabel, "GameFontHighlightSmall", s) end
+    if p.expandLabel then ScaleFont(p.expandLabel, "GameFontHighlightSmall", s) end
 end
 
 -- The text size choices, one ticked.
@@ -2698,6 +2714,7 @@ local function CreatePanel(qmf)
         end
     end
     local function OnFontPicked()
+        MapTab.ScaleChrome(p)
         RefreshCurrentSearch()
         -- The GPS page's steps follow the same size.
         if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
@@ -2853,6 +2870,7 @@ local function CreatePanel(qmf)
     expandCheck:SetScript("OnShow", function(self)
         self:SetChecked(EasyFind.db.mapTabAutoExpand ~= false)
     end)
+    p.recentLabel, p.expandLabel = recentLabel, expandLabel
     expandCheck:SetScript("OnClick", function(self)
         EasyFind.db.mapTabAutoExpand = self:GetChecked() and true or false
         RefreshCurrentSearch()
@@ -2867,6 +2885,7 @@ local function CreatePanel(qmf)
     end)
     expandCheck:SetScript("OnLeave", GameTooltip_Hide)
     p.expandCheck = expandCheck
+    MapTab.ScaleChrome(p)
 
     return p
 end
