@@ -7210,7 +7210,8 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
             { isSeparator = true },
             { text = L["NOTES_AUTO_MENU"], submenu = function(t) return NoteWhen.MenuRows(note, t) end,
               submenuSearch = L["NOTES_TAG_SEARCH"], submenuLiveSearch = true, submenuMaxRows = 14 },
-            { text = L["NOTES_TIPS_MENU"], submenu = function() return NoteWhen.TipRows(note) end },
+            { text = L["NOTES_TIPS_MENU"], submenu = function(t) return NoteWhen.TipRows(note, t) end,
+              submenuSearch = L["NOTES_TIPS_SEARCH"], submenuLiveSearch = true, submenuMaxRows = 14 },
             { text = _G.CATEGORY, submenu = categoryRows },
             { text = L["NOTES_TAGS"], submenu = tagEditRows, submenuSearch = L["NOTES_TAG_FIND_ADD"], submenuMaxRows = 10 },
             { text = L["NOTES_MENU_CONTEXT"], submenu = contextRows },
@@ -7280,7 +7281,7 @@ end
 -- does then; its search finds anything this client can tell.
 do
     -- Its parts in one table: the file is near Lua's 200 locals.
-    local Auto = { FOUND_MAX = 40, NOW_MAX = 6, SEARCH_ROWS = 14 }
+    local Auto = { FOUND_MAX = 40, NOW_MAX = 6, SEARCH_ROWS = 14, TIP_ITEMS = 10, TIP_NPCS = 8 }
 
     function Auto.Label(e)
         local name = e.type == "item" and Fmt.ItemLabel(e.id, e.name) or (e.name or tostring(e.id))
@@ -7434,9 +7435,48 @@ do
         return rows
     end
 
+    -- A name typed: items from the catalog, scored as the main search scores
+    -- names, and creatures by name; each row adds one (or drops it again).
+    function Auto.TipsFound(note, typed)
+        local rows, q = {}, strtrim(typed)
+        local function AddRow(e)
+            rows[#rows + 1] = { text = Utils.sformat(L["NOTES_TIPS_ADD_FMT"], Auto.Label(e)), keepOpen = true,
+                icon = NoteHasShowsOn(note, CtxKey(e)) and MENU_CHECK_TEX or nil,
+                onClick = function() ToggleNoteShowsOn(note, e) Auto.Changed() end }
+        end
+        if ns.ItemSearch and ns.Database and ns.Database.ScoreName then
+            local hits = ns.ItemSearch:Search(q, function(nameLower, ql, qLen)
+                return ns.Database:ScoreName(nameLower, ql, qLen)
+            end)
+            for i = 1, mmin(hits and #hits or 0, Auto.TIP_ITEMS) do
+                local d = hits[i].data
+                local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(d.itemID)
+                AddRow({ type = "item", id = d.itemID, name = name or d.name })
+            end
+        end
+        local Npcs = ns.GPSNpcs
+        if Npcs and Npcs.Append then
+            local found, seen, n = {}, {}, 0
+            Npcs.Append(found, nil, q)
+            for i = 1, #found do
+                local poi = found[i]
+                if poi.npcID and not seen[poi.npcID] then
+                    seen[poi.npcID] = true
+                    n = n + 1
+                    if n > Auto.TIP_NPCS then break end
+                    AddRow({ type = "npc", id = poi.npcID, name = poi.name })
+                end
+            end
+        end
+        if #rows == 0 then rows[1] = { text = L["MAP_NO_MATCHES"], disabled = true } end
+        return rows
+    end
+
     -- The items, NPCs and players whose tooltip shows the note's line: the
-    -- item or spell on the cursor and the target to add.
-    function NoteWhen.TipRows(note)
+    -- ones it has, your target, the item or spell on the cursor, and a
+    -- search of the catalogs for anything else.
+    function NoteWhen.TipRows(note, typed)
+        if strtrim(typed or "") ~= "" then return Auto.TipsFound(note, typed) end
         local rows, have = {}, {}
         for _, s in ipairs(note.showsOn or {}) do
             rows[#rows + 1] = { text = Auto.Label(s), keepOpen = true, icon = MENU_CHECK_TEX,
@@ -7444,12 +7484,17 @@ do
             have[CtxKey(s)] = true
         end
         local added = false
-        for _, e in ipairs({ CursorObjectEntry() or false, TargetEntry() or false }) do
-            if e and not have[CtxKey(e)] then
-                added = true
-                rows[#rows + 1] = { text = Utils.sformat(L["NOTES_TIPS_ADD_FMT"], Auto.Label(e)), keepOpen = true,
-                    onClick = function() ToggleNoteShowsOn(note, e) Auto.Changed() end }
-            end
+        local target = TargetEntry()
+        if target and not have[CtxKey(target)] then
+            added = true
+            rows[#rows + 1] = { text = Utils.sformat(L["NOTES_TIPS_ADD_TARGET_FMT"], Auto.Label(target)), keepOpen = true,
+                onClick = function() ToggleNoteShowsOn(note, target) Auto.Changed() end }
+        end
+        local held = CursorObjectEntry()
+        if held and not have[CtxKey(held)] then
+            added = true
+            rows[#rows + 1] = { text = Utils.sformat(L["NOTES_TIPS_ADD_FMT"], Auto.Label(held)), keepOpen = true,
+                onClick = function() ToggleNoteShowsOn(note, held) Auto.Changed() end }
         end
         if not added then rows[#rows + 1] = { text = L["NOTES_PICK_UP"], disabled = true } end
         if note.showsOn and #note.showsOn > 0 then
