@@ -1504,6 +1504,84 @@ local function TagColor(key)
     return TAG_COLORS[(h % #TAG_COLORS) + 1]
 end
 
+-- A chip's key: a typed tag or a situation entry (a bar chip carries its
+-- key already); its color: the one set for it, a player's class color
+-- while that is on, else the tag's own.
+function NoteTags.ChipKey(t)
+    if type(t) == "string" then return "tag:" .. slower(t) end
+    return t.key or CtxKey(t)
+end
+function NoteTags.ChipColor(t)
+    local key = NoteTags.ChipKey(t)
+    local db = NormalizeDB()
+    local set = db.tagColors and db.tagColors[key]
+    if set then return set end
+    if type(t) == "table" and t.type == "player" and t.class and db.classColorTags ~= false then
+        local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[t.class]
+        if c then return { c.r, c.g, c.b } end
+    end
+    return TagColor(key)
+end
+
+-- A chip's right-click: its color from the wheel, the saved colors by
+-- name, saving the one it wears, or its own color again.
+function UI:ShowEasyNotesTagColorMenu(t, anchor)
+    local key, db = NoteTags.ChipKey(t), NormalizeDB()
+    local function Apply(c)
+        db.tagColors = db.tagColors or {}
+        db.tagColors[key] = c
+        UI:RefreshEasyNotesPalette()
+    end
+    local function Rows()
+        local rows = { { text = L["NOTES_COLOR_PICK"], onClick = function()
+            local c = NoteTags.ChipColor(t)
+            if ns.PickColor then ns.PickColor(c[1], c[2], c[3], function(r, g, b) Apply({ r, g, b }) end) end
+        end } }
+        local saved = db.savedColors or {}
+        if #saved > 0 then
+            rows[#rows + 1] = { isSeparator = true }
+            for _, s in ipairs(saved) do
+                rows[#rows + 1] = { text = Utils.sformat("|cff%02x%02x%02x%s|r", s[1] * 255, s[2] * 255, s[3] * 255, s.name),
+                    onClick = function() Apply({ s[1], s[2], s[3] }) end }
+            end
+        end
+        rows[#rows + 1] = { isSeparator = true }
+        rows[#rows + 1] = { text = L["NOTES_COLOR_SAVE"], onClick = function()
+            local c = NoteTags.ChipColor(t)
+            ns.ShowThemedDialog({ text = L["NOTES_COLOR_SAVE_NAME"], hasEditBox = true, maxLetters = 24,
+                acceptText = _G["SAVE"] or "Save",
+                onAccept = function(name)
+                    name = strtrim(name or "")
+                    if name == "" then return end
+                    db.savedColors = db.savedColors or {}
+                    for i = #db.savedColors, 1, -1 do
+                        if db.savedColors[i].name == name then tremove(db.savedColors, i) end
+                    end
+                    db.savedColors[#db.savedColors + 1] = { c[1], c[2], c[3], name = name }
+                end })
+        end }
+        if #saved > 0 then
+            rows[#rows + 1] = { text = L["NOTES_COLOR_FORGET"], submenu = function()
+                local f = {}
+                for i, s in ipairs(db.savedColors or {}) do
+                    f[#f + 1] = { text = s.name, onClick = function() tremove(db.savedColors, i) end }
+                end
+                return f
+            end }
+        end
+        if db.tagColors and db.tagColors[key] then
+            rows[#rows + 1] = { text = L["NOTES_COLOR_RESET"], onClick = function()
+                db.tagColors[key] = nil
+                UI:RefreshEasyNotesPalette()
+            end }
+        end
+        return rows
+    end
+    UI._notes._colorMenu = self:ShowEasyNotesMenu("EasyNotesColorMenu", Rows(), {
+        anchorFrame = anchor, point = "TOPLEFT", relativePoint = "BOTTOMLEFT", offsetX = 0, offsetY = -2,
+    })
+end
+
 
 local function NoteHasContext(note, key)
     if not (note and note.appliesIn) then return false end
@@ -1524,7 +1602,7 @@ local function ToggleNoteContext(note, entry)
             return
         end
     end
-    note.appliesIn[#note.appliesIn + 1] = { type = entry.type, id = entry.id, name = entry.name or tostring(entry.id) }
+    note.appliesIn[#note.appliesIn + 1] = { type = entry.type, id = entry.id, name = entry.name or tostring(entry.id), class = entry.class }
     note.updated = time()
 end
 
@@ -1547,7 +1625,7 @@ local function ToggleNoteShowsOn(note, entry)
             return
         end
     end
-    note.showsOn[#note.showsOn + 1] = { type = entry.type, id = entry.id, name = entry.name or tostring(entry.id) }
+    note.showsOn[#note.showsOn + 1] = { type = entry.type, id = entry.id, name = entry.name or tostring(entry.id), class = entry.class }
     note.updated = time()
 end
 
@@ -5093,6 +5171,7 @@ function UI:CloseEasyNotesOpenMenus()
     end
     hideIfShown(UI._notes._moreMenu)
     hideIfShown(UI._notes._filterMenu)
+    hideIfShown(UI._notes._colorMenu)
     return closed
 end
 
@@ -6391,12 +6470,12 @@ end
 -- nothing to act on, normal when list rows are selected (or a note is open in
 -- the editor view).
 -- The Delete key deletes the list's selection while the list shows one.
-local function WantsDeleteKey()
+function UI.WantsDeleteKey()
     local frame = UI._notes.frame
     return frame ~= nil and frame:IsShown() and UI._notes.paletteShown == true
         and next(UI._notes.paletteSelection) ~= nil
 end
-local function PressDeleteKey()
+function UI.PressDeleteKey()
     local ids = {}
     for k in next, UI._notes.paletteSelection do ids[#ids + 1] = k end
     if #ids == 0 then return false end
@@ -6410,7 +6489,7 @@ function UI:UpdateEasyNotesDeleteButton()
     if not btn then return end
     local enabled = next(UI._notes.paletteSelection) ~= nil
         or (not UI._notes.paletteShown and UI._notes.selectedID ~= nil)
-    if Utils.HoldKey then Utils.HoldKey("DELETE", WantsDeleteKey, PressDeleteKey) end
+    if Utils.HoldKey then Utils.HoldKey("DELETE", UI.WantsDeleteKey, UI.PressDeleteKey) end
     btn:SetEnabled(enabled)
     if btn.icon then
         if enabled then
@@ -7575,7 +7654,12 @@ function UI:GetEasyNotesContextChip(index)
     end
     chip.text = chip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     chip.text:SetPoint("CENTER")
-    chip:SetScript("OnClick", function(self)
+    chip:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    chip:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            if not self.isHere then UI:ShowEasyNotesTagColorMenu({ key = self.ctxKey }, self) end
+            return
+        end
         local fset = UI._notes.contextFilterSet or {}
         UI._notes.contextFilterSet = fset
         fset[self.ctxKey] = (not fset[self.ctxKey]) or nil
@@ -7668,7 +7752,7 @@ function UI:LayoutEasyNotesContextBar(matches)
             chip:ClearAllPoints()
             chip:SetPoint("LEFT", bar, "LEFT", x, 0)
             local active = fset[m.key] and true or false
-            local tc = TagColor(m.key)
+            local tc = NoteTags.ChipColor(m)
             if ns.SetRoundedRectFill then
                 if active then
                     ns.SetRoundedRectFill(chip, tc[1] * 0.62, tc[2] * 0.62, tc[3] * 0.62, 1, true)
@@ -7751,6 +7835,11 @@ do
         p.text = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         p.text:SetPoint("CENTER")
         p.text:SetWordWrap(false)
+        -- A right-click picks the chip's color.
+        p:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        p:SetScript("OnClick", function(self, button)
+            if button == "RightButton" and self.tag then UI:ShowEasyNotesTagColorMenu(self.tag, self) end
+        end)
         return p
     end
 
@@ -7840,7 +7929,8 @@ do
         for i = nShown, 1, -1 do
             local pill = pool[i]
             local t = tags[i]
-            local tc = TagColor(type(t) == "string" and ("tag:" .. slower(t)) or CtxKey(t))
+            pill.tag = t
+            local tc = NoteTags.ChipColor(t)
             if ns.SetRoundedRectFill then
                 ns.SetRoundedRectFill(pill, tc[1] * 0.34, tc[2] * 0.34, tc[3] * 0.34, 1, true)
             end

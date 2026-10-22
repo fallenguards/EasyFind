@@ -26,6 +26,7 @@ local function Pill()
     function p:Show() self.shown = true end
     function p:Hide() self.shown = false end
     function p:SetScript() end
+    function p:RegisterForClicks() end
     function p:SetHeight() end
     function p:CreateFontString() return Text() end
     return p
@@ -41,7 +42,7 @@ local function Load()
     local env = setmetatable({
         UI = UI, ns = {}, mmin = math.min, mmax = math.max, slower = string.lower,
         CreateFrame = function() return Pill() end,
-        TagColor = function() return { 0.5, 0.5, 0.5 } end,
+        NoteTags = { ChipColor = function() return { 0.5, 0.5, 0.5 } end },
         CtxKey = function(t) return t.name end,
     }, { __index = _G })
     assert(load(src:sub(s, e), "=Notes.lua LayoutEasyNotesRowTags", "t", env))()

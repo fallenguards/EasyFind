@@ -35,7 +35,8 @@ function ns.NotesUnitEntry(unit)
         local full = GetUnitName(unit, true)
         if type(full) ~= "string" or issecret(full) then return nil end
         local key = ns.NotesPlayerKey(full)
-        return key and { type = "player", id = key, name = GetUnitName(unit, false) or full } or nil
+        local _, classFile = UnitClass(unit)
+        return key and { type = "player", id = key, name = GetUnitName(unit, false) or full, class = classFile } or nil
     end
     local guid = UnitGUID(unit)
     if type(guid) ~= "string" or issecret(guid) then return nil end
