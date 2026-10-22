@@ -2751,6 +2751,7 @@ local function CollectAddonCategories()
 end
 BlizzOptionsSearch.CollectAddonCategories = CollectAddonCategories
 
+
 -- Graphics-quality dropdown options live in private closures
 -- (GetShadowQualityOptions etc.). Mirror Blizzard's Graphics.lua.
 local function MakeQualityOpts(cvar, raid, optionDefs)
@@ -3401,6 +3402,115 @@ local function RestoreOptionsFromCache(data)
     return true
 end
 
+-- An addon's own panel (a canvas, not the game's settings list): its
+-- checkboxes, sliders and dropdowns by the text on them, each a row that
+-- opens the category and lights the control. A panel built on its first
+-- show is read then, its rows joining the index as they come. Never cached:
+-- the rows hold the controls themselves.
+local CANVAS_MAX = 600
+local CANVAS_KINDS = { CheckButton = true, Slider = true, DropdownButton = true }
+local function CanvasLabel(w)
+    local fs = w.Text or w.text or w.Label or w.label
+    if type(fs) == "table" and fs.GetText then
+        local t = fs:GetText()
+        if type(t) == "string" and t ~= "" then return t end
+    end
+    local name = w.GetName and w:GetName()
+    local g = name and _G[name .. "Text"]
+    if g and g.GetText then
+        local t = g:GetText()
+        if type(t) == "string" and t ~= "" then return t end
+    end
+    return nil
+end
+local function CanvasControls(root)
+    local out, seen, stack, n = {}, {}, { root }, 0
+    while #stack > 0 and n < CANVAS_MAX do
+        local f = table.remove(stack)
+        n = n + 1
+        local kind = f.GetObjectType and f:GetObjectType()
+        if CANVAS_KINDS[kind] or (kind == "Button" and f.SetupMenu) then
+            local label = CanvasLabel(f)
+            label = label and Utils.StripMarkup(label)
+            if label and label ~= "" and not seen[label] then
+                seen[label] = true
+                out[#out + 1] = { widget = f, label = label }
+            end
+        end
+        if f.GetChildren then
+            for _, kid in ipairs({ f:GetChildren() }) do stack[#stack + 1] = kid end
+        end
+    end
+    return out
+end
+local function CanvasRows(cat, addon)
+    if not (cat and cat.GetName and SettingsPanel and SettingsPanel.GetLayout) then return nil end
+    local lok, layout = pcall(SettingsPanel.GetLayout, SettingsPanel, cat)
+    if not (lok and layout and layout.GetFrame) then return nil end
+    local frame = layout:GetFrame()
+    if not frame then return nil end
+    local catName, catID = cat:GetName(), cat.GetID and cat:GetID()
+    if not (catName and catName ~= "" and catID) then return nil end
+    local rootName = addon .. " " .. (_G["SETTINGS"] or "Settings")
+    local pathPrefix = addon ~= catName and { rootName, catName } or { rootName }
+    local catMT = GetSettingsCatMT("AddOn Settings", catName, catID, pathPrefix)
+    local rows = {}
+    for _, c in ipairs(CanvasControls(frame)) do
+        local nameLower = SearchLower(c.label)
+        rows[#rows + 1] = setmetatable({
+            name = c.label, nameLower = nameLower,
+            keywords = { "addon", "setting", "option", nameLower, SearchLower(catName), SearchLower(addon) },
+            steps = { { settingsCategory = catName, settingCategoryID = catID, canvasTarget = c.widget } },
+            addon = addon,
+        }, catMT)
+    end
+    return rows, frame
+end
+local canvasPushed = {}
+local function PushCanvasRows(data, cat, addon)
+    local rows, frame = CanvasRows(cat, addon)
+    if not rows then return false end
+    local added = false
+    for _, e in ipairs(rows) do
+        local key = DedupeKey(e)
+        if not canvasPushed[key] then
+            canvasPushed[key] = true
+            tinsert(data, e)
+            added = true
+        end
+    end
+    -- Nothing yet: the panel builds on its first show; read it then.
+    if #rows == 0 and frame and not frame._efCanvasWatched then
+        frame._efCanvasWatched = true
+        frame:HookScript("OnShow", function()
+            SafeAfter(0.5, function()
+                if PushCanvasRows(ns.Database.uiSearchData, cat, addon) and ns.Database.ResetSearchCache then
+                    ns.Database:ResetSearchCache()
+                end
+            end)
+        end)
+    end
+    return added
+end
+
+local function PushCanvasEntries(data)
+    local list = GetSettingsCategoryList()
+    local added = false
+    for _, cat in ipairs(type(list) == "table" and list or {}) do
+        if IsAddonCategory(cat) then
+            local addon = cat:GetName()
+            if PushCanvasRows(data, cat, addon) then added = true end
+            if cat.GetSubcategories then
+                local sok, subs = pcall(cat.GetSubcategories, cat)
+                for _, sub in ipairs(sok and type(subs) == "table" and subs or {}) do
+                    if PushCanvasRows(data, sub, addon) then added = true end
+                end
+            end
+        end
+    end
+    return added
+end
+
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     if not ns.Database or not ns.Database.uiSearchData then return end
     local data = ns.Database.uiSearchData
@@ -3409,6 +3519,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     -- the settings-tree walk when the cache signature still matches. Live game
     -- settings always take the full walk.
     if not includeLiveGameSettings and RestoreOptionsFromCache(data) then
+        if PushCanvasEntries(data) and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
         return
     end
 
@@ -3418,6 +3529,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     local gameEntries = includeLiveGameSettings and CollectGameSettings() or nil
 
     local changed = PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
+    if PushCanvasEntries(data) then changed = true end
 
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
 
@@ -3468,6 +3580,15 @@ function BlizzOptionsSearch:HandleStep(step)
         else
             pcall(Settings.OpenToCategory, catID)
         end
+    end
+    -- A control on an addon's own panel: lit once the panel has drawn.
+    local target = step.canvasTarget
+    if target then
+        SafeAfter(0.3, function()
+            if ns.RequestGuide and ns.RequestGuide() and ns.Highlight and ns.Highlight.HighlightFrame and target:IsVisible() then
+                ns.Highlight:HighlightFrame(target, nil, function(t) return t and t:IsVisible() or false end)
+            end
+        end)
     end
 
     -- Settings.OpenToCategory ignores the second arg in many builds, and
