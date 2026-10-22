@@ -25,7 +25,7 @@ local mpi = math.pi
 -- (beside it); a crossing's far spot, where it drops you, give or take.
 local ARRIVE = { yards = 40, spot = 8, cross = 300 }
 local ROUTE_MAX_AGE = 2 * 60 * 60
-local ARRIVED_LINGER = 20
+local ARRIVED_LINGER = 8
 local START_YARDS = 60      -- this close to a planned route's start, the player is on it
 local ROW_H = 22
 -- Beside the map the steps read at the quest log's size and follow the map
