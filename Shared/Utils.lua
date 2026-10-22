@@ -1054,6 +1054,39 @@ function Utils.CaptureKeybindCombo(key)
     return Utils.ModifierCombo(key)
 end
 
+-- Arms a frame for a binding capture: keys, the mouse buttons past the
+-- first two (MB3 and up) and the wheel, each through CaptureKeybindCombo;
+-- onCombo(frame, combo) gets "stop" for Escape. Disarm puts back what the
+-- frame had.
+function Utils.ArmBindingCapture(frame, onCombo)
+    local function take(self, key)
+        local combo = Utils.CaptureKeybindCombo(key)
+        if combo then onCombo(self, combo) end
+    end
+    frame._efCaptureHad = { down = frame:GetScript("OnMouseDown"), wheel = frame:GetScript("OnMouseWheel"),
+                            wheelOn = frame:IsMouseWheelEnabled() }
+    Utils.SafeCallMethod(frame, "EnableKeyboard", true)
+    frame:EnableMouseWheel(true)
+    frame:SetScript("OnKeyDown", take)
+    frame:SetScript("OnMouseDown", function(self, button)
+        local n = button:match("^Button(%d+)$")
+        local key = (button == "MiddleButton" and "BUTTON3") or (n and "BUTTON" .. n)
+        if key then take(self, key) end
+    end)
+    frame:SetScript("OnMouseWheel", function(self, delta)
+        take(self, delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
+    end)
+end
+function Utils.DisarmBindingCapture(frame)
+    local had = frame._efCaptureHad or {}
+    frame._efCaptureHad = nil
+    Utils.SafeCallMethod(frame, "EnableKeyboard", false)
+    frame:EnableMouseWheel(had.wheelOn and true or false)
+    frame:SetScript("OnKeyDown", nil)
+    frame:SetScript("OnMouseDown", had.down)
+    frame:SetScript("OnMouseWheel", had.wheel)
+end
+
 function Utils.GetVerticalNavIntent(key)
     local navKey = Utils.NormalizeKey(key)
     if navKey == "DOWN" then return 1, false, navKey end

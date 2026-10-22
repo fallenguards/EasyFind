@@ -265,9 +265,8 @@ function Rows.CreateSettingWidgets(resultRow)
     local function StopKeybindCapture(btn)
         if not btn._waitingForKey then return end
         btn._waitingForKey = false
-        Utils.SafeCallMethod(btn, "EnableKeyboard", false)
+        Utils.DisarmBindingCapture(btn)
         btn:UnlockHighlight()
-        btn:SetScript("OnKeyDown", nil)
         if Search:GetActiveKeybindButton() == btn then Search:SetActiveKeybindButton(nil) end
         if btn._refresh then btn._refresh() end
         -- Defer the editbox re-enable + refocus to next frame: the
@@ -303,10 +302,7 @@ function Rows.CreateSettingWidgets(resultRow)
             Search:GetSearchFrame().editBox:ClearFocus()
             Search:GetSearchFrame().editBox:SetEnabled(false)
         end
-        Utils.SafeCallMethod(btn, "EnableKeyboard", true)
-        btn:SetScript("OnKeyDown", function(self, key)
-            local combo = Utils.CaptureKeybindCombo(key)
-            if not combo then return end
+        Utils.ArmBindingCapture(btn, function(self, combo)
             if combo == "stop" then
                 StopKeybindCapture(self)
                 return

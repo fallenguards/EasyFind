@@ -743,8 +743,7 @@ end
 
 local function StopCapture(popup)
     popup.capturing = false
-    Utils.SafeCallMethod(popup, "EnableKeyboard", false)
-    popup:SetScript("OnKeyDown", nil)
+    Utils.DisarmBindingCapture(popup)
     if popup.bindBtn then
         local current = popup.currentCombo
         if not popup.onCombo then
@@ -758,10 +757,7 @@ end
 local function StartCapture(popup)
     popup.capturing = true
     popup.bindBtn:SetText(L["OPT_KB_PRESS_KEY"])
-    Utils.SafeCallMethod(popup, "EnableKeyboard", true)
-    popup:SetScript("OnKeyDown", function(self, key)
-        local combo = Utils.CaptureKeybindCombo(key)
-        if not combo then return end
+    Utils.ArmBindingCapture(popup, function(self, combo)
         if combo == "stop" then StopCapture(self); return end
         -- A caller's own key (a quicklist): the combo goes to it, after
         -- the same conflict notice.

@@ -5810,8 +5810,7 @@ function Options:Initialize()
         keybindBtn.waitingForKey = false
         keybindBtn:SetText(GetCurrentKeybindText(action))
         keybindBtn:UnlockHighlight()
-        Utils.SafeCallMethod(keybindBtn, "EnableKeyboard", false)
-        keybindBtn:SetScript("OnKeyDown", nil)
+        Utils.DisarmBindingCapture(keybindBtn)
     end
 
     local function StartCapture(keybindBtn, action)
@@ -5821,10 +5820,7 @@ function Options:Initialize()
             keybindBtn.waitingForKey = true
             keybindBtn:SetText(L["OPT_KB_PRESS_KEY"])
             keybindBtn:LockHighlight()
-            Utils.SafeCallMethod(keybindBtn, "EnableKeyboard", true)
-            keybindBtn:SetScript("OnKeyDown", function(self, key)
-                local combo = Utils.CaptureKeybindCombo(key)
-                if not combo then return end
+            Utils.ArmBindingCapture(keybindBtn, function(self, combo)
                 if combo == "stop" then
                     StopCapture(self, action)
                     return
