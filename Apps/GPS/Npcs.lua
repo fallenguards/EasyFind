@@ -25,6 +25,7 @@ local GRID = 4096       -- a spot's x * GRID + y, each in 1/(GRID - 1) of the ma
 local DANGER_LEVELS = 3 -- the client's orange: three levels above
 local RED_LEVELS = 5    -- the client's red: drawn red on a route
 local SKULL_LEVELS = 10 -- the client's skull: a route through it is warned of
+local ZONE_LEVELS = 5   -- over a zone's top level, a tile's creatures are a neighbour's
 local DEADLY_STEP = 16  -- yards between the points a walk is read at
 local WEAPON = 2        -- Enum.ItemClass.Weapon
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
@@ -1204,6 +1205,19 @@ end
 -- { from, to, ... } (n of them), and skull, how far along the first one
 -- that cons skull is met, at sx, sy. Kept on the walk for its level; nil
 -- without the catalog's danger map.
+-- The highest creature level that belongs to the zone a world spot lies
+-- in: a tile straddling a zone border carries the neighbour's creatures
+-- (Darkshore's east edge reads as Felwood), no threat on this side. nil
+-- when the client cannot say.
+local function ZoneLevelCap(ci, wx, wy)
+    if not (C_Map and C_Map.GetMapPosFromWorldPos and C_Map.GetMapLevels and CreateVector2D) then return nil end
+    local ok, m = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy))
+    if not (ok and m) then return nil end
+    local lok, _, maxLevel = pcall(C_Map.GetMapLevels, m)
+    if lok and type(maxLevel) == "number" and maxLevel > 0 then return maxLevel + ZONE_LEVELS end
+    return nil
+end
+
 function N.DeadlyAlong(path, ci, level, faction)
     local threats = level and N.Threats(faction)
     local tiles = threats and threats[ci]
@@ -1214,6 +1228,7 @@ function N.DeadlyAlong(path, ci, level, faction)
     d = { level = level, ci = ci, n = 0 }
     local red, skull = level + RED_LEVELS, level + SKULL_LEVELS
     local pts, cum = path.pts, path.cum
+    local cap = ZoneLevelCap(ci, pts[#pts - 1], pts[#pts])
     local inside = false
     for v = 1, #pts / 2 - 1 do
         local ax, ay = pts[2 * v - 1], pts[2 * v]
@@ -1223,6 +1238,7 @@ function N.DeadlyAlong(path, ci, level, faction)
         for j = 0, k - 1 do
             local t = (j + 0.5) / k
             local at = tiles[(TileOf(ax + dx * t, ay + dy * t))] or 0
+            if cap and at > cap then at = 0 end
             if (at >= red) ~= inside then
                 inside = not inside
                 d.n = d.n + 1
