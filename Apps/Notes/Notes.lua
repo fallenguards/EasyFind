@@ -6392,12 +6392,27 @@ end
 -- The header trash button mirrors the selection: grayed and unclickable with
 -- nothing to act on, normal when list rows are selected (or a note is open in
 -- the editor view).
+-- The Delete key deletes the list's selection while the list shows one.
+local function WantsDeleteKey()
+    local frame = UI._notes.frame
+    return frame ~= nil and frame:IsShown() and UI._notes.paletteShown == true
+        and next(UI._notes.paletteSelection) ~= nil
+end
+local function PressDeleteKey()
+    local ids = {}
+    for k in next, UI._notes.paletteSelection do ids[#ids + 1] = k end
+    if #ids == 0 then return false end
+    ConfirmDeleteNote(ids)
+    return true
+end
+
 function UI:UpdateEasyNotesDeleteButton()
     local frame = UI._notes.frame
     local btn = frame and frame.deleteButton
     if not btn then return end
     local enabled = next(UI._notes.paletteSelection) ~= nil
         or (not UI._notes.paletteShown and UI._notes.selectedID ~= nil)
+    if Utils.HoldKey then Utils.HoldKey("DELETE", WantsDeleteKey, PressDeleteKey) end
     btn:SetEnabled(enabled)
     if btn.icon then
         if enabled then

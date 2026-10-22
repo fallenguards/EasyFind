@@ -4715,6 +4715,67 @@ local function EnsureEscDispatch()
     end)
 end
 
+-- Other keys held the same way, one owner apart from ESCAPE's: DELETE
+-- while the Notes list has a selection. wants() says when; press() acts,
+-- false handing the key straight back. Out of combat only, dedup'd per
+-- key, dropped for a fight and re-armed after it.
+do
+local heldKeys, heldOwner = {}, nil
+local function HeldArm()
+    if not heldOwner or InCombatLockdown() then return end
+    local changed = false
+    for _, h in pairs(heldKeys) do
+        local ok, want = pcall(h.wants)
+        h.want = ok and want and true or false
+        if h.want ~= h.armed then changed = true end
+    end
+    if not changed then return end
+    -- The owner's bindings are rewritten as one: cleared, then each key
+    -- still wanted bound again.
+    ClearOverrideBindings(heldOwner)
+    for key, h in pairs(heldKeys) do
+        if h.want then SetOverrideBindingClick(heldOwner, true, key, h.button:GetName()) end
+        h.armed = h.want
+    end
+end
+function Utils.HoldKey(key, wants, press)
+    if not heldOwner then
+        heldOwner = CreateFrame("Frame", nil, UIParent)
+        heldOwner:RegisterEvent("PLAYER_REGEN_DISABLED")
+        heldOwner:RegisterEvent("PLAYER_REGEN_ENABLED")
+        heldOwner:SetScript("OnEvent", function(_, event)
+            if event == "PLAYER_REGEN_DISABLED" then
+                ClearOverrideBindings(heldOwner)
+                for _, h in pairs(heldKeys) do h.armed = false end
+            else
+                HeldArm()
+            end
+        end)
+    end
+    local h = heldKeys[key]
+    if not h then
+        h = { button = CreateFrame("Button", "EasyFindHeldKey" .. key, UIParent), armed = false }
+        h.button:SetSize(1, 1)
+        h.button:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
+        h.button:SetScript("OnClick", function()
+            local ok, handled = pcall(h.press)
+            -- A press that did nothing hands the key back until wanted anew.
+            if (not ok or handled == false) and not InCombatLockdown() then
+                ClearOverrideBindings(heldOwner)
+                for _, other in pairs(heldKeys) do other.armed = false end
+                h.wants = function() return false end
+            end
+        end)
+        heldKeys[key] = h
+    end
+    h.wants, h.press = wants, press
+    HeldArm()
+end
+function Utils.RefreshHeldKeys()
+    HeldArm()
+end
+end
+
 -- Register frame so ESC closes it (via close()) while it is shown.
 -- close defaults to hiding the frame. shouldEat (optional) is consulted
 -- at arm time and at dispatch: false means this entry neither binds nor
