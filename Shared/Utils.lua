@@ -7532,8 +7532,28 @@ end
 -- is the same hover-cascade every other flyout in the addon uses, via
 -- OpenFlyoutBeside for placement.
 local function CursorMenuRowEntered(menu, row)
-    if menu._openSubmenuRow and menu._openSubmenuRow ~= row then
-        CursorMenuCloseSubmenu(menu)
+    local owner = menu._openSubmenuRow
+    if owner == row then menu._subCloseToken = (menu._subCloseToken or 0) + 1 end
+    if owner and owner ~= row then
+        if row._submenuRows and not row.disabled then
+            CursorMenuCloseSubmenu(menu)
+        else
+            -- A brush over a sibling on the way to the open flyout keeps it:
+            -- it closes only if the cursor has not reached it by then.
+            local open = menu._openSubmenu
+            menu._subCloseToken = (menu._subCloseToken or 0) + 1
+            local token = menu._subCloseToken
+            Utils.SafeAfter(0.4, function()
+                if menu._subCloseToken ~= token or not open or menu._openSubmenu ~= open then return end
+                local node = open
+                while node do
+                    if node:IsShown() and CursorMenuHasMouse(node) then return end
+                    node = node._openSubmenu
+                end
+                CursorMenuCloseSubmenu(menu)
+            end)
+            return
+        end
     end
     if not row._submenuRows or row.disabled then return end
     if menu._openSubmenu and menu._openSubmenu:IsShown() and menu._openSubmenuRow == row then return end
