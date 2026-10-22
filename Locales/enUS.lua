@@ -346,7 +346,10 @@ L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffThemes|r\n" ..
     "    |cff999999-|r Theme Studio gives each window its own look, with a Classic theme and a Forever theme in the 1.x style\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind runs on both, GPS included"
+    "    |cff999999-|r EasyFind runs on both, GPS included" ..
+    "|cffFFD100\226\128\162|r |cffffffffSettings|r\n" ..
+    "    |cff999999-|r Every addon's settings in the search bar: the game's panel, AceConfig tables and EasyFind's own, each changed on its row; extensions feed theirs through the API\n" ..
+    "    |cff999999-|r Extension rows with a hint on hover, a link that carries their data, a menu of their own, and a place the map search and the GPS find\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels
