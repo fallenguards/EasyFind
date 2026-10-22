@@ -10,7 +10,6 @@ local Utils = ns.Utils
 
 local GetCursorPosition = GetCursorPosition
 local InCombatLockdown = InCombatLockdown
-local IsControlKeyDown = IsControlKeyDown
 local IsShiftKeyDown = IsShiftKeyDown
 
 -- Drag a linkable result onto a chat channel / whisper hyperlink to drop its
@@ -448,12 +447,10 @@ function Rows.InstallInteractions(resultRow, index)
         -- happens on the release in OnMouseUp. Shift is chat-link, Ctrl is
         -- dressing room.
         if Handlers:IsLookupRow(d) then
-            -- Every modifier already means something on these rows (Shift chat
-            -- insert, Ctrl dressing room, Alt owning UI), so none may also arm
-            -- a pickup: the item would land on the cursor on top of that
-            -- action and surface later as if from nowhere.
-            if IsShiftKeyDown() or (IsControlKeyDown and IsControlKeyDown())
-               or Handlers:IsSourceModifierHeld() then
+            -- Only the gesture that sends the link arms a pickup (Shift is
+            -- the chat insert): under any other the item would land on the
+            -- cursor on top of that action and surface later as if from nowhere.
+            if IsShiftKeyDown() or not ns.ResultGestures.Does(d, "sendLink") then
                 return
             end
             local x, y = GetCursorPosition()
@@ -481,6 +478,12 @@ function Rows.InstallInteractions(resultRow, index)
             ns.ResultSecureAttributes.ArmSteerLate(self)
         end
         self._dragOriginX, self._dragOriginY = nil, nil
+        -- A press that only selected the row picks nothing up on release;
+        -- a drag that began on it still lands below.
+        if self._selectPress then
+            self._selectPress = nil
+            if not self._pickedUp then return end
+        end
         -- Catalog rows: a plain LEFT click picks the item onto the cursor, same
         -- as a drag, so the next click drops its link into a chat channel (or
         -- onto empty world -> /say). The pickup happens on the RELEASE, never
@@ -492,8 +495,7 @@ function Rows.InstallInteractions(resultRow, index)
            and not self._pickedUp
            and not InCombatLockdown()
            and not IsShiftKeyDown()
-           and not (IsControlKeyDown and IsControlKeyDown())
-           and not Handlers:IsSourceModifierHeld() then
+           and ns.ResultGestures.Does(clicked, "sendLink") then
             PickupRowAction(clicked)
             -- Dismiss like every other activated row. Done AFTER the pickup
             -- (SelectResult runs on the press, this is the release) so hiding
@@ -578,10 +580,41 @@ function Rows.InstallInteractions(resultRow, index)
             return
         end
 
-        -- Alt+click is the "show owning Search" modifier. Ctrl remains for
-        -- Blizzard-style previews such as mounts and equippable bag items.
-        local sourceModifierHeld = Handlers:IsSourceModifierHeld()
-        local ctrlHeld = IsControlKeyDown and IsControlKeyDown()
+        -- A gesture the settings set to nothing: no secure action, no selection.
+        if d and ns.ResultGestures.Blocked(d) then
+            ns.ResultSecureAttributes.Clear(self)
+            self._gestureBlocked = true
+            return
+        end
+
+        -- Click selects (a setting): a plain press from the mouse only
+        -- picks the row, as the arrow keys would; Enter or a second click
+        -- within the double-click window opens it. A key-driven click
+        -- (Enter, Alt+number) and modified clicks act at once.
+        if d and EasyFind.db.clickSelectsRow and IsMouseButtonDown("LeftButton")
+           and ns.ResultGestures.Held() == "click"
+           and not (self.isPathNode or self.isPinHeader or self.isSectionHeader) then
+            local now = GetTime()
+            if self._selectClickAt and now - self._selectClickAt < 0.4 and self._selectClickData == d then
+                self._selectClickAt = nil
+            else
+                self._selectClickAt, self._selectClickData = now, d
+                ns.ResultSecureAttributes.Clear(self)
+                self._clickSelected, self._selectPress = true, true
+                local buttons = Search:GetResultButtons()
+                for i = 1, #buttons do
+                    if buttons[i] == self then Search:SetSelectedIndex(i) break end
+                end
+                Search:SetToggleFocused(false)
+                Results:UpdateSelectionHighlight()
+                return
+            end
+        end
+
+        -- The row's own source and preview gestures, whichever keys the
+        -- settings gave them (Alt and Ctrl by default).
+        local sourceModifierHeld = Handlers:IsSourceModifierHeld(d)
+        local ctrlHeld = Handlers:IsSourceCtrlHeld(d)
         local bagItemKind = (d and d.itemID and d.category == "Bag")
             and Handlers:GetBagItemActionKind(d)
 
@@ -650,6 +683,14 @@ function Rows.InstallInteractions(resultRow, index)
             self._pickedUp = nil
             return
         end
+        if self._gestureBlocked then
+            self._gestureBlocked = nil
+            return
+        end
+        if self._clickSelected then
+            self._clickSelected = nil
+            return
+        end
         -- Catalog plain click picks the item up in OnMouseUp (reliable raw
         -- event); PostClick only needs to route Ctrl (dressing room) through
         -- SelectResult below.
@@ -660,7 +701,7 @@ function Rows.InstallInteractions(resultRow, index)
         -- garrison hearthstone, etc.). Outfit cooldown is a real swap-lockout
         -- we manage ourselves, so it's safe to gate on.
         if self.data and mouseButton == "LeftButton" and self.data.outfitID
-           and not Handlers:IsSourceModifierHeld()
+           and not Handlers:IsSourceModifierHeld(self.data)
            and Rows.outfitCdStart > 0
            and Rows.outfitCdDuration - (GetTime() - Rows.outfitCdStart) > 0 then
             if Search:GetSearchFrame() and Search:GetSearchFrame().editBox and not Search:GetNavFrame():IsKeyboardEnabled() then
@@ -693,7 +734,7 @@ function Rows.InstallInteractions(resultRow, index)
         -- Inline editors (slider drag, kb1/kb2 capture, dropdown
         -- paddles) sit on top of the row and consume their own clicks,
         -- so reaching this handler means the user clicked the label.
-        if Rows:ActivateSettingResult(self.data, Handlers:IsSourceModifierHeld()) then return end
+        if Rows:ActivateSettingResult(self.data, Handlers:IsSourceModifierHeld(self.data)) then return end
 
         if self.isPinHeader then
             return

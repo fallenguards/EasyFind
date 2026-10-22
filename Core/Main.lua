@@ -70,6 +70,8 @@ local DB_DEFAULTS = {
     clipboardLastCopiedRow = false,
     -- Notes that apply where you are, on the empty bar: opt in.
     notesSurfaceHere = false,
+    resultClicks = {},
+    clickSelectsRow = false,
     -- Clipboard History's own view, from the filter menu's Clipboard
     -- History flyout: which kinds show, and the order.
     clipboardKindLink = true, clipboardKindEflink = true, clipboardKindMappin = true,

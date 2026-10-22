@@ -66,6 +66,7 @@ Search/Openers.lua
 Options/SurfaceGuard.lua
 Search/Commands.lua
 Search/Results/ResultState.lua
+Search/Results/Gestures.lua
 Search/Results/Handlers/Utils.lua
 Search/Results/Handlers/Spellbook.lua
 Search/Results/Handlers/Talents.lua

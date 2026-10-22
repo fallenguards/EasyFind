@@ -79,7 +79,7 @@ function Handlers:KeepOpenForRepeatUse(data)
     if not (data and data.itemID and data.category == "Bag") then return false end
     if self:IsRemoteStoredItem(data) then return false end
     if (data.bagCount or 1) <= 1 then return false end
-    if Handlers:IsSourceModifierHeld() or Handlers:IsSourceCtrlHeld() then return false end
+    if Handlers:IsSourceModifierHeld(data) or Handlers:IsSourceCtrlHeld(data) then return false end
     return self:GetBagItemActionKind(data) == "use"
 end
 

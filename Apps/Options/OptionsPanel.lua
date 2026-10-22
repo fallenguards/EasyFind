@@ -276,6 +276,7 @@ local function SyncOptionControls()
     if optionsFrame.showFilterButtonCheckbox then optionsFrame.showFilterButtonCheckbox:SetChecked(EasyFind.db.showFilterButton ~= false) end
     if optionsFrame.learnPicksCheckbox then optionsFrame.learnPicksCheckbox:SetChecked(EasyFind.db.learnFromPicks ~= false) end
     if optionsFrame.macroPickerSearchCheckbox then optionsFrame.macroPickerSearchCheckbox:SetChecked(EasyFind.db.macroPickerSearch ~= false) end
+    if optionsFrame.clickSelectsCheckbox then optionsFrame.clickSelectsCheckbox:SetChecked(EasyFind.db.clickSelectsRow == true) end
     if optionsFrame.UpdateFocusBindEnabled then optionsFrame.UpdateFocusBindEnabled() end
     if optionsFrame.minimapBtnCheckbox then optionsFrame.minimapBtnCheckbox:SetChecked(EasyFind.db.showMinimapButton ~= false) end
     if optionsFrame.updateNotifyCheckbox then optionsFrame.updateNotifyCheckbox:SetChecked(EasyFind.db.updateNotify ~= false) end
@@ -2186,6 +2187,15 @@ local function BuildSearchTab(ctx)
     optionsFrame.macroPickerSearchCheckbox = macroPickerSearchCheckbox
     if not ns.Caps.iconSearch then macroPickerSearchCheckbox:Hide() end
 
+    local clickSelectsCheckbox = CreateCheckbox(sec1, "ClickSelects",
+        L["OPT_CLICK_SELECTS"], L["OPT_CLICK_SELECTS_TT"], true, CHECK_COL_W)
+    clickSelectsCheckbox:SetChecked(EasyFind.db.clickSelectsRow == true)
+    clickSelectsCheckbox:SetScript("OnClick", function(self)
+        EasyFind.db.clickSelectsRow = self:GetChecked() and true or false
+        if self.RefreshVisual then self:RefreshVisual() end
+    end)
+    optionsFrame.clickSelectsCheckbox = clickSelectsCheckbox
+
     local iconVisChoices = {
         { label = L["OPT_ICONS_ALL"],      value = "all" },
         { label = L["OPT_ICONS_GENERAL"],  value = "general" },
@@ -2374,6 +2384,7 @@ local function BuildSearchTab(ctx)
     learnPicksCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "BOTTOMLEFT", 0, -2)
     macroPickerSearchCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     searchAutocompleteCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
+    clickSelectsCheckbox:SetPoint("TOPLEFT", searchAutocompleteCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     classicBgRow:SetPoint("TOPLEFT", searchAutocompleteCheckbox, "BOTTOMLEFT", 0, -4)
 
     local function RefreshUIPresetRows()
@@ -5035,6 +5046,69 @@ function Options:CurrentExtensionPage()
     return shown and extensionCurrent or nil
 end
 
+-- Result clicks: what a click, Alt and Ctrl do on each kind of result,
+-- the kind picked at the top and one flyout per gesture under it. Shift
+-- and the right-click menu never change.
+local function BuildResultClicksTab(ctx)
+    local CreateTab, CreateFlyoutPresetRow, RESET_BTN_W = ctx.CreateTab, ctx.CreateFlyoutPresetRow, ctx.RESET_BTN_W
+    local Gestures = ns.ResultGestures
+    local tab = CreateTab(L["OPT_TAB_RESULT_CLICKS"])
+    local hint = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", tab, "TOPLEFT", 12, -10)
+    hint:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -12, -10)
+    hint:SetJustifyH("LEFT")
+    hint:SetWordWrap(true)
+    hint:SetText(L["OPT_RESULT_CLICKS_HINT"])
+    local KIND_LABEL = {
+        mount = _G["MOUNTS"] or "Mounts", pet = _G["PETS"] or "Pets", toy = _G["TOYS"] or _G["TOY_BOX"] or "Toys",
+        heirloom = _G["HEIRLOOMS"] or "Heirlooms", outfit = L["FILTER_OUTFITS"], transmogSet = L["FILTER_APPEARANCE_SETS"],
+        ability = _G["ABILITIES"] or "Abilities", macro = _G["MACROS"] or "Macros", bag = _G["BAGSLOT"] or "Bags",
+        catalog = _G["ITEMS"] or "Items", loot = _G["LOOT"] or "Loot", title = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",
+        settingToggle = L["OPT_RESULT_KIND_TOGGLES"], settingPress = L["OPT_RESULT_KIND_BUTTONS"],
+        quickKeybind = L["OPT_RESULT_KIND_KEYBINDS"],
+    }
+    local kinds = Gestures.Kinds()
+    local kindChoices = {}
+    for i = 1, #kinds do kindChoices[i] = { value = kinds[i].key, label = KIND_LABEL[kinds[i].key] } end
+    local current = kinds[1]
+    local gestureRows, shiftLine = {}, nil
+    local GESTURE_LABEL = { click = L["HINT_CLICK"], alt = "Alt", ctrl = "Ctrl" }
+    local function ShowKind(kind)
+        current = kind
+        for i = 1, #Gestures.SETTABLE do
+            gestureRows[i]:SetChoices(Gestures.Choices(kind))
+            gestureRows[i]:SetValue(Gestures.Get(kind.key, Gestures.SETTABLE[i]))
+        end
+        local drag = kind.defaults.shift
+        shiftLine:SetShown(drag ~= nil)
+        if drag then shiftLine:SetText("Shift: " .. Gestures.V[kind.byAction[drag].word]) end
+    end
+    local kindRow = CreateFlyoutPresetRow(tab, L["OPT_RESULT_KIND"], kindChoices,
+        function() return current.key end,
+        function(v) ShowKind(Gestures.Kind(v)) end, "EasyFindResultClicksKind")
+    kindRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -12)
+    local anchor = kindRow
+    for i = 1, #Gestures.SETTABLE do
+        local gesture = Gestures.SETTABLE[i]
+        local row = CreateFlyoutPresetRow(tab, GESTURE_LABEL[gesture], Gestures.Choices(current),
+            function() return Gestures.Get(current.key, gesture) end,
+            function(v) Gestures.Set(current.key, gesture, v) end,
+            "EasyFindResultClicks" .. gesture)
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or 0)
+        gestureRows[i] = row
+        anchor = row
+    end
+    shiftLine = tab:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    shiftLine:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -6)
+    local reset = CreateModernButton(tab, L["OPT_RESET_SETTINGS"], RESET_BTN_W, 22)
+    reset:SetPoint("TOPLEFT", shiftLine, "BOTTOMLEFT", -8, -12)
+    reset:SetScript("OnClick", function()
+        Gestures.Reset()
+        ShowKind(current)
+    end)
+    ShowKind(current)
+end
+
 local function BuildFeedbackTab(ctx)
     local CreateTab, RESET_BTN_W = ctx.CreateTab, ctx.RESET_BTN_W
     local feedbackTab = CreateTab(L["OPT_TAB_FEEDBACK"])
@@ -5966,6 +6040,7 @@ function Options:Initialize()
     -- One tab for every extension's settings, each a page picked from the
     -- strip at its top.
     BuildExtensionsTab(ctx)
+    BuildResultClicksTab(ctx)
     -- Profiles, then Shortcuts; Feedback is always the last tab, and the
     -- Tutorial entry below the pack is a button, not a tab.
     BuildProfilesTab(ctx)

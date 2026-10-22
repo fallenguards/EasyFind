@@ -8,7 +8,6 @@ local Utils = ns.Utils
 
 local ipairs = Utils.ipairs
 local InCombatLockdown = InCombatLockdown
-local IsControlKeyDown = IsControlKeyDown
 local C_Item = C_Item
 local C_MountJournal = C_MountJournal
 local C_PetJournal = C_PetJournal
@@ -241,6 +240,8 @@ function Handlers:SelectResult(data, forceGuide)
     -- touches protected frames (hiding the results frame that ancestors
     -- secure rows), so nothing here is combat-safe.
     if InCombatLockdown() then return end
+    -- A gesture the settings set to nothing on this kind of row.
+    if ns.ResultGestures.Blocked(data) then return end
     local useFast = not forceGuide
 
     -- Learn the pick before any branch can clear the typed query. EVERY
@@ -267,7 +268,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- so is a no-op lookup. Shift (chat link) is handled upstream in PreClick.
     -- Never navigates -- catalog rows are a lookup and keep the results open.
     if data.catalogItem then
-        if IsControlKeyDown() then
+        if Handlers:IsSourceCtrlHeld(data) then
             local link = C_Item and C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(data.itemID))
             if link and DressUpItemLink then DressUpItemLink(link) end
             self:FinishResultSelection()
@@ -281,8 +282,8 @@ function Handlers:SelectResult(data, forceGuide)
     -- ABOVE the unconditional FinishResultSelection further down: that dismiss
     -- hides the row on the PRESS and the release never reaches it. Loot keeps
     -- falling through on Alt, which opens the Encounter Journal below.
-    if Handlers:IsLookupRow(data) and not Handlers:IsSourceModifierHeld() then
-        if Handlers:IsSourceCtrlHeld() and data.itemID then
+    if Handlers:IsLookupRow(data) and not Handlers:IsSourceModifierHeld(data) then
+        if Handlers:IsSourceCtrlHeld(data) and data.itemID then
             local link = C_Item and C_Item.GetItemInfo
                 and select(2, C_Item.GetItemInfo(data.itemID))
             if link and DressUpItemLink then DressUpItemLink(link) end
@@ -370,7 +371,7 @@ function Handlers:SelectResult(data, forceGuide)
     if data.titleID then
         local titleID = data.titleID
         local unearned = data.titleUnearned
-        local altHeld = Handlers:IsSourceModifierHeld()
+        local altHeld = Handlers:IsSourceModifierHeld(data)
         local achID = ns.Database and ns.Database.GetTitleSourceAchievement
             and ns.Database:GetTitleSourceAchievement(titleID)
         self:FinishResultSelection()
@@ -431,7 +432,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- Quick Keybind Mode: a plain click enters the overlay directly. Alt+click
     -- falls through to the settings-category step below, which opens Keybindings
     -- and highlights the button instead.
-    if data.quickKeybindActivate and not Handlers:IsSourceModifierHeld()
+    if data.quickKeybindActivate and not Handlers:IsSourceModifierHeld(data)
        and Openers:ActivateQuickKeybindMode() then
         return
     end
@@ -468,7 +469,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- Outfit: default click equips via SecureActionButton. Alt+click
     -- suppresses that secure action in PreClick and opens the outfit list.
     if data.outfitID then
-        if forceGuide or Handlers:IsSourceModifierHeld() then
+        if forceGuide or Handlers:IsSourceModifierHeld(data) then
             self:OpenOutfitInTransmog(data)
         end
         return
@@ -498,7 +499,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- Loot: Ctrl+click opens dressing room, regular click navigates EJ
     if data.itemID and data.category == "Loot" then
         local lootLink = ns.Database and ns.Database:GetLootItemLink(data)
-        if Handlers:IsSourceCtrlHeld() and lootLink then
+        if Handlers:IsSourceCtrlHeld(data) and lootLink then
             if DressUpItemLink(lootLink) then
                 return
             end
@@ -549,7 +550,7 @@ function Handlers:SelectResult(data, forceGuide)
         data.transmogSetID = ns.Database:GetTransmogSetIDByName(data.name)
     end
     if data.transmogSetID then
-        if Handlers:IsSourceCtrlHeld() then
+        if Handlers:IsSourceCtrlHeld(data) then
             self:DressUpAppearanceSet(data.transmogSetID)
             return
         end
@@ -603,7 +604,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- Mount: summon only when the mount is actually usable here. Alt+click
     -- opens Collections > Mounts; Ctrl+click uses Blizzard's mount preview.
     if data.mountID then
-        if Handlers:IsSourceCtrlHeld() then
+        if Handlers:IsSourceCtrlHeld(data) then
             if self:PreviewMountInDressUp(data) then return end
             self:OpenMountInJournal(data)
             return
@@ -612,7 +613,7 @@ function Handlers:SelectResult(data, forceGuide)
             EasyFind:StartGuide(self:BuildMountJournalGuideData(data))
             return
         end
-        if Handlers:IsSourceModifierHeld() or not Icons:IsMountSummonable(data) then
+        if Handlers:IsSourceModifierHeld(data) or not Icons:IsMountSummonable(data) then
             self:OpenMountInJournal(data)
             return
         end
@@ -627,7 +628,7 @@ function Handlers:SelectResult(data, forceGuide)
     if data.heirloomItemID then
         -- Alt (or guide mode): open Collections > Heirlooms instead of adding
         -- a copy to the bags.
-        if forceGuide or Handlers:IsSourceModifierHeld() then
+        if forceGuide or Handlers:IsSourceModifierHeld(data) then
             local guideData = {
                 name = data.name,
                 buttonFrame = "CollectionsMicroButton",
@@ -660,7 +661,7 @@ function Handlers:SelectResult(data, forceGuide)
     if data.toyItemID then
         if forceGuide then
             EasyFind:StartGuide(self:BuildToyBoxGuideData(data))
-        elseif data.isToyboxOnly or Handlers:IsSourceModifierHeld() then
+        elseif data.isToyboxOnly or Handlers:IsSourceModifierHeld(data) then
             self:OpenToyInToyBox(data)
         end
         return
@@ -682,7 +683,7 @@ function Handlers:SelectResult(data, forceGuide)
     end
 
     if data.spellID then
-        if forceGuide or Handlers:IsSourceModifierHeld() or Icons:IsSpellbookOnlyAbility(data) then
+        if forceGuide or Handlers:IsSourceModifierHeld(data) or Icons:IsSpellbookOnlyAbility(data) then
             -- Guide never opens the panel itself: the micro button is
             -- highlighted for the user's own click, then the reveal
             -- steers inside the open spellbook.
@@ -698,7 +699,7 @@ function Handlers:SelectResult(data, forceGuide)
         -- An uncollected pet has nothing to summon, so a plain click reveals it
         -- in the Pet Journal instead -- the same fall-through an uncollected
         -- mount takes (its hint says "Click: Pet Journal" to match).
-        if forceGuide or Handlers:IsSourceModifierHeld()
+        if forceGuide or Handlers:IsSourceModifierHeld(data)
            or not Icons:IsPetSummonable(data) then
             local guideData = self:BuildPetJournalGuideData(data)
             if useFast then
@@ -732,11 +733,11 @@ function Handlers:SelectResult(data, forceGuide)
     if data.itemID and data.category == "Bag" then
         if useFast then
             local actionKind = self:GetBagItemActionKind(data)
-            if Handlers:IsSourceCtrlHeld() and actionKind == "equip"
+            if Handlers:IsSourceCtrlHeld(data) and actionKind == "equip"
                and data.bagItemLink and DressUpItemLink then
                 if DressUpItemLink(data.bagItemLink) then return end
             end
-            local showInBags = Handlers:IsSourceModifierHeld()
+            local showInBags = Handlers:IsSourceModifierHeld(data)
             -- Skip bag-open for anything the secure click will already act
             -- on: explicit Use spells, equippable gear, AND broad item
             -- types that "use" via right-click without a Use:tooltip line
@@ -759,7 +760,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- guide via forceGuide=true.
     if data.macroIndex then
         if useFast then
-            if Handlers:IsSourceModifierHeld() then
+            if Handlers:IsSourceModifierHeld(data) then
                 Search:OpenMacroFrameAt(data.macroIndex, data.macroIsChar)
             end
             return
