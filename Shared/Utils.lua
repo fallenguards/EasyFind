@@ -2595,6 +2595,11 @@ function ns.IsForeverChrome()
     local p = ns.ACTIVE_UI_PALETTE
     return p ~= nil and p.chrome == "forever" and ns.FrameArtOn()
 end
+-- A theme with frame art of its own (Classic, Forever), drawn or not.
+function ns.ThemeHasChrome()
+    local p = ns.ACTIVE_UI_PALETTE
+    return p ~= nil and (p.chrome == "classic" or p.chrome == "forever")
+end
 
 local LayoutForever, EnsureForever
 do

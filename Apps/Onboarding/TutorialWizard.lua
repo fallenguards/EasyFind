@@ -1505,9 +1505,7 @@ local function BuildPageTheme(parent)
         if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
         RepaintReplicas()
         SyncArtCheck()
-        if ns.optionsFrame and ns.optionsFrame.frameArtCheckbox then
-            ns.optionsFrame.frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false)
-        end
+        if ns.optionsFrame and ns.optionsFrame.RefreshBorderRow then ns.optionsFrame.RefreshBorderRow() end
     end)
     p.SyncArtCheck = SyncArtCheck
 

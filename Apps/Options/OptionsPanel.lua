@@ -269,8 +269,7 @@ local function SyncOptionControls()
     if optionsFrame.aliasMessageCheckbox then optionsFrame.aliasMessageCheckbox:SetChecked(EasyFind.db.showAliasMessages ~= false) end
     if optionsFrame.resultsDirectionRow then optionsFrame.resultsDirectionRow:SetValue(GetResultsDirectionValue()) end
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
-    if optionsFrame.windowBorderCheckbox then optionsFrame.windowBorderCheckbox:SetChecked(EasyFind.db.windowBorder ~= false) end
-    if optionsFrame.frameArtCheckbox then optionsFrame.frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false) end
+    if optionsFrame.RefreshBorderRow then optionsFrame.RefreshBorderRow() end
     if optionsFrame.classicBgRow then optionsFrame.classicBgRow:SetValue(EasyFind.db.classicArt or "marble") end
     if optionsFrame.searchAutocompleteCheckbox then optionsFrame.searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false) end
     if optionsFrame.showAppsButtonCheckbox then optionsFrame.showAppsButtonCheckbox:SetChecked(EasyFind.db.showAppsButton ~= false) end
@@ -2064,37 +2063,34 @@ local function BuildSearchTab(ctx)
     end)
     optionsFrame.resultShortcutHintsCheckbox = resultShortcutHintsCheckbox
 
-    local windowBorderCheckbox = CreateCheckbox(sec1, "WindowBorder", L["OPT_WINDOW_BORDER"],
-        L["OPT_WINDOW_BORDER_TT"], true, CHECK_COL_W)
-    windowBorderCheckbox:SetChecked(EasyFind.db.windowBorder ~= false)
-    windowBorderCheckbox:SetScript("OnClick", function(self)
-        EasyFind.db.windowBorder = self:GetChecked() and true or false
-        if self.RefreshVisual then self:RefreshVisual() end
-        RunSoon(function()
-            if ns.Search and ns.Search.UpdateWindowBorders then
-                ns.Search:UpdateWindowBorders()
-            end
-            -- Frame-art themes swap this window's frame too.
-            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
-        end)
-    end)
-    optionsFrame.windowBorderCheckbox = windowBorderCheckbox
-
-    local frameArtCheckbox = CreateCheckbox(sec1, "ThemeFrameArt", L["OPT_THEME_FRAME_ART"],
-        L["OPT_THEME_FRAME_ART_TT"], true, CHECK_COL_W)
-    frameArtCheckbox:SetChecked(EasyFind.db.themeFrameArt ~= false)
-    frameArtCheckbox:SetScript("OnClick", function(self)
-        EasyFind.db.themeFrameArt = self:GetChecked() and true or false
-        if self.RefreshVisual then self:RefreshVisual() end
-        RunSoon(function()
-            if ns.Search and ns.Search.UpdateWindowBorders then
-                ns.Search:UpdateWindowBorders()
-            end
-            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
-            if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
-        end)
-    end)
-    optionsFrame.frameArtCheckbox = frameArtCheckbox
+    -- Border: none, the EasyFind line, or on a theme with frame art of its
+    -- own (Classic, Forever) the game's iron frame; the list follows the theme.
+    local function BorderChoices()
+        local t = { { label = _G["OFF"] or "Off", value = "off" }, { label = L["GPS_BORDER_LINE"], value = "line" } }
+        if ns.ThemeHasChrome() then t[#t + 1] = { label = L["GPS_BORDER_IRON"], value = "iron" } end
+        return t
+    end
+    local function BorderValue()
+        if EasyFind.db.windowBorder == false then return "off" end
+        if ns.ThemeHasChrome() and EasyFind.db.themeFrameArt ~= false then return "iron" end
+        return "line"
+    end
+    local borderRow = CreateFlyoutPresetRow(sec1, L["GPS_SIZE_BORDER"], BorderChoices(), BorderValue,
+        function(v)
+            EasyFind.db.windowBorder = v ~= "off"
+            if v ~= "off" then EasyFind.db.themeFrameArt = v == "iron" end
+            RunSoon(function()
+                if ns.Search and ns.Search.UpdateWindowBorders then ns.Search:UpdateWindowBorders() end
+                -- Frame-art themes swap this window's frame too.
+                if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
+                if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
+            end)
+        end, "EasyFindBorder", nil, L["OPT_WINDOW_BORDER_TT"])
+    optionsFrame.borderRow = borderRow
+    optionsFrame.RefreshBorderRow = function()
+        borderRow:SetChoices(BorderChoices())
+        borderRow:SetValue(BorderValue())
+    end
 
     -- The Classic theme's window background: the marble, or a talent tree
     -- named as its class's tab reads.
@@ -2321,7 +2317,8 @@ local function BuildSearchTab(ctx)
     -- flyout-selector bars stay grouped and the stepper closes the list.
     wowheadRow:SetPoint("TOPLEFT", resultRowsRow, "BOTTOMLEFT", 0, -4)
     searchOpacityRow:ClearAllPoints()
-    searchOpacityRow:SetPoint("TOPLEFT", wowheadRow, "BOTTOMLEFT", 0, -4)
+    borderRow:SetPoint("TOPLEFT", wowheadRow, "BOTTOMLEFT", 0, -4)
+    searchOpacityRow:SetPoint("TOPLEFT", borderRow, "BOTTOMLEFT", 0, -4)
     local wowheadRowLabel = wowheadRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     wowheadRowLabel:SetPoint("LEFT", wowheadRow, "LEFT", 8, 0)
     wowheadRowLabel:SetPoint("RIGHT", wowheadRow, "RIGHT", -SELECTOR_BTN_W - 18, 0)
@@ -2362,20 +2359,17 @@ local function BuildSearchTab(ctx)
     end)
 
     lockPositionCheckbox:ClearAllPoints()
-    -- Two-column toggle grid: lock + alt hints, borders + inline
-    -- autocomplete, app + filter button visibility, learned picks +
-    -- macro picker search.
+    -- Two-column toggle grid: lock + alt hints, app + filter button
+    -- visibility, learned picks + macro picker search, inline autocomplete.
     lockPositionCheckbox:SetPoint("TOPLEFT", searchOpacityRow, "BOTTOMLEFT", 0, -4)
     resultShortcutHintsCheckbox:ClearAllPoints()
     resultShortcutHintsCheckbox:SetPoint("TOPLEFT", lockPositionCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
-    windowBorderCheckbox:SetPoint("TOPLEFT", lockPositionCheckbox, "BOTTOMLEFT", 0, -2)
-    searchAutocompleteCheckbox:SetPoint("TOPLEFT", windowBorderCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
-    showAppsButtonCheckbox:SetPoint("TOPLEFT", windowBorderCheckbox, "BOTTOMLEFT", 0, -2)
+    showAppsButtonCheckbox:SetPoint("TOPLEFT", lockPositionCheckbox, "BOTTOMLEFT", 0, -2)
     showFilterButtonCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     learnPicksCheckbox:SetPoint("TOPLEFT", showAppsButtonCheckbox, "BOTTOMLEFT", 0, -2)
     macroPickerSearchCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
-    frameArtCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
-    classicBgRow:SetPoint("TOPLEFT", frameArtCheckbox, "BOTTOMLEFT", 0, -4)
+    searchAutocompleteCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
+    classicBgRow:SetPoint("TOPLEFT", searchAutocompleteCheckbox, "BOTTOMLEFT", 0, -4)
 
     local function RefreshUIPresetRows()
         if optionsFrame.uiFontPresetRow then
@@ -5430,6 +5424,7 @@ function Options:Initialize()
         if self.RestyleTutorialLink then pcall(self.RestyleTutorialLink) end
         if self.UpdateHomeVersion then pcall(self.UpdateHomeVersion) end
         if self.RestyleMapSep then pcall(self.RestyleMapSep) end
+        if self.RefreshBorderRow then pcall(self.RefreshBorderRow) end
         if self.themeBtnText then
             self.themeBtnText:SetText(EasyFind.db.uiTheme
                 or (ns.DB_DEFAULTS and ns.DB_DEFAULTS.uiTheme) or "Midnight")
@@ -5870,10 +5865,22 @@ function Options:Initialize()
         local values = {}
         for i = 1, #choices do values[i] = choices[i].value end
         local flyout = CreateFlyoutPanel(btnFrame, globalPrefix, SELECTOR_BTN_W, #values)
-        AddFlyoutOptions(flyout, values, SELECTOR_BTN_W - 6, function(value)
+        local function Pick(value)
             setter(value)
             btnText:SetText(LabelFor(value))
-        end, FlyoutLabelFor, nil, onHover)
+        end
+        local flyoutRows = AddFlyoutOptions(flyout, values, SELECTOR_BTN_W - 6, Pick, FlyoutLabelFor, nil, onHover)
+        -- The choices listed anew (a theme change offers other looks).
+        row.SetChoices = function(_, list)
+            for i = #choices, 1, -1 do choices[i] = nil end
+            for i = 1, #list do choices[i] = list[i] end
+            for i = 1, #flyoutRows do flyoutRows[i]:Hide() end
+            local vals = {}
+            for i = 1, #choices do vals[i] = choices[i].value end
+            flyout:SetHeight(#vals * 20 + 6)
+            flyoutRows = AddFlyoutOptions(flyout, vals, SELECTOR_BTN_W - 6, Pick, FlyoutLabelFor, nil, onHover)
+            btnText:SetText(LabelFor(getter()))
+        end
 
         if tooltipText then
             row:EnableMouse(true)
