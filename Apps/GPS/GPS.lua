@@ -3351,8 +3351,8 @@ local function PlaceDock()
         top = lb and lb - (t.moduleSpacing or 10) * t:GetEffectiveScale()
     elseif tt then
         local head = t.Header
-        local _, _, _, hb
-        if head then _, _, _, hb = Look.ScreenRect(head) end
+        local hb
+        if head then hb = select(4, Look.ScreenRect(head)) end
         top = hb or (tt - DOCK_HEADER_H * t:GetEffectiveScale())
     end
     if not (tl and top) then return end
