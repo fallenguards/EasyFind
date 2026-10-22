@@ -8860,9 +8860,11 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     if hl then hl:SetAlpha(0) end
                     row.onClick = nil
                     row:SetScript("OnMouseDown", nil)
-                elseif def.submenu then
+                elseif def.submenu and not (def.onClick and def.keepOpen) then
                     -- A submenu row opens its flyout (it also opens on hover);
-                    -- it never closes the menu or fires a leaf action.
+                    -- it never closes the menu or fires a leaf action. One
+                    -- with a keepOpen onClick is a toggle whose flyout opens
+                    -- on hover only: it takes the toggle branch below.
                     row:EnableMouse(true)
                     local hl = row:GetHighlightTexture()
                     if hl then hl:SetAlpha(1) end

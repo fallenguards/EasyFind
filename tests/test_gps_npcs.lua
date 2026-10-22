@@ -26,9 +26,10 @@ local ROWS = varints({
     437, 30, 0, 0, 7 + 32 + 512, 2160, 1, 1, 1426, xy(0.2, 0.3), 1,                 -- Brog Hamfist, vendor, TBC
 })
 
--- Two tiles on continent 0: tile 3100 hostile from level 20 to the
--- Alliance and 0 (none) to the Horde, tile 3105 from level 60 to both.
-local DANGER = varints({ 2, 3100, 20, 0, 5, 60, 60 })
+-- Two danger cells (a quarter tile a side) on continent 0, the walking
+-- tiles 2079 and 2080: cell 32894 hostile from level 60 to both factions,
+-- cell 32896 from level 20 to the Alliance and 0 (none) to the Horde.
+local DANGER = varints({ 2, 32894, 60, 60, 2, 20, 0 })
 
 local function fresh(localNames, rows, names, goods, noLoad)
     local env = H.newEnv()
@@ -161,27 +162,29 @@ end
 function tests.dangerTiles_byLevelAndFaction()
     local _, Npcs = fresh()
     local low = Npcs.DangerTiles(15, "Alliance")[0]
-    H.assertTrue(low[3100] and low[3105], "level 15: both tiles con orange or red")
+    H.assertTrue(low[2080] and low[2079], "level 15: both tiles con orange or red")
     local mid = Npcs.DangerTiles(18, "Alliance")[0]
-    H.assertNil(mid[3100], "level 18: 20 is only yellow")
-    H.assertTrue(mid[3105])
-    H.assertNil(Npcs.DangerTiles(15, "Horde")[0][3100], "nothing there is hostile to the Horde")
-    H.assertNil(Npcs.DangerTiles(60, "Horde")[0][3105], "at 60 nothing is")
+    H.assertNil(mid[2080], "level 18: 20 is only yellow")
+    H.assertTrue(mid[2079])
+    H.assertNil(Npcs.DangerTiles(15, "Horde")[0][2080], "nothing there is hostile to the Horde")
+    H.assertNil(Npcs.DangerTiles(60, "Horde")[0][2079], "at 60 nothing is")
 end
 
--- A walk 300 yd east: tile 3100 (Alliance threat 20) its first 100 yd,
--- tile 3105 (60) its last 100. Red from five levels under a threat, skull
--- from ten; read every 16 yd or so.
+-- A walk 400 yd north across the world origin: cell 32896 (Alliance
+-- threat 20) its first 133 yd, an unlisted cell next, cell 32894 (60) its
+-- last 133. Red from five levels under a threat, skull from ten; read
+-- every 16 yd or so.
 function tests.deadlyAlong_redAndSkullStretches()
-    local _, Npcs, env = fresh()
-    env.EasyFind._ns.GPSNav = { TileOf = function(x) return x < 100 and 3100 or (x < 200 and 3000 or 3105) end }
-    local function walk() return { pts = { 0, 0, 300, 0 }, cum = { 0, 300 }, len = 300 } end
+    local _, Npcs = fresh()
+    local function walk() return { pts = { -133, 0, 267, 0 }, cum = { 0, 400 }, len = 400 } end
+    H.assertEq(Npcs.CellOf(-100, 0), 32896)
+    H.assertEq(Npcs.CellOf(200, 0), 32894)
     local d = Npcs.DeadlyAlong(walk(), 0, 15, "Alliance")
     H.assertEq(d.n, 4, "two stretches")
     H.assertEq(d[1], 0)
-    H.assertTrue(math.abs(d[2] - 100) < 16 and math.abs(d[3] - 200) < 16, d[2] .. ", " .. d[3])
-    H.assertEq(d[4], 300)
-    H.assertTrue(math.abs(d.skull - 200) < 16 and math.abs(d.sx - 200) < 16, "the skull met at the second")
+    H.assertTrue(math.abs(d[2] - 133) < 16 and math.abs(d[3] - 267) < 16, d[2] .. ", " .. d[3])
+    H.assertEq(d[4], 400)
+    H.assertTrue(math.abs(d.skull - 267) < 16 and math.abs(d.sx - 133) < 16, "the skull met at the second")
     d = Npcs.DeadlyAlong(walk(), 0, 18, "Alliance")
     H.assertEq(d.n, 2, "at 18 the first is only orange")
     d = Npcs.DeadlyAlong(walk(), 0, 52, "Alliance")

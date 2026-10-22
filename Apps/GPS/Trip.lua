@@ -103,7 +103,7 @@ function Trip.Remove(i)
     local route = Route()
     if not (route and Stops(route)[i]) then return end
     tremove(route.stops, i)
-    if #route.stops == 0 then ns.GPS:Clear() else Trip.Navigate({ quiet = true }) end
+    if #route.stops == 0 then ns.GPS:Clear({ stay = true }) else Trip.Navigate({ quiet = true }) end
 end
 
 -- Stop i goes to place j.
@@ -620,10 +620,13 @@ local function Field(ed, i)
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
     grip:SetScript("OnDragStop", function() ed:DragStop() end)
     -- Shown while the cursor is on the row (the grip is part of it), or
-    -- while a drag holds it; no per-frame poll.
+    -- while a drag holds it; no per-frame poll. The row takes the cursor's
+    -- motion, not its clicks, so leaving it from any spot is heard.
     local function SyncGrip()
         grip:SetShown(row.canDrag and (ed.drag == row.index + 1 or row:IsMouseOver()))
     end
+    row.SyncGrip = SyncGrip
+    if row.SetMouseMotionEnabled then row:SetMouseMotionEnabled(true) else row:EnableMouse(true) end
     row:HookScript("OnEnter", SyncGrip)
     row:HookScript("OnLeave", SyncGrip)
     grip:SetScript("OnEnter", SyncGrip)
@@ -678,7 +681,11 @@ local function Field(ed, i)
     box:HookScript("OnTextChanged", function(self, user) if user then ed:Typed(row, self:GetText() or "") end end)
     if box.clearButton then
         box.clearButton:HookScript("OnClick", function() ed:Cleared(row) end)
+        box.clearButton:HookScript("OnEnter", SyncGrip)
+        box.clearButton:HookScript("OnLeave", SyncGrip)
     end
+    box:HookScript("OnEnter", SyncGrip)
+    box:HookScript("OnLeave", SyncGrip)
     row.box = box
     ed.rows[i] = row
     return row
@@ -728,7 +735,6 @@ function Editor:Refresh(route)
         for k = 1, 3 do row.dots[k]:SetShown(n > 1) end
         -- Any row of a planned trip drags, the start too: two rows swap.
         row.canDrag = not adding and #stops >= 1
-        if not row.canDrag then row.grip:Hide() end
         row:SetHeight(rowH)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
@@ -785,6 +791,8 @@ function Editor:Refresh(route)
     end
     if adding and not along then AddRow() end
     for i = n + 1, #self.rows do self.rows[i]:Hide() end
+    -- Laid again under a still cursor: each grip as the cursor stands now.
+    for i = 1, n do self.rows[i].SyncGrip() end
     if px and g.SizeFont then g.SizeFont(self.addText, px) end
     self.add:ClearAllPoints()
     self.add:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)

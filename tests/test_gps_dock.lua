@@ -232,7 +232,11 @@ function tests.planningAndBorderAreFlyoutSwitches()
     local style = GPS.StyleMenu(border).rows()
     H.assertEq(style[#style].text, "GPS_SIZE_BORDER", "the border under the looks")
     H.assertTrue(style[#style - 1].isSeparator)
-    H.assertEq(#GPS.StyleMenu(nil).rows(), 3, "no border row off the window")
+    local off = GPS.StyleMenu(nil).rows()
+    H.assertEq(#off, 4, "no border row off the window: the looks and the text size")
+    H.assertEq(off[4].text, "GPS_POPOUT_TEXT")
+    H.assertEq(#off[4].submenu, 4, "four text sizes")
+    H.assertTrue(off[4].submenu[2].picked, "normal until one is picked")
     -- The row opens a choice of rims: the quest log's paper or the line;
     -- a theme with frame art of its own offers that first and by default.
     local rims = style[#style].submenu

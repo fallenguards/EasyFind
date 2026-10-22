@@ -2403,7 +2403,7 @@ local function NpcFacetRows(onChanged)
         for _, facet in ipairs(Flt and Flt.NpcFacets and Flt:NpcFacets() or {}) do
             local defs = facet.defs()
             if #defs > 1 then
-                rows[#rows + 1] = { text = facet.label, keepOpen = true, disabled = off, rows = function()
+                rows[#rows + 1] = { text = facet.label, keepOpen = true, disabled = off, submenu = function()
                     local picks = Flt.NpcFacet(facet.name)
                     local out = {}
                     for _, d in ipairs(facet.defs()) do
@@ -2475,6 +2475,31 @@ local function MapOptionsDefs(onChanged, onFontPick)
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "submenu", label = L["OPT_FONT_SIZE"], rows = FontRows(onFontPick) }
     return defs
+end
+
+-- The same Show buckets as flyout rows for another surface's menu (the
+-- GPS window and section): a click flips a bucket, hover opens its kinds.
+function MapTab.FilterRows(onChanged)
+    return function()
+        local filters = Filters()
+        local rows = {}
+        for _, opt in ipairs(FILTER_OPTIONS) do
+            if not opt.parentKey then
+                local kinds = opt.key == "rares"
+                for _, o in ipairs(FILTER_OPTIONS) do
+                    if o.parentKey == opt.key then kinds = true end
+                end
+                rows[#rows + 1] = { text = opt.label, tooltip = opt.tooltip, keepOpen = true,
+                    icon = filters[opt.key] ~= false and MENU_CHECK or nil,
+                    submenu = (kinds and BucketRows(opt, onChanged)) or (opt.key == "npcs" and NpcFacetRows(onChanged)) or nil,
+                    onClick = function()
+                        filters[opt.key] = filters[opt.key] == false
+                        onChanged(opt.key, filters[opt.key])
+                    end }
+            end
+        end
+        return rows
+    end
 end
 
 local function CreateFilterCog(parent)

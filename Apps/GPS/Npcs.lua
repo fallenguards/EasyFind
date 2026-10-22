@@ -27,6 +27,9 @@ local RED_LEVELS = 5    -- the client's red: drawn red on a route
 local SKULL_LEVELS = 10 -- the client's skull: a route through it is warned of
 local ZONE_LEVELS = 5   -- over a zone's top level, a tile's creatures are a neighbour's
 local DEADLY_STEP = 16  -- yards between the points a walk is read at
+local TILE = 1600 / 3   -- the walking grid's tiles (Nav.lua)
+local CELL = TILE / 4   -- the danger map's cells, a quarter tile a side
+local ORIGIN = 32 * TILE
 local WEAPON = 2        -- Enum.ItemClass.Weapon
 -- The catalog's role bits (dev/tools/npc_catalog.py ROLES), in the groups
 -- the filter offers; a creature with none is "other".
@@ -1153,8 +1156,14 @@ function N.FilterChoices()
     return { types = types, expansions = list }
 end
 
--- Each walking tile's threat to a faction, decoded once: the level from
--- which its hostile creatures stop being one. { [continent] = { [tile] =
+-- The danger map's cell under a world point: its column * 256 + its row.
+local function CellOf(x, y)
+    return mfloor((ORIGIN - y) / CELL) * 256 + mfloor((ORIGIN - x) / CELL)
+end
+N.CellOf = CellOf
+
+-- Each danger cell's threat to a faction, decoded once: the level from
+-- which its hostile creatures stop being one. { [continent] = { [cell] =
 -- level } }, or nil without the catalog's danger map.
 function N.Threats(faction)
     local data = ns.NPC_DATA
@@ -1166,14 +1175,14 @@ function N.Threats(faction)
         local ok, raw = pcall(Unpack, blob)
         if ok and raw then
             local u = Reader(raw)
-            local tiles, last = {}, 0
+            local cells, last = {}, 0
             for _ = 1, u() do
                 last = last + u()
                 local alliance, hordeLevel = u(), u()
                 local level = horde and hordeLevel or alliance
-                if level > 0 then tiles[last] = level end
+                if level > 0 then cells[last] = level end
             end
-            set[ci] = tiles
+            set[ci] = cells
         end
     end
     N.threats, N.threatsHorde = set, horde
@@ -1181,18 +1190,18 @@ function N.Threats(faction)
 end
 
 -- The walking tiles a character of this level and faction goes around:
--- those whose hostile creatures con orange or red to it (DANGER_LEVELS
--- or more above). { [continent] = { [tile] = true } }, or nil.
+-- those with a cell whose hostile creatures con orange or red to it
+-- (DANGER_LEVELS or more above). { [continent] = { [tile] = true } }, or nil.
 function N.DangerTiles(level, faction)
     local threats = level and N.Threats(faction)
     if not threats then return nil end
     local key = level .. (faction or "")
     if N.dangerKey == key then return N.dangerSet end
     local set = {}
-    for ci, tiles in pairs(threats) do
+    for ci, cells in pairs(threats) do
         local out = {}
-        for tile, at in pairs(tiles) do
-            if at >= level + DANGER_LEVELS then out[tile] = true end
+        for cell, at in pairs(cells) do
+            if at >= level + DANGER_LEVELS then out[mfloor(cell / 1024) * 64 + mfloor(cell % 256 / 4)] = true end
         end
         set[ci] = out
     end
@@ -1206,7 +1215,7 @@ end
 -- that cons skull is met, at sx, sy. Kept on the walk for its level; nil
 -- without the catalog's danger map.
 -- The highest creature level that belongs to the zone a world spot lies
--- in: a tile straddling a zone border carries the neighbour's creatures
+-- in: a cell straddling a zone border carries the neighbour's creatures
 -- (Darkshore's east edge reads as Felwood), no threat on this side. nil
 -- when the client cannot say.
 local function ZoneLevelCap(ci, wx, wy)
@@ -1220,9 +1229,8 @@ end
 
 function N.DeadlyAlong(path, ci, level, faction)
     local threats = level and N.Threats(faction)
-    local tiles = threats and threats[ci]
-    local TileOf = ns.GPSNav and ns.GPSNav.TileOf
-    if not (tiles and TileOf and path and path.pts) then return nil end
+    local cells = threats and threats[ci]
+    if not (cells and path and path.pts) then return nil end
     local d = path.deadly
     if d and d.level == level and d.ci == ci then return d end
     d = { level = level, ci = ci, n = 0 }
@@ -1237,7 +1245,7 @@ function N.DeadlyAlong(path, ci, level, faction)
         local k = mmax(1, mceil(len / DEADLY_STEP))
         for j = 0, k - 1 do
             local t = (j + 0.5) / k
-            local at = tiles[(TileOf(ax + dx * t, ay + dy * t))] or 0
+            local at = cells[CellOf(ax + dx * t, ay + dy * t)] or 0
             if cap and at > cap then at = 0 end
             if (at >= red) ~= inside then
                 inside = not inside

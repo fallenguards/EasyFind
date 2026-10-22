@@ -32,8 +32,12 @@ local ROW_H = 22
 -- Beside the map the steps read at the quest log's size and follow the map
 -- search's font size choice; the windows keep their small type.
 local MAP_STEP_PX = 13
+-- The page's text scale: the map tab's font size, or the floating
+-- window's own setting; nil leaves the fonts as made.
 local function MapScale(container)
-    return container.mapFont and ((EasyFind.db and EasyFind.db.mapTabFontSize) or 1) or nil
+    if container.mapFont then return (EasyFind.db and EasyFind.db.mapTabFontSize) or 1 end
+    local s = container.isPopout and EasyFind.db and EasyFind.db.gpsPopoutText
+    return type(s) == "number" and s ~= 1 and s or nil
 end
 local function SizeFont(fs, px)
     local file, _, flags = fs:GetFont()
@@ -41,6 +45,11 @@ local function SizeFont(fs, px)
 end
 -- The trip editor sizes its text as the page's steps.
 GPS.SizeFont = SizeFont
+-- A font string at the page's size, or its own font again at none.
+local function ScaleFont(fs, object, px)
+    if px then SizeFont(fs, px) else fs:SetFontObject(object) end
+end
+
 function GPS.MapTextPx(container)
     local scale = MapScale(container)
     return scale and MAP_STEP_PX * scale or nil
@@ -1131,6 +1140,17 @@ function GPS:NavigateTo(data, opts)
     elseif not (opts and opts.quiet) then
         self:Open()
     end
+    -- A map search's place: the map's own pin on it too, as a click in the
+    -- map tab leaves it (its glow, its tooltip, a right-click clears it).
+    local MapSearch = ns.MapSearch
+    if data.mapSearchResult and not dest.zone and data.x and data.y and MapSearch and MapSearch.SelectResult then
+        if WorldMapFrame and WorldMapFrame:IsShown() then
+            MapSearch:SelectResult(data, true)
+        elseif MapSearch.SetActivePinState then
+            MapSearch:SetActivePinState({ mapID = data.coordMapID or data.mapID, x = data.x, y = data.y, icon = data.icon,
+                                          category = data.category, displayID = data.displayID, isLocal = false })
+        end
+    end
     self:Plan(dest.name, function() return self:BuildRoute(dest, nil, nil, true, "first") end,
         function(steps, total, advice)
             GPS.Navigated(dest, steps, total, advice)
@@ -1553,7 +1573,9 @@ function GPS:ReportRoute(stepIndex)
     if code then EasyFind:OpenRouteReport(code, line) end
 end
 
-function GPS:Clear()
+-- The route put away; the map tab goes back to its search unless the
+-- caller stays (the trip's last stop cleared to type another).
+function GPS:Clear(opts)
     local route = Route()
     if route then EasyFind.API.Fire("gps", "routeCleared") end
     if route and not route.arrived then LiftPin(route) end
@@ -1565,14 +1587,14 @@ function GPS:Clear()
     -- Nothing to follow now: what its walks decoded goes after a minute.
     Planner.ReleaseLater()
     Refresh()
-    if ns.MapTab and ns.MapTab.ShowSearchView then ns.MapTab:ShowSearchView() end
+    if not (opts and opts.stay) and ns.MapTab and ns.MapTab.ShowSearchView then ns.MapTab:ShowSearchView() end
 end
 
 function GPS:Open()
-    if ns.MapTab and ns.MapTab.ShowPage then
-        return ns.MapTab:ShowPage("gps")
-    end
-    return false
+    if ns.MapTab and ns.MapTab.ShowPage and ns.MapTab:ShowPage("gps") then return true end
+    -- Era's and Anniversary's map has no side panel to hold the page: the
+    -- opener shows the map alone, and the route is drawn on it.
+    return WorldMapFrame ~= nil and WorldMapFrame:IsShown()
 end
 
 -- Rendering, shared by the page and the pop-out
@@ -1595,15 +1617,23 @@ end
 -- The swipe follows the spell's or item's cooldown.
 local function UpdateCooldown(btn)
     if not (btn and btn.cd) then return end
-    local start, duration = 0, 0
+    local start, duration, rate = 0, 0, nil
     if btn.itemID and C_Container and C_Container.GetItemCooldown then
         local ok, s, d = pcall(C_Container.GetItemCooldown, btn.itemID)
         if ok then start, duration = s or 0, d or 0 end
     elseif btn.spellID and C_Spell and C_Spell.GetSpellCooldown then
         local ok, info = pcall(C_Spell.GetSpellCooldown, btn.spellID)
-        if ok and info then start, duration = info.startTime or 0, info.duration or 0 end
+        if ok and info then start, duration, rate = info.startTime or 0, info.duration or 0, info.modRate end
     end
-    if duration and duration > 1.5 then btn.cd:SetCooldown(start, duration) else btn.cd:Clear() end
+    -- A secret cooldown (WoW Forever withholds the numbers in a fight) still
+    -- draws: the swipe takes secret values, a comparison of them errors.
+    if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then
+        btn.cd:SetCooldown(start, duration, rate)
+    elseif duration and duration > 1.5 then
+        btn.cd:SetCooldown(start, duration, rate)
+    else
+        btn.cd:Clear()
+    end
 end
 
 local castButtons = {}   -- every cast button, hidden as a fight begins
@@ -1731,12 +1761,12 @@ local function StepRow(container, i)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     -- The menus' own rounded hover wash, not a flat square.
     Utils.InstallMenuRowHighlight(row)
-    -- Numbers start at the list's left edge, where the From and danger
-    -- lines start too; the text column sits after the number's box.
+    -- Numbers sit against the text column, right-aligned in their box;
+    -- the danger line starts where their ink does.
     row.num = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.num:SetPoint("LEFT", row, "LEFT", 6, 0)
     row.num:SetWidth(18)
-    row.num:SetJustifyH("LEFT")
+    row.num:SetJustifyH("RIGHT")
     row.num._efOwnColor = true
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text._efOwnColor = true
@@ -2046,7 +2076,7 @@ local function Render(container)
     if GPS.picking == container then route = nil end
     local rows = container.rows
     if container.glyphTex then
-        container.glyphTex:SetVertexColor(unpack(ns.GOLD_COLOR))
+        container.glyphTex:SetVertexColor(unpack(ns.ChromeGlyphColor()))
         container.glyphTex:SetAlpha(1)
     end
     if container.track then StyleTrackButton(container.track, route ~= nil and RouteTracked()) end
@@ -2125,7 +2155,11 @@ local function Render(container)
     -- Done steps hidden (the setting): the list starts at the active step.
     local first = only or ((dbo and dbo.gpsHideDone and not route.arrived) and (route.active or 1)) or 1
     local scale = MapScale(container)
-    local rowBase = scale and mfloor((ROW_H + 4) * scale + 0.5) or ROW_H
+    local rowBase = scale and mfloor((container.mapFont and ROW_H + 4 or ROW_H) * scale + 0.5) or ROW_H
+    if container.isPopout and container.eta and container.etaScale ~= (scale or 0) then
+        container.etaScale = scale or 0
+        ScaleFont(container.eta, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
+    end
     -- A wrapped line is measured at the width it is given outright: a new
     -- row's anchors may not be placed yet when it is measured.
     local listW = container.list:GetWidth() or 0
@@ -2147,14 +2181,26 @@ local function Render(container)
     local warn = not only and GPS.DangerText(route)
     if warn then
         local row = GPS.DangerLine(container, container.list, "GameFontHighlightSmall")
-        if scale and row.fontScale ~= scale then
-            row.fontScale = scale
-            SizeFont(row.text, MAP_STEP_PX * scale)
+        if row.fontScale ~= (scale or 0) then
+            row.fontScale = scale or 0
+            ScaleFont(row.text, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
         end
+        -- The text starts where a step number's ink does: the number box's
+        -- right edge less one number's width, measured in the numbers' font.
+        local probe = container.list.numProbe
+        if not probe then
+            probe = container.list:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+            probe:Hide()
+            container.list.numProbe = probe
+        end
+        ScaleFont(probe, "GameFontNormalSmall", scale and MAP_STEP_PX * scale)
+        probe:SetText("1.")
+        local numW = scale and mfloor(24 * scale + 0.5) or 18
+        local inset = mmax(0, numW - (probe:GetStringWidth() or 0))
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 6, -y - 4 + offset)
+        row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 6 + inset, -y - 4 + offset)
         row:SetPoint("RIGHT", container.list, "RIGHT", -8, 0)
-        row.text:SetWidth(mmax(40, listW - 30))
+        row.text:SetWidth(mmax(40, listW - 30 - inset))
         row.text:SetText(warn)
         local h = row.text:GetStringHeight() or 0
         row:SetHeight(mmax(10, h))
@@ -2173,9 +2219,9 @@ local function Render(container)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
             row:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
-            if scale and row.fontScale ~= scale then
-                row.fontScale = scale
-                SizeFont(row.text, (MAP_STEP_PX - 1) * scale)
+            if row.fontScale ~= (scale or 0) then
+                row.fontScale = scale or 0
+                ScaleFont(row.text, "GameFontHighlightSmall", scale and (MAP_STEP_PX - 1) * scale)
             end
             row.text:SetWidth(mmax(40, listW - 36))
             row.text:SetText(list[t].text)
@@ -2190,11 +2236,11 @@ local function Render(container)
         local step = route.steps[i]
         local row = StepRow(container, i)
         row.index = i
-        if scale and row.fontScale ~= scale then
-            row.fontScale = scale
-            SizeFont(row.text, MAP_STEP_PX * scale)
-            SizeFont(row.num, MAP_STEP_PX * scale)
-            row.num:SetWidth(mfloor(24 * scale + 0.5))
+        if row.fontScale ~= (scale or 0) then
+            row.fontScale = scale or 0
+            ScaleFont(row.text, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
+            ScaleFont(row.num, "GameFontNormalSmall", scale and MAP_STEP_PX * scale)
+            row.num:SetWidth(scale and mfloor(24 * scale + 0.5) or 18)
         end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
@@ -2322,11 +2368,34 @@ local function WithTowns(q, results)
 end
 
 -- Places for a typed name, for the trip editor: the map search's, then towns.
+-- The GPS searches keep the map tab's Show choices (EasyFind.db.mapTabFilters),
+-- the buckets its cog offers, reachable from the window's and section's menus.
+GPS.searchFrames = {}
+
+function GPS.FilterHits(results)
+    local Pass = ns.MapSearch and ns.MapSearch.PassesFilter
+    local filters = EasyFind.db.mapTabFilters
+    if not (Pass and filters and results) then return results end
+    local out = {}
+    for i = 1, #results do
+        if Pass(results[i], filters) then out[#out + 1] = results[i] end
+    end
+    return out
+end
+
+-- A Show choice changed: every box with a query searches again.
+function GPS.RefreshSearches()
+    for i = 1, #GPS.searchFrames do
+        local frame = GPS.searchFrames[i]
+        if frame.RunSearch then frame.RunSearch() end
+    end
+end
+
 function GPS.SearchPlaces(q)
     local MapSearch = ns.MapSearch
     if not (MapSearch and MapSearch.BuildResults) then return WithTowns(q, nil) end
     local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
-    return WithTowns(q, ok and results or nil)
+    return WithTowns(q, GPS.FilterHits(ok and results or nil))
 end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
@@ -2453,6 +2522,18 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     end
 
     local pending
+    frame.RunSearch = function()
+        local MapSearch = ns.MapSearch
+        local q = box:GetText() or ""
+        if q == "" or not (MapSearch and MapSearch.BuildResults) then return end
+        if GPS.along == frame then
+            frame:ShowHits(ns.GPSTrip.AlongPlaces(q))
+            return
+        end
+        local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
+        frame:ShowHits(WithTowns(q, GPS.FilterHits(ok and results or nil)))
+    end
+    GPS.searchFrames[#GPS.searchFrames + 1] = frame
     box:HookScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         if text == "" then frame:ShowHits(nil) return end
@@ -2460,15 +2541,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         pending = true
         Utils.SafeAfter(0.15, function()
             pending = nil
-            local MapSearch = ns.MapSearch
-            local q = box:GetText() or ""
-            if q == "" or not (MapSearch and MapSearch.BuildResults) then return end
-            if GPS.along == frame then
-                frame:ShowHits(ns.GPSTrip.AlongPlaces(q))
-                return
-            end
-            local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
-            frame:ShowHits(WithTowns(q, ok and results or nil))
+            frame.RunSearch()
         end)
     end)
 end
@@ -2630,7 +2703,7 @@ local function BuildSurface(frame, opts)
         glyph = head:CreateTexture(nil, "OVERLAY", nil, 7)
         glyph:SetTexture(ns.GPS_ICON_TEX)
         glyph:SetAllPoints(head)
-        glyph:SetVertexColor(unpack(ns.GOLD_COLOR))
+        glyph:SetVertexColor(unpack(ns.ChromeGlyphColor()))
         glyph._efOwnColor = true
         frame.glyph = head
         frame.glyphTex = glyph
@@ -3618,13 +3691,32 @@ function Look.ClassicSize(base)
     return base + mmax(0, mfloor(h + 0.5) - 12)
 end
 
-function Look.Restyle(fs, look, base, object)
-    if fs.look == look then return end
-    fs.look = look
+-- The floating window's text scale (its setting); nil docked, or as made.
+local function PopoutTextScale(f)
+    if f.docked then return nil end
+    local db = DB()
+    local s = db and db.gpsPopoutText
+    return type(s) == "number" and s ~= 1 and s or nil
+end
+
+function Look.LineH(scale)
+    return scale and mfloor(Look.LINE * scale + 0.5) or Look.LINE
+end
+
+function Look.Restyle(fs, look, base, object, scale)
+    local key = scale and look .. scale or look
+    if fs.look == key then return end
+    fs.look = key
     if look == "classic" then
-        fs:SetFont(Look.FONT, Look.ClassicSize(base), "")
+        fs:SetFont(Look.FONT, mfloor(Look.ClassicSize(base) * (scale or 1) + 0.5), "")
         fs:SetShadowColor(0, 0, 0, 1)
         fs:SetShadowOffset(1, -1)
+    elseif scale then
+        local font = _G[object]
+        local file, h, flags
+        if font and font.GetFont then file, h, flags = font:GetFont() end
+        if type(h) ~= "number" or (issecretvalue and issecretvalue(h)) then h = base + 2 end
+        fs:SetFont(file or Look.FONT, mfloor(h * scale + 0.5), flags or "")
     else
         fs:SetFontObject(object)
     end
@@ -3664,9 +3756,9 @@ function Look.FoldArt(fold, look, open)
 end
 
 -- The widgets of one look shown, the other's hidden.
-function Look.Apply(f, look)
-    if f.look == look then return end
-    f.look = look
+function Look.Apply(f, look, scale)
+    if f.look == look and f.textScale == scale then return end
+    f.look, f.textScale = look, scale
     local era = look == "era"
     f.head:SetShown(not era)
     f.plate:SetShown(look == "game")
@@ -3682,7 +3774,7 @@ function Look.Apply(f, look)
         for i = 1, #(f.tipLines or {}) do f.tipLines[i]:Hide() end
         if f.fromLine then f.fromLine:Hide() end
         f.searchAnchor:SetPoint("LEFT", f.eraTitle, "RIGHT", 4, 0)
-        f.hitList:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -(Look.LINE + 4))
+        f.hitList:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -(Look.LineH(scale) + 4))
         f.hitList:SetPoint("RIGHT", f, "RIGHT", 0, 0)
         return
     end
@@ -3690,23 +3782,24 @@ function Look.Apply(f, look)
     f.searchAnchor:SetPoint("LEFT", f.header, "RIGHT", -2, 0)
     f.hitList:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, -(DOCK_HEADER_H + 4))
     f.hitList:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
-    Look.Restyle(f.header, look, 12, "ObjectiveTrackerHeaderFont")
+    Look.Restyle(f.header, look, 12, "ObjectiveTrackerHeaderFont", scale)
     f.header:SetTextColor(1, 0.82, 0)
-    Look.Restyle(f.title, look, 11, "ObjectiveTrackerLineFont")
+    Look.Restyle(f.title, look, 11, "ObjectiveTrackerLineFont", scale)
     f.title:SetTextColor(1, 0.82, 0)
 end
 
 -- A line laid as the Era watch lays one: on one line, or wrapped at its width.
-function Look.EraFill(fs, text)
+function Look.EraFill(fs, text, line)
+    line = line or Look.LINE
     fs:SetWidth(0)
     fs:SetText(text)
     local w = fs:GetStringWidth() or 0
     if w <= Look.W then
-        fs:SetSize(w, Look.LINE)
-        return w, Look.LINE
+        fs:SetSize(w, line)
+        return w, line
     end
     fs:SetWidth(Look.W)
-    local h = mmax(Look.LINE, fs:GetStringHeight() or Look.LINE)
+    local h = mmax(line, fs:GetStringHeight() or line)
     fs:SetHeight(h)
     return Look.W, h
 end
@@ -3752,9 +3845,10 @@ end
 
 -- Line n of the Era block at depth tall, its text in gray c: the row, its
 -- width and the depth under it.
-function Look.EraRow(f, n, text, c, tall)
+function Look.EraRow(f, n, text, c, tall, scale, line)
     local row = Look.EraLine(f, n)
-    local w, h = Look.EraFill(row.text, " - " .. text)
+    Look.Restyle(row.text, "era", 10, "GameFontHighlight", scale)
+    local w, h = Look.EraFill(row.text, " - " .. text, line)
     row.index, row.tip, row.from = nil, nil, nil
     row.shade = Look.Grey(c)
     Look.ShadeLine(row)
@@ -3772,8 +3866,11 @@ function Look.RenderEra(f)
     SearchHint(f)
     if GPS.picking == f then route = nil end
     if f.dangerLine then f.dangerLine:Hide() end
+    local scale = PopoutTextScale(f)
+    local lineH = Look.LineH(scale)
+    Look.Restyle(f.eraTitle, "era", 10, "GameFontHighlight", scale)
     local text = route and DestText(route) or L["APP_GPS"]
-    local widest, tall = Look.EraFill(f.eraTitle, text)
+    local widest, tall = Look.EraFill(f.eraTitle, text, lineH)
     if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
     local n = 0
     local hits = route and f.search and (f.hitCount or 0) > 0
@@ -3793,7 +3890,7 @@ function Look.RenderEra(f)
         local start = not route.arrived and Start()
         if start then
             n = n + 1
-            row, w, tall = Look.EraRow(f, n, sformat(L["GPS_FROM_FMT"], start.name or "?"), 1, tall)
+            row, w, tall = Look.EraRow(f, n, sformat(L["GPS_FROM_FMT"], start.name or "?"), 1, tall, scale, lineH)
             row.shade, row.from = ns.TEXT_DIM, true
             Look.ShadeLine(row)
             widest = mmax(widest, w)
@@ -3801,9 +3898,9 @@ function Look.RenderEra(f)
         local warn = GPS.DangerText(route)
         if warn then
             local line = GPS.DangerLine(f, f, "GameFontHighlight")
-            Look.Restyle(line.text, "era", 10, "GameFontHighlight")
+            Look.Restyle(line.text, "era", 10, "GameFontHighlight", scale)
             line.text:SetTextColor(unpack(GPS.DANGER_RGB))
-            local lw, lh = Look.EraFill(line.text, warn)
+            local lw, lh = Look.EraFill(line.text, warn, lineH)
             line:ClearAllPoints()
             line:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -tall)
             line:SetSize(lw + 16, lh)
@@ -3820,7 +3917,7 @@ function Look.RenderEra(f)
         local function EraTips(list)
             for _, tip in ipairs(list) do
                 n = n + 1
-                row, w, tall = Look.EraRow(f, n, tip.text, 1, tall)
+                row, w, tall = Look.EraRow(f, n, tip.text, 1, tall, scale, lineH)
                 row.shade, row.tip = ns.TEXT_ASIDE, tip
                 Look.ShadeLine(row)
                 widest = mmax(widest, w)
@@ -3830,7 +3927,8 @@ function Look.RenderEra(f)
         for i = hideDone and at or 1, #items do
             local active = at == i and not route.arrived
             n = n + 1
-            row, w, tall = Look.EraRow(f, n, StepText(items[i], active), (active or route.arrived) and 1 or (i < at and 0.5 or 0.8), tall)
+            row, w, tall = Look.EraRow(f, n, StepText(items[i], active), (active or route.arrived) and 1 or (i < at and 0.5 or 0.8), tall,
+                                       scale, lineH)
             row.index = (not route.arrived) and i or nil
             Look.ShadeLine(row)
             widest = mmax(widest, w + (SetupCast(row.cast, items[i], active) and 20 or 0))
@@ -3848,14 +3946,15 @@ function Look.RenderEra(f)
         if k > 0 then tall = tall + 4 + k * ROW_H + 4 end
     end
     for i = n + 1, #f.eraLines do f.eraLines[i]:Hide() end
-    f:SetSize(mmax(1, widest), mmax(Look.LINE, tall))
+    f:SetSize(mmax(1, widest), mmax(lineH, tall))
     PlaceDock()
 end
 
 RenderDock = function(f)
     if not (f.docked or f.floating) then return end
     local look = SectionLook(f)
-    Look.Apply(f, look)
+    local scale = PopoutTextScale(f)
+    Look.Apply(f, look, scale)
     if look == "era" then return Look.RenderEra(f) end
     local route = Route()
     local y = -(DOCK_HEADER_H + 8)
@@ -3912,8 +4011,8 @@ RenderDock = function(f)
             -- A start picked: its line first; a click picks another.
             if start then
                 local line = DockFromLine(f)
-                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont")
-                Look.Restyle(line.dash, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont", scale)
+                Look.Restyle(line.dash, look, 10, "ObjectiveTrackerLineFont", scale)
                 line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
                 line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
                 line.shade = ns.TEXT_DIM
@@ -3929,7 +4028,7 @@ RenderDock = function(f)
             local warn = GPS.DangerText(route)
             if warn then
                 local line = GPS.DangerLine(f, f, "ObjectiveTrackerLineFont")
-                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont", scale)
                 line.text:SetTextColor(unpack(GPS.DANGER_RGB))
                 line.text:SetWidth(mmax(40, lineW - 16))
                 line.text:SetText(warn)
@@ -3951,8 +4050,8 @@ RenderDock = function(f)
                 for _, tip in ipairs(list) do
                     nTips = nTips + 1
                     local row = DockTipLine(f, nTips)
-                    Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
-                    Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
+                    Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont", scale)
+                    Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont", scale)
                     row.tip = tip
                     row.text:SetText(tip.text)
                     row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8)))
@@ -3971,8 +4070,8 @@ RenderDock = function(f)
             for i = hideDone and (route.active or 1) or 1, #items do
                 n = n + 1
                 local row = DockLine(f, n)
-                Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont")
-                Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont")
+                Look.Restyle(row.text, look, 10, "ObjectiveTrackerLineFont", scale)
+                Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont", scale)
                 row.index = (not route.arrived) and i or nil
                 row.text:SetText(StepText(items[i], (route.active or 1) == i and not route.arrived))
                 local cast = SetupCast(row.cast, items[i], (route.active or 1) == i and not route.arrived)
@@ -4417,6 +4516,8 @@ local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 
 -- A setting's picks as flyout rows: choices { { value, key }, ... }, the
 -- one in use ticked (a radio on the game's own menu).
+local TEXT_SIZES = { { 0.85, "OPT_FONT_SMALL" }, { 1, "GPS_SIZE_NORMAL" }, { 1.2, "OPT_FONT_LARGE" }, { 1.4, "OPT_FONT_XL" } }
+
 local function PickRows(choices, current, pick)
     local rows = {}
     for i = 1, #choices do
@@ -4497,6 +4598,13 @@ function GPS.StyleMenu(border)
     local looks = { { "easyfind", "GPS_STYLE_EASYFIND" }, { "tracker", "GPS_STYLE_TRACKER" }, { "era", "GPS_STYLE_ERA" } }
     return { kind = "submenu", label = L["GPS_STYLE"], rows = function()
         local rows = PickRows(looks, PopoutStyle(), function(style) pick(style)() end)
+        local db = DB()
+        rows[#rows + 1] = { text = L["GPS_POPOUT_TEXT"], submenu = PickRows(TEXT_SIZES, db and db.gpsPopoutText or 1, function(v)
+            if not db then return end
+            db.gpsPopoutText = (v ~= 1) and v or nil
+            HideMenus()
+            Refresh()
+        end) }
         if border then
             rows[#rows + 1] = { isSeparator = true }
             local rims = { { "line", "GPS_BORDER_LINE" } }
@@ -4662,6 +4770,10 @@ function GPS.MenuRows(f)
     if route then defs[#defs + 1] = { kind = "action", label = L["GPS_REPORT"], onClick = function() GPS:ReportRoute() end } end
     -- A section's flyouts come after its rows, on every surface alike.
     if sendRows then defs[#defs + 1] = { kind = "submenu", label = L["CTX_SEND_LINK"], rows = sendRows } end
+    -- The search's Show buckets, the map tab's own, so the box finds what the tab would.
+    if ns.MapTab and ns.MapTab.FilterRows then
+        defs[#defs + 1] = { kind = "submenu", label = _G["SHOW"] or "Show", rows = ns.MapTab.FilterRows(GPS.RefreshSearches) }
+    end
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = GPS.WorldPinRow()
     defs[#defs + 1] = GPS.SnapRow()
@@ -4793,7 +4905,10 @@ local function BuildPopout()
     end
     f:ApplyBorderShape()
     -- The theme's frame art comes and goes with the theme.
-    ns.RegisterThemeCallback(function() f:ApplyBorderShape() end)
+    ns.RegisterThemeCallback(function()
+        f:ApplyBorderShape()
+        if f.glyphTex then f.glyphTex:SetVertexColor(unpack(ns.ChromeGlyphColor())) end
+    end)
 
     -- The calculator's stroke close, not a stock round button. The header's
     -- buttons are small, a click a little round each.
@@ -5362,6 +5477,17 @@ local function BuildOptionsPage(page, kit)
         end,
         L["GPS_ARROW_TEXT_TT"], "full")
     textRow:SetPoint("TOPLEFT", clickRow, "BOTTOMLEFT", 0, -4)
+    local sizes = {}
+    for i, c in ipairs(TEXT_SIZES) do sizes[i] = { label = L[c[2]], value = c[1] } end
+    local sizeRow = kit.Choice(page, L["GPS_POPOUT_TEXT"], sizes,
+        function() local db = DB() return db and db.gpsPopoutText or 1 end,
+        function(v)
+            local db = DB()
+            if db then db.gpsPopoutText = (v ~= 1) and v or nil end
+            Refresh()
+        end,
+        L["GPS_POPOUT_TEXT_TT"], 1)
+    sizeRow:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -4)
     local plateBorder = kit.Checkbox(page, L["GPS_PLATE_BORDER"],
         function() local d = DB() return d ~= nil and d.gpsPlateBorder == true end,
         function(on)
@@ -5369,7 +5495,7 @@ local function BuildOptionsPage(page, kit)
             if d then d.gpsPlateBorder = on or nil end
             if ns.GPSWorldPin and ns.GPSWorldPin.ApplyPlateBorders then ns.GPSWorldPin.ApplyPlateBorders() end
         end, L["GPS_PLATE_BORDER_TT"])
-    plateBorder:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -6)
+    plateBorder:SetPoint("TOPLEFT", sizeRow, "BOTTOMLEFT", 0, -6)
     -- A switch stored only when off.
     local function Switch(key, label, tip, after)
         return kit.Checkbox(page, label,
