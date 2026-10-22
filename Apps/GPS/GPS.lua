@@ -1207,6 +1207,13 @@ function GPS:Status()
             tostring(b and b:IsShown()), b and b:GetTop() and f:GetTop() and sformat("%.0f", b:GetTop() - f:GetTop()) or "?",
             b and b:GetBottom() and f:GetBottom() and sformat("%.0f", f:GetBottom() - b:GetBottom()) or "?",
             f.glyph and f.glyph:GetTop() and f:GetTop() and sformat("%.0f", f:GetTop() - f.glyph:GetTop()) or "?")
+        local sdb = DB()
+        out[#out + 1] = sformat("pop-out rim: skin %s, skinOff %s, chrome classic %s forever %s, palette chrome %s, frame art %s | border setting %s, rim %s | ring wanted %s, backdrop %s, band shown %s",
+            tostring(f._efSkin), tostring(f._efSkinOff), tostring(ns.IsClassicChrome and ns.IsClassicChrome()),
+            tostring(ns.IsForeverChrome and ns.IsForeverChrome()), tostring(ns.ACTIVE_UI_PALETTE and ns.ACTIVE_UI_PALETTE.chrome),
+            tostring(ns.FrameArtOn and ns.FrameArtOn()), tostring(sdb and sdb.gpsPopoutBorder), tostring(sdb and sdb.gpsPopoutRim),
+            tostring(f._efRingWanted), tostring(f.GetBackdrop and f:GetBackdrop() ~= nil),
+            tostring(f._efForever and f._efForever.border and f._efForever.border:IsShown()))
     end
     local ed = popoutFrame and popoutFrame.trip
     out[#out + 1] = sformat("window drag %s (stops missed %d) | planning %s, plan %s | fields: editing %s, closing %s, drag %s",
