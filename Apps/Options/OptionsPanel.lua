@@ -5916,15 +5916,15 @@ function Options:Initialize()
     BuildGeneralBindsTab(ctx)
     BuildSearchTab(ctx)
     BuildMapTab(ctx)
-    BuildShortcutsTab(ctx)
     BuildAliasesTab(ctx)
     BuildBlacklistTab(ctx)
     -- One tab for every extension's settings, each a page picked from the
     -- strip at its top.
     BuildExtensionsTab(ctx)
-    -- Profiles sits second to last; Feedback is always the last tab, and
-    -- the Tutorial entry below the pack is a button, not a tab.
+    -- Profiles, then Shortcuts; Feedback is always the last tab, and the
+    -- Tutorial entry below the pack is a button, not a tab.
     BuildProfilesTab(ctx)
+    BuildShortcutsTab(ctx)
     BuildFeedbackTab(ctx)
 
     -- ==== settings search, above the tabs =================================
