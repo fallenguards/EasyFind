@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 22
+local DB_VERSION = 23
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -143,6 +143,7 @@ local DB_DEFAULTS = {
         appearance = true,
         otherservices = true,
         rares = true,
+        npcs = false,
     },
     -- The search bar's map buckets, independent of the map tab's so the
     -- bar can stay lean while the tab shows everything.
@@ -167,6 +168,7 @@ local DB_DEFAULTS = {
         appearance = true,
         otherservices = true,
         rares = true,
+        npcs = false,
     },
     mapTabRecentSearches = {},
     mapTabShowRecent = true,
@@ -546,6 +548,12 @@ local DB_MIGRATIONS = {
         -- The highlight box toggle became a style; a box turned off stays off.
         if db.mapPinHighlight == false then db.mapPinStyle = "off" end
         db.mapPinHighlight = nil
+    end,
+    [23] = function(db)
+        -- Creature rows start off in both map searches; a saved choice stays.
+        for _, name in ipairs({ "mapTabFilters", "uiMapFilters" }) do
+            if type(db[name]) == "table" and db[name].npcs == nil then db[name].npcs = false end
+        end
     end,
 }
 

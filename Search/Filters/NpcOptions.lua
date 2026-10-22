@@ -61,6 +61,18 @@ local function ExpansionDefs()
     return defs
 end
 
+-- The facets, for the bar's popup and the map tab's menu alike: each a
+-- name (its table in npcFilters), a label and its choices.
+function Filters:NpcFacets()
+    return {
+        { name = "reaction", label = L["NPC_FILTER_REACTION"], defs = ReactionDefs },
+        { name = "role", label = _G["ROLE"] or "Role", defs = RoleDefs },
+        { name = "type", label = _G["TYPE"] or "Type", defs = TypeDefs },
+        { name = "expansion", label = _G["EXPANSION_FILTER_TEXT"] or "Expansion", defs = ExpansionDefs },
+    }
+end
+Filters.NpcFacet = Facet
+
 function Filters:BuildNpcOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
     local OPTIONS_WIDTH = 160
     local FLYOUT_WIDTH = 180
@@ -93,12 +105,7 @@ function Filters:BuildNpcOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrame
         return row
     end
 
-    local facets = {
-        { name = "reaction", label = L["NPC_FILTER_REACTION"], defs = ReactionDefs },
-        { name = "role", label = _G["ROLE"] or "Role", defs = RoleDefs },
-        { name = "type", label = _G["TYPE"] or "Type", defs = TypeDefs },
-        { name = "expansion", label = _G["EXPANSION_FILTER_TEXT"] or "Expansion", defs = ExpansionDefs },
-    }
+    local facets = Filters:NpcFacets()
     local flyouts = {}
     for i, facet in ipairs(facets) do
         facet.row = CreateFlyoutRow(facet.label)

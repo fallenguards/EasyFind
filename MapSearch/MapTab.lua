@@ -2333,6 +2333,7 @@ local FILTER_OPTIONS = {
     { key = "appearance", label = L["MAP_FILTER_APPEARANCE"],      parentKey = "services" },
     { key = "otherservices", label = L["MAP_FILTER_OTHER_SERVICES"], parentKey = "services" },
     { key = "rares",      label = L["MAP_FILTER_RARES"] },
+    { key = "npcs",       label = L["FILTER_NPCS"],         tooltip = L["MAP_FILTER_NPCS_TT"] },
 }
 
 -- Rows for systems this client does not have are dropped once (Shared/Caps.lua).
@@ -2391,6 +2392,36 @@ local function BucketRows(parent, onChanged)
     end
 end
 
+-- The creature rows' facets (reaction, role, type, expansion), as the
+-- bar's NPC options: a flyout per facet of ticks over one table of
+-- npcFilters, false leaving a value out. Shared with the bar.
+local function NpcFacetRows(onChanged)
+    return function()
+        local off = Filters().npcs == false
+        local rows = {}
+        local Flt = ns.Filters
+        for _, facet in ipairs(Flt and Flt.NpcFacets and Flt:NpcFacets() or {}) do
+            local defs = facet.defs()
+            if #defs > 1 then
+                rows[#rows + 1] = { text = facet.label, keepOpen = true, disabled = off, rows = function()
+                    local picks = Flt.NpcFacet(facet.name)
+                    local out = {}
+                    for _, d in ipairs(facet.defs()) do
+                        out[#out + 1] = { text = d.label, keepOpen = true, disabled = off,
+                            icon = picks[d.key] ~= false and MENU_CHECK or nil,
+                            onClick = function()
+                                if picks[d.key] == false then picks[d.key] = nil else picks[d.key] = false end
+                                onChanged("npcs", Filters().npcs ~= false)
+                            end }
+                    end
+                    return out
+                end }
+            end
+        end
+        return rows
+    end
+end
+
 -- The text size on the panel's chrome too: the search box and its
 -- placeholder, the empty hint, the footer's two labels.
 function MapTab.ScaleChrome(p)
@@ -2433,7 +2464,7 @@ local function MapOptionsDefs(onChanged, onFontPick)
                 if o.parentKey == opt.key then kinds = true end
             end
             defs[#defs + 1] = { kind = "check", label = opt.label, tooltip = opt.tooltip,
-                rows = kinds and BucketRows(opt, onChanged) or nil,
+                rows = (kinds and BucketRows(opt, onChanged)) or (opt.key == "npcs" and NpcFacetRows(onChanged)) or nil,
                 get = function() return filters[opt.key] ~= false end,
                 set = function(v)
                     filters[opt.key] = v and true or false
