@@ -207,6 +207,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `lazy` | boolean | Its rows show only through its words, its filter or its scope, never in plain results. |
 | `lowResults` | boolean | Also loaded when a search finds little. |
 | `aliases` | string list | An `@scope`: `@` and one of these lists only its rows. |
+| `browse` | function | `browse(row)` returns whether the row is in the scope's list while nothing is typed (a quest log, not every quest). Without it, every row is. Typing searches all rows either way. |
 | `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`. `label` and `tooltip` may be functions. |
 | `hint` | string, table or function | What a row's gestures do, shown under its name on hover: a sentence, or `{ click, alt, ctrl, shift }` with each gesture's target ("Click: Directions \| Alt: Quest log"), or a function of the row returning either. A row's own `hint` wins. |
 | `extension` | string | The extension it belongs to. Its addon loading on demand, `select` loads it first. An extension whose addon is turned off shows no filter row or scope. |

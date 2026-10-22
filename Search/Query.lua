@@ -367,9 +367,17 @@ function Search:OnSearchTextChangedNow(text, force)
         results = SCRATCH.browseResults
         wipe(results)
         local data = ns.Database.uiSearchData
+        local ProviderOf = ns.Extensions and ns.Extensions.ProviderOf
         for i = 1, #data do
-            if self:QuickFilterAllowsData(data[i], quickFilter) then
-                results[#results + 1] = { data = data[i], score = 0 }
+            local d = data[i]
+            if self:QuickFilterAllowsData(d, quickFilter) then
+                -- A provider's browse says which of its rows an empty scope
+                -- lists (the quest log, not every quest); every row without it.
+                local provider = ProviderOf and ProviderOf(d)
+                local browse = provider and provider.browse
+                if not browse or browse(d) then
+                    results[#results + 1] = { data = d, score = 0 }
+                end
             end
         end
     else

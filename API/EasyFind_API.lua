@@ -44,6 +44,7 @@
 ---@field lazy? boolean Only through its words, filter or scope.
 ---@field lowResults? boolean Also loaded when a search finds little.
 ---@field aliases? string[] An @scope: @ and one of these lists only its rows.
+---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every row without it.
 ---@field options? EasyFindOption[] Toggles on its filter row's flyout.
 ---@field extension? string The extension it belongs to.
 ---@field loadOnSearch? boolean|fun(): boolean Load that extension's addon for its rows.
