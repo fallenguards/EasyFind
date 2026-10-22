@@ -2863,6 +2863,10 @@ do
             frame._efForeverOn = nil
             frame._efForever.fill:Hide()
             frame._efForever.border:Hide()
+            if frame._efBandInsets then
+                (frame._efBandDragOwner or frame):SetHitRectInsets(unpack(frame._efBandInsets))
+                frame._efBandInsets = nil
+            end
         elseif was == "classic" and want ~= "classic" then
             frame._efClassicChrome = nil
             if frame.SetBackdrop then frame:SetBackdrop(nil) end
@@ -2883,6 +2887,16 @@ do
                 f.fill:SetAlpha(frame._efBgAlpha or 1)
                 LayoutForever(frame)
                 ShowForeverPieces(frame)
+                -- The band lies outside the frame: the mouse reaches it
+                -- there too, for a drag by the frame (or the one that
+                -- drags for it, _efBandDragOwner: the search bar's).
+                local owner = frame._efBandDragOwner or frame
+                if not frame._efBandInsets then
+                    local l, r, t, b = owner:GetHitRectInsets()
+                    frame._efBandInsets = { l or 0, r or 0, t or 0, b or 0 }
+                end
+                local u, px = f.u or FOREVER.unit, FOREVER.px
+                owner:SetHitRectInsets(-px.outLeft * u, -px.outRight * u, -px.outTop * u, -px.outBottom * u)
             end
             return true
         end
