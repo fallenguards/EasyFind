@@ -2914,6 +2914,24 @@ do
     end
 end
 
+-- A 1 px square outline in the border gray: small swatches, where the
+-- rounded ring's corners read as a circle.
+function ns.SquareOutline(frame)
+    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+        local edge = frame:CreateTexture(nil, "ARTWORK")
+        edge:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1)
+        if side == "TOP" or side == "BOTTOM" then
+            edge:SetHeight(1)
+            edge:SetPoint(side .. "LEFT")
+            edge:SetPoint(side .. "RIGHT")
+        else
+            edge:SetWidth(1)
+            edge:SetPoint("TOP" .. side)
+            edge:SetPoint("BOTTOM" .. side)
+        end
+    end
+end
+
 -- Whether the cursor is on a skinned frame or its band outside it: the hit
 -- rect reaches the band, IsMouseOver reads the rect alone.
 function ns.IsMouseOverWithBand(frame)

@@ -5203,20 +5203,7 @@ local function BuildOptionsPage(page, kit)
         -- Its left edge on the dropdowns' left edge.
         swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
         swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        -- A square outline of its own: the rounded ring reads as a circle at this size.
-        for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-            local edge = swatch:CreateTexture(nil, "ARTWORK")
-            edge:SetColorTexture(0.42, 0.42, 0.42, 1)
-            if side == "TOP" or side == "BOTTOM" then
-                edge:SetHeight(1)
-                edge:SetPoint(side .. "LEFT")
-                edge:SetPoint(side .. "RIGHT")
-            else
-                edge:SetWidth(1)
-                edge:SetPoint("TOP" .. side)
-                edge:SetPoint("BOTTOM" .. side)
-            end
-        end
+        ns.SquareOutline(swatch)
         local fill = swatch:CreateTexture(nil, "ARTWORK")
         fill:SetPoint("TOPLEFT", 1, -1)
         fill:SetPoint("BOTTOMRIGHT", -1, 1)
