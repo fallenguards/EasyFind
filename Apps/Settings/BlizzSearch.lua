@@ -2688,15 +2688,21 @@ local function CollectAddonCategories()
         AddKeyword(kw, parentName)
         local mt = GetSettingsCatMT("AddOn Settings", catName, catID,
             parentName and { rootName } or nil)
+        -- addon: the top category's name, the switch under AddOn Options.
+        local addon = parentName or catName
         tinsert(entries, setmetatable({
             name = catName,
             nameLower = catNameLower,
             keywords = kw,
             steps = { { settingsCategory = catName, settingCategoryID = catID } },
+            addon = addon,
         }, mt))
 
         local inline = WalkCategorySettings(cat, catName, catID, pathPrefix, "AddOn Settings")
-        for _, e in ipairs(inline) do tinsert(entries, e) end
+        for _, e in ipairs(inline) do
+            e.addon = addon
+            tinsert(entries, e)
+        end
     end
 
     local gotTyped = false
@@ -3169,7 +3175,7 @@ end
 -- v2: round-trips customToggle (the chat-toggle left-click-only flag).
 -- 4: searchable names are stripped of UI markup (SearchLower); a cache
 -- written by 3 carries the raw names and must be rebuilt.
-local OPTIONS_CACHE_SCHEMA = 4
+local OPTIONS_CACHE_SCHEMA = 5
 
 -- Cheap deterministic hash of the enabled-addon set. Addon options categories
 -- exist only for enabled addons, so the cache must invalidate when that set
@@ -3233,6 +3239,7 @@ local OPTIONS_ROW_SPEC = {
     { "settingType" }, { "settingMin" }, { "settingMax" }, { "settingStep" },
     { "bindingAction" }, { "customToggle" }, { "quickKeybindActivate" },
     { "category" }, { "path", "list" }, { "settingsCategory" }, { "settingCategoryID" },
+    { "addon" },
 }
 
 local function SerializeList(src)

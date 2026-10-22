@@ -713,6 +713,8 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                 -- Flight Paths/Boats/Portals) opens them beside the sub-row.
                 -- Children gray out while their sub-filter is unchecked.
                 if sub.subFilters then
+                    -- A list given as a function is the moment's (the addons with settings).
+                    local children = type(sub.subFilters) == "function" and sub.subFilters() or sub.subFilters
                     local nested = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
                     nested:SetFrameStrata("TOOLTIP")
                     StylePopup(nested)
@@ -737,7 +739,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     InstallMenuRowHighlight(nestedToggleAll)
 
                     local childRows = {}
-                    for ci, child in ipairs(sub.subFilters) do
+                    for ci, child in ipairs(children) do
                         local childRow = CreateFrame("CheckButton", nil, nested)
                         childRow:SetSize(SUB_POPUP_WIDTH - SUB_PAD * 2, SUB_ROW_H)
                         childRow:SetHitRectInsets(0, 0, 0, 0)
@@ -765,7 +767,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                                        or EasyFind.db.uiSearchFilters
                         local subOn = subTarget[sub.key] ~= false
                         SetFlyoutRowEnabled(nestedToggleAll, subOn)
-                        for _, child in ipairs(sub.subFilters) do
+                        for _, child in ipairs(children) do
                             local cr = childRows[child.key]
                             local childTarget = child.dbTable and EasyFind.db[child.dbTable]
                                            or EasyFind.db.uiSearchFilters
@@ -777,7 +779,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
 
                     nestedToggleAll:SetScript("OnClick", function()
                         local allUnchecked = true
-                        for _, child in ipairs(sub.subFilters) do
+                        for _, child in ipairs(children) do
                             local target = child.dbTable and EasyFind.db[child.dbTable]
                                            or EasyFind.db.uiSearchFilters
                             if target[child.key] ~= false then
@@ -785,7 +787,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                                 break
                             end
                         end
-                        for _, child in ipairs(sub.subFilters) do
+                        for _, child in ipairs(children) do
                             local target = child.dbTable and EasyFind.db[child.dbTable]
                                            or EasyFind.db.uiSearchFilters
                             target[child.key] = allUnchecked
@@ -797,14 +799,14 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     end)
 
                     local childContentW = Utils.FlyoutRowContentWidth(nestedToggleAll, 8)
-                    for ci = 1, #sub.subFilters do
+                    for ci = 1, #children do
                         local w = Utils.FlyoutRowContentWidth(childRows[ci], CHK + 4)
                         if w > childContentW then childContentW = w end
                     end
                     local nestedW = Utils.FlyoutWidthFor(childContentW, SUB_PAD)
                     nestedToggleAll:SetWidth(nestedW - SUB_PAD * 2)
-                    for ci = 1, #sub.subFilters do childRows[ci]:SetWidth(nestedW - SUB_PAD * 2) end
-                    nested:SetSize(nestedW, SUB_PAD * 2 + (#sub.subFilters + 1) * SUB_ROW_H)
+                    for ci = 1, #children do childRows[ci]:SetWidth(nestedW - SUB_PAD * 2) end
+                    nested:SetSize(nestedW, SUB_PAD * 2 + (#children + 1) * SUB_ROW_H)
 
                     local nestedHover = Utils.AttachHoverPopup(subRow, nested, {
                         onShow = function()

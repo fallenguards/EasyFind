@@ -16,6 +16,30 @@ local ACHIEVEMENT_FILTER_LABELS = {
     incomplete = ns.ACH_LABEL_INCOMPLETE,
 }
 
+-- The addons with settings of their own (EasyFind among them), each a
+-- switch under AddOn Options; listed when the menu is built.
+local function AddonSubFilters()
+    local names, seen = {}, {}
+    local S = Settings
+    local set = S and S.CategorySet and S.CategorySet.AddOns
+    if S and S.GetCategoryList and set then
+        local ok, list = pcall(S.GetCategoryList, set)
+        for _, cat in ipairs(ok and type(list) == "table" and list or {}) do
+            local name = cat.GetName and cat:GetName()
+            if name and name ~= "" and not seen[name] then
+                seen[name] = true
+                names[#names + 1] = name
+            end
+        end
+    end
+    table.sort(names)
+    local out = {}
+    for i = 1, #names do
+        out[i] = { key = "addon:" .. names[i], label = names[i], dbTable = "addonOptionsFilters" }
+    end
+    return out
+end
+
 local UI_FILTER_OPTIONS = {
     -- Abilities: boss-skull icon from the Encounter Journal boss tab
     -- spritesheet (texture 522972).
@@ -182,7 +206,7 @@ local UI_FILTER_OPTIONS = {
           { key = "gameOptions",  label = L["FILTER_GAME_OPTIONS"],  iconAtlas = ns.SETTING_ICON.atlas, iconTex = ns.SETTING_ICON.tex,
             iconDesaturate = ns.SETTING_ICON.desaturate, companion = "EasyFind_Settings" },
           { key = "addonOptions", label = L["FILTER_ADDON_OPTIONS"], iconAtlas = ns.SETTING_ICON.atlas, iconTex = ns.SETTING_ICON.tex,
-            iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings" },
+            iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings", subFilters = AddonSubFilters },
       } },
     { key = "professions", label = _G["TRADE_SKILLS"] or "Professions",
       iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = true,
@@ -261,7 +285,7 @@ local function ForEachFilterKey(callback)
         if opt.flyoutSubFilters then
             for _, sub in ipairs(opt.flyoutSubFilters) do
                 callback(sub.key, sub)
-                if sub.subFilters then
+                if type(sub.subFilters) == "table" then
                     for _, child in ipairs(sub.subFilters) do
                         callback(child.key, child)
                     end
@@ -415,7 +439,7 @@ function Filters.MapCategoryFilterLabel(category)
             if opt.key == "map" and opt.flyoutSubFilters then
                 for _, sub in ipairs(opt.flyoutSubFilters) do
                     mapFilterLabels[sub.key] = sub.label
-                    if sub.subFilters then
+                    if type(sub.subFilters) == "table" then
                         for _, nested in ipairs(sub.subFilters) do
                             mapFilterLabels[nested.key] = nested.label
                         end

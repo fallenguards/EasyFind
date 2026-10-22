@@ -711,6 +711,9 @@ function Search:OnSearchTextChangedNow(text, force)
     local loadoutRowsOff = EasyFind.db.talentShowLoadouts == false
     local commandNativeOff = EasyFind.db.commandShowNative == false
     local commandCustomOff = EasyFind.db.commandShowCustom == false
+    -- The switches under AddOn Options: a settings row carries its addon.
+    local addonFilters = EasyFind.db.addonOptionsFilters
+    local anyAddonOff = addonFilters ~= nil and next(addonFilters) ~= nil
     local bossesFilterOff = filters and filters.bosses == false and not explicitBosses
     local statisticsFilterOff = filters and filters.statistics == false and not explicitStatistics
     if filters and (filters.abilities == false or bossesFilterOff
@@ -726,7 +729,7 @@ function Search:OnSearchTextChangedNow(text, force)
                     or hidePassives or hideAchievementHeaders or hideGuildAchievements
                     or macroGeneralOff or macroCharOff or bossDungeonOff or bossRaidOff
                     or hideJunk or commandNativeOff or commandCustomOff
-                    or statMode or specRowsOff or loadoutRowsOff) then
+                    or statMode or specRowsOff or loadoutRowsOff or anyAddonOff) then
         wipe(SCRATCH.filteredResults)
         local filtered = SCRATCH.filteredResults
         local fi = 0
@@ -763,9 +766,10 @@ function Search:OnSearchTextChangedNow(text, force)
                     or (d.loadoutConfigID and loadoutRowsOff))
                 local commandTypeOff = d and d.category == "Command"
                     and ((d.isNativeCommand and commandNativeOff) or (not d.isNativeCommand and commandCustomOff))
+                local addonOff = anyAddonOff and d and d.addon ~= nil and addonFilters["addon:" .. d.addon] == false
                 if not passiveOff and not headerOff and not guildAchievementOff
                    and not macroTypeOff and not bossTypeOff and not junkOff
-                   and not commandTypeOff and not statOff and not talentSwapOff
+                   and not commandTypeOff and not statOff and not talentSwapOff and not addonOff
                    and (not bucket or (not bucketOff and not parentOff)) then
                     fi = fi + 1
                     filtered[fi] = r

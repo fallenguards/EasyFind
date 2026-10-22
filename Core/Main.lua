@@ -146,6 +146,7 @@ local DB_DEFAULTS = {
     },
     -- The search bar's map buckets, independent of the map tab's so the
     -- bar can stay lean while the tab shows everything.
+    addonOptionsFilters = {},
     uiMapFilters = {
         zones = true,
         instances = true,
