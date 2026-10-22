@@ -22,12 +22,13 @@
 ---@field loadInCombat? boolean Its addon may load in combat.
 
 ---@class EasyFindMenuRow
----@field kind "action"|"check"|"separator"
+---@field kind "action"|"check"|"separator"|"menu"
 ---@field label? string
 ---@field tooltip? string
 ---@field onClick? fun() An action row's command.
 ---@field get? fun(): boolean A check row's state.
 ---@field set? fun(on: boolean) Stores a check row's state.
+---@field rows? EasyFindMenuRow[]|fun(): EasyFindMenuRow[] A menu row's flyout.
 
 ---@class EasyFindSearchProvider
 ---@field key string Required: its filter key and @scope key.

@@ -152,24 +152,36 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(pinData) end end
     end
     -- The extension's own rows for its result (RegisterSearchProvider
-    -- menu), given in the tile menu's shape, as the cursor menu's rows.
+    -- menu), given in the tile menu's shape, as the cursor menu's rows;
+    -- a "menu" row is a flyout of more, its rows a list or a function.
     local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(pinData)
-    if provider and provider.menu then
-        local ok, defs = ns.Extensions.Run(provider.menu, pinData)
-        local menuRows = {}
-        for _, d in ipairs(ok and type(defs) == "table" and defs or {}) do
+    local function MenuRowsOf(defs, depth)
+        local out = {}
+        if type(defs) == "function" then
+            local ok, list = ns.Extensions.Run(defs)
+            defs = ok and list or nil
+        end
+        for _, d in ipairs(type(defs) == "table" and defs or {}) do
             if d.kind == "separator" then
-                menuRows[#menuRows + 1] = { isSeparator = true }
+                out[#out + 1] = { isSeparator = true }
             elseif d.kind == "check" and d.label then
                 local _, on = ns.Extensions.Run(d.get)
                 on = on == true
-                menuRows[#menuRows + 1] = { text = d.label, tooltip = d.tooltip, icon = on and MENU_CHECK or nil, picked = on,
+                out[#out + 1] = { text = d.label, tooltip = d.tooltip, icon = on and MENU_CHECK or nil, picked = on,
                     onClick = function() ns.Extensions.Run(d.set, not on) end }
             elseif d.kind == "action" and d.label then
-                menuRows[#menuRows + 1] = { text = d.label, tooltip = d.tooltip,
+                out[#out + 1] = { text = d.label, tooltip = d.tooltip,
                     onClick = function() ns.Extensions.Run(d.onClick) end }
+            elseif d.kind == "menu" and d.label and depth < 3 then
+                local sub = MenuRowsOf(d.rows, depth + 1)
+                if #sub > 0 then out[#out + 1] = { text = d.label, tooltip = d.tooltip, submenu = sub } end
             end
         end
+        return out
+    end
+    if provider and provider.menu then
+        local ok, defs = ns.Extensions.Run(provider.menu, pinData)
+        local menuRows = MenuRowsOf(ok and defs or nil, 1)
         if #menuRows > 0 then
             local owner = ns.Extensions.Get and ns.Extensions.Get(provider.extension)
             extra.extensionMenu = { label = owner and owner.name or provider.label, icon = provider.icon,

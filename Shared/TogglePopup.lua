@@ -196,7 +196,7 @@ local function MakePlainRow(popup)
     row:SetScript("OnClick", function(self)
         local def = self.def
         if not def then return end
-        if def.kind == "submenu" then
+        if def.kind == "submenu" or def.kind == "menu" then
             OpenFlyout(popup, self)
         elseif def.kind == "radio" then
             if def.set then def.set(def.value) end
