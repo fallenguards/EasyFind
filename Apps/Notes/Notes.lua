@@ -2229,7 +2229,6 @@ function UI:AdjustEasyNotesFontSize(delta, reset, absolute)
     UI:QueueEasyNotesOverlayUpdate()
     UI:ReSettleEasyNotesOverlay()
     self:RefreshEasyNotesFontSizeButton()
-    self:RefreshEasyNotesSettings()
 end
 
 function UI:AdjustEasyNotesUIScale(delta, reset, absolute)
@@ -2259,7 +2258,6 @@ function UI:AdjustEasyNotesUIScale(delta, reset, absolute)
         UI:QueueEasyNotesOverlayUpdate()
         UI:ReSettleEasyNotesOverlay()
     end
-    self:RefreshEasyNotesSettings()
 end
 
 function UI:ApplyEasyNotesOpacity()
@@ -2284,7 +2282,6 @@ function UI:AdjustEasyNotesOpacity(delta, reset, absolute)
     if nxt == cur and not reset then return end
     db.opacity = nxt
     self:ApplyEasyNotesOpacity()
-    self:RefreshEasyNotesSettings()
 end
 
 function UI:ApplyEasyNotesCustomFont(region, sizeOverride, flagsOverride)
@@ -3809,6 +3806,7 @@ function UI:EnsureEasyNotesFrame()
         frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", L, T)
     end
     local function BeginMove()
+        if NormalizeDB().locked then return end
         PinTopLeftAnchor()
         local left, top = frame:GetLeft(), frame:GetTop()
         if not (left and top) then return end
@@ -3830,6 +3828,7 @@ function UI:EnsureEasyNotesFrame()
         ns.SetRoundedRectBarHeight(frame, 14)
         ns.SetRoundedRectBorderBgAlpha(frame, db.opacity or OPACITY_DEFAULT)
         ns.SetRoundedRectBorderEdgeShown(frame, false)
+        if db.border == false then ns.SetRoundedRectRingShown(frame, false) end
         if ns.Results.ApplySearchWindowFill then
             ns.Results:ApplySearchWindowFill(frame)
             -- The body follows a theme change in place, the header too.
@@ -3889,7 +3888,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.settingsButton = Builders.GearButton(frame.header)
     frame.settingsButton:SetPoint("LEFT", frame.newButton, "RIGHT", 4, 0)
-    frame.settingsButton:SetScript("OnClick", function() UI:ToggleEasyNotesSettings() end)
+    frame.settingsButton:SetScript("OnClick", function() EasyFind.API.OpenSettings("notes") end)
 
     frame.paletteButton = Builders.HomeButton(frame.header)
     -- Home button: shares the New button's left slot (only one shows per view).
@@ -4525,6 +4524,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.resizeGrip = CreateFrame("Button", nil, frame)
     frame.resizeGrip:SetSize(16, 16)
+    frame.resizeGrip:SetShown(not NormalizeDB().locked)
     frame.resizeGrip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
     frame.resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     frame.resizeGrip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
@@ -5061,7 +5061,6 @@ function UI:CloseEasyNotesOpenMenus()
     if frame then
         hideIfShown(frame.listMenuFlyout)
         hideIfShown(frame.fontSizeFlyout)
-        hideIfShown(frame.settingsPanel)
     end
     hideIfShown(UI._notes._moreMenu)
     hideIfShown(UI._notes._filterMenu)
@@ -5707,156 +5706,6 @@ function UI:PromptEasyNotesAlias()
     popup.edit:SetFocus()
 end
 
-function Builders.BuildSettingsRow(panel, labelText, yOff)
-    local row = CreateFrame("Frame", nil, panel)
-    row:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, yOff)
-    row:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, yOff)
-    row:SetHeight(22)
-
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.label:SetPoint("LEFT", row, "LEFT", 2, 0)
-    row.label:SetText(labelText)
-    row.label:SetTextColor(0.86, 0.86, 0.88, 1)
-
-    row.plus = CreateFrame("Button", nil, row)
-    StyleSubtleButton(row.plus, "+", STD_BTN_W, STD_BTN_H)
-    row.plus:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-
-    row.value = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.value:SetPoint("RIGHT", row.plus, "LEFT", -6, 0)
-    row.value:SetWidth(42)
-    row.value:SetJustifyH("CENTER")
-    row.value:SetTextColor(0.96, 0.96, 0.96, 1)
-
-    row.minus = CreateFrame("Button", nil, row)
-    StyleSubtleButton(row.minus, "-", STD_BTN_W, STD_BTN_H)
-    row.minus:SetPoint("RIGHT", row.value, "LEFT", -6, 0)
-    return row
-end
-
-function Builders.BuildSettingsPanel(frame)
-    local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(250, 172)
-    panel:SetPoint("CENTER")
-    -- The flyouts' layer, over everything in the window, so its border reads
-    -- clear of the window under it.
-    panel:SetFrameStrata("FULLSCREEN_DIALOG")
-    panel:SetFrameLevel(frame:GetFrameLevel() + 60)
-    panel:EnableMouse(true)
-    -- EXACTLY the tooltip/menu panel treatment (StyleMenuPanel): themed galaxy
-    -- fill with the ring border drawn ON TOP, and automatic restyle on theme
-    -- flips via the menu-panel registry.
-    if ns.StyleMenuPanel then
-        ns.StyleMenuPanel(panel)
-        if ns.SetRoundedRectBarHeight then ns.SetRoundedRectBarHeight(panel, 10) end
-    elseif ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(panel)
-        ns.SetRoundedRectBarHeight(panel, 10)
-        local c = ns.ThemeSetOf(panel).PANEL_CARD_FILL or { 0.08, 0.08, 0.09 }
-        ns.SetRoundedRectFill(panel, c[1], c[2], c[3], 1, true)
-    end
-
-    panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    panel.title:SetPoint("TOP", panel, "TOP", 0, -12)
-    panel.title:SetText(_G.SETTINGS)
-    panel.title:SetTextColor(0.9, 0.9, 0.92, 1)
-
-    -- Font size lives on the notes toolbar (and Ctrl+scroll); sharing across
-    -- characters is the filter menu's job. Neither belongs here.
-    panel.scaleRow = Builders.BuildSettingsRow(panel, L["NOTES_WINDOW_SCALE"], -40)
-    panel.scaleRow.minus:SetScript("OnClick", function() UI:AdjustEasyNotesUIScale(-UI_SCALE_STEP) end)
-    panel.scaleRow.plus:SetScript("OnClick", function() UI:AdjustEasyNotesUIScale(UI_SCALE_STEP) end)
-
-    panel.opacityRow = Builders.BuildSettingsRow(panel, L["NOTES_WINDOW_OPACITY"], -70)
-    panel.opacityRow.minus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(-OPACITY_STEP) end)
-    panel.opacityRow.plus:SetScript("OnClick", function() UI:AdjustEasyNotesOpacity(OPACITY_STEP) end)
-
-    panel.tooltipRow = CreateFrame("Frame", nil, panel)
-    panel.tooltipRow:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -100)
-    panel.tooltipRow:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -100)
-    panel.tooltipRow:SetHeight(22)
-    panel.tooltipRow.label = panel.tooltipRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    panel.tooltipRow.label:SetPoint("LEFT", panel.tooltipRow, "LEFT", 2, 0)
-    panel.tooltipRow.label:SetText(L["NOTES_TOOLTIP_COLOR"])
-    panel.tooltipRow.label:SetTextColor(0.86, 0.86, 0.88, 1)
-    local swatch = CreateFrame("Button", nil, panel.tooltipRow)
-    StyleSubtleButton(swatch, "", 54, STD_BTN_H)
-    swatch:SetPoint("RIGHT", panel.tooltipRow, "RIGHT", 0, 0)
-    swatch.color = swatch:CreateTexture(nil, "OVERLAY")
-    swatch.color:SetPoint("TOPLEFT", swatch, "TOPLEFT", 5, -5)
-    swatch.color:SetPoint("BOTTOMRIGHT", swatch, "BOTTOMRIGHT", -5, 5)
-    panel.tooltipRow.swatch = swatch
-    swatch:SetScript("OnClick", function()
-        if not (ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then return end
-        local c0 = UI:GetEasyNotesTooltipColor()
-        local function apply()
-            local r, g, b = ColorPickerFrame:GetColorRGB()
-            if type(r) ~= "number" then return end
-            NormalizeDB().tooltipColor = { r = r, g = g, b = b }
-            UI:RefreshEasyNotesSettings()
-        end
-        ColorPickerFrame:SetupColorPickerAndShow({
-            hasOpacity = false, r = c0.r, g = c0.g, b = c0.b,
-            swatchFunc = apply,
-            cancelFunc = function()
-                NormalizeDB().tooltipColor = { r = c0.r, g = c0.g, b = c0.b }
-                UI:RefreshEasyNotesSettings()
-            end,
-        })
-        if ColorPickerFrame.SetFrameStrata then ColorPickerFrame:SetFrameStrata("TOOLTIP") end
-        if ColorPickerFrame.Raise then ColorPickerFrame:Raise() end
-    end)
-
-    panel.reset = CreateFrame("Button", nil, panel)
-    StyleSubtleButton(panel.reset, L["NOTES_RESET_ALL"], 78, STD_BTN_H)
-    panel.reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 14, 12)
-    panel.reset:SetScript("OnClick", function()
-        UI:AdjustEasyNotesUIScale(nil, true)
-        UI:AdjustEasyNotesFontSize(nil, true)
-        UI:AdjustEasyNotesOpacity(nil, true)
-        NormalizeDB().tooltipColor = nil
-        UI:RefreshEasyNotesSettings()
-    end)
-
-    panel.done = CreateFrame("Button", nil, panel)
-    StyleAccentButton(panel.done, _G.DONE)
-    panel.done:SetSize(60, 22)
-    panel.done:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 12)
-    panel.done:SetScript("OnClick", function() panel:Hide() end)
-
-    panel:Hide()
-    return panel
-end
-
-function UI:RefreshEasyNotesSettings()
-    local frame = UI._notes.frame
-    if not (frame and frame.settingsPanel) then return end
-    local panel = frame.settingsPanel
-    local db = NormalizeDB()
-    local scale = db.uiScale or UI_SCALE_DEFAULT
-    local opacity = db.opacity or OPACITY_DEFAULT
-    panel.scaleRow.value:SetText(math.floor(scale * 100 + 0.5) .. "%")
-    panel.opacityRow.value:SetText(math.floor(opacity * 100 + 0.5) .. "%")
-    local c = UI:GetEasyNotesTooltipColor()
-    panel.tooltipRow.swatch.color:SetColorTexture(c.r, c.g, c.b, 1)
-end
-
-function UI:ToggleEasyNotesSettings()
-    local frame = UI._notes.frame
-    if not frame then return end
-    if not frame.settingsPanel then
-        frame.settingsPanel = Builders.BuildSettingsPanel(frame)
-    end
-    local panel = frame.settingsPanel
-    if panel:IsShown() then
-        panel:Hide()
-    else
-        self:RefreshEasyNotesSettings()
-        panel:Show()
-        panel:Raise()
-    end
-end
-
 -- An input's well: the theme's line as a ring round the dark inset.
 function Builders.PaintFindInput(shell)
     if not shell.ringInset then return end
@@ -6417,7 +6266,6 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if frame.settingsButton then frame.settingsButton:Show() end
     if frame.homeTitle then frame.homeTitle:SetShown(not shown) end
     if frame.homeExp then frame.homeExp:SetShown(not shown) end
-    if shown and frame.settingsPanel then frame.settingsPanel:Hide() end
     if not shown and frame.findBar and frame.findBar:IsShown() then
         self:CloseEasyNotesFindBar()
     end
@@ -8810,10 +8658,88 @@ function notesNS.InsertAtCursor(text)
     return notesNS.InsertDocumentAtCursor(notesNS.DocumentFromMarkdown(text))
 end
 
+-- The window's lock (no drag, no resize) and its border, as set.
+function UI:ApplyEasyNotesWindowLook()
+    local frame, db = UI._notes.frame, NormalizeDB()
+    if not frame then return end
+    if frame.resizeGrip then frame.resizeGrip:SetShown(not db.locked) end
+    if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, db.border ~= false) end
+end
+
+-- The extension's settings page: how the window sits and looks.
+function notesNS.BuildSettingsPage(page, kit)
+    local hint = kit.Title(page, L["APP_NOTES"], L["NOTES_SETTINGS_HINT"])
+    local scaleRow = kit.Stepper(page, L["NOTES_WINDOW_SCALE"], UI_SCALE_MIN * 100, UI_SCALE_MAX * 100, UI_SCALE_STEP * 100,
+        function() return math.floor((NormalizeDB().uiScale or UI_SCALE_DEFAULT) * 100 + 0.5) end,
+        function(v) UI:AdjustEasyNotesUIScale(nil, nil, v / 100) end, nil, kit.ROW_WIDTH)
+    scaleRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -10)
+    local opacityRow = kit.Stepper(page, L["NOTES_WINDOW_OPACITY"], OPACITY_MIN * 100, OPACITY_DEFAULT * 100, OPACITY_STEP * 100,
+        function() return math.floor((NormalizeDB().opacity or OPACITY_DEFAULT) * 100 + 0.5) end,
+        function(v) UI:AdjustEasyNotesOpacity(nil, nil, v / 100) end, nil, kit.ROW_WIDTH)
+    opacityRow:SetPoint("TOPLEFT", scaleRow, "BOTTOMLEFT", 0, 0)
+    -- The tooltip line's color: a swatch on the controls' left edge.
+    local colorRow = CreateFrame("Frame", nil, page)
+    colorRow:SetSize(kit.ROW_WIDTH, 22)
+    colorRow:SetPoint("TOPLEFT", opacityRow, "BOTTOMLEFT", 0, -2)
+    local colorLabel = colorRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    colorLabel:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
+    colorLabel:SetText(L["NOTES_TOOLTIP_COLOR"])
+    local swatch = CreateFrame("Button", nil, colorRow)
+    swatch:SetSize(18, 18)
+    swatch:SetPoint("LEFT", colorRow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
+    if ns.CreateRoundedRectBorder then ns.CreateRoundedRectBorder(swatch) end
+    local fill = swatch:CreateTexture(nil, "ARTWORK")
+    fill:SetPoint("TOPLEFT", 2, -2)
+    fill:SetPoint("BOTTOMRIGHT", -2, 2)
+    local function PaintSwatch()
+        local c = UI:GetEasyNotesTooltipColor()
+        fill:SetColorTexture(c.r, c.g, c.b, 1)
+    end
+    swatch:SetScript("OnClick", function()
+        if not ns.PickColor then return end
+        local c = UI:GetEasyNotesTooltipColor()
+        ns.PickColor(c.r, c.g, c.b, function(r, g, b)
+            NormalizeDB().tooltipColor = { r = r, g = g, b = b }
+            PaintSwatch()
+        end)
+    end)
+    PaintSwatch()
+    local lock = kit.Checkbox(page, L["NOTES_LOCK"],
+        function() return NormalizeDB().locked == true end,
+        function(on)
+            NormalizeDB().locked = on or nil
+            UI:ApplyEasyNotesWindowLook()
+        end, L["NOTES_LOCK_TT"])
+    lock:SetPoint("TOPLEFT", colorRow, "BOTTOMLEFT", 0, -6)
+    local border = kit.Checkbox(page, L["NOTES_BORDER"],
+        function() return NormalizeDB().border ~= false end,
+        function(on)
+            NormalizeDB().border = Utils.OffOrNil(on)
+            UI:ApplyEasyNotesWindowLook()
+        end, L["NOTES_BORDER_TT"])
+    border:SetPoint("TOPLEFT", lock, "BOTTOMLEFT", 0, 0)
+    local resize = kit.Checkbox(page, L["NOTES_AUTO_RESIZE"],
+        function() return NormalizeDB().autoResize and true or false end,
+        function(on)
+            if (NormalizeDB().autoResize and true or false) ~= on then UI:ToggleEasyNotesAutoResize() end
+        end)
+    resize:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 0, 0)
+    local reset = ns.CreateModernButton(page, L["NOTES_RESET_ALL"], kit.BUTTON_WIDTH, 22)
+    reset:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", kit.ROW_WIDTH - 8 - kit.BUTTON_WIDTH, -8)
+    reset:SetScript("OnClick", function()
+        UI:AdjustEasyNotesFontSize(nil, true)
+        NormalizeDB().tooltipColor = nil
+        scaleRow:SetValue(UI_SCALE_DEFAULT * 100)
+        opacityRow:SetValue(OPACITY_DEFAULT * 100)
+        PaintSwatch()
+    end)
+end
+
 -- The extension's tile stands in core (Core/Extensions.lua) before this
 -- loads; the window is the rest.
 EasyFind.API.RegisterExtension({
     id = "notes", open = notesNS.Open, close = notesNS.Close, isOpen = notesNS.IsOpen,
+    settings = notesNS.BuildSettingsPage,
 })
 -- Its rich text editor and document model (the snippet editor uses
 -- them), and text put in at the open note's cursor.
