@@ -273,6 +273,41 @@ function Ctx.Applies(note, set)
     return false
 end
 
+-- A condition set to open the notes window (a single, or every part of a
+-- combination) that is true now.
+function Ctx.OpensNow(note, set)
+    if not note then return false end
+    local singles = note.appliesIn
+    for i = 1, singles and #singles or 0 do
+        if singles[i].opens and set[Key(singles[i])] == true then return true end
+    end
+    local rules = note.rules
+    for r = 1, rules and #rules or 0 do
+        local conds = rules[r].conds
+        local all = rules[r].opens == true and conds ~= nil and #conds > 0
+        for c = 1, all and #conds or 0 do
+            if set[Key(conds[c])] ~= true then
+                all = false
+                break
+            end
+        end
+        if all then return true end
+    end
+    return false
+end
+
+function Ctx.AnyOpens(note)
+    local singles = note.appliesIn
+    for i = 1, singles and #singles or 0 do
+        if singles[i].opens then return true end
+    end
+    local rules = note.rules
+    for r = 1, rules and #rules or 0 do
+        if rules[r].opens and rules[r].conds and #rules[r].conds > 0 then return true end
+    end
+    return false
+end
+
 -- Options -------------------------------------------------------------------------
 
 local zones

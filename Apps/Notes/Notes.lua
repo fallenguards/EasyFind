@@ -27,7 +27,7 @@ local GetCursorInfo = GetCursorInfo
 notesNS.UI = UI
 ns.Notes = notesNS
 
-local NOTES_DB_VERSION = 12
+local NOTES_DB_VERSION = 13
 local FONT_SIZE_MIN = 9
 local FONT_SIZE_MAX = 56
 local FONT_SIZE_DEFAULT = 12
@@ -51,8 +51,9 @@ local MIN_WIDTH = 220
 local MIN_HEIGHT = 180
 local HEADER_H = 30
 local FOOTER_H = 24
--- editor body sits below the header divider and the tag row
+-- editor body sits below the header divider and, while shown, the tags row
 local EDITOR_TOP = 14
+local ATTACH_H = 16
 local TOOLBAR_H = 28
 local PALETTE_ROW_H = 40
 local FIND_BAR_H = 58
@@ -471,6 +472,8 @@ local function NormalizeDB()
     end
     if type(EasyNotesDB.toolbarShown) ~= "boolean" then EasyNotesDB.toolbarShown = false end
     if type(EasyNotesDB.autoResize) ~= "boolean" then EasyNotesDB.autoResize = true end
+    if EasyNotesDB.showsFolded ~= true then EasyNotesDB.showsFolded = nil end
+    if EasyNotesDB.foldHoverOnly ~= true then EasyNotesDB.foldHoverOnly = nil end
     if v < 9 then EasyNotesDB.autoResize = true end
     if v < 10 then
         for i = 1, #EasyNotesDB.notes do
@@ -493,6 +496,17 @@ local function NormalizeDB()
                     end
                 end
             end
+        end
+    end
+    -- Opens itself moved from the note to each of its tags.
+    if v < 13 then
+        for i = 1, #EasyNotesDB.notes do
+            local n = EasyNotesDB.notes[i]
+            if n and n.opensItself then
+                for _, e in ipairs(n.appliesIn or {}) do e.opens = true end
+                for _, r in ipairs(n.rules or {}) do r.opens = true end
+            end
+            if n then n.opensItself = nil end
         end
     end
     if type(EasyNotesDB.fontSize) ~= "number" then EasyNotesDB.fontSize = FONT_SIZE_DEFAULT end
@@ -1126,6 +1140,110 @@ function notesNS.PromptImportCode()
             if not notesNS.ImportCode(text) then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
         end,
     })
+end
+
+-- EasyFind links to a note. A short note travels whole in the link (a
+-- chat message holds 255 characters); a longer one travels as its owner's
+-- name and its id, and a click asks the owner for it over the hidden
+-- addon channel, answered in parts for the notes the owner linked.
+local NoteLink = { PREFIX = "EFNote", PART = 220, pending = {}, asked = {} }
+
+function NoteLink.Owner()
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName() or (GetRealmName() or ""):gsub("%s", "")
+    return (ns.PlayerName() or "?") .. "-" .. realm
+end
+
+-- The link's tail for a note: c + the share code when the link fits a
+-- message, else p + owner/id/title.
+function NoteLink.Key(id)
+    local note = NoteByID(id)
+    if not note then return nil end
+    local title = NoteTitle(note):gsub("[%[%]{}/|]", "")
+    local code = notesNS.ExportCode(id)
+    if code and #title + #code + 26 <= 255 then return "c" .. code end
+    note.sharedAt = time()
+    return "p" .. NoteLink.Owner() .. "/" .. id .. "/" .. title
+end
+
+-- The row a link resolves to on the reader's side; its click takes the note.
+function NoteLink.Row(tail)
+    local kind, rest = tail:sub(1, 1), tail:sub(2)
+    local name
+    if kind == "c" then
+        name = notesNS.DecodeCode(rest)
+    elseif kind == "p" then
+        name = rest:match("^[^/]+/%d+/(.*)$")
+    end
+    if not name or name == "" then return nil end
+    return { name = name, icon = ns.NOTES_ICON_TEX, noteLink = tail, hint = L["NOTES_LINK_ROW_HINT"] }
+end
+
+function NoteLink.Send(target, text)
+    if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then return end
+    pcall(C_ChatInfo.SendAddonMessage, NoteLink.PREFIX, text, "WHISPER", target)
+end
+
+function NoteLink.Take(tail)
+    local kind, rest = tail:sub(1, 1), tail:sub(2)
+    if kind == "c" then
+        if not notesNS.ImportCode(rest) then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
+        return
+    end
+    local owner, id = rest:match("^([^/]+)/(%d+)/")
+    if not owner then return end
+    local key = owner .. "/" .. id
+    if NoteLink.asked[key] then return end
+    NoteLink.asked[key] = true
+    NoteLink.Send(owner, "Q\t" .. id)
+    EasyFind:Print(Utils.sformat(L["NOTES_LINK_ASKING_FMT"], owner))
+    Utils.SafeAfter(10, function()
+        if NoteLink.asked[key] then
+            NoteLink.asked[key], NoteLink.pending[key] = nil, nil
+            EasyFind:Print(Utils.sformat(L["NOTES_LINK_NO_ANSWER_FMT"], owner))
+        end
+    end)
+end
+
+-- Part k of a note's code to the reader who asked, the next a beat later.
+function NoteLink.SendParts(target, id, code, k, total)
+    local piece = code:sub((k - 1) * NoteLink.PART + 1, k * NoteLink.PART)
+    NoteLink.Send(target, "A\t" .. id .. "\t" .. k .. "\t" .. total .. "\t" .. piece)
+    if k < total then
+        Utils.SafeAfter(0.15, function() NoteLink.SendParts(target, id, code, k + 1, total) end)
+    end
+end
+
+-- Q id: a reader asks for a note this character linked. A id i n part:
+-- one part of a note asked for; the whole arrives as an import.
+function NoteLink.OnMessage(text, sender)
+    local cmd, id, i, n, part = strsplit("\t", text)
+    id = tonumber(id)
+    if cmd == "Q" and id then
+        local note = NoteByID(id)
+        local code = note and note.sharedAt and notesNS.ExportCode(id)
+        if code then NoteLink.SendParts(sender, id, code, 1, math.ceil(#code / NoteLink.PART)) end
+    elseif cmd == "A" and id and tonumber(i) and tonumber(n) and part then
+        local key = sender .. "/" .. id
+        if not NoteLink.asked[key] then return end
+        local got = NoteLink.pending[key] or { n = tonumber(n), count = 0 }
+        NoteLink.pending[key] = got
+        i = tonumber(i)
+        if not got[i] then got[i], got.count = part, got.count + 1 end
+        if got.count < got.n then return end
+        NoteLink.asked[key], NoteLink.pending[key] = nil, nil
+        local parts = {}
+        for k = 1, got.n do parts[k] = got[k] or "" end
+        if not notesNS.ImportCode(table.concat(parts)) then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
+    end
+end
+
+if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
+    pcall(C_ChatInfo.RegisterAddonMessagePrefix, NoteLink.PREFIX)
+    local listener = CreateFrame("Frame")
+    listener:RegisterEvent("CHAT_MSG_ADDON")
+    listener:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
+        if prefix == NoteLink.PREFIX and type(text) == "string" and sender then NoteLink.OnMessage(text, sender) end
+    end)
 end
 
 -- Notes that apply where the player is, as rows for the empty bar.
@@ -1806,6 +1924,15 @@ local function TrackThemedButton(btn, accent)
     themedButtons[#themedButtons + 1] = btn
 end
 
+-- The tags row's fold chevron in the theme's chrome-glyph color, lifted
+-- toward white under the mouse.
+function UI.PaintEasyNotesFoldGlyph(glyph, hovered)
+    local c = ns.ChromeGlyphColor()
+    local lift = hovered and 0.5 or 0
+    glyph:SetVertexColor(c[1] + (1 - c[1]) * lift, c[2] + (1 - c[2]) * lift, c[3] + (1 - c[3]) * lift, 1)
+    glyph:SetAlpha(hovered and 1 or 0.85)
+end
+
 if ns.RegisterThemeCallback then
     ns.RegisterThemeCallback(function()
         for i = 1, #themedButtons do
@@ -1814,6 +1941,8 @@ if ns.RegisterThemeCallback then
             elseif btn._efAccent then PaintAccentButton(btn)
             else PaintSubtleButton(btn, false) end
         end
+        local frame = UI._notes.frame
+        if frame and frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
     end)
 end
 
@@ -4047,6 +4176,25 @@ function UI:EnsureEasyNotesFrame()
     frame.titleButton:RegisterForDrag("LeftButton")
     frame.titleButton:SetScript("OnDragStart", BeginMove)
     frame.titleButton:SetScript("OnDragStop", EndMove)
+    -- An item in the title (a note made for one, or its link typed in):
+    -- its tooltip on hover.
+    frame.titleButton:SetScript("OnEnter", function(self)
+        local note = GetSelectedNote()
+        if not (note and GameTooltip) then return end
+        local title = NoteTitle(note)
+        local link = title:match("|Hitem:[^|]+|h%[[^%]]*%]|h")
+        local itemID
+        if not link then
+            for _, s in ipairs(note.showsOn or {}) do
+                if s.type == "item" and title == "[" .. (s.name or "") .. "]" then itemID = s.id break end
+            end
+        end
+        if not (link or itemID) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        if link then GameTooltip:SetHyperlink(link) else GameTooltip:SetItemByID(itemID) end
+        GameTooltip:Show()
+    end)
+    frame.titleButton:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 
     frame.title = frame.titleButton:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.title:SetAllPoints(frame.titleButton)
@@ -4107,6 +4255,75 @@ function UI:EnsureEasyNotesFrame()
     frame.headerDivider:SetHeight(1)
     frame.headerDivider:SetPoint("TOPLEFT", frame.header, "BOTTOMLEFT", 12, 0)
     frame.headerDivider:SetPoint("TOPRIGHT", frame.header, "BOTTOMRIGHT", -12, 0)
+
+    -- The tags row under the divider while the note has any; its fold keeps
+    -- the text in place and waits under the X until the row is wanted again.
+    frame.attachBar = CreateFrame("Frame", nil, frame)
+    frame.attachBar:SetPoint("TOPLEFT", frame.headerDivider, "BOTTOMLEFT", 0, -4)
+    frame.attachBar:SetPoint("TOPRIGHT", frame.headerDivider, "BOTTOMRIGHT", 0, -4)
+    frame.attachBar:SetHeight(ATTACH_H)
+    frame.attachBar:SetScript("OnSizeChanged", function(self, w)
+        if w and w > 0 and math.abs(w - (self._laidW or 0)) >= 1 then
+            self._laidW = w
+            UI:RefreshEasyNotesAttachBar()
+        end
+    end)
+    frame.attachBar:Hide()
+    frame.attachPills = {}
+    frame.attachDivider = frame.attachBar:CreateTexture(nil, "ARTWORK")
+    frame.attachDivider:SetColorTexture(0.18, 0.18, 0.20, 0.7)
+    frame.attachDivider:SetHeight(1)
+    frame.attachDivider:SetPoint("TOPLEFT", frame.attachBar, "BOTTOMLEFT", 0, -3)
+    frame.attachDivider:SetPoint("TOPRIGHT", frame.attachBar, "BOTTOMRIGHT", 0, -3)
+    -- Past the room: +N lists the rest, each with its own menu; then + adds one.
+    frame.attachMoreBtn = CreateFrame("Button", nil, frame.attachBar)
+    StyleSubtleButton(frame.attachMoreBtn, "", 30, ATTACH_H)
+    frame.attachMoreBtn:SetScript("OnClick", function(self)
+        local note, hidden = GetSelectedNote(), UI._notes.attachHidden
+        if not (note and hidden) then return end
+        UI:ShowEasyNotesMenu("EasyNotesTagMoreMenu", NoteWhen.HiddenRows(note, hidden), { anchorFrame = self,
+            point = "TOPLEFT", relativePoint = "BOTTOMLEFT", offsetX = 0, offsetY = -2,
+            rowsProvider = function() return NoteWhen.HiddenRows(note, UI._notes.attachHidden or {}) end })
+    end)
+    frame.attachMoreBtn:Hide()
+    frame.attachAdd = CreateFrame("Button", nil, frame.attachBar)
+    StyleSubtleButton(frame.attachAdd, "+", 18, ATTACH_H)
+    frame.attachAdd:SetScript("OnClick", function(self)
+        local note = GetSelectedNote()
+        if not note then return end
+        UI:ShowEasyNotesMenu("EasyNotesTagAddMenu", NoteWhen.MenuRows(note, ""), { anchorFrame = self,
+            point = "TOPLEFT", relativePoint = "BOTTOMLEFT", offsetX = 0, offsetY = -2,
+            search = L["NOTES_TAG_SEARCH"], liveSearch = true, maxRows = 14,
+            rowsProvider = function(typed) return NoteWhen.MenuRows(note, typed) end })
+    end)
+    frame.attachAdd:HookScript("OnEnter", function(self)
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", L["NOTES_ADD_APPLIES_TT"])
+    end)
+    frame.attachAdd:HookScript("OnLeave", function(self) UI:HideNotesTip(self) end)
+    frame.attachAdd:Hide()
+
+    frame.showsFold = CreateFrame("Button", nil, frame)
+    frame.showsFold:SetSize(18, 14)
+    frame.showsFold.glyph = frame.showsFold:CreateTexture(nil, "OVERLAY")
+    frame.showsFold.glyph:SetSize(14, 10)
+    frame.showsFold.glyph:SetPoint("CENTER")
+    frame.showsFold.glyph:SetTexture(ns.FILTER_ARROW_TEX)
+    UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false)
+    frame.showsFold:SetScript("OnClick", function()
+        local db = NormalizeDB()
+        db.showsFolded = not db.showsFolded or nil
+        UI:RefreshEasyNotesAttachBar()
+    end)
+    frame.showsFold:SetScript("OnEnter", function(self)
+        UI.PaintEasyNotesFoldGlyph(self.glyph, true)
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", NormalizeDB().showsFolded and L["NOTES_SHOWS_UNFOLD"] or L["NOTES_SHOWS_FOLD"])
+    end)
+    frame.showsFold:SetScript("OnLeave", function(self)
+        UI.PaintEasyNotesFoldGlyph(self.glyph, false)
+        UI:HideNotesTip(self)
+        Utils.SafeAfter(0, UI.RefreshEasyNotesFoldShown)
+    end)
+    frame.showsFold:Hide()
 
     frame.editorScroll = CreateFrame("ScrollFrame", nil, frame)
     frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -HEADER_H - EDITOR_TOP)
@@ -4515,6 +4732,14 @@ function UI:EnsureEasyNotesFrame()
         if GameTooltip then GameTooltip:Hide() end
     end)
     frame.headerNavButton:Hide()
+
+    -- Hover only: the folded chevron shows while the mouse is in the window.
+    local function FoldHover() UI.RefreshEasyNotesFoldShown() end
+    local function FoldLeave() Utils.SafeAfter(0, FoldHover) end
+    for _, region in ipairs({ frame, frame.header, frame.footer, frame.editorScroll, frame.editor }) do
+        region:HookScript("OnEnter", FoldHover)
+        region:HookScript("OnLeave", FoldLeave)
+    end
 
     -- Top-right: more options and close on a note (its delete is in the
     -- menu), the trash for the selection and close on the list; two a
@@ -4942,6 +5167,7 @@ function UI:RefreshEasyNotes()
     -- Render the read view unless the editbox is being actively edited.
     self:SetEasyNotesRendered(not frame.editor:HasFocus())
     self:RefreshEasyNotesHeaderNav()
+    self:RefreshEasyNotesAttachBar()
     self:RefreshEasyNotesDragHandles()
     if UI._notes.paletteShown then self:RefreshEasyNotesPalette() end
     if notesNS.ChecklistView then notesNS.ChecklistView.Refresh() end
@@ -5007,7 +5233,7 @@ function UI:UpdateEasyNotesAutoResize()
     local contentH = frame.editor:GetHeight() or 0
     -- The formatting toolbar sits below the window, so it no longer adds to the
     -- window's own height.
-    local chrome = HEADER_H + 14 + FOOTER_H + 4
+    local chrome = HEADER_H + 14 + FOOTER_H + 4 + (UI._notes.attachHasContent and ATTACH_H + 2 or 0)
     local needed = mmax(MIN_HEIGHT, contentH + chrome)
     if math.abs(needed - (frame:GetHeight() or 0)) > 0.5 then
         frame:SetHeight(needed)
@@ -5957,14 +6183,185 @@ function UI:ToggleEasyNotesFindBar()
     end
 end
 
--- The editor top reserves space for the attach bar and the find bar only when
--- each is actually present. It always reserved the attach height, which left a
--- dead gap above the text on notes with no tags -- clicking it did nothing
--- because it is the (empty) attach bar, not the editor.
+-- The folded chevron: under the X while the note has tags; with the
+-- hover-only setting, only while the mouse is in the window.
+function UI.RefreshEasyNotesFoldShown()
+    local frame = UI._notes.frame
+    if not (frame and frame.showsFold) then return end
+    local db = NormalizeDB()
+    local shown = UI._notes.attachHasTags and frame.editorScroll:IsShown()
+    if shown and db.showsFolded and db.foldHoverOnly then shown = frame:IsMouseOver() end
+    frame.showsFold:SetShown(shown)
+end
+
+-- A tag dropped from its pill: a single, a combination or a tooltip target.
+function NoteWhen.RemoveTag(note, d)
+    if d.kind == "appliesIn" then
+        ToggleNoteContext(note, d.entry)
+    elseif d.kind == "rule" then
+        for r = #(note.rules or {}), 1, -1 do
+            if note.rules[r] == d.rule then tremove(note.rules, r) end
+        end
+    else
+        ToggleNoteShowsOn(note, d.entry)
+    end
+    note.updated = time()
+    NoteWhen.Changed()
+end
+
+-- A tag's own menu: its open-the-window switch (not for a tooltip target)
+-- and Remove.
+function NoteWhen.TagRows(note, d)
+    local rows = {}
+    if d.kind ~= "showsOn" then
+        rows[1] = NoteWhen.OpenRow(note, d.entry or d.rule)
+        rows[2] = { isSeparator = true }
+    end
+    rows[#rows + 1] = { text = _G["REMOVE"] or "Remove", onClick = function() NoteWhen.RemoveTag(note, d) end }
+    return rows
+end
+
+local function MakeAttachPill(frame, i)
+    local pill = CreateFrame("Button", nil, frame.attachBar)
+    pill:SetHeight(ATTACH_H)
+    ns.CreateRoundedRectBorder(pill)
+    ns.SetRoundedRectBarHeight(pill, 8)
+    ns.SetRoundedRectBorderEdgeShown(pill, false)
+    pill.text = pill:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    pill.text:SetPoint("LEFT", pill, "LEFT", 8, 0)
+    pill.text:SetWordWrap(false)
+    pill:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    pill.close = ns.CreateCloseX(pill, 10)
+    pill.close:SetPoint("RIGHT", pill, "RIGHT", -4, 0)
+    pill.close:SetScript("OnClick", function()
+        local n = GetSelectedNote()
+        if n and pill.data then NoteWhen.RemoveTag(n, pill.data) end
+    end)
+    local function TagRows()
+        local n = GetSelectedNote()
+        return n and pill.data and NoteWhen.TagRows(n, pill.data) or {}
+    end
+    pill:SetScript("OnClick", function(self)
+        UI:ShowEasyNotesMenu("EasyNotesTagMenu", TagRows(), { anchorFrame = self, point = "TOPLEFT",
+            relativePoint = "BOTTOMLEFT", offsetX = 0, offsetY = -2, rowsProvider = TagRows })
+    end)
+    pill:SetScript("OnEnter", function(self)
+        local d = self.data
+        if not d then return end
+        local head = d.kind == "appliesIn" and L["NOTES_APPLIES_IN"]
+            or d.kind == "rule" and L["NOTES_AUTO_ALL_OF"] or L["NOTES_SHOWS_ON"]
+        local tip = head .. "\n|cffe6e6e6" .. d.name .. "|r"
+        if d.opens then tip = tip .. "\n" .. L["NOTES_AUTO_OPEN_TT"] end
+        UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", tip .. "\n|cff99999e" .. L["NOTES_RIGHT_REMOVE"] .. "|r")
+    end)
+    pill:SetScript("OnLeave", function(self) UI:HideNotesTip(self) end)
+    frame.attachPills[i] = pill
+    return pill
+end
+
+-- The tags row under the header while the note has any: what brings it
+-- up (a combination as one pill, in the glyph color when it opens the
+-- window) and the tooltips it is on; a pill's X drops it, a click opens
+-- its menu. Folded, the editor keeps its place and the chevron waits
+-- under the X.
+function UI:RefreshEasyNotesAttachBar()
+    local frame = UI._notes.frame
+    if not (frame and frame.attachBar) then return end
+    local note = GetSelectedNote()
+    local entries = {}
+    if note then
+        for _, e in ipairs(note.appliesIn or {}) do
+            entries[#entries + 1] = { kind = "appliesIn", entry = e, name = e.name or tostring(e.id),
+                color = TagColor(CtxKey(e)), opens = e.opens }
+        end
+        for _, r in ipairs(note.rules or {}) do
+            if #r.conds > 0 then
+                local names = {}
+                for _, c in ipairs(r.conds) do names[#names + 1] = c.name or tostring(c.id) end
+                entries[#entries + 1] = { kind = "rule", rule = r, name = table.concat(names, " + "),
+                    color = TagColor(CtxKey(r.conds[1])), opens = r.opens }
+            end
+        end
+        for _, e in ipairs(note.showsOn or {}) do
+            entries[#entries + 1] = { kind = "showsOn", entry = e, name = e.name or tostring(e.id), color = TagColor(CtxKey(e)) }
+        end
+    end
+    local hasTags = #entries > 0
+    local open = hasTags and not NormalizeDB().showsFolded
+    UI._notes.attachHasTags, UI._notes.attachHasContent = hasTags, open
+    frame.attachBar:SetShown(open and frame.editorScroll:IsShown())
+    local fold = frame.showsFold
+    fold:ClearAllPoints()
+    if open then
+        fold:SetPoint("RIGHT", frame.attachBar, "RIGHT", 2, 0)
+        fold.glyph:SetRotation(math.pi)
+    else
+        fold:SetPoint("TOP", frame.close, "BOTTOM", 0, -(HEADER_H - STD_BTN_H) / 2 - 1)
+        fold.glyph:SetRotation(0)
+    end
+    UI.RefreshEasyNotesFoldShown()
+    self:UpdateEasyNotesEditorTop()
+    local pills = frame.attachPills
+    local x, shown = 2, 0
+    local barW = frame:GetWidth() or 0
+    if barW < 50 then barW = DEFAULT_WIDTH end
+    -- The divider's insets, the fold and the + stay free; +N takes its
+    -- measured room while a tag lies past the row. The first pill always
+    -- shows, cut with dots to what is left.
+    local limit = barW - 24 - 22 - 22
+    local more = frame.attachMoreBtn
+    for i = 1, open and #entries or 0 do
+        local data = entries[i]
+        local pill = pills[i] or MakeAttachPill(frame, i)
+        pill.data = data
+        pill.text:SetText(data.name)
+        local moreW = 0
+        if i < #entries then
+            more.text:SetText("+" .. (#entries - i))
+            moreW = (more.text:GetStringWidth() or 12) + 16
+        end
+        local textW = mmin(pill.text:GetUnboundedStringWidth() or 20, 140)
+        if shown == 0 then textW = mmin(textW, mmax(20, limit - x - moreW - 28)) end
+        if x + textW + 28 + moreW > limit and shown > 0 then break end
+        pill.text:SetWidth(textW)
+        pill:SetWidth(textW + 28)
+        local c = data.color
+        ns.SetRoundedRectFill(pill, c[1] * 0.34, c[2] * 0.34, c[3] * 0.34, 1, true)
+        if data.opens then
+            local g = ns.ChromeGlyphColor()
+            pill.text:SetTextColor(g[1], g[2], g[3], 1)
+        else
+            pill.text:SetTextColor(mmin(1, c[1] + 0.28), mmin(1, c[2] + 0.28), mmin(1, c[3] + 0.28), 1)
+        end
+        pill:ClearAllPoints()
+        pill:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+        pill:Show()
+        x = x + textW + 28 + 4
+        shown = i
+    end
+    for i = shown + 1, #pills do pills[i]:Hide() end
+    local hidden = {}
+    for i = shown + 1, open and #entries or 0 do hidden[#hidden + 1] = entries[i] end
+    UI._notes.attachHidden = hidden
+    more:SetShown(#hidden > 0)
+    if #hidden > 0 then
+        more.text:SetText("+" .. #hidden)
+        more:SetWidth((more.text:GetStringWidth() or 12) + 12)
+        more:ClearAllPoints()
+        more:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+        x = x + more:GetWidth() + 4
+    end
+    frame.attachAdd:ClearAllPoints()
+    frame.attachAdd:SetPoint("LEFT", frame.attachBar, "LEFT", x, 0)
+    frame.attachAdd:SetShown(open)
+end
+
+-- The editor top reserves space for the tags row and the find bar only
+-- while each is there, so a note without tags has no dead gap above its text.
 function UI:UpdateEasyNotesEditorTop()
     local frame = UI._notes.frame
     if not (frame and frame.editorScroll) then return end
-    local top = HEADER_H + EDITOR_TOP
+    local top = HEADER_H + EDITOR_TOP + (UI._notes.attachHasContent and ATTACH_H + 2 or 0)
     local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0)
     frame.editorScroll:ClearAllPoints()
     frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -top)
@@ -6381,6 +6778,14 @@ function UI:SetEasyNotesEditorViewShown(shown)
         if frame.headerNavButton then frame.headerNavButton:Hide() end
         if frame.headerPanel then frame.headerPanel:Hide() end
     end
+    if frame.attachBar then
+        if shown then
+            self:RefreshEasyNotesAttachBar()
+        else
+            frame.attachBar:Hide()
+            frame.showsFold:Hide()
+        end
+    end
     self:RefreshEasyNotesDragHandles()
     if notesNS.ChecklistView then notesNS.ChecklistView.SetAllowed(shown) end
 end
@@ -6693,6 +7098,13 @@ function UI:ShowEasyNotesRowMenu(row)
             EasyFind.API.CallAction("chat", "compose", strtrim(StripColorEscapes(MapSelection(note.body or "", GlyphPlain))))
         end }
     end
+    -- The note as an EasyFind link: a click on it elsewhere takes the note.
+    local note = NoteByID(row.noteID)
+    local text = note and ns.ResultLinks and ns.ResultLinks:BuildShareText({ name = NoteTitle(note), category = "Notes", noteID = note.id })
+    if text then
+        rows[#rows + 1] = { text = L["CTX_EASYFIND_LINK"], copy = Utils.ClipboardSafeText(text), copyLink = text,
+            tooltip = L["EFLINK_ROW_TT"], submenu = ns.BuildSendLinkRows(text) }
+    end
     rows[#rows + 1] = { isSeparator = true }
     -- The row's note, or the whole selection when the row is part of one.
     rows[#rows + 1] = { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
@@ -6770,7 +7182,7 @@ function UI:OpenNotesThatApply()
     local any = false
     local store = NotesStore()
     for i = 1, #store do
-        if store[i].opensItself then any = true break end
+        if Ctx.AnyOpens(store[i]) then any = true break end
     end
     local was, now = UI._notes.opensApplied or {}, {}
     UI._notes.opensApplied = now
@@ -6779,7 +7191,7 @@ function UI:OpenNotesThatApply()
         local visible = SortedNotes("")
         for i = 1, #visible do
             local n = visible[i]
-            if n.opensItself and Ctx.Applies(n, set) then now[n.id] = true end
+            if Ctx.OpensNow(n, set) then now[n.id] = true end
         end
     end
     local frame = UI._notes.frame
@@ -7416,7 +7828,48 @@ do
     end
 
     function Auto.Changed()
+        UI:RefreshEasyNotesAttachBar()
         if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+    end
+    NoteWhen.Changed = Auto.Changed
+
+    -- The switch that opens the notes window when this single or this
+    -- combination brings the note up.
+    function NoteWhen.OpenRow(note, holder)
+        return { text = L["NOTES_AUTO_OPEN"], tooltip = L["NOTES_AUTO_OPEN_TT"], keepOpen = true,
+            icon = holder.opens and MENU_CHECK_TEX or nil,
+            onClick = function()
+                holder.opens = not holder.opens or nil
+                note.updated = time()
+                Auto.Changed()
+            end }
+    end
+
+    -- The tags past the row's room: a click flips the open-the-window
+    -- switch (not on a tooltip target), the X at the right drops the tag.
+    function NoteWhen.HiddenRows(note, hidden)
+        local rows = {}
+        for i = 1, #hidden do
+            local d = hidden[i]
+            local holder = d.kind ~= "showsOn" and (d.entry or d.rule) or nil
+            rows[i] = { text = d.name, icon = d.opens and MENU_CHECK_TEX or nil, keepOpen = true,
+                tooltip = holder and L["NOTES_AUTO_OPEN_TT"] or nil,
+                onClick = holder and function()
+                    holder.opens = not holder.opens or nil
+                    note.updated = time()
+                    Auto.Changed()
+                end or nil,
+                remove = function() NoteWhen.RemoveTag(note, d) end }
+        end
+        return rows
+    end
+
+    -- A picked single: a flyout with that switch and Remove.
+    function Auto.Picked(note, e)
+        return { text = Auto.Label(e), icon = MENU_CHECK_TEX, submenu = function()
+            return { NoteWhen.OpenRow(note, e), { isSeparator = true },
+                { text = _G["REMOVE"] or "Remove", onClick = function() ToggleNoteContext(note, e) Auto.Changed() end } }
+        end }
     end
 
     function Auto.RuleIndex(note, rule)
@@ -7511,6 +7964,7 @@ do
         Auto.Now(note, rows, have, state)
         if r then
             rows[#rows + 1] = { isSeparator = true }
+            rows[#rows + 1] = NoteWhen.OpenRow(note, note.rules[r])
             rows[#rows + 1] = { text = L["NOTES_AUTO_DROP_ALL"], onClick = function()
                 local i = Auto.RuleIndex(note, state.rule)
                 if i then
@@ -7528,7 +7982,7 @@ do
         local rows = { { text = L["NOTES_AUTO_ANY"], disabled = true } }
         local have = {}
         for _, c in ipairs(note.appliesIn or {}) do
-            rows[#rows + 1] = Auto.Pick(note, c)
+            rows[#rows + 1] = Auto.Picked(note, c)
             have[CtxKey(c)] = true
         end
         for _, rule in ipairs(note.rules or {}) do
@@ -7552,12 +8006,6 @@ do
                 note.surface = Utils.OffOrNil(note.surface == false)
                 note.updated = time()
                 Auto.Changed()
-            end }
-        rows[#rows + 1] = { text = L["NOTES_AUTO_OPEN"], tooltip = L["NOTES_AUTO_OPEN_TT"], keepOpen = true,
-            disabled = not any, icon = any and note.opensItself and MENU_CHECK_TEX or nil,
-            onClick = function()
-                note.opensItself = not note.opensItself or nil
-                note.updated = time()
             end }
         return rows
     end
@@ -8946,11 +9394,18 @@ function notesNS.BuildSettingsPage(page, kit)
             UI:RefreshEasyNotesPalette()
         end, L["NOTES_CLASS_COLORS_TT"])
     classColors:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", 0, 0)
+    local foldHover = kit.Checkbox(page, L["NOTES_OPT_FOLD_HOVER"],
+        function() return NormalizeDB().foldHoverOnly == true end,
+        function(on)
+            NormalizeDB().foldHoverOnly = on or nil
+            UI.RefreshEasyNotesFoldShown()
+        end, L["NOTES_OPT_FOLD_HOVER_TT"])
+    foldHover:SetPoint("TOPLEFT", classColors, "BOTTOMLEFT", 0, 0)
     -- Which kinds of situation show as chips over the list: a menu of
     -- ticks, listed anew after each.
     local kindsRow = CreateFrame("Frame", nil, page)
     kindsRow:SetSize(kit.ROW_WIDTH, 22)
-    kindsRow:SetPoint("TOPLEFT", classColors, "BOTTOMLEFT", 0, -2)
+    kindsRow:SetPoint("TOPLEFT", foldHover, "BOTTOMLEFT", 0, -2)
     local kindsLabel = kindsRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     kindsLabel:SetPoint("LEFT", kindsRow, "LEFT", 8, 0)
     kindsLabel:SetText(L["NOTES_CHIP_KINDS"])
@@ -9008,5 +9463,10 @@ EasyFind.API.RegisterAction("notes", "addUnitNoteLines", notesNS.AddUnitNoteLine
 EasyFind.API.RegisterAction("notes", "refresh", notesNS.Refresh)
 EasyFind.API.RegisterSearchProvider({
     key = "notes", rows = notesNS.BuildSearchData,
-    select = function(row) if row.noteID then notesNS.OpenNote(row.noteID) end end,
+    select = function(row)
+        if row.noteID then notesNS.OpenNote(row.noteID)
+        elseif row.noteLink then NoteLink.Take(row.noteLink) end
+    end,
 })
+EasyFind.API.RegisterAction("notes", "linkKey", NoteLink.Key)
+EasyFind.API.RegisterAction("notes", "linkRow", NoteLink.Row)

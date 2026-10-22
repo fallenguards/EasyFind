@@ -28,7 +28,8 @@ local function Load(notes)
         NormalizeDB = function() end,
         Ctx = {
             Active = function() return {}, here end,
-            Applies = function(n, set) return set[n.place] == true end,
+            OpensNow = function(n, set) return n.opens == true and set[n.place] == true end,
+            AnyOpens = function(n) return n.opens == true end,
         },
     }, { __index = _G })
     assert(load(src:sub(s, e), "=Notes.lua OpenNotesThatApply", "t", env))()
@@ -38,7 +39,7 @@ end
 local tests = {}
 
 function tests.opensOnItsPlace_andGoesWhenItEnds()
-    local notes = { { id = 1, place = "icc", opensItself = true }, { id = 2, place = "ah" } }
+    local notes = { { id = 1, place = "icc", opens = true }, { id = 2, place = "ah" } }
     local UI, frame, here = Load(notes)
     UI:OpenNotesThatApply()
     H.assertFalse(frame.shown, "nowhere yet")
@@ -59,7 +60,7 @@ function tests.onlyNotesSetToOpen()
 end
 
 function tests.neverOverAWindowInUse()
-    local notes = { { id = 1, place = "ah", opensItself = true } }
+    local notes = { { id = 1, place = "ah", opens = true } }
     local UI, frame, here = Load(notes)
     UI:EnsureEasyNotesFrame()
     frame.shown = true
@@ -73,7 +74,7 @@ function tests.neverOverAWindowInUse()
 end
 
 function tests.leftOpenOnAnotherNoteStaysOpen()
-    local notes = { { id = 1, place = "ah", opensItself = true } }
+    local notes = { { id = 1, place = "ah", opens = true } }
     local UI, frame, here = Load(notes)
     here.ah = true
     UI:OpenNotesThatApply()

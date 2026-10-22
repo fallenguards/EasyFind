@@ -8740,14 +8740,35 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 row._efIconRight = iconRight
                 row._efLabelLeft = (leftIcons or (def.icon and def.inlineIcon)) and 28 or 8
                 row.label:SetPoint("LEFT", row, "LEFT", row._efLabelLeft, 0)
+                -- A remove row keeps an X at its right edge: a click on it
+                -- drops what the row names and lists the menu anew.
+                if def.remove and not row.removeX then
+                    row.removeX = ns.CreateCloseX(row, 10)
+                    row.removeX:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+                    row.removeX:SetScript("OnClick", function()
+                        if row._efRemove then row._efRemove() end
+                        local o = menu._lastOpts
+                        local fresh = menu._rowsProvider and menu._rowsProvider(o and o._searchText)
+                        if fresh and #fresh > 0 then
+                            menu._efEdited = true
+                            if o and o.liveSearch then o._reuseMenu = menu end
+                            Utils.ShowCursorMenu(menu._lastName, fresh, o)
+                        else
+                            menu:Hide()
+                        end
+                    end)
+                end
+                row._efRemove = def.remove
+                if row.removeX then row.removeX:SetShown(def.remove ~= nil) end
+                -- The chevron or the X owns the right edge; a right-side
+                -- icon steps inward beside it.
+                local trailing = def.submenu or def.remove
                 if iconRight then
-                    -- The chevron owns the right edge on submenu rows; a
-                    -- right-side icon steps inward beside it.
-                    row.icon:SetPoint("RIGHT", row, "RIGHT", def.submenu and -26 or -8, 0)
-                    row.label:SetPoint("RIGHT", row, "RIGHT", def.submenu and -44 or -26, 0)
+                    row.icon:SetPoint("RIGHT", row, "RIGHT", trailing and -26 or -8, 0)
+                    row.label:SetPoint("RIGHT", row, "RIGHT", trailing and -44 or -26, 0)
                 else
                     row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
-                    row.label:SetPoint("RIGHT", row, "RIGHT", def.submenu and -22 or -8, 0)
+                    row.label:SetPoint("RIGHT", row, "RIGHT", trailing and -22 or -8, 0)
                 end
                 -- Copy rows carry their gesture in the icon lane: a dim
                 -- "Ctrl+C" the drive lights while the row is engaged and
@@ -8930,6 +8951,8 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
             row._copyText, row._copyLink = nil, nil
             row._copyKey = nil
             row._tooltip, row._tooltipNote = nil, nil
+            row._efRemove = nil
+            if row.removeX then row.removeX:Hide() end
             row:SetScript("OnClick", nil)
             row:SetScript("OnMouseDown", nil)
         end
@@ -8969,6 +8992,8 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 local rightPad = 8
                 if row.chevron and row.chevron:IsShown() then
                     rightPad = row._efIconRight and 44 or 22
+                elseif row.removeX and row.removeX:IsShown() then
+                    rightPad = row._efIconRight and 44 or 26
                 elseif row._efIconRight then
                     rightPad = 26
                 end

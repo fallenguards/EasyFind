@@ -53,6 +53,11 @@ API.RegisterSearchProvider({
     key = "notes", category = "Notes", extension = "notes",
     label = L["APP_NOTES"], icon = ns.NOTES_ICON_TEX, iconCoords = ns.NOTES_ICON_COORDS,
     words = { "note", "notes" }, lowResults = true, eager = true, aliases = { "note", "notes" },
+    -- A note's link: the addon makes the key and the row the reader sees.
+    link = {
+        key = function(row) return row.noteID and API.CallAction("notes", "linkKey", row.noteID) or nil end,
+        resolve = function(tail) return API.CallAction("notes", "linkRow", tail) end,
+    },
     options = {
         ns.Extensions.DbOption("notesHereFilter", L["NOTES_OPT_HERE"], L["NOTES_OPT_HERE_TT"]),
         ns.Extensions.DbOption("notesTooltips", L["NOTES_OPT_TOOLTIPS"], L["NOTES_OPT_TOOLTIPS_TT"]),
