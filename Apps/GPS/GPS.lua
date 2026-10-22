@@ -910,8 +910,15 @@ end
 local function OffRoute(route, ci, px, py)
     local i = route.active or 1
     local step = route.steps[i]
-    if step.kind ~= "travel" then return false end
     local fci, fx, fy = PointWorld(i > 1 and route.steps[i - 1].arrive or route.from)
+    if step.kind ~= "travel" then
+        -- A crossing taken wrong (the portal beside the planned one): the
+        -- player is on a continent that is neither where it is taken nor
+        -- where it lands. A ride in progress is always on one of the two.
+        local gci = step.go and PointWorld(step.go) or fci
+        local aci = step.arrive and PointWorld(step.arrive) or gci
+        return ci ~= nil and gci ~= nil and ci ~= gci and ci ~= aci and ci ~= fci
+    end
     local tci, tx, ty = PointWorld(step.go or step.arrive)
     if not (fci and tci and fci == tci) then return false end
     if ci ~= tci then return true end
