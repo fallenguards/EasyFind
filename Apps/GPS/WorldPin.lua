@@ -260,6 +260,17 @@ function WorldPin.NewPlate(parent)
             defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:OpenWindow() end }
         end
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
+        -- The arrow's plate: unlocked, the arrow takes a plain drag.
+        local Arrow = p.isArrow and ns.GPSArrow
+        if Arrow and Arrow.SetUnlocked then
+            local db = DB()
+            local unlocked = db ~= nil and db.gpsArrowUnlocked == true
+            defs[#defs + 1] = { kind = "separator" }
+            -- The row names what a click does: Unlock while locked, Lock while not.
+            defs[#defs + 1] = { kind = "action", label = unlocked and L["GPS_ARROW_UNLOCKED"] or L["GPS_ARROW_LOCKED"],
+                tooltip = L["GPS_ARROW_LOCK_TT"], onClick = function() Arrow.SetUnlocked(not unlocked) end }
+            defs[#defs + 1] = { kind = "action", label = L["GPS_ARROW_RESET"], onClick = function() Arrow.ResetPlace() end }
+        end
         ns.ShowTogglePopup("EasyFindGPSBeaconMenu", menuAnchor, defs, {})
     end)
     return p

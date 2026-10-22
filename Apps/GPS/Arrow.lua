@@ -136,15 +136,29 @@ local function Build()
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnMouseDown", function(_, button) plate:GetScript("OnMouseDown")(plate, button) end)
     grip:SetScript("OnMouseUp", function(_, button) plate:GetScript("OnMouseUp")(plate, button) end)
-    local function DragStart() if IsShiftKeyDown() then frame:StartMoving() end end
+    -- Unlocked (the plate's menu), it takes a plain drag; locked, Shift held.
+    local function Unlocked() local d = DB() return d ~= nil and d.gpsArrowUnlocked == true end
+    local function DragStart() if IsShiftKeyDown() or Unlocked() then frame:StartMoving() end end
     local function DragStop()
         frame:StopMovingOrSizing()
         SavePlace()
     end
     local function TakeMouse()
-        local shift = IsShiftKeyDown()
-        frame:EnableMouse(shift)
-        grip:EnableMouse(shift)
+        local take = IsShiftKeyDown() or Unlocked()
+        frame:EnableMouse(take)
+        grip:EnableMouse(take)
+    end
+    plate.isArrow = true
+    function Arrow.SetUnlocked(on)
+        local d = DB()
+        if d then d.gpsArrowUnlocked = on or nil end
+        TakeMouse()
+    end
+    function Arrow.ResetPlace()
+        local d = DB()
+        if d then d.gpsArrowPos = nil end
+        frame:ClearAllPoints()
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, HOME_Y)
     end
     -- The game refuses the pass-through in a fight: built in one, the plate
     -- takes no clicks until it ends.
