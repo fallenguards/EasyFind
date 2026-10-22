@@ -718,7 +718,7 @@ function NoteTags.Matches(note, set, text)
         local low = slower(tags[i])
         if (set and set[low]) or (text and sfind(low, text, 1, true)) then return true end
     end
-    return false
+    return set ~= nil and NoteTags.MatchesContext(note, set) or false
 end
 
 local function SortedNotes(filter)
@@ -1457,6 +1457,35 @@ end
 
 local Ctx = notesNS.Context
 local CtxKey = Ctx.Key
+
+-- The situations and tooltip targets the notes are tagged with, each
+-- once: { key, name, kind }, by name. The tag filter picks them by
+-- "ctx:" .. key beside the typed tags.
+function NoteTags.Contexts()
+    local seen, out = {}, {}
+    local notes = NotesStore()
+    for i = 1, #notes do
+        for _, list in ipairs({ notes[i].appliesIn or {}, notes[i].showsOn or {} }) do
+            for _, e in ipairs(list) do
+                local key = CtxKey(e)
+                if not seen[key] then
+                    seen[key] = true
+                    out[#out + 1] = { key = "ctx:" .. key, name = e.name or tostring(e.id), kind = Ctx.KindLabel(e) }
+                end
+            end
+        end
+    end
+    tsort(out, function(a, b) return slower(a.name) < slower(b.name) end)
+    return out
+end
+function NoteTags.MatchesContext(note, set)
+    for _, list in ipairs({ note.appliesIn or {}, note.showsOn or {} }) do
+        for _, e in ipairs(list) do
+            if set["ctx:" .. CtxKey(e)] then return true end
+        end
+    end
+    return false
+end
 
 local TAG_COLORS = {
     { 0.84, 0.38, 0.40 }, { 0.92, 0.58, 0.30 }, { 0.84, 0.72, 0.34 },
@@ -7058,22 +7087,26 @@ function UI:ShowEasyNotesFilterMenu(anchor)
                 UI._notes.tagFilter = nil
                 UI:RefreshEasyNotesPalette()
             end } }
-        local tags = NoteTags.All()
-        for _, tag in ipairs(tags) do
-            local low = slower(tag)
-            t[#t + 1] = { text = tag, keepOpen = true, icon = picked and picked[low] and MENU_CHECK_TEX or nil,
+        local function pickRow(label, key)
+            return { text = label, keepOpen = true, icon = picked and picked[key] and MENU_CHECK_TEX or nil,
                 onClick = function()
                     local set = UI._notes.tagFilter or {}
-                    set[low] = not set[low] or nil
+                    set[key] = not set[key] or nil
                     UI._notes.tagFilter = next(set) and set or nil
                     UI:RefreshEasyNotesPalette()
                 end }
         end
-        if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS"], disabled = true } end
+        local tags = NoteTags.All()
+        for _, tag in ipairs(tags) do t[#t + 1] = pickRow(tag, slower(tag)) end
+        -- The situations and targets notes are tagged with, their kind beside.
+        local ctxs = NoteTags.Contexts()
+        for _, c in ipairs(ctxs) do t[#t + 1] = pickRow(c.name .. "  |cff8a8a90" .. c.kind .. "|r", c.key) end
+        if #tags == 0 and #ctxs == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS"], disabled = true } end
         return t
     end
     local rows = {
-        { text = _G.CHARACTER, submenu = charRows },
+        { text = _G.CHARACTER, submenu = charRows, tooltip = L["NOTES_CHAR_FILTER_TT"],
+          submenuSearch = L["NOTES_CHAR_FILTER_SEARCH"], submenuMaxRows = 10 },
         { text = _G.CATEGORY, submenu = catRows },
         { text = L["NOTES_TAGS"], submenu = tagRows, submenuSearch = L["NOTES_TAG_FILTER_SEARCH"], submenuMaxRows = 10 },
     }
