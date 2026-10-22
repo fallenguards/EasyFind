@@ -4762,14 +4762,14 @@ local function BuildPopout()
     -- header hangs off the glyph and the close. above: the buttons in a
     -- strip of their own over the trip's fields, so the first field keeps
     -- its full width; else centered on the folded title row.
-    f.headStrip = 8
+    f.headStrip = 9
     function f:SetHeaderPad(pad, above)
         self.glyph:ClearAllPoints()
         -- The tracking face's art spills past its frame: it sits 4 px further out.
         self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", self.track and 4 or 8, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
         if above then
-            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -6)
+            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -5)
         else
             -- On the header row: the trip's one field, else the folded title.
             local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
