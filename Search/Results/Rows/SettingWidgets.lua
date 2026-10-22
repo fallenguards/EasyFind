@@ -50,29 +50,7 @@ function Rows.CreateSettingWidgets(resultRow)
     resultRow.settingSliderGroup = sliderGroup
 
     local function applySettingValue(variable, newVal)
-        if not variable then return end
-        -- Same priority as WriteSettingVariable: object-based first
-        -- (only registered settings expose a Setting object), then
-        -- SetCVar for raw CVars. The slider only ever passes numbers,
-        -- so type-conversion edge cases don't matter here, but mirror
-        -- the same shape so the two writers stay in sync.
-        if Settings and Settings.GetSetting then
-            local sok, settObj = pcall(Settings.GetSetting, variable)
-            if sok and settObj and settObj.SetValue then
-                if pcall(settObj.SetValue, settObj, newVal) then
-                    -- Slider drag goes through here, not WriteSettingVariable,
-                    -- so trigger the same Apply-flag tracking so the per-row
-                    -- apply ext appears.
-                    if ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.NotePendingApply then
-                        ns.BlizzOptionsSearch:NotePendingApply(variable)
-                    end
-                    return
-                end
-            end
-        end
-        if SetCVar then
-            pcall(SetCVar, variable, tostring(newVal))
-        end
+        if variable then Rows:WriteSettingVariable(variable, newVal) end
     end
 
     local function clampToRange(value, slider)

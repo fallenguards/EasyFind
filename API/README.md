@@ -337,6 +337,29 @@ end)
 
 `rows()` is read when the search first needs it. Each row names one setting (`name`), where it sits in your window (`path`, a string or a list of names, shown under the row), more words that find it (`keywords`) and `open()`, which shows your window at it. Pass the name the game's AddOns list shows for you: one filter row then covers both. `RefreshSettingsIndex(addon)` reads the rows again after they change.
 
+A row with a `control` is changed where it stands, as the game's own settings are: a check box, a slider with its steppers, a drop-down or a button on the row, Alt-click opening your window through `open()`.
+
+```lua
+{ name = "Show the zone", path = "Bookmarks", open = ...,
+  control = { kind = "check", tooltip = "Puts the zone under each bookmark.",
+              get = function() return MyDB.showZone end,
+              set = function(on) MyDB.showZone = on end } },
+{ name = "Icon size", path = "Bookmarks", open = ...,
+  control = { kind = "slider", min = 8, max = 32, step = 2,
+              get = function() return MyDB.iconSize end,
+              set = function(n) MyDB.iconSize = n end } },
+```
+
+| `kind` | On the row | Fields |
+| --- | --- | --- |
+| `check` | A check box. | `get()` returns true or false, `set(on)`. |
+| `radio` | A check box that only turns on. | `get()`, `set(true)`. |
+| `slider` | A slider with minus and plus. | `get()` returns a number, `set(n)`, `min`, `max`, `step`, `format(n)` for the value text. |
+| `choice` | A drop-down. | `get()` returns a value, `set(value)`, `choices`: `{ { value, label }, ... }` or a function returning that list. |
+| `button` | The row presses it. | `press()`. |
+
+`tooltip` on any control is shown under the name. `get` and `set` run on every draw and click, so route them through what your window uses.
+
 ## Beside the chat
 
 A button or opener you place beside the game's chat goes with it when the user hides the chat through EasyFind's "Toggle Chat Frame" entry: `RegisterChatPiece(frame)` hides and shows it along with the chat frames, and hides it right away when the chat is already hidden.

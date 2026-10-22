@@ -270,5 +270,59 @@ function tests.settingsFeedRowsOpenThroughTheirOwnFunction()
     H.assertEq(rows[1].name, "Bubbles")
 end
 
+function tests.settingsFeedControlsBecomeInlineRows()
+    local ns = loadOptionsSearch()
+    local registry = {}
+    ns.ResultRows = { RegisterCustomSetting = function(_, variable, control) registry[variable] = control end }
+    local state = { on = true, pick = "b", size = 3, radio = false, pressed = 0 }
+    local open = function() end
+    ns.settingsFeeds = {
+        Hello = function()
+            return {
+                { name = "Box", open = open, control = { kind = "check", tooltip = "Flips it",
+                    get = function() return state.on end, set = function(v) state.on = v end } },
+                { name = "Radio", open = open, control = { kind = "radio",
+                    get = function() return state.radio end, set = function(v) state.radio = v end } },
+                { name = "Size", open = open, control = { kind = "slider", min = 1, max = 5, step = 2,
+                    get = function() return state.size end, set = function(v) state.size = v end } },
+                { name = "Pick", open = open, control = { kind = "choice",
+                    choices = function() return { { value = "a", label = "Apple" }, { value = "b", label = "Berry" } } end,
+                    get = function() return state.pick end, set = function(v) state.pick = v end } },
+                { name = "Go", open = open, control = { kind = "button", press = function() state.pressed = state.pressed + 1 end } },
+                { name = "Odd", open = open, control = { kind = "dial" } },
+            }
+        end,
+    }
+    ns.BlizzOptionsSearch:Populate(false)
+    local byName = {}
+    for _, e in ipairs(ns.Database.uiSearchData) do
+        if e.addon == "Hello" then byName[e.name] = e end
+    end
+    local box = byName["Box"]
+    H.assertEq(box.settingType, "checkbox")
+    H.assertEq(box.settingTooltip, "Flips it")
+    H.assertEq(registry[box.settingVariable].get(), true, "read through its own get")
+    registry[box.settingVariable].set(false)
+    H.assertEq(state.on, false, "written through its own set")
+    registry[byName["Radio"].settingVariable].set(false)
+    H.assertEq(state.radio, false, "a radio never turns off")
+    registry[byName["Radio"].settingVariable].set(true)
+    H.assertEq(state.radio, true)
+    local size = byName["Size"]
+    H.assertEq(size.settingType, "slider")
+    H.assertEq(size.settingMin, 1)
+    H.assertEq(size.settingMax, 5)
+    H.assertEq(size.settingStep, 2)
+    local pick = byName["Pick"]
+    H.assertEq(pick.settingType, "dropdown")
+    H.assertEq(pick.settingOptions[2].label, "Berry")
+    H.assertTrue(hasKeyword(pick, "berry"), "a choice's labels find the row")
+    H.assertNil(byName["Go"].settingVariable, "a button has no variable")
+    byName["Go"].settingPress()
+    H.assertEq(state.pressed, 1, "pressed through its own press")
+    H.assertNil(byName["Odd"].settingVariable, "an unknown kind stays a plain row")
+    H.assertEq(byName["Odd"].steps[1].open, open)
+end
+
 local pass, fail, failures = H.runSuite("BlizzOptionsSearch", tests)
 return { pass = pass, fail = fail, failures = failures }

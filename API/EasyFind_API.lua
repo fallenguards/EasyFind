@@ -87,6 +87,19 @@ function kit.Stepper(page, label, min, max, step, get, set, tooltip, width) end
 ---@field path? string|string[] Where it sits in your window.
 ---@field keywords? string[] More words that find it.
 ---@field open fun() Shows your window at it.
+---@field control? EasyFindSettingsControl Changed on the row itself.
+
+---@class EasyFindSettingsControl
+---@field kind "check"|"radio"|"slider"|"choice"|"button"
+---@field get? fun(): any check and radio: boolean; slider: number; choice: a choice's value.
+---@field set? fun(value: any)
+---@field min? number slider
+---@field max? number slider
+---@field step? number slider
+---@field format? fun(n: number): string slider: the value text.
+---@field choices? { value: any, label: string }[]|fun(): { value: any, label: string }[] choice
+---@field press? fun() button
+---@field tooltip? string Under the name.
 
 ---@class EasyFindDialog
 ---@field text string

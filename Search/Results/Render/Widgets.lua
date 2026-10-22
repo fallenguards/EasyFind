@@ -63,29 +63,15 @@ function Render.SettingsWidget(resultRow, data, entry)
             -- Combined widget: checkbox state + slider in one row
             -- (mirrors Blizzard's CreateSettingsCheckboxSliderInitializer
             -- visual e.g. "Use Search Scale" with the % slider).
-            local isOn = false
-            if Settings and Settings.GetSetting then
-                local sok, cbObj = pcall(Settings.GetSetting, data.cbVariable)
-                if sok and cbObj and cbObj.GetValue then
-                    local vok, v = pcall(cbObj.GetValue, cbObj)
-                    if vok then isOn = (v == true or v == "1" or v == 1) end
-                end
-            end
+            local cbVal = ns.ResultRows:ReadSettingVariable(data.cbVariable)
+            local isOn = cbVal == true or cbVal == "1" or cbVal == 1
             resultRow.settingState:Show()
             resultRow.settingCheck:SetShown(isOn)
             resultRow.amountText:Hide()
             if resultRow.settingDropdownGroup then resultRow.settingDropdownGroup:Hide() end
 
             local sliderVar = data.sliderVariable
-            local rawVal
-            if Settings and Settings.GetSetting then
-                local sok, sObj = pcall(Settings.GetSetting, sliderVar)
-                if sok and sObj and sObj.GetValue then
-                    local vok, v = pcall(sObj.GetValue, sObj)
-                    if vok then rawVal = v end
-                end
-            end
-            if rawVal == nil and GetCVar then rawVal = GetCVar(sliderVar) end
+            local rawVal = ns.ResultRows:ReadSettingVariable(sliderVar)
             local numVal = tonumber(rawVal) or data.settingMin or 0
             local sMin = data.settingMin or 0
             local sMax = data.settingMax or 1
@@ -145,14 +131,8 @@ function Render.SettingsWidget(resultRow, data, entry)
             -- Combined widget: checkbox state + mode dropdown in one row
             -- (mirrors Blizzard's checkbox+dropdown control, e.g. Click
             -- to Move with its "Only when moving" style mode picker).
-            local isOn = false
-            if Settings and Settings.GetSetting then
-                local sok, cbObj = pcall(Settings.GetSetting, data.cbVariable)
-                if sok and cbObj and cbObj.GetValue then
-                    local vok, v = pcall(cbObj.GetValue, cbObj)
-                    if vok then isOn = (v == true or v == "1" or v == 1) end
-                end
-            end
+            local cbVal = ns.ResultRows:ReadSettingVariable(data.cbVariable)
+            local isOn = cbVal == true or cbVal == "1" or cbVal == 1
             local optimistic = ns.Results and ns.Results._settingOptimistic
             if optimistic and optimistic.var == data.cbVariable then
                 isOn = optimistic.isOn
@@ -162,17 +142,7 @@ function Render.SettingsWidget(resultRow, data, entry)
             resultRow.amountText:Hide()
             if resultRow.settingSlider then resultRow.settingSliderGroup:Hide() end
 
-            local rawVal
-            if Settings and Settings.GetSetting then
-                local sok, ddObj = pcall(Settings.GetSetting, data.dropdownVariable)
-                if sok and ddObj and ddObj.GetValue then
-                    local vok, v = pcall(ddObj.GetValue, ddObj)
-                    if vok then rawVal = v end
-                end
-            end
-            if rawVal == nil and ns.ResultRows and ns.ResultRows.ReadSettingVariable then
-                rawVal = ns.ResultRows:ReadSettingVariable(data.dropdownVariable)
-            end
+            local rawVal = ns.ResultRows:ReadSettingVariable(data.dropdownVariable)
             local val = rawVal ~= nil and tostring(rawVal) or ""
             if not data.settingOptions
                and ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.GetOptionsForVariable then
@@ -207,32 +177,17 @@ function Render.SettingsWidget(resultRow, data, entry)
             ddGroup:Show()
             resultRow.text:SetPoint("RIGHT", ddGroup, "LEFT", -4, 0)
         elseif settingType == "checkbox" then
-            local isOn = false
+            local isOn
             local optimistic = ns.Results and ns.Results._settingOptimistic
             if optimistic and optimistic.var == data.settingVariable then
                 -- Just-toggled value, shown before GetValue catches up.
                 isOn = optimistic.isOn
             else
-                -- Trust the Settings object's logical value when it resolves; only
-                -- read the raw CVar for variables with no registered setting. An
-                -- inverted setting (e.g. Sticky Targeting / deselectOnClick) reports
-                -- false when its raw CVar is "1", so OR-ing in the raw CVar would
-                -- wrongly keep the box checked.
-                local resolved = false
-                if Settings and Settings.GetSetting then
-                    local sok, settObj = pcall(Settings.GetSetting, data.settingVariable)
-                    if sok and settObj and settObj.GetValue then
-                        local vok, v = pcall(settObj.GetValue, settObj)
-                        if vok then
-                            isOn = (v == true or v == "1" or v == 1)
-                            resolved = true
-                        end
-                    end
-                end
-                if not resolved and GetCVar then
-                    local val = GetCVar(data.settingVariable)
-                    isOn = (val == "1")
-                end
+                -- The Settings object's logical value first (an inverted setting
+                -- reads false while its raw CVar is "1"), the raw CVar only for
+                -- variables with no registered setting.
+                local v = ns.ResultRows:ReadSettingVariable(data.settingVariable)
+                isOn = v == true or v == "1" or v == 1
             end
             resultRow.settingState:Show()
             resultRow.settingCheck:SetShown(isOn)
@@ -243,17 +198,7 @@ function Render.SettingsWidget(resultRow, data, entry)
             -- truncates at the checkbox instead of overlapping it.
             resultRow.text:SetPoint("RIGHT", resultRow.settingState, "LEFT", -4, 0)
         elseif settingType == "slider" and data.settingMin and data.settingMax then
-            local rawVal
-            if Settings and Settings.GetSetting then
-                local sok, settObj = pcall(Settings.GetSetting, data.settingVariable)
-                if sok and settObj and settObj.GetValue then
-                    local vok, v = pcall(settObj.GetValue, settObj)
-                    if vok then rawVal = v end
-                end
-            end
-            if rawVal == nil and GetCVar then
-                rawVal = GetCVar(data.settingVariable)
-            end
+            local rawVal = ns.ResultRows:ReadSettingVariable(data.settingVariable)
             local numVal = tonumber(rawVal) or data.settingMin
 
             local sMin, sMax = data.settingMin, data.settingMax
@@ -316,25 +261,10 @@ function Render.SettingsWidget(resultRow, data, entry)
             if resultRow.settingDropdownGroup then resultRow.settingDropdownGroup:Hide() end
             resultRow.text:SetPoint("RIGHT", resultRow.settingSliderGroup, "LEFT", -4, 0)
         else
-            -- Dropdown / other: show current value as text
-            local val, rawVal
-            if Settings and Settings.GetSetting then
-                local sok, settObj = pcall(Settings.GetSetting, data.settingVariable)
-                if sok and settObj and settObj.GetValue then
-                    local vok, raw = pcall(settObj.GetValue, settObj)
-                    if vok and raw ~= nil then
-                        rawVal = raw
-                        val = tostring(raw)
-                    end
-                end
-            end
-            -- Only fall back when GetValue produced nothing at all: an empty
-            -- string is a real value (Graphics Card "" = Auto Detect) and
-            -- re-reading a PROXY_* variable via GetCVar nils it out.
-            if rawVal == nil and GetCVar then
-                rawVal = GetCVar(data.settingVariable)
-                val = rawVal
-            end
+            -- Dropdown / other: show current value as text (an empty string is
+            -- a real value: Graphics Card "" = Auto Detect).
+            local rawVal = ns.ResultRows:ReadSettingVariable(data.settingVariable)
+            local val = rawVal ~= nil and tostring(rawVal) or nil
             -- Lazily cache the option list so subsequent renders
             -- can translate raw values (often opaque ints) into
             -- the localized label the dropdown actually shows.

@@ -557,6 +557,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
     text:SetJustifyH("LEFT")
     checkbox.Text = text
     text._efSearchLabel = true   -- the settings search indexes this label
+    checkbox._efTooltip = tooltipText
 
     local track = CreateFrame("Frame", nil, checkbox)
     track:SetSize(toggleW, toggleH)
@@ -842,6 +843,7 @@ local function CreateSegmentedPresetRow(parent, labelText, choices, getter, sett
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(width or 330, 30)
     row.enabled = true
+    row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
 
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
@@ -950,6 +952,7 @@ local function CreatePresetRow(parent, labelText, choices, getter, setter, toolt
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(width or 330, 28)
     row.enabled = true
+    row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
 
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
@@ -1016,6 +1019,8 @@ local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, sette
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(width or 330, 28)
     row.enabled = true
+    row._efControl = { kind = "slider", get = getter, set = setter, min = minVal, max = maxVal, step = step or 1,
+                       tooltip = tooltipText }
 
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
@@ -4964,6 +4969,25 @@ function Options:RefreshExtensionPages()
 end
 
 -- For the sidebar search: every page's controls, with the page they sit on.
+-- A labeled control's inline form: the rows made with a getter and setter
+-- carry theirs; a check box flips through its own click, a button presses.
+local function ControlOf(target)
+    if target._efControl then return target._efControl end
+    local kind = target.GetObjectType and target:GetObjectType()
+    if kind == "CheckButton" then
+        return {
+            kind = "check", tooltip = target._efTooltip,
+            get = function() return target:GetChecked() and true or false end,
+            set = function(on)
+                if target:IsEnabled() and (target:GetChecked() and true or false) ~= on then target:Click() end
+            end,
+        }
+    elseif kind == "Button" and target:GetScript("OnClick") then
+        return { kind = "button", press = function() if target:IsEnabled() then target:Click() end end }
+    end
+    return nil
+end
+
 -- The panel's own settings as search bar rows (API.RegisterSettingsIndex):
 -- the sidebar search's index, each row opening the panel at its control.
 function Options:SettingsIndexRows()
@@ -4974,7 +4998,7 @@ function Options:SettingsIndexRows()
         local path = { optionsFrame.TabName(hit.tab) }
         if hit.pageName then path[2] = hit.pageName end
         rows[#rows + 1] = {
-            name = hit.label, path = path,
+            name = hit.label, path = path, control = ControlOf(hit.target),
             open = function()
                 Options:Show()
                 optionsFrame.JumpToSetting(hit)
@@ -5859,6 +5883,7 @@ function Options:Initialize()
     local function CreateFlyoutPresetRow(parent, labelText, choices, getter, setter, globalPrefix, defaultValue, tooltipText, onHover)
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(SELECTOR_ROW_W, 24)
+        row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
         local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         label:SetPoint("LEFT", row, "LEFT", 8, 0)
         label:SetPoint("RIGHT", row, "RIGHT", -SELECTOR_BTN_W - 18, 0)

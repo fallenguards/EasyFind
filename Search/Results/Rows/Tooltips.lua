@@ -321,10 +321,18 @@ function Rows.InstallTooltips(resultRow)
         -- Game Settings: show the setting's tooltip text plus current
         -- value. Resolved via BlizzOptionsSearch's tooltip cache (live
         -- SettingsPanel + OPTION_TOOLTIP_* globals).
+        -- A button of an addon's window: its name and what it does.
+        if self.data and self.data.settingPress and self.data.settingTooltip then
+            AnchorRowTooltip(GameTooltip, self)
+            GameTooltip:SetText(self.data.name, 1, 1, 1)
+            GameTooltip:AddLine(self.data.settingTooltip, 1, 0.82, 0, true)
+            GameTooltip:Show()
+            return
+        end
         if self.data and self.data.settingVariable then
             local var = self.data.settingVariable
-            local tipText
-            if ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.GetTooltipForVariable then
+            local tipText = self.data.settingTooltip
+            if not tipText and ns.BlizzOptionsSearch and ns.BlizzOptionsSearch.GetTooltipForVariable then
                 tipText = ns.BlizzOptionsSearch.GetTooltipForVariable(var, self.data.name)
             end
             AnchorRowTooltip(GameTooltip, self)
@@ -334,16 +342,7 @@ function Rows.InstallTooltips(resultRow)
             end
             -- Slider: append current value + range
             if self.data.settingType == "slider" and self.data.settingMin and self.data.settingMax then
-                local cur
-                if Settings and Settings.GetSetting then
-                    local sok, settObj = pcall(Settings.GetSetting, var)
-                    if sok and settObj and settObj.GetValue then
-                        local vok, v = pcall(settObj.GetValue, settObj)
-                        if vok then cur = v end
-                    end
-                end
-                if cur == nil and GetCVar then cur = GetCVar(var) end
-                local n = tonumber(cur)
+                local n = tonumber(ns.ResultRows:ReadSettingVariable(var))
                 if n then
                     GameTooltip:AddLine(" ")
                     if not self.data.settingFormatter

@@ -3527,6 +3527,48 @@ local function FeedPath(addon, path)
     end
     return out
 end
+-- A fed row's control as the fields the settings row widgets draw: its
+-- get and set behind a variable name of our own (ResultRows reads and
+-- writes them through it), a button as the row's press.
+local FEED_KINDS = { check = "checkbox", radio = "checkbox", slider = "slider", choice = "dropdown", button = "button" }
+local feedSerial = 0
+local function FeedControl(e, control, addon)
+    local Rows = ns.ResultRows
+    if type(control) ~= "table" or not FEED_KINDS[control.kind] or not (Rows and Rows.RegisterCustomSetting) then return end
+    if type(control.tooltip) == "string" and control.tooltip ~= "" then e.settingTooltip = control.tooltip end
+    local kind = control.kind
+    if kind == "button" then
+        if type(control.press) == "function" then e.settingPress = control.press end
+        return
+    end
+    if type(control.get) ~= "function" or type(control.set) ~= "function" then return end
+    local set = control.set
+    if kind == "radio" then
+        set = function(on) if on then control.set(true) end end
+    elseif kind == "slider" then
+        if type(control.min) ~= "number" or type(control.max) ~= "number" then return end
+        e.settingMin, e.settingMax, e.settingStep = control.min, control.max, control.step or 1
+        if type(control.format) == "function" then e.settingFormatter = control.format end
+    elseif kind == "choice" then
+        local choices = control.choices
+        if type(choices) == "function" then
+            local ok, list = pcall(choices)
+            choices = ok and list or nil
+        end
+        local opts = {}
+        for _, c in ipairs(type(choices) == "table" and choices or {}) do
+            if type(c) == "table" and c.value ~= nil then opts[#opts + 1] = { value = c.value, label = tostring(c.label or c.value) } end
+        end
+        if #opts == 0 then return end
+        e.settingOptions = opts
+        AddOptionLabelKeywords(e.keywords, opts)
+    end
+    feedSerial = feedSerial + 1
+    local variable = "feed\31" .. addon .. "\31" .. feedSerial
+    Rows:RegisterCustomSetting(variable, { get = control.get, set = set })
+    e.settingVariable, e.settingType, e.feedVariable = variable, FEED_KINDS[kind], variable
+end
+
 local function PullFeed(data, addon, rows)
     local ok, list = xpcall(rows, Utils.ErrorHandler)
     if not ok or type(list) ~= "table" then return false end
@@ -3540,6 +3582,9 @@ local function PullFeed(data, addon, rows)
             end
         end
         for i = #data, kept + 1, -1 do data[i] = nil end
+        for e in pairs(old) do
+            if e.feedVariable then ns.ResultRows:RegisterCustomSetting(e.feedVariable, nil) end
+        end
     end
     local mine = {}
     for _, r in ipairs(list) do
@@ -3555,6 +3600,7 @@ local function PullFeed(data, addon, rows)
                 name = r.name, nameLower = nameLower, keywords = keywords,
                 steps = { step }, addon = addon,
             }, GetSettingsCatMT("AddOn Settings", step.settingsCategory, step.settingCategoryID, FeedPath(addon, r.path)))
+            FeedControl(e, r.control, addon)
             mine[e] = true
             tinsert(data, e)
         end
@@ -3616,8 +3662,9 @@ do
     end
 
     -- A member the way AceConfigDialog reads it: a value, a function, or
-    -- a handler method's name (name and desc strings are literal).
-    local function Member(key, option, options, path, appName, handler)
+    -- a handler method's name (name and desc strings are literal); the
+    -- extra arguments follow the info table (a set's value).
+    local function Member(key, option, options, path, appName, handler, ...)
         local member = option[key]
         local literal = key == "name" or key == "desc"
         if type(member) == "function" or (type(member) == "string" and not literal) then
@@ -3627,11 +3674,12 @@ do
             for i = 1, #path do info[i] = path[i] end
             local ok, v
             if type(member) == "function" then
-                ok, v = pcall(member, info)
+                ok, v = pcall(member, info, ...)
             elseif handler and type(handler[member]) == "function" then
-                ok, v = pcall(handler[member], handler, info)
+                ok, v = pcall(handler[member], handler, info, ...)
             end
-            return ok and v or nil
+            if ok then return v end
+            return nil
         end
         return member
     end
@@ -3666,7 +3714,10 @@ do
                         end
                         Walk(option, options, path, subGroups, subNames, h, appName, out)
                     elseif ACE_TYPES[option.type] and name then
-                        out[#out + 1] = { name = name, groupPath = groupPath, names = names }
+                        local keyPath = {}
+                        for i = 1, #path do keyPath[i] = path[i] end
+                        out[#out + 1] = { name = name, groupPath = groupPath, names = names, option = option,
+                                          keyPath = keyPath, handler = h }
                     end
                 end
                 path[#path] = nil
@@ -3719,6 +3770,39 @@ do
         return byName
     end
 
+    -- The option's control, worked through its own get, set and func:
+    -- a toggle, a range, a select, a button. Inputs, colors, keys and
+    -- multiselects open the dialog instead.
+    local function AceControl(f, app)
+        local option, options, path, handler, appName = f.option, app.options, f.keyPath, f.handler, app.appName
+        local function Get() return Member("get", option, options, path, appName, handler) end
+        local function Set(v) Member("set", option, options, path, appName, handler, v) end
+        local control
+        local t = option.type
+        if t == "toggle" then
+            control = { kind = "check", get = Get, set = Set }
+        elseif t == "range" and type(option.min) == "number" and type(option.max) == "number" then
+            control = { kind = "slider", get = Get, set = Set, min = option.min, max = option.max,
+                        step = option.step or option.bigStep or 1 }
+            if option.isPercent then
+                control.format = function(n) return string.format("%d%%", math.floor(n * 100 + 0.5)) end
+            end
+        elseif t == "select" then
+            control = { kind = "choice", get = Get, set = Set, choices = function()
+                local values = Member("values", option, options, path, appName, handler)
+                if type(values) ~= "table" then return nil end
+                local list = {}
+                for value, label in pairs(values) do list[#list + 1] = { value = value, label = tostring(label) } end
+                table.sort(list, function(a, b) return a.label < b.label end)
+                return list
+            end }
+        elseif t == "execute" then
+            control = { kind = "button", press = function() Member("func", option, options, path, appName, handler) end }
+        end
+        if control then control.tooltip = Label(Member("desc", option, options, path, appName, handler)) end
+        return control
+    end
+
     local function Rows(display)
         local rows = {}
         for _, app in ipairs(Apps()[display] or {}) do
@@ -3727,7 +3811,7 @@ do
             for _, f in ipairs(found) do
                 local catName, catID = HostCategory(app.blizz, app.appName, f.groupPath)
                 rows[#rows + 1] = {
-                    name = f.name, path = f.names,
+                    name = f.name, path = f.names, control = AceControl(f, app),
                     step = { settingsCategory = catName, settingCategoryID = catID, aceApp = app.appName,
                              aceLib = app.suffix, aceGroup = f.groupPath, canvasLabel = f.name },
                 }

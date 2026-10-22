@@ -4,7 +4,19 @@ local Search = ns.Search
 local Results = ns.Results
 local Rows = ns.ResultRows
 
+-- Settings of addon windows (API.RegisterSettingsIndex controls): read and
+-- written through their own functions under a made-up variable name, so
+-- every settings row widget serves them unchanged.
+local customSettings = {}
+function Rows:RegisterCustomSetting(variable, control) customSettings[variable] = control end
+
 local function ReadSettingVariable(variable)
+    local custom = customSettings[variable]
+    if custom then
+        local ok, value = pcall(custom.get)
+        if ok then return value end
+        return nil
+    end
     if Settings and Settings.GetSetting then
         local sok, settObj = pcall(Settings.GetSetting, variable)
         if sok and settObj and settObj.GetValue then
@@ -19,6 +31,8 @@ local function ReadSettingVariable(variable)
 end
 
 local function WriteSettingVariable(variable, value)
+    local custom = customSettings[variable]
+    if custom then return (pcall(custom.set, value)) end
     -- Prefer the per-setting object: GetSetting returns nil for variables
     -- the Settings panel doesn't know about, so a successful SetValue here
     -- means the write actually went somewhere. Settings.SetValue (static)
@@ -150,6 +164,12 @@ local function ActivateSettingResult(data, openMenuHeld)
        and (not openMenuHeld or data.customToggle)
        and ns.BlizzOptionsSearch
        and ns.BlizzOptionsSearch:PerformBinding(data.bindingAction) then
+        RefreshResultsKeepFocus()
+        return true
+    end
+    -- A button of an addon's window: pressed where it stands.
+    if data.settingPress and not openMenuHeld then
+        xpcall(data.settingPress, ns.Utils.ErrorHandler)
         RefreshResultsKeepFocus()
         return true
     end

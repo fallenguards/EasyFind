@@ -117,6 +117,53 @@ function tests.hostedAppsOpenThroughTheirBlizzardCategory()
     H.assertEq(rows["Thing"].steps[1].canvasLabel, "Thing")
 end
 
+function tests.optionsBecomeInlineControlsThroughTheirOwnGetAndSet()
+    local ns, _, registry = Load()
+    local reg = {}
+    ns.ResultRows = { RegisterCustomSetting = function(_, variable, control) reg[variable] = control end }
+    local state = { on = false, size = 2, pick = "y", ran = 0 }
+    local seenPath
+    local handler = {
+        GetOn = function(_, info) seenPath = table.concat(info, "/") return state.on end,
+        SetOn = function(_, _, v) state.on = v end,
+    }
+    registry:RegisterOptionsTable("Hello", {
+        type = "group", name = "Hello", handler = handler,
+        args = {
+            general = { type = "group", name = "General", args = {
+                on = { type = "toggle", name = "On", desc = "Turns it on", get = "GetOn", set = "SetOn" },
+                size = { type = "range", name = "Size", min = 1, max = 4, step = 1, isPercent = true,
+                         get = function() return state.size end, set = function(_, v) state.size = v end },
+                pick = { type = "select", name = "Pick", values = function() return { x = "Ex", y = "Why" } end,
+                         get = function() return state.pick end, set = function(_, v) state.pick = v end },
+                run = { type = "execute", name = "Run", func = function() state.ran = state.ran + 1 end },
+                text = { type = "input", name = "Text", get = function() return "" end, set = function() end },
+            } },
+        },
+    })
+    ns.BlizzOptionsSearch:Populate(false)
+    local rows = {}
+    for _, e in ipairs(ns.Database.uiSearchData) do
+        if e.addon == "Hello" then rows[e.name] = e end
+    end
+    H.assertEq(rows["On"].settingType, "checkbox")
+    H.assertEq(rows["On"].settingTooltip, "Turns it on", "its desc as the tooltip")
+    H.assertEq(reg[rows["On"].settingVariable].get(), false, "read through the handler method")
+    H.assertEq(seenPath, "general/on", "with the option's info path")
+    reg[rows["On"].settingVariable].set(true)
+    H.assertEq(state.on, true, "written through the handler method")
+    H.assertEq(rows["Size"].settingType, "slider")
+    H.assertEq(rows["Size"].settingMax, 4)
+    H.assertEq(rows["Size"].settingFormatter(0.5), "50%", "a percent range formats as one")
+    H.assertEq(rows["Pick"].settingType, "dropdown")
+    H.assertEq(rows["Pick"].settingOptions[1].label, "Ex", "values sorted by label")
+    reg[rows["Pick"].settingVariable].set("x")
+    H.assertEq(state.pick, "x")
+    rows["Run"].settingPress()
+    H.assertEq(state.ran, 1, "a button runs its func")
+    H.assertNil(rows["Text"].settingVariable, "an input opens the dialog instead")
+end
+
 function tests.anAppRegisteredLaterJoinsTheIndex()
     local ns, env, registry = Load()
     registry:RegisterOptionsTable("First", { type = "group", name = "First", args = {

@@ -83,6 +83,7 @@ local HINTS = {
     -- Plain copyable rows (quick answers): the chord is the whole gesture.
     copyChord        = Hint("Ctrl+C", V.copyResult),
     quickKeybind     = Hint(V.click, V.enterMode, "Alt", V.settings),
+    press            = Hint(V.click, V.run, "Alt", V.settings),
     filterResults    = Hint(V.select, V.filterResults),
     applyTitle       = Hint(V.click, V.applyTitle),
     -- Earned and granted by an achievement: Alt opens that achievement.
@@ -208,6 +209,7 @@ function Handlers:GetActionHint(data)
        and ns.BlizzOptionsSearch:IsPerformableBinding(data.bindingAction) then
         return data.customToggle and HINTS.toggleOnly or HINTS.toggle
     end
+    if data.settingPress then return HINTS.press end
     if data.settingVariable or data.bindingAction then
         return HINTS.settings
     end
@@ -242,6 +244,8 @@ function Handlers:GetLinkHint(data)
     elseif opener or (data.spellID and (data.category == "Talent"
            or Icons:IsSpellbookOnlyAbility(data))) then
         click = V.open
+    elseif data.settingPress then
+        click = V.run
     elseif data.settingVariable or data.bindingAction then
         click = V.toggle
     else
