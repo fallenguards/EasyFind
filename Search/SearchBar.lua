@@ -623,6 +623,18 @@ function Search:CreateSearchFrame()
                 ns.RequestItemCatalog(false)
             end
         end
+        -- The settings index's light part too (the cached categories,
+        -- keybinds and addon settings): a setting found by its own name
+        -- matches from the first search, not only after an option word.
+        if ns.RequestSettingsSearch and ns.CategoryMap then
+            local uiFilters = EasyFind.db and EasyFind.db.uiSearchFilters
+            local bothOff = uiFilters
+                and ns.CategoryMap.IsProviderFilterOff(uiFilters, "gameOptions")
+                and ns.CategoryMap.IsProviderFilterOff(uiFilters, "addonOptions")
+            if not bothOff and ns.RequestSettingsSearch(false) and ns.BlizzOptionsSearch.EnsurePopulatedAsync then
+                ns.BlizzOptionsSearch:EnsurePopulatedAsync(nil)
+            end
+        end
         local text = self:GetText() or ""
         if text == "" then
             -- ShowEmptyQueryView, never ShowPinnedItems directly: an active
