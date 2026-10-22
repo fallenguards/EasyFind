@@ -744,7 +744,12 @@ local function SortedNotes(filter)
         else
             charOK = shareAll or n.scope == "account" or not n.character or n.character == charKey
         end
-        local catOK = (not catFilter) or catFilter[n.category or "General"] == true
+        local catOK = not catFilter
+        if catFilter then
+            for _, c in ipairs(UI:EasyNotesCategoriesOf(n)) do
+                if catFilter[c] == true then catOK = true break end
+            end
+        end
         local tagOK = (not tagFilter) or NoteTags.Matches(n, tagFilter)
         local textOK
         if tagWord then
@@ -1060,7 +1065,7 @@ function notesNS.ExportCode(id)
     if #md > NOTE_CODE_BODY_MAX then md = md:sub(1, NOTE_CODE_BODY_MAX) end
     local encS = codec.encS
     -- Tags last: a code made before them reads the same without.
-    local parts = { NOTE_CODE_PAYLOAD, encS(NoteTitle(note)), encS(note.category or "General"), encS(md),
+    local parts = { NOTE_CODE_PAYLOAD, encS(NoteTitle(note)), encS(table.concat(UI:EasyNotesCategoriesOf(note), ",")), encS(md),
         encS(table.concat(note.tags or {}, "\n")) }
     return NOTE_CODE_PREFIX .. codec.base64enc(table.concat(parts))
 end
@@ -1095,10 +1100,14 @@ function notesNS.ImportCode(str)
     local note = CreateNote(doc.body)
     note.decorations = doc.decorations or {}
     note.name = strtrim(name:gsub("|", "")):sub(1, 64)
-    local cats = UI:GetEasyNotesCategories()
-    for i = 1, #cats do
-        if cats[i] == category then note.category = category end
+    -- One or several, comma-joined; only names this build knows.
+    local cats, picked = UI:GetEasyNotesCategories(), {}
+    for word in (category or ""):gmatch("[^,]+") do
+        for i = 1, #cats do
+            if cats[i] == word then picked[#picked + 1] = word end
+        end
     end
+    if #picked > 0 then note.categories, note.category = picked, picked[1] end
     for word in (tags or ""):gmatch("[^\n]+") do
         local tag = strtrim((word:gsub("|", ""))):sub(1, 24)
         if tag ~= "" and not NoteTags.Index(note, tag) then note.tags[#note.tags + 1] = tag end
@@ -7105,6 +7114,29 @@ function UI:EasyNotesCategoryLabel(cat)
     local key = CATEGORY_LABELS[cat]
     return key and L[key] or cat
 end
+-- A note's categories: its list, else the one older notes hold, else General.
+function UI:EasyNotesCategoriesOf(note)
+    local list = note.categories
+    if type(list) == "table" and #list > 0 then return list end
+    return { note.category or "General" }
+end
+function UI:EasyNoteHasCategory(note, cat)
+    for _, c in ipairs(self:EasyNotesCategoriesOf(note)) do
+        if c == cat then return true end
+    end
+    return false
+end
+-- Adds or drops one; the last one stays, and the first is the note's main one.
+function UI:ToggleEasyNoteCategory(note, cat)
+    local had, list = self:EasyNotesCategoriesOf(note), {}
+    for _, c in ipairs(had) do
+        if c ~= cat then list[#list + 1] = c end
+    end
+    if #list == #had then list[#list + 1] = cat end
+    if #list == 0 then return end
+    note.categories, note.category = list, list[1]
+    note.updated = time()
+end
 
 -- Filter menu on the note-list search bar: pick which character's notes to show
 -- (default the current one, or All) and which category, mirroring the main
@@ -7220,146 +7252,155 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
     local note = GetSelectedNote()
     if not note then return end
 
-    local function scopeRow(scope, label)
-        return { text = label, icon = (note.scope or "character") == scope and MENU_CHECK_TEX or nil,
-            onClick = function()
-                note.scope = scope
-                note.updated = time()
-                if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-            end }
-    end
-    local function remindRow(label, offset)
-        return { text = label, onClick = function()
-            note.reminderAt = time() + offset
-            note.updated = time()
-            EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_SET_FMT"], label))
-        end }
-    end
-    local remindSub = {
-        remindRow(L["NOTES_REMIND_1H"], 3600),
-        remindRow(L["NOTES_REMIND_4H"], 4 * 3600),
-        remindRow(L["NOTES_REMIND_TOMORROW"], 24 * 3600),
-        remindRow(L["NOTES_REMIND_3D"], 3 * 24 * 3600),
-        remindRow(L["NOTES_REMIND_1W"], 7 * 24 * 3600),
-        { isSeparator = true },
-        { text = note.reminderAt and L["NOTES_REMIND_CLEAR"] or L["NOTES_REMIND_NONE"],
-          disabled = not note.reminderAt,
-          onClick = function() note.reminderAt = nil; note.updated = time() end },
-    }
-
-    local newSub = {
-        { text = L["NOTES_NEW"], onClick = function()
-              CreateNote("")
-              UI:HideEasyNotesPalette()
-              UI:RefreshEasyNotes()
-              UI:FocusEasyNoteEditor()
-          end },
-        { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
-        { text = L["NOTES_IMPORT_CODE"], onClick = function() notesNS.PromptImportCode() end },
-    }
-    -- Capture rows show only while there is something to capture.
-    local questID, mailIndex = notesNS.SelectedQuestID(), notesNS.OpenMailIndex()
-    if questID or mailIndex then newSub[#newSub + 1] = { isSeparator = true } end
-    if questID then
-        newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_QUEST"], onClick = function() notesNS.CaptureQuest() end }
-    end
-    if mailIndex then
-        newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end }
-    end
-
-    local categorySub = {}
-    local cats = self:GetEasyNotesCategories()
-    for i = 1, #cats do
-        local cat = cats[i]
-        categorySub[i] = { text = UI:EasyNotesCategoryLabel(cat), icon = (note.category or "General") == cat and MENU_CHECK_TEX or nil,
-            onClick = function()
-                note.category = cat
-                note.updated = time()
-                if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-            end }
-    end
-
-    -- Every tag in use, ticked on this note; a new word typed is offered.
-    local function tagEditRows()
-        local t = { { searchAdd = true, text = L["NOTES_TAG_ADD_FMT"], keepOpen = true, onClick = function(typed)
-            local tag = strtrim(((typed or ""):gsub("|", ""):gsub("^#", ""))):sub(1, 24)
-            if tag ~= "" and not NoteTags.Index(note, tag) then NoteTags.Toggle(note, tag) end
-            if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-        end } }
-        local tags = NoteTags.All()
-        for _, tag in ipairs(tags) do
-            t[#t + 1] = { text = tag, keepOpen = true, icon = NoteTags.Index(note, tag) and MENU_CHECK_TEX or nil,
+    local function BuildRows()
+        local function scopeRow(scope, label)
+            return { text = label, keepOpen = true, icon = (note.scope or "character") == scope and MENU_CHECK_TEX or nil,
                 onClick = function()
-                    NoteTags.Toggle(note, tag)
+                    note.scope = scope
+                    note.updated = time()
                     if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
                 end }
         end
-        if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS_YET"], disabled = true } end
-        return t
+        local function remindRow(label, offset)
+            return { text = label, onClick = function()
+                note.reminderAt = time() + offset
+                note.updated = time()
+                EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_SET_FMT"], label))
+            end }
+        end
+        local remindSub = {
+            remindRow(L["NOTES_REMIND_1H"], 3600),
+            remindRow(L["NOTES_REMIND_4H"], 4 * 3600),
+            remindRow(L["NOTES_REMIND_TOMORROW"], 24 * 3600),
+            remindRow(L["NOTES_REMIND_3D"], 3 * 24 * 3600),
+            remindRow(L["NOTES_REMIND_1W"], 7 * 24 * 3600),
+            { isSeparator = true },
+            { text = note.reminderAt and L["NOTES_REMIND_CLEAR"] or L["NOTES_REMIND_NONE"],
+              disabled = not note.reminderAt,
+              onClick = function() note.reminderAt = nil; note.updated = time() end },
+        }
+
+        local newSub = {
+            { text = L["NOTES_NEW"], onClick = function()
+                  CreateNote("")
+                  UI:HideEasyNotesPalette()
+                  UI:RefreshEasyNotes()
+                  UI:FocusEasyNoteEditor()
+              end },
+            { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
+            { text = L["NOTES_IMPORT_CODE"], onClick = function() notesNS.PromptImportCode() end },
+        }
+        -- Capture rows show only while there is something to capture.
+        local questID, mailIndex = notesNS.SelectedQuestID(), notesNS.OpenMailIndex()
+        if questID or mailIndex then newSub[#newSub + 1] = { isSeparator = true } end
+        if questID then
+            newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_QUEST"], onClick = function() notesNS.CaptureQuest() end }
+        end
+        if mailIndex then
+            newSub[#newSub + 1] = { text = L["NOTES_CAPTURE_MAIL"], onClick = function() notesNS.CaptureMail() end }
+        end
+
+        -- A note may sit in several categories; each tick stays open.
+        local function categoryRows()
+            local t, cats = {}, self:GetEasyNotesCategories()
+            for i = 1, #cats do
+                local cat = cats[i]
+                t[i] = { text = UI:EasyNotesCategoryLabel(cat), keepOpen = true,
+                    icon = UI:EasyNoteHasCategory(note, cat) and MENU_CHECK_TEX or nil,
+                    onClick = function()
+                        UI:ToggleEasyNoteCategory(note, cat)
+                        if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                    end }
+            end
+            return t
+        end
+
+        -- Every tag in use, ticked on this note; a new word typed is offered.
+        local function tagEditRows()
+            local t = { { searchAdd = true, text = L["NOTES_TAG_ADD_FMT"], keepOpen = true, onClick = function(typed)
+                local tag = strtrim(((typed or ""):gsub("|", ""):gsub("^#", ""))):sub(1, 24)
+                if tag ~= "" and not NoteTags.Index(note, tag) then NoteTags.Toggle(note, tag) end
+                if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+            end } }
+            local tags = NoteTags.All()
+            for _, tag in ipairs(tags) do
+                t[#t + 1] = { text = tag, keepOpen = true, icon = NoteTags.Index(note, tag) and MENU_CHECK_TEX or nil,
+                    onClick = function()
+                        NoteTags.Toggle(note, tag)
+                        if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                    end }
+            end
+            if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS_YET"], disabled = true } end
+            return t
+        end
+
+        -- The name it is found by and who keeps it.
+        local function contextRows()
+            return {
+                { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
+                { isSeparator = true },
+                { text = L["NOTES_STORAGE"], disabled = true },
+                scopeRow("account", L["NOTES_SCOPE_ACCOUNT"]),
+                scopeRow("character", L["NOTES_SCOPE_CHAR"]),
+            }
+        end
+
+        local copySub = {
+            { text = L["NOTES_COPY_TEXT"], onClick = function() notesNS.CopyAsText(note.id) end },
+            { text = L["NOTES_COPY_MARKDOWN"], onClick = function() notesNS.CopyAsMarkdown(note.id) end },
+            { text = L["NOTES_COPY_CODE"], onClick = function()
+                  local code = notesNS.ExportCode(note.id)
+                  if code then Utils.CopyToClipboard(code) end
+              end },
+        }
+
+        local rows = {
+            { text = L["NOTES_MENU_NEW"], submenu = newSub },
+            { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
+            { text = L["NOTES_REMIND_ME"], submenu = remindSub },
+            { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
+            { isSeparator = true },
+            { text = L["NOTES_AUTO_MENU"], submenu = function(t) return NoteWhen.MenuRows(note, t) end,
+              submenuSearch = L["NOTES_TAG_SEARCH"], submenuLiveSearch = true, submenuMaxRows = 14 },
+            { text = L["NOTES_TIPS_MENU"], submenu = function() return NoteWhen.TipRows(note) end },
+            { text = _G.CATEGORY, submenu = categoryRows },
+            { text = L["NOTES_TAGS"], submenu = tagEditRows, submenuSearch = L["NOTES_TAG_FIND_ADD"], submenuMaxRows = 10 },
+            { text = L["NOTES_MENU_CONTEXT"], submenu = contextRows },
+            { text = L["NOTES_MENU_COPY"], submenu = copySub },
+            { isSeparator = true },
+            { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil, iconSide = "right",
+              keepOpen = true, onClick = function() UI:ToggleEasyNotesAutoResize() end },
+            { text = L["NOTES_TRASH"], submenu = (function()
+                  local trashed, out = notesNS.TrashList(), {}
+                  for i = 1, math.min(#trashed, 15) do
+                      local entry = trashed[i]
+                      out[#out + 1] = { text = entry.title .. "  (" .. FormatRelTime(entry.deletedAt) .. ")",
+                          onClick = function()
+                              notesNS.RestoreNote(entry.id)
+                              if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                          end }
+                  end
+                  if #out == 0 then out[1] = { text = L["NOTES_TRASH_NONE"], disabled = true } end
+                  out[#out + 1] = { isSeparator = true }
+                  out[#out + 1] = { text = L["NOTES_TRASH_EMPTY"], disabled = #trashed == 0,
+                      onClick = function() notesNS.EmptyTrash() end }
+                  return out
+              end)() },
+            { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
+              onClick = function()
+                  local id = UI._notes.selectedID
+                  if id then ConfirmDeleteNote(id) end
+              end },
+        }
+        -- A checklist's own settings lead.
+        local CKV = notesNS.ChecklistView
+        if CKV and notesNS.Checklist and notesNS.Checklist.Is(note) then
+            tinsert(rows, 1, { text = L["CHECK_MENU"], submenu = CKV.MenuRows(note, anchor) })
+        end
+        return rows
     end
-
-    -- The name it is found by and who keeps it.
-    local contextGroup = {
-        { text = L["NOTES_SET_ALIAS"], onClick = function() UI:PromptEasyNotesAlias() end },
-        { isSeparator = true },
-        { text = L["NOTES_STORAGE"], disabled = true },
-        scopeRow("account", L["NOTES_SCOPE_ACCOUNT"]),
-        scopeRow("character", L["NOTES_SCOPE_CHAR"]),
-    }
-
-    local copySub = {
-        { text = L["NOTES_COPY_TEXT"], onClick = function() notesNS.CopyAsText(note.id) end },
-        { text = L["NOTES_COPY_MARKDOWN"], onClick = function() notesNS.CopyAsMarkdown(note.id) end },
-        { text = L["NOTES_COPY_CODE"], onClick = function()
-              local code = notesNS.ExportCode(note.id)
-              if code then Utils.CopyToClipboard(code) end
-          end },
-    }
-
-    local rows = {
-        { text = L["NOTES_MENU_NEW"], submenu = newSub },
-        { text = L["NOTES_FIND_IN"], onClick = function() UI:ToggleEasyNotesFindBar() end },
-        { text = L["NOTES_REMIND_ME"], submenu = remindSub },
-        { text = L["NOTES_READER"], onClick = function() notesNS.OpenReader(note.id) end },
-        { isSeparator = true },
-        { text = L["NOTES_AUTO_MENU"], submenu = function(t) return NoteWhen.MenuRows(note, t) end,
-          submenuSearch = L["NOTES_TAG_SEARCH"], submenuLiveSearch = true, submenuMaxRows = 14 },
-        { text = L["NOTES_TIPS_MENU"], submenu = function() return NoteWhen.TipRows(note) end },
-        { text = _G.CATEGORY, submenu = categorySub },
-        { text = L["NOTES_TAGS"], submenu = tagEditRows, submenuSearch = L["NOTES_TAG_FIND_ADD"], submenuMaxRows = 10 },
-        { text = L["NOTES_MENU_CONTEXT"], submenu = contextGroup },
-        { text = L["NOTES_MENU_COPY"], submenu = copySub },
-        { isSeparator = true },
-        { text = L["NOTES_AUTO_RESIZE"], icon = NormalizeDB().autoResize and MENU_CHECK_TEX or nil, iconSide = "right",
-          onClick = function() UI:ToggleEasyNotesAutoResize() end },
-        { text = L["NOTES_TRASH"], submenu = (function()
-              local trashed, out = notesNS.TrashList(), {}
-              for i = 1, math.min(#trashed, 15) do
-                  local entry = trashed[i]
-                  out[#out + 1] = { text = entry.title .. "  (" .. FormatRelTime(entry.deletedAt) .. ")",
-                      onClick = function()
-                          notesNS.RestoreNote(entry.id)
-                          if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
-                      end }
-              end
-              if #out == 0 then out[1] = { text = L["NOTES_TRASH_NONE"], disabled = true } end
-              out[#out + 1] = { isSeparator = true }
-              out[#out + 1] = { text = L["NOTES_TRASH_EMPTY"], disabled = #trashed == 0,
-                  onClick = function() notesNS.EmptyTrash() end }
-              return out
-          end)() },
-        { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
-          onClick = function()
-              local id = UI._notes.selectedID
-              if id then ConfirmDeleteNote(id) end
-          end },
-    }
-    -- A checklist's own settings lead.
-    local CKV = notesNS.ChecklistView
-    if CKV and notesNS.Checklist and notesNS.Checklist.Is(note) then
-        tinsert(rows, 1, { text = L["CHECK_MENU"], submenu = CKV.MenuRows(note, anchor) })
-    end
-    UI._notes._moreMenu = self:ShowEasyNotesMenu("EasyNotesMoreMenu", rows, {
+    UI._notes._moreMenu = self:ShowEasyNotesMenu("EasyNotesMoreMenu", BuildRows(), {
+        rowsProvider = BuildRows,
         anchorFrame = anchor, point = "TOPRIGHT", relativePoint = "BOTTOMRIGHT",
         offsetX = 0, offsetY = -4,
     })
