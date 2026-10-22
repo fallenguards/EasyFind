@@ -4,9 +4,13 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
-## [4.0.0] - 2026-10-21
+## [4.0.0-beta1] - 2026-10-22
 
 ### Added
+- **Addon settings in the search bar**: every addon's settings, from the game's settings panel, from AceConfig options tables and from EasyFind's own panel, each changed on its row: a check box, a slider, a drop-down or a button, with Alt-click opening where it lives; other addons feed the settings of their own windows through the API
+- **Extensions**: a row says what its click does on hover, carries the extension's data in its EasyFind link, has a menu of its own on right-click, lists only what it chooses when its @scope is empty, and is found from the map search and the GPS window when it knows where it is
+- **GPS**: a border for the caption under the arrow, in the settings and the caption's menu; creatures as a filter in both map searches, off until picked
+- **Notes**: the window's border is a choice, EasyFind's line or the theme's own frame art
 - **GPS**: directions to any place EasyFind can find. Plan a route from where you stand, or from any start, and it works out flights, boats, zeppelins, the tram, portals, teleports and the hearthstone, then walks the rest. The steps show in a small window, on the map's GPS page or as a section in the objective tracker; an arrow at your character leads along the walk, the route draws on the map and the minimap, and a beacon marks where the current step leads. A trip can take several stops, you can search along the route, share a route as a link, and a red line warns when the route crosses creatures far above your level. On WoW Forever, Classic Era and TBC Anniversary, walks follow a baked walking grid of the world: around cliffs and water, down the ledges your character can take, and around dangerous ground when you ask
 - **Notes**: a companion for notes that know where they apply. Notes for places, activities, classes, targets and players show in tooltips, on names in chat, or open by themselves; checklists the game ticks off; tags, a trash with undo, share codes, and Ctrl+Right-click on any item or spell for its note
 - **Chat**: a messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat and searched from the bar
@@ -25,6 +29,9 @@ All notable changes to EasyFind will be documented in this file.
 - Options: the tabs sit in the game's settings list under EasyFind, and every companion's settings page uses the panel's own controls
 
 ### Fixed
+- GPS: a portal lands where the world database's portal to that place lands (the Caverns of Time portals landed in Shattrath and Dalaran); a tile at a zone border no longer warns of the neighbour zone's creatures; the danger line goes with its route and starts at the step numbers' edge
+- Search bar: a press on the Forever band around the bar no longer closes it; result rows behind an open right-click menu keep still
+- Settings rows: the subtext names the addon, then the page
 - The Notes and Chat windows close on Escape through EasyFind's own dispatch, and the GPS section writes nothing into the objective tracker: both could taint the game's protected actions for the rest of the session (collapsing the tracker in combat errored)
 - Search: Alt-click on a spell no longer opens the game's talents too
 - Map search: a double click no longer starts GPS directions; a row on another map opens that map before it pins

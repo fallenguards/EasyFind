@@ -612,7 +612,7 @@ local SUGGESTED_KEYBINDS = {
 -- our custom prefix is detected before falling through to Blizzard's handler.
 -- The release the What's New popup describes: bumped, and the body
 -- rewritten, with every release.
-local WHATSNEW_CONTENT_VERSION = "4.0.0"
+local WHATSNEW_CONTENT_VERSION = "4.0.0-beta1"
 
 local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"

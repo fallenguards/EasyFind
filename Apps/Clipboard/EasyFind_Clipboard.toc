@@ -2,7 +2,7 @@
 ## Title: EasyFind [Clipboard History]
 ## Notes: Clipboard history companion for EasyFind: what you copied and pasted in game, and every link that passed through chat
 ## Author: justawower
-## Version: 4.0.0
+## Version: 4.0.0-beta1
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI
