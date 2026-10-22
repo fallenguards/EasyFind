@@ -7694,10 +7694,11 @@ function UI:ResolveEasyNotesContextFilter()
         matches[1] = { key = HERE_KEY, label = L["NOTES_HERE_CHIP"], here = true, type = "here", count = here }
         present[HERE_KEY] = true
     end
+    local kindsOff = NormalizeDB().chipKindsOff or {}
     for i = 1, #active do
         local c = active[i]
         local key = CtxKey(c)
-        local count = CountNotesWithContext(key)
+        local count = kindsOff[c.type] and 0 or CountNotesWithContext(key)
         if count > 0 then
             matches[#matches + 1] = { key = key, label = c.name, type = c.type, count = count }
             present[key] = true
@@ -8867,6 +8868,8 @@ function notesNS.BuildSettingsPage(page, kit)
     local colorLabel = colorRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     colorLabel:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
     colorLabel:SetText(L["NOTES_TOOLTIP_COLOR"])
+    colorRow:EnableMouse(true)
+    Utils.AttachDelayedTooltip(colorRow, "ANCHOR_RIGHT", function() return L["NOTES_TOOLTIP_COLOR"], L["NOTES_TOOLTIP_COLOR_TT"] end)
     local swatch = CreateFrame("Button", nil, colorRow)
     swatch:SetSize(18, 18)
     swatch:SetPoint("LEFT", colorRow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
@@ -8907,8 +8910,45 @@ function notesNS.BuildSettingsPage(page, kit)
             if (NormalizeDB().autoResize and true or false) ~= on then UI:ToggleEasyNotesAutoResize() end
         end)
     resize:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 0, 0)
+    local classColors = kit.Checkbox(page, L["NOTES_CLASS_COLORS"],
+        function() return NormalizeDB().classColorTags ~= false end,
+        function(on)
+            NormalizeDB().classColorTags = Utils.OffOrNil(on)
+            UI:RefreshEasyNotesPalette()
+        end, L["NOTES_CLASS_COLORS_TT"])
+    classColors:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", 0, 0)
+    -- Which kinds of situation show as chips over the list: a menu of
+    -- ticks, listed anew after each.
+    local kindsRow = CreateFrame("Frame", nil, page)
+    kindsRow:SetSize(kit.ROW_WIDTH, 22)
+    kindsRow:SetPoint("TOPLEFT", classColors, "BOTTOMLEFT", 0, -2)
+    local kindsLabel = kindsRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    kindsLabel:SetPoint("LEFT", kindsRow, "LEFT", 8, 0)
+    kindsLabel:SetText(L["NOTES_CHIP_KINDS"])
+    kindsRow:EnableMouse(true)
+    Utils.AttachDelayedTooltip(kindsRow, "ANCHOR_RIGHT", function() return L["NOTES_CHIP_KINDS"], L["NOTES_CHIP_KINDS_TT"] end)
+    local kindsBtn = ns.CreateModernButton(kindsRow, L["NOTES_CHIP_KINDS_PICK"], kit.BUTTON_WIDTH, 22)
+    kindsBtn:SetPoint("RIGHT", kindsRow, "RIGHT", -8, 0)
+    local function KindRows()
+        local rows, off = {}, NormalizeDB().chipKindsOff or {}
+        for _, k in ipairs(Ctx.KindList()) do
+            local on = not off[k.types[1]]
+            rows[#rows + 1] = { text = k.label, keepOpen = true, icon = on and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    local set = NormalizeDB().chipKindsOff or {}
+                    for _, t in ipairs(k.types) do set[t] = on or nil end
+                    NormalizeDB().chipKindsOff = next(set) and set or nil
+                    UI:RefreshEasyNotesPalette()
+                end }
+        end
+        return rows
+    end
+    kindsBtn:SetScript("OnClick", function(self)
+        UI:ShowEasyNotesMenu("EasyNotesChipKindsMenu", KindRows(), { anchorFrame = self, point = "TOPRIGHT",
+            relativePoint = "BOTTOMRIGHT", offsetX = 0, offsetY = -2, rowsProvider = KindRows })
+    end)
     local reset = ns.CreateModernButton(page, L["NOTES_RESET_ALL"], kit.BUTTON_WIDTH, 22)
-    reset:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", kit.ROW_WIDTH - 8 - kit.BUTTON_WIDTH, -8)
+    reset:SetPoint("TOPLEFT", kindsRow, "BOTTOMLEFT", kit.ROW_WIDTH - 8 - kit.BUTTON_WIDTH, -8)
     reset:SetScript("OnClick", function()
         UI:AdjustEasyNotesFontSize(nil, true)
         NormalizeDB().tooltipColor = nil

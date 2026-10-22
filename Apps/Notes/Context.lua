@@ -50,6 +50,24 @@ function Ctx.Priority(entry)
     return k and k[2] or 1
 end
 
+-- The kinds as the user sees them: { label, types }, the types sharing a
+-- name (combat, duel, resting are all "doing") under one, by label.
+function Ctx.KindList()
+    local byLabel, out = {}, {}
+    for t in pairs(KINDS) do
+        local label = Ctx.KindLabel({ type = t })
+        local k = byLabel[label]
+        if not k then
+            k = { label = label, types = {} }
+            byLabel[label] = k
+            out[#out + 1] = k
+        end
+        k.types[#k.types + 1] = t
+    end
+    table.sort(out, function(a, b) return a.label < b.label end)
+    return out
+end
+
 -- Windows the client reports opening and closing.
 local WINDOWS = {
     { id = "auctionhouse", label = "NOTES_CTX_AUCTION", open = "AUCTION_HOUSE_SHOW", close = "AUCTION_HOUSE_CLOSED" },
