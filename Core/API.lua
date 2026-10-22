@@ -313,7 +313,7 @@ local PROVIDER_FIELDS = {
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
     leave = "function", extension = "string", loadOnSearch = "any", hint = "any", browse = "function",
-    place = "function",
+    place = "function", link = "table", menu = "function",
 }
 
 function Extensions.Provider(key) return key and Providers.byKey[key] or nil end
@@ -397,8 +397,12 @@ end
 -- the scope's list when nothing is typed (every row without it),
 -- place(row) -> { name, mapID, x, y, step } where the row is now: its
 -- rows are then found from the map search and the GPS too (a row's
--- mapID names the map it is on, for the map's own list). Registering a
--- key again adds to it.
+-- mapID names the map it is on, for the map's own list), link = { key
+-- = fn(row) -> string, resolve = fn(tail) -> row } (a row's EasyFind
+-- link carries key(row); the receiver's copy resolves it to a row of its
+-- own, the sender's data in it), menu(row) -> rows for the result's
+-- right-click menu, in the tile menu's shape. Registering a key again
+-- adds to it.
 function API.RegisterSearchProvider(def)
     if type(def) ~= "table" then Fail("RegisterSearchProvider", "expects a table") end
     local key = def.key
@@ -412,6 +416,9 @@ function API.RegisterSearchProvider(def)
         elseif want and want ~= "any" and type(v) ~= want then
             Fail("RegisterSearchProvider", k .. " must be a " .. want)
         end
+    end
+    if def.link and not (type(def.link.key) == "function" and type(def.link.resolve) == "function") then
+        Fail("RegisterSearchProvider", "link needs key(row) and resolve(tail) functions")
     end
     local p = Providers.byKey[key]
     if p then
@@ -451,6 +458,18 @@ function API.RegisterSearchProvider(def)
         end
     end
     p.glyph = { tex = p.icon, coords = p.iconCoords, chromeTint = true }
+    -- Its links: "<key>:<tail>" resolves through its own resolve, the
+    -- row it gives carrying its category so its tooltip and select apply.
+    if p.link and ns.Aliases and ns.Aliases.RegisterKeyResolver then
+        ns.Aliases:RegisterKeyResolver(key, function(full)
+            local link = p.link
+            if not link then return nil end
+            local ok, row = Run(link.resolve, full:sub(#key + 2))
+            if not (ok and type(row) == "table") then return nil end
+            if row.category == nil then row.category = p.category end
+            return row
+        end)
+    end
     return true
 end
 

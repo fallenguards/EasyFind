@@ -9121,6 +9121,11 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
             onClick = extra.onGPS or extra.onGPSFrom,
         }
     end
+    -- An extension's own rows for the result, under its name with its glyph.
+    if extra and extra.extensionMenu then
+        local m = extra.extensionMenu
+        rows[#rows + 1] = { text = m.label, icon = m.icon, iconCoords = m.iconCoords, chromeIcon = true, submenu = m.rows }
+    end
     if extra and extra.wowheadUrl then
         -- Our own chain-link glyph (textures/link.tga), the same custom
         -- treatment as Guide's eye and Pin's diamond. A copy row: the URL

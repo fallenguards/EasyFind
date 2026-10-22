@@ -328,6 +328,12 @@ end
 -- both mountID and spellID and take the mount tooltip).
 function Tooltips:SetGameTooltipForResult(tooltip, data)
     if not (tooltip and data) then return false end
+    -- An extension's row: its own tooltip (a link's hover too).
+    local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)
+    if provider and provider.tooltip then
+        local ok, filled = ns.Extensions.Run(provider.tooltip, data, tooltip)
+        return ok and filled == true
+    end
     if data.mountID and data.spellID and tooltip.SetMountBySpellID then
         tooltip:SetMountBySpellID(data.spellID)
         return true

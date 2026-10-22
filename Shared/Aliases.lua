@@ -229,7 +229,7 @@ function Aliases:FindEntryByKey(key)
             end
         end
     end
-    local prefix = smatch(key, "^(%w+):")
+    local prefix = smatch(key, "^([%w_%-]+):")
     local resolver = prefix and keyResolvers[prefix]
     if resolver then
         return resolver(key)

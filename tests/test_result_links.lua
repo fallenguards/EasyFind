@@ -24,6 +24,22 @@ local bagItem = { name = "Hearthstone", category = "Bag", itemID = 6948 }
 
 local tests = {}
 
+function tests.aProviderLinkCarriesItsOwnKeyAndResolvesThroughIt()
+    local provider = { key = "questie", category = "Quest",
+        link = { key = function(row) return row.questId .. ":" .. (row.progress or "") end } }
+    ns.Extensions = { ProviderOf = function(d) return d.category == "Quest" and provider or nil end }
+    local quest = { name = "Cave Mushrooms", category = "Quest", questId = 1234, progress = "2/5,0/1" }
+    H.assertEq(ResultLinks:BuildShareText(quest), "[EasyFind: Cave Mushrooms] {ef:questie:1234:2/5,0/1}",
+        "the link carries the provider's key")
+    local resolved = { name = "Cave Mushrooms", category = "Quest", questId = 1234, shared = "2/5,0/1" }
+    ns.Aliases:RegisterKeyResolver("questie", function(full)
+        if full == "questie:1234:2/5,0/1" then return resolved end
+    end)
+    H.assertEq(ns.Aliases:FindEntryByKey("questie:1234:2/5,0/1"), resolved, "resolved by the provider's prefix")
+    H.assertEq(ns.Aliases:FindEntryByKey("my-ext:7"), nil, "a dashed prefix reaches the resolvers, none here")
+    ns.Extensions = nil
+end
+
 function tests.rowsWithoutTheirOwnChatLinkAreShareable()
     H.assertTrue(ResultLinks:CanShare(menuRow), "menu row")
     H.assertTrue(ResultLinks:CanShare(settingRow), "setting row")

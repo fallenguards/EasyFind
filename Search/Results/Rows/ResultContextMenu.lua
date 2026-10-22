@@ -10,6 +10,7 @@ local UIPins = ns.UIPins
 local IsUIItemPinned = UIPins.IsPinned
 local PinUIItem = UIPins.Pin
 local UnpinUIItem = UIPins.Unpin
+local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 
 function Rows:ShowResultContextMenu(row, keyboardMode)
     if not row or not row.data then return false end
@@ -149,6 +150,31 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
             end
         end
         if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(pinData) end end
+    end
+    -- The extension's own rows for its result (RegisterSearchProvider
+    -- menu), given in the tile menu's shape, as the cursor menu's rows.
+    local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(pinData)
+    if provider and provider.menu then
+        local ok, defs = ns.Extensions.Run(provider.menu, pinData)
+        local menuRows = {}
+        for _, d in ipairs(ok and type(defs) == "table" and defs or {}) do
+            if d.kind == "separator" then
+                menuRows[#menuRows + 1] = { isSeparator = true }
+            elseif d.kind == "check" and d.label then
+                local _, on = ns.Extensions.Run(d.get)
+                on = on == true
+                menuRows[#menuRows + 1] = { text = d.label, tooltip = d.tooltip, icon = on and MENU_CHECK or nil, picked = on,
+                    onClick = function() ns.Extensions.Run(d.set, not on) end }
+            elseif d.kind == "action" and d.label then
+                menuRows[#menuRows + 1] = { text = d.label, tooltip = d.tooltip,
+                    onClick = function() ns.Extensions.Run(d.onClick) end }
+            end
+        end
+        if #menuRows > 0 then
+            local owner = ns.Extensions.Get and ns.Extensions.Get(provider.extension)
+            extra.extensionMenu = { label = owner and owner.name or provider.label, icon = provider.icon,
+                                    iconCoords = provider.iconCoords, rows = menuRows }
+        end
     end
     extra.wowheadUrl = ns.GetWowheadLink and ns.GetWowheadLink(pinData)
     if ns.ResultLinks then

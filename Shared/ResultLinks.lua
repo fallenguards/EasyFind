@@ -91,6 +91,13 @@ end
 
 local function EntryKey(data)
     if IsItemRow(data) then return "item:" .. data.itemID end
+    -- A provider's own key for its row (link.key): the receiver's copy of
+    -- the extension resolves it, the sender's data in it.
+    local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)
+    if provider and provider.link then
+        local ok, tail = pcall(provider.link.key, data)
+        if ok and type(tail) == "string" and tail ~= "" then return provider.key .. ":" .. tail end
+    end
     return ns.Aliases and ns.Aliases:GetEntryKey(data) or nil
 end
 

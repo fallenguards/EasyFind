@@ -46,6 +46,12 @@
 ---@field aliases? string[] An @scope: @ and one of these lists only its rows.
 ---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every row without it.
 ---@field place? fun(row: EasyFindRow): { name: string, mapID: number, x: number, y: number, step: string? }|nil Where the row is now: its rows are found from the map search and the GPS too.
+---@field link? EasyFindLink A row's EasyFind link carries your key; the receiver's copy resolves it.
+---@field menu? fun(row: EasyFindRow): EasyFindMenuRow[]|nil Rows for the result's right-click menu, under your extension's name.
+
+---@class EasyFindLink
+---@field key fun(row: EasyFindRow): string|nil A short string the link carries (an id, the sender's progress).
+---@field resolve fun(tail: string): EasyFindRow|nil The row the receiver shows for it.
 ---@field options? EasyFindOption[] Toggles on its filter row's flyout.
 ---@field extension? string The extension it belongs to.
 ---@field loadOnSearch? boolean|fun(): boolean Load that extension's addon for its rows.
