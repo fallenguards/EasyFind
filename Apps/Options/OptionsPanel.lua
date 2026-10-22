@@ -523,7 +523,9 @@ end
 
 -- Stays a CheckButton so existing option code can keep using SetChecked /
 -- GetChecked and OnClick callbacks.
-local function CreateCheckbox(parent, name, label, tooltipText, compact, width)
+-- toggleLeft: the toggle's left edge from the row's left, so a column of
+-- controls lines up with the dropdowns above it.
+local function CreateCheckbox(parent, name, label, tooltipText, compact, width, toggleLeft)
     local frameName = name and ("EasyFindOptions" .. name .. "Checkbox") or nil
     local rowH = compact and 22 or 28
     local toggleW = compact and 28 or 32
@@ -537,7 +539,11 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width)
     -- hover tooltip fire from anywhere on the line and clicks land on what
     -- reads as inert label space.
     local toggleRightOff = compact and 4 or 8
-    checkbox:SetHitRectInsets(rowW - toggleW - toggleRightOff - 8, 0, 0, 0)
+    if toggleLeft then
+        checkbox:SetHitRectInsets(toggleLeft - 8, math.max(0, rowW - toggleLeft - toggleW - 8), 0, 0)
+    else
+        checkbox:SetHitRectInsets(rowW - toggleW - toggleRightOff - 8, 0, 0, 0)
+    end
 
     local rowBg = CreateFrame("Frame", nil, checkbox)
     rowBg:EnableMouse(false)
@@ -555,7 +561,11 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width)
 
     local track = CreateFrame("Frame", nil, checkbox)
     track:SetSize(toggleW, toggleH)
-    track:SetPoint("RIGHT", checkbox, "RIGHT", compact and -4 or -8, 0)
+    if toggleLeft then
+        track:SetPoint("LEFT", checkbox, "LEFT", toggleLeft, 0)
+    else
+        track:SetPoint("RIGHT", checkbox, "RIGHT", -toggleRightOff, 0)
+    end
     track:EnableMouse(false)
     ns.CreateRoundedRectBorder(track)
     ns.SetRoundedRectBarHeight(track, toggleH)

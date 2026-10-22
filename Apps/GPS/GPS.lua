@@ -5103,11 +5103,17 @@ end
 local function BuildOptionsPage(page, kit)
     local WorldPin = ns.GPSWorldPin
     -- The lines' colors: a swatch per way of travel, the theme's beacon
-    -- color until one is picked, and again on a right-click.
-    local colorHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    colorHead:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
+    -- color until one is picked, and again on a right-click; the button
+    -- puts every one back.
+    local colorRow = CreateFrame("Frame", nil, page)
+    colorRow:SetSize(kit.ROW_WIDTH, 24)
+    colorRow:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -6)
+    local colorHead = colorRow:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    colorHead:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
     colorHead:SetText(L["GPS_LINE_COLORS"])
-    local prevRow = colorHead
+    local resetBtn = ns.CreateModernButton(colorRow, _G["RESET_TO_DEFAULT"] or "Reset to default", kit.BUTTON_WIDTH, 22)
+    resetBtn:SetPoint("RIGHT", colorRow, "RIGHT", -8, 0)
+    local prevRow = colorRow
     local ways = { { "walk", L["GPS_LINE_WALK"] }, { "taxi", L["GPS_AVOID_TAXI"] }, { "boat", L["GPS_AVOID_BOAT"] },
                    { "zeppelin", L["GPS_AVOID_ZEPPELIN"] }, { "tram", L["GPS_LINE_TRAM"] } }
     local swatches = {}
@@ -5117,18 +5123,33 @@ local function BuildOptionsPage(page, kit)
             local c = Preview and Preview.LineColor(swatches[i].kind) or ns.GOLD_COLOR
             swatches[i].fill:SetColorTexture(c[1], c[2], c[3], 1)
         end
+        local db = DB()
+        local custom = db ~= nil and db.gpsLineColors ~= nil and next(db.gpsLineColors) ~= nil
+        resetBtn:SetEnabled(custom)
+        resetBtn:SetAlpha(custom and 1 or 0.45)
     end
+    local function Changed()
+        PaintSwatches()
+        if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
+    end
+    resetBtn:SetScript("OnClick", function()
+        local db = DB()
+        if not db then return end
+        db.gpsLineColors = nil
+        Changed()
+    end)
     for _, way in ipairs(ways) do
         local kind, label = way[1], way[2]
         local wrow = CreateFrame("Frame", nil, page)
         wrow:SetSize(kit.ROW_WIDTH, 22)
-        wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", prevRow == colorHead and -8 or 0, prevRow == colorHead and -4 or 0)
+        wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 0, prevRow == colorRow and -2 or 0)
         local text = wrow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         text:SetPoint("LEFT", wrow, "LEFT", 8, 0)
         text:SetText(label)
         local swatch = CreateFrame("Button", nil, wrow)
         swatch:SetSize(18, 18)
-        swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 18, 0)
+        -- Its left edge on the dropdowns' left edge.
+        swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
         swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         if ns.CreateRoundedRectBorder then ns.CreateRoundedRectBorder(swatch) end
         local fill = swatch:CreateTexture(nil, "ARTWORK")
@@ -5136,10 +5157,6 @@ local function BuildOptionsPage(page, kit)
         fill:SetPoint("BOTTOMRIGHT", -2, 2)
         swatch.fill, swatch.kind = fill, kind
         swatches[#swatches + 1] = swatch
-        local function Changed()
-            PaintSwatches()
-            if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
-        end
         swatch:SetScript("OnClick", function(_, button)
             local db = DB()
             if not db then return end
