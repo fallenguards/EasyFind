@@ -317,9 +317,10 @@ L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffDesigns|r\n" ..
     "    |cff999999-|r Das Design-Studio gibt jedem Fenster ein eigenes Aussehen, mit einem Classic-Design und einem Forever-Design im Stil von 1.x\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era und TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind läuft auf beiden, GPS inklusive" ..
+    "    |cff999999-|r EasyFind läuft auf beiden, GPS inklusive\n" ..
     "|cffFFD100\226\128\162|r |cffffffffEinstellungen|r\n" ..
     "    |cff999999-|r Die Einstellungen jedes Addons in der Suchleiste: das Spielmenü, AceConfig-Tabellen und EasyFinds eigene, jede direkt in ihrer Zeile änderbar; Erweiterungen liefern ihre über die API\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffErweiterungen|r\n" ..
     "    |cff999999-|r Erweiterungszeilen mit Hinweis beim Überfahren, einem Link, der ihre Daten trägt, einem eigenen Menü und einem Ort, den Kartensuche und GPS finden\n"
 
 -- Context menu

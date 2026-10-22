@@ -315,9 +315,10 @@ L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff主题|r\n" ..
     "    |cff999999-|r 主题工坊让每个窗口拥有自己的外观，附带1.x风格的经典主题和Forever主题\n" ..
     "|cffFFD100\226\128\162|r |cffffffff经典怀旧服和TBC周年服|r\n" ..
-    "    |cff999999-|r EasyFind在两者上都能运行，包括GPS" ..
+    "    |cff999999-|r EasyFind在两者上都能运行，包括GPS\n" ..
     "|cffFFD100\226\128\162|r |cffffffff设置|r\n" ..
     "    |cff999999-|r 在搜索栏中找到每个插件的设置：游戏设置面板、AceConfig 表和 EasyFind 自己的设置，都可在行内直接更改；扩展通过 API 提供自己的设置\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff扩展|r\n" ..
     "    |cff999999-|r 扩展行悬停时显示操作提示，链接带有其数据，有自己的菜单，地图搜索和 GPS 也能找到其位置\n"
 
 -- Context menu

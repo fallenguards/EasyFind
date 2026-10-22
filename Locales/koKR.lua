@@ -315,9 +315,10 @@ L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff테마|r\n" ..
     "    |cff999999-|r 테마 스튜디오로 창마다 고유한 모양을, 1.x 스타일의 클래식 테마와 Forever 테마와 함께\n" ..
     "|cffFFD100\226\128\162|r |cffffffff클래식 시대와 TBC 애니버서리|r\n" ..
-    "    |cff999999-|r EasyFind가 둘 다에서 동작합니다. GPS 포함" ..
+    "    |cff999999-|r EasyFind가 둘 다에서 동작합니다. GPS 포함\n" ..
     "|cffFFD100\226\128\162|r |cffffffff설정|r\n" ..
     "    |cff999999-|r 검색창에서 모든 애드온의 설정을 찾습니다: 게임 설정 패널, AceConfig 테이블, EasyFind 자체 설정을 각 행에서 바로 바꿀 수 있고, 확장은 API로 자기 설정을 제공합니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff확장 기능|r\n" ..
     "    |cff999999-|r 확장 행에 마우스를 올리면 동작 안내가 뜨고, 링크에 데이터가 실리며, 전용 메뉴가 있고, 지도 검색과 GPS가 그 위치를 찾습니다\n"
 
 -- Context menu

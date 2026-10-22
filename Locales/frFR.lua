@@ -315,9 +315,10 @@ L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffThèmes|r\n" ..
     "    |cff999999-|r Le Studio de thèmes donne à chaque fenêtre son propre look, avec un thème Classic et un thème Forever dans le style 1.x\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClassic Era et TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind fonctionne sur les deux, GPS compris" ..
+    "    |cff999999-|r EasyFind fonctionne sur les deux, GPS compris\n" ..
     "|cffFFD100\226\128\162|r |cffffffffRéglages|r\n" ..
     "    |cff999999-|r Les réglages de chaque addon dans la barre de recherche : le panneau du jeu, les tables AceConfig et ceux d'EasyFind, chacun modifiable sur sa ligne ; les extensions fournissent les leurs par l'API\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffExtensions|r\n" ..
     "    |cff999999-|r Des lignes d'extension avec une indication au survol, un lien qui porte leurs données, un menu à elles, et un lieu que la recherche de carte et le GPS trouvent\n"
 
 -- Context menu
