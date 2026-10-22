@@ -183,6 +183,13 @@ function Text:GetFlatSubtext(data)
     if data.searchCommandDesc then return data.searchCommandDesc end
     if data.quickFilterAliasText then return data.quickFilterAliasText end
     if data.quickFilterDef then return data.quickFilterDef.label or L["QUICK_FILTER"] end
+    -- An addon's setting: the addon, then the page it is on.
+    if data.addon then
+        local path = data.path
+        local last = path and path[#path]
+        if last and #path > 1 and last ~= data.addon then return data.addon .. ": " .. last end
+        return data.addon
+    end
     if data.path and #data.path > 0 then
         return data.path[#data.path]
     end

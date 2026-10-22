@@ -15,6 +15,13 @@ local Text = ns.ResultText
 
 local tests = {}
 
+function tests.addonSettingRows_nameTheirAddonThenThePage()
+    H.assertEq(Text:GetFlatSubtext({ addon = "EasyFind", path = { "EasyFind Settings", "Search" } }), "EasyFind: Search")
+    H.assertEq(Text:GetFlatSubtext({ addon = "TomTom", path = { "TomTom Settings" } }), "TomTom")
+    H.assertEq(Text:GetFlatSubtext({ addon = "TomTom" }), "TomTom")
+    H.assertEq(Text:GetFlatSubtext({ path = { "Game Settings", "Interface" } }), "Interface")
+end
+
 function tests.mapRows_leadWithTheirKind()
     H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Elwynn Forest" }),
         "MAP_KIND_NPC: Elwynn Forest")
