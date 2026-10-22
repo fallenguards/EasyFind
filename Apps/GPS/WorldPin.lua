@@ -200,6 +200,22 @@ local function Repaint()
         p.tex:SetVertexColor(c[1], c[2], c[3], p.a)
     end
     for i = 1, #plates do PaintPlate(plates[i]) end
+    WorldPin.ApplyPlateBorders()
+end
+
+-- The plate's border, by the Arrow caption border switch: the theme's own
+-- frame art where it has one, else the line the search bar wears; none off.
+function WorldPin.ApplyPlateBorder(p)
+    local db = DB()
+    local on = db ~= nil and db.gpsPlateBorder == true
+    p._efForeverSurface, p._efClassicSurface = on or nil, on or nil
+    p._efSkinOff, p._efSkinForced = (not on) or nil, on or nil
+    local dressed = ns.ApplySkin ~= nil and ns.ApplySkin(p)
+    if ns.SetRoundedRectBorderEdgeShown then ns.SetRoundedRectBorderEdgeShown(p, on and not dressed) end
+end
+
+function WorldPin.ApplyPlateBorders()
+    for i = 1, #plates do WorldPin.ApplyPlateBorder(plates[i]) end
 end
 
 -- The arrow at the character wears the beacon's colors too.
@@ -237,6 +253,7 @@ function WorldPin.NewPlate(parent)
     p.sub2 = Line(p.sub)
     PaintPlate(p)
     plates[#plates + 1] = p
+    WorldPin.ApplyPlateBorder(p)
     -- A right-click: clear the route, or bring the window up when nothing
     -- on screen shows the route yet. The menu at the cursor.
     local menuAnchor = CreateFrame("Frame", nil, p)
@@ -260,6 +277,15 @@ function WorldPin.NewPlate(parent)
             defs[#defs + 1] = { kind = "action", label = L["GPS_POPOUT"], onClick = function() ns.GPS:OpenWindow() end }
         end
         defs[#defs + 1] = { kind = "action", label = L["GPS_CLEAR"], onClick = function() ns.GPS:Clear() end }
+        defs[#defs + 1] = { kind = "separator" }
+        defs[#defs + 1] = { kind = "check", label = L["GPS_PLATE_BORDER_MENU"], tooltip = L["GPS_PLATE_BORDER_TT"],
+            get = function() local d = DB() return d ~= nil and d.gpsPlateBorder == true end,
+            set = function(on)
+                local d = DB()
+                if not d then return end
+                d.gpsPlateBorder = on or nil
+                WorldPin.ApplyPlateBorders()
+            end }
         -- The arrow's plate: unlocked, the arrow takes a plain drag.
         local Arrow = p.isArrow and ns.GPSArrow
         if Arrow and Arrow.SetUnlocked then

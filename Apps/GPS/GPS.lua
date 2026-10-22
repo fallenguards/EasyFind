@@ -5306,6 +5306,14 @@ local function BuildOptionsPage(page, kit)
         end,
         L["GPS_ARROW_TEXT_TT"], "full")
     textRow:SetPoint("TOPLEFT", clickRow, "BOTTOMLEFT", 0, -4)
+    local plateBorder = kit.Checkbox(page, L["GPS_PLATE_BORDER"],
+        function() local d = DB() return d ~= nil and d.gpsPlateBorder == true end,
+        function(on)
+            local d = DB()
+            if d then d.gpsPlateBorder = on or nil end
+            if ns.GPSWorldPin and ns.GPSWorldPin.ApplyPlateBorders then ns.GPSWorldPin.ApplyPlateBorders() end
+        end, L["GPS_PLATE_BORDER_TT"])
+    plateBorder:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -6)
     -- A switch stored only when off.
     local function Switch(key, label, tip, after)
         return kit.Checkbox(page, label,
@@ -5317,7 +5325,7 @@ local function BuildOptionsPage(page, kit)
             end, tip)
     end
     local arrow = Switch("gpsArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], Refresh)
-    arrow:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -6)
+    arrow:SetPoint("TOPLEFT", plateBorder, "BOTTOMLEFT", 0, 0)
     local mini = Switch("gpsMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], Refresh)
     mini:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, 0)
     local zones = Switch("gpsZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], function()
