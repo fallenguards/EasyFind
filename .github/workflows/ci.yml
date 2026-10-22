@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
@@ -145,9 +145,9 @@ jobs:
           done
 
           # 2. Every L["KEY"] referenced in shipped code is defined in enUS.lua.
-          #    Locale files (definitions) are excluded; dynamic L[var] lookups
-          #    don't match L["..."] and are intentionally not checked.
-          USED="$(grep -rhoP 'L\["\K[^"]+' --include='*.lua' --exclude-dir=Locales --exclude-dir=dev . | sort -u || true)"
+          #    Locale files (definitions) are excluded; dynamic L[var] and
+          #    L["PREFIX_" .. x] lookups are intentionally not checked.
+          USED="$(grep -rhoP 'L\["\K[^"]+(?="\])' --include='*.lua' --exclude-dir=Locales --exclude-dir=dev . | sort -u || true)"
           while IFS= read -r k; do
             [[ -z "$k" ]] && continue
             if ! grep -qxF "$k" <(echo "$ENUS_KEYS"); then
