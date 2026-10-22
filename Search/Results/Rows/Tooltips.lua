@@ -30,6 +30,10 @@ function Rows.InstallTooltips(resultRow)
     -- This SetScript is the row's canonical OnEnter owner (it replaces any
     -- earlier hooks), so the light-theme hover wash rides here too.
     resultRow:SetScript("OnEnter", function(self)
+        -- A row's menu is open: the rows under the cursor's way to its
+        -- items (the gap to a flyout) stay as they are.
+        local held = Results._contextHeldRow
+        if held and held ~= self and held._efContextMenuHeld then return end
         -- Single-owner hover wash. WoW's built-in highlight (used before the
         -- themed wash) can never leave two rows lit; the manual wash can when
         -- a hovered row is hidden/recycled by a re-render and its OnLeave

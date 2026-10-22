@@ -273,6 +273,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
     -- onto the menu. Restored to the selection state when the menu hides.
     extra.onHide = function()
         row._efContextMenuHeld = nil
+        if Results._contextHeldRow == row then Results._contextHeldRow = nil end
         Results:SetRowHighlightLocked(row, false)
         Results:UpdateSelectionHighlight(true)
         if kbOnHide then kbOnHide() end
@@ -311,6 +312,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
             editBox._menuUnfocus = nil
         end
         row._efContextMenuHeld = true
+        Results._contextHeldRow = row
         Results:SetRowHighlightLocked(row, true)
         Handlers:ApplyActionHint(row)
     end
