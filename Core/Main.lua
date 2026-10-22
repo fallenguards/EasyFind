@@ -1638,6 +1638,7 @@ local function HideChatFrames()
     stash(_G["ChatFrameMenuButton"])
     stash(_G["ChatFrameChannelButton"])
     stash(_G["TextToSpeechButton"])
+    stash(_G["QuickJoinToastButton"])
     -- What other addons put beside the chat (API.RegisterChatPiece).
     for frame in pairs(ns.chatPieces or {}) do stash(frame) end
 end
