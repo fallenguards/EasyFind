@@ -312,7 +312,7 @@ local PROVIDER_FIELDS = {
     key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table",
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
-    leave = "function", extension = "string", loadOnSearch = "any",
+    leave = "function", extension = "string", loadOnSearch = "any", hint = "any",
 }
 
 function Extensions.Provider(key) return key and Providers.byKey[key] or nil end
@@ -390,7 +390,9 @@ end
 -- { name, icon, ... }, select(row), tooltip(row, tooltip) -> true when
 -- it filled it, leave(row), extension (the extension whose addon holds
 -- the rest), loadOnSearch (true or a function: load that addon for
--- search). Registering a key again adds to it.
+-- search), hint (what a row's gestures do, under its name on hover: a
+-- sentence, { click, alt, ctrl, shift }, or a function of the row giving
+-- either; a row's own hint wins). Registering a key again adds to it.
 function API.RegisterSearchProvider(def)
     if type(def) ~= "table" then Fail("RegisterSearchProvider", "expects a table") end
     local key = def.key

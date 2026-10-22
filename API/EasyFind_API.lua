@@ -47,12 +47,20 @@
 ---@field options? EasyFindOption[] Toggles on its filter row's flyout.
 ---@field extension? string The extension it belongs to.
 ---@field loadOnSearch? boolean|fun(): boolean Load that extension's addon for its rows.
+---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint What a row's gestures do, under its name on hover.
+
+---@class EasyFindHint
+---@field click? string The click's target ("Directions").
+---@field alt? string
+---@field ctrl? string
+---@field shift? string
 
 ---@class EasyFindRow
 ---@field name string What is searched and shown.
 ---@field icon? string|number Shown at the row's right, in its own colors.
 ---@field keywords? string[] More words that find it.
 ---@field searchCommandDesc? string Its subtext.
+---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint This row's own hint.
 
 ---@class EasyFindOption
 ---@field label? string|fun(): string

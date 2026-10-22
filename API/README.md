@@ -208,6 +208,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `lowResults` | boolean | Also loaded when a search finds little. |
 | `aliases` | string list | An `@scope`: `@` and one of these lists only its rows. |
 | `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`. `label` and `tooltip` may be functions. |
+| `hint` | string, table or function | What a row's gestures do, shown under its name on hover: a sentence, or `{ click, alt, ctrl, shift }` with each gesture's target ("Click: Directions \| Alt: Quest log"), or a function of the row returning either. A row's own `hint` wins. |
 | `extension` | string | The extension it belongs to. Its addon loading on demand, `select` loads it first. An extension whose addon is turned off shows no filter row or scope. |
 | `loadOnSearch` | boolean or function | Load the extension's addon when its rows are first needed. |
 
@@ -219,6 +220,7 @@ A row is a table:
 | `icon` | Texture path or file id, shown at the row's right in its own colors. |
 | `keywords` | More words that find it. |
 | `searchCommandDesc` | Its subtext: a dim note shown with the name. |
+| `hint` | What its gestures do, as the provider's `hint`, for this row alone. |
 | anything else | Kept on the row: `select` and `tooltip` get it back. |
 
 ```lua

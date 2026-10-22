@@ -137,6 +137,26 @@ local NON_DRESSABLE_SLOT = {
 -- already tells you what happens).
 function Handlers:GetActionHint(data)
     if not data then return nil end
+    -- An extension's rows say what their gestures do (RegisterSearchProvider
+    -- hint, or the row's own): a sentence, or { click, alt, ctrl, shift }.
+    local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)
+    if provider then
+        local hint = data.hint
+        if hint == nil then hint = provider.hint end
+        if type(hint) == "function" then
+            local ok, h = pcall(hint, data)
+            hint = ok and h or nil
+        end
+        if type(hint) == "table" then
+            local s = Hint(V.click, hint.click or V.open)
+            if hint.alt then s = s .. " | Alt: " .. hint.alt end
+            if hint.ctrl then s = s .. " | Ctrl: " .. hint.ctrl end
+            if hint.shift then s = s .. " | Shift: " .. hint.shift end
+            return s
+        elseif type(hint) == "string" and hint ~= "" then
+            return hint
+        end
+    end
     if data.calculatorResult then return HINTS.copyResult end
     if data.copyText then return HINTS.copyChord end
     if data.quickKeybindActivate then return HINTS.quickKeybind end
