@@ -1136,6 +1136,7 @@ L["NPC_WORDS_STABLE"]                  = "stable"
 L["NPC_SELLS"]                         = "Sells %s"
 -- A vendor's subtext in the search bar: its kind, its zone, the item.
 L["NPC_SUBTEXT_SELLS_FMT"]             = "%s: %s; sells %s"
+L["MAP_FOUND_BY_SELLS_FMT"]            = "Found by what it sells: %s"
 L["FILTER_GAME_OPTIONS"]                = "Game Options"
 L["FILTER_ADDON_OPTIONS"]               = "AddOn Options"
 L["FILTER_SHOW_LEGACY_REPUTATIONS"]     = "Show Legacy Reputations"

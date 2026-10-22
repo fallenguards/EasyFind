@@ -719,12 +719,19 @@ local function RowOnClick(row, button)
 end
 
 local function RowOnEnter(row)
-    if row.data then
-        if row.data.isRecentSearch and row.deleteBtn then
-            row.deleteBtn:Show()
-        else
-            HoverPreview(row.data)
-        end
+    local data = row.data
+    if not data then return end
+    if data.isRecentSearch and row.deleteBtn then
+        row.deleteBtn:Show()
+        return
+    end
+    HoverPreview(data)
+    -- A vendor found by its goods, not its name, says so.
+    if data.soldName then
+        GameTooltip:SetOwner(row, "ANCHOR_LEFT")
+        GameTooltip:SetText(data.name or "", 1, 1, 1)
+        GameTooltip:AddLine(L["MAP_FOUND_BY_SELLS_FMT"]:format(data.soldName), 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
     end
 end
 local function RowOnLeave(row)
