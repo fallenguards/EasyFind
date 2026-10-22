@@ -2605,23 +2605,41 @@ do
         f.fill:SetTexCoord(AtlasU(info, 0), AtlasU(info, 1), AtlasV(info, 0), AtlasV(info, ve))
     end
 
-    -- The spellbook's pieces as this client serves them, or nil when that
-    -- art is not Forever's (another client draws the frame differently).
+    -- The spellbook's pieces as the Forever client serves them; any other
+    -- client (whose art under those names is not Forever's) wears our copy
+    -- of that art, textures/ForeverBand*, so the frame is the same everywhere.
+    local SHIPPED = "Interface\\AddOns\\EasyFind\\textures\\ForeverBand"
+    local function Shipped(name, w, h, u1, v1, u0, v0)
+        return { file = SHIPPED .. name, width = w, height = h, shipped = true,
+                 leftTexCoord = u0 or 0, rightTexCoord = u1, topTexCoord = v0 or 0, bottomTexCoord = v1 }
+    end
     local function PieceInfo()
-        if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
-        local out = {}
-        for key, def in pairs(FOREVER.pieces) do
-            local info = C_Texture.GetAtlasInfo(def[1])
-            if not (info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0) then return nil end
-            out[key] = info
+        if C_Texture and C_Texture.GetAtlasInfo then
+            local out = {}
+            for key, def in pairs(FOREVER.pieces) do
+                local info = C_Texture.GetAtlasInfo(def[1])
+                if not (info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0) then
+                    out = nil
+                    break
+                end
+                out[key] = info
+            end
+            -- Forever's band art is wider than tall; the other clients' is not.
+            if out and out.bottom.width > out.bottom.height then return out end
         end
-        -- Forever's band art is wider than tall; the other clients' is not.
-        if out.bottom.width <= out.bottom.height then return nil end
-        return out
+        return {
+            top = Shipped("Top", 256, 17, 1, 17 / 32), bottom = Shipped("Bottom", 256, 24, 1, 24 / 32),
+            left = Shipped("Left", 17, 256, 17 / 32, 1), right = Shipped("Right", 17, 256, 17 / 32, 1),
+            tl = Shipped("Corners", 30, 17, 30 / 64, 17 / 64), tr = Shipped("Corners", 30, 17, 62 / 64, 17 / 64, 32 / 64, 0),
+            bl = Shipped("Corners", 30, 24, 30 / 64, 56 / 64, 0, 32 / 64),
+            br = Shipped("Corners", 30, 24, 62 / 64, 56 / 64, 32 / 64, 32 / 64),
+        }
     end
 
+    -- A shipped piece is the crop already; the client's atlas needs it cut.
+    local FULL_CROP = { false, 0, 1, 0, 1 }
     local function Piece(holder, key, info, tiled)
-        local def = FOREVER.pieces[key]
+        local def = info.shipped and FULL_CROP or FOREVER.pieces[key]
         local t = holder:CreateTexture(nil, "OVERLAY")
         local u0, u1 = AtlasU(info, def[2]), AtlasU(info, def[3])
         local v0, v1 = AtlasV(info, def[4]), AtlasV(info, def[5])

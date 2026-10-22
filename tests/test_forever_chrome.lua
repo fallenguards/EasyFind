@@ -226,17 +226,26 @@ function tests.surfaceNotOptedIn_keepsTheRoundedLook()
     H.assertEq(f._efArtCells.mm.tex, FILL.file)
 end
 
-function tests.otherClientsArt_fallsBackToRounded()
+function tests.otherClientsArt_wearsOurCopyOfTheBand()
     installClient(OTHER_ART)
     ns.ACTIVE_UI_PALETTE = FOREVER
     local f = surface(true)
     ns.ApplyThemeFill(f)
-    H.assertTrue(not f._efForeverOn, "not Forever's art, no skin")
-    H.assertTrue(roundedShown(f, "fill"), "the rounded panel is there")
+    H.assertTrue(f._efForeverOn, "not Forever's art: the shipped copy of it")
+    H.assertEq(f._efForever.pieces.top.tex, "Interface\\AddOns\\EasyFind\\textures\\ForeverBandTop")
+    H.assertEq(f._efForever.pieces.br.tex, "Interface\\AddOns\\EasyFind\\textures\\ForeverBandCorners")
+    H.assertTrue(f._efForever.border.shown and f._efForever.fill.shown, "the band and its fill")
+    -- No metal under those names at all: still the shipped copy.
     installClient(nil)
     local g = surface(true)
     ns.ApplyThemeFill(g)
-    H.assertTrue(not g._efForeverOn, "no art at all, no skin")
+    H.assertTrue(g._efForeverOn and g._efForever.pieces.left.tex == "Interface\\AddOns\\EasyFind\\textures\\ForeverBandLeft")
+    -- Without the quest log's fill the window keeps the rounded look.
+    env.C_Texture = { GetAtlasInfo = function() return nil end }
+    local h = surface(true)
+    ns.ApplyThemeFill(h)
+    H.assertTrue(not h._efForeverOn, "no fill, no skin")
+    H.assertTrue(roundedShown(h, "fill"), "the rounded panel is there")
 end
 
 function tests.divider_isOneScreenPixelOfBronze()
