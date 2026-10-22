@@ -45,6 +45,7 @@
 ---@field lowResults? boolean Also loaded when a search finds little.
 ---@field aliases? string[] An @scope: @ and one of these lists only its rows.
 ---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every row without it.
+---@field place? fun(row: EasyFindRow): { name: string, mapID: number, x: number, y: number, step: string? }|nil Where the row is now: its rows are found from the map search and the GPS too.
 ---@field options? EasyFindOption[] Toggles on its filter row's flyout.
 ---@field extension? string The extension it belongs to.
 ---@field loadOnSearch? boolean|fun(): boolean Load that extension's addon for its rows.
@@ -62,6 +63,7 @@
 ---@field keywords? string[] More words that find it.
 ---@field searchCommandDesc? string Its subtext.
 ---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint This row's own hint.
+---@field mapID? number The map it is on, for the map search's list of that map.
 
 ---@class EasyFindOption
 ---@field label? string|fun(): string

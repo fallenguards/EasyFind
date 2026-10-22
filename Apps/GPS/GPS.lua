@@ -128,6 +128,8 @@ end
 
 function GPS:CanNavigate(data)
     if not data then return false end
+    -- An extension's row: where it is right now (MapSearch.ResolvePlace).
+    if data.placeOf and ns.MapSearch and ns.MapSearch.ResolvePlace then ns.MapSearch.ResolvePlace(data) end
     local mapID = data.zoneMapID or data.mapID
     if not mapID then return false end
     if not (data.isZone or (data.x ~= nil and data.y ~= nil)) then return false end
@@ -211,7 +213,7 @@ end
 local INSTANCE_CATEGORIES = { dungeon = true, raid = true, delve = true }
 
 local function Destination(data)
-    local dest = { name = data.name, icon = data.icon, category = data.category, displayID = data.displayID,
+    local dest = { name = data.destName or data.name, icon = data.icon, category = data.category, displayID = data.displayID,
                    step = type(data.step) == "string" and data.step or nil }
     local em, ex, ey
     if data.isDungeonEntrance and not (data.x and data.y) then em, ex, ey = EntranceOf(data) end

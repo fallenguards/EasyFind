@@ -313,6 +313,7 @@ local PROVIDER_FIELDS = {
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
     leave = "function", extension = "string", loadOnSearch = "any", hint = "any", browse = "function",
+    place = "function",
 }
 
 function Extensions.Provider(key) return key and Providers.byKey[key] or nil end
@@ -393,8 +394,11 @@ end
 -- search), hint (what a row's gestures do, under its name on hover: a
 -- sentence, { click, alt, ctrl, shift }, or a function of the row giving
 -- either; a row's own hint wins), browse(row) -> whether the row is in
--- the scope's list when nothing is typed (every row without it).
--- Registering a key again adds to it.
+-- the scope's list when nothing is typed (every row without it),
+-- place(row) -> { name, mapID, x, y, step } where the row is now: its
+-- rows are then found from the map search and the GPS too (a row's
+-- mapID names the map it is on, for the map's own list). Registering a
+-- key again adds to it.
 function API.RegisterSearchProvider(def)
     if type(def) ~= "table" then Fail("RegisterSearchProvider", "expects a table") end
     local key = def.key

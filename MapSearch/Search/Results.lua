@@ -70,6 +70,59 @@ local function RequestUISearchGlobalInstances(self)
     end)
 end
 
+-- Rows of extensions whose provider knows where a row is (place(row) ->
+-- { name, mapID, x, y, step }): offered to the map search by name and
+-- keywords, the spot asked for when one is picked. onlyMap: those the row
+-- says are on that map. One map row per search row, kept across queries.
+local providerPOIs = setmetatable({}, { __mode = "k" })
+local function AppendProviderRows(fresh, query, onlyMap)
+    local Extensions, data = ns.Extensions, ns.Database and ns.Database.uiSearchData
+    if not (Extensions and Extensions.Providers and data and query and #query >= 2) then return end
+    local wanted
+    for _, p in pairs(Extensions.Providers.byKey) do
+        if p.place then
+            wanted = wanted or {}
+            wanted[p.category] = p
+        end
+    end
+    if not wanted then return end
+    for i = 1, #data do
+        local d = data[i]
+        local p = d.category and wanted[d.category]
+        if p and d.name and (not onlyMap or d.mapID == onlyMap) then
+            local poi = providerPOIs[d]
+            if not poi then
+                poi = { category = p.category, providerRow = d, placeOf = p.place }
+                providerPOIs[d] = poi
+            end
+            if poi.name ~= d.name then poi.name, poi.nameLower, poi.nameNorm, poi.searchMask = d.name, nil, nil, nil end
+            if poi.keywords ~= d.keywords then poi.keywords, poi.kwLower, poi.searchMask = d.keywords, nil, nil end
+            poi.icon, poi.matchNote = d.icon, p.label
+            fresh[#fresh + 1] = poi
+        end
+    end
+end
+
+-- The spot a provider's row stands for, asked for as the row is picked
+-- or offered to the GPS; kept a few seconds. destName: what the
+-- destination is called, the row keeping its own name.
+function MapSearch.ResolvePlace(data)
+    if not (data and data.placeOf) then return data end
+    local now = GetTime()
+    if data.placedAt and now - data.placedAt < 5 then return data end
+    data.placedAt = now
+    local ok, place = pcall(data.placeOf, data.providerRow)
+    if ok and type(place) == "table" and place.mapID and place.x and place.y then
+        data.mapID, data.x, data.y = place.mapID, place.x, place.y
+        data.step, data.destName = place.step, place.name
+        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(place.mapID)
+        data.zoneName = info and info.name or nil
+    else
+        data.mapID, data.x, data.y, data.step, data.destName = nil, nil, nil, nil, nil
+    end
+    return data
+end
+
 -- Pure result computation: takes a query and a global-mode flag, returns the
 -- ranked + filtered + pin-merged result list. No rendering. Safe to call
 -- from MapTab or any other renderer that wants both local and global sets.
@@ -108,6 +161,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         AppendAlwaysFindableLocations(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
         AppendSubzones(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
         if self.AppendNpcRows then self.AppendNpcRows(fresh, zoneNames, text) end
+        AppendProviderRows(fresh, text, nil)
 
         if FlightPathsEnabledAnywhere() then
             local allFMs = self:ScanAllFlightMasters()
@@ -128,6 +182,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
         if self.AppendNpcRows then
             self.AppendNpcRows(fresh, existingNames, text, WorldMapFrame and WorldMapFrame:GetMapID())
         end
+        AppendProviderRows(fresh, text, WorldMapFrame and WorldMapFrame:GetMapID())
 
         local entranceLookup = BuildEntranceLookup(dungeonEntrances)
         for _, poi in ipairs(fresh) do

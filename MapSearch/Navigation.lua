@@ -554,6 +554,7 @@ end
 -- Guide menu to force breadcrumb/teaching mode regardless of the
 -- user's default left-click setting.
 function MapSearch:SelectResult(data, directOverride)
+    if data and data.placeOf then self.ResolvePlace(data) end
     self._previewing = nil
     self._savedPinState = nil
     self._suppressTextChanged = true
