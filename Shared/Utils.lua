@@ -2914,6 +2914,22 @@ do
     end
 end
 
+-- Whether the cursor is on a skinned frame or its band outside it: the hit
+-- rect reaches the band, IsMouseOver reads the rect alone.
+function ns.IsMouseOverWithBand(frame)
+    if not (frame and frame.IsShown and frame:IsShown()) then return false end
+    if frame:IsMouseOver() then return true end
+    if not frame._efForeverOn then return false end
+    local f, px = frame._efForever, FOREVER.px
+    local u = f and f.u or FOREVER.unit
+    local l, r, t, b = frame:GetLeft(), frame:GetRight(), frame:GetTop(), frame:GetBottom()
+    local scale = frame:GetEffectiveScale()
+    if not (l and r and t and b and scale and scale > 0) then return false end
+    local x, y = GetCursorPosition()
+    x, y = x / scale, y / scale
+    return x >= l - px.outLeft * u and x <= r + px.outRight * u and y <= t + px.outTop * u and y >= b - px.outBottom * u
+end
+
 -- The line border's and divider's color on a surface made for the Forever
 -- band: the theme's bronze under the Forever theme, else the usual gray.
 do

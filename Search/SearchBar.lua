@@ -2061,6 +2061,8 @@ function Search:CreateSearchFrame()
             return
         end
         if self:IsMouseOver() then return end
+        -- The band outside the bar counts as the bar (a drag starts there).
+        if ns.IsMouseOverWithBand and ns.IsMouseOverWithBand(containerFrame) then return end
         if Utils.IsFrameVisiblyMouseOver(resultsFrame) then return end
         if OptionsSurface:IsOptionsSurfaceMouseOver() then return end
         -- Any active cursor menu and its flyout cascade (right-click menu, the
