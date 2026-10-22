@@ -31,6 +31,8 @@ local WN_BTN_GAP = 14
 local WN_BTN_MIN_W = 130
 local WN_BTN_H = 22
 local WN_BTN_TEXT_PAD = 24
+local WN_BODY_MAX_H = 280   -- the text box's cap: past it, the bar scrolls the rest
+local WN_WHEEL = 28
 
 -- The body names an item to make the drag-to-link example concrete. Read
 -- the name from the API rather than writing it into each locale: this is
@@ -181,12 +183,27 @@ function Onboarding:ShowWhatsNew(version)
         verText:SetTextColor(Utils.RGB(TEXT_DIM, 1))
         f._verText = verText
 
-        local blocks = CreateFrame("Frame", nil, f)
-        blocks:SetPoint("TOPLEFT", f, "TOPLEFT", WN_PAD_X, 0)
-        blocks:SetPoint("TOPRIGHT", f, "TOPRIGHT", -WN_PAD_X, 0)
-        blocks:SetHeight(1)
+        -- The text in a box that fits it up to WN_BODY_MAX_H; past that it
+        -- stays that tall and the bar, or the wheel, scrolls the rest.
+        local scroll = CreateFrame("ScrollFrame", nil, f)
+        scroll:SetPoint("TOPLEFT", f, "TOPLEFT", WN_PAD_X, 0)
+        scroll:SetPoint("TOPRIGHT", f, "TOPRIGHT", -WN_PAD_X, 0)
+        scroll:SetHeight(1)
+        local blocks = CreateFrame("Frame", nil, scroll)
+        blocks:SetSize(WN_MAX_W - WN_PAD_X * 2, 1)
         blocks.pool = {}
-        f._blocks = blocks
+        scroll:SetScrollChild(blocks)
+        scroll:EnableMouseWheel(true)
+        scroll:SetScript("OnMouseWheel", function(self, delta)
+            local most = mmax(0, blocks:GetHeight() - self:GetHeight())
+            self:SetVerticalScroll(mmin(most, mmax(0, self:GetVerticalScroll() - delta * WN_WHEEL)))
+        end)
+        f._scroll, f._blocks = scroll, blocks
+        local bar = Utils.CreateMinimalScrollBar(scroll, f, { moreBelow = true })
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPRIGHT", scroll, "TOPRIGHT", 14, -2)
+        bar:SetPoint("BOTTOMRIGHT", scroll, "BOTTOMRIGHT", 14, 2)
+        f._bar = bar
 
         -- Permanent footer: "See full changelog" is a copy target for the
         -- GitHub changelog URL (addons cannot open browsers, and only a
@@ -198,7 +215,7 @@ function Onboarding:ShowWhatsNew(version)
         changelogText:SetText(L["WHATSNEW_CHANGELOG_LINK"])
         changelogText:SetTextColor(Utils.RGB(GOLD, 1))
         changelogLink:SetSize(changelogText:GetStringWidth() + 8, 16)
-        changelogLink:SetPoint("TOP", blocks, "BOTTOM", 0, -10)
+        changelogLink:SetPoint("TOP", scroll, "BOTTOM", 0, -10)
         local copyHint = changelogLink:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         copyHint:SetPoint("LEFT", changelogText, "RIGHT", 6, 0)
         copyHint:Hide()
@@ -258,12 +275,24 @@ function Onboarding:ShowWhatsNew(version)
     local titleH = frame._title:GetStringHeight()
     local verH = frame._verText:GetStringHeight()
     local bodyTopOffset = WN_PAD_TOP + titleH + WN_TITLE_GAP + verH + WN_BODY_GAP
-    blocks:ClearAllPoints()
-    blocks:SetPoint("TOPLEFT", frame, "TOPLEFT", WN_PAD_X, -bodyTopOffset)
-    blocks:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -WN_PAD_X, -bodyTopOffset)
+    local scroll = frame._scroll
+    scroll:ClearAllPoints()
+    scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", WN_PAD_X, -bodyTopOffset)
+    scroll:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -WN_PAD_X, -bodyTopOffset)
+    blocks:SetWidth(frame:GetWidth() - WN_PAD_X * 2)
     local bodyH = RenderFeatures(blocks, features)
+    local boxH = mmin(bodyH, WN_BODY_MAX_H)
+    scroll:SetHeight(boxH)
+    scroll:SetVerticalScroll(0)
+    local bar = frame._bar
+    if bodyH > boxH then
+        bar:Show()
+        bar:UpdateThumb(bodyH, boxH)
+    else
+        bar:Hide()
+    end
     -- 10 = body->changelog gap, 16 = link height.
-    local total = bodyTopOffset + bodyH + 10 + 16
+    local total = bodyTopOffset + boxH + 10 + 16
         + WN_BTN_GAP + WN_BTN_H + WN_PAD_BOTTOM
     frame:SetHeight(total)
     frame:Show()
