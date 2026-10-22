@@ -422,6 +422,9 @@ local function DeriveSet(palette, set)
         lift(set.BTN_FILL_NORMAL, 0.30, 0.08)
         lift(set.BTN_FILL_HOVER, 0.40, 0.16)
         lift(set.BTN_FILL_PRESSED, 0.22, 0.03)
+        -- A toggle's on color wears the accent as the buttons do, half toward
+        -- the fill: a gold accent reads bronze beside them, not yellow.
+        lift(set.CONTROL_ACCENT, 0.50, 0.08)
         lift(set.NAV_SELECTED_FILL, 0.30, 0.08, 0.95)
         lift(set.NAV_HOVER_FILL, 0.15, 0.04, 0.85)
         setColor(set.SECTION_TABLE_FILL, fillC[1] * 0.85, fillC[2] * 0.85, fillC[3] * 0.85, 0.92)
@@ -432,10 +435,12 @@ local function DeriveSet(palette, set)
         setColor(set.TEXT_PRIMARY, 1.00, 0.97, 0.86)
         setColor(set.TEXT_BODY, 0.78, 0.78, 0.80)
     end
-    -- Toggles follow the control accent (Black pins the classic blue; its
-    -- gold accent would read wrong on control fills).
-    local controlAccent = palette.controlAccent or palette.accent
-    setColor(set.CONTROL_ACCENT, controlAccent[1], controlAccent[2], controlAccent[3])
+    -- On a light theme a toggle wears the control accent itself (Black pins
+    -- the classic blue; its gold accent would read wrong on control fills).
+    if palette.light then
+        local controlAccent = palette.controlAccent or palette.accent
+        setColor(set.CONTROL_ACCENT, controlAccent[1], controlAccent[2], controlAccent[3])
+    end
 end
 
 -- The windows with a page of their own in the theme studio, in its order;
