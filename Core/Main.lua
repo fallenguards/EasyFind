@@ -673,15 +673,23 @@ end
 -- Missing or non-numeric segments count as 0, so "2.0" == "2.0.0" and a
 -- malformed value sorts oldest. String comparison can't be used: "2.0.10"
 -- must rank above "2.0.2".
+-- Numbers in order, then a pre-release tag ("4.0.0-beta1") ranks below the
+-- plain version and betas among themselves by their number.
 local function CompareVersion(a, b)
-    local ai = tostring(a or ""):gmatch("%d+")
-    local bi = tostring(b or ""):gmatch("%d+")
+    a, b = tostring(a or ""), tostring(b or "")
+    local abase, apre = a:match("^([^-]*)-?(.*)$")
+    local bbase, bpre = b:match("^([^-]*)-?(.*)$")
+    local ai, bi = abase:gmatch("%d+"), bbase:gmatch("%d+")
     while true do
         local av, bv = ai(), bi()
-        if av == nil and bv == nil then return 0 end
+        if av == nil and bv == nil then break end
         av, bv = tonumber(av) or 0, tonumber(bv) or 0
         if av ~= bv then return av < bv and -1 or 1 end
     end
+    if (apre == "") ~= (bpre == "") then return apre == "" and 1 or -1 end
+    local an, bn = tonumber(apre:match("%d+")) or 0, tonumber(bpre:match("%d+")) or 0
+    if an ~= bn then return an < bn and -1 or 1 end
+    return 0
 end
 -- The What's New gate and the peer update check must rank versions the same
 -- way; one implementation, shared.
