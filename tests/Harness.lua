@@ -161,6 +161,9 @@ local function newFrame()
         RegisterEvent = function() end, UnregisterEvent = function() end,
         CreateTexture = function() return newFrame() end,
         CreateFontString = function() return newFrame() end,
+        GetNormalTexture = function() return newFrame() end,
+        GetPushedTexture = function() return newFrame() end,
+        GetHighlightTexture = function() return newFrame() end,
         SetTexture = function() end, SetAtlas = function() end,
         SetTexCoord = function() end, SetVertexColor = function() end,
         SetText = function() end, GetText = function() return "" end,
@@ -227,6 +230,9 @@ local function setupWoWGlobals(env, clock)
     }
     env.C_Texture = {
         GetAtlasInfo = function() return nil end,
+    }
+    env.C_XMLUtil = {
+        GetTemplateInfo = function() return nil end,
     }
 
     -- WoW exposes a `bit` library. Lua 5.4 has operators but no `bit`,

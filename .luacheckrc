@@ -142,7 +142,7 @@ read_globals = {
     "C_Minimap", "C_MountJournal", "C_Navigation", "C_PetJournal",
     "C_Reputation", "C_SuperTrack", "C_TaxiMap", "C_Texture", "C_Timer",
     "C_ToyBox", "C_Traits", "C_TransmogCollection", "C_TransmogOutfitInfo",
-    "C_TransmogSets", "C_VignetteInfo",
+    "C_TransmogSets", "C_VignetteInfo", "C_XMLUtil",
 
     -- UI utility functions
     "UIFrameFadeIn", "UIFrameFadeOut", "UIFrameFadeRemoveFrame",

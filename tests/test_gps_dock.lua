@@ -216,7 +216,7 @@ function tests.planningAndBorderAreFlyoutSwitches()
     local palette = { chrome = nil }
     local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }),
         PopoutStyle = function() return "easyfind" end, DB = function() return db end, HideMenus = function() end,
-        ns = { ACTIVE_UI_PALETTE = palette } }, { __index = _G })
+        ns = { ACTIVE_UI_PALETTE = palette }, GAME_ART = { questRim = true } }, { __index = _G })
     assert(load(src:sub(s, e), "=GPS.lua flyouts", "t", env))()
     local planning = GPS.PlanningMenu()
     H.assertEq(planning.kind, "submenu")

@@ -20,6 +20,7 @@ local mmax = math.max
 local mfloor = math.floor
 local unpack = unpack
 local mpi = math.pi
+local GetAtlasInfo = C_Texture.GetAtlasInfo
 
 -- Arrival rings: a step's spot; the last step to a creature or other spot
 -- (beside it); a crossing's far spot, where it drops you, give or take.
@@ -2477,6 +2478,22 @@ end
 local POI_NORMAL, POI_NORMAL_ON = "UI-QuestPoi-QuestNumber", "UI-QuestPoi-QuestNumber-SuperTracked"
 local POI_PUSHED, POI_PUSHED_ON = "UI-QuestPoi-QuestNumber-Pressed", "UI-QuestPoi-QuestNumber-Pressed-SuperTracked"
 local POI_HIGHLIGHT, POI_GLOW = "UI-QuestPoi-InnerGlow", "UI-QuestPoi-OuterGlow"
+-- The game's art this client has: Classic Era and Anniversary lack 11.0's
+-- POI and tracker atlases and the quest log's border template, and get
+-- what their own quest map and watch frame draw (the POI faces cut from
+-- the number sheet at QuestDataProvider's coords).
+local GAME_ART = {
+    poi = GetAtlasInfo(POI_NORMAL) ~= nil,
+    tracker = GetAtlasInfo("UI-QuestTracker-Secondary-Objective-Header") ~= nil,
+    questRim = C_XMLUtil.GetTemplateInfo("QuestLogBorderFrameTemplate") ~= nil and ns.Caps.questLogAtlas ~= false,
+    poiSheet = "Interface\\WorldMap\\UI-QuestPoi-NumberIcons",
+    poiGlow = "Interface\\WorldMap\\UI-QuestPoi-IconGlow",
+    poiCut = {
+        off = { 0.875, 1, 0.375, 0.5 }, offDown = { 0.75, 0.875, 0.375, 0.5 },
+        on = { 0.5, 0.625, 0.375, 0.5 }, onDown = { 0.375, 0.5, 0.375, 0.5 },
+        hover = { 0.625, 0.75, 0.875, 1 },
+    },
+}
 local PIN_ON_FACE_OFF = ns.GOLD_COLOR         -- the window glyph's gold on the dark face
 local PIN_ON_FACE_ON  = { 0.25, 0.13, 0.03 }  -- dark pin on the gold face
 
@@ -2511,14 +2528,31 @@ local function ToggleRouteTracking()
     Refresh()
 end
 
+-- The toggle's faces: the game's POI atlases, or the classic sheet's cuts.
+local function PoiFaces(track, on)
+    if GAME_ART.poi then
+        track:SetNormalAtlas(on and POI_NORMAL_ON or POI_NORMAL)
+        track:SetPushedAtlas(on and POI_PUSHED_ON or POI_PUSHED)
+        return
+    end
+    track:SetNormalTexture(GAME_ART.poiSheet)
+    track:SetPushedTexture(GAME_ART.poiSheet)
+    track:GetNormalTexture():SetTexCoord(unpack(on and GAME_ART.poiCut.on or GAME_ART.poiCut.off))
+    track:GetPushedTexture():SetTexCoord(unpack(on and GAME_ART.poiCut.onDown or GAME_ART.poiCut.offDown))
+end
+
 -- The toggle as the game's POI button: 32-pixel faces on a 20-pixel button, hover and
 -- on glows at the atlas's own size (smaller reads dimmer), our pin in the middle. Hidden until placed.
 local function BuildTrackButton(parent)
     local track = CreateFrame("Button", nil, parent)
     track:SetSize(20, 20)
-    track:SetNormalAtlas(POI_NORMAL)
-    track:SetPushedAtlas(POI_PUSHED)
-    track:SetHighlightAtlas(POI_HIGHLIGHT, "ADD")
+    PoiFaces(track, false)
+    if GAME_ART.poi then
+        track:SetHighlightAtlas(POI_HIGHLIGHT, "ADD")
+    else
+        track:SetHighlightTexture(GAME_ART.poiSheet, "ADD")
+        track:GetHighlightTexture():SetTexCoord(unpack(GAME_ART.poiCut.hover))
+    end
     for _, tex in ipairs({ track:GetNormalTexture(), track:GetPushedTexture(), track:GetHighlightTexture() }) do
         if tex then
             tex:ClearAllPoints()
@@ -2528,7 +2562,12 @@ local function BuildTrackButton(parent)
     end
     local glow = track:CreateTexture(nil, "BACKGROUND")
     glow:SetPoint("CENTER")
-    glow:SetAtlas(POI_GLOW, true)
+    if GAME_ART.poi then
+        glow:SetAtlas(POI_GLOW, true)
+    else
+        glow:SetTexture(GAME_ART.poiGlow)
+        glow:SetSize(48, 48)
+    end
     glow:SetBlendMode("ADD")
     glow:Hide()
     track.glow = glow
@@ -2548,8 +2587,7 @@ end
 
 -- The faces for on (the arrow follows the route) or off.
 StyleTrackButton = function(track, on)
-    track:SetNormalAtlas(on and POI_NORMAL_ON or POI_NORMAL)
-    track:SetPushedAtlas(on and POI_PUSHED_ON or POI_PUSHED)
+    PoiFaces(track, on)
     local col = on and PIN_ON_FACE_ON or PIN_ON_FACE_OFF
     track.pin:SetVertexColor(col[1], col[2], col[3], 1)
     track.glow:SetShown(on)
@@ -3596,6 +3634,22 @@ end
 Look.FOLD_SHEET = "Interface\\Buttons\\QuestTrackerButtons"
 Look.FOLD_OPEN, Look.FOLD_OPEN_DOWN = { 0.273438, 0.390625, 0.265625, 0.484375 }, { 0.273438, 0.390625, 0.015625, 0.234375 }
 Look.FOLD_SHUT, Look.FOLD_SHUT_DOWN = { 0.40625, 0.523438, 0.265625, 0.484375 }, { 0.40625, 0.523438, 0.015625, 0.234375 }
+-- The game's fold: 11.0's tracker art, or on Classic Era and Anniversary,
+-- which lack it, their watch frame's hide button (the sheet's top half shut).
+Look.HIDE_SHEET = "Interface\\Buttons\\UI-Panel-QuestHideButton"
+Look.HIDE_OPEN, Look.HIDE_OPEN_DOWN = { 0, 0.5, 0.5, 1 }, { 0.5, 1, 0.5, 1 }
+Look.HIDE_SHUT, Look.HIDE_SHUT_DOWN = { 0, 0.5, 0, 0.5 }, { 0.5, 1, 0, 0.5 }
+function Look.GameFold(fold, open)
+    if GAME_ART.tracker then
+        if fold.ClearPushedTexture then fold:ClearPushedTexture() end
+        fold:SetNormalAtlas(open and "UI-QuestTrackerButton-Secondary-Collapse" or "UI-QuestTrackerButton-Secondary-Expand")
+        return
+    end
+    fold:SetNormalTexture(Look.HIDE_SHEET)
+    fold:SetPushedTexture(Look.HIDE_SHEET)
+    fold:GetNormalTexture():SetTexCoord(unpack(open and Look.HIDE_OPEN or Look.HIDE_SHUT))
+    fold:GetPushedTexture():SetTexCoord(unpack(open and Look.HIDE_OPEN_DOWN or Look.HIDE_SHUT_DOWN))
+end
 function Look.FoldArt(fold, look, open)
     if look == "classic" then
         fold:SetNormalTexture(Look.FOLD_SHEET)
@@ -3604,8 +3658,7 @@ function Look.FoldArt(fold, look, open)
         fold:GetPushedTexture():SetTexCoord(unpack(open and Look.FOLD_OPEN_DOWN or Look.FOLD_SHUT_DOWN))
         fold:SetSize(15, 14)
     else
-        if fold.ClearPushedTexture then fold:ClearPushedTexture() end
-        fold:SetNormalAtlas(open and "UI-QuestTrackerButton-Secondary-Collapse" or "UI-QuestTrackerButton-Secondary-Expand")
+        Look.GameFold(fold, open)
         fold:SetSize(16, 15)
     end
 end
@@ -4022,7 +4075,8 @@ local function BuildDock()
     head:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
     f.head = head
     local bg = head:CreateTexture(nil, "BACKGROUND")
-    bg:SetAtlas("UI-QuestTracker-Secondary-Objective-Header", true)
+    -- Classic Era and Anniversary lack the art; their watch frame has no plate either.
+    if GAME_ART.tracker then bg:SetAtlas("UI-QuestTracker-Secondary-Objective-Header", true) end
     bg:SetPoint("CENTER", head, "CENTER", 0, 0)
     f.plate = bg
 
@@ -4041,9 +4095,14 @@ local function BuildDock()
     local fold = CreateFrame("Button", nil, head)
     fold:SetSize(16, 16)
     fold:SetPoint("RIGHT", head, "RIGHT", 1, 0)
-    fold:SetNormalAtlas("UI-QuestTrackerButton-Secondary-Collapse")
-    fold:SetPushedAtlas("UI-QuestTrackerButton-Secondary-Collapse-Pressed")
-    fold:SetHighlightAtlas("UI-QuestTrackerButton-Yellow-Highlight")
+    if GAME_ART.tracker then
+        fold:SetNormalAtlas("UI-QuestTrackerButton-Secondary-Collapse")
+        fold:SetPushedAtlas("UI-QuestTrackerButton-Secondary-Collapse-Pressed")
+        fold:SetHighlightAtlas("UI-QuestTrackerButton-Yellow-Highlight")
+    else
+        Look.GameFold(fold, true)
+        fold:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+    end
     if fold:GetHighlightTexture() then fold:GetHighlightTexture():SetBlendMode("ADD") end
     fold:SetScript("OnClick", function()
         local db = DB()
@@ -4403,6 +4462,7 @@ function GPS.PopoutRim()
     if rim == nil and db and db.gpsPopoutBorder == false then rim = "line" end
     if rim ~= "quest" and rim ~= "line" then rim = "iron" end
     if rim == "iron" and not GPS.ThemeHasChrome() then rim = "quest" end
+    if rim == "quest" and not GAME_ART.questRim then rim = "line" end
     return rim
 end
 
@@ -4439,7 +4499,8 @@ function GPS.StyleMenu(border)
         local rows = PickRows(looks, PopoutStyle(), function(style) pick(style)() end)
         if border then
             rows[#rows + 1] = { isSeparator = true }
-            local rims = { { "quest", "GPS_BORDER_QUEST" }, { "line", "GPS_BORDER_LINE" } }
+            local rims = { { "line", "GPS_BORDER_LINE" } }
+            if GAME_ART.questRim then table.insert(rims, 1, { "quest", "GPS_BORDER_QUEST" }) end
             if GPS.ThemeHasChrome() then table.insert(rims, 1, { "iron", "GPS_BORDER_IRON" }) end
             rows[#rows + 1] = { text = border.label, submenu = PickRows(rims, GPS.PopoutRim(), function(rim)
                 local d = DB()
@@ -4673,20 +4734,23 @@ local function BuildPopout()
     -- opacity setting, live restyle on a theme flip.
     ns.StyleMenuPanel(f)
     ns.SetRoundedRectBarHeight(f, 14)
-    -- The quest log's border, as around the map search panel. The template
-    -- anchors itself a few pixels outside its parent; decorative only.
-    local border = CreateFrame("Frame", nil, f, "QuestLogBorderFrameTemplate")
-    border:SetFrameLevel(f:GetFrameLevel() + 2)
-    border:EnableMouse(false)
-    -- The template hangs 7 pixels above and 6 below its parent, made for
-    -- the quest log's paper. Here it hugs the panel: 3 pixels all round.
-    border:ClearAllPoints()
-    border:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 4)
-    border:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 4, -4)
+    -- The quest log's border, as around the map search panel, where the
+    -- client has it. The template anchors itself a few pixels outside its
+    -- parent; decorative only.
+    local border = GAME_ART.questRim and CreateFrame("Frame", nil, f, "QuestLogBorderFrameTemplate") or nil
+    if border then
+        border:SetFrameLevel(f:GetFrameLevel() + 2)
+        border:EnableMouse(false)
+        -- The template hangs 7 pixels above and 6 below its parent, made for
+        -- the quest log's paper. Here it hugs the panel: 3 pixels all round.
+        border:ClearAllPoints()
+        border:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 4)
+        border:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 4, -4)
+    end
     -- Nine-slice instead of the template's one stretched atlas (squashed on a short
     -- window). A thin band: the rim only, the atlas's inner shadow read as a dark strip.
     local BAND = 8
-    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("questlog-frame")
+    local info = border and GetAtlasInfo("questlog-frame")
     if info and info.file and info.width and info.height and border.Border then
         border.Border:Hide()
         local l, r, t, b = info.leftTexCoord, info.rightTexCoord, info.topTexCoord, info.bottomTexCoord
