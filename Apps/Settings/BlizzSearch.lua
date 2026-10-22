@@ -3449,6 +3449,8 @@ local function CanvasRows(cat, addon)
     if not (lok and layout and layout.GetFrame) then return nil end
     local frame = layout:GetFrame()
     if not frame then return nil end
+    -- An AceConfig canvas: its options table is read instead.
+    if type(frame.obj) == "table" and frame.obj.type == "BlizOptionsGroup" then return nil end
     local catName, catID = cat:GetName(), cat.GetID and cat:GetID()
     if not (catName and catName ~= "" and catID) then return nil end
     local rootName = addon .. " " .. (_G["SETTINGS"] or "Settings")
@@ -3541,7 +3543,9 @@ local function PullFeed(data, addon, rows)
     end
     local mine = {}
     for _, r in ipairs(list) do
-        if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and type(r.open) == "function" then
+        -- r.step: our own readers' steps (AceConfig); addons give open().
+        local step = type(r.step) == "table" and r.step or type(r.open) == "function" and { open = r.open }
+        if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and step then
             local nameLower = SearchLower(r.name)
             local keywords = { "addon", "setting", "option", nameLower, SearchLower(addon) }
             for _, w in ipairs(type(r.keywords) == "table" and r.keywords or {}) do
@@ -3549,8 +3553,8 @@ local function PullFeed(data, addon, rows)
             end
             local e = setmetatable({
                 name = r.name, nameLower = nameLower, keywords = keywords,
-                steps = { { open = r.open } }, addon = addon,
-            }, GetSettingsCatMT("AddOn Settings", nil, nil, FeedPath(addon, r.path)))
+                steps = { step }, addon = addon,
+            }, GetSettingsCatMT("AddOn Settings", step.settingsCategory, step.settingCategoryID, FeedPath(addon, r.path)))
             mine[e] = true
             tinsert(data, e)
         end
@@ -3577,6 +3581,203 @@ function BlizzOptionsSearch:PullSettingsFeed(addon)
     end
 end
 
+-- AceConfig options tables (AceConfigRegistry-3.0 and its forks) read as
+-- feeds: every toggle, slider, list, input, color, key and button with
+-- its group path, no addon cooperation needed. A row opens through the
+-- matching AceConfigDialog: the game's Settings panel when the addon put
+-- its options there, else the addon's own dialog.
+local AceDialogOf
+local CollectAceFeeds
+local unpack = Utils.unpack
+do
+    local ACE_TYPES = { toggle = true, range = true, select = true, multiselect = true, input = true,
+                        color = true, keybinding = true, execute = true }
+    local ACE_MAX = 4000
+    local REGISTRY, DIALOG = "AceConfigRegistry-3.0", "AceConfigDialog-3.0"
+    local aceFeeds = {}
+    local hooked = {}
+
+    -- Registry and dialog pairs by fork suffix ("" or "-ElvUI").
+    local function AceLibs()
+        local libs = type(LibStub) == "table" and LibStub.libs
+        if type(libs) ~= "table" then return {} end
+        local out = {}
+        for name, lib in pairs(libs) do
+            if name == REGISTRY or name:sub(1, #REGISTRY + 1) == REGISTRY .. "-" then
+                local suffix = name:sub(#REGISTRY + 1)
+                out[suffix] = { registry = lib, dialog = libs[DIALOG .. suffix] }
+            end
+        end
+        return out
+    end
+    AceDialogOf = function(suffix)
+        local libs = type(LibStub) == "table" and LibStub.libs
+        return type(libs) == "table" and libs[DIALOG .. (suffix or "")] or nil
+    end
+
+    -- A member the way AceConfigDialog reads it: a value, a function, or
+    -- a handler method's name (name and desc strings are literal).
+    local function Member(key, option, options, path, appName, handler)
+        local member = option[key]
+        local literal = key == "name" or key == "desc"
+        if type(member) == "function" or (type(member) == "string" and not literal) then
+            local info = { options = options, appName = appName, arg = option.arg, handler = handler,
+                           option = option, type = option.type, uiType = "dialog", uiName = DIALOG }
+            info[0] = appName
+            for i = 1, #path do info[i] = path[i] end
+            local ok, v
+            if type(member) == "function" then
+                ok, v = pcall(member, info)
+            elseif handler and type(handler[member]) == "function" then
+                ok, v = pcall(handler[member], handler, info)
+            end
+            return ok and v or nil
+        end
+        return member
+    end
+    local function Label(v)
+        if type(v) ~= "string" then return nil end
+        local clean = Utils.StripMarkup and Utils.StripMarkup(v) or v
+        clean = clean:gsub("^%s+", ""):gsub("%s+$", "")
+        return clean ~= "" and clean or nil
+    end
+
+    local function Walk(group, options, path, groupPath, names, handler, appName, out)
+        for key, option in pairs(type(group.args) == "table" and group.args or {}) do
+            if #out >= ACE_MAX then return end
+            if type(option) == "table" and option.type then
+                path[#path + 1] = key
+                local h = option.handler or handler
+                local hidden = option.dialogHidden
+                if hidden == nil then hidden = option.guiHidden end
+                if hidden == nil then hidden = Member("hidden", option, options, path, appName, h) end
+                if not hidden then
+                    local name = Label(Member("name", option, options, path, appName, h))
+                    if option.type == "group" then
+                        local inline = option.inline or option.dialogInline or option.guiInline
+                        local subNames = {}
+                        for i = 1, #names do subNames[i] = names[i] end
+                        if name then subNames[#subNames + 1] = name end
+                        local subGroups = groupPath
+                        if not inline then
+                            subGroups = {}
+                            for i = 1, #groupPath do subGroups[i] = groupPath[i] end
+                            subGroups[#subGroups + 1] = key
+                        end
+                        Walk(option, options, path, subGroups, subNames, h, appName, out)
+                    elseif ACE_TYPES[option.type] and name then
+                        out[#out + 1] = { name = name, groupPath = groupPath, names = names }
+                    end
+                end
+                path[#path] = nil
+            end
+        end
+    end
+
+    -- The Blizzard category hosting a group path (the longest registered
+    -- prefix), as the step's settingsCategory and settingCategoryID.
+    local function HostCategory(blizz, appName, groupPath)
+        if type(blizz) ~= "table" then return nil end
+        for n = #groupPath, 0, -1 do
+            local key = appName
+            for i = 1, n do key = key .. "\001" .. groupPath[i] end
+            local group = blizz[key]
+            local id = group and group.frame and group.frame.name
+            if id ~= nil then
+                local cat = type(id) == "number" and Settings and Settings.GetCategory and Settings.GetCategory(id)
+                local catName = cat and cat.GetName and cat:GetName() or (type(id) == "string" and id) or nil
+                if catName then return catName, type(id) == "number" and id or nil end
+            end
+        end
+        return nil
+    end
+
+    local function AppOptions(registry, appName)
+        local ok, options = pcall(registry.GetOptionsTable, registry, appName, "dialog", "EasyFind-4.0")
+        return ok and type(options) == "table" and options or nil
+    end
+
+    -- Apps grouped by the name shown: the hosting Blizzard category's,
+    -- else the options table's own, else the app's key.
+    local function Apps()
+        local byName = {}
+        for suffix, libs in pairs(AceLibs()) do
+            local registry = libs.registry
+            if type(registry.IterateOptionsTables) == "function" then
+                for appName in registry:IterateOptionsTables() do
+                    local options = AppOptions(registry, appName)
+                    if options then
+                        local blizz = libs.dialog and libs.dialog.BlizOptions and libs.dialog.BlizOptions[appName]
+                        local display = HostCategory(blizz, appName, {})
+                            or Label(Member("name", options, options, {}, appName, options.handler)) or appName
+                        byName[display] = byName[display] or {}
+                        tinsert(byName[display], { appName = appName, suffix = suffix, options = options, blizz = blizz })
+                    end
+                end
+            end
+        end
+        return byName
+    end
+
+    local function Rows(display)
+        local rows = {}
+        for _, app in ipairs(Apps()[display] or {}) do
+            local found = {}
+            Walk(app.options, app.options, {}, {}, {}, app.options.handler, app.appName, found)
+            for _, f in ipairs(found) do
+                local catName, catID = HostCategory(app.blizz, app.appName, f.groupPath)
+                rows[#rows + 1] = {
+                    name = f.name, path = f.names,
+                    step = { settingsCategory = catName, settingCategoryID = catID, aceApp = app.appName,
+                             aceLib = app.suffix, aceGroup = f.groupPath, canvasLabel = f.name },
+                }
+            end
+        end
+        return rows
+    end
+
+    local function Refresh(display)
+        CollectAceFeeds()
+        if display then BlizzOptionsSearch:PullSettingsFeed(display) end
+    end
+    local function HookRegistry(registry)
+        if hooked[registry] or type(registry.RegisterOptionsTable) ~= "function" or not hooksecurefunc then return end
+        hooked[registry] = true
+        hooksecurefunc(registry, "RegisterOptionsTable", function()
+            SafeAfter(0, function()
+                for display, apps in pairs(Apps()) do
+                    for _, app in ipairs(apps) do
+                        if not aceFeeds[display] or aceFeeds[display].apps[app.appName] == nil then Refresh(display) return end
+                    end
+                end
+            end)
+        end)
+    end
+
+    -- Every app's rows under its name, as feeds; an addon's own feed of
+    -- the same name wins. Libraries created later are hooked as they come.
+    CollectAceFeeds = function()
+        ns.settingsFeeds = ns.settingsFeeds or {}
+        for _, libs in pairs(AceLibs()) do HookRegistry(libs.registry) end
+        if type(LibStub) == "table" and not hooked[LibStub] and hooksecurefunc then
+            hooked[LibStub] = true
+            hooksecurefunc(LibStub, "NewLibrary", function(_, major)
+                if type(major) == "string" and major:sub(1, #REGISTRY) == REGISTRY then SafeAfter(0, CollectAceFeeds) end
+            end)
+        end
+        for display, apps in pairs(Apps()) do
+            local feed = aceFeeds[display]
+            if not feed then
+                feed = { apps = {}, rows = function() return Rows(display) end }
+                aceFeeds[display] = feed
+            end
+            for _, app in ipairs(apps) do feed.apps[app.appName] = true end
+            if ns.settingsFeeds[display] == nil then ns.settingsFeeds[display] = feed.rows end
+        end
+    end
+    BlizzOptionsSearch.AceApps = Apps   -- dev probe
+end
+
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     if not ns.Database or not ns.Database.uiSearchData then return end
     local data = ns.Database.uiSearchData
@@ -3585,6 +3786,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     -- the settings-tree walk when the cache signature still matches. Live game
     -- settings always take the full walk.
     if not includeLiveGameSettings and RestoreOptionsFromCache(data) then
+        CollectAceFeeds()
         local changed = PushCanvasEntries(data)
         if PushFeedEntries(data) then changed = true end
         if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
@@ -3598,6 +3800,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     local gameEntries = includeLiveGameSettings and CollectGameSettings() or nil
 
     local changed = PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
+    CollectAceFeeds()
     if PushCanvasEntries(data) then changed = true end
     if PushFeedEntries(data) then changed = true end
     populated = true
@@ -3626,10 +3829,54 @@ function BlizzOptionsSearch:EnsureFastGameOptions()
     return changed
 end
 
+-- The control carrying a label, found by its text once a panel has drawn.
+local LABEL_WALK_MAX = 3000
+local function FindLabeled(root, text)
+    if not (root and text) then return nil end
+    local stack, n = { root }, 0
+    while #stack > 0 and n < LABEL_WALK_MAX do
+        local f = table.remove(stack)
+        n = n + 1
+        if f.GetRegions then
+            for _, r in ipairs({ f:GetRegions() }) do
+                if r.IsObjectType and r:IsObjectType("FontString") and r:IsVisible() then
+                    local t = r:GetText()
+                    if type(t) == "string" and (Utils.StripMarkup and Utils.StripMarkup(t) or t) == text then return f end
+                end
+            end
+        end
+        if f.GetChildren then
+            for _, kid in ipairs({ f:GetChildren() }) do stack[#stack + 1] = kid end
+        end
+    end
+    return nil
+end
+local function HighlightLabeledLater(root, text, delay)
+    SafeAfter(delay, function()
+        local target = FindLabeled(root, text)
+        if target and ns.RequestGuide and ns.RequestGuide() and ns.Highlight and ns.Highlight.HighlightFrame then
+            ns.Highlight:HighlightFrame(target, nil, function(t) return t and t:IsVisible() or false end)
+        end
+    end)
+end
+
 function BlizzOptionsSearch:HandleStep(step)
     if not step then return false end
     -- A setting of an addon's own window (API.RegisterSettingsIndex).
     if step.open then return (xpcall(step.open, Utils.ErrorHandler)) end
+    -- An AceConfig app: its group selected first; its own dialog when the
+    -- game's Settings panel does not host it.
+    local aceDialog = step.aceApp and AceDialogOf(step.aceLib)
+    if aceDialog and step.aceGroup and #step.aceGroup > 0 and aceDialog.SelectGroup then
+        pcall(aceDialog.SelectGroup, aceDialog, step.aceApp, unpack(step.aceGroup))
+    end
+    if step.aceApp and not step.settingsCategory then
+        if not (aceDialog and aceDialog.Open) then return false end
+        local ok = pcall(aceDialog.Open, aceDialog, step.aceApp)
+        local open = ok and aceDialog.OpenFrames and aceDialog.OpenFrames[step.aceApp]
+        if open and open.frame then HighlightLabeledLater(open.frame, step.canvasLabel, 0.3) end
+        return ok
+    end
     -- OpenSettingsPanel is protected in combat; silently decline unless
     -- the panel is already open (in-panel category navigation is fine).
     if InCombatLockdown() and not (SettingsPanel and SettingsPanel:IsShown()) then
@@ -3662,6 +3909,8 @@ function BlizzOptionsSearch:HandleStep(step)
                 ns.Highlight:HighlightFrame(target, nil, function(t) return t and t:IsVisible() or false end)
             end
         end)
+    elseif step.canvasLabel then
+        HighlightLabeledLater(SettingsPanel, step.canvasLabel, 0.5)
     end
 
     -- Settings.OpenToCategory ignores the second arg in many builds, and
