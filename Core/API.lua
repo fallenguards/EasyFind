@@ -626,6 +626,15 @@ function API.OpenSettings(id)
     return true
 end
 
+-- A frame that belongs with the game's chat (an opener beside it): hidden
+-- and shown along with the chat frames by the "Toggle Chat Frame" entry.
+function API.RegisterChatPiece(frame)
+    if type(frame) ~= "table" or not frame.Hide then Fail("RegisterChatPiece", "expects a frame") end
+    ns.chatPieces = ns.chatPieces or {}
+    ns.chatPieces[frame] = true
+    if EasyFind.db and EasyFind.db.chatFramesHidden then EasyFind:RestoreChatFramesHidden() end
+end
+
 function API.IsSettingsOpen(id)
     local frame = ns.optionsFrame
     return frame ~= nil and frame:IsShown() and ns.Options ~= nil and ns.Options.CurrentExtensionPage ~= nil

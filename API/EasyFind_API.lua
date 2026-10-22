@@ -169,6 +169,13 @@ function API.OpenSettings(id) end
 function API.IsSettingsOpen(id) end
 function API.CloseSettings() end
 
+-- ==== chat ====================================================================
+
+-- A frame of yours that belongs beside the game's chat (an opener, a
+-- button): hidden and shown with the chat frames by "Toggle Chat Frame".
+---@param frame Frame
+function API.RegisterChatPiece(frame) end
+
 -- ==== theme and look ==========================================================
 
 ---@param role EasyFindThemeRole

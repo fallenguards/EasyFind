@@ -322,6 +322,10 @@ end,
 | `IsSettingsOpen(id)` | |
 | `CloseSettings()` | |
 
+## Beside the chat
+
+A button or opener you place beside the game's chat goes with it when the user hides the chat through EasyFind's "Toggle Chat Frame" entry: `RegisterChatPiece(frame)` hides and shows it along with the chat frames, and hides it right away when the chat is already hidden.
+
 ## Looking like EasyFind
 
 | Function | |

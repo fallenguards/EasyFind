@@ -1631,6 +1631,8 @@ local function HideChatFrames()
     stash(_G["ChatFrameMenuButton"])
     stash(_G["ChatFrameChannelButton"])
     stash(_G["TextToSpeechButton"])
+    -- What other addons put beside the chat (API.RegisterChatPiece).
+    for frame in pairs(ns.chatPieces or {}) do stash(frame) end
 end
 
 -- Hidden last session: hidden again once the game has set its chat
