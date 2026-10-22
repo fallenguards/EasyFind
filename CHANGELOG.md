@@ -36,6 +36,8 @@ All notable changes to EasyFind will be documented in this file.
 - Search: Alt-click on a spell no longer opens the game's talents too
 - Map search: a double click no longer starts GPS directions; a row on another map opens that map before it pins
 - WoW Forever: item and coin calls go through the replacements the client has, no spec rows where there are no specializations, Titles and the Equipment Manager follow the new sidebar
+- Settings rows: the Toggle Sound and Toggle Minimap checkboxes follow a click, and Toggle Auto Self Cast flips self-cast instead of opening the settings
+- Alignment: with ClassicUI Forever's world map, EasyFind's side tabs sit flush against the map's edge
 
 ---
 

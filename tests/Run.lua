@@ -1,6 +1,20 @@
 -- Discovers and runs all tests/test_*.lua files.
 -- Invoke from the EasyFind root: `lua tests/Run.lua`
 
+-- A runaway test (a loop that never ends, a function calling itself) must
+-- not take the machine with it: past 2 GB of Lua memory or 240 s of CPU
+-- the run stops and says which file was running.
+local MEMORY_CAP_KB, CPU_CAP_S = 2 * 1024 * 1024, 240
+local runningFile = "(start)"
+debug.sethook(function()
+    local kb, cpu = collectgarbage("count"), os.clock()
+    if kb > MEMORY_CAP_KB or cpu > CPU_CAP_S then
+        io.stderr:write(string.format("tests/Run.lua: stopped in %s at %.0f MB, %.0f s of CPU (a runaway test?)\n",
+            runningFile, kb / 1024, cpu))
+        os.exit(3)
+    end
+end, "", 200000)
+
 local source = debug.getinfo(1, "S").source:sub(2)
 local TEST_DIR = source:gsub("[/\\]Run%.lua$", "")
 package.path = TEST_DIR .. "/?.lua;" .. package.path
@@ -42,6 +56,7 @@ local allFailures = {}
 
 for i = 1, #files do
     local file = files[i]
+    runningFile = file
     local chunk, err = loadfile(file)
     if not chunk then
         print("LOAD ERROR " .. file .. ": " .. tostring(err))
