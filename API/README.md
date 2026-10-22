@@ -274,7 +274,7 @@ What EasyFind's own extensions offer:
 
 | Extension | Action | |
 | --- | --- | --- |
-| `gps` | `navigate(dest, opts)` | Directions to `dest` = `{ name, mapID, x, y }`, map coordinates 0 to 1. `opts.popout` opens them in the GPS window. Returns true when a route is planned. |
+| `gps` | `navigate(dest, opts)` | Directions to `dest` = `{ name, mapID, x, y }`, map coordinates 0 to 1. `dest.step` is the last step's own sentence ("Travel to the quest objective") in place of "Travel to name". `opts.popout` opens them in the GPS window. Returns true when a route is planned. |
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |

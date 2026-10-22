@@ -737,7 +737,8 @@ local function ZoneGoal(g)
 end
 
 -- One step per path element; consecutive flight legs fold into one flight.
-local function Steps(g, path, goalName)
+-- goalStep: the last step's own sentence when the destination brings one.
+local function Steps(g, path, goalName, goalStep)
     local L = ns.L
     -- A seam (Khaz Algar's Coreway) joins continent ids with no loading screen:
     -- the travel to it, the crossing and the travel after fold into one step.
@@ -807,7 +808,8 @@ local function Steps(g, path, goalName)
                 tinsert(steps, { kind = "travel", text = (L["GPS_STEP_ARRIVE_IN_FMT"]):format(name or "?"),
                                  mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = from.p, sec = 0 })
             else
-                tinsert(steps, { kind = "travel", text = (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
+                tinsert(steps, { kind = "travel",
+                                 text = (node.kind == "goal" and goalStep) or (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
                                  wind = e.wind, near = e.near })
             end
@@ -1432,7 +1434,7 @@ function Route:Build(dest, opts)
     local path = Solve(g)
     if not path then return nil end
     local cost = PathSeconds(g, path)
-    local steps = Steps(g, path, dest.name)
+    local steps = Steps(g, path, dest.name, dest.step)
     -- opts.draw: "first" draws the walk set out on (and the last, into a
     -- zone goal), "all" every walk; else none, for a route to compare.
     if g.nav and opts.draw then DrawWalks(steps, start, opts.draw == "all", dest.zone) end

@@ -211,7 +211,8 @@ end
 local INSTANCE_CATEGORIES = { dungeon = true, raid = true, delve = true }
 
 local function Destination(data)
-    local dest = { name = data.name, icon = data.icon, category = data.category, displayID = data.displayID }
+    local dest = { name = data.name, icon = data.icon, category = data.category, displayID = data.displayID,
+                   step = type(data.step) == "string" and data.step or nil }
     local em, ex, ey
     if data.isDungeonEntrance and not (data.x and data.y) then em, ex, ey = EntranceOf(data) end
     if em then
@@ -428,7 +429,7 @@ function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom, dropLimit)
     return {
         { kind = "travel", name = dest.name, mapID = dest.mapID, x = dest.x, y = dest.y, sec = sec, noWay = noWay or nil,
           arrive = tci and { m = dest.mapID, x = dest.x, y = dest.y, ci = tci, wx = tx, wy = ty } or nil,
-          text = sformat(L[noWay and "GPS_STEP_NO_WAY_FMT" or "GPS_STEP_TRAVEL_FMT"], dest.name or "?") },
+          text = (not noWay and dest.step) or sformat(L[noWay and "GPS_STEP_NO_WAY_FMT" or "GPS_STEP_TRAVEL_FMT"], dest.name or "?") },
     }, sec
 end
 
