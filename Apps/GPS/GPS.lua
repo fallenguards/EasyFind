@@ -2310,9 +2310,11 @@ end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
     frame.hits = {}
+    -- The tracking face's art spills 6 px past its frame: more room after it.
+    local boxGap = frame.track and 16 or 12
     local box = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
     box:SetHeight(20)
-    box:SetPoint("LEFT", glyph, "RIGHT", 12, 0)
+    box:SetPoint("LEFT", glyph, "RIGHT", boxGap, 0)
     box:SetPoint("RIGHT", frame, "RIGHT", -padRight, 0)
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
@@ -2455,7 +2457,7 @@ end
 local POI_NORMAL, POI_NORMAL_ON = "UI-QuestPoi-QuestNumber", "UI-QuestPoi-QuestNumber-SuperTracked"
 local POI_PUSHED, POI_PUSHED_ON = "UI-QuestPoi-QuestNumber-Pressed", "UI-QuestPoi-QuestNumber-Pressed-SuperTracked"
 local POI_HIGHLIGHT, POI_GLOW = "UI-QuestPoi-InnerGlow", "UI-QuestPoi-OuterGlow"
-local PIN_ON_FACE_OFF = { 1, 0.82, 0 }        -- gold pin on the dark face
+local PIN_ON_FACE_OFF = ns.GOLD_COLOR         -- the window glyph's gold on the dark face
 local PIN_ON_FACE_ON  = { 0.25, 0.13, 0.03 }  -- dark pin on the gold face
 
 RouteTracked = function()
@@ -2550,7 +2552,9 @@ local function BuildSurface(frame, opts)
         head = CreateFrame("Frame", nil, frame)
         head:SetFrameLevel(frame:GetFrameLevel() + 10)
         head:SetSize(20, 20)
-        head:SetPoint("TOPLEFT", frame, "TOPLEFT", padX - 2, -(padY - 2))
+        -- The face's art spills past its 20 px: it sits 4 px further out,
+        -- clear of the box beside it (SetHeaderPad places it the same way).
+        head:SetPoint("TOPLEFT", frame, "TOPLEFT", padX - 4, -(padY - 2))
         local track = BuildTrackButton(frame)
         track:SetFrameLevel(frame:GetFrameLevel() + 10)
         track:SetPoint("TOPLEFT", head, "TOPLEFT", 0, 0)
@@ -2693,7 +2697,7 @@ local function BuildSurface(frame, opts)
                 hits:SetPoint("TOPLEFT", self.list, "TOPLEFT", 0, 0)
                 hits:SetPoint("RIGHT", self.list, "RIGHT", 0, 0)
             else
-                box:SetPoint("LEFT", glyph, "RIGHT", 12, 0)
+                box:SetPoint("LEFT", glyph, "RIGHT", self.track and 16 or 12, 0)
                 box:SetPoint("RIGHT", self, "RIGHT", -padRight, 0)
                 -- Under the trip's fields where they show, as the steps start.
                 if self.trip then
@@ -4709,7 +4713,8 @@ local function BuildPopout()
     f.headStrip = 8
     function f:SetHeaderPad(pad, above)
         self.glyph:ClearAllPoints()
-        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", 8, -(pad + (above and self.headStrip or 0)))
+        -- The tracking face's art spills past its frame: it sits 4 px further out.
+        self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", self.track and 4 or 8, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
         if above then
             close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -6)
