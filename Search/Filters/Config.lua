@@ -20,16 +20,15 @@ local ACHIEVEMENT_FILTER_LABELS = {
 -- switch under AddOn Options; listed when the menu is built.
 local function AddonSubFilters()
     local names, seen = {}, {}
-    local S = Settings
-    local set = S and S.CategorySet and S.CategorySet.AddOns
-    if S and S.GetCategoryList and set then
-        local ok, list = pcall(S.GetCategoryList, set)
-        for _, cat in ipairs(ok and type(list) == "table" and list or {}) do
-            local name = cat.GetName and cat:GetName()
-            if name and name ~= "" and not seen[name] then
-                seen[name] = true
-                names[#names + 1] = name
-            end
+    local addonSet = Settings and Settings.CategorySet and Settings.CategorySet.AddOns
+    local ok, list = pcall(function() return SettingsPanel and SettingsPanel:GetAllCategories() end)
+    for _, cat in ipairs(ok and type(list) == "table" and list or {}) do
+        local set = cat.categorySet
+        if set == nil and cat.GetCategorySet then set = cat:GetCategorySet() end
+        local name = addonSet ~= nil and set == addonSet and cat.GetName and cat:GetName()
+        if name and name ~= "" and not seen[name] then
+            seen[name] = true
+            names[#names + 1] = name
         end
     end
     table.sort(names)

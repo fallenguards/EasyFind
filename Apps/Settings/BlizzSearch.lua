@@ -3210,6 +3210,17 @@ local function AddonSetFingerprint()
     return enabledCount .. ":" .. hash
 end
 
+-- How many addon categories the panel lists right now: a cache saved
+-- before addons registered theirs must not outlive their arrival.
+local function AddonCategoryCount()
+    local list = GetSettingsCategoryList()
+    local n = 0
+    for _, cat in ipairs(type(list) == "table" and list or {}) do
+        if IsAddonCategory(cat) then n = n + 1 end
+    end
+    return n
+end
+
 local function BuildOptionsCacheSignature()
     local _, build = GetBuildInfo()
     return tconcat({
@@ -3217,6 +3228,7 @@ local function BuildOptionsCacheSignature()
         tostring(build or "?"),
         (GetLocale and GetLocale()) or "?",
         AddonSetFingerprint(),
+        tostring(AddonCategoryCount()),
     }, "\30")
 end
 BlizzOptionsSearch.BuildOptionsCacheSignature = BuildOptionsCacheSignature
