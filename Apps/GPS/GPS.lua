@@ -4367,6 +4367,25 @@ function GPS.PlanningMenu()
     end }
 end
 
+-- A theme with frame art of its own (Classic, Forever): the pop-out's
+-- border is that art or the quest log's paper, by its own choice.
+function GPS.ThemeHasChrome()
+    local p = ns.ACTIVE_UI_PALETTE
+    return p ~= nil and (p.chrome == "classic" or p.chrome == "forever")
+end
+
+-- The pop-out's rim: "iron" (the theme's frame art, only where it has
+-- one), "quest" (the quest log's paper) or "line" (the search bar's). The
+-- theme's own art by default; an older "border off" is the line.
+function GPS.PopoutRim()
+    local db = DB()
+    local rim = db and db.gpsPopoutRim
+    if rim == nil and db and db.gpsPopoutBorder == false then rim = "line" end
+    if rim ~= "quest" and rim ~= "line" then rim = "iron" end
+    if rim == "iron" and not GPS.ThemeHasChrome() then rim = "quest" end
+    return rim
+end
+
 -- The style flyout for the cog popup and the section's menu; border: the
 -- window's border row, under the looks.
 function GPS.StyleMenu(border)
@@ -4400,7 +4419,18 @@ function GPS.StyleMenu(border)
         local rows = PickRows(looks, PopoutStyle(), function(style) pick(style)() end)
         if border then
             rows[#rows + 1] = { isSeparator = true }
-            rows[#rows + 1] = CheckFlyoutRow(border)
+            local rims = { { "quest", "GPS_BORDER_QUEST" }, { "line", "GPS_BORDER_LINE" } }
+            if GPS.ThemeHasChrome() then table.insert(rims, 1, { "iron", "GPS_BORDER_IRON" }) end
+            rows[#rows + 1] = { text = border.label, submenu = PickRows(rims, GPS.PopoutRim(), function(rim)
+                local d = DB()
+                if not d then return end
+                d.gpsPopoutRim, d.gpsPopoutBorder = rim, nil
+                HideMenus()
+                if popoutFrame then
+                    popoutFrame:ApplyBorderShape()
+                    popoutFrame:Render()
+                end
+            end) }
         end
         return rows
     end }
@@ -4574,17 +4604,7 @@ function GPS.MenuRows(f)
             end }
     end
     defs[#defs + 1] = GPS.PlanningMenu()
-    defs[#defs + 1] = GPS.StyleMenu(f.isPopout and {
-        label = L["GPS_SIZE_BORDER"],
-        get = function() local db = DB() return db and db.gpsPopoutBorder ~= false end,
-        set = function(v)
-            local db = DB()
-            if db then db.gpsPopoutBorder = Utils.OffOrNil(v) end
-            if popoutFrame then
-                popoutFrame:ApplyBorderShape(v)
-                popoutFrame:Render()
-            end
-        end } or nil)
+    defs[#defs + 1] = GPS.StyleMenu(f.isPopout and { label = L["GPS_SIZE_BORDER"] } or nil)
     if not f.isPopout then return defs end
     local width, height = PopoutSize()
     defs[#defs + 1] = GPS.PicksMenu(L["GPS_SIZE_WIDTH"], SIZE_WIDTHS, width,
@@ -4671,13 +4691,25 @@ local function BuildPopout()
     f.border = border
     -- With the square quest-log border the fill is square too (1-pixel corner):
     -- rounded corners curve away from its straight edges.
-    function f:ApplyBorderShape(on)
-        if self.border then self.border:SetShown(on) end
-        if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(self, on) end
-        ns.SetRoundedRectBarHeight(self, on and 2 or 14)
+    -- on: the rim at all, a plain theme's switch. A theme with frame art of
+    -- its own is the rim there, unless the quest rim is picked instead.
+    -- The rim by GPS.PopoutRim: the theme's own frame art (iron, whatever
+    -- the frame art switch says elsewhere), the quest log's paper, or the
+    -- line the search bar wears; square corners under art, rounded with
+    -- the line alone.
+    function f:ApplyBorderShape()
+        local rim = GPS.PopoutRim()
+        self._efSkinOff = (rim ~= "iron") or nil
+        self._efSkinForced = (rim == "iron") or nil
+        local dressed = ns.ApplySkin ~= nil and ns.ApplySkin(self)
+        local paper = rim == "quest"
+        if self.border then self.border:SetShown(paper) end
+        if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(self, true) end
+        ns.SetRoundedRectBarHeight(self, (paper or dressed) and 2 or 14)
     end
-    local db0 = DB()
-    f:ApplyBorderShape(not (db0 and db0.gpsPopoutBorder == false))
+    f:ApplyBorderShape()
+    -- The theme's frame art comes and goes with the theme.
+    ns.RegisterThemeCallback(function() f:ApplyBorderShape() end)
 
     -- The calculator's stroke close, not a stock round button. The header's
     -- buttons are small, a click a little round each.

@@ -2775,10 +2775,18 @@ do
     function ns.ApplySkin(frame)
         if not (frame and frame.combinedBorder) then return false end
         local want
-        if frame._efForeverSurface and ns.IsForeverChrome() and EnsureForever(frame) then
-            want = "forever"
-        elseif frame._efClassicSurface and ns.IsClassicChrome() then
-            want = "classic"
+        -- _efSkinOff: the frame wears another rim for now (the GPS pop-out's
+        -- quest border). _efSkinForced: the theme's art whatever the frame
+        -- art switch says (the pop-out's own iron border choice).
+        if not frame._efSkinOff then
+            local p = ns.ACTIVE_UI_PALETTE
+            local chrome = p and p.chrome
+            local art = ns.FrameArtOn() or frame._efSkinForced
+            if frame._efForeverSurface and chrome == "forever" and art and EnsureForever(frame) then
+                want = "forever"
+            elseif frame._efClassicSurface and chrome == "classic" and art then
+                want = "classic"
+            end
         end
         local was = frame._efSkin
         if was == "forever" and want ~= "forever" then

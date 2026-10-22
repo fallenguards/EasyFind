@@ -210,10 +210,13 @@ function tests.planningAndBorderAreFlyoutSwitches()
             return { kind = "check", label = label, get = function() return on[key] end, set = function(v) on[key] = v end }
         end
     end
+    local db = {}
     local GPS = { AutoLearnRow = check("learn", "GPS_AUTO_LEARN"), DetoursRow = check("detours", "GPS_SHOW_DETOURS"),
         OtherWaysRow = check("ways", "GPS_SHOW_OTHER_WAYS") }
+    local palette = { chrome = nil }
     local env = setmetatable({ GPS = GPS, L = setmetatable({}, { __index = function(_, k) return k end }),
-        PopoutStyle = function() return "easyfind" end }, { __index = _G })
+        PopoutStyle = function() return "easyfind" end, DB = function() return db end, HideMenus = function() end,
+        ns = { ACTIVE_UI_PALETTE = palette } }, { __index = _G })
     assert(load(src:sub(s, e), "=GPS.lua flyouts", "t", env))()
     local planning = GPS.PlanningMenu()
     H.assertEq(planning.kind, "submenu")
@@ -230,6 +233,31 @@ function tests.planningAndBorderAreFlyoutSwitches()
     H.assertEq(style[#style].text, "GPS_SIZE_BORDER", "the border under the looks")
     H.assertTrue(style[#style - 1].isSeparator)
     H.assertEq(#GPS.StyleMenu(nil).rows(), 3, "no border row off the window")
+    -- The row opens a choice of rims: the quest log's paper or the line;
+    -- a theme with frame art of its own offers that first and by default.
+    local rims = style[#style].submenu
+    H.assertEq(#rims, 2)
+    H.assertEq(rims[1].text, "GPS_BORDER_QUEST")
+    H.assertTrue(rims[1].picked and not rims[2].picked, "the paper by default on a plain theme")
+    db.gpsPopoutBorder = false
+    H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[2].picked, "an older border-off reads as the line")
+    db.gpsPopoutBorder = nil
+    palette.chrome = "classic"
+    style = GPS.StyleMenu(border).rows()
+    rims = style[#style].submenu
+    H.assertEq(#rims, 3)
+    H.assertEq(rims[1].text, "GPS_BORDER_IRON")
+    H.assertTrue(rims[1].picked and not rims[2].picked, "the theme's own rim until one is picked")
+    rims[2].onClick()
+    H.assertEq(db.gpsPopoutRim, "quest")
+    H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[2].picked, "listed anew, the quest rim is picked")
+    rims = GPS.StyleMenu(border).rows()[#style].submenu
+    rims[3].onClick()
+    H.assertEq(db.gpsPopoutRim, "line")
+    palette.chrome = nil
+    H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[2].picked, "the line holds on a plain theme")
+    db.gpsPopoutRim = "iron"
+    H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[1].picked, "iron on a plain theme reads as the paper")
 end
 
 -- A step's right-click: restarting the route there comes first.
