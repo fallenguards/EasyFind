@@ -324,7 +324,7 @@ end,
 
 ### Your settings in the search bar
 
-Settings that live in the game's Settings panel are found from the search bar as they are, under AddOn Options. Settings in a window of your own are found too once `RegisterSettingsIndex(addon, rows)` hands EasyFind their names:
+Settings that live in the game's Settings panel or in an AceConfig options table are found from the search bar as they are, under AddOn Options. Settings in a window of your own are found too once `RegisterSettingsIndex(addon, rows)` hands EasyFind their names:
 
 ```lua
 EasyFind.API.RegisterSettingsIndex("Hello", function()
