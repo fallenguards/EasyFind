@@ -1474,7 +1474,7 @@ local function BuildPageTheme(parent)
 
     -- The Classic and Forever themes' own frame art, or the line border the
     -- rest wear: shown only while one of those two is picked.
-    local artLine = CreateFrame("Button", nil, p)
+    local artLine = CreateFrame("Button", nil, p)   -- starts shown: the page's refresh sets it before the page shows
     artLine:SetSize(220, 18)
     artLine:SetPoint("TOP", borderLine, "BOTTOM", 0, -6)
     local artBox = artLine:CreateTexture(nil, "ARTWORK")

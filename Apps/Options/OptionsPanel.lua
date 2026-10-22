@@ -5451,7 +5451,7 @@ function Options:Initialize()
         if optionsFrame:IsShown() then optionsFrame:RepaintTheme() end
     end
 
-    local sidebar = CreateFrame("Frame", nil, optionsFrame)
+    local sidebar = CreateFrame("Frame", nil, optionsFrame)   -- starts shown: up until a page hides it
     sidebar:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", 10, -10)
     sidebar:SetPoint("BOTTOMLEFT", optionsFrame, "BOTTOMLEFT", 10, SIDEBAR_BOTTOM_INSET)
     sidebar:SetWidth(SIDEBAR_W)
