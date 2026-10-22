@@ -2288,6 +2288,20 @@ ns.TEXT_PRIMARY = {1.00, 0.97, 0.86}
 ns.TEXT_BODY = {0.78, 0.78, 0.80}
 ns.TEXT_DIM = {0.55, 0.55, 0.58}
 ns.TEXT_ASIDE = {0.56, 0.74, 0.82}   -- an aside among steps (advice), apart from the done gray
+-- One look for a search box's hint: the lens and the placeholder in the
+-- same gray, no shadow to smear the text on a dark inset.
+ns.SEARCH_HINT_COLOR = { 0.66, 0.66, 0.70 }
+function Utils.StyleSearchHint(placeholder, icon)
+    local c = ns.SEARCH_HINT_COLOR
+    if placeholder then
+        placeholder:SetTextColor(c[1], c[2], c[3], 1)
+        placeholder:SetShadowColor(0, 0, 0, 0)
+    end
+    if icon then
+        icon:SetVertexColor(c[1], c[2], c[3], 1)
+        icon:SetAlpha(1)
+    end
+end
 -- "Copied" confirmation green, shared by the calculator card and the
 -- copy-row hints.
 ns.COPIED_COLOR = {0.48, 1.0, 0.62}
