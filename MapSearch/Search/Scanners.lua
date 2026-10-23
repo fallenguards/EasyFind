@@ -195,7 +195,9 @@ function MapSearch:GetAlwaysFindableLocations()
 end
 
 -- Every subzone the GPS data carries (each at the middle of its map
--- patch), named by the client: places to find from anywhere.
+-- patch), named by the client: places to find from anywhere. An area named
+-- like a map beside or under its zone (Stormwind City in Elwynn Forest) is
+-- that map, found as a zone already.
 local subzoneCache
 local SUBZONE_KEYWORDS = { "subzone", "area" }
 function MapSearch:GetSubzoneLocations()
@@ -203,13 +205,26 @@ function MapSearch:GetSubzoneLocations()
     local results = {}
     local areas = ns.GPSData and ns.GPSData.areas
     local GetAreaInfo = C_Map and C_Map.GetAreaInfo
+    local mapNames = {}
+    local function NamesUnder(parentMapID)
+        local names = mapNames[parentMapID]
+        if names then return names end
+        names = {}
+        for _, child in ipairs(GetMapChildrenInfo(parentMapID) or {}) do
+            if child.name then names[child.name] = true end
+        end
+        mapNames[parentMapID] = names
+        return names
+    end
     if areas and GetAreaInfo then
         for mapID, list in pairs(areas) do
             local info = GetMapInfo(mapID)
             local zoneName = info and info.name
+            local parentMapID = info and info.parentMapID
             for i = 1, #list, 3 do
                 local name = GetAreaInfo(list[i])
-                if name and name ~= "" and name ~= zoneName then
+                if name and name ~= "" and name ~= zoneName
+                   and not NamesUnder(mapID)[name] and not (parentMapID and NamesUnder(parentMapID)[name]) then
                     results[#results + 1] = PreparePOI({
                         name = name, category = "subzone", isStatic = true,
                         mapID = mapID, coordMapID = mapID, zoneName = zoneName,

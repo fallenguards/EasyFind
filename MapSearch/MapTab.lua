@@ -2590,6 +2590,7 @@ local function CreateBackTab(qmf)
     local bg = tab:CreateTexture(nil, "BACKGROUND")
     bg:SetAtlas("QuestLog-tab-side", true)
     bg:SetPoint("CENTER", tab, "CENTER", 0, 0)
+    tab.art = bg
 
     -- The icon: whatever Blizzard's Quests tab draws besides the tab
     -- itself, else the quest log's own book.
@@ -3070,6 +3071,14 @@ end
 -- Anchors our tab below the lowest shown sibling tab on QuestMapFrame.
 -- Discovers tabs by the `displayMode` field so it works across Blizzard
 -- and third-party tab additions.
+-- The tab's left edge to its art's flat side: the atlas is drawn at its own
+-- size in the middle of the tab, its art 3 of its 51 columns in.
+local function TabArtInset(tab)
+    local w = tab.art and tab.art:GetWidth()
+    if not (w and w > 0) then return 3 end
+    return (tab:GetWidth() - w) / 2 + w * 3 / 51
+end
+
 function PlaceTab()
     if not tabFrame then return end
     local qmf = _G["QuestMapFrame"]
@@ -3105,7 +3114,13 @@ function PlaceTab()
         local openers = ns.SearchOpeners
         local replaced = openers and openers.Replacement and openers.Replacement("worldMap")
         local own = replaced and replaced.GetFrame("worldMap")
-        if own and own:IsVisible() then wmf, inset = own, -3 end
+        if own and own:IsVisible() then
+            -- Its Era art is 768 rows tall; the last column of the rim is
+            -- clear, the edge line in the two before it: the art's flat
+            -- side over the outer one.
+            local row = own:GetHeight() / 768 * own:GetEffectiveScale() / backTab:GetEffectiveScale()
+            wmf, inset = own, -(TabArtInset(backTab) + 2 * row)
+        end
         local qTop, wTop = qmf:GetTop(), wmf and wmf:GetTop()
         if qTop and wTop then
             backTab:SetPoint("TOPLEFT", wmf, "TOPRIGHT", inset, qTop - wTop - 28)
