@@ -740,8 +740,10 @@ local function BuildSettings(page, kit)
             Clipboard:PruneNow()
         end, L["CLIP_OPT_KEEP_DAYS_TT"], 30)
     keepDays:SetPoint("TOPLEFT", keepCount, "BOTTOMLEFT", 0, -4)
+    local bind = kit.Keybind(page, L["OPT_KEYBIND_CLIPBOARD"], "EASYFIND_CLIPBOARD", L["OPT_KB_CLIPBOARD_TT_DESC"])
+    bind:SetPoint("TOPLEFT", keepDays, "BOTTOMLEFT", 0, -4)
     local clear = EasyFind.API.CreateButton(page, L["CTX_CLIP_CLEAR"], 140, 22)
-    clear:SetPoint("TOPLEFT", keepDays, "BOTTOMLEFT", 8, -12)
+    clear:SetPoint("TOPLEFT", bind, "BOTTOMLEFT", 8, -12)
     clear:SetScript("OnClick", function() Clipboard:ClearWithConfirm() end)
 end
 

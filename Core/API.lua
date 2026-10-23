@@ -239,6 +239,39 @@ local function Kit(ctx)
     function kit.Stepper(parent, label, min, max, step, get, set, tooltip, width)
         return ctx.CreateStepperRow(parent, label, min, max, Read(get), function(v) Run(set, v) end, tooltip, width, step)
     end
+    -- One of the addon's key bindings (its Bindings.xml action), set on the
+    -- extension's own page as on the general one: a click captures a key,
+    -- a right-click unbinds.
+    function kit.Keybind(parent, label, action, tooltip)
+        local row = CreateFrame("Frame", nil, parent)
+        row:SetSize(ctx.SELECTOR_ROW_W, 24)
+        local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        text:SetPoint("LEFT", row, "LEFT", 8, 0)
+        text:SetPoint("RIGHT", row, "RIGHT", -ctx.SELECTOR_BTN_W - 18, 0)
+        text:SetJustifyH("LEFT")
+        text:SetText(label .. ":")
+        local btn = ns.CreateModernButton(row)
+        btn:SetNormalFontObject("GameFontHighlightSmall")
+        btn:SetHighlightFontObject("GameFontHighlightSmall")
+        ns.StyleBgFillButton(btn)
+        btn:SetSize(ctx.SELECTOR_BTN_W, 20)
+        btn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        btn:SetText(ctx.GetCurrentKeybindText(action))
+        btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        btn:SetScript("OnClick", function(self, button)
+            -- The release of a click that closed a flyout is no click here.
+            if ns._efFlyoutClosedAt and GetTime() - ns._efFlyoutClosedAt < 0.30 then return end
+            if button == "RightButton" then
+                EasyFind:SetAccountKeybind(action, nil)
+                self:SetText(_G["NOT_BOUND"] or "Not Bound")
+            else
+                ctx.StartCapture(self, action)
+            end
+        end)
+        if tooltip then ctx.MakeKeybindTooltip(btn, label, tooltip) end
+        row.button = btn
+        return row
+    end
     return kit
 end
 
