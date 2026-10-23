@@ -1940,24 +1940,34 @@ end
 -- Every run returns true only when it actually performed the action; a
 -- nil'd global (API renamed in a patch) makes PerformBinding return
 -- false and the click falls through to the open-settings behavior.
--- Bodies mirror the client's Bindings_Standard.xml handlers verbatim,
--- so a merged row does exactly what pressing the bound key would.
+-- Bodies do what the client's Bindings_Standard.xml handlers do, so a
+-- merged row does what pressing the bound key would; each get reads what
+-- its run flips.
 local function BoolCVarGetter(cvar)
     return function() return GetCVar and GetCVar(cvar) == "1" end
 end
 
-local function SettingToggler(variable)
+-- Through the client's setting where one stands for the CVar (its panel
+-- follows), else the CVar itself: autoSelfCast has no setting, its panel
+-- writes the CVar (Settings.SetValue raises on an unknown variable).
+local function CVarToggler(cvar)
     return function()
-        if Settings and Settings.GetValue and Settings.SetValue then
-            Settings.SetValue(variable, not Settings.GetValue(variable))
-            return true
+        local setting = Settings and Settings.GetSetting and Settings.GetSetting(cvar)
+        if setting then
+            setting:SetValue(not setting:GetValue())
+        elseif SetCVar and GetCVar then
+            SetCVar(cvar, GetCVar(cvar) == "1" and "0" or "1")
+        else
+            return false
         end
+        return true
     end
 end
 
 local TOGGLE_BINDING_STATE = {
     TOGGLEMINIMAP = {
-        get = function() return MinimapCluster and MinimapCluster:IsShown() end,
+        -- ToggleMinimap hides the map itself; its cluster stays shown.
+        get = function() return Minimap and Minimap:IsShown() end,
         run = function()
             if ToggleMinimap then
                 ToggleMinimap()
@@ -1975,7 +1985,9 @@ local TOGGLE_BINDING_STATE = {
         end,
     },
     TOGGLESOUND = {
-        get = BoolCVarGetter("Sound_EnableAllSound"),
+        -- Sound_ToggleSound flips the effects (with ambience and dialog),
+        -- never the master switch.
+        get = BoolCVarGetter("Sound_EnableSFX"),
         run = function()
             if Sound_ToggleSound then
                 Sound_ToggleSound()
@@ -1985,11 +1997,13 @@ local TOGGLE_BINDING_STATE = {
     },
     TOGGLEACTIONBARLOCK = {
         get = BoolCVarGetter("lockActionBars"),
-        run = SettingToggler("lockActionBars"),
+        run = CVarToggler("lockActionBars"),
     },
+    -- The client's own binding writes lockActionBars here; this flips
+    -- self-cast, as the binding's name says.
     TOGGLEAUTOSELFCAST = {
         get = BoolCVarGetter("autoSelfCast"),
-        run = SettingToggler("autoSelfCast"),
+        run = CVarToggler("autoSelfCast"),
     },
     TOGGLE_VOICE_SELF_MUTE = {
         get = function() return C_VoiceChat and C_VoiceChat.IsMuted and C_VoiceChat.IsMuted() end,

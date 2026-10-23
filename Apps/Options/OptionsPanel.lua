@@ -415,6 +415,17 @@ end
 -- two can never overlap on screen.
 local optionsFlyouts = {}
 
+-- A dropdown's ring and fill: the theme's border color round the card
+-- fill, opaque (a fill left unnamed is matched to a card by color and takes
+-- the card's see-through alpha on the next retint).
+local function PaintFlyoutWell(flyout)
+    local theme = Look().theme
+    local ring = theme and theme.resultsBackdropBorderColor or { 0.42, 0.42, 0.42 }
+    flyout._efNoAutoRetint = true
+    ns.SetRoundedRectFill(flyout, ring[1], ring[2], ring[3], 1, true)
+    PaintControlFill(flyout.ringInset, SECTION_TABLE_FILL, 1)
+end
+
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
     local flyout = CreateFrame("Frame", globalPrefix .. "Flyout", btnFrame, "BackdropTemplate")
     optionsFlyouts[#optionsFlyouts + 1] = flyout
@@ -423,10 +434,9 @@ local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
     flyout:SetFrameStrata("FULLSCREEN_DIALOG")
     flyout:SetFrameLevel((optionsFrame and optionsFrame:GetFrameLevel() or OPTIONS_FRAME_LEVEL) + 20)
     flyout:SetBackdrop(nil)
-    ns.CreateRoundedRectBorder(flyout)
-    ns.SetRoundedRectBarHeight(flyout, 10)
-    HideRoundedFrameBorder(flyout)
-    PaintRoundedFill(flyout, 0.08, 0.08, 0.09, 1)
+    -- Drawn as a filled shape: the art's ring breaks on corners this small.
+    ns.CreateRingedWell(flyout, 5)
+    PaintFlyoutWell(flyout)
     flyout:Hide()
 
     btnFrame:SetScript("OnClick", function()
@@ -442,6 +452,16 @@ local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
 
     flyout:SetScript("OnShow", function(self)
         self:SetFrameLevel((optionsFrame and optionsFrame:GetFrameLevel() or OPTIONS_FRAME_LEVEL) + 20)
+        -- The fill over the ring, the rows over the fill: a raised parent
+        -- leaves its children tied a level above it.
+        local level = self:GetFrameLevel()
+        self.ringInset:SetFrameLevel(level + 1)
+        for _, row in ipairs({ self:GetChildren() }) do
+            if row ~= self.ringInset then
+                row:SetFrameLevel(level + 2)
+                for _, part in ipairs({ row:GetChildren() }) do part:SetFrameLevel(level + 3) end
+            end
+        end
         self:SetScript("OnUpdate", function(self)
             if not self:IsMouseOver() and not btnFrame:IsMouseOver() then
                 if IsMouseButtonDown("LeftButton") or IsMouseButtonDown("RightButton") then
@@ -5554,6 +5574,8 @@ function Options:Initialize()
         if self.UpdateHomeVersion then pcall(self.UpdateHomeVersion) end
         if self.RestyleMapSep then pcall(self.RestyleMapSep) end
         if self.RestyleClicksSep then pcall(self.RestyleClicksSep) end
+        if self.RestyleSettingsSearch then pcall(self.RestyleSettingsSearch) end
+        if self.RepaintFlyouts then pcall(self.RepaintFlyouts) end
         if self.RefreshBorderRow then pcall(self.RefreshBorderRow) end
         if self.themeBtnText then
             self.themeBtnText:SetText(EasyFind.db.uiTheme
@@ -6070,17 +6092,27 @@ function Options:Initialize()
         shell:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 8, -6)
         shell:SetPoint("RIGHT", sidebar, "RIGHT", -8, 0)
         shell:SetHeight(22)
-        ns.CreateRoundedRectBorder(shell)
-        ns.SetRoundedRectBarHeight(shell, 10)
-        HideRoundedFrameBorder(shell)
-        -- The link-box fill (Home tab), not the button fill: the button
-        -- fill is the selected tab's color, so the field read as a tab.
-        PaintControlFill(shell, SECTION_TABLE_FILL, SECTION_TABLE_FILL[4])
-        local icon = shell:CreateTexture(nil, "OVERLAY")
+        -- An input's well: the theme's line as a ring round the dark inset,
+        -- so the field stands off the sidebar it sits on.
+        ns.CreateRingedWell(shell, 6)
+        local function RestyleSettingsSearch()
+            local look = ns.ThemeSetOf(shell)
+            local palette = look.palette
+            local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+            local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+            ns.PaintRingedWell(shell, ring, look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+        end
+        RestyleSettingsSearch()
+        optionsFrame.RestyleSettingsSearch = RestyleSettingsSearch
+        optionsFrame.RepaintFlyouts = function()
+            for i = 1, #optionsFlyouts do PaintFlyoutWell(optionsFlyouts[i]) end
+        end
+        local icon = shell.ringInset:CreateTexture(nil, "OVERLAY")
         icon:SetSize(13, 13)
         icon:SetPoint("LEFT", shell, "LEFT", 7, 0)
         icon:SetAtlas("common-search-magnifyingglass")
         local box = CreateFrame("EditBox", nil, shell)
+        box:SetFrameLevel(shell.ringInset:GetFrameLevel() + 2)
         box:SetPoint("LEFT", icon, "RIGHT", 6, 0)
         box:SetPoint("RIGHT", shell, "RIGHT", -8, 0)
         box:SetHeight(18)
