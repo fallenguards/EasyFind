@@ -47,11 +47,14 @@ local function MapAliasKey(data)
         mfloor(x * 10000 + 0.5), mfloor(y * 10000 + 0.5))
 end
 
--- Inverse of MapAliasKey: rebuild a navigable map row straight from its key.
--- Map results aren't in uiSearchData (they're generated live from the map APIs),
--- so a saved reference resolves by reconstructing from the key it stored, no
--- snapshot needed. Covers zones and POIs precisely; the key can't tell a dungeon
--- entrance's own map from its parent zone, so entrances degrade to a map jump.
+-- The icon a live map row of this category wears (zones: the map).
+local function MapRowIcon(category)
+    if category == "zone" then return ns.ZONE_ICON end
+    return ns.MapSearch and ns.MapSearch.GetCategoryIcon and ns.MapSearch.GetCategoryIcon(category) or nil
+end
+
+-- A map row rebuilt from its key (map rows never live in uiSearchData).
+-- A dungeon entrance's key names only its zone: it degrades to a map jump.
 local function ReconstructMapData(key)
     if type(key) ~= "string" then return nil end
     local body = key:match("^map:(.+)$")
@@ -62,16 +65,11 @@ local function ReconstructMapData(key)
     if not name then return nil end
     mapID = tonumber(mapID)
     local isZone = category == "zone"
-    -- The key stores the NORMALIZED (lowercased) name; showing it raw put
-    -- "eastern kingdoms" rows in the results whenever a saved reference
-    -- resolved by reconstruction (live map caches now trim on idle, so
-    -- that path actually runs). Recover the display name from the
-    -- authoritative source: C_Map for zones, the static POI table for
-    -- coordinate entries; the key's name stays the fallback.
-    local properName
+    -- The key's name is lowercased: the display name from C_Map or the POI table.
+    local properName, mapInfo
     if isZone and mapID then
-        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
-        if info and info.name and info.name ~= "" then properName = info.name end
+        mapInfo = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+        if mapInfo and mapInfo.name and mapInfo.name ~= "" then properName = mapInfo.name end
     elseif mapID and ns.STATIC_LOCATIONS then
         local locs = ns.STATIC_LOCATIONS[mapID]
         if locs then
@@ -93,16 +91,37 @@ local function ReconstructMapData(key)
         name = (creature and creature.name) or properName or name,
         nameLower = name,
         category = category,
+        icon = MapRowIcon(category),
         mapSearchResult = true,
         mapID = mapID,
         x = tonumber(xi) / 10000,
         y = tonumber(yi) / 10000,
         isZone = isZone or nil,
         zoneMapID = isZone and mapID or nil,
+        zoneMapType = mapInfo and mapInfo.mapType or nil,
+        zoneParentMapID = mapInfo and mapInfo.parentMapID or nil,
         zoneName = zoneInfo and zoneInfo.name or nil,
         npcID = creature and creature.npcID or nil,
         displayID = creature and creature.displayID or nil,
     }
+end
+
+-- A saved map row copied from a rebuilt one (lowercase name, no kind or
+-- icon) takes them from the client's map, once.
+local function FillMapRow(entry)
+    if not (entry and entry.mapSearchResult) then return entry end
+    if not entry.icon or entry.category == "zone" then
+        entry.icon = MapRowIcon(entry.category) or entry.icon
+    end
+    if entry.isZone and entry.zoneMapID and not entry.zoneMapType then
+        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(entry.zoneMapID)
+        if info then
+            if entry.name == entry.nameLower and info.name and info.name ~= "" then entry.name = info.name end
+            entry.zoneMapType = info.mapType
+            entry.zoneParentMapID = entry.zoneParentMapID or info.parentMapID
+        end
+    end
+    return entry
 end
 
 ---Returns the canonical key for an entry, used to dedupe aliases and to
@@ -225,7 +244,7 @@ function Aliases:FindEntryByKey(key)
     if EasyFind and EasyFind.db and EasyFind.db.aliases then
         for _, info in pairs(EasyFind.db.aliases) do
             if info.key == key and info.snapshot then
-                return info.snapshot
+                return FillMapRow(info.snapshot)
             end
         end
     end
@@ -277,6 +296,7 @@ function Aliases:BuildSnapshot(data)
         keywords = data.keywords,
         isZone = data.isZone,
         zoneMapID = data.zoneMapID,
+        zoneMapType = data.zoneMapType,
         zoneParentMapID = data.zoneParentMapID,
         parentMapID = data.parentMapID,
         coordMapID = data.coordMapID,
@@ -305,11 +325,10 @@ local function FillCreature(entry)
     return entry
 end
 
--- A saved map row: the snapshot first, which keeps the proper-case name
--- and the zone; the key's own rebuild only lowercases them back.
+-- A saved map row: the snapshot first (it keeps the zone it was picked in).
 local function SavedEntry(key, snapshot)
-    if snapshot and smatch(key or "", "^map:") then return FillCreature(snapshot) end
-    return FillCreature(Aliases:FindEntryByKey(key) or snapshot)
+    if snapshot and smatch(key or "", "^map:") then return FillMapRow(FillCreature(snapshot)) end
+    return FillMapRow(FillCreature(Aliases:FindEntryByKey(key) or snapshot))
 end
 Aliases.SavedEntry = SavedEntry
 
@@ -633,6 +652,7 @@ function Learned:RecordPick(data, typedQuery)
         made.w = PickScore(made, now) + 1
         made.n = (made.n or 0) + 1
         made.at = now
+        made.snapshot = Aliases:BuildSnapshot(data) or made.snapshot
     else
         made = { key = key, n = 1, at = now, w = 1, snapshot = Aliases:BuildSnapshot(data) }
         picks[#picks + 1] = made

@@ -714,13 +714,17 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         Render:ApplyResultsFrameLayout(resultsFrame, st.yOffset, maxVisibleHeight,
             padT, padB, scrollInset, preserve)
         self:UpdateVisibleResultShortcuts()
+    end
 
-        -- If any rep bar row is in side-by-side mode, schedule one deferred re-render so
-        -- IsTruncated() can reflect the layout we just set (it reads the previous frame's state).
-        -- CONVERGENCE LATCH: the re-render this schedules still sees the same
-        -- side-by-side row, so without the latch it re-scheduled itself every
-        -- frame forever. The deferred pass consumes the latch and does not
-        -- re-arm; any later USER-driven render arms it fresh.
+    -- If any bar row is in side-by-side mode, schedule one deferred re-render so
+    -- IsTruncated() can reflect the layout we just set (it reads the previous frame's state).
+    -- CONVERGENCE LATCH: the re-render this schedules still sees the same
+    -- side-by-side row, so without the latch it re-scheduled itself every
+    -- frame forever. The deferred pass consumes the latch and does not
+    -- re-arm; any later USER-driven render arms it fresh. Decided once per
+    -- render, after its last rows: a list laid out in two halves consumed
+    -- the latch in the first and re-armed it in the second, every frame.
+    local function armBarRelayout()
         if st.anyRepSideBySide and not deferredRepRefreshPending then
             if repDeferredJustRan then
                 repDeferredJustRan = false
@@ -745,7 +749,10 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
                 LayoutRow(self, Results:EnsureResultButton(i), i, st)
             end
             finish(true)
+            armBarRelayout()
         end)
+    else
+        armBarRelayout()
     end
 
     Search:SetSelectedIndex(0)

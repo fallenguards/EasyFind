@@ -909,5 +909,55 @@ function tests.learned_prefixPrefersLongestQuery()
     ns.Database.uiSearchData = nil
 end
 
+-- The live client's Eastern Kingdoms, and the shipped category icons (no
+-- zone entry: a zone row asking them gets the question mark).
+ns.ART = ns.ART or setmetatable({}, { __index = function() return { tex = "art", coords = { 0, 1, 0, 1 } } end })
+H.loadModule("MapSearch/Categories.lua", env, ns)
+local CATEGORY_ICONS = ns.MapSearchData.CATEGORY_ICONS
+local function WithContinent(fn)
+    local mapAPI, mapSearch, zoneIcon = env.C_Map.GetMapInfo, ns.MapSearch, ns.ZONE_ICON
+    env.C_Map.GetMapInfo = function(id)
+        return id == 13 and { name = "Eastern Kingdoms", mapType = 2, parentMapID = 947 } or nil
+    end
+    ns.MapSearch = { GetCategoryIcon = function(cat) return CATEGORY_ICONS[cat] or CATEGORY_ICONS.unknown end }
+    ns.ZONE_ICON = 237382
+    fn()
+    env.C_Map.GetMapInfo, ns.MapSearch, ns.ZONE_ICON = mapAPI, mapSearch, zoneIcon
+end
+
+-- A learned pick saved from a row rebuilt from its key (a live account's
+-- "eastern king"): the continent's own name, kind and icon come back.
+function tests.learned_staleZoneSnapshotTakesTheClientsMap()
+    WithContinent(function()
+        env.EasyFind.db.aliases = {}
+        env.EasyFind.db.learnFromPicks = true
+        env.EasyFind.db.queryLearn = { ["eastern king"] = {
+            key = "map:zone:13:eastern kingdoms:0:0", n = 1, w = 1, at = env.time(), last = env.time(),
+            snapshot = { mapID = 13, isZone = true, category = "zone", x = 0, y = 0, name = "eastern kingdoms",
+                         zoneMapID = 13, mapSearchResult = true, nameLower = "eastern kingdoms" } } }
+        local row = ns.Learned:GetBoost("eastern kingdoms")
+        H.assertEq(row and row.name, "Eastern Kingdoms")
+        H.assertEq(row.zoneMapType, 2, "a continent, not a zone")
+        H.assertEq(row.icon, 237382, "the right-side map icon")
+        ns.Learned:RecordPick(row, "eastern king")
+        H.assertEq(env.EasyFind.db.queryLearn["eastern king"].snapshot.zoneMapType, 2,
+            "a repeat pick saves the row as shown")
+        -- A zone row saved with the question mark wears the map again.
+        env.EasyFind.db.queryLearn["eastern king"].snapshot.icon = CATEGORY_ICONS.unknown
+        H.assertEq(ns.Learned:GetBoost("eastern kingdoms").icon, 237382)
+    end)
+end
+
+function tests.findByKey_zoneRebuildCarriesKindAndIcon()
+    WithContinent(function()
+        env.EasyFind.db.aliases = {}
+        local row = Aliases:FindEntryByKey("map:zone:13:eastern kingdoms:0:0")
+        H.assertEq(row and row.name, "Eastern Kingdoms")
+        H.assertEq(row.zoneMapType, 2)
+        H.assertEq(row.zoneParentMapID, 947)
+        H.assertEq(row.icon, 237382)
+    end)
+end
+
 local pass, fail, failures = H.runSuite("Aliases", tests)
 return { pass = pass, fail = fail, failures = failures }

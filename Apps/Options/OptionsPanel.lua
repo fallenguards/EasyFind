@@ -5088,14 +5088,25 @@ local function BuildResultClicksTab(ctx)
         function() return current.key end,
         function(v) ShowKind(Gestures.Kind(v)) end, "EasyFindResultClicksKind")
     kindRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -12)
-    local anchor = kindRow
+    local sep = tab:CreateTexture(nil, "ARTWORK")
+    sep:SetPoint("TOPLEFT", kindRow, "BOTTOMLEFT", 6, -6)
+    sep:SetPoint("RIGHT", tab, "RIGHT", -12, 0)
+    sep:SetHeight(1)
+    local function RestyleClicksSep()
+        local theme = Look().theme
+        local tone = theme and theme.lightTheme and theme.separatorColor
+        if tone then sep:SetColorTexture(tone[1], tone[2], tone[3], 0.8) else sep:SetColorTexture(0.8, 0.65, 0.0, 0.6) end
+    end
+    RestyleClicksSep()
+    optionsFrame.RestyleClicksSep = RestyleClicksSep
+    local anchor = sep
     for i = 1, #Gestures.GESTURES do
         local gesture = Gestures.GESTURES[i]
         local row = CreateFlyoutPresetRow(tab, GESTURE_LABEL[gesture], Gestures.Choices(current),
             function() return Gestures.Get(current.key, gesture) end,
             function(v) Gestures.Set(current.key, gesture, v) end,
             "EasyFindResultClicks" .. gesture)
-        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or 0)
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", i == 1 and -6 or 0, i == 1 and -6 or 0)
         gestureRows[i] = row
         anchor = row
     end
@@ -5542,6 +5553,7 @@ function Options:Initialize()
         if self.RestyleTutorialLink then pcall(self.RestyleTutorialLink) end
         if self.UpdateHomeVersion then pcall(self.UpdateHomeVersion) end
         if self.RestyleMapSep then pcall(self.RestyleMapSep) end
+        if self.RestyleClicksSep then pcall(self.RestyleClicksSep) end
         if self.RefreshBorderRow then pcall(self.RefreshBorderRow) end
         if self.themeBtnText then
             self.themeBtnText:SetText(EasyFind.db.uiTheme
