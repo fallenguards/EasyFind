@@ -274,6 +274,8 @@ function Highlight:CreateHighlightFrame()
     -- per-step UpdateGuide owns intermediate breadcrumb behavior.
     local watchAccum = 0
     highlightFrame:HookScript("OnUpdate", function(self, elapsed)
+        local lit = self._nativeTex
+        if lit then lit:SetAlpha(0.45 + 0.55 * (0.5 + 0.5 * math.sin(GetTime() * 5))) end
         watchAccum = watchAccum + elapsed
         if watchAccum < 0.1 then return end
         watchAccum = 0
@@ -2954,6 +2956,29 @@ function Highlight:GetSideTabButton(frameName, sideTabIndex)
     return nil
 end
 
+-- A button's own highlight art, where it has one: lit in place of the box.
+-- A protected button in a fight takes nothing from us.
+local function NativeHighlightOf(frame)
+    if not (frame.LockHighlight and frame.GetHighlightTexture and frame.IsHighlightLocked) then return nil end
+    if InCombatLockdown() and frame.IsProtected and frame:IsProtected() then return nil end
+    local tex = frame:GetHighlightTexture()
+    if not tex then return nil end
+    local art = tex.GetAtlas and tex:GetAtlas()
+    if not art or art == "" then art = tex:GetTexture() end
+    return art and tex or nil
+end
+
+-- The lit button let go as it was: a lock the client holds stays, the
+-- art's alpha comes back.
+local function ReleaseNativeHighlight(keep)
+    local target = highlightFrame and highlightFrame._nativeTarget
+    if not target or target == keep then return end
+    if highlightFrame._nativeLocked then target:UnlockHighlight() end
+    highlightFrame._nativeTex:SetAlpha(highlightFrame._nativeAlpha or 1)
+    highlightFrame._nativeTarget, highlightFrame._nativeTex = nil, nil
+    highlightFrame._nativeLocked, highlightFrame._nativeAlpha = nil, nil
+end
+
 function Highlight:HighlightFrame(frame, instructionText, validator, noHoverDismiss)
     if not frame or not frame:IsShown() then
         self:HideHighlight()
@@ -2979,6 +3004,21 @@ function Highlight:HighlightFrame(frame, instructionText, validator, noHoverDism
     highlightFrame._targetValidator = validator
     highlightFrame._hoverDismissFrame = (not noHoverDismiss) and frame or nil
     highlightFrame._clearWhenTargetHidden = true
+
+    -- A button with a highlight of its own (a skill's bar border, a spell's
+    -- icon, a tab) lights that, pulsing, in place of our box round it.
+    ReleaseNativeHighlight(frame)
+    local native = highlightFrame._nativeTarget == frame and highlightFrame._nativeTex or NativeHighlightOf(frame)
+    if native and highlightFrame._nativeTarget ~= frame then
+        highlightFrame._nativeLocked = not frame:IsHighlightLocked()
+        if highlightFrame._nativeLocked then frame:LockHighlight() end
+        highlightFrame._nativeTarget, highlightFrame._nativeTex = frame, native
+        highlightFrame._nativeAlpha = native:GetAlpha()
+    end
+    highlightFrame.top:SetShown(not native)
+    highlightFrame.bottom:SetShown(not native)
+    highlightFrame.left:SetShown(not native)
+    highlightFrame.right:SetShown(not native)
 
     local bs = highlightFrame.borderSize
     local pad = 4
@@ -3049,6 +3089,7 @@ end
 -- for "always valid until the button hides".
 function Highlight:RegisterSearchIconWatch(button, validator)
     if not button then return end
+    ReleaseNativeHighlight()
     if highlightFrame._talentSearchBtn
        and highlightFrame._talentSearchBtn ~= button
        and highlightFrame._talentSearchBtn.SearchIcon then
@@ -3106,6 +3147,7 @@ local function AcquireSpellbookGlow()
 end
 
 function Highlight:HighlightSpellbookSpell(row, validator)
+    ReleaseNativeHighlight()
     if not row or not row:IsShown() then
         self:HideHighlight()
         return
@@ -3147,6 +3189,7 @@ end
 
 function Highlight:HideHighlight()
     highlightShownAt = nil
+    ReleaseNativeHighlight()
     if highlightFrame then
         if highlightFrame._talentSearchBtn
            and highlightFrame._talentSearchBtn.SearchIcon then
