@@ -2555,10 +2555,16 @@ local function AnchorNineSlice(frame, n, cornerSize)
     n.mm:SetPoint("BOTTOMRIGHT", n.br, "TOPLEFT")
 end
 
--- An atlas shown as window art: fitted to the window's width, cropped from
--- the top, stretched only when the window is taller than the fitted image.
--- Returns the texcoord steps per UI unit across and down, as fractions.
-local function AtlasSteps(info, w, h)
+-- An atlas shown as window art: at its own size (pageW x pageH units) when
+-- given, cropped from the top left and larger only when the window outgrows
+-- it; else fitted to the window's width, cropped from the top, stretched
+-- only when the window is taller than the fitted image. Returns the
+-- texcoord steps per UI unit across and down, as fractions.
+local function AtlasSteps(info, w, h, pageW, pageH)
+    if pageW and pageH and pageW > 0 and pageH > 0 then
+        local k = mmax(1, w / pageW, h / pageH)
+        return 1 / (pageW * k), 1 / (pageH * k)
+    end
     local shownH = w * info.height / info.width
     if shownH < h then shownH = h end
     return 1 / w, 1 / shownH
@@ -2586,14 +2592,26 @@ local FOREVER = {
         right = { "!UI-Frame-Metal-EdgeRight",    173 / 190, 1,        0, 1 },
     },
     -- Art pixels (the pieces are 2x art): crop sizes, and how far each crop
-    -- runs past the window, whose edge sits on the middle of the metal band.
+    -- runs past the window, whose edge is the band's inner edge (rows and
+    -- scroll bars run to it clear of the metal); the fill reaches 4 under it.
     px = { cornerW = 30, topH = 17, bottomH = 24, sideW = 17, edgeLen = 256,
-           outLeft = 10, outRight = 10, outTop = 10, outBottom = 17, fillIn = 3 },
+           outLeft = 17, outRight = 17, outTop = 17, outBottom = 24, fillIn = -4 },
     unit = 0.5,        -- UI units per art pixel: the spellbook's own size
     level = 12,        -- the border sits over rows and bar content
-    dividerInset = 2,  -- the divider runs under the band's inner edge
+    dividerInset = -1.5,  -- the divider runs under the band's inner edge
 }
 ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
+
+-- The quest log page as the client serves it: its 2x art where there is one
+-- (sharp on any screen), and how many 2x art pixels one of its pixels is.
+function FOREVER.Page()
+    if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
+    for _, try in ipairs({ { "-2x", 1 }, { "", 2 } }) do
+        local info = C_Texture.GetAtlasInfo(FOREVER.fillAtlas .. try[1])
+        if info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0 then return info, try[2] end
+    end
+    return nil
+end
 
 function ns.IsForeverChrome()
     local p = ns.ACTIVE_UI_PALETTE
@@ -2615,6 +2633,7 @@ do
         if type(own) ~= "number" or type(ref) ~= "number" or own <= 0 or ref <= 0 then return FOREVER.unit end
         return FOREVER.unit * ref / own
     end
+    FOREVER.UnitOf = ForeverUnit
 
     local function PlaceForever(frame, f, u)
         local px, p = FOREVER.px, f.pieces
@@ -2654,11 +2673,10 @@ do
         p.bottom:SetTexCoord(0, across, p.bottom._efV0, p.bottom._efV1)
         p.left:SetTexCoord(p.left._efU0, p.left._efU1, 0, down)
         p.right:SetTexCoord(p.right._efU0, p.right._efU1, 0, down)
+        -- The page at its own size, at the band's scale, cropped.
         local info = f.info
-        local _, sy = AtlasSteps(info, w, h)
-        local ve = h * sy
-        if ve > 1 then ve = 1 end
-        f.fill:SetTexCoord(AtlasU(info, 0), AtlasU(info, 1), AtlasV(info, 0), AtlasV(info, ve))
+        local sx, sy = AtlasSteps(info, w, h, info.width * f.pageScale * u, info.height * f.pageScale * u)
+        f.fill:SetTexCoord(AtlasU(info, 0), AtlasU(info, w * sx), AtlasV(info, 0), AtlasV(info, h * sy))
     end
 
     -- The spellbook's pieces as the Forever client serves them; any other
@@ -2715,8 +2733,8 @@ do
     EnsureForever = function(frame)
         if frame._efForever or frame._efForeverFailed then return frame._efForever end
         frame._efForeverFailed = true
-        local fillInfo = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(FOREVER.fillAtlas)
-        if not (fillInfo and fillInfo.file and (fillInfo.width or 0) > 0 and (fillInfo.height or 0) > 0) then return nil end
+        local fillInfo, pageScale = FOREVER.Page()
+        if not fillInfo then return nil end
         local infos = PieceInfo()
         if not infos then return nil end
         local border = CreateFrame("Frame", nil, frame)
@@ -2739,7 +2757,7 @@ do
         local fill = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
         if not fill:SetTexture(fillInfo.file) then return nil end
         fill:Hide()
-        local f = { border = border, pieces = p, fill = fill, info = fillInfo }
+        local f = { border = border, pieces = p, fill = fill, info = fillInfo, pageScale = pageScale }
         PlaceForever(frame, f, ForeverUnit(frame))
         frame._efForever = f
         frame._efForeverFailed = nil
@@ -3436,7 +3454,11 @@ function ns.UpdateThemeArtCrop(frame)
     local atlas = frame._efArtAtlas
     local tile = frame._efArtTile
     local sx, sy = 1 / (tile or ART_TEXTURE_SIZE), 1 / (tile or ART_TEXTURE_SIZE)
-    if atlas then sx, sy = AtlasSteps(atlas, w, fh) end
+    if atlas then
+        local scale = frame._efArtPageScale
+        local u = scale and FOREVER.UnitOf and FOREVER.UnitOf(frame)
+        sx, sy = AtlasSteps(atlas, w, fh, u and atlas.width * scale * u, u and atlas.height * scale * u)
+    end
     local x1, x2 = c * sx, (w - c) * sx
     local y1, y2 = c * sy, (fh - c) * sy
     local xe, ye = w * sx, fh * sy
@@ -3588,15 +3610,21 @@ function ns.ApplyThemeFill(frame)
     end
 
     local artPath = palette and palette.fillTexture
-    local atlasInfo = palette and palette.fillAtlas and C_Texture and C_Texture.GetAtlasInfo
-        and C_Texture.GetAtlasInfo(palette.fillAtlas)
+    -- Forever's page at its own size, cropped; another atlas fitted across.
+    local atlasInfo, pageScale
+    if palette and palette.fillAtlas == FOREVER.fillAtlas then
+        atlasInfo, pageScale = FOREVER.Page()
+    else
+        atlasInfo = palette and palette.fillAtlas and C_Texture and C_Texture.GetAtlasInfo
+            and C_Texture.GetAtlasInfo(palette.fillAtlas)
+    end
     if atlasInfo and not (atlasInfo.file and (atlasInfo.width or 0) > 0 and (atlasInfo.height or 0) > 0) then
         atlasInfo = nil
     end
     if atlasInfo then artPath = atlasInfo.file end
     if artPath then
         local cells = EnsureThemeArtOverlay(frame)
-        frame._efArtAtlas = atlasInfo
+        frame._efArtAtlas, frame._efArtPageScale = atlasInfo, pageScale
         -- A tiling texture repeats at its own size instead of one stretched crop.
         local tile = not atlasInfo and palette.fillTile or nil
         frame._efArtTile = tile

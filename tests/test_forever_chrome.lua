@@ -86,6 +86,12 @@ local function installClient(art)
 end
 local OTHER_ART = {}
 for k, v in pairs(FOREVER_ART) do OTHER_ART[k] = v end
+-- The client with the page's 2x art: 614 x 1020, its own coords.
+local FILL_2X = { file = 5684770, width = 614, height = 1020,
+                  leftTexCoord = 0.4, rightTexCoord = 0.7, topTexCoord = 0.0, bottomTexCoord = 1.0 }
+local SHARP_ART = {}
+for k, v in pairs(FOREVER_ART) do SHARP_ART[k] = v end
+SHARP_ART["QuestLog-main-background-2x"] = FILL_2X
 OTHER_ART["_UI-Frame-Metal-EdgeBottom"] = info(6, 16, 32)
 
 local FOREVER = { chrome = "forever", fillAtlas = "QuestLog-main-background", windowFill = { 0.1, 0.1, 0.1 } }
@@ -158,12 +164,37 @@ function tests.fill_runsUnderTheMetal()
     local f = surface(true)
     ns.ApplyThemeFill(f)
     local pts = f._efForever.fill.points
-    H.assertEq(pts[1][4], 1.5, "1.5 units in: under the band's inner half")
-    H.assertEq(pts[2][4], -1.5)
-    H.assertEq(f._efForever.pieces.tl.points[1][4], -5, "the band's middle sits on the window edge")
+    H.assertEq(pts[1][4], -2, "2 units out: under the band")
+    H.assertEq(pts[2][4], 2)
+    local tl = f._efForever.pieces.tl
+    H.assertEq(tl.points[1][4], -8.5, "the band outside the window")
+    H.assertEq(tl.points[1][4] + 17 * 0.5, 0, "its inner edge on the window's edge: rows run to it clear of the metal")
 end
 
 -- The filter menu is zoomed 1.5x; its band is drawn at the bar's size.
+-- The page is 307 x 510 units at the band's scale: a smaller window shows
+-- its top left at that size, never scaled to the window.
+function tests.fill_isThePageAtItsOwnSizeCropped()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    local f = surface(true, 200, 54)
+    ns.ApplyThemeFill(f)
+    local c = f._efForever.fill.coords
+    H.assertTrue(near(c[1], 0.3) and near(c[2], 0.3 + 0.3 * 204 / 307), "204 of its 307 across: " .. tostring(c[2]))
+    H.assertTrue(near(c[3], 0) and near(c[4], 58 / 510), "58 of its 510 down: " .. tostring(c[4]))
+end
+
+function tests.fill_takesThePagesSharpArt()
+    installClient(SHARP_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    local f = surface(true, 200, 54)
+    ns.ApplyThemeFill(f)
+    local c = f._efForever.fill.coords
+    H.assertEq(f._efForever.fill.tex, FILL_2X.file, "the 2x file")
+    H.assertTrue(near(c[2], 0.4 + 0.3 * 204 / 307), "the same 307 units across, its pixels twice as fine: " .. tostring(c[2]))
+    H.assertTrue(near(c[4], 58 / 510))
+end
+
 function tests.zoomedMenu_wearsTheBandAtTheSpellbookSize()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = FOREVER
@@ -172,7 +203,7 @@ function tests.zoomedMenu_wearsTheBandAtTheSpellbookSize()
     ns.ApplyThemeFill(f)
     local tl = f._efForever.pieces.tl
     H.assertTrue(near(tl.w, 30 * 0.5 / 1.5), "corner width in the menu's own units: " .. tostring(tl.w))
-    H.assertTrue(near(tl.points[1][4], -10 * 0.5 / 1.5))
+    H.assertTrue(near(tl.points[1][4], -17 * 0.5 / 1.5))
 end
 
 function tests.fill_isFittedToWidthAndCroppedFromTop()
@@ -182,7 +213,9 @@ function tests.fill_isFittedToWidthAndCroppedFromTop()
     ns.ApplyThemeFill(f)
     local c = f._efForever.fill.coords
     H.assertTrue(near(c[1], 0.3) and near(c[2], 0.6), "full width of the atlas")
-    H.assertTrue(near(c[3], 0) and near(c[4], 51 / 510), "the top slice: " .. tostring(c[4]))
+    -- The fill reaches 2 under the band each side: 314 x 58, the atlas
+    -- fitted to 314 across.
+    H.assertTrue(near(c[3], 0) and near(c[4], 58 / (314 * 510 / 307)), "the top slice: " .. tostring(c[4]))
 end
 
 -- Option on: the filter menu, which asks for no rounded ring, still wears
@@ -258,7 +291,7 @@ function tests.divider_isOneScreenPixelOfBronze()
     local d = f.combinedDivider
     H.assertEq(d.color[1], ns.FOREVER_BRONZE[1])
     H.assertTrue(near(d.h, 768 / 1440), "one physical pixel: " .. tostring(d.h))
-    H.assertEq(d.points[1][4], 2, "band to band")
+    H.assertEq(d.points[1][4], -1.5, "band to band, under their inner edges")
     ns.ACTIVE_UI_PALETTE = PLAIN
     ns.ApplyThemeFill(f)
     ns.SetRoundedRectDivider(f, 30, true)
