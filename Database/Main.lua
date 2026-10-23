@@ -393,6 +393,16 @@ function Database:PopulateDynamicCurrencies()
     return true
 end
 
+-- The skill list's headings as the Skills filter's switches.
+function Database.SkillHeadings()
+    local out = {}
+    for i = 1, GetNumSkillLines and GetNumSkillLines() or 0 do
+        local name, isHeader = GetSkillLineInfo(i)
+        if isHeader and name and name ~= "" then out[#out + 1] = { key = name, label = name } end
+    end
+    return out
+end
+
 -- Classic's skill list (character window, Skills tab): one entry per skill.
 function Database:PopulateDynamicSkills()
     if not (GetNumSkillLines and GetSkillLineInfo) then return false end
@@ -431,6 +441,7 @@ function Database:PopulateDynamicSkills()
                 buttonFrame = "CharacterMicroButton",
                 path = { characterLabel, skillsLabel, header },
                 skillLine = skillName,
+                skillHeader = header,
                 -- The Skills tab's count: temporary points included.
                 skillRank = rank and (rank + (tempPoints or 0)),
                 skillMaxRank = maxRank,
@@ -4383,23 +4394,27 @@ function Database:PopulateClassicProfessions()
     local book = Database.ClassicRecipeBook()
     if not book then return false end
     local getTexture = C_Spell and C_Spell.GetSpellTexture
+    -- The filter flyout's per-profession switches, by name here.
+    local off = EasyFind.db.professionFilters or {}
     for profName, prof in pairs(book) do
-        local profLower = slower(profName)
-        local profIcon = prof.spellID and getTexture and getTexture(prof.spellID) or nil
-        uiSearchData[#uiSearchData + 1] = {
-            name = profName, nameLower = profLower, icon = profIcon, category = "Profession",
-            keywords = { profLower, "profession" }, keywordsLower = { profLower, "profession" },
-            classicProfession = profName, spellID = prof.spellID,
-        }
-        for recipe, icon in pairs(prof.recipes) do
-            Utils.SliceCheckpoint()
-            local lower = slower(recipe)
+        if off[profName] ~= false then
+            local profLower = slower(profName)
+            local profIcon = prof.spellID and getTexture and getTexture(prof.spellID) or nil
             uiSearchData[#uiSearchData + 1] = {
-                name = recipe, nameLower = lower, icon = icon ~= true and icon or profIcon, category = "Profession",
-                keywords = { lower, profLower }, keywordsLower = { lower, profLower },
-                classicProfession = profName, classicRecipe = true, professionName = profName,
-                spellID = prof.spellID,
+                name = profName, nameLower = profLower, icon = profIcon, category = "Profession",
+                keywords = { profLower, "profession" }, keywordsLower = { profLower, "profession" },
+                classicProfession = profName, spellID = prof.spellID,
             }
+            for recipe, icon in pairs(prof.recipes) do
+                Utils.SliceCheckpoint()
+                local lower = slower(recipe)
+                uiSearchData[#uiSearchData + 1] = {
+                    name = recipe, nameLower = lower, icon = icon ~= true and icon or profIcon,
+                    category = "Profession", keywords = { lower, profLower }, keywordsLower = { lower, profLower },
+                    classicProfession = profName, classicRecipe = true, professionName = profName,
+                    spellID = prof.spellID,
+                }
+            end
         end
     end
     return true
@@ -5271,10 +5286,28 @@ function Database:PopulateDynamicTalents()
     if Caps and Caps.talentTrees and numTabs and numTalents then
         local group = SI.GetActiveSpecGroup and SI.GetActiveSpecGroup() or 1
         local talents = _G["TALENTS"] or "Talents"
+        local treeKw = { "talent", "talents", "tree", "spec" }
         for tab = 1, numTabs() or 0 do
-            local tabName = SI.GetSpecializationInfo and select(2, SI.GetSpecializationInfo(tab))
+            local spec = SI.GetSpecializationInfo and { SI.GetSpecializationInfo(tab) } or {}
+            local tabName, tabIcon = spec[2], spec[4]
             local kw = { "talent", "talents" }
-            if tabName and tabName ~= "" then kw[3] = slower(tabName) end
+            if tabName and tabName ~= "" then
+                kw[3] = slower(tabName)
+                -- The tree itself: the window opens on it.
+                uiSearchData[#uiSearchData + 1] = {
+                    name = tabName,
+                    nameLower = slower(tabName),
+                    keywords = treeKw,
+                    keywordsLower = treeKw,
+                    category = "Talent",
+                    icon = tabIcon,
+                    talentTab = tab,
+                    talentGroup = group,
+                    buttonFrame = "TalentMicroButton",
+                    path = { talents },
+                    steps = { { buttonFrame = "TalentMicroButton" }, { waitForFrame = "PlayerTalentFrame", tabIndex = tab } },
+                }
+            end
             for index = 1, numTalents(tab) or 0 do
                 Utils.SliceCheckpoint()
                 local ok, info = pcall(SI.GetTalentInfo, { specializationIndex = tab, talentIndex = index, groupIndex = group })

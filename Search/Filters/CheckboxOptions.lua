@@ -106,3 +106,90 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
     end
     return popup, sync
 end
+
+-- A filter row's flyout whose switches are the moment's (the skill list's
+-- headings): opt.flyoutList() returns { key, label } rows, read each time
+-- the flyout opens. Each switch is EasyFind.db[opt.flyoutDbTable][key],
+-- missing = on, applied at search time.
+function Filters:AttachListFlyout(row, dropdown, opt, ctx)
+    local ROW_H, CHECK, PAD = ctx.rowHeight, ctx.checkSize, 8
+    local root = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+    root:SetFrameStrata("TOOLTIP")
+    ctx.StylePopup(root)
+    root:EnableMouse(true)
+    root:Hide()
+    ctx.dropdownGuardFrames[#ctx.dropdownGuardFrames + 1] = root
+
+    local function Switches()
+        local t = EasyFind.db[opt.flyoutDbTable]
+        if type(t) ~= "table" then
+            t = {}
+            EasyFind.db[opt.flyoutDbTable] = t
+        end
+        return t
+    end
+
+    local pool = {}
+    local function GetRow(i)
+        local r = pool[i]
+        if r then return r end
+        r = CreateFrame("CheckButton", nil, root)
+        r:SetSize(150, ROW_H)
+        r:SetHitRectInsets(0, 0, 0, 0)
+        Utils.SetCheckboxTextures(r, CHECK)
+        local label = r:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        label:SetPoint("LEFT", r:GetNormalTexture(), "RIGHT", 4, 0)
+        label:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+        label:SetJustifyH("LEFT")
+        label:SetWordWrap(false)
+        r._label = label
+        Utils.InstallMenuRowHighlight(r)
+        r:SetScript("OnClick", function(self)
+            Switches()[self._key] = Utils.OffOrNil(self:GetChecked())
+            Filters:RerunActiveSearch()
+        end)
+        pool[i] = r
+        return r
+    end
+
+    local function Layout()
+        local list = opt.flyoutList() or {}
+        local switches = Switches()
+        local y, contentW = -PAD, 0
+        for i = 1, #list do
+            local r = GetRow(i)
+            r._key = list[i].key
+            r._label:SetText(list[i].label)
+            r:SetChecked(switches[list[i].key] ~= false)
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", PAD, y)
+            r:Show()
+            y = y - ROW_H
+            local w = Utils.FlyoutRowContentWidth(r, CHECK + 4)
+            if w > contentW then contentW = w end
+        end
+        for i = #list + 1, #pool do pool[i]:Hide() end
+        local w = Utils.FlyoutWidthFor(contentW, PAD)
+        for i = 1, #list do pool[i]:SetWidth(w - PAD * 2) end
+        root:SetSize(w, -y + PAD)
+    end
+    root._efSync = Layout
+
+    local hover = Utils.AttachHoverPopup(row, root, {
+        onShow = function()
+            ctx.SetActiveFlyout(root)
+            Layout()
+            root:SetScale(EasyFind.db.uiSearchScale or 1.0)
+            Utils.OpenFlyoutBeside(root, row, 4)
+            root:Show()
+        end,
+    })
+    row.ShowFlyoutPopup = hover.Show
+    ctx.AddPopupKeyboardNav(root, function()
+        local rows = {}
+        for i = 1, #pool do if pool[i]:IsShown() then rows[#rows + 1] = pool[i] end end
+        return rows
+    end)
+    Filters.AttachOutsideClickClose(root, { onHide = function(self) ctx.ClearActiveFlyout(self) end })
+    dropdown:HookScript("OnHide", function() root:Hide() end)
+end

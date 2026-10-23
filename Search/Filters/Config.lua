@@ -214,16 +214,22 @@ local UI_FILTER_OPTIONS = {
             iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings", subFilters = AddonSubFilters },
       } },
     { key = "professions", label = _G["TRADE_SKILLS"] or "Professions",
-      -- The classic clients' list fills as profession windows open: no
-      -- per-profession flyout there.
-      iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = not (ns.Caps and ns.Caps.classic),
+      iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = true,
       available = function()
-          if ns.Caps and ns.Caps.classic then return true end
+          -- The classic clients': the character's professions by name.
+          if ns.Caps and ns.Caps.classic then
+              local known = ns.KnownProfessions
+              return known ~= nil and #known() > 0
+          end
           if not GetProfessions then return false end
           local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
           return (prof1 or prof2 or archaeology or fishing or cooking) ~= nil
       end },
-    { key = "skills",      label = _G["SKILLS"] or "Skills",       iconTex = 133741 },
+    -- One switch per heading of the character's skill list (Class Skills,
+    -- Professions, Weapon Skills...), read when the flyout opens.
+    { key = "skills",      label = _G["SKILLS"] or "Skills",       iconTex = 133741, hasFlyout = true,
+      flyoutDbTable = "skillFilters",
+      flyoutList = function() return ns.Database and ns.Database.SkillHeadings and ns.Database.SkillHeadings() end },
     { key = "reputations", label = _G["REPUTATION"] or "Reputations", iconTex = ns.PlayerRepCategoryIcon().tex,
       iconCoords = ns.PlayerRepCategoryIcon().coords,
       flyoutRadio = {

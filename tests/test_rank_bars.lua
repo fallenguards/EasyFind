@@ -80,6 +80,34 @@ function tests.skillRowsCarryTheirRank()
     H.assertEq(data[1].skillRank, 175, "temporary points count, as the Skills tab shows")
     H.assertEq(data[1].skillMaxRank, 300)
     H.assertEq(data[2].skillModifier, 10)
+    H.assertEq(data[1].skillHeader, "Professions", "the heading the Skills flyout switches")
+    H.assertEq(data[2].skillHeader, "Weapon Skills")
+end
+
+-- The Skills filter's flyout: the skill list's headings, read as it opens.
+function tests.skillHeadingsAreTheFlyoutsSwitches()
+    local lines = { { "Class Skills", true }, { "Arcane", false }, { "Professions", true }, { "Mining", false } }
+    local f = assert(io.open(H.ADDON_ROOT .. "/Database/Main.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function Database.SkillHeadings()", 1, true))
+    local _, e = src:find("\nend\r?\n", s)
+    local Database = {}
+    local env = setmetatable({ Database = Database,
+        GetNumSkillLines = function() return #lines end,
+        GetSkillLineInfo = function(i) return lines[i][1], lines[i][2] end }, { __index = _G })
+    assert(load(src:sub(s, e), "=Main.lua SkillHeadings", "t", env))()
+    local list = Database.SkillHeadings()
+    H.assertEq(#list, 2)
+    H.assertEq(list[1].key, "Class Skills")
+    H.assertEq(list[2].label, "Professions")
+
+    local config = assert(io.open(H.ADDON_ROOT .. "/Search/Filters/Config.lua", "rb")):read("*a")
+    local row = config:match("{ key = \"skills\",.-flyoutList = [^\n]+")
+    H.assertTrue(row ~= nil and row:find("hasFlyout = true", 1, true) ~= nil, "the row draws its arrow")
+    H.assertTrue(row:find("flyoutDbTable = \"skillFilters\"", 1, true) ~= nil, "its switches' table")
+    local core = assert(io.open(H.ADDON_ROOT .. "/Core/Main.lua", "rb")):read("*a")
+    H.assertTrue(core:find("skillFilters = {}", 1, true) ~= nil, "a default for the switches")
 end
 
 function tests.rankBarText()

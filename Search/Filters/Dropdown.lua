@@ -1275,12 +1275,25 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
 
         -- Professions: per-profession checkboxes for this character's known
         -- professions; unchecking removes that profession at the provider.
-        if opt.key == "professions" then
+        if opt.key == "professions" and opt.hasFlyout then
             Filters:AttachProfessionOptionsFlyout(row, dropdown, {
                 rowHeight = ROW_HEIGHT,
                 checkSize = CHECK_SIZE,
                 StylePopup = StylePopup,
                 CreateRadioTexture = CreateRadioTexture,
+                AddPopupKeyboardNav = AddPopupKeyboardNav,
+                SetActiveFlyout = SetActiveFlyout,
+                ClearActiveFlyout = ClearActiveFlyout,
+                dropdownGuardFrames = dropdownGuardFrames,
+            })
+        end
+
+        -- A flyout whose switches are read as it opens (the skill list's headings).
+        if opt.flyoutList and opt.hasFlyout then
+            Filters:AttachListFlyout(row, dropdown, opt, {
+                rowHeight = ROW_HEIGHT,
+                checkSize = CHECK_SIZE,
+                StylePopup = StylePopup,
                 AddPopupKeyboardNav = AddPopupKeyboardNav,
                 SetActiveFlyout = SetActiveFlyout,
                 ClearActiveFlyout = ClearActiveFlyout,

@@ -29,6 +29,10 @@ local EXPECTED = {
     heirlooms = { mists = true },
     gearSets = { mists = true },
     professions = { era = true, tbc = true, mists = true },
+    -- Anniversary loads the achievement window for the Wrath code it shares:
+    -- no button, no binding, no statistics.
+    achievements = { mists = true },
+    statistics = { mists = true },
     -- MoP's wardrobe: left off until its appearance reads are proven there.
     appearances = {}, transmogSets = {}, outfits = {},
     housing = {}, delves = {}, delve = {}, warband = {}, catalog = {}, icons = {},
@@ -66,6 +70,7 @@ local function loadCaps(name)
     env.C_CurrencyInfo = { GetCurrencyInfo = function() end }
     env.GetCurrencyListSize = function() return 0 end
     env.GetNumTradeSkills = function() return 0 end
+    env.GetCategoryList = function() return {} end
     if name == "mists" then
         env.CHARACTERFRAME_SUBFRAMES = { "PaperDollFrame", "PetPaperDollFrame", "ReputationFrame", "TokenFrame" }
         env.PAPERDOLL_SIDEBARS = { {}, {}, {} }

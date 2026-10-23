@@ -6,10 +6,17 @@ local Utils = ns.Utils
 
 local select, ipairs = Utils.select, Utils.ipairs
 
--- The classic clients' talent window (PlayerTalentFrame): opened on its own
--- button; the talent's tab lit for the player's click while another is up,
--- then the talent's button (Era and Anniversary: button n shows talent n of
--- the tab; MoP Classic: a button per tier and column).
+-- Classic's talent window: Era and Anniversary click the tree's tab and scroll
+-- to the talent; MoP lights its tab (its click writes a CVar). Lit till hovered.
+local function ScrollToTalent(button)
+    local scroll = _G["PlayerTalentFrameScrollFrame"]
+    local child = scroll and scroll.GetScrollChild and scroll:GetScrollChild()
+    local top, at = child and child:GetTop(), button:GetTop()
+    if not (top and at) then return end
+    local want = top - at - (scroll:GetHeight() - button:GetHeight()) / 2
+    scroll:SetVerticalScroll(math.max(0, math.min(scroll:GetVerticalScrollRange(), want)))
+end
+
 local function OpenClassicTalent(data)
     local highlight = ns.RequestGuide()
     local frame = _G["PlayerTalentFrame"]
@@ -21,15 +28,26 @@ local function OpenClassicTalent(data)
         if frame and frame:IsShown() and highlight and highlight.HighlightFrame then
             local selectedTab = _G["PanelTemplates_GetSelectedTab"]
             local onTab = not selectedTab or selectedTab(frame) == data.talentTab
-            local button = data.talentTier
-                and ("PlayerTalentFrameTalentsTalentRow" .. data.talentTier .. "Talent" .. data.talentColumn)
-                or ("PlayerTalentFrameTalent" .. tostring(data.talentIndex))
-            local target = onTab and _G[button] or _G["PlayerTalentFrameTab" .. data.talentTab]
-            if target and target ~= lit then
-                lit = target
-                highlight:HighlightFrame(target, nil, nil, true)
+            local tab = _G["PlayerTalentFrameTab" .. data.talentTab]
+            if not onTab and not data.talentTier and tab and tab:IsEnabled() then
+                tab:Click()
+                onTab = selectedTab(frame) == data.talentTab
             end
-            if onTab then return end
+            -- A tree's own row: its tree is up.
+            if onTab and not (data.talentTier or data.talentIndex) then return end
+            if onTab then
+                local button = _G[data.talentTier
+                    and ("PlayerTalentFrameTalentsTalentRow" .. data.talentTier .. "Talent" .. data.talentColumn)
+                    or ("PlayerTalentFrameTalent" .. tostring(data.talentIndex))]
+                if button and button:IsVisible() then
+                    if not data.talentTier then ScrollToTalent(button) end
+                    highlight:HighlightFrame(button)
+                    return
+                end
+            elseif tab and tab ~= lit then
+                lit = tab
+                highlight:HighlightFrame(tab, nil, nil, true)
+            end
         end
         if tries < 150 then Utils.SafeAfter(0.2, find) end
     end

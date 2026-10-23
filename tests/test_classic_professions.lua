@@ -106,6 +106,42 @@ function tests.rowsOpenByTheProfessionSpell()
     H.assertTrue(Database:HasClassicProfessions())
 end
 
+function tests.aProfessionSwitchedOffHasNoRows()
+    local Database, w, env = world()
+    w.windows.trade = { name = "Blacksmithing", rows = { { "Copper Bracers", "easy" } } }
+    Database:CaptureClassicRecipes(false, true)
+    env.EasyFind.db.professionFilters = { Blacksmithing = false }
+    Database:PopulateClassicProfessions()
+    H.assertEq(#w.data, 0, "unchecked in the filter flyout")
+end
+
+-- The filter flyout's list: the skill list's profession headers, and every
+-- window the character opened (a hunter's Beast Training has no skill line).
+function tests.flyoutListsTheCharactersProfessions()
+    local lines = {
+        { "Professions", true }, { "Mining" }, { "Weapon Skills", true }, { "Swords" },
+        { "Secondary Skills", true }, { "Cooking" },
+    }
+    local out = {}
+    local env = setmetatable({
+        ns = { Database = { ClassicRecipeBook = function() return { ["Beast Training"] = { spellID = 5149 } } end } },
+        TRADE_SKILLS = "Professions", SECONDARY_SKILLS = "Secondary Skills",
+        GetNumSkillLines = function() return #lines end,
+        GetSkillLineInfo = function(i) return lines[i][1], lines[i][2] or false end,
+        C_Spell = { GetSpellTexture = function(id) return type(id) == "number" and id or nil end },
+    }, { __index = _G })
+    env._G = env
+    local chunk = slice("Search/Filters/ProfessionOptions.lua", "local function ClassicProfessions",
+        "\n-- Known professions as") .. "\nreturn ClassicProfessions"
+    local ClassicProfessions = assert(load(chunk, "=ProfessionOptions.lua ClassicProfessions", "t", env))()
+    ClassicProfessions(out)
+    local names = {}
+    for i, p in ipairs(out) do names[i] = p.name end
+    H.assertEq(table.concat(names, ", "), "Beast Training, Cooking, Mining")
+    H.assertEq(out[1].skillLine, "Beast Training", "keyed by name, as the reader keys them")
+    H.assertEq(out[1].icon, 5149)
+end
+
 function tests.recipeIsFoundInItsWindow()
     local expanded
     local env = setmetatable({

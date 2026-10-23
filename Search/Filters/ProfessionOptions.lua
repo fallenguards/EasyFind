@@ -11,10 +11,48 @@ local C_TradeSkillUI = C_TradeSkillUI
 local tsort = table.sort
 local wipe = wipe
 
+-- The classic clients' professions, keyed by name as their reader keys
+-- them: MoP's profession list, Era's and Anniversary's skill list under its
+-- two profession headers, and every profession window the character opened.
+local function ClassicProfessions(out)
+    local seen = {}
+    local texture = C_Spell and C_Spell.GetSpellTexture
+    local function add(name, icon)
+        if not name or name == "" or seen[name] then return end
+        seen[name] = true
+        out[#out + 1] = { skillLine = name, name = name, icon = icon or (texture and texture(name)) }
+    end
+    if GetProfessions and GetProfessionInfo then
+        local indexes = { GetProfessions() }
+        for i = 1, 6 do
+            if indexes[i] then
+                local profName, profIcon = GetProfessionInfo(indexes[i])
+                add(profName, profIcon)
+            end
+        end
+    end
+    local numLines, lineInfo = _G["GetNumSkillLines"], _G["GetSkillLineInfo"]
+    if numLines and lineInfo then
+        local wanted = { [_G["TRADE_SKILLS"] or "Professions"] = true, [_G["SECONDARY_SKILLS"] or "Secondary Skills"] = true }
+        local header
+        for i = 1, numLines() or 0 do
+            local name, isHeader = lineInfo(i)
+            if isHeader then header = name elseif wanted[header] then add(name) end
+        end
+    end
+    local book = ns.Database and ns.Database.ClassicRecipeBook and ns.Database.ClassicRecipeBook()
+    for name, prof in pairs(book or {}) do
+        add(name, prof.spellID and texture and texture(prof.spellID))
+    end
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
 -- Known professions as {skillLine, name, icon}, rebuilt per open so the
 -- flyout tracks learning/unlearning without a reload.
 local function KnownProfessions()
     local out = {}
+    if ns.Caps and ns.Caps.classic then return ClassicProfessions(out) end
     if not (GetProfessions and GetProfessionInfo) then return out end
     local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
     local profIndexes = { prof1, prof2, archaeology, fishing, cooking }
@@ -112,6 +150,7 @@ expansionCacheFrame:SetScript("OnEvent", function() wipe(expansionCache) end)
 -- materialize only owned-expansion recipes). Exposed here; consumed at
 -- runtime (post-load), so the load-order gap does not matter.
 ns.KnownExpansionPages = KnownExpansionPages
+ns.KnownProfessions = KnownProfessions
 
 -- Recipe-filter state. Blizzard's window filters are GLOBAL C_TradeSkillUI
 -- state (one setter each, no skillLine argument), so ours is one shared table:
@@ -976,7 +1015,8 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
                 end
                 Filters:ApplyFilterSelection("professions")
             end)
-            AttachRecipeFilterFlyout(r)
+            -- Recipe filters are retail's (learned, sources, expansion pages).
+            if not (ns.Caps and ns.Caps.classic) then AttachRecipeFilterFlyout(r) end
             pool[i] = r
         end
         return r

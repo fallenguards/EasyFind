@@ -120,10 +120,12 @@ Caps.housing = rule("HousingDashboardDisabled") ~= true
     and Caps.PanelEnabled("Blizzard_HousingDashboard")
     and C_Housing ~= nil
     and not Caps.forever
+-- Forever's panel loads and is a shell; Era's and Anniversary's loads for
+-- the Wrath code they share, with no button, binding or statistics.
 Caps.achievements = rule("AchievementsPanelDisabled") ~= true
     and type(GetCategoryList) == "function"
     and Caps.PanelEnabled("Blizzard_AchievementUI")
-    and not Caps.forever   -- the panel loads and is a shell; no toggle binding exists
+    and not Caps.forever and not (Caps.era or Caps.tbc)
 -- Forever's client asserts on a wardrobe call without the transmog
 -- location; Database.TransmogLocation supplies it on every call.
 Caps.transmog = rule("TransmogEnabled") ~= false

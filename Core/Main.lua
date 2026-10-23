@@ -189,6 +189,7 @@ local DB_DEFAULTS = {
     housingTagGroupsCache = {},
     housingFiltersPendingPush = false,
     professionFilters = {},
+    skillFilters = {},
     professionRecipeFilters = {},
     professionFiltersPendingPush = false,
     uiSearchFilters = {

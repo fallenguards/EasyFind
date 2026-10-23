@@ -26,7 +26,7 @@ local function loadReader(trees, tiers)
         GetNumTalents = function(tab) return #trees[tab].talents end,
         C_SpecializationInfo = {
             GetActiveSpecGroup = function() return 1 end,
-            GetSpecializationInfo = function(tab) return tab * 100, trees[tab].name end,
+            GetSpecializationInfo = function(tab) return tab * 100, trees[tab].name, "", tab * 10 end,
             GetTalentInfo = function(q)
                 queries[#queries + 1] = q
                 if q.tier then
@@ -54,11 +54,16 @@ local TREES = {
 
 local tests = {}
 
+local function Named(data, name)
+    for _, row in ipairs(data) do if row.name == name then return row end end
+end
+
 function tests.talentsComeFromTheTabs()
     local Database, data, queries = loadReader(TREES)
     H.assertTrue(Database:PopulateDynamicTalents(), "read without trait configs")
-    H.assertEq(#data, 3)
-    local subtlety, focus, fireball = data[1], data[2], data[3]
+    H.assertEq(#data, 5, "three talents and their two trees")
+    local subtlety, focus, fireball = Named(data, "Arcane Subtlety"), Named(data, "Arcane Focus"),
+        Named(data, "Improved Fireball")
     H.assertEq(subtlety.name, "Arcane Subtlety")
     H.assertEq(subtlety.category, "Talent")
     H.assertTrue(subtlety.talentIsAllocated, "points in it")
@@ -73,6 +78,19 @@ function tests.talentsComeFromTheTabs()
     local hasTree = false
     for _, k in ipairs(focus.keywords) do if k == "arcane" then hasTree = true end end
     H.assertTrue(hasTree, "found by its tree's name")
+end
+
+-- Searching "Fire" finds the Fire tree itself, not only talents filed under it.
+function tests.eachTreeIsARowOfItsOwn()
+    local Database, data = loadReader(TREES)
+    Database:PopulateDynamicTalents()
+    local fire = Named(data, "Fire")
+    H.assertNotNil(fire, "the tree's own row")
+    H.assertEq(fire.category, "Talent")
+    H.assertEq(fire.talentTab, 2, "opens the window on its tree")
+    H.assertNil(fire.talentIndex, "no one talent to light")
+    H.assertEq(fire.icon, 20, "the tree's icon")
+    H.assertEq(#fire.path, 1, "under Talents")
 end
 
 -- The row's tooltip: the talent's own, with its ranks, on classic rows only.
