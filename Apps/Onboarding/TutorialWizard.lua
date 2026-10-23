@@ -1631,6 +1631,7 @@ local function CreateFrameOnce()
         ns.SetRoundedRectFill(footer, fr, fg, fb, 1, true)
         -- Classic: the band wears the 1.x frame too, and it, the pages and
         -- the X sit inside the window's thick dialog border.
+        footer._efClassicInside = true
         ns.ApplyClassicChrome(footer, 1)
         local classic = ns.IsClassicChrome()
         local inset = classic and CLASSIC_EDGE or BANNER_INSET

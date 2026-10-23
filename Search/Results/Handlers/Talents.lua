@@ -6,7 +6,35 @@ local Utils = ns.Utils
 
 local select, ipairs = Utils.select, Utils.ipairs
 
+-- The classic clients' talent window (PlayerTalentFrame): opened on its own
+-- button; the talent's tab lit for the player's click while another is up,
+-- then the talent's button (button n shows talent n of the tab).
+local function OpenClassicTalent(data)
+    local highlight = ns.RequestGuide()
+    local frame = _G["PlayerTalentFrame"]
+    if not (frame and frame:IsShown()) then Openers:OpenButtonFrame("TalentMicroButton") end
+    local tries, lit = 0, nil
+    local function find()
+        tries = tries + 1
+        frame = _G["PlayerTalentFrame"]
+        if frame and frame:IsShown() and highlight and highlight.HighlightFrame then
+            local selectedTab = _G["PanelTemplates_GetSelectedTab"]
+            local onTab = not selectedTab or selectedTab(frame) == data.talentTab
+            local target = onTab and _G["PlayerTalentFrameTalent" .. data.talentIndex]
+                or _G["PlayerTalentFrameTab" .. data.talentTab]
+            if target and target ~= lit then
+                lit = target
+                highlight:HighlightFrame(target, nil, nil, true)
+            end
+            if onTab then return end
+        end
+        if tries < 150 then Utils.SafeAfter(0.2, find) end
+    end
+    find()
+end
+
 function Handlers:OpenTalentInTalentsTab(data)
+    if data.talentTab then return OpenClassicTalent(data) end
     local TALENTS_TAB = ns.SecureOpeners and ns.SecureOpeners.TAB_TALENTS or 2
     -- The replacement's talents: opened through its API, the talent's
     -- button highlighted where it hands one over.

@@ -98,11 +98,10 @@ function SecureOpeners.OpenKeyForData(data)
     local talent = data.category == "Talent"
     if Replacement and Replacement(talent and "talents" or "spellBook") then return nil end
     local key = BUTTONFRAME_PANEL[data.buttonFrame]
-    if key then return key end
-    if data.spellID and (talent or Utils.IsSpellbookOnlyAbility(data)) then
-        return "playerSpells"
-    end
-    return nil
+    if not key and data.spellID and (talent or Utils.IsSpellbookOnlyAbility(data)) then key = "playerSpells" end
+    -- The classic clients have no such panel: their windows open on their own buttons.
+    if key and not _G[PANELS[key].micro] then return nil end
+    return key
 end
 
 -- The replacement interface's own key for its window, as a "/click"

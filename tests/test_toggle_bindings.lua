@@ -137,5 +137,34 @@ function tests.selfCastFlipsItsCVarWithNoSetting()
     H.assertEq(cvars.lockActionBars, "0", "the action bars stay as they were")
 end
 
+-- The classic clients have no FramerateFrame: their binding runs
+-- ToggleFramerate, which shows or hides FramerateLabel and FramerateText
+-- (Blizzard_UIParent/Classic/WorldFrame.lua).
+function tests.framerateOnTheClassicClients()
+    local Blizz, _, env = load()
+    env.FramerateFrame = nil
+    env.FramerateLabel, env.FramerateText = Frame(false), Frame(false)
+    env.ToggleFramerate = function()
+        local on = not env.FramerateText:IsShown()
+        env.FramerateLabel:SetShown(on)
+        env.FramerateText:SetShown(on)
+    end
+    H.assertFalse(Blizz:GetToggleBindingState("TOGGLEFPS"))
+    H.assertTrue(Blizz:PerformBinding("TOGGLEFPS"), "runs the classic toggle, no settings panel")
+    H.assertTrue(Blizz:GetToggleBindingState("TOGGLEFPS"), "the framerate shows: checked")
+end
+
+-- A binding row's page is opened by the client's id for it, in any language.
+function tests.keybindingsPageOpensByTheClientsID()
+    local Blizz, _, env = load()
+    local opened
+    env.InCombatLockdown = function() return false end
+    env.SettingsPanel = { IsShown = function() return true end }
+    env.Settings.KEYBINDINGS_CATEGORY_ID = 77
+    env.Settings.OpenToCategory = function(id) opened = id end
+    Blizz:HandleStep({ settingsCategory = "Keybindings", bindingAction = "TOGGLEFPS" })
+    H.assertEq(opened, 77)
+end
+
 local pass, fail, failures = H.runSuite("ToggleBindings", tests)
 return { pass = pass, fail = fail, failures = failures }

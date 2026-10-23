@@ -673,7 +673,7 @@ function Handlers:SelectResult(data, forceGuide)
     -- Talents: open Talents tab and highlight the matching node. Routed
     -- here (before the generic spellID branch) because talents share the
     -- spellID field with abilities but should never cast.
-    if data.category == "Talent" and data.talentNodeID then
+    if data.category == "Talent" and (data.talentNodeID or data.talentTab) then
         -- Talent entries already carry the full step chain (micro button
         -- -> Talents tab -> node); Guide walks it, fast mode drives the
         -- panel directly.

@@ -647,9 +647,76 @@ local function OpenAbilityInReplacement(api, data, stepGuide)
     find()
 end
 
+-- The classic clients' spellbook (SpellBookFrame): where a spell stands,
+-- by its name (its slot moves as ranks are learned).
+local function ClassicSpellSlot(name)
+    local numTabs, tabInfo, itemName = _G["GetNumSpellTabs"], _G["GetSpellTabInfo"], _G["GetSpellBookItemName"]
+    if not (numTabs and tabInfo and itemName and name) then return nil end
+    for tab = 1, numTabs() or 0 do
+        local _, _, offset, numSlots = tabInfo(tab)
+        offset = offset or 0
+        for slot = offset + (numSlots or 0), offset + 1, -1 do
+            if itemName(slot, "spell") == name then return tab, slot - offset end
+        end
+    end
+    return nil
+end
+
+-- What to light in an open classic spellbook: the spell's own button when
+-- its page is up, else its tab or the page button toward it, for the
+-- player's own click. True once it is the spell itself.
+local function ClassicTarget(name)
+    local tab, index = ClassicSpellSlot(name)
+    if not tab then return nil end
+    local book = _G["SpellBookFrame"]
+    if book.selectedSkillLine ~= tab then return _G["SpellBookSkillLineTab" .. tab] end
+    local perPage = _G["SPELLS_PER_PAGE"] or 12
+    local page = math.floor((index - 1) / perPage) + 1
+    local current = _G["SpellBook_GetCurrentPage"] and _G["SpellBook_GetCurrentPage"]() or 1
+    if page ~= current then
+        return _G[page > current and "SpellBookNextPageButton" or "SpellBookPrevPageButton"]
+    end
+    return _G["SpellButton" .. ((index - 1) % perPage + 1)], true
+end
+
+-- Opened on its own button (Guide: that button lit for the player's
+-- click); inside it nothing is driven, only lit.
+local function OpenAbilityInClassicSpellbook(data, stepGuide)
+    local highlight = ns.RequestGuide()
+    local book = _G["SpellBookFrame"]
+    if not (book and book:IsShown()) then
+        if stepGuide then
+            if highlight and highlight.HighlightFrame then
+                highlight:HighlightFrame(_G["SpellbookMicroButton"], nil, nil, true)
+            end
+        else
+            Openers:OpenButtonFrame("SpellbookMicroButton")
+        end
+    end
+    local name = data.spellName or data.name
+    local tries, lit = 0, nil
+    local function find()
+        tries = tries + 1
+        book = _G["SpellBookFrame"]
+        if book and book:IsShown() and highlight and highlight.HighlightFrame then
+            local target, isSpell = ClassicTarget(name)
+            if target and target ~= lit then
+                lit = target
+                highlight:HighlightFrame(target, nil, nil, true)
+            end
+            if isSpell then return end
+        end
+        if tries < 150 then Utils.SafeAfter(0.2, find) end
+    end
+    find()
+end
+
 function Handlers:OpenAbilityInSpellbook(data, stepGuide)
     local replaced = Openers.Replacement and data.spellID and Openers.Replacement("spellBook")
     if replaced then return OpenAbilityInReplacement(replaced, data, stepGuide) end
+    if ns.Caps and ns.Caps.classic and _G["SpellbookMicroButton"] then
+        return OpenAbilityInClassicSpellbook(data, stepGuide)
+    end
     local highlight = ns.RequestGuide()
     local targetElement
 

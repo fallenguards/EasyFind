@@ -3,9 +3,12 @@
 
 local H = require("Harness")
 
-local function Load(on)
+local function Load(on, classic)
     local env = H.newEnv()
     env._G = env
+    -- Retail and Forever have the combined spells window's button; the
+    -- classic clients do not.
+    if not classic then env.PlayerSpellsMicroButton = {} end
     local opened = {}
     if on then
         env.ClassicUIForeverAPI = {
@@ -39,6 +42,15 @@ function tests.replacedSpellbook_rowsSkipTheClientWindow()
     local ns = Load({ spellBook = true })
     H.assertEq(ns.SecureOpeners.OpenKeyForData(SPELL), nil)
     H.assertEq(ns.SecureOpeners.OpenKeyForData(TALENT), "playerSpells")
+end
+
+-- The classic clients open their spellbook and talents on their own
+-- buttons: no secure click on a window they do not have.
+function tests.classicClient_noCombinedSpellsWindow()
+    local ns = Load(nil, true)
+    H.assertNil(ns.SecureOpeners.OpenKeyForData(SPELL))
+    H.assertNil(ns.SecureOpeners.OpenKeyForData(TALENT))
+    H.assertNil(ns.SecureOpeners.OpenKeyForData({ spellID = 204, category = "Ability", isSpellbookOnly = true }))
 end
 
 function tests.replacedTalents_rowsSkipTheClientWindow()

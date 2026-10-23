@@ -1833,6 +1833,10 @@ ns.CLASSIC_BACKDROP = {            -- bar, results, menus
     tile = true, tileSize = 256, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
+-- Its metal ends 6 in at that edge size (12 of the art's 32 columns): drawn
+-- that far outside the frame, rows and scroll bars run to the frame's edge
+-- clear of it.
+ns.CLASSIC_OUTSET = 6
 -- Panes inside a window: the thin tooltip edge, so no metal nests in metal.
 ns.CLASSIC_THIN = {
     bgFile = CLASSIC_DIALOG_BG,
@@ -2815,26 +2819,49 @@ local function DressTree(frame, inset, alpha)
 end
 
 do
-    local function DressClassic(frame)
-        if not frame.SetBackdrop and BackdropTemplateMixin then
-            Mixin(frame, BackdropTemplateMixin)
-            if frame.OnBackdropLoaded then frame:OnBackdropLoaded() end
+    -- The bar, results and menus wear the art on a frame CLASSIC_OUTSET
+    -- outside their own, under them; a band inside a window's border
+    -- (_efClassicInside) and the windows keep it on themselves.
+    local function ClassicHost(frame, want)
+        local back = frame._efClassicBack
+        if want ~= "tooltip" or frame._efClassicInside then
+            if back then back:Hide() end
+            return frame
         end
-        if not frame.SetBackdrop then return false end
+        if not back then
+            back = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+            back:SetPoint("TOPLEFT", frame, "TOPLEFT", -ns.CLASSIC_OUTSET, ns.CLASSIC_OUTSET)
+            back:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", ns.CLASSIC_OUTSET, -ns.CLASSIC_OUTSET)
+            frame._efClassicBack = back
+        end
+        back:SetFrameLevel(math.max(0, frame:GetFrameLevel() - 1))
+        back:Show()
+        return back
+    end
+    ns.ClassicHost = function(frame) return frame._efClassicBack and frame._efClassicBack:IsShown() and frame._efClassicBack or frame end
+
+    local function DressClassic(frame)
         local style = frame._efClassicStyle
         local want = (style == "dialog" or style == "thin") and style or "tooltip"
+        local host = ClassicHost(frame, want)
+        if not host.SetBackdrop and BackdropTemplateMixin then
+            Mixin(host, BackdropTemplateMixin)
+            if host.OnBackdropLoaded then host:OnBackdropLoaded() end
+        end
+        if not host.SetBackdrop then return false end
         local backdrop = (want == "dialog" and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN) or ns.CLASSIC_BACKDROP
-        if frame._efClassicChrome ~= want then
-            frame:SetBackdrop(backdrop)
-            frame._efClassicChrome = want
+        if frame._efClassicChrome ~= want or frame._efClassicHost ~= host then
+            if host ~= frame and frame.SetBackdrop then frame:SetBackdrop(nil) end
+            host:SetBackdrop(backdrop)
+            frame._efClassicChrome, frame._efClassicHost = want, host
         end
         -- The stone is its own color; only the window opacity applies.
         local alpha = frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha()
-        frame:SetBackdropColor(1, 1, 1, alpha)
-        frame:SetBackdropBorderColor(1, 1, 1, 1)
+        host:SetBackdropColor(1, 1, 1, alpha)
+        host:SetBackdropBorderColor(1, 1, 1, 1)
         -- Windows and the search window may wear a talent tree; menus never.
         if want == "dialog" or frame._efWearsTree then
-            DressTree(frame, backdrop.insets.left, alpha)
+            DressTree(frame, backdrop.insets.left - (host ~= frame and ns.CLASSIC_OUTSET or 0), alpha)
         end
         return true
     end
@@ -2868,8 +2895,9 @@ do
                 frame._efBandInsets = nil
             end
         elseif was == "classic" and want ~= "classic" then
-            frame._efClassicChrome = nil
+            frame._efClassicChrome, frame._efClassicHost = nil, nil
             if frame.SetBackdrop then frame:SetBackdrop(nil) end
+            if frame._efClassicBack then frame._efClassicBack:Hide() end
             if frame._efTree then frame._efTree.clip:Hide() end
         end
         if want == "classic" and not DressClassic(frame) then want = nil end
@@ -3048,7 +3076,7 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if not frame.combinedBorder then return end
     frame._efBgAlpha = alpha
     if frame._efForever then frame._efForever.fill:SetAlpha(alpha) end
-    if frame._efSkin == "classic" then frame:SetBackdropColor(1, 1, 1, frame._efClassicAlpha or alpha) end
+    if frame._efSkin == "classic" then ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, frame._efClassicAlpha or alpha) end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end
@@ -6649,10 +6677,11 @@ function ns.SetRoundedRectDivider(frame, yOffset, shown)
         local scale = d.GetEffectiveScale and d:GetEffectiveScale()
         d:SetHeight((physH and physH > 0 and scale and scale > 0) and 768 / physH / scale or 1)
     elseif frame._efSkin == "classic" then
-        -- The Classic skin: a line in the metal border's gray, edge to edge.
+        -- The Classic skin: a line in the metal border's gray, edge to
+        -- edge (the metal's inner edge is the frame's own when it sits out).
         d:SetColorTexture(0.62, 0.62, 0.62, 0.9)
         d:SetHeight(1)
-        inset = ns.CLASSIC_BACKDROP.insets.left
+        inset = ns.ClassicHost(frame) ~= frame and 0 or ns.CLASSIC_BACKDROP.insets.left
     else
         local c = frame._efForeverSurface and ns.ForeverLineColor() or nil
         if c then d:SetColorTexture(c[1], c[2], c[3], c[4]) else d:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, 1) end

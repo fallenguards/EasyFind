@@ -2053,17 +2053,29 @@ local TOGGLE_BINDING_STATE = {
                 ToggleWorldMap()
                 return true
             end
+            -- The map's addon not loaded yet: its button opens it as a click does.
+            local button = _G["WorldMapMicroButton"]
+            if button then return Utils.ClickButton(button) and true or false end
         end,
     },
+    -- The 12.x clients' framerate frame, else the classic clients' label
+    -- and text that their binding's ToggleFramerate shows and hides.
     TOGGLEFPS = {
         get = function()
             local framerateFrame = _G["FramerateFrame"]
-            return framerateFrame and framerateFrame:IsShown()
+            if framerateFrame and framerateFrame.Toggle then return framerateFrame:IsShown() end
+            local text = _G["FramerateText"]
+            return text and text:IsShown()
         end,
         run = function()
             local framerateFrame = _G["FramerateFrame"]
             if framerateFrame and framerateFrame.Toggle then
                 framerateFrame:Toggle()
+                return true
+            end
+            local toggle = _G["ToggleFramerate"]
+            if toggle then
+                toggle()
                 return true
             end
         end,
@@ -2267,6 +2279,18 @@ local PERFORM_ONLY_BINDINGS = {
         end
     end,
 }
+
+-- The classic clients' spellbook and talents open on their own buttons, as
+-- a click on them does; retail's open only through secure clicks (and keep
+-- hidden copies of those buttons), so there the rows still lead to the binding.
+for action, button in pairs({ TOGGLESPELLBOOK = "SpellbookMicroButton", TOGGLETALENTS = "TalentMicroButton" }) do
+    if ns.Caps and ns.Caps.classic and _G[button] then
+        PERFORM_ONLY_BINDINGS[action] = function()
+            local openers = ns.SearchOpeners
+            return openers and openers.OpenButtonFrame and openers:OpenButtonFrame(button) and true or false
+        end
+    end
+end
 
 -- Discovery keywords the removed hand-curated action entries carried;
 -- the merged keybind rows inherit them so the same queries keep hitting.
@@ -3985,6 +4009,10 @@ function BlizzOptionsSearch:HandleStep(step)
     local catID = step.settingCategoryID
     if not catID and step.settingVariable then
         catID = GetCategoryIDForVariable(step.settingVariable)
+    end
+    -- The keybindings page by the client's own id: its name is translated.
+    if not catID and step.settingsCategory == "Keybindings" and Settings then
+        catID = Settings.KEYBINDINGS_CATEGORY_ID
     end
     if not catID and step.settingsCategory then
         catID = GetCategoryID(step.settingsCategory)

@@ -4496,11 +4496,13 @@ function Database:PopulateDynamicAbilities()
     if self.ResetSearchCache then self:ResetSearchCache() end
 
     local SBOOK = C_SpellBook
-    if not SBOOK or not SBOOK.GetSpellBookItemInfo
-       or not SBOOK.GetNumSpellBookSkillLines or not SBOOK.GetSpellBookSkillLineInfo then
-        return false
-    end
-    local BANK = (Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player) or 0
+    local modern = SBOOK and SBOOK.GetSpellBookItemInfo and SBOOK.GetNumSpellBookSkillLines
+        and SBOOK.GetSpellBookSkillLineInfo
+    -- The classic clients' spellbook: tabs of slots, read slot by slot.
+    local classic = not modern and GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemName
+        and GetSpellBookItemInfo
+    if not (modern or classic) then return false end
+    local BANK = classic and "spell" or (Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player) or 0
     local SPELL_TYPE = Enum and Enum.SpellBookItemType and Enum.SpellBookItemType.Spell
     local FLYOUT_TYPE = Enum and Enum.SpellBookItemType and Enum.SpellBookItemType.Flyout
     local GetFlyoutInfoFn = GetFlyoutInfo
@@ -4550,6 +4552,33 @@ function Database:PopulateDynamicAbilities()
             spellName = name,
             steps = { { spellID = spellID } },
         }
+    end
+
+    if classic then
+        -- A spell once, at its highest rank: the last of its slots.
+        local order, best = {}, {}
+        for tab = 1, GetNumSpellTabs() or 0 do
+            local lineName, _, offset, numSlots = GetSpellTabInfo(tab)
+            offset = offset or 0
+            for slot = offset + 1, offset + (numSlots or 0) do
+                Utils.SliceCheckpoint()
+                local slotType, spellID = GetSpellBookItemInfo(slot, BANK)
+                local name, rank = GetSpellBookItemName(slot, BANK)
+                if slotType == "SPELL" and spellID and name and name ~= "" then
+                    if not best[name] then order[#order + 1] = name end
+                    best[name] = { rank = rank, spellID = spellID, slot = slot, line = lineName }
+                end
+            end
+        end
+        for i = 1, #order do
+            local name = order[i]
+            local b = best[name]
+            local icon = GetSpellBookItemTexture and GetSpellBookItemTexture(b.slot, BANK)
+            local isPassive = _G["IsPassiveSpell"]
+            local passive = isPassive and isPassive(b.slot, BANK) and true or false
+            injectAbility(name, b.rank, b.spellID, icon, b.line, nil, false, passive, b.slot)
+        end
+        return true
     end
 
     local numLines = SBOOK.GetNumSpellBookSkillLines() or 0
@@ -5051,6 +5080,44 @@ end
 function Database:PopulateDynamicTalents()
     RemoveEntriesByCategory("Talent")
     if self.ResetSearchCache then self:ResetSearchCache() end
+
+    -- The classic clients' talent trees (Era, Anniversary): tabs of talents
+    -- read by index; they have no trait configs.
+    local SI = C_SpecializationInfo
+    local numTabs, numTalents = _G["GetNumTalentTabs"], _G["GetNumTalents"]
+    if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID) and numTabs and numTalents
+       and SI and SI.GetTalentInfo then
+        local group = SI.GetActiveSpecGroup and SI.GetActiveSpecGroup() or 1
+        local talents = _G["TALENTS"] or "Talents"
+        for tab = 1, numTabs() or 0 do
+            local tabName = SI.GetSpecializationInfo and select(2, SI.GetSpecializationInfo(tab))
+            local kw = { "talent", "talents" }
+            if tabName and tabName ~= "" then kw[3] = slower(tabName) end
+            for index = 1, numTalents(tab) or 0 do
+                Utils.SliceCheckpoint()
+                local ok, info = pcall(SI.GetTalentInfo, { specializationIndex = tab, talentIndex = index, groupIndex = group })
+                if ok and type(info) == "table" and info.name and info.name ~= "" then
+                    uiSearchData[#uiSearchData + 1] = {
+                        name = info.name,
+                        nameLower = slower(info.name),
+                        keywords = kw,
+                        keywordsLower = kw,
+                        category = "Talent",
+                        icon = info.icon,
+                        spellID = info.spellID,
+                        spellName = info.name,
+                        talentTab = tab,
+                        talentIndex = index,
+                        talentIsAllocated = (info.rank or 0) > 0,
+                        buttonFrame = "TalentMicroButton",
+                        path = { talents, tabName },
+                        steps = { { buttonFrame = "TalentMicroButton" }, { waitForFrame = "PlayerTalentFrame", tabIndex = tab } },
+                    }
+                end
+            end
+        end
+        return true
+    end
 
     if not C_ClassTalents or not C_ClassTalents.GetActiveConfigID
        or not C_Traits or not C_Traits.GetConfigInfo
@@ -7015,6 +7082,35 @@ function Database:BuildUIDatabase()
             category = "Menu Bar",
             buttonFrame = "ProfessionMicroButton",
             steps = {{ buttonFrame = "ProfessionMicroButton" }},
+        },
+
+        -- The classic clients' own windows, each on its own button (the
+        -- 12.x clients keep hidden copies of those buttons: classic only).
+        {
+            name = _G["SPELLBOOK"] or "Spellbook",
+            keywords = {"spellbook", "spell book", "spells", "abilities"},
+            category = "Menu Bar",
+            caps = "classic",
+            buttonFrame = "SpellbookMicroButton",
+            steps = {{ buttonFrame = "SpellbookMicroButton" }},
+        },
+
+        {
+            name = _G["TALENTS"] or "Talents",
+            keywords = {"talents", "talent", "talent tree", "talent points"},
+            category = "Menu Bar",
+            caps = "classic",
+            buttonFrame = "TalentMicroButton",
+            steps = {{ buttonFrame = "TalentMicroButton" }},
+        },
+
+        {
+            name = _G["WORLDMAP_BUTTON"] or _G["WORLD_MAP"] or "World Map",
+            keywords = {"map", "world map", "worldmap"},
+            category = "Menu Bar",
+            caps = "classic",
+            buttonFrame = "WorldMapMicroButton",
+            steps = {{ buttonFrame = "WorldMapMicroButton" }},
         },
 
         {

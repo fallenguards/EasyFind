@@ -322,7 +322,18 @@ function tests.classic_borderOn_wearsTheTooltipFrame()
     local f = classicSurface()
     ns.ApplyThemeFill(f)
     H.assertEq(f._efSkin, "classic")
-    H.assertEq(f.backdrop, ns.CLASSIC_BACKDROP)
+    -- The metal sits outside the frame, its inner edge on the frame's own.
+    local back = f._efClassicBack
+    H.assertTrue(back and back.shown, "a frame under it wears the art")
+    H.assertEq(back.backdrop, ns.CLASSIC_BACKDROP)
+    H.assertNil(f.backdrop, "nothing drawn on the frame itself")
+    -- Field by field: the frame refers back to itself through its parts.
+    local tl, br = back.points[1], back.points[2]
+    H.assertTrue(tl[1] == "TOPLEFT" and tl[2] == f and tl[3] == "TOPLEFT", "top left on the frame's")
+    H.assertTrue(tl[4] == -ns.CLASSIC_OUTSET and tl[5] == ns.CLASSIC_OUTSET, "outside it by the metal's width")
+    H.assertTrue(br[1] == "BOTTOMRIGHT" and br[2] == f and br[3] == "BOTTOMRIGHT", "bottom right on the frame's")
+    H.assertTrue(br[4] == ns.CLASSIC_OUTSET and br[5] == -ns.CLASSIC_OUTSET, "outside it by the metal's width")
+    H.assertTrue(back.level < f.level, "under the frame's own contents")
     H.assertTrue(not roundedShown(f, "fill") and not roundedShown(f, "border"), "rounded pieces step aside")
     ns.SetRoundedRectRingShown(f, true)
     H.assertTrue(not roundedShown(f, "border"), "a ring request cannot show the rounded ring over the frame")
@@ -340,6 +351,7 @@ function tests.classic_borderOff_isRounded()
     H.assertTrue(not ns.IsClassicChrome(), "the classic layout flags follow the option")
     ns.ApplyThemeFill(f)
     H.assertTrue(f.backdrop == nil and not f._efSkin, "the frame art is gone")
+    H.assertTrue(not (f._efClassicBack and f._efClassicBack.shown), "and the frame under it")
     H.assertTrue(roundedShown(f, "fill") and not roundedShown(f, "border"), "rounded, ring as asked")
     borderOption(nil)
 end
@@ -369,7 +381,8 @@ function tests.switchingThemes_leavesOnlyOneSkin()
     H.assertTrue(f.backdrop == nil and f._efSkin == "forever", "classic frame removed for the Forever border")
     ns.ACTIVE_UI_PALETTE = CLASSIC
     ns.ApplyThemeFill(f)
-    H.assertTrue(not f._efForever.border.shown and f.backdrop == ns.CLASSIC_BACKDROP, "and back")
+    H.assertTrue(not f._efForever.border.shown and f._efClassicBack.backdrop == ns.CLASSIC_BACKDROP
+        and f._efClassicBack.shown, "and back")
     borderOption(nil)
 end
 
