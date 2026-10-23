@@ -237,19 +237,23 @@ function tests.planningAndBorderAreFlyoutSwitches()
     H.assertEq(off[4].text, "GPS_POPOUT_TEXT")
     H.assertEq(#off[4].submenu, 4, "four text sizes")
     H.assertTrue(off[4].submenu[2].picked, "normal until one is picked")
-    -- The row opens a choice of rims: the quest log's paper or the line;
-    -- a theme with frame art of its own offers that first and by default.
+    -- The row opens a choice of rims: the quest log's paper, the line or
+    -- none; a theme with frame art of its own offers that first and by default.
     local rims = style[#style].submenu
-    H.assertEq(#rims, 2)
+    H.assertEq(#rims, 3)
     H.assertEq(rims[1].text, "GPS_BORDER_QUEST")
     H.assertTrue(rims[1].picked and not rims[2].picked, "the paper by default on a plain theme")
+    rims[3].onClick()
+    H.assertEq(db.gpsPopoutRim, "off", "the last choice is no border")
+    H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[3].picked)
+    db.gpsPopoutRim = nil
     db.gpsPopoutBorder = false
     H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[2].picked, "an older border-off reads as the line")
     db.gpsPopoutBorder = nil
     palette.chrome = "classic"
     style = GPS.StyleMenu(border).rows()
     rims = style[#style].submenu
-    H.assertEq(#rims, 3)
+    H.assertEq(#rims, 4)
     H.assertEq(rims[1].text, "GPS_BORDER_IRON")
     H.assertTrue(rims[1].picked and not rims[2].picked, "the theme's own rim until one is picked")
     rims[2].onClick()
@@ -262,6 +266,19 @@ function tests.planningAndBorderAreFlyoutSwitches()
     H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[2].picked, "the line holds on a plain theme")
     db.gpsPopoutRim = "iron"
     H.assertTrue(GPS.StyleMenu(border).rows()[#style].submenu[1].picked, "iron on a plain theme reads as the paper")
+    -- One border to have (a plain theme on a client without the quest
+    -- log's rim): a plain check, not a flyout of one.
+    db.gpsPopoutRim = nil
+    env.GAME_ART.questRim = false
+    local row = GPS.StyleMenu(border).rows()[#style]
+    H.assertNil(row.submenu, "no flyout")
+    H.assertTrue(row.picked, "the line border, on")
+    row.onClick()
+    H.assertEq(db.gpsPopoutRim, "off")
+    row = GPS.StyleMenu(border).rows()[#style]
+    H.assertFalse(row.picked)
+    row.onClick()
+    H.assertEq(db.gpsPopoutRim, "line")
 end
 
 -- A step's right-click: restarting the route there comes first.

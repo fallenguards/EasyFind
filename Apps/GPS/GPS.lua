@@ -29,9 +29,9 @@ local ROUTE_MAX_AGE = 2 * 60 * 60
 local ARRIVED_LINGER = 8
 local START_YARDS = 60      -- this close to a planned route's start, the player is on it
 local ROW_H = 22
--- Beside the map the steps read at the quest log's size and follow the map
--- search's font size choice; the windows keep their small type.
-local MAP_STEP_PX = 13
+-- Beside the map the steps read at the pop-out's small type and follow the
+-- map search's font size choice.
+local MAP_STEP_PX = 10
 -- The page's text scale: the map tab's font size, or the floating
 -- window's own setting; nil leaves the fonts as made.
 local function MapScale(container)
@@ -2155,7 +2155,7 @@ local function Render(container)
     -- Done steps hidden (the setting): the list starts at the active step.
     local first = only or ((dbo and dbo.gpsHideDone and not route.arrived) and (route.active or 1)) or 1
     local scale = MapScale(container)
-    local rowBase = scale and mfloor((container.mapFont and ROW_H + 4 or ROW_H) * scale + 0.5) or ROW_H
+    local rowBase = scale and mfloor(ROW_H * scale + 0.5) or ROW_H
     if container.isPopout and container.eta and container.etaScale ~= (scale or 0) then
         container.etaScale = scale or 0
         ScaleFont(container.eta, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
@@ -2195,7 +2195,7 @@ local function Render(container)
         end
         ScaleFont(probe, "GameFontNormalSmall", scale and MAP_STEP_PX * scale)
         probe:SetText("1.")
-        local numW = scale and mfloor(24 * scale + 0.5) or 18
+        local numW = scale and mfloor(18 * scale + 0.5) or 18
         local inset = mmax(0, numW - (probe:GetStringWidth() or 0))
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 6 + inset, -y - 4 + offset)
@@ -2240,7 +2240,7 @@ local function Render(container)
             row.fontScale = scale or 0
             ScaleFont(row.text, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
             ScaleFont(row.num, "GameFontNormalSmall", scale and MAP_STEP_PX * scale)
-            row.num:SetWidth(scale and mfloor(24 * scale + 0.5) or 18)
+            row.num:SetWidth(scale and mfloor(18 * scale + 0.5) or 18)
         end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
@@ -2248,7 +2248,9 @@ local function Render(container)
         row.num:SetText(tostring(i) .. ".")
         local active = (route.active or 1) == i and not route.arrived
         local done = route.arrived or i < (route.active or 1)
-        local cast = SetupCast(row.cast, step, active)
+        SetupCast(row.cast, step, active)
+        -- Room for the button in or out of view: FitPage places it again.
+        local cast = active and step.kind == "teleport" and (step.spellID or step.itemID)
         row.learnID = step.kind == "learn" and not route.arrived and step.nodeID or nil
         if not row.learnID then row.drop:Hide() end
         row.text:SetWidth(mmax(40, listW - 12 - row.num:GetWidth() - ((cast or row.learnID) and 32 or 6)))
@@ -2432,6 +2434,13 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         -- Escape leaves a start being picked; with no route, drops a start set.
         if GPS.picking == frame then GPS:EndPick() elseif Start() and not Route() then GPS:SetStart(nil) end
         if GPS.along == frame then GPS:EndAlong() end
+    end)
+    -- Beside the map, Ctrl+plus, minus or 0 sets the text size, as Ctrl+wheel does.
+    box:HookScript("OnKeyDown", function(_, key)
+        if not (frame.mapFont and IsControlKeyDown() and ns.MapTab and ns.MapTab.StepFontSize) then return end
+        if key == "=" or key == "EQUALS" or key == "PLUS" or key == "NUMPADPLUS" then ns.MapTab.StepFontSize(1)
+        elseif key == "-" or key == "MINUS" or key == "NUMPADMINUS" then ns.MapTab.StepFontSize(-1)
+        elseif key == "0" or key == "NUMPAD0" then ns.MapTab.StepFontSize(0) end
     end)
     box:HookScript("OnEditFocusLost", function(self)
         if GPS.picking == frame and (self:GetText() or "") == "" then GPS:EndPick() end
@@ -2914,17 +2923,25 @@ local function FitPage(self, hasRoute)
         self:Render()
         return
     end
-    self.list:SetHeight(mmax(1, math.min(self.contentHeight or 0, avail)))
+    local h = mmax(1, math.min(self.contentHeight or 0, avail))
+    self.list:SetHeight(h)
     self.list:SetClipsChildren(true)
     local bar = self.scrollBar
     if bar then
-        bar:SetShown(hasRoute and true or false)
         self.maxOffset = maxOffset
         local total = self.contentHeight or 0
         self.syncingBar = true
         bar:SetVisibleExtentPercentage(total > 0 and math.min(1, avail / total) or 1)
         bar:SetScrollPercentage(maxOffset > 0 and (self.scrollOffset or 0) / maxOffset or 0)
         self.syncingBar = nil
+    end
+    -- The cast buttons again, inside the fitted list; never a new render,
+    -- which sets the list's full height and comes back here.
+    if hasRoute and route then
+        for _, row in ipairs(self.rows or {}) do
+            local step = row.index and row:IsShown() and route.steps[row.index]
+            if step then SetupCast(row.cast, step, (route.active or 1) == row.index and not route.arrived) end
+        end
     end
 end
 
@@ -2946,6 +2963,10 @@ local function BuildPage(frame)
     if ns.GPSTrip then ns.GPSTrip.BuildEditor(frame) end
     frame:EnableMouseWheel(true)
     frame:SetScript("OnMouseWheel", function(self, delta)
+        if IsControlKeyDown() then
+            if ns.MapTab and ns.MapTab.StepFontSize then ns.MapTab.StepFontSize(delta) end
+            return
+        end
         if not Route() then return end
         self.scrollOffset = mmax(0, (self.scrollOffset or 0) - delta * ROW_H)
         self:Render()
@@ -2956,9 +2977,9 @@ local function BuildPage(frame)
     local panel = frame:GetParent()
     local bar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
     bar:SetFrameStrata("HIGH")
-    bar:SetPoint("TOPLEFT", panel, "TOPRIGHT", 8, 2)
-    bar:SetPoint("BOTTOMLEFT", panel, "BOTTOMRIGHT", 8, -4)
-    bar:Hide()
+    -- Shown while the page is, as the map search's own bar is.
+    bar:SetPoint("TOPLEFT", panel, "TOPRIGHT", panel.barGap or 8, 2)
+    bar:SetPoint("BOTTOMLEFT", panel, "BOTTOMRIGHT", panel.barGap or 8, -4)
     if bar.RegisterCallback and bar.Event and bar.Event.OnScroll then
         bar:RegisterCallback(bar.Event.OnScroll, function(_, pct)
             if frame.syncingBar then return end
@@ -4555,11 +4576,12 @@ function GPS.ThemeHasChrome()
 end
 
 -- The pop-out's rim: "iron" (the theme's frame art, only where it has
--- one), "quest" (the quest log's paper) or "line" (the search bar's). The
--- theme's own art by default; an older "border off" is the line.
+-- one), "quest" (the quest log's paper), "line" (the search bar's) or
+-- "off". The theme's own art by default; an older "border off" is the line.
 function GPS.PopoutRim()
     local db = DB()
     local rim = db and db.gpsPopoutRim
+    if rim == "off" then return rim end
     if rim == nil and db and db.gpsPopoutBorder == false then rim = "line" end
     if rim ~= "quest" and rim ~= "line" then rim = "iron" end
     if rim == "iron" and not GPS.ThemeHasChrome() then rim = "quest" end
@@ -4610,7 +4632,7 @@ function GPS.StyleMenu(border)
             local rims = { { "line", "GPS_BORDER_LINE" } }
             if GAME_ART.questRim then table.insert(rims, 1, { "quest", "GPS_BORDER_QUEST" }) end
             if GPS.ThemeHasChrome() then table.insert(rims, 1, { "iron", "GPS_BORDER_IRON" }) end
-            rows[#rows + 1] = { text = border.label, submenu = PickRows(rims, GPS.PopoutRim(), function(rim)
+            local function setRim(rim)
                 local d = DB()
                 if not d then return end
                 d.gpsPopoutRim, d.gpsPopoutBorder = rim, nil
@@ -4619,7 +4641,19 @@ function GPS.StyleMenu(border)
                     popoutFrame:ApplyBorderShape()
                     popoutFrame:Render()
                 end
-            end) }
+            end
+            local rim = GPS.PopoutRim()
+            -- One border to have: on or off. More: a pick, Off among them.
+            if #rims == 1 then
+                rows[#rows + 1] = { text = border.label, icon = rim ~= "off" and MENU_CHECK or nil, picked = rim ~= "off",
+                    onClick = function() setRim(rim == "off" and "line" or "off") end }
+            else
+                local picks = PickRows(rims, rim, setRim)
+                local off = PickRows({ { "off", "GPS_BORDER_OFF" } }, rim, setRim)[1]
+                off.text = _G["OFF"] or off.text
+                table.insert(picks, off)
+                rows[#rows + 1] = { text = border.label, submenu = picks }
+            end
         end
         return rows
     end }
@@ -4900,7 +4934,7 @@ local function BuildPopout()
         local dressed = ns.ApplySkin ~= nil and ns.ApplySkin(self)
         local paper = rim == "quest"
         if self.border then self.border:SetShown(paper) end
-        if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(self, true) end
+        if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(self, rim ~= "off") end
         ns.SetRoundedRectBarHeight(self, (paper or dressed) and 2 or 14)
     end
     f:ApplyBorderShape()
@@ -4913,27 +4947,10 @@ local function BuildPopout()
     -- The calculator's stroke close, not a stock round button. The header's
     -- buttons are small, a click a little round each.
     local BTN, BTN_GAP = 14, 18
-    local close = CreateFrame("Button", nil, f)
+    local close = ns.CreateCloseX(f, 13)
     close:SetSize(BTN, BTN)
     close:SetHitRectInsets(-3, -3, -3, -3)
     close:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -10)
-    local function stroke()
-        local tex = close:CreateTexture(nil, "OVERLAY")
-        tex:SetTexture("Interface\\Buttons\\WHITE8x8")
-        tex:SetSize(11, 1.5)
-        tex:SetPoint("CENTER")
-        return tex
-    end
-    local s1, s2 = stroke(), stroke()
-    s1:SetRotation(mpi / 4)
-    s2:SetRotation(-mpi / 4)
-    local function tint(r, g, b)
-        s1:SetVertexColor(r, g, b, 1)
-        s2:SetVertexColor(r, g, b, 1)
-    end
-    tint(unpack(ns.TEXT_DIM))
-    close:SetScript("OnEnter", function() tint(1, 1, 1) end)
-    close:SetScript("OnLeave", function() tint(unpack(ns.TEXT_DIM)) end)
     close:SetScript("OnClick", function() GPS:TogglePopout(false) end)
     f.closeBtn = close
 

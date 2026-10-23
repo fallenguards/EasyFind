@@ -2463,11 +2463,15 @@ end
 -- The text size choices, one ticked.
 local function FontRows(onPick)
     return function()
-        local cur = FontScale()
+        -- A size stepped live ticks the nearest choice.
+        local cur, near = FontScale(), nil
+        for _, choice in ipairs(FONT_SIZES) do
+            if not near or math.abs(choice[2] - cur) < math.abs(near - cur) then near = choice[2] end
+        end
         local rows = {}
         for _, choice in ipairs(FONT_SIZES) do
             rows[#rows + 1] = { text = L[choice[1]], keepOpen = true,
-                icon = math.abs(choice[2] - cur) < 0.01 and MENU_CHECK or nil,
+                icon = choice[2] == near and MENU_CHECK or nil,
                 onClick = function()
                     EasyFind.db.mapTabFontSize = choice[2]
                     onPick()
@@ -2475,6 +2479,17 @@ local function FontRows(onPick)
         end
         return rows
     end
+end
+
+-- The text size stepped live (Ctrl+wheel, Ctrl+plus or minus), 0 back to
+-- normal; within the menu's sizes, on their 0.05 grid.
+function MapTab.StepFontSize(delta)
+    local cur = FontScale()
+    local s = delta == 0 and 1 or math.floor((cur + delta * 0.05) * 100 + 0.5) / 100
+    s = math.max(FONT_SIZES[1][2], math.min(FONT_SIZES[#FONT_SIZES][2], s))
+    if s == cur or not (panel and panel.OnFontPicked) then return end
+    EasyFind.db.mapTabFontSize = s
+    panel.OnFontPicked()
 end
 
 local function MapOptionsDefs(onChanged, onFontPick)
@@ -3024,6 +3039,7 @@ local function CreatePanel(qmf)
         -- The GPS page's steps follow the same size.
         if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
     end
+    p.OnFontPicked = OnFontPicked
     cog:SetScript("OnClick", function()
         ns.ShowTogglePopup("EasyFindMapTabOptions", cog, MapOptionsDefs(OnFilterChanged, OnFontPicked), {})
     end)
