@@ -42,7 +42,7 @@ API.RegisterExtension({
 })
 
 API.RegisterExtension({
-    id = "chat", addon = "EasyFind_Chat", loadInCombat = true,
+    id = "chat", addon = "EasyFind_Chat", loadInCombat = true, loadAtLogin = true,
     name = L["APP_CHAT"], description = L["APP_DESC_CHAT"],
     icon = ns.CHAT_ICON_TEX, experimental = L["CHAT_EXP_TT"],
     keywords = { "chat" },

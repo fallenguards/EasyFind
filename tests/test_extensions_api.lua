@@ -102,6 +102,28 @@ function tests.launch_loadsTheAddonThoughItsSettingsStandAlready()
     H.assertEq(settings, 0, "not its settings")
 end
 
+-- Chat records whispers as they come: an extension that works unopened
+-- loads at login (where its addon is on), the rest wait for their first open.
+function tests.loadAtLogin_onlyWhatWorksUnopened()
+    local env, ns, API = fresh()
+    ns.IsCompanionLoadable = function(name) return name ~= "Off_LoD" end
+    local loaded = {}
+    env.C_AddOns = { LoadAddOn = function(name) loaded[#loaded + 1] = name end }
+    API.RegisterExtension({ id = "rec", name = "Rec", icon = 1, addon = "Rec_LoD", loadAtLogin = true })
+    API.RegisterExtension({ id = "off", name = "Off", icon = 1, addon = "Off_LoD", loadAtLogin = true })
+    API.RegisterExtension({ id = "pad", name = "Pad", icon = 1, addon = "Pad_LoD" })
+    ns.Extensions.LoadAtLogin()
+    H.assertEq(table.concat(loaded, ","), "Rec_LoD")
+end
+
+function tests.chat_loadsAtLogin()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Core/Extensions.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find('id = "chat", addon = "EasyFind_Chat", loadInCombat = true, loadAtLogin = true', 1, true) ~= nil,
+        "conversations recorded from login, not from the chat's first open")
+end
+
 function tests.launch_noLoadInCombatUnlessAllowed()
     local env, ns, API = fresh()
     ns.IsCompanionLoadable = function() return true end

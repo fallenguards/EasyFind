@@ -1344,6 +1344,9 @@ local function OnPlayerLogin()
     -- so the meter shows the real floor instead of collector debt.
     SafeAfter(8, function() ns.Utils.SettleGC() end)
 
+    -- Chat records conversations from login, not from its first open.
+    ns.Extensions.LoadAtLogin()
+
     -- LoadAddOn parses are synchronous C work that no slicing can spread
     -- (the item catalog's 6.3MB blob measured as the largest one-frame
     -- cost left at first focus). Pre-load the search companions a session

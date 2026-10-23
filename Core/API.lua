@@ -28,7 +28,7 @@ Extensions.LEGACY_FLAGS = LEGACY_FLAGS
 
 local FIELDS = {
     id = "string", name = "string", description = "string", icon = "texture", iconCoords = "table",
-    addon = "string", loadInCombat = "boolean", open = "function", close = "function",
+    addon = "string", loadInCombat = "boolean", loadAtLogin = "boolean", open = "function", close = "function",
     isOpen = "function", menu = "function", settings = "function", keywords = "table",
     hideFromSearch = "boolean", experimental = "string", scope = "string",
 }
@@ -187,6 +187,15 @@ function Extensions.Load(id)
     return false
 end
 
+-- Extensions that work unopened (Chat records as messages come): their
+-- addon loaded as the game comes up, where it is enabled.
+function Extensions.LoadAtLogin()
+    for _, id in ipairs(Extensions.order) do
+        local def = Extensions.byID[id]
+        if def.loadAtLogin and Extensions.Available(def) then LoadAddon(def) end
+    end
+end
+
 function Extensions.Launch(id)
     if not Extensions.Load(id) then return false end
     local def = Extensions.byID[id]
@@ -283,9 +292,10 @@ end
 -- def: id (required, stable: layouts and buttons save it), name and icon
 -- (required the first time; the icon is painted in the theme's icon
 -- color), iconCoords, description, addon (a load-on-demand addon loaded
--- on first open), loadInCombat, open, close, isOpen, menu (rows for its
--- right-click menu), settings(page, kit), keywords, hideFromSearch,
--- experimental, scope (its surface is that @scope's list in the results).
+-- on first open), loadAtLogin (loaded at login instead: it works unopened),
+-- loadInCombat, open, close, isOpen, menu (rows for its right-click menu),
+-- settings(page, kit), keywords, hideFromSearch, experimental, scope (its
+-- surface is that @scope's list in the results).
 -- Registering an id again adds to it: a stub's tile, then the rest.
 function API.RegisterExtension(def)
     if type(def) ~= "table" then Fail("RegisterExtension", "expects a table") end
