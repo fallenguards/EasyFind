@@ -378,7 +378,7 @@ Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~=
 -- missing is dropped from providers, filters and quick filters at load.
 local NEEDS = {
     pets = "pets", toys = "toys", heirlooms = "heirlooms", currencies = "currencies",
-    housing = "housing", loot = "loot", bosses = "journal", delves = "delves",
+    housing = "housing", loot = "loot", bosses = "journal", delves = "delves", delve = "delves",
     warband = "warbandBank", achievements = "achievements", statistics = "achievements",
     talents = "talents", outfits = "outfits", appearances = "transmog",
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",

@@ -31,7 +31,7 @@ local EXPECTED = {
     professions = { era = true, tbc = true, mists = true },
     -- MoP's wardrobe: left off until its appearance reads are proven there.
     appearances = {}, transmogSets = {}, outfits = {},
-    housing = {}, delves = {}, warband = {}, catalog = {}, icons = {},
+    housing = {}, delves = {}, delve = {}, warband = {}, catalog = {}, icons = {},
 }
 
 -- Switches the menu tree reads -> the flavors where they are on.
