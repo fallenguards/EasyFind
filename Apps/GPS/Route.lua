@@ -699,8 +699,8 @@ local function Meets(req)
         local ok, id = pcall(C_Covenants.GetActiveCovenantID)
         if ok and id ~= req.covenant then return false end
     end
-    if req.reputation and C_Reputation and C_Reputation.GetFactionDataByID then
-        local ok, fd = pcall(C_Reputation.GetFactionDataByID, req.reputation[1])
+    if req.reputation then
+        local ok, fd = pcall(ns.Caps.FactionByID, req.reputation[1])
         if ok and fd and (fd.reaction or 0) < (req.reputation[2] or 0) then return false end
     end
     if req.art and C_Map and C_Map.GetMapArtID then

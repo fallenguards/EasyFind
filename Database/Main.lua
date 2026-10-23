@@ -160,8 +160,10 @@ function Database:IsCurrencyAccountTransferable(currencyID)
 end
 
 function Database:PopulateDynamicCurrencies()
-    if not C_CurrencyInfo or not C_CurrencyInfo.GetCurrencyListSize then return false end
-    if C_CurrencyInfo.GetCurrencyListSize() == 0 then
+    -- C_CurrencyInfo, or MoP Classic's currency list, in its fields.
+    local Caps = ns.Caps
+    if not ((C_CurrencyInfo and C_CurrencyInfo.GetCurrencyListSize) or _G["GetCurrencyListSize"]) then return false end
+    if Caps.NumCurrencies() == 0 then
         -- Currency list not streamed yet (CURRENCY_DISPLAY_UPDATE pending):
         -- not-ready, and checked BEFORE the category wipe so a transient
         -- zero read cannot empty previously good entries mid-session.
@@ -173,13 +175,13 @@ function Database:PopulateDynamicCurrencies()
 
     local headersWeExpanded = {}
     for pass = 1, 50 do
-        local size = C_CurrencyInfo.GetCurrencyListSize()
+        local size = Caps.NumCurrencies()
         local didExpand = false
         for i = 1, size do
             Utils.SliceCheckpoint()
-            local info = C_CurrencyInfo.GetCurrencyListInfo(i)
+            local info = Caps.CurrencyAt(i)
             if info and info.isHeader and not info.isHeaderExpanded then
-                C_CurrencyInfo.ExpandCurrencyList(i, true)
+                Caps.SetCurrencyHeaderExpanded(i, true)
                 headersWeExpanded[info.name] = true
                 didExpand = true
                 break -- indices shift after expand, restart
@@ -188,7 +190,7 @@ function Database:PopulateDynamicCurrencies()
         if not didExpand then break end
     end
 
-    local size = C_CurrencyInfo.GetCurrencyListSize()
+    local size = Caps.NumCurrencies()
     local injected = 0
 
     local baseSteps = {
@@ -225,7 +227,7 @@ function Database:PopulateDynamicCurrencies()
     local currencyIconMap = {}
 
     for i = 1, size do
-        local info = C_CurrencyInfo.GetCurrencyListInfo(i)
+        local info = Caps.CurrencyAt(i)
         if info then
             local depth = info.currencyListDepth or 0
 
@@ -311,7 +313,7 @@ function Database:PopulateDynamicCurrencies()
     end
 
     if injected > 0 then
-        Utils.DebugPrint("Injected", injected, "dynamic currency entries from C_CurrencyInfo")
+        Utils.DebugPrint("Injected", injected, "dynamic currency entries")
     end
 
     -- Use rawget so lazy-hydrated entries (Boss, Statistic) aren't
@@ -331,12 +333,12 @@ function Database:PopulateDynamicCurrencies()
 
     -- Collapse from deepest first (indices shift after each collapse).
     for pass = 1, 50 do
-        local sz = C_CurrencyInfo.GetCurrencyListSize()
+        local sz = Caps.NumCurrencies()
         local didCollapse = false
         for i = sz, 1, -1 do
-            local info = C_CurrencyInfo.GetCurrencyListInfo(i)
+            local info = Caps.CurrencyAt(i)
             if info and info.isHeader and info.isHeaderExpanded and headersWeExpanded[info.name] then
-                C_CurrencyInfo.ExpandCurrencyList(i, false)
+                Caps.SetCurrencyHeaderExpanded(i, false)
                 headersWeExpanded[info.name] = nil
                 didCollapse = true
                 break -- indices shift, restart from end
@@ -350,7 +352,7 @@ function Database:PopulateDynamicCurrencies()
     -- the current character has touched.
     do
         local extraIDs
-        if C_CurrencyInfo.GetAccountCurrencyTypes then
+        if C_CurrencyInfo and C_CurrencyInfo.GetAccountCurrencyTypes then
             local ok, list = pcall(C_CurrencyInfo.GetAccountCurrencyTypes)
             if ok and type(list) == "table" then extraIDs = list end
         end
@@ -414,7 +416,7 @@ function Database:PopulateDynamicSkills()
     local skillsLabel = _G["SKILLS"] or "Skills"
     local header, headerLower
     for i = 1, GetNumSkillLines() do
-        local skillName, isHeader = GetSkillLineInfo(i)
+        local skillName, isHeader, _, rank, tempPoints, modifier, maxRank = GetSkillLineInfo(i)
         if isHeader then
             header, headerLower = skillName, slower(skillName or "")
         elseif skillName and skillName ~= "" then
@@ -429,6 +431,10 @@ function Database:PopulateDynamicSkills()
                 buttonFrame = "CharacterMicroButton",
                 path = { characterLabel, skillsLabel, header },
                 skillLine = skillName,
+                -- The Skills tab's count: temporary points included.
+                skillRank = rank and (rank + (tempPoints or 0)),
+                skillMaxRank = maxRank,
+                skillModifier = modifier,
                 steps = {
                     { buttonFrame = "CharacterMicroButton" },
                     { waitForFrame = "CharacterFrame", tabFrame = "SkillsFrame" },
@@ -448,8 +454,10 @@ function Database:PopulateDynamicSkills()
 end
 
 function Database:PopulateDynamicReputations()
-    if not C_Reputation or not C_Reputation.GetNumFactions then return false end
-    local liveFactions = C_Reputation.GetNumFactions()
+    -- C_Reputation, or the classic clients' faction list, in its fields.
+    local Caps = ns.Caps
+    if not ((C_Reputation and C_Reputation.GetNumFactions) or _G["GetNumFactions"]) then return false end
+    local liveFactions = Caps.NumFactions()
     if not liveFactions or liveFactions == 0 then
         -- Faction list not streamed yet (UPDATE_FACTION pending): not-ready,
         -- and checked BEFORE the category wipe so a transient zero read
@@ -461,11 +469,11 @@ function Database:PopulateDynamicReputations()
 
     local headersWeExpanded = {}
     for pass = 1, 50 do
-        local numFactions = C_Reputation.GetNumFactions()
+        local numFactions = Caps.NumFactions()
         local didExpand = false
         for i = 1, numFactions do
             Utils.SliceCheckpoint()
-            local factionData = C_Reputation.GetFactionDataByIndex(i)
+            local factionData = Caps.FactionAt(i)
             if factionData and factionData.isHeader then
                 local isCollapsed = false
                 if factionData.isHeaderExpanded ~= nil then
@@ -475,7 +483,7 @@ function Database:PopulateDynamicReputations()
                 end
 
                 if isCollapsed then
-                    C_Reputation.ExpandFactionHeader(i)
+                    Caps.SetFactionHeaderExpanded(i, true)
                     headersWeExpanded[factionData.name] = true
                     didExpand = true
                     break -- indices shift after expand, restart
@@ -485,7 +493,7 @@ function Database:PopulateDynamicReputations()
         if not didExpand then break end
     end
 
-    local numFactions = C_Reputation.GetNumFactions()
+    local numFactions = Caps.NumFactions()
     local injected = 0
 
     local baseSteps = {
@@ -551,7 +559,7 @@ function Database:PopulateDynamicReputations()
     local HORDE_HEADER    = (FACTION_HORDE    or "Horde"):lower()
 
     local function injectFaction(factionData)
-        local isDiscovered = (factionData.currentStanding and factionData.currentStanding > 0) or
+        local isDiscovered = factionData.listed or (factionData.currentStanding and factionData.currentStanding > 0) or
                              (factionData.isWatched == true)
         if not isDiscovered then return end
 
@@ -587,7 +595,7 @@ function Database:PopulateDynamicReputations()
 
     for i = 1, numFactions do
         Utils.SliceCheckpoint()
-        local factionData = C_Reputation.GetFactionDataByIndex(i)
+        local factionData = Caps.FactionAt(i)
         if factionData and factionData.name then
             if factionData.isHeader then
                 if not factionData.isChild then
@@ -607,14 +615,14 @@ function Database:PopulateDynamicReputations()
     end
 
     if injected > 0 then
-        Utils.DebugPrint("Injected", injected, "dynamic reputation entries from C_Reputation")
+        Utils.DebugPrint("Injected", injected, "dynamic reputation entries")
     end
 
     for pass = 1, 50 do
-        local numFactionsPost = C_Reputation.GetNumFactions()
+        local numFactionsPost = Caps.NumFactions()
         local didCollapse = false
         for i = numFactionsPost, 1, -1 do
-            local factionData = C_Reputation.GetFactionDataByIndex(i)
+            local factionData = Caps.FactionAt(i)
             if factionData and factionData.isHeader and headersWeExpanded[factionData.name] then
                 local isExpanded = false
                 if factionData.isHeaderExpanded ~= nil then
@@ -624,7 +632,7 @@ function Database:PopulateDynamicReputations()
                 end
 
                 if isExpanded then
-                    C_Reputation.CollapseFactionHeader(i)
+                    Caps.SetFactionHeaderExpanded(i, false)
                     headersWeExpanded[factionData.name] = nil
                     didCollapse = true
                     break -- indices shift, restart from end
@@ -2585,13 +2593,24 @@ end
 
 
 function Database:PopulateDynamicHeirlooms()
-    if not C_Heirloom or not C_Heirloom.GetHeirloomItemIDs then return false end
+    if not C_Heirloom then return false end
+    -- MoP Classic lists them only as the journal shows them.
+    local byIndex = C_Heirloom.GetNumDisplayedHeirlooms and C_Heirloom.GetHeirloomItemIDFromDisplayedIndex
+    if not (C_Heirloom.GetHeirloomItemIDs or byIndex) then return false end
 
     -- Align the journal's class/spec filter with our saved choice first, so the
     -- searchFiltered flag below reflects it.
     self:SyncHeirloomJournalFilter()
 
-    local ids = C_Heirloom.GetHeirloomItemIDs()
+    local ids
+    if C_Heirloom.GetHeirloomItemIDs then
+        ids = C_Heirloom.GetHeirloomItemIDs()
+    else
+        ids = {}
+        for i = 1, C_Heirloom.GetNumDisplayedHeirlooms() or 0 do
+            ids[#ids + 1] = C_Heirloom.GetHeirloomItemIDFromDisplayedIndex(i)
+        end
+    end
     if type(ids) ~= "table" then return false end
 
     local hasHeirloom = C_Heirloom.PlayerHasHeirloom
@@ -4269,7 +4288,130 @@ local function ScheduleProfessionRetry(self)
     end)
 end
 
+-- The classic clients list a profession's recipes only while its window is
+-- open: each window's list is kept on the character as it shows, with the
+-- spell that opened it (cast within a moment of the window showing; the
+-- events come in either order). Linked windows of other players are skipped.
+-- True when the character's list changed.
+Database.CLASSIC_OPEN_WINDOW_S = 1.5
+
+function Database.ClassicRecipeBook()
+    local db = EasyFind and EasyFind.db
+    if not db then return nil end
+    db.classicRecipes = db.classicRecipes or {}
+    local key = ns.CurrentCharacterKey()
+    db.classicRecipes[key] = db.classicRecipes[key] or {}
+    return db.classicRecipes[key]
+end
+
+function Database:NoteClassicOpener(profName, spellID)
+    local book = Database.ClassicRecipeBook()
+    local prof = book and book[profName]
+    local spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
+    if not prof or not spellName or prof.recipes[spellName] then return false end
+    if prof.spellID == spellID then return false end
+    prof.spellID = spellID
+    return true
+end
+
+function Database:NoteClassicCast(spellID)
+    local now = GetTime()
+    self.classicLastCast = self.classicLastCast or {}
+    self.classicLastCast.spellID, self.classicLastCast.at = spellID, now
+    local shownAt = self.classicWindowShown
+    if shownAt and now - shownAt.at < Database.CLASSIC_OPEN_WINDOW_S then
+        return self:NoteClassicOpener(shownAt.profession, spellID)
+    end
+    return false
+end
+
+function Database:CaptureClassicRecipes(isCraft, isShow)
+    local lineFn = _G[isCraft and "GetCraftDisplaySkillLine" or "GetTradeSkillLine"]
+    local countFn = _G[isCraft and "GetNumCrafts" or "GetNumTradeSkills"]
+    local infoFn = _G[isCraft and "GetCraftInfo" or "GetTradeSkillInfo"]
+    local iconFn = _G[isCraft and "GetCraftIcon" or "GetTradeSkillIcon"]
+    if not (lineFn and countFn and infoFn) then return false end
+    local linked = _G["IsTradeSkillLinked"]
+    if not isCraft and linked and linked() then return false end
+    local profName = lineFn()
+    if isCraft and (not profName or profName == "" or profName == "UNKNOWN") and _G["GetCraftName"] then
+        profName = _G["GetCraftName"]()
+    end
+    if not profName or profName == "" or profName == "UNKNOWN" then return false end
+    local book = Database.ClassicRecipeBook()
+    if not book then return false end
+    local prof = book[profName]
+    local changed = false
+    if not prof then
+        prof = { recipes = {} }
+        book[profName] = prof
+        changed = true
+    end
+    for i = 1, countFn() or 0 do
+        local name, second, third = infoFn(i)
+        local kind = isCraft and third or second
+        if name and name ~= "" and kind ~= "header" and not prof.recipes[name] then
+            prof.recipes[name] = (iconFn and iconFn(i)) or true
+            changed = true
+        end
+    end
+    if isShow then
+        local now = GetTime()
+        self.classicWindowShown = self.classicWindowShown or {}
+        self.classicWindowShown.profession, self.classicWindowShown.at = profName, now
+        local cast = self.classicLastCast
+        if cast and now - cast.at < Database.CLASSIC_OPEN_WINDOW_S and self:NoteClassicOpener(profName, cast.spellID) then
+            changed = true
+        end
+    end
+    if not prof.spellID and C_Spell and C_Spell.GetSpellInfo then
+        local info = C_Spell.GetSpellInfo(profName)
+        if info and info.spellID then
+            prof.spellID = info.spellID
+            changed = true
+        end
+    end
+    return changed
+end
+
+-- Rows for the kept lists: each profession, then its recipes. A click
+-- casts the profession's spell (the row's secure action) and selects the
+-- recipe once the window is up.
+function Database:PopulateClassicProfessions()
+    RemoveEntriesByCategory("Profession")
+    if self.ResetSearchCache then self:ResetSearchCache() end
+    local book = Database.ClassicRecipeBook()
+    if not book then return false end
+    local getTexture = C_Spell and C_Spell.GetSpellTexture
+    for profName, prof in pairs(book) do
+        local profLower = slower(profName)
+        local profIcon = prof.spellID and getTexture and getTexture(prof.spellID) or nil
+        uiSearchData[#uiSearchData + 1] = {
+            name = profName, nameLower = profLower, icon = profIcon, category = "Profession",
+            keywords = { profLower, "profession" }, keywordsLower = { profLower, "profession" },
+            classicProfession = profName, spellID = prof.spellID,
+        }
+        for recipe, icon in pairs(prof.recipes) do
+            Utils.SliceCheckpoint()
+            local lower = slower(recipe)
+            uiSearchData[#uiSearchData + 1] = {
+                name = recipe, nameLower = lower, icon = icon ~= true and icon or profIcon, category = "Profession",
+                keywords = { lower, profLower }, keywordsLower = { lower, profLower },
+                classicProfession = profName, classicRecipe = true, professionName = profName,
+                spellID = prof.spellID,
+            }
+        end
+    end
+    return true
+end
+
+function Database:HasClassicProfessions()
+    local book = Database.ClassicRecipeBook()
+    return book ~= nil and next(book) ~= nil
+end
+
 function Database:PopulateDynamicProfessions()
+    if ns.Caps and ns.Caps.classic then return self:PopulateClassicProfessions() end
     if not (GetProfessions and GetProfessionInfo) then return false end
     local pagesUnresolved = false
 
@@ -5081,12 +5223,52 @@ function Database:PopulateDynamicTalents()
     RemoveEntriesByCategory("Talent")
     if self.ResetSearchCache then self:ResetSearchCache() end
 
-    -- The classic clients' talent trees (Era, Anniversary): tabs of talents
-    -- read by index; they have no trait configs.
     local SI = C_SpecializationInfo
+    local Caps = ns.Caps
+    -- MoP Classic: six tiers of three on the window's Talents tab, one
+    -- chosen a tier.
+    if Caps and Caps.talentTiers then
+        local group = SI.GetActiveSpecGroup and SI.GetActiveSpecGroup() or 1
+        local talents = _G["TALENTS"] or "Talents"
+        local tierInfo = _G["GetTalentTierInfo"]
+        local consts = _G["Constants"] and _G["Constants"].TalentConsts
+        local columns = consts and consts.NumTalentColumns or 3
+        for tier = 1, _G["MAX_NUM_TALENT_TIERS"] or 6 do
+            local level = tierInfo and select(3, tierInfo(tier, group))
+            local tierName = level and ((_G["LEVEL"] or "Level") .. " " .. level) or nil
+            local kw = { "talent", "talents", "tier" }
+            for column = 1, columns do
+                Utils.SliceCheckpoint()
+                local ok, info = pcall(SI.GetTalentInfo, { tier = tier, column = column, groupIndex = group })
+                if ok and type(info) == "table" and info.name and info.name ~= "" then
+                    uiSearchData[#uiSearchData + 1] = {
+                        name = info.name,
+                        nameLower = slower(info.name),
+                        keywords = kw,
+                        keywordsLower = kw,
+                        category = "Talent",
+                        icon = info.icon,
+                        spellID = (info.spellID or 0) > 0 and info.spellID or nil,
+                        spellName = info.name,
+                        talentTab = 2,
+                        talentTier = tier,
+                        talentColumn = column,
+                        talentID = info.talentID,
+                        talentGroup = group,
+                        talentIsAllocated = info.selected or info.known or false,
+                        buttonFrame = "TalentMicroButton",
+                        path = { talents, tierName },
+                        steps = { { buttonFrame = "TalentMicroButton" }, { waitForFrame = "PlayerTalentFrame", tabIndex = 2 } },
+                    }
+                end
+            end
+        end
+        return true
+    end
+
+    -- Era and Anniversary: tabs of talents read by index.
     local numTabs, numTalents = _G["GetNumTalentTabs"], _G["GetNumTalents"]
-    if not (C_ClassTalents and C_ClassTalents.GetActiveConfigID) and numTabs and numTalents
-       and SI and SI.GetTalentInfo then
+    if Caps and Caps.talentTrees and numTabs and numTalents then
         local group = SI.GetActiveSpecGroup and SI.GetActiveSpecGroup() or 1
         local talents = _G["TALENTS"] or "Talents"
         for tab = 1, numTabs() or 0 do
@@ -5108,6 +5290,10 @@ function Database:PopulateDynamicTalents()
                         spellName = info.name,
                         talentTab = tab,
                         talentIndex = index,
+                        talentID = info.talentID,
+                        talentGroup = group,
+                        talentRank = info.rank,
+                        talentMaxRank = info.maxRank,
                         talentIsAllocated = (info.rank or 0) > 0,
                         buttonFrame = "TalentMicroButton",
                         path = { talents, tabName },
@@ -6954,12 +7140,15 @@ local GROUP_FINDER_SUBCATEGORY_ICONS = {
     pvpTraining = { icon = 236179, frame = "PVPQueueFrame.CategoryButton4" },
 }
 
+-- Under retail's button or MoP Classic's.
 local function EntryIsUnderGroupFinder(item)
-    if item and item.buttonFrame == "LFDMicroButton" then return true end
+    local bf = item and item.buttonFrame
+    if bf == "LFDMicroButton" or bf == "LFGMicroButton" then return true end
     local steps = item and item.steps
     if not steps then return false end
     for i = 1, #steps do
-        if steps[i] and steps[i].buttonFrame == "LFDMicroButton" then return true end
+        bf = steps[i] and steps[i].buttonFrame
+        if bf == "LFDMicroButton" or bf == "LFGMicroButton" then return true end
     end
     return false
 end
@@ -7058,6 +7247,16 @@ function Database:BuildUIDatabase()
                     },
                 },
                 {
+                    name = _G["PET"] or "Pet",
+                    keywords = {"pet", "pet tab", "pet stats", "pet happiness", "pet training"},
+                    category = "Character Info",
+                    -- Hunters and warlocks with a pet out.
+                    available = function() local hasPet = _G["HasPetUI"]; return hasPet and hasPet() or false end,
+                    steps = {
+                        { waitForFrame = "CharacterFrame", tabFrame = "PetPaperDollFrame" },
+                    },
+                },
+                {
                     name = ns.Caps.era and _G["HONOR"] or _G["PVP"] or "PvP",
                     keywords = {"pvp", "honor", "rank", "player vs player", "battlegrounds"},
                     category = "Character Info",
@@ -7102,6 +7301,14 @@ function Database:BuildUIDatabase()
             caps = "classic",
             buttonFrame = "TalentMicroButton",
             steps = {{ buttonFrame = "TalentMicroButton" }},
+            -- MoP Classic's window has tabs of its own; Era's and
+            -- Anniversary's trees come from the talents themselves.
+            children = {
+                { name = _G["SPECIALIZATION"] or "Specialization", keywords = {"specialization", "spec", "change spec"}, category = "Talents", caps = "mists", steps = {{ waitForFrame = "PlayerTalentFrame", tabIndex = 1 }} },
+                { name = _G["TALENTS"] or "Talents", keywords = {"talents", "talent tiers"}, category = "Talents", caps = "mists", steps = {{ waitForFrame = "PlayerTalentFrame", tabIndex = 2 }} },
+                { name = _G["GLYPHS"] or "Glyphs", keywords = {"glyphs", "glyph", "major glyph", "minor glyph"}, category = "Talents", caps = "mists", steps = {{ waitForFrame = "PlayerTalentFrame", tabIndex = 3 }} },
+                { name = _G["PET_SPECIALIZATION"] or "Pet Specialization", keywords = {"pet specialization", "pet spec", "hunter pet"}, category = "Talents", caps = "mists", steps = {{ waitForFrame = "PlayerTalentFrame", tabIndex = 4 }} },
+            },
         },
 
         {
@@ -7111,6 +7318,47 @@ function Database:BuildUIDatabase()
             caps = "classic",
             buttonFrame = "WorldMapMicroButton",
             steps = {{ buttonFrame = "WorldMapMicroButton" }},
+        },
+
+        -- The classic clients' Social window, on its own button.
+        {
+            name = _G["SOCIAL_BUTTON"] or "Social",
+            keywords = {"social", "friends", "friend list", "who", "guild", "raid"},
+            category = "Menu Bar",
+            caps = "classic",
+            buttonFrame = "SocialsMicroButton",
+            steps = {{ buttonFrame = "SocialsMicroButton" }},
+            children = {
+                { name = _G["FRIENDS"] or "Friends", keywords = {"friends", "friend list", "friends list", "add friend"}, category = "Social", steps = {{ waitForFrame = "FriendsFrame", tabIndex = 1 }} },
+                { name = _G["WHO"] or "Who", keywords = {"who", "who list", "player search", "find player"}, category = "Social", steps = {{ waitForFrame = "FriendsFrame", tabIndex = 2 }} },
+                { name = _G["GUILD"] or "Guild", keywords = {"guild", "guild roster", "guild members"}, category = "Social", steps = {{ waitForFrame = "FriendsFrame", tabIndex = 3 }} },
+                { name = _G["RAID"] or "Raid", keywords = {"raid", "raid group", "raid info", "raid roster"}, category = "Social", steps = {{ waitForFrame = "FriendsFrame", tabIndex = 4 }} },
+            },
+        },
+
+        -- Era's and Anniversary's Looking For Group window, opened on the
+        -- minimap's eye (shown once the character may list).
+        {
+            name = _G["LFG_BUTTON"] or "Looking For Group",
+            keywords = {"lfg", "lfm", "looking for group", "group finder", "find group", "group browser"},
+            category = "Menu Bar",
+            caps = "lfgWindow",
+            buttonFrame = "LFGMinimapFrame",
+            steps = {{ buttonFrame = "LFGMinimapFrame" }},
+            children = {
+                {
+                    name = _G["LFG_LIST_TAB_1"] or "Create Listing",
+                    keywords = {"create listing", "list yourself", "list group", "advertise group", "lfg listing"},
+                    category = "Group Finder",
+                    steps = {{ waitForFrame = "LFGParentFrame", tabIndex = 1 }},
+                },
+                {
+                    name = _G["LFG_LIST_TAB_2"] or "Browse Groups",
+                    keywords = {"browse groups", "group browser", "search groups", "find group", "lfm"},
+                    category = "Group Finder",
+                    steps = {{ waitForFrame = "LFGParentFrame", tabIndex = 2 }},
+                },
+            },
         },
 
         {
@@ -7193,6 +7441,37 @@ function Database:BuildUIDatabase()
             category = "Menu Bar",
             buttonFrame = "GuildMicroButton",
             steps = {{ buttonFrame = "GuildMicroButton" }},
+        },
+
+        -- MoP Classic's Group Finder, on its own button: Dungeon Finder, Raid
+        -- Finder, Premade Groups and Scenarios, then its PvP categories.
+        {
+            name = _G["GROUP_FINDER"] or "Group Finder",
+            keywords = {"lfg", "lfd", "lfr", "finder", "queue", "group finder", "dungeon finder"},
+            category = "Menu Bar",
+            caps = "mists",
+            buttonFrame = "LFGMicroButton",
+            steps = {{ buttonFrame = "LFGMicroButton" }},
+            children = {
+                { name = _G["LOOKING_FOR_DUNGEON_PVEFRAME"] or _G["LOOKING_FOR_DUNGEON"] or "Dungeon Finder", isPvE = true, keywords = {"dungeon finder", "lfd", "random dungeon", "heroic dungeon", "dungeon queue"}, category = "Group Finder", steps = {{ waitForFrame = "PVEFrame", tabIndex = 1 }, { waitForFrame = "PVEFrame", sideTabIndex = 1 }} },
+                { name = _G["RAID_FINDER_PVEFRAME"] or _G["RAID_FINDER"] or "Raid Finder", isPvE = true, keywords = {"raid finder", "lfr", "looking for raid", "raid queue"}, category = "Group Finder", steps = {{ waitForFrame = "PVEFrame", tabIndex = 1 }, { waitForFrame = "PVEFrame", sideTabIndex = 2 }} },
+                { name = _G["LFGLIST_NAME"] or "Premade Groups", isPvE = true, keywords = {"premade", "premade groups", "group browser", "find group", "lfm"}, category = "Group Finder", steps = {{ waitForFrame = "PVEFrame", tabIndex = 1 }, { waitForFrame = "PVEFrame", sideTabIndex = 3 }} },
+                { name = _G["SCENARIOS_PVEFRAME"] or _G["SCENARIOS"] or "Scenarios", isPvE = true, keywords = {"scenario", "scenarios", "scenario queue"}, category = "Group Finder", steps = {{ waitForFrame = "PVEFrame", tabIndex = 1 }, { waitForFrame = "PVEFrame", sideTabIndex = 4 }} },
+                {
+                    name = _G["PLAYER_V_PLAYER"] or _G["PVP"] or "Player vs. Player",
+                    isPvP = true,
+                    keywords = {"pvp", "player vs player", "battleground", "arena", "bg"},
+                    category = "Group Finder",
+                    steps = {{ waitForFrame = "PVEFrame", tabIndex = 2 }},
+                    children = {
+                        { name = _G["PVP_TAB_HONOR"] or "Honor", keywords = {"honor", "random bg", "random battleground", "battleground", "skirmish"}, category = "PvP", steps = {{ waitForFrame = "PVEFrame", pvpSideTabIndex = 1 }} },
+                        { name = _G["PVP_TAB_CONQUEST"] or "Conquest", keywords = {"conquest", "rated", "arena", "rated battleground", "2v2", "3v3", "5v5"}, category = "PvP", steps = {{ waitForFrame = "PVEFrame", pvpSideTabIndex = 2 }} },
+                        { name = _G["WARGAMES"] or "War Games", keywords = {"war games", "wargame", "wargames"}, category = "PvP", steps = {{ waitForFrame = "PVEFrame", pvpSideTabIndex = 3 }} },
+                        { name = (_G["LFGLIST_NAME"] or "Premade Groups") .. L["UITREE_SUFFIX_PVP_GROUP"], keywords = {"pvp premade", "arena group", "bg premade", "premade"}, category = "PvP", steps = {{ waitForFrame = "PVEFrame", pvpSideTabIndex = 4 }} },
+                    },
+                },
+                { name = _G["CHALLENGES"] or "Challenges", keywords = {"challenges", "challenge mode", "challenge modes"}, category = "Group Finder", steps = {{ waitForFrame = "PVEFrame", tabIndex = 3 }} },
+            },
         },
 
         {
@@ -7308,15 +7587,15 @@ function Database:BuildUIDatabase()
             buttonFrame = "EJMicroButton",
             steps = {{ buttonFrame = "EJMicroButton" }},
             children = {
-                { name = _G["JOURNEYS_LABEL"] or "Journeys", keywords = {"journeys", "journey", "adventure journeys"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 1 }}, children = {
+                { name = _G["JOURNEYS_LABEL"] or "Journeys", keywords = {"journeys", "journey", "adventure journeys"}, category = "Adventure Guide", caps = "journalTabs", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 1 }}, children = {
                     { name = L["UITREE_GREAT_VAULT"] .. L["UITREE_SUFFIX_REWARDS"], keywords = {"great vault", "vault", "weekly rewards", "weekly chest", "rewards"}, category = "Adventure Guide", icon = { file = ns.ART.great_vault.tex, coords = ns.ART.great_vault.coords }, steps = {{ buttonFrame = "EncounterJournalInstanceSelect.GreatVaultButton" }} },
                 }},
-                { name = _G["MONTHLY_ACTIVITIES_TAB"] or "Traveler's Log", keywords = {"traveler", "travelers log", "traveler log", "travel log"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 2 }} },
-                { name = _G["AJ_SUGGESTED_CONTENT_TAB"] or "Suggested Content", keywords = {"suggested", "suggested content", "recommendations"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 3 }} },
+                { name = _G["MONTHLY_ACTIVITIES_TAB"] or "Traveler's Log", keywords = {"traveler", "travelers log", "traveler log", "travel log"}, category = "Adventure Guide", caps = "journalTabs", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 2 }} },
+                { name = _G["AJ_SUGGESTED_CONTENT_TAB"] or "Suggested Content", keywords = {"suggested", "suggested content", "recommendations"}, category = "Adventure Guide", caps = "journalTabs", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 3 }} },
                 { name = (_G["DUNGEONS"] or "Dungeons") .. L["UITREE_SUFFIX_JOURNAL"], keywords = {"dungeon journal", "dungeon guide", "dungeon encounters", "dungeon bosses"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 4 }} },
                 { name = (_G["RAIDS"] or "Raids") .. L["UITREE_SUFFIX_JOURNAL"], keywords = {"raid journal", "raid guide", "raid encounters", "raid bosses"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 5 }} },
-                { name = _G["LOOT_JOURNAL_ITEM_SETS"] or "Item Sets", keywords = {"item sets", "tier sets", "set bonuses", "class sets"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 6 }} },
-                { name = _G["EJ_TUTORIALS"] or "Tutorials", keywords = {"tutorials", "tutorial", "help guide", "how to"}, category = "Adventure Guide", caps = "journal", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 7 }} },
+                { name = _G["LOOT_JOURNAL_ITEM_SETS"] or "Item Sets", keywords = {"item sets", "tier sets", "set bonuses", "class sets"}, category = "Adventure Guide", caps = "journalTabs", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 6 }} },
+                { name = _G["EJ_TUTORIALS"] or "Tutorials", keywords = {"tutorials", "tutorial", "help guide", "how to"}, category = "Adventure Guide", caps = "journalTabs", steps = {{ waitForFrame = "EncounterJournal", tabIndex = 7 }} },
             },
         },
 
@@ -7404,7 +7683,7 @@ function Database:BuildUIDatabase()
             keywords = {"calendar", "events", "holidays", "schedule"},
             category = "Social",
             icon = 134939,
-            -- Era and TBC have no calendar behind the clock.
+            -- Era and Anniversary have no calendar behind the clock.
             available = function() return ns.Caps.calendar end,
             slashCommand = "/click GameTimeFrame",
         },

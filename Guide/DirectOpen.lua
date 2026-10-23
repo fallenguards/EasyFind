@@ -10,7 +10,6 @@ local SearchFrameTreeFuzzy = Utils.SearchFrameTreeFuzzy
 local ClickButton = Utils.ClickButton
 local ipairs = Utils.ipairs
 local slower = Utils.slower
-local C_Reputation = C_Reputation
 
 local EncounterDataMatches
 EncounterDataMatches = function(value, targetID, targetName)
@@ -86,11 +85,11 @@ function Guide:DirectOpen(data)
     for _, step in ipairs(steps) do
         if step.factionHeader then
             needsReputationResync = true
-            if C_Reputation and C_Reputation.GetNumFactions then
+            do
                 local headerNameLower = slower(step.factionHeader)
-                local numFactions = C_Reputation.GetNumFactions()
+                local numFactions = ns.Caps.NumFactions()
                 for i = 1, numFactions do
-                    local factionData = C_Reputation.GetFactionDataByIndex(i)
+                    local factionData = ns.Caps.FactionAt(i)
                     if factionData and factionData.isHeader and factionData.name and slower(factionData.name) == headerNameLower then
                         local isCollapsed = false
                         if factionData.isHeaderExpanded ~= nil then
@@ -99,7 +98,7 @@ function Guide:DirectOpen(data)
                             isCollapsed = factionData.isCollapsed
                         end
                         if isCollapsed then
-                            C_Reputation.ExpandFactionHeader(i)
+                            ns.Caps.SetFactionHeaderExpanded(i, true)
                         end
                         break
                     end

@@ -4,7 +4,7 @@ local Utils = ns.Utils
 local Render = ns.ResultRender
 local Icons = ns.ResultIcons
 
-local mmax = Utils.mmax
+local mmax, mmin = Utils.mmax, Utils.mmin
 local REP_BAR_WIDTH = Render.REP_BAR_WIDTH
 
 function Render.GetReputationBarInfo(factionID)
@@ -45,8 +45,8 @@ function Render.GetReputationBarInfo(factionID)
         end
     end
 
-    if not standingText and C_Reputation and C_Reputation.GetFactionDataByID then
-        local ok, rd = pcall(C_Reputation.GetFactionDataByID, factionID)
+    if not standingText and ns.Caps and ns.Caps.FactionByID then
+        local ok, rd = pcall(ns.Caps.FactionByID, factionID)
         if ok and rd and rd.reaction then
             local standing = rd.reaction
             standingText = _G["FACTION_STANDING_LABEL" .. standing] or ""
@@ -72,19 +72,43 @@ function Render.GetReputationBarInfo(factionID)
     return fill, standingText, barR, barG, barB
 end
 
+-- A classic skill's or talent's rank on the same bar, as the Skills tab
+-- writes it; nil for proficiencies (one rank, nothing to count).
+function Render.GetRankBarInfo(data)
+    local rank, maxRank = data.skillRank, data.skillMaxRank
+    if rank and not (maxRank and maxRank > 1) then return nil end
+    if not rank then rank, maxRank = data.talentRank, data.talentMaxRank end
+    if not (rank and maxRank and maxRank > 0) then return nil end
+    local text = rank .. "/" .. maxRank
+    local modifier = data.skillModifier
+    if modifier and modifier ~= 0 then
+        local color = modifier > 0 and ((_G["GREEN_FONT_COLOR_CODE"] or "|cff20ff20") .. "+")
+            or (_G["RED_FONT_COLOR_CODE"] or "|cffff2020")
+        text = rank .. " (" .. color .. modifier .. "|r)/" .. maxRank
+    end
+    return mmin(mmax(rank / maxRank, 0), 1), text, 0.0, 0.0, 0.78
+end
+
 function Render.ReputationBar(resultRow, entry, state, isReputationLeaf, iconSet)
     local data = entry.data
     local showRepBar = data and data.factionID
         and (isReputationLeaf or (entry.isPathNode and data.category == "Reputation" and data.hasRepBar ~= false))
-    if not showRepBar then
-        resultRow.repBar:Hide()
-        return iconSet, false
+    local fill, standingText, barR, barG, barB
+    -- A talent keeps its icon beside the bar.
+    local keepIcon = false
+    if showRepBar then
+        fill, standingText, barR, barG, barB = Render.GetReputationBarInfo(data.factionID)
+        if not standingText then
+            resultRow.repBar:Hide()
+            return (not entry.isPathNode) or iconSet, false
+        end
+    elseif data and not entry.isPathNode then
+        fill, standingText, barR, barG, barB = Render.GetRankBarInfo(data)
+        keepIcon = data.talentTab ~= nil
     end
-
-    local fill, standingText, barR, barG, barB = Render.GetReputationBarInfo(data.factionID)
     if not standingText then
         resultRow.repBar:Hide()
-        return (not entry.isPathNode) or iconSet, false
+        return iconSet, false
     end
 
     resultRow.repBarTex:SetVertexColor(barR, barG, barB, 1.0)
@@ -120,16 +144,24 @@ function Render.ReputationBar(resultRow, entry, state, isReputationLeaf, iconSet
             hasSideBySideRepBar = true
         end
     else
-        Icons:SetRowIcon(resultRow, "hidden", nil, state.rowIconSize)
+        if not keepIcon then Icons:SetRowIcon(resultRow, "hidden", nil, state.rowIconSize) end
         local indentPixels = depth * state.indPx + 4
         resultRow.repBar:ClearAllPoints()
         resultRow.repBar:SetPoint("RIGHT", resultRow, "RIGHT", -6, 0)
         resultRow.text:ClearAllPoints()
-        resultRow.text:SetPoint("LEFT", resultRow, "LEFT", indentPixels, 0)
+        if keepIcon then
+            resultRow.text:SetPoint("LEFT", resultRow.icon, "RIGHT", 4, 0)
+        else
+            resultRow.text:SetPoint("LEFT", resultRow, "LEFT", indentPixels, 0)
+        end
         resultRow.text:SetPoint("RIGHT", resultRow.repBar, "LEFT", -4, 0)
         if resultRow.text:IsTruncated() then
             resultRow.text:ClearAllPoints()
-            resultRow.text:SetPoint("TOPLEFT", resultRow, "TOPLEFT", indentPixels, -3)
+            if keepIcon then
+                resultRow.text:SetPoint("TOPLEFT", resultRow.icon, "TOPRIGHT", 4, 0)
+            else
+                resultRow.text:SetPoint("TOPLEFT", resultRow, "TOPLEFT", indentPixels, -3)
+            end
             resultRow.text:SetPoint("TOPRIGHT", resultRow, "TOPRIGHT", -6, -3)
             resultRow.repBar:ClearAllPoints()
             resultRow.repBar:SetPoint("BOTTOM", resultRow, "BOTTOM", 0, 5)

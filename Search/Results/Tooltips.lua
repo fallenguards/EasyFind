@@ -326,6 +326,18 @@ end
 -- (settings, panels, zones, outfits), which the caller titles itself.
 -- Field priority mirrors the row hover in Rows/Tooltips.lua (mounts carry
 -- both mountID and spellID and take the mount tooltip).
+-- A classic client's talent: its own tooltip, with the rank and next rank.
+-- MoP Classic's call takes no pet flag.
+function Tooltips:SetClassicTalent(tooltip, data)
+    if not (data and data.talentTab and data.talentID and tooltip.SetTalent) then return false end
+    if data.talentTier then
+        tooltip:SetTalent(data.talentID, false, data.talentGroup)
+    else
+        tooltip:SetTalent(data.talentID, false, false, data.talentGroup)
+    end
+    return true
+end
+
 function Tooltips:SetGameTooltipForResult(tooltip, data)
     if not (tooltip and data) then return false end
     -- An extension's row: its own tooltip (a link's hover too).
@@ -406,6 +418,7 @@ function Tooltips:SetGameTooltipForResult(tooltip, data)
         end
         return false
     end
+    if Tooltips:SetClassicTalent(tooltip, data) then return true end
     local spellID = data.spellID or data.professionRecipeID
     if spellID then
         if tooltip.SetSpellByID then

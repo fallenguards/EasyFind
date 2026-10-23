@@ -179,6 +179,62 @@ end
 -- Parent rows with a secure cast: the cast on the click's own dispatch is
 -- the opener; if no profession window appeared (dud spell), fall back to the
 -- insecure page open. Cast-less parent rows page-open immediately.
+-- The classic clients' recipe: once its profession's window is up, the
+-- recipe's headers unfolded, the list scrolled to it and the recipe
+-- selected, its row lit. Trade skill and craft windows alike.
+Handlers.CLASSIC_RECIPE_WINDOWS = {
+    { frame = "TradeSkillFrame", line = "GetTradeSkillLine", count = "GetNumTradeSkills", info = "GetTradeSkillInfo",
+      expand = "ExpandTradeSkillSubClass", select = "TradeSkillFrame_SetSelection", update = "TradeSkillFrame_Update",
+      scroll = "TradeSkillListScrollFrame", rows = "TradeSkillSkill", shown = "TRADE_SKILLS_DISPLAYED",
+      height = "TRADE_SKILL_HEIGHT" },
+    { frame = "CraftFrame", line = "GetCraftDisplaySkillLine", name = "GetCraftName", count = "GetNumCrafts",
+      info = "GetCraftInfo", expand = "ExpandCraftSkillLine", select = "CraftFrame_SetSelection",
+      update = "CraftFrame_Update", scroll = "CraftListScrollFrame", rows = "Craft", shown = "CRAFTS_DISPLAYED",
+      height = "CRAFT_SKILL_HEIGHT" },
+}
+
+function Handlers.FindClassicRecipe(win, profName, recipe)
+    local frame = _G[win.frame]
+    if not (frame and frame:IsShown() and _G[win.count] and _G[win.info]) then return nil end
+    local line = _G[win.line] and _G[win.line]()
+    if (not line or line == "" or line == "UNKNOWN") and win.name and _G[win.name] then line = _G[win.name]() end
+    if line ~= profName then return nil end
+    if _G[win.expand] then _G[win.expand](0) end
+    for i = 1, _G[win.count]() or 0 do
+        if _G[win.info](i) == recipe then return i end
+    end
+    return nil
+end
+
+function Handlers:SelectClassicRecipe(data)
+    local tries = 0
+    local function aim()
+        tries = tries + 1
+        for _, win in ipairs(Handlers.CLASSIC_RECIPE_WINDOWS) do
+            local index = Handlers.FindClassicRecipe(win, data.classicProfession, data.name)
+            if index then
+                if _G[win.select] then _G[win.select](index) end
+                local scroll = _G[win.scroll]
+                local bar = scroll and _G[win.scroll .. "ScrollBar"]
+                local shown, height = _G[win.shown] or 8, _G[win.height] or 16
+                if bar then bar:SetValue(math.max(0, index - math.ceil(shown / 2)) * height) end
+                if _G[win.update] then _G[win.update]() end
+                local highlight = ns.RequestGuide()
+                for n = 1, shown do
+                    local row = _G[win.rows .. n]
+                    if row and row:IsShown() and row:GetID() == index then
+                        if highlight and highlight.HighlightFrame then highlight:HighlightFrame(row, nil, nil, true) end
+                        break
+                    end
+                end
+                return
+            end
+        end
+        if tries < 15 then Utils.SafeAfter(0.2, aim) end
+    end
+    aim()
+end
+
 local function OpenProfessionTarget(data)
     local recipeID = data.professionRecipeID
     local openRecipe = C_TradeSkillUI and C_TradeSkillUI.OpenRecipe
@@ -452,6 +508,11 @@ function Handlers:SelectResult(data, forceGuide)
     -- a nil dataProvider on close).
     if data.professionSkillLine then
         OpenProfessionTarget(data)
+        return
+    end
+    -- The classic clients': the row's cast opens the window.
+    if data.classicProfession then
+        if data.classicRecipe then Handlers:SelectClassicRecipe(data) end
         return
     end
 

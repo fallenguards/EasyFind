@@ -214,8 +214,11 @@ local UI_FILTER_OPTIONS = {
             iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings", subFilters = AddonSubFilters },
       } },
     { key = "professions", label = _G["TRADE_SKILLS"] or "Professions",
-      iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = true,
+      -- The classic clients' list fills as profession windows open: no
+      -- per-profession flyout there.
+      iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = not (ns.Caps and ns.Caps.classic),
       available = function()
+          if ns.Caps and ns.Caps.classic then return true end
           if not GetProfessions then return false end
           local prof1, prof2, archaeology, fishing, cooking = GetProfessions()
           return (prof1 or prof2 or archaeology or fishing or cooking) ~= nil

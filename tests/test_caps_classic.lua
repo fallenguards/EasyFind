@@ -42,6 +42,7 @@ local tests = {}
 function tests.detectsEra()
     H.assertTrue(Caps.classic, "classic")
     H.assertTrue(Caps.era, "era")
+    H.assertTrue(Caps.lfgWindow, "the Looking For Group window")
     H.assertFalse(Caps.mists, "not MoP")
     H.assertFalse(Caps.retail, "not retail")
 end
@@ -61,6 +62,20 @@ function tests.detectsMists()
     H.assertTrue(ns2.Caps.mists, "MoP")
     H.assertFalse(ns2.Caps.era)
     H.assertFalse(ns2.Caps.retail)
+    H.assertFalse(ns2.Caps.lfgWindow, "MoP has the Group Finder")
+end
+
+-- The Looking For Group rows open on the minimap's eye: offered while the
+-- client shows it, not before the character may list.
+function tests.lookingForGroup_followsTheEye()
+    env.LFGParentFrame = frame(false)
+    env.LFGMinimapFrame = frame(true)
+    local browse = { caps = "lfgWindow", buttonFrame = "LFGMinimapFrame",
+                     steps = { { buttonFrame = "LFGMinimapFrame" }, { waitForFrame = "LFGParentFrame", tabIndex = 2 } } }
+    H.assertNil(Caps.UIEntryBlocked(browse), "offered")
+    env.LFGMinimapFrame = frame(false)
+    H.assertNotNil(Caps.UIEntryBlocked(browse), "the eye is hidden below the level")
+    env.LFGMinimapFrame, env.LFGParentFrame = nil, nil
 end
 
 function tests.characterTabs_resolveByFrame()
@@ -88,6 +103,17 @@ function tests.sidebarEntries_haveNoSlot()
         { waitForFrame = "CharacterFrame", sidebarButtonFrame = "CharacterFrameTab1", sidebarIndex = 2 },
     } }
     H.assertNotNil(Caps.UIEntryBlocked(titles), "Titles is blocked")
+end
+
+-- The Social window's tabs and the Pet tab: classic windows of their own.
+function tests.socialAndPetTab_areOffered()
+    env.SocialsMicroButton, env.FriendsFrame = frame(true), frame(false)
+    local who = { caps = "classic", buttonFrame = "SocialsMicroButton",
+                  steps = { { buttonFrame = "SocialsMicroButton" }, { waitForFrame = "FriendsFrame", tabIndex = 2 } } }
+    H.assertNil(Caps.UIEntryBlocked(who), "Who")
+    H.assertEq(Caps.CharacterTab("PetPaperDollFrame"), env.CharacterFrameTab2, "Pet is the second tab")
+    H.assertNil(Caps.UIEntryBlocked({ steps = { { waitForFrame = "CharacterFrame", tabFrame = "PetPaperDollFrame" } } }))
+    env.SocialsMicroButton, env.FriendsFrame = nil, nil
 end
 
 function tests.reputationEntry_isOffered()

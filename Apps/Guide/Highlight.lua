@@ -29,7 +29,6 @@ local TOOLTIP_BORDER     = ns.TOOLTIP_BORDER
 
 local CreateFrame        = CreateFrame
 local C_Timer            = C_Timer
-local C_Reputation       = C_Reputation
 local C_CurrencyInfo     = C_CurrencyInfo
 local GetCurrentEncounter = C_EncounterJournal and C_EncounterJournal.GetCurrentEncounter
 local EJ_GetCurrentEncounter = _G["EJ_GetCurrentEncounter"]
@@ -1173,6 +1172,10 @@ local function HandleWaitCurrency(self)
     local lastStep = currentGuide.steps[#currentGuide.steps]
     local cID = lastStep and lastStep.currencyID
     self:Cancel()
+    if TokenFrame and not TokenFrame.ScrollBox then
+        self:RevealClassicCurrency(cID, headerChain)
+        return true
+    end
     self:HighlightCurrencyRowOrHint(cID, headerChain)
     return true
 end
@@ -1193,10 +1196,10 @@ local function HandleWaitFactionHeader(self, step, isLastStep)
     if headerState == nil then
         if RewindToPreviousStep(self, function(prevStep) return prevStep.factionHeader end) then return true end
 
-        if C_Reputation and C_Reputation.GetNumFactions then
-            local numFactions = C_Reputation.GetNumFactions()
+        do
+            local numFactions = ns.Caps.NumFactions()
             for i = 1, numFactions do
-                local factionData = C_Reputation.GetFactionDataByIndex(i)
+                local factionData = ns.Caps.FactionAt(i)
                 if factionData and factionData.isHeader and not factionData.isHeaderExpanded then
                     local headerBtn = self:GetFactionHeaderButton(factionData.name)
                     if headerBtn then
@@ -2177,6 +2180,12 @@ function Highlight:IsTabSelected(frameName, tabIndex)
         return false
     end
 
+    -- Any other tabbed window (the classic clients' talent, Social and
+    -- Looking For Group windows): its own record of the selected tab.
+    local frame = _G[frameName]
+    if frame and frame.numTabs and PanelTemplates_GetSelectedTab then
+        return PanelTemplates_GetSelectedTab(frame) == tabIndex
+    end
     return false
 end
 
@@ -2194,6 +2203,9 @@ function Highlight:IsSideTabSelected(frameName, sideTabIndex)
             return LFDParentFrame and LFDParentFrame:IsShown()
         elseif sideTabIndex == 2 then
             return RaidFinderFrame and RaidFinderFrame:IsShown()
+        elseif sideTabIndex == 4 then
+            local scenarios = _G["ScenarioFinderFrame"]
+            return scenarios and scenarios:IsShown()
         elseif sideTabIndex == 3 then
             -- LFGListFrame is shared across sub-panels and may report
             -- IsShown even when another panel is on top, so explicitly
@@ -2615,6 +2627,10 @@ function Highlight:IsSidebarTabSelected(sidebarIndex)
         sidebarIndex = ns.Caps.CharacterSidebarSlot(sidebarIndex)
         if not sidebarIndex then return false end
     end
+    -- MoP Classic's panes have no global names; the client hands them over.
+    local paneOf = _G["GetPaperDollSideBarFrame"]
+    local pane = paneOf and paneOf(sidebarIndex)
+    if pane and pane:IsShown() then return true end
     local sidebarTab = _G["PaperDollSidebarTab" .. sidebarIndex]
     if sidebarTab then
         if sidebarTab.isSelected then return true end
@@ -2768,6 +2784,18 @@ function Highlight:GetTabButton(frameName, tabIndex)
         return _G["AchievementFrameTab" .. tabIndex]
     end
 
+    if frameName == "LFGParentFrame" then
+        return _G["LFGParentFrameTab" .. tabIndex]
+    end
+
+    if frameName == "PlayerTalentFrame" then
+        return _G["PlayerTalentFrameTab" .. tabIndex]
+    end
+
+    if frameName == "FriendsFrame" then
+        return _G["FriendsFrameTab" .. tabIndex]
+    end
+
     if frameName == "MacroFrame" then
         return _G["MacroFrameTab" .. tabIndex]
     end
@@ -2917,6 +2945,8 @@ function Highlight:GetSideTabButton(frameName, sideTabIndex)
             "GroupFinderFrameGroupButton1",
             "GroupFinderFrameGroupButton2",
             "GroupFinderFrameGroupButton3",
+            -- MoP Classic's Scenarios.
+            "GroupFinderFrameGroupButton4",
         }
         return _G[buttonNames[sideTabIndex]]
     end
@@ -3371,6 +3401,48 @@ function Highlight:HideScrollHint()
     if scrollHintFrame.animGroup then scrollHintFrame.animGroup:Stop() end
 end
 
+-- MoP Classic's currency list: reused rows over a scroll frame, each tagged
+-- with its list index. Unfolds the chain's headers, scrolls the currency
+-- (or the last header, for a header row) into view and lights its row.
+function Highlight:RevealClassicCurrency(currencyID, headerChain)
+    local Caps = ns.Caps
+    local lastHeader = headerChain and headerChain[#headerChain]
+    for _, headerName in ipairs(headerChain or {}) do
+        for i = 1, Caps.NumCurrencies() do
+            local info = Caps.CurrencyAt(i)
+            if info and info.isHeader and info.name == headerName then
+                if not info.isHeaderExpanded then Caps.SetCurrencyHeaderExpanded(i, true) end
+                break
+            end
+        end
+    end
+    local target
+    for i = 1, Caps.NumCurrencies() do
+        local info = Caps.CurrencyAt(i)
+        if info and ((currencyID and info.currencyID == currencyID)
+                     or (not currencyID and info.isHeader and info.name == lastHeader)) then
+            target = i
+            break
+        end
+    end
+    local list = _G["TokenFrameContainer"]
+    local buttons = list and list.buttons
+    if not (target and buttons and buttons[1] and list.scrollBar) then return nil end
+    local rowH = buttons[1]:GetHeight() + (_G["TOKEN_BUTTON_OFFSET"] or 3)
+    local getOffset = _G["HybridScrollFrame_GetOffset"]
+    local offset = getOffset and getOffset(list) or 0
+    if target <= offset or target >= offset + #buttons then
+        list.scrollBar:SetValue((target - 1) * rowH)
+    end
+    for _, row in ipairs(buttons) do
+        if row:IsShown() and row.index == target then
+            self:HighlightFrame(row, nil, nil, true)
+            return row
+        end
+    end
+    return nil
+end
+
 -- Walks the currency list to find the header containing the given currency
 -- and returns its info table (has .name, .isHeaderExpanded). Used to detect
 -- "row is hidden because its header is collapsed" so we can prompt the
@@ -3701,13 +3773,11 @@ end
 
 -- Returns true (expanded), false (collapsed), nil (parent collapsed).
 function Highlight:IsFactionHeaderExpanded(headerName)
-    if not C_Reputation or not C_Reputation.GetNumFactions then return nil end
-
     local headerNameLower = slower(headerName)
-    local numFactions = C_Reputation.GetNumFactions()
+    local numFactions = ns.Caps.NumFactions()
 
     for i = 1, numFactions do
-        local factionData = C_Reputation.GetFactionDataByIndex(i)
+        local factionData = ns.Caps.FactionAt(i)
         if factionData and factionData.isHeader and factionData.name and slower(factionData.name) == headerNameLower then
             if factionData.isHeaderExpanded ~= nil then
                 return factionData.isHeaderExpanded
@@ -3726,48 +3796,74 @@ function Highlight:GetFactionHeaderButton(headerName)
     local headerNameLower = slower(headerName)
 
     local targetIndex = nil
-    if C_Reputation and C_Reputation.GetNumFactions then
-        local numFactions = C_Reputation.GetNumFactions()
-        for i = 1, numFactions do
-            local factionData = C_Reputation.GetFactionDataByIndex(i)
-            if factionData and factionData.isHeader and factionData.name and slower(factionData.name) == headerNameLower then
-                targetIndex = i
-                break
-            end
-        end
-    end
-    if not targetIndex then return nil end
-
-    if ReputationFrame.ScrollBox then
-        ScrollBoxScrollTo(ReputationFrame.ScrollBox, function(data)
-            return data and data.factionIndex == targetIndex
-        end)
-        return ScrollBoxFindButton(ReputationFrame.ScrollBox, function(btn)
-            local elementData = btn.elementData or (btn.GetElementData and btn:GetElementData())
-            if elementData and elementData.factionIndex == targetIndex then return true end
-            local text = GetButtonText(btn)
-            return text and slower(text) == headerNameLower
-        end)
-    end
-
-    return nil
-end
-
-function Highlight:ScrollToFactionRow(factionID)
-    if not ReputationFrame or not ReputationFrame:IsShown() then return end
-    if not ReputationFrame.ScrollBox then return end
-    if not C_Reputation or not C_Reputation.GetNumFactions then return end
-
-    local numFactions = C_Reputation.GetNumFactions()
-    local targetIndex = nil
-    for i = 1, numFactions do
-        local factionData = C_Reputation.GetFactionDataByIndex(i)
-        if factionData and factionData.factionID == factionID then
+    for i = 1, ns.Caps.NumFactions() do
+        local factionData = ns.Caps.FactionAt(i)
+        if factionData and factionData.isHeader and factionData.name and slower(factionData.name) == headerNameLower then
             targetIndex = i
             break
         end
     end
+    if not targetIndex then return nil end
+
+    if not ReputationFrame.ScrollBox then
+        -- Classic's list: rows carry their list index; Era and Anniversary
+        -- draw headers on rows of their own.
+        local n = self:RevealClassicFactionIndex(targetIndex)
+        if not n then return nil end
+        for _, rowName in ipairs({ "ReputationHeader", "ReputationBar" }) do
+            local row = _G[rowName .. n]
+            if row and row:IsShown() and row.index == targetIndex then return row end
+        end
+        return nil
+    end
+
+    ScrollBoxScrollTo(ReputationFrame.ScrollBox, function(data)
+        return data and data.factionIndex == targetIndex
+    end)
+    return ScrollBoxFindButton(ReputationFrame.ScrollBox, function(btn)
+        local elementData = btn.elementData or (btn.GetElementData and btn:GetElementData())
+        if elementData and elementData.factionIndex == targetIndex then return true end
+        local text = GetButtonText(btn)
+        return text and slower(text) == headerNameLower
+    end)
+end
+
+-- The list index a faction stands at now, or nil under a collapsed header.
+local function FactionIndex(factionID)
+    for i = 1, ns.Caps.NumFactions() do
+        local factionData = ns.Caps.FactionAt(i)
+        if factionData and factionData.factionID == factionID then return i end
+    end
+    return nil
+end
+
+-- Classic's reputation list: fifteen rows over a faux scroll frame. Scrolls
+-- list index into view; the row number it shows on, or nil.
+function Highlight:RevealClassicFactionIndex(index)
+    local scroll, bar = _G["ReputationListScrollFrame"], _G["ReputationListScrollFrameScrollBar"]
+    local getOffset = _G["FauxScrollFrame_GetOffset"]
+    if not (scroll and bar and getOffset) then return nil end
+    local rows = _G["NUM_FACTIONS_DISPLAYED"] or 15
+    local offset = getOffset(scroll)
+    if index <= offset or index > offset + rows then
+        local top = mmax(0, mmin(index - mceil(rows / 2), ns.Caps.NumFactions() - rows))
+        bar:SetValue(top * (_G["REPUTATIONFRAME_FACTIONHEIGHT"] or 26))
+        offset = getOffset(scroll)
+    end
+    local n = index - offset
+    if n < 1 or n > rows then return nil end
+    return n
+end
+
+function Highlight:ScrollToFactionRow(factionID)
+    if not ReputationFrame or not ReputationFrame:IsShown() then return end
+    local targetIndex = FactionIndex(factionID)
     if not targetIndex then return end
+    if not ReputationFrame.ScrollBox then
+        self:RevealClassicFactionIndex(targetIndex)
+        return
+    end
+    local numFactions = ns.Caps.NumFactions()
 
     local fraction = (targetIndex - 1) / mmax(1, numFactions - 1)
     ScrollBoxScrollTo(ReputationFrame.ScrollBox, function(data)
@@ -3780,26 +3876,25 @@ end
 
 function Highlight:GetFactionRowButton(factionID)
     if not ReputationFrame or not ReputationFrame:IsShown() then return nil end
-    if not ReputationFrame.ScrollBox then return nil end
+    if not ReputationFrame.ScrollBox then
+        -- Classic's list: faction rows carry their list index.
+        local index = FactionIndex(factionID)
+        local n = index and self:RevealClassicFactionIndex(index)
+        local row = n and _G["ReputationBar" .. n]
+        return (row and row:IsShown() and row.index == index) and row or nil
+    end
 
     local factionNameLower = nil
-    if C_Reputation and C_Reputation.GetNumFactions then
-        local numFactions = C_Reputation.GetNumFactions()
-        for i = 1, numFactions do
-            local factionData = C_Reputation.GetFactionDataByIndex(i)
-            if factionData and factionData.factionID == factionID and factionData.name then
-                factionNameLower = slower(factionData.name)
-                break
-            end
-        end
-    end
+    local index = FactionIndex(factionID)
+    local indexData = index and ns.Caps.FactionAt(index)
+    if indexData and indexData.name then factionNameLower = slower(indexData.name) end
 
     return ScrollBoxFindButton(ReputationFrame.ScrollBox, function(btn)
         local data = btn.GetElementData and btn:GetElementData()
         if data then
             if data.factionID == factionID then return true end
             if data.factionIndex then
-                local indexFaction = C_Reputation and C_Reputation.GetFactionDataByIndex(data.factionIndex)
+                local indexFaction = ns.Caps.FactionAt(data.factionIndex)
                 if indexFaction and indexFaction.factionID == factionID then return true end
             end
         end

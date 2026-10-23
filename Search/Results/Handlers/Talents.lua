@@ -8,7 +8,8 @@ local select, ipairs = Utils.select, Utils.ipairs
 
 -- The classic clients' talent window (PlayerTalentFrame): opened on its own
 -- button; the talent's tab lit for the player's click while another is up,
--- then the talent's button (button n shows talent n of the tab).
+-- then the talent's button (Era and Anniversary: button n shows talent n of
+-- the tab; MoP Classic: a button per tier and column).
 local function OpenClassicTalent(data)
     local highlight = ns.RequestGuide()
     local frame = _G["PlayerTalentFrame"]
@@ -20,8 +21,10 @@ local function OpenClassicTalent(data)
         if frame and frame:IsShown() and highlight and highlight.HighlightFrame then
             local selectedTab = _G["PanelTemplates_GetSelectedTab"]
             local onTab = not selectedTab or selectedTab(frame) == data.talentTab
-            local target = onTab and _G["PlayerTalentFrameTalent" .. data.talentIndex]
-                or _G["PlayerTalentFrameTab" .. data.talentTab]
+            local button = data.talentTier
+                and ("PlayerTalentFrameTalentsTalentRow" .. data.talentTier .. "Talent" .. data.talentColumn)
+                or ("PlayerTalentFrameTalent" .. tostring(data.talentIndex))
+            local target = onTab and _G[button] or _G["PlayerTalentFrameTab" .. data.talentTab]
             if target and target ~= lit then
                 lit = target
                 highlight:HighlightFrame(target, nil, nil, true)

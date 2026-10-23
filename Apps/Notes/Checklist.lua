@@ -176,15 +176,8 @@ LINKS.quest = {
 }
 
 local function Standing(factionID)
-    local R = C_Reputation
-    if R and R.GetFactionDataByID then
-        local data = R.GetFactionDataByID(factionID)
-        return data and data.name, data and data.reaction
-    end
-    if GetFactionInfoByID then
-        local name, _, standing = GetFactionInfoByID(factionID)
-        return name, standing
-    end
+    local data = ns.Caps.FactionByID(factionID)
+    return data and data.name, data and data.reaction
 end
 
 local function StandingLabel(n)

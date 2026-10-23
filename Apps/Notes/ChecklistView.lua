@@ -175,9 +175,8 @@ end
 
 local function FactionRows(note)
     local rows = {}
-    local R = C_Reputation
-    for i = 1, (R and R.GetNumFactions and R.GetNumFactions()) or 0 do
-        local data = R.GetFactionDataByIndex and R.GetFactionDataByIndex(i)
+    for i = 1, ns.Caps.NumFactions() do
+        local data = ns.Caps.FactionAt(i)
         if data and not data.isHeader and data.factionID and data.factionID > 0 then
             rows[#rows + 1] = { text = data.name, onClick = function() AddLine(note, { link = "rep", faction = data.factionID, standing = 8 }) end }
         end

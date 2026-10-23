@@ -96,6 +96,9 @@ Caps.era = classic and project == WOW_PROJECT_CLASSIC
 Caps.tbc = classic and project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
 -- MoP Classic: the classic family too, its own windows for most systems.
 Caps.mists = classic and project == WOW_PROJECT_MISTS_CLASSIC
+-- Era's and Anniversary's Looking For Group window (LFGParentFrame); MoP
+-- Classic has the Group Finder instead.
+Caps.lfgWindow = Caps.era or Caps.tbc
 Caps.retail = not forever and not classic
 
 -- Systems. Each is a plain boolean, decided once at load.
@@ -107,6 +110,9 @@ Caps.specs = type(GetNumSpecializationsForClassID) == "function"
 Caps.journal = rule("EncounterJournalDisabled") ~= true
     and type(EncounterJournal_LoadUI) == "function"
     and Caps.PanelEnabled("Blizzard_EncounterJournal")
+-- The journal's top tabs past Dungeons and Raids (Journeys, Traveler's Log,
+-- Suggested Content, Item Sets, Tutorials): MoP Classic's has none.
+Caps.journalTabs = Caps.journal and not classic
 -- Loot from the journal, or on WoW Forever from its shipped table.
 Caps.loot = Caps.journal or Caps.forever
 Caps.housing = rule("HousingDashboardDisabled") ~= true
@@ -125,27 +131,47 @@ Caps.transmog = rule("TransmogEnabled") ~= false
     and not classic
 -- The journal's own tab rule shows mounts, pets and toys wherever the
 -- journal loads, and heirlooms only where the game has them.
-Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections") and not classic
+-- Era and Anniversary have no collections window; MoP Classic's has all
+-- of retail's journals but the wardrobe (see Caps.transmog).
+Caps.collectionsUI = Caps.PanelEnabled("Blizzard_Collections")
 Caps.mounts = Caps.collectionsUI and C_MountJournal ~= nil and C_MountJournal.GetMountIDs ~= nil
 Caps.pets = Caps.collectionsUI and rule("PetBattlesDisabled") ~= true and C_PetJournal ~= nil
 Caps.toys = Caps.collectionsUI and C_ToyBox ~= nil
 Caps.heirlooms = Caps.collectionsUI and C_Heirloom ~= nil
     and (C_HeirloomInfo == nil or call(C_HeirloomInfo.HeirloomsAvailable) ~= false)
 -- On Classic Era and TBC Anniversary the currency namespace exists only
--- in part, so the API being there says nothing: off there.
-Caps.currencies = C_CurrencyInfo ~= nil and not Caps.forever and not classic
+-- in part, so the API being there says nothing. A classic client counts
+-- when its character window has the currency tab (MoP Classic).
+local function characterTab(frameName)
+    local subs = _G["CHARACTERFRAME_SUBFRAMES"]
+    if type(subs) ~= "table" then return false end
+    for i = 1, #subs do if subs[i] == frameName then return true end end
+    return false
+end
+Caps.currencies = not Caps.forever and ((not classic and C_CurrencyInfo ~= nil)
+    or (classic and characterTab("TokenFrame") and type(_G["GetCurrencyListSize"]) == "function"))
 Caps.warbandBank = C_Bank ~= nil and C_Bank.FetchPurchasedBankTabData ~= nil and not Caps.forever
 Caps.classTalents = C_ClassTalents ~= nil and C_Traits ~= nil
 Caps.oldTalents = type(GetTalentInfo) == "function" and type(GetNumTalentTabs) == "function"
-Caps.talents = rule("TalentsPanelDisabled") ~= true and (Caps.classTalents or Caps.oldTalents) and not classic
+-- The classic clients read talents through one call: Era and Anniversary
+-- by tree and index, MoP Classic by tier and column.
+local talentQuery = C_SpecializationInfo ~= nil and C_SpecializationInfo.GetTalentInfo ~= nil
+Caps.talentTrees = (Caps.era or Caps.tbc) and talentQuery and type(GetNumTalentTabs) == "function"
+Caps.talentTiers = Caps.mists and talentQuery
+Caps.talents = rule("TalentsPanelDisabled") ~= true
+    and ((not classic and (Caps.classTalents or Caps.oldTalents)) or Caps.talentTrees or Caps.talentTiers)
 Caps.delves = C_DelvesUI ~= nil and not Caps.forever
 Caps.mythicPlus = C_MythicPlus ~= nil and not Caps.forever
 Caps.perks = C_PerksProgram ~= nil and not Caps.forever
 Caps.editMode = rule("EditModeDisabled") ~= true and C_EditMode ~= nil
 Caps.macros = rule("MacrosDisabled") ~= true
-Caps.professions = rule("ProfessionsPanelDisabled") ~= true and not classic
--- Classic keeps the API and has no Equipment Manager.
-Caps.gearSets = C_EquipmentSet ~= nil and not classic
+-- The classic clients' professions are searched from the recipes each
+-- window showed on the character (Database:CaptureClassicRecipes).
+Caps.professions = rule("ProfessionsPanelDisabled") ~= true
+    and (not classic or type(_G["GetNumTradeSkills"]) == "function")
+-- Era and Anniversary keep the API and have no Equipment Manager; MoP
+-- Classic has it in the character window's sidebars.
+Caps.gearSets = C_EquipmentSet ~= nil and (not classic or type(_G["PAPERDOLL_SIDEBARS"]) == "table")
 -- The classic character window lists skills (weapons, languages, class skills).
 Caps.skills = classic and type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function"
 Caps.outfits = Caps.transmog
@@ -153,9 +179,11 @@ Caps.ammo = rule("EnableAmmoSystem") == true
 Caps.campsites = C_WarbandScene ~= nil and not Caps.forever
 -- Warband-wide reputations and legacy reputation headers: retail's
 -- account-wide reputation system, absent on Forever.
-Caps.warbandRep = C_Reputation ~= nil and C_Reputation.IsAccountWideReputation ~= nil and not Caps.forever
--- Reputation reads C_Reputation, which the classic UI does not have.
-Caps.reputation = C_Reputation ~= nil and C_Reputation.GetFactionDataByIndex ~= nil
+Caps.warbandRep = C_Reputation ~= nil and C_Reputation.IsAccountWideReputation ~= nil
+    and not Caps.forever and not classic
+-- C_Reputation's list, or the classic clients' GetFactionInfo list.
+Caps.reputation = (C_Reputation ~= nil and C_Reputation.GetFactionDataByIndex ~= nil)
+    or (type(_G["GetNumFactions"]) == "function" and type(_G["GetFactionInfo"]) == "function")
 -- Native map waypoints and the arrow that follows them.
 Caps.waypoints = C_Map ~= nil and C_Map.SetUserWaypoint ~= nil and C_SuperTrack ~= nil and UiMapPoint ~= nil
 Caps.pvpUI = Caps.PanelEnabled("Blizzard_PVPUI")
@@ -310,8 +338,8 @@ end
 -- The live sidebar slot for a retail sidebar number, or nil. Blizzard
 -- lists the sidebars in PAPERDOLL_SIDEBARS with the pane each opens.
 function Caps.CharacterSidebarSlot(sidebarIndex)
-    -- Classic's character window has no sidebar.
-    if Caps.classic then return nil end
+    -- Era's and Anniversary's character window has no sidebar.
+    if Caps.classic and type(_G["PAPERDOLL_SIDEBARS"]) ~= "table" then return nil end
     local want = SIDEBAR_FRAME[sidebarIndex]
     local wantName = SIDEBAR_NAME[sidebarIndex] and _G[SIDEBAR_NAME[sidebarIndex]]
     local list = _G["PAPERDOLL_SIDEBARS"]
@@ -327,10 +355,10 @@ function Caps.CharacterSidebarSlot(sidebarIndex)
     return sidebarIndex
 end
 
--- Classic's portrait menu has no Self Highlight entry, and the calendar
--- arrived with Wrath.
+-- Classic's portrait menu has no Self Highlight entry. The calendar came
+-- with Wrath: Era's and Anniversary's clock opens none, MoP Classic's does.
 Caps.selfHighlight = not classic
-Caps.calendar = not classic
+Caps.calendar = not (Caps.era or Caps.tbc)
 -- Era has no titles to pick: a PvP rank shows by the name on its own.
 -- TBC picks one from a dropdown on the character sheet.
 Caps.titles = not Caps.era
@@ -418,4 +446,83 @@ function Caps.Summary()
     end
     table.sort(on) table.sort(off)
     return string.format("%s (%s) on: %s | off: %s", tostring(version), tostring(toc), table.concat(on, " "), table.concat(off, " "))
+end
+
+-- The reputation list on any client, in retail's C_Reputation fields: the
+-- classic clients' GetFactionInfo mapped onto them. Either list counts only
+-- the rows under expanded headers. listed: a classic row, discovered by
+-- standing in the list at all.
+function Caps.ClassicFaction(name, _, standingID, barMin, barMax, barValue, _, _, isHeader, isCollapsed, hasRep,
+                             isWatched, isChild, factionID)
+    if not name then return nil end
+    return { name = name, factionID = factionID, isHeader = isHeader, isCollapsed = isCollapsed,
+             isHeaderExpanded = not isCollapsed, isHeaderWithRep = hasRep, isWatched = isWatched, isChild = isChild,
+             reaction = standingID, currentStanding = barValue, currentReactionThreshold = barMin,
+             nextReactionThreshold = barMax, listed = true }
+end
+
+function Caps.NumFactions()
+    local R = C_Reputation
+    if R and R.GetNumFactions then return R.GetNumFactions() or 0 end
+    local count = _G["GetNumFactions"]
+    return count and count() or 0
+end
+
+function Caps.FactionAt(index)
+    local R = C_Reputation
+    if R and R.GetFactionDataByIndex then return R.GetFactionDataByIndex(index) end
+    local get = _G["GetFactionInfo"]
+    return get and Caps.ClassicFaction(get(index)) or nil
+end
+
+-- By id, under a collapsed header too where the client can; else the list.
+function Caps.FactionByID(factionID)
+    local R = C_Reputation
+    if R and R.GetFactionDataByID then return R.GetFactionDataByID(factionID) end
+    local get = _G["GetFactionInfoByID"]
+    if get then return Caps.ClassicFaction(get(factionID)) end
+    for i = 1, Caps.NumFactions() do
+        local data = Caps.FactionAt(i)
+        if data and data.factionID == factionID then return data end
+    end
+    return nil
+end
+
+function Caps.SetFactionHeaderExpanded(index, expanded)
+    local R = C_Reputation
+    local name = expanded and "ExpandFactionHeader" or "CollapseFactionHeader"
+    local fn = (R and R[name]) or _G[name]
+    if fn then fn(index) end
+end
+
+-- The currency list on any client, in retail's C_CurrencyInfo fields: MoP
+-- Classic's GetCurrencyListInfo mapped onto them, its id read from the
+-- row's link.
+function Caps.NumCurrencies()
+    local C = C_CurrencyInfo
+    if C and C.GetCurrencyListSize then return C.GetCurrencyListSize() or 0 end
+    local size = _G["GetCurrencyListSize"]
+    return size and size() or 0
+end
+
+function Caps.CurrencyAt(index)
+    local C = C_CurrencyInfo
+    if C and C.GetCurrencyListInfo then return C.GetCurrencyListInfo(index) end
+    local get = _G["GetCurrencyListInfo"]
+    if not get then return nil end
+    local name, isHeader, isExpanded, isUnused, isWatched, count, icon = get(index)
+    if not name or name == "" then return nil end
+    local link = C and C.GetCurrencyListLink and C.GetCurrencyListLink(index)
+    return { name = name, isHeader = isHeader, isHeaderExpanded = isExpanded, isTypeUnused = isUnused,
+             isShowInBackpack = isWatched, quantity = count, iconFileID = icon,
+             currencyID = type(link) == "string" and tonumber(link:match("currency:(%d+)")) or nil }
+end
+
+function Caps.SetCurrencyHeaderExpanded(index, expanded)
+    local C = C_CurrencyInfo
+    if C and C.ExpandCurrencyList then
+        C.ExpandCurrencyList(index, expanded)
+    elseif _G["ExpandCurrencyList"] then
+        _G["ExpandCurrencyList"](index, expanded and 1 or 0)
+    end
 end

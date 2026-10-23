@@ -1398,6 +1398,9 @@ pcall(eventFrame.RegisterEvent, eventFrame, "TRAIT_CONFIG_DELETED")
 pcall(eventFrame.RegisterEvent, eventFrame, "TRAIT_CONFIG_UPDATED")
 pcall(eventFrame.RegisterEvent, eventFrame, "TRAIT_CONFIG_LIST_UPDATED")
 pcall(eventFrame.RegisterEvent, eventFrame, "ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
+-- The classic clients' talent points spent or reset; MoP Classic's picks.
+pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_POINTS_CHANGED")
+pcall(eventFrame.RegisterEvent, eventFrame, "PLAYER_TALENT_UPDATE")
 if C_HousingCatalog then
     eventFrame:RegisterEvent("HOUSING_STORAGE_UPDATED")
 end
@@ -1417,8 +1420,18 @@ local DIRTY_EVENT_CATEGORY = {
     SKILL_LINES_CHANGED = "professions",
     TRADE_SKILL_SHOW = "professions",
 }
--- Classic has no professions provider; its skill list is searched instead.
+-- Classic searches its skill list, and its professions from the recipes
+-- each window showed.
 if ns.Caps and ns.Caps.skills then DIRTY_EVENT_CATEGORY.SKILL_LINES_CHANGED = "skills" end
+local CLASSIC_PROFESSION_EVENTS = {}
+if ns.Caps and ns.Caps.classic then
+    for _, e in ipairs({ "TRADE_SKILL_SHOW", "TRADE_SKILL_UPDATE", "CRAFT_SHOW", "CRAFT_UPDATE" }) do
+        if pcall(eventFrame.RegisterEvent, eventFrame, e) then CLASSIC_PROFESSION_EVENTS[e] = true end
+    end
+    if pcall(eventFrame.RegisterUnitEvent, eventFrame, "UNIT_SPELLCAST_SUCCEEDED", "player") then
+        CLASSIC_PROFESSION_EVENTS.UNIT_SPELLCAST_SUCCEEDED = true
+    end
+end
 for dirtyEvent in pairs(DIRTY_EVENT_CATEGORY) do
     -- pcall: event names vary across client builds, and this runs at file
     -- load where an error would abort the whole module. A missing event
@@ -1490,7 +1503,19 @@ local function MarkDirtyDebounced(category)
     end
     dirtyTimers[category] = C_Timer.NewTimer(1.0, fire)
 end
-eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
+eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3)
+    -- The classic clients' profession windows: their recipes kept as they
+    -- show, with the spell that opened them.
+    if CLASSIC_PROFESSION_EVENTS[event] and ns.Database then
+        local changed
+        if event == "UNIT_SPELLCAST_SUCCEEDED" then
+            changed = ns.Database:NoteClassicCast(arg3)
+        else
+            changed = ns.Database:CaptureClassicRecipes(event:find("^CRAFT") ~= nil, event:find("SHOW$") ~= nil)
+        end
+        if changed then MarkDirtyDebounced("professions") end
+        return
+    end
     local dirtyCategory = DIRTY_EVENT_CATEGORY[event]
     -- The skills read unfolds headers itself: its own event is no news.
     if dirtyCategory == "skills" and ns.skillHeadersToggledAt and GetTime() - ns.skillHeadersToggledAt < 1 then return end
@@ -1556,7 +1581,8 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
         end)
     elseif event == "TRAIT_CONFIG_CREATED" or event == "TRAIT_CONFIG_DELETED"
         or event == "TRAIT_CONFIG_UPDATED" or event == "TRAIT_CONFIG_LIST_UPDATED"
-        or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then
+        or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" or event == "CHARACTER_POINTS_CHANGED"
+        or event == "PLAYER_TALENT_UPDATE" then
         -- TRAIT_CONFIG_UPDATED fires in bursts while talents are edited or
         -- committed; one debounced re-dirty covers the whole burst.
         if talentRefreshTimer then talentRefreshTimer:Cancel() end

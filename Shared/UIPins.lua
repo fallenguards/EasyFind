@@ -34,6 +34,8 @@ local SIMPLE_FIELDS = {
     -- Collection action IDs each SelectResult branch gates on; absent, a cold
     -- title/gear-set/talent/appearance shortkey fell through to a panel open.
     "titleID", "gearSetID", "talentNodeID", "skillLine",
+    -- A classic talent: its tab and button, and the tooltip's talent.
+    "talentTab", "talentIndex", "talentID", "talentGroup", "talentTier", "talentColumn",
     "appearanceItemID", "appearanceVisualID", "appearanceSlot",
     "factionID", "hasRepBar", "canQueue", "isPvP", "isPvE",
     -- Required for the row renderer to recognize a map result and

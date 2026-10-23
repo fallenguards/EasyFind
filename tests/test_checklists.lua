@@ -22,6 +22,8 @@ local function Load()
     env.time = function(t) if t then return os.time(t) end return w.now or os.time() end
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
+    env.GetBuildInfo = function() return "12.0.5", "1", "", 120005 end
+    H.loadModule("Shared/Caps.lua", env, ns)
     ns.StoredItemCounts = function(id) return w.stored[id] end
     local notesNS = { Context = {} }
     assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/Checklist.lua", "t", env))("EasyFind_Notes", notesNS)

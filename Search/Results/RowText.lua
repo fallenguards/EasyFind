@@ -220,7 +220,7 @@ function Text:GetFlatSubtext(data)
     -- disambiguates same-named recipes across professions. Parent profession
     -- rows have no professionRecipeID and keep the generic category, since
     -- their main text is already the profession name.
-    if data.professionRecipeID then
+    if data.professionRecipeID or data.classicRecipe then
         return data.professionName or data.category or ""
     end
     return data.category or ""

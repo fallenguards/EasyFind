@@ -167,10 +167,12 @@ function Rows.InstallTooltips(resultRow)
                 return
             end
             AnchorRowTooltip(GameTooltip, self)
-            if GameTooltip.SetSpellByID then
-                GameTooltip:SetSpellByID(self.data.spellID)
-            else
-                GameTooltip:SetHyperlink("spell:" .. self.data.spellID)
+            if not Tooltips:SetClassicTalent(GameTooltip, self.data) then
+                if GameTooltip.SetSpellByID then
+                    GameTooltip:SetSpellByID(self.data.spellID)
+                else
+                    GameTooltip:SetHyperlink("spell:" .. self.data.spellID)
+                end
             end
             GameTooltip:Show()
             return
@@ -521,10 +523,12 @@ function Rows.InstallTooltips(resultRow)
             -- carry both mountID and spellID and use the mount tooltip).
             elseif self.icon.spellID then
                 AnchorRowTooltip(GameTooltip, self)
-                if GameTooltip.SetSpellByID then
-                    GameTooltip:SetSpellByID(self.icon.spellID)
-                else
-                    GameTooltip:SetHyperlink("spell:" .. self.icon.spellID)
+                if not Tooltips:SetClassicTalent(GameTooltip, self.data) then
+                    if GameTooltip.SetSpellByID then
+                        GameTooltip:SetSpellByID(self.icon.spellID)
+                    else
+                        GameTooltip:SetHyperlink("spell:" .. self.icon.spellID)
+                    end
                 end
                 GameTooltip:Show()
             -- Bag item tooltip. Real gear (helm/chest/weapon/etc.) gets

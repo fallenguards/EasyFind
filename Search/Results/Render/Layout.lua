@@ -58,6 +58,11 @@ function Render.ApplyFlatResultAnchoring(resultRow, entry, state)
 
     local rightAnchor, rightOffset
     if resultRow.repBar and resultRow.repBar:IsShown() then
+        -- A talent's icon keeps the right edge; its rank bar sits before it.
+        if mainIconOnRight and resultRow.icon:IsShown() and resultRow.repBar:GetPoint() == "RIGHT" then
+            resultRow.repBar:ClearAllPoints()
+            resultRow.repBar:SetPoint("RIGHT", resultRow.icon, "LEFT", -4, 0)
+        end
         rightAnchor, rightOffset = resultRow.repBar, -4
     elseif mainIconOnRight and resultRow.icon:IsShown() then
         rightAnchor, rightOffset = resultRow.icon, -4

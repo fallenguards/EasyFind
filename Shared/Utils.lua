@@ -102,12 +102,9 @@ function Utils.SafeCallMethod(obj, method, ...)
     return ok, result
 end
 function Utils.FindFactionByPredicate(predicate)
-    if not C_Reputation or not C_Reputation.GetNumFactions or not C_Reputation.GetFactionDataByIndex then
-        return nil
-    end
-    local n = C_Reputation.GetNumFactions()
-    for i = 1, n do
-        local factionData = C_Reputation.GetFactionDataByIndex(i)
+    local Caps = ns.Caps
+    for i = 1, Caps.NumFactions() do
+        local factionData = Caps.FactionAt(i)
         if factionData and predicate(factionData) then
             return i, factionData
         end
