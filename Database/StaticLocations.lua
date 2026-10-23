@@ -24,6 +24,9 @@ local RETAIL_LOCATIONS = {
         { name = POIName("Portal to Orgrimmar"), category = "portal", x = 0.6107386922901901, y = 0.5889822784330836, keywords = {"portal", "teleport", "mage"} },
         { name = POIName("Portal to Howling Fjord"), category = "portal", x = 0.5946528870491194, y = 0.5878667441489194, keywords = {"portal", "teleport", "mage"} },
     },
+    [27] = { -- Dun Morogh
+        { name = POIName("Druid Trainer"), category = "classtrainer_druid", x = 0.5958, y = 0.3491, keywords = {"trainer", "class", "druid"} },
+    },
     [84] = { -- Stormwind City
         { name = POIName("Innkeeper"), category = "innkeeper", x = 0.6076649384171665, y = 0.7474117877548194, keywords = {"inn", "innkeeper", "hearth", "rest"} },
         { name = POIName("Bank"), category = "bank", x = 0.6287458295533704, y = 0.7815457034658084, keywords = {"bank", "vault", "storage"} },
@@ -186,7 +189,6 @@ local RETAIL_LOCATIONS = {
         { name = POIName("First Aid Trainer"), category = "prof_firstaid", x = 0.5559383034706116, y = 0.5920326709747314, keywords = {"profession", "trainer", "first aid", "bandage"} },
         { name = POIName("Jewelcrafting Trainer"), category = "prof_jewelcrafting", x = 0.5095180869102478, y = 0.2574237585067749, keywords = {"profession", "trainer", "jewelcrafting", "gem", "jc"} },
         { name = POIName("Blacksmithing Trainer"), category = "prof_blacksmithing", x = 0.5015999674797058, y = 0.4316450357437134, keywords = {"profession", "trainer", "blacksmithing", "bs"} },
-        { name = POIName("Druid Trainer"), category = "classtrainer_druid", x = 0.08458348363637924, y = 0.9706183671951294, keywords = {"trainer", "class", "druid"} },
         { name = POIName("Barber"), category = "barber", x = 0.2576498985290527, y = 0.5121992230415344, keywords = {"barber", "appearance", "haircut"} },
         { name = POIName("Stable Master"), category = "stablemaster", x = 0.6936774253845215, y = 0.8357920050621033, keywords = {"stable", "pet"} },
         { name = POIName("Priest Trainer"), category = "classtrainer_priest", x = 0.2692385017871857, y = 0.1095127537846565, keywords = {"trainer", "class", "priest"} },
@@ -292,6 +294,9 @@ local RETAIL_LOCATIONS = {
         { name = POIName("Mailbox"), category = "mailbox", x = 0.6814745664596558, y = 0.3831481039524078, keywords = {"mail", "mailbox"} },
         { name = POIName("Decor Specialist"), category = "decor", x = 0.6272032592338413, y = 0.4795431074048037, keywords = {"decor", "decoration", "housing", "furniture"} },
     },
+    [97] = { -- Azuremyst Isle
+        { name = POIName("Druid Trainer"), category = "classtrainer_druid", x = 0.2445, y = 0.5448, keywords = {"trainer", "class", "druid"} },
+    },
     [103] = { -- The Exodar
         { name = POIName("Inscription Trainer"), category = "prof_inscription", x = 0.3961431086063385, y = 0.3940853476524353, keywords = {"profession", "trainer", "inscription", "glyph"} },
         { name = POIName("Rogue Trainer"), category = "classtrainer_rogue", x = 0.5149957537651062, y = 0.8673011064529419, keywords = {"trainer", "class", "rogue"} },
@@ -318,7 +323,6 @@ local RETAIL_LOCATIONS = {
         { name = POIName("Mining Trainer"), category = "prof_mining", x = 0.5945789217948914, y = 0.8713036179542542, keywords = {"profession", "trainer", "mining", "ore"} },
         { name = POIName("First Aid Trainer"), category = "prof_firstaid", x = 0.3892354667186737, y = 0.2218526154756546, keywords = {"profession", "trainer", "first aid", "bandage"} },
         { name = POIName("Battlemasters"), category = "battlemasters", x = 0.2893082201480866, y = 0.5546520352363586, keywords = {"pvp", "battlemaster", "arena", "battleground", "bg"} },
-        { name = POIName("Druid Trainer"), category = "classtrainer_druid", x = 0.4060790538787842, y = 0.9406250715255737, keywords = {"trainer", "class", "druid"} },
         { name = POIName("Shaman Trainer"), category = "classtrainer_shaman", x = 0.3088023662567139, y = 0.3388830423355103, keywords = {"trainer", "class", "shaman"} },
         { name = POIName("Paladin Trainer"), category = "classtrainer_paladin", x = 0.3885733485221863, y = 0.8070628046989441, keywords = {"trainer", "class", "paladin"} },
         { name = POIName("Priest Trainer"), category = "classtrainer_priest", x = 0.3971840143203735, y = 0.5191040635108948, keywords = {"trainer", "class", "priest"} },

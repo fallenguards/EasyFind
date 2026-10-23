@@ -1592,7 +1592,7 @@ end
 
 function GPS:Open()
     if ns.MapTab and ns.MapTab.ShowPage and ns.MapTab:ShowPage("gps") then return true end
-    -- Era's and Anniversary's map has no side panel to hold the page: the
+    -- The full-screen classic map has no side panel to hold the page: the
     -- opener shows the map alone, and the route is drawn on it.
     return WorldMapFrame ~= nil and WorldMapFrame:IsShown()
 end

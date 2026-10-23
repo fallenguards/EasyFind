@@ -18,6 +18,7 @@ local GLOBAL_INSTANCE_CACHE_JOB = "map:global-instances"
 local GLOBAL_INSTANCE_CACHE_BUDGET_MS = 2
 -- Zone rows' map icon; TBC Anniversary lacks retail's.
 local ZONE_ICON = (ns.Caps and ns.Caps.classic) and "Interface\\Icons\\INV_Misc_Map_01" or 237382
+ns.ZONE_ICON = ZONE_ICON
 
 local CreateFrame = CreateFrame
 local hooksecurefunc = hooksecurefunc

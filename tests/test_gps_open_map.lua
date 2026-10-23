@@ -1,5 +1,5 @@
 -- GPS:Open (Apps/GPS/GPS.lua): the map's GPS page, or on a map with no
--- side panel to hold it (Era, Anniversary) the map alone, so a step click
+-- side panel to hold it (the full-screen classic map) the map alone, so a step click
 -- still shows that step's preview on it.
 local H = require("Harness")
 
@@ -31,7 +31,7 @@ function tests.thePageOpens()
 end
 
 function tests.aMapWithNoPanelOpensAlone()
-    H.assertTrue(loadOpen(false, true):Open(), "Era and Anniversary: the step shows on the map")
+    H.assertTrue(loadOpen(false, true):Open(), "the full-screen classic map: the step shows on it")
 end
 
 function tests.nothingOpenedIsNotOpen()

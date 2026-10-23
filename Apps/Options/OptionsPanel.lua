@@ -29,6 +29,7 @@ end
 -- label so the picker shows translated text without changing the value.
 local STYLE_LABEL_KEY = {
     ["EasyFind Arrow"]      = "OPT_INDICATOR_STYLE_EASYFIND",
+    ["Chevrons"]            = "OPT_INDICATOR_STYLE_CHEVRONS",
     ["Classic Quest Arrow"] = "OPT_INDICATOR_STYLE_CLASSIC",
     ["Minimap Player Arrow"] = "OPT_INDICATOR_STYLE_MINIMAP",
     ["Low-res Gauntlet"]    = "OPT_INDICATOR_STYLE_LOWRES",
@@ -1618,7 +1619,7 @@ local function BuildGeneralBindsTab(ctx)
 
     local indicatorRow, indicatorLabel = CreateSelectorRow(themeRow, L["OPT_INDICATOR_STYLE"])
 
-    local indicatorChoices = {"EasyFind Arrow", "Classic Quest Arrow", "Minimap Player Arrow", "Low-res Gauntlet", "HD Gauntlet"}
+    local indicatorChoices = {"EasyFind Arrow", "Chevrons", "Classic Quest Arrow", "Minimap Player Arrow", "Low-res Gauntlet", "HD Gauntlet"}
     if ns.Caps and ns.Caps.classic then table.remove(indicatorChoices) end
 
     local indicatorBtnFrame, indicatorBtnText = CreateFlyoutSelector(

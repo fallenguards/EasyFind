@@ -6,7 +6,16 @@ local mpi = Utils.mpi or math.pi
 
 local STAR_GLOW_TEXTURE = "Interface\\Cooldown\\star4"
 ns.MAP_SEARCH_STAR_GLOW_TEXTURE = STAR_GLOW_TEXTURE
+local CHEVRON_TEXTURE = "Interface\\AddOns\\EasyFind\\textures\\chevron"
+local CHEVRON_GLOW_TEXTURE = "Interface\\AddOns\\EasyFind\\textures\\chevron-glow"
 local INDICATOR_STYLES = {
+    -- The tutorial pointer: chevrons sliding toward the target.
+    ["Chevrons"] = {
+        texture = CHEVRON_TEXTURE,
+        texCoord = nil,
+        preRotated = true,
+        chevrons = true,
+    },
     ["Classic Quest Arrow"] = {
         texture = "Interface\\MINIMAP\\MiniMap-QuestArrow",
         texCoord = nil,
@@ -97,6 +106,76 @@ function ns.UIToCanvas(uiSize)
     return uiSize * (canvasW / viewportW)
 end
 
+-- Two chevrons half a cycle apart, each sliding fast then easing toward the
+-- target and fading over its last quarter; lengths are of a 48 frame.
+local CHEVRON = { travel = 36 / 48, start = -10 / 48, back = 0.6, duration = 1.25, easing = 0.5,
+    fadeStart = 0.75, glow = 0.7, size = 64 / 48 }
+-- The art's apex points down; each way its turn and its travel.
+local CHEVRON_WAYS = {
+    down  = { rot = 0,        x = 0,  y = -1 },
+    up    = { rot = mpi,      x = 0,  y = 1 },
+    right = { rot = mpi / 2,  x = 1,  y = 0 },
+    left  = { rot = -mpi / 2, x = -1, y = 0 },
+}
+
+local function ChevronsOnUpdate(driver, dt)
+    local host = driver:GetParent()
+    -- The frame's own bounce would carry the chevrons with it.
+    local bounce = host.animGroup
+    if bounce and bounce:IsPlaying() then bounce:Stop() end
+    driver.elapsed = driver.elapsed + dt
+    local w = host:GetWidth() or 0
+    local way = CHEVRON_WAYS[host.indicatorDirection or "down"] or CHEVRON_WAYS.down
+    if driver.way ~= way or driver.w ~= w then
+        driver.way, driver.w = way, w
+        for _, pair in ipairs(driver.pairs) do
+            for _, tex in ipairs(pair) do
+                tex:SetSize(w * CHEVRON.size, w * CHEVRON.size)
+                tex:SetRotation(way.rot)
+            end
+        end
+    end
+    local travel, start = w * CHEVRON.travel, w * CHEVRON.start
+    local base = (driver.elapsed / CHEVRON.duration) % 1
+    for i, pair in ipairs(driver.pairs) do
+        local phase = (base + (i - 1) / #driver.pairs) % 1
+        local off = start + (travel - start) * phase ^ CHEVRON.easing - travel * CHEVRON.back
+        local alpha = phase > CHEVRON.fadeStart and (1 - phase) / (1 - CHEVRON.fadeStart) or 1
+        local core, glow = pair[1], pair[2]
+        core:SetPoint("CENTER", host, "CENTER", way.x * off, way.y * off)
+        glow:SetPoint("CENTER", host, "CENTER", way.x * off, way.y * off)
+        core:SetAlpha(alpha)
+        glow:SetAlpha(alpha * CHEVRON.glow)
+    end
+end
+
+-- The chevrons in the indicator's color, a warmer glow behind them.
+local function ShowChevrons(host, color)
+    local driver = host.chevrons
+    if not driver then
+        driver = CreateFrame("Frame", nil, host)
+        driver:SetAllPoints()
+        driver.elapsed, driver.pairs = 0, {}
+        for i = 1, 2 do
+            local core = driver:CreateTexture(nil, "OVERLAY", nil, 1)
+            core:SetTexture(CHEVRON_TEXTURE)
+            core:SetBlendMode("ADD")
+            local glow = driver:CreateTexture(nil, "OVERLAY", nil, 0)
+            glow:SetTexture(CHEVRON_GLOW_TEXTURE)
+            glow:SetBlendMode("ADD")
+            driver.pairs[i] = { core, glow }
+        end
+        driver:SetScript("OnUpdate", ChevronsOnUpdate)
+        host.chevrons = driver
+    end
+    for _, pair in ipairs(driver.pairs) do
+        pair[1]:SetVertexColor(color[1], color[2], color[3])
+        pair[2]:SetVertexColor(color[1], color[2] * 0.73, color[3])
+    end
+    driver.w = nil
+    driver:Show()
+end
+
 -- Every indicator icon (map search, zone search, UI search, breadcrumb) must
 -- use these two functions so they all look identical.
 function ns.CreateIndicatorTextures(parentFrame, iconSize, glowSize)
@@ -174,6 +253,19 @@ function ns.UpdateIndicator(parentFrame)
 
     if parentFrame.glow then
         parentFrame.glow:SetVertexColor(Utils.RGB(color, 0.35))
+    end
+
+    -- Chevrons in the arrow's place; the arrow back when they go.
+    if style.chevrons then
+        tex:Hide()
+        if parentFrame.glow then parentFrame.glow:Hide() end
+        parentFrame.chevronsUp = true
+        ShowChevrons(parentFrame, color)
+    elseif parentFrame.chevronsUp then
+        parentFrame.chevronsUp = nil
+        tex:Show()
+        if parentFrame.glow then parentFrame.glow:Show() end
+        parentFrame.chevrons:Hide()
     end
 
     -- Map indicators handle scale in their own sizing code.

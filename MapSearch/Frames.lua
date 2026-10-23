@@ -80,6 +80,32 @@ function Frames.CreateHighlightBox(globalName, parent, opts)
     return frame
 end
 
+-- A pin's icon: square art (spell, item and class icons) cut round, as the
+-- ring round the pin is; round art and a creature's face (face) as drawn.
+local ROUND_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+function Frames.SquareIcon(icon)
+    if type(icon) ~= "string" then return false end
+    return icon:lower():find("^interface\\icons\\") ~= nil or icon:find("^atlas:classicon%-") ~= nil
+end
+
+function Frames.SetPinIcon(pin, icon, face)
+    Utils.SetIconTexture(pin.icon, icon)
+    local round = not face and Frames.SquareIcon(icon)
+    if round and not pin.iconMask then
+        local mask = pin:CreateMaskTexture()
+        mask:SetTexture(ROUND_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(pin.icon)
+        pin.iconMask = mask
+    end
+    if round and not pin.iconRound then
+        pin.icon:AddMaskTexture(pin.iconMask)
+        pin.iconRound = true
+    elseif not round and pin.iconRound then
+        pin.icon:RemoveMaskTexture(pin.iconMask)
+        pin.iconRound = nil
+    end
+end
+
 function Frames.AddWaypointPinVisuals(pin, opts)
     opts = opts or {}
     local color = opts.color or ns.YELLOW_HIGHLIGHT

@@ -38,6 +38,8 @@ local TAB_ICON_SIZE      = 20
 local TAB_ICON_GOLD      = {1.00, 0.82, 0.00}
 local TAB_ICON_DIM       = {0.55, 0.45, 0.10}
 local TAB_STACK_GAP      = -3
+-- The group headers' font; the classic clients have no Game15Font_Shadow.
+local HEADER_FONT = _G.Game15Font_Shadow and "Game15Font_Shadow" or "SystemFont_Shadow_Med3"
 
 local GetTopAncestor = MapUtils.GetTopAncestor
 local GetZoneUnderAncestor = MapUtils.GetZoneUnderAncestor
@@ -102,7 +104,7 @@ local function GetWorldChildren(mapID)
                     isZone = true,
                     zoneMapID = child.mapID,
                     zoneMapType = mt,
-                    icon = 237382,
+                    icon = ns.ZONE_ICON,
                     synthesized = true,
                 }
             end
@@ -136,6 +138,11 @@ local function TrimAfterMapSearch()
     end
 end
 local panel
+-- Era, Anniversary and MoP Classic: a map with no quest panel beside it
+-- gets a side panel of its own (SidePanel.Build, by the panel's builder).
+local SidePanel = {}
+-- What the panel and its tabs hang on: retail's quest panel or ours.
+local function Host() return SidePanel.frame or _G["QuestMapFrame"] end
 local selectedIsOurs = false
 local lastSelectedWasOurs = false
 -- Extra side pages (an extension's own tab under the search tab): the
@@ -241,7 +248,7 @@ local function FindAtlasTexture(frame, atlas)
 end
 
 local function RefreshSelectGlows()
-    local qmf = _G["QuestMapFrame"]
+    local qmf = Host()
     if not qmf then return end
     local function setGlow(tab, shown)
         if not tab then return end
@@ -306,7 +313,7 @@ local function UpdatePageBar()
         if scrollFrame then
             scrollFrame:ClearAllPoints()
             scrollFrame:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -4)
-            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 28)
+            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, panel.footH or 28)
         end
     elseif back then
         bar.pageID = false
@@ -317,12 +324,13 @@ local function UpdatePageBar()
         if scrollFrame then
             scrollFrame:ClearAllPoints()
             scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
-            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, 28)
+            scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -4, panel.footH or 28)
         end
     end
     if panel.emptyMsg then
         panel.emptyMsg:ClearAllPoints()
-        panel.emptyMsg:SetPoint("TOP", scrollFrame or panel, "TOP", 0, -24)
+        panel.emptyMsg:SetPoint("TOPLEFT", scrollFrame or panel, "TOPLEFT", 20, -24)
+        panel.emptyMsg:SetPoint("TOPRIGHT", scrollFrame or panel, "TOPRIGHT", -20, -24)
     end
 end
 
@@ -365,8 +373,9 @@ end
 
 local function ShowOurPanel(pageID)
     if not IsMapSearchEnabled() then return end
-    local qmf = _G["QuestMapFrame"]
+    local qmf = Host()
     if not qmf or not panel then return end
+    if SidePanel.frame and not SidePanel.Expand() then return end
     selectedIsOurs = true
     lastSelectedWasOurs = true
     -- Must measure before hiding QuestsFrame so GetLeft/GetRight are live.
@@ -424,7 +433,8 @@ local function HideOurPanel(restoreBlizzardMode)
         if panel.outer then panel.outer:Hide() else panel:Hide() end
         if panel.searchBox then panel.searchBox:ClearFocus() end
     end
-    local qmf = _G["QuestMapFrame"]
+    if SidePanel.frame then SidePanel.Collapse() end
+    local qmf = Host()
     if restoreBlizzardMode
        and qmf and qmf.SetDisplayMode and qmf.displayMode == nil then
         -- The quest log's mode as its own tab names it: a frame on retail,
@@ -828,15 +838,27 @@ local function CreateGroupHeader(parent)
 
     local bg = hdr:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetAtlas("QuestLog-tab")
-    hdr.bg = bg
-
     local hoverOverlay = hdr:CreateTexture(nil, "ARTWORK", nil, -1)
-    hoverOverlay:SetAllPoints()
-    hoverOverlay:SetAtlas("QuestLog-tab")
     hoverOverlay:SetBlendMode("ADD")
-    hoverOverlay:SetAlpha(0.40)
+    if not (ns.Caps and ns.Caps.questLogAtlas == false) then
+        bg:SetAtlas("QuestLog-tab")
+        hoverOverlay:SetAllPoints()
+        hoverOverlay:SetAtlas("QuestLog-tab")
+        hoverOverlay:SetAlpha(0.40)
+    else
+        -- No quest log sheet (Era, MoP Classic): its band drawn plain, a dark
+        -- fill in a thin rim.
+        bg:SetColorTexture(0.42, 0.38, 0.32, 0.9)
+        local fill = hdr:CreateTexture(nil, "BACKGROUND", nil, 1)
+        fill:SetPoint("TOPLEFT", 1, -1)
+        fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        fill:SetColorTexture(0.16, 0.13, 0.10, 0.95)
+        hoverOverlay:SetPoint("TOPLEFT", 1, -1)
+        hoverOverlay:SetPoint("BOTTOMRIGHT", -1, 1)
+        hoverOverlay:SetColorTexture(1, 1, 1, 0.08)
+    end
     hoverOverlay:Hide()
+    hdr.bg = bg
     hdr.hoverOverlay = hoverOverlay
 
     local toggleBtn = CreateFrame("Button", nil, hdr)
@@ -858,7 +880,7 @@ local function CreateGroupHeader(parent)
     local toggleIcon = toggleBtn:CreateTexture(nil, "OVERLAY")
     toggleIcon:SetSize(18, 17)
     toggleIcon:SetPoint("CENTER")
-    toggleIcon:SetAtlas("QuestLog-icon-expand")
+    ns.SetQuestLogToggle(toggleIcon, true)
     toggleBtn.icon = toggleIcon
     toggleBtn:SetHighlightTexture(130757)
     toggleBtn:SetScript("OnEnter", function(self)
@@ -874,7 +896,7 @@ local function CreateGroupHeader(parent)
     end)
     hdr.toggleBtn = toggleBtn
 
-    local fs = hdr:CreateFontString(nil, "OVERLAY", "Game15Font_Shadow")
+    local fs = hdr:CreateFontString(nil, "OVERLAY", HEADER_FONT)
     fs:SetPoint("LEFT", hdr, "LEFT", 10, 0)
     fs:SetPoint("RIGHT", toggleBtn, "LEFT", -4, 0)
     fs:SetJustifyH("LEFT")
@@ -915,10 +937,10 @@ local function AcquireGroupHeader(parent, labelText, groupKey, count, collapsed,
     hdr.label:SetText(labelText or "")
     if hdr.fontScale ~= FontScale() then
         hdr.fontScale = FontScale()
-        ScaleFont(hdr.label, "Game15Font_Shadow", hdr.fontScale)
+        ScaleFont(hdr.label, HEADER_FONT, hdr.fontScale)
         hdr:SetHeight(Scaled(GROUP_HEADER_H))
     end
-    hdr.toggleBtn.icon:SetAtlas(collapsed and "QuestLog-icon-expand" or "QuestLog-icon-shrink")
+    ns.SetQuestLogToggle(hdr.toggleBtn.icon, collapsed)
     hdr.toggleBtn:SetShown(hasChildren and true or false)
     hdr.groupKey = groupKey
     hdr.navigateData = navigateData
@@ -2435,6 +2457,7 @@ function MapTab.ScaleChrome(p)
     if p.emptyMsg then ScaleFont(p.emptyMsg, "GameFontHighlight", s) end
     if p.recentLabel then ScaleFont(p.recentLabel, "GameFontHighlightSmall", s) end
     if p.expandLabel then ScaleFont(p.expandLabel, "GameFontHighlightSmall", s) end
+    if p.LayoutChecks then p.LayoutChecks() end
 end
 
 -- The text size choices, one ticked.
@@ -2505,12 +2528,19 @@ end
 local function CreateFilterCog(parent)
     local cog = CreateFrame("Button", nil, parent)
     cog:SetSize(14, 16)
+    local function CogArt(tex)
+        if ns.SETTING_ICON.atlas then
+            tex:SetAtlas(ns.SETTING_ICON.atlas, false)
+        else
+            tex:SetTexture(ns.SETTING_ICON.tex)
+            tex:SetDesaturated(true)
+        end
+        tex:SetAllPoints()
+    end
     local iconTex = cog:CreateTexture(nil, "ARTWORK")
-    iconTex:SetAtlas("QuestLog-icon-setting", false)
-    iconTex:SetAllPoints()
+    CogArt(iconTex)
     local hoverTex = cog:CreateTexture(nil, "HIGHLIGHT")
-    hoverTex:SetAtlas("QuestLog-icon-setting", false)
-    hoverTex:SetAllPoints()
+    CogArt(hoverTex)
     hoverTex:SetAlpha(0.4)
     cog:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2708,6 +2738,214 @@ local function EnsureExtraTab(id)
     extraTabs[id] = CreateExtraTab(qmf, def)
 end
 
+-- Classic's windowed map grows a side panel in its own border art, opened
+-- from a toggle in its corner, as retail's quest panel.
+function SidePanel.Build()
+    local wmf = WorldMapFrame
+    local right = _G["MiniBorderRight"]
+    if not (wmf and wmf.MiniBorderFrame and wmf.ScrollContainer and right) then return nil end
+    -- Art pixels, 1:1: grows by W; bars at BARS_U, divider EDGE_U, end CAP_U;
+    -- the panel's metal only (the parchment shading is inside TOP, BOTTOM, RIM).
+    local W, BARS_U, EDGE_U, CAP_U = 287, 199, 71, 24
+    local TOP, BOTTOM, RIM = 24, 407, 73
+    local LEFT_ART = "Interface\\WorldMap\\UI-WorldMapSmall-Left"
+    local RIGHT_ART = "Interface\\WorldMap\\UI-WorldMapSmall-Right"
+    SidePanel.W = W
+    local f = CreateFrame("Frame", "EasyFindMapSidePanel", wmf)
+    f:SetAllPoints(wmf)
+    f:SetFrameLevel(wmf.MiniBorderFrame:GetFrameLevel())
+    f:Hide()
+    local function Piece(file, u0, u1, v0, v1, x, y)
+        local t = f:CreateTexture(nil, "ARTWORK")
+        local w = file == LEFT_ART and 512 or 128
+        t:SetTexture(file)
+        t:SetTexCoord(u0 / w, u1 / w, v0 / 512, v1 / 512)
+        t:SetSize(u1 - u0, v1 - v0)
+        t:SetPoint("TOPLEFT", right, "TOPLEFT", x, y)
+    end
+    -- Over the map the bars keep its shading; over the panel, metal only.
+    local barsEnd, mapEnd = BARS_U + CAP_U + W, BARS_U + EDGE_U
+    Piece(LEFT_ART, BARS_U, mapEnd, 0, 512, 0, 0)
+    Piece(LEFT_ART, mapEnd, barsEnd, 0, TOP, EDGE_U, 0)
+    Piece(LEFT_ART, mapEnd, barsEnd, BOTTOM, 512, EDGE_U, -BOTTOM)
+    Piece(RIGHT_ART, EDGE_U, EDGE_U + 8, TOP, BOTTOM, EDGE_U, -TOP)
+    Piece(RIGHT_ART, CAP_U, 128, 0, TOP, CAP_U + W, 0)
+    Piece(RIGHT_ART, CAP_U, 128, BOTTOM, 512, CAP_U + W, -BOTTOM)
+    Piece(RIGHT_ART, RIM, 128, TOP, BOTTOM, RIM + W, -TOP)
+    -- The window's stone, as retail's frames have behind their panels.
+    local rock = f:CreateTexture(nil, "BACKGROUND")
+    rock:SetTexture("Interface\\FrameGeneral\\UI-Background-Rock", "REPEAT", "REPEAT")
+    rock:SetHorizTile(true)
+    rock:SetVertTile(true)
+    rock:SetPoint("TOPLEFT", right, "TOPLEFT", EDGE_U + 7, 2 - TOP)
+    rock:SetPoint("BOTTOMRIGHT", right, "TOPLEFT", RIM + W + 1, -BOTTOM - 1)
+    -- Room for the quest border round the panel (3 out, 7 up, 6 down).
+    -- Hung from frames: secure cast buttons cannot be placed through art.
+    local RIGHT_X = 12 + 512   -- the right piece's left edge in the window
+    local contents = CreateFrame("Frame", nil, f)
+    contents:SetPoint("TOPLEFT", f, "TOPLEFT", RIGHT_X + EDGE_U + 12, -TOP - 8)
+    contents:SetPoint("BOTTOMRIGHT", f, "TOPLEFT", RIGHT_X + RIM + W - 4, 7 - BOTTOM)
+    contents:EnableMouse(true)
+    f.ContentsAnchor = contents
+    SidePanel.frame = f
+
+    -- The toggle: the client's square button, retail's arrow, our pin, in
+    -- the map's inner corner.
+    local toggle = CreateFrame("Button", "EasyFindMapSidePanelToggle", wmf)
+    toggle:SetSize(32, 32)
+    -- Over the map's pins, which take the levels from 2000 up.
+    local levels = wmf.GetPinFrameLevelsManager and wmf:GetPinFrameLevelsManager()
+    toggle:SetFrameLevel(((levels and levels.maxLevel) or 2000) + 1)
+    toggle:SetPoint("BOTTOMRIGHT", right, "TOPLEFT", RIM - 1, 1 - BOTTOM)
+    toggle:SetNormalTexture("Interface\\Buttons\\UI-SquareButton-Up")
+    toggle:SetPushedTexture("Interface\\Buttons\\UI-SquareButton-Down")
+    toggle:GetNormalTexture():SetTexCoord(2 / 32, 29 / 32, 3 / 32, 29 / 32)
+    toggle:GetPushedTexture():SetTexCoord(2 / 32, 29 / 32, 3 / 32, 29 / 32)
+    toggle:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    local arrow = toggle:CreateTexture(nil, "OVERLAY")
+    arrow:SetTexture("Interface\\Buttons\\SquareButtonTextures")
+    arrow:SetSize(11, 11)
+    local pin = toggle:CreateTexture(nil, "OVERLAY")
+    pin:SetTexture(ns.GPS_ICON_TEX)
+    pin:SetSize(18, 18)
+    pin:SetVertexColor(Utils.RGB(TAB_ICON_GOLD))
+    local function PlaceGlyphs(dx, dy)
+        arrow:SetPoint("LEFT", toggle, "LEFT", 5 + dx, dy)
+        pin:SetPoint("CENTER", toggle, "CENTER", 4 + dx, dy)
+    end
+    PlaceGlyphs(0, 0)
+    toggle:SetScript("OnMouseDown", function() PlaceGlyphs(1, -1) end)
+    toggle:SetScript("OnMouseUp", function() PlaceGlyphs(0, 0) end)
+    toggle:SetScript("OnClick", function()
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        if selectedIsOurs then
+            lastSelectedWasOurs = false
+            EasyFind.db.mapSidePanelOpen = false
+            HideOurPanel(true)
+        else
+            ShowOurPanel()
+        end
+    end)
+    toggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(L["MAP_SEARCH_TITLE"])
+        GameTooltip:AddLine(L["MAP_SEARCH_TT"], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    toggle:SetScript("OnLeave", GameTooltip_Hide)
+    toggle:Hide()
+    SidePanel.toggle, SidePanel.arrow = toggle, arrow
+    SidePanel.RefreshToggle()
+    if wmf.SynchronizeDisplayState then hooksecurefunc(wmf, "SynchronizeDisplayState", SidePanel.ClientPlacedClose) end
+    return f
+end
+
+-- Retail's book page and quest border on the panel, from EasyFind's copies
+-- (the classic clients have neither); the border is the client's nine-slice.
+function SidePanel.Paper(p)
+    local RIM_TEX = "Interface\\AddOns\\EasyFind\\textures\\QuestRim"
+    local paper = p:CreateTexture(nil, "BACKGROUND", nil, -1)
+    paper:SetTexture("Interface\\AddOns\\EasyFind\\textures\\QuestPaper")
+    paper:SetTexCoord(0, 307 / 512, 0, 510 / 512)
+    paper:SetAllPoints(p)
+    local rim = CreateFrame("Frame", nil, p)
+    rim:SetPoint("TOPLEFT", p, "TOPLEFT", -3, 7)
+    rim:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 3, -6)
+    rim:SetFrameLevel(p:GetFrameLevel() + 2)
+    -- The 2x copy's cuts (of 256): corners to 106, a 2-pixel middle to 108,
+    -- the rim to 214; corners draw 53 across, as the client's slices.
+    local cuts = { 0, 106 / 256, 108 / 256, 214 / 256 }
+    local C = 53
+    -- Each cut: its column and row, width and height (0 = from its anchors),
+    -- then its anchors on the rim.
+    for _, c in ipairs({
+        { 1, 1, C, C, { "TOPLEFT", 0, 0 } },
+        { 3, 1, C, C, { "TOPRIGHT", 0, 0 } },
+        { 1, 3, C, C, { "BOTTOMLEFT", 0, 0 } },
+        { 3, 3, C, C, { "BOTTOMRIGHT", 0, 0 } },
+        { 2, 1, 0, C, { "TOPLEFT", C, 0 }, { "TOPRIGHT", -C, 0 } },
+        { 2, 3, 0, C, { "BOTTOMLEFT", C, 0 }, { "BOTTOMRIGHT", -C, 0 } },
+        { 1, 2, C, 0, { "TOPLEFT", 0, -C }, { "BOTTOMLEFT", 0, C } },
+        { 3, 2, C, 0, { "TOPRIGHT", 0, -C }, { "BOTTOMRIGHT", 0, C } },
+        { 2, 2, 0, 0, { "TOPLEFT", C, -C }, { "BOTTOMRIGHT", -C, C } },
+    }) do
+        local t = rim:CreateTexture(nil, "BORDER")
+        t:SetTexture(RIM_TEX)
+        t:SetTexCoord(cuts[c[1]], cuts[c[1] + 1], cuts[c[2]], cuts[c[2] + 1])
+        if c[3] > 0 then t:SetWidth(c[3]) end
+        if c[4] > 0 then t:SetHeight(c[4]) end
+        for i = 5, #c do t:SetPoint(c[i][1], rim, c[i][1], c[i][2], c[i][3]) end
+    end
+    local filigree = rim:CreateTexture(nil, "ARTWORK")
+    filigree:SetTexture(RIM_TEX)
+    filigree:SetTexCoord(0, 96 / 256, 216 / 256, 254 / 256)
+    filigree:SetSize(48, 19)
+    filigree:SetPoint("TOP", rim, "TOP", 0, 1)
+end
+
+function SidePanel.RefreshToggle()
+    local c = _G.SQUARE_BUTTON_TEXCOORDS and _G.SQUARE_BUTTON_TEXCOORDS[SidePanel.frame:IsShown() and "LEFT" or "RIGHT"]
+    if c then SidePanel.arrow:SetTexCoord(c[1], c[2], c[3], c[4]) end
+end
+
+-- The client's close button (the maximize button rides on it): its place as
+-- the client last set it, and the new end's while the panel is open.
+function SidePanel.PlaceClose()
+    local close = _G["WorldMapFrameCloseButton"]
+    if not close then return end
+    if not SidePanel.closeMoved then SidePanel.closeAt = { close:GetPoint(1) } end
+    local at = SidePanel.closeAt
+    if SidePanel.frame:IsShown() and at[2] == _G["MiniBorderRight"] then
+        close:SetPoint(at[1], at[2], at[3], at[4] + SidePanel.W, at[5])
+        SidePanel.closeMoved = true
+    end
+end
+
+function SidePanel.ClientPlacedClose()
+    SidePanel.closeMoved = false
+    SidePanel.PlaceClose()
+end
+
+-- Open beside the windowed map; the full-screen map has no room for it.
+function SidePanel.Expand()
+    local wmf = WorldMapFrame
+    if not wmf:IsShown() or wmf:IsMaximized() then return false end
+    local f = SidePanel.frame
+    if not f:IsShown() then
+        f:Show()
+        _G["MiniBorderRight"]:Hide()
+        SidePanel.PlaceClose()
+    end
+    EasyFind.db.mapSidePanelOpen = true
+    SidePanel.RefreshToggle()
+    return true
+end
+
+function SidePanel.Collapse()
+    local f = SidePanel.frame
+    if f:IsShown() then
+        f:Hide()
+        _G["MiniBorderRight"]:Show()
+        local close = _G["WorldMapFrameCloseButton"]
+        if close and SidePanel.closeMoved then close:SetPoint(unpack(SidePanel.closeAt)) end
+        SidePanel.closeMoved = false
+    end
+    SidePanel.RefreshToggle()
+end
+
+-- The toggle shows on the windowed map, and the panel opens as it was left.
+function SidePanel.Sync()
+    local wmf = WorldMapFrame
+    local windowed = IsMapSearchEnabled() and not wmf:IsMaximized()
+    SidePanel.toggle:SetShown(windowed)
+    if not windowed then
+        HideOurPanel(true)
+        SidePanel.Collapse()
+    elseif lastSelectedWasOurs and wmf:IsShown() and not selectedIsOurs then
+        ShowOurPanel()
+    end
+end
+
 -- Sibling content panel: paper backdrop, gold border, search + cog at
 -- top, scrollable content below.
 local function CreatePanel(qmf)
@@ -2719,25 +2957,34 @@ local function CreatePanel(qmf)
 
     local p = CreateFrame("Frame", "EasyFindMapSearchPanel", outer)
     p:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, -29)
-    p:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -22, 0)
+    -- The scroll bars' strip right of the panel: retail's matches its quest
+    -- log's; the side panel's holds the bar and no more.
+    local strip = SidePanel.frame and 16 or 22
+    p.barGap = SidePanel.frame and 5 or 8
+    p:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -strip, 0)
     p:EnableMouse(true)
     p.outer, p.anchor = outer, anchor
     outer:Hide()
 
-    local paper = p:CreateTexture(nil, "BACKGROUND", nil, -1)
-    paper:SetAtlas("QuestLog-main-background", true)
-    paper:SetAllPoints(p)
-    p.paper = paper
+    -- Retail's quest panel paper and rim; the side panel draws the map's.
+    if not SidePanel.frame then
+        local paper = p:CreateTexture(nil, "BACKGROUND", nil, -1)
+        paper:SetAtlas("QuestLog-main-background", true)
+        paper:SetAllPoints(p)
+        p.paper = paper
 
-    -- Don't SetAllPoints on the border: the template carries its own
-    -- anchors that extend the frame a few pixels outside its parent so
-    -- the nineslice interior lines up with the parent's rect.
-    local border = CreateFrame("Frame", nil, p, "QuestLogBorderFrameTemplate")
-    border:SetFrameLevel(p:GetFrameLevel() + 2)
-    -- Border is decorative chrome; it never needs mouse input. Leaving
-    -- it on ate the first click on every row.
-    border:EnableMouse(false)
-    p.border = border
+        -- Don't SetAllPoints on the border: the template carries its own
+        -- anchors that extend the frame a few pixels outside its parent so
+        -- the nineslice interior lines up with the parent's rect.
+        local border = CreateFrame("Frame", nil, p, "QuestLogBorderFrameTemplate")
+        border:SetFrameLevel(p:GetFrameLevel() + 2)
+        -- Border is decorative chrome; it never needs mouse input. Leaving
+        -- it on ate the first click on every row.
+        border:EnableMouse(false)
+        p.border = border
+    else
+        SidePanel.Paper(p)
+    end
 
     local cog = CreateFilterCog(outer)
     cog:SetSize(15, 16)
@@ -2749,7 +2996,8 @@ local function CreatePanel(qmf)
     local searchBox = CreateSearchBox(outer)
     searchBox:ClearAllPoints()
     searchBox:SetHeight(20)
-    searchBox:SetPoint("TOPLEFT", outer, "TOPLEFT", 4, -5)
+    -- Clear of the quest border's top on the side panel.
+    searchBox:SetPoint("TOPLEFT", outer, "TOPLEFT", 4, SidePanel.frame and -2 or -5)
     searchBox:SetPoint("RIGHT", cog, "LEFT", -6, 0)
     p.searchBox = searchBox
 
@@ -2781,7 +3029,7 @@ local function CreatePanel(qmf)
     end)
 
     p.AlignToBlizzardSearch = function()
-        local qsb = _G["QuestScrollFrame"] and QuestScrollFrame.SearchBox
+        local qsb = not SidePanel.frame and _G["QuestScrollFrame"] and QuestScrollFrame.SearchBox
         if not qsb then return end
         local n = qsb:GetNumPoints() or 0
         if n == 0 then return end
@@ -2828,8 +3076,8 @@ local function CreatePanel(qmf)
 
     local scrollBar = CreateFrame("EventFrame", nil, p, "MinimalScrollBar")
     scrollBar:SetFrameStrata("HIGH")
-    scrollBar:SetPoint("TOPLEFT", p, "TOPRIGHT", 8, 2)
-    scrollBar:SetPoint("BOTTOMLEFT", p, "BOTTOMRIGHT", 8, -4)
+    scrollBar:SetPoint("TOPLEFT", p, "TOPRIGHT", p.barGap, 2)
+    scrollBar:SetPoint("BOTTOMLEFT", p, "BOTTOMRIGHT", p.barGap, -4)
     p.scrollBar = scrollBar
 
     local function SyncScrollBar()
@@ -2895,8 +3143,8 @@ local function CreatePanel(qmf)
     p.pageBar = pageBar
 
     local emptyMsg = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    emptyMsg:SetPoint("TOP", scrollFrame, "TOP", 0, -24)
-    emptyMsg:SetWidth(260)
+    emptyMsg:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 20, -24)
+    emptyMsg:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -20, -24)
     emptyMsg:SetJustifyH("CENTER")
     emptyMsg:SetText("|cff999999" .. L["MAP_EMPTY_HINT"] .. "|r")
     p.emptyMsg = emptyMsg
@@ -2942,6 +3190,21 @@ local function CreatePanel(qmf)
     end)
     expandCheck:SetScript("OnLeave", GameTooltip_Hide)
     p.expandCheck = expandCheck
+    -- The checks share the bottom line where both fit, else stack; the list
+    -- ends above them.
+    function p.LayoutChecks()
+        local need = 64 + recentLabel:GetUnboundedStringWidth() + expandLabel:GetUnboundedStringWidth()
+        local stacked = need > p:GetWidth()
+        expandCheck:ClearAllPoints()
+        if stacked then
+            expandCheck:SetPoint("BOTTOMLEFT", recentCheck, "TOPLEFT", 0, 2)
+        else
+            expandCheck:SetPoint("LEFT", recentLabel, "RIGHT", 12, -1)
+        end
+        p.footH = stacked and 50 or 28
+        if panel == p then UpdatePageBar() end
+    end
+    p:HookScript("OnSizeChanged", p.LayoutChecks)
     MapTab.ScaleChrome(p)
 
     return p
@@ -2991,8 +3254,9 @@ function MapTab:ShowPage(id)
         if ToggleWorldMap then ToggleWorldMap() end
         if not initialized then self:Initialize() end
     end
-    if not panel or not tabFrame then return false end
+    if not panel then return false end
     ShowOurPanel(id)
+    if not selectedIsOurs then return false end
     SafeAfter(0, function()
         if panel and not (panel.outer or panel):IsVisible() and WorldMapFrame and WorldMapFrame:IsShown() then
             ShowOurPanel(id)
@@ -3012,20 +3276,18 @@ function MapTab:Focus()
     end
     -- If init hasn't completed (rare race), ADDON_LOADED at the bottom
     -- consumes _pendingFocus to retry once the panel exists.
-    if not panel or not tabFrame then
+    if not panel then
         MapTab._pendingFocus = true
         return false
     end
-    local clickHandler = tabFrame:GetScript("OnMouseUp")
-    if clickHandler then clickHandler(tabFrame, "LeftButton") end
+    ShowOurPanel(false)
+    if not selectedIsOurs then return false end
     -- Re-apply on next frame against async tab restoration that fires
     -- after this OnShow chain settles.
     SafeAfter(0, function()
         if not panel then return end
-        if not panel:IsShown() and clickHandler then
-            clickHandler(tabFrame, "LeftButton")
-        end
-        if panel.searchBox and panel:IsShown() then
+        if not panel:IsShown() then ShowOurPanel(false) end
+        if panel.searchBox and selectedIsOurs and panel:IsShown() then
             panel.searchBox:SetFocus()
         end
     end)
@@ -3040,7 +3302,7 @@ function MapTab:OpenWithQuery(query)
         if not initialized then self:Initialize() end
     end
     -- ADDON_LOADED replays this once the panel exists.
-    if not panel or not tabFrame then
+    if not panel then
         MapTab._pendingQuery = query
         return false
     end
@@ -3051,13 +3313,11 @@ function MapTab:OpenWithQuery(query)
         panel.searchBox:SetText(query or "")
         panel.searchBox:ClearFocus()
     end
-    local clickHandler = tabFrame:GetScript("OnMouseUp")
-    if clickHandler then clickHandler(tabFrame, "LeftButton") end
+    ShowOurPanel(false)
+    if not selectedIsOurs then return false end
     SafeAfter(0, function()
         if not panel then return end
-        if not panel:IsShown() and clickHandler then
-            clickHandler(tabFrame, "LeftButton")
-        end
+        if not panel:IsShown() then ShowOurPanel(false) end
         if panel.searchBox and panel:IsShown() then
             if panel.searchBox:GetText() ~= (query or "") then
                 panel.searchBox:SetText(query or "")
@@ -3155,17 +3415,31 @@ function MapTab:Initialize()
         if initialized and panel then
             if panel.outer then panel.outer:Hide() else panel:Hide() end
         end
+        if SidePanel.frame then
+            HideOurPanel(true)
+            SidePanel.Collapse()
+            SidePanel.toggle:Hide()
+        end
         return
     end
     if initialized then return end
     local qmf = _G["QuestMapFrame"]
-    if not qmf or not qmf.MapLegendTab then return end
+    if not (qmf and qmf.MapLegendTab) then
+        -- No quest panel with side tabs beside this map: the side panel.
+        qmf = SidePanel.Build()
+        if not qmf then return end
+    end
     initialized = true
 
-    tabFrame = CreateTabFrame(qmf)
-    panel = CreatePanel(qmf)
-    for i = 1, #pageOrder do EnsureExtraTab(pageOrder[i]) end
-    PlaceTab()
+    if SidePanel.frame then
+        panel = CreatePanel(qmf)
+        lastSelectedWasOurs = EasyFind.db.mapSidePanelOpen == true
+    else
+        tabFrame = CreateTabFrame(qmf)
+        panel = CreatePanel(qmf)
+        for i = 1, #pageOrder do EnsureExtraTab(pageOrder[i]) end
+        PlaceTab()
+    end
 
     -- Hook both qmf and the third-party tab framework's SetDisplayMode
     -- so we catch every tab switch.
@@ -3225,14 +3499,14 @@ function MapTab:Initialize()
                 MapTab._pendingFocus = nil
                 if panel then
                     ShowOurPanel()
-                    if panel.searchBox and panel:IsShown() then
+                    if panel.searchBox and selectedIsOurs and panel:IsShown() then
                         panel.searchBox:SetFocus()
                     end
                 end
                 SafeAfter(0, function()
                     if panel then
                         ShowOurPanel()
-                        if panel.searchBox and panel:IsShown() then
+                        if panel.searchBox and selectedIsOurs and panel:IsShown() then
                             panel.searchBox:SetFocus()
                         end
                     end
@@ -3263,7 +3537,7 @@ function MapTab:Initialize()
                 SafeAfter(0, restoreEasyFindTab)
             else
                 SafeAfter(0, function()
-                    local q = _G["QuestMapFrame"]
+                    local q = Host()
                     if q and q.SetDisplayMode and q.displayMode == nil and not selectedIsOurs then
                         local restore = prevBlizzardDisplayMode or (q.QuestsTab and q.QuestsTab.displayMode) or q.QuestsFrame
                         if restore then pcall(q.SetDisplayMode, q, restore) end
@@ -3288,6 +3562,7 @@ function MapTab:Initialize()
 
     if WorldMapFrame and WorldMapFrame.IsMaximized then
         local function UpdateTabVisibility()
+            if SidePanel.frame then SidePanel.Sync() return end
             if not tabFrame then return end
             if not IsMapSearchEnabled() then
                 HideOurPanel(true)

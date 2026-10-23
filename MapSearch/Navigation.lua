@@ -855,7 +855,7 @@ function MapSearch:ShowMultipleWaypoints(instances)
             if instance.icon then
                 iconTexture = instance.icon
             end
-            Utils.SetIconTexture(pin.icon, iconTexture)
+            MapFrames.SetPinIcon(pin, iconTexture, instance.displayID ~= nil)
             -- A creature's pin wears its face, drawn by the client from its model.
             if instance.displayID and SetPortraitTextureFromCreatureDisplayID then
                 SetPortraitTextureFromCreatureDisplayID(pin.icon, instance.displayID)
@@ -989,7 +989,7 @@ function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly, displayID)
     if icon then
         iconTexture = icon
     end
-    Utils.SetIconTexture(waypointPin.icon, iconTexture)
+    MapFrames.SetPinIcon(waypointPin, iconTexture, displayID ~= nil)
     if displayID and SetPortraitTextureFromCreatureDisplayID then
         SetPortraitTextureFromCreatureDisplayID(waypointPin.icon, displayID)
     end
