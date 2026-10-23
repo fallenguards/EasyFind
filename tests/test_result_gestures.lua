@@ -76,9 +76,17 @@ function tests.aDeedTheRowCannotDoGivesWayToItsHome()
     H.assertEq(G.Hint(potion), "HINT_CLICK: Use | Alt: Bags | Shift: Drag")
 end
 
-function tests.shiftIsNeverRemapped()
-    local G = Load({ resultClicks = { mount = { shift = "summon" } } })
+function tests.shiftStaysTheDragWhereAKindHasOne()
+    local G = Load({ resultClicks = { mount = { shift = "summon" }, settingPress = { shift = "settings" } } })
     H.assertEq(G.ActionFor({ mountID = 5 }, "shift"), "drag")
+    H.assertTrue(G.ShiftFixed("mount") and not G.ShiftFixed("settingPress"))
+    H.assertEq(#G.SettableFor("mount"), 3)
+    H.assertEq(#G.SettableFor("settingPress"), 4)
+    H.assertNil(G.ShiftChosen({ mountID = 5 }), "the drag is no choice")
+    local press = { settingPress = true }
+    H.assertEq(G.ActionFor(press, "shift"), "settings", "a kind with no drag takes the Shift choice")
+    H.assertEq(G.ShiftChosen(press), "settings")
+    H.assertEq(G.Hint(press), "HINT_CLICK: HINT_RUN | Alt: Settings | Shift: Settings")
 end
 
 function tests.setWritesOnlyWhatDiffersFromTheDefault()

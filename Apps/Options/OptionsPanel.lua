@@ -5046,9 +5046,9 @@ function Options:CurrentExtensionPage()
     return shown and extensionCurrent or nil
 end
 
--- Result clicks: what a click, Alt and Ctrl do on each kind of result,
--- the kind picked at the top and one flyout per gesture under it. Shift
--- and the right-click menu never change.
+-- Result clicks: what a click, Alt, Ctrl and Shift do on each kind of
+-- result, the kind picked at the top and one flyout per gesture under it.
+-- Shift stays the drag where a kind has one; the right-click menu never changes.
 local function BuildResultClicksTab(ctx)
     local CreateTab, CreateFlyoutPresetRow, RESET_BTN_W = ctx.CreateTab, ctx.CreateFlyoutPresetRow, ctx.RESET_BTN_W
     local Gestures = ns.ResultGestures
@@ -5071,25 +5071,30 @@ local function BuildResultClicksTab(ctx)
     local kindChoices = {}
     for i = 1, #kinds do kindChoices[i] = { value = kinds[i].key, label = KIND_LABEL[kinds[i].key] } end
     local current = kinds[1]
-    local gestureRows, shiftLine = {}, nil
-    local GESTURE_LABEL = { click = L["HINT_CLICK"], alt = "Alt", ctrl = "Ctrl" }
+    local gestureRows, shiftLine, reset = {}, nil, nil
+    local GESTURE_LABEL = { click = L["HINT_CLICK"], alt = "Alt", ctrl = "Ctrl", shift = "Shift" }
+    local shiftRow = #Gestures.GESTURES
     local function ShowKind(kind)
         current = kind
-        for i = 1, #Gestures.SETTABLE do
+        for i = 1, #Gestures.GESTURES do
             gestureRows[i]:SetChoices(Gestures.Choices(kind))
-            gestureRows[i]:SetValue(Gestures.Get(kind.key, Gestures.SETTABLE[i]))
+            gestureRows[i]:SetValue(Gestures.Get(kind.key, Gestures.GESTURES[i]))
         end
+        -- Shift: its row where it can be set, the fixed drag's line where not.
         local drag = kind.defaults.shift
+        gestureRows[shiftRow]:SetShown(drag == nil)
         shiftLine:SetShown(drag ~= nil)
         if drag then shiftLine:SetText("Shift: " .. Gestures.V[kind.byAction[drag].word]) end
+        reset:ClearAllPoints()
+        reset:SetPoint("TOPLEFT", drag and shiftLine or gestureRows[shiftRow], "BOTTOMLEFT", drag and -8 or 0, -12)
     end
     local kindRow = CreateFlyoutPresetRow(tab, L["OPT_RESULT_KIND"], kindChoices,
         function() return current.key end,
         function(v) ShowKind(Gestures.Kind(v)) end, "EasyFindResultClicksKind")
     kindRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -12)
     local anchor = kindRow
-    for i = 1, #Gestures.SETTABLE do
-        local gesture = Gestures.SETTABLE[i]
+    for i = 1, #Gestures.GESTURES do
+        local gesture = Gestures.GESTURES[i]
         local row = CreateFlyoutPresetRow(tab, GESTURE_LABEL[gesture], Gestures.Choices(current),
             function() return Gestures.Get(current.key, gesture) end,
             function(v) Gestures.Set(current.key, gesture, v) end,
@@ -5099,9 +5104,8 @@ local function BuildResultClicksTab(ctx)
         anchor = row
     end
     shiftLine = tab:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    shiftLine:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -6)
-    local reset = CreateModernButton(tab, L["OPT_RESET_SETTINGS"], RESET_BTN_W, 22)
-    reset:SetPoint("TOPLEFT", shiftLine, "BOTTOMLEFT", -8, -12)
+    shiftLine:SetPoint("TOPLEFT", gestureRows[shiftRow - 1], "BOTTOMLEFT", 8, -6)
+    reset = CreateModernButton(tab, L["OPT_RESET_SETTINGS"], RESET_BTN_W, 22)
     reset:SetScript("OnClick", function()
         Gestures.Reset()
         ShowKind(current)

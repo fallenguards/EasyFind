@@ -441,25 +441,25 @@ function Rows.InstallInteractions(resultRow, index)
         if button ~= "LeftButton" then return end
         self._pickedUp = nil
         local d = self.data
-        -- Catalog: a plain (no Shift/Ctrl) left click or drag picks the item
-        -- onto the cursor to send its link (drop on a chat channel, or empty
-        -- world -> /say). This only arms the drag threshold; the pickup itself
-        -- happens on the release in OnMouseUp. Shift is chat-link, Ctrl is
-        -- dressing room.
+        -- Catalog: the gesture set to send the link (a plain click or drag
+        -- by default) picks the item onto the cursor (drop on a chat
+        -- channel, or empty world -> /say). This only arms the drag
+        -- threshold; the pickup itself happens on the release in OnMouseUp.
         if Handlers:IsLookupRow(d) then
-            -- Only the gesture that sends the link arms a pickup (Shift is
-            -- the chat insert): under any other the item would land on the
-            -- cursor on top of that action and surface later as if from nowhere.
-            if IsShiftKeyDown() or not ns.ResultGestures.Does(d, "sendLink") then
+            -- Only the gesture that sends the link arms a pickup: under any
+            -- other the item would land on the cursor on top of that action
+            -- and surface later as if from nowhere.
+            if not ns.ResultGestures.Does(d, "sendLink") then
                 return
             end
             local x, y = GetCursorPosition()
             self._dragOriginX, self._dragOriginY = x, y
             return
         end
-        -- Other rows: Shift+drag picks the action up (movement in OnUpdate);
-        -- plain clicks fall through to the cast / navigation.
-        if not IsShiftKeyDown() then return end
+        -- Other rows: Shift+drag picks the action up (movement in OnUpdate)
+        -- unless Shift is set to something else; plain clicks fall through
+        -- to the cast / navigation.
+        if not IsShiftKeyDown() or ns.ResultGestures.ShiftChosen(d) then return end
         if not CanPickupRowAction(d) then return end
         local x, y = GetCursorPosition()
         self._dragOriginX, self._dragOriginY = x, y
@@ -494,7 +494,6 @@ function Rows.InstallInteractions(resultRow, index)
         if button == "LeftButton" and Handlers:IsLookupRow(clicked)
            and not self._pickedUp
            and not InCombatLockdown()
-           and not IsShiftKeyDown()
            and ns.ResultGestures.Does(clicked, "sendLink") then
             PickupRowAction(clicked)
             -- Dismiss like every other activated row. Done AFTER the pickup
@@ -567,14 +566,14 @@ function Rows.InstallInteractions(resultRow, index)
             return
         end
 
-        -- Shift held: kill the cast for this click. The pickup (if any)
+        -- Shift held, and not set to something else: kill the cast for this click. The pickup (if any)
         -- happens via the OnMouseDown / OnUpdate drag detection above:
         -- this branch only ensures the secure handler is a no-op so
         -- nothing fires when the user hasn't moved yet. Setting the
         -- skip-navigation flag here (not waiting for OnUpdate) is what
         -- prevents PostClick from closing the window before OnUpdate
         -- has had a chance to detect movement and pick up the action.
-        if d and IsShiftKeyDown() and CanPickupRowAction(d) then
+        if d and IsShiftKeyDown() and CanPickupRowAction(d) and not ns.ResultGestures.ShiftChosen(d) then
             ns.ResultSecureAttributes.Clear(self)
             self._pickedUp = true
             return

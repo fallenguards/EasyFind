@@ -3,7 +3,7 @@ local _, ns = ...
 -- What a click, Alt-click and Ctrl-click do on each kind of result, from
 -- the kind's own actions. The defaults are the gestures every kind always
 -- had; EasyFind.db.resultClicks[kind][gesture] holds a user's choice.
--- Shift stays the drag or the chat link where a kind has one, and the
+-- Shift is set too, except where it drags the thing onto the cursor; the
 -- right-click menu is never remapped.
 local Gestures = {}
 ns.ResultGestures = Gestures
@@ -106,6 +106,16 @@ for i = 1, #KINDS do
     byKey[kind.key] = kind
 end
 
+-- Shift stays the drag where a kind has one; the other kinds set it too.
+function Gestures.ShiftFixed(kindKey)
+    local kind = byKey[kindKey]
+    return kind ~= nil and kind.defaults.shift ~= nil
+end
+
+function Gestures.SettableFor(kindKey)
+    return Gestures.ShiftFixed(kindKey) and Gestures.SETTABLE or GESTURES
+end
+
 function Gestures.Kinds() return KINDS end
 function Gestures.Kind(key) return byKey[key] end
 
@@ -181,7 +191,7 @@ end
 function Gestures.ActionFor(data, gesture)
     local kind = byKey[Gestures.KindOf(data)]
     if not kind then return nil end
-    local action = gesture ~= "shift" and Chosen(kind, gesture) or kind.defaults[gesture]
+    local action = (gesture ~= "shift" or not kind.defaults.shift) and Chosen(kind, gesture) or kind.defaults[gesture]
     if action == "none" then return "none" end
     if action and Gestures.Available(data, kind.key, action) then return action end
     if action and action == kind.primary and kind.source and gesture == kind.actions[1].default
@@ -189,6 +199,14 @@ function Gestures.ActionFor(data, gesture)
         return kind.source
     end
     return nil
+end
+
+-- The user's own Shift action on this row's kind, nil where Shift is the
+-- drag or unset: the pickup gives way to it.
+function Gestures.ShiftChosen(data)
+    local kind = byKey[Gestures.KindOf(data)]
+    if not kind or kind.defaults.shift then return nil end
+    return Chosen(kind, "shift")
 end
 
 -- The gesture held now: Shift over Ctrl over Alt. A link click acts as
