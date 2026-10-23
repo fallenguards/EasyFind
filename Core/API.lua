@@ -174,11 +174,14 @@ end
 function Extensions.Load(id)
     local def = Extensions.byID[id]
     if not def then return false end
+    -- Its window or list comes with its addon: a settings page registered
+    -- before it (Notes') is no reason to leave the addon unloaded.
+    if not (def.open or def.scope) and def.addon and not (InCombatLockdown() and not def.loadInCombat) then
+        LoadAddon(def)
+        def = Extensions.byID[id]
+    end
     if def.open or def.settings or def.scope then return true end
     if not def.addon or (InCombatLockdown() and not def.loadInCombat) then return false end
-    LoadAddon(def)
-    def = Extensions.byID[id]
-    if def.open or def.settings or def.scope then return true end
     local title = C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(def.addon, "Title") or def.addon
     EasyFind:Print(L["COMPANION_INCOMPLETE_FMT"]:format(title))
     return false

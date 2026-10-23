@@ -83,6 +83,25 @@ function tests.launch_loadsTheAddonFirst()
     H.assertEq(opened, 1)
 end
 
+-- Notes registers its settings page before its addon loads: the launch
+-- still loads the addon and opens the window, not the settings.
+function tests.launch_loadsTheAddonThoughItsSettingsStandAlready()
+    local env, ns, API = fresh()
+    ns.IsCompanionLoadable = function() return true end
+    local opened, settings = 0, 0
+    env.C_AddOns = {
+        LoadAddOn = function()
+            API.RegisterExtension({ id = "pad", open = function() opened = opened + 1 end })
+        end,
+        IsAddOnLoaded = function() return false end,
+    }
+    API.OpenSettings = function() settings = settings + 1 return true end
+    API.RegisterExtension({ id = "pad", name = "Pad", icon = 1, addon = "Pad_LoD", settings = function() end })
+    H.assertTrue(API.OpenExtension("pad"))
+    H.assertEq(opened, 1, "the window")
+    H.assertEq(settings, 0, "not its settings")
+end
+
 function tests.launch_noLoadInCombatUnlessAllowed()
     local env, ns, API = fresh()
     ns.IsCompanionLoadable = function() return true end
