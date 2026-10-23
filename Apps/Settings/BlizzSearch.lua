@@ -3470,7 +3470,9 @@ local function CanvasControls(root)
         if CANVAS_KINDS[kind] or (kind == "Button" and f.SetupMenu) then
             local label = CanvasLabel(f)
             label = label and Utils.StripMarkup(label)
-            if label and label ~= "" and not seen[label] then
+            -- A letter or digit, any script's (its bytes past ASCII): a
+            -- stepper's "+" or "-" names no setting.
+            if label and label:find("[%w\128-\255]") and not seen[label] then
                 seen[label] = true
                 out[#out + 1] = { widget = f, label = label }
             end
@@ -3539,7 +3541,9 @@ local function PushCanvasEntries(data)
     local list = GetSettingsCategoryList()
     local added = false
     for _, cat in ipairs(type(list) == "table" and list or {}) do
-        if IsAddonCategory(cat) then
+        -- EasyFind's own pages hold its options window, whose settings
+        -- have rows of their own.
+        if IsAddonCategory(cat) and cat ~= ns.OptionsCategory and cat:GetName() ~= "EasyFind" then
             local addon = cat:GetName()
             if PushCanvasRows(data, cat, addon) then added = true end
             if cat.GetSubcategories then
@@ -3568,7 +3572,8 @@ end
 -- A fed row's control as the fields the settings row widgets draw: its
 -- get and set behind a variable name of our own (ResultRows reads and
 -- writes them through it), a button as the row's press.
-local FEED_KINDS = { check = "checkbox", radio = "checkbox", slider = "slider", choice = "dropdown", button = "button" }
+local FEED_KINDS = { check = "checkbox", radio = "checkbox", slider = "slider", choice = "dropdown", button = "button",
+                     keybind = "keybind" }
 local feedSerial = 0
 local function FeedControl(e, control, addon)
     local Rows = ns.ResultRows
@@ -3577,6 +3582,14 @@ local function FeedControl(e, control, addon)
     local kind = control.kind
     if kind == "button" then
         if type(control.press) == "function" then e.settingPress = control.press end
+        return
+    end
+    -- EasyFind's own binds (account-wide, kept by EasyFind): the row's key
+    -- button reads and sets them through EasyFind.
+    if kind == "keybind" then
+        if type(control.action) == "string" then
+            e.settingType, e.bindingAction, e.accountKeybind = "keybind", control.action, true
+        end
         return
     end
     if type(control.get) ~= "function" or type(control.set) ~= "function" then return end

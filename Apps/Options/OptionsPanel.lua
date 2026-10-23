@@ -355,6 +355,7 @@ local function StyleSelectorButton(btnFrame, height)
     ns.SetRoundedRectBarHeight(btnFrame, mmin(height or 22, 10))
     HideRoundedFrameBorder(btnFrame)
     PaintControlFill(btnFrame, ns.BTN_FILL_NORMAL, 1)
+    ns.RingButton(btnFrame)
     btnFrame:HookScript("OnEnter", function(self)
         if self:IsEnabled() then PaintControlFill(self, ns.BTN_FILL_HOVER, 1) end
     end)
@@ -398,6 +399,7 @@ local function CreateFlyoutSelector(parent, globalPrefix, width, anchor, initial
     StyleSelectorButton(btnFrame, 22)
 
     local btnText = btnFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    btnFrame._efText = btnText
     btnText:SetPoint("LEFT", btnFrame, "LEFT", 8, 0)
     btnText:SetPoint("RIGHT", btnFrame, "RIGHT", -18, 0)
     btnText:SetJustifyH("CENTER")
@@ -424,6 +426,22 @@ local function PaintFlyoutWell(flyout)
     flyout._efNoAutoRetint = true
     ns.SetRoundedRectFill(flyout, ring[1], ring[2], ring[3], 1, true)
     PaintControlFill(flyout.ringInset, SECTION_TABLE_FILL, 1)
+end
+
+-- The settings' search fields share the settings search's look: the
+-- theme's line as a ring round the dark inset, repainted with the theme.
+local searchWells = {}
+local function PaintSearchWell(shell)
+    local look = ns.ThemeSetOf(shell)
+    local palette = look.palette
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    ns.PaintRingedWell(shell, ring, look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+end
+local function SearchWell(shell)
+    ns.CreateRingedWell(shell, 6)
+    searchWells[#searchWells + 1] = shell
+    PaintSearchWell(shell)
 end
 
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
@@ -489,8 +507,82 @@ local function DefaultTag(label)
     return label .. " (" .. (_G["DEFAULT"] or "Default") .. ")"
 end
 
+-- A dropdown of checks, several on at once: { label, get, set } rows and
+-- { separator = true } lines; it stays open while they change.
+local function AddFlyoutChecks(flyout, defs, itemWidth)
+    local rows, y = {}, -3
+    local function Sync()
+        for i = 1, #rows do rows[i]:SetChecked(rows[i].def.get() and true or false) end
+    end
+    for _, def in ipairs(defs) do
+        if def.separator then
+            local line = flyout.ringInset:CreateTexture(nil, "ARTWORK")
+            line:SetHeight(1)
+            line:SetPoint("TOPLEFT", flyout, "TOPLEFT", 8, y - 3)
+            line:SetPoint("TOPRIGHT", flyout, "TOPRIGHT", -8, y - 3)
+            line:SetColorTexture(1, 1, 1, 0.12)
+            y = y - 7
+        else
+            local row = CreateFrame("CheckButton", nil, flyout)
+            row:SetSize(itemWidth, 18)
+            row:SetPoint("TOPLEFT", flyout, "TOPLEFT", 3, y)
+            Utils.SetCheckboxTextures(row, 14)
+            local rowBg = CreateFrame("Frame", nil, row)
+            rowBg:SetAllPoints()
+            rowBg:EnableMouse(false)
+            ns.CreateRoundedRectBorder(rowBg)
+            ns.SetRoundedRectBarHeight(rowBg, 9)
+            HideRoundedFrameBorder(rowBg)
+            PaintRoundedFill(rowBg, 1, 1, 1, 0)
+            local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            label:SetPoint("LEFT", row:GetNormalTexture(), "RIGHT", 4, 0)
+            label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+            label:SetJustifyH("LEFT")
+            label:SetText(def.label)
+            row._label, row.def = label, def
+            row:SetScript("OnEnter", function() PaintRoundedFill(rowBg, 1, 1, 1, 0.06) end)
+            row:SetScript("OnLeave", function() PaintRoundedFill(rowBg, 1, 1, 1, 0) end)
+            row:SetScript("OnClick", function(self)
+                def.set(self:GetChecked() and true or false)
+                Sync()
+            end)
+            rows[#rows + 1] = row
+            y = y - 20
+        end
+    end
+    flyout:HookScript("OnShow", Sync)
+    -- Rows as wide as their widest label (the box and its gap before it).
+    local contentW = 0
+    for i = 1, #rows do
+        local w = 24 + rows[i]._label:GetUnboundedStringWidth() + 6
+        if w > contentW then contentW = w end
+    end
+    local rowW = mmax(itemWidth, mfloor(contentW + 0.5))
+    for i = 1, #rows do rows[i]:SetWidth(rowW) end
+    flyout:SetSize(rowW + 6, 3 - y)
+end
+
 -- onHover(value): a choice under the cursor, for a preview of it.
 local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, styleFn, onHover)
+    -- The selector's row as a dropdown in the search bar: these choices, the
+    -- one its button shows, chosen the way a click chooses. A builder's own
+    -- control on the row wins.
+    local btnFrame = flyout:GetParent()
+    local selectorRow = btnFrame and btnFrame:GetParent()
+    local shownText = btnFrame and btnFrame._efText
+    if selectorRow and shownText and (selectorRow._efControl == nil or selectorRow._efControl.fromFlyout) then
+        local list = {}
+        for _, name in ipairs(choices) do list[#list + 1] = { value = name, label = labelFn and labelFn(name) or name } end
+        selectorRow._efControl = {
+            kind = "choice", fromFlyout = true, choices = list, set = onSelect,
+            get = function()
+                local text = shownText:GetText()
+                for _, c in ipairs(list) do
+                    if c.label == text then return c.value end
+                end
+            end,
+        }
+    end
     local rows = {}
     for i, name in ipairs(choices) do
         local flyoutBtn = CreateFrame("Button", nil, flyout)
@@ -1664,6 +1756,19 @@ local function BuildGeneralBindsTab(ctx)
         colorFlyout:SetWidth(colorRowW + 6)
     end
 
+    -- In the search bar: a dropdown of the colors, each chosen as its button here.
+    local colorList = {}
+    for i, name in ipairs(colorChoices) do colorList[i] = { value = name, label = ColorLabel(name) } end
+    colorRow._efControl = {
+        kind = "choice", choices = colorList,
+        get = function() return EasyFind.db.indicatorColor or defaultIndicatorColor end,
+        set = function(name)
+            for i, n in ipairs(colorChoices) do
+                if n == name then colorRowBtns[i]:Click() end
+            end
+        end,
+    }
+
     optionsFrame.colorBtnText = colorBtnText
     optionsFrame.colorFlyout = colorFlyout
 
@@ -1757,6 +1862,8 @@ local function BuildGeneralBindsTab(ctx)
         local rowLabel = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         rowLabel:SetPoint("LEFT", rowFrame, "LEFT", 8, 0)
         rowLabel:SetText(def.label .. ":")
+        -- In the search bar: a key button that sets this EasyFind bind.
+        rowFrame._efControl = { kind = "keybind", action = def.action }
         rowLabel:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
 
         local keybindBtn = CreateModernButton(rowFrame)
@@ -2751,17 +2858,15 @@ local function BuildAliasesTab(ctx)
     aliasSearchShell:SetPoint("LEFT", aliasTools, "LEFT", 0, 0)
     aliasSearchShell:SetPoint("RIGHT", clearAliasesBtn, "LEFT", -8, 0)
     aliasSearchShell:SetHeight(22)
-    ns.CreateRoundedRectBorder(aliasSearchShell)
-    ns.SetRoundedRectBarHeight(aliasSearchShell, 10)
-    HideRoundedFrameBorder(aliasSearchShell)
-    PaintControlFill(aliasSearchShell, ns.BTN_FILL_NORMAL, 1)
+    SearchWell(aliasSearchShell)
 
-    local aliasSearchIcon = aliasSearchShell:CreateTexture(nil, "OVERLAY")
+    local aliasSearchIcon = aliasSearchShell.ringInset:CreateTexture(nil, "OVERLAY")
     aliasSearchIcon:SetSize(13, 13)
     aliasSearchIcon:SetPoint("LEFT", aliasSearchShell, "LEFT", 7, 0)
     aliasSearchIcon:SetAtlas("common-search-magnifyingglass")
 
     local aliasSearchBox = CreateFrame("EditBox", nil, aliasSearchShell)
+    aliasSearchBox:SetFrameLevel(aliasSearchShell.ringInset:GetFrameLevel() + 2)
     aliasSearchBox:SetPoint("LEFT", aliasSearchIcon, "RIGHT", 6, 0)
     aliasSearchBox:SetPoint("RIGHT", aliasSearchShell, "RIGHT", -8, 0)
     aliasSearchBox:SetHeight(18)
@@ -3848,17 +3953,15 @@ local function BuildBlacklistTab(ctx)
     blSearchShell:SetPoint("LEFT", blTools, "LEFT", 0, 0)
     blSearchShell:SetPoint("RIGHT", clearBlacklistBtn, "LEFT", -8, 0)
     blSearchShell:SetHeight(22)
-    ns.CreateRoundedRectBorder(blSearchShell)
-    ns.SetRoundedRectBarHeight(blSearchShell, 10)
-    HideRoundedFrameBorder(blSearchShell)
-    PaintControlFill(blSearchShell, ns.BTN_FILL_NORMAL, 1)
+    SearchWell(blSearchShell)
 
-    local blSearchIcon = blSearchShell:CreateTexture(nil, "OVERLAY")
+    local blSearchIcon = blSearchShell.ringInset:CreateTexture(nil, "OVERLAY")
     blSearchIcon:SetSize(13, 13)
     blSearchIcon:SetPoint("LEFT", blSearchShell, "LEFT", 7, 0)
     blSearchIcon:SetAtlas("common-search-magnifyingglass")
 
     local blSearchBox = CreateFrame("EditBox", nil, blSearchShell)
+    blSearchBox:SetFrameLevel(blSearchShell.ringInset:GetFrameLevel() + 2)
     blSearchBox:SetPoint("LEFT", blSearchIcon, "RIGHT", 6, 0)
     blSearchBox:SetPoint("RIGHT", blSearchShell, "RIGHT", -8, 0)
     blSearchBox:SetHeight(18)
@@ -4157,17 +4260,15 @@ local function BuildSnippetsPage(ctx, page)
     snSearchShell:SetPoint("LEFT", snTools, "LEFT", 0, 0)
     snSearchShell:SetPoint("RIGHT", createSnippetBtn, "LEFT", -8, 0)
     snSearchShell:SetHeight(22)
-    ns.CreateRoundedRectBorder(snSearchShell)
-    ns.SetRoundedRectBarHeight(snSearchShell, 10)
-    HideRoundedFrameBorder(snSearchShell)
-    PaintControlFill(snSearchShell, ns.BTN_FILL_NORMAL, 1)
+    SearchWell(snSearchShell)
 
-    local snSearchIcon = snSearchShell:CreateTexture(nil, "OVERLAY")
+    local snSearchIcon = snSearchShell.ringInset:CreateTexture(nil, "OVERLAY")
     snSearchIcon:SetSize(13, 13)
     snSearchIcon:SetPoint("LEFT", snSearchShell, "LEFT", 7, 0)
     snSearchIcon:SetAtlas("common-search-magnifyingglass")
 
     local snSearchBox = CreateFrame("EditBox", nil, snSearchShell)
+    snSearchBox:SetFrameLevel(snSearchShell.ringInset:GetFrameLevel() + 2)
     snSearchBox:SetPoint("LEFT", snSearchIcon, "RIGHT", 6, 0)
     snSearchBox:SetPoint("RIGHT", snSearchShell, "RIGHT", -8, 0)
     snSearchBox:SetHeight(18)
@@ -4393,15 +4494,13 @@ local function BuildQuicklistsPage(ctx, page)
     searchShell:SetPoint("LEFT", tools, "LEFT", 0, 0)
     searchShell:SetPoint("RIGHT", newBtn, "LEFT", -8, 0)
     searchShell:SetHeight(22)
-    ns.CreateRoundedRectBorder(searchShell)
-    ns.SetRoundedRectBarHeight(searchShell, 10)
-    HideRoundedFrameBorder(searchShell)
-    PaintControlFill(searchShell, ns.BTN_FILL_NORMAL, 1)
-    local searchIcon = searchShell:CreateTexture(nil, "OVERLAY")
+    SearchWell(searchShell)
+    local searchIcon = searchShell.ringInset:CreateTexture(nil, "OVERLAY")
     searchIcon:SetSize(13, 13)
     searchIcon:SetPoint("LEFT", searchShell, "LEFT", 7, 0)
     searchIcon:SetAtlas("common-search-magnifyingglass")
     local searchBox = CreateFrame("EditBox", nil, searchShell)
+    searchBox:SetFrameLevel(searchShell.ringInset:GetFrameLevel() + 2)
     searchBox:SetPoint("LEFT", searchIcon, "RIGHT", 6, 0)
     searchBox:SetPoint("RIGHT", searchShell, "RIGHT", -8, 0)
     searchBox:SetHeight(18)
@@ -5024,13 +5123,16 @@ function Options:SettingsIndexRows()
     for _, hit in ipairs(optionsFrame.SettingsIndex()) do
         local path = { optionsFrame.TabName(hit.tab) }
         if hit.pageName then path[2] = hit.pageName end
-        rows[#rows + 1] = {
-            name = hit.label, path = path, control = ControlOf(hit.target),
+        -- The bar's rows change their setting where they stand: a hit with
+        -- nothing to change (a heading) stays in the window's own search.
+        local control = ControlOf(hit.target)
+        if control then rows[#rows + 1] = {
+            name = (hit.label:gsub(":%s*$", "")), path = path, control = control,
             open = function()
                 Options:Show()
                 optionsFrame.JumpToSetting(hit)
             end,
-        }
+        } end
     end
     return rows
 end
@@ -5355,38 +5457,32 @@ local function BuildProfilesTab(ctx)
     end
     local inclBtn, inclText = CreateFlyoutSelector(inclRow, "EasyFindProfileInclude", ctx.SELECTOR_BTN_W, nil,
         IncludeLabel())
-    local INCLUDE_POPUP = "EasyFindProfileIncludePopup"
     local function RepaintInclude()
         inclText:SetText(IncludeLabel())
-        local popup = _G[INCLUDE_POPUP]
-        if popup and popup:IsShown() and ns.RefreshTogglePopup then ns.RefreshTogglePopup(popup) end
     end
-    -- The same shape as the filter flyouts: Toggle All over a check per
-    -- section.
-    inclBtn:SetScript("OnClick", function()
-        local defs = {}
-        defs[#defs + 1] = {
-            kind = "check", label = L["FILTER_TOGGLE_ALL"],
-            get = AllIncluded,
-            set = function()
-                local on = not AllIncluded()
-                for _, sec in ipairs(Profiles.SECTIONS) do Profiles:SetExportIncluded(sec.id, on) end
+    -- A dropdown of checks under the button, as the other selectors drop
+    -- theirs: Toggle All over a check per section.
+    local inclDefs = {
+        { label = L["FILTER_TOGGLE_ALL"], get = AllIncluded,
+          set = function()
+              local on = not AllIncluded()
+              for _, sec in ipairs(Profiles.SECTIONS) do Profiles:SetExportIncluded(sec.id, on) end
+              RepaintInclude()
+          end },
+        { separator = true },
+    }
+    for _, sec in ipairs(Profiles.SECTIONS) do
+        inclDefs[#inclDefs + 1] = {
+            label = L[PROFILE_SECTION_LABEL_KEY[sec.id] or "PROFILE_SECTION_SETTINGS"],
+            get = function() return Profiles:ExportIncluded(sec.id) end,
+            set = function(v)
+                Profiles:SetExportIncluded(sec.id, v)
                 RepaintInclude()
             end,
         }
-        defs[#defs + 1] = { kind = "separator" }
-        for _, sec in ipairs(Profiles.SECTIONS) do
-            defs[#defs + 1] = {
-                kind = "check", label = L[PROFILE_SECTION_LABEL_KEY[sec.id] or "PROFILE_SECTION_SETTINGS"],
-                get = function() return Profiles:ExportIncluded(sec.id) end,
-                set = function(v)
-                    Profiles:SetExportIncluded(sec.id, v)
-                    RepaintInclude()
-                end,
-            }
-        end
-        ns.ShowTogglePopup(INCLUDE_POPUP, inclBtn, defs, {})
-    end)
+    end
+    AddFlyoutChecks(CreateFlyoutPanel(inclBtn, "EasyFindProfileInclude", ctx.SELECTOR_BTN_W, #inclDefs),
+        inclDefs, ctx.SELECTOR_BTN_W - 6)
 
     local exportBtn = CreateModernButton(profilesTab)
     exportBtn:SetSize(BTN_W, 20)
@@ -6094,16 +6190,10 @@ function Options:Initialize()
         shell:SetHeight(22)
         -- An input's well: the theme's line as a ring round the dark inset,
         -- so the field stands off the sidebar it sits on.
-        ns.CreateRingedWell(shell, 6)
-        local function RestyleSettingsSearch()
-            local look = ns.ThemeSetOf(shell)
-            local palette = look.palette
-            local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
-            local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
-            ns.PaintRingedWell(shell, ring, look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+        SearchWell(shell)
+        optionsFrame.RestyleSettingsSearch = function()
+            for i = 1, #searchWells do PaintSearchWell(searchWells[i]) end
         end
-        RestyleSettingsSearch()
-        optionsFrame.RestyleSettingsSearch = RestyleSettingsSearch
         optionsFrame.RepaintFlyouts = function()
             for i = 1, #optionsFlyouts do PaintFlyoutWell(optionsFlyouts[i]) end
         end
@@ -6134,6 +6224,10 @@ function Options:Initialize()
         local function IndexableLabel(fs)
             if fs._efNoIndex then return false end
             if fs._efSearchLabel then return true end
+            -- A button's caption (a stepper's + and -, a menu or choice
+            -- button) names an action or a value, never a setting.
+            local owner = fs.GetParent and fs:GetParent()
+            if owner and owner.IsObjectType and owner:IsObjectType("Button") then return false end
             local fontObj = fs.GetFontObject and fs:GetFontObject()
             local fontName = fontObj and fontObj.GetName and fontObj:GetName()
             return fontName ~= nil and string.find(fontName, "^GameFontNormal") ~= nil
@@ -6148,7 +6242,8 @@ function Options:Initialize()
                     if text and text ~= "" and #text <= 60 then
                         local plain = Utils.StripMarkup and Utils.StripMarkup(text) or text
                         local key = tabIndex .. "|" .. (pageID or "") .. "|" .. plain
-                        if plain ~= "" and not seen[key] then
+                        -- A letter or digit, any script's (its bytes past ASCII).
+                        if plain:find("[%w\128-\255]") and not seen[key] then
                             seen[key] = true
                             index[#index + 1] = {
                                 label = plain, lower = string.lower(plain),

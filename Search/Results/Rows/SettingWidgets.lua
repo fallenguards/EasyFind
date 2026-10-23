@@ -285,6 +285,11 @@ function Rows.CreateSettingWidgets(resultRow)
                 StopKeybindCapture(self)
                 return
             end
+            if self._accountKeybind then
+                EasyFind:SetAccountKeybind(action, combo)
+                StopKeybindCapture(self)
+                return
+            end
             -- Only clear the slot we're editing so the other slot
             -- (primary vs alt) stays intact.
             local k1, k2 = GetBindingKey(action)
@@ -302,10 +307,14 @@ function Rows.CreateSettingWidgets(resultRow)
             if not action then return end
             if mouseButton == "RightButton" then
                 if self._waitingForKey then StopKeybindCapture(self); return end
-                local k1, k2 = GetBindingKey(action)
-                local oldKey = (slot == 1) and k1 or k2
-                if oldKey then SetBinding(oldKey) end
-                SaveBindings(GetCurrentBindingSet())
+                if self._accountKeybind then
+                    EasyFind:SetAccountKeybind(action, nil)
+                else
+                    local k1, k2 = GetBindingKey(action)
+                    local oldKey = (slot == 1) and k1 or k2
+                    if oldKey then SetBinding(oldKey) end
+                    SaveBindings(GetCurrentBindingSet())
+                end
                 if self._refresh then self._refresh() end
                 refocusEditbox()
                 return

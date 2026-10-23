@@ -17,7 +17,7 @@ function Render.SettingsWidget(resultRow, data, entry)
     -- value as muted text (click opens panel to edit).
     local isKeybindEntry = data and data.settingType == "keybind" and data.bindingAction
     local blizzSearch = ns.BlizzOptionsSearch
-    if isKeybindEntry and not entry.isPathNode
+    if isKeybindEntry and not entry.isPathNode and not data.accountKeybind
        and blizzSearch and blizzSearch:IsPerformableBinding(data.bindingAction) then
         -- Merged toggle row: clicking performs the binding, so no inline
         -- capture buttons. Current keys stay visible in the row tooltip;
@@ -39,15 +39,24 @@ function Render.SettingsWidget(resultRow, data, entry)
         local action = data.bindingAction
         local kb1 = resultRow.settingKeybind1
         local kb2 = resultRow.settingKeybind2
+        -- EasyFind's own binds: one key, kept by EasyFind.
+        local account = data.accountKeybind == true
         local function refresh()
+            if account then
+                kb1:SetText(AbbrevBinding(EasyFind:GetAccountKeybind(action)))
+                return
+            end
             local k1, k2 = GetBindingKey(action)
             kb1:SetText(AbbrevBinding(k1))
             kb2:SetText(AbbrevBinding(k2))
         end
         kb1._bindingAction = action
         kb1._refresh = refresh
+        kb1._accountKeybind = account
         kb2._bindingAction = action
         kb2._refresh = refresh
+        kb2._accountKeybind = account
+        kb2:SetShown(not account)
         refresh()
         resultRow.settingKeybindGroup:Show()
         if resultRow.settingSlider then resultRow.settingSliderGroup:Hide() end

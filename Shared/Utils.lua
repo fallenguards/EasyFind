@@ -4384,8 +4384,43 @@ local function DropRed(btn)
     end
 end
 
+-- On the settings window a button carries a ring in the theme's dark tone:
+-- its fill alone can match the panel behind it. A rounded fill 1 px larger
+-- under the button (the ring art breaks at this size).
+ns.RingedButtons = setmetatable({}, { __mode = "k" })
+function ns.PaintButtonRing(btn)
+    local want = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.IsClassicChrome()
+    local ring = btn._efRing
+    if not want then
+        if ring then ring:Hide() end
+        return
+    end
+    if not ring then
+        ring = CreateFrame("Frame", nil, btn)
+        ring:SetPoint("TOPLEFT", btn, "TOPLEFT", -1, 1)
+        ring:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 1, -1)
+        ring:SetFrameLevel(math.max(0, btn:GetFrameLevel() - 1))
+        ring._efNoAutoRetint = true
+        ns.CreateRoundedRectBorder(ring)
+        ns.SetRoundedRectBarHeight(ring, (btn.cbBarHeight or 10) + 2)
+        ns.SetRoundedRectRingShown(ring, false)
+        btn._efRing = ring
+    end
+    local set = ns.ThemeSetOf and ns.ThemeSetOf(btn)
+    local c = set and set.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL
+    ns.SetRoundedRectFill(ring, c[1], c[2], c[3], 1, true)
+    ring:Show()
+end
+
+function ns.RingButton(btn)
+    ns.RingedButtons[btn] = true
+    btn:HookScript("OnShow", ns.PaintButtonRing)
+    ns.PaintButtonRing(btn)
+end
+
 -- A theme flip repaints every button that enters or leaves the Classic skin.
 function ns.RestyleModernButtons()
+    for btn in pairs(ns.RingedButtons) do ns.PaintButtonRing(btn) end
     local classic = ns.IsClassicChrome()
     for btn in pairs(modernButtons) do
         if btn._efPaintState and (classic or btn._efRedOn) then
@@ -4422,6 +4457,7 @@ function ns.CreateModernButton(parent, text, width, height)
     ns.SetRoundedRectBorderEdgeShown(btn, false)
     ns.SetRoundedRectBorderFillColor(btn, unpack(ns.BTN_FILL_NORMAL))
     btn._efControlFillKind = "BTN_FILL_NORMAL"
+    ns.RingButton(btn)
 
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("CENTER")
@@ -6614,6 +6650,7 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     local text = tag:CreateFontString(nil, "OVERLAY", superscript and "GameFontNormalTiny" or "GameFontNormalSmall")
     text:SetPoint("CENTER")
     text:SetText(kind == "exp" and ns.L["TAG_EXP"] or ((_G["NEW"] or "New"):upper()))
+    text._efNoIndex = true   -- a badge, not a setting's name
     text:SetTextColor(1, 1, 1)
     text:SetShadowColor(c[1], c[2], c[3], 1)
     text:SetShadowOffset(1, -1)
