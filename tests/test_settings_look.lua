@@ -135,6 +135,18 @@ function tests.everySearchFieldHasTheSettingsSearchLook()
     H.assertNil(src:find("PaintControlFill%(%w*[Ss]earchShell"), "no search field on a button's fill")
 end
 
+-- Settings groups and the CurseForge link wear the search wells' ring: a
+-- flat card or link box blended into the window.
+function tests.groupsAndTheLinkWearTheWellRing()
+    local src = Read("Apps/Options/OptionsPanel.lua")
+    local s = assert(src:find("local function CreateSettingsGroup", 1, true))
+    local e = assert(src:find("\nend\n", s, true))
+    H.assertTrue(src:sub(s, e):find("PaintGroupRing(ring)", 1, true) ~= nil, "each group's ring")
+    local u = assert(src:find("local function CreateURLBox", 1, true))
+    local ue = assert(src:find("\n    end\n", u, true))
+    H.assertTrue(src:sub(u, ue):find("SearchWell(shell)", 1, true) ~= nil, "the link box is a search well")
+end
+
 function tests.theIncludeListDropsDownUnderItsButton()
     local src = Read("Apps/Options/OptionsPanel.lua")
     H.assertNil(src:find("EasyFindProfileIncludePopup", 1, true), "not the filter menu's side pop-out")

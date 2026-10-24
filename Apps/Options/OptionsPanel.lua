@@ -445,6 +445,16 @@ local function SearchWell(shell)
     PaintSearchWell(shell)
 end
 
+-- A settings group's ring, in the search wells' ring color: a filled shape
+-- 1 px larger under the group, whole at its small corners.
+local groupRings = {}
+local function PaintGroupRing(ring)
+    local palette = ns.ThemeSetOf(ring).palette
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local c = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    ns.SetRoundedRectFill(ring, c[1], c[2], c[3], c[4] or 1, true)
+end
+
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
     local flyout = CreateFrame("Frame", globalPrefix .. "Flyout", btnFrame, "BackdropTemplate")
     optionsFlyouts[#optionsFlyouts + 1] = flyout
@@ -851,6 +861,16 @@ local function CreateSettingsGroup(parent, width, height)
     ns.SetRoundedRectBarHeight(group, 8)
     HideRoundedBorder(group)
     ns.ApplyCardFill(group)
+    local ring = CreateFrame("Frame", nil, group)
+    ring:SetPoint("TOPLEFT", group, "TOPLEFT", -1, 1)
+    ring:SetPoint("BOTTOMRIGHT", group, "BOTTOMRIGHT", 1, -1)
+    ring:SetFrameLevel(math.max(0, group:GetFrameLevel() - 1))
+    ring._efNoAutoRetint = true
+    ns.CreateRoundedRectBorder(ring)
+    ns.SetRoundedRectBarHeight(ring, 10)
+    ns.SetRoundedRectRingShown(ring, false)
+    groupRings[#groupRings + 1] = ring
+    PaintGroupRing(ring)
     group.controls = {}
     group.AddControl = function(self, control)
         if control then tinsert(self.controls, control) end
@@ -1385,26 +1405,17 @@ local function BuildHomeTab(ctx)
     thankYou:SetTextColor(1, 1, 1, 1)
 
     local function CreateURLBox(parent, url, anchor, yOff)
-        -- Rounded themed shell instead of Blizzard's InputBoxTemplate: the
-        -- template's dark sunken art fought light themes (dark box under
-        -- theme-dark text). Light themes get a lighter-than-panel inset,
-        -- dark themes the dark inset tier.
-        -- Same recipe as the alias/blacklist tables: the dark section fill
-        -- (theme-tinted via the tag sweep) with fixed light text, readable
-        -- on every theme.
+        -- The settings search's well: its ring and dark inset, the theme's text.
         local shell = CreateFrame("Frame", nil, parent)
         shell:SetSize(FRAME_W - 60, 20)
         shell:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, yOff)
-        ns.CreateRoundedRectBorder(shell)
-        ns.SetRoundedRectBarHeight(shell, 10)
-        HideRoundedFrameBorder(shell)
-        PaintControlFill(shell, SECTION_TABLE_FILL, SECTION_TABLE_FILL[4])
+        SearchWell(shell)
         local box = CreateFrame("EditBox", nil, shell)
+        box:SetFrameLevel(shell.ringInset:GetFrameLevel() + 2)
         box:SetPoint("TOPLEFT", shell, "TOPLEFT", 8, 0)
         box:SetPoint("BOTTOMRIGHT", shell, "BOTTOMRIGHT", -8, 0)
         box:SetAutoFocus(false)
         box:SetFontObject(SMALL_HIGHLIGHT_FONT)
-        box:SetTextColor(0.92, 0.92, 0.92, 1)
         box:SetShadowColor(0, 0, 0, 0)
         box:SetText(url)
         box:SetCursorPosition(0)
@@ -6192,6 +6203,7 @@ function Options:Initialize()
         SearchWell(shell)
         optionsFrame.RestyleSettingsSearch = function()
             for i = 1, #searchWells do PaintSearchWell(searchWells[i]) end
+            for i = 1, #groupRings do PaintGroupRing(groupRings[i]) end
         end
         optionsFrame.RepaintFlyouts = function()
             for i = 1, #optionsFlyouts do PaintFlyoutWell(optionsFlyouts[i]) end
