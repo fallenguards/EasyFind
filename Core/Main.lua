@@ -607,8 +607,7 @@ function EasyFind:OpenFeatureRequest() OpenFeatureRequest() end
 -- Account-wide binds a brand-new install starts with; seeded once at login.
 local SUGGESTED_KEYBINDS = {
     EASYFIND_TOGGLE_FOCUS = "CTRL-SPACE",
-    -- Classic has no map search tab.
-    EASYFIND_MAP_FOCUS = not ns.Caps.classic and "CTRL-M" or nil,
+    EASYFIND_MAP_FOCUS = "CTRL-M",
 }
 
 -- Chat-hello hyperlink. Clicking the link in the welcome message opens the

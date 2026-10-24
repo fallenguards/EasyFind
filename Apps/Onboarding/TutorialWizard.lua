@@ -1536,18 +1536,12 @@ local function BuildPage3(parent)
 
     local uiKb  = CreateKbWidget(p, TOGGLE_ACTION, L["TUT_KEYBIND_SEARCH_BAR"])
     uiKb.label:SetPoint("BOTTOM", uiKb.btn, "TOP", 0, 6)
-    -- Classic has no map search tab to bind.
-    if ns.Caps and ns.Caps.classic then
-        kbWidgets = { uiKb }
-        uiKb.btn:SetPoint("CENTER", p, "CENTER", 0, 0)
-    else
-        local KB_GROUP_GAP = 44
-        local mapKb = CreateKbWidget(p, MAP_ACTION, L["TUT_KEYBIND_MAP_TAB"])
-        kbWidgets = { uiKb, mapKb }
-        uiKb.btn:SetPoint("BOTTOM", p, "CENTER", 0, KB_GROUP_GAP / 2)
-        mapKb.btn:SetPoint("TOP", uiKb.btn, "BOTTOM", 0, -KB_GROUP_GAP)
-        mapKb.label:SetPoint("BOTTOM", mapKb.btn, "TOP", 0, 6)
-    end
+    local KB_GROUP_GAP = 44
+    local mapKb = CreateKbWidget(p, MAP_ACTION, L["TUT_KEYBIND_MAP_TAB"])
+    kbWidgets = { uiKb, mapKb }
+    uiKb.btn:SetPoint("BOTTOM", p, "CENTER", 0, KB_GROUP_GAP / 2)
+    mapKb.btn:SetPoint("TOP", uiKb.btn, "BOTTOM", 0, -KB_GROUP_GAP)
+    mapKb.label:SetPoint("BOTTOM", mapKb.btn, "TOP", 0, 6)
 
     local hint = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hint:SetText(L["TUT_KEYBIND_CAPTURE_HINT"])

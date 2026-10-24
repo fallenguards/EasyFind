@@ -52,6 +52,7 @@ Database/Loot_Forever.lua [AllowLoadGameType camelot]
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua [AllowLoadGameType standard]
 Database/StaticLocations_Forever.lua [AllowLoadGameType camelot]
+Database/StaticLocations_Era.lua [AllowLoadGameType classic]
 Shared/Aliases.lua
 Shared/Shortkeys.lua
 Shared/UIPins.lua

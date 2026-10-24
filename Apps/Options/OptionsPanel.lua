@@ -1835,8 +1835,6 @@ local function BuildGeneralBindsTab(ctx)
         { label = L["OPT_KEYBIND_OPEN_MAP_TAB"],  action = "EASYFIND_MAP_FOCUS" },
         { label = L["OPT_KEYBIND_CLEAR_ALL"],     action = "EASYFIND_CLEAR" },
     }
-    -- Classic has no map search tab.
-    if ns.Caps and ns.Caps.classic then table.remove(keybindDefs, 3) end
 
     local keybindTooltips = {
         EASYFIND_TOGGLE_FOCUS = { L["OPT_KEYBIND_TOGGLE_SEARCH"], L["OPT_KB_TOGGLE_TT_DESC"] },
