@@ -4392,6 +4392,8 @@ local function DropRed(btn)
         if c then btn._label:SetTextColor(c[1], c[2], c[3], 1) else btn._label:SetTextColor(1, 1, 1, 1) end
     end
 end
+-- Buttons of other makes wear the same red under the Classic skin.
+ns.PaintRedButton, ns.DropRedButton = PaintRed, DropRed
 
 -- On the settings window a button's fill ramps dark at its top: the window
 -- darkens downward, so the two part at every height where a flat fill can
@@ -4685,6 +4687,36 @@ function ns.CreateRevertButton(parent, size, onClick, tip)
     btn:SetScript("OnClick", onClick)
     Utils.AttachDelayedTooltip(btn, "ANCHOR_TOP", function() return tip or _G["RESET_TO_DEFAULT"] or "Reset to default" end)
     return btn
+end
+
+-- The 1.x dialog's iron divider (the Calendar's, the Reputation frame's):
+-- end caps fixed, the middle stretched; vertical runs it down a side.
+function ns.CreateIronLine(parent, vertical)
+    local ART, CAP, LEN, BAND, SIZE, CAP_PX = "Interface\\DialogFrame\\UI-DialogBox-Divider", 6 / 256, 193 / 256, 0.5, 16, 6
+    local line = CreateFrame("Frame", nil, parent)
+    local parts = {}
+    for i, u in ipairs({ { 0, CAP }, { CAP, LEN - CAP }, { LEN - CAP, LEN } }) do
+        local t = line:CreateTexture(nil, "ARTWORK")
+        t:SetTexture(ART)
+        if vertical then
+            -- Its length down the side: u runs top to bottom, v across.
+            t:SetTexCoord(u[1], 0, u[2], 0, u[1], BAND, u[2], BAND)
+        else
+            t:SetTexCoord(u[1], u[2], 0, BAND)
+        end
+        parts[i] = t
+    end
+    local a, b = vertical and "TOP" or "LEFT", vertical and "BOTTOM" or "RIGHT"
+    for i, edge in ipairs({ a, b }) do
+        local cap = parts[i == 1 and 1 or 3]
+        cap:SetPoint(vertical and (edge .. "LEFT") or ("TOP" .. edge), line, vertical and (edge .. "LEFT") or ("TOP" .. edge))
+        cap:SetPoint(vertical and (edge .. "RIGHT") or ("BOTTOM" .. edge), line, vertical and (edge .. "RIGHT") or ("BOTTOM" .. edge))
+        if vertical then cap:SetHeight(CAP_PX) else cap:SetWidth(CAP_PX) end
+    end
+    parts[2]:SetPoint(vertical and "TOPLEFT" or "TOPLEFT", parts[1], vertical and "BOTTOMLEFT" or "TOPRIGHT")
+    parts[2]:SetPoint(vertical and "BOTTOMRIGHT" or "BOTTOMRIGHT", parts[3], vertical and "TOPRIGHT" or "BOTTOMLEFT")
+    if vertical then line:SetWidth(SIZE) else line:SetHeight(SIZE) end
+    return line
 end
 
 ns.CloseXs = setmetatable({}, { __mode = "k" })

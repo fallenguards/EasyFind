@@ -147,6 +147,19 @@ function tests.groupsAndTheLinkWearTheWellRing()
     H.assertTrue(src:sub(u, ue):find("SearchWell(shell)", 1, true) ~= nil, "the link box is a search well")
 end
 
+-- Under Classic the dropdowns wear Era's dropdown and the switches Era's
+-- checkbox, redressed on every theme switch.
+function tests.classicControlsWearEraArt()
+    local src = Read("Apps/Options/OptionsPanel.lua")
+    H.assertTrue(src:find("CharacterCreate-LabelFrame", 1, true) ~= nil, "Era's dropdown frame")
+    H.assertTrue(src:find("UI-CheckBox-Up", 1, true) ~= nil, "Era's checkbox")
+    local r = assert(src:find("optionsFrame.RestyleSettingsSearch = function", 1, true))
+    local re = assert(src:find("\n        end\n", r, true))
+    local body = src:sub(r, re)
+    H.assertTrue(body:find("DressSelector(", 1, true) ~= nil, "dropdowns redressed on a theme switch")
+    H.assertTrue(body:find("RefreshVisual()", 1, true) ~= nil, "switches repainted on a theme switch")
+end
+
 function tests.theIncludeListDropsDownUnderItsButton()
     local src = Read("Apps/Options/OptionsPanel.lua")
     H.assertNil(src:find("EasyFindProfileIncludePopup", 1, true), "not the filter menu's side pop-out")

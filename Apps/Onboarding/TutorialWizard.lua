@@ -460,6 +460,14 @@ local function MakeButton(parent, text, variant, w)
         local function paintPill(hoverNudge)
             local f = hoverNudge or 0
             local pal = ns.ACTIVE_UI_PALETTE
+            -- Classic: the 1.x red button, as the settings window's.
+            if ns.IsClassicChrome() and ns.PaintRedButton then
+                ns.SetRoundedRectBorderShown(b, false)
+                ns.PaintRedButton(b, f > 0 and ns.BTN_FILL_HOVER or f < 0 and ns.BTN_FILL_PRESSED or ns.BTN_FILL_NORMAL)
+                return
+            elseif b._efRedOn and ns.DropRedButton then
+                ns.DropRedButton(b)
+            end
             if pal and pal.light then
                 local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
                 local leaf = (theme and theme.leafColor) or TEXT_PRIM
@@ -1633,11 +1641,17 @@ local function CreateFrameOnce()
     RepaintFooter = function()
         local fr, fg, fb = ThemeBandFill()
         ns.SetRoundedRectFill(footer, fr, fg, fb, 1, true)
-        -- Classic: the band wears the 1.x frame too, and it, the pages and
+        -- Classic: no band, an iron line over the row; it, the pages and
         -- the X sit inside the window's thick dialog border.
-        footer._efClassicInside = true
-        ns.ApplyClassicChrome(footer, 1)
         local classic = ns.IsClassicChrome()
+        ns.SetRoundedRectBorderShown(footer, not classic)
+        ns.SetRoundedRectRingShown(footer, false)
+        if not footer.iron then
+            footer.iron = ns.CreateIronLine(f, false)
+            footer.iron:SetPoint("LEFT", footer, "TOPLEFT", 0, 2)
+            footer.iron:SetPoint("RIGHT", footer, "TOPRIGHT", 0, 2)
+        end
+        footer.iron:SetShown(classic)
         local inset = classic and CLASSIC_EDGE or BANNER_INSET
         footer:ClearAllPoints()
         footer:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  inset, inset)

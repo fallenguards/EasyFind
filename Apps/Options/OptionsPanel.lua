@@ -350,6 +350,47 @@ local function InRoundedCard(frame)
     return frame._efInCard
 end
 
+-- Classic: Era's dropdown in a selector's place, its 33-px box scaled onto
+-- the button and the frame's margins spilling round it as Era's do.
+local classicSelectors = {}
+local ERA_FRAME = "Interface\\Glues\\CharacterCreate\\CharacterCreate-LabelFrame"
+local function DressSelector(btn)
+    local classic = ns.IsClassicChrome()
+    local era = btn._efEra
+    if classic and not era then
+        local k = (btn:GetHeight() or 22) / 33
+        era = {}
+        for i, u in ipairs({ { 0, 0.1953125 }, { 0.1953125, 0.8046875 }, { 0.8046875, 1 } }) do
+            local t = btn:CreateTexture(nil, "BACKGROUND", nil, 2)
+            t:SetTexture(ERA_FRAME)
+            t:SetTexCoord(u[1], u[2], 0, 1)
+            t:SetHeight(64 * k)
+            era[i] = t
+        end
+        era[1]:SetWidth(25 * k)
+        era[1]:SetPoint("TOPLEFT", btn, "TOPLEFT", -13 * k, 15 * k)
+        era[3]:SetWidth(25 * k)
+        era[3]:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 13 * k, 15 * k)
+        era[2]:SetPoint("TOPLEFT", era[1], "TOPRIGHT")
+        era[2]:SetPoint("TOPRIGHT", era[3], "TOPLEFT")
+        era.arrow = btn:CreateTexture(nil, "ARTWORK")
+        era.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+        era.arrow:SetSize(20, 20)
+        era.arrow:SetPoint("RIGHT", btn, "RIGHT", 1, 0)
+        era.hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        era.hl:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+        era.hl:SetBlendMode("ADD")
+        era.hl:SetAllPoints(era.arrow)
+        btn._efEra = era
+    end
+    if era then
+        for _, t in pairs(era) do t:SetShown(classic) end
+    end
+    ns.SetRoundedRectBorderShown(btn, not classic)
+    HideRoundedFrameBorder(btn)
+    if btn.arrow then btn.arrow:SetShown(not classic) end
+end
+
 local function StyleSelectorButton(btnFrame, height)
     btnFrame:SetBackdrop(nil)
     ns.CreateRoundedRectBorder(btnFrame)
@@ -357,6 +398,7 @@ local function StyleSelectorButton(btnFrame, height)
     HideRoundedFrameBorder(btnFrame)
     PaintControlFill(btnFrame, ns.BTN_FILL_NORMAL, 1)
     ns.RampButton(btnFrame)
+    classicSelectors[#classicSelectors + 1] = btnFrame
     btnFrame:HookScript("OnEnter", function(self)
         if self:IsEnabled() then PaintControlFill(self, ns.BTN_FILL_HOVER, 1) end
     end)
@@ -410,6 +452,7 @@ local function CreateFlyoutSelector(parent, globalPrefix, width, anchor, initial
     arrow:SetPoint("RIGHT", btnFrame, "RIGHT", -6, 0)
     arrow:SetText("v")
     btnFrame.arrow = arrow
+    DressSelector(btnFrame)
 
     return btnFrame, btnText
 end
@@ -648,6 +691,29 @@ end
 -- GetChecked and OnClick callbacks.
 -- toggleLeft: the toggle's left edge from the row's left, so a column of
 -- controls lines up with the dropdowns above it.
+-- Classic: Era's checkbox in a switch's place, and every switch repaints
+-- with a theme switch.
+local settingChecks = setmetatable({}, { __mode = "k" })
+local function EraBox(checkbox, track)
+    local box = checkbox._efEraBox
+    if box then return box end
+    box = CreateFrame("Frame", nil, checkbox)
+    box:SetSize(24, 24)
+    box:SetPoint("CENTER", track, "CENTER", 0, 0)
+    box:EnableMouse(false)
+    box.up = box:CreateTexture(nil, "ARTWORK")
+    box.up:SetAllPoints()
+    box.up:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
+    box.hl = box:CreateTexture(nil, "OVERLAY", nil, 1)
+    box.hl:SetAllPoints()
+    box.hl:SetTexture("Interface\\Buttons\\UI-CheckBox-Highlight")
+    box.hl:SetBlendMode("ADD")
+    box.check = box:CreateTexture(nil, "OVERLAY", nil, 2)
+    box.check:SetAllPoints()
+    checkbox._efEraBox = box
+    return box
+end
+
 local function CreateCheckbox(parent, name, label, tooltipText, compact, width, toggleLeft)
     local frameName = name and ("EasyFindOptions" .. name .. "Checkbox") or nil
     local rowH = compact and 22 or 28
@@ -734,6 +800,20 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
         else
             text:SetTextColor(0.50, 0.50, 0.50, 1)
         end
+        local classic = ns.IsClassicChrome()
+        track:SetShown(not classic)
+        if classic then
+            local box = EraBox(self, track)
+            box:Show()
+            box.up:SetDesaturated(not enabled)
+            box.hl:SetShown(self._efHover and enabled or false)
+            box.check:SetTexture(enabled and "Interface\\Buttons\\UI-CheckBox-Check"
+                or "Interface\\Buttons\\UI-CheckBox-Check-Disabled")
+            box.check:SetShown(checked and true or false)
+            return
+        elseif self._efEraBox then
+            self._efEraBox:Hide()
+        end
         local accent = Look().CONTROL_ACCENT
         if checked and enabled then
             PaintRoundedFill(track, accent[1], accent[2], accent[3], 1)
@@ -795,6 +875,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
     checkbox:HookScript("OnEnable", UpdateVisual)
     checkbox:HookScript("OnDisable", UpdateVisual)
 
+    settingChecks[checkbox] = true
     UpdateVisual(checkbox)
     return checkbox
 end
@@ -5707,9 +5788,6 @@ function Options:Initialize()
     optionsFrame.sidebar = sidebar
     sidebar._efNoAutoRetint = true
     ns.CreateRoundedRectBorder(sidebar)
-    -- Under Classic the column is a sunken list: marble in the thin edge.
-    sidebar._efClassicSurface = true
-    sidebar._efClassicStyle = "thin"
     ns.SetRoundedRectBarHeight(sidebar, 14)
     ns.SetRoundedRectBorderBgAlpha(sidebar, 0.72)
     HideRoundedBorder(sidebar)
@@ -5721,26 +5799,29 @@ function Options:Initialize()
     divider:SetWidth(1)
     divider:SetColorTexture(1, 1, 1, 0.08)
     optionsFrame.sidebarDivider = divider
+    -- Classic: no panel for the column, an iron bar between it and the page.
+    local sidebarIron = ns.CreateIronLine(optionsFrame, true)
+    sidebarIron:SetPoint("TOP", sidebar, "TOPRIGHT", 8, 0)
+    sidebarIron:SetPoint("BOTTOM", sidebar, "BOTTOMRIGHT", 8, 0)
+    sidebarIron:SetFrameLevel(sidebar:GetFrameLevel() + 2)
 
-    -- The sidebar column backdrop is a fixed near-black wash tuned for dark
-    -- fills; light themes get a darker tint of their own window fill so the
-    -- nav column still reads as one surface.
+    -- The nav column's surface per theme.
     local function RestyleSidebar()
-        -- The gloss overlay (bgTex) shares the sidebar's frame level; when
-        -- it renders opaque (light themes force alpha 1) it occludes the
-        -- column entirely, which is why the column only ever showed
-        -- through the translucent dark-theme gloss. Keep the sidebar
-        -- strictly above it; re-asserted here because StyleWizardPanel
-        -- re-runs on every theme pick.
+        -- Above the window's gloss, which light themes draw opaque.
         local glossLevel = optionsFrame.bgTex and optionsFrame.bgTex:GetFrameLevel() or 0
         if sidebar:GetFrameLevel() <= glossLevel then
             sidebar:SetFrameLevel(glossLevel + 1)
         end
         local pal = Look().palette
-        if pal and pal.light then
-            -- Light themes wear the settings-group card color (the
-            -- keybind-group scheme): a leaf-dark column that the
-            -- window-fill tab text and pills invert against.
+        local classic = ns.IsClassicChrome()
+        if classic then
+            -- Classic: the iron bar parts the column, which paints nothing.
+            sidebar._efThemeFillTarget = nil
+            if sidebar._efArtCells then
+                for _, cell in pairs(sidebar._efArtCells) do cell:Hide() end
+            end
+        elseif pal and pal.light then
+            -- Light themes: the settings-group card color.
             local card = ns.SECTION_TABLE_FILL
             sidebar._efThemeFillTarget = nil
             if sidebar._efArtCells then
@@ -5749,13 +5830,15 @@ function Options:Initialize()
             ns.SetRoundedRectFill(sidebar, card[1], card[2], card[3], 1, true)
             ns.SetRoundedRectBorderBgAlpha(sidebar, card[4] or 0.92)
         else
-            -- Dark themes: the column carries the theme's own fill
-            -- (gradient/art) at its translucent alpha, so it keeps the
-            -- color ramp instead of reading as a flat black slab.
+            -- Dark themes: the theme's own fill, translucent.
             ns.ApplyThemeFill(sidebar)
             ns.SetRoundedRectBorderBgAlpha(sidebar, 0.72)
         end
         divider:SetColorTexture(1, 1, 1, 0.08)
+        ns.SetRoundedRectBorderShown(sidebar, not classic)
+        HideRoundedBorder(sidebar)
+        divider:SetShown(not classic)
+        sidebarIron:SetShown(classic)
         if optionsFrame.titleText then
             if pal and pal.light then
                 optionsFrame.titleText:SetTextColor(1, 1, 1, 1)
@@ -6204,6 +6287,8 @@ function Options:Initialize()
         optionsFrame.RestyleSettingsSearch = function()
             for i = 1, #searchWells do PaintSearchWell(searchWells[i]) end
             for i = 1, #groupRings do PaintGroupRing(groupRings[i]) end
+            for i = 1, #classicSelectors do DressSelector(classicSelectors[i]) end
+            for cb in pairs(settingChecks) do cb:RefreshVisual() end
         end
         optionsFrame.RepaintFlyouts = function()
             for i = 1, #optionsFlyouts do PaintFlyoutWell(optionsFlyouts[i]) end
