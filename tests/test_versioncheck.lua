@@ -30,6 +30,8 @@ ns.CompareVersion = function(a, b)
     end
 end
 
+local frames, makeFrame = {}, env.CreateFrame
+env.CreateFrame = function(...) local f = makeFrame(...) frames[#frames + 1] = f return f end
 H.loadModule("Core/VersionCheck.lua", env, ns)
 
 local VC = ns.VersionCheck
@@ -91,6 +93,28 @@ function tests.optOut_hidesNoticeWithoutForgetting()
     H.assertTrue(not VC:IsUpdateAvailable(), "opting out hides the notice")
     env.EasyFind.db.updateNotify = true
     H.assertEq(VC:GetAvailableVersion(), "3.2.0", "re-enabling restores what was heard")
+end
+
+-- A hello that carries a version: noted, and answered only by a newer peer.
+function tests.helloCarriesVersionAndOnlyNewerReplies()
+    reset()
+    local sent = {}
+    env.C_ChatInfo.SendAddonMessage = function(_, payload) sent[#sent + 1] = payload end
+    VC:Initialize()
+    local frame = frames[#frames]
+    local function hear(payload) frame:GetScript("OnEvent")(frame, "CHAT_MSG_ADDON", "EasyFindVer", payload, "GUILD", "Peer") end
+    hear("1\tH\t3.1.0")
+    env._clock:advance(6)
+    H.assertEq(#sent, 0, "same version: no reply")
+    hear("1\tH\t3.0.0")
+    hear("1\tV\t3.1.0")
+    env._clock:advance(6)
+    H.assertEq(#sent, 0, "a reply at our version came first: ours is dropped")
+    hear("1\tH")
+    env._clock:advance(6)
+    H.assertEq(sent[1], "1\tV\t3.1.0", "a bare hello still gets our version")
+    hear("1\tH\t3.2.0")
+    H.assertEq(VC:GetAvailableVersion(), "3.2.0", "a newer hello lights the notice")
 end
 
 local pass, fail, failures = H.runSuite("VersionCheck", tests)

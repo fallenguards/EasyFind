@@ -76,8 +76,10 @@ local function Send(channel, payload)
     pcall(C_ChatInfo.SendAddonMessage, PREFIX, payload, channel)
 end
 
+-- The hello carries our version: peers learn it and only newer ones reply.
 local function SendHello(channel)
-    Send(channel, PROTOCOL .. "\t" .. CMD_HELLO)
+    local tail = IsValidVersion(ns.version) and "\t" .. ns.version or ""
+    Send(channel, PROTOCOL .. "\t" .. CMD_HELLO .. tail)
 end
 
 local function SendVersion(channel)
@@ -118,11 +120,18 @@ function VersionCheck:RefreshSurfaces()
     end
 end
 
-local function OnHello(channel)
+-- A version at or above ours: our reply would tell the channel nothing.
+local function AtLeastOurs(peerVersion)
+    return IsValidVersion(peerVersion) and ns.CompareVersion(peerVersion, ns.version) >= 0
+end
+
+local function OnHello(channel, askerVersion)
     if not ROSTER_CHANNELS[channel] then return end
-    if replyScheduled[channel] then return end
+    VersionCheck:NotePeerVersion(askerVersion, channel)
+    if AtLeastOurs(askerVersion) or replyScheduled[channel] then return end
     replyScheduled[channel] = true
     SafeAfter(REPLY_DELAY_MIN + random() * (REPLY_DELAY_MAX - REPLY_DELAY_MIN), function()
+        if not replyScheduled[channel] then return end
         replyScheduled[channel] = nil
         SendVersion(channel)
     end)
@@ -168,9 +177,10 @@ function VersionCheck:Initialize()
             local proto, command, value = strsplit("\t", message)
             if proto ~= PROTOCOL then return end
             if command == CMD_HELLO then
-                OnHello(channel)
+                OnHello(channel, value)
             elseif command == CMD_VERSION then
                 VersionCheck:NotePeerVersion(value, channel)
+                if AtLeastOurs(value) then replyScheduled[channel] = nil end
             end
         end
     end)

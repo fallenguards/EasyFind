@@ -368,6 +368,9 @@ Caps.titles = not Caps.era
 -- Era lacks the quest log atlas sheet (cog, plus, minus, row glow); MoP
 -- Classic keeps its old quest log, so it is not counted on there either.
 Caps.questLogAtlas = not (Caps.era or Caps.mists)
+-- The world map's tab strip beside the quest log; classic's map search
+-- opens from the side panel's corner button instead.
+Caps.mapTabStrip = not Caps.classic
 
 -- The item catalog and icon list are built from retail's files.
 Caps.itemCatalog = not classic

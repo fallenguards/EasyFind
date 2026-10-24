@@ -277,6 +277,7 @@ local MAP_SEARCH_TUTORIAL_SLIDES = {
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_MAP_INTRO_DESC"],
+        caps = "mapTabStrip",
         -- Cursor on the map's search tab in the right-side tab strip.
         overlay = {
             tex = GAUNTLET_CURSOR_TEX,
@@ -746,9 +747,19 @@ local function FeatureTile(parent, atlas, file, coords, title, desc, onClick)
     ApplyInter(body, "regular")
     body._efOwnColor = true
 
+    -- Under the Classic frame the fill hides: a hover lights this instead.
+    local hoverGlow = tile:CreateTexture(nil, "ARTWORK", nil, -8)
+    hoverGlow:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    hoverGlow:SetBlendMode("ADD")
+    hoverGlow:SetPoint("TOPLEFT", tile, "TOPLEFT", 4, -4)
+    hoverGlow:SetPoint("BOTTOMRIGHT", tile, "BOTTOMRIGHT", -4, 4)
+    hoverGlow:SetAlpha(0.5)
+    hoverGlow:Hide()
+
     if onClick then
         tile:SetScript("OnEnter", function(self)
             self:SetScale(1.04)
+            hoverGlow:SetShown(ns.IsClassicChrome())
             -- The band fill is dark on every theme, so hover brightens by
             -- mixing toward white (clamped) instead of scaling the color.
             local hr, hg, hb = ThemeBandFill()
@@ -757,6 +768,7 @@ local function FeatureTile(parent, atlas, file, coords, title, desc, onClick)
         end)
         tile:SetScript("OnLeave", function(self)
             self:SetScale(1.00)
+            hoverGlow:Hide()
             local lr, lg, lb = ThemeBandFill()
             ns.SetRoundedRectBorderFillColor(self, lr, lg, lb, 1)
         end)
@@ -826,6 +838,22 @@ local function BuildMapSideTabReplica(tile, anchor)
     local gw, gh = glow:GetSize()
     glow:SetSize((gw or 44) * scale, (gh or 55) * scale)
     glow:SetPoint("CENTER", silo, "CENTER", 0, 0)
+end
+
+-- Classic's map search opens from the side panel's corner button: its
+-- square face and gold pin, as the map shows it.
+local function BuildMapSideToggleReplica(tile, anchor)
+    local size = MAP_TAB_TILE_H * 0.8
+    local face = tile:CreateTexture(nil, "BACKGROUND")
+    face:SetTexture("Interface\\Buttons\\UI-SquareButton-Up")
+    face:SetTexCoord(2 / 32, 29 / 32, 3 / 32, 29 / 32)
+    face:SetSize(size, size)
+    face:SetPoint("CENTER", anchor, "CENTER", 0, 0)
+    local pin = tile:CreateTexture(nil, "ARTWORK")
+    pin:SetTexture(ns.GPS_ICON_TEX)
+    pin:SetSize(size * 0.55, size * 0.55)
+    pin:SetPoint("CENTER", face, "CENTER", 0, 0)
+    pin:SetVertexColor(Utils.RGB(GOLD))
 end
 
 local function BuildSearchBarReplica(parent, w, h)
@@ -1081,17 +1109,14 @@ local function BuildPage2(parent)
         function() ShowDetail(d1) end)
     t1:SetPoint("TOPLEFT", grid, "TOPLEFT", 38, -96)
 
-    -- Classic has no map side tabs: the card covers map search from the bar.
-    local t2
+    local d2 = CreateCarouselDetailView(L["TUT_FEATURE_MAP"], MAP_SEARCH_TUTORIAL_SLIDES)
+    local t2 = FeatureTile(grid, nil, nil, nil,
+        L["TUT_FEATURE_MAP"],
+        classic and L["TUT_FEATURE_MAP_DESC_CLASSIC"] or L["TUT_FEATURE_MAP_DESC"],
+        function() ShowDetail(d2) end)
     if classic then
-        t2 = FeatureTile(grid, nil, "Interface\\Icons\\INV_Misc_Map_01", { 0.08, 0.92, 0.08, 0.92 },
-            L["FILTER_MAP_SEARCH"], L["MAP_SEARCH_TT"])
+        BuildMapSideToggleReplica(t2.tile, t2.tile.icon)
     else
-        local d2 = CreateCarouselDetailView(L["TUT_FEATURE_MAP"], MAP_SEARCH_TUTORIAL_SLIDES)
-        t2 = FeatureTile(grid, nil, nil, nil,
-            L["TUT_FEATURE_MAP"],
-            L["TUT_FEATURE_MAP_DESC"],
-            function() ShowDetail(d2) end)
         BuildMapSideTabReplica(t2.tile, t2.tile.icon)
     end
     t2:SetPoint("TOPRIGHT", grid, "TOPRIGHT", -38, -96)
