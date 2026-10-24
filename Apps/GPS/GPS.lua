@@ -2393,11 +2393,11 @@ function GPS.RefreshSearches()
     end
 end
 
+-- The search bar's place rows for the query, so both list the same places.
 function GPS.SearchPlaces(q)
     local MapSearch = ns.MapSearch
-    if not (MapSearch and MapSearch.BuildResults) then return WithTowns(q, nil) end
-    local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
-    return WithTowns(q, GPS.FilterHits(ok and results or nil))
+    if not (MapSearch and MapSearch.PlacesForQuery) then return WithTowns(q, nil) end
+    return WithTowns(q, GPS.FilterHits(MapSearch:PlacesForQuery(q)))
 end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
@@ -5356,41 +5356,37 @@ end
 local function BuildOptionsPage(page, kit)
     local WorldPin = ns.GPSWorldPin
     -- The lines' colors: a swatch per way of travel, the theme's beacon
-    -- color until one is picked, and again on a right-click; the button
-    -- puts every one back.
+    -- color until one is picked, and again on a right-click or its arrow.
     local colorRow = CreateFrame("Frame", nil, page)
     colorRow:SetSize(kit.ROW_WIDTH, 24)
     colorRow:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -6)
     local colorHead = colorRow:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     colorHead:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
     colorHead:SetText(L["GPS_LINE_COLORS"])
-    local resetBtn = ns.CreateModernButton(colorRow, _G["RESET_TO_DEFAULT"] or "Reset to default", kit.BUTTON_WIDTH, 22)
-    resetBtn:SetPoint("RIGHT", colorRow, "RIGHT", -8, 0)
     local prevRow = colorRow
     local ways = { { "walk", L["GPS_LINE_WALK"] }, { "taxi", L["GPS_AVOID_TAXI"] }, { "boat", L["GPS_AVOID_BOAT"] },
                    { "zeppelin", L["GPS_AVOID_ZEPPELIN"] }, { "tram", L["GPS_LINE_TRAM"] } }
     local swatches = {}
     local function PaintSwatches()
         local Preview = ns.GPSPreview
+        local set = DB() and DB().gpsLineColors
         for i = 1, #swatches do
             local c = Preview and Preview.LineColor(swatches[i].kind) or ns.GOLD_COLOR
             swatches[i].fill:SetColorTexture(c[1], c[2], c[3], 1)
+            swatches[i].revert:SetShown(set ~= nil and set[swatches[i].kind] ~= nil)
         end
-        local db = DB()
-        local custom = db ~= nil and db.gpsLineColors ~= nil and next(db.gpsLineColors) ~= nil
-        resetBtn:SetEnabled(custom)
-        resetBtn:SetAlpha(custom and 1 or 0.45)
     end
     local function Changed()
         PaintSwatches()
         if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
     end
-    resetBtn:SetScript("OnClick", function()
+    local function Revert(kind)
         local db = DB()
-        if not db then return end
-        db.gpsLineColors = nil
+        if not (db and db.gpsLineColors) then return end
+        db.gpsLineColors[kind] = nil
+        if next(db.gpsLineColors) == nil then db.gpsLineColors = nil end
         Changed()
-    end)
+    end
     for _, way in ipairs(ways) do
         local kind, label = way[1], way[2]
         local wrow = CreateFrame("Frame", nil, page)
@@ -5409,13 +5405,14 @@ local function BuildOptionsPage(page, kit)
         fill:SetPoint("TOPLEFT", 1, -1)
         fill:SetPoint("BOTTOMRIGHT", -1, 1)
         swatch.fill, swatch.kind = fill, kind
+        swatch.revert = ns.CreateRevertButton(wrow, 16, function() Revert(kind) end)
+        swatch.revert:SetPoint("LEFT", swatch, "RIGHT", 6, 0)
         swatches[#swatches + 1] = swatch
         swatch:SetScript("OnClick", function(_, button)
             local db = DB()
             if not db then return end
             if button == "RightButton" then
-                if db.gpsLineColors then db.gpsLineColors[kind] = nil end
-                Changed()
+                Revert(kind)
                 return
             end
             local c = ns.GPSPreview and ns.GPSPreview.LineColor(kind) or ns.GOLD_COLOR

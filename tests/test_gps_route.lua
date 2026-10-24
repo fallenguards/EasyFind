@@ -950,14 +950,70 @@ function tests.riding_retailFliesWhereItCan()
     H.assertEq(fly, d.speeds.fly, "skyriding: the recorded pace")
     _, fly = ride(sky, { { 424 } }, { fly = true, sky = true, steady = true })
     H.assertTrue(math.abs(fly - 36.4) < 0.01, "steady at master riding, 420%: " .. tostring(fly))
-    _, fly = ride(sky, { { 424 } }, { fly = false })
-    H.assertEq(fly, nil, "no flying zone")
+    -- A no-fly spot (a city, a building) grounds only a trip inside its map.
+    local here
+    _, fly, here = ride(sky, { { 424 } }, { fly = false })
+    H.assertEq(fly, d.speeds.fly, "standing in a no-fly city: still flies elsewhere")
+    H.assertFalse(here, "and cannot take off here")
+    local env, _, Route = fresh()
+    rider(env, sky, { { 424 } })
+    local city, other = { m = 2393 }, { m = 2395 }
+    H.assertTrue(Route.TripFlies(fly, false, city, other), "leaving the no-fly city: flies")
+    H.assertFalse(Route.TripFlies(fly, false, city, { m = 2393 }), "across the city's own streets: on foot")
+    H.assertTrue(Route.TripFlies(fly, true, city, { m = 2393 }), "a flyable map: flies within it")
+    H.assertFalse(Route.TripFlies(nil, true, city, other), "no flying mount: on foot")
     _, fly = ride(sky, { { 230 } }, { fly = true, sky = true })
     H.assertEq(fly, nil, "a ground mount only")
     _, fly = ride({ 33388, 33391 }, { { 424 } }, { fly = true, sky = true, steady = true })
     H.assertEq(fly, nil, "steady style without expert riding")
     ground = ride({}, { { 284 } })
     H.assertTrue(math.abs(ground - 11.2) < 0.01, "chauffeured, no riding: " .. ground)
+end
+
+-- MoP Classic flies per continent by the game's own licenses: Kalimdor and
+-- the Eastern Kingdoms want Flight Master's License, Outland riding alone.
+-- GPS once took every MoP character for one who could not fly at all.
+function tests.riding_mistsLicensePerContinent()
+    local d = data()
+    d.classic = true
+    local function ride(spells, map)
+        local env, ns, Route = fresh(function(e)
+            e.GetInstanceInfo = function() return "World", "none", 0, "", 5, 0, false, map end
+        end)
+        ns.Caps = { classic = true, mists = true }
+        rider(env, spells, { { 248 } }, { fly = true })
+        return Route.Riding(d)
+    end
+    local expert = { 33388, 33391, 34090 }
+    local _, fly = ride(expert, 1)
+    H.assertNil(fly, "Kalimdor without the license: no flying")
+    _, fly = ride({ 33388, 33391, 34090, 90267 }, 1)
+    H.assertTrue(fly and math.abs(fly - 17.5) < 0.01, "with it, expert riding's 150%: " .. tostring(fly))
+    _, fly = ride(expert, 530)
+    H.assertTrue(fly and math.abs(fly - 17.5) < 0.01, "Outland wants no license")
+    local ground = ride(expert, 1)
+    H.assertTrue(math.abs(ground - 14) < 0.01, "on the ground at 100%: " .. ground)
+end
+
+-- Anniversary ships no mount tables: Expert or Artisan riding flies in
+-- Outland's air, nowhere else.
+function tests.riding_tbcFliesInOutland()
+    local d = data()
+    d.classic = true
+    local function ride(spells, map)
+        local env, ns, Route = fresh(function(e)
+            e.GetInstanceInfo = function() return "World", "none", 0, "", 5, 0, false, map end
+        end)
+        ns.Caps = { classic = true, tbc = true }
+        rider(env, spells, {}, { fly = true })
+        return Route.Riding(d)
+    end
+    local _, fly = ride({ 33388, 33391, 34090 }, 530)
+    H.assertTrue(fly and math.abs(fly - 17.5) < 0.01, "expert: 150%")
+    _, fly = ride({ 33388, 33391, 34090, 34091 }, 530)
+    H.assertTrue(fly and math.abs(fly - 26.6) < 0.01, "artisan: 280%")
+    _, fly = ride({ 33388, 33391, 34090 }, 1)
+    H.assertNil(fly, "Kalimdor: no flying on Anniversary")
 end
 
 -- The journal walks once; a mount learned walks it again.

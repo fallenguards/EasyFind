@@ -4669,6 +4669,24 @@ local function ResolveXColor(explicit, field, fallback)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     return (theme and theme[field]) or fallback
 end
+-- A small revert-to-default arrow (the client's undo glyph); its owner
+-- shows it only while the value differs from the default.
+function ns.CreateRevertButton(parent, size, onClick, tip)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(size, size)
+    local icon = btn:CreateTexture(nil, "OVERLAY")
+    icon:SetAllPoints()
+    icon:SetAtlas("common-icon-undo")
+    local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetAtlas("common-icon-undo")
+    hl:SetBlendMode("ADD")
+    hl:SetAlpha(0.5)
+    btn:SetScript("OnClick", onClick)
+    Utils.AttachDelayedTooltip(btn, "ANCHOR_TOP", function() return tip or _G["RESET_TO_DEFAULT"] or "Reset to default" end)
+    return btn
+end
+
 ns.CloseXs = setmetatable({}, { __mode = "k" })
 function ns.CreateCloseX(parent, size)
     size = size or 18

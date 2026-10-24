@@ -887,3 +887,35 @@ function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, local
     for i = #out, (maxN or 3) + 1, -1 do out[i] = nil end
     return out
 end
+
+-- A query's place rows as the search bar ranks them (Search/Query.lua): the
+-- nearest of a category the query names first, then the bar's map pass.
+-- Copies, since both passes hand out pooled rows.
+local function CopyRow(src)
+    local row = {}
+    for k, v in pairs(src) do row[k] = v end
+    return row
+end
+
+function MapSearch:PlacesForQuery(text)
+    -- The pass first, copied: a category lookup may run one of its own.
+    local pass = {}
+    for _, r in ipairs(self:SearchForUI(text) or {}) do pass[#pass + 1] = CopyRow(r.data) end
+    local category = ns.MapSearchData and ns.MapSearchData.KEYWORD_TO_CATEGORY
+        and ns.MapSearchData.KEYWORD_TO_CATEGORY[slower(text)]
+    local localOnly = category and EasyFind.db.mapCategoryScope == "local"
+    local out, seen = {}, {}
+    local function Add(row)
+        local key = (row.nameLower or row.name or "") .. "\1" .. tostring(row.mapID or "")
+        if seen[key] then return end
+        seen[key] = true
+        out[#out + 1] = row
+    end
+    for _, r in ipairs(category and self:GetCategoryResultsForUI(category, localOnly and 8 or 3, true, localOnly, text) or {}) do
+        Add(CopyRow(r))
+    end
+    for i = 1, #pass do
+        if not (localOnly and pass[i].category == category) then Add(pass[i]) end
+    end
+    return out
+end

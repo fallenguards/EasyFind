@@ -1091,6 +1091,21 @@ local RIDING = {
             [442] = 14, [444] = 6, [445] = 6, [446] = 10, [447] = 5,
         },
     },
+    mists = {
+        skill = { [33388] = 75, [33391] = 150, [34090] = 225, [34091] = 300, [90265] = 375 },
+        sets = {
+            { { 150, 0, 100 } },
+            { { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 150, 0, 100, nil, nil, 531 }, { 75, 0, 60, nil, nil, 531 } },
+            { { 0, 0, 100, 280 } },
+            { { 375, 115913, 100, 310, nil, 870 }, { 300, 115913, 100, 280, nil, 870 }, { 225, 115913, 100, 150, nil, 870 }, { 375, 90267, 100, 310, nil, 646 }, { 300, 90267, 100, 280, nil, 646 }, { 225, 90267, 100, 150, nil, 646 }, { 375, 90267, 100, 310, nil, 1 }, { 300, 90267, 100, 280, nil, 1 }, { 225, 90267, 100, 150, nil, 1 }, { 375, 90267, 100, 310, nil, 0 }, { 300, 90267, 100, 280, nil, 0 }, { 225, 90267, 100, 150, nil, 0 }, { 375, 54197, 100, 310, nil, 571 }, { 300, 54197, 100, 280, nil, 571 }, { 225, 54197, 100, 150, nil, 571 }, { 375, 0, 100, 310, nil, 530 }, { 300, 0, 100, 280, nil, 530 }, { 225, 0, 100, 150, nil, 530 }, { 150, 0, 100 }, { 75, 0, 60 } },
+            { { 375, 130487, 100, 310, nil, 870 }, { 300, 130487, 100, 280, nil, 870 }, { 225, 130487, 100, 150, nil, 870 }, { 375, 130487, 100, 310, nil, 646 }, { 300, 130487, 100, 280, nil, 646 }, { 225, 130487, 100, 150, nil, 646 }, { 375, 130487, 100, 310, nil, 1 }, { 300, 130487, 100, 280, nil, 1 }, { 225, 130487, 100, 150, nil, 1 }, { 375, 130487, 100, 310, nil, 0 }, { 300, 130487, 100, 280, nil, 0 }, { 225, 130487, 100, 150, nil, 0 }, { 375, 130487, 100, 310, nil, 571 }, { 300, 130487, 100, 280, nil, 571 }, { 225, 130487, 100, 150, nil, 571 }, { 375, 130487, 100, 310, nil, 530 }, { 300, 130487, 100, 280, nil, 530 }, { 225, 130487, 100, 150, nil, 530 }, { 150, 130487, 100 }, { 75, 130487, 60 } },
+            { { 150, 0, 150 } },
+        },
+        types = {
+            [225] = 1, [230] = 2, [241] = 3, [242] = 4, [248] = 5, [263] = 6, [486] = 7,
+        },
+    },
 }
 -- gps_riding.py: end
 
@@ -1128,11 +1143,12 @@ local function OwnedSets(rules)
     return ownedSets
 end
 
--- The capability the game picks: the first whose needs are met.
-local function Capability(set, riding, flyable, sky, steady)
+-- The capability the game picks: the first whose needs are met, a map's
+-- own only on that map (map: the world map the character is on).
+local function Capability(set, riding, flyable, sky, steady, map)
     for i = 1, #set do
         local c = set[i]
-        if riding >= c[1] and (c[2] == 0 or (IsPlayerSpell and IsPlayerSpell(c[2]))) then
+        if riding >= c[1] and (c[2] == 0 or (IsPlayerSpell and IsPlayerSpell(c[2]))) and (not c[6] or c[6] == map) then
             local fly = c[4]
             if not fly or (fly == "sky" and sky and not steady) or (fly ~= "sky" and flyable and (steady or not c[5])) then
                 return c[3], fly
@@ -1141,38 +1157,50 @@ local function Capability(set, riding, flyable, sky, steady)
     end
 end
 
--- This character's pace on the ground and, where it can fly here, in the
--- air, yards a second (flying nil). Riding skill, mounts owned and the
--- zone, all as the client has them now.
+-- This character's pace on the ground and in the air, yards a second
+-- (flying nil when it cannot fly), and whether the spot it stands on lets
+-- it take off. Flying is what it can ride out in the world, not only here:
+-- a no-fly city or a building must not ground a whole trip.
 function Route.Riding(data)
-    local rules = RIDING[(data and data.classic) and "forever" or "retail"]
+    local caps = ns.Caps or {}
+    local rules = caps.mists and RIDING.mists or RIDING[(data and data.classic) and "forever" or "retail"]
+    local map = GetInstanceInfo and select(8, GetInstanceInfo())
     local riding = 0
     for spell, skill in pairs(rules.skill) do
         if skill > riding and IsPlayerSpell and IsPlayerSpell(spell) then riding = skill end
     end
-    local okFly, flyable = pcall(IsFlyableArea)
-    flyable = okFly and flyable and true or false
-    local sky, steady = false, false
-    if flyable then
-        sky = IsAdvancedFlyableArea and IsAdvancedFlyableArea() and true or false
-        local aura = C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID and C_UnitAuras.GetPlayerAuraBySpellID(STEADY_STYLE)
-        if not (issecretvalue and issecretvalue(aura)) then steady = aura ~= nil end
-    end
+    local okFly, here = pcall(IsFlyableArea)
+    here = okFly and here and true or false
+    -- Retail's open world takes skyriding everywhere; Mists flies by licence.
+    local sky = not caps.mists
+    local steady = false
+    local aura = C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID and C_UnitAuras.GetPlayerAuraBySpellID(STEADY_STYLE)
+    if not (issecretvalue and issecretvalue(aura)) then steady = aura ~= nil end
     local skySpeed = data and data.speeds and data.speeds.fly or 30
     local groundPct, fly = nil, nil
     for set in pairs(OwnedSets(rules)) do
-        local pct = Capability(rules.sets[set], riding, false, false, false)
+        local pct = Capability(rules.sets[set], riding, false, false, false, map)
         if pct and (not groundPct or pct > groundPct) then groundPct = pct end
-        if flyable then
-            local _, flies = Capability(rules.sets[set], riding, flyable, sky, steady)
-            local speed = flies == "sky" and skySpeed or flies and RUN * (1 + flies / 100) or nil
-            if speed and (not fly or speed > fly) then fly = speed end
-        end
+        local _, flies = Capability(rules.sets[set], riding, true, sky, steady, map)
+        local speed = flies == "sky" and skySpeed or flies and RUN * (1 + flies / 100) or nil
+        if speed and (not fly or speed > fly) then fly = speed end
     end
-    return groundPct and RUN * (1 + groundPct / 100) or RUN, fly
+    -- Anniversary ships no mount tables: Expert riding flies at 150%,
+    -- Artisan at 280%, in Outland alone.
+    if caps.tbc and map == 530 and IsPlayerSpell then
+        local pct = IsPlayerSpell(34091) and 280 or IsPlayerSpell(34090) and 150 or nil
+        if pct then fly = RUN * (1 + pct / 100) end
+    end
+    return groundPct and RUN * (1 + groundPct / 100) or RUN, fly, here
 end
 
 function Route.GroundSpeed(data) return (Route.Riding(data)) end
+
+-- A trip flies when the character can fly at all, except one inside the
+-- no-fly map it starts on (a city's streets), which stays on foot.
+function Route.TripFlies(fly, here, start, goal)
+    return fly ~= nil and (here or start.m ~= goal.m)
+end
 -- For the dev tools' riding probe.
 Route.RIDING, Route.RidingCapability = RIDING, Capability
 
@@ -1425,8 +1453,8 @@ function Route:Build(dest, opts)
         owns = opts.owns or Owns,
     }
     if ctx.canFly == nil or not ctx.groundSpeed then
-        local ground, fly = Route.Riding(data)
-        if ctx.canFly == nil then ctx.canFly, ctx.flySpeed = fly ~= nil, fly end
+        local ground, fly, here = Route.Riding(data)
+        if ctx.canFly == nil then ctx.canFly, ctx.flySpeed = Route.TripFlies(fly, here, start, goal), fly end
         ctx.groundSpeed = ctx.groundSpeed or ground
     end
     local g = BuildGraph(ctx)
