@@ -3110,6 +3110,7 @@ function ns.SetRoundedRectBorderFillColor(frame, r, g, b, a)
     for _, t in pairs(frame.combinedBorder.fill) do
         t:SetVertexColor(r, g, b, a or 1)
     end
+    if frame._efRamp then ns.RampButtonFill(frame, r, g, b, a) end
 end
 
 -- Search bar visibility mode, ONE owner for the autoHide/smartShow pair.
@@ -3207,6 +3208,7 @@ do
             t:SetAlpha(a)
             if snapOff then DisablePixelSnap(t) end
         end
+        if frame._efRamp then ns.RampButtonFill(frame, r, g, b, a) end
     end
 end
 
@@ -3530,42 +3532,18 @@ local function ThemeRampColor(bottom, top, yFromTop, height)
            bottom[3] + (top[3] - bottom[3]) * t
 end
 
-function ns.UpdateThemeFillGradient(frame)
-    if not (frame and frame.combinedBorder) then return end
-    -- Only frames that ApplyThemeFill manages (search window, menus) wear
-    -- the window gradient. This runs from ApplyContainerCornerSize, which
-    -- fires for EVERY rounded frame on any bar-height recalculation; on a
-    -- gradient palette an unguarded run whitewashes ordinary controls
-    -- (buttons, toggle tracks) with the window ramp: the long-standing
-    -- "wrong color until hovered" bug on gradient themes.
-    if not frame._efThemeFillTarget then return end
-    local palette = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
-    local bottom = palette and palette.windowFillBottom
-    local top = palette and palette.windowFillTop
-    if not (bottom and top and CreateColor) then return end
+-- Each fill cell its segment of the bottom->top ramp, by its y-range.
+function ns.RampFillCells(frame, cells, bottom, top, alpha)
     local h = frame:GetHeight() or 0
     if h <= 0 then return end
     local corner = (frame.cbBarHeight or h) / 2
     if corner > h / 2 then corner = h / 2 end
-    -- Art themes render as authored (white vertex): only palettes that
-    -- opt in via tintArt (the near-white grain textures) take the ramp
-    -- as a vertex tint. Tinting real art by default crushed it to the
-    -- fallback-gradient colors (looked like the theme got reverted).
-    local artShown = frame._efArtCells and frame._efArtCells.mm:IsShown()
-    local cells
-    if artShown then
-        if not (palette and palette.tintArt) then return end
-        cells = frame._efArtCells
-    else
-        cells = frame.combinedBorder.fill
-    end
-    local cellAlpha = frame._efBgAlpha or 1
     local function rampCell(cell, y0, y1)
         if not cell then return end
         local r1, g1, b1 = ThemeRampColor(bottom, top, y0, h)
         local r2, g2, b2 = ThemeRampColor(bottom, top, y1, h)
         cell:SetVertexColor(1, 1, 1, 1)
-        cell:SetGradient("VERTICAL", CreateColor(r2, g2, b2, cellAlpha), CreateColor(r1, g1, b1, cellAlpha))
+        cell:SetGradient("VERTICAL", CreateColor(r2, g2, b2, alpha), CreateColor(r1, g1, b1, alpha))
     end
     rampCell(cells.tl, 0, corner)
     rampCell(cells.tm, 0, corner)
@@ -3576,6 +3554,32 @@ function ns.UpdateThemeFillGradient(frame)
     rampCell(cells.bl, h - corner, h)
     rampCell(cells.bm, h - corner, h)
     rampCell(cells.br, h - corner, h)
+end
+
+function ns.UpdateThemeFillGradient(frame)
+    if not (frame and frame.combinedBorder) then return end
+    -- A ramped settings button follows its own new height.
+    if frame._efRamp and frame._efFillR then
+        ns.RampButtonFill(frame, frame._efFillR, frame._efFillG, frame._efFillB, frame._efFillA)
+        return
+    end
+    -- Only ApplyThemeFill's windows: this runs for every rounded frame, and
+    -- the window ramp on a control left it the wrong color until hovered.
+    if not frame._efThemeFillTarget then return end
+    local palette = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
+    local bottom = palette and palette.windowFillBottom
+    local top = palette and palette.windowFillTop
+    if not (bottom and top and CreateColor) then return end
+    -- Art draws as authored; only tintArt palettes (grain) take the ramp.
+    local artShown = frame._efArtCells and frame._efArtCells.mm:IsShown()
+    local cells
+    if artShown then
+        if not (palette and palette.tintArt) then return end
+        cells = frame._efArtCells
+    else
+        cells = frame.combinedBorder.fill
+    end
+    ns.RampFillCells(frame, cells, bottom, top, frame._efBgAlpha or 1)
 end
 
 -- Theme-aware window fill shared by the search container, results panel,
@@ -4384,43 +4388,42 @@ local function DropRed(btn)
     end
 end
 
--- On the settings window a button carries a ring in the theme's dark tone:
--- its fill alone can match the panel behind it. A rounded fill 1 px larger
--- under the button (the ring art breaks at this size).
-ns.RingedButtons = setmetatable({}, { __mode = "k" })
-function ns.PaintButtonRing(btn)
-    local want = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.IsClassicChrome()
-    local ring = btn._efRing
-    if not want then
-        if ring then ring:Hide() end
-        return
-    end
-    if not ring then
-        ring = CreateFrame("Frame", nil, btn)
-        ring:SetPoint("TOPLEFT", btn, "TOPLEFT", -1, 1)
-        ring:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 1, -1)
-        ring:SetFrameLevel(math.max(0, btn:GetFrameLevel() - 1))
-        ring._efNoAutoRetint = true
-        ns.CreateRoundedRectBorder(ring)
-        ns.SetRoundedRectBarHeight(ring, (btn.cbBarHeight or 10) + 2)
-        ns.SetRoundedRectRingShown(ring, false)
-        btn._efRing = ring
-    end
-    local set = ns.ThemeSetOf and ns.ThemeSetOf(btn)
-    local c = set and set.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL
-    ns.SetRoundedRectFill(ring, c[1], c[2], c[3], 1, true)
-    ring:Show()
+-- On the settings window a button's fill ramps dark at its top: the window
+-- darkens downward, so the two part at every height where a flat fill can
+-- match it.
+ns.RampedButtons = setmetatable({}, { __mode = "k" })
+function ns.RampButtonFill(frame, r, g, b, a)
+    frame._efFillR, frame._efFillG, frame._efFillB, frame._efFillA = r, g, b, a or 1
+    if not CreateColor then return end
+    local top, bottom = frame._efRampTop or {}, frame._efRampBottom or {}
+    frame._efRampTop, frame._efRampBottom = top, bottom
+    top[1], top[2], top[3] = r * 0.65, g * 0.65, b * 0.65
+    bottom[1], bottom[2], bottom[3] = math.min(1, r * 1.2), math.min(1, g * 1.2), math.min(1, b * 1.2)
+    ns.RampFillCells(frame, frame.combinedBorder.fill, bottom, top, a or 1)
 end
 
-function ns.RingButton(btn)
-    ns.RingedButtons[btn] = true
-    btn:HookScript("OnShow", ns.PaintButtonRing)
-    ns.PaintButtonRing(btn)
+function ns.PaintButtonRamp(btn)
+    local fill = btn.combinedBorder and btn.combinedBorder.fill
+    if not fill then return end
+    btn._efRamp = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.IsClassicChrome() or nil
+    local r, g, b, a = btn._efFillR, btn._efFillG, btn._efFillB, btn._efFillA
+    if not r then r, g, b, a = fill.mm:GetVertexColor() end
+    if btn._efRamp then
+        ns.RampButtonFill(btn, r, g, b, a)
+    else
+        for _, t in pairs(fill) do t:SetVertexColor(r, g, b, a or 1) end
+    end
+end
+
+function ns.RampButton(btn)
+    ns.RampedButtons[btn] = true
+    btn:HookScript("OnShow", ns.PaintButtonRamp)
+    ns.PaintButtonRamp(btn)
 end
 
 -- A theme flip repaints every button that enters or leaves the Classic skin.
 function ns.RestyleModernButtons()
-    for btn in pairs(ns.RingedButtons) do ns.PaintButtonRing(btn) end
+    for btn in pairs(ns.RampedButtons) do ns.PaintButtonRamp(btn) end
     local classic = ns.IsClassicChrome()
     for btn in pairs(modernButtons) do
         if btn._efPaintState and (classic or btn._efRedOn) then
@@ -4457,7 +4460,7 @@ function ns.CreateModernButton(parent, text, width, height)
     ns.SetRoundedRectBorderEdgeShown(btn, false)
     ns.SetRoundedRectBorderFillColor(btn, unpack(ns.BTN_FILL_NORMAL))
     btn._efControlFillKind = "BTN_FILL_NORMAL"
-    ns.RingButton(btn)
+    ns.RampButton(btn)
 
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     label:SetPoint("CENTER")

@@ -356,7 +356,7 @@ local function StyleSelectorButton(btnFrame, height)
     ns.SetRoundedRectBarHeight(btnFrame, mmin(height or 22, 10))
     HideRoundedFrameBorder(btnFrame)
     PaintControlFill(btnFrame, ns.BTN_FILL_NORMAL, 1)
-    ns.RingButton(btnFrame)
+    ns.RampButton(btnFrame)
     btnFrame:HookScript("OnEnter", function(self)
         if self:IsEnabled() then PaintControlFill(self, ns.BTN_FILL_HOVER, 1) end
     end)
