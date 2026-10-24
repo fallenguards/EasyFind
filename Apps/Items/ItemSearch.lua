@@ -4,21 +4,17 @@ local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
 
--- Catalog item search: scans the packed item blob (Database/ItemData.lua,
--- ~175k items). The blob is ONE string, one record per
--- line, tab-separated: namelower \t itemID \t quality \t expansion \t ilvl.
--- Search finds the query in it at C speed and materializes only the handful of
--- matches that place, so the whole catalog costs one resident string, never a
--- table per item.
---
--- English-primary: the blob's names are enUS. Display name and icon resolve
--- live per shown result (C_Item), so the row shows the localized name.
+-- Catalog item search over the packed item blob (Data.lua, Data_Forever.lua):
+-- one string, one line per item in byte order, tab-separated fields. Only
+-- the matches that place become tables; no table per item.
+-- English-primary names; display name and icon resolve live per row (C_Item).
 
 local ItemSearch = {}
 ns.ItemSearch = ItemSearch
 
 local Utils = ns.Utils
 local sfind, ssub = Utils.sfind, Utils.ssub
+local sbyte = string.byte
 local slower = Utils.slower or string.lower
 local pairs = Utils.pairs or pairs
 local tonumber = tonumber
@@ -30,16 +26,27 @@ local wipe = wipe
 local SliceCheckpoint = Utils.SliceCheckpoint
 
 local MIN_QUERY = 3      -- below this the catalog matches too much to be useful
-local SCAN_CAP = 250     -- candidate ceiling per keystroke; sort/cap keeps the best
+local SCAN_CAP = 250     -- mid-word matches scored per keystroke, after every word start
 local KEEP = 32          -- the best kept of a scan, more than the bar shows
-local REMEMBER = 1024    -- records remembered for the next keystroke to narrow over
+local REMEMBER = 2048    -- match positions kept for the next keystroke to narrow over
+-- ScoreName's best for a query not starting the name (initials 135, word
+-- start 120, all words 110, typo 85): kept rows all above it end the scan.
+local NOT_PREFIX_MAX = 135
+
+-- Name bytes GetWords keeps inside a word; any other byte before a match
+-- may start a word there.
+local WORD_BYTE = { [39] = true }
+for b = 48, 57 do WORD_BYTE[b] = true end
+for b = 65, 90 do WORD_BYTE[b] = true end
+for b = 97, 122 do WORD_BYTE[b] = true end
 
 local blob, blobLen
+-- Leading punctuation runs of names ('"', '[', ...): the first word starts
+-- after one, which a stopword query scores as a name start.
+local leads
 
--- Catalog type buckets -> the Item.ClassID values each covers. This is the
--- curated set the filter flyout exposes; the long tail of tiny classes
--- (keys, projectiles, tokens, pets, money, enhancements, profession) folds
--- into "misc". Keep in sync with the flyout order in CatalogOptions.lua.
+-- Filter flyout buckets -> Item.ClassID; small classes fold into "misc".
+-- Keep in sync with the flyout order in CatalogOptions.lua.
 local BUCKETS = {
     armor      = { 4 },
     weapon     = { 2 },
@@ -77,17 +84,15 @@ function ItemSearch:RefreshFilters()
     filtersReady = true
 end
 
--- A catalog row resolves its official name from C_Item at render; an item the
--- client has not cached yet falls back to the lowercase blob name. RowContent
--- reports those here: request the data and, once ITEM_DATA_LOAD_RESULT lands,
--- re-render the open query so the proper name replaces the fallback. Debounced
--- so a burst of loads triggers a single re-render.
+-- Rows showing the blob's fallback name: their data is requested, and one
+-- re-render per burst of loads puts the client's name in.
 local pendingLoads, attemptedLoads, loadListener, refreshTimer
 local pendingCount = 0
 
 local function ScheduleCatalogRefresh()
     if refreshTimer then return end
-    refreshTimer = Utils.SafeAfter(0.15, function()
+    refreshTimer = true
+    Utils.SafeAfter(0.15, function()
         refreshTimer = nil
         -- Names streaming in WHILE the user scrolls must not each trigger a
         -- full re-search + re-render mid-scroll (six full rebuilds in one
@@ -109,12 +114,7 @@ local function ScheduleCatalogRefresh()
     end)
 end
 
--- Does this client know the item at all? GetItemInfoInstant answers from the
--- client's own item DB with no server round trip and no caching requirement, so
--- nil means the id is in our shipped blob but not in this build (removed item,
--- or otherwise unavailable here). Those rows can never resolve a name, an icon,
--- or a chat link, so they are dropped from results rather than shown as a
--- lowercase name with a question mark and a Send-link hint that does nothing.
+-- An id this build does not know (no name, icon or link ever) is dropped.
 function ItemSearch:IsResolvable(itemID)
     if not itemID then return false end
     if not (C_Item and C_Item.GetItemInfoInstant) then return true end
@@ -123,22 +123,15 @@ end
 
 function ItemSearch:NoteUncachedItem(itemID)
     if not itemID then return end
-    -- ONE request per item per session. The listener clears the pending flag on
-    -- any result, so without this an item whose name never resolves is
-    -- re-requested by every re-render, and every result schedules another
-    -- re-render: a ~0.15s loop that re-runs the whole search forever, pinning
-    -- the frame rate and snapping the results scroll back to the top.
+    -- One request per item per session: a name that never resolves would
+    -- otherwise re-render the search every 0.15 s forever.
     attemptedLoads = attemptedLoads or {}
     if attemptedLoads[itemID] then return end
     attemptedLoads[itemID] = true
     pendingLoads = pendingLoads or {}
     pendingLoads[itemID] = true
-    -- ITEM_DATA_LOAD_RESULT fires for EVERY item-data load game-wide
-    -- (bags, tooltips, vendors, loot), so the listener is registered ONLY
-    -- while our own requests are in flight and unregistered the moment the
-    -- last one lands. Left registered, its handler ran on all that game
-    -- traffic forever: a measurable continuous CPU tick for a listener
-    -- with nothing to hear.
+    -- ITEM_DATA_LOAD_RESULT fires for every load game-wide: listen only while
+    -- our own requests are out.
     pendingCount = pendingCount + 1
     if not loadListener then
         loadListener = CreateFrame("Frame")
@@ -150,8 +143,7 @@ function ItemSearch:NoteUncachedItem(itemID)
                     pendingCount = 0
                     loadListener:UnregisterEvent("ITEM_DATA_LOAD_RESULT")
                 end
-                -- A failed load cannot change what renders; refreshing on it
-                -- is a re-render that shows the same fallback name again.
+                -- A failed load changes nothing on screen.
                 if success ~= false then ScheduleCatalogRefresh() end
             end
         end)
@@ -172,8 +164,7 @@ local function EnsureBlob()
     return blob
 end
 
--- The record (line) containing byte position `s`. Item names are <= ~80 chars,
--- so the line start is a bounded backward scan -- no full-string copy.
+-- The line holding byte s: names stay under 100 bytes (test_item_catalog).
 local function RecordAt(s)
     local e = sfind(blob, "\n", s, true) or (blobLen + 1)
     local from = s - 100
@@ -188,21 +179,16 @@ local function RecordAt(s)
     return start, e - 1
 end
 
--- Returns scored candidate entries { data = <item>, score = N }, or nil.
--- `scoreName(nameLower, queryLower, qLen)` ranks each match so items interleave
--- with the rest of the results by the same relevance rule.
--- The best of a scan, kept in the bar's own order (score, then the
--- shorter name, then alphabetical) in pooled entries; one data table per
--- item, shared across queries while any row holds it.
+-- The best of a scan in the bar's order (score, shorter name, alphabetical),
+-- pooled; one data table per item while any row holds it.
 local keep, kept = {}, 0
 local out = {}
 local dataByID = setmetatable({}, { __mode = "v" })
 local seenIDs = {}
-local hitN = 0
--- The last scan's query and the records holding it, when the scan ran
--- to the end: a longer query can only match among them, so it skips the blob.
+-- The last scan's query and every position it matched at, when the scan
+-- saw them all: a longer query only matches at those, so it skips the blob.
 local lastQl, lastComplete = nil, false
-local prevRecs, curRecs = { s = {}, e = {}, n = 0 }, { s = {}, e = {}, n = 0 }
+local prevRecs, curRecs = { s = {}, n = 0 }, { s = {}, n = 0 }
 
 local function Beats(score, nameLower, e)
     if score ~= e.score then return score > e.score end
@@ -237,10 +223,10 @@ local function Record(rStart, rEnd, ql, qLen, scoreName)
             end
         end
     end
+    if not itemID or seenIDs[itemID] then return end
     local score = scoreName and scoreName(nameLower, ql, qLen)
-    if not (itemID and score and score > 0) or seenIDs[itemID] then return end
+    if not (score and score > 0) then return end
     seenIDs[itemID] = true
-    hitN = hitN + 1
     local e
     if kept < KEEP then
         kept = kept + 1
@@ -270,6 +256,116 @@ local function Record(rStart, rEnd, ql, qLen, scoreName)
     e.data = d
 end
 
+-- The record end for a match at the start of a record.
+local function LineEnd(s)
+    local e = sfind(blob, "\n", s, true)
+    return e and e - 1 or blobLen
+end
+
+-- The first line start at or after byte p, nil past the end.
+local function LineStartAt(p)
+    if p <= 1 then return 1 end
+    local e = sfind(blob, "\n", p - 1, true)
+    return e and e < blobLen and e + 1 or nil
+end
+
+-- The blob's bytes from p sort before q (byte order, never the locale's).
+local function BeforeQuery(p, q, qLen)
+    for i = 1, qLen do
+        local a, b = sbyte(blob, p + i - 1), sbyte(q, i)
+        if not a then return true end
+        if a ~= b then return a < b end
+    end
+    return false
+end
+
+-- The first line not sorting before q: a binary search over byte offsets,
+-- each probe moved to the next line start; about 23 probes for retail.
+local function FirstLineFrom(q, qLen)
+    local lo, hi = 1, blobLen + 1
+    while lo < hi do
+        local mid = lo + (hi - lo - (hi - lo) % 2) / 2
+        local L = LineStartAt(mid)
+        if L and BeforeQuery(L, q, qLen) then lo = mid + 1 else hi = mid end
+    end
+    return LineStartAt(lo)
+end
+
+-- Scores every line starting with q, from L on; the count scored.
+local function RecordRun(L, q, qLen, ql, scoreName, n)
+    local qlLen = #ql
+    while L and ssub(blob, L, L + qLen - 1) == q do
+        local e = LineEnd(L)
+        Record(L, e, ql, qlLen, scoreName)
+        L = e + 2 <= blobLen and e + 2 or nil
+        n = n + 1
+        if n % 64 == 0 then SliceCheckpoint() end
+    end
+    return n
+end
+
+-- Every leading punctuation run, read once from the lines sorting before
+-- "a" (punctuation and digits sort first in byte order).
+local function Leads()
+    if leads then return leads end
+    leads = {}
+    local seen = {}
+    local headEnd = FirstLineFrom("a", 1) or (blobLen + 1)
+    local L = 1
+    while L and L < headEnd do
+        local p = L
+        local b = sbyte(blob, p)
+        while p < headEnd and b ~= 9 and not WORD_BYTE[b] do
+            p = p + 1
+            b = sbyte(blob, p)
+        end
+        if p > L then
+            local run = ssub(blob, L, p - 1)
+            if not seen[run] then
+                seen[run] = true
+                leads[#leads + 1] = run
+            end
+        end
+        local e = LineEnd(L)
+        L = e + 2 <= blobLen and e + 2 or nil
+    end
+    return leads
+end
+
+-- One scan's state, module-level so the per-match step is no closure.
+local midBuf = {}
+local scanQl, scanLen, scanScore, prefixDone
+local hits, hn, mn, complete
+local function KeepBestOut()
+    for k = 1, kept do out[k] = keep[k] end
+    for k = #out, kept + 1, -1 do out[k] = nil end
+end
+
+-- A match at s: kept for narrowing; scored now when it may start a word,
+-- else queued behind every word start (the first SCAN_CAP only).
+local function Visit(s)
+    if hn < REMEMBER then
+        hn = hn + 1
+        hits[hn] = s
+    else
+        complete = false
+    end
+    local prev = s > 1 and sbyte(blob, s - 1) or 10
+    if prev == 10 then
+        if not prefixDone then Record(s, LineEnd(s), scanQl, scanLen, scanScore) end
+    elseif not WORD_BYTE[prev] then
+        local rStart, rEnd = RecordAt(s)
+        Record(rStart, rEnd, scanQl, scanLen, scanScore)
+    elseif mn < SCAN_CAP then
+        mn = mn + 1
+        midBuf[mn] = s
+    end
+end
+
+local function Placed()
+    return kept >= KEEP and keep[KEEP].score > NOT_PREFIX_MAX
+end
+
 function ItemSearch:Search(query, scoreName)
     if not query or #query < MIN_QUERY then return nil end
     if not EnsureBlob() then return nil end
@@ -277,56 +373,84 @@ function ItemSearch:Search(query, scoreName)
     local ql = slower(query)
     local qLen = #ql
     wipe(seenIDs)
-    kept, hitN = 0, 0
-    local recs = curRecs
-    local rs, re, rn = recs.s, recs.e, 0
-    local complete = true
-    if lastComplete and lastQl and qLen > #lastQl and ssub(ql, 1, #lastQl) == lastQl then
-        local ps, pe = prevRecs.s, prevRecs.e
-        for i = 1, prevRecs.n do
-            local rStart, rEnd = ps[i], pe[i]
-            -- Tested on the name alone (a short interned string): a find
-            -- over the blob from here would run on to the next hit anywhere.
-            local t1 = sfind(blob, "\t", rStart, true)
-            if t1 and t1 <= rEnd and sfind(ssub(blob, rStart, t1 - 1), ql, 1, true) then
-                rn = rn + 1
-                rs[rn], re[rn] = rStart, rEnd
-                Record(rStart, rEnd, ql, qLen, scoreName)
-                if hitN >= SCAN_CAP then
-                    complete = false
-                    break
-                end
-            end
-            if i % 64 == 0 then SliceCheckpoint() end
+    kept = 0
+    scanQl, scanLen, scanScore, prefixDone = ql, qLen, scoreName, false
+    local narrow = lastComplete and lastQl and qLen > #lastQl and ssub(ql, 1, #lastQl) == lastQl
+    -- 1. A fresh query: the names starting with it are one run of sorted
+    -- lines; when they fill KEEP above every other score, done.
+    if not narrow then
+        prefixDone = true
+        local n = RecordRun(FirstLineFrom(ql, qLen), ql, qLen, ql, scoreName, 0)
+        local runs = Leads()
+        for k = 1, #runs do
+            local q = runs[k] .. ql
+            n = RecordRun(FirstLineFrom(q, #q), q, #q, ql, scoreName, n)
+        end
+        if Placed() then
+            lastQl, lastComplete = ql, false
+            scanScore = nil
+            KeepBestOut()
+            return out
+        end
+    end
+    -- 2. Every match position: the last keystroke's when it saw them all
+    -- (a longer query only matches where the shorter one did), else the blob.
+    hits, hn, mn, complete = curRecs.s, 0, 0, true
+    if narrow then
+        -- Each position holds the last query: compare only the new bytes.
+        local ps, base = prevRecs.s, #lastQl
+        for k = 1, prevRecs.n do
+            local s = ps[k]
+            local i = base + 1
+            while i <= qLen and sbyte(blob, s + i - 1) == sbyte(ql, i) do i = i + 1 end
+            if i > qLen then Visit(s) end
+            if k % 128 == 0 then SliceCheckpoint() end
         end
     else
-        local pos, scanned = 1, 0
+        -- Visit inlined: this loop runs once per match in the blob.
+        local h, mb, wb = hits, midBuf, WORD_BYTE
+        local pos, n, hc, mc = 1, 0, 0, 0
         while true do
             local s = sfind(blob, ql, pos, true)
             if not s then break end
-            local rStart, rEnd = RecordAt(s)
-            if rn < REMEMBER then
-                rn = rn + 1
-                rs[rn], re[rn] = rStart, rEnd
-            else
-                complete = false
+            if hc < REMEMBER then
+                hc = hc + 1
+                h[hc] = s
             end
+            local prev = s > 1 and sbyte(blob, s - 1) or 10
+            if prev ~= 10 then
+                if not wb[prev] then
+                    local rStart, rEnd = RecordAt(s)
+                    Record(rStart, rEnd, ql, qLen, scoreName)
+                elseif mc < SCAN_CAP then
+                    mc = mc + 1
+                    mb[mc] = s
+                end
+            elseif not prefixDone then
+                Record(s, LineEnd(s), ql, qLen, scoreName)
+            end
+            pos = s + 1
+            n = n + 1
+            if n % 64 == 0 then SliceCheckpoint() end
+        end
+        hn, mn = hc, mc
+        if n > REMEMBER then complete = false end
+    end
+    -- 3. Mid-word matches in blob order, as many as the cap allows.
+    if not Placed() then
+        for k = 1, mn do
+            local rStart, rEnd = RecordAt(midBuf[k])
             Record(rStart, rEnd, ql, qLen, scoreName)
-            if hitN >= SCAN_CAP then
-                complete = false
-                break
-            end
-            pos = rEnd + 2
-            scanned = scanned + 1
-            if scanned % 64 == 0 then SliceCheckpoint() end
+            if k % 64 == 0 then SliceCheckpoint() end
         end
     end
-    for i = #rs, rn + 1, -1 do rs[i], re[i] = nil, nil end
-    recs.n = rn
+    for k = #midBuf, mn + 1, -1 do midBuf[k] = nil end
+    for k = #hits, hn + 1, -1 do hits[k] = nil end
+    curRecs.n = hn
     lastQl, lastComplete = ql, complete
-    prevRecs, curRecs = recs, prevRecs
-    for i = 1, kept do out[i] = keep[i] end
-    for i = #out, kept + 1, -1 do out[i] = nil end
+    prevRecs, curRecs = curRecs, prevRecs
+    scanScore = nil
+    KeepBestOut()
     return kept > 0 and out or nil
 end
 

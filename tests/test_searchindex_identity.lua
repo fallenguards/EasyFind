@@ -46,6 +46,8 @@ local QUERIES = {
     "tot", "throne thnder", "qtr", "qrtrmstr", "windrnr", "wndrunner", "r2", "boom bot", "hearthstnoe",
     "hsearthstone", "patern sunfire", "sunfier", "journl", "raid journal", "stb", "frst wolf", "ib",
     "twilgiht drake", "thudner", "crmsn", "gb", "sw", "silvr", "ebn", "blod rug", "winb", "ancent lantern",
+    -- Prefix walks: two or more 2+ char segments, each leading a later word.
+    "shbo", "shabo", "stdr", "frwo", "sibo", "glbu", "thdr", "twdr", "ebwo", "crdr", "raba",
 }
 
 local function Run(gated, q)
@@ -72,6 +74,57 @@ function tests.everyQuery_findsTheSameThroughTheIndex()
     Database._disableSearchGate = nil
     H.assertTrue(found > #QUERIES / 2, "most queries find something: " .. found)
     H.assertTrue(#bad == 0, table.concat(bad, "\n"))
+end
+
+-- A query typed a letter at a time finds what the same query pasted finds:
+-- each keystroke's list equals a fresh search of that text.
+function tests.typedQueries_findWhatPastedQueriesFind()
+    local bad = {}
+    for _, q in ipairs(QUERIES) do
+        Database._disableSearchGate = nil
+        Database:ResetSearchCache()
+        for n = 1, #q - 1 do Database:SearchUI(q:sub(1, n)) end
+        local typed = {}
+        for i, r in ipairs(Database:SearchUI(q)) do typed[i] = { data = r.data, score = r.score } end
+        local pasted = Run(true, q)
+        local same = #typed == #pasted
+        for i = 1, same and #typed or 0 do
+            if typed[i].data ~= pasted[i].data or typed[i].score ~= pasted[i].score then same = false end
+        end
+        if not same then bad[#bad + 1] = ("'%s' typed %d, pasted %d"):format(q, #typed, #pasted) end
+    end
+    H.assertTrue(#bad == 0, table.concat(bad, "\n"))
+end
+
+-- The early stop skips the index's rest rows once the kept rows outscore
+-- them; that is only exact while no rest row can score above 30.
+function tests.restRows_neverScoreAboveAMidWordSubstring()
+    Database._checkRestBound = true
+    Database._restMaxSeen = 0
+    for _, q in ipairs(QUERIES) do
+        Database:ResetSearchCache()
+        Database:SearchUI(q)
+        for n = 2, #q - 1 do
+            Database:ResetSearchCache()
+            Database:SearchUI(q:sub(1, n))
+        end
+    end
+    Database._checkRestBound = nil
+    H.assertTrue(Database._restMaxSeen <= 30, ("a rest row scored %s (%s)"):format(
+        tostring(Database._restMaxSeen), tostring(Database._restMaxRow)))
+end
+
+-- The walk class is only admitted with a second word lead; each of these
+-- reaches its row by the walk alone, through the index.
+function tests.prefixWalks_reachTheirRowThroughTheIndex()
+    local WALKS = { shbo = "Shadow Bolt", frdr = "Frost Drake", sibo = "Silver Bookshelf", twdr = "Twilight Drake" }
+    for q, name in pairs(WALKS) do
+        local hit = false
+        for _, r in ipairs(Run(true, q)) do
+            if r.data.name == name then hit = true end
+        end
+        H.assertTrue(hit, q .. " finds " .. name)
+    end
 end
 
 local pass, fail, failures = H.runSuite("SearchIndexIdentity", tests)

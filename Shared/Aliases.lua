@@ -487,6 +487,21 @@ function Blacklist:Contains(data)
     return key ~= false and store[key] ~= nil
 end
 
+-- A result list ({data, ...} rows) without its blacklisted rows, in place.
+function Blacklist:FilterRows(list)
+    if not self:HasAny() then return list end
+    local kept = 0
+    for i = 1, #list do
+        local r = list[i]
+        if not self:Contains(r.data) then
+            kept = kept + 1
+            list[kept] = r
+        end
+    end
+    for i = #list, kept + 1, -1 do list[i] = nil end
+    return list
+end
+
 function Blacklist:Add(data)
     if not (EasyFind and EasyFind.db) then return false end
     local key = Aliases:GetEntryKey(data)

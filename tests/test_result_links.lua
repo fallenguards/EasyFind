@@ -62,9 +62,8 @@ function tests.rowsWithAnEasyFindActionKeepTheirLinkEvenWithAChatLink()
     H.assertNotNil(ResultLinks:BuildShareText(ability), "share text for a spell")
 end
 
--- A shared GPS route: plain text over chat, a link on arrival, and a click
--- that routes the reader to the same place.
-function tests.routeLinkRoutesTheReaderThere()
+-- A fresh env with the link module, its chat filter and SetItemRef hook.
+local function LinkEnv()
     local e = H.newEnv()
     local n = H.newNs(e)
     e._G = e
@@ -75,8 +74,57 @@ function tests.routeLinkRoutesTheReaderThere()
     H.loadModule("Shared/SearchText.lua", e, n)
     H.loadModule("Shared/Aliases.lua", e, n)
     local RL = H.loadModule("Shared/ResultLinks.lua", e, n)
-    n.L.GPS_TO_FMT = "To %s"
     n.LINK_COLOR = { 0, 1, 1 }
+    return n, RL, hooks, filters, e
+end
+
+-- A stranger's link to a row that acts only on its owner's side does nothing.
+function tests.aCraftedCommandLinkNeverRuns()
+    local n, RL, hooks, filters = LinkEnv()
+    local ran, macro = false, false
+    n.Database.uiSearchData = {
+        { name = "/resetchat", category = "Command", path = { n.L["SUBTEXT_SLASH_COMMANDS"] },
+          nativeRun = function() ran = true end },
+    }
+    n.ResultHandlers.SelectResult = function(_, d) if d.nativeRun then d.nativeRun() end end
+    n.Shortkeys = { CreateMacro = function() macro = true end }
+    RL:Install()
+    local key = "ui:" .. n.L["SUBTEXT_SLASH_COMMANDS"] .. ">/resetchat"
+    local _, shown = filters[1](nil, nil, "[EasyFind: Free Mount] {ef:" .. key .. "}")
+    hooks.SetItemRef(shown:match("|H(.-)|h"), shown, "LeftButton")
+    H.assertFalse(ran, "a command row never runs from a link")
+    RL:CreateMacro(key, "Free Mount")
+    H.assertFalse(macro, "nor becomes a macro")
+end
+
+-- A marker arriving in chat only becomes a link: no warm, no provider load.
+function tests.aMarkerArrivingStartsNoWork()
+    local n, RL, _, filters = LinkEnv()
+    local work = 0
+    n.Database.LoadDeferredSyncProvidersStaggered = function() work = work + 1 end
+    n.Shortkeys = { RequestProviderForRowKey = function() work = work + 1 end }
+    RL:Install()
+    filters[1](nil, nil, "[EasyFind: Talents] and [EasyFind: Swift Tiger] {ef:mount:999}")
+    H.assertEq(work, 0, "arrival starts nothing")
+end
+
+-- The same click on a row that may travel still opens it.
+function tests.aSharedMenuLinkStillOpens()
+    local n, RL, hooks, filters = LinkEnv()
+    local opened
+    n.Database.uiSearchData = { { name = "Options", category = "Menu Bar", path = { "Game Menu" } } }
+    n.ResultHandlers.SelectResult = function(_, d) opened = d end
+    RL:Install()
+    local _, shown = filters[1](nil, nil, "[EasyFind: Options] {ef:ui:Game Menu>Options}")
+    hooks.SetItemRef(shown:match("|H(.-)|h"), shown, "LeftButton")
+    H.assertEq(opened and opened.name, "Options")
+end
+
+-- A shared GPS route: plain text over chat, a link on arrival, and a click
+-- that routes the reader to the same place.
+function tests.routeLinkRoutesTheReaderThere()
+    local n, RL, hooks, filters, e = LinkEnv()
+    n.L.GPS_TO_FMT = "To %s"
     local went
     e.EasyFind.API.RegisterAction("gps", "navigate", function(dest) went = dest end)
     RL:Install()

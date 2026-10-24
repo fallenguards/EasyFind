@@ -959,5 +959,46 @@ function tests.findByKey_zoneRebuildCarriesKindAndIcon()
     end)
 end
 
+function tests.blacklist_filterRowsDropsEveryKindItHolds()
+    local Blacklist = ns.Blacklist
+    Blacklist:ClearAll()
+    local item = { catalogItem = true, itemID = 6948, name = "Hearthstone" }
+    local ach = { achievementID = 6, name = "Level 10" }
+    local list = {
+        { data = { name = "Bank" } }, { data = item }, { data = { name = "Inn" } }, { data = ach },
+    }
+    H.assertEq(Blacklist:FilterRows(list), list)
+    H.assertEq(#list, 4, "nothing hidden: nothing dropped")
+    Blacklist:Add(item)
+    Blacklist:Add(ach)
+    Blacklist:FilterRows(list)
+    H.assertEq(#list, 2)
+    H.assertEq(list[1].data.name, "Bank")
+    H.assertEq(list[2].data.name, "Inn")
+    Blacklist:ClearAll()
+end
+
+-- Main search: the gate runs after the last source joins the list (map
+-- rows, catalog items, launchers) and before the cap; the achievements
+-- added after the cap check it themselves.
+function tests.blacklist_mainSearchGateFollowsEverySource()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Search/Query.lua", "r"))
+    local src = f:read("*a")
+    f:close()
+    local gate = src:find("Blacklist:FilterRows(combined)", 1, true)
+    local cap = src:find("local TOP_N", 1, true)
+    assert(gate and cap and gate < cap, "the blacklist gate must come before the cap")
+    local lastAppend, at = 0, 1
+    while true do
+        local s = src:find("combined[#combined + 1] =", at, true)
+        if not s or s > cap then break end
+        lastAppend, at = s, s + 1
+    end
+    assert(gate > lastAppend, "a result source joins after the blacklist gate")
+    local stop = src:find("\n    local n = 0", cap, true) or #src
+    assert(not src:sub(cap, stop):find("combined[#combined + 1] =", 1, true),
+        "a source joins after the cap: it never ranks and skips the gate")
+end
+
 local pass, fail, failures = H.runSuite("Aliases", tests)
 return { pass = pass, fail = fail, failures = failures }

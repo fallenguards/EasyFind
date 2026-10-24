@@ -200,28 +200,37 @@ local function FloatPinnedFirst(list, n)
     end
 end
 
--- Front door for EVERY search dispatch (keystrokes, refreshes, filter
--- changes): the real body runs in a budgeted coroutine, so a wide query's
--- scoring spreads across 2-3 frames instead of spiking one (p95 was 39ms
--- in a single keystroke frame). A new dispatch cancels the in-flight pass
--- -- last keystroke wins -- and fast queries complete in their first
--- slice, same frame, unchanged. Yield points are ONLY the strided
--- checkpoints in the scoring loop and the index sweep; everything past
--- SearchUI (providers, sort, render) runs whole in the final slice.
--- OnSearchTextChangedNow is the synchronous body (bench timings use it).
+-- Every dispatch runs sliced; a new one cancels the run in flight.
+-- It yields in SearchUI, the index and the item and creature scans.
 local sliceHandle
 local pendingSliceText, pendingSliceForce
 local function RunPendingSearch()
     Search:OnSearchTextChangedNow(pendingSliceText, pendingSliceForce)
 end
 
+-- A run that stops early may sit between index reads, which holds the
+-- index build until the next search.
+local function SearchRunEnded(ok, err)
+    if ok then return end
+    if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
+    Utils.ErrorHandler(err)
+end
+
 function Search:OnSearchTextChanged(text, force)
-    if sliceHandle then sliceHandle:Cancel() end
+    if sliceHandle then
+        sliceHandle:Cancel()
+        if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
+    end
     pendingSliceText, pendingSliceForce = text, force
-    sliceHandle = Utils.RunSliced(RunPendingSearch, nil, 6)
+    sliceHandle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6)
 end
 
 local topBuf = {}   -- the top-15 selection's scratch
+
+-- Catalog lines are scored and dropped: no per-name cache entries.
+local function ScoreCatalogName(nameLower, ql, qLen)
+    return ns.Database:ScoreTransientName(nameLower, ql, qLen)
+end
 
 function Search:OnSearchTextChangedNow(text, force)
     -- The search UI is dormant in combat (the bar hides at combat start
@@ -657,27 +666,6 @@ function Search:OnSearchTextChangedNow(text, force)
         end
     end
 
-    -- Blacklist gate: the ONE suppression point for main-search results.
-    -- Runs after alias injection on purpose (blacklist beats an alias
-    -- pointing at the same row) and copies into scratch like the other
-    -- passes; `results` may be the engine's cached candidate set and must
-    -- not be mutated. Free when the blacklist is empty.
-    if ns.Blacklist and ns.Blacklist:HasAny() then
-        SCRATCH.blacklistResults = SCRATCH.blacklistResults or {}
-        wipe(SCRATCH.blacklistResults)
-        local filtered = SCRATCH.blacklistResults
-        local fi = 0
-        for ri = 1, #results do
-            local r = results[ri]
-            if r and not ns.Blacklist:Contains(r.data) then
-                fi = fi + 1
-                filtered[fi] = r
-            end
-        end
-        for i = fi + 1, #filtered do filtered[i] = nil end
-        results = filtered
-    end
-
     if quickFilter then
         wipe(SCRATCH.quickFilterResults)
         local filtered = SCRATCH.quickFilterResults
@@ -854,13 +842,11 @@ function Search:OnSearchTextChangedNow(text, force)
     -- so unchecking Items hides all three overlays. English-primary; display
     -- name and icon resolve live at render.
     if not calculatorData and not calculatorLauncher and text ~= "" and ns.ItemSearch
-       and ns.Database and ns.Database.ScoreName
+       and ns.Database and ns.Database.ScoreTransientName
        and ((quickFilter and (quickFilter.key == "items" or quickFilter.key == "catalog"))
             or (not quickFilter and (not filters
                  or not ns.CategoryMap.IsProviderFilterOff(filters, "catalog")))) then
-        local itemHits = ns.ItemSearch:Search(text, function(nameLower, ql, qLen)
-            return ns.Database:ScoreName(nameLower, ql, qLen)
-        end)
+        local itemHits = ns.ItemSearch:Search(text, ScoreCatalogName)
         if itemHits then
             for ii = 1, #itemHits do
                 local hitData = itemHits[ii].data
@@ -899,6 +885,30 @@ function Search:OnSearchTextChangedNow(text, force)
             } }
         end
     end
+    -- The client's achievement hits, ranked by name with the rest before the cap.
+    if achHits then
+        if ns.Database and ns.Database.ScoreName then
+            local lowerQ = slower(text)
+            local qLen = #lowerQ
+            -- Name hits only (the index also matches descriptions); the cache
+            -- can predate the stats data, so statistics are checked again.
+            for ai = 1, #achHits do
+                local entry = achHits[ai]
+                local score = ns.Database:ScoreName(entry.nameLower, lowerQ, qLen)
+                if score and score > 0
+                   and not IsPromoted(SCRATCH.aliasSeen, entry)
+                   and not (hideGuildAchievements and self:IsGuildAchievementData(entry))
+                   and not (statisticsOff and entry.achievementID
+                            and ns.Database:IsStatisticAchievement(entry.achievementID)) then
+                    combined[#combined + 1] = { data = entry, score = score }
+                end
+            end
+        end
+    end
+
+    -- Blacklist gate: every source has joined (map rows, catalog items and
+    -- launchers too); before the cap, so a hidden row frees its slot.
+    if ns.Blacklist then ns.Blacklist:FilterRows(combined) end
     -- Hard cap on visible results: the scoring step already ranks by
     -- relevance; everything past the cap is noise. Pinned items are not in
     -- this set. The top 15 come from a bounded insertion (a full sort of
@@ -926,36 +936,6 @@ function Search:OnSearchTextChangedNow(text, force)
     for ri = 1, kept do combined[ri] = topBuf[ri] end
     for ri = #combined, kept + 1, -1 do combined[ri] = nil end
     wipe(topBuf)
-
-    -- Inline achievement results, requested above next to the search so
-    -- a pending answer holds the paint; by the time this runs the rows
-    -- are here (cached from the event) or the hold gave up. Score each
-    -- one through ScoreName so they interleave naturally with mount /
-    -- toy / setting hits ranked off the same query, instead of clumping
-    -- at a fixed band.
-    if achHits then
-        if ns.Database and ns.Database.ScoreName then
-            local lowerQ = slower(text)
-            local qLen = #lowerQ
-            -- Blizzard's index returns matches across name + description
-            -- + criteria; we only want name matches here. Base Search entries
-            -- still cover direct navigation to achievement categories, so
-            -- drop anything ScoreName can't rank against the achievement
-            -- name itself. Re-check IsStatisticAchievement: the cache can
-            -- predate stats data loading and admit stat IDs.
-            for ai = 1, #achHits do
-                local entry = achHits[ai]
-                local score = ns.Database:ScoreName(entry.nameLower, lowerQ, qLen)
-                if score and score > 0
-                   and not IsPromoted(SCRATCH.aliasSeen, entry)
-                   and not (hideGuildAchievements and self:IsGuildAchievementData(entry))
-                   and not (statisticsOff and entry.achievementID
-                            and ns.Database:IsStatisticAchievement(entry.achievementID)) then
-                    combined[#combined + 1] = { data = entry, score = score }
-                end
-            end
-        end
-    end
 
     -- @map: the map tab's This Zone and Across the World parts.
     local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone

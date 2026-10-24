@@ -43,16 +43,15 @@ end
 local BOSS_QUERY_WORDS = ns.BOSS_QUERY_WORDS
 local STAT_QUERY_WORDS = ns.STAT_QUERY_WORDS
 
--- Unbounded string-keyed word cache. The previous FIFO-256 design
--- thrashed for scoring: a single keystroke scoring 5000+ entries
--- triggered ~25,000 GetWords calls, evicting and re-allocating most
--- tables and producing 3-5 MB of transient garbage per keystroke.
--- The working set is bounded by unique strings in the dataset
--- (~7000 names + keywords + a handful of live queries) so the cache
--- self-limits at ~700 KB and never thrashes once filled.
+-- Word lists per string, bounded by the dataset's names and keywords (a
+-- FIFO thrashed). Names scored once and dropped (the item catalog) go
+-- through ScoreTransientName and are never cached.
 local wordCache = {}
 Database._wordCache = wordCache
 local EMPTY_WORDS = {}
+-- The name ScoreTransientName is scoring, and its words, filled on first use.
+local transientName
+local transientWords, transientFilled = {}, false
 
 -- ASCII path uses gmatch which is fast and well-tested; non-ASCII routes
 -- through SearchText.Tokenize so "Übermacht" splits at the right places
@@ -61,6 +60,19 @@ local function GetWords(str)
     if not str or str == "" then return EMPTY_WORDS end
     local cached = wordCache[str]
     if cached then return cached end
+    if str == transientName then
+        if not transientFilled then
+            transientFilled = true
+            wipe(transientWords)
+            if isAscii(str) then
+                for w in str:gmatch("[%w']+") do transientWords[#transientWords + 1] = w end
+            else
+                local t = stokenize(str)
+                for i = 1, #t do transientWords[i] = t[i] end
+            end
+        end
+        return transientWords
+    end
     local words
     if isAscii(str) then
         words = {}
@@ -114,6 +126,40 @@ local function scoreDescending(a, b)
     if #an ~= #bn then return #an < #bn end
     if an ~= bn then return an < bn end
     return TieCategoryLess(a.data, b.data)
+end
+
+-- The kept results are a heap whose root is the worst kept row, so the best
+-- RESULT_CAP of any number of matches cost one pass and one small sort.
+local RESULT_CAP = 250
+local heapProbe = {}
+-- The best a row can score from a mid-word name substring alone (ScoreName's
+-- last tier; ScoreKeywords has no mid-word tier): the index's "rest" rows.
+local REST_MAX_SCORE = 30
+
+local function HeapUp(heap, i)
+    local item = heap[i]
+    while i > 1 do
+        local p = (i - i % 2) / 2
+        local parent = heap[p]
+        if not scoreDescending(parent, item) then break end
+        heap[i] = parent
+        i = p
+    end
+    heap[i] = item
+end
+
+local function HeapDown(heap, n)
+    local i, item = 1, heap[1]
+    while true do
+        local c = i * 2
+        if c > n then break end
+        if c < n and scoreDescending(heap[c], heap[c + 1]) then c = c + 1 end
+        local child = heap[c]
+        if not scoreDescending(item, child) then break end
+        heap[i] = child
+        i = c
+    end
+    heap[i] = item
 end
 
 -- Suppresses fuzzy/initials matches between word pairs that are close in
@@ -428,7 +474,10 @@ function Database:CouldMatch(text, query)
         lastCMMask = ComputeQueryMask(query)
     end
     local tm = nameMaskCache[text]
-    if not tm then tm = ComputeCharMask(text); nameMaskCache[text] = tm end
+    if not tm then
+        tm = ComputeCharMask(text)
+        if text ~= transientName then nameMaskCache[text] = tm end
+    end
     if band(lastCMMask, tm) ~= lastCMMask then return false end
     for i = 1, lastCMExtraN do
         if not sfind(text, lastCMExtra[i], 1, true) then return false end
@@ -452,7 +501,7 @@ local function WordInitMask(text)
         local b = sbyte(words[i], 1)
         if b and b >= 97 and b <= 122 then m = bor(m, lshift(1, b - 97)) end
     end
-    wordInitCache[text] = m
+    if text ~= transientName then wordInitCache[text] = m end
     return m
 end
 
@@ -635,7 +684,9 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
         if queryLen == 0 then return 0 end
     end
 
-    if not Database:CouldMatch(nameLower, query) then return 0 end
+    -- A name holding the query passes the letter gate by definition.
+    local found = sfind(nameLower, query, 1, true)
+    if not found and not Database:CouldMatch(nameLower, query) then return 0 end
 
     if STOPWORDS[query] then
         if nameLower == query then return EXACT_MATCH_SCORE end
@@ -649,13 +700,15 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
 
     if nameLower == query then
         score = EXACT_MATCH_SCORE
-    elseif sfind(nameLower, query, 1, true) == 1 then
+    elseif found == 1 then
         score = NAME_PREFIX_SCORE
-    elseif Database:FindAtWordBoundary(nameLower, query) then
+    elseif found and Database:FindAtWordBoundary(nameLower, query) then
         score = 120
-    elseif sfind(nameLower, query, 1, true) then
+    elseif found then
         score = 30
     end
+    -- Every path below runs only under 130: a name start needs no words.
+    if score >= 130 then return score end
 
     -- ScoreInitials, ScoreFuzzy, and the abbrev subsequence path all require a
     -- name word starting with the query's first letter. One AND against the
@@ -780,6 +833,15 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
         end
     end
 
+    return score
+end
+
+-- ScoreName for a name nobody keeps (an item catalog line): its words and
+-- masks are worked out for this call only, so typing caches no item names.
+function Database:ScoreTransientName(nameLower, query, queryLen)
+    transientName, transientFilled = nameLower, false
+    local score = self:ScoreName(nameLower, query, queryLen)
+    transientName = nil
     return score
 end
 
@@ -1050,12 +1112,6 @@ end
 local prevQuery = ""
 local prevSkipKey = ""
 local prevCandidates = {}
--- Flags of prevQuery, written where prevQuery is (gatingShifted compares the
--- current query's flags against these). lootStatActive records what that
--- search actually did, dev switch included. Only read when prevQuery ~= "",
--- so the prevQuery-reset sites need not clear them.
-local prevFlags = { lootStatActive = false, boss = false, ach = false, words = 0,
-    stopword = false }
 -- Scratch for building skipKey from CategoryMap.SkipKeyOrder without a
 -- per-search table allocation. Reused each search; tconcat reads buf[1..n].
 local skipKeyBuf = {}
@@ -1222,6 +1278,7 @@ function Database:TrimSearchMemory()
     wipe(resultEntryPool)
     wipe(wordCache)
     wipe(nameMaskCache)
+    wipe(wordInitCache)
     prevQuery = ""
     prevSkipKey = ""
     wipe(prevCandidates)
@@ -1234,7 +1291,7 @@ end
 -- forces a full scan so the newly eligible category is admitted past the
 -- incremental narrowing. A category absent from the map costs a single upvalue
 -- nil-check per entry.
-local categoryMinLen, categoryGateLens
+local categoryMinLen
 
 -- Shipped default (applied at the bottom of this file): the heavy providers
 -- that a 1-2 char query only floods with noise -- Statistics, Bosses,
@@ -1256,17 +1313,6 @@ function Database:SetCategoryMinLen(map)
     -- provider REQUEST, so a gated category's cold build also waits for
     -- the threshold, not just its scoring).
     self.categoryMinLenActive = map
-    categoryGateLens = nil
-    if map then
-        local seen = {}
-        categoryGateLens = {}
-        for _, len in pairs(map) do
-            if not seen[len] then
-                seen[len] = true
-                categoryGateLens[#categoryGateLens + 1] = len
-            end
-        end
-    end
     self:ResetSearchCache()
 end
 
@@ -1424,69 +1470,17 @@ function Database:SearchUI(query, skipCategories)
     -- collide with ("xMount", no skips).
     local cacheKey = query .. "\1" .. skipKey
 
-    -- prevCandidates can miss entries the now-more-permissive pass matches:
-    --   1. A gate flipped on ("icc bos" -> "icc boss"). Boss/ach entries
-    --      were never scored before the flip.
-    --   2. A word was appended to a stat-keyword query ("haste" ->
-    --      "haste ring"): loot rings that only the appended word matches
-    --      weren't in the previous match set (lootStatKw is enriched lazily).
-    -- Either case bypasses extension and rebuilds via a full scan.
-    local hasPrev = prevQuery ~= ""
-    local prevLootStatActive = hasPrev and prevFlags.lootStatActive
-    local prevBossWord = hasPrev and prevFlags.boss
-    local prevAchWord = hasPrev and prevFlags.ach
-    local addedNewWord = #queryWords > (hasPrev and prevFlags.words or 0)
-    local gatingShifted =
-        (lootStatActive and not prevLootStatActive)
-        or (bossQueryWord and not prevBossWord)
-        or (achQueryWord and not prevAchWord)
-        or (lootStatActive and addedNewWord)
-        or (statQueryWord and addedNewWord)
-
-    -- Incremental narrowing (the speed path): when the query only grew, re-score
-    -- the previous match set instead of the whole dataset. A longer query can
-    -- only shrink prefix / substring / exact / word-boundary / keyword matches,
-    -- so narrowing stays complete for them. It is NOT safe across the lengths
-    -- where fuzzy-typo and abbreviation matching switch on or widen (3, 4, 8):
-    -- those can reveal matches that weren't in the previous set, so rebuild from
-    -- a full scan there. Every other case full-scans too. There is deliberately
-    -- no "ready index" mode that scans a narrower bucket -- that split (complete
-    -- full scan vs. incomplete bucket, flipped by a background timer) is exactly
-    -- what made the same query return different results at different moments.
-    local prevLen = #prevQuery
-    local recallBoundaryCrossed =
-        (prevLen < ABBREV_MIN_LEN and queryLen >= ABBREV_MIN_LEN)
-        or (prevLen < FUZZY_EDIT1_LEN and queryLen >= FUZZY_EDIT1_LEN)
-        or (prevLen < FUZZY_EDIT2_LEN and queryLen >= FUZZY_EDIT2_LEN)
-    if categoryGateLens and not recallBoundaryCrossed then
-        for i = 1, #categoryGateLens do
-            local gateLen = categoryGateLens[i]
-            if prevLen < gateLen and queryLen >= gateLen then
-                recallBoundaryCrossed = true
-                break
-            end
-        end
-    end
-    -- A bare-stopword query scored only word-extension matches ("the" ->
-    -- Theramore), so its candidate set lacks the standalone-word names a
-    -- longer query legitimately matches again ("the b" -> The Barrens).
-    if hasPrev and prevFlags.stopword then
-        recallBoundaryCrossed = true
-    end
-
-    local searchSet
+    local searchSet, restAt
     local cachedSet = resultCache[cacheKey]
     if cachedSet then
         -- Exact prior query (backspace / retype): re-score its cached
         -- candidate set instead of the full dataset.
         searchSet = cachedSet
-    elseif prevLen > 0 and skipKey == prevSkipKey
-        and queryLen >= prevLen and ssub(query, 1, prevLen) == prevQuery
-        and not gatingShifted and not recallBoundaryCrossed then
-        -- ">=": for equal lengths the prefix test means query == prevQuery,
-        -- i.e. the post-append same-query refresh; the candidate set was
-        -- kept complete by NoteAppendedEntries, so re-scoring it beats the
-        -- full scan the cleared result cache would otherwise force.
+    elseif query == prevQuery and skipKey == prevSkipKey then
+        -- The same query again after an append: NoteAppendedEntries kept the
+        -- set complete. A query that grew is never narrowed from the last
+        -- set: typo, abbreviation and walk matches widen as a word grows, so
+        -- narrowing lost rows that pasting the same text finds.
         searchSet = prevCandidates
     else
         searchSet = uiSearchData
@@ -1497,9 +1491,15 @@ function Database:SearchUI(query, skipCategories)
         -- the bench A/B proves identity against the true full scan).
         if not statisticScopedQuery and not Database._disableSearchGate
            and ns.SearchIndex then
-            local cand = ns.SearchIndex:Candidates(queryWords)
+            -- One plain word: the rows that can only score a mid-word substring
+            -- come last, and the scan stops before them once it cannot use them.
+            local split = #queryWords == 1 and queryWords[1] == query and not queryNorm
+                and not STOPWORDS[query] and not sfind(query, "[^%w]")
+                and not lootStatActive and not bossQueryWord and not achQueryWord and not statQueryWord
+            local cand, _, restFrom = ns.SearchIndex:Candidates(queryWords, split)
             if cand then
                 searchSet = cand
+                restAt = restFrom
             end
         end
     end
@@ -1522,22 +1522,20 @@ function Database:SearchUI(query, skipCategories)
             efStats.full = efStats.full + 1
             efStats.lastPath = "full"
             local why
-            if prevLen == 0 then why = "noPrev"
+            if prevQuery == "" then why = "noPrev"
             elseif skipKey ~= prevSkipKey then why = "skipKey"
-            elseif queryLen <= prevLen then why = "shrank"
-            elseif ssub(query, 1, prevLen) ~= prevQuery then why = "notPrefix"
-            elseif gatingShifted then why = "gating"
-            elseif recallBoundaryCrossed then why = "boundary"
-            else why = "?" end
+            else why = "newQuery" end
             efStats.whys[why] = (efStats.whys[why] or 0) + 1
         end
         efStats.setSize = #searchSet
         efStats.dataSize = #uiSearchData
     end
 
+    -- Unset until the scan ends: a canceled run leaves prevCandidates half written.
+    prevQuery = ""
     wipe(resultsBuf)
     local results = resultsBuf
-    local resultsN = 0
+    local resultsN, matchesN = 0, 0
     local candidateIdx = 0
 
     local gateActive = GATE.count > 0
@@ -1546,11 +1544,20 @@ function Database:SearchUI(query, skipCategories)
     -- search, not per entry. Toggling it resets the search cache so this re-scans.
     local hideRooms = not (EasyFind and EasyFind.db and EasyFind.db.housingShowRooms == true)
     local searchCount = #searchSet
+    -- Dev seam: score the rest rows anyway and keep the best they reach.
+    local checkRest = Database._checkRestBound and restAt
+    local stoppedEarly = false
     for i = 1, searchCount do
         -- Strided slice checkpoint: under the sliced dispatch a wide scan
         -- yields here every 128 candidates; a direct synchronous call
         -- (bench identity) makes this a no-op.
         if band(i, 127) == 0 then SliceCheckpoint() end
+        -- Top-k stop (the threshold rule): no rest row can pass the worst kept.
+        if i == restAt and not checkRest and resultsN >= RESULT_CAP
+           and results[1].score > REST_MAX_SCORE then
+            stoppedEarly = true
+            break
+        end
         local data = searchSet[i]
         if not (skipCategories and skipCategories[data.category])
            and not (data.isRoom and hideRooms)
@@ -1746,14 +1753,12 @@ function Database:SearchUI(query, skipCategories)
                 end
             end
 
+            if checkRest and i >= restAt and score > (Database._restMaxSeen or 0) then
+                Database._restMaxSeen = score
+                Database._restMaxRow = data.name
+            end
             if score >= 30 then
-                resultsN = resultsN + 1
-                local r = resultEntryPool[resultsN]
-                if not r then
-                    r = {}
-                    resultEntryPool[resultsN] = r
-                end
-                r.data = data
+                matchesN = matchesN + 1
                 -- scoreBonus: per-row rank lift, applied per MATCH (not per
                 -- candidate, so off the scoring hot path), and only when the
                 -- query asks for the row's kind (scoreBonusWords): "teleport
@@ -1764,9 +1769,26 @@ function Database:SearchUI(query, skipCategories)
                    and not QueryAsksFor(queryWords, data.scoreBonusWords) then
                     bonus = nil
                 end
-                r.score = score + (bonus or 0)
-                r.isAlias = nil
-                results[resultsN] = r
+                local total = score + (bonus or 0)
+                if resultsN < RESULT_CAP then
+                    resultsN = resultsN + 1
+                    local r = resultEntryPool[resultsN]
+                    if not r then
+                        r = {}
+                        resultEntryPool[resultsN] = r
+                    end
+                    r.data, r.score, r.isAlias = data, total, nil
+                    results[resultsN] = r
+                    HeapUp(results, resultsN)
+                else
+                    -- Full: a match that ranks after the worst kept row is dropped.
+                    heapProbe.data, heapProbe.score = data, total
+                    if scoreDescending(heapProbe, results[1]) then
+                        local r = results[1]
+                        r.data, r.score, r.isAlias = data, total, nil
+                        HeapDown(results, resultsN)
+                    end
+                end
                 candidateIdx = candidateIdx + 1
                 prevCandidates[candidateIdx] = data
             end
@@ -1775,27 +1797,19 @@ function Database:SearchUI(query, skipCategories)
     for i = candidateIdx + 1, #prevCandidates do
         prevCandidates[i] = nil
     end
-    prevQuery = query
     prevSkipKey = skipKey
-    prevFlags.lootStatActive = lootStatActive
-    prevFlags.boss = bossQueryWord
-    prevFlags.ach = achQueryWord
-    prevFlags.words = #queryWords
-    -- queryWords, not query: "the " carries a trailing space the scorers trim.
-    prevFlags.stopword = (#queryWords == 1 and STOPWORDS[queryWords[1]]) or false
-    StoreResultCache(cacheKey, prevCandidates, candidateIdx)
+    -- A stopped scan's set lacks the rest rows: never reused or cached.
+    if stoppedEarly then
+        prevQuery = ""
+    else
+        prevQuery = query
+        StoreResultCache(cacheKey, prevCandidates, candidateIdx)
+    end
     if GATE.sawNil and not GATE.fillPending then ScheduleGateMaskFill() end
-    if efStats then efStats.lastResults = resultsN; efStats.gated = GATE.gatedN end
+    if efStats then efStats.lastResults = matchesN; efStats.gated = GATE.gatedN end
+    heapProbe.data = nil
 
     tsort(results, scoreDescending)
-    local SEARCH_RESULT_CAP = 250
-    if resultsN > SEARCH_RESULT_CAP then
-        for i = SEARCH_RESULT_CAP + 1, resultsN do results[i] = nil end
-        for i = SEARCH_RESULT_CAP + 1, #resultEntryPool do
-            resultEntryPool[i] = nil
-        end
-        resultsN = SEARCH_RESULT_CAP
-    end
     -- Drop stale data refs so a broad-then-narrow search doesn't keep
     -- the broad refs alive forever.
     for i = resultsN + 1, #resultEntryPool do
@@ -1820,7 +1834,7 @@ end
 -- Debug peek: file-local caches invisible to ns walks, exposed for
 -- external diagnostics. Shared references; do not mutate.
 function Database:_DebugPeekSearchCaches()
-    return { wordCache = wordCache, nameMaskCache = nameMaskCache }
+    return { wordCache = wordCache, nameMaskCache = nameMaskCache, wordInitCache = wordInitCache }
 end
 
 return Database

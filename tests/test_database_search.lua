@@ -395,5 +395,25 @@ function tests.searchUI_typoInOneWordOfBracketedName()
     end)
 end
 
+-- The catalog's scorer: ScoreName's answer, and no cache entry for the name.
+function tests.scoreTransientName_scoresAsScoreNameAndCachesNothing()
+    local caches = Database:_DebugPeekSearchCaches()
+    local CASES = {
+        { "cloak of the black void", "cloak" }, { "black cloak", "cloak" }, { "cloaked hood", "loak" },
+        { "the felic", "the" }, { "thelsamar axe", "the" }, { "\"thelsamar\" relic", "the" },
+        { "ore-namental sabatons", "ons" }, { "throne of thunder relic", "tot" }, { "shadow bolt rune", "shbo" },
+        { "potion of speed", "potoin" }, { "quartermaster's coin", "qtr" }, { "cloak of the void", "cloak of" },
+        { "eastern kingdoms map", "estern kingd" }, { "9588bermacht der flamme", "flamme" }, { "x", "zzz" },
+    }
+    for _, c in ipairs(CASES) do
+        local name, q = c[1], c[2]
+        local got = Database:ScoreTransientName(name, q, #q)
+        H.assertNil(caches.wordCache[name], "no word list cached: " .. name)
+        H.assertNil(caches.nameMaskCache[name], "no mask cached: " .. name)
+        H.assertNil(caches.wordInitCache[name], "no initials cached: " .. name)
+        H.assertEq(got, Database:ScoreName(name, q, #q), name .. " / " .. q)
+    end
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }

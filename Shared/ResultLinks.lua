@@ -152,27 +152,34 @@ local function PlainName(data)
     return name
 end
 
-function ResultLinks:CanShare(data)
-    if not data or data.noPin then return false end
-    if UNSHAREABLE_CATEGORY[data.category] then return false end
-    if data.calculatorResult or data.calculatorExpression or data.calculatorLauncher
-       or data.quickFilterDef or data.searchCommand or data.nativeRun
-       or data.copyText or data.snippetCreate or data.snippetsLauncher then
-        return false
-    end
+-- Rows that act only on their owner's side: never sent, never taken.
+local function Shareable(data)
+    if not data or data.noPin or UNSHAREABLE_CATEGORY[data.category] then return false end
+    return not (data.calculatorResult or data.calculatorExpression or data.calculatorLauncher
+        or data.quickFilterDef or data.searchCommand or data.nativeRun
+        or data.copyText or data.snippetCreate or data.snippetsLauncher)
+end
+
+-- The row's link key, or nil when it gets no EasyFind link.
+local function ShareKey(data)
+    if not Shareable(data) then return nil end
     -- An item's EasyFind link means "use or wear yours": only items with a
     -- use effect or a gear slot get one. Anything else from the catalog
     -- is shared through the item link alone, which already shows it.
-    if data.appearanceItemID then return false end
-    if IsItemRow(data) and not IsUsableItem(data.itemID) then return false end
-    return EntryKey(data) ~= nil and PlainName(data) ~= nil
+    if data.appearanceItemID then return nil end
+    if IsItemRow(data) and not IsUsableItem(data.itemID) then return nil end
+    return PlainName(data) and EntryKey(data) or nil
+end
+
+function ResultLinks:CanShare(data)
+    return ShareKey(data) ~= nil
 end
 
 -- The plain-text form that goes over chat, or nil when the row cannot be
 -- shared (or would not fit a chat message).
 function ResultLinks:BuildShareText(data)
-    if not self:CanShare(data) then return nil end
-    local key = EntryKey(data)
+    local key = ShareKey(data)
+    if not key then return nil end
     local name = PlainName(data)
     local text = sformat("[%s: %s]", MARKER, name)
     if key ~= "ui:" .. name then
@@ -220,22 +227,15 @@ local function BlueLink(key, name)
         LC[1] * 255, LC[2] * 255, LC[3] * 255, LINK_PREFIX, EncodeKey(key), MARKER, name)
 end
 
--- A link's row must exist before the click: the pad arms on hover, and a
--- row still unresolved then costs the user a second click. So the row is
--- warmed the moment its link arrives in chat (assigned below, once the
--- resolvers exist), long before anyone reaches for it.
-local Prewarm
-
--- Rewrite every marker in an incoming message into a clickable link. The
--- keyed form is matched first so its "(ef:...)" tail is consumed with it.
+-- Rewrite every marker in an incoming message into a clickable link; no
+-- work starts until a hover or click. The keyed form is matched first so
+-- its "{ef:...}" tail is consumed with it.
 local function Linkify(msg)
     if not msg or not smatch(msg, "%[" .. MARKER .. ": ") then return msg end
     msg = sgsub(msg, "%[" .. MARKER .. ": ([^%]]-)%]%s?{ef:([^}]+)}", function(name, key)
-        if Prewarm then Prewarm(key) end
         return BlueLink(key, name)
     end)
     msg = sgsub(msg, "%[" .. MARKER .. ": ([^%]]-)%]", function(name)
-        if Prewarm then Prewarm("ui:" .. name) end
         return BlueLink("ui:" .. name, name)
     end)
     return msg
@@ -278,29 +278,28 @@ local function Activate(data)
     if Handlers and Handlers.SelectResult then Handlers:SelectResult(data) end
 end
 
-local resolvedCache = {}
+local resolvedCache, requested = {}, {}
 local function Resolve(key)
     local hit = resolvedCache[key]
     if hit then return hit end
     local data = ns.Aliases and ns.Aliases:FindEntryByKey(key) or nil
-    if data then resolvedCache[key] = data end
+    if not data then return nil end
+    -- A refused row is never asked for again.
+    if not Shareable(data) then
+        requested[key] = true
+        return nil
+    end
+    resolvedCache[key] = data
     return data
 end
 
--- The searchable database builds on first search-bar focus and providers
--- load on demand, so a click in a fresh session warms what the key needs
--- and retries a few times before giving up.
+-- The login warm builds the database; a key whose row has not loaded
+-- asks its provider once, then the click retries a few times.
 local RETRY_DELAYS = { 0.5, 1.5, 3 }
 
 local function RequestFor(key)
-    local db = ns.Database
-    if db then
-        if db.LoadDeferredSyncProvidersStaggered then
-            db:LoadDeferredSyncProvidersStaggered()
-        elseif db.WarmSearchHotPath then
-            db:WarmSearchHotPath()
-        end
-    end
+    if requested[key] then return end
+    requested[key] = true
     if ns.Shortkeys and ns.Shortkeys.RequestProviderForRowKey then
         ns.Shortkeys.RequestProviderForRowKey(key)
     end
@@ -639,13 +638,6 @@ local function OnLinkEnter(_, link, _, region, left, bottom, width, height)
     end
 end
 
-local warmed = {}
-Prewarm = function(key)
-    if warmed[key] or smatch(key, "^route:") then return end
-    warmed[key] = true
-    if not Resolve(key) then RequestFor(key) end
-end
-
 -- An item the receiver does not carry: show it, as a click on the item's
 -- own chat link would.
 local function ShowItemInstead(key)
@@ -784,6 +776,12 @@ end
 function ResultLinks:CreateMacro(key, name)
     if not (key and ns.Shortkeys and ns.Shortkeys.CreateMacro) then return end
     local data = Resolve(key)
+    -- Only a route or an item stands without a row (OpenKey's own fallbacks).
+    if not data and not (smatch(key, "^route:") or smatch(key, "^item:%d+$")) then
+        RequestFor(key)
+        if EasyFind and EasyFind.Print then EasyFind:Print(L["EFLINK_NOT_FOUND"]) end
+        return
+    end
     ns.Shortkeys:CreateMacro(key, data and data.name or name, data)
 end
 
