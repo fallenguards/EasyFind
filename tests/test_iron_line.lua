@@ -46,9 +46,9 @@ local tests = {}
 function tests.acrossCapsFixedMiddleStretched()
     local line = ns.CreateIronLine(Frame(), false)
     local l, m, r = line.textures[1], line.textures[2], line.textures[3]
-    H.assertEq(line.h, 16, "the art's band")
-    H.assertEq(l.w, 6)
-    H.assertEq(r.w, 6)
+    H.assertEq(line.h, 8, "half the art's band")
+    H.assertEq(l.w, 3)
+    H.assertEq(r.w, 3)
     H.assertNil(m.w, "the middle takes what is left")
     H.assertEq(#l.coords, 4, "plain crop")
     H.assertTrue(l.file:find("UI%-DialogBox%-Divider") ~= nil)
@@ -57,8 +57,8 @@ end
 function tests.downASideTheArtTurns()
     local line = ns.CreateIronLine(Frame(), true)
     local top, mid = line.textures[1], line.textures[2]
-    H.assertEq(line.w, 16)
-    H.assertEq(top.h, 6, "the cap at the top")
+    H.assertEq(line.w, 8)
+    H.assertEq(top.h, 3, "the cap at the top")
     H.assertEq(#mid.coords, 8, "corner by corner: the length runs down")
     -- Top left and top right share the art's start; the bottom its end.
     H.assertEq(mid.coords[1], mid.coords[5])

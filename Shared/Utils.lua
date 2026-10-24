@@ -4412,6 +4412,13 @@ end
 function ns.PaintButtonRamp(btn)
     local fill = btn.combinedBorder and btn.combinedBorder.fill
     if not fill then return end
+    -- Under the Classic skin the red, from the first show (nothing else
+    -- paints a button's state before it is hovered).
+    if btn._efPaintState and (ns.IsClassicChrome() or btn._efRedOn) then
+        btn._efPaintState(btn, not btn:IsEnabled() and ns.BTN_FILL_DISABLED
+            or (btn:IsMouseOver() and ns.BTN_FILL_HOVER) or ns.BTN_FILL_NORMAL)
+        if btn._efRedOn then return end
+    end
     btn._efRamp = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.IsClassicChrome() or nil
     local r, g, b, a = btn._efFillR, btn._efFillG, btn._efFillB, btn._efFillA
     if not r then r, g, b, a = fill.mm:GetVertexColor() end
@@ -4689,10 +4696,11 @@ function ns.CreateRevertButton(parent, size, onClick, tip)
     return btn
 end
 
--- The 1.x dialog's iron divider (the Calendar's, the Reputation frame's):
--- end caps fixed, the middle stretched; vertical runs it down a side.
+-- The 1.x dialog's iron divider (the Calendar's, the Reputation frame's),
+-- at half its art's 16 px: end caps fixed, the middle stretched; vertical
+-- runs it down a side.
 function ns.CreateIronLine(parent, vertical)
-    local ART, CAP, LEN, BAND, SIZE, CAP_PX = "Interface\\DialogFrame\\UI-DialogBox-Divider", 6 / 256, 193 / 256, 0.5, 16, 6
+    local ART, CAP, LEN, BAND, SIZE, CAP_PX = "Interface\\DialogFrame\\UI-DialogBox-Divider", 6 / 256, 193 / 256, 0.5, 8, 3
     local line = CreateFrame("Frame", nil, parent)
     local parts = {}
     for i, u in ipairs({ { 0, CAP }, { CAP, LEN - CAP }, { LEN - CAP, LEN } }) do

@@ -1672,9 +1672,11 @@ local function CreateFrameOnce()
         ns.SetRoundedRectBorderShown(footer, not classic)
         ns.SetRoundedRectRingShown(footer, false)
         if not footer.iron then
+            -- Edge to edge of the dialog border's metal (11 in, 12 on the right).
             footer.iron = ns.CreateIronLine(f, false)
-            footer.iron:SetPoint("LEFT", footer, "TOPLEFT", 0, 2)
-            footer.iron:SetPoint("RIGHT", footer, "TOPRIGHT", 0, 2)
+            footer.iron:SetPoint("TOP", footer, "TOP", 0, 6)
+            footer.iron:SetPoint("LEFT", f, "LEFT", 11, 0)
+            footer.iron:SetPoint("RIGHT", f, "RIGHT", -12, 0)
         end
         footer.iron:SetShown(classic)
         local inset = classic and CLASSIC_EDGE or BANNER_INSET

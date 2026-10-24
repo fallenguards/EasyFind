@@ -358,7 +358,8 @@ local function DressSelector(btn)
     local classic = ns.IsClassicChrome()
     local era = btn._efEra
     if classic and not era then
-        local k = (btn:GetHeight() or 22) / 33
+        local k = 28 / 33
+        local up = 15 * k + (28 - (btn:GetHeight() or 22)) / 2
         era = {}
         for i, u in ipairs({ { 0, 0.1953125 }, { 0.1953125, 0.8046875 }, { 0.8046875, 1 } }) do
             local t = btn:CreateTexture(nil, "BACKGROUND", nil, 2)
@@ -368,14 +369,14 @@ local function DressSelector(btn)
             era[i] = t
         end
         era[1]:SetWidth(25 * k)
-        era[1]:SetPoint("TOPLEFT", btn, "TOPLEFT", -13 * k, 15 * k)
+        era[1]:SetPoint("TOPLEFT", btn, "TOPLEFT", -13 * k, up)
         era[3]:SetWidth(25 * k)
-        era[3]:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 13 * k, 15 * k)
+        era[3]:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 13 * k, up)
         era[2]:SetPoint("TOPLEFT", era[1], "TOPRIGHT")
         era[2]:SetPoint("TOPRIGHT", era[3], "TOPLEFT")
         era.arrow = btn:CreateTexture(nil, "ARTWORK")
         era.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
-        era.arrow:SetSize(20, 20)
+        era.arrow:SetSize(24 * k, 24 * k)
         era.arrow:SetPoint("RIGHT", btn, "RIGHT", 1, 0)
         era.hl = btn:CreateTexture(nil, "HIGHLIGHT")
         era.hl:SetTexture("Interface\\Buttons\\UI-Common-MouseHilight")
@@ -464,7 +465,29 @@ local optionsFlyouts = {}
 -- A dropdown's ring and fill: the theme's border color round the card
 -- fill, opaque (a fill left unnamed is matched to a card by color and takes
 -- the card's see-through alpha on the next retint).
+local ERA_LIST = {
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 },
+}
 local function PaintFlyoutWell(flyout)
+    -- Classic: Era's dropdown list, its metal 2 px inside the list's edge.
+    local classic = ns.IsClassicChrome()
+    local back = flyout._efEraList
+    if classic and not back then
+        back = CreateFrame("Frame", nil, flyout, "BackdropTemplate")
+        back:SetPoint("TOPLEFT", flyout, "TOPLEFT", -9, 9)
+        back:SetPoint("BOTTOMRIGHT", flyout, "BOTTOMRIGHT", 9, -9)
+        back:SetFrameLevel(flyout:GetFrameLevel())
+        back:EnableMouse(false)
+        back:SetBackdrop(ERA_LIST)
+        flyout._efEraList = back
+    end
+    if back then back:SetShown(classic) end
+    ns.SetRoundedRectBorderShown(flyout, not classic)
+    ns.SetRoundedRectBorderEdgeShown(flyout, false)
+    if flyout.ringInset then flyout.ringInset:SetShown(not classic) end
     local theme = Look().theme
     local ring = theme and theme.resultsBackdropBorderColor or { 0.42, 0.42, 0.42 }
     flyout._efNoAutoRetint = true
@@ -749,7 +772,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
     text._efSearchLabel = true   -- the settings search indexes this label
     checkbox._efTooltip = tooltipText
 
-    local track = CreateFrame("Frame", nil, checkbox)
+    local track = CreateFrame("Frame", nil, checkbox)   -- starts shown: UpdateVisual below sets it before the first draw
     track:SetSize(toggleW, toggleH)
     if toggleLeft then
         track:SetPoint("LEFT", checkbox, "LEFT", toggleLeft, 0)
@@ -5800,9 +5823,11 @@ function Options:Initialize()
     divider:SetColorTexture(1, 1, 1, 0.08)
     optionsFrame.sidebarDivider = divider
     -- Classic: no panel for the column, an iron bar between it and the page.
+    -- Top to bottom of the dialog border's metal (12 in at the top, 11 below).
     local sidebarIron = ns.CreateIronLine(optionsFrame, true)
-    sidebarIron:SetPoint("TOP", sidebar, "TOPRIGHT", 8, 0)
-    sidebarIron:SetPoint("BOTTOM", sidebar, "BOTTOMRIGHT", 8, 0)
+    sidebarIron:SetPoint("LEFT", sidebar, "RIGHT", 4, 0)
+    sidebarIron:SetPoint("TOP", optionsFrame, "TOP", 0, -12)
+    sidebarIron:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, 11)
     sidebarIron:SetFrameLevel(sidebar:GetFrameLevel() + 2)
 
     -- The nav column's surface per theme.
