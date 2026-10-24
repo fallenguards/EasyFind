@@ -3679,9 +3679,10 @@ function ns.SetRoundedRectBorderColor(frame, r, g, b, a, snapOff)
     end
 end
 
+-- The ring as SetRoundedRectRingShown sets it: recorded, so a skin taken
+-- off brings it back only where it was wanted.
 function ns.SetRoundedRectBorderEdgeShown(frame, shown)
-    if not (frame and frame.combinedBorder and frame.combinedBorder.border) then return end
-    for _, t in pairs(frame.combinedBorder.border) do t:SetShown(shown) end
+    ns.SetRoundedRectRingShown(frame, shown)
 end
 
 -- Wizard-style panel gloss shared by the tutorial wizard, options panel, and

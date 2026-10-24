@@ -389,6 +389,23 @@ function tests.classic_borderOff_isRounded()
     borderOption(nil)
 end
 
+-- The tutorial's tiles hide their ring this way; off the Classic theme
+-- the ring came back, broken into light pixels at their small corners.
+function tests.edgeOff_staysOffWhenTheSkinComesOff()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = classicSurface()
+    ns.SetRoundedRectBorderEdgeShown(f, false)
+    ns.ApplySkin(f)
+    H.assertEq(f._efSkin, "classic")
+    ns.ACTIVE_UI_PALETTE = PLAIN
+    ns.ApplySkin(f)
+    H.assertNil(f._efSkin)
+    H.assertTrue(roundedShown(f, "fill") and not roundedShown(f, "border"), "rounded, no ring")
+    borderOption(nil)
+end
+
 function tests.classicWindow_usesTheDialogFrame()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = CLASSIC
