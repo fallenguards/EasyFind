@@ -19,11 +19,26 @@ local function fakeWidget()
     return w
 end
 
+-- A frame whose textures keep their color (Utils caches CreateFrame).
+local function Paintable()
+    local f = { textures = {} }
+    function f:IsMouseOver() return false end
+    function f:CreateTexture()
+        local t = {}
+        function t:SetVertexColor(r, g, b) self.rgb = { r, g, b } end
+        self.textures[#self.textures + 1] = t
+        return setmetatable(t, { __index = function() return function() end end })
+    end
+    return setmetatable(f, { __index = function(_, k)
+        if type(k) == "string" and k:match("^%u") then return function() end end
+    end })
+end
+
 -- The real Shared/Utils.lua, its surface and skin answered by the test.
 local function LoadRamp(surface, classic)
     local env = H.newEnv()
     local ns = H.newNs(env)
-    env.CreateFrame = fakeWidget
+    env.CreateFrame = function() return env.paintable and Paintable() or fakeWidget() end
     env.CreateFont = fakeWidget
     env.CreateColor = function(r, g, b, a) return { r, g, b, a } end
     env.UIParent, env.WorldFrame, env.GameTooltip = fakeWidget(), fakeWidget(), fakeWidget()
@@ -35,7 +50,7 @@ local function LoadRamp(surface, classic)
     H.loadModule("Shared/Utils.lua", env, ns)
     ns.ThemeSurfaceOf = function() return surface end
     ns.IsClassicChrome = function() return classic end
-    return ns
+    return ns, env
 end
 
 -- A button's nine fill pieces, each keeping its flat color or its ramp.
@@ -83,6 +98,21 @@ function tests.everyRepaintKeepsTheRamp()
     H.assertTrue(Near(btn.combinedBorder.fill.tm.top[1], 0.4 * 0.65), "the hover color ramps")
     ns.SetRoundedRectFill(btn, 0.1, 0.1, 0.1, 1, true)
     H.assertTrue(Near(btn.combinedBorder.fill.tm.top[1], 0.1 * 0.65), "the theme's repaint ramps")
+end
+
+-- A window's X read the theme only when painted: a theme change left it
+-- in the old colors until hovered.
+function tests.aThemeChangeRepaintsEveryCloseX()
+    local ns, env = LoadRamp("options", false)
+    local theme = { textFaint = { 0.5, 0.5, 0.5 } }
+    ns.Results = { GetActiveTheme = function() return theme end }
+    env.paintable = true
+    local x = ns.CreateCloseX(Paintable())
+    local stroke = x.textures[1]
+    H.assertTrue(Near(stroke.rgb[1], 0.5), "the theme's faint text at rest")
+    theme = { textFaint = { 0.9, 0.1, 0.1 } }
+    ns.RetintCloseXs()
+    H.assertTrue(Near(stroke.rgb[1], 0.9) and Near(stroke.rgb[2], 0.1), "the new theme's, unhovered")
 end
 
 function tests.otherWindowsAndTheClassicSkinStayFlat()

@@ -2601,13 +2601,17 @@ ns.FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 }
 
 -- The quest log page as the client serves it: its 2x art where there is one
 -- (sharp on any screen), and how many 2x art pixels one of its pixels is.
+-- Without the client's page (the classic clients): our 1x copy of it.
+FOREVER.SHIPPED_PAGE = { file = "Interface\\AddOns\\EasyFind\\textures\\QuestPaper", width = 307, height = 510,
+    leftTexCoord = 0, rightTexCoord = 307 / 512, topTexCoord = 0, bottomTexCoord = 510 / 512 }
 function FOREVER.Page()
-    if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
-    for _, try in ipairs({ { "-2x", 1 }, { "", 2 } }) do
-        local info = C_Texture.GetAtlasInfo(FOREVER.fillAtlas .. try[1])
-        if info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0 then return info, try[2] end
+    if C_Texture and C_Texture.GetAtlasInfo then
+        for _, try in ipairs({ { "-2x", 1 }, { "", 2 } }) do
+            local info = C_Texture.GetAtlasInfo(FOREVER.fillAtlas .. try[1])
+            if info and info.file and (info.width or 0) > 0 and (info.height or 0) > 0 then return info, try[2] end
+        end
     end
-    return nil
+    return FOREVER.SHIPPED_PAGE, 2
 end
 
 function ns.IsForeverChrome()
@@ -4665,6 +4669,7 @@ local function ResolveXColor(explicit, field, fallback)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     return (theme and theme[field]) or fallback
 end
+ns.CloseXs = setmetatable({}, { __mode = "k" })
 function ns.CreateCloseX(parent, size)
     size = size or 18
     local btn = CreateFrame("Button", nil, parent)
@@ -4696,7 +4701,13 @@ function ns.CreateCloseX(parent, size)
         btn._xHover = hover
         if btn:IsMouseOver() then paintHover() else paintRest() end
     end
+    ns.CloseXs[btn] = true
     return btn
+end
+
+-- A theme change repaints every X in its new colors.
+function ns.RetintCloseXs()
+    for btn in pairs(ns.CloseXs) do btn:SetXColors(btn._xRest, btn._xHover) end
 end
 
 -- Read-only feel for the export code box: user keystrokes revert to the
@@ -6706,9 +6717,16 @@ end
 
 -- A superscript tag on a word: its foot on the middle of the text, just past
 -- the last letter, so it sits raised like an exponent.
+-- A word sized by its text carries the badge along through a later font or
+-- text change (the chat's brand, restyled after this ran); one pinned at
+-- both sides is measured.
 function ns.SuperscriptTag(tag, fontString)
     tag:ClearAllPoints()
-    tag:SetPoint("BOTTOMLEFT", fontString, "LEFT", (fontString:GetStringWidth() or 0) + 1, 1)
+    if fontString:GetNumPoints() == 1 then
+        tag:SetPoint("BOTTOMLEFT", fontString, "RIGHT", 1, 1)
+    else
+        tag:SetPoint("BOTTOMLEFT", fontString, "LEFT", (fontString:GetStringWidth() or 0) + 1, 1)
+    end
 end
 
 function ns.CreateBounceFloat(region, offsetX, offsetY, duration)

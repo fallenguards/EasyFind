@@ -273,12 +273,13 @@ function tests.otherClientsArt_wearsOurCopyOfTheBand()
     local g = surface(true)
     ns.ApplyThemeFill(g)
     H.assertTrue(g._efForeverOn and g._efForever.pieces.left.tex == "Interface\\AddOns\\EasyFind\\textures\\ForeverBandLeft")
-    -- Without the quest log's fill the window keeps the rounded look.
+    -- No quest log page either (the classic clients): our copy of the page;
+    -- without one the skin never built there.
     env.C_Texture = { GetAtlasInfo = function() return nil end }
     local h = surface(true)
     ns.ApplyThemeFill(h)
-    H.assertTrue(not h._efForeverOn, "no fill, no skin")
-    H.assertTrue(roundedShown(h, "fill"), "the rounded panel is there")
+    H.assertTrue(h._efForeverOn, "the iron frame")
+    H.assertEq(h._efForever.fill.tex, "Interface\\AddOns\\EasyFind\\textures\\QuestPaper", "on our page")
 end
 
 function tests.divider_isOneScreenPixelOfBronze()

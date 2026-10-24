@@ -412,6 +412,16 @@ local function PillFill(f)
     return fill[1], fill[2], fill[3]
 end
 
+-- A hotkey pill sits on the window, not the footer band: above the
+-- window's brightest stop, or it is the window's own color.
+local function KbPillFill(hover)
+    local pal = ns.ACTIVE_UI_PALETTE
+    local top = pal and not pal.light and pal.windowFillTop
+    if not top then return PillFill(hover and 1 or 0) end
+    local s, lift = hover and 1.5 or 1.3, hover and 0.08 or 0.05
+    return math.min(1, top[1] * s + lift), math.min(1, top[2] * s + lift), math.min(1, top[3] * s + lift)
+end
+
 -- The flat "tab-group" fill for the current theme, mirroring the options
 -- sidebar: dark gradient themes derive a theme-hued shade from their upper
 -- stop; light and Black themes use the section-table slate. Shared by the
@@ -1162,7 +1172,7 @@ local function CreateKbWidget(parent, action, label)
             local windowFill = ns.SEARCH_WINDOW_FILL_COLOR
             fs:SetTextColor(windowFill[1], windowFill[2], windowFill[3], 1)
         else
-            ns.SetRoundedRectBorderFillColor(btn, PillFill(hover and 1 or 0))
+            ns.SetRoundedRectBorderFillColor(btn, KbPillFill(hover))
             fs:SetTextColor(Utils.RGB(TEXT_PRIM, 1))
         end
     end

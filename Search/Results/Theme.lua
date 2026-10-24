@@ -542,6 +542,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     -- glyphs in the theme's colors.
     if ns.FlatTextEverywhere then ns.FlatTextEverywhere() end
     if ns.RetintCogs then ns.RetintCogs() end
+    if ns.RetintCloseXs then ns.RetintCloseXs() end
     -- Let registered windows (calculator popup) restyle to the new palette
     -- while open.
     if ns.FireThemeCallbacks then ns.FireThemeCallbacks() end
