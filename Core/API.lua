@@ -29,7 +29,7 @@ Extensions.LEGACY_FLAGS = LEGACY_FLAGS
 local FIELDS = {
     id = "string", name = "string", description = "string", icon = "texture", iconCoords = "table",
     addon = "string", loadInCombat = "boolean", loadAtLogin = "boolean", open = "function", close = "function",
-    isOpen = "function", menu = "function", settings = "function", keywords = "table",
+    isOpen = "function", menu = "function", settings = "function", settingsRows = "function", keywords = "table",
     hideFromSearch = "boolean", experimental = "string", scope = "string",
 }
 
@@ -300,8 +300,10 @@ end
 -- color), iconCoords, description, addon (a load-on-demand addon loaded
 -- on first open), loadAtLogin (loaded at login instead: it works unopened),
 -- loadInCombat, open, close, isOpen, menu (rows for its right-click menu),
--- settings(page, kit), keywords, hideFromSearch, experimental, scope (its
--- surface is that @scope's list in the results).
+-- settings(page, kit), settingsRows (its page's settings as search bar rows,
+-- read with no page built: { name, control = { kind, get, set, ... } }),
+-- keywords, hideFromSearch, experimental, scope (its surface is that
+-- @scope's list in the results).
 -- Registering an id again adds to it: a stub's tile, then the rest.
 function API.RegisterExtension(def)
     if type(def) ~= "table" then Fail("RegisterExtension", "expects a table") end
@@ -325,6 +327,9 @@ function API.RegisterExtension(def)
             id = id, name = rec.name, icon = rec.icon, coords = rec.iconCoords, companion = rec.addon,
             build = function(page, ctx) Run(rec.settings, page, Kit(ctx)) end,
         })
+    end
+    if def.settingsRows and ns.SettingsRows then
+        ns.SettingsRows.AddExtension(id, rec.name, rec.settingsRows)
     end
     RefreshSurfaces()
     return true

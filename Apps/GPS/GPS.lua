@@ -5351,225 +5351,258 @@ local function RecordKnownFlights()
     end)
 end
 
--- The GPS page in the options' Extensions tab: how the beacon looks, or
--- no beacon (the same switch as the beacon row in the GPS menu).
-local function BuildOptionsPage(page, kit)
-    local WorldPin = ns.GPSWorldPin
-    -- The lines' colors: a swatch per way of travel, the theme's beacon
-    -- color until one is picked, and again on a right-click or its arrow.
-    local colorRow = CreateFrame("Frame", nil, page)
-    colorRow:SetSize(kit.ROW_WIDTH, 24)
-    colorRow:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -6)
-    local colorHead = colorRow:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    colorHead:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
-    colorHead:SetText(L["GPS_LINE_COLORS"])
-    local prevRow = colorRow
-    local ways = { { "walk", L["GPS_LINE_WALK"] }, { "taxi", L["GPS_AVOID_TAXI"] }, { "boat", L["GPS_AVOID_BOAT"] },
-                   { "zeppelin", L["GPS_AVOID_ZEPPELIN"] }, { "tram", L["GPS_LINE_TRAM"] } }
-    local swatches = {}
-    local function PaintSwatches()
-        local Preview = ns.GPSPreview
-        local set = DB() and DB().gpsLineColors
-        for i = 1, #swatches do
-            local c = Preview and Preview.LineColor(swatches[i].kind) or ns.GOLD_COLOR
-            swatches[i].fill:SetColorTexture(c[1], c[2], c[3], 1)
-            swatches[i].revert:SetShown(set ~= nil and set[swatches[i].kind] ~= nil)
-        end
+-- The GPS page in the options' Extensions tab: line colors, the beacon
+-- and arrow, switches and the ways of travel to avoid.
+local OptionsPage = {}
+do
+    OptionsPage.LINE_WAYS = { { "walk", "GPS_LINE_WALK" }, { "taxi", "GPS_AVOID_TAXI" }, { "boat", "GPS_AVOID_BOAT" },
+                        { "zeppelin", "GPS_AVOID_ZEPPELIN" }, { "tram", "GPS_LINE_TRAM" } }
+
+    function OptionsPage.LineColor(kind)
+        return ns.GPSPreview and ns.GPSPreview.LineColor(kind) or ns.GOLD_COLOR
     end
-    local function Changed()
-        PaintSwatches()
+
+    -- rgb nil: back to the theme's color.
+    function OptionsPage.SetLineColor(kind, rgb)
+        local db = DB()
+        if not db then return end
+        if rgb then
+            db.gpsLineColors = db.gpsLineColors or {}
+            db.gpsLineColors[kind] = rgb
+        elseif db.gpsLineColors then
+            db.gpsLineColors[kind] = nil
+            if next(db.gpsLineColors) == nil then db.gpsLineColors = nil end
+        end
         if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
     end
-    local function Revert(kind)
-        local db = DB()
-        if not (db and db.gpsLineColors) then return end
-        db.gpsLineColors[kind] = nil
-        if next(db.gpsLineColors) == nil then db.gpsLineColors = nil end
-        Changed()
-    end
-    for _, way in ipairs(ways) do
-        local kind, label = way[1], way[2]
-        local wrow = CreateFrame("Frame", nil, page)
-        wrow:SetSize(kit.ROW_WIDTH, 22)
-        wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 0, prevRow == colorRow and -2 or 0)
-        local text = wrow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        text:SetPoint("LEFT", wrow, "LEFT", 8, 0)
-        text:SetText(label)
-        local swatch = CreateFrame("Button", nil, wrow)
-        swatch:SetSize(18, 18)
-        -- Its left edge on the dropdowns' left edge.
-        swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
-        swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        ns.SquareOutline(swatch)
-        local fill = swatch:CreateTexture(nil, "ARTWORK")
-        fill:SetPoint("TOPLEFT", 1, -1)
-        fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        swatch.fill, swatch.kind = fill, kind
-        swatch.revert = ns.CreateRevertButton(wrow, 16, function() Revert(kind) end)
-        swatch.revert:SetPoint("LEFT", swatch, "RIGHT", 6, 0)
-        swatches[#swatches + 1] = swatch
-        swatch:SetScript("OnClick", function(_, button)
-            local db = DB()
-            if not db then return end
-            if button == "RightButton" then
-                Revert(kind)
-                return
-            end
-            local c = ns.GPSPreview and ns.GPSPreview.LineColor(kind) or ns.GOLD_COLOR
-            if not ns.PickColor then return end
-            ns.PickColor(c[1], c[2], c[3], function(r, g, b)
-                db.gpsLineColors = db.gpsLineColors or {}
-                db.gpsLineColors[kind] = { r, g, b }
-                Changed()
-            end)
+
+    function OptionsPage.PickLineColor(kind, after)
+        if not ns.PickColor then return end
+        local c = OptionsPage.LineColor(kind)
+        ns.PickColor(c[1], c[2], c[3], function(r, g, b)
+            OptionsPage.SetLineColor(kind, { r, g, b })
+            if after then after() end
         end)
-        Utils.AttachDelayedTooltip(swatch, "ANCHOR_RIGHT", function() return label, L["GPS_LINE_COLOR_TT"] end)
-        prevRow = wrow
     end
-    PaintSwatches()
-    -- The rest under a heading of its own: dropdowns, then switches.
-    local generalHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    generalHead:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 8, -14)
-    generalHead:SetText(_G["GENERAL"] or "General")
-    local choices = {
-        { label = L["GPS_BEACON_CALM"], value = "calm" },
-        { label = L["GPS_BEACON_FLAME"], value = "flame" },
-        { label = _G["OFF"] or "Off", value = "off" },
-    }
-    local row = kit.Choice(page, L["GPS_BEACON_STYLE"], choices,
-        function()
-            local db = DB()
-            if db and db.gpsWorldPin == false then return "off" end
-            return WorldPin and WorldPin.Style() or "calm"
-        end,
-        function(v)
-            local db = DB()
-            if not db then return end
-            db.gpsWorldPin = Utils.OffOrNil(v ~= "off")
-            if v ~= "off" then db.gpsBeaconStyle = v end
-            Refresh()
-        end,
-        L["GPS_BEACON_STYLE_TT"], WorldPin and WorldPin.DefaultStyle() or "calm")
-    row:SetPoint("TOPLEFT", generalHead, "BOTTOMLEFT", -8, -4)
-    local widths = {
-        { label = L["GPS_LINE_THIN"], value = "thin" },
-        { label = L["GPS_SIZE_NORMAL"], value = "normal" },
-        { label = L["GPS_LINE_THICK"], value = "thick" },
-    }
-    local lineRow = kit.Choice(page, L["GPS_LINE_WIDTH"], widths,
-        function() local db = DB() return db and db.gpsLineWidth or "normal" end,
-        function(v)
-            local db = DB()
-            if db then db.gpsLineWidth = (v ~= "normal") and v or nil end
-        end,
-        L["GPS_LINE_WIDTH_TT"], "normal")
-    lineRow:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -4)
-    local clicks = {
-        { label = L["CTX_GPS"], value = "gps" },
-        { label = L["GPS_MAP_CLICK_PIN"], value = "pin" },
-    }
-    local clickRow = kit.Choice(page, L["GPS_MAP_CLICK"], clicks,
-        function() local db = DB() return db and db.gpsMapClick or "gps" end,
-        function(v)
-            local db = DB()
-            if db then db.gpsMapClick = (v ~= "gps") and v or nil end
-        end,
-        L["GPS_MAP_CLICK_TT"], "gps")
-    clickRow:SetPoint("TOPLEFT", lineRow, "BOTTOMLEFT", 0, -4)
-    local texts = {
-        { label = L["GPS_ARROW_TEXT_FULL"], value = "full" },
-        { label = L["GPS_ARROW_TEXT_RANGE"], value = "range" },
-        { label = L["GPS_ARROW_TEXT_STEP"], value = "step" },
-        { label = _G["OFF"] or "Off", value = "off" },
-    }
-    local textRow = kit.Choice(page, L["GPS_ARROW_TEXT"], texts,
-        function() local db = DB() return db and db.gpsArrowText or "full" end,
-        function(v)
-            local db = DB()
-            if db then db.gpsArrowText = (v ~= "full") and v or nil end
-            Refresh()
-        end,
-        L["GPS_ARROW_TEXT_TT"], "full")
-    textRow:SetPoint("TOPLEFT", clickRow, "BOTTOMLEFT", 0, -4)
-    local sizes = {}
-    for i, c in ipairs(TEXT_SIZES) do sizes[i] = { label = L[c[2]], value = c[1] } end
-    local sizeRow = kit.Choice(page, L["GPS_POPOUT_TEXT"], sizes,
-        function() local db = DB() return db and db.gpsPopoutText or 1 end,
-        function(v)
-            local db = DB()
-            if db then db.gpsPopoutText = (v ~= 1) and v or nil end
-            Refresh()
-        end,
-        L["GPS_POPOUT_TEXT_TT"], 1)
-    sizeRow:SetPoint("TOPLEFT", textRow, "BOTTOMLEFT", 0, -4)
-    local plateBorder = kit.Checkbox(page, L["GPS_PLATE_BORDER"],
-        function() local d = DB() return d ~= nil and d.gpsPlateBorder == true end,
-        function(on)
-            local d = DB()
-            if d then d.gpsPlateBorder = on or nil end
-            if ns.GPSWorldPin and ns.GPSWorldPin.ApplyPlateBorders then ns.GPSWorldPin.ApplyPlateBorders() end
-        end, L["GPS_PLATE_BORDER_TT"])
-    plateBorder:SetPoint("TOPLEFT", sizeRow, "BOTTOMLEFT", 0, -6)
-    -- A switch stored only when off.
-    local function Switch(key, label, tip, after)
-        return kit.Checkbox(page, label,
-            function() local d = DB() return not (d and d[key] == false) end,
+
+    -- Danger needs the creature catalog, roads and jumps the walking grid.
+    function OptionsPage.AvoidKinds()
+        local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }
+        if ns.NPC_DATA and ns.NPC_DATA.danger then kinds[#kinds + 1] = "danger" end
+        if ns.GPSNav and ns.GPSNav.HasRoads and ns.GPSNav.HasRoads(0) then kinds[#kinds + 1] = "offroad" end
+        if ns.GPSNav and ns.GPSNav.DropHeights and ns.GPSNav.DropHeights(0) then kinds[#kinds + 1] = "jumps" end
+        return kinds
+    end
+
+    -- The page's settings as data: its controls and the search bar's rows.
+    -- label is the page's own text; name the bar's, its heading in front.
+    function OptionsPage.Rows()
+        local WorldPin = ns.GPSWorldPin
+        local Under = ns.SettingsRows.Under
+        local rows = {}
+        local function Add(key, label, name, control)
+            rows[#rows + 1] = { key = key, label = label, name = name or label, control = control }
+            rows[key] = rows[#rows]
+        end
+        for _, way in ipairs(OptionsPage.LINE_WAYS) do
+            local kind, label = way[1], L[way[2]]
+            Add("color_" .. kind, label, Under(L["GPS_LINE_COLORS"], label),
+                { kind = "button", tooltip = L["GPS_LINE_COLOR_TT"], press = function() OptionsPage.PickLineColor(kind) end })
+        end
+        local function Choice(key, label, tooltip, choices, default, get, set)
+            Add(key, label, nil, { kind = "choice", tooltip = tooltip, choices = choices, default = default, get = get, set = set })
+        end
+        Choice("beacon", L["GPS_BEACON_STYLE"], L["GPS_BEACON_STYLE_TT"], {
+                { label = L["GPS_BEACON_CALM"], value = "calm" }, { label = L["GPS_BEACON_FLAME"], value = "flame" },
+                { label = _G["OFF"] or "Off", value = "off" },
+            }, WorldPin and WorldPin.DefaultStyle() or "calm",
+            function()
+                local db = DB()
+                if db and db.gpsWorldPin == false then return "off" end
+                return WorldPin and WorldPin.Style() or "calm"
+            end,
+            function(v)
+                local db = DB()
+                if not db then return end
+                db.gpsWorldPin = Utils.OffOrNil(v ~= "off")
+                if v ~= "off" then db.gpsBeaconStyle = v end
+                Refresh()
+            end)
+        Choice("line", L["GPS_LINE_WIDTH"], L["GPS_LINE_WIDTH_TT"], {
+                { label = L["GPS_LINE_THIN"], value = "thin" }, { label = L["GPS_SIZE_NORMAL"], value = "normal" },
+                { label = L["GPS_LINE_THICK"], value = "thick" },
+            }, "normal",
+            function() local db = DB() return db and db.gpsLineWidth or "normal" end,
+            function(v)
+                local db = DB()
+                if db then db.gpsLineWidth = (v ~= "normal") and v or nil end
+            end)
+        Choice("click", L["GPS_MAP_CLICK"], L["GPS_MAP_CLICK_TT"], {
+                { label = L["CTX_GPS"], value = "gps" }, { label = L["GPS_MAP_CLICK_PIN"], value = "pin" },
+            }, "gps",
+            function() local db = DB() return db and db.gpsMapClick or "gps" end,
+            function(v)
+                local db = DB()
+                if db then db.gpsMapClick = (v ~= "gps") and v or nil end
+            end)
+        Choice("arrowText", L["GPS_ARROW_TEXT"], L["GPS_ARROW_TEXT_TT"], {
+                { label = L["GPS_ARROW_TEXT_FULL"], value = "full" }, { label = L["GPS_ARROW_TEXT_RANGE"], value = "range" },
+                { label = L["GPS_ARROW_TEXT_STEP"], value = "step" }, { label = _G["OFF"] or "Off", value = "off" },
+            }, "full",
+            function() local db = DB() return db and db.gpsArrowText or "full" end,
+            function(v)
+                local db = DB()
+                if db then db.gpsArrowText = (v ~= "full") and v or nil end
+                Refresh()
+            end)
+        local sizes = {}
+        for i, c in ipairs(TEXT_SIZES) do sizes[i] = { label = L[c[2]], value = c[1] } end
+        Choice("textSize", L["GPS_POPOUT_TEXT"], L["GPS_POPOUT_TEXT_TT"], sizes, 1,
+            function() local db = DB() return db and db.gpsPopoutText or 1 end,
+            function(v)
+                local db = DB()
+                if db then db.gpsPopoutText = (v ~= 1) and v or nil end
+                Refresh()
+            end)
+        local function Check(key, label, tooltip, get, set, name)
+            Add(key, label, name, { kind = "check", tooltip = tooltip, get = get, set = set })
+        end
+        Check("plateBorder", L["GPS_PLATE_BORDER"], L["GPS_PLATE_BORDER_TT"],
+            function() local d = DB() return d ~= nil and d.gpsPlateBorder == true end,
             function(on)
                 local d = DB()
-                if d then d[key] = Utils.OffOrNil(on) end
-                after()
-            end, tip)
-    end
-    local arrow = Switch("gpsArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], Refresh)
-    arrow:SetPoint("TOPLEFT", plateBorder, "BOTTOMLEFT", 0, 0)
-    local mini = Switch("gpsMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], Refresh)
-    mini:SetPoint("TOPLEFT", arrow, "BOTTOMLEFT", 0, 0)
-    local zones = Switch("gpsZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], function()
-        local route = Route()
-        if route and not route.arrived then Reroute(route) end
-    end)
-    zones:SetPoint("TOPLEFT", mini, "BOTTOMLEFT", 0, 0)
-    local rowBtn = Switch("gpsRowButton", L["GPS_ROW_BUTTON"], L["GPS_ROW_BUTTON_TT"], function()
-        if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
-        if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
-    end)
-    rowBtn:SetPoint("TOPLEFT", zones, "BOTTOMLEFT", 0, 0)
-    local chat = Switch("gpsChatArrive", L["GPS_CHAT_ARRIVE"], L["GPS_CHAT_ARRIVE_TT"], function() end)
-    chat:SetPoint("TOPLEFT", rowBtn, "BOTTOMLEFT", 0, 0)
-    local hideDone = kit.Checkbox(page, L["GPS_HIDE_DONE"],
-        function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
-        function(on)
-            local d = DB()
-            if d then d.gpsHideDone = on or nil end
-            Refresh()
-        end, L["GPS_HIDE_DONE_TT"])
-    hideDone:SetPoint("TOPLEFT", chat, "BOTTOMLEFT", 0, 0)
-    -- Ways of travel a route leaves out unless nothing else gets there.
-    local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    head:SetPoint("TOPLEFT", hideDone, "BOTTOMLEFT", 0, -14)
-    head:SetText(L["GPS_AVOID"])
-    local prev = head
-    local kinds = { "taxi", "boat", "zeppelin", "portal", "teleport" }
-    -- Danger needs the creature catalog, roads the walking grid (WoW Forever).
-    if ns.NPC_DATA and ns.NPC_DATA.danger then kinds[#kinds + 1] = "danger" end
-    if ns.GPSNav and ns.GPSNav.HasRoads and ns.GPSNav.HasRoads(0) then kinds[#kinds + 1] = "offroad" end
-    -- Jumps where the walking grid has drops.
-    if ns.GPSNav and ns.GPSNav.DropHeights and ns.GPSNav.DropHeights(0) then kinds[#kinds + 1] = "jumps" end
-    local ownTip = { danger = true, offroad = true, jumps = true }
-    for _, kind in ipairs(kinds) do
-        local tip = ownTip[kind] and L["GPS_AVOID_" .. kind:upper() .. "_TT"] or L["GPS_AVOID_TT"]
-        local box = kit.Checkbox(page, L["GPS_AVOID_" .. kind:upper()],
-            function() local d = DB() return d and d.gpsAvoid and d.gpsAvoid[kind] or false end,
+                if d then d.gpsPlateBorder = on or nil end
+                if ns.GPSWorldPin and ns.GPSWorldPin.ApplyPlateBorders then ns.GPSWorldPin.ApplyPlateBorders() end
+            end)
+        -- A switch stored only when off.
+        local function Switch(key, label, tip, after)
+            Check(key, label, tip,
+                function() local d = DB() return not (d and d[key] == false) end,
+                function(on)
+                    local d = DB()
+                    if d then d[key] = Utils.OffOrNil(on) end
+                    after()
+                end)
+        end
+        Switch("gpsArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], Refresh)
+        Switch("gpsMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], Refresh)
+        Switch("gpsZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], function()
+            local route = Route()
+            if route and not route.arrived then Reroute(route) end
+        end)
+        Switch("gpsRowButton", L["GPS_ROW_BUTTON"], L["GPS_ROW_BUTTON_TT"], function()
+            if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
+            if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
+        end)
+        Switch("gpsChatArrive", L["GPS_CHAT_ARRIVE"], L["GPS_CHAT_ARRIVE_TT"], function() end)
+        Check("hideDone", L["GPS_HIDE_DONE"], L["GPS_HIDE_DONE_TT"],
+            function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
             function(on)
                 local d = DB()
-                if not d then return end
-                d.gpsAvoid = d.gpsAvoid or {}
-                d.gpsAvoid[kind] = on or nil
-                local route = Route()
-                if route and not route.arrived then Reroute(route) end
-            end, tip)
-        box:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, prev == head and -4 or 0)
-        prev = box
+                if d then d.gpsHideDone = on or nil end
+                Refresh()
+            end)
+        local ownTip = { danger = true, offroad = true, jumps = true }
+        for _, kind in ipairs(OptionsPage.AvoidKinds()) do
+            local label = L["GPS_AVOID_" .. kind:upper()]
+            Check("avoid_" .. kind, label, ownTip[kind] and L["GPS_AVOID_" .. kind:upper() .. "_TT"] or L["GPS_AVOID_TT"],
+                function() local d = DB() return d and d.gpsAvoid and d.gpsAvoid[kind] or false end,
+                function(on)
+                    local d = DB()
+                    if not d then return end
+                    d.gpsAvoid = d.gpsAvoid or {}
+                    d.gpsAvoid[kind] = on or nil
+                    local route = Route()
+                    if route and not route.arrived then Reroute(route) end
+                end, Under(L["GPS_AVOID"], label))
+        end
+        return rows
+    end
+
+    function OptionsPage.Build(page, kit)
+        local rows = OptionsPage.Rows()
+        local colorRow = CreateFrame("Frame", nil, page)
+        colorRow:SetSize(kit.ROW_WIDTH, 24)
+        colorRow:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -6)
+        local colorHead = colorRow:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        colorHead:SetPoint("LEFT", colorRow, "LEFT", 8, 0)
+        colorHead:SetText(L["GPS_LINE_COLORS"])
+        local prevRow = colorRow
+        local swatches = {}
+        local function PaintSwatches()
+            local set = DB() and DB().gpsLineColors
+            for i = 1, #swatches do
+                local c = OptionsPage.LineColor(swatches[i].kind)
+                swatches[i].fill:SetColorTexture(c[1], c[2], c[3], 1)
+                swatches[i].revert:SetShown(set ~= nil and set[swatches[i].kind] ~= nil)
+            end
+        end
+        local function Revert(kind)
+            OptionsPage.SetLineColor(kind, nil)
+            PaintSwatches()
+        end
+        for _, way in ipairs(OptionsPage.LINE_WAYS) do
+            local kind = way[1]
+            local label = rows["color_" .. kind].label
+            local wrow = CreateFrame("Frame", nil, page)
+            wrow:SetSize(kit.ROW_WIDTH, 22)
+            wrow:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 0, prevRow == colorRow and -2 or 0)
+            local text = wrow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            text:SetPoint("LEFT", wrow, "LEFT", 8, 0)
+            text:SetText(label)
+            local swatch = CreateFrame("Button", nil, wrow)
+            swatch:SetSize(18, 18)
+            -- Its left edge on the dropdowns' left edge.
+            swatch:SetPoint("LEFT", wrow, "RIGHT", -kit.BUTTON_WIDTH - 8, 0)
+            swatch:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            ns.SquareOutline(swatch)
+            local fill = swatch:CreateTexture(nil, "ARTWORK")
+            fill:SetPoint("TOPLEFT", 1, -1)
+            fill:SetPoint("BOTTOMRIGHT", -1, 1)
+            swatch.fill, swatch.kind = fill, kind
+            swatch.revert = ns.CreateRevertButton(wrow, 16, function() Revert(kind) end)
+            swatch.revert:SetPoint("LEFT", swatch, "RIGHT", 6, 0)
+            swatches[#swatches + 1] = swatch
+            swatch:SetScript("OnClick", function(_, button)
+                if not DB() then return end
+                if button == "RightButton" then
+                    Revert(kind)
+                    return
+                end
+                OptionsPage.PickLineColor(kind, PaintSwatches)
+            end)
+            Utils.AttachDelayedTooltip(swatch, "ANCHOR_RIGHT", function() return label, L["GPS_LINE_COLOR_TT"] end)
+            prevRow = wrow
+        end
+        PaintSwatches()
+        -- The rest under a heading of its own: dropdowns, then switches.
+        local generalHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        generalHead:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 8, -14)
+        generalHead:SetText(_G["GENERAL"] or "General")
+        local function Control(key)
+            local r = rows[key]
+            local c = r.control
+            if c.kind == "choice" then return kit.Choice(page, r.label, c.choices, c.get, c.set, c.tooltip, c.default) end
+            return kit.Checkbox(page, r.label, c.get, c.set, c.tooltip)
+        end
+        local prev, gap = generalHead, -4
+        local function Place(key, x, y)
+            local control = Control(key)
+            control:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", x or 0, y or 0)
+            prev = control
+        end
+        Place("beacon", -8, gap)
+        for _, key in ipairs({ "line", "click", "arrowText", "textSize" }) do Place(key, 0, -4) end
+        Place("plateBorder", 0, -6)
+        for _, key in ipairs({ "gpsArrow", "gpsMinimap", "gpsZoneSteps", "gpsRowButton", "gpsChatArrive", "hideDone" }) do
+            Place(key)
+        end
+        -- Ways of travel a route leaves out unless nothing else gets there.
+        local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        head:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -14)
+        head:SetText(L["GPS_AVOID"])
+        prev = head
+        for _, kind in ipairs(OptionsPage.AvoidKinds()) do Place("avoid_" .. kind, 0, prev == head and -4 or 0) end
     end
 end
 
@@ -5589,7 +5622,7 @@ EasyFind.API.RegisterExtension({
         if GPS.LaunchesWindow() then return GPS:CloseWindow() end
         if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then ToggleWorldMap() end
     end,
-    settings = BuildOptionsPage,
+    settings = OptionsPage.Build, settingsRows = OptionsPage.Rows,
 })
 -- What other extensions ask of it. dest: { name, mapID, x, y } (map
 -- coordinates 0..1). Events: routeStarted(dest), arrived(dest), routeCleared.

@@ -1203,12 +1203,10 @@ local function OnPlayerLogin()
     if not regOk then
         EasyFind:Print("|cffff4444" .. (L["ERR_OPTIONS_REGISTER_FAILED"]):format(tostring(regErr)) .. "|r")
     end
-    -- Our own settings in the search bar, through the door other addons use.
+    -- Our own settings in the search bar, through the door other addons use;
+    -- declared rows, so no options window builds for them.
     if EasyFind.API and EasyFind.API.RegisterSettingsIndex then
-        EasyFind.API.RegisterSettingsIndex("EasyFind", function()
-            if not (ns.RequestOptionsPanel() and ns.Options and ns.Options.SettingsIndexRows) then return nil end
-            return ns.Options:SettingsIndexRows()
-        end)
+        EasyFind.API.RegisterSettingsIndex("EasyFind", ns.SettingsRows.Rows)
     end
     InstallClassFilterHooks()
     if ns.ControlSync and ns.ControlSync.ArmAllAtLogin then

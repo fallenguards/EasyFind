@@ -9336,16 +9336,108 @@ local function NotesBorderValue()
     return "line"
 end
 
+function notesNS.PickTooltipColor(after)
+    if not ns.PickColor then return end
+    local c = UI:GetEasyNotesTooltipColor()
+    ns.PickColor(c.r, c.g, c.b, function(r, g, b)
+        NormalizeDB().tooltipColor = { r = r, g = g, b = b }
+        if after then after() end
+    end)
+end
+
+-- The page's Reset all: text size, tooltip color, scale and opacity.
+function notesNS.ResetLook()
+    UI:AdjustEasyNotesFontSize(nil, true)
+    NormalizeDB().tooltipColor = nil
+    UI:AdjustEasyNotesUIScale(nil, nil, UI_SCALE_DEFAULT)
+    UI:AdjustEasyNotesOpacity(nil, nil, OPACITY_DEFAULT)
+end
+
+-- A chip kind shown over the list; its types switch together.
+local function ChipKindOn(kind)
+    return not (NormalizeDB().chipKindsOff or {})[kind.types[1]]
+end
+
+local function SetChipKind(kind, on)
+    local set = NormalizeDB().chipKindsOff or {}
+    for _, t in ipairs(kind.types) do set[t] = (not on) or nil end
+    NormalizeDB().chipKindsOff = next(set) and set or nil
+    UI:RefreshEasyNotesPalette()
+end
+
+-- The page's settings as data: its controls and the search bar's rows.
+function notesNS.SettingRows()
+    local function Row(name, kind, tooltip, get, set, extra)
+        local control = { kind = kind, tooltip = tooltip, get = get, set = set }
+        for k, v in pairs(extra or {}) do control[k] = v end
+        return { name = name, control = control }
+    end
+    local rows = {
+        Row(L["NOTES_WINDOW_SCALE"], "slider", nil,
+            function() return math.floor((NormalizeDB().uiScale or UI_SCALE_DEFAULT) * 100 + 0.5) end,
+            function(v) UI:AdjustEasyNotesUIScale(nil, nil, v / 100) end,
+            { min = UI_SCALE_MIN * 100, max = UI_SCALE_MAX * 100, step = UI_SCALE_STEP * 100 }),
+        Row(L["NOTES_WINDOW_OPACITY"], "slider", nil,
+            function() return math.floor((NormalizeDB().opacity or OPACITY_DEFAULT) * 100 + 0.5) end,
+            function(v) UI:AdjustEasyNotesOpacity(nil, nil, v / 100) end,
+            { min = OPACITY_MIN * 100, max = OPACITY_DEFAULT * 100, step = OPACITY_STEP * 100 }),
+        Row(L["NOTES_LOCK"], "check", L["NOTES_LOCK_TT"],
+            function() return NormalizeDB().locked == true end,
+            function(on)
+                NormalizeDB().locked = on or nil
+                UI:ApplyEasyNotesWindowLook()
+            end),
+        Row(L["NOTES_BORDER"], "choice", L["NOTES_BORDER_TT"], NotesBorderValue,
+            function(v)
+                local db = NormalizeDB()
+                db.border = Utils.OffOrNil(v ~= "off")
+                db.borderStyle = v == "iron" and "iron" or nil
+                UI:ApplyEasyNotesWindowLook()
+            end,
+            { choices = NotesBorderChoices(), default = "line" }),
+        Row(L["NOTES_AUTO_RESIZE"], "check", nil,
+            function() return NormalizeDB().autoResize and true or false end,
+            function(on)
+                if (NormalizeDB().autoResize and true or false) ~= on then UI:ToggleEasyNotesAutoResize() end
+            end),
+        Row(L["NOTES_CLASS_COLORS"], "check", L["NOTES_CLASS_COLORS_TT"],
+            function() return NormalizeDB().classColorTags ~= false end,
+            function(on)
+                NormalizeDB().classColorTags = Utils.OffOrNil(on)
+                UI:RefreshEasyNotesPalette()
+            end),
+        Row(L["NOTES_OPT_FOLD_HOVER"], "check", L["NOTES_OPT_FOLD_HOVER_TT"],
+            function() return NormalizeDB().foldHoverOnly == true end,
+            function(on)
+                NormalizeDB().foldHoverOnly = on or nil
+                UI.RefreshEasyNotesFoldShown()
+            end),
+        Row(L["NOTES_TOOLTIP_COLOR"], "button", L["NOTES_TOOLTIP_COLOR_TT"], nil, nil,
+            { press = function() notesNS.PickTooltipColor() end }),
+        Row(L["OPT_KEYBIND_HOVER_NOTE"], "keybind", nil, nil, nil, { action = "EASYFIND_HOVER_NOTE" }),
+    }
+    local Under = ns.SettingsRows.Under
+    for _, kind in ipairs(Ctx.KindList()) do
+        rows[#rows + 1] = Row(Under(L["NOTES_CHIP_KINDS"], kind.label), "check", L["NOTES_CHIP_KINDS_TT"],
+            function() return ChipKindOn(kind) end, function(on) SetChipKind(kind, on) end)
+    end
+    rows[#rows + 1] = Row(L["NOTES_RESET_ALL"], "button", nil, nil, nil, { press = notesNS.ResetLook })
+    return rows
+end
+
 -- The extension's settings page: how the window sits and looks.
 function notesNS.BuildSettingsPage(page, kit)
     local hint = kit.Title(page, L["APP_NOTES"], L["NOTES_SETTINGS_HINT"])
-    local scaleRow = kit.Stepper(page, L["NOTES_WINDOW_SCALE"], UI_SCALE_MIN * 100, UI_SCALE_MAX * 100, UI_SCALE_STEP * 100,
-        function() return math.floor((NormalizeDB().uiScale or UI_SCALE_DEFAULT) * 100 + 0.5) end,
-        function(v) UI:AdjustEasyNotesUIScale(nil, nil, v / 100) end, nil, kit.ROW_WIDTH)
+    local rows = notesNS.SettingRows()
+    local function Control(i)
+        local r, c = rows[i], rows[i].control
+        if c.kind == "slider" then return kit.Stepper(page, r.name, c.min, c.max, c.step, c.get, c.set, c.tooltip, kit.ROW_WIDTH) end
+        if c.kind == "choice" then return kit.Choice(page, r.name, c.choices, c.get, c.set, c.tooltip, c.default) end
+        return kit.Checkbox(page, r.name, c.get, c.set, c.tooltip)
+    end
+    local scaleRow = Control(1)
     scaleRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -10)
-    local opacityRow = kit.Stepper(page, L["NOTES_WINDOW_OPACITY"], OPACITY_MIN * 100, OPACITY_DEFAULT * 100, OPACITY_STEP * 100,
-        function() return math.floor((NormalizeDB().opacity or OPACITY_DEFAULT) * 100 + 0.5) end,
-        function(v) UI:AdjustEasyNotesOpacity(nil, nil, v / 100) end, nil, kit.ROW_WIDTH)
+    local opacityRow = Control(2)
     opacityRow:SetPoint("TOPLEFT", scaleRow, "BOTTOMLEFT", 0, 0)
     -- The tooltip line's color: a swatch on the controls' left edge.
     local colorRow = CreateFrame("Frame", nil, page)
@@ -9367,29 +9459,11 @@ function notesNS.BuildSettingsPage(page, kit)
         local c = UI:GetEasyNotesTooltipColor()
         fill:SetColorTexture(c.r, c.g, c.b, 1)
     end
-    swatch:SetScript("OnClick", function()
-        if not ns.PickColor then return end
-        local c = UI:GetEasyNotesTooltipColor()
-        ns.PickColor(c.r, c.g, c.b, function(r, g, b)
-            NormalizeDB().tooltipColor = { r = r, g = g, b = b }
-            PaintSwatch()
-        end)
-    end)
+    swatch:SetScript("OnClick", function() notesNS.PickTooltipColor(PaintSwatch) end)
     PaintSwatch()
-    local lock = kit.Checkbox(page, L["NOTES_LOCK"],
-        function() return NormalizeDB().locked == true end,
-        function(on)
-            NormalizeDB().locked = on or nil
-            UI:ApplyEasyNotesWindowLook()
-        end, L["NOTES_LOCK_TT"])
+    local lock = Control(3)
     lock:SetPoint("TOPLEFT", colorRow, "BOTTOMLEFT", 0, -6)
-    local border = kit.Choice(page, L["NOTES_BORDER"], NotesBorderChoices(), NotesBorderValue,
-        function(v)
-            local db = NormalizeDB()
-            db.border = Utils.OffOrNil(v ~= "off")
-            db.borderStyle = v == "iron" and "iron" or nil
-            UI:ApplyEasyNotesWindowLook()
-        end, L["NOTES_BORDER_TT"], "line")
+    local border = Control(4)
     border:SetPoint("TOPLEFT", lock, "BOTTOMLEFT", 0, -2)
     if ns.RegisterThemeCallback then
         ns.RegisterThemeCallback(function()
@@ -9398,25 +9472,11 @@ function notesNS.BuildSettingsPage(page, kit)
             UI:ApplyEasyNotesWindowLook()
         end)
     end
-    local resize = kit.Checkbox(page, L["NOTES_AUTO_RESIZE"],
-        function() return NormalizeDB().autoResize and true or false end,
-        function(on)
-            if (NormalizeDB().autoResize and true or false) ~= on then UI:ToggleEasyNotesAutoResize() end
-        end)
+    local resize = Control(5)
     resize:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 0, 0)
-    local classColors = kit.Checkbox(page, L["NOTES_CLASS_COLORS"],
-        function() return NormalizeDB().classColorTags ~= false end,
-        function(on)
-            NormalizeDB().classColorTags = Utils.OffOrNil(on)
-            UI:RefreshEasyNotesPalette()
-        end, L["NOTES_CLASS_COLORS_TT"])
+    local classColors = Control(6)
     classColors:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", 0, 0)
-    local foldHover = kit.Checkbox(page, L["NOTES_OPT_FOLD_HOVER"],
-        function() return NormalizeDB().foldHoverOnly == true end,
-        function(on)
-            NormalizeDB().foldHoverOnly = on or nil
-            UI.RefreshEasyNotesFoldShown()
-        end, L["NOTES_OPT_FOLD_HOVER_TT"])
+    local foldHover = Control(7)
     foldHover:SetPoint("TOPLEFT", classColors, "BOTTOMLEFT", 0, 0)
     local hoverBind = kit.Keybind(page, L["OPT_KEYBIND_HOVER_NOTE"], "EASYFIND_HOVER_NOTE", L["OPT_KB_HOVER_NOTE_TT_DESC"])
     hoverBind:SetPoint("TOPLEFT", foldHover, "BOTTOMLEFT", -8, -4)
@@ -9433,16 +9493,11 @@ function notesNS.BuildSettingsPage(page, kit)
     local kindsBtn = ns.CreateModernButton(kindsRow, L["NOTES_CHIP_KINDS_PICK"], kit.BUTTON_WIDTH, 22)
     kindsBtn:SetPoint("RIGHT", kindsRow, "RIGHT", -8, 0)
     local function KindRows()
-        local rows, off = {}, NormalizeDB().chipKindsOff or {}
+        local rows = {}
         for _, k in ipairs(Ctx.KindList()) do
-            local on = not off[k.types[1]]
+            local on = ChipKindOn(k)
             rows[#rows + 1] = { text = k.label, keepOpen = true, icon = on and MENU_CHECK_TEX or nil,
-                onClick = function()
-                    local set = NormalizeDB().chipKindsOff or {}
-                    for _, t in ipairs(k.types) do set[t] = on or nil end
-                    NormalizeDB().chipKindsOff = next(set) and set or nil
-                    UI:RefreshEasyNotesPalette()
-                end }
+                onClick = function() SetChipKind(k, not on) end }
         end
         return rows
     end
@@ -9453,8 +9508,7 @@ function notesNS.BuildSettingsPage(page, kit)
     local reset = ns.CreateModernButton(page, L["NOTES_RESET_ALL"], kit.BUTTON_WIDTH, 22)
     reset:SetPoint("TOPLEFT", kindsRow, "BOTTOMLEFT", kit.ROW_WIDTH - 8 - kit.BUTTON_WIDTH, -8)
     reset:SetScript("OnClick", function()
-        UI:AdjustEasyNotesFontSize(nil, true)
-        NormalizeDB().tooltipColor = nil
+        notesNS.ResetLook()
         scaleRow:SetValue(UI_SCALE_DEFAULT * 100)
         opacityRow:SetValue(OPACITY_DEFAULT * 100)
         PaintSwatch()
@@ -9465,7 +9519,7 @@ end
 -- loads; the window is the rest.
 EasyFind.API.RegisterExtension({
     id = "notes", open = notesNS.Open, close = notesNS.Close, isOpen = notesNS.IsOpen,
-    settings = notesNS.BuildSettingsPage,
+    settings = notesNS.BuildSettingsPage, settingsRows = notesNS.SettingRows,
 })
 -- Its rich text editor and document model (the snippet editor uses
 -- them), and text put in at the open note's cursor.

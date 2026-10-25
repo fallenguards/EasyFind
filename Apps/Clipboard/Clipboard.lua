@@ -706,39 +706,62 @@ loginFrame:SetScript("OnEvent", function(self, event, addonName)
 end)
 
 -- Its settings: what it keeps, how much and for how long (pins are
--- exempt), and clearing it.
-local function BuildSettings(page, kit)
-    local anchor = kit.Title(page, L["FILTER_CLIPBOARD"], L["OPT_CLIPBOARD_HINT"])
-    local sources = {
-        { "clipboardCopied", "CLIP_OPT_COPIED" }, { "clipboardPasted", "CLIP_OPT_PASTED" },
-        { "clipboardChat", "CLIP_OPT_CHAT" }, { "clipboardWhispers", "CLIP_OPT_WHISPERS" },
-        { "clipboardSent", "CLIP_OPT_SENT" }, { "clipboardLastCopiedRow", "CLIP_OPT_LAST_ROW" },
-    }
-    for i, s in ipairs(sources) do
+-- exempt). One list for the page's controls and the search bar's rows.
+local SOURCES = {
+    { "clipboardCopied", "CLIP_OPT_COPIED" }, { "clipboardPasted", "CLIP_OPT_PASTED" },
+    { "clipboardChat", "CLIP_OPT_CHAT" }, { "clipboardWhispers", "CLIP_OPT_WHISPERS" },
+    { "clipboardSent", "CLIP_OPT_SENT" }, { "clipboardLastCopiedRow", "CLIP_OPT_LAST_ROW" },
+}
+
+local function SettingRows()
+    local rows = {}
+    for _, s in ipairs(SOURCES) do
         local key = s[1]
-        local box = kit.Checkbox(page, L[s[2]], function() return EasyFind.db[key] ~= false end,
-            function(on) EasyFind.db[key] = on end, L[s[2] .. "_TT"])
-        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
-        anchor = box
+        rows[#rows + 1] = { name = L[s[2]], control = { kind = "check", tooltip = L[s[2] .. "_TT"],
+            get = function() return EasyFind.db[key] ~= false end,
+            set = function(on) EasyFind.db[key] = on end } }
     end
     local counts = {}
     for _, n in ipairs({ 100, 200, 500, 1000 }) do counts[#counts + 1] = { label = tostring(n), value = n } end
-    local keepCount = kit.Choice(page, L["CLIP_OPT_KEEP_COUNT"], counts,
-        function() return tonumber(EasyFind.db.clipboardMaxEntries) or 200 end,
-        function(v)
+    rows[#rows + 1] = { name = L["CLIP_OPT_KEEP_COUNT"], control = { kind = "choice", tooltip = L["CLIP_OPT_KEEP_COUNT_TT"],
+        choices = counts, default = 200,
+        get = function() return tonumber(EasyFind.db.clipboardMaxEntries) or 200 end,
+        set = function(v)
             EasyFind.db.clipboardMaxEntries = v
             Clipboard:PruneNow()
-        end, L["CLIP_OPT_KEEP_COUNT_TT"], 200)
-    keepCount:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -8)
+        end } }
     local days = {}
     for _, d in ipairs({ 7, 30, 90 }) do days[#days + 1] = { label = Utils.sformat(L["CLIP_DAYS_FMT"], d), value = d } end
     days[#days + 1] = { label = L["CLIP_KEEP_FOREVER"], value = 0 }
-    local keepDays = kit.Choice(page, L["CLIP_OPT_KEEP_DAYS"], days,
-        function() return tonumber(EasyFind.db.clipboardMaxDays) or 30 end,
-        function(v)
+    rows[#rows + 1] = { name = L["CLIP_OPT_KEEP_DAYS"], control = { kind = "choice", tooltip = L["CLIP_OPT_KEEP_DAYS_TT"],
+        choices = days, default = 30,
+        get = function() return tonumber(EasyFind.db.clipboardMaxDays) or 30 end,
+        set = function(v)
             EasyFind.db.clipboardMaxDays = v
             Clipboard:PruneNow()
-        end, L["CLIP_OPT_KEEP_DAYS_TT"], 30)
+        end } }
+    rows[#rows + 1] = { name = L["OPT_KEYBIND_CLIPBOARD"], control = { kind = "keybind", action = "EASYFIND_CLIPBOARD" } }
+    rows[#rows + 1] = { name = L["CTX_CLIP_CLEAR"], control = { kind = "button",
+        press = function() Clipboard:ClearWithConfirm() end } }
+    return rows
+end
+
+local function BuildSettings(page, kit)
+    local anchor = kit.Title(page, L["FILTER_CLIPBOARD"], L["OPT_CLIPBOARD_HINT"])
+    local rows = SettingRows()
+    for i = 1, #SOURCES do
+        local c = rows[i].control
+        local box = kit.Checkbox(page, rows[i].name, c.get, c.set, c.tooltip)
+        box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
+        anchor = box
+    end
+    local function ChoiceOf(row)
+        local c = row.control
+        return kit.Choice(page, row.name, c.choices, c.get, c.set, c.tooltip, c.default)
+    end
+    local keepCount = ChoiceOf(rows[#SOURCES + 1])
+    keepCount:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -8, -8)
+    local keepDays = ChoiceOf(rows[#SOURCES + 2])
     keepDays:SetPoint("TOPLEFT", keepCount, "BOTTOMLEFT", 0, -4)
     local bind = kit.Keybind(page, L["OPT_KEYBIND_CLIPBOARD"], "EASYFIND_CLIPBOARD", L["OPT_KB_CLIPBOARD_TT_DESC"])
     bind:SetPoint("TOPLEFT", keepDays, "BOTTOMLEFT", 0, -4)
@@ -752,7 +775,7 @@ EasyFind.API.RegisterExtension({
     id = "clipboard", name = L["FILTER_CLIPBOARD"], description = L["APP_DESC_CLIPBOARD"],
     icon = ns.CLIPBOARD_ICON_TEX, iconCoords = ns.CLIPBOARD_ICON_COORDS,
     keywords = { "clipboard", "clipboard history", "history" },
-    scope = "clipboard", settings = BuildSettings,
+    scope = "clipboard", settings = BuildSettings, settingsRows = SettingRows,
 })
 
 -- The history a search lists: in plain results from the first keystroke

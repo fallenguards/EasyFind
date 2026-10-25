@@ -40,6 +40,7 @@ MapSearch/Frames.lua
 Core/Main.lua
 Core/VersionCheck.lua
 Core/API.lua
+Core/SettingsRows.lua
 Database/TeleportData.lua
 Database/Main.lua
 Database/SearchIndex.lua

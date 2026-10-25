@@ -124,11 +124,6 @@ local function ApplyDefaultKeys(keys)
     end
 end
 
-local function LiftPopupAboveOptions(self)
-    self:SetFrameStrata("TOOLTIP")
-    self:SetFrameLevel(1000)
-end
-
 local function ResetOptionsPosition()
     EasyFind.db.optionsPosition = nil
     if optionsFrame then
@@ -212,6 +207,10 @@ local function SyncOptionControls()
         optionsFrame.colorBtnText:SetText(ColorLabel(clr))
         optionsFrame.colorBtnText:SetTextColor(Utils.RGB(rgb))
     end
+    if optionsFrame.themeBtnText then
+        optionsFrame.themeBtnText:SetText(EasyFind.db.uiTheme or (ns.DB_DEFAULTS and ns.DB_DEFAULTS.uiTheme) or "Midnight")
+    end
+    if optionsFrame.SetIndicatorSelection then optionsFrame.SetIndicatorSelection(EasyFind.db.indicatorStyle or "EasyFind Arrow") end
     -- Account keybind store only: a stale native binding saved by an old
     -- version must never shadow what the player actually set here.
     if optionsFrame.toggleFocusBtn then optionsFrame.toggleFocusBtn:SetText(EasyFind:GetAccountKeybind("EASYFIND_TOGGLE_FOCUS") or (_G["NOT_BOUND"] or "Not Bound")) end
@@ -330,16 +329,7 @@ end
 
 -- A list card's scrollbar sits in the card's right margin, clear of the
 -- rows' remove buttons, instead of over the scroll frame's edge.
--- The locale key of each profile section's label. A lookup table, not a
--- key built from a prefix: the locale audit reads every quoted lookup in
--- the code as a literal key.
-local PROFILE_SECTION_LABEL_KEY = {
-    settings = "PROFILE_SECTION_SETTINGS", aliases = "PROFILE_SECTION_ALIASES",
-    shortkeys = "PROFILE_SECTION_SHORTKEYS", blacklist = "PROFILE_SECTION_BLACKLIST",
-    snippets = "PROFILE_SECTION_SNIPPETS", extbuttons = "PROFILE_SECTION_EXTBUTTONS",
-    pins = "PROFILE_SECTION_PINS", learned = "PROFILE_SECTION_LEARNED",
-    keybinds = "PROFILE_SECTION_KEYBINDS", quicklists = "PROFILE_SECTION_QUICKLISTS",
-}
+local PROFILE_SECTION_LABEL_KEY = ns.SettingsRows.PROFILE_SECTION_LABEL_KEY
 
 local function ParkScrollBarInMargin(bar, card, top)
     if not bar then return end
@@ -1682,6 +1672,7 @@ local function BuildGeneralBindsTab(ctx)
             (indicatorBtnText:GetStringWidth() / 2) + 5, 0)
     end
     SetIndicatorSelection(EasyFind.db.indicatorStyle or "EasyFind Arrow")
+    optionsFrame.SetIndicatorSelection = SetIndicatorSelection
     local defaultIndicatorStyle = (ns.DB_DEFAULTS and ns.DB_DEFAULTS.indicatorStyle) or "EasyFind Arrow"
     local function IndicatorStyleFlyoutLabel(name)
         local label = StyleLabel(name)
@@ -2611,15 +2602,11 @@ local function BuildMapTab(ctx)
     end
     optionsFrame.UpdateMapToggleVisual = UpdateMapToggleVisual
 
+    -- Off waits for the disable prompt's yes.
     mapEnableCheckbox:SetScript("OnClick", function(self)
-        if self:GetChecked() then
-            EasyFind.db.enableMapSearch = true
-            UpdateMapToggleVisual()
-            StaticPopup_Show("EASYFIND_RELOAD_PROMPT")
-        else
-            StaticPopup_Show("EASYFIND_DISABLE_MAP_SEARCH")
-            self:SetChecked(true)
-        end
+        local on = self:GetChecked() and true or false
+        ns.SettingsRows.SetMapEnabled(on)
+        if not on then self:SetChecked(true) end
     end)
 
     local mapSep = sec2:CreateTexture(nil, "ARTWORK")
@@ -2878,6 +2865,7 @@ local function BuildAliasesTab(ctx)
     aliasTools:SetHeight(24)
 
     local clearAliasesBtn = CreateModernButton(aliasTools, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    Options:AddAction("aliasesClear", clearAliasesBtn)
     clearAliasesBtn:SetPoint("RIGHT", aliasTools, "RIGHT", 0, 0)
 
     local aliasSearchShell = CreateFrame("Frame", nil, aliasTools)
@@ -3542,6 +3530,7 @@ local function BuildAliasesTab(ctx)
     end
 
     local exportBtn = CreateModernButton(shareTools, L["SHORTKEY_EXPORT"], SHARE_BTN_W, 22)
+    Options:AddAction("aliasesExport", exportBtn)
     exportBtn:SetPoint("LEFT", shareTools, "LEFT", 0, 0)
     UseShareButtonFill(exportBtn)
     -- Shift the label left so it stays centered in the space left of the cog.
@@ -3560,6 +3549,7 @@ local function BuildAliasesTab(ctx)
     end)
 
     local importBtn = CreateModernButton(shareTools, L["SHORTKEY_IMPORT"], SHARE_BTN_W, 22)
+    Options:AddAction("aliasesImport", importBtn)
     importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
     UseShareButtonFill(importBtn)
     importBtn:SetScript("OnClick", function()
@@ -3886,41 +3876,6 @@ local function BuildAliasesTab(ctx)
         })
     end)
 
-    -- These two stay Blizzard StaticPopups for now: they chain (disable ->
-    -- reload prompt) and use a custom decline label, pending a themed-dialog
-    -- migration decision.
-    StaticPopupDialogs["EASYFIND_DISABLE_MAP_SEARCH"] = {
-        text = L["POPUP_DISABLE_MAP_SEARCH"] .. "\n\n" .. L["POPUP_DISABLE_MAP_SEARCH_DETAIL"],
-        button1 = _G["DISABLE"] or "Disable",
-        button2 = _G["CANCEL"] or "Cancel",
-        OnAccept = function()
-            EasyFind.db.enableMapSearch = false
-            optionsFrame.UpdateMapToggleVisual()
-            if ns.MapSearch then
-                pcall(ns.MapSearch.ClearAll, ns.MapSearch)
-                pcall(ns.MapSearch.ClearZoneHighlight, ns.MapSearch)
-            end
-            StaticPopup_Show("EASYFIND_RELOAD_PROMPT")
-        end,
-        OnShow = LiftPopupAboveOptions,
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-        preferredIndex = 3,
-    }
-
-    StaticPopupDialogs["EASYFIND_RELOAD_PROMPT"] = {
-        text = L["POPUP_RELOAD_UI"],
-        button1 = _G["RELOADUI"] or "Reload Now",
-        button2 = L["POPUP_BTN_LATER"],
-        OnAccept = function() ReloadUI() end,
-        OnShow = LiftPopupAboveOptions,
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-        preferredIndex = 3,
-    }
-
     local resetAllBtn = CreateModernButton(sec3)
     resetAllBtn:SetSize(RESET_BTN_W, 20)
     resetAllBtn:SetPoint("LEFT", sec3, "LEFT", 16, 0)
@@ -3973,6 +3928,7 @@ local function BuildBlacklistTab(ctx)
     blTools:SetHeight(24)
 
     local clearBlacklistBtn = CreateModernButton(blTools, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    Options:AddAction("blacklistClear", clearBlacklistBtn)
     clearBlacklistBtn:SetPoint("RIGHT", blTools, "RIGHT", 0, 0)
 
     local blSearchShell = CreateFrame("Frame", nil, blTools)
@@ -4022,6 +3978,7 @@ local function BuildBlacklistTab(ctx)
     blShare:SetHeight(22)
 
     local blExportBtn = CreateModernButton(blShare, L["SHORTKEY_EXPORT"], 92, 22)
+    Options:AddAction("blacklistExport", blExportBtn)
     blExportBtn:SetPoint("LEFT", blShare, "LEFT", 0, 0)
     blExportBtn:SetScript("OnClick", function()
         local str, leftOut, leftOutRows = "", 0, nil
@@ -4030,6 +3987,7 @@ local function BuildBlacklistTab(ctx)
     end)
 
     local blImportBtn = CreateModernButton(blShare, L["SHORTKEY_IMPORT"], 92, 22)
+    Options:AddAction("blacklistImport", blImportBtn)
     blImportBtn:SetPoint("LEFT", blExportBtn, "RIGHT", 8, 0)
     blImportBtn:SetScript("OnClick", function()
         if optionsFrame.ShowShareString then
@@ -4229,6 +4187,7 @@ local function BuildSnippetsPage(ctx, page)
     snShare:SetPoint("RIGHT", snippetsTab, "RIGHT", -8, 0)
     snShare:SetHeight(22)
     local snClearBtn = CreateModernButton(snShare, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    Options:AddAction("snippetsClear", snClearBtn)
     snClearBtn:SetPoint("RIGHT", snShare, "RIGHT", 0, 0)
     snClearBtn:SetScript("OnClick", function()
         ns.ShowThemedDialog({
@@ -4242,6 +4201,7 @@ local function BuildSnippetsPage(ctx, page)
     end)
     -- Share buttons: a snippet code carries plain text only.
     local snExportBtn = CreateModernButton(snShare, L["SHORTKEY_EXPORT"], 92, 22)
+    Options:AddAction("snippetsExport", snExportBtn)
     snExportBtn:SetPoint("LEFT", snShare, "LEFT", 0, 0)
     snExportBtn:SetScript("OnClick", function()
         local str, leftOut, leftOutRows = "", 0, nil
@@ -4249,6 +4209,7 @@ local function BuildSnippetsPage(ctx, page)
         if optionsFrame.ShowShareString then optionsFrame.ShowShareString(true, str, nil, nil, leftOut, leftOutRows) end
     end)
     local snImportBtn = CreateModernButton(snShare, L["SHORTKEY_IMPORT"], 92, 22)
+    Options:AddAction("snippetsImport", snImportBtn)
     snImportBtn:SetPoint("LEFT", snExportBtn, "RIGHT", 8, 0)
     snImportBtn:SetScript("OnClick", function()
         if optionsFrame.ShowShareString then
@@ -4260,6 +4221,7 @@ local function BuildSnippetsPage(ctx, page)
     -- End of the share buttons.
 
     local createSnippetBtn = CreateModernButton(snTools, L["SNIPPET_CREATE"], 130, 22)
+    Options:AddAction("snippetsCreate", createSnippetBtn)
     createSnippetBtn:SetPoint("RIGHT", snTools, "RIGHT", 0, 0)
     createSnippetBtn:SetScript("OnClick", function()
         if ns.Snippets then ns.Snippets:OpenEditor(nil) end
@@ -4514,6 +4476,7 @@ local function BuildQuicklistsPage(ctx, page)
     tools:SetPoint("RIGHT", page, "RIGHT", -8, 0)
     tools:SetHeight(22)
     local newBtn = CreateModernButton(tools, L["QUICKLIST_NEW"], 140, 22)
+    Options:AddAction("quicklistsNew", newBtn)
     newBtn:SetPoint("RIGHT", tools, "RIGHT", 0, 0)
 
     local searchShell = CreateFrame("Frame", nil, tools)
@@ -4564,6 +4527,7 @@ local function BuildQuicklistsPage(ctx, page)
     share:SetPoint("RIGHT", page, "RIGHT", -8, 0)
     share:SetHeight(22)
     local exportBtn = CreateModernButton(share, L["SHORTKEY_EXPORT"], 92, 22)
+    Options:AddAction("quicklistsExport", exportBtn)
     exportBtn:SetPoint("LEFT", share, "LEFT", 0, 0)
     exportBtn:SetScript("OnClick", function()
         local str, leftOut, leftOutRows = "", 0, nil
@@ -4571,6 +4535,7 @@ local function BuildQuicklistsPage(ctx, page)
         if optionsFrame.ShowShareString then optionsFrame.ShowShareString(true, str, nil, nil, leftOut, leftOutRows) end
     end)
     local importBtn = CreateModernButton(share, L["SHORTKEY_IMPORT"], 92, 22)
+    Options:AddAction("quicklistsImport", importBtn)
     importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
     importBtn:SetScript("OnClick", function()
         if optionsFrame.ShowShareString then
@@ -4580,6 +4545,7 @@ local function BuildQuicklistsPage(ctx, page)
         end
     end)
     local clearBtn = CreateModernButton(share, L["OPT_CLEAR_ALL_BTN"], 78, 22)
+    Options:AddAction("quicklistsClear", clearBtn)
     clearBtn:SetPoint("RIGHT", share, "RIGHT", 0, 0)
     clearBtn:SetScript("OnClick", function()
         ns.ShowThemedDialog({
@@ -5008,6 +4974,7 @@ end
 
 local function SelectExtensionPage(id)
     extensionCurrent = id
+    if ns.SettingsRows then ns.SettingsRows.extensionPage = id end
     for _, entry in ipairs(extensionPages) do
         local on = entry.def.id == id
         if on then EnsureExtensionPage(entry) end
@@ -5095,6 +5062,7 @@ local function BuildExtensionsTab(ctx)
     local CreateTab = ctx.CreateTab
     extensionsTab = CreateTab(L["FILTER_EXTENSIONS"])
     extensionCtx = ctx
+    extensionCurrent = ns.SettingsRows and ns.SettingsRows.extensionPage or extensionCurrent
     Options._extensionsTabIndex = extensionsTab.tabIndex
     -- The header row: the tab title with the page picker right of it.
     extensionStrip = CreateFrame("Frame", nil, extensionsTab)
@@ -5118,6 +5086,66 @@ end
 -- A page registered after the panel was built joins the picker now.
 function Options:RefreshExtensionPages()
     if extensionsTab and extensionCtx then LayoutExtensionPicker() end
+end
+
+function Options:AddAction(key, btn)
+    optionsFrame.actions = optionsFrame.actions or {}
+    optionsFrame.actions[key] = btn
+end
+
+-- A settings row's button that is the window's own: the window at its
+-- tab or page, then the button pressed as a click would.
+function Options:RunAction(key, tab, pageID)
+    self:OpenAtSetting(tab, pageID, nil)
+    local btn = optionsFrame and optionsFrame.actions and optionsFrame.actions[key]
+    if btn and btn:IsShown() and btn:IsEnabled() then btn:Click() end
+end
+
+function Options:RefreshProfilesTab()
+    if optionsFrame and optionsFrame.RefreshProfilesTab then optionsFrame.RefreshProfilesTab() end
+end
+
+-- A settings row changed a value: the built window shows it.
+function Options:SyncControls()
+    if not optionsFrame then return end
+    pcall(SyncOptionControls)
+    if optionsFrame:IsShown() then
+        if ns.RegisterAddonFontsIn then ns.RegisterAddonFontsIn(optionsFrame) end
+        optionsFrame:RepaintTheme()
+    end
+end
+
+function Options:SelectExtensionPage(id)
+    if extensionsTab then SelectExtensionPage(id) end
+end
+
+function Options:ShowResultKind(key)
+    if optionsFrame and optionsFrame.ShowResultKind then optionsFrame.ShowResultKind(key) end
+end
+
+-- An index label against a row's name; a label cut short ends in "...".
+local function LabelMatches(label, name)
+    label = label:gsub(":%s*$", "")
+    if label == name then return true end
+    local cut = label:match("^(.-)%.%.%.$")
+    return cut ~= nil and cut ~= "" and name:sub(1, #cut) == cut
+end
+
+-- A settings row's click: the window at that setting, else at its tab.
+function Options:OpenAtSetting(tab, pageID, name)
+    self:Show()
+    if not (optionsFrame and optionsFrame.SettingsIndex) then return end
+    local first
+    for _, hit in ipairs(optionsFrame.SettingsIndex()) do
+        if optionsFrame.TabName(hit.tab) == tab and (pageID == nil or hit.pageID == pageID) then
+            if name and LabelMatches(hit.label, name) then
+                optionsFrame.JumpToSetting(hit)
+                return
+            end
+            first = first or hit
+        end
+    end
+    if first then optionsFrame.JumpToSetting(first) end
 end
 
 -- For the sidebar search: every page's controls, with the page they sit on.
@@ -5203,23 +5231,17 @@ local function BuildResultClicksTab(ctx)
     hint:SetJustifyH("LEFT")
     hint:SetWordWrap(true)
     hint:SetText(L["OPT_RESULT_CLICKS_HINT"])
-    local KIND_LABEL = {
-        mount = _G["MOUNTS"] or "Mounts", pet = _G["PETS"] or "Pets", toy = _G["TOYS"] or _G["TOY_BOX"] or "Toys",
-        heirloom = _G["HEIRLOOMS"] or "Heirlooms", outfit = L["FILTER_OUTFITS"], transmogSet = L["FILTER_APPEARANCE_SETS"],
-        ability = _G["ABILITIES"] or "Abilities", macro = _G["MACROS"] or "Macros", bag = _G["BAGSLOT"] or "Bags",
-        catalog = _G["ITEMS"] or "Items", loot = _G["LOOT"] or "Loot", title = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",
-        settingToggle = L["OPT_RESULT_KIND_TOGGLES"], settingPress = L["OPT_RESULT_KIND_BUTTONS"],
-        quickKeybind = L["OPT_RESULT_KIND_KEYBINDS"],
-    }
+    local SettingsRows = ns.SettingsRows
+    local KIND_LABEL = SettingsRows.ResultKindLabels()
     local kinds = Gestures.Kinds()
     local kindChoices = {}
     for i = 1, #kinds do kindChoices[i] = { value = kinds[i].key, label = KIND_LABEL[kinds[i].key] } end
-    local current = kinds[1]
+    local current = SettingsRows.ResultKind()
     local gestureRows, shiftLine, reset = {}, nil, nil
-    local GESTURE_LABEL = { click = L["HINT_CLICK"], alt = "Alt", ctrl = "Ctrl", shift = "Shift" }
     local shiftRow = #Gestures.GESTURES
     local function ShowKind(kind)
         current = kind
+        SettingsRows.resultKind = kind.key
         for i = 1, #Gestures.GESTURES do
             gestureRows[i]:SetChoices(Gestures.Choices(kind))
             gestureRows[i]:SetValue(Gestures.Get(kind.key, Gestures.GESTURES[i]))
@@ -5236,6 +5258,12 @@ local function BuildResultClicksTab(ctx)
         function() return current.key end,
         function(v) ShowKind(Gestures.Kind(v)) end, "EasyFindResultClicksKind")
     kindRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -12)
+    optionsFrame.ShowResultKind = function(key)
+        local kind = Gestures.Kind(key)
+        if not kind then return end
+        ShowKind(kind)
+        kindRow:SetValue(key)
+    end
     local sep = tab:CreateTexture(nil, "ARTWORK")
     sep:SetPoint("TOPLEFT", kindRow, "BOTTOMLEFT", 6, -6)
     sep:SetPoint("RIGHT", tab, "RIGHT", -12, 0)
@@ -5250,7 +5278,7 @@ local function BuildResultClicksTab(ctx)
     local anchor = sep
     for i = 1, #Gestures.GESTURES do
         local gesture = Gestures.GESTURES[i]
-        local row = CreateFlyoutPresetRow(tab, GESTURE_LABEL[gesture], Gestures.Choices(current),
+        local row = CreateFlyoutPresetRow(tab, SettingsRows.GestureLabel(gesture), Gestures.Choices(current),
             function() return Gestures.Get(current.key, gesture) end,
             function(v) Gestures.Set(current.key, gesture, v) end,
             "EasyFindResultClicks" .. gesture)
@@ -5371,10 +5399,12 @@ local function BuildProfilesTab(ctx)
 
     -- New / Rename / Reset profile, then Copy from / Delete.
     local newBtn = CreateModernButton(profilesTab)
+    Options:AddAction("profileNew", newBtn)
     newBtn:SetSize(BTN_W, 20)
     newBtn:SetPoint("TOPLEFT", pickRow, "BOTTOMLEFT", 8, -6)
     newBtn:SetText(L["PROFILE_NEW"])
     local renameBtn = CreateModernButton(profilesTab)
+    Options:AddAction("profileRename", renameBtn)
     renameBtn:SetSize(BTN_W, 20)
     renameBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
     renameBtn:SetText(L["PROFILE_RENAME"])
@@ -5511,6 +5541,7 @@ local function BuildProfilesTab(ctx)
         inclDefs, ctx.SELECTOR_BTN_W - 6)
 
     local exportBtn = CreateModernButton(profilesTab)
+    Options:AddAction("profileExport", exportBtn)
     exportBtn:SetSize(BTN_W, 20)
     exportBtn:SetPoint("TOPLEFT", inclRow, "BOTTOMLEFT", 8, -6)
     exportBtn:SetText(L["PROFILE_EXPORT"])
@@ -5528,6 +5559,7 @@ local function BuildProfilesTab(ctx)
         end
     end)
     local importBtn = CreateModernButton(profilesTab)
+    Options:AddAction("profileImport", importBtn)
     importBtn:SetSize(BTN_W, 20)
     importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
     importBtn:SetText(L["PROFILE_IMPORT"])
@@ -5561,7 +5593,7 @@ local function BuildProfilesTab(ctx)
         for _, name in ipairs(names) do
             if name ~= active then others[#others + 1] = name end
         end
-        NameFlyout(copyHolder, BTN_W, L["PROFILE_COPY_FROM"], others, function(name)
+        local copyBtn = NameFlyout(copyHolder, BTN_W, L["PROFILE_COPY_FROM"], others, function(name)
             ns.ShowThemedDialog({
                 text = (L["PROFILE_COPY_CONFIRM_FMT"]):format(
                     Profiles:DisplayName(Profiles:Active()), Profiles:DisplayName(name)),
@@ -5571,7 +5603,7 @@ local function BuildProfilesTab(ctx)
                 cancelText = _G["CANCEL"] or "Cancel",
             })
         end)
-        NameFlyout(deleteHolder, BTN_W, L["PROFILE_DELETE"], Profiles:Deletable(), function(name)
+        local deleteBtn = NameFlyout(deleteHolder, BTN_W, L["PROFILE_DELETE"], Profiles:Deletable(), function(name)
             ns.ShowThemedDialog({
                 text = (L["PROFILE_DELETE_CONFIRM_FMT"]):format(Profiles:DisplayName(name)),
                 messageColor = ns.GOLD_COLOR,
@@ -5583,6 +5615,8 @@ local function BuildProfilesTab(ctx)
                 cancelText = _G["CANCEL"] or "Cancel",
             })
         end)
+        Options:AddAction("profileCopyFrom", copyBtn)
+        Options:AddAction("profileDelete", deleteBtn)
 
         local specOn = Profiles:SpecProfilesEnabled()
         specEnable:SetChecked(specOn)
@@ -6519,9 +6553,7 @@ function Options:DoResetAll()
     RefreshMapRuntime()
     EasyFind:UpdateMinimapButton()
 
-    if needsReload then
-        StaticPopup_Show("EASYFIND_RELOAD_PROMPT")
-    end
+    if needsReload then ns.SettingsRows.ShowReloadPrompt() end
 end
 
 function Options:DoResetUI()
