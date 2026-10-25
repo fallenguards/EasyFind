@@ -18,6 +18,23 @@ local function ErrorHandler(err)
     return tostring(err) .. "\n" .. debugstack(2)
 end
 
+-- Ordered schema steps keyed by the version each upgrades to. Each runs
+-- under xpcall and stamps its version, so an error stops there for a retry.
+function Utils.Migrate(db, field, steps, target)
+    for version = (tonumber(db[field]) or 0) + 1, target do
+        local step = steps[version]
+        if step then
+            local ok, err = xpcall(step, ErrorHandler, db)
+            if not ok then
+                if geterrorhandler then geterrorhandler()(err) end
+                return false
+            end
+        end
+        db[field] = version
+    end
+    return true
+end
+
 -- Theme-change broadcast. A window registers once; every registered callback
 -- fires after the active palette changes, so an open window restyles live
 -- instead of only picking up the theme the next time it opens.

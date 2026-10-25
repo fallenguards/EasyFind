@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 23
+local DB_VERSION = 24
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -409,6 +409,10 @@ local INTERACTIVE_RESET_PRESERVE = {
     statisticCache = true,
     statisticCacheVer = true,
     optionsSearchCache = true,
+    -- The player's own lists and learned picks are data, not settings.
+    snippets = true,
+    quicklists = true,
+    queryLearn = true,
 }
 for key in pairs(PRESERVED_KEYS) do
     INTERACTIVE_RESET_PRESERVE[key] = true
@@ -416,7 +420,8 @@ end
 
 -- DB_DEFAULTS table-literal keys whose default is nil drop out of the table, so
 -- pairs() never visits them; clear them explicitly on reset.
-local NIL_DEFAULT_KEYS = { "uiSearchPosition", "lootSpecs", "appearanceSetClass", "heirloomFilter" }
+local NIL_DEFAULT_KEYS = { "uiSearchPosition", "lootSpecs", "appearanceSetClass", "heirloomFilter", "lootFilter",
+                           "appearanceItemClass", "appearanceItemSlot", "appearanceItemSourceFilters" }
 
 function EasyFind:ResetSettingsToDefaults()
     local db = self.db
@@ -553,10 +558,12 @@ local DB_MIGRATIONS = {
         if db.mapPinHighlight == false then db.mapPinStyle = "off" end
         db.mapPinHighlight = nil
     end,
-    [23] = function(db)
-        -- Creature rows start off in both map searches; a saved choice stays.
-        for _, name in ipairs({ "mapTabFilters", "uiMapFilters" }) do
-            if type(db[name]) == "table" and db[name].npcs == nil then db[name].npcs = false end
+    [24] = function(db)
+        -- The achievement index is a cache: copies filed in profile slots go.
+        for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
+            if type(slot) == "table" and type(slot.settings) == "table" then
+                slot.settings.achievementIndex = nil
+            end
         end
     end,
 }
@@ -716,24 +723,37 @@ local function ApplyDBDefaults(db)
 end
 ns.ApplyDBDefaults = ApplyDBDefaults
 
-local function OnInitialize()
-    if not EasyFindDB then
-        EasyFindDB = { firstInstall = true }
-    end
-    local savedVersion = EasyFindDB.dbVersion or 0
-    ApplyDBDefaults(EasyFindDB)
-
-    for v = savedVersion + 1, DB_VERSION do
-        if DB_MIGRATIONS[v] then
-            DB_MIGRATIONS[v](EasyFindDB)
+-- Profile slots keep the settings shape of schema 21 (3.4.0); steps from 22
+-- on run there too, so each must be safe to rerun.
+local SLOT_STEPS_FROM = 22
+local function MigrateSlots(db, fromVersion)
+    if type(db.profiles) ~= "table" then return end
+    for v = mmax(fromVersion + 1, SLOT_STEPS_FROM), db.dbVersion do
+        local step = DB_MIGRATIONS[v]
+        if step then
+            for _, slot in pairs(db.profiles) do
+                if type(slot) == "table" and type(slot.settings) == "table" then
+                    xpcall(step, ErrorHandler, slot.settings)
+                end
+            end
         end
     end
-    EasyFindDB.dbVersion = DB_VERSION
+end
+
+local function OnInitialize()
+    -- A new save starts at the current schema: no step applies to it.
+    EasyFindDB = EasyFindDB or { firstInstall = true, dbVersion = DB_VERSION }
+    EasyFindDB.dbVersion = tonumber(EasyFindDB.dbVersion) or 0
+    local savedVersion = EasyFindDB.dbVersion
+    -- Steps before defaults: a step's nil test sees the save as it was.
+    Utils.Migrate(EasyFindDB, "dbVersion", DB_MIGRATIONS, DB_VERSION)
+    MigrateSlots(EasyFindDB, savedVersion)
+    ApplyDBDefaults(EasyFindDB)
 
     for k, v in pairs(EasyFindDB) do
         local default = DB_DEFAULTS[k]
         if default ~= nil and type(v) ~= type(default) then
-            EasyFindDB[k] = default
+            EasyFindDB[k] = CloneDefaultValue(default)
         end
     end
 
@@ -1259,11 +1279,7 @@ local function OnPlayerLogin()
     local currentVersion = ns.version
     local lastSeen = EasyFind.db.lastSeenVersion
     if currentVersion and currentVersion ~= lastSeen then
-        -- A brand-new install actually reaches here with lastSeen = "2.0.0"
-        -- (the RequireRevampedTutorial migration sets it) and tutorialDone =
-        -- false, not lastSeen = nil. So the real guard that keeps the What's New
-        -- chat off new/onboarding users is the tutorialDone check below, not
-        -- this nil test -- the nil test only skips the rare no-lastSeen case.
+        -- A new install reaches here with lastSeen nil: nothing to announce.
         if lastSeen ~= nil then
             if CompareVersion(lastSeen, REVAMPED_TUTORIAL_VERSION) < 0 then
                 -- Upgrading from before the tutorial revamp: send them through

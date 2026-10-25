@@ -63,6 +63,10 @@ local STATE_KEYS = {
     uiSearchHistory = true, mapTabRecentSearches = true,
     clipboard = true, charGold = true,
     nativeKeybindsImported = true, suggestedKeybindsSeeded = true, suggestedKeybindsApplied = true,
+    achievementIndex = true, classicRecipes = true, gpsChar = true, gpsHearth = true,
+    gpsBoats = true, gpsFlown = true, macroButtons = true, minimapIcon = true,
+    chatFramesHidden = true, customThemes = true, themeStudioDraft = true,
+    notesInUse = true, chatInUse = true,
 }
 
 local function IsStateKey(key)
@@ -462,6 +466,7 @@ function Profiles:RefreshModules()
     if ns.Aliases and ns.Aliases.InvalidateKeyIndex then ns.Aliases:InvalidateKeyIndex() end
     if ns.Snippets and ns.Snippets.RebuildKeywordLookup then ns.Snippets.RebuildKeywordLookup() end
     if ns.Shortkeys and ns.Shortkeys.ApplyAll then ns.Shortkeys:ApplyAll() end
+    if ns.Quicklists and ns.Quicklists.Changed then ns.Quicklists:Changed() end
     if EasyFind and EasyFind.ApplyAccountKeybinds then EasyFind:ApplyAccountKeybinds() end
     if ns.RefreshAddonFont then ns.RefreshAddonFont() end
     if ns.ApplyUITheme then ns.ApplyUITheme(db.uiTheme) end
@@ -657,9 +662,12 @@ local function SlotFromPayload(payload)
                 end
             else
                 local settings = {}
+                local live = EasyFind and EasyFind.db or {}
                 for key, value in pairs(data) do
-                    local default = defaults[key]
-                    if IsSettingKey(key) and (default == nil or type(default) == type(value)) then
+                    -- No default: the live value's type is the rule.
+                    local want = defaults[key]
+                    if want == nil then want = live[key] end
+                    if IsSettingKey(key) and (want == nil or type(want) == type(value)) then
                         settings[key] = Copy(value)
                     end
                 end
@@ -670,44 +678,93 @@ local function SlotFromPayload(payload)
     return slot
 end
 
--- The shared-code rules (Shared/Shortkeys.lua) on a profile code: rows a
--- shared code never carries are dropped, rows that run commands counted so
+-- Snapshot fields that name the sender's character; the live row refills them.
+local SNAPSHOT_CHAR_FIELDS = {
+    "macroIndex", "macroIsChar", "bagID", "bagSlot", "bagItemLink",
+    "specSetIndex", "loadoutConfigID", "isCollected", "isUsable",
+}
+
+local function StripCharFields(snap)
+    if type(snap) ~= "table" then return end
+    for i = 1, #SNAPSHOT_CHAR_FIELDS do snap[SNAPSHOT_CHAR_FIELDS[i]] = nil end
+end
+
+-- A stored row's slash command meets the rule a shortkey's name does.
+local function CommandRule(S, snap)
+    local cmd = type(snap) == "table" and snap.slashCommand or nil
+    if cmd == nil then return nil, false end
+    local row = { b = "", n = cmd }
+    return S.ShareRefusal("shortkeys", row), S.RunsCommands("shortkeys", row)
+end
+
+local function RefusedCombo(S, combo)
+    if type(combo) ~= "string" or combo == "" then return false end
+    local last = combo:match("([^%-]+)$") or combo
+    return S.REFUSED_KEYS[last:upper()] == true
+end
+
+-- The shared-code rules (Shared/Shortkeys.lua) on every section a profile
+-- code carries: refused rows dropped, rows that run commands counted so
 -- the import preview can warn. Returns leftOut, risky.
 local function ApplyShareRules(slot)
     local S = ns.Shortkeys
     local leftOut, risky = 0, 0
     if not (S and S.ShareRefusal) then return leftOut, risky end
-    if type(slot.shortkeys) == "table" then
-        for rowKey, info in pairs(slot.shortkeys) do
-            local row = type(info) == "table" and { k = rowKey, b = info.key, n = info.name } or nil
-            if not row or S.ShareRefusal("shortkeys", row) then
-                slot.shortkeys[rowKey] = nil
-                leftOut = leftOut + 1
-            elseif S.RunsCommands("shortkeys", row) then
-                risky = risky + 1
-            end
+    -- True when the row goes.
+    local function Drop(why, runs)
+        if why then
+            leftOut = leftOut + 1
+            return true
+        end
+        if runs then risky = risky + 1 end
+        return false
+    end
+    for rowKey, info in pairs(type(slot.shortkeys) == "table" and slot.shortkeys or {}) do
+        local row = type(info) == "table" and { k = rowKey, b = info.key, n = info.name } or nil
+        StripCharFields(row and info.data)
+        local snapWhy, snapRuns = CommandRule(S, row and info.data)
+        if Drop(not row or S.ShareRefusal("shortkeys", row) or snapWhy,
+                row and (S.RunsCommands("shortkeys", row) or snapRuns)) then
+            slot.shortkeys[rowKey] = nil
         end
     end
-    if type(slot.snippets) == "table" then
-        for i = #slot.snippets, 1, -1 do
-            local s = slot.snippets[i]
-            local row = type(s) == "table" and { name = s.name, keyword = s.keyword, body = s.flat or s.body } or nil
-            if not row or S.ShareRefusal("snippets", row) then
-                table.remove(slot.snippets, i)
-                leftOut = leftOut + 1
-            elseif S.RunsCommands("snippets", row) then
-                risky = risky + 1
-            end
+    local snippets = type(slot.snippets) == "table" and slot.snippets or {}
+    for i = #snippets, 1, -1 do
+        local s = snippets[i]
+        local row = type(s) == "table" and { name = s.name, keyword = s.keyword, body = s.flat or s.body } or nil
+        if Drop(not row or S.ShareRefusal("snippets", row), row and S.RunsCommands("snippets", row)) then
+            table.remove(snippets, i)
         end
     end
-    if type(slot.aliases) == "table" then
-        for key, info in pairs(slot.aliases) do
-            local row = type(info) == "table" and { text = info.text, key = info.key, name = info.name } or nil
-            if not row or S.ShareRefusal("aliases", row) then
-                slot.aliases[key] = nil
-                leftOut = leftOut + 1
-            end
+    for key, info in pairs(type(slot.aliases) == "table" and slot.aliases or {}) do
+        local row = type(info) == "table" and { text = info.text, key = info.key, name = info.name } or nil
+        if Drop(not row or S.ShareRefusal("aliases", row), false) then slot.aliases[key] = nil end
+    end
+    for key, info in pairs(type(slot.blacklist) == "table" and slot.blacklist or {}) do
+        local row = type(info) == "table" and { key = key, name = info.name, category = info.category } or nil
+        if Drop(not row or S.ShareRefusal("blacklist", row), false) then slot.blacklist[key] = nil end
+    end
+    local lists = type(slot.quicklists) == "table" and slot.quicklists or {}
+    for i = #lists, 1, -1 do
+        local list = lists[i]
+        local items = type(list) == "table" and type(list.items) == "table" and list.items or nil
+        local why = not items or S.ShareRefusal("quicklists", { name = list.name, key = list.key, items = items })
+        local runs = false
+        for j = 1, items and #items or 0 do
+            local snap = type(items[j]) == "table" and items[j].d or nil
+            StripCharFields(snap)
+            local itemWhy, itemRuns = CommandRule(S, snap)
+            why, runs = why or itemWhy, runs or itemRuns
         end
+        if Drop(why, runs) then table.remove(lists, i) end
+    end
+    -- A pin is the row itself: its fields stay, its command meets the rule.
+    local pins = type(slot.pinnedUIItems) == "table" and slot.pinnedUIItems or {}
+    for i = #pins, 1, -1 do
+        if Drop(CommandRule(S, pins[i])) then table.remove(pins, i) end
+    end
+    for action, combo in pairs(type(slot.accountKeybinds) == "table" and slot.accountKeybinds or {}) do
+        if Drop(RefusedCombo(S, combo), false) then slot.accountKeybinds[action] = nil end
     end
     return leftOut, risky
 end

@@ -228,5 +228,22 @@ function tests.analyze_reportsSkippedNewAndConflicts()
     H.assertEq(#s.newRows.aliases, 0)
 end
 
+-- Every section an import analysis fills is one the preview lists: a
+-- section missing there applies with no preview row (quicklists, 2026-10-14).
+function tests.previewWalksEverySection()
+    local function source(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a")
+        f:close()
+        return src
+    end
+    local newRows = assert(source("Shared/Shortkeys.lua"):match("local newRows = (%b{})"), "AnalyzeImport newRows")
+    local walk = assert(source("Apps/Options/OptionsPanel.lua"):match("local function ImportPreviewRows.-ipairs%((%b{})%)"),
+        "the preview walk")
+    for id in newRows:gmatch("(%w+) = {}") do
+        H.assertTrue(walk:find('"' .. id .. '"', 1, true) ~= nil, id .. " is in the preview walk")
+    end
+end
+
 local pass, fail, failures = H.runSuite("ShareCodes", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -161,6 +161,25 @@ function tests.switch_movesSectionsAndKeepsState()
     H.assertTrue(db.tutorialDone, "tutorial progress is state")
 end
 
+-- What belongs to the account or a character, not a look, stays put on a
+-- switch: GPS records, macro targets, companions in use, custom themes.
+function tests.switch_keepsCharacterAndAccountRecords()
+    local env, P = fresh(sampleDB())
+    P:OnInitialize()
+    local db = env.EasyFindDB
+    local records = {
+        gpsChar = { ["Toon-Realm"] = { hearth = 1 } }, gpsFlown = { [12] = 40 }, macroButtons = { [1] = "spell:1" },
+        notesInUse = true, chatInUse = true, customThemes = { mine = {} }, themeStudioDraft = { name = "wip" },
+    }
+    for k, v in pairs(records) do db[k] = v end
+    H.assertTrue(P:Create("Tank", "Default"))
+    H.assertTrue(P:Pick("Tank"))
+    for k, v in pairs(records) do
+        H.assertTrue(db[k] == v, k .. " stays in the live save")
+        H.assertNil(db.profiles.Default.settings[k], k .. " is not filed in a profile")
+    end
+end
+
 function tests.create_fromDefaults()
     local env, P = fresh(sampleDB())
     P:OnInitialize()
@@ -376,6 +395,40 @@ function tests.import_obeysShareRulesAndFlagsCommands()
     H.assertEq(slot.shortkeys["cmd:1"].name, "/wave", "an ordinary command travels")
     H.assertEq(#slot.snippets, 2)
     H.assertEq(slot.snippets[2].name, "Wave")
+end
+
+-- Every section a code carries meets the rules: keybinds, quicklists and the
+-- rows stored inside shortkeys and pins too; the sender's character goes.
+function tests.import_shareRulesReachEverySection()
+    local env, P = fresh(sampleDB())
+    P:OnInitialize()
+    local db = env.EasyFindDB
+    db.accountKeybinds = { EASYFIND_TOGGLE_FOCUS = "W", EASYFIND_OPEN = "CTRL-F" }
+    db.quicklists = {
+        { name = "Moves", key = "W", items = { { k = "spell:1", n = "Dash" } } },
+        { name = "Raid", key = "ALT-R", items = { { k = "spell:2", n = "Hero", d = { name = "Hero", macroIndex = 4 } } } },
+    }
+    db.shortkeys = {
+        ["mount:5"] = { key = "CTRL-M", name = "Tiger", data = { name = "Tiger", mountID = 5, macroIndex = 2 } },
+        ["ui:x"] = { key = "CTRL-X", name = "Thing", data = { name = "Thing", slashCommand = "/run print(1)" } },
+    }
+    db.pinnedUIItems = { { name = "Dance", slashCommand = "/dance" } }
+    local code = P:Export({ keybinds = true, quicklists = true, shortkeys = true, pins = true })
+    local inspect = P:InspectImport(P:Decode(code))
+    H.assertEq(inspect.leftOut, 3, "the W bind, the W list and the /run shortkey")
+    H.assertEq(inspect.risky, 1, "the /dance pin runs a command")
+    local name = P:Import(code)
+    local slot = db.profiles[name]
+    H.assertNil(slot.accountKeybinds.EASYFIND_TOGGLE_FOCUS, "a refused key never binds")
+    H.assertEq(slot.accountKeybinds.EASYFIND_OPEN, "CTRL-F")
+    H.assertEq(#slot.quicklists, 1)
+    H.assertEq(slot.quicklists[1].name, "Raid")
+    H.assertNil(slot.quicklists[1].items[1].d.macroIndex, "a list row loses the sender's macro")
+    H.assertNil(slot.shortkeys["ui:x"], "a stored /run never travels")
+    local tiger = slot.shortkeys["mount:5"].data
+    H.assertEq(tiger.mountID, 5, "the row itself stays")
+    H.assertNil(tiger.macroIndex, "the sender's macro slot goes")
+    H.assertEq(slot.pinnedUIItems[1].name, "Dance", "a pin is kept, only flagged")
 end
 
 local pass, fail, failures = H.runSuite("Profiles", tests)

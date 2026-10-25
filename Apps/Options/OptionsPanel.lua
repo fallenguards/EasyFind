@@ -80,91 +80,20 @@ local VISIBILITY_ALWAYS = ns.VISIBILITY_ALWAYS
 local RESULTS_BELOW = 0
 local RESULTS_ABOVE = 1
 
-local NIL = {}
-local DEFAULT_UI_FILTERS = {
-    achievements = true, statistics = false, currencies = true,
-    reputations = true, collections = true, gameOptions = true,
-    addonOptions = true, mounts = true, toys = true, pets = true,
-    outfits = true, heirlooms = true, loot = true, housing = true,
-    appearanceSets = true,
-    bags = true, macros = true, options = true, abilities = true,
-    bosses = true, gearSets = true, talents = true, titles = true,
-    skills = true, map = true,
-}
-local UI_DEFAULTS = {
-    smartShow = false,
-    autoHide = true,
-    combatHide = true,
-    combatDim = false,
-    moveDim = false,
-    windowBorder = false,
-    themeFrameArt = true,
-    showAppsButton = true,
-    showFilterButton = true,
-    learnFromPicks = true,
-    macroPickerSearch = true,
-    lockPosition = false,
-    uiResultsAbove = false,
-    showResultShortcutHints = true,
-    fontSize = ns.DEFAULT_FONT_SIZE,
-    searchWindowOpacity = ns.SEARCH_WINDOW_ALPHA,
-    uiSearchScale = 1.0,
-    uiSearchWidth = 1.54,
-    uiSearchBarHeight = ns.SEARCHBAR_HEIGHT,
-    uiResultsScale = 1.0,
-    uiResultsWidth = 350,
-    uiSearchPosition = NIL,
-    uiResultsRows = 6,
-    wowheadLocale = "auto",
-    uiSearchFilters = DEFAULT_UI_FILTERS,
-    uiMapFilters = {
-        zones = true,
-        instances = true,
-        raid = true,
-        dungeon = true,
-        delve = true,
-        travel = true,
-        flights = false,
-        boats = true,
-        portals = true,
-        services = true,
-        banks = true,
-        auction = true,
-        inns = true,
-        mail = true,
-        trainers = true,
-        vendors = true,
-        appearance = true,
-        otherservices = true,
-        rares = true,
-    },
-    housingCollection = "collected",
-    housingDyeableOnly = false,
-    housingCollectionBonusOnly = false,
-    housingIndoors = true,
-    housingOutdoors = true,
-    lootSpecs = NIL,
-    lootSearchSlots = true,
-    lootSearchStats = true,
-    lootUpgradesOnly = false,
-    lootDifficulty = "normal",
-    mountFilterCollected = true,
-    mountFilterNotCollected = false,
-    mountFilterUnusable = false,
-    mountTypeGround = true,
-    mountTypeFlying = true,
-    mountTypeAquatic = true,
-    mountTypeRideAlong = true,
-    mountSourceFilters = {},
-    achievementFilterMode = "all",
-    hideAchievementHeaders = true,
-    hideGuildAchievements = true,
-    appearanceSetClass = NIL,
-    appearanceSetCollected = true,
-    appearanceSetNotCollected = true,
-    appearanceSetPvE = true,
-    appearanceSetPvP = true,
-    uiMapSearchLocal = true,
+-- Restored from ns.DB_DEFAULTS by name, like MAP_RESET_KEYS: copies kept
+-- here once turned the border off and dropped six filters.
+local UI_RESET_KEYS = {
+    "smartShow", "autoHide", "combatHide", "combatDim", "moveDim", "windowBorder", "themeFrameArt",
+    "showAppsButton", "showFilterButton", "learnFromPicks", "macroPickerSearch", "lockPosition",
+    "uiResultsAbove", "showResultShortcutHints", "fontSize", "searchWindowOpacity", "uiSearchScale",
+    "uiSearchWidth", "uiSearchBarHeight", "uiResultsScale", "uiResultsWidth", "uiSearchPosition",
+    "uiResultsRows", "wowheadLocale", "uiSearchFilters", "uiMapFilters", "housingCollection",
+    "housingDyeableOnly", "housingCollectionBonusOnly", "housingIndoors", "housingOutdoors", "lootSpecs",
+    "lootSearchSlots", "lootSearchStats", "lootUpgradesOnly", "lootDifficulty", "mountFilterCollected",
+    "mountFilterNotCollected", "mountFilterUnusable", "mountTypeGround", "mountTypeFlying",
+    "mountTypeAquatic", "mountTypeRideAlong", "mountSourceFilters", "achievementFilterMode",
+    "hideAchievementHeaders", "hideGuildAchievements", "appearanceSetClass", "appearanceSetCollected",
+    "appearanceSetNotCollected", "appearanceSetPvE", "appearanceSetPvP", "uiMapSearchLocal",
 }
 
 -- Restored from ns.DB_DEFAULTS so the reset can never drift from the
@@ -176,29 +105,12 @@ local MAP_RESET_KEYS = {
     "mapTabAutoExpand", "mapTabRecentCount", "mapTabFontSize",
 }
 
-local UI_POSITION_DEFAULTS = {
-    uiSearchPosition = NIL,
-    uiSearchScale = 1.0,
-    uiSearchWidth = 1.54,
-    uiSearchBarHeight = ns.SEARCHBAR_HEIGHT,
-    uiResultsScale = 1.0,
-    uiResultsWidth = 350,
-    uiResultsRows = 6,
+local UI_POSITION_KEYS = {
+    "uiSearchPosition", "uiSearchScale", "uiSearchWidth", "uiSearchBarHeight",
+    "uiResultsScale", "uiResultsWidth", "uiResultsRows",
 }
 
 local CloneTable = ns.Utils.DeepCopy
-
-local function ApplyDefaults(defaults)
-    for key, value in pairs(defaults) do
-        if value == NIL then
-            EasyFind.db[key] = nil
-        elseif type(value) == "table" then
-            EasyFind.db[key] = CloneTable(value)
-        else
-            EasyFind.db[key] = value
-        end
-    end
-end
 
 local function ApplyDefaultKeys(keys)
     for i = 1, #keys do
@@ -3370,7 +3282,7 @@ local function BuildAliasesTab(ctx)
             conflictsBy[c.section] = conflictsBy[c.section] or {}
             table.insert(conflictsBy[c.section], c.row)
         end
-        for _, section in ipairs({ "aliases", "shortkeys", "blacklist", "snippets" }) do
+        for _, section in ipairs({ "aliases", "shortkeys", "blacklist", "snippets", "quicklists" }) do
             local fresh = analysis.newRows[section] or {}
             local replacing = conflictsBy[section] or {}
             local total = #fresh + #replacing
@@ -6568,7 +6480,7 @@ function Options:Initialize()
 end
 
 function Options:DoResetPositions()
-    ApplyDefaults(UI_POSITION_DEFAULTS)
+    ApplyDefaultKeys(UI_POSITION_KEYS)
     if ns.Search and ns.Search.ResetPosition then ns.Search:ResetPosition() end
     ResetOptionsPosition()
     SyncOptionControls()
@@ -6613,7 +6525,7 @@ function Options:DoResetAll()
 end
 
 function Options:DoResetUI()
-    ApplyDefaults(UI_DEFAULTS)
+    ApplyDefaultKeys(UI_RESET_KEYS)
     SyncOptionControls()
     RefreshUIRuntime(true)
 end
@@ -6625,7 +6537,7 @@ function Options:DoResetMap()
 end
 
 function Options:DoResetUIPositions()
-    ApplyDefaults(UI_POSITION_DEFAULTS)
+    ApplyDefaultKeys(UI_POSITION_KEYS)
     SyncOptionControls()
     RefreshUIRuntime(true)
 end
