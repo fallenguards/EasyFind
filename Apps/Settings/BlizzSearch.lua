@@ -3418,24 +3418,28 @@ end
 -- Restore the light index from SavedVariables when the signature matches and a
 -- spot-check passes. Returns true if the walk can be skipped. Any error degrades
 -- to a clean rebuild (return false) rather than propagating.
-local function RestoreOptionsFromCache(data)
+local function RestoreOptionsFromCache(data, rec)
     local db = EasyFind and EasyFind.db
     if not db then return false end
     local cache = db.optionsSearchCache
-    if type(cache) ~= "table" or cache.sig == nil then return false end
-    if cache.sig ~= BuildOptionsCacheSignature() then return false end
+    if type(cache) ~= "table" or cache.sig == nil then rec.miss = "noCache" return false end
+    local sig = BuildOptionsCacheSignature()
+    if cache.sig ~= sig then
+        rec.miss, rec.savedSig, rec.liveSig = "signature", cache.sig, sig
+        return false
+    end
 
     local ok, restored = xpcall(function()
         return BlizzOptionsSearch.DeserializeOptionsCache(cache)
     end, Utils.ErrorHandler)
-    if not ok or type(restored) ~= "table" then return false end
+    if not ok or type(restored) ~= "table" then rec.miss = "decode" return false end
 
-    if not SpotCheckRestored(restored.entries) then return false end
+    if not SpotCheckRestored(restored.entries) then rec.miss = "spotCheck" return false end
 
     local pushOk, changed = xpcall(function()
         return PushOptionEntries(data, restored.entries, restored.kb, restored.addon, nil)
     end, Utils.ErrorHandler)
-    if not pushOk then return false end
+    if not pushOk then rec.miss = "push" return false end
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
     return true
 end
@@ -3913,31 +3917,60 @@ do
     BlizzOptionsSearch.AceApps = Apps   -- dev probe
 end
 
+-- Each populate's path and step costs (ms of CPU, wall seconds), for the dev probe.
+local function StepClock()
+    return debugprofilestop and debugprofilestop() or 0
+end
+local function Step(rec, key, t0)
+    local t1 = StepClock()
+    rec[key] = t1 - t0
+    return t1
+end
+
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     if not ns.Database or not ns.Database.uiSearchData then return end
     local data = ns.Database.uiSearchData
+    local rec = { live = includeLiveGameSettings or nil, startedAt = GetTime and GetTime() or 0 }
+    BlizzOptionsSearch.lastPopulate = rec
+    local t = StepClock()
 
     -- Light path is the reload hot path: restore the persisted index and skip
     -- the settings-tree walk when the cache signature still matches. Live game
     -- settings always take the full walk.
-    if not includeLiveGameSettings and RestoreOptionsFromCache(data) then
+    if not includeLiveGameSettings and RestoreOptionsFromCache(data, rec) then
+        rec.path = "cache"
+        t = Step(rec, "restoreMs", t)
         CollectAceFeeds()
+        t = Step(rec, "aceMs", t)
         local changed = PushCanvasEntries(data)
+        t = Step(rec, "canvasMs", t)
         if PushFeedEntries(data) then changed = true end
+        Step(rec, "feedMs", t)
         if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
         populated = true
+        rec.endedAt = GetTime and GetTime() or 0
         return
     end
+    rec.path = "walk"
+    t = Step(rec, "restoreMs", t)
 
     local entries = CollectEntries(not coreGameRegistered)
+    t = Step(rec, "entriesMs", t)
     local kb = CollectKeybindings()
+    t = Step(rec, "keybindsMs", t)
     local addonEntries = CollectAddonCategories()
+    t = Step(rec, "addonsMs", t)
     local gameEntries = includeLiveGameSettings and CollectGameSettings() or nil
+    t = Step(rec, "gameMs", t)
 
     local changed = PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
+    t = Step(rec, "pushMs", t)
     CollectAceFeeds()
+    t = Step(rec, "aceMs", t)
     if PushCanvasEntries(data) then changed = true end
+    t = Step(rec, "canvasMs", t)
     if PushFeedEntries(data) then changed = true end
+    t = Step(rec, "feedMs", t)
     populated = true
 
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
@@ -3945,7 +3978,9 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     -- Persist the freshly-built light index so the next reload restores it.
     if not includeLiveGameSettings then
         SaveOptionsCache(entries, kb, addonEntries)
+        Step(rec, "saveMs", t)
     end
+    rec.endedAt = GetTime and GetTime() or 0
 end
 
 function BlizzOptionsSearch:PopulateLight()

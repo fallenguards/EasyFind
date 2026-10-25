@@ -1068,6 +1068,15 @@ function Utils.CaptureKeybindCombo(key)
     return Utils.ModifierCombo(key)
 end
 
+-- An armed capture ends as a fight starts: PLAYER_REGEN_DISABLED comes
+-- before lockdown, so the disarm's EnableKeyboard(false) still runs.
+do
+local armedCaptures = {}
+local captureFightWatch
+local function StopCapturesForFight()
+    for frame, onCombo in pairs(armedCaptures) do onCombo(frame, "stop") end
+end
+
 -- Arms a frame for a binding capture: keys, the mouse buttons past the
 -- first two (MB3 and up) and the wheel, each through CaptureKeybindCombo;
 -- onCombo(frame, combo) gets "stop" for Escape. Disarm puts back what the
@@ -1090,8 +1099,19 @@ function Utils.ArmBindingCapture(frame, onCombo)
     frame:SetScript("OnMouseWheel", function(self, delta)
         take(self, delta > 0 and "MOUSEWHEELUP" or "MOUSEWHEELDOWN")
     end)
+    armedCaptures[frame] = onCombo
+    if not captureFightWatch then
+        captureFightWatch = CreateFrame("Frame")
+        captureFightWatch:Hide()
+        captureFightWatch:SetScript("OnEvent", StopCapturesForFight)
+    end
+    captureFightWatch:RegisterEvent("PLAYER_REGEN_DISABLED")
 end
 function Utils.DisarmBindingCapture(frame)
+    armedCaptures[frame] = nil
+    if captureFightWatch and not next(armedCaptures) then
+        captureFightWatch:UnregisterEvent("PLAYER_REGEN_DISABLED")
+    end
     local had = frame._efCaptureHad or {}
     frame._efCaptureHad = nil
     Utils.SafeCallMethod(frame, "EnableKeyboard", false)
@@ -1099,6 +1119,7 @@ function Utils.DisarmBindingCapture(frame)
     frame:SetScript("OnKeyDown", nil)
     frame:SetScript("OnMouseDown", had.down)
     frame:SetScript("OnMouseWheel", had.wheel)
+end
 end
 
 function Utils.GetVerticalNavIntent(key)

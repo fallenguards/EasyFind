@@ -11,7 +11,6 @@ Wizard.FEATURES_PAGE = 2
 
 local Utils = ns.Utils
 local L = ns.L
-local SafeCallMethod = Utils.SafeCallMethod
 local SafeAfter = Utils.SafeAfter
 local sformat = Utils.sformat
 
@@ -602,7 +601,6 @@ local function FinishWizard(openBar)
             EasyFind.db.revampedTutorialVersion = ns.REVAMPED_TUTORIAL_VERSION
         end
     end
-    SafeCallMethod(frame, "EnableKeyboard", false)
     frame:Hide()
     if openBar and ns.Search and ns.Search.Show then
         SafeAfter(0.05, function() ns.Search:Show(true) end)
@@ -1159,8 +1157,7 @@ local function StopKeybindCapture()
     if not kbWaitingFor then return end
     local widget = kbWaitingFor
     kbWaitingFor = nil
-    SafeCallMethod(widget.btn, "EnableKeyboard", false)
-    widget.btn:SetScript("OnKeyDown", nil)
+    Utils.DisarmBindingCapture(widget.btn)
     RefreshKbWidget(widget)
 end
 
@@ -1224,18 +1221,11 @@ local function CreateKbWidget(parent, action, label)
             StopKeybindCapture()
             return
         end
-        if kbWaitingFor then StopKeybindCapture() end
+        StopKeybindCapture()
         kbWaitingFor = w
         self._label:SetText(L["TUT_KB_PRESS_KEY"])
-        SafeCallMethod(self, "EnableKeyboard", true)
-        self:SetScript("OnKeyDown", function(s, key)
-            local combo = Utils.CaptureKeybindCombo(key)
-            if not combo then return end
-            if combo == "stop" then
-                StopKeybindCapture()
-                return
-            end
-            EasyFind:SetAccountKeybind(action, combo)
+        Utils.ArmBindingCapture(self, function(_, combo)
+            if combo ~= "stop" then EasyFind:SetAccountKeybind(action, combo) end
             StopKeybindCapture()
         end)
     end)
@@ -1595,9 +1585,10 @@ local function BuildPage3(parent)
     ApplyInter(hint, "regular")
 
     p.OnEnter = function()
-        if kbWaitingFor then StopKeybindCapture() end
         for i = 1, #kbWidgets do RefreshKbWidget(kbWidgets[i]) end
     end
+    -- Back, a dot or the X end a capture.
+    p:HookScript("OnHide", StopKeybindCapture)
 
     return p
 end
@@ -1727,18 +1718,8 @@ local function CreateFrameOnce()
         end
     end)
 
-    f:SetScript("OnKeyDown", function(self, key)
-        if kbWaitingFor then
-            Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", true)
-            return
-        end
-        if key == "ESCAPE" then
-            Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", false)
-            FinishWizard(false)
-        else
-            Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", true)
-        end
-    end)
+    -- Escape through the shared dispatch; an armed capture takes it first.
+    Utils.AttachEscClose(f, function() FinishWizard(false) end)
 
     return f
 end
@@ -1767,14 +1748,11 @@ function Wizard:Show(startPage)
     RepaintThemedTexts()
     RepaintInvertedPills()
     RepaintReplicas()
-    SafeCallMethod(frame, "EnableKeyboard", true)
-    SafeCallMethod(frame, "SetPropagateKeyboardInput", true)
     ShowPage(page)
 end
 
 function Wizard:Hide()
     if frame then
-        SafeCallMethod(frame, "EnableKeyboard", false)
         frame:Hide()
     end
 end
