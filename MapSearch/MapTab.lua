@@ -2278,7 +2278,6 @@ local function CreateSearchBox(parent)
             Utils.SafeCallMethod(navFrame, "EnableKeyboard", false)
         end
         if navKeyRepeat then navKeyRepeat.Stop() end
-        if ns.GPSNpcs and ns.GPSNpcs.Warm then ns.GPSNpcs.Warm() end
     end)
 
     editBox:HookScript("OnEnterPressed", function(self)

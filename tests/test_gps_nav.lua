@@ -317,15 +317,29 @@ function tests.path_nearEndStopsWithinReach()
     H.assertEq(cost, Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2], { near = 40 }))
 end
 
--- Every shipped grid says which entrances one can walk between (ground.py),
--- or a walk with no way searches all the ground it reaches first.
-function tests.shippedGrids_carryTheirGround()
-    for _, name in ipairs({ "Walk_Kalimdor", "Walk_EasternKingdoms", "Walk_ZephrasIsle" }) do
+-- Every shipped grid carries what each walk reads first in place
+-- (dev/tools/navmesh/layout.py): the entrance sides, the grounds (or a walk
+-- with no way searches all the ground it reaches first) and the landmarks.
+-- The varint form would be decoded on a session's first plan.
+local SHIPPED_GRIDS = {
+    "Walk_EasternKingdoms", "Walk_Kalimdor", "Walk_ZephrasIsle", "Walk_EasternKingdoms_Retail",
+    "Walk_EasternKingdoms_Era", "Walk_Kalimdor_Era", "Walk_EasternKingdoms_TBC", "Walk_Kalimdor_TBC",
+    "Walk_Outland_TBC",
+}
+
+function tests.shippedGrids_readInPlace()
+    for _, name in ipairs(SHIPPED_GRIDS) do
         local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/" .. name .. ".lua", "rb"))
-        f:seek("end", -4096)
-        local tail = f:read("*a")
+        local src = f:read("*a")
         f:close()
-        H.assertTrue(tail:find('ground = "', 1, true) ~= nil, name .. " carries no ground")
+        local sides = src:match('sides = "([^"]*)"')
+        H.assertTrue(sides ~= nil and #sides > 0 and #sides % 18 == 0, name .. ": entrance sides in place")
+        H.assertTrue(not sides:find("%a"), name .. ": no letter in the sides")
+        H.assertTrue(src:find('grounds = "', 1, true) ~= nil, name .. ": grounds in place")
+        H.assertTrue(src:find("marks = { \"", 1, true) ~= nil, name .. ": landmarks in place")
+        for _, old in ipairs({ 'ents = "', 'ground = "', "alt = { n =" }) do
+            H.assertTrue(src:find(old, 1, true) == nil, name .. " ships the varint form: " .. old)
+        end
     end
 end
 
@@ -357,16 +371,15 @@ function tests.release_letsIdleDataGo_keepsWhatWasRead()
     local Nav = ns.GPSNav
     local cost = Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
     local w = Nav._worlds[0]
-    H.assertTrue(#w.order > 0 and w.ents ~= nil, "the walk decoded tiles and entrance sides")
+    H.assertTrue(#w.order > 0 and w.used ~= nil, "the walk decoded tiles")
     H.assertTrue(Nav.Release(60), "nothing idle yet: held")
-    H.assertTrue(#w.order > 0 and w.ents ~= nil, "and kept")
+    H.assertTrue(#w.order > 0 and w.used ~= nil, "and kept")
     env._clock:advance(30)
     Nav.Straight(0, GOLDSHIRE[1], GOLDSHIRE[2], GOLDSHIRE[1] + 5, GOLDSHIRE[2])
     env._clock:advance(31)
     H.assertTrue(Nav.Release(60), "the tile read since stays: held")
     H.assertEq(#w.order, 1, "only the tile under the read point")
-    H.assertNil(w.ents, "the entrance sides went")
-    H.assertNil(w.alt, "the landmarks went")
+    H.assertNil(w.used, "the continent's kept walks went")
     env._clock:advance(61)
     H.assertFalse(Nav.Release(60), "all gone")
     H.assertEq(#w.order, 0)
@@ -399,7 +412,7 @@ function tests.release_letsATilesCostsGoWhileTheContinentIsInUse()
         H.assertTrue(end_.used == env.GetTime(), "only ends the later walk read stay")
     end
     H.assertEq(w.reachN, kept, "the count follows")
-    H.assertTrue(w.ents ~= nil, "the continent is still in use")
+    H.assertTrue(w.used ~= nil, "the continent is still in use")
 end
 
 local pass, fail, failures = H.runSuite("GPSNav", tests)

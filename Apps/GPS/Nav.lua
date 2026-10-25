@@ -6,7 +6,6 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
-local Utils = ns.Utils
 
 local Nav = {}
 ns.GPSNav = Nav
@@ -72,13 +71,40 @@ Nav.Pause = Pause
 
 -- Unpacking -----------------------------------------------------------------
 
--- data: the continent's table; raw set once its blobs were decoded from
--- base64 to deflated bytes (DecodeBlobs below).
-local function Unpack(s, data)
+local function Unpack(s)
     local E = C_EncodingUtil
     local method = Enum and Enum.CompressionMethod and Enum.CompressionMethod.Deflate or 0
-    if data and data.raw then return E.DecompressString(s, method) end
     return E.DecompressString(E.DecodeBase64(s), method)
+end
+
+-- What every walk reads first ships read in place (dev/tools/navmesh/
+-- layout.py): base 40, lowest digit first, over the printable bytes that
+-- are no letter, quote or backslash.
+local D40 = {}
+do
+    local d = 0
+    for b = 33, 126 do
+        if b ~= 34 and b ~= 92 and not (b >= 65 and b <= 90) and not (b >= 97 and b <= 122) then
+            D40[b], d = d, d + 1
+        end
+    end
+end
+
+-- Entrance side node (side 1 of entrance e is node 2e - 1, side 2 node 2e)
+-- as one number: its tile key, cell and floor packed.
+local function SideV(sides, node)
+    local p = node * 9 - 8
+    local k1, k2, k3, c1, c2, c3, f1, f2, f3 = sbyte(sides, p, p + 8)
+    return (D40[k1] + D40[k2] * 40 + D40[k3] * 1600) * 4294967296
+        + (D40[c1] + D40[c2] * 40 + D40[c3] * 1600) * 131072 + D40[f1] + D40[f2] * 40 + D40[f3] * 1600
+end
+
+-- The ground entrance side node lies on (dev/tools/navmesh/ground.py): no
+-- walk joins two grounds.
+local function GroundOf(grounds, node)
+    local p = node + node % 2 - 1
+    local a, b = sbyte(grounds, p, p + 1)
+    return D40[a] + D40[b] * 40
 end
 
 local function Reader(s, at)
@@ -161,7 +187,7 @@ local function DecodeTile(w, key)
     local data = w.data
     local s = data.tiles[key]
     if not s then return nil end
-    local raw = Unpack(s, data)
+    local raw = Unpack(s)
     local N = w.N
     local NN = N * N
     -- The floors counted first: the road bits come after them.
@@ -747,23 +773,6 @@ local function TileSearch(w, t, g0, goal, want, left, keep, rev)
     return cost, prev, time
 end
 
--- Entrances: per entrance two sides, side 1 of entrance e node 2e - 1,
--- side 2 node 2e; a side is one number, its tile key, cell and floor packed.
-local function Entrances(w)
-    if w.ents then return w.ents end
-    local data = w.data
-    local u = Reader(Unpack(data.ents, data))
-    local n = u()
-    local e = { n = n, v = {} }
-    local v = e.v
-    for k = 1, 2 * n do
-        if k % 4096 == 0 then Pause() end
-        local key, f, c = u(), u(), u()
-        v[k] = key * 4294967296 + c * 131072 + f
-    end
-    w.ents = e
-    return e
-end
 local function SideKey(v) return mfloor(v / 4294967296) end
 local function SideFloor(v) return v % 131072 end
 -- World point of a side's cell.
@@ -786,18 +795,18 @@ local function TileCosts(w, key)
     local data = w.data
     local s = (roadsOnly and data.roads or data.costs)[key]
     if not s then w.costs[key] = false return nil end
-    local u, i = Reader(Unpack(s, data))
+    local u, i = Reader(Unpack(s))
     local n = u()
-    local ents = Entrances(w)
+    local sides = data.sides
     local side, at, last = {}, {}, 0
     for k = 1, n do
         last = last + i()
         -- The entrance's side in this tile (ids count from 0 in the data).
-        local node = (SideKey(ents.v[2 * last + 1]) == key) and (2 * last + 1) or (2 * last + 2)
+        local node = (SideKey(SideV(sides, 2 * last + 1)) == key) and (2 * last + 1) or (2 * last + 2)
         side[k], at[node] = node, k
     end
     local sx, sy = {}, {}
-    for k = 1, n do sx[k], sy[k] = SideXY(w, ents.v[side[k]]) end
+    for k = 1, n do sx[k], sy[k] = SideXY(w, SideV(sides, side[k])) end
     -- Each pair's cost by its index in the upper triangle: the straight
     -- line plus the way around, false where no way joins them; and that
     -- way's time, the cost less what leaving roads added, as 127ths of
@@ -849,7 +858,7 @@ local function TileCosts(w, key)
         end
     end
     if level then
-        local du = Reader(Unpack(level, data))
+        local du = Reader(Unpack(level))
         local idx = 0
         for _ = 1, du() do
             idx = idx + du()
@@ -882,11 +891,11 @@ end
 -- tile, out of a tile search's.
 local function EntranceCosts(w, t, cost, time)
     local tc = TileCosts(w, t.key)
-    local ents = Entrances(w)
+    local sides = w.data.sides
     local out, outT = {}, {}
     for k = 1, tc and tc.n or 0 do
         local node = tc.side[k]
-        local f = SideFloor(ents.v[node])
+        local f = SideFloor(SideV(sides, node))
         local c = cost[f]
         if c then out[node], outT[node] = c, time[f] end
     end
@@ -913,10 +922,10 @@ local function ToEntrances(w, t, g, rev)
     local rk = (t.key * 131072 + g) * 2 + (rev and 1 or 0)
     local kept = Reach(w, rk)
     if kept then return kept[1], kept[2] end
-    local tc, ents = TileCosts(w, t.key), Entrances(w)
+    local tc, sides = TileCosts(w, t.key), w.data.sides
     local want, left = {}, 0
     for k = 1, tc and tc.n or 0 do
-        local f = SideFloor(ents.v[tc.side[k]])
+        local f = SideFloor(SideV(sides, tc.side[k]))
         if not want[f] then want[f], left = true, left + 1 end
     end
     local cost, _, time = TileSearch(w, t, g, nil, want, left, nil, rev)
@@ -949,7 +958,7 @@ local function End(w, x, y, indoors, rev)
     local k = mfloor(x) .. ":" .. mfloor(y)
     local s = not indoors and ((rev and data.spotsIn and data.spotsIn[k]) or (data.spots and data.spots[k]))
     if s then
-        local u = Reader(Unpack(s, data))
+        local u = Reader(Unpack(s))
         local key, g = u(), u()
         local rk = (key * 131072 + g) * 2 + (rev and 1 or 0)
         local kept = Reach(w, rk) or KeepReach(w, rk, { Baked(u) })
@@ -985,7 +994,7 @@ local function NearEnd(w, x, y, r, fromKey, rev)
         end
         -- Not kept: only the full search below serves every walk.
         if not touches then
-            local out, outT = Baked(Reader(Unpack(baked, data)))
+            local out, outT = Baked(Reader(Unpack(baked)))
             return out, outT, nil, nil
         end
     end
@@ -1026,55 +1035,15 @@ end
 
 local function Other(node) return node % 2 == 1 and node + 1 or node - 1 end
 
--- The ground each entrance side lies on (dev/tools/navmesh/ground.py): no
--- walk joins two grounds. false: the data does not say.
-local function Ground(w)
-    if w.ground ~= nil then return w.ground end
-    local data = w.data
-    local s = data.ground
-    w.ground = false
-    if not s then return false end
-    local u = Reader(Unpack(s, data))
-    local out = {}
-    for e = 1, u() do
-        if e % 8192 == 0 then Pause() end
-        local gr = u()
-        out[2 * e - 1], out[2 * e] = gr, gr
-    end
-    w.ground = out
-    return out
-end
-
 local onGround = {}
 
--- Landmark distances as refine.py bakes them: per landmark, whole yards
--- to each entrance (its nearer side), 0 unknown. A walk between two sides
--- is at least the difference of their distances from any one landmark.
-local function Landmarks(w)
-    if w.alt ~= nil then return w.alt or nil end
-    local data = w.data
-    local a = data.alt
-    if not a then w.alt = false return nil end
-    local _, i = Reader(Unpack(a.d, data))
-    local n = Entrances(w).n
-    -- Per landmark a string, three bytes an entrance.
-    local tabs, parts = {}, {}
-    for l = 1, a.n do
-        local last = 0
-        for e = 1, n do
-            if e % 4096 == 0 then Pause() end
-            last = last + i()
-            parts[e] = schar(last % 256, mfloor(last / 256) % 256, mfloor(last / 65536))
-        end
-        tabs[l] = tconcat(parts, "", 1, n)
-    end
-    w.alt = tabs
-    return tabs
-end
--- Whole yards from a landmark to entrance e, 0 unknown.
+-- Landmark distances as refine.py bakes them (data.marks): per landmark a
+-- string, whole yards to each entrance (its nearer side), 0 unknown. A walk
+-- between two sides is at least the difference of their distances from any
+-- one landmark.
 local function Mark(s, e)
-    local lo, mid, hi = sbyte(s, 3 * e - 2, 3 * e)
-    return lo + mid * 256 + hi * 65536
+    local a, b, c = sbyte(s, 3 * e - 2, 3 * e)
+    return D40[a] + D40[b] * 40 + D40[c] * 1600
 end
 
 -- The cheapest way over the entrance sides from fromA's sides to toB's,
@@ -1089,9 +1058,8 @@ local marksPick = {}
 local function Search(w, fromA, toB, bx, by, best, limit, circle, rev)
     -- No side leaves a or reaches b (a pit, a ledge): the way in hand only.
     if next(fromA) == nil or next(toB) == nil then return best end
-    local ents = Entrances(w)
-    local ev = ents.v
-    local alt = not circle and Landmarks(w)
+    local sides = w.data.sides
+    local alt = not circle and w.data.marks
     -- The landmarks used: those whose bound between the nearest sides of
     -- the two ends is largest, as they tell the most along the way.
     local used, used0, K = {}, {}, 0
@@ -1130,7 +1098,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle, rev)
     local function H(node)
         local h = hc[node]
         if h then return h end
-        local x, y = SideXY(w, ev[node])
+        local x, y = SideXY(w, SideV(sides, node))
         h = msqrt((bx - x) ^ 2 + (by - y) ^ 2) - slack
         local e = (node + node % 2) / 2
         for l = 1, K do
@@ -1175,7 +1143,7 @@ local function Search(w, fromA, toB, bx, by, best, limit, circle, rev)
                 g[o], prev[o] = c, node
                 heap:Push(c + H(o), o)
             end
-            local key = SideKey(ev[node])
+            local key = SideKey(SideV(sides, node))
             local tc = TileCosts(w, key)
             if tc then
                 local df = Danger(w, key)
@@ -1236,13 +1204,13 @@ local function Walk(w, ax, ay, bx, by, opts)
     end
     -- B is reached only on ground A stands on; the grounds join only by
     -- safe drops, so a higher limit searches.
-    local ground = Limit(w) <= (w.data.safe or 0) and Ground(w)
-    if ground and best == mhuge then
+    local grounds = Limit(w) <= (w.data.safe or 0) and w.data.grounds
+    if grounds and best == mhuge then
         wipe(onGround)
-        for node in pairs(fromA) do onGround[ground[node]] = true end
+        for node in pairs(fromA) do onGround[GroundOf(grounds, node)] = true end
         local joined = false
         for node in pairs(toB) do
-            if onGround[ground[node]] then joined = true break end
+            if onGround[GroundOf(grounds, node)] then joined = true break end
         end
         if not joined then return nil end
     end
@@ -1258,13 +1226,13 @@ local function Walk(w, ax, ay, bx, by, opts)
     local time = bestTime
     if reached then
         time = fromAT[chain[1]] + toBT[reached]
-        local ents = Entrances(w)
+        local sides = w.data.sides
         for k = 1, #chain - 1 do
             local n1, n2 = chain[k], chain[k + 1]
             if n2 == Other(n1) then
                 time = time + w.cell
             else
-                local tc = TileCosts(w, SideKey(ents.v[n1]))
+                local tc = TileCosts(w, SideKey(SideV(sides, n1)))
                 local i, j = tc.at[n1], tc.at[n2]
                 time = time + tc.time[rev and PairIndex(tc, j, i) or PairIndex(tc, i, j)]
             end
@@ -1282,7 +1250,7 @@ local function Marks(w, x, y, rev)
     local m = w.marks[key]
     if m ~= nil then return m or nil end
     w.used = GetTime()
-    local alt = Landmarks(w)
+    local alt = w.data.marks
     local _, _, reach = End(w, x, y, nil, rev)
     if not (alt and reach) then
         w.marks[key] = false
@@ -1419,61 +1387,10 @@ end
 function Nav.Has(ci) return ns.GPSNavData ~= nil and ns.GPSNavData[ci] ~= nil end
 Nav.Ensure = Nav.Has
 
--- What every search on continent ci reads first (the entrance sides, the
--- grounds, the landmarks), decoded now, in the planner's slices, so the
--- first click of a session does not pay for it.
-function Nav.Warm(ci)
-    local w = World(ci)
-    if not w then return end
-    Entrances(w)
-    Ground(w)
-    Landmarks(w)
-    -- A use like any walk's: Release lets the decoded tables go after an
-    -- idle minute instead of keeping them for the session.
-    w.used = GetTime()
-end
-
--- The grid's base64 decoded once to deflated bytes, a continent at a time
--- in slices, and the base64 let go: a quarter less resident. A new table
--- replaces the old whole, so a reader keeps the form it started with.
-function Nav.DecodeBlobs(onDone)
-    local E = C_EncodingUtil
-    if not (E and E.DecodeBase64 and ns.GPSNavData) then return end
-    local cis = {}
-    for ci, data in pairs(ns.GPSNavData) do
-        if not data.raw then cis[#cis + 1] = ci end
-    end
-    if #cis == 0 then return end
-    Utils.RunSliced(function()
-        for _, ci in ipairs(cis) do
-            local old = ns.GPSNavData[ci]
-            local new = {}
-            for k, v in pairs(old) do
-                if type(v) == "string" then
-                    new[k] = E.DecodeBase64(v)
-                elseif type(v) == "table" then
-                    local t = {}
-                    for kk, vv in pairs(v) do
-                        t[kk] = type(vv) == "string" and E.DecodeBase64(vv) or vv
-                        Utils.SliceCheckpoint()
-                    end
-                    new[k] = t
-                else
-                    new[k] = v
-                end
-            end
-            new.raw = true
-            ns.GPSNavData[ci] = new
-            local w = worlds[ci]
-            if w then w.data = new end
-        end
-    end, onDone, 6, "gpsDecode")
-end
-
 -- Decoded data idle for age seconds goes: a tile by its last read, a
 -- tile's walking costs and a kept end by the last walk that read them,
--- and a continent's entrance sides, grounds, landmarks and kept walks
--- once no walk has asked for them. True while anything decoded remains.
+-- and a continent's kept walks once no walk has asked for them. True
+-- while anything decoded remains.
 function Nav.Release(age)
     local now = GetTime()
     local held = false
@@ -1499,7 +1416,7 @@ function Nav.Release(age)
         end
         if w.used then
             if w.used + age <= now then
-                w.used, w.ents, w.ground, w.alt = nil, nil, nil, nil
+                w.used = nil
                 w.walks, w.walksN, w.reach, w.reachN, w.costs, w.marks = {}, 0, {}, 0, {}, {}
             else
                 held = true
@@ -1636,22 +1553,24 @@ function Nav.Path(ci, ax, ay, bx, by, opts)
     local cost, chain, keyA, ga, keyB, gb = walk[1], walk[2], walk[3], walk[4], walk[5], walk[6]
     local near = opts and opts.near
     if not (keyB or near) then return nil end
-    local ev = Entrances(w).v
+    local sides = w.data.sides
     local out, jumps = { ax, ay }, {}
     local t, g = Tile(w, keyA), ga
     local k = 1
     while k <= #chain do
         local node = chain[k]
-        if SideKey(ev[node]) ~= t.key then return nil end
-        if not TilePath(w, t, g, SideFloor(ev[node]), out, jumps) then return nil end
+        local v = SideV(sides, node)
+        if SideKey(v) ~= t.key then return nil end
+        if not TilePath(w, t, g, SideFloor(v), out, jumps) then return nil end
         -- Across: the next node is the other side when the walk crosses here.
         local nxt = chain[k + 1]
         if nxt == Other(node) then
-            t = Tile(w, SideKey(ev[nxt]))
-            g = SideFloor(ev[nxt])
+            local nv = SideV(sides, nxt)
+            t = Tile(w, SideKey(nv))
+            g = SideFloor(nv)
             k = k + 2
         else
-            g = SideFloor(ev[node])
+            g = SideFloor(v)
             k = k + 1
         end
         if not t then return nil end

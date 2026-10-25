@@ -16,29 +16,166 @@ end
 
 local function xy(x, y) return math.floor(x * 4095 + 0.5) * 4096 + math.floor(y * 4095 + 0.5) end
 
--- Four creatures in id order (6, 448, 639, 1076), each id as a delta.
-local ROWS = varints({
-    4,
-    -- id, level, span, flags, kind (type | expansion + 1 << 4 | roles << 8), display, title, spots
-    6, 1, 1, 80, 7 + 16, 327, 0, 2, 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3,  -- Kobold Vermin, hostile to both
-    442, 11, 0, 17, 1 + 16, 384, 0, 1, 1429, xy(0.3, 0.4), 1,                       -- Hogger, beast, elite
-    191, 25, 0, 0, 7 + 16 + 256, 0, 0, 1, 0, 36, 1,                                 -- Edwin VanCleef, quests, no model
-    437, 30, 0, 0, 7 + 32 + 512, 2160, 1, 1, 1426, xy(0.2, 0.3), 1,                 -- Brog Hamfist, vendor, TBC
-})
+-- Numbers as little-endian strings of width bytes each.
+local function bytes(width, list)
+    local out = {}
+    for _, v in ipairs(list) do
+        for _ = 1, width do
+            out[#out + 1] = string.char(v % 256)
+            v = math.floor(v / 256)
+        end
+    end
+    return table.concat(out)
+end
+
+-- Numbers as width byte planes: every low byte, then every next one.
+local function planes(width, list)
+    local out = {}
+    for b = 0, width - 1 do
+        for _, v in ipairs(list) do out[#out + 1] = string.char(math.floor(v / 256 ^ b) % 256) end
+    end
+    return table.concat(out)
+end
+
+local function lines(text)
+    local out = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do out[#out + 1] = line end
+    return out
+end
+
+local function sortedKeys(set)
+    local out = {}
+    for key in pairs(set) do out[#out + 1] = key end
+    table.sort(out)
+    return out
+end
+
+-- Count lines as shipped: between newlines, with their starts; a line
+-- left blank in own shows english's.
+local function shipped(english, count, own)
+    local en, mine, out = lines(english), own and lines(own) or {}, {}
+    for i = 1, count do out[i] = (mine[i] and mine[i] ~= "") and mine[i] or en[i] or "" end
+    local text, at = "\n" .. table.concat(out, "\n") .. "\n", { 2 }
+    for i = 1, count do at[i + 1] = at[i] + #out[i] + 1 end
+    return text, bytes(3, at)
+end
+
+-- What dev/tools/npc_plain.py marks a class's title by: the English class
+-- names (and the client's own, none in these tests).
+local CLASS_NAMES = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid",
+                      "death knight", "monk", "demon hunter", "evoker" }
+
+-- The catalog as dev/tools/npc_plain.py ships it, from creatures listed
+-- as { id, flags, kind (type | expansion + 1 << 4 | roles << 8), display,
+-- title, { map, xy, spawns per spot } }; the records in byte planes.
+local function catalog(creatures, names, titles, localNames)
+    local spots, kinds, titleIdx, byTitle, byRole, types, expansions = {}, {}, {}, {}, {}, {}, {}
+    local ids, flags, displays, firsts, counts = {}, {}, {}, {}, {}
+    for i, c in ipairs(creatures) do
+        local kind, title, sp = c[3], c[5], c[6]
+        ids[i], flags[i], displays[i], firsts[i], counts[i] = c[1], c[2], c[4], #spots + 1, #sp / 3
+        for s = 1, #sp, 3 do spots[#spots + 1] = bytes(2, { sp[s] }) .. bytes(3, { sp[s + 1] }) .. bytes(2, { sp[s + 2] }) end
+        kinds[i], titleIdx[i] = kind, title
+        if title > 0 then
+            byTitle[title] = byTitle[title] or {}
+            table.insert(byTitle[title], i)
+        end
+        local roles, role = math.floor(kind / 256), 1
+        while role <= roles do
+            if math.floor(roles / role) % 2 == 1 then
+                byRole[role] = byRole[role] or {}
+                table.insert(byRole[role], i)
+            end
+            role = role * 2
+        end
+        types[kind % 16] = true
+        expansions[math.floor(kind / 16) % 16 - 1] = true
+    end
+    local rec = planes(3, ids) .. planes(1, flags) .. planes(3, displays) .. planes(3, firsts) .. planes(2, counts)
+    local at, titled, titleCount = {}, {}, #lines(titles)
+    for t = 1, titleCount do
+        at[t] = #titled
+        for _, i in ipairs(byTitle[t] or {}) do titled[#titled + 1] = i end
+    end
+    at[titleCount + 1] = #titled
+    local data = { rec = rec, spots = table.concat(spots), kinds = bytes(3, kinds),
+                   titleIdx = bytes(2, titleIdx), titleAt = bytes(3, at), titleCreatures = bytes(3, titled),
+                   roles = {}, kindTypes = sortedKeys(types), kindExpansions = sortedKeys(expansions),
+                   titleName = lines(titles), titleLow = {}, classTitle = {} }
+    for t, title in ipairs(data.titleName) do
+        data.titleLow[t] = title:lower()
+        for _, class in ipairs(CLASS_NAMES) do
+            if data.titleLow[t]:find(class, 1, true) then data.classTitle[t] = true end
+        end
+    end
+    for role, list in pairs(byRole) do data.roles[role] = bytes(3, list) end
+    data.names, data.nameAt = shipped(names, #creatures)
+    data.namesLow = data.names:lower()
+    if localNames then
+        data.localNames, data.localNameAt = shipped(names, #creatures, localNames)
+        data.localNamesLow = data.localNames:lower()
+    end
+    return data
+end
+
+-- What vendors sell, as shipped, from per item its weapon type + 1 (0
+-- none), the stock lists (items) and per creature the list it sells.
+local function addGoods(data, goods, count)
+    local items, listsOf, at, ids = #goods.types, {}, {}, {}
+    for l, list in ipairs(goods.lists) do
+        for _, j in ipairs(list) do
+            listsOf[j] = listsOf[j] or {}
+            table.insert(listsOf[j], l)
+        end
+    end
+    for j = 1, items do
+        at[j] = #ids
+        for _, l in ipairs(listsOf[j] or {}) do ids[#ids + 1] = l end
+    end
+    at[items + 1] = #ids
+    local types, typeIds, sells, vendors = {}, {}, {}, {}
+    for j, t in ipairs(goods.types) do
+        types[j] = string.char(t)
+        if t > 0 then typeIds[t - 1] = true end
+    end
+    for i = 1, count do
+        sells[i] = goods.sells[i] or 0
+        if goods.sells[i] then vendors[#vendors + 1] = i end
+    end
+    data.goodsTypes, data.goodsTypeIds = table.concat(types), sortedKeys(typeIds)
+    data.goodsListAt, data.goodsLists = bytes(3, at), bytes(2, ids)
+    data.sells, data.vendors = bytes(2, sells), bytes(3, vendors)
+    data.goodsNames, data.goodsNameAt = shipped(goods.names, items)
+    data.goodsNamesLow = data.goodsNames:lower()
+    if goods.localNames then
+        data.localGoods, data.localGoodsAt = shipped(goods.names, items, goods.localNames)
+        data.localGoodsLow = data.localGoods:lower()
+    end
+end
+
+-- Four creatures in id order.
+local CREATURES = {
+    { 6, 80, 7 + 16, 327, 0, { 1429, xy(0.5, 0.5), 10, 1433, xy(0.1, 0.1), 3 } },  -- Kobold Vermin, hostile to both
+    { 448, 17, 1 + 16, 384, 0, { 1429, xy(0.3, 0.4), 1 } },                        -- Hogger, beast, elite
+    { 639, 0, 7 + 16 + 256, 0, 0, { 0, 36, 1 } },                                  -- Edwin VanCleef, quests, no model
+    { 1076, 0, 7 + 32 + 512, 2160, 1, { 1426, xy(0.2, 0.3), 1 } },                 -- Brog Hamfist, vendor, TBC
+}
 
 -- Two danger cells (a quarter tile a side) on continent 0, the walking
 -- tiles 2079 and 2080: cell 32894 hostile from level 60 to both factions,
 -- cell 32896 from level 20 to the Alliance and 0 (none) to the Horde.
 local DANGER = varints({ 2, 32894, 60, 60, 2, 20, 0 })
 
-local function fresh(localNames, rows, names, goods, noLoad)
+local function fresh(localNames, creatures, names, goods, noLoad, titles)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
     ns.Caps = { forever = true }
     local function vec(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
     env.CreateVector2D = vec
-    env.C_EncodingUtil = { DecodeBase64 = function(s) return s end, DecompressString = function(s) return s end }
+    env.unpacked = 0
+    env.C_EncodingUtil = { DecodeBase64 = function(s) return s end,
+                           DecompressString = function(s) env.unpacked = env.unpacked + 1 return s end }
     env.C_Item = { GetItemSubClassInfo = function(c, s) return c == 2 and ({ [2] = "Bows", [18] = "Crossbows" })[s] end }
     env.C_Map = {
         GetBestMapForUnit = function() return 1429 end,
@@ -49,15 +186,15 @@ local function fresh(localNames, rows, names, goods, noLoad)
     ns.MapSearch = {}
     ns.MapSearchSearch = { PreparePOI = function(p) p.nameLower = string.lower(p.name) return p end }
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
-    ns.NPC_DATA = { rows = rows or ROWS, names = names or "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
-                    titles = "General Supplies", localNames = localNames, danger = { [0] = DANGER },
-                    types = { [1] = "Beast", [7] = "Humanoid" },
-                    goods = goods and goods.blob, goodsNames = goods and goods.names,
-                    localGoods = goods and goods.localNames }
+    creatures = creatures or CREATURES
+    ns.NPC_DATA = catalog(creatures, names or "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
+                          titles or "General Supplies", localNames)
+    ns.NPC_DATA.danger = { [0] = DANGER }
+    ns.NPC_DATA.types = { [1] = "Beast", [7] = "Humanoid" }
+    if goods then addGoods(ns.NPC_DATA, goods, #creatures) end
     env.EasyFind.db = {}
     ns.L.NPC_SELLS = "Sells %s"
     H.loadModule("Apps/GPS/Npcs.lua", env, ns)
-    -- As if the first-focus warm had landed: typing never decodes.
     if not noLoad then ns.GPSNpcs.Load(); ns.GPSNpcs.LoadGoods() end
     return ns.MapSearch.AppendNpcRows, ns.GPSNpcs, env
 end
@@ -68,9 +205,9 @@ end
 -- and "Dana" selling food.
 local REPAIR = 7 + 16 + (2 + 256) * 256
 local function vendors(count, extra)
-    local list, names = { count + 2 + (extra and #extra or 0) }, {}
+    local list, names = {}, {}
     local function add(name, flags, kind, x, y)
-        for _, v in ipairs({ 1, 10, 0, flags, kind, 0, 0, 1, 1429, xy(x, y), 1 }) do list[#list + 1] = v end
+        list[#list + 1] = { #list + 1, flags, kind, 0, 0, { 1429, xy(x, y), 1 } }
         names[#names + 1] = name
     end
     for k = 1, count - 1 do add("Arnold " .. k, 0, REPAIR, 0.9, 0.9) end
@@ -78,7 +215,7 @@ local function vendors(count, extra)
     add("Cid", 2 * 8, REPAIR, 0.31, 0.41)
     add("Dana", 0, 7 + 16 + (2 + 512) * 256, 0.5, 0.5)
     for _, name in ipairs(extra or {}) do add(name, 0, 7 + 16, 0.31, 0.41) end
-    local append, _, env = fresh(nil, varints(list), table.concat(names, "\n"))
+    local append, _, env = fresh(nil, list, table.concat(names, "\n"))
     env.UnitFactionGroup = function() return "Alliance" end
     return append
 end
@@ -95,15 +232,6 @@ local function find(append, query, onlyMap)
 end
 
 local tests = {}
-
-function tests.typingNeverDecodes_theWarmDoes()
-    local append, N, env = fresh(nil, nil, nil, nil, true)
-    H.assertEq(#find(append, "hogger"), 0, "no creatures before the catalog is in")
-    H.assertTrue(N.n == nil, "the keystroke did not decode")
-    env._clock:advance(0.1)
-    H.assertTrue(N.n and N.n > 0, "the warm decoded it")
-    H.assertEq(#find(append, "hogger"), 1, "found once it is in")
-end
 
 function tests.nameFindsTheCreatureOnItsSpot()
     local rows = find(fresh(), "hog")
@@ -259,12 +387,24 @@ function tests.pastTheCapTheNearestGetIn()
     H.assertEq(rows[1].name, "Bea Longername")
 end
 
--- Two items (159 water, 2515 arrows) on one shared list, sold by the
--- Kobold Vermin (row 0, hostile to the Alliance) and Brog Hamfist (row 3).
+-- Water and arrows on one shared list, sold by the Kobold Vermin (hostile
+-- to the Alliance) and Brog Hamfist.
 local GOODS = {
-    blob = varints({ 2, 159, 2356, 0, 0, 1, 2, 0, 1, 2, 0, 0, 3, 0 }),
+    types = { 0, 0 }, lists = { { 1, 2 } }, sells = { [1] = 1, [4] = 1 },
     names = "Refreshing Spring Water\nSharp Arrow",
 }
+-- Nothing to unpack: the first query reads the catalog where it ships.
+function tests.theFirstQueryFindsWithNothingUnpacked()
+    local append, N, env = fresh(nil, nil, nil, GOODS, true)
+    H.assertTrue(N.n == nil, "nothing read before a query")
+    H.assertEq(#find(append, "hogger"), 1, "found on the first query")
+    H.assertEq(#find(append, "sharp arrow"), 1, "and what vendors sell")
+    H.assertEq(env.unpacked, 0, "nothing unpacked")
+end
+
+local function goodsNamed(names, localNames)
+    return { types = GOODS.types, lists = GOODS.lists, sells = GOODS.sells, names = names, localNames = localNames }
+end
 
 function tests.anItemFindsWhoSellsIt()
     local append = fresh(nil, nil, nil, GOODS)
@@ -283,7 +423,7 @@ end
 -- A creature named for the query still says what it sells that matches,
 -- when a word of the item starts with the query.
 function tests.aNameMatchAlsoNamesWhatItSells()
-    local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = "Refreshing Spring Water\nBrog Arrow" })
+    local append = fresh(nil, nil, nil, goodsNamed("Refreshing Spring Water\nBrog Arrow"))
     local rows = find(append, "brog")
     H.assertEq(rows[1].name, "Brog Hamfist")
     H.assertEq(rows[1].soldName, "Brog Arrow", "found by name, and the item named")
@@ -291,10 +431,10 @@ function tests.aNameMatchAlsoNamesWhatItSells()
     H.assertNil(find(append, "rog")[1].soldName, "inside a word of the item: no note")
 end
 
--- Water and a Worn Shortbow (bows, subclass 2) sold by Brog Hamfist (row
--- 3), a Light Crossbow (subclass 18) by Edwin VanCleef (row 2).
+-- Water and a Worn Shortbow (bows, subclass 2) sold by Brog Hamfist, a
+-- Light Crossbow (subclass 18) by Edwin VanCleef.
 local WEAPONS = {
-    blob = varints({ 3, 159, 2345, 3, 0, 3, 19, 2, 2, 0, 1, 1, 2, 2, 2, 1, 1, 0 }),
+    types = { 0, 3, 19 }, lists = { { 1, 2 }, { 3 } }, sells = { [3] = 2, [4] = 1 },
     names = "Refreshing Spring Water\nWorn Shortbow\nLight Crossbow",
 }
 
@@ -316,7 +456,7 @@ end
 -- Found by their stock alone, vendors score alike: each carries the best
 -- item matched and no title, so the map search puts the nearest first.
 function tests.vendorsFoundByStockScoreAlike()
-    local append = fresh(nil, nil, nil, { blob = WEAPONS.blob,
+    local append = fresh(nil, nil, nil, { types = WEAPONS.types, lists = WEAPONS.lists, sells = WEAPONS.sells,
                                           names = "Refreshing Spring Water\nWorn Shortbow\nShortbow of Light" })
     local rows = find(append, "shortbow")
     local brog, edwin = named(rows, "Brog Hamfist"), named(rows, "Edwin VanCleef")
@@ -329,8 +469,7 @@ function tests.vendorsFoundByStockScoreAlike()
 end
 
 function tests.anItemFindsInEitherLanguage()
-    local append = fresh(nil, nil, nil, { blob = GOODS.blob, names = GOODS.names,
-                                          localNames = "Erfrischendes Quellwasser\nScharfer Pfeil" })
+    local append = fresh(nil, nil, nil, goodsNamed(GOODS.names, "Erfrischendes Quellwasser\nScharfer Pfeil"))
     local rows = find(append, "pfeil")
     H.assertEq(rows[1].matchNote, "Sells Scharfer Pfeil", "the client's language shows")
     H.assertEq(find(append, "sharp")[1].name, "Brog Hamfist", "English still finds")
@@ -341,9 +480,9 @@ end
 -- Bea stands.
 local INN = 7 + 16 + 16 * 256
 local function places()
-    local list, names = { 5 }, {}
+    local list, names = {}, {}
     local function add(name, kind, m, x, y)
-        for _, v in ipairs({ 1, 10, 0, 0, kind, 0, 0, 1, m, xy(x, y), 1 }) do list[#list + 1] = v end
+        list[#list + 1] = { #list + 1, 0, kind, 0, 0, { m, xy(x, y), 1 } }
         names[#names + 1] = name
     end
     add("Arnold", REPAIR, 1429, 0.9, 0.9)
@@ -351,7 +490,7 @@ local function places()
     add("Dana", INN, 1433, 0.12, 0.1)
     add("Orgrimmar Grunt", 7 + 16, 1429, 0.5, 0.5)
     add("Ed", 7 + 16 + 2 * 256, 1426, 0.5, 0.5)
-    local append, _, env = fresh(nil, varints(list), table.concat(names, "\n"))
+    local append, _, env = fresh(nil, list, table.concat(names, "\n"))
     env.UnitFactionGroup = function() return "Alliance" end
     local ns = env.EasyFind._ns
     ns.MapSearch.ZonesNamed = function(_, word)
@@ -397,6 +536,46 @@ function tests.aTownWordNarrowsToItsInn()
     H.assertEq(rows[1].name, "Bea")
     H.assertEq(find("auberdine inn")[1].name, "Dana", "inn is a service word")
     H.assertEq(#find("aube inn"), 1, "a prefix names it")
+end
+
+-- A trainer titled after a class is a class trainer, whatever its name;
+-- a cooking trainer is not.
+function tests.classTrainersByTheirTitle()
+    local trainer = 7 + 16 + 4 * 256
+    local append = fresh(nil, { { 1, 0, trainer, 0, 1, { 1429, xy(0.3, 0.4), 1 } },
+                                { 2, 0, trainer, 0, 2, { 1429, xy(0.5, 0.5), 1 } } },
+                         "Jennea\nBob", nil, nil, "Mage Trainer\nCooking Trainer")
+    local rows = find(append, "class")
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, "Jennea")
+    H.assertEq(#find(append, "class trainer"), 1)
+    H.assertEq(find(append, "cooking trainer")[1].name, "Bob")
+end
+
+-- Every shipped catalog file is in the form read where it ships
+-- (dev/tools/npc_plain.py): no base64 part a first query would unpack.
+function tests.shippedCatalog_readInPlace()
+    local names = {}
+    for _, flavor in ipairs({ "Retail", "Era", "TBC", "Forever" }) do
+        names[#names + 1] = flavor
+        for _, loc in ipairs({ "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
+            names[#names + 1] = flavor .. "_" .. loc
+        end
+    end
+    for _, name in ipairs(names) do
+        local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Npcs_" .. name .. ".lua", "rb"))
+        local src = f:read("*a")
+        f:close()
+        local isBase = not name:find("_")
+        for _, field in ipairs(isBase and { "namesLow = \"", "titleName = {", "classTitle = {" }
+                               or { "data.localNamesLow = \"", "data.titleName = {", "data.classTitle = {" }) do
+            H.assertTrue(src:find(field, 1, true) ~= nil, name .. " carries " .. field)
+        end
+        for line in src:gmatch("[^\n]+") do
+            local field = line:match('^%s*[%w%.]+ = "[%w+/=]+",?$')
+            H.assertNil(field, name .. " ships a packed part: " .. line:sub(1, 40))
+        end
+    end
 end
 
 local pass, fail, failures = H.runSuite("GPSNpcs", tests)

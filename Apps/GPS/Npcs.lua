@@ -1,6 +1,6 @@
--- Named creatures as map rows: the packed catalog (ns.NPC_DATA) unpacked on
--- the first query long enough to reach it, matched on name, title, service
--- or what a vendor sells, each row on the creature's spot nearest the player.
+-- Named creatures as map rows: the catalog (ns.NPC_DATA) read where it
+-- ships, matched on name, title, service or what a vendor sells, each row
+-- on the creature's spot nearest the player.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end
@@ -51,48 +51,46 @@ local SERVICES = {
     { bits = 4096, en = "class trainer", key = "NPC_WORDS_CLASS_TRAINER" },
 }
 -- A trainer titled with a class's name (Hunter Trainer): no catalog role,
--- worked out from the title as the catalog loads.
+-- its title marked as shipped (classTitle, dev/tools/npc_plain.py).
 local CLASS_TRAINER = 4096
-local CLASS_NAMES_EN = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage", "warlock", "druid",
-                         "death knight", "monk", "demon hunter", "evoker" }
 local FAR = math.huge
 
--- Everything unpacked, in one table: per creature (index i) its id, levels,
--- flags, title and display, and its spots (index k). Names stay one text
--- (names) and one lowercase text (low), a line per creature starting at
--- at[i]; the English texts beside them on other clients (enNames, enLow,
--- enAt), nil where the client's names are English.
--- Per creature its kind and title as arrays (every query reads them for
--- all creatures), the rest packed in rec; per spot its map, place and
--- spawns packed in spots (Rec, Spot below).
+-- The catalog as it ships (dev/tools/npc_plain.py), each part one string
+-- read in place: per creature (index i) its record, kind and title; per
+-- spot (index k) its map, place and spawns. Names are one text (names) and
+-- its lowercase (low), a line per creature starting at At(at, i); the
+-- English texts beside them on other clients (enNames, enLow, enAt).
 local N = {
     n = nil,
-    kind = {}, title = {}, rec = "", spots = "",
-    names = "", low = "", at = {}, enNames = nil, enLow = nil, enAt = nil,
-    titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {},
+    rec = "", spots = "", kinds = "", titleIdx = "",
+    names = "", low = "", at = "", enNames = nil, enLow = nil, enAt = nil,
+    titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {}, classTitle = {},
     spotCi = {}, spotWx = {}, spotWy = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
-    mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {},
+    mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {}, scan = {}, len = {},
+    titleAt = "", titleCreatures = "", roleIds = {},
     -- Per query word whether it names a service or title (wordRole) or a
     -- place (wordPlace); the places named and the maps of the chosen ones.
     wordRole = {}, wordPlace = {}, placeHit = {}, placeWordsOf = {}, placeList = {}, placeWords = {}, mapSet = {},
-    -- What vendors sell: per item (index j) its id and names, per stock list
-    -- (index l) its items, per creature the list it sells (sells[i]).
-    goodsN = nil, goodsId = {}, goodsName = {}, goodsLow = {}, goodsLowEnglish = {},
-    listsOf = {}, sells = {}, listHit = {}, itemScore = {}, matched = {}, sold = {},
-    -- Weapons: per item its type (item subclass), per type the client's
-    -- name; soldType[j] when the query named the type, not the item.
-    goodsType = {}, typeName = {}, typeLow = {}, typeScore = {}, soldType = {},
+    -- What vendors sell: per item (index j) its names (goodsText, goodsLow,
+    -- goodsAt; goodsEn* in English), weapon type and stock lists, per
+    -- creature the list it sells (Sells).
+    goodsN = nil, goodsText = "", goodsLow = "", goodsAt = "", goodsEnText = nil, goodsEnLow = nil, goodsEnAt = nil,
+    goodsTypes = "", goodsListAt = "", goodsLists = "", sells = "", vendors = "",
+    listHit = {}, itemScore = {}, matched = {}, sold = {}, goodsCand = {}, goodsSeen = {},
+    -- Weapons: per type the client's name; soldType[j] when the query named
+    -- the type, not the item.
+    typeName = {}, typeLow = {}, typeScore = {}, soldType = {},
     -- The query's best item, and per creature whether only its stock matched.
     bestItem = nil, byItem = {},
     ROLE_GROUPS = { "quest", "vendor", "trainer", "flight", "services", "other" },
 }
 ns.GPSNpcs = N
 
--- Unpacked these were ten arrays, 8 MB of the 11 a decoded catalog held.
 -- A creature's record: id (3 bytes), flags (1), display id (3), first
--- spot (3), spot count (2). A spot's: map (2), x * GRID + y (3), spawns (2).
+-- spot (3), spot count (2), each byte a plane over all creatures (it
+-- ships at half the size). A spot's: map (2), x * GRID + y (3), spawns (2).
 local REC, SPOT = 12, 7
 local function U16(s, p)
     local a, b = sbyte(s, p, p + 1)
@@ -102,42 +100,72 @@ local function U24(s, p)
     local a, b, c = sbyte(s, p, p + 2)
     return a + b * 256 + c * 65536
 end
-local function B3(v)
-    return v % 256, mfloor(v / 256) % 256, mfloor(v / 65536)
+-- Entry i of a list of 3-byte numbers.
+local function At(s, i)
+    return U24(s, i * 3 - 2)
+end
+-- Creature i's record field whose planes start at plane p.
+local function Planes(p, width, i)
+    local rec, n = N.rec, N.n
+    local v, mul = 0, 1
+    for b = p, p + width - 1 do
+        v = v + sbyte(rec, b * n + i) * mul
+        mul = mul * 256
+    end
+    return v
 end
 local Rec = {
-    id = function(i) return U24(N.rec, (i - 1) * REC + 1) end,
-    flags = function(i) return sbyte(N.rec, (i - 1) * REC + 4) end,
-    display = function(i) return U24(N.rec, (i - 1) * REC + 5) end,
-    first = function(i) return U24(N.rec, (i - 1) * REC + 8) end,
-    count = function(i) return U16(N.rec, (i - 1) * REC + 11) end,
+    id = function(i) return Planes(0, 3, i) end,
+    flags = function(i) return sbyte(N.rec, 3 * N.n + i) end,
+    display = function(i) return Planes(4, 3, i) end,
+    first = function(i) return Planes(7, 3, i) end,
+    count = function(i) return Planes(10, 2, i) end,
 }
 local Spot = {
     map = function(k) return U16(N.spots, (k - 1) * SPOT + 1) end,
     xy = function(k) return U24(N.spots, (k - 1) * SPOT + 3) end,
     spawns = function(k) return U16(N.spots, (k - 1) * SPOT + 6) end,
 }
-N.Rec, N.Spot = Rec, Spot
+-- Creature i's kind (type | expansion + 1 << 4 | roles << 8) and title.
+local function Kind(i)
+    return U24(N.kinds, i * 3 - 2)
+end
+local function Title(i)
+    return U16(N.titleIdx, i * 2 - 1)
+end
+-- Its roles, with CLASS_TRAINER for a trainer whose title names a class.
+local function Roles(i)
+    local roles = mfloor(Kind(i) / 256)
+    if band(roles, 4) ~= 0 and band(roles, CLASS_TRAINER) == 0 and N.classTitle[Title(i)] then
+        roles = roles + CLASS_TRAINER
+    end
+    return roles
+end
+N.Rec, N.Spot, N.Kind, N.Title = Rec, Spot, Kind, Title
 
--- The creature whose line holds byte position p of a names text.
+-- The line holding byte position p of a text whose n line starts are at.
 local function LineAt(at, n, p)
     local lo, hi = 1, n
     while lo < hi do
         local mid = mfloor((lo + hi + 1) / 2)
-        if at[mid] <= p then lo = mid else hi = mid - 1 end
+        if At(at, mid) <= p then lo = mid else hi = mid - 1 end
     end
     return lo
 end
 
--- Creature i's name, from the text.
+-- Line i of a text, its starts at.
+local function Line(text, at, i)
+    return ssub(text, At(at, i), At(at, i + 1) - 2)
+end
+
 local function Name(i)
-    return ssub(N.names, N.at[i], N.at[i + 1] - 2)
+    return Line(N.names, N.at, i)
 end
 
 -- Creature i's English name when the client shows another, else nil.
 local function EnglishName(i)
     if not N.enNames then return nil end
-    local en = ssub(N.enNames, N.enAt[i], N.enAt[i + 1] - 2)
+    local en = Line(N.enNames, N.enAt, i)
     if en == "" or en == Name(i) then return nil end
     return en
 end
@@ -178,258 +206,102 @@ local function Unpack(s)
     return E.DecompressString(E.DecodeBase64(s), method)
 end
 
-local function Reader(s)
-    local pos = 1
-    return function()
-        local v, mul = 0, 1
-        while true do
-            local b = sbyte(s, pos)
-            pos = pos + 1
-            if b < 128 then return v + b * mul end
-            v = v + (b - 128) * mul
-            mul = mul * 128
-        end
-    end
-end
-
-local function Lines(blob, out, sliced)
-    if not blob then return out end
-    local ok, text = pcall(Unpack, blob)
-    if not (ok and text) then return out end
-    local i = 0
-    for line in sgmatch(text .. "\n", "(.-)\n") do
-        i = i + 1
-        out[i] = line
-        if sliced and i % 1024 == 0 then SliceCheckpoint() end
-    end
-    return out
-end
-
--- The name a locale shows: its own, else its base locale's, else English.
-local function Pick(own, base, english, i)
-    local v = own and own[i]
-    if v and v ~= "" then return v end
-    v = base and base[i]
-    if v and v ~= "" then return v end
-    return english[i]
-end
-
--- A names text as one string, a line per creature between newlines, and
--- the line starts: at[i] for creature i, at[count + 1] past the last.
-local function Text(text, count, sliced)
-    text = (text or ""):gsub("\n$", "")
-    local blob = "\n" .. text .. "\n"
-    local at, pos = {}, 2
-    for i = 1, count do
-        if sliced and i % 1024 == 0 then SliceCheckpoint() end
-        at[i] = pos
-        local nl = sfind(blob, "\n", pos, true)
-        if not nl then
-            blob = blob .. "\n"
-            nl = #blob
-        end
-        pos = nl + 1
-    end
-    at[count + 1] = pos
-    return blob, at
-end
-
--- The client's names: its own where it has one, else its base locale's,
--- else English, merged line by line (English clients skip the merge).
-local function MergedNames(data, count, key, localKey, baseKey, sliced)
-    local english = data[key]
-    if not english then return "" end
-    local ok, text = pcall(Unpack, english)
-    if not (ok and text) then return "" end
-    if not (data[localKey] or data[baseKey]) then return text end
-    local en = Lines(english, {}, sliced)
-    local own, base = Lines(data[localKey], {}, sliced), Lines(data[baseKey], {}, sliced)
-    local out = {}
-    for i = 1, count do
-        if sliced and i % 1024 == 0 then SliceCheckpoint() end
-        out[i] = Pick(own, base, en, i) or "?"
-    end
-    return table.concat(out, "\n")
-end
-
--- Decodes the catalog into N; N.n is set only once it is whole. Rewrites
--- the same slots each run, so a cancelled sliced run can be redone.
--- sliced: the caller's sliced run has no pcall around this.
-local function Decode(sliced)
+-- The catalog's parts where they ship (dev/tools/npc_plain.py); N.n is set
+-- only once all are in.
+local function Bind()
     local data = ns.NPC_DATA
-    if not (data and C_EncodingUtil and C_EncodingUtil.DecompressString) then N.n = 0 return end
-    local ok, raw = pcall(Unpack, data.rows)
-    if not (ok and raw) then N.n = 0 return end
-    local u = Reader(raw)
-    local count, last, k = u(), 0, 0
-    local recs, spots = {}, {}
-    for i = 1, count do
-        if sliced and i % 256 == 0 then SliceCheckpoint() end
-        last = last + u()
-        local _, _, flags, kind, display, title = u(), u(), u(), u(), u(), u()
-        N.kind[i], N.title[i] = kind, title
-        local c = u()
-        local i1, i2, i3 = B3(last)
-        local d1, d2, d3 = B3(display)
-        local f1, f2, f3 = B3(k + 1)
-        recs[i] = schar(i1, i2, i3, flags, d1, d2, d3, f1, f2, f3, c % 256, mfloor(c / 256))
-        for _ = 1, c do
-            k = k + 1
-            local m, xy, spawns = u(), u(), u()
-            local x1, x2, x3 = B3(xy)
-            spots[k] = schar(m % 256, mfloor(m / 256), x1, x2, x3, spawns % 256, mfloor(spawns / 256))
-        end
+    local rec, at = data and data.rec, data and data.nameAt
+    if not (rec and at and data.spots and data.kinds and data.titleIdx and data.names and data.namesLow
+            and data.titleAt and data.titleCreatures and data.titleName and data.titleLow) then
+        N.n = 0
+        return
     end
-    N.rec, N.spots = tconcat(recs), tconcat(spots)
-    N.names, N.at = Text(MergedNames(data, count, "names", "localNames", "baseNames", sliced), count, sliced)
-    N.low = slower(N.names)
-    if data.localNames or data.baseNames then
-        local okEn, en = pcall(Unpack, data.names)
-        N.enNames, N.enAt = Text(okEn and en or "", count, sliced)
-        N.enLow = slower(N.enNames)
+    -- Line starts that miss a creature would send MarkLines round forever.
+    local count = mfloor(#rec / REC)
+    if #at ~= (count + 1) * 3 then N.n = 0 return end
+    N.rec, N.spots, N.kinds, N.titleIdx = rec, data.spots, data.kinds, data.titleIdx
+    N.titleAt, N.titleCreatures = data.titleAt, data.titleCreatures
+    -- Other clients: their merged names, English beside them.
+    local own, ownAt = data.localNames, data.localNameAt
+    if own and ownAt and data.localNamesLow and #ownAt == #at then
+        N.names, N.at, N.low = own, ownAt, data.localNamesLow
+        N.enNames, N.enAt, N.enLow = data.names, at, data.namesLow
+    else
+        N.names, N.at, N.low = data.names, at, data.namesLow
     end
-    local tEnglish, tOwn, tBase = Lines(data.titles, {}), Lines(data.localTitles, {}), Lines(data.baseTitles, {})
-    for t = 1, #tEnglish do
-        N.titleName[t] = Pick(tOwn, tBase, tEnglish, t)
-        N.titleLow[t] = slower(N.titleName[t] or "")
-        if tEnglish[t] ~= N.titleName[t] then
-            N.titleEnglish[t] = tEnglish[t]
-            N.titleLowEnglish[t] = slower(tEnglish[t])
-        end
-    end
-    -- Class trainers: their title names a class, in English or the client's.
-    local classNames = {}
-    for _, n in ipairs(CLASS_NAMES_EN) do classNames[#classNames + 1] = n end
-    for _, names in ipairs({ LOCALIZED_CLASS_NAMES_MALE or {}, LOCALIZED_CLASS_NAMES_FEMALE or {} }) do
-        for _, n in pairs(names) do
-            if type(n) == "string" then classNames[#classNames + 1] = slower(n) end
-        end
-    end
-    local classTitle = {}
-    for t = 1, #tEnglish do
-        for _, n in ipairs(classNames) do
-            if sfind(N.titleLow[t] or "", n, 1, true) or (N.titleLowEnglish[t] and sfind(N.titleLowEnglish[t], n, 1, true)) then
-                classTitle[t] = true
-                break
-            end
-        end
-    end
-    for i = 1, count do
-        local roles = mfloor(N.kind[i] / 256)
-        if classTitle[N.title[i]] and band(roles, 4) ~= 0 and band(roles, CLASS_TRAINER) == 0 then
-            N.kind[i] = N.kind[i] + CLASS_TRAINER * 256
-        end
-    end
+    N.roleIds = data.roles or {}
+    N.titleName, N.titleLow, N.classTitle = data.titleName, data.titleLow, data.classTitle or {}
+    N.titleEnglish, N.titleLowEnglish = data.titleEnglish or {}, data.titleLowEnglish or {}
     N.n = count
 end
 
-local warmHandle, warmQueued
-local LoadGoods
-
--- A caller that needs the catalog now stops a sliced decode under way and
--- decodes at once (the decodes rewrite the same slots, so none interleave).
-local function CancelWarm()
-    if warmHandle then
-        warmHandle:Cancel()
-        warmHandle = nil
-    end
-    warmQueued = nil
-end
-
--- sliced: called from the warm's own run.
-local function Load(sliced)
-    if N.n then return N.n > 0 end
-    if not sliced then CancelWarm() end
-    Decode(sliced)
+local function Load()
+    if not N.n then Bind() end
     return N.n > 0
 end
-
--- The decode in slices from first focus, creatures then what vendors
--- sell: the first creature search of a session ran all of it, 23,000
--- creatures and the goods, inside its keystroke.
-function N.Warm()
-    if (N.n and N.goodsN) or warmQueued then return end
-    warmQueued = true
-    ns.Utils.SafeAfter(0, function()
-        if not warmQueued then return end
-        warmHandle = ns.Utils.RunSliced(function()
-            Load(true)
-            LoadGoods(true)
-        end, function(ok, err)
-            warmHandle, warmQueued = nil, nil
-            if not ok then return ns.Utils.ErrorHandler(err) end
-            if not (N.n and N.n > 0) then return end
-            if ns.Search and ns.Search.RefreshActiveSearch then ns.Search:RefreshActiveSearch() end
-            if ns.MapTab and ns.MapTab.RefreshSearch then ns.MapTab:RefreshSearch() end
-        end, 4, "npcWarm")
-    end)
-end
-
--- The keystroke path never decodes: until the warm lands, searches go on
--- without creatures and repaint when it does.
-local function Ready()
-    if N.n and N.goodsN then return N.n > 0 end
-    N.Warm()
-    return false
-end
-
 N.Load = Load
 
--- The goods blob (dev/tools/npc_catalog.py): items, the lists that share
--- them, and which creature (by row index) sells which list.
--- Like Decode, sets N.goodsN only once whole and can be redone.
-LoadGoods = function(sliced)
+-- What vendors sell (dev/tools/npc_layout.py): per item its names, weapon
+-- type and stock lists, per creature the list it sells. Like Bind, sets
+-- N.goodsN only once all are in.
+local function LoadGoods()
     if N.goodsN then return N.goodsN > 0 end
-    if not sliced then CancelWarm() end
     local data = ns.NPC_DATA
-    if not (data and data.goods and Load(sliced)) then N.goodsN = 0 return false end
-    local ok, raw = pcall(Unpack, data.goods)
-    if not (ok and raw) then N.goodsN = 0 return false end
-    local u = Reader(raw)
-    local count, last = u(), 0
-    for j = 1, count do
-        if sliced and j % 512 == 0 then SliceCheckpoint() end
-        last = last + u()
-        N.goodsId[j] = last
-        N.listsOf[j] = {}
+    if not (data and data.goodsTypes and Load()) then N.goodsN = 0 return false end
+    local types, text, at = data.goodsTypes, data.goodsNames, data.goodsNameAt
+    if not (data.goodsListAt and data.goodsLists and data.sells and data.vendors and text and at
+            and data.goodsNamesLow) or #at ~= (#types + 1) * 3 then
+        N.goodsN = 0
+        return false
     end
-    for j = 1, count do
-        local t = u() - 1
-        if t >= 0 then
-            N.goodsType[j] = t
-            if N.typeLow[t] == nil then
-                local name = C_Item.GetItemSubClassInfo(WEAPON, t)
-                N.typeName[t], N.typeLow[t] = name, name and name ~= "" and slower(name) or false
-            end
-        end
+    N.goodsTypes, N.goodsListAt, N.goodsLists = types, data.goodsListAt, data.goodsLists
+    N.sells, N.vendors = data.sells, data.vendors
+    local own, ownAt = data.localGoods, data.localGoodsAt
+    if own and ownAt and data.localGoodsLow and #ownAt == #at then
+        N.goodsText, N.goodsAt, N.goodsLow = own, ownAt, data.localGoodsLow
+        N.goodsEnText, N.goodsEnAt, N.goodsEnLow = text, at, data.goodsNamesLow
+    else
+        N.goodsText, N.goodsAt, N.goodsLow = text, at, data.goodsNamesLow
     end
-    for l = 1, u() do
-        if sliced and l % 256 == 0 then SliceCheckpoint() end
-        local at = 0
-        for _ = 1, u() do
-            at = at + u()
-            local lists = N.listsOf[at + 1]
-            lists[#lists + 1] = l
-        end
+    for _, t in ipairs(data.goodsTypeIds or {}) do
+        local name = C_Item.GetItemSubClassInfo(WEAPON, t)
+        N.typeName[t], N.typeLow[t] = name, name and name ~= "" and slower(name) or false
     end
-    local row = 0
-    for _ = 1, u() do
-        row = row + u()
-        N.sells[row + 1] = u() + 1
-    end
-    local english = Lines(data.goodsNames, {}, sliced)
-    local own, base = Lines(data.localGoods, {}, sliced), Lines(data.baseGoods, {}, sliced)
-    for j = 1, count do
-        if sliced and j % 512 == 0 then SliceCheckpoint() end
-        local name = Pick(own, base, english, j) or "?"
-        N.goodsName[j] = name
-        N.goodsLow[j] = slower(name)
-        if english[j] and english[j] ~= name then N.goodsLowEnglish[j] = slower(english[j]) end
-    end
-    N.goodsN = count
-    return count > 0
+    N.goodsN = #types
+    return N.goodsN > 0
 end
 N.LoadGoods = LoadGoods
+
+local function Ready()
+    local ok = Load()
+    LoadGoods()
+    return ok
+end
+
+-- Item j's name, and in English when the client shows another.
+local function GoodsName(j)
+    return Line(N.goodsText, N.goodsAt, j)
+end
+local function GoodsEnglishLow(j)
+    if not N.goodsEnText then return nil end
+    local a, b = At(N.goodsEnAt, j), At(N.goodsEnAt, j + 1) - 2
+    if ssub(N.goodsEnText, a, b) == GoodsName(j) then return nil end
+    return ssub(N.goodsEnLow, a, b)
+end
+
+-- Item j's stock lists: offsets into goodsLists, past the last one.
+local function ListSpan(j)
+    return At(N.goodsListAt, j), At(N.goodsListAt, j + 1) - 1
+end
+local function ListOf(o)
+    return U16(N.goodsLists, o * 2 + 1)
+end
+
+-- Creature i's stock list, nil when it sells nothing.
+local function Sells(i)
+    local l = U16(N.sells, i * 2 - 1)
+    return l ~= 0 and l or nil
+end
 
 -- Every word of the query in a name (low, or alt in English): 3 when the
 -- name starts with the first, 2 when a word in it does, else 1; 0 when not.
@@ -454,26 +326,74 @@ local function WordsScore(low, alt)
     return score
 end
 
+-- Every line of a text holding word, by one find per line that does.
+local function MarkLines(blob, at, n, word, mark)
+    local p = sfind(blob, word, 1, true)
+    while p do
+        local i = LineAt(at, n, p)
+        mark(i)
+        p = sfind(blob, word, At(at, i + 1), true)
+    end
+end
+
+local function MarkGoods(j)
+    if N.goodsSeen[j] ~= N.gen then
+        N.goodsSeen[j] = N.gen
+        local cand = N.goodsCand
+        cand[#cand + 1] = j
+    end
+end
+
 -- Marks each stock list holding an item the query names with its best such
 -- item (listHit[l] = j). False when no item matched.
 local function MatchGoods()
     local listHit, itemScore, matched, soldType = N.listHit, N.itemScore, N.matched, N.soldType
     for m = #matched, 1, -1 do
-        for _, l in ipairs(N.listsOf[matched[m]]) do listHit[l] = nil end
+        local a, b = ListSpan(matched[m])
+        for o = a, b do listHit[ListOf(o)] = nil end
         itemScore[matched[m]] = nil
         soldType[matched[m]] = nil
         matched[m] = nil
     end
     N.bestItem = nil
     if not LoadGoods() then return false end
-    local typeScore = N.typeScore
-    for t, low in pairs(N.typeLow) do typeScore[t] = low and WordsScore(low) or 0 end
-    for j = 1, N.goodsN do
-        local s = WordsScore(N.goodsLow[j], N.goodsLowEnglish[j])
+    local words, wordPlace = N.words, N.wordPlace
+    local first
+    for w = 1, #words do
+        if not wordPlace[w] then
+            first = words[w]
+            break
+        end
+    end
+    if not first then return false end
+    -- Candidates: items whose name holds the first word, and the weapons
+    -- of a type the query names; no other item can match.
+    N.gen = N.gen + 1
+    local cand = N.goodsCand
+    for c = #cand, 1, -1 do cand[c] = nil end
+    MarkLines(N.goodsLow, N.goodsAt, N.goodsN, first, MarkGoods)
+    if N.goodsEnLow then MarkLines(N.goodsEnLow, N.goodsEnAt, N.goodsN, first, MarkGoods) end
+    local typeScore, types = N.typeScore, N.goodsTypes
+    for t, low in pairs(N.typeLow) do
+        typeScore[t] = low and WordsScore(low) or 0
+        if typeScore[t] > 0 then
+            local byte = schar(t + 1)
+            local j = sfind(types, byte, 1, true)
+            while j do
+                MarkGoods(j)
+                j = sfind(types, byte, j + 1, true)
+            end
+        end
+    end
+    tsort(cand)
+    for c = 1, #cand do
+        local j = cand[c]
+        local a, b = At(N.goodsAt, j), At(N.goodsAt, j + 1) - 2
+        local s = WordsScore(ssub(N.goodsLow, a, b), GoodsEnglishLow(j))
         -- A weapon its type names better than its own name (a Shortbow for
         -- "bow"): it is sold as the type.
-        local t = N.goodsType[j]
-        if t and typeScore[t] > s then
+        local t = sbyte(types, j) - 1
+        if t >= 0 and typeScore[t] > s then
             s = typeScore[t]
             soldType[j] = t
         end
@@ -481,9 +401,12 @@ local function MatchGoods()
             itemScore[j] = s
             matched[#matched + 1] = j
             if not N.bestItem or s > itemScore[N.bestItem] then N.bestItem = j end
-            for _, l in ipairs(N.listsOf[j]) do
+            local la, lb = ListSpan(j)
+            for o = la, lb do
+                local l = ListOf(o)
                 local best = listHit[l]
-                if not best or s > itemScore[best] or (s == itemScore[best] and #N.goodsLow[j] < #N.goodsLow[best]) then
+                if not best or s > itemScore[best]
+                    or (s == itemScore[best] and b - a < At(N.goodsAt, best + 1) - At(N.goodsAt, best) - 2) then
                     listHit[l] = j
                 end
             end
@@ -632,7 +555,7 @@ local function LineHits(blob, at, n, word, into)
     while p do
         local i = LineAt(at, n, p)
         into[i] = p
-        p = sfind(blob, word, at[i + 1], true)
+        p = sfind(blob, word, At(at, i + 1), true)
     end
 end
 
@@ -655,23 +578,24 @@ end
 -- offers; 0 no match.
 local function Score(i)
     local words, wordPlace, low, at, enLow, enAt = N.words, N.wordPlace, N.low, N.at, N.enLow, N.enAt
-    local tlow, tAlt = N.titleLow[N.title[i]], N.titleLowEnglish[N.title[i]]
+    local t, roles = Title(i), Roles(i)
+    local tlow, tAlt = N.titleLow[t], N.titleLowEnglish[t]
     local score, first = 0, true
     for w = 1, #words do
         if not wordPlace[w] then
             local word = words[w]
             -- Every word names a service (repair, inn): who offers it, not a
             -- name holding the word (Repaired Bomber above every repairer).
-            if N.allService and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then return 0 end
-            local p, blob, start = N.hitLow[w][i], low, at[i]
-            if not p and enLow then p, blob, start = N.hitEn[w][i], enLow, enAt[i] end
+            if N.allService and band(roles, N.wordBits[w]) == 0 then return 0 end
+            local p, blob, lines = N.hitLow[w][i], low, at
+            if not p and enLow then p, blob, lines = N.hitEn[w][i], enLow, enAt end
             if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
-                and band(mfloor(N.kind[i] / 256), N.wordBits[w]) == 0 then
+                and band(roles, N.wordBits[w]) == 0 then
                 return 0
             end
             if first then
                 first = false
-                if p == start then score = 3
+                if p and p == At(lines, i) then score = 3
                 elseif p and sbyte(blob, p - 1) == 32 then score = 2
                 else score = 1 end
             end
@@ -686,8 +610,7 @@ local function HitLess(a, b)
     if sa ~= sb then return sa > sb end
     local na, nb = N.near[a], N.near[b]
     if na ~= nb then return na < nb end
-    local at = N.at
-    return (at[a + 1] - at[a]) < (at[b + 1] - at[b])
+    return N.len[a] < N.len[b]
 end
 
 local function Row(i, k)
@@ -698,12 +621,12 @@ local function Row(i, k)
         -- Keywords: the title, and the English name and title on other
         -- clients, which the map search's own scoring reads.
         local keywords = {}
-        local t = N.title[i]
+        local t = Title(i)
         if N.titleName[t] and N.titleName[t] ~= "" then keywords[#keywords + 1] = N.titleName[t] end
         local english = EnglishName(i)
         if english then keywords[#keywords + 1] = english end
         if N.titleEnglish[t] then keywords[#keywords + 1] = N.titleEnglish[t] end
-        local roles = mfloor(N.kind[i] / 256)
+        local roles = Roles(i)
         for _, s in ipairs(ServiceWords()) do
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
         end
@@ -720,7 +643,7 @@ local function Row(i, k)
     -- scoring keeps the row; the item is the row's note too.
     local j = N.sold[i] or nil
     local t = j and N.soldType[j]
-    local soldName = j and (t and N.typeName[t] or N.goodsName[j]) or nil
+    local soldName = j and (t and N.typeName[t] or GoodsName(j)) or nil
     -- Found by its stock alone: scored as the query's best item, its title
     -- left out, as every such vendor is, so the nearest leads (not a "Staff
     -- & Mace Merchant" across the world for quarter staff).
@@ -734,8 +657,8 @@ local function Row(i, k)
             local item = scoredAs or j
             if item then
                 local it = N.soldType[item]
-                keywords[1] = it and N.typeName[it] or N.goodsName[item]
-                if not it and N.goodsLowEnglish[item] then keywords[2] = N.goodsLowEnglish[item] end
+                keywords[1] = it and N.typeName[it] or GoodsName(item)
+                if not it then keywords[2] = GoodsEnglishLow(item) end
             end
             if placeKey then
                 for w = 1, #N.words do
@@ -761,7 +684,7 @@ end
 -- type[id], expansion[id] (-1: unknown), role[group], reaction[0 friendly,
 -- 1 neutral, 2 hostile] to the player's faction.
 local function Passes(i, f, horde)
-    local kind = N.kind[i]
+    local kind = Kind(i)
     if f.type and f.type[kind % 16] == false then return false end
     if f.expansion and f.expansion[mfloor(kind / 16) % 16 - 1] == false then return false end
     local roleF = f.role
@@ -790,16 +713,6 @@ local function Mark(i)
         N.mark[i] = N.gen
         local cand = N.cand
         cand[#cand + 1] = i
-    end
-end
-
--- Every creature whose name holds word, by one find per line that does.
-local function MarkLines(blob, at, n, word)
-    local p = sfind(blob, word, 1, true)
-    while p do
-        local i = LineAt(at, n, p)
-        Mark(i)
-        p = sfind(blob, word, at[i + 1], true)
     end
 end
 
@@ -952,11 +865,50 @@ local function Places()
     return town, true
 end
 
+-- Marks the creatures carrying a title hit or one of bits, from the lists
+-- per title and per role, in creature order as a scan of all would.
+local function MarkTitlesAndRoles(titleHit, bits)
+    local scan, lists = N.scan, 0
+    for c = #scan, 1, -1 do scan[c] = nil end
+    local titleAt, titleCreatures = N.titleAt, N.titleCreatures
+    for t = 1, #N.titleLow do
+        if titleHit[t] then
+            for o = At(titleAt, t) + 1, At(titleAt, t + 1) do scan[#scan + 1] = At(titleCreatures, o) end
+            lists = lists + 1
+        end
+    end
+    local role = 1
+    while role <= bits do
+        if band(bits, role) ~= 0 then
+            local ids = N.roleIds[role] or ""
+            for o = 1, #ids / 3 do scan[#scan + 1] = At(ids, o) end
+            lists = lists + 1
+            if role == CLASS_TRAINER then
+                for t = 1, #N.titleLow do
+                    if N.classTitle[t] then
+                        for o = At(titleAt, t) + 1, At(titleAt, t + 1) do
+                            local i = At(titleCreatures, o)
+                            if band(mfloor(Kind(i) / 256), 4) ~= 0 then scan[#scan + 1] = i end
+                        end
+                        lists = lists + 1
+                    end
+                end
+            end
+        end
+        role = role * 2
+    end
+    if lists > 1 then tsort(scan) end
+    for c = 1, #scan do
+        Mark(scan[c])
+        if c % 512 == 0 then SliceCheckpoint() end
+    end
+end
+
 -- Scores the candidates, keeping those within the set's maps or r2 of the
 -- point, passing the filters and serving the player: hits, in no order.
 local function Keep(set, pci, px, py, r2, goods, f, horde, service)
     local cand, hits, score = N.cand, N.hits, N.score
-    local listHit, sells, sold = N.listHit, N.sells, N.sold
+    local listHit, sold, len, at = N.listHit, N.sold, N.len, N.at
     local n = 0
     for c = 1, #cand do
         local i = cand[c]
@@ -964,7 +916,8 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         -- What it sells that the query names, when a word of the item starts
         -- with it (not "bow" inside Rainbow Fin Albacore): its match when
         -- nothing else matched, else a note beside its name.
-        local j = goods and sells[i] and listHit[sells[i]] or false
+        local l = goods and Sells(i)
+        local j = l and listHit[l] or false
         if j and N.itemScore[j] < 2 then j = false end
         local byItem = false
         if s == 0 and j then s, byItem = N.itemScore[N.bestItem], true end
@@ -976,6 +929,7 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
             hits[n] = i
             score[i] = s
             sold[i] = j
+            len[i] = At(at, i + 1) - At(at, i)
             N.byItem[i] = byItem
         end
         if c % 256 == 0 then SliceCheckpoint() end
@@ -1040,7 +994,6 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
     N.placeKey = placeKey
     local f = EasyFind.db and EasyFind.db.npcFilters
     local horde = UnitFactionGroup and UnitFactionGroup("player") == "Horde"
-    local sells = N.sells
     -- Candidates: the creatures whose name, English name or title holds
     -- the longest word, those offering its service, and the vendors when
     -- an item matched; the rest can match nothing. Scoring runs on these.
@@ -1052,8 +1005,8 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
         if not wordPlace[w] and (not lw or #words[w] > #words[lw]) then lw = w end
     end
     local longest = words[lw]
-    MarkLines(N.low, N.at, N.n, longest)
-    if N.enLow then MarkLines(N.enLow, N.enAt, N.n, longest) end
+    MarkLines(N.low, N.at, N.n, longest, Mark)
+    if N.enLow then MarkLines(N.enLow, N.enAt, N.n, longest, Mark) end
     local titleHit, anyTitle = N.titleHit, false
     for t = 1, #N.titleLow do
         local hit = sfind(N.titleLow[t], longest, 1, true)
@@ -1062,15 +1015,10 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
         if hit then anyTitle = true end
     end
     local bits = wordBits[lw]
-    if anyTitle or bits ~= 0 then
-        local title, kind = N.title, N.kind
-        for i = 1, N.n do
-            if titleHit[title[i]] or (bits ~= 0 and band(mfloor(kind[i] / 256), bits) ~= 0) then Mark(i) end
-            if i % 512 == 0 then SliceCheckpoint() end
-        end
-    end
+    if anyTitle or bits ~= 0 then MarkTitlesAndRoles(titleHit, bits) end
     if goods then
-        for i in pairs(sells) do Mark(i) end
+        local vendors = N.vendors
+        for o = 1, #vendors / 3 do Mark(At(vendors, o)) end
     end
     -- Where to look: around the town's inn, on the zones named, on the
     -- caller's map, or on the player's own map (and its cities) for
@@ -1140,18 +1088,14 @@ end
 -- names, and the expansions this catalog holds (-1: unknown), in order.
 function N.FilterChoices()
     if not Load() then return nil end
-    local present, types, expansions = {}, {}, {}
-    for i = 1, N.n do
-        present[N.kind[i] % 16] = true
-        expansions[mfloor(N.kind[i] / 16) % 16 - 1] = true
-    end
-    local names = ns.NPC_DATA.types or {}
-    for id in pairs(present) do
+    local data, types = ns.NPC_DATA, {}
+    local names = data.types or {}
+    for _, id in ipairs(data.kindTypes or {}) do
         if names[id] then types[#types + 1] = { id = id, name = names[id] } end
     end
     tsort(types, function(a, b) return a.name < b.name end)
     local list = {}
-    for e in pairs(expansions) do list[#list + 1] = e end
+    for _, e in ipairs(data.kindExpansions or {}) do list[#list + 1] = e end
     tsort(list, function(a, b) return (a < 0 and 99 or a) < (b < 0 and 99 or b) end)
     return { types = types, expansions = list }
 end
@@ -1161,6 +1105,20 @@ local function CellOf(x, y)
     return mfloor((ORIGIN - y) / CELL) * 256 + mfloor((ORIGIN - x) / CELL)
 end
 N.CellOf = CellOf
+
+local function Reader(s)
+    local pos = 1
+    return function()
+        local v, mul = 0, 1
+        while true do
+            local b = sbyte(s, pos)
+            pos = pos + 1
+            if b < 128 then return v + b * mul end
+            v = v + (b - 128) * mul
+            mul = mul * 128
+        end
+    end
+end
 
 -- Each danger cell's threat to a faction, decoded once: the level from
 -- which its hostile creatures stop being one. { [continent] = { [cell] =

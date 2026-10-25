@@ -5699,35 +5699,6 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
     -- Open as it was left; nil while snapped in is a save from before
     -- closing it was remembered.
     if c and (c.popoutOpen or (c.popoutOpen == nil and db and db.gpsDocked)) then GPS:OpenWindow() end
-    -- What every plan decodes first, done now in the planner's slices
-    -- rather than on the session's first click.
-    -- The player's continent only; another decodes inside the plan that
-    -- needs it. Warm counts as a use, so an idle minute lets it go.
-    local Nav = ns.GPSNav
-    if Nav and Nav.Warm and ns.GPSNavData then
-        Utils.SafeAfter(2, function()
-            if GPS:IsPlanning() then return end
-            local m = C_Map.GetBestMapForUnit("player")
-            if not m then return end
-            local ok, pos = pcall(C_Map.GetPlayerMapPosition, m, "player")
-            local ci = ok and pos and WorldPos(m, pos:GetXY())
-            if not (ci and ns.GPSNavData[ci]) then return end
-            GPS:Plan(nil, function()
-                Nav.yieldCo = coroutine.running()
-                Nav.Warm(ci)
-                Nav.yieldCo = nil
-            end, function() end)
-        end)
-        -- The grid's base64 decoded once, at the pre-load moment, never
-        -- under a plan (its readers hold the table they started with).
-        if Nav.DecodeBlobs then
-            local function decode()
-                if GPS:IsPlanning() then Utils.SafeAfter(5, decode) return end
-                Nav.DecodeBlobs()
-            end
-            Utils.SafeAfter(12, decode)
-        end
-    end
     local route = Route()
     if not route then return end
     -- A route is for the trip in progress; one left from another day is
