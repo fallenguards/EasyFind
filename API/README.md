@@ -161,7 +161,7 @@ EasyFind loads with every character, so an extension is at its best when it cost
 | `scope` | string | Its surface is that `@scope`'s list in the search bar: opening shows it, the tile is open while it is up. No `open` needed. |
 | `experimental` | string | A line of warning in its tooltip. |
 | `addon` | string | A load-on-demand addon holding the rest. See [Load on demand](#load-on-demand). |
-| `loadInCombat` | boolean | Its addon may load in combat. Leave it off if your addon creates secure frames at load. |
+| `loadInCombat` | boolean | Its addon may load, and it may open, in combat. Leave it off if your addon creates secure frames at load. |
 | `loadAtLogin` | boolean | Its addon loads at login, not on first open: for one that works unopened, such as recording. |
 
 An extension with only `settings` opens its settings page when clicked.

@@ -138,6 +138,25 @@ function tests.launch_noLoadInCombatUnlessAllowed()
     H.assertEq(loads, 1)
 end
 
+-- In a fight a loaded extension opens only when made for it, and a refused
+-- click says why; the bar's launchers go the same way.
+function tests.launch_inCombatOpensOnlyWhatLoadInCombatAllows()
+    local env, ns, API = fresh()
+    local opened, said = {}, {}
+    env.EasyFind.Print = function(_, msg) said[#said + 1] = msg end
+    env._G = env
+    env.ERR_NOT_IN_COMBAT = "You can't do that while in combat"
+    env.InCombatLockdown = function() return true end
+    API.RegisterExtension({ id = "map", name = "Map", icon = 1, open = function() opened.map = true end })
+    API.RegisterExtension({ id = "notes", name = "Notes", icon = 1, loadInCombat = true,
+                            open = function() opened.notes = true end })
+    H.assertFalse(ns.Extensions.Launch("map"))
+    H.assertNil(opened.map, "an extension not made for a fight stays shut")
+    H.assertEq(said[1], "You can't do that while in combat", "and the click says why")
+    ns.Extensions.Launch("notes")
+    H.assertTrue(opened.notes, "loadInCombat opens in a fight")
+end
+
 function tests.anExtensionsErrorStaysWithIt()
     local _, _, API, errors = fresh()
     API.RegisterExtension({

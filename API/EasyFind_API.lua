@@ -19,7 +19,7 @@
 ---@field scope? string Its surface is that @scope's list in the search bar.
 ---@field experimental? string A line of warning in its tooltip.
 ---@field addon? string A load-on-demand addon holding the rest.
----@field loadInCombat? boolean Its addon may load in combat.
+---@field loadInCombat? boolean Its addon may load, and it may open, in combat.
 ---@field loadAtLogin? boolean Its addon loads at login, not on first open.
 
 ---@class EasyFindMenuRow

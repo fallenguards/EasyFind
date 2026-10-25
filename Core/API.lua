@@ -197,8 +197,14 @@ function Extensions.LoadAtLogin()
 end
 
 function Extensions.Launch(id)
-    if not Extensions.Load(id) then return false end
     local def = Extensions.byID[id]
+    -- In a fight only one made for it opens; a click still says why.
+    if def and InCombatLockdown() and not def.loadInCombat then
+        EasyFind:Print(_G["ERR_NOT_IN_COMBAT"] or "")
+        return false
+    end
+    if not Extensions.Load(id) then return false end
+    def = Extensions.byID[id]
     if def.open then return (Run(def.open)) end
     -- A list is the extension itself; its settings stay in its menu.
     if def.scope then return API.ShowScope(def.scope) end

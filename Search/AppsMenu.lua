@@ -262,6 +262,8 @@ function ns.ToggleApplication(app)
         return
     end
     local id = ns.ApplicationEntryID(app)
+    -- The result path is shut in a fight: the registry decides what opens there.
+    if InCombatLockdown() then return id and ns.Extensions.Launch(id) end
     if id then launchOpenedBar[id] = not BarShown() end
     Results:HideResults()
     ns.ResultHandlers:SelectResult(app)
