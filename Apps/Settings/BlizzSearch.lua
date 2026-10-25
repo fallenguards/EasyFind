@@ -31,9 +31,14 @@ local coroutine = coroutine
 local setmetatable = setmetatable
 local tconcat = table.concat
 
-local liveSettingsYield
+-- The settings walks yield only inside their own sliced runs: called from
+-- another run (a search's), a yield there could let a second populate in.
+local ownRuns = setmetatable({}, { __mode = "k" })
+-- A query is waiting on the settings walks: they take a bigger budget.
+local optionsPopulateUrgent = false
 local function MaybeYieldLiveSettings()
-    if liveSettingsYield then liveSettingsYield() end
+    local co = coroutine.running()
+    if co and ownRuns[co] then Utils.SliceCheckpoint() end
 end
 
 local SecureCall = Utils.SecureCall
@@ -837,7 +842,7 @@ function BlizzOptionsSearch.ReindexSettings()
         if initByVariable or gen ~= indexGen then return end
         Utils.RunSliced(function() IndexSettings(true) end, function(ok, err)
             if not ok then Utils.ErrorHandler(err) end
-        end, 2, "settingsIndex")
+        end, function() return optionsPopulateUrgent and 4 or 2 end, "settingsIndex")
     end)
 end
 
@@ -1108,21 +1113,38 @@ local function CrawlCategory(cat)
 end
 
 -- Idempotent: re-crawl after late addon registrations fills in new entries.
-local function ResolveCategoryIDs()
+-- When the last crawl ran and over how many categories: a lookup that
+-- misses re-crawls only when the list changed or 5 s passed (a variable
+-- this client lacks re-crawled every category on every lookup).
+local lastCrawlAt, lastCrawlCount = -100, -1
+local function CategoryListCount()
     local list = GetSettingsCategoryList()
-    if type(list) == "table" then
-        for _, cat in ipairs(list) do
-            pcall(CrawlCategory, cat)
-        end
-    end
-    if SettingsPanel and SettingsPanel.GetAllCategories then
-        local ok, all = pcall(SettingsPanel.GetAllCategories, SettingsPanel)
-        if ok and type(all) == "table" then
-            for _, cat in ipairs(all) do
+    return type(list) == "table" and #list or 0
+end
+
+-- Each category crawled once (the list and the panel's own list overlap).
+local function ResolveCategoryIDs()
+    local crawled = {}
+    local function Crawl(list)
+        for _, cat in ipairs(type(list) == "table" and list or {}) do
+            if not crawled[cat] then
+                crawled[cat] = true
                 pcall(CrawlCategory, cat)
+                MaybeYieldLiveSettings()
             end
         end
     end
+    Crawl(GetSettingsCategoryList())
+    if SettingsPanel and SettingsPanel.GetAllCategories then
+        local ok, all = pcall(SettingsPanel.GetAllCategories, SettingsPanel)
+        if ok then Crawl(all) end
+    end
+    lastCrawlAt, lastCrawlCount = GetTime and GetTime() or 0, CategoryListCount()
+end
+
+local function CrawlOnMiss()
+    if CategoryListCount() == lastCrawlCount and (GetTime and GetTime() or 0) - lastCrawlAt < 5 then return end
+    ResolveCategoryIDs()
 end
 
 -- Open SettingsPanel first; on some clients OpenToCategory alone
@@ -1141,7 +1163,7 @@ local function GetCategoryID(name)
     if not name or name == "" then return nil end
     local cached = categoryIDByName[slower(name)]
     if cached then return cached end
-    ResolveCategoryIDs()
+    CrawlOnMiss()
     return categoryIDByName[slower(name)]
 end
 
@@ -1149,7 +1171,7 @@ local function GetCategoryIDForVariable(variable)
     if not variable then return nil end
     local cached = categoryIDByVariable[variable]
     if cached then return cached end
-    ResolveCategoryIDs()
+    CrawlOnMiss()
     return categoryIDByVariable[variable]
 end
 BlizzOptionsSearch.GetCategoryIDForVariable = GetCategoryIDForVariable
@@ -3006,57 +3028,22 @@ local OPTIONS_POPULATE_BUDGET_MS = 1.5
 -- A query is actively waiting on this data: spend real frame time so its
 -- results land within a couple hundred milliseconds, not seconds.
 local OPTIONS_POPULATE_URGENT_BUDGET_MS = 8
-local optionsPopulateUrgent = false
+local function OptionsBudget()
+    return optionsPopulateUrgent and OPTIONS_POPULATE_URGENT_BUDGET_MS or OPTIONS_POPULATE_BUDGET_MS
+end
+
+-- On the shared slicer: background work in the frame's background pool,
+-- a waiting query's budget when one waits. done(result) or done(nil, err).
 local function RunBudgetedOptionsWork(worker, done)
-    if not (SafeAfter and coroutine and coroutine.create and coroutine.resume
-            and coroutine.status and coroutine.yield and debugprofilestop) then
-        local ok, resultOrErr = xpcall(worker, Utils.ErrorHandler)
-        if ok then
-            done(resultOrErr)
-        else
-            done(nil, resultOrErr)
-        end
-        return
-    end
-
-    local co = coroutine.create(worker)
-    local finished = false
-
-    local function scheduleStep()
-        SafeAfter(0, function()
-            if finished then return end
-            local ok, err = xpcall(function()
-                local startMs = debugprofilestop()
-                local budgetMs = optionsPopulateUrgent
-                    and OPTIONS_POPULATE_URGENT_BUDGET_MS or OPTIONS_POPULATE_BUDGET_MS
-                liveSettingsYield = function()
-                    if (debugprofilestop() - startMs) >= budgetMs then
-                        coroutine.yield()
-                    end
-                end
-                local resumeOk, resultOrErr = coroutine.resume(co)
-                liveSettingsYield = nil
-                if not resumeOk then
-                    finished = true
-                    done(nil, resultOrErr)
-                    return
-                end
-                if coroutine.status(co) == "dead" then
-                    finished = true
-                    done(resultOrErr)
-                    return
-                end
-                scheduleStep()
-            end, Utils.ErrorHandler)
-            liveSettingsYield = nil
-            if not ok then
-                finished = true
-                done(nil, err)
-            end
-        end)
-    end
-
-    scheduleStep()
+    Utils.RunSliced(function()
+        local co = coroutine.running()
+        if co then ownRuns[co] = true end
+        return worker()
+    end, function(ok, resultOrErr)
+        if ok then return done(resultOrErr) end
+        Utils.ErrorHandler(resultOrErr)
+        done(nil, resultOrErr)
+    end, OptionsBudget, "settingsPopulate")
 end
 
 local function CollectGameSettingsAsync(done)
@@ -3088,18 +3075,33 @@ local function AddWaiter(waiters, fn)
     if fn then waiters[#waiters + 1] = fn end
 end
 
+-- The rows a light populate puts in the search data, in order: their index
+-- is saved as segment "settings" and restored while their text is the same.
+local pushSink
+local RememberCategories   -- the categories a populate saw (below)
+local function Sink(e)
+    if pushSink then pushSink[#pushSink + 1] = e end
+end
+
 local function PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
     -- Post-pass dedupe: any Game Settings entry that collides with an
     -- AddOn Settings entry by (name + settingsCategory) is dropped.
     local addonKeys = {}
     local existingVars = {}
+    -- A window's toggle binding is listed only while the window's own
+    -- entry is not: both open the same window.
+    local owners, byButton = {}, ns.Caps and ns.Caps.BUTTON_BINDING or {}
     for i = 1, #data do
         local e = data[i]
-        if e and e.settingVariable then
-            existingVars[e.settingVariable] = i
-        end
-        if e and e.category == "AddOn Settings" then
-            addonKeys[DedupeKey(e)] = true
+        if e then
+            if e.settingVariable then existingVars[e.settingVariable] = i end
+            local category = e.category
+            if category == "AddOn Settings" then
+                addonKeys[DedupeKey(e)] = true
+            elseif category == "Menu Bar" then
+                local action = e.buttonFrame and byButton[e.buttonFrame]
+                if action and e.available then owners[action] = e end
+            end
         end
     end
     for i = 1, #addonEntries do
@@ -3123,12 +3125,14 @@ local function PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
                     ns.SearchIndex:NoteReplaced(data[existingIndex], e)
                 end
                 data[existingIndex] = e
+                Sink(e)
                 changed = true
                 return
             end
             existingVars[variable] = #data + 1
         end
         tinsert(data, e)
+        Sink(e)
         changed = true
     end
     local function pushFiltered(src)
@@ -3137,14 +3141,6 @@ local function PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
         end
     end
 
-    -- A window's toggle binding is listed only while the window's own
-    -- entry is not: both open the same window.
-    local owners, byButton = {}, ns.Caps and ns.Caps.BUTTON_BINDING or {}
-    for i = 1, #data do
-        local e = data[i]
-        local action = e.category == "Menu Bar" and e.buttonFrame and byButton[e.buttonFrame]
-        if action and e.available then owners[action] = e end
-    end
     for i = 1, #kb do
         local owner = owners[kb[i].bindingAction]
         if owner then kb[i].available = function() return not owner.available() end end
@@ -3156,6 +3152,7 @@ local function PushOptionEntries(data, entries, kb, addonEntries, gameEntries)
     pushFiltered(kb)
     for i = 1, #addonEntries do
         tinsert(data, addonEntries[i])
+        Sink(addonEntries[i])
         changed = true
     end
     if gameEntries then pushFiltered(gameEntries) end
@@ -3327,11 +3324,14 @@ end
 local function DeserializeList(blob, corpusName)
     local corpus = Utils.GetCorpus(corpusName)
     if not (corpus and corpus.packed == blob) then
+        -- Ungated: the saved "settings" index segment narrows these rows
+        -- already, so the per-row mask pass (a decode of every row) goes.
         corpus = Utils.NewPackedCorpus(blob, OPTIONS_ROW_SPEC, OPTIONS_CORPUS_PROTO, {
             computed = OPTIONS_COMPUTED,
             keywordsFor = OptionsRowKeywords,
             keywordFields = { keywords = true },
             liteFields = { "category" },
+            ungated = true,
         })
         Utils.RegisterCorpus(corpusName, corpus)
     end
@@ -3524,6 +3524,7 @@ local function PushCanvasRows(data, cat, addon)
         if not canvasPushed[key] then
             canvasPushed[key] = true
             tinsert(data, e)
+            Sink(e)
             added = true
         end
     end
@@ -3637,9 +3638,12 @@ local function PullFeed(data, addon, rows)
             end
         end
         for i = #data, kept + 1, -1 do data[i] = nil end
+        local index = ns.SearchIndex
         for e in pairs(old) do
             if e.feedVariable then ns.ResultRows:RegisterCustomSetting(e.feedVariable, nil) end
+            if index then index:NoteRemoved(e) end
         end
+        if index then index:NoteCompacted(kept) end
     end
     local mine = {}
     for _, r in ipairs(list) do
@@ -3658,6 +3662,7 @@ local function PullFeed(data, addon, rows)
             FeedControl(e, r.control, addon)
             mine[e] = true
             tinsert(data, e)
+            Sink(e)
         end
     end
     feedRows[addon] = mine
@@ -3933,6 +3938,16 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     local rec = { live = includeLiveGameSettings or nil, startedAt = GetTime and GetTime() or 0 }
     BlizzOptionsSearch.lastPopulate = rec
     local t = StepClock()
+    pushSink = not includeLiveGameSettings and {} or nil
+    if not includeLiveGameSettings then RememberCategories() end
+    local function AttachRows()
+        local rows = pushSink
+        pushSink = nil
+        if rows and #rows > 0 and ns.SearchSegments and ns.SearchSegments.Attach then
+            ns.SearchSegments.Attach("settings", rows)
+        end
+        t = Step(rec, "attachMs", t)
+    end
 
     -- Light path is the reload hot path: restore the persisted index and skip
     -- the settings-tree walk when the cache signature still matches. Live game
@@ -3945,7 +3960,8 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
         local changed = PushCanvasEntries(data)
         t = Step(rec, "canvasMs", t)
         if PushFeedEntries(data) then changed = true end
-        Step(rec, "feedMs", t)
+        t = Step(rec, "feedMs", t)
+        AttachRows()
         if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
         populated = true
         rec.endedAt = GetTime and GetTime() or 0
@@ -3971,6 +3987,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     t = Step(rec, "canvasMs", t)
     if PushFeedEntries(data) then changed = true end
     t = Step(rec, "feedMs", t)
+    AttachRows()
     populated = true
 
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
@@ -4126,24 +4143,53 @@ function BlizzOptionsSearch:HandleStep(step)
 end
 
 local lateRefreshScheduled = false
+-- Every category the last populate saw, by parent and name: the late
+-- refresh only reads names to find one registered since.
+local knownCategories = {}
+local function CategoryKey(parentName, name) return (parentName or "") .. "\31" .. name end
+local function EachCategory(fn)
+    local list = GetSettingsCategoryList()
+    for _, cat in ipairs(type(list) == "table" and list or {}) do
+        local name = cat.GetName and cat:GetName()
+        if name and name ~= "" then
+            fn(CategoryKey(nil, name))
+            if cat.GetSubcategories then
+                local sok, subs = pcall(cat.GetSubcategories, cat)
+                for _, sub in ipairs(sok and type(subs) == "table" and subs or {}) do
+                    local subName = sub.GetName and sub:GetName()
+                    if subName and subName ~= "" then fn(CategoryKey(name, subName)) end
+                end
+            end
+        end
+    end
+end
+RememberCategories = function()
+    wipe(knownCategories)
+    EachCategory(function(key) knownCategories[key] = true end)
+end
+
 local function RefreshLateAddonCategories()
     if not (ns.Database and ns.Database.uiSearchData) then return end
-    -- Re-collect to pick up addons that register categories late.
-    local seen = {}
-    for _, e in ipairs(ns.Database.uiSearchData or {}) do
-        if e.settingsCategory and not e.settingVariable then
-            seen[e.settingsCategory] = true
+    -- Addons that register categories late: rows for those alone.
+    local fresh
+    EachCategory(function(key)
+        if not knownCategories[key] then
+            fresh = fresh or {}
+            fresh[key] = true
         end
-    end
+    end)
+    if not fresh then return end
     ResolveCategoryIDs()
-    local fresh = CollectEntries(false)
-    for _, e in ipairs(fresh) do
-        -- Skip per-variable entries already injected in pass 1.
-        if not e.settingVariable and not seen[e.settingsCategory] then
+    local added = false
+    for _, e in ipairs(CollectEntries(false)) do
+        local key = CategoryKey(e.path and e.path[2], e.settingsCategory)
+        if not e.settingVariable and fresh[key] then
             tinsert(ns.Database.uiSearchData, e)
+            added = true
         end
     end
-    if ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
+    for key in pairs(fresh) do knownCategories[key] = true end
+    if added and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
 end
 
 local function ScheduleLateRefresh()

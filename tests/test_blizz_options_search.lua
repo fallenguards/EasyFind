@@ -139,6 +139,41 @@ function tests.fastNameplateFallbackUsesVisibleSettingsLabel()
         "common reordered query should be an explicit keyword")
 end
 
+-- The late refresh (3 s after the first populate) adds rows only for
+-- categories registered since, and with none it adds nothing.
+function tests.lateRefresh_addsOnlyCategoriesRegisteredSince()
+    local cats = { makeCategory("Interface", 1) }
+    local env
+    local ns
+    ns, env = loadOptionsSearch({ settingsPanel = { GetAllCategories = function() return cats end } })
+    local function Count(name)
+        local n = 0
+        for _, e in ipairs(ns.Database.uiSearchData) do
+            if e.name == name and not e.settingVariable then n = n + 1 end
+        end
+        return n
+    end
+    ns.BlizzOptionsSearch:EnsurePopulated()
+    H.assertEq(Count("Interface"), 1, "the populate's category row")
+    cats[#cats + 1] = makeCategory("Late Addon", 2)
+    env._clock:advance(3.1)
+    H.assertEq(Count("Late Addon"), 1, "a category registered since gets its row")
+    H.assertEq(Count("Interface"), 1, "a known category is not added again")
+end
+
+function tests.lateRefresh_withNothingNew_crawlsNothing()
+    local cats = { makeCategory("Interface", 1) }
+    local reads = 0
+    local ns, env = loadOptionsSearch({ settingsPanel = { GetAllCategories = function()
+        reads = reads + 1
+        return cats
+    end } })
+    ns.BlizzOptionsSearch:EnsurePopulated()
+    reads = 0
+    env._clock:advance(3.1)
+    H.assertTrue(reads <= 1, "one read of the category list, no crawl: " .. reads)
+end
+
 function tests.liveDropdownOptionLabelsBecomeSearchKeywords()
     local cat = makeCategory("Interface", 1)
     local setting = makeLiveSetting("Nameplate Aura Display", "testNameplateAuraDisplay", "number")
