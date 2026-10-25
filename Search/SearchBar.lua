@@ -341,6 +341,8 @@ function Search:RegisterCombatEvents()
         if event == "PLAYER_REGEN_DISABLED" then
             inCombat = true
             combatToggledOff = false
+            -- The menu is on UIParent: close it in every mode, before lockdown.
+            Search:CloseFilterDropdownIfOpen()
             -- Always Show with combatHide off keeps the BAR up through
             -- combat. Results and focus still clear unconditionally: the
             -- result rows are secure buttons whose combat-boundary
@@ -350,7 +352,6 @@ function Search:RegisterCombatEvents()
                 searchFrame:Hide()
                 searchFrame.hoverZone:Hide()
             else
-                Search:CloseFilterDropdownIfOpen()
                 EnsureCombatShield():Show()
                 ApplyAlwaysBarAlpha()
             end

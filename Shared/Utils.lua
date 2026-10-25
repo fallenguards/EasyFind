@@ -8276,6 +8276,7 @@ local function CursorMenuOnShow(self)
     if not self._parentMenu then
         self:RegisterEvent("GLOBAL_MOUSE_DOWN")
         self:RegisterEvent("GLOBAL_MOUSE_UP")
+        self:RegisterEvent("PLAYER_REGEN_DISABLED")
     end
     if self.keyboardMode then
         CursorMenuFocusKeyboard(self, self.keyboardIndex or 1)
@@ -8295,6 +8296,7 @@ local function CursorMenuOnHide(self)
     Utils.SafeCallMethod(self, "EnableKeyboard", false)
     self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
     self:UnregisterEvent("GLOBAL_MOUSE_UP")
+    self:UnregisterEvent("PLAYER_REGEN_DISABLED")
     if self.rows then
         for i = 1, #self.rows do
             local row = self.rows[i]
@@ -8430,6 +8432,17 @@ local function CursorMenuOnUpdate(self)
 end
 
 local function CursorMenuOnEvent(self, event)
+    if event == "PLAYER_REGEN_DISABLED" then
+        -- Before lockdown: the cascade stays open, mouse-only for the fight,
+        -- since propagation cannot change in one.
+        local node = self
+        while node do
+            Utils.SafeCallMethod(node, "SetPropagateKeyboardInput", true)
+            Utils.SafeCallMethod(node, "EnableKeyboard", false)
+            node = node._openSubmenu
+        end
+        return
+    end
     if event ~= "GLOBAL_MOUSE_DOWN" and event ~= "GLOBAL_MOUSE_UP" then return end
     if self._showedAt and (GetTime() - self._showedAt) < (self.clickGrace or 0.05) then return end
     -- Clicks on the owning toggle button are its OnClick's to handle:
