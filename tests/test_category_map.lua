@@ -73,5 +73,26 @@ function tests.noFiltersOffMeansNothingSkipped()
     H.assertEq(next(out), nil, "the out table is wiped even when nothing skips")
 end
 
+-- A provider's saved index takes every row of its category (Database/
+-- Dynamic.lua TakePopulatedRows): a shipped row carrying one would sit in
+-- two segments.
+function tests.shippedRowsCarryNoProviderCategory()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Database/Main.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local s = assert(src:find("function Database:BuildUIDatabase()", 1, true), "the shipped tree")
+    local tree = src:sub(s):gsub("%-%-[^\r\n]*", "")
+    local providerOf = {}
+    for key, cat in pairs(CategoryMap.ProviderCategory) do providerOf[cat] = key end
+    local seen = 0
+    for value in tree:gmatch("%f[%w]category%s*=([^=][^,}\r\n]*)") do
+        local cat = value:match('^%s*"([^"]+)"%s*$')
+        H.assertNotNil(cat, "a shipped category is a plain string: " .. value)
+        H.assertNil(providerOf[cat], ("shipped category '%s' is provider %s's"):format(cat, tostring(providerOf[cat])))
+        seen = seen + 1
+    end
+    H.assertTrue(seen > 80, "read the shipped tree's categories: " .. seen)
+end
+
 local pass, fail, failures = H.runSuite("CategoryMap", tests)
 return { pass = pass, fail = fail, failures = failures }

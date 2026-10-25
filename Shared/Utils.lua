@@ -478,6 +478,28 @@ function Corpus:NameLowerOf(ri)
     return NormalizeLower(decodedName)
 end
 
+-- A stub's field without memoizing it: keying every row must not leave
+-- each one's name and path decoded on it.
+function Corpus:Peek(stub, key)
+    local value = rawget(stub, key)
+    if value ~= nil then return value end
+    value = self.proto[key]
+    if value ~= nil then return value end
+    local ri = rawget(stub, "_ri")
+    local lite = self.liteValues and self.liteValues[key]
+    if lite and lite[ri] ~= nil then return lite[ri] end
+    local fieldIdx = self.fieldIdxOf[key]
+    local chunk = fieldIdx and CorpusFieldChunk(self, ri, fieldIdx)
+    if chunk then
+        local field = self.spec[fieldIdx]
+        value = DecodeField(chunk, field[2], field[3])
+        if value ~= nil then return value end
+    end
+    local computeFn = self.computed and self.computed[key]
+    if computeFn then return computeFn(stub) end
+    return nil
+end
+
 -- Per-row keywords for the index build (corpora with opts.keywordsFor):
 -- decodes the row into a reused scratch and returns keywordsFor's array,
 -- which is itself a reused buffer -- valid only until the next call.
@@ -808,17 +830,20 @@ function Utils.RunSliced(fn, onDone, budgetMs, label)
     end
     pump = function()
         if handle.cancelled then return end
+        local allowance = type(budgetMs) == "function" and budgetMs() or budgetMs
+        -- Background runs (slices of 2 ms or less) share 2.5 ms of a frame;
+        -- a run someone waits on, the whole pool.
+        local cap = allowance <= 2 and 2.5 or FRAME_CAP_MS
         local now = GetTime()
         if now ~= frameStamp then
             frameStamp = now
             frameSpent = 0
-        elseif frameSpent >= FRAME_CAP_MS then
+        elseif frameSpent >= cap then
             -- The frame's shared pool is spent; wait for the next one.
             Utils.SafeAfter(0, pump)
             return
         end
-        local allowance = type(budgetMs) == "function" and budgetMs() or budgetMs
-        local remaining = FRAME_CAP_MS - frameSpent
+        local remaining = cap - frameSpent
         if remaining < allowance then allowance = remaining end
         local outer = sliceDeadline
         pumpStart = dpstop()

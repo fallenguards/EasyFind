@@ -488,7 +488,11 @@ end
 -- A search never builds the index past this: the rest of the unindexed
 -- tail is scored by the sliced scan, and the background build catches up.
 local QUERY_BUILD_MS = 2
-local GROW_SLICE_MS = 4
+-- Background slices; while searches run (one in the last second), more.
+local lastQueryAt = -10
+local function GrowBudget()
+    return (GetTime() - lastQueryAt) < 1 and 4 or 2
+end
 -- Set while a search sits between its index reads: the background build
 -- waits, so postings never change under a half-read query.
 local reading = false
@@ -543,7 +547,7 @@ local function ScheduleGrow()
             growing = false
             if not ok then return ns.Utils.ErrorHandler(err) end
             if dirty or builtCount < #Database.uiSearchData then ScheduleGrow() end
-        end, GROW_SLICE_MS, "indexGrow")
+        end, GrowBudget, "indexGrow")
     end)
 end
 
@@ -753,7 +757,7 @@ function SearchIndex:BuildSegment(key, rows, onDone)
             ns.Utils.ErrorHandler(err)
         end
         if onDone then onDone(ok) end
-    end, GROW_SLICE_MS, "indexSegment")
+    end, GrowBudget, "indexSegment")
 end
 
 -- What SavedVariables keep for segment key: its own tables and printable
@@ -1151,6 +1155,7 @@ local restBuf = {}
 function SearchIndex:Candidates(queryWords, split)
     -- A synchronous caller that failed between its reads never cleared it.
     reading = false
+    lastQueryAt = GetTime()
     local dataArr = Database.uiSearchData
     if not Grow(QUERY_BUILD_MS) then ScheduleGrow() end
     if builtCount == 0 then return nil end

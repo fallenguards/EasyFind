@@ -41,9 +41,11 @@ local EMPTY_KEYWORDS = {}
 -- PackedCorpus conversion state and helpers, bundled into ONE container:
 -- the main chunk hit Lua's 200-local limit when these were individual
 -- file locals (same medicine as the 60-upvalue rule).
-local Corpora = {}
+-- packedLive: category -> the saved blob its rows on show were built from.
+local Corpora = { packedLive = {} }
 
 local function RemoveEntriesByCategory(category)
+    Corpora.packedLive[category] = nil
     local before = #uiSearchData
     local writeIdx = 0
     for i = 1, before do
@@ -61,13 +63,9 @@ local function RemoveEntriesByCategory(category)
     if ns.SearchIndex and ns.SearchIndex.NoteCompacted then
         ns.SearchIndex:NoteCompacted(writeIdx)
     end
-    -- Populate bookkeeping, consumed by the dynamic-provider completion:
-    -- a populate that removed nothing (first load) only APPENDS, and the
-    -- search cache can extend its candidate set instead of a full reset.
-    -- Every populate calls this before adding, so setting the fields here
-    -- covers sync and async providers alike.
-    Database._populateRemoved = writeIdx < before
-    Database._populateAppendFrom = writeIdx + 1
+    -- Every populate calls this before adding, so its start is noted here
+    -- (Database/Dynamic.lua): a first load only appends.
+    if Database.NotePopulateStart then Database:NotePopulateStart(category, writeIdx < before) end
     -- Ref-keyed index: NoteRemoved (above, per dropped entry) already
     -- retired the removed entries from candidacy; no rebuild needed here.
 end
@@ -697,7 +695,6 @@ local HOUSING_PROTO = {
     path          = {},
     steps         = {},
 }
-local HOUSING_MT = { __index = HOUSING_PROTO }
 -- Catalog "room shell" entries (Enum.HousingCatalogEntryType.Room) are owned but
 -- not placeable from the decor catalog, so a result for one has nothing to open
 -- to. Flagged per entry so the housing flyout's Room toggle can hide them.
@@ -2022,7 +2019,7 @@ function Database:_MeasureMountCache()
     local hydrateMs = dps() - t0
     local hydrateN = countMounts()
 
-    self._populateRemoved, self._populateAppendFrom = nil, nil
+    self:TakePopulatedRows("Mount")
     mountCacheHydrated = true
     if self.ResetSearchCache then self:ResetSearchCache() end
     return { walkMs = walkMs, hydrateMs = hydrateMs,
@@ -2050,13 +2047,13 @@ local HOUSING_ROW_SPEC = {
     { "housingQuality" }, { "housingSourceText" }, { "isRoom" },
 }
 
-local function PersistHousingCache(entries, guid)
+local function PersistHousingCache(packed, guid)
     local db = EasyFind and EasyFind.db
-    if not db or not entries then return end
+    if not db then return end
     db.housingCache = {
         version = ns.HOUSING_CACHE_VER,
         guid = guid,
-        packed = Utils.PackRows(entries, HOUSING_ROW_SPEC, true),
+        packed = packed,
     }
     db.housingCacheVer = ns.HOUSING_CACHE_VER
 end
@@ -2088,6 +2085,7 @@ local function HydratePersistedHousingCache()
         end
     end, { name = true, housingEntryID = true }, true)
     if inserted == 0 then return false end
+    Corpora.packedLive.Housing = saved.packed
     if Database.ResetSearchCache then Database:ResetSearchCache() end
     return true
 end
@@ -2119,9 +2117,8 @@ function Database:FinishHousingResults(done)
             if i % 64 == 0 then Utils.SliceCheckpoint() end
             local okInfo, info = pcall(GetCatalogEntryInfo, entryIDs[i])
             if okInfo and info and info.name and info.name ~= "" then
-                fresh[#fresh + 1] = setmetatable({
+                fresh[#fresh + 1] = {
                     name = info.name,
-                    nameLower = slower(info.name),
                     icon = info.iconTexture,
                     housingEntryID = entryIDs[i],
                     housingRecordID = info.recordID,
@@ -2130,7 +2127,7 @@ function Database:FinishHousingResults(done)
                     housingQuality = info.quality,
                     housingSourceText = info.sourceText,
                     isRoom = info.entryType == HOUSING_ROOM_TYPE or nil,
-                }, HOUSING_MT)
+                }
             end
         end
         -- Zero entries usually means the catalog wasn't streamed in yet (login
@@ -2138,23 +2135,35 @@ function Database:FinishHousingResults(done)
         -- provider stays dirty and retries on the next query instead of caching
         -- an empty category all session.
         if #fresh == 0 or gen ~= Corpora.housingFinishGen then return "cancelled" end
-        PersistHousingCache(fresh, UnitGUID and UnitGUID("player"))
+        local packed = Utils.PackRows(fresh, HOUSING_ROW_SPEC, true)
+        if gen ~= Corpora.housingFinishGen then return "cancelled" end
+        -- The rows on show came from this same catalog: they stay.
+        if packed == Corpora.packedLive.Housing then return "unchanged" end
+        PersistHousingCache(packed, UnitGUID and UnitGUID("player"))
+        local corpus = Utils.NewPackedCorpus(packed, HOUSING_ROW_SPEC, HOUSING_PROTO, { sliced = true })
+        local stubs = {}
+        for ri = 1, corpus.count do
+            if ri % 256 == 0 then Utils.SliceCheckpoint() end
+            stubs[ri] = corpus:StubAt(ri)
+        end
         if gen ~= Corpora.housingFinishGen then return "cancelled" end
         -- The swap and the completion share one slice, so the populate
         -- bookkeeping is never left set across frames.
+        Utils.RegisterCorpus("housing", corpus)
         RemoveEntriesByCategory("Housing")
-        for i = 1, #fresh do
-            uiSearchData[#uiSearchData + 1] = fresh[i]
+        for i = 1, #stubs do
+            uiSearchData[#uiSearchData + 1] = stubs[i]
         end
+        Corpora.packedLive.Housing = packed
     end, function(ok, result)
         if not ok then
             done(false, result)
         elseif result == "cancelled" then
             done(false, "cancelled")
         else
-            done(true)
+            done(result ~= "unchanged")
         end
-    end, nil, "housingRows")
+    end, Corpora.packedLive.Housing and 1.5 or nil, "housingRows")
 end
 
 -- Blizzard's live catalog searcher exists only while the housing catalog UI is
@@ -2303,11 +2312,10 @@ function Database:PopulateDynamicHousingAsync(done)
             done(changed, err)
             return
         end
-        -- The detached FinishHousingResults called RemoveEntriesByCategory;
-        -- clear its populate bookkeeping so it cannot leak into the next
-        -- provider's completion, then refresh the open search if the set
-        -- actually changed.
-        Database._populateRemoved, Database._populateAppendFrom = nil, nil
+        -- The detached FinishHousingResults replaced the rows: their saved
+        -- index segment, then the open search if the set changed.
+        local _, rows = Database:TakePopulatedRows("Housing")
+        if rows and ns.SearchSegments then ns.SearchSegments.Attach("housing", rows) end
         if changed and ns.Search and ns.Search.RefreshActiveSearch then
             ns.Search:RefreshActiveSearch()
         end

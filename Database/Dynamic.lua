@@ -87,24 +87,51 @@ for i = 1, #dynamicProviders do
     dynamicProviderByKey[provider.key] = provider
 end
 
--- Consume the populate bookkeeping on EVERY completion path so a stale
--- record can never leak into the next provider's completion (a leaked
--- append-only record misroutes it into NoteAppendedEntries: duplicate rows
--- and invisible new entries in a held-open query). Returns the removed
--- flag (true = entries removed, false = append-only, nil = no populate
--- ran) and the append start index.
-local function ConsumePopulateBookkeeping(database)
-    local removed = database._populateRemoved
-    local appendFrom = database._populateAppendFrom
-    database._populateRemoved, database._populateAppendFrom = nil, nil
-    return removed, appendFrom
+-- Populate bookkeeping per category (async populates overlap): each notes
+-- its start once its old rows are gone; removed is false on a first load.
+Database.populateMarks = Database.populateMarks or {}
+function Database:NotePopulateStart(category, removed)
+    local data = self.uiSearchData
+    self.populateMarks[category] = { removed = removed, after = data[#data] or false }
+end
+
+-- The category's rows its populate added, in order: back from the end to
+-- the row its appends followed (to the top when that row is gone). Returns
+-- removed (nil: no populate ran) and the rows; the record is consumed.
+function Database:TakePopulatedRows(category)
+    local mark = category and self.populateMarks[category]
+    if not mark then return nil, nil end
+    self.populateMarks[category] = nil
+    local data, rows, n = self.uiSearchData, {}, 0
+    local after = mark.after
+    for i = #data, 1, -1 do
+        local entry = data[i]
+        if entry == after then break end
+        if entry.category == category then
+            n = n + 1
+            rows[n] = entry
+        end
+    end
+    for i = 1, math.floor(n / 2) do rows[i], rows[n + 1 - i] = rows[n + 1 - i], rows[i] end
+    return mark.removed, rows
+end
+
+-- Every completion path consumes the record, so a stale one never reaches
+-- a later completion of the same category; only success reads the rows.
+local function ConsumePopulateBookkeeping(database, provider, wantRows)
+    local category = provider.category
+    if wantRows then return database:TakePopulatedRows(category) end
+    local mark = category and database.populateMarks[category]
+    if not mark then return nil end
+    database.populateMarks[category] = nil
+    return mark.removed
 end
 
 local function FinishDynamicProvider(database, provider, ok, err, changed, onDone)
     if err == "cancelled" then
         provider.loaded = false
         provider.dirty = true
-        local removed = ConsumePopulateBookkeeping(database)
+        local removed = ConsumePopulateBookkeeping(database, provider)
         if removed ~= nil and database.ResetSearchCache then
             database:ResetSearchCache()
         end
@@ -120,7 +147,7 @@ local function FinishDynamicProvider(database, provider, ok, err, changed, onDon
         -- The failed populate may still have wiped or grown its category
         -- before erroring; consume the bookkeeping and reset so the live
         -- search state cannot reference a half-applied dataset.
-        local removed = ConsumePopulateBookkeeping(database)
+        local removed = ConsumePopulateBookkeeping(database, provider)
         if removed ~= nil and database.ResetSearchCache then
             database:ResetSearchCache()
         end
@@ -130,14 +157,12 @@ local function FinishDynamicProvider(database, provider, ok, err, changed, onDon
 
     provider.loaded = true
     provider.dirty = false
-    local removed, appendFrom = ConsumePopulateBookkeeping(database)
-    if removed ~= nil and ns.SearchSegments then
-        ns.SearchSegments.AttachProvider(provider.key, provider.category, appendFrom)
-    end
+    local removed, rows = ConsumePopulateBookkeeping(database, provider, true)
+    if rows and ns.SearchSegments then ns.SearchSegments.Attach(provider.key, rows) end
     local appendOnly = removed == false
     if changed ~= false then
-        if appendOnly and appendFrom and database.NoteAppendedEntries then
-            database:NoteAppendedEntries(appendFrom)
+        if appendOnly and rows and database.NoteAppendedEntries then
+            database:NoteAppendedEntries(rows)
         elseif database.ResetSearchCache then
             if database._dynamicBatchLoading then
                 database._dynamicBatchChanged = true
@@ -225,7 +250,7 @@ local function runProviderJob(database, provider, schedDone)
             -- from un-streamed data and would otherwise retry all session).
             -- Its dirty event clears this the moment real data arrives.
             provider.notReadyAt = GetTime()
-            local removed = ConsumePopulateBookkeeping(database)
+            local removed = ConsumePopulateBookkeeping(database, provider)
             if removed ~= nil and database.ResetSearchCache then
                 database:ResetSearchCache()
             end

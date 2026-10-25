@@ -49,7 +49,7 @@ function tests.canceledScan_isNotReusedByTheLastQuery()
     Database:ResetSearchCache()
     Database:SearchUI("shadow")
     Add("Shadow Lantern 201")
-    Database:NoteAppendedEntries(#corpus)
+    Database:NoteAppendedEntries({ corpus[#corpus] })
     Database._disableSearchGate = true
     armed = true
     local ok = pcall(Database.SearchUI, Database, "storm")

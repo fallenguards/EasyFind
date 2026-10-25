@@ -227,6 +227,19 @@ end
 
 local topBuf = {}   -- the top-15 selection's scratch
 
+-- Each search's phases in ms, for the lag probe (searchUI spans its yields;
+-- the others run whole, so theirs is CPU).
+local timings = {}
+Search.lastTimings = timings
+local markAt = 0
+local function Mark(phase)
+    local dps = debugprofilestop
+    if not dps then return end
+    local now = dps()
+    timings[phase] = (timings[phase] or 0) + now - markAt
+    markAt = now
+end
+
 -- Catalog lines are scored and dropped: no per-name cache entries.
 local function ScoreCatalogName(nameLower, ql, qLen)
     return ns.Database:ScoreTransientName(nameLower, ql, qLen)
@@ -238,6 +251,9 @@ function Search:OnSearchTextChangedNow(text, force)
     -- that ancestor secure row buttons -- protected operations. Any stray
     -- programmatic call in combat is a silent no-op.
     if InCombatLockdown() then return end
+    wipe(timings)
+    timings.text = text
+    markAt = debugprofilestop and debugprofilestop() or 0
     -- Central guard for the whole caller class: if the incoming text is
     -- the autocomplete-COMPLETED editbox text while a suggestion is live,
     -- search what the user actually typed instead. Callers that pass
@@ -403,6 +419,7 @@ function Search:OnSearchTextChangedNow(text, force)
                 and self:IsAchievementSearchPending(text) or false
         end
     end
+    Mark("searchUI")
     if providerContext and not calculatorData and not calculatorLauncher then
         -- A provider this query needs (its trigger word, the low-result
         -- fallback) loads through the urgent scheduler budget: what fits
@@ -425,7 +442,9 @@ function Search:OnSearchTextChangedNow(text, force)
         syncPhase = false
         if syncChanged then
             results = ns.Database:SearchUI(text, skipCategories)
+            timings.searchedAgain = true
         end
+        Mark("providers")
         -- Never held for the first-focus warm chain: on a fresh install
         -- with cold caches that chain runs for seconds, and holding every
         -- keystroke behind it made the search feel a second late (zip test,
@@ -485,6 +504,7 @@ function Search:OnSearchTextChangedNow(text, force)
             or (not quickFilter and filters and filters.map ~= false)) then
         mapResults = ns.MapSearch:SearchForUI(text)
     end
+    Mark("map")
     local mapPass = ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
     wipe(SCRATCH.mapBoostSeen)
     wipe(SCRATCH.catalogBoostSeen)
@@ -792,7 +812,9 @@ function Search:OnSearchTextChangedNow(text, force)
 
     -- A boost that ran a pass of its own rewrote the pooled map rows.
     if mapResults and ns.MapSearchSearch.uiSearchCount ~= mapPass then
+        Mark("rows")
         mapResults = ns.MapSearch:SearchForUI(text)
+        Mark("mapAgain")
     end
 
     wipe(flatCombined)
@@ -846,7 +868,9 @@ function Search:OnSearchTextChangedNow(text, force)
        and ((quickFilter and (quickFilter.key == "items" or quickFilter.key == "catalog"))
             or (not quickFilter and (not filters
                  or not ns.CategoryMap.IsProviderFilterOff(filters, "catalog")))) then
+        Mark("rows")
         local itemHits = ns.ItemSearch:Search(text, ScoreCatalogName)
+        Mark("catalog")
         if itemHits then
             for ii = 1, #itemHits do
                 local hitData = itemHits[ii].data
@@ -995,6 +1019,8 @@ function Search:OnSearchTextChangedNow(text, force)
     end
 
     FloatPinnedFirst(flatEntries, n)
+    Mark("combine")
 
     self:ShowHierarchicalResults(flatEntries)
+    Mark("render")
 end

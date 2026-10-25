@@ -1215,16 +1215,13 @@ end
 -- appended keeps narrowing complete for the live query at O(appended)
 -- cost, and one keystroke later the set is tight again. Cached result
 -- lists are incomplete now, so those still clear.
-function Database:NoteAppendedEntries(fromIndex)
+-- rows: the appended rows, in order (Database:TakePopulatedRows).
+function Database:NoteAppendedEntries(rows)
     if ns.Aliases and ns.Aliases.InvalidateKeyIndex then ns.Aliases:InvalidateKeyIndex() end
     ClearResultCache()
-    if prevQuery ~= "" and fromIndex then
-        local n = #uiSearchData
+    if prevQuery ~= "" and rows then
         local count = #prevCandidates
-        for i = fromIndex, n do
-            count = count + 1
-            prevCandidates[count] = uiSearchData[i]
-        end
+        for i = 1, #rows do prevCandidates[count + i] = rows[i] end
     end
     if self._dynamicBatchLoading then
         self._dynamicBatchChanged = true
@@ -1549,9 +1546,9 @@ function Database:SearchUI(query, skipCategories)
     local stoppedEarly = false
     for i = 1, searchCount do
         -- Strided slice checkpoint: under the sliced dispatch a wide scan
-        -- yields here every 128 candidates; a direct synchronous call
+        -- yields here every 64 candidates; a direct synchronous call
         -- (bench identity) makes this a no-op.
-        if band(i, 127) == 0 then SliceCheckpoint() end
+        if band(i, 63) == 0 then SliceCheckpoint() end
         -- Top-k stop (the threshold rule): no rest row can pass the worst kept.
         if i == restAt and not checkRest and resultsN >= RESULT_CAP
            and results[1].score > REST_MAX_SCORE then

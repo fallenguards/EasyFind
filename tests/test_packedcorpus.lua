@@ -273,5 +273,58 @@ function tests.computed_firesOnlyWhenBlobEmpty()
     H.assertEq(without.tags, "DEFAULTED", "computed fills the nil field")
 end
 
+local function bareStub(stub)
+    for key in pairs(stub) do
+        if key ~= "_ri" then return false end
+    end
+    return true
+end
+
+function tests.peek_servesEveryFieldWithoutHydrating()
+    local corpus = Utils.NewPackedCorpus(packed, SPEC, PROTO, {
+        liteFields = { "icon" },
+        computed = { tags = function() return "DEFAULTED" end },
+    })
+    for ri, row in ipairs(ROWS) do
+        local stub = corpus:StubAt(ri)
+        H.assertEq(corpus:Peek(stub, "name"), row.name, "name " .. ri)
+        H.assertEq(corpus:Peek(stub, "mountID"), row.mountID, "spec field " .. ri)
+        H.assertEq(corpus:Peek(stub, "icon"), row.icon, "lite field " .. ri)
+        H.assertEq(corpus:Peek(stub, "category"), "Mount", "proto field " .. ri)
+        H.assertTrue(bareStub(stub), "nothing decoded onto stub " .. ri)
+    end
+    H.assertEq(corpus:Peek(corpus:StubAt(1), "tags")[2], "flying", "list field")
+    H.assertEq(corpus:Peek(corpus:StubAt(3), "tags"), "DEFAULTED", "computed fills an empty field")
+    local stub = corpus:StubAt(2)
+    stub.isCollected = true
+    H.assertEq(corpus:Peek(stub, "isCollected"), true, "a value written on the stub wins")
+end
+
+-- The alias key index keys every row: a stub must come out with the same
+-- key as its plain row and nothing decoded onto it.
+function tests.aliasKey_ofAStubLeavesItBare()
+    H.loadModule("Shared/SearchText.lua", env, ns)
+    local Aliases = H.loadModule("Shared/Aliases.lua", env, ns)
+    local mounts = newCorpus()
+    for ri, row in ipairs(ROWS) do
+        local stub = mounts:StubAt(ri)
+        H.assertEq(Aliases:GetEntryKey(stub), "mount:" .. row.mountID, "mount key " .. ri)
+        H.assertTrue(bareStub(stub), "mount stub bare " .. ri)
+    end
+    local uiSpec = { { "name" }, { "path", "list" } }
+    local uiRows = {
+        { name = "Oak Chair", path = { "Housing", "Decor" } },
+        { name = "Lamp" },
+    }
+    local ui = Utils.NewPackedCorpus(Utils.PackRows(uiRows, uiSpec), uiSpec, { category = "Housing" })
+    for ri, row in ipairs(uiRows) do
+        local stub = ui:StubAt(ri)
+        local plain = { name = row.name, path = row.path, category = "Housing" }
+        H.assertEq(Aliases:GetEntryKey(stub), Aliases:GetEntryKey(plain), "path key " .. ri)
+        H.assertTrue(bareStub(stub), "path stub bare " .. ri)
+    end
+    H.assertEq(Aliases:GetEntryKey(ui:StubAt(1)), "ui:Housing>Decor>Oak Chair")
+end
+
 local pass, fail, failures = H.runSuite("PackedCorpus", tests)
 return { pass = pass, fail = fail, failures = failures }

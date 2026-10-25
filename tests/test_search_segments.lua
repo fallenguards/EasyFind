@@ -27,14 +27,37 @@ local function Session(db, rows)
     H.loadModule("Shared/SearchText.lua", env, ns)
     local Database = H.loadModule("Database/Search.lua", env, ns)
     H.loadModule("Database/SearchIndex.lua", env, ns)
-    local builds = 0
-    local build = ns.SearchIndex.BuildSegment
+    local builds, restores = 0, 0
+    local build, restore = ns.SearchIndex.BuildSegment, ns.SearchIndex.RestoreSegment
     ns.SearchIndex.BuildSegment = function(self, ...)
         builds = builds + 1
         return build(self, ...)
     end
+    ns.SearchIndex.RestoreSegment = function(self, ...)
+        local ok = restore(self, ...)
+        if ok then restores = restores + 1 end
+        return ok
+    end
     H.loadModule("Database/Segments.lua", env, ns)
-    return ns, Database, function() return builds end
+    return ns, Database, function() return builds end, function() return restores end
+end
+
+-- Holds each attach's text pass (a background run in game) until the
+-- returned function lets them finish.
+local function HoldTextPasses(ns)
+    local held, run = {}, ns.Utils.RunSliced
+    ns.Utils.RunSliced = function(fn, onDone, budget, label)
+        if not (label and label:find("^segmentText")) then return run(fn, onDone, budget, label) end
+        local handle = {}
+        function handle:Cancel() handle.cancelled = true end
+        held[#held + 1] = function()
+            if not handle.cancelled then onDone(pcall(fn)) end
+        end
+        return handle
+    end
+    return function()
+        for _, finish in ipairs(held) do finish() end
+    end
 end
 
 local function Names(Database, query)
@@ -109,6 +132,38 @@ function tests.characterSourcesSaveUnderTheCharacter()
     H.assertNil(db.searchIndexCache and db.searchIndexCache.bags, "not on the account")
     H.assertNotNil(db.searchIndexCharCache and db.searchIndexCharCache["Alt-Realm"]
         and db.searchIndexCharCache["Alt-Realm"].bags, "under the character")
+end
+
+function tests.rowsGoneBeforeTheTextIsReadStayUnattached()
+    local db = {}
+    local ns1 = Session(db, Rows(TOYS))
+    ns1.SearchSegments.Attach("toys", ns1.Database.uiSearchData)
+    local rows = Rows(TOYS)
+    local ns2, _, builds2, restores2 = Session(RoundTrip(db), rows)
+    local finish = HoldTextPasses(ns2)
+    ns2.SearchSegments.Attach("toys", { rows[1], rows[2], rows[3], rows[4], rows[5] })
+    table.remove(rows, 2)
+    finish()
+    H.assertEq(restores2(), 0, "no restore over a row that left")
+    H.assertEq(builds2(), 0, "and no build")
+
+    local ns3, _, builds3 = Session({}, Rows(TOYS))
+    local finish3 = HoldTextPasses(ns3)
+    local data3 = ns3.Database.uiSearchData
+    ns3.SearchSegments.Attach("toys", { data3[1], data3[2], data3[3], data3[4], data3[5] })
+    table.remove(data3, 5)
+    finish3()
+    H.assertEq(builds3(), 0, "nothing saved yet: still no build over a row that left")
+end
+
+function tests.aNewerAttachReplacesAPendingOne()
+    local ns1, _, builds1 = Session({}, Rows(TOYS))
+    local finish = HoldTextPasses(ns1)
+    local data = ns1.Database.uiSearchData
+    ns1.SearchSegments.Attach("toys", { data[1], data[2] })
+    ns1.SearchSegments.Attach("toys", data)
+    finish()
+    H.assertEq(builds1(), 1, "only the newer attach builds")
 end
 
 local pass, fail, failures = H.runSuite("SearchSegments", tests)

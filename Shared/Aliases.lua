@@ -124,12 +124,24 @@ local function FillMapRow(entry)
     return entry
 end
 
+-- A corpus stub is read through this view, which peeks its fields instead
+-- of decoding them onto it.
+local viewCorpus, viewStub
+local stubView = setmetatable({}, {
+    __index = function(_, key) return viewCorpus:Peek(viewStub, key) end,
+})
+
 ---Returns the canonical key for an entry, used to dedupe aliases and to
 ---look an entry up later. Returns nil if the entry has no identifying fields.
 ---@param data table?
 ---@return string?
 function Aliases:GetEntryKey(data)
     if not data then return nil end
+    local mt = getmetatable(data)
+    if mt and mt.__pcCorpus then
+        viewCorpus, viewStub = mt.__pcCorpus, data
+        data = stubView
+    end
     if data.mountID       then return "mount:"          .. data.mountID end
     if data.toyItemID     then return "toy:"            .. data.toyItemID end
     if data.petID         then return "pet:"            .. data.petID end
@@ -151,8 +163,9 @@ function Aliases:GetEntryKey(data)
     if IsMapAliasTarget(data) then
         return MapAliasKey(data)
     end
-    if data.path and #data.path > 0 then
-        return "ui:" .. table.concat(data.path, ">") .. ">" .. (data.name or "")
+    local path = data.path
+    if path and #path > 0 then
+        return "ui:" .. table.concat(path, ">") .. ">" .. (data.name or "")
     end
     if data.name then return "ui:" .. data.name end
     return nil

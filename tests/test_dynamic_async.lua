@@ -170,5 +170,85 @@ function tests.asyncProvider_errorPathNotifiesAllWaitersWithFalse()
     H.assertFalse(Database:IsDynamicProviderLoaded("statistics"))
 end
 
+-- Two async populates in flight at once: what RemoveEntriesByCategory does
+-- at each start, then interleaved appends.
+local function OverlapSetup(rows)
+    local _, ns, Database = setupDatabase()
+    local attached, appended = {}, {}
+    ns.SearchSegments = { Attach = function(key, list) attached[key] = list end }
+    Database.NoteAppendedEntries = function(_, list) appended[#appended + 1] = list end
+    local data = Database.uiSearchData
+    for i, r in ipairs(rows) do data[i] = r end
+    local function Start(category)
+        local w, before = 0, #data
+        for i = 1, before do
+            if data[i].category ~= category then
+                w = w + 1
+                data[w] = data[i]
+            end
+        end
+        for i = before, w + 1, -1 do data[i] = nil end
+        Database:NotePopulateStart(category, w < before)
+    end
+    local finish = {}
+    Database.PopulateDynamicStatisticsAsync = function(_, onDone)
+        finish.statistics = onDone
+        Start("Statistic")
+    end
+    Database.PopulateDynamicBossesAsync = function(_, onDone)
+        finish.bosses = onDone
+        Start("Boss")
+    end
+    local function Add(category, name) data[#data + 1] = { name = name, category = category } end
+    return Database, Add, finish, attached, appended
+end
+
+local function Names(list)
+    local out = {}
+    for i, r in ipairs(list or {}) do out[i] = r.name end
+    return table.concat(out, ", ")
+end
+
+local function RunOverlap(rows)
+    local Database, Add, finish, attached, appended = OverlapSetup(rows)
+    Database:EnsureDynamicProviderLoaded("statistics", function() end)
+    Add("Statistic", "Deaths")
+    Database:EnsureDynamicProviderLoaded("bosses", function() end)
+    H.assertNotNil(finish.bosses, "both populates in flight")
+    Add("Boss", "Ragnaros")
+    Add("Statistic", "Kills")
+    Add("Boss", "Onyxia")
+    finish.statistics(true)
+    finish.bosses(true)
+    return attached, appended
+end
+
+function tests.overlappingPopulates_eachAttachesAllItsOwnRows()
+    local attached, appended = RunOverlap({
+        { name = "Old Boss", category = "Boss" }, { name = "Kept", category = "Toy" },
+    })
+    H.assertEq(Names(attached.statistics), "Deaths, Kills", "statistics: its rows, in order")
+    H.assertEq(Names(attached.bosses), "Ragnaros, Onyxia", "bosses: its rows, in order")
+    H.assertEq(#appended, 1, "only the first load notes appends (bosses replaced rows)")
+    H.assertEq(Names(appended[1]), "Deaths, Kills", "and notes exactly its rows")
+end
+
+function tests.overlappingPopulates_theRowBeforeTheAppendsRemoved()
+    -- Statistics' appends follow the old boss row, which bosses then remove.
+    local attached = RunOverlap({
+        { name = "Kept", category = "Toy" }, { name = "Old Boss", category = "Boss" },
+    })
+    H.assertEq(Names(attached.statistics), "Deaths, Kills", "every statistics row still found")
+    H.assertEq(Names(attached.bosses), "Ragnaros, Onyxia")
+end
+
+function tests.canceledPopulate_leavesNoRecordBehind()
+    local Database, Add, finish = OverlapSetup({})
+    Database:EnsureDynamicProviderLoaded("statistics", function() end)
+    Add("Statistic", "Deaths")
+    finish.statistics(false, "cancelled")
+    H.assertNil(Database.populateMarks.Statistic, "consumed on the cancel path")
+end
+
 local pass, fail, failures = H.runSuite("Database/Dynamic", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -72,48 +72,64 @@ local function Store(key)
     return store
 end
 
+local function StillLive(rows)
+    local want = {}
+    for i = 1, #rows do want[rows[i]] = true end
+    local data, found = Database.uiSearchData, 0
+    for i = 1, #data do
+        if want[data[i]] then found = found + 1 end
+    end
+    return found == #rows
+end
+
+local attachGen, attachRun = {}, {}
+
 -- rows: a source's rows in order, already in uiSearchData. Restored from
--- the saved segment when their text matches, else indexed and saved.
+-- the saved segment when their text matches, else indexed and saved. The
+-- text is read in background slices: rows gone from uiSearchData by then
+-- stay unattached, and a newer attach of the key replaces this one.
 function Segments.Attach(key, rows)
     local SearchIndex = ns.SearchIndex
     if not (SearchIndex and SearchIndex.RestoreSegment) or #rows == 0 then return end
     local store = Store(key)
     if not store then return end
-    local parts = {}
-    for i = 1, #rows do parts[i] = RowText(rows[i]) end
-    local text = tconcat(parts, "\1")
-    local saved = store[key]
-    local function Build()
-        SearchIndex:BuildSegment(key, rows, function(ok)
-            if not ok then return end
-            local snap = SearchIndex:SegmentSnapshot(key)
-            store[key] = snap and { v = VERSION, text = text, snap = snap } or nil
-        end)
-    end
-    if not (saved and saved.v == VERSION and saved.text == text) then
-        Build()
-        return
-    end
-    -- A restore is refused while a search reads the index: next frame.
-    local tries = 0
-    local function Restore()
-        if SearchIndex:RestoreSegment(key, saved.snap, rows) then return end
-        tries = tries + 1
-        if tries < RETRIES then Utils.SafeAfter(0, Restore) else Build() end
-    end
-    Restore()
-end
-
--- A provider's rows: its category's, appended by this populate.
-function Segments.AttachProvider(key, category, appendFrom)
-    local data = Database.uiSearchData
-    if not (category and appendFrom) then return end
-    local rows = {}
-    for i = appendFrom, #data do
-        local entry = data[i]
-        if entry.category == category then rows[#rows + 1] = entry end
-    end
-    Segments.Attach(key, rows)
+    local gen = (attachGen[key] or 0) + 1
+    attachGen[key] = gen
+    if attachRun[key] then attachRun[key]:Cancel() end
+    local function Current() return attachGen[key] == gen and StillLive(rows) end
+    attachRun[key] = Utils.RunSliced(function()
+        local parts = {}
+        for i = 1, #rows do
+            if i % 64 == 0 then Utils.SliceCheckpoint() end
+            parts[i] = RowText(rows[i])
+        end
+        return tconcat(parts, "\1")
+    end, function(ok, text)
+        if attachGen[key] == gen then attachRun[key] = nil end
+        if not ok then return Utils.ErrorHandler(text) end
+        if not Current() then return end
+        local saved = store[key]
+        local function Build()
+            SearchIndex:BuildSegment(key, rows, function(built)
+                if not built then return end
+                local snap = SearchIndex:SegmentSnapshot(key)
+                store[key] = snap and { v = VERSION, text = text, snap = snap } or nil
+            end)
+        end
+        if not (saved and saved.v == VERSION and saved.text == text) then
+            Build()
+            return
+        end
+        -- A restore is refused while a search reads the index: next frame.
+        local tries = 0
+        local function Restore()
+            if tries > 0 and not Current() then return end
+            if SearchIndex:RestoreSegment(key, saved.snap, rows) then return end
+            tries = tries + 1
+            if tries < RETRIES then Utils.SafeAfter(0, Restore) else Build() end
+        end
+        Restore()
+    end, 1.5, "segmentText " .. key)
 end
 
 -- The shipped rows, built at file load before saved variables exist.
