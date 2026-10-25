@@ -272,6 +272,7 @@ local function BuildGraph(ctx)
         travelSpeed = travelSpeed, mountUp = mountUp, waitAt = ctx.waitAt,
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
+        fly = ctx.canFly or nil,
         walkSec = {}, walkWind = {}, walkNear = {}, least = {}, travel = {}, rides = {},
         data = data,
     }
@@ -423,11 +424,16 @@ local function PriceWalk(g, i, j, room)
     return sec, wind, g.walkNear[key]
 end
 
+-- A leg on foot or mounted on the ground; a flown one goes straight.
+local function Walked(step)
+    return step.kind == "travel" and not step.fly
+end
+
 -- A walk step's way drawn and kept, when it has one: the arrow follows
 -- it and the split by zone reads it; its time was priced with it.
 local function DrawWalk(s, a)
     local b = s.go or s.arrive
-    if s.kind == "travel" and a and b and a.wx and b.wx and a.ci == b.ci and Dist(a, b) > 5 then
+    if Walked(s) and a and b and a.wx and b.wx and a.ci == b.ci and Dist(a, b) > 5 then
         Route.WalkPath(a.ci, a.wx, a.wy, b.wx, b.wy, nil, s.near)
     end
 end
@@ -777,7 +783,7 @@ local function Steps(g, path, goalName, goalStep)
         if not (approach and spot) then return end
         tinsert(steps, { kind = "travel", approach = true, text = text,
                          mapID = spot.m, x = spot.x, y = spot.y, go = spot, arrive = spot, sec = approach,
-                         wind = approachWind })
+                         wind = approachWind, fly = g.fly })
         approach, approachWind = nil, nil
     end
     while i <= #path do
@@ -811,7 +817,7 @@ local function Steps(g, path, goalName, goalStep)
                 tinsert(steps, { kind = "travel",
                                  text = (node.kind == "goal" and goalStep) or (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
-                                 wind = e.wind, near = e.near })
+                                 wind = e.wind, near = e.near, fly = g.fly })
             end
             i = i + 1
         elseif e.kind == "taxi" then
@@ -1514,6 +1520,31 @@ local function KeepPath(key, path)
     walkPaths[key], walkPathCount = path, walkPathCount + 1
 end
 
+-- Yards so far at each vertex.
+local function Cum(pts)
+    local cum = { 0 }
+    for v = 2, #pts / 2 do
+        cum[v] = cum[v - 1] + msqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
+    end
+    return cum
+end
+
+-- A drawn walk as a route keeps it (GPS.lua), nil when not drawn; KeepWalk
+-- puts one back, so a way an earlier session found is not searched again.
+function Route.SaveWalk(ci, sx, sy, tx, ty, near)
+    local path = walkPaths[WalkKey(ci, sx, sy, tx, ty, near)]
+    if path == nil then return nil end
+    local w = { ci = ci, sx = sx, sy = sy, tx = tx, ty = ty, near = near, none = not path or nil }
+    if path then w.pts, w.len, w.time, w.jumps = path.pts, path.len, path.time, path.jumps end
+    return w
+end
+
+function Route.KeepWalk(w)
+    local path = false
+    if not w.none then path = { pts = w.pts, cum = Cum(w.pts), len = w.len, time = w.time, jumps = w.jumps } end
+    KeepPath(WalkKey(w.ci, w.sx, w.sy, w.tx, w.ty, w.near), path)
+end
+
 -- A walk's way on foot: { pts (world yards, x y pairs), cum[vertex] (yards
 -- so far), len (yards walked), time (running yards: swimming takes longer),
 -- jumps (each drop that costs health: at, yards along it to its ledge, the
@@ -1530,10 +1561,7 @@ function Route.WalkPath(ci, sx, sy, tx, ty, lazy, near)
     if path == nil and not lazy then
         local pts, _, time, jumps = Nav.Path(ci, sx, sy, tx, ty, near and { near = near } or nil)
         if pts then
-            local cum = { 0 }
-            for v = 2, #pts / 2 do
-                cum[v] = cum[v - 1] + msqrt((pts[2 * v - 1] - pts[2 * v - 3]) ^ 2 + (pts[2 * v] - pts[2 * v - 2]) ^ 2)
-            end
+            local cum = Cum(pts)
             local list
             for k = 1, jumps and #jumps or 0 do
                 local v = mmax(1, jumps[k].v - 1)
@@ -1710,7 +1738,7 @@ function Route.SplitWalks(steps, start, data, env)
         local step = steps[i]
         local pieces
         -- A ghost's walk to its corpse stays one step, from where it released.
-        if step.kind == "travel" and not step.corpse then
+        if Walked(step) and not step.corpse then
             pieces = WalkPieces(step, i == 1 and start or steps[i - 1].arrive, data, env, i == 1)
         end
         if pieces then

@@ -253,7 +253,7 @@ function Follow.Now()
     cur.straight = msqrt((tx - px) ^ 2 + (ty - py) ^ 2)
     cur.ride, cur.path = RIDES[step.kind] or false, false
     cur.ok = true
-    if cur.ride then return cur end
+    if cur.ride or step.fly then return cur end
     if walk.route ~= route or walk.index ~= index or walk.tx ~= tx or walk.ty ~= ty then
         walk.route, walk.index, walk.tx, walk.ty, walk.near = route, index, tx, ty, step.near
         local sci, sx, sy = StartOf(route, index)

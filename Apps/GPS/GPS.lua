@@ -935,7 +935,7 @@ local function OffRoute(route, ci, px, py)
     local tci, tx, ty = PointWorld(step.go or step.arrive)
     if not (fci and tci and fci == tci) then return false end
     if ci ~= tci then return true end
-    if ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
+    if step.fly or ToSegment(px, py, fx, fy, tx, ty) <= OFF_ROUTE_YARDS then return false end
     local Engine = ns.GPSRoute
     local way = Engine and Engine.WalkPath and Engine.WalkPath(tci, fx, fy, tx, ty, true, step.near)
     -- Its way not drawn yet: nothing to be off.
@@ -1374,6 +1374,21 @@ local function PlanOtherWays()
 end
 GPS.PlanOtherWays = PlanOtherWays
 
+-- The route's drawn walks, saved with it for the next session's login
+-- (Route.KeepWalk), keyed as DrawWalks asks for them.
+local function KeptWalks(steps, from)
+    local Engine = ns.GPSRoute
+    local out = {}
+    for i = 1, #steps do
+        local s = steps[i]
+        local a, b = s.from or (i > 1 and steps[i - 1].arrive) or from, s.go or s.arrive
+        if s.kind == "travel" and not s.fly and a and b and a.wx and b.wx and a.ci == b.ci then
+            out[#out + 1] = Engine.SaveWalk(a.ci, a.wx, a.wy, b.wx, b.wy, s.near)
+        end
+    end
+    return out
+end
+
 -- The route's walks past the one set out on, drawn now that the route is
 -- on screen: each timed by its way, split by zone, the total following;
 -- then, unless onlyDraw, the advice and the other ways.
@@ -1402,6 +1417,7 @@ local function AfterRoute(onlyDraw)
             local total = 0
             for i = 1, #steps do total = total + (steps[i].sec or 0) end
             route.steps, route.total, route.eta = steps, total, total
+            route.walks = Engine.SaveWalk and KeptWalks(steps, route.from) or nil
             if route.report and Engine.StepsCode then route.report.steps = Engine.StepsCode(steps) end
             closing.eta = nil
             if ns.GPSFollow and ns.GPSFollow.Reset then ns.GPSFollow.Reset() end
@@ -1982,7 +1998,7 @@ function GPS.DangerText(route)
     local text, drawn = false, true
     for i = active, #steps do
         local step = steps[i]
-        if step.kind == "travel" and not step.corpse then
+        if step.kind == "travel" and not step.fly and not step.corpse then
             local sci, sx, sy = Follow.StartOf(route, i)
             local tci, tx, ty = Follow.World(step.go or step.arrive)
             local path = sci and sci == tci and Engine.WalkPath(sci, sx, sy, tx, ty, true, step.near)
@@ -5708,6 +5724,11 @@ loginFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
         return
     end
     StartTicker()
-    -- Its walks are drawn afresh this session.
-    AfterRoute()
+    -- Its walks and other ways as the last session found them: only what
+    -- is missing is worked out now.
+    local Engine = ns.GPSRoute
+    if Engine and Engine.KeepWalk then
+        for _, w in ipairs(route.walks or {}) do Engine.KeepWalk(w) end
+    end
+    AfterRoute(route.others ~= nil)
 end)

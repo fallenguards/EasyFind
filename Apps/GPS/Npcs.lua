@@ -65,7 +65,7 @@ local N = {
     rec = "", spots = "", kinds = "", titleIdx = "",
     names = "", low = "", at = "", enNames = nil, enLow = nil, enAt = nil,
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {}, classTitle = {},
-    spotCi = {}, spotWx = {}, spotWy = {},
+    spotCi = {}, spotWx = {}, spotWy = {}, planes = {}, mapNames = {},
     pois = setmetatable({}, { __mode = "v" }),
     hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {}, scan = {}, len = {},
@@ -230,6 +230,7 @@ local function Bind()
         N.names, N.at, N.low = data.names, at, data.namesLow
     end
     N.roleIds = data.roles or {}
+    N.planes = data.planes or {}
     N.titleName, N.titleLow, N.classTitle = data.titleName, data.titleLow, data.classTitle or {}
     N.titleEnglish, N.titleLowEnglish = data.titleEnglish or {}, data.titleLowEnglish or {}
     N.n = count
@@ -469,8 +470,13 @@ local function SpotWorld(k)
     if ci == nil then
         ci = false
         local m, x, y, e = SpotPoint(k)
+        -- Its map's plane as the catalog placed it (npc_planes.py): no
+        -- client call per spot.
+        local plane = m and not e and N.planes[m]
         if e and e.ci then
             ci, N.spotWx[k], N.spotWy[k] = e.ci, e.wx, e.wy
+        elseif plane then
+            ci, N.spotWx[k], N.spotWy[k] = plane[1], plane[2] + plane[3] * y, plane[4] + plane[5] * x
         elseif m and C_Map.GetWorldPosFromMapPos and CreateVector2D then
             local ok, c, pos = pcall(C_Map.GetWorldPosFromMapPos, m, CreateVector2D(x, y))
             if ok and pos then ci, N.spotWx[k], N.spotWy[k] = c, pos:GetXY() end
@@ -543,8 +549,13 @@ local function PlayerWorld()
 end
 
 local function MapName(m)
-    local info = C_Map.GetMapInfo(m)
-    return info and info.name
+    local name = N.mapNames[m]
+    if name == nil then
+        local info = C_Map.GetMapInfo(m)
+        name = info and info.name or false
+        N.mapNames[m] = name
+    end
+    return name or nil
 end
 
 -- Per creature line holding word, where its first hit sits: one find per

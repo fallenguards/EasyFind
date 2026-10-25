@@ -186,7 +186,7 @@ local function Draw()
                 end
                 if sci == ci and tci == ci then
                     Pen(color, alpha)
-                    local path = step.kind == "travel" and Walk(route, i, ci, sci, sx, sy, tx, ty)
+                    local path = step.kind == "travel" and not step.fly and Walk(route, i, ci, sci, sx, sy, tx, ty)
                     if path then
                         local pts = path.pts
                         traceColor, traceAlpha = color, alpha

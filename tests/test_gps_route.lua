@@ -747,6 +747,53 @@ function tests.walk_splitsIntoAStepPerZone()
     H.assertTrue(out[2].wind > 1.3, "Bravo turns at the junction: " .. tostring(out[2].wind))
 end
 
+-- A route keeps its drawn walks: put back in a later session they are
+-- found without a search (a route in progress at login drew every walk
+-- again, about a second of the GPS at 6 to 10 ms a frame).
+function tests.savedWalk_isFoundAgainWithoutASearch()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local searches = 0
+    local path = ns.GPSNav.Path
+    ns.GPSNav.Path = function(...) searches = searches + 1 return path(...) end
+    local drawn = Route.WalkPath(1, 0, -50, 1050, 1000)
+    local w = Route.SaveWalk(1, 0, -50, 1050, 1000)
+    Route.ForgetWalkPaths()
+    Route.KeepWalk(w)
+    local again = Route.WalkPath(1, 0, -50, 1050, 1000)
+    H.assertEq(searches, 1, "the way back came without a search")
+    H.assertEq(again.len, drawn.len)
+    H.assertEq(#again.pts, #drawn.pts)
+    H.assertEq(math.floor(again.cum[3] + 0.5), 1050, "yards so far, worked out again")
+    withNav(ns, function() return nil end)
+    H.assertEq(Route.WalkPath(1, 0, 0, 500, 500), false)
+    local none = Route.SaveWalk(1, 0, 0, 500, 500)
+    Route.ForgetWalkPaths()
+    Route.KeepWalk(none)
+    H.assertEq(Route.WalkPath(1, 0, 0, 500, 500, true), false, "no way on foot is kept too")
+    H.assertNil(Route.SaveWalk(1, 9, 9, 99, 99), "a walk not drawn is not saved")
+end
+
+-- A flown leg goes straight: the job after the route shows draws no walk
+-- for it and splits none by zone (Silvermoon to Undercity flew, then was
+-- redrawn as a walk with a ledge to jump).
+function tests.flownLeg_isNeverRedrawnAsAWalk()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local d = data()
+    d.edges, d.abilities, d.legs = {}, {}, {}
+    local start = P(1, 0, -0.005)
+    local steps = buildAll(Route, start, { name = "Spot", mapID = 1, x = 0.105, y = 0.1 },
+                           { data = d, canFly = true, flySpeed = 20 })
+    H.assertEq(#steps, 1)
+    H.assertTrue(steps[1].fly, "the leg is flown")
+    Route.DrawWalks(steps, start)
+    H.assertNil(Route.WalkPath(1, 0, -50, 1050, 1000, true), "no walk drawn for it")
+    local out = Route.SplitWalks(steps, start, d, { zoneAt = zoneAt })
+    H.assertEq(#out, 1, "one straight leg, not a step per zone")
+    H.assertEq(out[1], steps[1])
+end
+
 -- Along a border the way crosses it back and forth: Alpha and Bravo by
 -- turns in 200 yd bands on the way west, Charlie past 500 yd north.
 local function zoneAlongBorder(_, x, y)

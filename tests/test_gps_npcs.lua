@@ -233,6 +233,40 @@ end
 
 local tests = {}
 
+-- Each spot map's world plane (npc_planes.py) stands in for the client's
+-- map to world call: the same rows, and no call per spot (the first
+-- "vendor" made 1175 of them).
+function tests.spotPlanes_sameRowsWithoutAClientCallPerSpot()
+    local function run(withPlanes)
+        local list, names = {}, {}
+        for k = 1, 12 do
+            list[k] = { k, 0, REPAIR, 0, 0, { 1429, xy(0.05 * k, 0.9 - 0.05 * k), 1 } }
+            names[k] = "Smith " .. k
+        end
+        local append, N, env = fresh(nil, list, table.concat(names, "\n"), nil, true)
+        env.UnitFactionGroup = function() return "Alliance" end
+        local calls = 0
+        -- The client's axes: world x from the map's y, world y from its x.
+        env.C_Map.GetWorldPosFromMapPos = function(_, v)
+            calls = calls + 1
+            return 0, env.CreateVector2D(500 - 2000 * v.y, 900 - 3000 * v.x)
+        end
+        if withPlanes then env.EasyFind._ns.NPC_DATA.planes = { [1429] = { 0, 500, -2000, 900, -3000 } } end
+        N.Load()
+        N.LoadGoods()
+        local out = {}
+        append(out, nil, "repair", nil, 1429)
+        local seen = {}
+        for i, r in ipairs(out) do seen[i] = r.name end
+        return table.concat(seen, ","), calls
+    end
+    local client, clientCalls = run(false)
+    local planed, planedCalls = run(true)
+    H.assertEq(planed, client, "the same rows in the same order")
+    H.assertTrue(clientCalls > 10, "without planes a call per spot: " .. clientCalls)
+    H.assertEq(planedCalls, 1, "with planes only the player's own position")
+end
+
 function tests.nameFindsTheCreatureOnItsSpot()
     local rows = find(fresh(), "hog")
     H.assertEq(#rows, 1)
@@ -567,7 +601,7 @@ function tests.shippedCatalog_readInPlace()
         local src = f:read("*a")
         f:close()
         local isBase = not name:find("_")
-        for _, field in ipairs(isBase and { "namesLow = \"", "titleName = {", "classTitle = {" }
+        for _, field in ipairs(isBase and { "namesLow = \"", "titleName = {", "classTitle = {", "planes = { [" }
                                or { "data.localNamesLow = \"", "data.titleName = {", "data.classTitle = {" }) do
             H.assertTrue(src:find(field, 1, true) ~= nil, name .. " carries " .. field)
         end

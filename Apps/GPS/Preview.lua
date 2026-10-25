@@ -585,7 +585,7 @@ local function Draw()
                 -- it lies on this map.
                 Pen(color, alpha, trim)
                 local path, pci
-                if step.kind == "travel" then path, pci = WalkWorld(route, i, start, target) end
+                if step.kind == "travel" and not step.fly then path, pci = WalkWorld(route, i, start, target) end
                 if path and pci == affine.ci then
                     local pts = path.pts
                     trace.affine, trace.color, trace.alpha, trace.trim = affine, color, alpha, trim
@@ -821,7 +821,7 @@ function Preview:Status(index)
     local mapID = MapOf(route, index)
     out[#out + 1] = string.format("step %d %s: start %s | target %s", index, tostring(step.kind), P(start), P(target))
     local a, b = mapID and OnCanvas(start, mapID), mapID and OnCanvas(target, mapID)
-    local way = step.kind == "travel" and WalkWorld(route, index, start, target)
+    local way = step.kind == "travel" and not step.fly and WalkWorld(route, index, start, target)
     out[#out + 1] = string.format("map %s: start on it %s, target on it %s, walk points %s", tostring(mapID),
         a and string.format("%.0f,%.0f", a[1], a[2]) or "no", b and string.format("%.0f,%.0f", b[1], b[2]) or "no",
         way and tostring(#way.pts / 2) or "none")

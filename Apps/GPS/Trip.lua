@@ -191,11 +191,14 @@ local function Corridor(route)
             if now and now.route == route and now.index == i and now.path then
                 path, first, ax, ay = now.path, (now.seg or 0) + 1, now.px, now.py
             else
-                path = Engine.WalkPath(ci, sx, sy, tx, ty, true, s.near) or nil
+                path = not s.fly and Engine.WalkPath(ci, sx, sy, tx, ty, true, s.near) or nil
                 first, ax, ay = 2, sx, sy
                 if path then ax, ay = path.pts[1], path.pts[2] end
             end
-            local pace = path and s.sec and s.sec > 0 and path.len > 1 and s.sec / path.len or walkPace
+            -- A flown leg goes straight, at the pace it was priced at.
+            local straight = s.fly and msqrt((tx - ax) ^ 2 + (ty - ay) ^ 2)
+            local pace = path and s.sec and s.sec > 0 and path.len > 1 and s.sec / path.len
+                or straight and straight > 1 and s.sec and s.sec / straight or walkPace
             if path then
                 local pts = path.pts
                 for v = first, #pts / 2 do
