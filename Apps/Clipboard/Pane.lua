@@ -470,16 +470,16 @@ end
 -- ==== hooks =================================================================
 
 if ns.ResultRender and ns.ResultRender.ApplyResultsFrameLayout then
-    hooksecurefunc(ns.ResultRender, "ApplyResultsFrameLayout", function() Pane:Sync() end)
+    Utils.PostHook(ns.ResultRender, "ApplyResultsFrameLayout", function() Pane:Sync() end)
 end
 if ns.Results and ns.Results.HideResults then
-    hooksecurefunc(ns.Results, "HideResults", Hide)
+    Utils.PostHook(ns.Results, "HideResults", Hide)
 end
 if ns.Filters and ns.Filters.ClearQuickFilter then
-    hooksecurefunc(ns.Filters, "ClearQuickFilter", Hide)
+    Utils.PostHook(ns.Filters, "ClearQuickFilter", Hide)
 end
 if ns.ResultHandlers and ns.ResultHandlers.ApplyActionHint then
-    hooksecurefunc(ns.ResultHandlers, "ApplyActionHint", function(_, row)
+    Utils.PostHook(ns.ResultHandlers, "ApplyActionHint", function(_, row)
         if row and row.data and row.data.clipID and Active() then
             Place()
             Pane:ShowEntry(row.data.clipID)
@@ -491,7 +491,7 @@ end
 if ns.ResultHandlers and ns.ResultHandlers.ClearActionHint then
     -- The cursor left a row: back to the selection when there is one,
     -- else nothing (the pane never outlives the hover that opened it).
-    hooksecurefunc(ns.ResultHandlers, "ClearActionHint", function()
+    Utils.PostHook(ns.ResultHandlers, "ClearActionHint", function()
         if not Active() then return end
         local id = Selected()
         if not id then

@@ -501,8 +501,8 @@ local function EnsureMicroStateHooks()
     local function Later() Utils.SafeAfter(0, RefreshMicroStates) end
     if not microHooks.core then
         microHooks.core = true
-        if Results and Results.HideResults then hooksecurefunc(Results, "HideResults", Later) end
-        if ns.Search and ns.Search.Hide then hooksecurefunc(ns.Search, "Hide", Later) end
+        if Results and Results.HideResults then Utils.PostHook(Results, "HideResults", Later) end
+        if ns.Search and ns.Search.Hide then Utils.PostHook(ns.Search, "Hide", Later) end
     end
     local opts = ns.optionsFrame
     if opts and not microHooks[opts] then

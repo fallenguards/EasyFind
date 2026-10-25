@@ -1,16 +1,24 @@
 -- An and/or chain whose middle is false or nil always gives the last value:
--- `x and false or nil` is nil and `x and nil or false` false, whatever x is,
--- so a switch written that way never saves its off (or its on). A shipped
+-- `x and nil or y` is y whatever x is, so a switch written that way never
+-- saves its off (or its on) and a fallback never falls back. A shipped
 -- line stores off-only settings through Utils.OffOrNil.
 local H = require("Harness")
+
+-- Lines found when the check grew past false and nil (2026-10-25), each
+-- waiting on its own decision.
+local KNOWN = {
+    -- The Classic skin keeps the parchment behind results: a look to decide.
+    ["Search/Results/Theme.lua"] = 1,
+    -- Forever's missing sidebar keeps retail's number: /efd sidebars first.
+    ["Shared/Caps.lua"] = 1,
+}
 
 local function scan(text)
     local hits, n = {}, 0
     for line in (text .. "\n"):gmatch("(.-)\r?\n") do
         n = n + 1
         local code = line:gsub("%-%-.*$", ""):gsub('"[^"]*"', '""')
-        if code:find("and%s+false%s+or%s+nil") or code:find("and%s+nil%s+or%s+false")
-            or code:find("and%s+nil%s+or%s+nil") or code:find("and%s+false%s+or%s+false") then
+        if code:find("and%s+false%s+or%f[%W]") or code:find("and%s+nil%s+or%f[%W]") then
             hits[#hits + 1] = n
         end
     end
@@ -26,7 +34,10 @@ function tests.noShippedLineHasAConstantAndOr()
             local fh = io.open(H.ADDON_ROOT .. "/" .. rel, "r")
             if fh then
                 checked = checked + 1
-                for _, n in ipairs(scan(fh:read("a"))) do bad[#bad + 1] = rel .. ":" .. n end
+                local hits = scan(fh:read("a"))
+                if #hits > (KNOWN[rel] or 0) then
+                    for _, n in ipairs(hits) do bad[#bad + 1] = rel .. ":" .. n end
+                end
                 fh:close()
             end
         end
@@ -38,6 +49,9 @@ end
 function tests.scan_flagsBothForms()
     H.assertEq(#scan("db.x = (not v) and false or nil"), 1)
     H.assertEq(#scan("rec.snap = v and nil or false"), 1)
+    H.assertEq(#scan('return GPS:Dock() and nil or "no tracker"'), 1, "any value after or")
+    H.assertEq(#scan("x = on and false or default"), 1)
+    H.assertEq(#scan("x = on and nil_ok or y"), 0, "a name that starts with nil")
 end
 
 function tests.scan_skipsCommentsAndStrings()

@@ -593,7 +593,7 @@ local function PaintWell(well)
     ns.PaintRingedWell(well, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
 end
 if ns.ApplyUITheme then
-    hooksecurefunc(ns, "ApplyUITheme", function()
+    Utils.PostHook(ns, "ApplyUITheme", function()
         for i = 1, #wells do PaintWell(wells[i]) end
     end)
 end

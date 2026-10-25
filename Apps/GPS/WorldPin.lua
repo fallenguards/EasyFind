@@ -220,7 +220,7 @@ end
 
 -- The arrow at the character wears the beacon's colors too.
 WorldPin.Tint = Tint
-if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Repaint) end
+if ns.ApplyUITheme then ns.Utils.PostHook(ns, "ApplyUITheme", Repaint) end
 
 -- A plate in the keybind buttons' look: the step, then the distance and
 -- this step's time, then the trip's. Under the beacon, or under the

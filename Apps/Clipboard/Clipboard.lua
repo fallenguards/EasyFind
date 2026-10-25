@@ -664,8 +664,8 @@ end
 
 -- The @clipboard pill going up is the list opening: changes noted while
 -- it was closed are applied then.
-if ns.Filters and ns.Filters.ApplyQuickFilter and hooksecurefunc then
-    hooksecurefunc(ns.Filters, "ApplyQuickFilter", function(_, def)
+if ns.Filters and ns.Filters.ApplyQuickFilter then
+    Utils.PostHook(ns.Filters, "ApplyQuickFilter", function(_, def)
         if def and def.key == "clipboard" then
             Utils.SafeAfter(0, function() Clipboard:RefreshIfStale() end)
         end

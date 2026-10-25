@@ -937,6 +937,18 @@ function Utils.SecureCall(fn, ...)
     return true
 end
 
+-- Our own functions are post-hooked in Lua: hooksecurefunc puts the
+-- function behind a C call, and a sliced run cannot yield under it.
+function Utils.PostHook(tbl, key, hook)
+    local orig = tbl[key]
+    local function pack(...) return { n = select("#", ...), ... } end
+    tbl[key] = function(...)
+        local r = pack(orig(...))
+        hook(...)
+        return unpack(r, 1, r.n)
+    end
+end
+
 function Utils.RGB(c, alpha)
     if alpha == nil then return c[1], c[2], c[3] end
     return c[1], c[2], c[3], alpha

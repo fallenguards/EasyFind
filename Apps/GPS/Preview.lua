@@ -777,7 +777,7 @@ function Preview.ColorsChanged()
     dirty = true
     if ns.GPSMinimap and ns.GPSMinimap.Refresh then ns.GPSMinimap:Refresh() end
 end
-if ns.ApplyUITheme then hooksecurefunc(ns, "ApplyUITheme", Preview.ColorsChanged) end
+if ns.ApplyUITheme then ns.Utils.PostHook(ns, "ApplyUITheme", Preview.ColorsChanged) end
 
 -- The canvas resizes with the zoom, the map changes under the drawing and
 -- the walked part grows: looked at while the map is open, drawn on change.
