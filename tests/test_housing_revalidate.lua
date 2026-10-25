@@ -50,7 +50,8 @@ local CATALOG = {
 local IDS = { 101, 102, 103 }
 
 -- One session: a fresh load of the housing code over the saved db.
-local function Session(db)
+-- asTables: the client's entry ids, new tables each search (12.x).
+local function Session(db, asTables)
     local src = read("Database/Main.lua")
     local chunk = cut(src, "local Corpora = { packedLive = {} }", "\nend\r?\n")
         .. cut(src, "local HOUSING_PROTO = {", "\n}\r?\n")
@@ -74,8 +75,13 @@ local function Session(db)
         EasyFind = { db = db },
         UnitGUID = function() return "Player-1" end,
         HOUSING_ROOM_TYPE = 2,
-        C_HousingCatalog = { GetCatalogEntryInfo = function(id) return catalog[id] end },
-        housingSearcher = { GetCatalogSearchResults = function() return IDS end },
+        C_HousingCatalog = { GetCatalogEntryInfo = function(id) return catalog[asTables and id.recordID or id] end },
+        housingSearcher = { GetCatalogSearchResults = function()
+            if not asTables then return IDS end
+            local ids = {}
+            for i, id in ipairs(IDS) do ids[i] = { recordID = id, entryType = 1 } end
+            return ids
+        end },
     }, { __index = _G })
     local Corpora, Hydrate, RemoveCategory = assert(load(chunk, "=Main.lua housing", "t", env))()
     local s = { data = data, budgets = budgets, catalog = catalog, Corpora = Corpora, env = env,
@@ -143,6 +149,19 @@ function tests.aChangedCatalogSwapsInPackedRows()
     H.assertEq(rows[2].name, "Lamp")
     H.assertTrue(db.housingCache.packed ~= oldPacked, "the save follows")
     H.assertEq(s.Corpora.packedLive.Housing, db.housingCache.packed, "the new rows are marked as the save")
+end
+
+-- The client hands each search new entry id tables: the same catalog
+-- still packs the same (packed as addresses, every check swapped all
+-- the rows and searched again).
+function tests.entryIdTables_packTheSameEachSearch()
+    local db = {}
+    H.assertEq(Session(db, true).Revalidate(), true, "first session builds the rows")
+    H.assertTrue(not db.housingCache.packed:find("table: ", 1, true), "no table address saved")
+    local s = Session(db, true)
+    H.assertTrue(s.Hydrate(), "the next login shows the saved rows")
+    H.assertEq(s.Revalidate(), false, "the same catalog is nothing changed")
+    H.assertEq(housingRows(s.data)[2].housingEntryID, "1:102", "the id kept as its fields")
 end
 
 function tests.removedRowsAreBuiltAgain()

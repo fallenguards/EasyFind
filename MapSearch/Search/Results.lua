@@ -684,12 +684,15 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
 end
 
 -- Each part's ms over the bar's map passes, for the lag probe (it wipes).
+-- Frames the sliced pass sat paused are left out.
 local uiParts = { at = 0 }
 MapSearch.uiParts = uiParts
+local function WorkClock()
+    return debugprofilestop() - Utils.SlicePausedMs()
+end
 local function Part(name)
-    local dps = debugprofilestop
-    if not dps then return end
-    local now = dps()
+    if not debugprofilestop then return end
+    local now = WorkClock()
     uiParts[name] = (uiParts[name] or 0) + now - uiParts.at
     uiParts.at = now
 end
@@ -699,7 +702,7 @@ function MapSearch:SearchForUI(query)
     Search.uiScoredFor = nil
     if not query or query == "" or #query < 2 then return nil end
     if self.HasWorldZoneCache and not self:HasWorldZoneCache() then return nil end
-    uiParts.at = debugprofilestop and debugprofilestop() or 0
+    uiParts.at = debugprofilestop and WorkClock() or 0
 
     -- Use the player's current zone as the local anchor so UI-bar map
     -- results reflect what's actually around them rather than wherever

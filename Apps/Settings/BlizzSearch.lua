@@ -3947,13 +3947,27 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     BlizzOptionsSearch.lastPopulate = rec
     local t = StepClock()
     pushSink = not includeLiveGameSettings and {} or nil
+    -- The live index waits for the light rows: the "settings" segment takes them.
+    local index = ns.SearchIndex
+    local function Settled()
+        if index then
+            index:Unhold("Game Settings")
+            index:Unhold("AddOn Settings")
+        end
+    end
+    if pushSink and index then
+        index:Hold("Game Settings")
+        index:Hold("AddOn Settings")
+    end
     if not includeLiveGameSettings then RememberCategories() end
     t = Step(rec, "rememberMs", t)
     local function AttachRows()
         local rows = pushSink
         pushSink = nil
         if rows and #rows > 0 and ns.SearchSegments and ns.SearchSegments.Attach then
-            ns.SearchSegments.Attach("settings", rows)
+            ns.SearchSegments.Attach("settings", rows, Settled)
+        else
+            Settled()
         end
         t = Step(rec, "attachMs", t)
     end

@@ -3,6 +3,7 @@ local _, ns = ...
 local Text = ns.ResultText
 local L = ns.L
 local sformat = ns.Utils.sformat
+local mfloor = math.floor
 
 local KEY_ABBREV = {
     SHIFT = "S", CTRL = "C", ALT = "A", META = "M",
@@ -61,20 +62,16 @@ local function applyClip(fs)
     -- inside its wrapper: the escape stays whole and the |r stays last.
     local open, inner = text:match("^(|c%x%x%x%x%x%x%x%x)(.-)|r$")
     if not open then open, inner = text:match("^(|cn[^:|]+:)(.-)|r$") end
-    if open then
-        for cut = #inner - 1, 1, -1 do
-            fs:SetText(open .. inner:sub(1, cut) .. "..." .. "|r")
-            local w = getW and fs:GetUnboundedStringWidth() or fs:GetStringWidth() or 0
-            if w <= maxW then return end
-        end
-        return
-    end
-    for cut = #text - 1, 1, -1 do
-        local trimmed = text:sub(1, cut) .. "..."
-        fs:SetText(trimmed)
+    local body = open and inner or text
+    -- The longest cut that fits, halving: a width grows with its text.
+    local lo, hi, best = 1, #body - 1, 1
+    while lo <= hi do
+        local cut = mfloor((lo + hi) / 2)
+        fs:SetText(open and (open .. body:sub(1, cut) .. "...|r") or (body:sub(1, cut) .. "..."))
         local w = getW and fs:GetUnboundedStringWidth() or fs:GetStringWidth() or 0
-        if w <= maxW then return end
+        if w <= maxW then best, lo = cut, cut + 1 else hi = cut - 1 end
     end
+    fs:SetText(open and (open .. body:sub(1, best) .. "...|r") or (body:sub(1, best) .. "..."))
 end
 
 -- The bound read in the frame a row's right-side widget was re-anchored
@@ -88,6 +85,14 @@ local function FlushReclip()
         reclip[i] = nil
         if fs._unclippedText then applyClip(fs) end
     end
+end
+
+-- A title the clip passes leave as set: a color inside it the cut cannot
+-- keep whole. A plain SetText would be undone by the next re-clip.
+function Text:SetUnclippedText(fs, text)
+    if not fs then return end
+    fs._unclippedText = nil
+    fs:SetText(text or "")
 end
 
 function Text:SetClippedText(fs, text)

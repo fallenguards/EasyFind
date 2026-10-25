@@ -1201,9 +1201,10 @@ end
 local searchRefreshPending = false
 local function RunActiveSearchRefresh()
     searchRefreshPending = false
+    -- Only search rows changed (a provider, settings rows, a cache reset).
     local search = ns.Search
     if search and search.RefreshActiveSearch then
-        search:RefreshActiveSearch()
+        search:RefreshActiveSearch(true)
     end
 end
 
@@ -1269,18 +1270,20 @@ Database._resultEntryPool = resultEntryPool
 
 function Database:TrimSearchMemory()
     self:UnloadDynamicSearchData()
-    wipe(resultsBuf)
-    wipe(sharedKwScores)
+    -- Fresh tables, not wiped ones: a wiped table keeps the room its
+    -- largest query took.
+    resultsBuf, sharedKwScores, resultEntryPool = {}, {}, {}
+    Database._resultEntryPool = resultEntryPool
     wipe(resultsQueryWords)
     wipe(statisticScopedQueryWords)
-    wipe(resultEntryPool)
-    wipe(wordCache)
-    wipe(nameMaskCache)
-    wipe(wordInitCache)
+    wordCache, nameMaskCache, wordInitCache = {}, {}, {}
+    Database._wordCache = wordCache
     prevQuery = ""
     prevSkipKey = ""
-    wipe(prevCandidates)
-    ClearResultCache()
+    prevCandidates = {}
+    resultCache, resultCacheLRU = {}, {}
+    Database._resultCache = resultCache
+    if ns.SearchIndex and ns.SearchIndex.TrimScratch then ns.SearchIndex:TrimScratch() end
     Utils.ShedCorpora()
 end
 
@@ -1468,7 +1471,7 @@ function Database:SearchUI(query, skipCategories)
     -- collide with ("xMount", no skips).
     local cacheKey = query .. "\1" .. skipKey
 
-    local searchSet, restAt
+    local searchSet, restAt, stopwordRest
     local cachedSet = resultCache[cacheKey]
     if cachedSet then
         -- Exact prior query (backspace / retype): re-score its cached
@@ -1492,12 +1495,13 @@ function Database:SearchUI(query, skipCategories)
             -- One plain word: the rows that can only score a mid-word substring
             -- come last, and the scan stops before them once it cannot use them.
             local split = #queryWords == 1 and queryWords[1] == query and not queryNorm
-                and not STOPWORDS[query] and not sfind(query, "[^%w]")
+                and not sfind(query, "[^%w]")
                 and not lootStatActive and not bossQueryWord and not achQueryWord and not statQueryWord
             local cand, _, restFrom = ns.SearchIndex:Candidates(queryWords, split)
             if cand then
                 searchSet = cand
                 restAt = restFrom
+                stopwordRest = restFrom and STOPWORDS[query]
             end
         end
     end
@@ -1557,14 +1561,21 @@ function Database:SearchUI(query, skipCategories)
             break
         end
         local data = searchSet[i]
-        if not (skipCategories and skipCategories[data.category])
-           and not (data.isRoom and hideRooms)
+        -- Read once: on a packed row every field read is a call.
+        local cat = data.category
+        if not (skipCategories and skipCategories[cat])
+           and not (hideRooms and cat == "Housing" and data.isRoom)
            and not (data.available and not data.available())
-           and (not categoryMinLen or queryLen >= (categoryMinLen[data.category] or 0))
+           and (not categoryMinLen or queryLen >= (categoryMinLen[cat] or 0))
            and (not gateActive or not GateSkipsEntry(data)) then
             local nameLower = data.nameLower
             local score
-            if data.lootEntry then
+            if stopwordRest and i >= restAt then
+                -- No word of a rest row starts with the stop word, so the
+                -- stop word rules give its name 30 for holding it, else 0.
+                score = (cat ~= "Achievement Category" and cat ~= "Statistic"
+                    and sfind(nameLower, query, 1, true)) and 30 or 0
+            elseif data.lootEntry then
                 if lootStatActive and not data._statsEnriched then
                     Database:EnrichLootStats(data)
                 end
@@ -1653,10 +1664,9 @@ function Database:SearchUI(query, skipCategories)
                 end
 
                 score = totalScore
-            elseif data.category == "Boss" and not bossQueryWord then
+            elseif cat == "Boss" and not bossQueryWord then
                 score = Database:ScoreName(nameLower, query, queryLen, queryWords)
             else
-                local cat = data.category
                 local isAchEntry = cat == "Achievement Category" or cat == "Statistic"
                 if isAchEntry and not achQueryWord then
                     -- Strong name matches only (skip kw score) so short kw

@@ -81,5 +81,26 @@ function tests.aBudgetFunctionIsReadEachSlice()
     H.assertEq(spent[2].provider, 4, "urgent pace once a query waits")
 end
 
+-- A timer inside a run leaves out the frames it sat paused (16 ms of other
+-- work between each), so it reads the run's own 10 ms.
+function tests.aRunsPausedFramesAreLeftOutOfItsOwnTime()
+    local Utils, _, NextFrame, _, clock = Scheduler()
+    local own
+    Utils.RunSliced(function()
+        local start = clock.ms - Utils.SlicePausedMs()
+        for _ = 1, 40 do
+            clock.ms = clock.ms + 0.25
+            Utils.SliceCheckpoint()
+        end
+        own = clock.ms - Utils.SlicePausedMs() - start
+    end, nil, 2, "a")
+    for _ = 1, 20 do
+        clock.ms = clock.ms + 16
+        NextFrame()
+    end
+    H.assertEq(own, 10)
+    H.assertEq(Utils.SlicePausedMs(), 0, "outside a run")
+end
+
 local pass, fail, failures = H.runSuite("SlicedPool", tests)
 return { pass = pass, fail = fail, failures = failures }

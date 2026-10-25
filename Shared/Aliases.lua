@@ -221,6 +221,9 @@ local function WarmKeys()
     end)
 end
 
+-- For the dev memory audit.
+function Aliases._DebugPeek() return { keyMemo = keyMemo, keyIndex = keyIndex } end
+
 function Aliases:InvalidateKeyIndex()
     keyIndex = nil
     WarmKeys()

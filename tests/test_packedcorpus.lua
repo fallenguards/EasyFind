@@ -326,5 +326,26 @@ function tests.aliasKey_ofAStubLeavesItBare()
     H.assertEq(Aliases:GetEntryKey(ui:StubAt(1)), "ui:Housing>Decor>Oak Chair")
 end
 
+-- A table in a plain field would pack as its address, different every
+-- session, so a cache holding one never matched and rebuilt each time:
+-- it packs as nothing, and the first of a kind is reported.
+function tests.packRows_tableInAPlainField_packsNothingAndReports()
+    local reports = {}
+    env.geterrorhandler = function() return function(msg) reports[#reports + 1] = msg end end
+    for k in pairs(Utils.packDropped) do Utils.packDropped[k] = nil end
+    local blob = Utils.PackRows({
+        { name = "Chair", icon = 1, mountID = { recordID = 5 } },
+        { name = "Lamp", icon = 2, mountID = { recordID = 6 } },
+    }, SPEC)
+    H.assertTrue(not blob:find("table: ", 1, true), "no address in the blob")
+    local rows = Utils.UnpackRows(blob, SPEC)
+    H.assertEq(rows[1].name, "Chair")
+    H.assertNil(rows[1].mountID, "the table packed as nothing")
+    H.assertEq(rows[2].icon, 2, "the fields after it still read")
+    H.assertEq(#reports, 1, "reported once for the kind")
+    H.assertTrue(reports[1]:find("PackRows", 1, true) ~= nil, "naming the packer")
+    env.geterrorhandler = nil
+end
+
 local pass, fail, failures = H.runSuite("PackedCorpus", tests)
 return { pass = pass, fail = fail, failures = failures }

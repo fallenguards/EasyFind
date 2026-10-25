@@ -21,6 +21,40 @@ end
 local select, ipairs = Utils.select, Utils.ipairs
 local sfind = Utils.sfind
 local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
+
+-- A creature's face is the client drawing its model, 2 ms a row. A row
+-- keeps the face it shows until its icon is set to anything else; a row
+-- below the list's view gets its face once it scrolls in.
+local function ForgetFace(icon) icon._efFace = nil end
+local function DrawFace(row, face)
+    local icon = row.icon
+    SetPortraitTextureFromCreatureDisplayID(icon, face)
+    if not icon._efFaceWatched and hooksecurefunc then
+        icon._efFaceWatched = true
+        hooksecurefunc(icon, "SetTexture", ForgetFace)   -- secure hook: a texture's own client method
+        hooksecurefunc(icon, "SetAtlas", ForgetFace)     -- secure hook: a texture's own client method
+        hooksecurefunc(icon, "SetColorTexture", ForgetFace)  -- secure hook: a texture's own client method
+    end
+    icon._efFace = face
+end
+
+-- The faces left for rows below the view, drawn for those now in it.
+function Render.DrawPendingFaces(scrollFrame)
+    local buttons = Search:GetResultButtons()
+    local top, bottom = scrollFrame and scrollFrame:GetTop(), scrollFrame and scrollFrame:GetBottom()
+    if not (buttons and top and bottom) then return end
+    for i = 1, #buttons do
+        local row = buttons[i]
+        local face = row._efFacePending
+        if face and row:IsShown() then
+            local rowTop, rowBottom = row:GetTop(), row:GetBottom()
+            if rowTop and rowBottom and rowBottom < top and rowTop > bottom then
+                row._efFacePending = nil
+                DrawFace(row, face)
+            end
+        end
+    end
+end
 local InCombatLockdown = InCombatLockdown
 local GetItemCooldown = (C_Item and C_Item.GetItemCooldown) or GetItemCooldown
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
@@ -84,6 +118,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
     -- (map results, currencies, settings, etc.) leaves it alone, so
     -- without this clear a recycled row keeps the previous sweep.
     if resultRow.iconCooldown then resultRow.iconCooldown:Hide() end
+    resultRow._efFacePending = nil
     -- Same recycled-row rule for the overlays that only ONE branch
     -- manages: the gear-set spec badge and the outfit lock overlay were
     -- cleared inside their own branch, so a row reused by any OTHER
@@ -658,7 +693,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             resultRow.text:SetPoint("LEFT", resultRow, "LEFT", indentPixels + 4, 0)
         end
         resultRow.text:SetPoint("RIGHT", resultRow.icon, "LEFT", -4, 0)
-        resultRow.text:SetText(displayName)
+        Render.SetClippedText(resultRow.text, displayName)
         iconSet = true
 
     -- Loot items: icon on right with source name inline
@@ -681,7 +716,7 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         resultRow.amountText:Hide()
         resultRow.iconCooldown:Hide()
         if data.lootSourceName then
-            resultRow.text:SetText(data.name .. "  |cff888888" .. data.lootSourceName .. "|r")
+            Render.SetUnclippedText(resultRow.text, data.name .. "  |cff888888" .. data.lootSourceName .. "|r")
         end
         local indentPixels = depth * indPx + 4
         resultRow.text:ClearAllPoints()
@@ -697,21 +732,26 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         resultRow.amountText:Hide()
         local mapIcon = data.icon
         if mapIcon then
-            resultRow.icon:SetTexture(nil)
-            resultRow.icon:SetTexCoord(0, 1, 0, 1)
-            resultRow.icon:SetVertexColor(1, 1, 1, 1)
-            if type(mapIcon) == "table" then
-                resultRow.icon:SetTexture(mapIcon.file)
-                resultRow.icon:SetTexCoord(unpack(mapIcon.coords))
-            elseif type(mapIcon) == "string" and sfind(mapIcon, "^atlas:") then
-                resultRow.icon:SetAtlas(mapIcon:sub(7))
-            else
-                resultRow.icon:SetTexture(mapIcon)
-            end
             -- A creature wears its own face, drawn by the client from its model.
-            if data.displayID and SetPortraitTextureFromCreatureDisplayID then
-                SetPortraitTextureFromCreatureDisplayID(resultRow.icon, data.displayID)
+            local face = SetPortraitTextureFromCreatureDisplayID and data.displayID or nil
+            if not (face and resultRow.icon._efFace == face) then
+                resultRow.icon:SetTexture(nil)
+                resultRow.icon:SetTexCoord(0, 1, 0, 1)
+                if type(mapIcon) == "table" then
+                    resultRow.icon:SetTexture(mapIcon.file)
+                    resultRow.icon:SetTexCoord(unpack(mapIcon.coords))
+                elseif type(mapIcon) == "string" and sfind(mapIcon, "^atlas:") then
+                    resultRow.icon:SetAtlas(mapIcon:sub(7))
+                else
+                    resultRow.icon:SetTexture(mapIcon)
+                end
+                if face and state.belowView then
+                    resultRow._efFacePending = face
+                elseif face then
+                    DrawFace(resultRow, face)
+                end
             end
+            resultRow.icon:SetVertexColor(1, 1, 1, 1)
             resultRow.icon:SetSize(rowIconSize, rowIconSize)
             resultRow.icon:ClearAllPoints()
             resultRow.icon:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)

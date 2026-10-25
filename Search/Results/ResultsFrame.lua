@@ -189,6 +189,7 @@ function Results:CreateResultsFrame()
         if bucket ~= lastShortcutBucket then
             lastShortcutBucket = bucket
             Shortcuts:UpdateVisibleResultShortcuts()
+            Render.DrawPendingFaces(scrollFrame)
         end
     end)
 

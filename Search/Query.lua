@@ -68,15 +68,42 @@ end
 -- Re-run the active search after async data changes (provider loads,
 -- item-info arrivals, Database cache resets). A quick-filter browse
 -- ("@outfits") has empty text but still needs the re-search once its
--- data finishes loading in the background.
-function Search:RefreshActiveSearch()
+-- data finishes loading in the background. rowsOnly: only search rows
+-- changed, nothing the map pass reads.
+function Search:RefreshActiveSearch(rowsOnly)
     local frame = Search:GetSearchFrame()
     if not (frame and frame:IsShown()) then return end
     local typed = Search:GetTypedQuery()
     if typed ~= "" or Search:GetQuickFilter() then
-        Search:OnSearchTextChanged(typed, true)
+        Search:OnSearchTextChanged(typed, true, rowsOnly)
     end
 end
+
+-- The bar's last map pass, for a rerun only search rows asked for (a
+-- provider landing): the same text moments later, no pass since, the
+-- same zone, gets the same rows, so the pass is not run again.
+local MAP_REUSE_S = 1
+local mapMemo = { valid = false }
+local function MapPass(text, rowsOnly)
+    local count = ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
+    local zone = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+    local m = mapMemo
+    if rowsOnly and m.valid and m.text == text and m.count == count and m.zone == zone
+       and GetTime() - m.at < MAP_REUSE_S then
+        return m.rows
+    end
+    local rows = ns.MapSearch:SearchForUI(text)
+    m.valid, m.text, m.rows, m.zone, m.at = true, text, rows, zone, GetTime()
+    m.count = ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
+    return rows
+end
+-- A pass of a boost's own replaces the rows the memo holds.
+local function MapPassRedone(rows)
+    mapMemo.rows, mapMemo.count = rows, ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
+end
+local function MapPassStale() mapMemo.valid = false end
+-- end of the map pass memo
+local runRowsOnly = false
 
 local searchRefreshQueued = false
 -- Paint hold (see the provider request in OnSearchTextChangedNow): the
@@ -109,7 +136,7 @@ local function RefreshSearchAfterProviderLoad(anyChanged)
     Utils.SafeAfter(delay, function()
         searchRefreshQueued = false
         lastProviderRefreshAt = GetTime()
-        Search:RefreshActiveSearch()
+        Search:RefreshActiveSearch(true)
         -- A provider finishing may have added the row a shortkey points at;
         -- rebind any shortkeys skipped because their provider had not loaded
         -- yet. No-op once every shortkey resolves.
@@ -203,8 +230,9 @@ end
 -- Every dispatch runs sliced; a new one cancels the run in flight.
 -- It yields in SearchUI, the index and the item and creature scans.
 local sliceHandle
-local pendingSliceText, pendingSliceForce
+local pendingSliceText, pendingSliceForce, pendingSliceRowsOnly
 local function RunPendingSearch()
+    runRowsOnly = pendingSliceRowsOnly
     Search:OnSearchTextChangedNow(pendingSliceText, pendingSliceForce)
 end
 
@@ -216,26 +244,32 @@ local function SearchRunEnded(ok, err)
     Utils.ErrorHandler(err)
 end
 
-function Search:OnSearchTextChanged(text, force)
+function Search:OnSearchTextChanged(text, force, rowsOnly)
     if sliceHandle then
         sliceHandle:Cancel()
         if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
     end
-    pendingSliceText, pendingSliceForce = text, force
+    -- Anything but a rows-only rerun may have changed what the map pass reads.
+    if not rowsOnly then MapPassStale() end
+    pendingSliceText, pendingSliceForce, pendingSliceRowsOnly = text, force, rowsOnly
     sliceHandle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6, "search")
 end
 
 local topBuf = {}   -- the top-15 selection's scratch
 
--- Each search's phases in ms, for the lag probe (searchUI spans its yields;
--- the others run whole, so theirs is CPU).
+-- Each search's phases in ms of work, for the lag probe: the frames the
+-- slicer paused the run for are left out.
 local timings = {}
 Search.lastTimings = timings
 local markAt = 0
-local function Mark(phase)
+local function WorkClock()
     local dps = debugprofilestop
-    if not dps then return end
-    local now = dps()
+    if not dps then return 0 end
+    return dps() - (Utils.SlicePausedMs and Utils.SlicePausedMs() or 0)
+end
+local function Mark(phase)
+    if not debugprofilestop then return end
+    local now = WorkClock()
     timings[phase] = (timings[phase] or 0) + now - markAt
     markAt = now
 end
@@ -251,9 +285,12 @@ function Search:OnSearchTextChangedNow(text, force)
     -- that ancestor secure row buttons -- protected operations. Any stray
     -- programmatic call in combat is a silent no-op.
     if InCombatLockdown() then return end
+    -- Only a dispatched rows-only rerun is one; a direct call never is.
+    local rowsOnly = runRowsOnly
+    runRowsOnly = false
     wipe(timings)
     timings.text = text
-    markAt = debugprofilestop and debugprofilestop() or 0
+    markAt = WorkClock()
     -- Central guard for the whole caller class: if the incoming text is
     -- the autocomplete-COMPLETED editbox text while a suggestion is live,
     -- search what the user actually typed instead. Callers that pass
@@ -502,7 +539,7 @@ function Search:OnSearchTextChangedNow(text, force)
     if not calculatorData and not calculatorLauncher and ns.MapSearch and ns.MapSearch.SearchForUI
        and ((quickFilter and quickFilter.key == "map")
             or (not quickFilter and filters and filters.map ~= false)) then
-        mapResults = ns.MapSearch:SearchForUI(text)
+        mapResults = MapPass(text, rowsOnly)
     end
     Mark("map")
     local mapPass = ns.MapSearchSearch and ns.MapSearchSearch.uiSearchCount
@@ -759,6 +796,8 @@ function Search:OnSearchTextChangedNow(text, force)
                 filtered[fi] = r
             else
                 local d = r.data
+                -- Read once: on a packed row every field read is a call.
+                local cat = d and d.category
                 local bucket = Filters:GetUIBucket(d)
                 local bucketOff = bucket and filters[bucket] == false
                 if (explicitStatistics and bucket == "statistics")
@@ -767,23 +806,22 @@ function Search:OnSearchTextChangedNow(text, force)
                 end
                 local parentOff = optionsOff
                     and (bucket == "gameOptions" or bucket == "addonOptions")
-                local passiveOff = hidePassives and d and d.category == "Ability" and d.isPassive
-                local headerOff = hideAchievementHeaders and d
-                    and d.category == "Achievement Category"
+                local passiveOff = hidePassives and cat == "Ability" and d.isPassive
+                local headerOff = hideAchievementHeaders and cat == "Achievement Category"
                 local guildAchievementOff = hideGuildAchievements and self:IsGuildAchievementData(d)
-                local macroTypeOff = d and d.category == "Macro"
+                local macroTypeOff = cat == "Macro"
                     and ((d.macroIsChar and macroCharOff) or (not d.macroIsChar and macroGeneralOff))
-                local bossTypeOff = d and d.category == "Boss"
+                local bossTypeOff = cat == "Boss"
                     and ((d.isRaidBoss and bossRaidOff) or (not d.isRaidBoss and bossDungeonOff))
-                local junkOff = hideJunk and d and d.category == "Bag" and d.quality == 0
+                local junkOff = hideJunk and cat == "Bag" and d.quality == 0
                 local statOff = false
                 if statMode and d and d.statisticID then
                     local _, hasValue = ns.GetStatisticValue(d.statisticID)
                     statOff = (statMode == "recorded") ~= hasValue
                 end
-                local talentSwapOff = d and ((d.specSetIndex and specRowsOff)
-                    or (d.loadoutConfigID and loadoutRowsOff))
-                local commandTypeOff = d and d.category == "Command"
+                local talentSwapOff = d and ((specRowsOff and d.specSetIndex)
+                    or (loadoutRowsOff and d.loadoutConfigID))
+                local commandTypeOff = cat == "Command"
                     and ((d.isNativeCommand and commandNativeOff) or (not d.isNativeCommand and commandCustomOff))
                 local addonOff = anyAddonOff and d and d.addon ~= nil and addonFilters["addon:" .. d.addon] == false
                 local skillOff = anySkillOff and d and d.skillHeader ~= nil and skillSwitches[d.skillHeader] == false
@@ -814,6 +852,7 @@ function Search:OnSearchTextChangedNow(text, force)
     if mapResults and ns.MapSearchSearch.uiSearchCount ~= mapPass then
         Mark("rows")
         mapResults = ns.MapSearch:SearchForUI(text)
+        MapPassRedone(mapResults)
         Mark("mapAgain")
     end
 
@@ -848,9 +887,10 @@ function Search:OnSearchTextChangedNow(text, force)
         -- zones: the injection above holds the complete local set, so
         -- anything of that category left here is by definition elsewhere.
         local boostedMapRows = SCRATCH.mapBoostSeen
+        local anyBoosted = next(boostedMapRows) ~= nil
         for ri = 1, #mapResults do
             local r = mapResults[ri]
-            if not (r.data and (boostedMapRows[MapRowKey(r.data)]
+            if not (r.data and ((anyBoosted and boostedMapRows[MapRowKey(r.data)])
                     or (suppressMapCategory and r.data.category == suppressMapCategory))) then
                 combined[#combined + 1] = r
             end
@@ -930,23 +970,24 @@ function Search:OnSearchTextChangedNow(text, force)
         end
     end
 
-    -- Blacklist gate: every source has joined (map rows, catalog items and
-    -- launchers too); before the cap, so a hidden row frees its slot.
-    if ns.Blacklist then ns.Blacklist:FilterRows(combined) end
+    Mark("joins")
     -- Hard cap on visible results: the scoring step already ranks by
     -- relevance; everything past the cap is noise. Pinned items are not in
     -- this set. The top 15 come from a bounded insertion (a full sort of
-    -- hundreds of rows cost up to half a millisecond a keystroke); catalog
-    -- rows this client cannot resolve are skipped as they would enter, so
-    -- the resolvable check runs on few rows, not on every scored match.
+    -- hundreds of rows cost up to half a millisecond a keystroke). Every
+    -- source has joined by now (map rows, catalog items, launchers): rows
+    -- blacklisted or unresolvable on this client are skipped as they would
+    -- enter, freeing their slot, so those checks run on few rows.
     local TOP_N = 15
     local kept = 0
+    local blacklist = ns.Blacklist and ns.Blacklist:HasAny() and ns.Blacklist
     for ri = 1, #combined do
         local entry = combined[ri]
         local d = entry.data
         if kept < TOP_N or FlatNameLess(entry, topBuf[kept]) then
             if not (d and d.catalogItem and ns.ItemSearch
-                    and not ns.ItemSearch:IsResolvable(d.itemID)) then
+                    and not ns.ItemSearch:IsResolvable(d.itemID))
+               and not (blacklist and blacklist:Contains(d)) then
                 local at = kept < TOP_N and kept + 1 or kept
                 while at > 1 and FlatNameLess(entry, topBuf[at - 1]) do
                     topBuf[at] = topBuf[at - 1]

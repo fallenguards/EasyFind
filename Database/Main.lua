@@ -116,7 +116,7 @@ function Database:SchedulePartialSearchRefresh(minIntervalMs)
         lastPartialSearchRefreshMs = debugprofilestop and debugprofilestop() or 0
         if Database.ResetSearchCache then Database:ResetSearchCache() end
         if ns.Search and ns.Search.RefreshActiveSearch then
-            ns.Search:RefreshActiveSearch()
+            ns.Search:RefreshActiveSearch(true)
         end
     end
 
@@ -209,11 +209,19 @@ function Database:PopulateDynamicCurrencies()
         headerStack[#headerStack + 1] = { name = name, depth = depth }
     end
 
+    -- A header's step and a header group's path are one table for every
+    -- row under them.
+    local headerStep, sharedPath = {}, {}
     local function buildHeaderSteps()
         local steps = {}
         for _, s in ipairs(baseSteps) do steps[#steps + 1] = s end
         for _, h in ipairs(headerStack) do
-            steps[#steps + 1] = { waitForFrame = "CharacterFrame", currencyHeader = h.name }
+            local step = headerStep[h.name]
+            if not step then
+                step = { waitForFrame = "CharacterFrame", currencyHeader = h.name }
+                headerStep[h.name] = step
+            end
+            steps[#steps + 1] = step
         end
         return steps
     end
@@ -222,6 +230,17 @@ function Database:PopulateDynamicCurrencies()
         local path = {_G["CHARACTER_BUTTON"] or "Character Info", _G["CURRENCY"] or "Currency"}
         for _, h in ipairs(headerStack) do
             path[#path + 1] = h.name .. L["UITREE_SUFFIX_CURRENCIES"]
+        end
+        return path
+    end
+    local function groupPath()
+        local names = {}
+        for i, h in ipairs(headerStack) do names[i] = h.name end
+        local key = table.concat(names, "\1")
+        local path = sharedPath[key]
+        if not path then
+            path = buildPath()
+            sharedPath[key] = path
         end
         return path
     end
@@ -256,10 +275,8 @@ function Database:PopulateDynamicCurrencies()
                     }
                     entry.path[#entry.path] = nil
                     entry.nameLower = slower(entry.name)
-                    entry.keywordsLower = {}
-                    for j, kw in ipairs(entry.keywords) do
-                        entry.keywordsLower[j] = slower(kw)
-                    end
+                    -- Its keywords are lowercase already: one table for both.
+                    entry.keywordsLower = entry.keywords
                     uiSearchData[#uiSearchData + 1] = entry
                     injected = injected + 1
                 end
@@ -297,17 +314,15 @@ function Database:PopulateDynamicCurrencies()
                     keywords = words,
                     category = "Currency",
                     buttonFrame = "CharacterMicroButton",
-                    path = buildPath(),
+                    path = groupPath(),
                     steps = currSteps,
                     icon = info.iconFileID or nil,
                     currencyID = info.currencyID,
                     isAccountTransferable = isAccountTransferable,
                 }
                 entry.nameLower = slower(entry.name)
-                entry.keywordsLower = {}
-                for j, kw in ipairs(entry.keywords) do
-                    entry.keywordsLower[j] = slower(kw)
-                end
+                -- Its keywords are lowercase already: one table for both.
+                entry.keywordsLower = entry.keywords
                 uiSearchData[#uiSearchData + 1] = entry
                 knownCurrencyIDs[info.currencyID] = true
                 injected = injected + 1
@@ -2020,6 +2035,7 @@ function Database:_MeasureMountCache()
     local hydrateN = countMounts()
 
     self:TakePopulatedRows("Mount")
+    self:UnholdPopulated("Mount")
     mountCacheHydrated = true
     if self.ResetSearchCache then self:ResetSearchCache() end
     return { walkMs = walkMs, hydrateMs = hydrateMs,
@@ -2112,6 +2128,22 @@ function Database:FinishHousingResults(done)
         -- provider dirty liberally), and wiping before the searcher proves it
         -- has data made live results vanish until the next retry.
         local GetCatalogEntryInfo = C_HousingCatalog.GetCatalogEntryInfo
+        -- The client's entry id is a table: packed as its fields joined, so
+        -- the same catalog packs the same (packed as an address, it never
+        -- did, and every check swapped all the rows).
+        local keyOrder, keyParts = nil, {}
+        local function EntryKey(id)
+            if type(id) ~= "table" then return id end
+            if not keyOrder then
+                keyOrder = {}
+                for k, v in pairs(id) do
+                    if type(v) ~= "table" then keyOrder[#keyOrder + 1] = k end
+                end
+                table.sort(keyOrder, function(a, b) return tostring(a) < tostring(b) end)
+            end
+            for k = 1, #keyOrder do keyParts[k] = tostring(id[keyOrder[k]]) end
+            return table.concat(keyParts, ":", 1, #keyOrder)
+        end
         local fresh = {}
         for i = 1, #entryIDs do
             if i % 64 == 0 then Utils.SliceCheckpoint() end
@@ -2120,7 +2152,7 @@ function Database:FinishHousingResults(done)
                 fresh[#fresh + 1] = {
                     name = info.name,
                     icon = info.iconTexture,
-                    housingEntryID = entryIDs[i],
+                    housingEntryID = EntryKey(entryIDs[i]),
                     housingRecordID = info.recordID,
                     housingNumStored = info.totalNumStored,
                     housingNumPlaced = info.totalNumPlaced,
@@ -2315,9 +2347,10 @@ function Database:PopulateDynamicHousingAsync(done)
         -- The detached FinishHousingResults replaced the rows: their saved
         -- index segment, then the open search if the set changed.
         local _, rows = Database:TakePopulatedRows("Housing")
-        if rows and ns.SearchSegments then ns.SearchSegments.Attach("housing", rows) end
+        local function Settled() Database:UnholdPopulated("Housing") end
+        if rows and ns.SearchSegments then ns.SearchSegments.Attach("housing", rows, Settled) else Settled() end
         if changed and ns.Search and ns.Search.RefreshActiveSearch then
-            ns.Search:RefreshActiveSearch()
+            ns.Search:RefreshActiveSearch(true)
         end
     end
 
@@ -4610,6 +4643,18 @@ function Database:PopulateDynamicProfessions()
     return added
 end
 
+-- Macro rows: the path per account or character list, the steps on first read.
+Corpora.MACRO_PATHS = {}
+Corpora.MACRO_MT = Utils.LeanRowMT({ category = "Macro", buttonFrame = "MainMenuMicroButton" }, { steps = function(row)
+    local macros = _G["MACROS"] or "Macros"
+    return {
+        { buttonFrame = "MainMenuMicroButton" },
+        { gameMenuText = macros },
+        { waitForFrame = "MacroFrame", tabIndex = row.macroIsChar and 2 or 1 },
+        { waitForFrame = "MacroFrame", macroIndex = row.macroIndex },
+    }
+end })
+
 function Database:PopulateDynamicMacros()
     if not GetNumMacros or not GetMacroInfo then return false end
 
@@ -4632,26 +4677,22 @@ function Database:PopulateDynamicMacros()
                 if #wl >= 3 then kw[#kw + 1] = wl end
             end
         end
-        local tabIdx = isCharSpecific and 2 or 1
-        local entry = {
+        local paths = Corpora.MACRO_PATHS
+        local path = paths[isCharSpecific]
+        if not path then
+            path = { _G["MACROS"] or "Macros", isCharSpecific and (_G["CHARACTER"] or "Character") or (_G["GENERAL"] or "General") }
+            paths[isCharSpecific] = path
+        end
+        uiSearchData[#uiSearchData + 1] = setmetatable({
             name = name,
             nameLower = nameLower,
             keywords = kw,
-            category = "Macro",
             icon = iconTexture,
             macroIndex = macroIdx,
             macroBody = body,
             macroIsChar = isCharSpecific,
-            buttonFrame = "MainMenuMicroButton",
-            path = { _G["MACROS"] or "Macros", isCharSpecific and (_G["CHARACTER"] or "Character") or (_G["GENERAL"] or "General") },
-            steps = {
-                { buttonFrame = "MainMenuMicroButton" },
-                { gameMenuText = _G["MACROS"] or "Macros" },
-                { waitForFrame = "MacroFrame", tabIndex = tabIdx },
-                { waitForFrame = "MacroFrame", macroIndex = macroIdx },
-            },
-        }
-        uiSearchData[#uiSearchData + 1] = entry
+            path = path,
+        }, Corpora.MACRO_MT)
     end
 
     for i = 1, numGlobal do
@@ -4662,6 +4703,10 @@ function Database:PopulateDynamicMacros()
     end
     return true
 end
+
+Corpora.ABILITY_MT = Utils.LeanRowMT({ category = "Ability" }, {
+    steps = function(row) return { { spellID = row.spellID } } end,
+})
 
 function Database:PopulateDynamicAbilities()
     RemoveEntriesByCategory("Ability")
@@ -4701,15 +4746,11 @@ function Database:PopulateDynamicAbilities()
         if ns.AppendDungeonTeleportKeywords then
             isTeleport, teleportName, teleportNameEn = ns.AppendDungeonTeleportKeywords(kw, spellID)
         end
-        uiSearchData[#uiSearchData + 1] = {
+        -- 15 fields listed: a 16-slot table, not 32.
+        local row = setmetatable({
             name = displayName,
             nameLower = nameLower,
             keywords = kw,
-            scoreBonus = isTeleport and 500 or nil,
-            scoreBonusWords = isTeleport and ns.DUNGEON_TELEPORT_ASK_WORDS or nil,
-            teleportNameLower = teleportName,
-            teleportNameEnLower = teleportNameEn,
-            category = "Ability",
             treeName = lineName,
             isOffSpec = isOffSpec or false,
             isPassive = isPassive,
@@ -4722,8 +4763,14 @@ function Database:PopulateDynamicAbilities()
             spellBookCategoryName = lineName,
             spellBookSpecID = lineSpecID,
             spellName = name,
-            steps = { { spellID = spellID } },
-        }
+        }, Corpora.ABILITY_MT)
+        if isTeleport then
+            row.scoreBonus = 500
+            row.scoreBonusWords = ns.DUNGEON_TELEPORT_ASK_WORDS
+            row.teleportNameLower = teleportName
+            row.teleportNameEnLower = teleportNameEn
+        end
+        uiSearchData[#uiSearchData + 1] = row
     end
 
     if classic then
@@ -5578,6 +5625,20 @@ end
 -- the single fact every click/icon/tooltip consumer needs (see
 -- Handlers:IsRemoteStoredItem). Subtext is built here, once per populate,
 -- rather than per row per keystroke in the render loop.
+-- One per category and remote flag; the holder line is built on first read.
+Stored.ROW_MTS = {}
+local function StoredRowMT(category, remote)
+    local key = category .. (remote and "+" or "")
+    local mt = Stored.ROW_MTS[key]
+    if not mt then
+        mt = Utils.LeanRowMT({ category = category, lookupRow = true, storedRemote = remote or nil }, {
+            storedSubtext = function(row) return ns.StoredHoldersText(row.storedHolders, category) end,
+        })
+        Stored.ROW_MTS[key] = mt
+    end
+    return mt
+end
+
 function Stored.EmitStoredRow(entry, category, keywords, remote)
     local row = entry.row
     local itemID = row.itemID
@@ -5587,11 +5648,10 @@ function Stored.EmitStoredRow(entry, category, keywords, remote)
     local nameLower = slower(name)
     local kw = { nameLower }
     for i = 1, #keywords do kw[#kw + 1] = keywords[i] end
-    return {
+    return setmetatable({
         name = name,
         nameLower = nameLower,
         keywords = kw,
-        category = category,
         icon = row.icon or Stored.ItemIcon(itemID),
         itemID = itemID,
         quality = row.quality,
@@ -5599,10 +5659,7 @@ function Stored.EmitStoredRow(entry, category, keywords, remote)
         isEquippable = Utils.IsRealEquipLoc(equipLoc),
         storedCount = entry.total,
         storedHolders = entry.holders,
-        storedSubtext = ns.StoredHoldersText(entry.holders, category),
-        storedRemote = remote or nil,
-        lookupRow = true,
-    }
+    }, StoredRowMT(category, remote))
 end
 
 -- Which characters a storage scope admits. "current" and a specific key are
@@ -5827,6 +5884,13 @@ function ns.RunTalentSwap(specIndex, loadoutConfigID)
     return false
 end
 
+Corpora.BAG_MT = Utils.LeanRowMT({ category = "Bag" }, { steps = function(row)
+    return {
+        { buttonFrame = row.buttonFrame },
+        { containerBag = row.bagID, containerSlot = row.bagSlot, allLocations = row.bagLocations },
+    }
+end })
+
 function Database:PopulateDynamicBags()
     local isRealEquipLoc = Utils.IsRealEquipLoc
     local getEquipLoc = Utils.GetItemEquipLoc
@@ -5858,11 +5922,10 @@ function Database:PopulateDynamicBags()
             or ("CharacterBag" .. (first.bag - 1) .. "Slot")
         local nameLower = slower(name)
         local kw = { "bag", "item", "inventory", nameLower }
-        local searchEntry = {
+        local searchEntry = setmetatable({
             name = name,
             nameLower = nameLower,
             keywords = kw,
-            category = "Bag",
             icon = info.texture,
             itemID = itemID,
             quality = quality,
@@ -5874,11 +5937,7 @@ function Database:PopulateDynamicBags()
             bagCount = info.totalCount,
             bagLocations = info.locations,
             buttonFrame = bagBtn,
-            steps = {
-                { buttonFrame = bagBtn },
-                { containerBag = first.bag, containerSlot = first.slot, allLocations = info.locations },
-            },
-        }
+        }, Corpora.BAG_MT)
         uiSearchData[#uiSearchData + 1] = searchEntry
         -- Kept so the cross-character pass below can hang other holders off
         -- this row; the emitted row is a different table from the walk entry.
@@ -6253,8 +6312,32 @@ local IsInStatisticsCategoryTree
 local MarkID
 local HasID
 
-local function buildCategoryEntry(opts)
-    local nameLower = slower(opts.categoryName)
+-- Steps walk the parent rows up to the root, each one a category click.
+Corpora.ACH_CATEGORY_MT = Utils.LeanRowMT(
+    { category = "Achievement Category", buttonFrame = "AchievementMicroButton" },
+    { steps = function(row)
+        local chain, node = {}, row
+        while node do
+            chain[#chain + 1] = node
+            node = rawget(node, "parentRow")
+        end
+        local steps = {
+            { buttonFrame = "AchievementMicroButton" },
+            { waitForFrame = "AchievementFrame", tabIndex = row.isGuildAchievement and 2 or 1 },
+        }
+        for i = #chain, 1, -1 do
+            node = chain[i]
+            steps[#steps + 1] = {
+                waitForFrame = "AchievementFrame",
+                achievementCategory = rawget(node, "categoryName") or node.name,
+                achievementCategoryID = node.achievementCategoryID,
+            }
+        end
+        return steps
+    end })
+
+local function buildCategoryEntry(cat, displayName, path, parentRow, isGuild)
+    local nameLower = slower(cat.name)
     local kw = { nameLower }
     local words = SearchText.Tokenize(nameLower)
     for i = 1, #words do
@@ -6265,19 +6348,22 @@ local function buildCategoryEntry(opts)
     if overlay then
         for i = 1, #overlay do kw[#kw + 1] = overlay[i] end
     end
-    local entry = {
-        name = opts.displayName,
+    -- Seven fields listed (an 8-slot table); guild rows add two.
+    local row = setmetatable({
+        name = displayName,
+        nameLower = slower(displayName),
         keywords = kw,
-        category = opts.category,
-        buttonFrame = "AchievementMicroButton",
-        path = opts.path,
-        steps = opts.steps,
-        isGuildAchievement = opts.isGuildAchievement and true or nil,
-    }
-    entry.nameLower = slower(opts.displayName)
-    entry.keywordsLower = {}
-    for j = 1, #kw do entry.keywordsLower[j] = slower(kw[j]) end
-    return entry
+        -- Its keywords are lowercase already: one table for both.
+        keywordsLower = kw,
+        path = path,
+        achievementCategoryID = cat.id,
+        parentRow = parentRow,
+    }, Corpora.ACH_CATEGORY_MT)
+    if isGuild then
+        row.isGuildAchievement = true
+        row.categoryName = cat.name
+    end
+    return row
 end
 
 -- Title -> source achievement.
@@ -6424,7 +6510,7 @@ local function StartTitleSourceBuild()
     -- from every tier that references it.
     local seenPrev = {}
     local function slice()
-        debugprofilestart()
+        local sliceStart = debugprofilestop()
         while ci <= #categories do
             local catID = categories[ci]
             -- includeAll: without it the count omits achievements (the other
@@ -6458,7 +6544,7 @@ local function StartTitleSourceBuild()
                     end
                 end
                 ai = ai + 1
-                if debugprofilestop() >= TITLE_SOURCE_MS_PER_SLICE then
+                if debugprofilestop() - sliceStart >= TITLE_SOURCE_MS_PER_SLICE then
                     if ai > total then ci = ci + 1; ai = 1 end
                     Utils.SafeAfter(0, slice)
                     return
@@ -6545,52 +6631,26 @@ function Database:PopulateDynamicAchievements()
         end
     end
 
-    local function emit(cat, parentChain, isGuildBranch)
+    -- path: the parent's path plus the parent, one table for all its children.
+    local function emit(cat, path, parentRow, isGuildBranch)
         local prefix = isGuildBranch and "Guild: " or ""
-        local pathRoot = isGuildBranch
-            and { _G["ACHIEVEMENTS"] or "Achievements", _G["GUILD_ACHIEVEMENTS_TITLE"] or "Guild Achievements" }
-            or { _G["ACHIEVEMENTS"] or "Achievements", L["UITREE_PERSONAL_ACHIEVEMENTS"] }
-
-        local steps = {
-            { buttonFrame = "AchievementMicroButton" },
-            { waitForFrame = "AchievementFrame", tabIndex = isGuildBranch and 2 or 1 },
-        }
-        local path = {}
-        for i = 1, #pathRoot do path[i] = pathRoot[i] end
-        for i = 1, #parentChain do
-            local parent = parentChain[i]
-            local pn = parent.name
-            steps[#steps + 1] = {
-                waitForFrame = "AchievementFrame",
-                achievementCategory = pn,
-                achievementCategoryID = parent.id,
-            }
-            path[#path + 1] = pn
-        end
-        steps[#steps + 1] = {
-            waitForFrame = "AchievementFrame",
-            achievementCategory = cat.name,
-            achievementCategoryID = cat.id,
-        }
-
-        uiSearchData[#uiSearchData + 1] = buildCategoryEntry({
-            displayName  = prefix .. cat.name,
-            categoryName = cat.name,
-            category     = "Achievement Category",
-            path         = path,
-            steps        = steps,
-            isGuildAchievement = isGuildBranch,
-        })
+        local row = buildCategoryEntry(cat, prefix .. cat.name, path, parentRow, isGuildBranch)
+        uiSearchData[#uiSearchData + 1] = row
 
         if #cat.children > 0 then
-            local nextChain = {}
-            for i = 1, #parentChain do nextChain[i] = parentChain[i] end
-            nextChain[#nextChain + 1] = cat
-            for i = 1, #cat.children do emit(cat.children[i], nextChain, isGuildBranch) end
+            local childPath = {}
+            for i = 1, #path do childPath[i] = path[i] end
+            childPath[#childPath + 1] = cat.name
+            for i = 1, #cat.children do emit(cat.children[i], childPath, row, isGuildBranch) end
         end
     end
 
-    for i = 1, #roots do emit(roots[i], {}, roots[i].isGuild) end
+    local personalRoot = { _G["ACHIEVEMENTS"] or "Achievements", L["UITREE_PERSONAL_ACHIEVEMENTS"] }
+    local guildRoot = { _G["ACHIEVEMENTS"] or "Achievements", _G["GUILD_ACHIEVEMENTS_TITLE"] or "Guild Achievements" }
+    for i = 1, #roots do
+        local root = roots[i]
+        emit(root, root.isGuild and guildRoot or personalRoot, nil, root.isGuild)
+    end
     return true
 end
 

@@ -106,7 +106,9 @@ local entryMask = {}  -- serial -> a-z char mask over name+keywords
 local lootIdx = {}    -- serials of loot entries (always candidates)
 local slotEntry = {}  -- serial -> entry ref
 local serials = {}    -- entry ref -> serial
-local alive = {}      -- serial -> true while still in uiSearchData
+-- serial -> true once its row left uiSearchData (few: a compaction or a
+-- segment's end clears them); a serial with a slotEntry and not here is alive.
+local dead = {}
 -- serial -> true: the scorers reach it through what this index does not read
 -- (second names, a score bonus, non-ASCII text), so it is never "rest".
 local special = {}
@@ -122,21 +124,32 @@ local freezeBuf = {}     -- shared encode buffer
 
 -- Printable digits: 92 values from byte 35, three to a position (778,687).
 local P0 = 35 + 35 * 92 + 35 * 8464
+local MASK0 = P0 + 35 * 778688
+local Unprintable3, Unprintable4
 local function Printable3(v)
     local a = v % 92
     local r = (v - a) / 92
     local b = r % 92
     return schar(35 + a, 35 + b, 35 + (r - b) / 92)
 end
+-- A saved segment under 92^2 rows stores its positions in two digits.
+local P2 = 35 + 35 * 92
+local WIDTH2_ROWS = 8464
+local function Printable2(v)
+    local a = v % 92
+    return schar(35 + a, 35 + (v - a) / 92)
+end
 
 -- The tail for key frozen into its bucket's chunk list.
-local function FreezeTail(strMap, tailMap, key, saved)
+local function FreezeTail(strMap, tailMap, key, width)
     local tail = tailMap[key]
     local n = #tail
     if n == 0 then return end
     for i = 1, n do
         local v = tail[i]
-        if saved then
+        if width == 2 then
+            freezeBuf[i] = Printable2(v)
+        elseif width then
             freezeBuf[i] = Printable3(v)
         else
             freezeBuf[i] = schar(band(v, 255), band(rshift(v, 8), 255), band(rshift(v, 16), 255))
@@ -157,11 +170,11 @@ end
 
 -- Append serial to the bucket for key, freezing the tail into the
 -- packed string once it grows past FREEZE_AT.
-local function PostAppend(strMap, tailMap, key, sid, saved)
+local function PostAppend(strMap, tailMap, key, sid, width)
     local tail = tailMap[key]
     if not tail then tail = {}; tailMap[key] = tail end
     tail[#tail + 1] = sid
-    if #tail >= FREEZE_AT then FreezeTail(strMap, tailMap, key, saved) end
+    if #tail >= FREEZE_AT then FreezeTail(strMap, tailMap, key, width) end
 end
 
 -- One segment's bucket for key decoded into postScratch after n entries,
@@ -179,8 +192,32 @@ local function DecodeSeg(seg, kind, key, n)
         local len = #str
         local p = 1
         -- Six serials per string.byte call (18 values, under the 22 the
-        -- client's API checks allow), then the remainder one at a time.
-        if seg.saved then
+        -- client's API checks allow; nine at two digits), then the rest
+        -- one at a time.
+        local width = seg.width
+        if width == 2 then
+            local off = seg.base - P2
+            while p + 17 <= len do
+                local a1, a2, b1, b2, c1, c2, d1, d2, e1, e2, f1, f2, g1, g2, h1, h2, i1, i2 = sbyte(str, p, p + 17)
+                postScratch[n + 1] = a1 + a2 * 92 + off
+                postScratch[n + 2] = b1 + b2 * 92 + off
+                postScratch[n + 3] = c1 + c2 * 92 + off
+                postScratch[n + 4] = d1 + d2 * 92 + off
+                postScratch[n + 5] = e1 + e2 * 92 + off
+                postScratch[n + 6] = f1 + f2 * 92 + off
+                postScratch[n + 7] = g1 + g2 * 92 + off
+                postScratch[n + 8] = h1 + h2 * 92 + off
+                postScratch[n + 9] = i1 + i2 * 92 + off
+                n = n + 9
+                p = p + 18
+            end
+            while p + 1 <= len do
+                n = n + 1
+                local b1, b2 = sbyte(str, p, p + 1)
+                postScratch[n] = b1 + b2 * 92 + off
+                p = p + 2
+            end
+        elseif width then
             local off = seg.base - P0
             while p + 17 <= len do
                 local a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3 = sbyte(str, p, p + 17)
@@ -238,6 +275,31 @@ local function DecodePostings(kind, key)
     return n
 end
 
+-- The same, each serial's letter mask beside it in maskScratch: a saved
+-- segment's masks are read from its packed string, live's from entryMask.
+local maskScratch = {}
+local function DecodePostingsMasked(kind, key)
+    local n = 0
+    for s = 1, #segments do
+        local seg = segments[s]
+        local from = n + 1
+        n = DecodeSeg(seg, kind, key, n)
+        local masks = seg.masksStr
+        if masks then
+            -- Unprintable4 in one read: four digits, the last one weighs 92^3.
+            local at = -3 - seg.base * 4
+            for i = from, n do
+                local p = postScratch[i] * 4 + at
+                local a, b, c, d = sbyte(masks, p, p + 3)
+                maskScratch[i] = a + b * 92 + c * 8464 + d * 778688 - MASK0
+            end
+        else
+            for i = from, n do maskScratch[i] = entryMask[postScratch[i]] end
+        end
+    end
+    return n
+end
+
 local seenGrams = {}
 -- All index keys are NUMBERS, never substrings: a gram is b1*256+b2, a
 -- word-lead the same for the word's first two bytes, an initials pair the
@@ -292,7 +354,7 @@ local function PostWord(e, w)
     if not seenWords[id] then
         seenWords[id] = true
         if seg.dictOne[id] then
-            PostAppend(seg.maps[K_DICT], seg.tails[K_DICT], id, e, seg.saved)
+            PostAppend(seg.maps[K_DICT], seg.tails[K_DICT], id, e, seg.width)
         else
             seg.dictOne[id] = e
         end
@@ -321,7 +383,7 @@ end
 -- the dictionary follow the scorers' own words.
 local function IndexText(e, text, isKeyword)
     local seg = cur
-    local saved = seg.saved
+    local width = seg.width
     local gm, gt = seg.maps[K_GRAM], seg.tails[K_GRAM]
     local wordStart = 1
     local len = #text
@@ -334,7 +396,7 @@ local function IndexText(e, text, isKeyword)
                     local gram = g1 * 256 + g2
                     if not seenGrams[gram] then
                         seenGrams[gram] = true
-                        PostAppend(gm, gt, gram, e, saved)
+                        PostAppend(gm, gt, gram, e, width)
                     end
                 end
             end
@@ -349,7 +411,7 @@ local function IndexText(e, text, isKeyword)
             local lead = b1 * 256 + b2
             if not seenGrams[WORD_SEEN_BASE + lead] then
                 seenGrams[WORD_SEEN_BASE + lead] = true
-                PostAppend(seg.maps[K_WORD], seg.tails[K_WORD], lead, e, saved)
+                PostAppend(seg.maps[K_WORD], seg.tails[K_WORD], lead, e, width)
             end
         end
         PostWord(e, w)
@@ -362,7 +424,7 @@ local function IndexText(e, text, isKeyword)
         local key = sbyte(words[1], 1) * 256 + sbyte(words[2], 1)
         if not seenGrams[INIT_SEEN_BASE + key] then
             seenGrams[INIT_SEEN_BASE + key] = true
-            PostAppend(seg.maps[K_INIT], seg.tails[K_INIT], key, e, saved)
+            PostAppend(seg.maps[K_INIT], seg.tails[K_INIT], key, e, width)
         end
     end
 end
@@ -373,7 +435,7 @@ local function IndexEntry(data)
     -- duplicate postings.
     local sid = serials[data]
     if sid then
-        alive[sid] = true
+        dead[sid] = nil
         return
     end
     -- e: the position the segment's postings store (live: the serial).
@@ -389,7 +451,6 @@ local function IndexEntry(data)
     end
     serials[data] = sid
     slotEntry[sid] = data
-    alive[sid] = true
     if data.lootEntry then
         lootIdx[#lootIdx + 1] = sid
         -- Full mask so the sweep classes never reject loot either.
@@ -448,6 +509,8 @@ end
 local function WipeSegment(seg)
     for k = 1, 4 do wipe(seg.maps[k]); wipe(seg.tails[k]) end
     wipe(seg.dictId); wipe(seg.dictWord); wipe(seg.dictMask); wipe(seg.dictByFirst); wipe(seg.dictOne)
+    seg.dictMaskStr, seg.dictOneStr = nil, nil
+    seg.wordsStr, seg.offsStr, seg.byFirstStr, seg.masksStr = nil, nil, nil, nil
     wipe(seg.memo); wipe(seg.memoMulti)
     seg.dictCount, seg.memoCount = 0, -1
 end
@@ -462,12 +525,12 @@ local function Restart()
         wipe(lootIdx)
         wipe(slotEntry)
         wipe(serials)
-        wipe(alive)
+        wipe(dead)
         nextSerial = 0
     else
         for sid, data in pairs(slotEntry) do
             if not InSaved(sid) then
-                slotEntry[sid], alive[sid], entryMask[sid], special[sid] = nil, nil, nil, nil
+                slotEntry[sid], dead[sid], entryMask[sid], special[sid] = nil, nil, nil, nil
                 if serials[data] == sid then serials[data] = nil end
             end
         end
@@ -497,9 +560,20 @@ end
 -- waits, so postings never change under a half-read query.
 local reading = false
 local growing = false
+-- Categories whose rows a saved segment is about to take: growth stops at
+-- their first row rather than index them twice (Hold below).
+local HOLD_S = 15
+local held, heldAny = {}, false
+local function Held(data, now)
+    local untilAt = held[data.category]
+    return untilAt ~= nil and untilAt > now
+end
+-- Segment builds under way: the rows each has moved so far have no
+-- postings a search reads until it lands, so searches take them whole.
+local builds = {}
 
 -- Indexes appended entries until budgetMs is spent (all of them with no
--- clock); true when caught up.
+-- clock); true when caught up or stopped at a held row.
 local function Grow(budgetMs)
     if reading then return false end
     if dirty then Restart() end
@@ -513,9 +587,15 @@ local function Grow(budgetMs)
     end
     local dps = debugprofilestop
     local start = dps and dps() or 0
+    local now = heldAny and GetTime()
     local i = builtCount + 1
     while i <= n do
-        IndexEntry(dataArr[i])
+        local data = dataArr[i]
+        if now and Held(data, now) then
+            builtCount = i - 1
+            return true
+        end
+        IndexEntry(data)
         i = i + 1
         if dps and (dps() - start) >= budgetMs then break end
     end
@@ -531,9 +611,10 @@ local function GrowSliced()
         if dirty then Restart() end
         local data = Database.uiSearchData[builtCount + 1]
         if not data then return end
+        if heldAny and Held(data, GetTime()) then return "held" end
         IndexEntry(data)
         builtCount = builtCount + 1
-        if band(builtCount, 31) == 0 then SliceCheckpoint() end
+        if band(builtCount, 3) == 0 then SliceCheckpoint() end
     end
 end
 
@@ -543,12 +624,29 @@ local function ScheduleGrow()
     if growing then return end
     growing = true
     ns.Utils.SafeAfter(0, function()
-        ns.Utils.RunSliced(GrowSliced, function(ok, err)
+        ns.Utils.RunSliced(GrowSliced, function(ok, result)
             growing = false
-            if not ok then return ns.Utils.ErrorHandler(err) end
+            if not ok then return ns.Utils.ErrorHandler(result) end
+            if result == "held" then return end
             if dirty or builtCount < #Database.uiSearchData then ScheduleGrow() end
         end, GrowBudget, "indexGrow")
     end)
+end
+
+-- A populate whose rows a saved segment will take holds its category;
+-- the attach settling releases it (growth resumes past them), else time.
+function SearchIndex:Hold(category)
+    if not category then return end
+    held[category] = GetTime() + HOLD_S
+    heldAny = true
+    ns.Utils.SafeAfter(HOLD_S, ScheduleGrow)
+end
+
+function SearchIndex:Unhold(category)
+    if not (category and held[category]) then return end
+    held[category] = nil
+    heldAny = next(held) ~= nil
+    ScheduleGrow()
 end
 
 -- Budgeted build for the warm chain, between provider loads; true when
@@ -621,8 +719,8 @@ end
 
 function SearchIndex:NoteRemoved(entry)
     local sid = serials[entry]
-    if not sid or not alive[sid] then return end
-    alive[sid] = nil
+    if not sid or dead[sid] or not slotEntry[sid] then return end
+    dead[sid] = true
     -- A saved segment's postings go with the segment (DropSegment).
     if InSaved(sid) then return end
     deadCount = deadCount + 1
@@ -643,10 +741,12 @@ end
 -- One source's rows indexed apart from "live" and saved with their rows, so
 -- a later session restores them instead of indexing anything. Bump the
 -- schema when a segment's shape changes: older snapshots then rebuild.
-local SEGMENT_SCHEMA = 1
+-- 2: the dictionary ships packed (word offsets, ids by first letter).
+-- 3: positions in two digits under WIDTH2_ROWS rows (snap.width).
+local SEGMENT_SCHEMA = 3
 local tinsert = table.insert
 
-local function Unprintable3(s, p)
+function Unprintable3(s, p)
     local a, b, c = sbyte(s, p, p + 2)
     return a + b * 92 + c * 8464 - P0
 end
@@ -654,15 +754,59 @@ local function Printable4(v)
     local low = v % 778688
     return Printable3(low) .. schar(35 + (v - low) / 778688)
 end
-local function Unprintable4(s, p)
+function Unprintable4(s, p)
     return Unprintable3(s, p) + (sbyte(s, p + 3) - 35) * 778688
+end
+
+-- A saved segment never grows: its dictionary is read from packed strings
+-- (a restore's are the snapshot's own): each word's mask and single row,
+-- the words joined with each one's start, and the ids by first letter.
+-- Its rows' letter masks too, out of entryMask.
+local function PackMasks(seg)
+    if seg.masksStr then return end
+    local base, masks = seg.base, {}
+    for i = 1, seg.n do
+        local sid = base + i
+        masks[i] = Printable4(entryMask[sid] or 0)
+        entryMask[sid] = nil
+    end
+    seg.masksStr = tconcat(masks)
+end
+
+local function PackDict(seg)
+    if seg.dictMaskStr then return end
+    local n, dictWord = seg.dictCount, seg.dictWord
+    local dmask, ones, offs = {}, {}, {}
+    local pos = 1
+    for id = 1, n do
+        dmask[id] = Printable4(seg.dictMask[id])
+        ones[id] = Printable3(seg.dictOne[id])
+        offs[id] = pos
+        pos = pos + #dictWord[id] + 1
+    end
+    seg.dictMaskStr, seg.dictOneStr = tconcat(dmask), tconcat(ones)
+    seg.dictId, seg.dictMask, seg.dictOne = {}, {}, {}
+    -- Starts are 3 printable digits; a larger dictionary keeps its tables.
+    if pos > 778687 then return end
+    for id = 1, n do offs[id] = Printable3(offs[id]) end
+    offs[n + 1] = Printable3(pos)
+    local byFirst = {}
+    for b, list in pairs(seg.dictByFirst) do
+        local parts = {}
+        for i = 1, #list do parts[i] = Printable3(list[i]) end
+        byFirst[b] = tconcat(parts)
+    end
+    seg.wordsStr = tconcat(dictWord, "\n", 1, n)
+    seg.offsStr = tconcat(offs, "", 1, n + 1)
+    seg.byFirstStr = byFirst
+    seg.dictWord, seg.dictByFirst = {}, {}
 end
 
 -- Every tail into the strings and every chunk list into one string.
 local function FreezeSegment(seg)
     for k = 1, 4 do
         local strMap, tailMap = seg.maps[k], seg.tails[k]
-        for key in pairs(tailMap) do FreezeTail(strMap, tailMap, key, true) end
+        for key in pairs(tailMap) do FreezeTail(strMap, tailMap, key, seg.width) end
         wipe(tailMap)
         for key, v in pairs(strMap) do
             if type(v) == "table" then
@@ -697,7 +841,7 @@ local function RemoveRows(seg)
         local sid = base + i
         local data = slotEntry[sid]
         if data and serials[data] == sid then serials[data] = nil end
-        slotEntry[sid], alive[sid], entryMask[sid], special[sid] = nil, nil, nil, nil
+        slotEntry[sid], dead[sid], entryMask[sid], special[sid] = nil, nil, nil, nil
     end
     local n = 0
     for i = 1, #lootIdx do
@@ -733,8 +877,11 @@ end
 function SearchIndex:BuildSegment(key, rows, onDone)
     local seg = NewSegment(key, true)
     seg.base, seg.cap = nextSerial, #rows
+    seg.width = #rows < WIDTH2_ROWS and 2 or 3
     nextSerial = nextSerial + #rows
     savedRanges[#savedRanges + 1] = seg
+    local build = { rows = rows, moved = 0 }
+    builds[#builds + 1] = build
     local function run()
         for i = 1, #rows do
             local data = rows[i]
@@ -742,15 +889,19 @@ function SearchIndex:BuildSegment(key, rows, onDone)
             cur = seg
             IndexEntry(data)
             cur = live
-            if band(i, 31) == 0 then SliceCheckpoint() end
+            build.moved = i
+            if band(i, 3) == 0 then SliceCheckpoint() end
         end
         if seg.n ~= #rows then error("BuildSegment: a row is listed twice in " .. tostring(key)) end
         FreezeSegment(seg)
+        PackDict(seg)
+        PackMasks(seg)
         while reading do coroutine.yield() end
         Activate(seg)
     end
     ns.Utils.RunSliced(run, function(ok, err)
         cur = live
+        Unlist(builds, build)
         if not ok then
             Unlist(savedRanges, seg)
             RemoveRows(seg)
@@ -767,27 +918,24 @@ function SearchIndex:SegmentSnapshot(key)
     if not (seg and seg.saved) then return nil end
     FreezeSegment(seg)
     local base, n = seg.base, seg.n
-    local masks, sp, lt = {}, {}, {}
+    PackMasks(seg)
+    local sp, lt = {}, {}
     for i = 1, n do
         local sid = base + i
-        if not alive[sid] then return nil end
-        masks[i] = Printable4(entryMask[sid] or 0)
+        if dead[sid] or not slotEntry[sid] then return nil end
         if special[sid] then sp[#sp + 1] = Printable3(i) end
         local data = slotEntry[sid]
         if data and data.lootEntry then lt[#lt + 1] = Printable3(i) end
     end
-    local dmask, ones = {}, {}
-    for id = 1, seg.dictCount do
-        dmask[id] = Printable4(seg.dictMask[id])
-        ones[id] = Printable3(seg.dictOne[id])
-    end
+    PackDict(seg)
     local check = {}
     for i = 1, n, CHECK_EVERY do check[#check + 1] = RowNameLower(slotEntry[base + i]) or "" end
     return {
-        v = SEGMENT_SCHEMA, n = n, dictCount = seg.dictCount, check = check,
+        v = SEGMENT_SCHEMA, n = n, width = seg.width, dictCount = seg.dictCount, check = check,
         gram = seg.maps[K_GRAM], word = seg.maps[K_WORD], init = seg.maps[K_INIT], dict = seg.maps[K_DICT],
-        words = tconcat(seg.dictWord, "\n", 1, seg.dictCount), dictMask = tconcat(dmask), ones = tconcat(ones),
-        masks = tconcat(masks), special = tconcat(sp), loot = tconcat(lt),
+        words = seg.wordsStr or tconcat(seg.dictWord, "\n", 1, seg.dictCount), offs = seg.offsStr,
+        byFirst = seg.byFirstStr, dictMask = seg.dictMaskStr, ones = seg.dictOneStr,
+        masks = seg.masksStr, special = tconcat(sp), loot = tconcat(lt),
     }
 end
 
@@ -795,6 +943,7 @@ end
 -- order (stubs of its saved blob); false when the snapshot does not fit.
 function SearchIndex:RestoreSegment(key, snap, rows)
     if reading or type(snap) ~= "table" or snap.v ~= SEGMENT_SCHEMA or snap.n ~= #rows then return false end
+    if snap.width ~= (#rows < WIDTH2_ROWS and 2 or 3) then return false end
     local words, dmask, ones, em = snap.words, snap.dictMask, snap.ones, snap.masks
     local dc = snap.dictCount
     if type(words) ~= "string" or type(dc) ~= "number" or #dmask ~= dc * 4 or #ones ~= dc * 3
@@ -808,32 +957,37 @@ function SearchIndex:RestoreSegment(key, snap, rows)
         if not row or (RowNameLower(row) or "") ~= check[c] then return false end
     end
     local seg = NewSegment(key, true)
-    seg.base, seg.cap, seg.n = nextSerial, n, n
+    seg.base, seg.cap, seg.n, seg.width = nextSerial, n, n, snap.width
     seg.maps = { snap.gram or {}, snap.word or {}, snap.init or {}, snap.dict or {} }
-    local dictId, dictWord, dictMask, dictByFirst, dictOne =
-        seg.dictId, seg.dictWord, seg.dictMask, seg.dictByFirst, seg.dictOne
-    local id = 0
-    for w in gmatch(words, "[^\n]+") do
-        id = id + 1
-        dictId[w], dictWord[id] = id, w
-        dictMask[id] = Unprintable4(dmask, id * 4 - 3)
-        dictOne[id] = Unprintable3(ones, id * 3 - 2)
-        local b = sbyte(w, 1)
-        local list = dictByFirst[b]
-        if not list then list = {}; dictByFirst[b] = list end
-        list[#list + 1] = id
+    seg.dictMaskStr, seg.dictOneStr = dmask, ones
+    local offs = snap.offs
+    if type(offs) == "string" then
+        if #offs ~= (dc + 1) * 3 or type(snap.byFirst) ~= "table" then return false end
+        seg.wordsStr, seg.offsStr, seg.byFirstStr = words, offs, snap.byFirst
+    else
+        -- A dictionary too large to pack ships as its words alone.
+        local dictWord, dictByFirst = seg.dictWord, seg.dictByFirst
+        local id = 0
+        for w in gmatch(words, "[^\n]+") do
+            id = id + 1
+            dictWord[id] = w
+            local b = sbyte(w, 1)
+            local list = dictByFirst[b]
+            if not list then list = {}; dictByFirst[b] = list end
+            list[#list + 1] = id
+        end
+        if id ~= dc then return false end
     end
-    if id ~= dc then return false end
-    seg.dictCount = id
+    seg.dictCount = dc
     nextSerial = nextSerial + n
     local base = seg.base
     for i = 1, n do
         local data = rows[i]
         Release(data)
         local sid = base + i
-        serials[data], slotEntry[sid], alive[sid] = sid, data, true
-        entryMask[sid] = Unprintable4(em, i * 4 - 3)
+        serials[data], slotEntry[sid], dead[sid] = sid, data, nil
     end
+    seg.masksStr = em
     local sp, lt = snap.special or "", snap.loot or ""
     for q = 1, #sp, 3 do special[base + Unprintable3(sp, q)] = true end
     for q = 1, #lt, 3 do lootIdx[#lootIdx + 1] = base + Unprintable3(lt, q) end
@@ -853,11 +1007,11 @@ end
 
 -- Search.lua's IsSubsequence: the first letters equal, the rest in order,
 -- the greedy match ending within 2 * qLen - 1 bytes.
-local function Subsequence(x, q, qLen, xLen)
+local function Subsequence(x, q, qLen, xLen, xOff)
     local xi = 1
     for qi = 1, qLen do
         local qc = sbyte(q, qi)
-        while xi <= xLen and sbyte(x, xi) ~= qc do xi = xi + 1 end
+        while xi <= xLen and sbyte(x, xOff + xi) ~= qc do xi = xi + 1 end
         if xi > xLen then return false end
         xi = xi + 1
     end
@@ -879,7 +1033,7 @@ end
 -- Each edit drops or adds at most one distinct letter, so more than k
 -- letters missing either way rules a pair out before the table.
 local osaPrev2, osaPrev, osaCurr = {}, {}, {}
-local function WithinEdits(a, b, la, lb, k, am, bm)
+local function WithinEdits(a, b, la, lb, k, am, bm, bOff)
     local d = la - lb
     if d > k or -d > k then return false end
     if OverBits(band(am, bnot(bm)), k) or OverBits(band(bm, bnot(am)), k) then return false end
@@ -891,14 +1045,14 @@ local function WithinEdits(a, b, la, lb, k, am, bm)
         local ca = sbyte(a, i)
         local caPrev = i > 1 and sbyte(a, i - 1) or nil
         for j = 1, lb do
-            local cb = sbyte(b, j)
+            local cb = sbyte(b, bOff + j)
             local cost = ca == cb and 0 or 1
             local v = prev[j] + 1
             local ins = curr[j - 1] + 1
             if ins < v then v = ins end
             local sub = prev[j - 1] + cost
             if sub < v then v = sub end
-            if i > 1 and j > 1 and ca == sbyte(b, j - 1) and caPrev == cb then
+            if i > 1 and j > 1 and ca == sbyte(b, bOff + j - 1) and caPrev == cb then
                 local t = prev2[j - 2] + cost
                 if t < v then v = t end
             end
@@ -929,6 +1083,12 @@ local function AbbrevLength(L, xl, multi)
     return multi and L >= 3 and L / xl >= 0.45 or false
 end
 
+local function DictMask(seg, id)
+    local s = seg.dictMaskStr
+    if s then return Unprintable4(s, id * 4 - 3) end
+    return seg.dictMask[id]
+end
+
 local function MatchingWords(seg, qw, L, multi)
     if seg.memoCount ~= seg.dictCount then
         wipe(seg.memo)
@@ -944,27 +1104,56 @@ local function MatchingWords(seg, qw, L, multi)
     end
     memoEntries = memoEntries + 1
     hit = {}
-    local dictWord, dictMask, dictByFirst = seg.dictWord, seg.dictMask, seg.dictByFirst
     local q1, q2 = sbyte(qw, 1, 2)
     local qm = maskOf(qw, 0)
     local k = L >= FUZZY_EDIT2_LEN and 2 or (L >= FUZZY_EDIT1_LEN and 1 or 0)
-    local list = dictByFirst[q1]
-    for i = 1, list and #list or 0 do
-        if band(i, 511) == 0 then SliceCheckpoint() end
-        local id = list[i]
-        local x = dictWord[id]
-        local xl = #x
-        if (AbbrevLength(L, xl, multi) and Subsequence(x, qw, L, xl))
-           or (k > 0 and WithinEdits(qw, x, L, xl, k, qm, dictMask[id])) then
-            hit[#hit + 1] = id
+    local offs = seg.offsStr
+    if offs then
+        local words, byFirst = seg.wordsStr, seg.byFirstStr
+        local ids = byFirst[q1]
+        for p = 1, ids and #ids or 0, 3 do
+            if band(p, 1535) == 1535 then SliceCheckpoint() end
+            local id = Unprintable3(ids, p)
+            local at = Unprintable3(offs, id * 3 - 2)
+            local xl = Unprintable3(offs, id * 3 + 1) - at - 1
+            if (AbbrevLength(L, xl, multi) and Subsequence(words, qw, L, xl, at - 1))
+               or (k > 0 and WithinEdits(qw, words, L, xl, k, qm, DictMask(seg, id), at - 1)) then
+                hit[#hit + 1] = id
+            end
         end
-    end
-    if k > 0 and q2 and q2 ~= q1 then
-        list = dictByFirst[q2]
+        if k > 0 and q2 and q2 ~= q1 then
+            ids = byFirst[q2]
+            for p = 1, ids and #ids or 0, 3 do
+                local id = Unprintable3(ids, p)
+                local at = Unprintable3(offs, id * 3 - 2)
+                local xl = Unprintable3(offs, id * 3 + 1) - at - 1
+                if sbyte(words, at + 1) == q1 and WithinEdits(qw, words, L, xl, k, qm, DictMask(seg, id), at - 1) then
+                    hit[#hit + 1] = id
+                end
+            end
+        end
+    else
+        local dictWord, dictByFirst = seg.dictWord, seg.dictByFirst
+        local list = dictByFirst[q1]
         for i = 1, list and #list or 0 do
+            if band(i, 511) == 0 then SliceCheckpoint() end
             local id = list[i]
             local x = dictWord[id]
-            if sbyte(x, 2) == q1 and WithinEdits(qw, x, L, #x, k, qm, dictMask[id]) then hit[#hit + 1] = id end
+            local xl = #x
+            if (AbbrevLength(L, xl, multi) and Subsequence(x, qw, L, xl, 0))
+               or (k > 0 and WithinEdits(qw, x, L, xl, k, qm, DictMask(seg, id), 0)) then
+                hit[#hit + 1] = id
+            end
+        end
+        if k > 0 and q2 and q2 ~= q1 then
+            list = dictByFirst[q2]
+            for i = 1, list and #list or 0 do
+                local id = list[i]
+                local x = dictWord[id]
+                if sbyte(x, 2) == q1 and WithinEdits(qw, x, L, #x, k, qm, DictMask(seg, id), 0) then
+                    hit[#hit + 1] = id
+                end
+            end
         end
     end
     if #hit == 0 then hit = NO_HITS end
@@ -974,19 +1163,21 @@ end
 
 -- How many serials the segments' buckets hold, without decoding them.
 local function PostingCount(kind, key)
-    local n, t = 0, 0
+    local n = 0
     for s = 1, #segments do
         local seg = segments[s]
         local str = seg.maps[kind][key]
+        local bytes = 0
         if type(str) == "table" then
-            for i = 1, #str do n = n + #str[i] end
+            for i = 1, #str do bytes = bytes + #str[i] end
         elseif str then
-            n = n + #str
+            bytes = #str
         end
+        n = n + bytes / (seg.width or 3)
         local tail = seg.tails[kind][key]
-        if tail then t = t + #tail end
+        if tail then n = n + #tail end
     end
-    return n / 3 + t
+    return n
 end
 
 -- The texts IndexEntry reads (corpus stubs through transient decodes)
@@ -1062,12 +1253,12 @@ local function CollectWord(qw, multi, split)
     local qb1, qb2 = sbyte(qw, 1, 2)
     local leadKey = qb1 * 256 + qb2
     do
-        local pn = DecodePostings(K_INIT, leadKey)
+        local pn = DecodePostingsMasked(K_INIT, leadKey)
         if pn > 0 then
             local qm = maskOf(qw, 0)
             for pi = 1, pn do
                 local e = postScratch[pi]
-                if band(qm, entryMask[e]) == qm then
+                if band(qm, maskScratch[pi]) == qm then
                     wordSet[e] = true
                     if split then strongSet[e] = true end
                 end
@@ -1083,14 +1274,14 @@ local function CollectWord(qw, multi, split)
     -- chars, the second (2+ chars, from position j >= 3) leads a later word,
     -- so an entry needs a word lead for some pair qw[j..j+1] as well.
     if L >= 4 then
-        local pn = DecodePostings(K_WORD, leadKey)
+        local pn = DecodePostingsMasked(K_WORD, leadKey)
         if pn > 0 then
             local qm = maskOf(qw, 0)
             wipe(counts)
             local leads = 0
             for pi = 1, pn do
                 local e = postScratch[pi]
-                if not wordSet[e] and band(qm, entryMask[e]) == qm then
+                if not wordSet[e] and band(qm, maskScratch[pi]) == qm then
                     counts[e] = true
                     leads = leads + 1
                 end
@@ -1122,10 +1313,10 @@ local function CollectWord(qw, multi, split)
         for s = 1, #segments do
             local seg = segments[s]
             local ids = MatchingWords(seg, qw, L, multi)
-            local base, ones = seg.base, seg.dictOne
+            local base, ones, onesStr = seg.base, seg.dictOne, seg.dictOneStr
             for i = 1, #ids do
                 local id = ids[i]
-                local one = base + ones[id]
+                local one = base + (onesStr and Unprintable3(onesStr, id * 3 - 2) or ones[id])
                 wordSet[one] = true
                 if split then strongSet[one] = true end
                 local pn = DecodeSeg(seg, K_DICT, id, 0)
@@ -1190,7 +1381,7 @@ function SearchIndex:Candidates(queryWords, split)
     if usable == 0 then return nil end
     local n, rn = 0, 0
     for sid in pairs(resultSet) do
-        if alive[sid] then
+        if slotEntry[sid] and not dead[sid] then
             if split and not strongSet[sid] and not special[sid] then
                 rn = rn + 1
                 restBuf[rn] = sid
@@ -1222,6 +1413,17 @@ function SearchIndex:Candidates(queryWords, split)
             candBuf[n] = data
         end
     end
+    for b = 1, #builds do
+        local build = builds[b]
+        for i = 1, build.moved do
+            local data = build.rows[i]
+            local sid = serials[data]
+            if sid and slotEntry[sid] and not dead[sid] then
+                n = n + 1
+                candBuf[n] = data
+            end
+        end
+    end
     local restFrom
     if rn > 0 then
         restFrom = n + 1
@@ -1232,6 +1434,19 @@ function SearchIndex:Candidates(queryWords, split)
     return candBuf, n, restFrom
 end
 
+-- With the bar closed: fresh scratch, not wiped (a wiped table keeps the
+-- room its largest query took), and no word memos.
+function SearchIndex:TrimScratch()
+    postScratch, maskScratch, counts = {}, {}, {}
+    wordSet, strongSet, resultSet, candBuf, restBuf = {}, {}, {}, {}, {}
+    osaPrev2, osaPrev, osaCurr = {}, {}, {}
+    for s = 1, #segments do
+        local seg = segments[s]
+        seg.memo, seg.memoMulti = {}, {}
+    end
+    memoEntries = 0
+end
+
 -- Debug peek: file-local structures are invisible to table walks from
 -- ns; this hands external diagnostics the real internals. Returns
 -- shared references; callers must not mutate.
@@ -1240,8 +1455,11 @@ function SearchIndex:_DebugPeek()
         gramStr = gramStr, gramTail = gramTail, wordStr = wordStr,
         wordTail = wordTail, initStr = initStr, initTail = initTail,
         entryMask = entryMask, lootIdx = lootIdx, slotEntry = slotEntry,
-        serials = serials, alive = alive, builtCount = builtCount,
+        serials = serials, builtCount = builtCount, dead = dead,
+        alive = setmetatable({}, { __index = function(_, sid)
+            return (slotEntry[sid] ~= nil and not dead[sid]) or nil
+        end }),
         dictId = live.dictId, dictOne = live.dictOne, dictTail = live.tails[K_DICT], dictStr = live.maps[K_DICT],
-        dictCount = live.dictCount, segments = segments,
+        dictCount = live.dictCount, segments = segments, deadCount = deadCount,
     }
 end

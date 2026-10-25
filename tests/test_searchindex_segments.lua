@@ -45,16 +45,18 @@ local function Corpus()
     return all, groups[1], groups[2]
 end
 
-local function NewEngine(rows)
+-- prep(ns), when given, runs before the modules load.
+local function NewEngine(rows, prep)
     local env = H.newEnv()
     local ns = H.newNs(env)
+    if prep then prep(ns) end
     ns.Database.uiSearchData = rows
     ns.Database.IsLootStatSearchWord = function() return false end
     ns.Database.IsLootSlotSearchWord = function() return false end
     H.loadModule("Shared/SearchText.lua", env, ns)
     local Database = H.loadModule("Database/Search.lua", env, ns)
     H.loadModule("Database/SearchIndex.lua", env, ns)
-    return Database, ns.SearchIndex
+    return Database, ns.SearchIndex, env
 end
 
 local QUERIES = {
@@ -191,6 +193,72 @@ function tests.droppedAndRebuiltSegment_findsTheSame()
     -- A row of a saved segment dying makes its snapshot unusable.
     Index:NoteRemoved(toys2[1])
     H.assertNil(Index:SegmentSnapshot("toy"), "no snapshot of a segment with a dead row")
+end
+
+local function MountSnapshot()
+    local rows, mounts = Corpus()
+    local _, Index = NewEngine(rows)
+    Index:BuildSegment("mount", mounts)
+    return RoundTrip(Index:SegmentSnapshot("mount"))
+end
+
+local function NoLiveSerials(Index, list, label)
+    local peek = Index:_DebugPeek()
+    for _, r in ipairs(list) do H.assertNil(peek.serials[r], label .. ": " .. r.name) end
+end
+
+-- A held category's rows wait for their segment: searches still find
+-- them, and the restore finds live holding none of them to purge.
+function tests.heldRows_waitForTheirSegment_andStayFound()
+    local rows, mounts, toys = Corpus()
+    local Database, Index, env = NewEngine(rows)
+    Index:Hold("Mount")
+    Same(BASE, Run(Database, true), "found while held")
+    NoLiveSerials(Index, mounts, "not indexed while held")
+    H.assertTrue(Index:RestoreSegment("mount", MountSnapshot(), mounts), "restores")
+    Index:Unhold("Mount")
+    env._clock:advance(0)
+    H.assertNotNil(Index:_DebugPeek().serials[toys[1]], "growth went on past them")
+    Same(BASE, Run(Database, true), "after the restore")
+    H.assertEq(Index:_DebugPeek().deadCount, 0, "live had nothing of theirs to purge")
+end
+
+function tests.aHoldEndsOnItsOwn()
+    local rows, mounts = Corpus()
+    local Database, Index, env = NewEngine(rows)
+    Index:Hold("Mount")
+    Run(Database, true)
+    NoLiveSerials(Index, mounts, "held")
+    env._clock:advance(16)
+    Run(Database, true)
+    H.assertNotNil(Index:_DebugPeek().serials[mounts[1]], "indexed once the hold ran out")
+    Same(BASE, Run(Database, true), "after the hold")
+end
+
+-- A build pauses part way: the rows it moved have no postings anyone reads
+-- yet, and searches still find them.
+function tests.rowsPartWayThroughABuild_stayFound()
+    local held
+    local rows, mounts = Corpus()
+    local Database, Index = NewEngine(rows, function(ns)
+        ns.Utils.SliceCheckpoint = function()
+            if coroutine.isyieldable() then coroutine.yield() end
+        end
+        local run = ns.Utils.RunSliced
+        ns.Utils.RunSliced = function(fn, onDone, budget, label)
+            if label ~= "indexSegment" then return run(fn, onDone, budget, label) end
+            held = { co = coroutine.create(fn), onDone = onDone }
+        end
+    end)
+    Run(Database, true)
+    Index:BuildSegment("mount", mounts)
+    assert(coroutine.resume(held.co))
+    H.assertEq(coroutine.status(held.co), "suspended", "the build paused")
+    H.assertTrue(#mounts > 4, "it moved some rows, not all")
+    Same(BASE, Run(Database, true), "part way through the build")
+    while coroutine.status(held.co) ~= "dead" do assert(coroutine.resume(held.co)) end
+    held.onDone(true)
+    Same(BASE, Run(Database, true), "once it landed")
 end
 
 local pass, fail, failures = H.runSuite("SearchIndexSegments", tests)

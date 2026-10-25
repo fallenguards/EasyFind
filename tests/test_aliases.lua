@@ -978,24 +978,16 @@ function tests.blacklist_filterRowsDropsEveryKindItHolds()
     Blacklist:ClearAll()
 end
 
--- Main search: the gate runs after the last source joins the list (map
--- rows, catalog items, launchers) and before the cap; the achievements
--- added after the cap check it themselves.
+-- Main search: the gate runs in the cap's pick, after the last source joins
+-- the list (map rows, catalog items, launchers), so a hidden row frees its
+-- slot.
 function tests.blacklist_mainSearchGateFollowsEverySource()
     local f = assert(io.open(H.ADDON_ROOT .. "/Search/Query.lua", "r"))
     local src = f:read("*a")
     f:close()
-    local gate = src:find("Blacklist:FilterRows(combined)", 1, true)
-    local cap = src:find("local TOP_N", 1, true)
-    assert(gate and cap and gate < cap, "the blacklist gate must come before the cap")
-    local lastAppend, at = 0, 1
-    while true do
-        local s = src:find("combined[#combined + 1] =", at, true)
-        if not s or s > cap then break end
-        lastAppend, at = s, s + 1
-    end
-    assert(gate > lastAppend, "a result source joins after the blacklist gate")
+    local cap = assert(src:find("local TOP_N", 1, true), "the cap")
     local stop = src:find("\n    local n = 0", cap, true) or #src
+    assert(src:sub(cap, stop):find("blacklist:Contains(d)", 1, true), "the cap's pick checks the blacklist")
     assert(not src:sub(cap, stop):find("combined[#combined + 1] =", 1, true),
         "a source joins after the cap: it never ranks and skips the gate")
 end

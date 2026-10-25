@@ -148,7 +148,7 @@ function Render.ApplyPinnedResultPrefix(resultRow, entry)
     resultRow.pinIcon:Show()
     if not entry.isFlat and entry.data and entry.data.path and #entry.data.path > 0 then
         local prefix = tconcat(entry.data.path, " > ")
-        resultRow.text:SetText("|cff888888" .. prefix .. " >|r " .. (entry.data.name or ""))
+        Render.SetUnclippedText(resultRow.text, "|cff888888" .. prefix .. " >|r " .. (entry.data.name or ""))
     end
 end
 

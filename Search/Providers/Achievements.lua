@@ -178,6 +178,7 @@ end
 -- to substring-scan them was a 4MB allocation the warmledger convicted.
 local fallbackScan
 local fallbackBuilding = false
+local clientAnswered = false
 
 -- The index persists in SavedVariables keyed to the client build:
 -- healthy sessions enumerate fast and pay the build once per patch;
@@ -234,15 +235,21 @@ local function ArmFallbackScan(packed, sliced)
     return true
 end
 
-local function TryHydrateFallbackIndex(sliced)
-    if fallbackScan then return true end
+local function SavedFallbackIndex()
     local db = EasyFind and EasyFind.db
     local saved = db and db.achievementIndex
     if type(saved) ~= "table" or saved.version ~= ACH_INDEX_VER
        or saved.build ~= ClientBuildKey() or type(saved.packed) ~= "string"
        or saved.packed == "" then
-        return false
+        return nil
     end
+    return saved
+end
+
+local function TryHydrateFallbackIndex(sliced)
+    if fallbackScan then return true end
+    local saved = SavedFallbackIndex()
+    if not saved then return false end
     return ArmFallbackScan(saved.packed, sliced)
 end
 
@@ -389,13 +396,19 @@ end
 -- empty answer hydrates or builds our own index instead of writing the
 -- cache, and later empties are re-checked against it.
 local function ResolveEmptySearchResults(query, mode)
+    -- The client has answered this session: its index is healthy (it
+    -- breaks only across a reload), so the empty answer stands.
+    if clientAnswered then return {} end
     -- An arm under way answers through its own refresh.
     if fallbackArming then
         fallbackWanted = true
         return nil
     end
-    if fallbackScan or TryHydrateFallbackIndex() then
-        return CollectFallbackResults(query, mode)
+    if fallbackScan then return CollectFallbackResults(query, mode) end
+    if SavedFallbackIndex() then
+        fallbackWanted = true
+        ArmFallbackInBackground()
+        return nil
     end
     if not fallbackBuilding and ClientHasAchievements() then
         BuildFallbackIndex()
@@ -413,6 +426,7 @@ local function CollectAchievementSearchResults(query, mode)
     if not getNum or not getID or not getInfo then return nil end
     local count = getNum() or 0
     if count == 0 then return {} end
+    clientAnswered = true
     local results = {}
     local database = ns.Database
     local canCheckStat = database and database.IsStatisticAchievement
@@ -495,11 +509,11 @@ function Providers:RequestAchievementSearch(query)
     if ns.Caps and ns.Caps.achievements == false then return nil end
     SyncAchievementSearchStatsVersion()
 
-    -- Arm the fallback proactively: hydrate the persisted index, or in a
-    -- session with no valid cache start the background build now, while
-    -- enumeration is (usually) healthy and cheap. Users then carry a
-    -- ready index into any future broken session.
-    ArmFallbackInBackground()
+    -- No saved index for this client build: make one now, while
+    -- enumeration is (usually) healthy and cheap, so a later broken
+    -- session has it ready. A saved one is read only when an empty
+    -- answer needs it (396 KB kept, 16 ms at the first search).
+    if not SavedFallbackIndex() then ArmFallbackInBackground() end
 
     local mode = GetAchievementFilterMode()
     local cacheKey = AchievementSearchCacheKey(query, mode)

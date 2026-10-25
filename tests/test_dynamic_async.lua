@@ -200,7 +200,7 @@ local function OverlapSetup(rows)
         Start("Boss")
     end
     local function Add(category, name) data[#data + 1] = { name = name, category = category } end
-    return Database, Add, finish, attached, appended
+    return Database, Add, finish, attached, appended, ns
 end
 
 local function Names(list)
@@ -240,6 +240,23 @@ function tests.overlappingPopulates_theRowBeforeTheAppendsRemoved()
     })
     H.assertEq(Names(attached.statistics), "Deaths, Kills", "every statistics row still found")
     H.assertEq(Names(attached.bosses), "Ragnaros, Onyxia")
+end
+
+-- An attach from an older populate settling while a newer one runs leaves
+-- the newer one's hold on its rows.
+function tests.olderAttachSettling_keepsANewerPopulatesHold()
+    local Database, Add, finish, _, _, ns = OverlapSetup({})
+    local holds, settle = {}, nil
+    ns.SearchIndex = { Hold = function(_, c) holds[c] = true end, Unhold = function(_, c) holds[c] = nil end }
+    ns.SearchSegments = { Attach = function(_, _, settled) settle = settled end }
+    Database:EnsureDynamicProviderLoaded("statistics", function() end)
+    Add("Statistic", "Deaths")
+    finish.statistics(true)
+    H.assertNotNil(settle, "its attach is under way")
+    Database:RefreshDynamicCategory("statistics")
+    H.assertTrue(holds.Statistic, "the new populate holds")
+    settle()
+    H.assertTrue(holds.Statistic, "the old attach left the new hold alone")
 end
 
 function tests.canceledPopulate_leavesNoRecordBehind()

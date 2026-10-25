@@ -9,7 +9,7 @@ local function loadCollector(spellbook, noTabs)
     local f = assert(io.open(H.ADDON_ROOT .. "/Database/Main.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local s = assert(src:find("function Database:PopulateDynamicAbilities()", 1, true), "collector not found")
+    local s = assert(src:find("Corpora.ABILITY_MT", 1, true), "collector not found")
     local e = assert(src:find("\n-- Dungeon/raid initialisms", s, true), "end of the collector not found")
     local data = {}
     local Database = {}
@@ -21,6 +21,7 @@ local function loadCollector(spellbook, noTabs)
         end,
         slower = string.lower,
         Utils = { SliceCheckpoint = function() end },
+        Corpora = {},
         ns = {},
         C_SpellBook = {},
         GetNumSpellTabs = not noTabs and function() return #tabs end or nil,
@@ -37,6 +38,12 @@ local function loadCollector(spellbook, noTabs)
         IsPassiveSpell = function(slot) return slots[slot] and slots[slot].passive or false end,
     }, { __index = _G })
     env._G = env
+    local uf = assert(io.open(H.ADDON_ROOT .. "/Shared/Utils.lua", "rb"))
+    local usrc = uf:read("*a")
+    uf:close()
+    local us = assert(usrc:find("function Utils.LeanRowMT", 1, true))
+    local ue = assert(usrc:find("\n-- Our own functions are post-hooked", us, true))
+    assert(load(usrc:sub(us, ue - 1), "=Utils.lua LeanRowMT", "t", env))()
     assert(load(src:sub(s, e - 1), "=Main.lua PopulateDynamicAbilities", "t", env))()
     return Database, data
 end

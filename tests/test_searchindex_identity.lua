@@ -8,8 +8,9 @@ local env = H.newEnv()
 local ns = H.newNs(env)
 
 local corpus = {}
-local function Add(name, keywords)
-    corpus[#corpus + 1] = { name = name, nameLower = name:lower(), category = "Test", keywordsLower = keywords }
+local function Add(name, keywords, category)
+    corpus[#corpus + 1] = { name = name, nameLower = name:lower(), category = category or "Test",
+        keywordsLower = keywords }
 end
 
 local FIRST = { "Shadow", "Storm", "Gladiator's", "Swift", "Ancient", "Crimson", "Frost", "Iron", "Golden",
@@ -32,6 +33,25 @@ Add("Quartermaster", { "vendor", "reputation" })
 Add("Windrunner Spire", { "dungeon" })
 Add("R-2 Boom Bot", { "toy" })
 Add("Hearthstone", { "toy", "home" })
+-- Stop words: whole, leading a longer word, inside one, in keywords only,
+-- on statistics and bosses.
+Add("Mountain Inn", { "rest" })
+Add("Raining Stone", { "weather" })
+Add("Kingdom of the Ancients", { "lore" })
+Add("The Infinite Archive", { "dungeon", "dawn of the infinite" })
+Add("Dungeons & Raids", { "group finder" })
+Add("Brawler's Guild Contender", { "information" })
+Add("Deaths in Raids", nil, "Statistic")
+Add("Twin Consorts", nil, "Statistic")
+Add("Onyxia", { "lair" }, "Boss")
+Add("Garrosh Hellscream", { "siege of orgrimmar" }, "Boss")
+Add("Fishing Raft", { "toy", "on water" })
+Add("Ancient Tome of Teleport: Dalaran", { "portal" })
+Add("Ornate Lantern", { "vendor" })
+Add("Feathers Collected", nil, "Statistic")
+Add("Weathered Relics", nil, "Achievement Category")
+Add("Sandfury Executioner", nil, "Boss")
+Add("Brandished Banner", { "standard" })
 
 ns.Database.uiSearchData = corpus
 ns.Database.IsLootStatSearchWord = function() return false end
@@ -48,6 +68,8 @@ local QUERIES = {
     "twilgiht drake", "thudner", "crmsn", "gb", "sw", "silvr", "ebn", "blod rug", "winb", "ancent lantern",
     -- Prefix walks: two or more 2+ char segments, each leading a later word.
     "shbo", "shabo", "stdr", "frwo", "sibo", "glbu", "thdr", "twdr", "ebwo", "crdr", "raba",
+    -- Bare stop words and the words they lead.
+    "in", "inn", "on", "ony", "the", "of", "an", "anc", "and", "at", "for", "with", "to", "or", "orn", "a",
 }
 
 local function Run(gated, q)

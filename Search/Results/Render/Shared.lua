@@ -42,6 +42,10 @@ function Render.SetClippedText(fontString, text)
     return Text:SetClippedText(fontString, text)
 end
 
+function Render.SetUnclippedText(fontString, text)
+    return Text:SetUnclippedText(fontString, text)
+end
+
 function Render.GetCachedCurrencyInfo(currencyID)
     if not currencyID or not C_CurrencyInfo or not C_CurrencyInfo.GetCurrencyInfo then return nil end
     local cache = SCRATCH.currencyInfoCache

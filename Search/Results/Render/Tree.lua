@@ -113,7 +113,7 @@ function Render.ResultHeader(resultRow, entry, state, depth)
         else
             resultRow.tabText:SetTextColor(0.60, 0.58, 0.55, 1.0)
         end
-        resultRow.text:SetText("")
+        SetClippedText(resultRow.text, "")
         if resultRow.headerGrad then resultRow.headerGrad:Hide() end
     else
         if resultRow.headerTab then resultRow.headerTab:Hide() end

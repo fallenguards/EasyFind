@@ -182,8 +182,20 @@ local function EncodeScalar(value)
     if value == nil then return "" end
     if valueType == "number" then return "n" .. tostring(value) end
     if valueType == "boolean" then return value and "b1" or "b0" end
-    return "s" .. tostring(value):gsub("[\\\28\29\30\31]", PACK_ESCAPE)
+    if valueType ~= "string" then
+        -- A table or function would pack as its address, different every
+        -- session (the housing ids did: a rebuild each time). Dropped, and
+        -- reported once a kind so the caller is found.
+        local dropped = Utils.packDropped
+        if not dropped[valueType] then
+            dropped[valueType] = true
+            ErrorHandler("PackRows: a " .. valueType .. " in a plain field packs as nothing")
+        end
+        return ""
+    end
+    return "s" .. value:gsub("[\\\28\29\30\31]", PACK_ESCAPE)
 end
+Utils.packDropped = {}
 
 local function DecodeScalar(chunk)
     if chunk == "" then return nil end
@@ -777,11 +789,22 @@ local FRAME_CAP_MS = 8
 local frameSpent = 0
 local frameStamp
 
+-- Ms each sliced run spent paused, so a timer inside it counts its own work.
+Utils.slicePaused = setmetatable({}, { __mode = "k" })
 function Utils.SliceCheckpoint()
     if not sliceDeadline then return end
-    if dpstop() < sliceDeadline then return end
-    if not coroutine.running() then return end
+    local now = dpstop()
+    if now < sliceDeadline then return end
+    local co = coroutine.running()
+    if not co then return end
     coroutine.yield()
+    local paused = Utils.slicePaused
+    paused[co] = (paused[co] or 0) + dpstop() - now
+end
+
+function Utils.SlicePausedMs()
+    local co = coroutine.running()
+    return co and Utils.slicePaused[co] or 0
 end
 
 -- Returns a handle whose :Cancel() stops the run at its next slice
@@ -935,6 +958,24 @@ function Utils.SecureCall(fn, ...)
         end
     end
     return true
+end
+
+-- Rows of one kind: what every row has stays in proto, and each lazy
+-- field (steps, a subtext) is built from the row on first read and kept.
+-- A row holds only its own fields (a macro row 1309 to 534 bytes).
+function Utils.LeanRowMT(proto, lazy)
+    return {
+        __index = function(row, key)
+            local build = lazy[key]
+            if build then
+                local value = build(row)
+                rawset(row, key, value)
+                return value
+            end
+            return proto[key]
+        end,
+        __index_proto = proto,
+    }
 end
 
 -- Our own functions are post-hooked in Lua: hooksecurefunc puts the

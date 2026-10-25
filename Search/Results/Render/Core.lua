@@ -28,6 +28,22 @@ local deferredRepRefreshPending = false
 local renderGen = 0
 local repDeferredJustRan = false
 
+-- Each render step's ms over the rows, for the lag probe (it reads and
+-- wipes): rows in view, and the rows laid out a frame later.
+local parts = { now = {}, later = {} }
+Render.parts = parts
+local partInto, partAt = parts.now, 0
+local function PartStart(later)
+    if not debugprofilestop then return end
+    partInto, partAt = later and parts.later or parts.now, debugprofilestop()
+end
+local function Part(name)
+    if not debugprofilestop then return end
+    local now = debugprofilestop()
+    partInto[name] = (partInto[name] or 0) + now - partAt
+    partAt = now
+end
+
 -- Single owner of the per-row viewport math: one visible row is the themed
 -- row height plus the flat-mode extra, both font-scaled. Returns the unit
 -- plus its two parts; the Rescaler snaps its height drag to unit multiples.
@@ -191,6 +207,7 @@ end
 -- One result row laid out at st.yOffset, which it advances; st carries
 -- the render's settings (ShowHierarchicalResults fills it).
 local function LayoutRow(owner, resultRow, i, st)
+    PartStart(st.belowView)
     local entry = st.visible[i]
     local data = entry.data
     local depth = entry.depth or 0
@@ -258,6 +275,7 @@ local function LayoutRow(owner, resultRow, i, st)
     if resultRow.calcResultHint then resultRow.calcResultHint:Hide() end
     if resultRow.calcExpressionButton then resultRow.calcExpressionButton:Hide() end
     if resultRow.calcResultButton then resultRow.calcResultButton:Hide() end
+    Part("place")
 
     resultRow.data = data
     -- Recycled rows can leak icon.mountID etc. into the OnEnter
@@ -266,6 +284,7 @@ local function LayoutRow(owner, resultRow, i, st)
         Icons.ClearRowIconLeafIDs(resultRow.icon)
     end
     ApplySecureResultAttributes(resultRow, data)
+    Part("attributes")
     resultRow.isPathNode = entry.isPathNode
     resultRow.isSectionHeader = entry.isSectionHeader or false
     resultRow.isPinHeader = entry.isPinHeader or false
@@ -295,10 +314,12 @@ local function LayoutRow(owner, resultRow, i, st)
         resultRow.treeElbow[d]:Hide()
         resultRow.treeBranch[d]:Hide()
     end
+    Part("reset")
 
     Render.TreeLines(resultRow, st, i, depth)
 
     Render.ResultHeader(resultRow, entry, st, depth)
+    Part("header")
 
     local isUnearnedCurrency = Render.IsUnearnedCurrencyEntry(entry, st)
     resultRow.isUnearnedCurrency = isUnearnedCurrency
@@ -320,11 +341,14 @@ local function LayoutRow(owner, resultRow, i, st)
     -- suppressed that click, so the two are kept separate here.
     local isInertRow = isUnearnedCurrency or lockedReason ~= nil
         or (data and data.titleUnearned) or false
+    Part("locked")
 
     Render.BaseRowText(resultRow, entry, st)
+    Part("text")
 
     local repSideBySide = Render.RowContent(owner, resultRow, entry, st, isInertRow)
     if repSideBySide then st.anyRepSideBySide = true end
+    Part("content")
 
     if resultRow._efDesat ~= isInertRow then
         resultRow._efDesat = isInertRow
@@ -342,6 +366,7 @@ local function LayoutRow(owner, resultRow, i, st)
 
     Render.ApplyFlatResultSizing(resultRow, entry, st)
     Render.ApplyIconVisibility(resultRow, entry)
+    Part("sizing")
 
     -- Flat-mode positioning fixup: category-specific blocks above
     -- (currency, mount/toy/pet, loot, map, repBar) re-anchor text using
@@ -350,9 +375,11 @@ local function LayoutRow(owner, resultRow, i, st)
     -- all categories and the path subtext is bounded by the rep bar
     -- when one is shown (so it stays out of the bar's horizontal area).
     Render.ApplyFlatResultAnchoring(resultRow, entry, st)
+    Part("anchoring")
 
     Render.ApplyPinnedResultPrefix(resultRow, entry)
     Render.ApplyGPSButton(resultRow, entry, st)
+    Part("gps")
 
     -- Per-row Apply / Reset extension for settings that staged
     -- a pendingValue (CommitFlag.Apply -- graphics, resolution).
@@ -368,6 +395,7 @@ local function LayoutRow(owner, resultRow, i, st)
     local actualH = Render.MeasureResultRowHeight(resultRow, entry, st)
 
     Render.ApplyOffSpecResultStyle(resultRow, data)
+    Part("measure")
 
     -- Reserve y-cursor space for the apply extension (sits below
     -- the row at -2 offset). Row's own bounds are unchanged.
@@ -381,6 +409,7 @@ local function LayoutRow(owner, resultRow, i, st)
     end
     st.yOffset = st.yOffset + actualH
     resultRow:Show()
+    Part("gutter")
 end
 
 function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
@@ -390,6 +419,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     end
     local resultsFrame = Search:GetResultsFrame()
     if not resultsFrame then return end
+    PartStart(false)
 
     -- Leaving the @icons grid: it hid the row pool, so the render-skip
     -- signature must be busted or an "identical" list would early-return
@@ -680,6 +710,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     -- frame were 20-25 ms of item rows. The viewport fills first, so
     -- nothing on screen waits; the rows that wait are hidden meanwhile.
     local split = count
+    Part("setup")
     for i = 1, count do
         LayoutRow(self, Results:EnsureResultButton(i), i, st)
         if i < count and st.yOffset > maxVisibleHeight + rowH then
@@ -687,6 +718,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             break
         end
     end
+    PartStart(false)
     local buttons = Search:GetResultButtons()
     for i = split + 1, MAX_BUTTON_POOL do
         local resultRow = buttons[i]
@@ -745,18 +777,27 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         local gen = renderGen
         ns.Utils.SafeAfter(0, function()
             if gen ~= renderGen or InCombatLockdown() or not resultsFrame:IsShown() then return end
+            -- Below the view: a creature's face waits until its row scrolls in.
+            st.belowView = true
             for i = split + 1, count do
                 LayoutRow(self, Results:EnsureResultButton(i), i, st)
             end
+            st.belowView = nil
+            PartStart(true)
             finish(true)
             armBarRelayout()
+            Part("finish")
+            Render.DrawPendingFaces(resultsFrame.scrollFrame)
+            Part("faces")
         end)
     else
         armBarRelayout()
     end
+    Part("finish")
 
     Search:SetSelectedIndex(0)
     Search:SetToggleFocused(false)
     self:UpdateSelectionHighlight(nil, History:IsPreservingNavRepeat())
     self:RestoreHoveredRow()
+    Part("select")
 end

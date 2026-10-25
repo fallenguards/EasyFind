@@ -321,12 +321,16 @@ local function GetUIBucket(d)
     -- non-map Search entries, or nil for base entries / entries handled by
     -- a separate dedicated filter.
     if not d then return nil end
+    -- A category with no bucket answers alone: no other field is read.
+    local category = d.category
+    local bucket = UI_BUCKET_BY_CATEGORY[category]
+    if not bucket then return nil end
     if d.mountID or d.toyItemID or d.petID or d.outfitID or d.heirloomItemID
        or d.transmogSetID
-       or (d.itemID and d.category == "Loot") or d.mapSearchResult then
+       or (d.itemID and category == "Loot") or d.mapSearchResult then
         return nil
     end
-    return UI_BUCKET_BY_CATEGORY[d.category]
+    return bucket
 end
 
 function Filters:GetUIBucket(data)

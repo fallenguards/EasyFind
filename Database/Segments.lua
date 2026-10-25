@@ -88,11 +88,13 @@ local attachGen, attachRun = {}, {}
 -- the saved segment when their text matches, else indexed and saved. The
 -- text is read in background slices: rows gone from uiSearchData by then
 -- stay unattached, and a newer attach of the key replaces this one.
-function Segments.Attach(key, rows)
+-- settled (optional) runs once this attach has landed or let go.
+function Segments.Attach(key, rows, settled)
+    settled = settled or function() end
     local SearchIndex = ns.SearchIndex
-    if not (SearchIndex and SearchIndex.RestoreSegment) or #rows == 0 then return end
+    if not (SearchIndex and SearchIndex.RestoreSegment) or #rows == 0 then return settled() end
     local store = Store(key)
-    if not store then return end
+    if not store then return settled() end
     local gen = (attachGen[key] or 0) + 1
     attachGen[key] = gen
     if attachRun[key] then attachRun[key]:Cancel() end
@@ -106,11 +108,15 @@ function Segments.Attach(key, rows)
         return tconcat(parts, "\1")
     end, function(ok, text)
         if attachGen[key] == gen then attachRun[key] = nil end
-        if not ok then return Utils.ErrorHandler(text) end
-        if not Current() then return end
+        if not ok then
+            settled()
+            return Utils.ErrorHandler(text)
+        end
+        if not Current() then return settled() end
         local saved = store[key]
         local function Build()
             SearchIndex:BuildSegment(key, rows, function(built)
+                settled()
                 if not built then return end
                 local snap = SearchIndex:SegmentSnapshot(key)
                 store[key] = snap and { v = VERSION, text = text, snap = snap } or nil
@@ -123,8 +129,8 @@ function Segments.Attach(key, rows)
         -- A restore is refused while a search reads the index: next frame.
         local tries = 0
         local function Restore()
-            if tries > 0 and not Current() then return end
-            if SearchIndex:RestoreSegment(key, saved.snap, rows) then return end
+            if tries > 0 and not Current() then return settled() end
+            if SearchIndex:RestoreSegment(key, saved.snap, rows) then return settled() end
             tries = tries + 1
             if tries < RETRIES then Utils.SafeAfter(0, Restore) else Build() end
         end

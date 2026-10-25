@@ -325,37 +325,42 @@ end
 -- Stable search entries (not the per-keystroke pool) for the Commands filter
 -- category, so commands are findable by name ("dance" -> /dance) and bucketed
 -- under the Commands filter. The "/"-prefix suggestion path stays separate.
+local CUSTOM_ROW_MT = { __index = {
+    category = "Command", path = EASYFIND_PATH, icon = COMMANDS_ICON, isNativeCommand = false,
+} }
+local NATIVE_ROW_MT = { __index = {
+    category = "Command", path = SLASH_COMMANDS_PATH, icon = COMMANDS_ICON, isNativeCommand = true,
+} }
+
 function Commands:BuildCommandSearchData()
     local out = {}
     for i = 1, #self.searchBarCommands do
         local def = self.searchBarCommands[i]
-        out[#out + 1] = {
+        out[#out + 1] = setmetatable({
             name = def.display,
             nameLower = def.displayToken,
-            category = "Command",
-            path = EASYFIND_PATH,
             keywords = def.aliases,
-            icon = COMMANDS_ICON,
             searchCommand = def.command,
             searchCommandDesc = def.desc,
-            isNativeCommand = false,
-        }
+        }, CUSTOM_ROW_MT)
     end
     local nativeDefs = CollectNativeCommandDefs()
     for i = 1, #nativeDefs do
         local def = nativeDefs[i]
-        out[#out + 1] = {
+        -- The keyword list is built once per command and kept on its def.
+        local kw = def.keywords
+        if not kw then
+            kw = { def.lower }
+            def.keywords = kw
+        end
+        out[#out + 1] = setmetatable({
             name = def.display,
             nameLower = def.lower,
-            category = "Command",
-            path = SLASH_COMMANDS_PATH,
-            keywords = { def.lower },
-            icon = COMMANDS_ICON,
+            keywords = kw,
             nativeRun = def.run,
             slashCommand = def.slashCommand,
             searchCommandDesc = def.subLabel or def.display,
-            isNativeCommand = true,
-        }
+        }, NATIVE_ROW_MT)
     end
     return out
 end

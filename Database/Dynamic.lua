@@ -80,11 +80,14 @@ local dynamicProviders = {
 if ns.Caps and ns.Caps.PruneRows then ns.Caps.PruneRows(dynamicProviders) end
 
 local dynamicProviderByKey = {}
+-- A provider's category: its rows go to its saved index segment.
+local providerByCategory = {}
 for i = 1, #dynamicProviders do
     local provider = dynamicProviders[i]
     provider.loaded = false
     provider.dirty = true
     dynamicProviderByKey[provider.key] = provider
+    if provider.category then providerByCategory[provider.category] = provider end
 end
 
 -- Populate bookkeeping per category (async populates overlap): each notes
@@ -93,7 +96,16 @@ Database.populateMarks = Database.populateMarks or {}
 function Database:NotePopulateStart(category, removed)
     local data = self.uiSearchData
     self.populateMarks[category] = { removed = removed, after = data[#data] or false }
+    -- The live index waits for these rows: their segment takes them.
+    if providerByCategory[category] and ns.SearchIndex then ns.SearchIndex:Hold(category) end
 end
+
+-- An older attach settling leaves a newer populate's hold in place.
+local function Unhold(category)
+    if category and Database.populateMarks[category] then return end
+    if ns.SearchIndex then ns.SearchIndex:Unhold(category) end
+end
+function Database:UnholdPopulated(category) Unhold(category) end
 
 -- The category's rows its populate added, in order: back from the end to
 -- the row its appends followed (to the top when that row is gone). Returns
@@ -122,9 +134,9 @@ local function ConsumePopulateBookkeeping(database, provider, wantRows)
     local category = provider.category
     if wantRows then return database:TakePopulatedRows(category) end
     local mark = category and database.populateMarks[category]
-    if not mark then return nil end
-    database.populateMarks[category] = nil
-    return mark.removed
+    if mark then database.populateMarks[category] = nil end
+    Unhold(category)
+    return mark and mark.removed
 end
 
 local function FinishDynamicProvider(database, provider, ok, err, changed, onDone)
@@ -158,7 +170,12 @@ local function FinishDynamicProvider(database, provider, ok, err, changed, onDon
     provider.loaded = true
     provider.dirty = false
     local removed, rows = ConsumePopulateBookkeeping(database, provider, true)
-    if rows and ns.SearchSegments then ns.SearchSegments.Attach(provider.key, rows) end
+    local category = provider.category
+    if rows and ns.SearchSegments then
+        ns.SearchSegments.Attach(provider.key, rows, function() Unhold(category) end)
+    else
+        Unhold(category)
+    end
     local appendOnly = removed == false
     if changed ~= false then
         if appendOnly and rows and database.NoteAppendedEntries then
@@ -290,6 +307,7 @@ function Database:AddDynamicProvider(provider)
     provider.loaded, provider.dirty = false, true
     dynamicProviders[#dynamicProviders + 1] = provider
     dynamicProviderByKey[provider.key] = provider
+    if provider.category then providerByCategory[provider.category] = provider end
     local sched = getScheduler()
     if sched and self._dynamicJobsRegistered == sched then
         sched:Register(jobIdForProvider(provider), {
@@ -428,7 +446,7 @@ end
 local function RefreshActiveSearch()
     local search = ns.Search
     if search and search.RefreshActiveSearch then
-        search:RefreshActiveSearch()
+        search:RefreshActiveSearch(true)
     end
 end
 

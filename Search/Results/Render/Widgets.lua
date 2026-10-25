@@ -343,7 +343,7 @@ function Render.SettingsWidget(resultRow, data, entry)
 end
 
 function Render.CalculatorRow(self, resultRow, data, state)
-    resultRow.text:SetText("")
+    SetClippedText(resultRow.text, "")
     resultRow.amountText:Hide()
     if resultRow.pathSubtext then resultRow.pathSubtext:Hide() end
     if resultRow.flatCatIcon then resultRow.flatCatIcon:Hide() end

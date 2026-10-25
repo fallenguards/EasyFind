@@ -35,6 +35,7 @@ addEntry("wombat alpha victim")
 addEntry("wombat beta victim")
 addEntry("wombat gamma victim")
 addEntry("plinth swap target")
+addEntry("quokka revival victim")
 local lootEntry = { name = "loot thing", nameLower = "loot thing", lootEntry = true }
 corpus[#corpus + 1] = lootEntry
 
@@ -108,6 +109,25 @@ function tests.removal_dropsCandidateWithoutRebuild()
         if e.nameLower and e.nameLower:find("swift", 1, true) then swiftCount = swiftCount + 1 end
     end
     H.assertTrue(swiftCount > 10, "unrelated candidates must survive a removal")
+end
+
+-- A removed row object that comes back (a provider re-adding the same
+-- packed rows) is a candidate again, once: its postings were never purged.
+function tests.removedRowComingBack_isACandidateOnce()
+    local victim, at
+    for i = 1, #corpus do
+        if corpus[i].nameLower:find("quokka", 1, true) then victim, at = corpus[i], i break end
+    end
+    H.assertTrue(candidateSet({ "quokka" })[victim], "a candidate before removal")
+    SearchIndex:NoteRemoved(victim)
+    table.remove(corpus, at)
+    SearchIndex:NoteCompacted(#corpus)
+    H.assertTrue(not candidateSet({ "quokka" })[victim], "gone once removed")
+    corpus[#corpus + 1] = victim
+    local cand, n = SearchIndex:Candidates({ "quokka" })
+    local seen = 0
+    for i = 1, n or 0 do if cand[i] == victim then seen = seen + 1 end end
+    H.assertEq(seen, 1, "back, and listed once")
 end
 
 function tests.append_isIncremental()
