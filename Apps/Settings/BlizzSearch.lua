@@ -3213,17 +3213,15 @@ end
 -- written by 3 carries the raw names and must be rebuilt.
 local OPTIONS_CACHE_SCHEMA = 5
 
--- Cheap deterministic hash of the enabled-addon set. Addon options categories
--- exist only for enabled addons, so the cache must invalidate when that set
--- changes. Runs once per reload.
+-- The enabled addons' names, joined: their options categories are cached,
+-- so the cache goes when that set changes.
 local function AddonSetFingerprint()
     local C = C_AddOns
     if not (C and C.GetNumAddOns and C.GetAddOnInfo) then return "na" end
     local okNum, count = pcall(C.GetNumAddOns)
     if not okNum or type(count) ~= "number" then return "na" end
     local getState = C.GetAddOnEnableState
-    local hash = 5381
-    local enabledCount = 0
+    local names, enabledCount = {}, 0
     for i = 1, count do
         local enabled = true
         if getState then
@@ -3237,13 +3235,11 @@ local function AddonSetFingerprint()
             local okInfo, addonName = pcall(C.GetAddOnInfo, i)
             if okInfo and type(addonName) == "string" then
                 enabledCount = enabledCount + 1
-                for ci = 1, #addonName do
-                    hash = (hash * 33 + addonName:byte(ci)) % 2147483648
-                end
+                names[enabledCount] = addonName
             end
         end
     end
-    return enabledCount .. ":" .. hash
+    return enabledCount .. ":" .. tconcat(names, "\31")
 end
 
 -- How many addon categories the panel lists right now: a cache saved
@@ -3415,6 +3411,16 @@ local function SpotCheckRestored(entries)
     return true
 end
 
+-- Each populate's path and step costs (ms of CPU, wall seconds), for the dev probe.
+local function StepClock()
+    return debugprofilestop and debugprofilestop() or 0
+end
+local function Step(rec, key, t0)
+    local t1 = StepClock()
+    rec[key] = t1 - t0
+    return t1
+end
+
 -- Restore the light index from SavedVariables when the signature matches and a
 -- spot-check passes. Returns true if the walk can be skipped. Any error degrades
 -- to a clean rebuild (return false) rather than propagating.
@@ -3423,22 +3429,34 @@ local function RestoreOptionsFromCache(data, rec)
     if not db then return false end
     local cache = db.optionsSearchCache
     if type(cache) ~= "table" or cache.sig == nil then rec.miss = "noCache" return false end
+    local t = StepClock()
     local sig = BuildOptionsCacheSignature()
+    Step(rec, "sigMs", t)
     if cache.sig ~= sig then
         rec.miss, rec.savedSig, rec.liveSig = "signature", cache.sig, sig
         return false
     end
 
+    MaybeYieldLiveSettings()
+    t = StepClock()
     local ok, restored = xpcall(function()
         return BlizzOptionsSearch.DeserializeOptionsCache(cache)
     end, Utils.ErrorHandler)
+    Step(rec, "decodeMs", t)
     if not ok or type(restored) ~= "table" then rec.miss = "decode" return false end
 
-    if not SpotCheckRestored(restored.entries) then rec.miss = "spotCheck" return false end
+    MaybeYieldLiveSettings()
+    t = StepClock()
+    local fresh = SpotCheckRestored(restored.entries)
+    Step(rec, "spotMs", t)
+    if not fresh then rec.miss = "spotCheck" return false end
 
+    MaybeYieldLiveSettings()
+    t = StepClock()
     local pushOk, changed = xpcall(function()
         return PushOptionEntries(data, restored.entries, restored.kb, restored.addon, nil)
     end, Utils.ErrorHandler)
+    Step(rec, "pushMs", t)
     if not pushOk then rec.miss = "push" return false end
     if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
     return true
@@ -3922,16 +3940,6 @@ do
     BlizzOptionsSearch.AceApps = Apps   -- dev probe
 end
 
--- Each populate's path and step costs (ms of CPU, wall seconds), for the dev probe.
-local function StepClock()
-    return debugprofilestop and debugprofilestop() or 0
-end
-local function Step(rec, key, t0)
-    local t1 = StepClock()
-    rec[key] = t1 - t0
-    return t1
-end
-
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     if not ns.Database or not ns.Database.uiSearchData then return end
     local data = ns.Database.uiSearchData
@@ -3940,6 +3948,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     local t = StepClock()
     pushSink = not includeLiveGameSettings and {} or nil
     if not includeLiveGameSettings then RememberCategories() end
+    t = Step(rec, "rememberMs", t)
     local function AttachRows()
         local rows = pushSink
         pushSink = nil
@@ -3952,15 +3961,21 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
     -- Light path is the reload hot path: restore the persisted index and skip
     -- the settings-tree walk when the cache signature still matches. Live game
     -- settings always take the full walk.
+    -- Each step reads the rows afresh, so the walk may pause between them.
     if not includeLiveGameSettings and RestoreOptionsFromCache(data, rec) then
         rec.path = "cache"
-        t = Step(rec, "restoreMs", t)
+        MaybeYieldLiveSettings()
+        t = StepClock()
         CollectAceFeeds()
         t = Step(rec, "aceMs", t)
         local changed = PushCanvasEntries(data)
         t = Step(rec, "canvasMs", t)
+        MaybeYieldLiveSettings()
+        t = StepClock()
         if PushFeedEntries(data) then changed = true end
         t = Step(rec, "feedMs", t)
+        MaybeYieldLiveSettings()
+        t = StepClock()
         AttachRows()
         if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
         populated = true
@@ -3968,7 +3983,7 @@ function BlizzOptionsSearch:Populate(includeLiveGameSettings)
         return
     end
     rec.path = "walk"
-    t = Step(rec, "restoreMs", t)
+    t = StepClock()
 
     local entries = CollectEntries(not coreGameRegistered)
     t = Step(rec, "entriesMs", t)
@@ -4218,13 +4233,15 @@ function BlizzOptionsSearch:EnsurePopulated()
     Register()
 end
 
-function BlizzOptionsSearch:EnsurePopulatedAsync(onDone)
+-- idle: onDone only hears the end and nobody waits on it, so the walk
+-- keeps the background pace.
+function BlizzOptionsSearch:EnsurePopulatedAsync(onDone, idle)
     if registered then
         if onDone then onDone(false) end
         return false
     end
     AddWaiter(populateWaiters, onDone)
-    if onDone then optionsPopulateUrgent = true end
+    if onDone and not idle then optionsPopulateUrgent = true end
     if populatePending then return true end
     populatePending = true
 
@@ -4257,13 +4274,13 @@ function BlizzOptionsSearch:EnsurePopulatedAsync(onDone)
     return true
 end
 
-function BlizzOptionsSearch:EnsureLivePopulatedAsync(onDone)
+function BlizzOptionsSearch:EnsureLivePopulatedAsync(onDone, idle)
     if liveRegistered then
         if onDone then onDone(false) end
         return false
     end
     AddWaiter(livePopulateWaiters, onDone)
-    if onDone then optionsPopulateUrgent = true end
+    if onDone and not idle then optionsPopulateUrgent = true end
     if livePopulatePending then return true end
     livePopulatePending = true
 

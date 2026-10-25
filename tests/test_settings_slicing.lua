@@ -90,6 +90,25 @@ function tests.backgroundPopulate_spansFramesInsideThePool()
     end
 end
 
+-- The login warm-up hears the end but nobody waits on it: still the pool.
+function tests.idleWaiter_keepsTheBackgroundPool()
+    local sched, NextFrame, spent, clock = Scheduler()
+    local ns, env = Load(sched, clock)
+    local heard = false
+    ns.BlizzOptionsSearch:EnsurePopulatedAsync(function() heard = true end, true)
+    env._clock:advance(0)
+    local frames = 0
+    while not heard and frames < 200 do
+        NextFrame()
+        frames = frames + 1
+    end
+    H.assertTrue(heard, "the warm-up heard the end")
+    for frame, row in pairs(spent) do
+        H.assertTrue((row.settingsPopulate or 0) <= 2.5 + 1, "frame " .. frame .. " inside the background pool: "
+            .. tostring(row.settingsPopulate))
+    end
+end
+
 function tests.populateInsideASearchRun_neverYieldsThere()
     local sched, _, _, clock = Scheduler()
     local ns = Load(sched, clock)

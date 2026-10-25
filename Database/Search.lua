@@ -1186,8 +1186,9 @@ function Database:WarmSearchHotPath()
         local rebindShortkeys = function()
             if ns.Shortkeys and ns.Shortkeys.ReapplyIfPending then ns.Shortkeys:ReapplyIfPending() end
         end
-        if options.EnsurePopulatedAsync then options:EnsurePopulatedAsync(rebindShortkeys) end
-        if options.EnsureLivePopulatedAsync then options:EnsureLivePopulatedAsync(rebindShortkeys) end
+        -- Nobody waits on these: they keep the background pace.
+        if options.EnsurePopulatedAsync then options:EnsurePopulatedAsync(rebindShortkeys, true) end
+        if options.EnsureLivePopulatedAsync then options:EnsureLivePopulatedAsync(rebindShortkeys, true) end
     end
 end
 
