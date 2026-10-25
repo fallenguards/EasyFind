@@ -67,7 +67,7 @@ local N = {
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {}, classTitle = {},
     spotCi = {}, spotWx = {}, spotWy = {}, planes = {}, mapNames = {},
     pois = setmetatable({}, { __mode = "v" }),
-    hits = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
+    hits = {}, top = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {}, scan = {}, len = {},
     titleAt = "", titleCreatures = "", roleIds = {},
     -- Per query word whether it names a service or title (wordRole) or a
@@ -148,7 +148,8 @@ local function LineAt(at, n, p)
     local lo, hi = 1, n
     while lo < hi do
         local mid = mfloor((lo + hi + 1) / 2)
-        if At(at, mid) <= p then lo = mid else hi = mid - 1 end
+        local a, b, c = sbyte(at, mid * 3 - 2, mid * 3)
+        if a + b * 256 + c * 65536 <= p then lo = mid else hi = mid - 1 end
     end
     return lo
 end
@@ -486,12 +487,25 @@ local function SpotWorld(k)
     return ci, N.spotWx[k], N.spotWy[k]
 end
 
+-- The scan's hot loops read the fields in place, as Rec, Spot, Title and
+-- Kind do: a call per field was most of a broad word's scan.
+
+-- Creature i's spots: the first and the last.
+local function SpotRange(i)
+    local rec, n = N.rec, N.n
+    local first = sbyte(rec, 7 * n + i) + sbyte(rec, 8 * n + i) * 256 + sbyte(rec, 9 * n + i) * 65536
+    return first, first + sbyte(rec, 10 * n + i) + sbyte(rec, 11 * n + i) * 256 - 1
+end
+
 -- Whether creature i has a spot on the set's maps, within r2 of the
 -- point (continent pci, px, py) when given.
 local function Within(i, set, pci, px, py, r2)
-    local first = Rec.first(i)
-    for k = first, first + Rec.count(i) - 1 do
-        if not set or set[Spot.map(k)] then
+    local spots = N.spots
+    local first, last = SpotRange(i)
+    for k = first, last do
+        local p = (k - 1) * SPOT + 1
+        local a, b = sbyte(spots, p, p + 1)
+        if not set or set[a + b * 256] then
             if not r2 then return true end
             local ci, wx, wy = SpotWorld(k)
             if ci == pci and (wx - px) ^ 2 + (wy - py) ^ 2 <= r2 then return true end
@@ -504,9 +518,12 @@ end
 -- when given), the nearest to the point, else the one with the most spawns.
 local function BestSpot(i, set, pci, px, py, r2)
     local best, bestD, most, mostN
-    local first = Rec.first(i)
-    for k = first, first + Rec.count(i) - 1 do
-        if not set or set[Spot.map(k)] then
+    local spots = N.spots
+    local first, last = SpotRange(i)
+    for k = first, last do
+        local p = (k - 1) * SPOT + 1
+        local a, b = sbyte(spots, p, p + 1)
+        if not set or set[a + b * 256] then
             local d
             if pci then
                 local ci, wx, wy = SpotWorld(k)
@@ -514,7 +531,8 @@ local function BestSpot(i, set, pci, px, py, r2)
             end
             if not r2 or (d and d <= r2) then
                 if d and (not bestD or d < bestD) then best, bestD = k, d end
-                local spawns = Spot.spawns(k)
+                local s1, s2 = sbyte(spots, p + 5, p + 6)
+                local spawns = s1 + s2 * 256
                 if not most or spawns > mostN then most, mostN = k, spawns end
             end
         end
@@ -589,7 +607,15 @@ end
 -- offers; 0 no match.
 local function Score(i)
     local words, wordPlace, low, at, enLow, enAt = N.words, N.wordPlace, N.low, N.at, N.enLow, N.enAt
-    local t, roles = Title(i), Roles(i)
+    local wordBits, hitLow, hitEn, allService = N.wordBits, N.hitLow, N.hitEn, N.allService
+    -- Title(i) and Roles(i), read in place.
+    local t1, t2 = sbyte(N.titleIdx, i * 2 - 1, i * 2)
+    local t = t1 + t2 * 256
+    local _, k2, k3 = sbyte(N.kinds, i * 3 - 2, i * 3)
+    local roles = k2 + k3 * 256
+    if band(roles, 4) ~= 0 and band(roles, CLASS_TRAINER) == 0 and N.classTitle[t] then
+        roles = roles + CLASS_TRAINER
+    end
     local tlow, tAlt = N.titleLow[t], N.titleLowEnglish[t]
     local score, first = 0, true
     for w = 1, #words do
@@ -597,16 +623,18 @@ local function Score(i)
             local word = words[w]
             -- Every word names a service (repair, inn): who offers it, not a
             -- name holding the word (Repaired Bomber above every repairer).
-            if N.allService and band(roles, N.wordBits[w]) == 0 then return 0 end
-            local p, blob, lines = N.hitLow[w][i], low, at
-            if not p and enLow then p, blob, lines = N.hitEn[w][i], enLow, enAt end
+            if allService and band(roles, wordBits[w]) == 0 then return 0 end
+            local p, blob, lines = hitLow[w][i], low, at
+            if not p and enLow then p, blob, lines = hitEn[w][i], enLow, enAt end
             if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
-                and band(roles, N.wordBits[w]) == 0 then
+                and band(roles, wordBits[w]) == 0 then
                 return 0
             end
             if first then
                 first = false
-                if p and p == At(lines, i) then score = 3
+                local a1, a2, a3
+                if p then a1, a2, a3 = sbyte(lines, i * 3 - 2, i * 3) end
+                if p and p == a1 + a2 * 256 + a3 * 65536 then score = 3
                 elseif p and sbyte(blob, p - 1) == 32 then score = 2
                 else score = 1 end
             end
@@ -615,13 +643,34 @@ local function Score(i)
     return score
 end
 
--- Equal matches nearest first, then the shorter name.
+-- Equal matches nearest first, then the shorter name, then catalog order.
 local function HitLess(a, b)
     local sa, sb = N.score[a], N.score[b]
     if sa ~= sb then return sa > sb end
     local na, nb = N.near[a], N.near[b]
     if na ~= nb then return na < nb end
-    return N.len[a] < N.len[b]
+    local la, lb = N.len[a], N.len[b]
+    if la ~= lb then return la < lb end
+    return a < b
+end
+
+-- The best MAX_ROWS of n hits in order at the front: picked, not all
+-- sorted (a broad word, "ven", has 1766).
+local function TopRows(hits, n)
+    local top, k = N.top, 0
+    for j = 1, n do
+        local h = hits[j]
+        if k < MAX_ROWS or HitLess(h, top[k]) then
+            if k < MAX_ROWS then k = k + 1 end
+            local p = k
+            while p > 1 and HitLess(h, top[p - 1]) do
+                top[p] = top[p - 1]
+                p = p - 1
+            end
+            top[p] = h
+        end
+    end
+    for j = 1, k do hits[j] = top[j] end
 end
 
 local function Row(i, k)
@@ -882,9 +931,14 @@ local function MarkTitlesAndRoles(titleHit, bits)
     local scan, lists = N.scan, 0
     for c = #scan, 1, -1 do scan[c] = nil end
     local titleAt, titleCreatures = N.titleAt, N.titleCreatures
+    local sn = 0
     for t = 1, #N.titleLow do
         if titleHit[t] then
-            for o = At(titleAt, t) + 1, At(titleAt, t + 1) do scan[#scan + 1] = At(titleCreatures, o) end
+            for o = At(titleAt, t) + 1, At(titleAt, t + 1) do
+                local a, b, c = sbyte(titleCreatures, o * 3 - 2, o * 3)
+                sn = sn + 1
+                scan[sn] = a + b * 256 + c * 65536
+            end
             lists = lists + 1
         end
     end
@@ -892,14 +946,21 @@ local function MarkTitlesAndRoles(titleHit, bits)
     while role <= bits do
         if band(bits, role) ~= 0 then
             local ids = N.roleIds[role] or ""
-            for o = 1, #ids / 3 do scan[#scan + 1] = At(ids, o) end
+            for o = 1, #ids / 3 do
+                local a, b, c = sbyte(ids, o * 3 - 2, o * 3)
+                sn = sn + 1
+                scan[sn] = a + b * 256 + c * 65536
+            end
             lists = lists + 1
             if role == CLASS_TRAINER then
                 for t = 1, #N.titleLow do
                     if N.classTitle[t] then
                         for o = At(titleAt, t) + 1, At(titleAt, t + 1) do
                             local i = At(titleCreatures, o)
-                            if band(mfloor(Kind(i) / 256), 4) ~= 0 then scan[#scan + 1] = i end
+                            if band(mfloor(Kind(i) / 256), 4) ~= 0 then
+                                sn = sn + 1
+                                scan[sn] = i
+                            end
                         end
                         lists = lists + 1
                     end
@@ -934,13 +995,16 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         if s == 0 and j then s, byItem = N.itemScore[N.bestItem], true end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
-        if s > 0 and (service or byItem) and mfloor(Rec.flags(i) / (horde and 32 or 8)) % 4 == 2 then s = 0 end
+        if s > 0 and (service or byItem) and mfloor(sbyte(N.rec, 3 * N.n + i) / (horde and 32 or 8)) % 4 == 2 then
+            s = 0
+        end
         if s > 0 then
             n = n + 1
             hits[n] = i
             score[i] = s
             sold[i] = j
-            len[i] = At(at, i + 1) - At(at, i)
+            local a1, a2, a3, b1, b2, b3 = sbyte(at, i * 3 - 2, i * 3 + 3)
+            len[i] = (b1 + b2 * 256 + b3 * 65536) - (a1 + a2 * 256 + a3 * 65536)
             N.byItem[i] = byItem
         end
         if c % 256 == 0 then SliceCheckpoint() end
@@ -1086,7 +1150,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
             end
         end
     end
-    tsort(hits, HitLess)
+    TopRows(hits, n)
     for j = 1, mmin(n, MAX_ROWS) do
         if j % 16 == 0 then SliceCheckpoint() end
         local i = hits[j]
