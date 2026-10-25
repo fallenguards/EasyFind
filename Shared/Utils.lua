@@ -14,7 +14,12 @@ local debugstack = debugstack
 local CreateFrame = CreateFrame
 local CreateColor = CreateColor
 
+-- Every caught error reaches the client's error handler (BugGrabber, the
+-- error frame); a caught error that only came back to its caller was
+-- lost wherever the result went unread (timers, OnUpdates, sliced runs).
 local function ErrorHandler(err)
+    local report = geterrorhandler and geterrorhandler()
+    if report then report(err) end
     return tostring(err) .. "\n" .. debugstack(2)
 end
 
@@ -24,11 +29,7 @@ function Utils.Migrate(db, field, steps, target)
     for version = (tonumber(db[field]) or 0) + 1, target do
         local step = steps[version]
         if step then
-            local ok, err = xpcall(step, ErrorHandler, db)
-            if not ok then
-                if geterrorhandler then geterrorhandler()(err) end
-                return false
-            end
+            if not xpcall(step, ErrorHandler, db) then return false end
         end
         db[field] = version
     end

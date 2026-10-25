@@ -166,7 +166,7 @@ local function LoadAddon(def)
     if not (def and def.addon and C_AddOns and C_AddOns.LoadAddOn) then return end
     if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(def.addon) then return end
     if InCombatLockdown() and not def.loadInCombat then return end
-    pcall(C_AddOns.LoadAddOn, def.addon)
+    xpcall(C_AddOns.LoadAddOn, Report, def.addon)
 end
 
 -- Loads the extension's addon when it has not loaded yet; true when it

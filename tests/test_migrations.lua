@@ -18,12 +18,17 @@ local function Load(save, opts)
     local env = setmetatable({ EasyFindDB = save, EasyFind = {} }, { __index = _G })
     local reported = {}
     env.geterrorhandler = function() return function(err) reported[#reported + 1] = err end end
+    env.debugstack = function() return "" end
     local utilsSrc = Read("Shared/Utils.lua")
+    -- The real shared handler: it is what reports a failed step.
+    local hs = assert(utilsSrc:find("\nlocal function ErrorHandler(err)", 1, true), "Utils ErrorHandler")
+    local _, he = utilsSrc:find("\nend\r?\n", hs)
+    local handlerSrc = utilsSrc:sub(hs, he)
     local m = utilsSrc:find("\nfunction Utils.Migrate(", 1, true)
     local Utils = {}
     if m then
         local _, me = utilsSrc:find("\nend\r?\n", m)
-        assert(load("local Utils = ...\nlocal ErrorHandler = function(e) return tostring(e) end\n"
+        assert(load("local Utils = ...\n" .. handlerSrc
             .. utilsSrc:sub(m, me), "=Utils.Migrate", "t", env))(Utils)
     end
     local main = Read("Core/Main.lua")
@@ -32,7 +37,7 @@ local function Load(save, opts)
     local cut = assert(main:find("\n    EasyFind.db = EasyFindDB", s, true), "OnInitialize's db line")
     local prefix = "local ADDON_NAME, ns = ...\nlocal Utils = ns.Utils\nlocal L = ns.L\n"
         .. "local sformat, pairs, xpcall = string.format, pairs, xpcall\nlocal mmin, mmax = math.min, math.max\n"
-        .. "local ErrorHandler = function(e) return tostring(e) end\n"
+        .. handlerSrc
         .. "local DB_VERSION = " .. version .. "\nlocal REVAMPED_TUTORIAL_VERSION = \"2.0.0\"\n"
     local suffix = "\nend\nreturn OnInitialize, DB_MIGRATIONS"
     local ns = { Utils = setmetatable({ Migrate = Utils.Migrate }, { __index = { DeepCopy = function(v)
