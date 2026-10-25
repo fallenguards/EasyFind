@@ -159,7 +159,7 @@ function MapSearch:BuildResults(text, isGlobal, skipPins)
     if isGlobal then
         AppendGlobalInstanceSearchSources(self, allPOIs, zoneNames, fresh)
         AppendAlwaysFindableLocations(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
-        AppendSubzones(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID())
+        AppendSubzones(self, allPOIs, zoneNames, WorldMapFrame and WorldMapFrame:GetMapID(), text)
         if self.AppendNpcRows then self.AppendNpcRows(fresh, zoneNames, text) end
         AppendProviderRows(fresh, text, nil)
 
@@ -447,8 +447,10 @@ local function AddScoredPOI(results, seen, duplicates, poi, key, score)
     tinsert(results, poi)
 end
 
+-- The bar's search runs sliced: these walks yield there between slices.
 local function AppendNameMatches(results, seen, duplicates, candidates, query)
-    for _, poi in ipairs(candidates) do
+    for i, poi in ipairs(candidates) do
+        if i % 64 == 0 then Utils.SliceCheckpoint() end
         -- Letter-mask gate BEFORE any scoring call: the map corpus'
         -- version of the UI index's candidate pruning. For a typical
         -- non-map query ("glad mount") this skips nearly every POI with
@@ -475,7 +477,8 @@ end
 local function AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
     if not matchedCategory then return end
 
-    for _, poi in ipairs(pois) do
+    for i, poi in ipairs(pois) do
+        if i % 64 == 0 then Utils.SliceCheckpoint() end
         if poi.category then
             local key = GetPOIDuplicateKey(poi)
             if not seen[key] then
@@ -680,11 +683,23 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
     end
 end
 
+-- Each part's ms over the bar's map passes, for the lag probe (it wipes).
+local uiParts = { at = 0 }
+MapSearch.uiParts = uiParts
+local function Part(name)
+    local dps = debugprofilestop
+    if not dps then return end
+    local now = dps()
+    uiParts[name] = (uiParts[name] or 0) + now - uiParts.at
+    uiParts.at = now
+end
+
 function MapSearch:SearchForUI(query)
     Search.uiSearchCount = (Search.uiSearchCount or 0) + 1
     Search.uiScoredFor = nil
     if not query or query == "" or #query < 2 then return nil end
     if self.HasWorldZoneCache and not self:HasWorldZoneCache() then return nil end
+    uiParts.at = debugprofilestop and debugprofilestop() or 0
 
     -- Use the player's current zone as the local anchor so UI-bar map
     -- results reflect what's actually around them rather than wherever
@@ -705,6 +720,7 @@ function MapSearch:SearchForUI(query)
     do
         AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, true)
     end
+    Part("local")
 
     -- Always also pull in global zone + instance results. Dedup against
     -- existingNames so the local sources take priority for any POI that
@@ -719,6 +735,7 @@ function MapSearch:SearchForUI(query)
         local zoneNames = reuseUISearchZoneNames
 
         AppendZoneSearchResults(fresh, zoneNames, groupedZones, existingNames)
+        Part("zones")
 
         -- Dungeons / raids / delves use a global map walk. The cache is
         -- built in background slices; first search should never do that walk.
@@ -727,15 +744,20 @@ function MapSearch:SearchForUI(query)
         else
             RequestUISearchGlobalInstances(self)
         end
+        Part("instances")
         AppendAlwaysFindableLocations(self, pois, existingNames, searchMapID)
-        AppendSubzones(self, pois, existingNames, searchMapID)
+        Part("findable")
+        AppendSubzones(self, pois, existingNames, searchMapID, query)
+        Part("subzones")
         if self.AppendNpcRows then self.AppendNpcRows(fresh, existingNames, query, nil, searchMapID) end
+        Part("creatures")
     end
 
     if #pois == 0 and #fresh == 0 then return nil end
 
     -- The map tab's scoring, under the bar's own narrowing cache.
     local scored, matchedCategory = self:SearchPOIs(pois, query, fresh, "ui_")
+    Part("score")
     if not scored or #scored == 0 then return nil end
     -- Kept for a category boost in the same keystroke (GetCategoryResultsForUI).
     wipe(reuseUIScored)
@@ -785,6 +807,7 @@ function MapSearch:SearchForUI(query)
     for i = resultCap + 1, #results do
         results[i] = nil
     end
+    Part("rows")
 
     return results
 end
@@ -919,3 +942,7 @@ function MapSearch:PlacesForQuery(text)
     end
     return out
 end
+
+-- For the dev memory audit.
+MapSearch._peek = MapSearch._peek or {}
+function MapSearch._peek.results() return { poiSearches = searchPoisCache } end

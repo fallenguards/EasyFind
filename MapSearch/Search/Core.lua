@@ -302,6 +302,7 @@ Search.GetNameNorm = GetNameNorm
 Search.PreparePOI = PreparePOI
 Search.PreparePOIList = PreparePOIList
 Search.POICouldMatch = POICouldMatch
+Search.LetterMask = LetterMask
 Search.EnrichZoneWithEntrance = EnrichZoneWithEntrance
 Search.BuildEntranceLookup = BuildEntranceLookup
 Search.reuseAllPOIs = reuseAllPOIs
@@ -329,3 +330,7 @@ Search.reuseUICategoryData = reuseUICategoryData
 Search.UI_MAP_RESULT_CAP = UI_MAP_RESULT_CAP
 
 
+
+-- For the dev memory audit.
+MapSearch._peek = MapSearch._peek or {}
+function MapSearch._peek.scratch() return { tables = scratchTables } end

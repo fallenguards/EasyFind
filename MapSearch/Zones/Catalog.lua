@@ -486,3 +486,10 @@ function MapSearch:GroupZonesByParent(zones)
     return results
 end
 
+
+-- For the dev memory audit.
+MapSearch._peek = MapSearch._peek or {}
+function MapSearch._peek.zones()
+    return { worldZones = cachedWorldZones, zonePrefixIndex = worldZonePrefixIndex, zoneByName = worldZoneByName,
+             zoneSearches = searchZonesCache }
+end

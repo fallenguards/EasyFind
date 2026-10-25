@@ -1076,6 +1076,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
     else
         local capped = n > MAX_ROWS
         for j = 1, n do
+            if j % 256 == 0 then SliceCheckpoint() end
             local i = hits[j]
             local k = capped and BestSpot(i, set, pci, px, py, r2) or nil
             spot[i], near[i] = k, FAR
@@ -1087,6 +1088,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
     end
     tsort(hits, HitLess)
     for j = 1, mmin(n, MAX_ROWS) do
+        if j % 16 == 0 then SliceCheckpoint() end
         local i = hits[j]
         local k = spot[i] or BestSpot(i, set, pci, px, py, r2)
         local poi = k and Row(i, k)

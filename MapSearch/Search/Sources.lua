@@ -819,15 +819,39 @@ Search.AppendLocalSearchSources = AppendLocalSearchSources
 Search.BuildPromotedInstanceCache = BuildPromotedInstanceCache
 Search.AppendZoneSearchResults = AppendZoneSearchResults
 Search.AppendGlobalInstanceSearchSources = AppendGlobalInstanceSearchSources
+-- Whether every subzone is a candidate: the query names their category
+-- or one related, and SearchPOIs lists those by category, not letters.
+local function SubzonesByCategory(self, query)
+    local category = self:GetCategoryMatch(query)
+    if not category then return false end
+    if category == "subzone" then return true end
+    local related = self:GetRelatedCategories(category)
+    for i = 1, #related do
+        if related[i] == "subzone" then return true end
+    end
+    return false
+end
+
 -- The GPS data's subzones, found from anywhere; the viewed zone's own
--- stand among its statics already.
-local function AppendSubzones(self, out, nameSet, excludeMapID)
-    for _, loc in ipairs(self:GetSubzoneLocations()) do
-        if loc.mapID ~= excludeMapID then
-            local nameLower = GetNameLower(loc)
+-- stand among its statics already. Only those the query can reach are
+-- built: SearchPOIs drops a place whose letters lack the query's.
+local function AppendSubzones(self, out, nameSet, excludeMapID, query)
+    local sz = self:GetSubzones()
+    local q = slower(query or "")
+    if ns.Database and ns.Database.NormalizeSearchQuery then q = ns.Database:NormalizeSearchQuery(q) end
+    local all = not query or SubzonesByCategory(self, q)
+    local qmask = Search.LetterMask(q)
+    local band = bit.band
+    local map, lower, mask = sz.map, sz.lower, sz.mask
+    for i = 1, sz.n do
+        if map[i] ~= excludeMapID then
+            local nameLower = lower[i]
             if not (nameSet and nameSet[nameLower]) then
-                ClearPerQueryResultState(loc)
-                out[#out + 1] = loc
+                if all or band(qmask, mask[i]) == qmask then
+                    local poi = self:SubzonePOI(i)
+                    ClearPerQueryResultState(poi)
+                    out[#out + 1] = poi
+                end
                 if nameSet then nameSet[nameLower] = true end
             end
         end
@@ -836,3 +860,10 @@ end
 
 Search.AppendAlwaysFindableLocations = AppendAlwaysFindableLocations
 Search.AppendSubzones = AppendSubzones
+
+-- For the dev memory audit.
+MapSearch._peek = MapSearch._peek or {}
+function MapSearch._peek.sources()
+    return { globalInstances = globalInstanceCache, localScans = localScanCache, promotedInstances = promotedInstancePOIs,
+             staticLocations = staticLocationCache }
+end

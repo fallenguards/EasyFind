@@ -197,12 +197,17 @@ end
 -- Every subzone the GPS data carries (each at the middle of its map
 -- patch), named by the client: places to find from anywhere. An area named
 -- like a map beside or under its zone (Stormwind City in Elwynn Forest) is
--- that map, found as a zone already.
-local subzoneCache
+-- that map, found as a zone already. Kept packed; a place's table is built
+-- only while something holds it (3,400 tables were 3.2 MB).
+local subzones
+local subzonePOIs = setmetatable({}, { __mode = "v" })
 local SUBZONE_KEYWORDS = { "subzone", "area" }
-function MapSearch:GetSubzoneLocations()
-    if subzoneCache then return subzoneCache end
-    local results = {}
+function MapSearch:GetSubzones()
+    if subzones then return subzones end
+    -- at: the place's first slot in its map's area list (id, x, y).
+    local packed = { n = 0, lower = {}, mask = {}, map = {}, at = {} }
+    local LetterMask, bor = Search.LetterMask, bit.bor
+    local kwMask = bor(LetterMask(SUBZONE_KEYWORDS[1]), LetterMask(SUBZONE_KEYWORDS[2]))
     local areas = ns.GPSData and ns.GPSData.areas
     local GetAreaInfo = C_Map and C_Map.GetAreaInfo
     local mapNames = {}
@@ -225,17 +230,35 @@ function MapSearch:GetSubzoneLocations()
                 local name = GetAreaInfo(list[i])
                 if name and name ~= "" and name ~= zoneName
                    and not NamesUnder(mapID)[name] and not (parentMapID and NamesUnder(parentMapID)[name]) then
-                    results[#results + 1] = PreparePOI({
-                        name = name, category = "subzone", isStatic = true,
-                        mapID = mapID, coordMapID = mapID, zoneName = zoneName,
-                        x = list[i + 1], y = list[i + 2], keywords = SUBZONE_KEYWORDS,
-                    })
+                    local n = packed.n + 1
+                    local lower = slower(name)
+                    packed.n = n
+                    packed.lower[n], packed.map[n], packed.at[n] = lower, mapID, i
+                    packed.mask[n] = bor(LetterMask(lower), kwMask)
                 end
             end
         end
     end
-    subzoneCache = results
-    return results
+    subzones = packed
+    return packed
+end
+
+function MapSearch:SubzonePOI(i)
+    local poi = subzonePOIs[i]
+    if poi then return poi end
+    local s = subzones
+    local mapID, at = s.map[i], s.at[i]
+    local list = ns.GPSData.areas[mapID]
+    local info = GetMapInfo(mapID)
+    poi = PreparePOI({
+        name = C_Map.GetAreaInfo(list[at]) or s.lower[i], nameLower = s.lower[i],
+        category = "subzone", isStatic = true,
+        mapID = mapID, coordMapID = mapID, zoneName = info and info.name,
+        x = list[at + 1], y = list[at + 2], keywords = SUBZONE_KEYWORDS, kwLower = SUBZONE_KEYWORDS,
+        searchMask = s.mask[i],
+    })
+    subzonePOIs[i] = poi
+    return poi
 end
 
 function MapSearch:GetStaticLocations(mapID)
@@ -265,8 +288,9 @@ function MapSearch:GetStaticLocations(mapID)
         end
     end
     -- The map's own subzones stand with its statics, under "This Zone".
-    for _, loc in ipairs(self:GetSubzoneLocations()) do
-        if loc.mapID == mapID then tinsert(results, loc) end
+    local sz = self:GetSubzones()
+    for i = 1, sz.n do
+        if sz.map[i] == mapID then tinsert(results, self:SubzonePOI(i)) end
     end
 
     staticLocationCache[mapID] = results
@@ -707,4 +731,10 @@ function MapSearch:GetPinInfo(pin)
         x = pinX,
         y = pinY,
     }
+end
+
+-- For the dev memory audit.
+MapSearch._peek = MapSearch._peek or {}
+function MapSearch._peek.scanners()
+    return { alwaysFindable = alwaysFindableCache, subzones = subzones, subzonePOIs = subzonePOIs }
 end
