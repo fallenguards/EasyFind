@@ -329,7 +329,7 @@ local function BuildFallbackIndex()
             fallbackBuilding = false
             if not ok then Utils.ErrorHandler(err) end
             RefreshOpenQuery(nil)
-        end, 2)
+        end, 2, "achievementHydrate")
     end
     Utils.SafeAfter(0, step)
 end
@@ -353,7 +353,7 @@ local function ArmFallbackInBackground()
                 fallbackWanted = false
                 RefreshOpenQuery(nil)
             end
-        end, 2)
+        end, 2, "achievementArm")
     end)
 end
 

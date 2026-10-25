@@ -837,7 +837,7 @@ function BlizzOptionsSearch.ReindexSettings()
         if initByVariable or gen ~= indexGen then return end
         Utils.RunSliced(function() IndexSettings(true) end, function(ok, err)
             if not ok then Utils.ErrorHandler(err) end
-        end, 2)
+        end, 2, "settingsIndex")
     end)
 end
 

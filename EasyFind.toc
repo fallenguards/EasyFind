@@ -46,6 +46,7 @@ Database/Main.lua
 Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua
+Database/Segments.lua
 Database/Instances_Forever.lua
 Database/Instances_Era.lua [AllowLoadGameType vanilla]
 Database/Instances_TBC.lua [AllowLoadGameType tbc]

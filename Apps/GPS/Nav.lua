@@ -1467,7 +1467,7 @@ function Nav.DecodeBlobs(onDone)
             local w = worlds[ci]
             if w then w.data = new end
         end
-    end, onDone, 6)
+    end, onDone, 6, "gpsDecode")
 end
 
 -- Decoded data idle for age seconds goes: a tile by its last read, a

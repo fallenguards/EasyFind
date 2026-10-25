@@ -222,7 +222,7 @@ function Search:OnSearchTextChanged(text, force)
         if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
     end
     pendingSliceText, pendingSliceForce = text, force
-    sliceHandle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6)
+    sliceHandle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6, "search")
 end
 
 local topBuf = {}   -- the top-15 selection's scratch

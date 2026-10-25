@@ -773,7 +773,9 @@ local function slicedDone(onDone, ok, ...)
     end
 end
 
-function Utils.RunSliced(fn, onDone, budgetMs)
+-- budgetMs: ms a slice, or a function read at each slice. label: names
+-- the run for a dev observer (Utils.sliceObserver, nil in play).
+function Utils.RunSliced(fn, onDone, budgetMs, label)
     if not dpstop then
         -- No profiler clock (offline harness): run synchronously.
         local function relay(ok, ...) slicedDone(onDone, ok, ...) end
@@ -790,6 +792,8 @@ function Utils.RunSliced(fn, onDone, budgetMs)
     -- keeps slicing after this returns and counts this one's time itself.
     local function step(outer, ok, ...)
         if not outer then frameSpent = frameSpent + (dpstop() - pumpStart) end
+        local observe = Utils.sliceObserver
+        if observe then observe(label, dpstop() - pumpStart) end
         sliceDeadline = outer
         if not ok then
             slicedDone(onDone, false, ...)
@@ -812,7 +816,7 @@ function Utils.RunSliced(fn, onDone, budgetMs)
             Utils.SafeAfter(0, pump)
             return
         end
-        local allowance = budgetMs
+        local allowance = type(budgetMs) == "function" and budgetMs() or budgetMs
         local remaining = FRAME_CAP_MS - frameSpent
         if remaining < allowance then allowance = remaining end
         local outer = sliceDeadline
@@ -841,33 +845,6 @@ end
 -- isOpenFn re-checks at every fire.
 local gcSweepSerials = {}
 local GC_SWEEP_TICKS = 40
-
--- Automatic-GC hold for cold construction bursts. A fresh install's first
--- search focus allocates ~23MB of provider builds in seconds; at that rate
--- Lua's incremental collector escalates into repeated synchronous assist
--- steps, felt as massive hitching (proven live: the memory ledger's
--- GC-stopped metering made the same burst run smooth twice, and unmetered
--- runs hitched twice). The warm chains already pace themselves with bounded
--- explicit collectgarbage("step") calls and a full end-of-chain collect;
--- holding the AUTOMATIC collector for the window completes that design.
--- Refcounted (chains overlap) with a per-hold watchdog so the collector can
--- never be left off by a crashed chain.
-local gcHolds = {}
-function Utils.HoldGC(tag, maxSeconds)
-    if not gcHolds[tag] then
-        gcHolds[tag] = true
-        collectgarbage("stop")
-    end
-    Utils.SafeAfter(maxSeconds or 30, function() Utils.ReleaseGC(tag) end)
-end
-
-function Utils.ReleaseGC(tag)
-    if not gcHolds[tag] then return end
-    gcHolds[tag] = nil
-    if next(gcHolds) == nil then
-        collectgarbage("restart")
-    end
-end
 
 -- A collector step bounded by time, not size: a sized step (step 400)
 -- that lands in the sweep frees tens of thousands of objects, a 32 ms

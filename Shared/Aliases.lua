@@ -181,24 +181,30 @@ local function MemoKey(entry)
 end
 
 -- Keys for new rows are worked out in slices once search is in use, so
--- the lookup after a category load never does it in one frame.
-local warmGen = 0
+-- the lookup after a category load never does it in one frame. One pass at
+-- a time: a change during it only sends it round once more, and rows
+-- already keyed are skipped, so each row is keyed once.
+local warming, warmAgain = false, false
 local function WarmKeys()
     local sf = ns.Search and ns.Search.GetSearchFrame and ns.Search:GetSearchFrame()
     if not (sf and sf._efProvidersWarmed) then return end
-    warmGen = warmGen + 1
-    local gen = warmGen
+    if warming then
+        warmAgain = true
+        return
+    end
+    warming = true
     Utils.SafeAfter(0, function()
-        if gen ~= warmGen then return end
         Utils.RunSliced(function()
-            local data = ns.Database and ns.Database.uiSearchData
-            for i = 1, data and #data or 0 do
-                if gen ~= warmGen then return end
-                local entry = data[i]
-                if entry then MemoKey(entry) end
-                if i % 64 == 0 then Utils.SliceCheckpoint() end
-            end
-        end, function() end, 2)
+            repeat
+                warmAgain = false
+                local data = ns.Database and ns.Database.uiSearchData
+                for i = 1, data and #data or 0 do
+                    local entry = data[i]
+                    if entry and keyMemo[entry] == nil then MemoKey(entry) end
+                    if i % 64 == 0 then Utils.SliceCheckpoint() end
+                end
+            until not warmAgain
+        end, function() warming = false end, 2, "aliasIndex")
     end)
 end
 

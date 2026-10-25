@@ -543,7 +543,7 @@ local function ScheduleGrow()
             growing = false
             if not ok then return ns.Utils.ErrorHandler(err) end
             if dirty or builtCount < #Database.uiSearchData then ScheduleGrow() end
-        end, GROW_SLICE_MS)
+        end, GROW_SLICE_MS, "indexGrow")
     end)
 end
 
@@ -626,6 +626,13 @@ function SearchIndex:NoteRemoved(entry)
         compactScheduled = true
         ns.Utils.SafeAfter(2, TryCompact)
     end
+end
+
+-- A row a segment takes over: its serial elsewhere dies (live's postings
+-- purge in the next compaction).
+local function Release(data)
+    if serials[data] then SearchIndex:NoteRemoved(data) end
+    serials[data] = nil
 end
 
 -- ==== saved segments ======================================================
@@ -727,11 +734,7 @@ function SearchIndex:BuildSegment(key, rows, onDone)
     local function run()
         for i = 1, #rows do
             local data = rows[i]
-            local old = serials[data]
-            if old then
-                alive[old] = nil
-                serials[data] = nil
-            end
+            Release(data)
             cur = seg
             IndexEntry(data)
             cur = live
@@ -750,7 +753,7 @@ function SearchIndex:BuildSegment(key, rows, onDone)
             ns.Utils.ErrorHandler(err)
         end
         if onDone then onDone(ok) end
-    end, GROW_SLICE_MS)
+    end, GROW_SLICE_MS, "indexSegment")
 end
 
 -- What SavedVariables keep for segment key: its own tables and printable
@@ -822,8 +825,7 @@ function SearchIndex:RestoreSegment(key, snap, rows)
     local base = seg.base
     for i = 1, n do
         local data = rows[i]
-        local old = serials[data]
-        if old then alive[old] = nil end
+        Release(data)
         local sid = base + i
         serials[data], slotEntry[sid], alive[sid] = sid, data, true
         entryMask[sid] = Unprintable4(em, i * 4 - 3)

@@ -124,6 +124,15 @@ function tests.builtSegments_findWhatOneIndexFinds()
     Same(BASE, Run(Database, false), "segments, full scan")
 end
 
+-- Rows live already indexed, taken over by a segment, are found once.
+function tests.segmentOverLiveRows_findsTheSame()
+    local rows, mounts = Corpus()
+    local Database, Index = NewEngine(rows)
+    Run(Database, true)
+    Index:BuildSegment("mount", mounts)
+    Same(BASE, Run(Database, true), "after taking over live rows")
+end
+
 function tests.restoredSegments_findWhatOneIndexFinds()
     local rows, mounts, toys = Corpus()
     local _, Index = NewEngine(rows)

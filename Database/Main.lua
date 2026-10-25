@@ -131,6 +131,10 @@ end
 
 function Database:Initialize()
     self:BuildUIDatabase()
+    -- The shipped rows, for their saved index segment (Database/Segments.lua).
+    local staticRows = {}
+    for i = 1, #uiSearchData do staticRows[i] = uiSearchData[i] end
+    self.staticRows = staticRows
 end
 
 -- WoW has shipped three names/shapes for warband-shared currency; check all so
@@ -227,6 +231,7 @@ function Database:PopulateDynamicCurrencies()
     local currencyIconMap = {}
 
     for i = 1, size do
+        if i % 16 == 0 then Utils.SliceCheckpoint() end
         local info = Caps.CurrencyAt(i)
         if info then
             local depth = info.currencyListDepth or 0
@@ -319,7 +324,8 @@ function Database:PopulateDynamicCurrencies()
     -- Use rawget so lazy-hydrated entries (Boss, Statistic) aren't
     -- force-materialized just for an icon scan they can't satisfy:
     -- their steps never reference currencyIDs.
-    for _, item in ipairs(uiSearchData) do
+    for idx, item in ipairs(uiSearchData) do
+        if idx % 256 == 0 then Utils.SliceCheckpoint() end
         local steps = rawget(item, "steps")
         if not item.icon and steps then
             for _, step in ipairs(steps) do
@@ -1300,7 +1306,7 @@ local function HydratePersistedLootCache()
     -- never skip loot). lootItemCache becomes a lazy map: itemID lookups
     -- materialize the stub on first access.
     Corpora.lootCorpus = Utils.NewPackedCorpus(saved.packed, LOOT_ROW_SPEC, Corpora.LOOT_CORPUS_PROTO,
-        { ungated = true, noShed = true, computed = Corpora.LOOT_COMPUTED })
+        { ungated = true, noShed = true, computed = Corpora.LOOT_COMPUTED, sliced = true })
     Utils.RegisterCorpus("loot", Corpora.lootCorpus)
     -- lootItemRi builds inside RebuildLootSearchData's first corpus pass
     -- (one decode walk instead of two at warm).
@@ -1560,7 +1566,7 @@ local function RebuildLootSearchData()
                     lootEntries[#lootEntries + 1] = entry
                 end
             end
-        end, wantedFields)
+        end, wantedFields, true)
     end
     for itemID, entry in pairs(lootItemCache) do
         if not (Corpora.lootItemRi and Corpora.lootItemRi[itemID])
@@ -2148,7 +2154,7 @@ function Database:FinishHousingResults(done)
         else
             done(true)
         end
-    end)
+    end, nil, "housingRows")
 end
 
 -- Blizzard's live catalog searcher exists only while the housing catalog UI is
@@ -4522,6 +4528,7 @@ function Database:PopulateDynamicProfessions()
                         local pageIDs = PageRecipeIDs(profData, pageID)
                         if pageIDs then
                             for ri = 1, #pageIDs do
+                                if ri % 32 == 0 then Utils.SliceCheckpoint() end
                                 local recipeID = pageIDs[ri]
                                 local show
                                 if fallbackLearnedOnly then
@@ -5006,7 +5013,7 @@ local function HydratePersistedBossCache()
     -- fields resolve through the computed table.
     local corpus = Utils.NewPackedCorpus(saved.packed, BOSS_ROW_SPEC, Corpora.BOSS_CORPUS_PROTO,
         { computed = Corpora.BOSS_COMPUTED, keywordsFor = Corpora.BossRowKeywords,
-          keywordFields = { instanceName = true } })
+          keywordFields = { instanceName = true }, sliced = true })
     if corpus.count == 0 then return false end
     Utils.RegisterCorpus("bosses", corpus)
 
@@ -5020,7 +5027,7 @@ local function HydratePersistedBossCache()
             uiSearchData[#uiSearchData + 1] = corpus:StubAt(ri)
             inserted = inserted + 1
         end
-    end, { name = true, encounterID = true, instanceID = true, instanceName = true })
+    end, { name = true, encounterID = true, instanceID = true, instanceName = true }, true)
     if inserted == 0 then return false end
 
     if Database.ResetSearchCache then Database:ResetSearchCache() end
@@ -6832,7 +6839,7 @@ local function HydratePersistedStatisticsCache()
     -- The blob stays the store: stubs hydrate on demand, chain-dependent
     -- path/steps resolve through the computed fields.
     local corpus = Utils.NewPackedCorpus(saved.packed, STAT_ROW_SPEC, Corpora.STAT_CORPUS_PROTO,
-        { computed = Corpora.STAT_COMPUTED })
+        { computed = Corpora.STAT_COMPUTED, sliced = true })
     if corpus.count == 0 then return false end
     Utils.RegisterCorpus("statistics", corpus)
     Corpora.statChainsRef = chains
@@ -6849,7 +6856,7 @@ local function HydratePersistedStatisticsCache()
             MarkID(Database.statisticIDs, row.id)
             inserted = inserted + 1
         end
-    end)
+    end, nil, true)
     if inserted == 0 then return false end
 
     Database.statisticsVersion = Database.statisticsVersion + 1

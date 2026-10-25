@@ -131,6 +131,9 @@ local function FinishDynamicProvider(database, provider, ok, err, changed, onDon
     provider.loaded = true
     provider.dirty = false
     local removed, appendFrom = ConsumePopulateBookkeeping(database)
+    if removed ~= nil and ns.SearchSegments then
+        ns.SearchSegments.AttachProvider(provider.key, provider.category, appendFrom)
+    end
     local appendOnly = removed == false
     if changed ~= false then
         if appendOnly and appendFrom and database.NoteAppendedEntries then
@@ -147,6 +150,7 @@ local function FinishDynamicProvider(database, provider, ok, err, changed, onDon
 end
 
 local function NotifyProviderWaiters(provider, changed)
+    provider.urgent = nil
     local waiters = provider.waiting
     provider.waiting = nil
     if waiters then
@@ -165,11 +169,15 @@ end
 -- The actual work the scheduler's run() invokes. Behavior matches the
 -- old RunDynamicProvider closely: pre-fn, then sync or async dispatch,
 -- with FinishDynamicProvider managing loaded/dirty flags.
+-- A slice's ms: small while nothing waits, more once a query asks.
+local BACKGROUND_SLICE_MS, URGENT_SLICE_MS = 1.5, 4
+
 local function runProviderJob(database, provider, schedDone)
     local function finishWaiters(changed)
         NotifyProviderWaiters(provider, changed)
         schedDone()
     end
+    local function Pace() return provider.urgent and URGENT_SLICE_MS or BACKGROUND_SLICE_MS end
 
     -- Stamped so the dirty-mark handlers can tell a populate's own event
     -- echo from a real external change (see WasProviderRecentlyRun).
@@ -190,7 +198,7 @@ local function runProviderJob(database, provider, schedDone)
             if not ok then
                 FinishDynamicProvider(database, provider, false, err, false, finishWaiters)
             end
-        end)
+        end, Pace, "provider " .. provider.key)
         return
     end
 
@@ -227,7 +235,7 @@ local function runProviderJob(database, provider, schedDone)
         end
         provider.notReadyAt = nil
         FinishDynamicProvider(database, provider, ok, readyOrErr, true, finishWaiters)
-    end)
+    end, Pace, "provider " .. provider.key)
 end
 
 -- Registers all dynamic provider jobs against the active scheduler.
@@ -369,10 +377,13 @@ function Database:WasProviderRecentlyRun(key, windowSec)
     return (GetTime() - provider.lastRunAt) < (windowSec or 2.0)
 end
 
+-- With onDone a caller waits: the urgent pace, run at once. Without, a
+-- warm: background work.
 function Database:EnsureDynamicProviderLoaded(key, onDone)
     local provider = dynamicProviderByKey[key]
     if not provider then return false end
-    RunDynamicProvider(self, provider, onDone or function() end)
+    if onDone then provider.urgent = true end
+    RunDynamicProvider(self, provider, onDone or function() end, onDone ~= nil)
     return true
 end
 
@@ -381,6 +392,7 @@ function Database:RequestDynamicProviderLoaded(key, onDone)
     if not provider then return false end
     -- Explicit query request from the Engine, which already honored the filter /
     -- quick-filters / explicit intent -- so bypass the load-gate.
+    provider.urgent = true
     RunDynamicProvider(self, provider, onDone or function() end, false, true)
     return true
 end
@@ -418,10 +430,6 @@ end
 function Database:LoadEagerDynamicProviders()
     if self._loadingEagerProviders then return end
     self._loadingEagerProviders = true
-    -- Hold the automatic GC for the burst (see Utils.HoldGC): the bounded
-    -- per-provider steps below stay the only collector work until the
-    -- chain's end sweep.
-    Utils.HoldGC("eagerProviders", 30)
     local index = 1
     local function step()
         while index <= #dynamicProviders do
@@ -429,10 +437,6 @@ function Database:LoadEagerDynamicProviders()
             index = index + 1
             if provider.eager and not (provider.loaded and not provider.dirty) then
                 RunDynamicProvider(self, provider, function()
-                    -- Bounded GC step per provider: keeps the warm's peak
-                    -- allocation from stacking every provider's build
-                    -- garbage before the end-of-chain full collect.
-                    Utils.GCStep(1)
                     -- Index this provider's entries in budgeted slices
                     -- before the next one loads.
                     local function indexSlice()
@@ -444,19 +448,17 @@ function Database:LoadEagerDynamicProviders()
                         Utils.SafeAfter(0, step)
                     end
                     indexSlice()
-                end)
+                end, false)
                 return
             end
         end
         self._loadingEagerProviders = false
-        Utils.ReleaseGC("eagerProviders")
         -- A query typed during the chain held its paint (Search/Query.lua
         -- waits while IsWarmingProviders); paint it now the data is whole.
         RefreshActiveSearch()
         if ns.SearchIndex and ns.SearchIndex.EnsureBudget then
             ns.SearchIndex:EnsureBudget(3)
         end
-        Utils.SafeAfter(0.05, function() Utils.SettleGC() end)
     end
     -- Deferred so the load lands after the login frame (which is kept light)
     -- and after the first few frames of API data settling.
@@ -474,7 +476,6 @@ end
 function Database:LoadDeferredSyncProvidersStaggered()
     -- Suppress per-provider ResetSearchCache; rebuild the prefix index
     -- once at the end of the staggered chain.
-    Utils.HoldGC("staggeredProviders", 60)
     self._dynamicBatchLoading = true
     self._dynamicBatchChanged = false
     local index = 1
@@ -486,10 +487,6 @@ function Database:LoadDeferredSyncProvidersStaggered()
             if not provider.asyncFn and not provider.lazy
                and not (provider.loaded and not provider.dirty) then
                 RunDynamicProvider(self, provider, function()
-                    -- Bounded GC step per provider: keeps the warm's peak
-                    -- allocation from stacking every provider's build
-                    -- garbage before the end-of-chain full collect.
-                    Utils.GCStep(1)
                     -- Index this provider's entries in budgeted slices
                     -- before the next one loads.
                     local function indexSlice()
@@ -501,7 +498,7 @@ function Database:LoadDeferredSyncProvidersStaggered()
                         Utils.SafeAfter(0, step)
                     end
                     indexSlice()
-                end)
+                end, false)
                 return
             end
         end
@@ -510,15 +507,11 @@ function Database:LoadDeferredSyncProvidersStaggered()
         self._dynamicBatchChanged = false
         if changed and self.ResetSearchCache then self:ResetSearchCache() end
         if self.WarmSearchHotPath then self:WarmSearchHotPath() end
+        -- What a first "mount" search loaded inside its keystrokes, warmed here.
+        self:EnsureDynamicProviderLoaded("mounts")
+        self:EnsureDynamicProviderLoaded("housing")
         -- Entries the shortkeys point at may have only just loaded; rebind now.
         if ns.Shortkeys and ns.Shortkeys.ApplyAll then ns.Shortkeys:ApplyAll() end
-        -- The warm allocates ~20MB of build TRANSIENTS the incremental GC
-        -- would otherwise sit on for minutes, parading in every memory
-        -- meter as EasyFind usage (audited: shown 16.6MB vs 8.2MB live).
-        -- Collect two frames out so the sweep never shares a frame with
-        -- the warm's last step.
-        Utils.ReleaseGC("staggeredProviders")
-        Utils.SafeAfter(0.05, function() Utils.SettleGC() end)
     end
     step()
 end

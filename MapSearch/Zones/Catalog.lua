@@ -300,7 +300,7 @@ function MapSearch:BuildWorldZoneCache()
         if ns.Search and ns.Search.RefreshActiveSearch then
             ns.Search:RefreshActiveSearch()
         end
-    end, 4)
+    end, 4, "zoneCatalog")
     return nil
 end
 

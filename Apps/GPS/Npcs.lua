@@ -361,7 +361,7 @@ function N.Warm()
             if not (N.n and N.n > 0) then return end
             if ns.Search and ns.Search.RefreshActiveSearch then ns.Search:RefreshActiveSearch() end
             if ns.MapTab and ns.MapTab.RefreshSearch then ns.MapTab:RefreshSearch() end
-        end, 4)
+        end, 4, "npcWarm")
     end)
 end
 
