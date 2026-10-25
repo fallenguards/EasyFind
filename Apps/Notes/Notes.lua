@@ -1146,23 +1146,24 @@ end
 -- chat message holds 255 characters); a longer one travels as its owner's
 -- name and its id, and a click asks the owner for it over the hidden
 -- addon channel, answered in parts for the notes the owner linked.
-local NoteLink = { PREFIX = "EFNote", PART = 220, pending = {}, asked = {} }
+local NoteLink = { PREFIX = "EFNote", PART = 220, pending = {}, asked = {}, sending = {} }
 
+-- The whisper target: the character name a sender carries, never the surname.
 function NoteLink.Owner()
     local realm = GetNormalizedRealmName and GetNormalizedRealmName() or (GetRealmName() or ""):gsub("%s", "")
-    return (ns.PlayerName() or "?") .. "-" .. realm
+    return (ns.WhisperName() or "?") .. "-" .. realm
 end
 
 -- The link's tail for a note: c + the share code when the link fits a
--- message, else p + owner/id/title.
+-- message, else p + owner/id:token/title; only the token fetches it.
 function NoteLink.Key(id)
     local note = NoteByID(id)
     if not note then return nil end
     local title = NoteTitle(note):gsub("[%[%]{}/|]", "")
     local code = notesNS.ExportCode(id)
     if code and #title + #code + 26 <= 255 then return "c" .. code end
-    note.sharedAt = time()
-    return "p" .. NoteLink.Owner() .. "/" .. id .. "/" .. title
+    note.linkToken = note.linkToken or Utils.sformat("%08x", math.random(0, 0x7fffffff))
+    return "p" .. NoteLink.Owner() .. "/" .. id .. ":" .. note.linkToken .. "/" .. title
 end
 
 -- The row a link resolves to on the reader's side; its click takes the note.
@@ -1172,15 +1173,31 @@ function NoteLink.Row(tail)
     if kind == "c" then
         name = notesNS.DecodeCode(rest)
     elseif kind == "p" then
-        name = rest:match("^[^/]+/%d+/(.*)$")
+        name = rest:match("^[^/]+/%d+:%x+/(.*)$")
     end
     if not name or name == "" then return nil end
     return { name = name, icon = ns.NOTES_ICON_TEX, noteLink = tail, hint = L["NOTES_LINK_ROW_HINT"] }
 end
 
+-- A throttled message goes again a second later.
 function NoteLink.Send(target, text)
     if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then return end
-    pcall(C_ChatInfo.SendAddonMessage, NoteLink.PREFIX, text, "WHISPER", target)
+    local ok, result = pcall(C_ChatInfo.SendAddonMessage, NoteLink.PREFIX, text, "WHISPER", target)
+    local throttled = Enum.SendAddonMessageResult and Enum.SendAddonMessageResult.AddonMessageThrottle
+    if ok and throttled and result == throttled then
+        Utils.SafeAfter(1, function() NoteLink.Send(target, text) end)
+    end
+end
+
+-- Gives up when 10 s pass with no part arriving.
+function NoteLink.Wait(key, owner)
+    local token = {}
+    NoteLink.asked[key] = token
+    Utils.SafeAfter(10, function()
+        if NoteLink.asked[key] ~= token then return end
+        NoteLink.asked[key], NoteLink.pending[key] = nil, nil
+        EasyFind:Print(Utils.sformat(L["NOTES_LINK_NO_ANSWER_FMT"], owner))
+    end)
 end
 
 function NoteLink.Take(tail)
@@ -1189,19 +1206,13 @@ function NoteLink.Take(tail)
         if not notesNS.ImportCode(rest) then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
         return
     end
-    local owner, id = rest:match("^([^/]+)/(%d+)/")
+    local owner, id, token = rest:match("^([^/]+)/(%d+):(%x+)/")
     if not owner then return end
     local key = owner .. "/" .. id
     if NoteLink.asked[key] then return end
-    NoteLink.asked[key] = true
-    NoteLink.Send(owner, "Q\t" .. id)
+    NoteLink.Wait(key, owner)
+    NoteLink.Send(owner, "Q\t" .. id .. "\t" .. token)
     EasyFind:Print(Utils.sformat(L["NOTES_LINK_ASKING_FMT"], owner))
-    Utils.SafeAfter(10, function()
-        if NoteLink.asked[key] then
-            NoteLink.asked[key], NoteLink.pending[key] = nil, nil
-            EasyFind:Print(Utils.sformat(L["NOTES_LINK_NO_ANSWER_FMT"], owner))
-        end
-    end)
 end
 
 -- Part k of a note's code to the reader who asked, the next a beat later.
@@ -1210,18 +1221,24 @@ function NoteLink.SendParts(target, id, code, k, total)
     NoteLink.Send(target, "A\t" .. id .. "\t" .. k .. "\t" .. total .. "\t" .. piece)
     if k < total then
         Utils.SafeAfter(0.15, function() NoteLink.SendParts(target, id, code, k + 1, total) end)
+    else
+        NoteLink.sending[target .. "/" .. id] = nil
     end
 end
 
--- Q id: a reader asks for a note this character linked. A id i n part:
+-- Q id token: a reader asks for a note by its link's token. A id i n part:
 -- one part of a note asked for; the whole arrives as an import.
 function NoteLink.OnMessage(text, sender)
     local cmd, id, i, n, part = strsplit("\t", text)
     id = tonumber(id)
     if cmd == "Q" and id then
         local note = NoteByID(id)
-        local code = note and note.sharedAt and notesNS.ExportCode(id)
-        if code then NoteLink.SendParts(sender, id, code, 1, math.ceil(#code / NoteLink.PART)) end
+        local code = note and note.linkToken and note.linkToken == i and notesNS.ExportCode(id)
+        local chain = sender .. "/" .. id
+        if code and not NoteLink.sending[chain] then
+            NoteLink.sending[chain] = true
+            NoteLink.SendParts(sender, id, code, 1, math.ceil(#code / NoteLink.PART))
+        end
     elseif cmd == "A" and id and tonumber(i) and tonumber(n) and part then
         local key = sender .. "/" .. id
         if not NoteLink.asked[key] then return end
@@ -1229,7 +1246,7 @@ function NoteLink.OnMessage(text, sender)
         NoteLink.pending[key] = got
         i = tonumber(i)
         if not got[i] then got[i], got.count = part, got.count + 1 end
-        if got.count < got.n then return end
+        if got.count < got.n then NoteLink.Wait(key, sender) return end
         NoteLink.asked[key], NoteLink.pending[key] = nil, nil
         local parts = {}
         for k = 1, got.n do parts[k] = got[k] or "" end

@@ -2176,6 +2176,11 @@ function ns.PlayerName()
     return GetUnitName and GetUnitName("player", false) or UnitName("player")
 end
 
+-- The name a whisper reaches: the character's own, never Forever's surname.
+function ns.WhisperName()
+    return (UnitName("player"))
+end
+
 -- Forever surnames: per-character slots once keyed by the first name
 -- alone are copied to the full name's key, not moved, since every
 -- character sharing that first name used the old slot.
