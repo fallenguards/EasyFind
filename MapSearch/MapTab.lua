@@ -190,7 +190,8 @@ local function RefreshSelectGlows()
             glow:SetShown(shown)
         end
     end
-    local searchSelected = selectedIsOurs and activePage == nil
+    -- A page with no tab of its own (the GPS's) is the search tab's.
+    local searchSelected = selectedIsOurs and (activePage == nil or (pages[activePage] and pages[activePage].noTab) == true)
     if selectedIsOurs then
         setGlow(qmf.QuestsTab, false)
         setGlow(qmf.MapLegendTab, false)
