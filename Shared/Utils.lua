@@ -5370,11 +5370,20 @@ local function PaintHintTooltip(self)
     end
 end
 
+-- The hint tooltip's level: a raised menu stays under it, or its rows'
+-- hints draw behind it (the GPS window's settings flyout).
+Utils.HINT_LEVEL = 9999
+
+function Utils.RaiseMenu(frame)
+    frame:Raise()
+    if frame:GetFrameLevel() > Utils.HINT_LEVEL - 50 then frame:SetFrameLevel(Utils.HINT_LEVEL - 50) end
+end
+
 local function EnsureHintTooltip()
     if tip then return tip end
     tip = CreateFrame("Frame", "EasyFindHintTooltip", UIParent, "BackdropTemplate")
     tip:SetFrameStrata("TOOLTIP")
-    tip:SetFrameLevel(9999)
+    tip:SetFrameLevel(Utils.HINT_LEVEL)
     tip:SetClampedToScreen(true)
     tip:EnableMouse(false)   -- a label: the mouse passes straight through
     ns.CreateRoundedRectBorder(tip)
@@ -8114,7 +8123,7 @@ local function CursorMenuRowEntered(menu, row)
     if row.SetMenuHighlightFocused then row:SetMenuHighlightFocused(true) end
     -- Sit above any sibling at this strata so the flyout's rows, not an
     -- overlapping frame, receive the click.
-    if child and child.Raise then child:Raise() end
+    if child and child.Raise then Utils.RaiseMenu(child) end
 end
 
 -- Copy rows (def.copy): a menu row whose action is the OS clipboard.
@@ -8411,7 +8420,7 @@ local function CursorMenuFocusKeyboard(self, index)
     CursorMenuRoot(self)._mouseYields = true
     Utils.SafeCallMethod(self, "EnableKeyboard", true)
     Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", false)
-    if self.Raise then self:Raise() end
+    if self.Raise then Utils.RaiseMenu(self) end
     CursorMenuSetKeyboardIndex(self, index or 1)
 end
 

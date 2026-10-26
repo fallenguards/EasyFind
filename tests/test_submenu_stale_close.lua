@@ -27,6 +27,7 @@ local function Load()
         Utils = {
             SafeAfter = function(_, fn) timers[#timers + 1] = fn end,
             ShowCursorMenu = function() flyout.shown = true return flyout end,
+            RaiseMenu = function(f) f:Raise() end,
         },
     }, { __index = _G })
     local RowEntered = assert(load(table.concat(parts, "\n") .. "\nreturn CursorMenuRowEntered",
