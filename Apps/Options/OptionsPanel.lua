@@ -5218,8 +5218,149 @@ function Options:CurrentExtensionPage()
     return shown and extensionCurrent or nil
 end
 
--- Result clicks: what a click, Alt, Ctrl and Shift do on each kind of
--- result, the kind picked at the top and one flyout per gesture under it.
+-- Result actions' second half: each right-click action with its chord
+-- (Search/Results/RowActions.lua), in a card that scrolls. Click a key
+-- button to bind, right-click it to clear.
+local ROWACT_ROW_H, ROWACT_BTN_W = 26, 116
+local function BuildRowActionsList(ctx, tab, above)
+    local RowActions = ns.ResultRowActions
+    if not RowActions then return end
+    local header = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -18)
+    header:SetText(L["OPT_ROWACT_HEADER"])
+    local hint = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
+    hint:SetPoint("RIGHT", tab, "RIGHT", -12, 0)
+    hint:SetJustifyH("LEFT")
+    hint:SetWordWrap(true)
+    hint:SetText(L["OPT_ROWACT_HINT"])
+
+    local card = CreateFrame("Frame", nil, tab)
+    card:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -4, -8)
+    ctx.AnchorListCardBottom(card, tab)
+    ns.CreateRoundedRectBorder(card)
+    ns.SetRoundedRectBarHeight(card, 8)
+    HideRoundedFrameBorder(card)
+    ns.ApplyCardFill(card)
+    local scroll = CreateFrame("ScrollFrame", nil, card)
+    scroll:SetPoint("TOPLEFT", card, "TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 6)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(1, 1)
+    scroll:SetScrollChild(content)
+    local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, card)
+    ParkScrollBarInMargin(bar, card, 2)
+
+    local rows = {}
+    local function KeyText(id)
+        return RowActions.ChordText(RowActions.KeyOf(id)) or (_G["NOT_BOUND"] or "Not Bound")
+    end
+    local function Refresh()
+        for _, row in ipairs(rows) do
+            if row:IsShown() then row.keyBtn:SetText(KeyText(row.actionId)) end
+        end
+    end
+    local function StopCapture(btn)
+        btn.waitingForKey = false
+        btn:UnlockHighlight()
+        Utils.DisarmBindingCapture(btn)
+        Refresh()
+    end
+    local function MakeRow(i)
+        local row = CreateFrame("Frame", nil, content)
+        row:SetHeight(ROWACT_ROW_H)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i - 1) * ROWACT_ROW_H)
+        row:SetPoint("RIGHT", scroll, "RIGHT", 0, 0)
+        row.icon = row:CreateTexture(nil, "ARTWORK")
+        row.icon:SetSize(16, 16)
+        row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+        row.keyBtn = CreateModernButton(row)
+        row.keyBtn:SetNormalFontObject("GameFontHighlightSmall")
+        row.keyBtn:SetHighlightFontObject("GameFontHighlightSmall")
+        ns.StyleBgFillButton(row.keyBtn)
+        row.keyBtn:SetSize(ROWACT_BTN_W, 20)
+        row.keyBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+        row.label:SetPoint("RIGHT", row.keyBtn, "LEFT", -8, 0)
+        row.label:SetJustifyH("LEFT")
+        row.label:SetWordWrap(false)
+        row.label:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
+        row.keyBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        row.keyBtn:SetScript("OnClick", function(btn, button)
+            -- A flyout dismissed on this click's press must not arm a capture.
+            if ns._efFlyoutClosedAt and GetTime() - ns._efFlyoutClosedAt < 0.30 then return end
+            if button == "RightButton" then
+                if btn.waitingForKey then StopCapture(btn) end
+                RowActions.Set(row.actionId, nil)
+                Refresh()
+                return
+            end
+            if btn.waitingForKey then
+                StopCapture(btn)
+                return
+            end
+            btn.waitingForKey = true
+            btn:SetText(L["OPT_KB_PRESS_KEY"])
+            btn:LockHighlight()
+            Utils.ArmBindingCapture(btn, function(self, combo)
+                if combo == "stop" then
+                    StopCapture(self)
+                    return
+                end
+                local refusal = RowActions.Refusal(combo)
+                if refusal then
+                    ns.ShowHintTooltip(self, "ANCHOR_RIGHT", RowActions.ChordText(combo), refusal)
+                    return
+                end
+                RowActions.Set(row.actionId, combo)
+                StopCapture(self)
+            end)
+        end)
+        Utils.AttachDelayedTooltip(row.keyBtn, "ANCHOR_RIGHT", function()
+            return row.label:GetText(), nil, L["OPT_KB_CLEAR_HINT"]
+        end)
+        rows[i] = row
+        return row
+    end
+    -- Built on show: an extension that registers later still gets its row.
+    local function Build()
+        local list = RowActions.List()
+        for i, action in ipairs(list) do
+            local row = rows[i] or MakeRow(i)
+            row.actionId = action.id
+            row.label:SetText(action.label)
+            if action.icon then
+                Utils.SetIconTexture(row.icon, action.icon)
+                if action.iconCoords then row.icon:SetTexCoord(unpack(action.iconCoords)) else row.icon:SetTexCoord(0, 1, 0, 1) end
+                row.icon:Show()
+            else
+                row.icon:Hide()
+            end
+            row:Show()
+        end
+        for i = #list + 1, #rows do rows[i]:Hide() end
+        content:SetHeight(#list * ROWACT_ROW_H)
+        content:SetWidth(scroll:GetWidth() or 1)
+        Refresh()
+        if bar then
+            local viewH = scroll:GetHeight() or 0
+            if content:GetHeight() > viewH + 1 then
+                bar:Show()
+                bar:UpdateThumb(content:GetHeight(), viewH)
+            else
+                scroll:SetVerticalScroll(0)
+                bar:Hide()
+            end
+        end
+    end
+    tab:HookScript("OnShow", Build)
+    scroll:SetScript("OnSizeChanged", Build)
+end
+
+-- Result actions: what a click, Alt, Ctrl and Shift do on each kind of
+-- result, the kind picked at the top and one flyout per gesture under it,
+-- then the actions any row takes from a chord.
 -- Shift stays the drag where a kind has one; the right-click menu never changes.
 local function BuildResultClicksTab(ctx)
     local CreateTab, CreateFlyoutPresetRow, RESET_BTN_W = ctx.CreateTab, ctx.CreateFlyoutPresetRow, ctx.RESET_BTN_W
@@ -5294,6 +5435,7 @@ local function BuildResultClicksTab(ctx)
         ShowKind(current)
     end)
     ShowKind(current)
+    BuildRowActionsList(ctx, tab, reset)
 end
 
 local function BuildFeedbackTab(ctx)
