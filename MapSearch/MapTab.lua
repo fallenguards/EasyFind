@@ -1001,8 +1001,10 @@ function MapTab:RunSearch(text)
     })
 
     -- Behind a page (the GPS) the results are hidden, and so is their empty line.
+    -- Read from the entries drawn: same-named zones leave globalFiltered for
+    -- their one header.
     if activePage == nil and (not pinned or #pinned == 0)
-       and (not localFiltered or #localFiltered == 0) and #globalFiltered == 0 then
+       and #localEntries == 0 and #globalEntries == 0 then
         panel.emptyMsg:SetText("|cff999999" .. L["MAP_NO_MATCHES"] .. "|r")
         panel.emptyMsg:Show()
     end
@@ -1617,7 +1619,8 @@ function MapTab.ScaleChrome(p)
     local s = FontScale()
     local box = p.searchBox
     if box then
-        ScaleFont(box, "ChatFontSmall", s)
+        ScaleFont(box, "ChatFontNormal", s)   -- SearchBoxTemplate's own
+        if box.FitHeight then box.FitHeight() end
         if box.Instructions then ScaleFont(box.Instructions, "GameFontDisableSmall", s) end
         if box.FitPlaceholder then box.FitPlaceholder() end
     end
@@ -2216,7 +2219,18 @@ local function CreatePanel(qmf)
     -- to mirror the Quests tab box once measurable.
     local searchBox = CreateSearchBox(outer)
     searchBox:ClearAllPoints()
-    searchBox:SetHeight(20)
+    -- Tall enough for its text at every text size, its border art with it;
+    -- never under the client's own box.
+    searchBox.minHeight = 20
+    searchBox.FitHeight = function()
+        local _, size = searchBox:GetFont()
+        local h = mmax(searchBox.minHeight, math.floor((size or 14) + 8 + 0.5))
+        searchBox:SetHeight(h)
+        for _, key in ipairs({ "Left", "Middle", "Right" }) do
+            if searchBox[key] then searchBox[key]:SetHeight(h) end
+        end
+    end
+    searchBox.FitHeight()
     -- Clear of the quest border's top on the side panel.
     searchBox:SetPoint("TOPLEFT", outer, "TOPLEFT", 4, SidePanel.frame and -2 or -5)
     searchBox:SetPoint("RIGHT", cog, "LEFT", -6, 0)
@@ -2249,12 +2263,13 @@ local function CreatePanel(qmf)
             end
         end
         local w, h = qsb:GetSize()
+        if h and h > 0 then searchBox.minHeight = h end
         if p.cog then
             searchBox:SetPoint("RIGHT", p.cog, "LEFT", -6, 0)
-            if h and h > 0 then searchBox:SetHeight(h) end
-        elseif w and w > 0 and h and h > 0 then
-            searchBox:SetSize(w, h)
+        elseif w and w > 0 then
+            searchBox:SetWidth(w)
         end
+        searchBox.FitHeight()
     end
     p.MeasureBlizzardSearch = p.AlignToBlizzardSearch
 

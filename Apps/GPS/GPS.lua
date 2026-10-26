@@ -618,6 +618,7 @@ end
 
 -- The game's pin off the map, when it is still ours on this step's end.
 local function LiftPin(route)
+    GPS.DropWaitingPin()
     local step = route and route.steps and route.steps[route.active or 1]
     local mapID, x, y
     if step then mapID, x, y = WaypointPoint(step) end
@@ -625,7 +626,7 @@ local function LiftPin(route)
     if not (wp and wp.uiMapID == mapID and wp.position) then return end
     if math.abs(wp.position.x - x) > 0.001 or math.abs(wp.position.y - y) > 0.001 then return end
     if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+    GPS.TrackGamePin(false)
     if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
 end
 
@@ -637,14 +638,31 @@ function GPS.LearnAhead(route)
     return false
 end
 
+-- The game's waypoint and super-track, changed through the map search's
+-- waits (MapSearch.WaypointChange): never under an open world map.
+function GPS.GamePinChange(kind, fn)
+    local MS = ns.MapSearch
+    if MS and MS.WaypointChange then MS.WaypointChange(kind, fn) else fn() end
+end
+function GPS.TrackGamePin(on)
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+        GPS.GamePinChange("track", function() C_SuperTrack.SetSuperTrackedUserWaypoint(on) end)
+    end
+end
+function GPS.DropWaitingPin()
+    local MS = ns.MapSearch
+    if MS and MS.DropWaypointChange then MS.DropWaypointChange("place") end
+end
+
 -- The pin a step before set, while the game still shows it: taken off.
 function GPS.DropPin(route)
+    GPS.DropWaitingPin()
     local pin, wp = route.pin, C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
     route.pin = nil
     if not (pin and wp and wp.uiMapID == pin[1] and wp.position) then return end
     if math.abs(wp.position.x - pin[2]) > 0.001 or math.abs(wp.position.y - pin[3]) > 0.001 then return end
     if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+    GPS.TrackGamePin(false)
     if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
 end
 
@@ -764,9 +782,9 @@ TrackStep = function(index)
     if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
         route.pin = { mapID, x, y }
-        if not route.untracked and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+        if not route.untracked then
             GPS.ClearQuestSuperTrack()
-            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+            GPS.TrackGamePin(true)
         end
         if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
     end
@@ -2835,7 +2853,7 @@ end
 function GPS.ReleaseTracking(route)
     route.untracked = true
     if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+    GPS.TrackGamePin(false)
 end
 
 -- The route takes the super-track: a quest's goes, so the tracker never
@@ -2843,7 +2861,7 @@ end
 function GPS.ClearQuestSuperTrack()
     local ST = C_SuperTrack
     if ST and ST.IsSuperTrackingQuest and ST.IsSuperTrackingQuest() and ST.SetSuperTrackedQuestID then
-        ST.SetSuperTrackedQuestID(0)
+        GPS.GamePinChange("quest", function() ST.SetSuperTrackedQuestID(0) end)
     end
 end
 
@@ -2857,7 +2875,7 @@ local function ToggleRouteTracking()
         GPS.ClearQuestSuperTrack()
         if C_SuperTrack and C_SuperTrack.GetSuperTrackedVignette and C_SuperTrack.GetSuperTrackedVignette()
             and C_SuperTrack.ClearAllSuperTrackedVignettes then
-            C_SuperTrack.ClearAllSuperTrackedVignettes()
+            GPS.GamePinChange("vignette", C_SuperTrack.ClearAllSuperTrackedVignettes)
         end
         TrackStep(route.active or 1)
     end

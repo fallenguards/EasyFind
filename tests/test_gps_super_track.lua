@@ -16,7 +16,9 @@ local function Load(state)
         SetSuperTrackedQuestID = function(id) state.quest = id end,
         SetSuperTrackedUserWaypoint = function(on) state.waypoint = on end,
     }
-    local GPS = {}
+    -- The game's pin changed at once, as with the world map closed.
+    local GPS = { GamePinChange = function(_, fn) fn() end }
+    function GPS.TrackGamePin(on) ST.SetSuperTrackedUserWaypoint(on) end
     local env = setmetatable({
         GPS = GPS, C_SuperTrack = ST, ns = {},
         Route = function() return state.route end,

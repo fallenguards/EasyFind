@@ -58,7 +58,7 @@ local function PinOnClick(self)
     local MapSearch = ns.MapSearch
     if MapSearch and MapSearch.PlaceUserWaypoint and UiMapPoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(e.zoneMapID, e.zoneX, e.zoneY))
-        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        if MapSearch.TrackWaypoint then MapSearch.TrackWaypoint(true) end
     end
 end
 

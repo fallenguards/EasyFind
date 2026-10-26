@@ -139,6 +139,28 @@ end
 -- A list's owner dresses the group headers for where the list sits (the
 -- tracker's header art snapped in, the theme in the window); a new skin
 -- repaints the pooled headers.
+-- Two zones of one name fold under one header and leave the list of
+-- places outside headers empty: the map tab's "No matches." line read that
+-- list and showed under the Dalaran header (MoP, 2026-10-26). It reads the
+-- entries drawn.
+function tests.sameNamedZonesFoldUnderOneHeader_soTheEmptyLineReadsTheEntries()
+    local PlaceList = Load()
+    local entries, outside = PlaceList.WorldEntries({
+        { name = "Dalaran", isZone = true, zoneMapID = 125, mapID = 125 },
+        { name = "Dalaran", isZone = true, zoneMapID = 126, mapID = 126 },
+    })
+    H.assertEq(#entries, 1)
+    H.assertEq(entries[1].type, "version")
+    H.assertEq(#outside, 0, "nothing left outside the header")
+    local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/MapTab.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local cond = src:match("if activePage == nil and %(not pinned or #pinned == 0%)(.-)then")
+    H.assertTrue(cond ~= nil, "the empty line's condition")
+    H.assertTrue(cond:find("#globalEntries == 0", 1, true) ~= nil and not cond:find("Filtered", 1, true),
+        "it reads the entries drawn, not the places outside headers")
+end
+
 function tests.aHostSkinDressesTheHeaders()
     local PlaceList = Load()
     local painted, toggled = 0, 0

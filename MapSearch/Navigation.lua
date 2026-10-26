@@ -50,15 +50,38 @@ local efPlacedWaypoint = false
 -- dropping (or replacing with) their own default waypoint.
 local efSettingWaypoint = false
 
+-- Our waypoint and super-track changes wait out an open world map: one made
+-- under it rebuilds the game's pin in our name, and Shift-click is refused.
+local WAYPOINT_WAIT_ORDER = { "place", "quest", "vignette", "track" }
+local waypointWaits = {}
+function MapSearch.WaypointChange(kind, fn)
+    if WorldMapFrame and WorldMapFrame:IsShown() then
+        waypointWaits[kind] = fn
+        return
+    end
+    waypointWaits[kind] = nil
+    fn()
+end
+function MapSearch.DropWaypointChange(kind) waypointWaits[kind] = nil end
+local function RunWaypointWaits()
+    for _, kind in ipairs(WAYPOINT_WAIT_ORDER) do
+        local fn = waypointWaits[kind]
+        waypointWaits[kind] = nil
+        if fn then fn() end
+    end
+end
+
 -- Place the native user waypoint on EasyFind's behalf and mark it as ours.
 -- The flags are set BEFORE SetUserWaypoint because it fires the update event
 -- synchronously and the handler reads them during that call.
 local function EFPlaceWaypoint(point)
     if not WAYPOINTS then return end
-    efSettingWaypoint = true
-    efPlacedWaypoint = true
-    SetUserWaypoint(point)
-    efSettingWaypoint = false
+    MapSearch.WaypointChange("place", function()
+        efSettingWaypoint = true
+        efPlacedWaypoint = true
+        SetUserWaypoint(point)
+        efSettingWaypoint = false
+    end)
 end
 
 local function EFPlaceWaypointAt(mapID, x, y)
@@ -66,7 +89,7 @@ local function EFPlaceWaypointAt(mapID, x, y)
 end
 
 local function TrackWaypoint(on)
-    if WAYPOINTS then C_SuperTrack.SetSuperTrackedUserWaypoint(on) end
+    if WAYPOINTS then MapSearch.WaypointChange("track", function() C_SuperTrack.SetSuperTrackedUserWaypoint(on) end) end
 end
 MapSearch.TrackWaypoint = TrackWaypoint
 
@@ -547,6 +570,7 @@ function MapSearch:HookWorldMap()
 
     WorldMapFrame:HookScript("OnHide", function()
         pinWatch:SetScript("OnUpdate", nil)
+        RunWaypointWaits()
         ClearTransientMapState(self)
     end)
 
@@ -734,7 +758,7 @@ function MapSearch:SelectResult(data, directOverride)
                 self:ShowWaypointAt(single.x, single.y, single.icon, single.category, nil, single.displayID)
                 if single.vignetteGUID and SetSuperTrackedVignette then
                     efTrackedVignetteGUID = single.vignetteGUID
-                    SetSuperTrackedVignette(single.vignetteGUID)
+                    MapSearch.WaypointChange("vignette", function() SetSuperTrackedVignette(single.vignetteGUID) end)
                 end
             end
         elseif data.pin and data.pin:IsShown() then
@@ -748,7 +772,7 @@ function MapSearch:SelectResult(data, directOverride)
             -- Activate built-in navigation arrow for rares
             if data.vignetteGUID and SetSuperTrackedVignette then
                 efTrackedVignetteGUID = data.vignetteGUID
-                SetSuperTrackedVignette(data.vignetteGUID)
+                MapSearch.WaypointChange("vignette", function() SetSuperTrackedVignette(data.vignetteGUID) end)
             end
         elseif data.pin then
             -- Pin reference but currently hidden and no coords: clear.
@@ -1111,6 +1135,8 @@ end
 function MapSearch:ClearAll()
     activePinState = nil
     self:ClearHighlight()
+    -- One still waiting for the map to close goes too.
+    MapSearch.DropWaypointChange("place")
     -- Only clear Blizzard waypoint if EasyFind placed it
     if efPlacedWaypoint then
         efPlacedWaypoint = false
