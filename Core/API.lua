@@ -259,20 +259,20 @@ local function Kit(ctx)
     end
     -- One of the addon's key bindings (its Bindings.xml action), set on the
     -- extension's own page as on the general one: a click captures a key,
-    -- a right-click unbinds.
+    -- a right-click unbinds. Label and button line up with a Choice row's;
+    -- the button is a plain one, as the page has no card under it.
     function kit.Keybind(parent, label, action, tooltip)
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(ctx.SELECTOR_ROW_W, 24)
-        local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         text:SetPoint("LEFT", row, "LEFT", 8, 0)
         text:SetPoint("RIGHT", row, "RIGHT", -ctx.SELECTOR_BTN_W - 18, 0)
         text:SetJustifyH("LEFT")
-        text:SetText(label .. ":")
+        text:SetText(label)
         local btn = ns.CreateModernButton(row)
         btn:SetNormalFontObject("GameFontHighlightSmall")
         btn:SetHighlightFontObject("GameFontHighlightSmall")
-        ns.StyleBgFillButton(btn)
-        btn:SetSize(ctx.SELECTOR_BTN_W, 20)
+        btn:SetSize(ctx.SELECTOR_BTN_W, 22)
         btn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
         btn:SetText(ctx.GetCurrentKeybindText(action))
         btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
