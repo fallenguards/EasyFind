@@ -5252,6 +5252,8 @@ local function BuildRowActionsList(ctx, tab, above)
     ParkScrollBarInMargin(bar, card, 2)
 
     local rows = {}
+    -- For the dev probe /efd btncolor.
+    optionsFrame.rowActionRows = rows
     local function KeyText(id)
         return RowActions.ChordText(RowActions.KeyOf(id)) or (_G["NOT_BOUND"] or "Not Bound")
     end
