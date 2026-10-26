@@ -8034,6 +8034,9 @@ local function CursorMenuCloseSubmenu(menu)
     end
     menu._openSubmenu = nil
     menu._openSubmenuRow = nil
+    -- A pending sibling-brush close dies with this flyout: the pooled frame
+    -- comes back as the next row's flyout, which it would close.
+    menu._subCloseToken = (menu._subCloseToken or 0) + 1
     if child then child:Hide() end
 end
 
