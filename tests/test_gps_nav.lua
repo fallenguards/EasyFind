@@ -145,6 +145,35 @@ function tests.roads_weighOffRoadGround()
     H.assertTrue(math.abs(Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2]) - cost) < 0.01, "and back")
 end
 
+-- A tile without road cells ships no road table (roads_slim.py): kept to
+-- roads, its costs are its plain ones at the strict weight, the times the
+-- same.
+function tests.roads_noTable_costsAtTheStrictWeight()
+    local Nav = fresh()
+    Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local w = Nav._worlds[0]
+    local key = Nav.TileOf(EAST[1], EAST[2])
+    local plain = w.costs[key]
+    H.assertTrue(plain ~= nil and plain ~= false, "the tile's costs read")
+    Nav.SetRoads(true)
+    w.data.roads[key] = nil
+    Nav.Walk(0, GOLDSHIRE[1], GOLDSHIRE[2], EAST[1], EAST[2])
+    local made = w.costs[key]
+    H.assertTrue(made ~= nil and made ~= false and made ~= plain, "made from the costs")
+    H.assertEq(made.n, plain.n)
+    local compared = 0
+    for p, c in pairs(plain.cost) do
+        if c then
+            compared = compared + 1
+            H.assertTrue(math.abs(made.cost[p] - 2.4 * c) < 1e-6, "pair " .. p .. ": " .. tostring(made.cost[p]) .. " vs " .. c)
+            H.assertEq(made.time[p], plain.time[p], "pair " .. p .. "'s time")
+        else
+            H.assertEq(made.cost[p], false)
+        end
+    end
+    H.assertTrue(compared > 10, "pairs compared: " .. compared)
+end
+
 -- A drop goes one way: off a 7 yd ledge in one step, back up the long way
 -- round (the fixture is baked with safe drops up to 10 yd, survived 15).
 local LEDGE, BELOW = { -9185.0, -310.8 }, { -9181.0, -310.8 }
@@ -340,6 +369,25 @@ function tests.shippedGrids_readInPlace()
         for _, old in ipairs({ 'ents = "', 'ground = "', "alt = { n =" }) do
             H.assertTrue(src:find(old, 1, true) == nil, name .. " ships the varint form: " .. old)
         end
+    end
+end
+
+-- Road tables only where a tile has roads (roads_slim.py): a grid with a
+-- road table for every tile was built without the step.
+function tests.shippedGrids_roadTablesOnlyWhereRoads()
+    for _, name in ipairs(SHIPPED_GRIDS) do
+        local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/" .. name .. ".lua", "rb"))
+        local src = f:read("*a")
+        f:close()
+        local function Count(section)
+            local body = src:match("}, " .. section .. " = {\n(.-)\n}")
+            local n = 0
+            for _ in (body or ""):gmatch("%[%d+%] = \"") do n = n + 1 end
+            return n
+        end
+        local costs, roads = Count("costs"), Count("roads")
+        H.assertTrue(costs > 0, name .. ": cost tables")
+        H.assertTrue(roads < costs, name .. ": " .. roads .. " road tables for " .. costs .. " tiles")
     end
 end
 

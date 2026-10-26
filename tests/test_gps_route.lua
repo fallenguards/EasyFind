@@ -232,6 +232,70 @@ function tests.advice_listsMastersOnTheWay()
     H.assertNil(names.Gamma, "the one 8000 yd off the road is not")
 end
 
+-- A trip with a stop still offers the masters it passes (2026-10-26, TBC:
+-- Undercity went once Tarren Mill was added), each saying which stop it
+-- comes before, priced as the whole trip with it.
+local function road()
+    local d = data()
+    d.nodes = {
+        [4] = { n = "Delta", m = 1, x = 0.3, y = 0.105, ci = 1, wx = 3000, wy = 1050 },
+        [5] = { n = "Epsilon", m = 1, x = 0.7, y = 0.105, ci = 1, wx = 7000, wy = 1050 },
+    }
+    d.legs, d.edges, d.abilities = {}, {}, {}
+    return d
+end
+
+function tests.stop_stillOffersTheMastersOnTheWay()
+    local _, _, Route = fresh()
+    local dest = { name = "Along the road", mapID = 1, x = 0.9, y = 0.11 }
+    local epsilon = { id = 5, name = "Epsilon", p = P(1, 0.7, 0.105) }
+    local _, total, advice = build(Route, P(1, 0.1, 0.1), dest, { data = road(), known = {}, via = epsilon })
+    H.assertNotNil(advice and advice.pickups, "the masters on the way are still offered")
+    local delta
+    for _, p in ipairs(advice.pickups) do
+        H.assertTrue(p.id ~= 5, "never the stop itself")
+        if p.id == 4 then delta = p end
+    end
+    H.assertNotNil(delta, "Delta, before the stop")
+    H.assertEq(delta.before, 5, "goes in before Epsilon")
+    H.assertTrue(math.abs(delta.viaTotal - (total + delta.extra)) < 0.01, "priced as the whole trip with it")
+    local _, _, after = build(Route, P(1, 0.1, 0.1), dest,
+        { data = road(), known = {}, via = { id = 4, name = "Delta", p = P(1, 0.3, 0.105) } })
+    local eps
+    for _, p in ipairs(after and after.pickups or {}) do
+        if p.id == 5 then eps = p end
+    end
+    H.assertNotNil(eps, "Epsilon, past the stop")
+    H.assertNil(eps.before, "goes in after every stop")
+end
+
+-- Into a zone goal (K'aresh, 2026-10-26): the trip ends where the portal
+-- lands, so a flight master between the landing and the zone's middle is
+-- on no way the trip takes; a stop to learn it ends the trip there.
+local function zoneTrip()
+    local d = data()
+    d.nodes = { [4] = { n = "Hosaas Rest", m = 2, x = 0.5, y = 0.55, ci = 2, wx = 5000, wy = 5500 } }
+    d.legs, d.abilities = {}, {}
+    d.edges = { { kind = "portal", n = "Portal to Map 2", from = P(1, 0.1, 0.5), to = P(2, 0.5, 0.5), sec = 14 } }
+    return d
+end
+
+function tests.zoneGoal_aMasterPastTheLandingIsNotOnTheWay()
+    local _, _, Route = fresh()
+    local _, _, advice = build(Route, P(1, 0.1, 0.45), { name = "Map 2", mapID = 2, x = 0.5, y = 0.6, zone = true },
+        { data = zoneTrip(), known = {} })
+    for _, pick in ipairs(advice and advice.pickups or {}) do
+        H.assertTrue(pick.name ~= "Hosaas Rest", "the trip ends at the landing, before it")
+    end
+end
+
+function tests.zoneGoal_aStopInsideItEndsTheTrip()
+    local _, _, Route = fresh()
+    local steps = buildAll(Route, P(1, 0.1, 0.45), { name = "Map 2", mapID = 2, x = 0.5, y = 0.6, zone = true },
+        { data = zoneTrip(), known = {}, via = { id = 4, name = "Hosaas Rest", p = P(2, 0.5, 0.55) } })
+    H.assertEq(steps[#steps].kind, "learn", "learned, and there: no flight on to the zone")
+end
+
 function tests.noAdvice_whenTheClientCannotSay()
     local _, _, Route = fresh()
     local _, _, advice = build(Route, P(1, 0.1, 0.11), { name = "Far corner", mapID = 1, x = 0.9, y = 0.9 }, { known = false })
@@ -557,6 +621,70 @@ function tests.wayToACrossing_isItsOwnStep()
     H.assertEq(here[1].kind, "taxi")
 end
 
+-- A portal in a building the walking grid cannot enter (Stormwind's
+-- Wizard's Sanctum, 2026-10-26): its hall is an outline round the portal
+-- at 5000, 5000, its stairs outside at 4500, 5000, a point on the hall's
+-- floor at 4950, 5000. From outside, the way to the portal goes up the
+-- stairs and in, never straight to the spot over it.
+local function sanctum()
+    local d = data()
+    d.abilities = {}
+    local door, hall = P(1, 0.45, 0.5), P(1, 0.495, 0.5)
+    d.buildings = { { area = 10523, ci = 1, hall = { 4900, 4900, 5100, 4900, 5100, 5100, 4900, 5100 } } }
+    table.insert(d.edges, { kind = "enter", n = "Wizard's Sanctum", area = 10523, textKey = "GPS_STEP_ENTER_SANCTUM_FMT",
+                            from = door, to = hall, sec = 30 })
+    table.insert(d.edges, { kind = "leave", n = "Wizard's Sanctum", area = 10523, textKey = "GPS_STEP_LEAVE_SANCTUM_FMT",
+                            from = hall, to = door, sec = 30 })
+    return d
+end
+
+local function Kinds(steps)
+    local out = {}
+    for i = 1, #steps do out[i] = steps[i].approach and "way" or steps[i].kind end
+    return table.concat(out, " ")
+end
+
+function tests.building_fromOutside_goesUpTheStairsAndIn()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_ENTER_SANCTUM_FMT = "Enter the %s: up the stairs"
+    local steps = buildAll(Route, P(1, 0.1, 0.5), { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }, { data = sanctum() })
+    H.assertEq(Kinds(steps), "way enter way portal travel", "the stairs, in, to the portal, through")
+    H.assertEq(steps[1].arrive.wx, 4500, "the first pin at the foot of the stairs")
+    H.assertEq(steps[2].text, "Enter the Wizard's Sanctum: up the stairs")
+    H.assertEq(steps[2].area, 10523, "the step knows its building, for its done test")
+    -- A step whose spot is in the hall gets no game pin (it reads as the
+    -- ground outside): marked inside; the stairs are not.
+    H.assertEq(steps[1].inside, nil, "the way to the stairs is pinned")
+    H.assertEq(steps[2].inside, nil, "entering is pinned at the stairs")
+    H.assertEq(steps[3].inside, 10523, "the way to the portal is in the hall")
+    H.assertEq(steps[4].inside, 10523, "and the portal")
+    H.assertEq(steps[5].inside, nil, "past the portal, out of it")
+end
+
+function tests.building_fromInside_leavesByItsWayOut()
+    local _, _, Route = fresh()
+    local inside = P(1, 0.497, 0.5)
+    local steps = buildAll(Route, inside, { name = "Out in town", mapID = 1, x = 0.3, y = 0.5 },
+        { data = sanctum(), startIndoors = true })
+    H.assertEq(Kinds(steps), "way leave travel", "to the way out, out, on")
+    H.assertEq(steps[1].inside, 10523, "the way out is in the hall")
+    H.assertEq(steps[2].inside, 10523)
+    H.assertEq(steps[3].inside, nil, "out in town")
+    -- Standing on the street over the hall: no way out to take.
+    local street = buildAll(Route, inside, { name = "Out in town", mapID = 1, x = 0.3, y = 0.5 }, { data = sanctum() })
+    H.assertEq(Kinds(street), "travel")
+end
+
+function tests.building_goalOnAPortalThereIsInside()
+    local _, _, Route = fresh()
+    -- A pin beside the portal: reached through the building.
+    local steps = buildAll(Route, P(1, 0.1, 0.5), { name = "By the portal", mapID = 1, x = 0.501, y = 0.5 }, { data = sanctum() })
+    H.assertEq(Kinds(steps), "way enter travel")
+    -- A pin in the outline but far from its crossings: the street above.
+    local street = buildAll(Route, P(1, 0.1, 0.5), { name = "Square", mapID = 1, x = 0.508, y = 0.508 }, { data = sanctum() })
+    H.assertEq(Kinds(street), "travel")
+end
+
 function tests.noData_returnsNil()
     local _, _, Route = fresh()
     H.assertNil(Route:Build({ name = "x", mapID = 1, x = 0.5, y = 0.5 }, { data = nil, start = P(1, 0.1, 0.1) }))
@@ -763,6 +891,41 @@ function tests.walk_splitsIntoAStepPerZone()
     H.assertTrue(out[1].arrive.wy >= 500 and out[1].arrive.wy <= 600, "the border on the way west")
     H.assertTrue(math.abs(out[1].wind - 1) < 0.01, "Alpha is a straight stretch")
     H.assertTrue(out[2].wind > 1.3, "Bravo turns at the junction: " .. tostring(out[2].wind))
+end
+
+-- A walk that jumps at the junction, split by zone, then split again as
+-- a route at login is: each piece keeps the ledge it jumps, the stretch
+-- it follows holds it, and so do the walks the route keeps.
+function tests.walk_splitAgain_eachPieceKeepsItsJumps()
+    local _, ns, Route = fresh()
+    withNav(ns, junction)
+    local path = ns.GPSNav.Path
+    ns.GPSNav.Path = function(...)
+        local pts, len = path(...)
+        return pts, len, nil, { { v = 4, h = 30 } }
+    end
+    local steps, start = walk(Route)
+    local out = Route.SplitWalks(steps, start, data(), { zoneAt = zoneAt })
+    H.assertEq(#out, 3)
+    H.assertNil(out[1].jumps, "Alpha jumps nowhere")
+    H.assertEq(out[2].jumps and out[2].jumps[1].h, 30, "Bravo jumps at the junction")
+    local a, b = out[1].arrive, out[2].arrive
+    local stretch = Route.WalkPath(1, a.wx, a.wy, b.wx, b.wy, true)
+    H.assertEq(stretch.jumps and stretch.jumps[1].h, 30, "the stretch followed holds it")
+    H.assertTrue(math.abs(stretch.jumps[1].at - (1000 - a.wy)) < 1, "yards along the stretch: " .. stretch.jumps[1].at)
+    local again = Route.SplitWalks(out, start, data(), { zoneAt = zoneAt })
+    H.assertEq(#again, 3, "split once, split no further")
+    H.assertEq(again[2].jumps and again[2].jumps[1].h, 30, "split again, the jump stays")
+    local kept = Route.SaveWalk(1, a.wx, a.wy, b.wx, b.wy)
+    Route.ForgetWalkPaths()
+    Route.KeepWalk(kept)
+    out[2].jumps = nil
+    H.assertEq(Route.SplitWalks(out, start, data(), { zoneAt = zoneAt })[2].jumps[1].h, 30,
+               "from the walks kept for the next session")
+    Route.ForgetWalkPaths()
+    kept.ver = nil
+    Route.KeepWalk(kept)
+    H.assertNil(Route.WalkPath(1, a.wx, a.wy, b.wx, b.wy, true), "a walk kept in an older layout is drawn again")
 end
 
 -- A route keeps its drawn walks: put back in a later session they are

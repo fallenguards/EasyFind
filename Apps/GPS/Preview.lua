@@ -112,6 +112,9 @@ local function Sym(i)
     return t
 end
 
+-- Where a walk jumps down a ledge: the slow fall face, on every client.
+local JUMP_SYMBOL = "Interface\\Icons\\Spell_Magic_FeatherFall"
+
 local function SetSymbol(t, symbol, x, y, size)
     local atlas = type(symbol) == "string" and symbol:match("^atlas:(.+)$")
     if atlas then t:SetAtlas(atlas) else t:SetTexture(symbol) end
@@ -590,6 +593,16 @@ local function Draw()
                     local pts = path.pts
                     trace.affine, trace.color, trace.alpha, trace.trim = affine, color, alpha, trim
                     Preview.Trace(path, color ~= PASSED_COLOR and pci or nil, 1, pts[1], pts[2], 0, TracePen, TraceTo)
+                    if color ~= PASSED_COLOR then
+                        for k = 1, path.jumps and #path.jumps or 0 do
+                            local j = path.jumps[k]
+                            local spot = OnCanvas({ ci = pci, wx = j.x, wy = j.y }, mapID)
+                            if spot then
+                                nSym = nSym + 1
+                                SetSymbol(Sym(nSym), JUMP_SYMBOL, spot[1], spot[2], px(WAY_SYMBOL))
+                            end
+                        end
+                    end
                 elseif start and target then
                     local sci, sx, sy = World(start)
                     local tci, tx, ty = World(target)

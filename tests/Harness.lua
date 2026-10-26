@@ -343,6 +343,10 @@ local function buildUtilsStub(clock)
             pcall(fn)
         end)
     end
+    Utils.RegisterEventIfValid = function(frame, event)
+        frame:RegisterEvent(event)
+        return true
+    end
 
     -- Mirrors of the real slicer API (Shared/Utils.lua): the harness has
     -- no frame pump, so sliced work runs synchronously and checkpoints

@@ -88,6 +88,29 @@ local N = {
 }
 ns.GPSNpcs = N
 
+-- The lowercase texts and the English titles beside the client's own,
+-- made at load: one string.lower costs less than reading a shipped copy.
+do
+    local data = ns.NPC_DATA
+    if data and data.names and data.titleName then
+        data.namesLow = slower(data.names)
+        data.goodsNamesLow = data.goodsNames and slower(data.goodsNames)
+        data.localNamesLow = data.localNames and slower(data.localNames)
+        data.localGoodsLow = data.localGoods and slower(data.localGoods)
+        local english, own = data.titleName, data.localTitleName
+        if own and #own == #english then
+            local en, enLow = {}, {}
+            for t = 1, #english do
+                if english[t] ~= own[t] then en[t], enLow[t] = english[t], slower(english[t]) end
+            end
+            data.titleName, data.titleEnglish, data.titleLowEnglish = own, en, enLow
+        end
+        local low = {}
+        for t = 1, #data.titleName do low[t] = slower(data.titleName[t]) end
+        data.titleLow = low
+    end
+end
+
 -- A creature's record: id (3 bytes), flags (1), display id (3), first
 -- spot (3), spot count (2), each byte a plane over all creatures (it
 -- ships at half the size). A spot's: map (2), x * GRID + y (3), spawns (2).
@@ -1224,6 +1247,32 @@ function N.Threats(faction)
     return set
 end
 
+-- The danger cells guards hostile to this faction stand or walk in, any
+-- level: they come in numbers and call for help. { [continent] = { [cell]
+-- = true } }, or nil without the catalog's guard map. Drawn and warned
+-- of, never walked around.
+function N.Guards(faction)
+    local data = ns.NPC_DATA
+    if not (data and data.guards) then return nil end
+    local bit = faction == "Horde" and 2 or 1
+    if N.guardCells and N.guardBit == bit then return N.guardCells end
+    local set = {}
+    for ci, blob in pairs(data.guards) do
+        local ok, raw = pcall(Unpack, blob)
+        if ok and raw then
+            local u = Reader(raw)
+            local cells, last = {}, 0
+            for _ = 1, u() do
+                last = last + u()
+                if mfloor(u() / bit) % 2 == 1 then cells[last] = true end
+            end
+            set[ci] = cells
+        end
+    end
+    N.guardCells, N.guardBit = set, bit
+    return set
+end
+
 -- The walking tiles a character of this level and faction goes around:
 -- those with a cell whose hostile creatures con orange or red to it
 -- (DANGER_LEVELS or more above). { [continent] = { [tile] = true } }, or nil.
@@ -1245,10 +1294,10 @@ function N.DangerTiles(level, faction)
 end
 
 -- Where a walk on continent ci crosses ground whose hostile creatures con
--- red to a character of this level or worse: yards along it as runs
--- { from, to, ... } (n of them), and skull, how far along the first one
--- that cons skull is met, at sx, sy. Kept on the walk for its level; nil
--- without the catalog's danger map.
+-- red to a character of this level or worse, or its enemies' guards: yards
+-- along it as runs { from, to, ... } (n of them); skull and guard, how far
+-- along each is first met (sx, sy; gx, gy). Kept on the walk for its level;
+-- nil without the catalog's danger map.
 -- The highest creature level that belongs to the zone a world spot lies
 -- in: a cell straddling a zone border carries the neighbour's creatures
 -- (Darkshore's east edge reads as Felwood), no threat on this side. nil
@@ -1266,9 +1315,11 @@ function N.DeadlyAlong(path, ci, level, faction)
     local threats = level and N.Threats(faction)
     local cells = threats and threats[ci]
     if not (cells and path and path.pts) then return nil end
+    local guarded = N.Guards(faction)
+    guarded = guarded and guarded[ci]
     local d = path.deadly
-    if d and d.level == level and d.ci == ci then return d end
-    d = { level = level, ci = ci, n = 0 }
+    if d and d.level == level and d.ci == ci and d.faction == faction then return d end
+    d = { level = level, ci = ci, faction = faction, n = 0 }
     local red, skull = level + RED_LEVELS, level + SKULL_LEVELS
     local pts, cum = path.pts, path.cum
     local cap = ZoneLevelCap(ci, pts[#pts - 1], pts[#pts])
@@ -1280,9 +1331,14 @@ function N.DeadlyAlong(path, ci, level, faction)
         local k = mmax(1, mceil(len / DEADLY_STEP))
         for j = 0, k - 1 do
             local t = (j + 0.5) / k
-            local at = cells[CellOf(ax + dx * t, ay + dy * t)] or 0
+            local cell = CellOf(ax + dx * t, ay + dy * t)
+            local at = cells[cell] or 0
             if cap and at > cap then at = 0 end
-            if (at >= red) ~= inside then
+            local guard = guarded and guarded[cell]
+            if guard and not d.guard then
+                d.guard, d.gx, d.gy = cum[v] + len * j / k, ax + dx * j / k, ay + dy * j / k
+            end
+            if (at >= red or guard == true) ~= inside then
                 inside = not inside
                 d.n = d.n + 1
                 d[d.n] = cum[v] + len * j / k

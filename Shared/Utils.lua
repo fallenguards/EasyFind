@@ -1018,6 +1018,15 @@ function Utils.SafeAfter(delay, fn)
     end)
 end
 
+-- A classic client errors on an event it lacks (TBC: SUPER_TRACKING_CHANGED).
+function Utils.RegisterEventIfValid(frame, event)
+    if C_EventUtils and C_EventUtils.IsEventValid and C_EventUtils.IsEventValid(event) then
+        frame:RegisterEvent(event)
+        return true
+    end
+    return false
+end
+
 function Utils.CreateKeyRepeat(frame, initialDelay, fastDelay, accelDuration)
     initialDelay = initialDelay or 0.30
     fastDelay = fastDelay or 0.05

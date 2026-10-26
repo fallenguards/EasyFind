@@ -413,6 +413,13 @@ function Editor:Open(row)
     self.drop:ClearAllPoints()
     self.drop:SetPoint("TOPLEFT", row.box, "BOTTOMLEFT", 0, -2)
     self.drop:SetPoint("RIGHT", row.box, "RIGHT", 0, 0)
+    self:ShowRecentOrNone()
+end
+
+-- An empty field: the last searches, as the map's search box shows them.
+function Editor:ShowRecentOrNone()
+    local frame = self.frame
+    if frame.ShowRecent and frame:ShowRecent(self) then return end
     self:ShowHits(nil)
 end
 
@@ -437,7 +444,7 @@ end
 function Editor:Typed(row, text)
     if self.editing ~= row then self:Open(row) end
     row.typed = text ~= "" or nil
-    if text == "" then self:ShowHits(nil) return end
+    if text == "" then self:ShowRecentOrNone() return end
     if self.pending then return end
     self.pending = true
     Utils.SafeAfter(0.15, function()

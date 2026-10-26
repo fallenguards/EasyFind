@@ -697,7 +697,9 @@ local function Part(name)
     uiParts.at = now
 end
 
-function MapSearch:SearchForUI(query)
+-- filters: the buckets kept, by default the search bar's own (nil), none
+-- (false), or a surface's own table (the GPS's: the map tab's choices).
+function MapSearch:SearchForUI(query, filters)
     Search.uiSearchCount = (Search.uiSearchCount or 0) + 1
     Search.uiScoredFor = nil
     if not query or query == "" or #query < 2 then return nil end
@@ -774,6 +776,7 @@ function MapSearch:SearchForUI(query)
     -- value default to enabled, same convention DB_DEFAULTS uses.
     do
         local mtFilters = EasyFind.db.uiMapFilters
+        if filters ~= nil then mtFilters = filters or nil end
         if mtFilters then
             wipe(reuseUISearchFiltered)
             local filtered = reuseUISearchFiltered
@@ -836,11 +839,13 @@ end
 -- text: the keystroke's query; its own map pass (SearchForUI) already
 -- scored the category's rows when its query matched the category, so
 -- those are read instead of running a pass of their own.
+-- respectFilters: the search bar's buckets (true), or a table of its own.
 function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, localOnly, text)
     if not category then return nil end
     maxN = maxN or 3
+    local own = type(respectFilters) == "table" and respectFilters or nil
     if text and Search.uiScoredFor == text and CategoryCovered(Search.uiScoredCategory, category) then
-        local filters = respectFilters and EasyFind.db.uiMapFilters
+        local filters = own or (respectFilters and EasyFind.db.uiMapFilters)
         local stash, mapID = reuseUIScored, Search.uiScoredMapID
         local playerMapID = GetBestMapForUnit("player")
         wipe(reuseUICategoryRows)
@@ -873,12 +878,9 @@ function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, local
     local canonical = catDef and catDef.keywords and catDef.keywords[1] or category
     local rows
     if respectFilters then
-        rows = self:SearchForUI(canonical)
+        rows = self:SearchForUI(canonical, own)
     else
-        local savedFilters = EasyFind.db.uiMapFilters
-        EasyFind.db.uiMapFilters = nil
-        rows = self:SearchForUI(canonical)
-        EasyFind.db.uiMapFilters = savedFilters
+        rows = self:SearchForUI(canonical, false)
     end
     if not rows then return nil end
     -- Categories fed by the global instance cache (delves, dungeons, raids)
@@ -923,10 +925,14 @@ local function CopyRow(src)
     return row
 end
 
+-- The GPS's places: kept by the map tab's choices, not the search bar's
+-- leaner ones (which leave creatures and flight masters out).
+MapSearch.ALL_SHOWN = {}
 function MapSearch:PlacesForQuery(text)
+    local filters = EasyFind.db.mapTabFilters or MapSearch.ALL_SHOWN
     -- The pass first, copied: a category lookup may run one of its own.
     local pass = {}
-    for _, r in ipairs(self:SearchForUI(text) or {}) do pass[#pass + 1] = CopyRow(r.data) end
+    for _, r in ipairs(self:SearchForUI(text, filters) or {}) do pass[#pass + 1] = CopyRow(r.data) end
     local category = ns.MapSearchData and ns.MapSearchData.KEYWORD_TO_CATEGORY
         and ns.MapSearchData.KEYWORD_TO_CATEGORY[slower(text)]
     local localOnly = category and EasyFind.db.mapCategoryScope == "local"
@@ -937,7 +943,7 @@ function MapSearch:PlacesForQuery(text)
         seen[key] = true
         out[#out + 1] = row
     end
-    for _, r in ipairs(category and self:GetCategoryResultsForUI(category, localOnly and 8 or 3, true, localOnly, text) or {}) do
+    for _, r in ipairs(category and self:GetCategoryResultsForUI(category, localOnly and 8 or 3, filters, localOnly, text) or {}) do
         Add(CopyRow(r))
     end
     for i = 1, #pass do

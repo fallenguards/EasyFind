@@ -24,6 +24,21 @@ local HOLD_SECONDS, HOLD_YD = 6, 30
 local BACK, ON = 2, 12         -- stretches searched behind and ahead of the last one matched
 local RIDES = { taxi = true, boat = true, ferry = true, zeppelin = true, skyship = true, tram = true }
 Follow.RIDES = RIDES
+local AT_BUILDING = 40         -- yards from a building's stairs where its step's words lead
+
+-- At the stairs (or the way out) of a building the walking grid cannot
+-- enter: the step's words lead from here on, not the arrow or the
+-- beacon, however far the climb then goes.
+function Follow.AtBuilding(step)
+    if not (step and (step.kind == "enter" or step.kind == "leave") and step.go) then return false end
+    if step.atBuilding then return true end
+    local ci, px, py = ns.GPS.PlayerWorldPos()
+    local tci, tx, ty = Follow.World(step.go)
+    if ci ~= nil and ci == tci and (tx - px) ^ 2 + (ty - py) ^ 2 <= AT_BUILDING * AT_BUILDING then
+        step.atBuilding = true
+    end
+    return step.atBuilding == true
+end
 
 local walk = { seg = 1 }       -- the walk followed: its route, step, end, path, matched stretch
 local cur = {}                 -- the last reading
@@ -242,6 +257,7 @@ function Follow.Now()
     local index = route.active or 1
     local step = route.steps[index]
     if not step or step.kind == "teleport" or step.noWay or (UnitOnTaxi and UnitOnTaxi("player")) then return nil end
+    if Follow.AtBuilding(step) then return nil end
     local ci, px, py = ns.GPS.PlayerWorldPos()
     local tci, tx, ty = World(step.go or step.arrive)
     -- On board a crossing: what is left is the ride to where it lands.

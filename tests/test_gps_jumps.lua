@@ -25,8 +25,11 @@ local function Load(opts)
     ns.L.GPS_JUMP_FULL_FMT = "full %d"
     ns.L.GPS_JUMP_HELPER_FMT = "use %s %d"
     ns.L.GPS_JUMP_WEAR_FMT = "wear %s %d"
+    ns.L.GPS_JUMP_FULL_AT_FMT = "full at %s %d"
+    ns.L.GPS_JUMP_HELPER_AT_FMT = "use %s at %s %d"
+    ns.L.GPS_JUMP_WEAR_AT_FMT = "wear %s at %s %d"
     H.loadModule("Apps/GPS/Jumps.lua", env, ns)
-    return ns.GPSJumps
+    return ns.GPSJumps, ns, env
 end
 
 local tests = {}
@@ -63,6 +66,31 @@ function tests.stepText_saysHowToJump()
     J = Load({ items = { [260810] = 1 } })
     H.assertEq(J.StepText({ jumps = { { h = 30 } } }), "wear item 260810 30", "past survival: the helper, put on first")
     H.assertEq(J.StepText({ jumps = { { h = 15 } } }), "full 15", "survivable needs no helper")
+end
+
+-- Where the ledge is (2026-10-26, "no idea what ledge"): the nearest area
+-- of its zone, else a landmark beside it (a city has no areas), else the
+-- zone. Map 1 is 1000 yd a side on continent 0; the zone stand-in is it.
+local function Placed(ns, areas, statics)
+    ns.GPS = { ZoneAt = function() return 1, "Stormwind City" end }
+    ns.GPSRoute = { WorldPos = function(_, x, y) return 0, x * 1000, y * 1000 end }
+    ns.GPSData = { areas = { [1] = areas } }
+    ns.STATIC_LOCATIONS = { [1] = statics }
+end
+
+function tests.stepText_namesWhereTheLedgeIs()
+    local J, ns, env = Load({})
+    env.C_Map = { GetAreaInfo = function(id) return id == 7 and "Valley of Heroes" or nil end }
+    Placed(ns, { 7, 0.5, 0.5 }, {})
+    local step = { arrive = { ci = 0 }, jumps = { { h = 12, x = 100, y = 100 }, { h = 23, x = 520, y = 480 } } }
+    H.assertEq(J.StepText(step), "full at Valley of Heroes 23", "the highest one's place")
+    Placed(ns, {}, { { name = "Bank", category = "bank", x = 0.55, y = 0.5 }, { name = "Alchemy", category = "prof_alchemy", x = 0.52, y = 0.48 } })
+    H.assertEq(J.StepText({ arrive = { ci = 0 }, jumps = { { h = 23, x = 520, y = 480 } } }), "full at Bank 23",
+        "a city: a landmark, not a trainer")
+    Placed(ns, {}, {})
+    H.assertEq(J.StepText({ arrive = { ci = 0 }, jumps = { { h = 23, x = 520, y = 480 } } }), "full at Stormwind City 23")
+    ns.GPS = nil
+    H.assertEq(J.StepText({ arrive = { ci = 0 }, jumps = { { h = 23, x = 520, y = 480 } } }), "full 23", "nowhere to name")
 end
 
 function tests.any_findsAStepThatJumps()

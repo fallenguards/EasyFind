@@ -1562,6 +1562,7 @@ local function BucketRows(parent, onChanged)
             if opt.parentKey == parent.key then
                 rows[#rows + 1] = { text = opt.label, keepOpen = true, disabled = off,
                     icon = filters[opt.key] ~= false and MENU_CHECK or nil,
+                    get = function() return Filters()[opt.key] ~= false end,
                     onClick = function()
                         filters[opt.key] = filters[opt.key] == false
                         onChanged(opt.key, filters[opt.key])
@@ -1571,6 +1572,7 @@ local function BucketRows(parent, onChanged)
         if parent.key == "rares" then
             rows[#rows + 1] = { text = L["MAP_AUTO_TRACK"], tooltip = L["MAP_AUTO_TRACK_RARES_TT"], keepOpen = true,
                 disabled = off, icon = EasyFind.db.alwaysShowRares and MENU_CHECK or nil,
+                get = function() return EasyFind.db.alwaysShowRares == true end,
                 onClick = function() SetAutoTrack(not EasyFind.db.alwaysShowRares) end }
         end
         return rows
@@ -1594,6 +1596,7 @@ local function NpcFacetRows(onChanged)
                     for _, d in ipairs(facet.defs()) do
                         out[#out + 1] = { text = d.label, keepOpen = true, disabled = off,
                             icon = picks[d.key] ~= false and MENU_CHECK or nil,
+                            get = function() return Flt.NpcFacet(facet.name)[d.key] ~= false end,
                             onClick = function()
                                 if picks[d.key] == false then picks[d.key] = nil else picks[d.key] = false end
                                 onChanged("npcs", Filters().npcs ~= false)
@@ -1655,7 +1658,9 @@ function MapTab.StepFontSize(delta)
     panel.OnFontPicked()
 end
 
-local function MapOptionsDefs(onChanged, onFontPick)
+-- The Show choices: a title, then a check per bucket with its kinds in a
+-- flyout; the map tab's menu and the GPS search boxes' gear open these.
+local function ShowDefs(onChanged)
     local filters = Filters()
     local defs = { { kind = "title", label = (_G["SHOW"] or "Show") .. ":" } }
     for _, opt in ipairs(FILTER_OPTIONS) do
@@ -1673,6 +1678,11 @@ local function MapOptionsDefs(onChanged, onFontPick)
                 end }
         end
     end
+    return defs
+end
+
+local function MapOptionsDefs(onChanged, onFontPick)
+    local defs = ShowDefs(onChanged)
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "check", label = L["MAP_SHOW_PARENTS"], tooltip = L["MAP_SHOW_PARENTS_TT"],
         get = function() return EasyFind.db.mapTabShowParents ~= false end,
@@ -1683,6 +1693,30 @@ local function MapOptionsDefs(onChanged, onFontPick)
     defs[#defs + 1] = { kind = "submenu", label = L["OPT_FONT_SIZE"], rows = FontRows(onFontPick) }
     return defs
 end
+
+-- A Show choice changed, here or in a GPS box: every list it shapes
+-- searches again (the tab, the bar, the GPS boxes).
+function MapTab.FilterChanged(key)
+    if key == "flights" and ns.MapSearch and ns.MapSearch.ReleaseIdleSearchMemory then
+        ns.MapSearch:ReleaseIdleSearchMemory()
+    end
+    RefreshCurrentSearch()
+    -- Rares is the parent of auto-track: toggling it starts or stops
+    -- tracking too (deferred, as the auto-track row's own click is).
+    if key == "rares" and ns.MapSearch and ns.MapSearch.UpdateRareTracking then
+        SafeAfter(0, function() ns.MapSearch:UpdateRareTracking() end)
+    end
+    local uiMod = ns.Search
+    local uiSb = uiMod and uiMod.searchFrame and uiMod.searchFrame.editBox
+    if uiMod and uiMod.OnSearchTextChanged and uiSb and uiSb:IsShown() then
+        local txt = uiSb:GetText() or ""
+        if txt ~= "" then uiMod:OnSearchTextChanged(txt) end
+    end
+    if ns.GPS and ns.GPS.RefreshSearches then ns.GPS.RefreshSearches() end
+end
+
+-- The Show choices for a GPS search box's gear.
+function MapTab.ShowDefs() return ShowDefs(MapTab.FilterChanged) end
 
 -- The same Show buckets as flyout rows for another surface's menu (the
 -- GPS window and section): a click flips a bucket, hover opens its kinds.
@@ -1698,6 +1732,7 @@ function MapTab.FilterRows(onChanged)
                 end
                 rows[#rows + 1] = { text = opt.label, tooltip = opt.tooltip, keepOpen = true,
                     icon = filters[opt.key] ~= false and MENU_CHECK or nil,
+                    get = function() return Filters()[opt.key] ~= false end,
                     submenu = (kinds and BucketRows(opt, onChanged)) or (opt.key == "npcs" and NpcFacetRows(onChanged)) or nil,
                     onClick = function()
                         filters[opt.key] = filters[opt.key] == false
@@ -1735,6 +1770,7 @@ local function CreateFilterCog(parent)
     cog:SetScript("OnLeave", GameTooltip_Hide)
     return cog
 end
+MapTab.CreateFilterCog = CreateFilterCog
 
 local function CreateTabFrame(qmf)
     local tab = CreateFrame("Frame", "EasyFindMapSearchTab", qmf)
@@ -2185,23 +2221,7 @@ local function CreatePanel(qmf)
     searchBox:SetPoint("RIGHT", cog, "LEFT", -6, 0)
     p.searchBox = searchBox
 
-    local function OnFilterChanged(key)
-        if key == "flights" and ns.MapSearch and ns.MapSearch.ReleaseIdleSearchMemory then
-            ns.MapSearch:ReleaseIdleSearchMemory()
-        end
-        RefreshCurrentSearch()
-        -- Rares is the parent of auto-track: toggling it starts or stops
-        -- tracking too (deferred, as the auto-track row's own click is).
-        if key == "rares" and ns.MapSearch and ns.MapSearch.UpdateRareTracking then
-            SafeAfter(0, function() ns.MapSearch:UpdateRareTracking() end)
-        end
-        local uiMod = ns.Search
-        local uiSb = uiMod and uiMod.searchFrame and uiMod.searchFrame.editBox
-        if uiMod and uiMod.OnSearchTextChanged and uiSb and uiSb:IsShown() then
-            local txt = uiSb:GetText() or ""
-            if txt ~= "" then uiMod:OnSearchTextChanged(txt) end
-        end
-    end
+    local OnFilterChanged = MapTab.FilterChanged
     local function OnFontPicked()
         MapTab.ScaleChrome(p)
         RefreshCurrentSearch()

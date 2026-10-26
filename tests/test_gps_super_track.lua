@@ -23,7 +23,10 @@ local function Load(state)
         RouteTracked = function() return state.route ~= nil and not state.route.untracked end,
         Refresh = function() state.refreshed = (state.refreshed or 0) + 1 end,
         TrackStep = function() ST.SetSuperTrackedUserWaypoint(true) end,
-        Utils = { SafeAfter = function(_, fn) fn() end },
+        Utils = {
+            SafeAfter = function(_, fn) fn() end,
+            RegisterEventIfValid = function(f, event) f:RegisterEvent(event) return true end,
+        },
         CreateFrame = function()
             return { RegisterEvent = function() end, SetScript = function(_, _, fn) onEvent = fn end }
         end,

@@ -101,22 +101,66 @@ function Jumps.Any(steps)
     return false
 end
 
--- A walk that jumps down a ledge says how: at full health, or with what
--- lands the character safely when the drop is past what a fall leaves.
+-- Where a jump is, as the map names it: the nearest of its zone's areas,
+-- else a landmark beside it (a city's districts are no areas), else the zone.
+local PLACE_AREA_REACH, PLACE_MARK_REACH = 400, 150
+Jumps.placeOf = setmetatable({}, { __mode = "k" })
+local LANDMARKS = { bank = true, auctionhouse = true, innkeeper = true, flightmaster = true }
+function Jumps.PlaceAt(ci, x, y)
+    local G, R = ns.GPS, ns.GPSRoute
+    local mapID, zoneName
+    if G and G.ZoneAt then mapID, zoneName = G.ZoneAt(ci, x, y) end
+    if not (mapID and R and R.WorldPos) then return zoneName end
+    local function Dist2(m, mx, my)
+        local pci, px, py = R.WorldPos(m, mx, my)
+        return pci == ci and (px - x) ^ 2 + (py - y) ^ 2 or nil
+    end
+    local areas = ns.GPSData and ns.GPSData.areas and ns.GPSData.areas[mapID]
+    local best, bestD = nil, PLACE_AREA_REACH ^ 2
+    for i = 1, areas and #areas or 0, 3 do
+        local d = Dist2(mapID, areas[i + 1], areas[i + 2])
+        if d and d < bestD then best, bestD = areas[i], d end
+    end
+    local name = best and C_Map.GetAreaInfo and C_Map.GetAreaInfo(best)
+    if name and name ~= "" then return name end
+    bestD, name = PLACE_MARK_REACH ^ 2, nil
+    for _, loc in ipairs(ns.STATIC_LOCATIONS and ns.STATIC_LOCATIONS[mapID] or {}) do
+        local d = LANDMARKS[loc.category] and Dist2(mapID, loc.x, loc.y)
+        if d and d < bestD then name, bestD = loc.name, d end
+    end
+    return name or zoneName
+end
+
+-- A walk that jumps down a ledge says how and where: at full health, or
+-- with what lands the character safely when the drop is past what a fall
+-- leaves; near the place the highest one is (the map marks each).
 function Jumps.StepText(step)
     local jumps = step and step.jumps
     if not jumps then return nil end
-    local high = 0
-    for i = 1, #jumps do high = mmax(high, jumps[i].h) end
+    local top = jumps[1]
+    for i = 2, #jumps do
+        if jumps[i].h > top.h then top = jumps[i] end
+    end
+    local high = top.h
     local Nav = ns.GPSNav
     local ci = step.arrive and step.arrive.ci or 0
     local survive
     if Nav and Nav.DropHeights then survive = select(2, Nav.DropHeights(ci)) end
+    -- By its jump list: a walk split by zone copies its other fields.
+    local place = Jumps.placeOf[jumps]
+    if place == nil then
+        place = top.x and Jumps.PlaceAt(ci, top.x, top.y) or false
+        Jumps.placeOf[jumps] = place
+    end
+    place = place or nil
     local yd = mfloor(high + 0.5)
     local helper = (not survive or high > survive) and Jumps.Helper()
     if helper then
-        return sformat(helper.wear and L["GPS_JUMP_WEAR_FMT"] or L["GPS_JUMP_HELPER_FMT"], helper.name, yd)
+        local key = helper.wear and "GPS_JUMP_WEAR" or "GPS_JUMP_HELPER"
+        if place then return sformat(L[key .. "_AT_FMT"], helper.name, place, yd) end
+        return sformat(L[key .. "_FMT"], helper.name, yd)
     end
+    if place then return sformat(L["GPS_JUMP_FULL_AT_FMT"], place, yd) end
     return sformat(L["GPS_JUMP_FULL_FMT"], yd)
 end
 

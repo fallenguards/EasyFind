@@ -297,6 +297,7 @@ local function ZoneAt(ci, wx, wy)
     if info and info.mapID and info.mapID ~= cont then return info.mapID, info.name end
     return nil
 end
+GPS.ZoneAt = ZoneAt
 
 local function MapPos(ci, wx, wy, mapID)
     local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), mapID)
@@ -395,12 +396,16 @@ end
 
 function GPS:BuildRoute(dest, via, avoid, quick, draw, startFrom, dropLimit)
     local Route = ns.GPSRoute
-    local origin = startFrom or StartPoint() or GPS.PlayerStart()
+    local planned = startFrom or StartPoint()
+    local origin = planned or GPS.PlayerStart()
     if Route and ns.GPSData then
         local h = HearthPoint()
         local db = DB()
+        -- Set out from where the player stands: indoors there or not (a
+        -- building's hall, Buildings.lua).
         local opts = { hearth = h and { point = h } or nil, via = via, avoid = avoid or (db and db.gpsAvoid) or nil,
                        start = origin, draw = draw, dropLimit = dropLimit,
+                       startIndoors = not planned and IsIndoors and IsIndoors() or nil,
                        autoLearn = not (db and db.gpsAutoLearn == false), skipLearn = GPS.SkipFor(dest) }
         -- The advice feeds the lines and the stops learned on the way: with
         -- both off it is not worked out.
@@ -600,7 +605,7 @@ local function WaypointPoint(step)
         local info = C_Map.GetMapInfo(cur)
         cur = info and info.parentMapID
         depth = depth + 1
-        if cur and can(cur) then
+        if cur and (not can or can(cur)) then
             local ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), cur)
             if ok and pos then
                 local px, py = pos:GetXY()
@@ -619,6 +624,25 @@ local function LiftPin(route)
     local wp = mapID and C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
     if not (wp and wp.uiMapID == mapID and wp.position) then return end
     if math.abs(wp.position.x - x) > 0.001 or math.abs(wp.position.y - y) > 0.001 then return end
+    if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+    if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
+end
+
+-- A flight path to learn at or after the active step.
+function GPS.LearnAhead(route)
+    for i = route.active or 1, #route.steps do
+        if route.steps[i].kind == "learn" then return true end
+    end
+    return false
+end
+
+-- The pin a step before set, while the game still shows it: taken off.
+function GPS.DropPin(route)
+    local pin, wp = route.pin, C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    route.pin = nil
+    if not (pin and wp and wp.uiMapID == pin[1] and wp.position) then return end
+    if math.abs(wp.position.x - pin[2]) > 0.001 or math.abs(wp.position.y - pin[3]) > 0.001 then return end
     if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
     if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
     if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
@@ -730,11 +754,16 @@ TrackStep = function(index)
     route.castAt = nil
     route.stepCi = PlayerWorldPos()
     -- The game's pin, at this step's end only: the beacon stands on it.
+    -- None for a spot in a building's hall: on the city's map it reads as
+    -- the ground outside and the game leads back out (Buildings.lua); the
+    -- pin set before goes too, and the arrow and minimap line lead.
     local MapSearch = ns.MapSearch
     local mapID, x, y
-    if not step.noWay then mapID, x, y = WaypointPoint(step) end
+    if step.inside then GPS.DropPin(route) end
+    if not (step.noWay or step.inside) then mapID, x, y = WaypointPoint(step) end
     if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
+        route.pin = { mapID, x, y }
         if not route.untracked and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
             GPS.ClearQuestSuperTrack()
             C_SuperTrack.SetSuperTrackedUserWaypoint(true)
@@ -949,8 +978,7 @@ end
 -- to learn a flight master stays until that master is learned.
 local function Reroute(route)
     if GPS:IsPlanning() then return end
-    local known = ns.GPSRoute and ns.GPSRoute.recordedKnown
-    local via = route.via and not (known and known[route.via.id]) and route.via or nil
+    local via = GPS.ViaLeft(route, ns.GPSRoute and ns.GPSRoute.recordedKnown)
     GPS:Plan(nil, function() return GPS:BuildStops(route, via, route.wayAvoid, true, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.Rerouted(route, via, steps, total, advice) end
@@ -1056,8 +1084,10 @@ local function Tick()
         route.there = there
         Refresh()
     end
-    -- A zone is reached when you are in it, wherever its map's middle is.
-    if route.dest and route.dest.zone and not INSTANCE_CATEGORIES[route.dest.category] and OnMap(route.dest.mapID) then
+    -- A zone is reached when you are in it, wherever its map's middle is;
+    -- a flight path to learn on the way there still comes first.
+    if route.dest and route.dest.zone and not INSTANCE_CATEGORIES[route.dest.category] and OnMap(route.dest.mapID)
+        and not GPS.LearnAhead(route) then
         Arrive(route)
         return
     end
@@ -1098,6 +1128,21 @@ local function Tick()
     -- A stop to learn a flight path is done when the flight master's map
     -- shows it learned, not on arriving.
     if step.kind == "learn" then return end
+    -- Into a building: done once indoors in its hall; out of one: once out
+    -- of doors (its stairs, the street).
+    if step.kind == "enter" or step.kind == "leave" then
+        local Engine = ns.GPSRoute
+        local indoors = IsIndoors and IsIndoors()
+        local inHall = indoors and Engine and Engine.InHall and Engine.InHall(step.area, ci, px, py)
+        if step.kind == "enter" and not inHall then return end
+        if step.kind == "leave" and indoors then return end
+        if route.steps[(route.active or 1) + 1] then
+            TrackStep((route.active or 1) + 1)
+        else
+            Arrive(route)
+        end
+        return
+    end
     local crossing = step.kind ~= "travel"
     -- A crossing to another continent is done the moment you are on it;
     -- one that stays on this continent is done near its far spot.
@@ -1187,13 +1232,31 @@ function GPS.Navigated(dest, steps, total, advice, stops)
     StartTicker()
 end
 
--- The trip again with a stop to learn a flight master on it.
+-- The trip's stops still to learn, as a list (one saved alone before
+-- stops could be several); nil when none is left.
+function GPS.ViaLeft(route, learned)
+    local via = route.via
+    local list = via and (via.id and { via } or via) or {}
+    local left = {}
+    for i = 1, #list do
+        if not (learned and learned[list[i].id]) then left[#left + 1] = list[i] end
+    end
+    return #left > 0 and left or nil
+end
+
+-- The trip again with a stop to learn a flight master on it: among its
+-- other stops where the trip meets it, on the way it was chosen.
 function GPS:AddStop(tip)
     local route = Route()
     local Engine = ns.GPSRoute
     if not (route and route.dest and Engine and tip and tip.id) then return end
-    local via = { id = tip.id, name = tip.name, p = tip.p }
-    self:Plan(route.dest.name, function() return self:BuildStops(route, via, nil, nil, "first") end,
+    local via = GPS.ViaLeft(route, { [tip.id] = true }) or {}
+    local at = #via + 1
+    for i = 1, #via do
+        if via[i].id == tip.before then at = i break end
+    end
+    table.insert(via, at, { id = tip.id, name = tip.name, p = tip.p })
+    self:Plan(route.dest.name, function() return self:BuildStops(route, via, route.wayAvoid, nil, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.StopAdded(route, via, tip, steps, total, advice) end
         end)
@@ -1206,8 +1269,8 @@ function GPS:DropLearn(nodeID)
     if not (route and route.dest and nodeID) then return end
     route.skipLearn = route.skipLearn or {}
     route.skipLearn[nodeID] = true
-    local keepVia = route.via and route.via.id ~= nodeID and route.via or nil
-    self:Plan(route.dest.name, function() return self:BuildStops(route, keepVia, nil, nil, "first") end,
+    local keepVia = GPS.ViaLeft(route, { [nodeID] = true })
+    self:Plan(route.dest.name, function() return self:BuildStops(route, keepVia, route.wayAvoid, nil, "first") end,
         function(steps, total, advice)
             if steps and Route() == route then GPS.StopAdded(route, keepVia, keepVia or {}, steps, total, advice) end
         end)
@@ -1216,7 +1279,7 @@ end
 function GPS.StopAdded(route, via, tip, steps, total, advice)
     route.steps, route.eta, route.total, route.advice, route.t, route.there = steps, total, total, advice, time(), nil
     route.via = via
-    if route.report then route.report.via = tip.id end
+    if route.report and tip.id then route.report.via = tip.id end
     local ci, wx, wy = PlayerWorldPos()
     route.from = ci and { ci = ci, wx = wx, wy = wy } or nil
     closing.step = nil
@@ -1959,7 +2022,7 @@ local function AdviceLines(route)
             text = sformat(L["GPS_ADVICE_PICKUP_FMT"], p.name or "?")
         end
         out[#out + 1] = { text = text, id = p.id, name = p.name, p = p.p, viaTotal = p.viaTotal, after = after,
-                          step = GPS.StepNear(route, p.p) }
+                          before = p.before, step = GPS.StepNear(route, p.p) }
     end
     if learn and learn.extra then
         -- Out of the way: what it costs now, what it saves every time after.
@@ -2005,8 +2068,9 @@ function GPS.DangerText(route)
             elseif path then
                 local d = Npcs.DeadlyAlong(path, sci, level, faction)
                 if not d then return nil end
-                if d.skull then
-                    text = L["GPS_DANGER"]   -- the red stretches say where; no zone named
+                -- The first met ahead; the red stretches say where, no zone named.
+                if d.skull or d.guard then
+                    text = L[(d.guard and (not d.skull or d.guard < d.skull)) and "GPS_DANGER_GUARDS" or "GPS_DANGER"]
                     break
                 end
             end
@@ -2329,8 +2393,8 @@ local function PickHit(frame, data)
     GPS:NavigateTo(data, { quiet = true })
 end
 
--- Forever towns the map search lacks (Menethil Harbor, Auberdine): labeled places in the
--- GPS data. A name starting with the query goes above the map rows, one containing it below.
+-- Towns the map search lacks (Menethil Harbor, Auberdine), drawn as its subzones: a name
+-- starting with the query above the map rows, one containing it below.
 local towns
 local mergedHits = {}
 local listedNames = {}   -- the map search's names this keystroke, for the towns to skip
@@ -2344,7 +2408,8 @@ local function WithTowns(q, results)
             local name = C_Map.GetAreaInfo and C_Map.GetAreaInfo(area)
             local info = name and C_Map.GetMapInfo(p.m)
             if info then
-                towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = p.m, x = p.x, y = p.y, zoneName = info.name } }
+                towns[#towns + 1] = { lower = name:lower(), row = { name = name, mapID = p.m, x = p.x, y = p.y,
+                    zoneName = info.name, category = "subzone" } }
             end
         end
     end
@@ -2433,13 +2498,35 @@ function GPS.ListChoiceRow(frame, which)
         end }
 end
 
+-- The search box's right end at (rel, point, x), room left for its gear.
+function GPS.SearchRight(f, rel, point, x)
+    f.search:SetPoint("RIGHT", rel, point, x - (f.searchCog and 21 or 0), 0)
+end
+
 local function BuildSearch(frame, glyph, padRight, bodyPad)
     -- The tracking face's art spills 6 px past its frame: more room after it.
     local boxGap = frame.track and 16 or 12
     local box = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
     box:SetHeight(20)
     box:SetPoint("LEFT", glyph, "RIGHT", boxGap, 0)
-    box:SetPoint("RIGHT", frame, "RIGHT", -padRight, 0)
+    -- The map tab's gear after the box (shown and hidden with it): its Show
+    -- choices, then this box's own.
+    local MapTab = ns.MapTab
+    local cog = MapTab and MapTab.CreateFilterCog and MapTab.ShowDefs and MapTab.CreateFilterCog(box)
+    if cog then
+        frame.searchCog = cog
+        cog:SetSize(15, 16)
+        cog:SetPoint("LEFT", box, "RIGHT", 6, 0)
+        box:SetPoint("RIGHT", frame, "RIGHT", -(padRight + 21), 0)
+        cog:SetScript("OnClick", function()
+            local defs = MapTab.ShowDefs()
+            defs[#defs + 1] = { kind = "separator" }
+            for _, which in ipairs({ "recent", "parents", "expand" }) do defs[#defs + 1] = GPS.ListChoiceRow(frame, which) end
+            ns.ShowTogglePopup("EasyFindGPSSearchOptions", cog, defs, {})
+        end)
+    else
+        box:SetPoint("RIGHT", frame, "RIGHT", -padRight, 0)
+    end
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
     if box.Instructions then
@@ -2474,9 +2561,15 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         elseif key == "-" or key == "MINUS" or key == "NUMPADMINUS" then ns.MapTab.StepFontSize(-1)
         elseif key == "0" or key == "NUMPAD0" then ns.MapTab.StepFontSize(0) end
     end)
+    -- Left empty for elsewhere: a click on its own list (a recent search)
+    -- takes the focus first, and the pick or search along stays on for it.
+    function frame.LeftEmpty(self)
+        local list = frame.hitList
+        return (self:GetText() or "") == "" and not (list and list:IsShown() and list:IsMouseOver())
+    end
     box:HookScript("OnEditFocusLost", function(self)
-        if GPS.picking == frame and (self:GetText() or "") == "" then GPS:EndPick() end
-        if GPS.along == frame and (self:GetText() or "") == "" then GPS:EndAlong() end
+        if GPS.picking == frame and frame.LeftEmpty(self) then GPS:EndPick() end
+        if GPS.along == frame and frame.LeftEmpty(self) then GPS:EndAlong() end
     end)
     if box.clearButton then
         box.clearButton:HookScript("OnClick", function() if GPS.along == frame then GPS:EndAlong() end end)
@@ -2511,7 +2604,15 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     frame.places = ns.PlaceList.New(hitChild, {
         click = function(row, button)
             if row.data.isRecentSearch then
-                box:SetText(row.data.query)
+                local ed = frame.hitsFor
+                local field = ed and ed.editing and ed.editing.box
+                if field then
+                    field:SetFocus()
+                    field:SetText(row.data.query)
+                    ed:Typed(ed.editing, row.data.query)
+                else
+                    box:SetText(row.data.query)
+                end
             elseif button ~= "RightButton" then
                 PickHit(frame, row.data)
             end
@@ -2567,16 +2668,19 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
 
     -- The last searches, while the box is focused and empty (this
     -- surface's choice); false when they do not show.
-    function frame:ShowRecent()
+    -- ed: a trip field's editor (the window's fields), the list then its.
+    function frame:ShowRecent(ed)
         local db = DB()
         local saved = db and db.mapTabRecentSearches
-        if not (box:HasFocus() and (box:GetText() or "") == "" and not self.hitsFor and GPS.along ~= self
+        local field = ed and ed.editing and ed.editing.box or box
+        if not (field:HasFocus() and (field:GetText() or "") == "" and (ed or not self.hitsFor) and GPS.along ~= self
             and GPS.ListChoice(self, "recent") and saved and #saved > 0) then
             return false
         end
         local limit = ns.MapTab and ns.MapTab.GetRecentLimit and ns.MapTab.GetRecentLimit() or 3
         local recent = {}
         for i = 1, math.min(#saved, limit) do recent[i] = saved[i] end
+        self.hitsFor = ed
         self.hitSecs = nil
         self.hitArgs = { query = "", recent = recent }
         hitList:SetVerticalScroll(0)
@@ -2587,7 +2691,12 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     -- The list again after a choice changed: the query's places, or the
     -- last searches, or nothing.
     function frame:RefreshHits()
-        if self.hitsFor then return end
+        local ed = self.hitsFor
+        if ed then
+            local field = ed.editing and ed.editing.box
+            if field and (field:GetText() or "") == "" and not self:ShowRecent(ed) then ed:ShowHits(nil) end
+            return
+        end
         if (box:GetText() or "") ~= "" then
             self.RunSearch()
         elseif not self:ShowRecent() then
@@ -2760,7 +2869,7 @@ end
 -- tracked. The route lets go, as its own toggle does, so one is lit.
 do
     local watch = CreateFrame("Frame")
-    watch:RegisterEvent("SUPER_TRACKING_CHANGED")
+    Utils.RegisterEventIfValid(watch, "SUPER_TRACKING_CHANGED")
     watch:SetScript("OnEvent", function()
         Utils.SafeAfter(0, function()
             local route = Route()
@@ -2867,7 +2976,7 @@ local function BuildSurface(frame, opts)
         glyph = head
         frame.glyph = head
         frame.track = track
-        frame:RegisterEvent("SUPER_TRACKING_CHANGED")
+        Utils.RegisterEventIfValid(frame, "SUPER_TRACKING_CHANGED")
         frame:HookScript("OnEvent", function(self, event) if event == "SUPER_TRACKING_CHANGED" and self:IsShown() then self:Render() end end)
     else
         head = CreateFrame("Frame", nil, frame)
@@ -3404,12 +3513,41 @@ local function AddGameCheck(parent, d)
             tip:AddLine(d.tooltip, nil, nil, nil, true)
         end)
     end
+    return box
 end
 
 -- Our menu rows on the game's own context menu, for surfaces in the game's look.
 -- False when the game's menu API is missing.
 ShowGameMenu = function(owner, defs)
     if not (MenuUtil and MenuUtil.CreateContextMenu) then return false end
+    -- A flyout's rows (ShowTogglePopup's): one with get is a check, one
+    -- with picked a radio; a row's own flyout nests under it.
+    local function AddRows(parent, rows)
+        rows = type(rows) == "function" and rows() or rows
+        for i = 1, #rows do
+            local r = rows[i]
+            local el
+            if r.isSeparator then
+                parent:CreateDivider()
+            elseif r.check then
+                el = AddGameCheck(parent, r.check)
+            elseif r.get then
+                el = AddGameCheck(parent, { label = r.text, tooltip = r.tooltip, get = r.get, set = function() r.onClick() end })
+            else
+                local onClick = r.onClick
+                if r.copy and ns.CopyToClipboard then
+                    onClick = function() ns.CopyToClipboard(r.copy, r.copyLink) end
+                end
+                if r.picked ~= nil then
+                    el = parent:CreateRadio(r.text, function() return r.picked end, onClick or function() end)
+                else
+                    el = parent:CreateButton(r.text, onClick or function() end)
+                end
+            end
+            if el and r.disabled and el.SetEnabled then el:SetEnabled(false) end
+            if el and r.submenu then AddRows(el, r.submenu) end
+        end
+    end
     local ok = pcall(MenuUtil.CreateContextMenu, owner, function(_, root)
         for _, d in ipairs(defs) do
             if d.kind == "separator" then
@@ -3426,27 +3564,7 @@ ShowGameMenu = function(owner, defs)
             elseif d.kind == "action" and d.onClick then
                 root:CreateButton(d.label, d.onClick)
             elseif d.kind == "submenu" then
-                local sub = root:CreateButton(d.label)
-                local rows = type(d.rows) == "function" and d.rows() or d.rows
-                for i = 1, #rows do
-                    local r = rows[i]
-                    if r.isSeparator then
-                        sub:CreateDivider()
-                    elseif r.check then
-                        AddGameCheck(sub, r.check)
-                    else
-                        local onClick = r.onClick
-                        if r.copy and ns.CopyToClipboard then
-                            onClick = function() ns.CopyToClipboard(r.copy, r.copyLink) end
-                        end
-                        if r.picked ~= nil then
-                            sub:CreateRadio(r.text, function() return r.picked end, onClick or function() end)
-                        else
-                            local b = sub:CreateButton(r.text, onClick or function() end)
-                            if r.disabled and b.SetEnabled then b:SetEnabled(false) end
-                        end
-                    end
-                end
+                AddRows(root:CreateButton(d.label), d.rows)
             end
         end
     end)
@@ -4232,7 +4350,7 @@ function Look.RenderEra(f)
     local hits = route and f.search and (f.hitCount or 0) > 0
     if route and f.search then
         -- The box after the title; the places it finds take the steps' place.
-        f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+        GPS.SearchRight(f, f, "RIGHT", -10)
         f.search:Show()
         f.hitList:SetShown(hits)
     end
@@ -4293,7 +4411,7 @@ function Look.RenderEra(f)
         EraTips(TipsAfter(tips, nil, #items))
     elseif f.search then
         -- The search box right of the name, and the places it finds under it.
-        f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+        GPS.SearchRight(f, f, "RIGHT", -10)
         f.search:Show()
         f.hitList:Show()
         local h = f:HitViewH()
@@ -4323,7 +4441,7 @@ RenderDock = function(f)
     if route and f.search then
         -- The box after the name in the banner; the places it finds take
         -- the steps' place.
-        f.search:SetPoint("RIGHT", f.fold, "LEFT", -4, 0)
+        GPS.SearchRight(f, f.fold, "LEFT", -4)
         f.search:Show()
         f.hitList:SetShown(hits)
     end
@@ -4456,7 +4574,7 @@ RenderDock = function(f)
         for i = 1, #f.lines do f.lines[i]:Hide() end
         if f.search then
             -- The search box, and the places it finds, in the steps' place.
-            f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+            GPS.SearchRight(f, f, "RIGHT", -10)
             f.search:Show()
             f.hitList:Show()
             local h = f:HitViewH()
@@ -4759,7 +4877,7 @@ local function BuildDock()
     track:SetPoint("TOPRIGHT", title, "TOPLEFT", -7, 4)
     f.track = track
     -- The arrow can move to a quest from the tracker's own buttons.
-    f:RegisterEvent("SUPER_TRACKING_CHANGED")
+    Utils.RegisterEventIfValid(f, "SUPER_TRACKING_CHANGED")
     f:SetScript("OnEvent", function(self) if self.docked or self.floating then RenderDock(self) end end)
 
     -- Follow the tracker's own relayouts, and check on a light throttle
@@ -5684,12 +5802,12 @@ local function RecordKnownFlights()
         if s.kind == "taxi" and s.nodeID == here and not (s.toID and open[s.toID]) then stale = true end
     end
     if not stale then return end
-    if route.via and c.flights[route.via.id] then route.via = nil end
+    route.via = GPS.ViaLeft(route, c.flights)
     GPS:Plan(nil, function()
-        local steps, total, advice = GPS:BuildStops(route, route.via, nil, nil, "first")
+        local steps, total, advice = GPS:BuildStops(route, route.via, route.wayAvoid, nil, "first")
         if not steps then
             route.via = nil
-            steps, total, advice = GPS:BuildStops(route, nil, nil, nil, "first")
+            steps, total, advice = GPS:BuildStops(route, nil, route.wayAvoid, nil, "first")
         end
         return steps, total, advice
     end, function(steps, total, advice)

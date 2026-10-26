@@ -68,7 +68,7 @@ local CLASS_NAMES = { "warrior", "paladin", "hunter", "rogue", "priest", "shaman
 -- The catalog as dev/tools/npc_plain.py ships it, from creatures listed
 -- as { id, flags, kind (type | expansion + 1 << 4 | roles << 8), display,
 -- title, { map, xy, spawns per spot } }; the records in byte planes.
-local function catalog(creatures, names, titles, localNames)
+local function catalog(creatures, names, titles, localNames, localTitles)
     local spots, kinds, titleIdx, byTitle, byRole, types, expansions = {}, {}, {}, {}, {}, {}, {}
     local ids, flags, displays, firsts, counts = {}, {}, {}, {}, {}
     for i, c in ipairs(creatures) do
@@ -101,19 +101,17 @@ local function catalog(creatures, names, titles, localNames)
     local data = { rec = rec, spots = table.concat(spots), kinds = bytes(3, kinds),
                    titleIdx = bytes(2, titleIdx), titleAt = bytes(3, at), titleCreatures = bytes(3, titled),
                    roles = {}, kindTypes = sortedKeys(types), kindExpansions = sortedKeys(expansions),
-                   titleName = lines(titles), titleLow = {}, classTitle = {} }
+                   titleName = lines(titles), classTitle = {} }
     for t, title in ipairs(data.titleName) do
-        data.titleLow[t] = title:lower()
         for _, class in ipairs(CLASS_NAMES) do
-            if data.titleLow[t]:find(class, 1, true) then data.classTitle[t] = true end
+            if title:lower():find(class, 1, true) then data.classTitle[t] = true end
         end
     end
+    if localTitles then data.localTitleName = lines(localTitles) end
     for role, list in pairs(byRole) do data.roles[role] = bytes(3, list) end
     data.names, data.nameAt = shipped(names, #creatures)
-    data.namesLow = data.names:lower()
     if localNames then
         data.localNames, data.localNameAt = shipped(names, #creatures, localNames)
-        data.localNamesLow = data.localNames:lower()
     end
     return data
 end
@@ -146,10 +144,8 @@ local function addGoods(data, goods, count)
     data.goodsListAt, data.goodsLists = bytes(3, at), bytes(2, ids)
     data.sells, data.vendors = bytes(2, sells), bytes(3, vendors)
     data.goodsNames, data.goodsNameAt = shipped(goods.names, items)
-    data.goodsNamesLow = data.goodsNames:lower()
     if goods.localNames then
         data.localGoods, data.localGoodsAt = shipped(goods.names, items, goods.localNames)
-        data.localGoodsLow = data.localGoods:lower()
     end
 end
 
@@ -166,7 +162,7 @@ local CREATURES = {
 -- cell 32896 from level 20 to the Alliance and 0 (none) to the Horde.
 local DANGER = varints({ 2, 32894, 60, 60, 2, 20, 0 })
 
-local function fresh(localNames, creatures, names, goods, noLoad, titles)
+local function fresh(localNames, creatures, names, goods, noLoad, titles, localTitles)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -188,7 +184,7 @@ local function fresh(localNames, creatures, names, goods, noLoad, titles)
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", m = 1436, x = 0.38, y = 0.77, ci = 0, wx = -11208, wy = 1681 } }
     creatures = creatures or CREATURES
     ns.NPC_DATA = catalog(creatures, names or "Kobold Vermin\nHogger\nEdwin VanCleef\nBrog Hamfist",
-                          titles or "General Supplies", localNames)
+                          titles or "General Supplies", localNames, localTitles)
     ns.NPC_DATA.danger = { [0] = DANGER }
     ns.NPC_DATA.types = { [1] = "Beast", [7] = "Humanoid" }
     if goods then addGoods(ns.NPC_DATA, goods, #creatures) end
@@ -357,6 +353,25 @@ function tests.deadlyAlong_redAndSkullStretches()
     H.assertNil(Npcs.DeadlyAlong(walk(), 1, 15, "Alliance"), "no danger map for that continent")
 end
 
+-- Guards hostile to a faction (2026-10-26, a Horde walk through
+-- Stormwind drawn safe): their cell is red at any level and met as guard
+-- ground, never walked around.
+function tests.deadlyAlong_enemyGuardsAtAnyLevel()
+    local _, Npcs, env = fresh()
+    env.EasyFind._ns.NPC_DATA.guards = { [0] = varints({ 1, 32896, 2 }) }
+    local function walk() return { pts = { -133, 0, 267, 0 }, cum = { 0, 400 }, len = 400 } end
+    local d = Npcs.DeadlyAlong(walk(), 0, 70, "Horde")
+    H.assertEq(d.n, 2, "the guarded cell is red at 70")
+    H.assertEq(d[1], 0)
+    H.assertTrue(math.abs(d[2] - 133) < 16, tostring(d[2]))
+    H.assertTrue(d.guard ~= nil and d.guard < 16, "met at the start")
+    H.assertNil(d.skull)
+    local a = Npcs.DeadlyAlong(walk(), 0, 70, "Alliance")
+    H.assertNil(a.guard, "its own faction's guards")
+    H.assertEq(a.n, 0)
+    H.assertNil(Npcs.DangerTiles(70, "Horde")[0][2080], "never walked around")
+end
+
 function tests.filtersLeaveOutWhatIsUnchecked()
     local append, _, env = fresh()
     local f = {}
@@ -438,6 +453,22 @@ end
 
 local function goodsNamed(names, localNames)
     return { types = GOODS.types, lists = GOODS.lists, sells = GOODS.sells, names = names, localNames = localNames }
+end
+
+-- The lowercase texts and English titles are made at load, not shipped.
+function tests.localTitlesFind_andEnglishTitlesStillFind()
+    local goods = goodsNamed(GOODS.names, "Quellwasser\n")
+    local append, N = fresh("Koboldungeziefer\n\n\n", nil, nil, goods, nil, "General Supplies", "Gemischtwaren")
+    H.assertEq(N.titleName[1], "Gemischtwaren")
+    H.assertEq(N.titleLow[1], "gemischtwaren")
+    H.assertEq(N.titleEnglish[1], "General Supplies")
+    H.assertEq(N.titleLowEnglish[1], "general supplies")
+    H.assertEq(N.low, "\nkoboldungeziefer\nhogger\nedwin vancleef\nbrog hamfist\n")
+    H.assertEq(N.enLow, "\nkobold vermin\nhogger\nedwin vancleef\nbrog hamfist\n")
+    H.assertEq(N.goodsLow, "\nquellwasser\nsharp arrow\n")
+    H.assertEq(N.goodsEnLow, "\nrefreshing spring water\nsharp arrow\n")
+    H.assertEq(find(append, "gemischt")[1].name, "Brog Hamfist", "the client's title finds")
+    H.assertEq(find(append, "general supplies")[1].name, "Brog Hamfist", "and the English one")
 end
 
 function tests.anItemFindsWhoSellsIt()
@@ -601,9 +632,13 @@ function tests.shippedCatalog_readInPlace()
         local src = f:read("*a")
         f:close()
         local isBase = not name:find("_")
-        for _, field in ipairs(isBase and { "namesLow = \"", "titleName = {", "classTitle = {", "planes = { [" }
-                               or { "data.localNamesLow = \"", "data.titleName = {", "data.classTitle = {" }) do
+        for _, field in ipairs(isBase and { "names = \"", "titleName = {", "classTitle = {", "planes = { [" }
+                               or { "data.localNames = \"", "data.localTitleName = {", "data.classTitle = {" }) do
             H.assertTrue(src:find(field, 1, true) ~= nil, name .. " carries " .. field)
+        end
+        -- Made by Npcs.lua at load (npc_plain.py DERIVED_*): never shipped.
+        for _, field in ipairs({ "Low = ", "titleEnglish = ", "data.titleName = " }) do
+            H.assertNil(src:find(field, 1, true), name .. " ships " .. field)
         end
         for line in src:gmatch("[^\n]+") do
             local field = line:match('^%s*[%w%.]+ = "[%w+/=]+",?$')

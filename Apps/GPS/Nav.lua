@@ -793,7 +793,11 @@ local function TileCosts(w, key)
         return tc or nil
     end
     local data = w.data
-    local s = (roadsOnly and data.roads or data.costs)[key]
+    local s, scale = data.costs[key], 1
+    -- No road table: no road in the tile, its costs at the strict weight.
+    if roadsOnly and data.roads then
+        if data.roads[key] then s = data.roads[key] else scale = OFF_ROAD_STRICT / OFF_ROAD_WEIGHT end
+    end
     if not s then w.costs[key] = false return nil end
     local u, i = Reader(Unpack(s))
     local n = u()
@@ -834,7 +838,7 @@ local function TileCosts(w, key)
             local off = u()
             local around = (code - 1) / 2
             local c = msqrt((sx[a] - sx[b]) ^ 2 + (sy[a] - sy[b]) ^ 2) + around
-            cost[p], time[p] = c, c - off / 127 * around
+            cost[p], time[p] = c * scale, c - off / 127 * around
             if q then cost[q], time[q] = cost[p], time[p] end
         end
     end

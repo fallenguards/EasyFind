@@ -130,6 +130,40 @@ local function Landmass(data, p)
     return lm.zones and p.m and lm.zones[p.m] or nil
 end
 
+-- Buildings the walking grid has no way into (Buildings.lua): a point in
+-- one's hall outline is inside it; walks never join inside to outside,
+-- only its enter and leave crossings do. Outline: world x, y pairs.
+local function InOutline(poly, x, y)
+    local inside, n = false, #poly
+    local jx, jy = poly[n - 1], poly[n]
+    for i = 1, n, 2 do
+        local ix, iy = poly[i], poly[i + 1]
+        if (iy > y) ~= (jy > y) and x < (jx - ix) * (y - iy) / (jy - iy) + ix then inside = not inside end
+        jx, jy = ix, iy
+    end
+    return inside
+end
+
+local function BuildingAt(data, p)
+    for _, b in ipairs(data and data.buildings or {}) do
+        if p and p.ci == b.ci and p.wx and InOutline(b.hall, p.wx, p.wy) then return b end
+    end
+    return nil
+end
+
+-- Whether (ci, x, y) is in the hall of the building with this area id.
+function Route.InHall(area, ci, x, y)
+    local data = ns.GPSData
+    for _, b in ipairs(data and data.buildings or {}) do
+        if b.area == area then return b.ci == ci and InOutline(b.hall, x, y) end
+    end
+    return false
+end
+
+-- A goal in a hall's outline this close to one of its crossings is the
+-- hall's (a portal there); elsewhere in the outline it is the street above.
+local GOAL_IN_HALL = 25
+
 -- ctx: start, goal, faction, canFly, data, cooldown(ability) -> seconds left,
 -- known and listed { nodeID = true } (nil: every node learned / exists),
 -- avoid { taxi, boat, zeppelin, portal, teleport = true }
@@ -142,8 +176,28 @@ local function BuildGraph(ctx)
     local nodes = {}          -- array of { p = point, kind, ... }
     local byCi = {}           -- continent -> array of node indexes
 
+    -- Which building's hall a node stands in: a crossing's spot or a
+    -- teleport's landing by its outline, the start when the player is
+    -- indoors there, the goal when it is one of the hall's crossings.
+    local function Inside(p, kind)
+        local b = BuildingAt(data, p)
+        if not b then return nil end
+        if kind == "edgeFrom" or kind == "edgeTo" or kind == "teleportTo" then return b.area end
+        if kind == "start" then return ctx.startIndoors and b.area or nil end
+        if kind ~= "goal" then return nil end
+        for _, e in ipairs(data.edges or {}) do
+            for _, q in ipairs({ e.from, e.to }) do
+                if q and q.ci == p.ci and q.wx and (q.wx - p.wx) ^ 2 + (q.wy - p.wy) ^ 2 <= GOAL_IN_HALL * GOAL_IN_HALL
+                    and InOutline(b.hall, q.wx, q.wy) then
+                    return b.area
+                end
+            end
+        end
+        return nil
+    end
+
     local function AddNode(p, kind, extra)
-        local n = { p = p, kind = kind, land = Landmass(data, p) }
+        local n = { p = p, kind = kind, land = Landmass(data, p), inside = Inside(p, kind) }
         if extra then for k, v in pairs(extra) do n[k] = v end end
         nodes[#nodes + 1] = n
         local list = byCi[p.ci]
@@ -535,7 +589,7 @@ local function Dijkstra(g)
                 local same, land = g.byCi[node.p.ci], node.land
                 for j = 1, same and #same or 0 do
                     local idx = same[j]
-                    if idx ~= i and (nav or nodes[idx].land == land) then
+                    if idx ~= i and (nav or nodes[idx].land == land) and nodes[idx].inside == node.inside then
                         local key = i * WALK_KEY + idx
                         local priced = walkSec[key]
                         local sec = priced or TravelCost(g, LeastYards(g, i, idx), bound)
@@ -633,7 +687,7 @@ end
 local KIND_KEY = {
     portal = "GPS_STEP_PORTAL_FMT", boat = "GPS_STEP_BOAT_FMT", zeppelin = "GPS_STEP_ZEPPELIN_FMT",
     tram = "GPS_STEP_TRAM_FMT", ferry = "GPS_STEP_BOAT_FMT", skyship = "GPS_STEP_SKYSHIP_FMT",
-    seam = "GPS_STEP_TRAVEL_FMT",
+    seam = "GPS_STEP_TRAVEL_FMT", enter = "GPS_STEP_ENTER_FMT", leave = "GPS_STEP_LEAVE_FMT",
 }
 -- An overland step says how it goes: flown, ridden or on foot, as its time was worked out.
 local function GoKey(g)
@@ -645,6 +699,7 @@ end
 local REACH_KEY = {
     boat = "GPS_REACH_BOAT_FMT", ferry = "GPS_REACH_BOAT_FMT", zeppelin = "GPS_REACH_ZEPPELIN_FMT",
     skyship = "GPS_REACH_SKYSHIP_FMT", tram = "GPS_REACH_TRAM_FMT", portal = "GPS_REACH_PORTAL_FMT",
+    enter = "GPS_REACH_ENTER_FMT", leave = "GPS_REACH_LEAVE_FMT",
 }
 -- And once aboard: stay on until it lands.
 local ABOARD_KEY = {
@@ -785,11 +840,12 @@ local function Steps(g, path, goalName, goalStep)
         if node.kind == "taxi" then return nxt.edge.kind == "taxi" end
         return node.edge ~= nil and nxt.edge.edge == node.edge
     end
-    local function Approach(spot, text)
+    -- inside: the building whose hall the step's spot is in (Buildings.lua).
+    local function Approach(spot, text, inside)
         if not (approach and spot) then return end
         tinsert(steps, { kind = "travel", approach = true, text = text,
                          mapID = spot.m, x = spot.x, y = spot.y, go = spot, arrive = spot, sec = approach,
-                         wind = approachWind, fly = g.fly })
+                         wind = approachWind, fly = g.fly, inside = inside })
         approach, approachWind = nil, nil
     end
     while i <= #path do
@@ -823,7 +879,7 @@ local function Steps(g, path, goalName, goalStep)
                 tinsert(steps, { kind = "travel",
                                  text = (node.kind == "goal" and goalStep) or (L[GoKey(g)]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
-                                 wind = e.wind, near = e.near, fly = g.fly })
+                                 wind = e.wind, near = e.near, fly = g.fly, inside = node.inside })
             end
             i = i + 1
         elseif e.kind == "taxi" then
@@ -852,17 +908,18 @@ local function Steps(g, path, goalName, goalStep)
             tinsert(steps, { kind = "teleport", text = (L["GPS_STEP_USE_FMT"]):format(e.ability.n or "?"),
                              mapID = node.p.m, x = node.p.x, y = node.p.y, go = nil, arrive = node.p, sec = e.sec, edgeSec = e.sec,
                              spellID = e.ability.id, itemID = e.ability.item, toy = e.ability.toy and true or nil,
-                             abilityName = e.ability.n })
+                             abilityName = e.ability.n, inside = node.inside })
             i = i + 1
         else
-            local key = e.kind == "seam" and GoKey(g) or KIND_KEY[e.kind] or "GPS_STEP_PORTAL_FMT"
+            local building = (e.kind == "enter" or e.kind == "leave") and e.edge.area or nil
+            local key = e.kind == "seam" and GoKey(g) or (building and e.edge.textKey) or KIND_KEY[e.kind] or "GPS_STEP_PORTAL_FMT"
             local from = g.nodes[i > 1 and path[i - 1].node or g.start]
             local floor = FloorHint(g, from.p)
             local wait = e.liveWait or e.edge.wait
-            local dest = EdgeDestName(e.edge, e.reverse)
+            local dest = building and (AreaName(building) or e.edge.n) or EdgeDestName(e.edge, e.reverse)
             local reachKey = REACH_KEY[e.kind]
             local reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil
-            Approach(from.p, reachText or (L[GoKey(g)]):format(AreaName(from.p.area) or MapName(from.p.m)))
+            Approach(from.p, reachText or (L[GoKey(g)]):format(AreaName(from.p.area) or MapName(from.p.m)), from.inside)
             local text = WithFloor((L[key]):format(dest), floor)
             -- The other faction's transport: said so on the step.
             if e.hostile then text = text .. " (" .. (_G["HOSTILE"] or "Hostile") .. ")" end
@@ -874,7 +931,7 @@ local function Steps(g, path, goalName, goalStep)
                              route = not e.reverse and e.edge.route or nil, stop = not e.reverse and e.edge.stop or nil,
                              reach = e.edge.n, reachText = reachText,
                              aboardText = ABOARD_KEY[e.kind] and (L[ABOARD_KEY[e.kind]]):format(dest) or nil,
-                             floor = floor })
+                             floor = floor, area = building, inside = from.inside })
             i = i + 1
         end
     end
@@ -889,7 +946,9 @@ local function Pickups(g, path, used)
     local out, seen = {}, {}
     for i = 1, #path do
         local el = path[i]
-        if el.edge.kind == "travel" then
+        -- A leg that costs nothing is never travelled (into a zone goal, the
+        -- trip ends where it is entered): nothing lies on its way.
+        if el.edge.kind == "travel" and el.edge.sec > 0 then
             local a = g.nodes[i > 1 and path[i - 1].node or g.start].p
             local b = g.nodes[el.node].p
             local ab = Dist(a, b)
@@ -1135,7 +1194,7 @@ if CreateFrame then
     f:SetScript("OnEvent", function() knownCache = nil end)
     local mounts = CreateFrame("Frame")
     for _, event in ipairs({ "NEW_MOUNT_ADDED", "COMPANION_LEARNED", "COMPANION_UNLEARNED" }) do
-        if C_EventUtils and C_EventUtils.IsEventValid and C_EventUtils.IsEventValid(event) then mounts:RegisterEvent(event) end
+        ns.Utils.RegisterEventIfValid(mounts, event)
     end
     mounts:SetScript("OnEvent", Route.ForgetMounts)
 end
@@ -1247,6 +1306,26 @@ end
 -- The trip with stops to learn flight masters, via = { id, name, p } or a
 -- list of them in the order the trip meets them: the way to each, a step
 -- to learn it, then on with its flight path known.
+-- The legs' masters on the way, none of the trip's own stops: each says the
+-- stop it comes before (none past the last), priced as the whole trip.
+local function ViaAdvice(list, a1, a2, beforeID, t1, t2)
+    local stops, seen, out = {}, {}, {}
+    for i = 1, #list do stops[list[i].id] = true end
+    local function Take(a, before, others)
+        for _, p in ipairs(a and a.pickups or {}) do
+            if not (stops[p.id] or seen[p.id]) then
+                seen[p.id] = true
+                if p.before == nil then p.before = before end
+                if p.viaTotal then p.viaTotal = p.viaTotal + others end
+                out[#out + 1] = p
+            end
+        end
+    end
+    Take(a1, beforeID, LEARN_SECONDS + t2)
+    Take(a2, nil, t1 + LEARN_SECONDS)
+    return #out > 0 and { pickups = out } or nil
+end
+
 local function ViaStop(route, dest, opts, start, known, listed)
     local L = ns.L
     local list = opts.via.id and { opts.via } or opts.via
@@ -1255,16 +1334,23 @@ local function ViaStop(route, dest, opts, start, known, listed)
     for i = 2, #list do rest[#rest + 1] = list[i] end
     local here = Resolve(via.p)
     if not here then return nil end
+    -- Each leg works out its masters on the way as the trip would (o.advise as asked).
     local o = Copy(opts)
-    o.via, o.advise, o.start, o.known, o.listed, o.draw = nil, false, start, known or false, listed, nil
-    local s1, t1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y }, o)
+    o.via, o.start, o.known, o.listed, o.draw = nil, start, known or false, listed, nil
+    local s1, t1, a1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y }, o)
     if not s1 then return nil end
     local learned = {}
     for id in pairs(known or {}) do learned[id] = true end
     learned[via.id] = true
-    o.start, o.known = here, known and learned or false
+    o.start, o.known, o.startIndoors = here, known and learned or false, nil
     o.via = #rest > 0 and rest or nil
-    local s2, t2 = route:Build(dest, o)
+    local s2, t2, a2
+    -- A stop already inside a zone goal: the trip ends there.
+    if dest.zone and not o.via and WithinMap(here.m, dest.mapID) then
+        s2, t2 = {}, 0
+    else
+        s2, t2, a2 = route:Build(dest, o)
+    end
     if not s2 then return nil end
     local steps = {}
     for i = 1, #s1 do steps[#steps + 1] = s1[i] end
@@ -1272,7 +1358,7 @@ local function ViaStop(route, dest, opts, start, known, listed)
                           mapID = here.m, x = here.x, y = here.y, go = here, arrive = here, sec = LEARN_SECONDS,
                           nodeID = via.id, reach = via.name, reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(via.name or "?") }
     for i = 1, #s2 do steps[#steps + 1] = s2[i] end
-    return steps, t1 + LEARN_SECONDS + t2
+    return steps, t1 + LEARN_SECONDS + t2, ViaAdvice(list, a1, a2, via.id, t1, t2)
 end
 
 local function Cooldown(a)
@@ -1450,6 +1536,7 @@ function Route:Build(dest, opts)
         race = opts.race or (UnitRace and select(2, UnitRace("player"))) or nil,
         meets = opts.meets or Meets,
         canFly = opts.canFly,
+        startIndoors = opts.startIndoors,
         flySpeed = opts.flySpeed,
         groundSpeed = opts.groundSpeed,
         hearth = opts.hearth,
@@ -1537,15 +1624,18 @@ end
 
 -- A drawn walk as a route keeps it (GPS.lua), nil when not drawn; KeepWalk
 -- puts one back, so a way an earlier session found is not searched again.
+-- KEPT_WALK_VER: kept in another layout, a walk is drawn again.
+local KEPT_WALK_VER = 2
 function Route.SaveWalk(ci, sx, sy, tx, ty, near)
     local path = walkPaths[WalkKey(ci, sx, sy, tx, ty, near)]
     if path == nil then return nil end
-    local w = { ci = ci, sx = sx, sy = sy, tx = tx, ty = ty, near = near, none = not path or nil }
+    local w = { ver = KEPT_WALK_VER, ci = ci, sx = sx, sy = sy, tx = tx, ty = ty, near = near, none = not path or nil }
     if path then w.pts, w.len, w.time, w.jumps = path.pts, path.len, path.time, path.jumps end
     return w
 end
 
 function Route.KeepWalk(w)
+    if w.ver ~= KEPT_WALK_VER then return end
     local path = false
     if not w.none then path = { pts = w.pts, cum = Cum(w.pts), len = w.len, time = w.time, jumps = w.jumps } end
     KeepPath(WalkKey(w.ci, w.sx, w.sy, w.tx, w.ty, w.near), path)
@@ -1597,8 +1687,16 @@ local function KeepStretch(ci, path, from, stop, sx, sy, ex, ey, near)
     end
     out[#out + 1], out[#out + 2] = ex, ey
     ocum[#ocum + 1] = stop - from
+    -- Its ledges too: a piece split again takes its jumps from here.
+    local jumps
+    for _, j in ipairs(path.jumps or {}) do
+        if j.at >= from and j.at < stop then
+            jumps = jumps or {}
+            jumps[#jumps + 1] = { at = j.at - from, x = j.x, y = j.y, h = j.h }
+        end
+    end
     KeepPath(WalkKey(ci, sx, sy, ex, ey, near), { pts = out, cum = ocum, len = stop - from,
-                                             time = path.time * (stop - from) / mmax(1, path.len) })
+                                             time = path.time * (stop - from) / mmax(1, path.len), jumps = jumps })
 end
 
 -- Walks, zone by zone

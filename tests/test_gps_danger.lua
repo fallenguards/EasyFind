@@ -5,7 +5,7 @@ local H = require("Harness")
 
 -- Two walks on continent 1: the first 0 to 100 yd east, the second on to
 -- 200. skullAt: yards along the second where a skull is met.
-local function Load(skullAt)
+local function Load(skullAt, guardAt)
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
     local src = f:read("*a")
     f:close()
@@ -31,13 +31,14 @@ local function Load(skullAt)
                 if not state.catalog then return nil end
                 state.asked = (state.asked or 0) + 1
                 if path.sx == 100 and skullAt and level < 30 then return { n = 2, 0, 100, skull = skullAt, sx = 100 + skullAt, sy = 0 } end
+                if path.sx == 100 and guardAt then return { n = 2, 0, 100, guard = guardAt, gx = 100 + guardAt, gy = 0 } end
                 return { n = 0 }
             end,
         },
     }
     local env = setmetatable({
         GPS = GPS, ns = ns, sformat = string.format,
-        L = { GPS_DANGER = "Deadly." },
+        L = { GPS_DANGER = "Deadly.", GPS_DANGER_GUARDS = "Guards." },
         UnitLevel = function() return state.level or 15 end,
         UnitFactionGroup = function() return "Alliance" end,
         ZoneAt = function(_, x) return 400, x >= 100 and "Thousand Needles" or "The Barrens" end,
@@ -53,6 +54,13 @@ local tests = {}
 function tests.skullGroundAhead_warnsWithNoZoneNamed()
     local GPS, route = Load(30)
     H.assertEq(GPS.DangerText(route), "Deadly.")
+end
+
+-- 2026-10-26: a Horde walk through Stormwind, at any level.
+function tests.enemyGuardsAhead_warnOfGuards()
+    local GPS, route, state = Load(nil, 20)
+    state.level = 70
+    H.assertEq(GPS.DangerText(route), "Guards.")
 end
 
 function tests.noSkullGround_noWarning()

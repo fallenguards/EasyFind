@@ -1,5 +1,6 @@
 -- Tests for MapSearch:PlacesForQuery (MapSearch/Search/Results.lua): the
--- search bar's place rows, which the GPS window's search lists too.
+-- search bar's place rows, which the GPS window's search lists too, kept by
+-- the map tab's choices (2026-10-26: the bar's leave creatures out).
 
 local H = require("Harness")
 local env = H.newEnv()
@@ -17,7 +18,8 @@ end
 -- The bar's pass (pooled rows) and its nearest-of-a-category lookup, stood in for.
 local function WithBar(pass, nearest, fn)
     local saved = { MapSearch.SearchForUI, MapSearch.GetCategoryResultsForUI, ns.MapSearchData }
-    MapSearch.SearchForUI = function()
+    MapSearch.SearchForUI = function(_, _, filters)
+        pass.filters = filters
         local out = {}
         for i, r in ipairs(pass) do out[i] = { data = r, score = 100 - i } end
         return out
@@ -34,12 +36,15 @@ end
 
 function tests.placesForQuery_nearestOfTheKindFirstThenThePass()
     env.EasyFind.db.mapCategoryScope = nil
+    local tabFilters = { npcs = true }
+    env.EasyFind.db.mapTabFilters = tabFilters
     local trainer = Row("Herbalism Trainer", 84, "prof_herbalism")
-    WithBar({ Row("Telurinon Moonshadow", 56, "npc"), Row("Herbalism Trainer", 84, "prof_herbalism") },
+    local pass = { Row("Telurinon Moonshadow", 56, "npc"), Row("Herbalism Trainer", 84, "prof_herbalism") }
+    WithBar(pass,
         function(category, maxN, respectFilters)
             H.assertEq(category, "prof_herbalism")
             H.assertEq(maxN, 3)
-            H.assertEq(respectFilters, true)
+            H.assertTrue(respectFilters == tabFilters, "the map tab's choices, not the bar's")
             return { trainer }
         end,
         function()
@@ -48,7 +53,9 @@ function tests.placesForQuery_nearestOfTheKindFirstThenThePass()
             H.assertEq(rows[1].name, "Herbalism Trainer")
             H.assertEq(rows[2].name, "Telurinon Moonshadow", "the pass is copied before the lookup reuses it")
             assert(rows[1] ~= trainer, "rows are copies")
+            H.assertTrue(pass.filters == tabFilters, "the pass kept by the map tab's choices")
         end)
+    env.EasyFind.db.mapTabFilters = nil
 end
 
 function tests.placesForQuery_localScopeKeepsTheKindToThisZone()
