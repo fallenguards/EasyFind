@@ -9,12 +9,11 @@ local tinsert, tsort, tconcat, tremove = Utils.tinsert, Utils.tsort, Utils.tconc
 local ssub, slower = Utils.ssub, Utils.slower
 local sfind, smatch = string.find, string.match
 local mmax = Utils.mmax
-local pcall, tostring = Utils.pcall, Utils.tostring
+local tostring = Utils.tostring
 local wipe = wipe
 
 local GetMapInfo = C_Map.GetMapInfo
 local GetMapChildrenInfo = C_Map.GetMapChildrenInfo
-local GetMapRectOnMap = C_Map.GetMapRectOnMap
 local ZONE_ABBREVIATIONS = MapUtils.ZONE_ABBREVIATIONS
 
 local function ZoneMatchLess(a, b)
@@ -54,10 +53,11 @@ function MapSearch:GetDirectChildZones(mapID)
 
     local children = GetMapChildrenInfo(mapID, nil, false)
     if children then
+        local info = GetMapInfo(mapID)
+        local parentType = info and info.mapType
         for _, child in ipairs(children) do
             if child.name and not seen[child.mapID] then
-                local mt = child.mapType
-                if mt ~= Enum.UIMapType.Dungeon and mt ~= Enum.UIMapType.Micro and mt ~= Enum.UIMapType.Orphan then
+                if MapUtils.IsPlaceMap(child, mapID, parentType) then
                     seen[child.mapID] = true
                     tinsert(zones, {
                         mapID = child.mapID,
@@ -108,18 +108,7 @@ function MapSearch:GetAllWorldZones(startMapID, depth, parentPath)
                 tinsert(fullPath, {mapID = startMapID, name = parentName})
             end
 
-            local mt = child.mapType
-            local includeDungeon = false
-            if mt == Enum.UIMapType.Dungeon then
-                if parentType == Enum.UIMapType.Zone then
-                    includeDungeon = true
-                elseif parentType == Enum.UIMapType.Continent then
-                    local ok, dL, dR = pcall(GetMapRectOnMap, child.mapID, startMapID)
-                    includeDungeon = ok and dL and (dR - dL) > 0
-                end
-            end
-            if mt ~= Enum.UIMapType.Micro and mt ~= Enum.UIMapType.Orphan
-               and (mt ~= Enum.UIMapType.Dungeon or includeDungeon) then
+            if MapUtils.IsPlaceMap(child, startMapID, parentType) then
                 tinsert(allZones, {
                     mapID = child.mapID,
                     name = child.name,

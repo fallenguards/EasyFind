@@ -13,6 +13,9 @@ local NIL_DEFAULT_SETTINGS = {
     "gpsLaunchWindow", "gpsLineColors", "gpsLineWidth", "gpsMapClick", "gpsNeverDock", "gpsPopout",
     "gpsPopoutCollapsed", "gpsPopoutFieldsHidden", "gpsPopoutNextOnly", "gpsPopoutSize", "gpsPopoutStyle",
     "gpsPopoutText", "gpsShowDetours", "gpsShowOtherWays", "gpsWatchSlot", "gpsWorldPin",
+    -- The GPS search lists' choices, written by name (GPS.LIST_CHOICES).
+    "gpsPopoutShowRecent", "gpsDockShowRecent", "gpsPopoutShowParents", "gpsDockShowParents",
+    "gpsPopoutAutoExpand", "gpsDockAutoExpand",
 }
 -- `db.x =` lines whose db is not EasyFindDB (Notes' own EasyNotesDB), and
 -- keys only an old migration step writes.

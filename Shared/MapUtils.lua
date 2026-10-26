@@ -120,6 +120,21 @@ function MapUtils.GetMapRectViaContinent(mapID, viewMapID)
     return (tL - vL) / vW, (tR - vL) / vW, (tT - vT) / vH, (tB - vT) / vH
 end
 
+-- A child map (GetMapChildrenInfo's) that is a place of its parent's: a
+-- dungeon-typed one under a zone, or drawn on or navbar-listed by a continent.
+function MapUtils.IsPlaceMap(child, parentID, parentType)
+    local T, mt = Enum.UIMapType, child.mapType
+    if mt == T.Micro or mt == T.Orphan then return false end
+    if mt ~= T.Dungeon or parentType == T.Zone then return true end
+    if parentType ~= T.Continent then return false end
+    -- Oribos, one building, has no rect on its continent; old copies of a
+    -- city under another world (Dalaran in the Eastern Kingdoms) have neither.
+    local navbar = Enum.UIMapFlag and Enum.UIMapFlag.ForceOnNavbar
+    if navbar and bit.band(child.flags or 0, navbar) ~= 0 then return true end
+    local ok, left, right = pcall(GetMapRectOnMap, child.mapID, parentID)
+    return ok and left ~= nil and right - left > 0
+end
+
 -- Orphan zones (Vision of Stormwind, etc.) return all zeros from
 -- GetMapRectOnMap and have no continent projection. Bugged zones (Uldum,
 -- Vale) return valid rects, so this won't match them.

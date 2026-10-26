@@ -926,9 +926,11 @@ function MapTab:RunSearch(text)
     -- the section header already names it, so a continent > zone tree just
     -- restates the header. Group only when the viewed map is broad (continent/
     -- world), where results genuinely span multiple zones.
+    -- With parent zones off (a setting), only the matches, flat.
+    local grouped = EasyFind.db.mapTabShowParents ~= false
     local viewedMapID = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local viewedInfo = viewedMapID and GetMapInfo and GetMapInfo(viewedMapID)
-    if viewedInfo and EXCLUDE_FROM_LOCAL_MAPTYPES[viewedInfo.mapType] then
+    if grouped and viewedInfo and EXCLUDE_FROM_LOCAL_MAPTYPES[viewedInfo.mapType] then
         localEntries = ns.PlaceList.GroupBySharedParent(localFiltered)
         -- A continent-type zone match (e.g. EK while viewing EK) gets
         -- dropped from local by EXCLUDE_FROM_LOCAL_MAPTYPES, leaving its
@@ -948,18 +950,19 @@ function MapTab:RunSearch(text)
         end
     else
         -- Single zone (or smaller): list the POIs flat, no redundant headers.
-        localEntries = {}
-        for i = 1, #localFiltered do
-            localEntries[#localEntries + 1] = { type = "flat", data = localFiltered[i] }
-        end
+        localEntries = ns.PlaceList.FlatEntries(localFiltered)
     end
 
     local globalEntries
-    globalEntries, globalFiltered = ns.PlaceList.WorldEntries(globalFiltered)
+    if grouped then
+        globalEntries, globalFiltered = ns.PlaceList.WorldEntries(globalFiltered)
+    else
+        globalEntries = ns.PlaceList.FlatEntries(globalFiltered)
+    end
 
     -- 'This zone' already covers the viewed continent, so drop any
     -- global group whose continent matches it.
-    if viewedMapID then
+    if grouped and viewedMapID then
         for i = #globalEntries, 1, -1 do
             local e = globalEntries[i]
             if e.type == "group" and e.ancestorMapID == viewedMapID then
@@ -1671,6 +1674,12 @@ local function MapOptionsDefs(onChanged, onFontPick)
         end
     end
     defs[#defs + 1] = { kind = "separator" }
+    defs[#defs + 1] = { kind = "check", label = L["MAP_SHOW_PARENTS"], tooltip = L["MAP_SHOW_PARENTS_TT"],
+        get = function() return EasyFind.db.mapTabShowParents ~= false end,
+        set = function(v)
+            EasyFind.db.mapTabShowParents = v and true or false
+            RefreshCurrentSearch()
+        end }
     defs[#defs + 1] = { kind = "submenu", label = L["OPT_FONT_SIZE"], rows = FontRows(onFontPick) }
     return defs
 end

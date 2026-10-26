@@ -497,12 +497,56 @@ local function RegisterVignetteRefresh()
     end)
 end
 
+-- The game's own waypoint pin where EasyFind's pin already marks the spot
+-- (EasyFind placed the waypoint): one marker, ours, which takes the clicks.
+-- Elsewhere (a route's step end away from the destination) it shows. The
+-- client draws its pin afresh on every waypoint or map change, so this is
+-- looked at while the map is open; the pooled pin keeps its alpha.
+local hiddenGamePins = setmetatable({}, { __mode = "k" })
+local PIN_OVERLAP_PX = 20
+local function SyncGameWaypointPin()
+    local mx, my
+    if efPlacedWaypoint and waypointPin and waypointPin:IsVisible() then
+        local x, y = waypointPin:GetCenter()
+        local s = waypointPin:GetEffectiveScale()
+        if x then mx, my = x * s, y * s end
+    end
+    for pin in WorldMapFrame:EnumeratePinsByTemplate("WaypointLocationPinTemplate") do
+        local x, y = pin:GetCenter()
+        local s = pin:GetEffectiveScale()
+        local under = mx and x and math.abs(x * s - mx) < PIN_OVERLAP_PX and math.abs(y * s - my) < PIN_OVERLAP_PX
+        if under and not hiddenGamePins[pin] then
+            hiddenGamePins[pin] = true
+            pin:SetAlpha(0)
+            pin:EnableMouse(false)
+        elseif not under and hiddenGamePins[pin] then
+            hiddenGamePins[pin] = nil
+            pin:SetAlpha(1)
+            pin:EnableMouse(true)
+        end
+    end
+end
+MapSearch.SyncGameWaypointPin = SyncGameWaypointPin
+
 function MapSearch:HookWorldMap()
+    local pinWatch = CreateFrame("Frame")
+    local since = 0
+    local function WatchPins(_, dt)
+        since = since + dt
+        if since < 0.05 then return end
+        since = 0
+        SyncGameWaypointPin()
+    end
     WorldMapFrame:HookScript("OnShow", function()
         RestoreActivePinsOnMapShow(self)
+        if WAYPOINTS then
+            since = 0.05
+            pinWatch:SetScript("OnUpdate", WatchPins)
+        end
     end)
 
     WorldMapFrame:HookScript("OnHide", function()
+        pinWatch:SetScript("OnUpdate", nil)
         ClearTransientMapState(self)
     end)
 

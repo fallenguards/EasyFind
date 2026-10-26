@@ -179,6 +179,7 @@ local DB_DEFAULTS = {
     mapTabRecentCount = 3,
     mapTabFontSize = 1,
     mapTabAutoExpand = true,
+    mapTabShowParents = true,
     mapSidePanelOpen = false,
     alwaysShowRares = false,
     housingCollection = "collected",

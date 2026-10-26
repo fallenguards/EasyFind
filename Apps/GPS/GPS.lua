@@ -2403,9 +2403,14 @@ end
 
 -- The search list's two choices, each surface its own: the window's, the
 -- section's (snapped in or floating), and beside the map the map tab's.
+-- Parent zones start off in the window and the section: only the matches.
 GPS.LIST_CHOICES = {
-    recent = { map = "mapTabShowRecent", popout = "gpsPopoutShowRecent", dock = "gpsDockShowRecent" },
-    expand = { map = "mapTabAutoExpand", popout = "gpsPopoutAutoExpand", dock = "gpsDockAutoExpand" },
+    recent = { map = "mapTabShowRecent", popout = "gpsPopoutShowRecent", dock = "gpsDockShowRecent",
+        label = "MAP_SHOW_RECENT", tooltip = "GPS_SHOW_RECENT_TT" },
+    parents = { map = "mapTabShowParents", popout = "gpsPopoutShowParents", dock = "gpsDockShowParents",
+        label = "MAP_SHOW_PARENTS", tooltip = "MAP_SHOW_PARENTS_TT", offInGPS = true },
+    expand = { map = "mapTabAutoExpand", popout = "gpsPopoutAutoExpand", dock = "gpsDockAutoExpand",
+        label = "MAP_AUTO_EXPAND", tooltip = "MAP_AUTO_EXPAND_TT" },
 }
 
 function GPS.ListChoiceKey(frame, which)
@@ -2414,13 +2419,14 @@ end
 
 function GPS.ListChoice(frame, which)
     local db = DB()
-    return not (db and db[GPS.ListChoiceKey(frame, which)] == false)
+    local on = db and db[GPS.ListChoiceKey(frame, which)]
+    if on == nil then return not (GPS.LIST_CHOICES[which].offInGPS and not frame.mapFont) end
+    return on
 end
 
 function GPS.ListChoiceRow(frame, which)
-    local recent = which == "recent"
-    return { kind = "check", label = recent and L["MAP_SHOW_RECENT"] or L["MAP_AUTO_EXPAND"],
-        tooltip = recent and L["GPS_SHOW_RECENT_TT"] or L["MAP_AUTO_EXPAND_TT"],
+    local choice = GPS.LIST_CHOICES[which]
+    return { kind = "check", label = L[choice.label], tooltip = L[choice.tooltip],
         get = function() return GPS.ListChoice(frame, which) end,
         set = function(v)
             local db = DB()
@@ -2609,11 +2615,15 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             end
             -- Searched and nothing found: says so in the list's place, never
             -- the route's steps back under a search.
-            self.hitArgs = {
-                query = query or {},
-                globalEntries = secs and ns.PlaceList.FlatEntries(routable) or ns.PlaceList.WorldEntries(routable),
-                emptyText = L["MAP_NO_MATCHES"],
-            }
+            -- Along the way the places keep their order; else under their
+            -- zones, or (this surface's choice) only the matches.
+            local entries
+            if not secs and GPS.ListChoice(self, "parents") then
+                entries = ns.PlaceList.WorldEntries(routable)
+            else
+                entries = ns.PlaceList.FlatEntries(routable)
+            end
+            self.hitArgs = { query = query or {}, globalEntries = entries, emptyText = L["MAP_NO_MATCHES"] }
         end
         hitList:SetVerticalScroll(0)
         self:DrawHits()
@@ -5116,6 +5126,7 @@ function GPS.MenuRows(f)
     end
     if f.search then
         defs[#defs + 1] = GPS.ListChoiceRow(f, "recent")
+        defs[#defs + 1] = GPS.ListChoiceRow(f, "parents")
         defs[#defs + 1] = GPS.ListChoiceRow(f, "expand")
     end
     defs[#defs + 1] = { kind = "separator" }

@@ -535,6 +535,12 @@ local function MapRows()
                 db.mapTabShowRecent = on and true or false
                 Soon(function() if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end end)
             end),
+        Check(L["MAP_SHOW_PARENTS"], L["MAP_SHOW_PARENTS_TT"],
+            function() return db.mapTabShowParents ~= false end,
+            function(on)
+                db.mapTabShowParents = on and true or false
+                Soon(function() if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end end)
+            end),
         Check(L["OPT_INLINE_AUTOCOMPLETE"], L["OPT_INLINE_AUTOCOMPLETE_TT"],
             function() return db.mapTabAutocomplete ~= false end,
             function(on)

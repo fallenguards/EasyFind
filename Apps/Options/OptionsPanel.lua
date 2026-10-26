@@ -102,7 +102,7 @@ local MAP_RESET_KEYS = {
     "iconScale", "mapPinStyle", "blinkingPins", "autoPinClear",
     "autoTrackPins", "globalSearchFilters", "localSearchFilters",
     "mapTabFilters", "alwaysShowRares", "mapTabShowRecent",
-    "mapTabAutoExpand", "mapTabRecentCount", "mapTabFontSize",
+    "mapTabAutoExpand", "mapTabShowParents", "mapTabRecentCount", "mapTabFontSize",
 }
 
 local UI_POSITION_KEYS = {
@@ -2635,7 +2635,7 @@ local function BuildMapTab(ctx)
     mapTabLabel:SetText(L["OPT_MAP_TAB_SECTION"])
     mapTabLabel:SetTextColor(Utils.RGB(SECTION_TITLE_TEXT, 1))
 
-    local mapTabSettings = CreateSettingsGroup(sec2, GROUP_W, ROW_H * 3 + 8)
+    local mapTabSettings = CreateSettingsGroup(sec2, GROUP_W, ROW_H * 4 + 8)
     mapTabSettings:SetPoint("TOPLEFT", mapTabLabel, "BOTTOMLEFT", 0, -3)
     optionsFrame.mapTabSettings = mapTabSettings
 
@@ -2672,6 +2672,17 @@ local function BuildMapTab(ctx)
         end
     end)
     optionsFrame.mapAutocompleteCheckbox = mapAutocompleteCheckbox
+
+    local mapShowParentsCheckbox = CreateCheckbox(mapTabSettings, "MapTabShowParents",
+        L["MAP_SHOW_PARENTS"], L["MAP_SHOW_PARENTS_TT"], false, GROUP_W)
+    mapShowParentsCheckbox:SetPoint("TOPLEFT", mapAutocompleteCheckbox, "BOTTOMLEFT", 0, 0)
+    mapShowParentsCheckbox:SetChecked(EasyFind.db.mapTabShowParents ~= false)
+    mapShowParentsCheckbox:SetScript("OnClick", function(self)
+        EasyFind.db.mapTabShowParents = self:GetChecked() and true or false
+        if self.RefreshVisual then self:RefreshVisual() end
+        if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
+    end)
+    optionsFrame.mapShowParentsCheckbox = mapShowParentsCheckbox
 
     local function UpdateRecentCountEnabled()
         recentCountStepper:SetGroupEnabled(EasyFind.db.enableMapSearch ~= false and EasyFind.db.mapTabShowRecent ~= false)

@@ -116,13 +116,16 @@ function MapSearch:ScanAllFlightMasters()
         if depth > 6 then return end
         local children = GetMapChildrenInfo(parentMapID, nil, false)
         if not children then return end
+        local parentInfo = GetMapInfo(parentMapID)
+        local parentType = parentInfo and parentInfo.mapType
 
         for _, child in ipairs(children) do
             if child.name then
                 local mt = child.mapType
-                -- Zones only: continent scans duplicate child-zone results
-                -- with a coordMapID wrong for whatever the player views.
-                if mt == Enum.UIMapType.Zone then
+                -- Zones and a continent's dungeon-typed places (Oribos): a
+                -- continent's own scan repeats its zones' nodes, mispositioned.
+                if mt == Enum.UIMapType.Zone or (mt == Enum.UIMapType.Dungeon and parentType == Enum.UIMapType.Continent
+                    and ns.MapUtils.IsPlaceMap(child, parentMapID, parentType)) then
                     local nodes = self:ScanFlightMasters(child.mapID)
                     for _, node in ipairs(nodes) do
                         local key = node.name .. "|" .. child.mapID
