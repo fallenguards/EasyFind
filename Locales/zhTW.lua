@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Shift+上/下|r 或 |cFF00FF00Alt+Shift+K/J|r 跳至區段\n\n"
     .. "|cFFFFD100快速篩選：|r\n"
     .. "輸入 |cFF00FF00@|r 進行分類篩選。例如：|cFF00FF00@m|r 坐騎，|cFF00FF00@s|r 數據，|cFF00FF00@g|r 裝備。|cFF00FF00Tab/空白鍵|r 選擇分類。\n\n"
-    .. "|cFFFFD100計算機：|r\n"
-    .. "在搜尋中輸入算式可即時得到結果，或開啟結果中的計算機項目以使用完整計算機。\n\n"
     .. "|cFFFFD100其他：|r\n"
     .. "|cFF00FF00Shift+拖曳|r 重新定位  |cFF00FF00右鍵點擊|r 開啟右鍵選單（釘選、指引、連結等）\n\n"
     .. "|cFFFFD100斜線指令：|r\n"

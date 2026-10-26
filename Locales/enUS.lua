@@ -233,8 +233,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Shift+Up/Down|r or |cFF00FF00Alt+Shift+K/J|r jump section\n\n"
     .. "|cFFFFD100Quick filters:|r\n"
     .. "Type |cFF00FF00@|r for category filters. Examples: |cFF00FF00@m|r mounts, |cFF00FF00@s|r statistics, |cFF00FF00@g|r gear. |cFF00FF00Tab/Space|r selects a category.\n\n"
-    .. "|cFFFFD100Calculator:|r\n"
-    .. "Type math into the search bar for an inline result, or open the Calculator result to use the full calculator.\n\n"
     .. "|cFFFFD100Other:|r\n"
     .. "|cFF00FF00Shift+Drag|r reposition  |cFF00FF00Right-click|r open context menu (pin, show me how, link, more)\n\n"
     .. "|cFFFFD100Slash commands:|r\n"

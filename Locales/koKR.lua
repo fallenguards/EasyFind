@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Shift+위/아래|r 또는 |cFF00FF00Alt+Shift+K/J|r 구획 이동\n\n"
     .. "|cFFFFD100빠른 필터:|r\n"
     .. "|cFF00FF00@|r 를 입력하면 분류 필터가 나옵니다. 예: |cFF00FF00@m|r 탈것, |cFF00FF00@s|r 통계, |cFF00FF00@g|r 장비. |cFF00FF00Tab/Space|r 로 분류를 선택합니다.\n\n"
-    .. "|cFFFFD100계산기:|r\n"
-    .. "검색창에 수식을 입력하면 즉시 결과가 나오고, 결과 목록의 계산기 항목을 열면 전체 계산기를 사용할 수 있습니다.\n\n"
     .. "|cFFFFD100기타:|r\n"
     .. "|cFF00FF00Shift+드래그|r 위치 이동  |cFF00FF00오른쪽 클릭|r 컨텍스트 메뉴 열기(고정, 안내, 링크 등)\n\n"
     .. "|cFFFFD100슬래시 명령어:|r\n"

@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Maj+Haut/Bas|r ou |cFF00FF00Alt+Maj+K/J|r saut de section\n\n"
     .. "|cFFFFD100Filtres rapides :|r\n"
     .. "Tapez |cFF00FF00@|r pour les filtres de catégorie. Exemples : |cFF00FF00@m|r montures, |cFF00FF00@s|r statistiques, |cFF00FF00@g|r équipement. |cFF00FF00Tab/Espace|r sélectionne une catégorie.\n\n"
-    .. "|cFFFFD100Calculatrice :|r\n"
-    .. "Tapez un calcul dans la recherche pour un résultat instantané, ou ouvrez le résultat Calculatrice pour la calculatrice complète.\n\n"
     .. "|cFFFFD100Autres :|r\n"
     .. "|cFF00FF00Maj+Glisser|r repositionner  |cFF00FF00Clic droit|r ouvre le menu contextuel (épingler, guide, lien...)\n\n"
     .. "|cFFFFD100Commandes :|r\n"

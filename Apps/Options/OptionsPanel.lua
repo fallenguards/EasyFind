@@ -16,7 +16,18 @@ local tostring = Utils.tostring
 local tinsert = Utils.tinsert
 local IsMouseButtonDown = IsMouseButtonDown
 
-local SMALL_HIGHLIGHT_FONT = _G["GameFontHighlightSmall"] or _G["GameFontNormalSmall"] or _G["GameFontNormal"]
+-- The window's text: the game's fonts 2 pt larger.
+local OPT_FONTS = {}
+for _, name in ipairs({ "GameFontNormalSmall", "GameFontHighlightSmall", "GameFontDisableSmall",
+        "GameFontNormal", "GameFontHighlight", "GameFontNormalHuge" }) do
+    local copy = "EasyFindOptions" .. name
+    local font = _G[copy] or CreateFont(copy)
+    font:CopyFontObject(_G[name])
+    local file, size, flags = font:GetFont()
+    font:SetFont(file, size + 2, flags)
+    OPT_FONTS[name] = copy
+end
+local SMALL_HIGHLIGHT_FONT = _G[OPT_FONTS.GameFontHighlightSmall]
 
 -- Themed confirm dialog for the reset buttons (replaces the Blizzard
 -- StaticPopup style). Reset is the accept verb; Cancel is implicit.
@@ -345,14 +356,14 @@ local function CreateFlyoutSelector(parent, globalPrefix, width, anchor, initial
     btnFrame:SetPoint("RIGHT", parent, "RIGHT", -8, 0)
     StyleSelectorButton(btnFrame, 22)
 
-    local btnText = btnFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local btnText = btnFrame:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     btnFrame._efText = btnText
     btnText:SetPoint("LEFT", btnFrame, "LEFT", 8, 0)
     btnText:SetPoint("RIGHT", btnFrame, "RIGHT", -18, 0)
     btnText:SetJustifyH("CENTER")
     btnText:SetText(initialText)
 
-    local arrow = btnFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local arrow = btnFrame:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     arrow:SetPoint("RIGHT", btnFrame, "RIGHT", -6, 0)
     arrow:SetText("v")
     btnFrame.arrow = arrow
@@ -425,8 +436,12 @@ local function PaintGroupRing(ring)
 end
 
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
-    local flyout = CreateFrame("Frame", globalPrefix .. "Flyout", btnFrame, "BackdropTemplate")
+    -- The window's, not the button's: an extension's page scrolls, and its
+    -- scroll frame cut a list off at the window's edge.
+    local flyout = CreateFrame("Frame", globalPrefix .. "Flyout", optionsFrame or btnFrame, "BackdropTemplate")
     optionsFlyouts[#optionsFlyouts + 1] = flyout
+    flyout._efButton = btnFrame
+    btnFrame:HookScript("OnHide", function() flyout:Hide() end)
     flyout:SetSize(width, numChoices * 20 + 6)
     flyout:SetPoint("TOPRIGHT", btnFrame, "BOTTOMRIGHT", 0, -2)
     flyout:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -442,6 +457,15 @@ local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
         if opening then
             for i = 1, #optionsFlyouts do
                 if optionsFlyouts[i] ~= flyout then optionsFlyouts[i]:Hide() end
+            end
+            -- Below its button, or above it where the screen ends first.
+            flyout:ClearAllPoints()
+            local bottom = btnFrame:GetBottom()
+            local room = bottom and bottom * btnFrame:GetEffectiveScale() - (Utils.MENU_EDGE or 8)
+            if room and room < flyout:GetHeight() * flyout:GetEffectiveScale() then
+                flyout:SetPoint("BOTTOMRIGHT", btnFrame, "TOPRIGHT", 0, 2)
+            else
+                flyout:SetPoint("TOPRIGHT", btnFrame, "BOTTOMRIGHT", 0, -2)
             end
         end
         flyout:SetShown(opening)
@@ -514,7 +538,7 @@ local function AddFlyoutChecks(flyout, defs, itemWidth)
             ns.SetRoundedRectBarHeight(rowBg, 9)
             HideRoundedFrameBorder(rowBg)
             PaintRoundedFill(rowBg, 1, 1, 1, 0)
-            local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
             label:SetPoint("LEFT", row:GetNormalTexture(), "RIGHT", 4, 0)
             label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
             label:SetJustifyH("LEFT")
@@ -547,7 +571,7 @@ local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, s
     -- The selector's row as a dropdown in the search bar: these choices, the
     -- one its button shows, chosen the way a click chooses. A builder's own
     -- control on the row wins.
-    local btnFrame = flyout:GetParent()
+    local btnFrame = flyout._efButton or flyout:GetParent()
     local selectorRow = btnFrame and btnFrame:GetParent()
     local shownText = btnFrame and btnFrame._efText
     if selectorRow and shownText and (selectorRow._efControl == nil or selectorRow._efControl.fromFlyout) then
@@ -575,7 +599,7 @@ local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, s
         ns.SetRoundedRectBarHeight(rowBg, 9)
         HideRoundedFrameBorder(rowBg)
         PaintRoundedFill(rowBg, 1, 1, 1, 0)
-        local label = flyoutBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local label = flyoutBtn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         label:SetPoint("LEFT", flyoutBtn, "LEFT", 6, 0)
         label:SetPoint("RIGHT", flyoutBtn, "RIGHT", -6, 0)
         label:SetJustifyH("LEFT")
@@ -647,7 +671,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
     local toggleH = compact and 14 or 16
     local knobSize = toggleH - 2
     local checkbox = CreateFrame("CheckButton", frameName, parent)
-    local rowW = width or (compact and 220 or 330)
+    local rowW = width or (compact and 264 or 396)
     checkbox:SetSize(rowW, rowH)
     checkbox:RegisterForClicks("LeftButtonUp")
     -- Only the toggle itself is interactive. A row-wide hit area made the
@@ -668,7 +692,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
     PaintRoundedFill(rowBg, 1, 1, 1, 0)
     checkbox.rowBg = rowBg
 
-    local text = checkbox:CreateFontString(nil, "OVERLAY", compact and "GameFontHighlightSmall" or "GameFontNormalSmall")
+    local text = checkbox:CreateFontString(nil, "OVERLAY", compact and OPT_FONTS.GameFontHighlightSmall or OPT_FONTS.GameFontNormalSmall)
     text:SetPoint("LEFT", checkbox, "LEFT", compact and 6 or 8, 0)
     text:SetJustifyH("LEFT")
     checkbox.Text = text
@@ -859,7 +883,15 @@ local function SetNavButtonBg(btn, color)
     SetModernButtonAlpha(btn, color[4] or 1)
 end
 
-local CreateModernButton = ns.CreateModernButton
+-- The window's buttons wear its larger text.
+local function CreateModernButton(parent, text, width, height)
+    local btn = ns.CreateModernButton(parent, text, width, height)
+    btn._label:SetFontObject(OPT_FONTS.GameFontNormalSmall)
+    btn._label:SetTextColor(1, 1, 1, 1)
+    btn._label:SetShadowColor(0, 0, 0, 0)
+    btn:SetText(text)
+    return btn
+end
 
 local function CreateSettingsGroup(parent, width, height)
     local group = CreateFrame("Frame", nil, parent)
@@ -982,11 +1014,11 @@ end
 
 local function CreateSegmentedPresetRow(parent, labelText, choices, getter, setter, tooltipText, width)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(width or 330, 30)
+    row:SetSize(width or 396, 30)
     row.enabled = true
     row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
 
-    local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
     label:SetPoint("RIGHT", row, "RIGHT", -188, 0)
     label:SetJustifyH("LEFT")
@@ -1025,7 +1057,7 @@ local function CreateSegmentedPresetRow(parent, labelText, choices, getter, sett
         btn:SetSize(halfW, trackH)
         btn:SetPoint("LEFT", track, "LEFT", 2 + (i - 1) * halfW, 0)
         btn.choice = choice
-        local text = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local text = btn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         text:SetPoint("LEFT", btn, "LEFT", 4, 0)
         text:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
         text:SetJustifyH("CENTER")
@@ -1091,11 +1123,11 @@ local function CreatePresetRow(parent, labelText, choices, getter, setter, toolt
     end
 
     local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(width or 330, 28)
+    row:SetSize(width or 396, 28)
     row.enabled = true
     row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
 
-    local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
     local controlW = (#choices == 3) and 174 or 184
     label:SetPoint("RIGHT", row, "RIGHT", -controlW - 18, 0)
@@ -1158,12 +1190,12 @@ end
 
 local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, setter, tooltipText, width, step)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(width or 330, 28)
+    row:SetSize(width or 396, 28)
     row.enabled = true
     row._efControl = { kind = "slider", get = getter, set = setter, min = minVal, max = maxVal, step = step or 1,
                        tooltip = tooltipText }
 
-    local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     label:SetPoint("LEFT", row, "LEFT", 8, 0)
     label:SetPoint("RIGHT", row, "RIGHT", -112, 0)
     label:SetJustifyH("LEFT")
@@ -1210,7 +1242,7 @@ local function CreateStepperRow(parent, labelText, minVal, maxVal, getter, sette
     local valueText = CreateFrame("EditBox", nil, valueShell)
     valueText:SetPoint("TOPLEFT", valueShell, "TOPLEFT", 4, 0)
     valueText:SetPoint("BOTTOMRIGHT", valueShell, "BOTTOMRIGHT", -4, 0)
-    valueText:SetFontObject("GameFontHighlightSmall")
+    valueText:SetFontObject(OPT_FONTS.GameFontHighlightSmall)
     valueText:SetJustifyH("CENTER")
     valueText:SetAutoFocus(false)
     valueText:SetNumeric(true)
@@ -1340,14 +1372,14 @@ local function BuildHomeTab(ctx)
     homeIcon:SetPoint("TOPLEFT", homeTab, "TOPLEFT", 12, -8)
     homeIcon:SetTexture("Interface\\AddOns\\EasyFind\\textures\\Spyglass")
 
-    local homeTitle = homeTab:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    local homeTitle = homeTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalHuge)
     local titlePath, _, titleFlags = homeTitle:GetFont()
     if titlePath then homeTitle:SetFont(titlePath, 28, titleFlags) end
     homeTitle:SetPoint("LEFT", homeIcon, "RIGHT", 14, 0)
     homeTitle:SetText(L["OPT_ADDON_NAME"])
     homeTitle._efNoIndex = true
 
-    local homeVersion = homeTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local homeVersion = homeTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     homeVersion:SetPoint("BOTTOMLEFT", homeTitle, "BOTTOMRIGHT", 6, 2)
     local tocVersion = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("EasyFind", "Version")
     homeVersion:SetText("v" .. (tocVersion or ""))
@@ -1355,7 +1387,7 @@ local function BuildHomeTab(ctx)
     -- The peer-heard update notice gets its own line under the title (the
     -- title rides centered on the 80px icon, so this space is free):
     -- appended to the version label it ran off the tab's right edge.
-    local homeUpdateNotice = homeTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local homeUpdateNotice = homeTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     homeUpdateNotice:SetPoint("TOPLEFT", homeTitle, "BOTTOMLEFT", 1, -4)
     homeUpdateNotice:SetJustifyH("LEFT")
     local gold = ns.GOLD_COLOR
@@ -1387,7 +1419,7 @@ local function BuildHomeTab(ctx)
         RefreshHomeUpdateNotice()
     end
 
-    local FLOW_FONT = "GameFontHighlightSmall"
+    local FLOW_FONT = OPT_FONTS.GameFontHighlightSmall
     local FLOW_W = FRAME_W - 24
 
     local homeQuick = ns.BuildFlowText(homeTab, L["OPT_HOME_QUICKSTART"], {
@@ -1406,7 +1438,7 @@ local function BuildHomeTab(ctx)
         },
     })
     homeQuick:SetPoint("TOPLEFT", homeIcon, "BOTTOMLEFT", 0, -20)
-    local thankYou = homeTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local thankYou = homeTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     thankYou:SetPoint("BOTTOMRIGHT", homeTab, "BOTTOMRIGHT", -16, 4)
     thankYou:SetText(L["OPT_HOME_WELCOME"])
     thankYou:SetTextColor(1, 1, 1, 1)
@@ -1462,7 +1494,7 @@ local function BuildGeneralBindsTab(ctx)
         local row = CreateFrame("Frame", nil, sec3)
         row:SetSize(SELECTOR_ROW_W, 24)
         row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
-        local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
         label:SetPoint("LEFT", row, "LEFT", 8, 0)
         label:SetPoint("RIGHT", row, "RIGHT", -SELECTOR_BTN_W - 18, 0)
         label:SetJustifyH("LEFT")
@@ -1551,7 +1583,7 @@ local function BuildGeneralBindsTab(ctx)
             ns.SetRoundedRectBarHeight(importBg, 9)
             HideRoundedFrameBorder(importBg)
             PaintRoundedFill(importBg, 1, 1, 1, 0)
-            local importLabel = themeImportRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            local importLabel = themeImportRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
             importLabel:SetPoint("LEFT", themeImportRow, "LEFT", 6, 0)
             importLabel:SetText(L["OPT_IMPORT_THEME"])
             themeImportRow:SetScript("OnEnter", function() PaintRoundedFill(importBg, 1, 1, 1, 0.06) end)
@@ -1759,7 +1791,7 @@ local function BuildGeneralBindsTab(ctx)
         HideRoundedFrameBorder(rowBg)
         PaintRoundedFill(rowBg, 1, 1, 1, 0)
 
-        local label = colorBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local label = colorBtn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         label:SetPoint("LEFT", colorBtn, "LEFT", 6, 0)
         label:SetPoint("RIGHT", colorBtn, "RIGHT", -6, 0)
         label:SetJustifyH("CENTER")
@@ -1866,7 +1898,7 @@ local function BuildGeneralBindsTab(ctx)
     optionsFrame.fontBtnText = fontBtnText
     optionsFrame.fontFlyout = fontFlyout
 
-    local keybindHeader = sec3:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local keybindHeader = sec3:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     keybindHeader:SetPoint("TOPLEFT", fontRow, "BOTTOMLEFT", 8, -18)
     keybindHeader:SetText(L["OPT_KEYBINDS_HEADER"])
     keybindHeader:SetTextColor(Utils.RGB(SECTION_TITLE_TEXT, 1))
@@ -1888,8 +1920,8 @@ local function BuildGeneralBindsTab(ctx)
 
     local keybindButtons = {}
     local KEYBIND_ROW_H = 24
-    local KEYBIND_BTN_W = 116
-    local KEYBIND_LABEL_W = 168
+    local KEYBIND_BTN_W = 140
+    local KEYBIND_LABEL_W = 200
     local keybindSettings = CreateSettingsGroup(sec3, SELECTOR_ROW_W, KEYBIND_ROW_H * #keybindDefs + 8)
     keybindSettings:SetPoint("TOPLEFT", keybindHeader, "BOTTOMLEFT", 0, -3)
     optionsFrame.keybindSettings = keybindSettings
@@ -1901,7 +1933,7 @@ local function BuildGeneralBindsTab(ctx)
         rowFrame:SetSize(SELECTOR_ROW_W, KEYBIND_ROW_H)
         rowFrame:SetPoint("TOPLEFT", keybindSettings, "TOPLEFT", 0, -4 - row * KEYBIND_ROW_H)
 
-        local rowLabel = rowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local rowLabel = rowFrame:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
         rowLabel:SetPoint("LEFT", rowFrame, "LEFT", 8, 0)
         rowLabel:SetText(def.label .. ":")
         -- In the search bar: a key button that sets this EasyFind bind.
@@ -1909,8 +1941,8 @@ local function BuildGeneralBindsTab(ctx)
         rowLabel:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
 
         local keybindBtn = CreateModernButton(rowFrame)
-        keybindBtn:SetNormalFontObject("GameFontHighlightSmall")
-        keybindBtn:SetHighlightFontObject("GameFontHighlightSmall")
+        keybindBtn:SetNormalFontObject(OPT_FONTS.GameFontHighlightSmall)
+        keybindBtn:SetHighlightFontObject(OPT_FONTS.GameFontHighlightSmall)
         ns.StyleBgFillButton(keybindBtn)
         keybindBtn:SetSize(KEYBIND_BTN_W, 20)
         keybindBtn:SetPoint("LEFT", rowLabel, "LEFT", KEYBIND_LABEL_W, 0)
@@ -2023,7 +2055,7 @@ local function BuildSearchTab(ctx)
 
     visibilityModeRow = CreateFrame("Frame", nil, sec1)
     visibilityModeRow:SetSize(SELECTOR_ROW_W, 24)
-    local visLabel = visibilityModeRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local visLabel = visibilityModeRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     visLabel:SetPoint("LEFT", visibilityModeRow, "LEFT", 8, 0)
     visLabel:SetPoint("RIGHT", visibilityModeRow, "RIGHT", -SELECTOR_BTN_W - 18, 0)
     visLabel:SetJustifyH("LEFT")
@@ -2093,7 +2125,7 @@ local function BuildSearchTab(ctx)
                 check:SetPoint("CENTER", box, "CENTER", 0, 0)
                 check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
                 check:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-                local lbl = lineBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                local lbl = lineBtn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
                 lbl:SetPoint("LEFT", box, "RIGHT", 3, 0)
                 lbl:SetText(lineText)
                 lineBtn:SetWidth(12 + 3 + lbl:GetStringWidth() + 4)
@@ -2409,7 +2441,7 @@ local function BuildSearchTab(ctx)
         ns.SetRoundedRectBarHeight(resizeBg, 9)
         HideRoundedFrameBorder(resizeBg)
         PaintRoundedFill(resizeBg, 1, 1, 1, 0)
-        local resizeLabel = resizeRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local resizeLabel = resizeRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         resizeLabel:SetPoint("LEFT", resizeRow, "LEFT", 6, 0)
         resizeLabel:SetText(L["OPT_RESIZE_UI_SEARCH"])
         local widthGetter = resizeLabel.GetUnboundedStringWidth or resizeLabel.GetStringWidth
@@ -2481,7 +2513,7 @@ local function BuildSearchTab(ctx)
     searchOpacityRow:ClearAllPoints()
     borderRow:SetPoint("TOPLEFT", wowheadRow, "BOTTOMLEFT", 0, -4)
     searchOpacityRow:SetPoint("TOPLEFT", borderRow, "BOTTOMLEFT", 0, -4)
-    local wowheadRowLabel = wowheadRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local wowheadRowLabel = wowheadRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     wowheadRowLabel:SetPoint("LEFT", wowheadRow, "LEFT", 8, 0)
     wowheadRowLabel:SetPoint("RIGHT", wowheadRow, "RIGHT", -SELECTOR_BTN_W - 18, 0)
     wowheadRowLabel:SetJustifyH("LEFT")
@@ -2541,8 +2573,8 @@ local function BuildSearchTab(ctx)
     optionsFrame.RefreshUIPresetRows = RefreshUIPresetRows
 
     -- Three buttons on this row (the other tabs keep two at RESET_BTN_W):
-    -- 16 + 3*104 + 2*8 + right margin fits the 366px content width.
-    local SEARCH_RESET_BTN_W = 104
+    -- 16 + 3*124 + 2*8 + right margin fits the 438px content width.
+    local SEARCH_RESET_BTN_W = 124
     local resetUIBtn = CreateModernButton(sec1)
     resetUIBtn:SetSize(SEARCH_RESET_BTN_W, 20)
     resetUIBtn:SetPoint("LEFT", sec1, "LEFT", 16, 0)
@@ -2636,7 +2668,7 @@ local function BuildMapTab(ctx)
     local GROUP_W = FRAME_W - 16
     local ROW_H = 28
 
-    local mapTabLabel = sec2:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local mapTabLabel = sec2:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     mapTabLabel:SetPoint("TOPLEFT", sec2, "TOPLEFT", 8, -48)
     mapTabLabel:SetText(L["OPT_MAP_TAB_SECTION"])
     mapTabLabel:SetTextColor(Utils.RGB(SECTION_TITLE_TEXT, 1))
@@ -2707,7 +2739,7 @@ local function BuildMapTab(ctx)
     mapTabSettings:AddControl(mapTabShowRecentCheckbox)
     mapTabSettings:AddControl(recentCountStepper)
 
-    local mapIconsLabel = sec2:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local mapIconsLabel = sec2:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     mapIconsLabel:SetPoint("TOPLEFT", mapTabSettings, "BOTTOMLEFT", 0, -6)
     mapIconsLabel:SetText(L["OPT_EF_MAP_ICONS_SECTION"])
     mapIconsLabel:SetTextColor(Utils.RGB(SECTION_TITLE_TEXT, 1))
@@ -2834,7 +2866,7 @@ local function BuildShortcutsTab(ctx)
     local CreateTab, FRAME_W = ctx.CreateTab, ctx.FRAME_W
     local sec4 = CreateTab(L["OPT_TAB_SHORTCUTS"])
 
-    local shortcutText = sec4:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local shortcutText = sec4:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     shortcutText:SetPoint("TOPLEFT", sec4, "TOPLEFT", 8, -8)
     shortcutText:SetWidth(FRAME_W - 60)
     shortcutText:SetJustifyH("LEFT")
@@ -2865,11 +2897,11 @@ local function BuildAliasesTab(ctx)
     local aliasesTab = CreateTab(L["OPT_TAB_ALIASES"])
     Options._aliasesTabIndex = aliasesTab.tabIndex
 
-    local aliasTitle = aliasesTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local aliasTitle = aliasesTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     aliasTitle:SetPoint("TOPLEFT", aliasesTab, "TOPLEFT", 8, -8)
     aliasTitle:SetText(L["OPT_SAVED_ALIASES"])
 
-    local aliasHeader = aliasesTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local aliasHeader = aliasesTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     aliasHeader:SetPoint("TOPLEFT", aliasTitle, "BOTTOMLEFT", 0, -6)
     aliasHeader:SetPoint("RIGHT", aliasesTab, "RIGHT", -10, 0)
     aliasHeader:SetJustifyH("LEFT")
@@ -2912,7 +2944,7 @@ local function BuildAliasesTab(ctx)
     aliasSearchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
     aliasSearchBox:SetMaxLetters(64)
 
-    local aliasSearchPlaceholder = aliasSearchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local aliasSearchPlaceholder = aliasSearchBox:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
     aliasSearchPlaceholder:SetPoint("LEFT", aliasSearchBox, "LEFT", 0, 0)
     aliasSearchPlaceholder:SetText(L["OPT_SEARCH_ALIASES_PLACEHOLDER"])
     Utils.StyleSearchHint(aliasSearchPlaceholder, aliasSearchIcon)
@@ -2977,7 +3009,7 @@ local function BuildAliasesTab(ctx)
         f:SetScript("OnDragStop", f.StopMovingOrSizing)
         ns.StyleMenuPanel(f)
 
-        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.title = f:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
         f.title._efOwnColor = true
         f.title:SetPoint("TOP", 0, -12)
 
@@ -2998,7 +3030,7 @@ local function BuildAliasesTab(ctx)
         local eb = CreateFrame("EditBox", nil, scroll)
         eb:SetMultiLine(true)
         eb:SetAutoFocus(false)
-        eb:SetFontObject("GameFontHighlightSmall")
+        eb:SetFontObject(OPT_FONTS.GameFontHighlightSmall)
         eb:SetWidth(384)
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus(); f:Hide() end)
         scroll:SetScrollChild(eb)
@@ -3023,7 +3055,7 @@ local function BuildAliasesTab(ctx)
         f.importBtn = ns.CreateModernButton(f, L["SHORTKEY_IMPORT"], 90, 22)
         f.importBtn:SetPoint("BOTTOMRIGHT", -14, 12)
 
-        f.hint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        f.hint = f:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
         f.hint:SetPoint("BOTTOMLEFT", 14, 16)
         -- The hint is a link when it names left-out rows: a click lists them.
         f.hintBtn = CreateFrame("Button", nil, f)
@@ -3085,11 +3117,11 @@ local function BuildAliasesTab(ctx)
         f:SetScript("OnDragStop", f.StopMovingOrSizing)
         ns.StyleMenuPanel(f)
 
-        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.title = f:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
         f.title._efOwnColor = true
         f.title:SetPoint("TOP", 0, -12)
 
-        f.warn = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.warn = f:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         f.warn:SetPoint("TOPLEFT", PV_PAD, -34)
         f.warn:SetPoint("RIGHT", -PV_PAD, 0)
         f.warn:SetJustifyH("LEFT")
@@ -3124,7 +3156,7 @@ local function BuildAliasesTab(ctx)
         ns.SetRoundedRectBorderShown(detail, false)
         ns.SetRoundedRectFill(detail, 0.02, 0.02, 0.03, 1)
         f.detail = detail
-        f.detailText = detail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.detailText = detail:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         f.detailText:SetPoint("TOPLEFT", 8, -8)
         f.detailText:SetPoint("BOTTOMRIGHT", -8, 8)
         f.detailText:SetJustifyH("LEFT")
@@ -3155,11 +3187,11 @@ local function BuildAliasesTab(ctx)
         row.bg = row:CreateTexture(nil, "BACKGROUND")
         row.bg:SetAllPoints()
         row.bg:SetColorTexture(1, 1, 1, 0)
-        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.label:SetPoint("LEFT", row, "LEFT", 6, 0)
         row.label:SetJustifyH("LEFT")
         row.label:SetWordWrap(false)
-        row.status = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        row.status = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
         row.status:SetPoint("RIGHT", row, "RIGHT", -6, 0)
         row.status:SetJustifyH("RIGHT")
         row.status:SetWordWrap(false)
@@ -3216,11 +3248,11 @@ local function BuildAliasesTab(ctx)
             row:SetPoint("TOPLEFT", f.content, "TOPLEFT", 0, -(i - 1) * PV_ROW_H)
             row:SetPoint("RIGHT", f.content, "RIGHT", 0, 0)
             if def.header then
-                row.label:SetFontObject("GameFontNormalSmall")
+                row.label:SetFontObject(OPT_FONTS.GameFontNormalSmall)
                 row.label:SetText(def.header)
                 row.status:SetText("")
             else
-                row.label:SetFontObject("GameFontHighlightSmall")
+                row.label:SetFontObject(OPT_FONTS.GameFontHighlightSmall)
                 row.label:SetText("    " .. (def.label or ""))
                 row.status:SetText(def.status or "")
             end
@@ -3530,7 +3562,7 @@ local function BuildAliasesTab(ctx)
     -- Export / import use the same visible resting fill as other option buttons,
     -- with the scope cogwheel tucked into the right edge of the export button.
     -- Import matches export's width.
-    local SHARE_BTN_W = 92
+    local SHARE_BTN_W = 110
     local function UseShareButtonFill(btn)
         PaintControlFill(btn, ns.BTN_FILL_NORMAL, 0.92)
         btn:HookScript("OnLeave", function(self)
@@ -3583,8 +3615,8 @@ local function BuildAliasesTab(ctx)
     local COL_GAP = 6
     local REMOVE_RIGHT = 4
     local REMOVE_W = 20
-    local SK_COL_W = 86
-    local ALIAS_COL_W = 120
+    local SK_COL_W = 104
+    local ALIAS_COL_W = 144
     local NAME_LEFT = 10
     local HEADER_H = 14
 
@@ -3605,7 +3637,7 @@ local function BuildAliasesTab(ctx)
     aliasColHeader:SetSize(FRAME_W - 42, HEADER_H)
     aliasColHeader:SetPoint("TOPLEFT", aliasList, "TOPLEFT", 10, -HEADER_TOP)
     local function MakeColHeader(text, justify)
-        local fs = aliasColHeader:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        local fs = aliasColHeader:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
         fs:SetText(text)
         fs:SetJustifyH(justify)
         fs:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -3637,7 +3669,7 @@ local function BuildAliasesTab(ctx)
 
     local aliasScrollBar = ns.Utils and ns.Utils.CreateMinimalScrollBar and ns.Utils.CreateMinimalScrollBar(aliasScroll, aliasList)
     ParkScrollBarInMargin(aliasScrollBar, aliasList, SCROLL_TOP)
-    local aliasEmpty = aliasContent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local aliasEmpty = aliasContent:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     aliasEmpty:SetPoint("TOPLEFT", aliasContent, "TOPLEFT", 8, -8)
     aliasEmpty:SetText(L["OPT_NO_SAVED_ALIASES"])
     aliasEmpty:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -3713,7 +3745,7 @@ local function BuildAliasesTab(ctx)
         end)
         row.aliasBtn:HookScript("OnLeave", HideTruncTip)
 
-        row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.nameText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
         row.nameText:SetPoint("RIGHT", row.aliasBtn, "LEFT", -8, 0)
         row.nameText:SetJustifyH("LEFT")
@@ -3925,11 +3957,11 @@ local function BuildBlacklistTab(ctx)
     local blacklistTab = CreateTab(L["OPT_TAB_BLACKLIST"])
     Options._blacklistTabIndex = blacklistTab.tabIndex
 
-    local blTitle = blacklistTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local blTitle = blacklistTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     blTitle:SetPoint("TOPLEFT", blacklistTab, "TOPLEFT", 8, -8)
     blTitle:SetText(L["OPT_SAVED_BLACKLIST"])
 
-    local blHeader = blacklistTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local blHeader = blacklistTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     blHeader:SetPoint("TOPLEFT", blTitle, "BOTTOMLEFT", 0, -6)
     blHeader:SetPoint("RIGHT", blacklistTab, "RIGHT", -10, 0)
     blHeader:SetJustifyH("LEFT")
@@ -3970,7 +4002,7 @@ local function BuildBlacklistTab(ctx)
     blSearchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
     blSearchBox:SetMaxLetters(64)
 
-    local blSearchPlaceholder = blSearchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local blSearchPlaceholder = blSearchBox:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
     blSearchPlaceholder:SetPoint("LEFT", blSearchBox, "LEFT", 0, 0)
     blSearchPlaceholder:SetText(L["OPT_SEARCH_BLACKLIST_PLACEHOLDER"])
     Utils.StyleSearchHint(blSearchPlaceholder, blSearchIcon)
@@ -4028,7 +4060,7 @@ local function BuildBlacklistTab(ctx)
     local blColHeader = CreateFrame("Frame", nil, blList)
     blColHeader:SetSize(FRAME_W - 42, HEADER_H)
     blColHeader:SetPoint("TOPLEFT", blList, "TOPLEFT", 10, -HEADER_TOP)
-    local hObject = blColHeader:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local hObject = blColHeader:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     hObject:SetText(L["OPT_COL_OBJECT"])
     hObject:SetJustifyH("LEFT")
     hObject:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -4051,7 +4083,7 @@ local function BuildBlacklistTab(ctx)
 
     local blScrollBar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(blScroll, blList)
     ParkScrollBarInMargin(blScrollBar, blList, SCROLL_TOP)
-    local blEmpty = blContent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local blEmpty = blContent:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     blEmpty:SetPoint("TOPLEFT", blContent, "TOPLEFT", 8, -8)
     blEmpty:SetText(L["OPT_NO_BLACKLISTED"])
     blEmpty:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -4090,7 +4122,7 @@ local function BuildBlacklistTab(ctx)
         row.removeBtn = CreateModernButton(row, "x", REMOVE_W, 18)
         row.removeBtn:SetPoint("RIGHT", row, "RIGHT", -REMOVE_RIGHT, 0)
 
-        row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.nameText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
         row.nameText:SetPoint("RIGHT", row.removeBtn, "LEFT", -8, 0)
         row.nameText:SetJustifyH("LEFT")
@@ -4168,11 +4200,11 @@ local function BuildSnippetsPage(ctx, page)
     local FRAME_W = ctx.FRAME_W
     local snippetsTab = page
 
-    local snTitle = snippetsTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local snTitle = snippetsTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     snTitle:SetPoint("TOPLEFT", snippetsTab, "TOPLEFT", 8, -8)
     snTitle:SetText(L["FILTER_SNIPPETS"])
 
-    local snHeader = snippetsTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local snHeader = snippetsTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     snHeader:SetPoint("TOPLEFT", snTitle, "BOTTOMLEFT", 0, -6)
     snHeader:SetPoint("RIGHT", snippetsTab, "RIGHT", -10, 0)
     snHeader:SetJustifyH("LEFT")
@@ -4278,7 +4310,7 @@ local function BuildSnippetsPage(ctx, page)
     snSearchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
     snSearchBox:SetMaxLetters(64)
 
-    local snSearchPlaceholder = snSearchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local snSearchPlaceholder = snSearchBox:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
     snSearchPlaceholder:SetPoint("LEFT", snSearchBox, "LEFT", 0, 0)
     snSearchPlaceholder:SetText(L["OPT_SEARCH_SNIPPETS_PLACEHOLDER"])
     Utils.StyleSearchHint(snSearchPlaceholder, snSearchIcon)
@@ -4297,7 +4329,7 @@ local function BuildSnippetsPage(ctx, page)
     local NAME_LEFT = 10
     local REMOVE_W = 20
     local REMOVE_RIGHT = 4
-    local KEYWORD_W = 110
+    local KEYWORD_W = 132
     local HEADER_H = 14
     local HEADER_TOP = 7
     local DIVIDER_Y = HEADER_TOP + HEADER_H + 3
@@ -4314,12 +4346,12 @@ local function BuildSnippetsPage(ctx, page)
     local snColHeader = CreateFrame("Frame", nil, snList)
     snColHeader:SetSize(FRAME_W - 42, HEADER_H)
     snColHeader:SetPoint("TOPLEFT", snList, "TOPLEFT", 10, -HEADER_TOP)
-    local hName = snColHeader:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local hName = snColHeader:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     hName:SetText(L["SNIPPET_NAME"])
     hName:SetJustifyH("LEFT")
     hName:SetTextColor(0.92, 0.92, 0.92, 1)
     hName:SetPoint("LEFT", snColHeader, "LEFT", NAME_LEFT, 0)
-    local hKeyword = snColHeader:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local hKeyword = snColHeader:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     hKeyword:SetText(L["SNIPPET_KEYWORD"])
     hKeyword:SetJustifyH("LEFT")
     hKeyword:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -4342,7 +4374,7 @@ local function BuildSnippetsPage(ctx, page)
 
     local snScrollBar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(snScroll, snList)
     ParkScrollBarInMargin(snScrollBar, snList, SCROLL_TOP)
-    local snEmpty = snContent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local snEmpty = snContent:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     snEmpty:SetPoint("TOPLEFT", snContent, "TOPLEFT", 8, -8)
     snEmpty:SetText(L["OPT_NO_SNIPPETS"])
     snEmpty:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -4381,14 +4413,14 @@ local function BuildSnippetsPage(ctx, page)
         row.removeBtn = CreateModernButton(row, "x", REMOVE_W, 18)
         row.removeBtn:SetPoint("RIGHT", row, "RIGHT", -REMOVE_RIGHT, 0)
 
-        row.keywordText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.keywordText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.keywordText:SetPoint("RIGHT", row.removeBtn, "LEFT", -6, 0)
         row.keywordText:SetWidth(KEYWORD_W)
         row.keywordText:SetJustifyH("LEFT")
         row.keywordText:SetWordWrap(false)
         row.keywordText:SetShadowColor(0, 0, 0, 0)
 
-        row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.nameText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
         row.nameText:SetPoint("RIGHT", row.keywordText, "LEFT", -8, 0)
         row.nameText:SetJustifyH("LEFT")
@@ -4475,11 +4507,11 @@ local function BuildQuicklistsPage(ctx, page)
     local Quicklists = ns.Quicklists
     local selectedID
 
-    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local title = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
     title:SetText(L["FILTER_QUICKLISTS"])
 
-    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local hint = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
     hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
     hint:SetJustifyH("LEFT")
@@ -4510,7 +4542,7 @@ local function BuildQuicklistsPage(ctx, page)
     searchBox:SetAutoFocus(false)
     searchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
     searchBox:SetMaxLetters(64)
-    local searchPlaceholder = searchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local searchPlaceholder = searchBox:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
     searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 0, 0)
     searchPlaceholder:SetText(L["OPT_SEARCH_QUICKLISTS_PLACEHOLDER"])
     Utils.StyleSearchHint(searchPlaceholder, searchIcon)
@@ -4574,9 +4606,9 @@ local function BuildQuicklistsPage(ctx, page)
 
     local NAME_LEFT = 10
     local BTN_W = 20
-    local KEY_W = 96
-    local HOLD_W = 44
-    local MACRO_W = 50
+    local KEY_W = 116
+    local HOLD_W = 52
+    local MACRO_W = 60
     local HEADER_H = 14
     local HEADER_TOP = 7
     local DIVIDER_Y = HEADER_TOP + HEADER_H + 3
@@ -4594,7 +4626,7 @@ local function BuildQuicklistsPage(ctx, page)
         card.header = CreateFrame("Frame", nil, card)
         card.header:SetSize(FRAME_W - 42, HEADER_H)
         card.header:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -HEADER_TOP)
-        card.title = card.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        card.title = card.header:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
         card.title:SetJustifyH("LEFT")
         card.title:SetTextColor(0.92, 0.92, 0.92, 1)
         card.title:SetPoint("LEFT", card.header, "LEFT", NAME_LEFT, 0)
@@ -4612,7 +4644,7 @@ local function BuildQuicklistsPage(ctx, page)
         card.scroll:SetScrollChild(card.content)
         card.bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(card.scroll, card, { moreBelow = true })
         ParkScrollBarInMargin(card.bar, card, SCROLL_TOP)
-        card.empty = card.content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        card.empty = card.content:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
         card.empty:SetPoint("TOPLEFT", card.content, "TOPLEFT", 8, -8)
         card.empty:SetTextColor(0.92, 0.92, 0.92, 1)
         card.pool = {}
@@ -4655,12 +4687,12 @@ local function BuildQuicklistsPage(ctx, page)
             row.holdCheck = CreateCheckbox(row, nil, "", L["QUICKLIST_HOLD_TT"], true, HOLD_W)
             row.holdCheck:SetPoint("RIGHT", row.upBtn, "LEFT", -4, 0)
             row.keyBtn = CreateModernButton(row, "", KEY_W, 18)
-            row.keyBtn:SetNormalFontObject("GameFontHighlightSmall")
-            row.keyBtn:SetHighlightFontObject("GameFontHighlightSmall")
+            row.keyBtn:SetNormalFontObject(OPT_FONTS.GameFontHighlightSmall)
+            row.keyBtn:SetHighlightFontObject(OPT_FONTS.GameFontHighlightSmall)
             row.keyBtn:SetPoint("RIGHT", row.holdCheck, "LEFT", -4, 0)
             row.macroBtn = CreateModernButton(row, _G["MACRO"] or "Macro", MACRO_W, 18)
-            row.macroBtn:SetNormalFontObject("GameFontHighlightSmall")
-            row.macroBtn:SetHighlightFontObject("GameFontHighlightSmall")
+            row.macroBtn:SetNormalFontObject(OPT_FONTS.GameFontHighlightSmall)
+            row.macroBtn:SetHighlightFontObject(OPT_FONTS.GameFontHighlightSmall)
             row.macroBtn:SetPoint("RIGHT", row.keyBtn, "LEFT", -4, 0)
             row.macroBtn:SetScript("OnEnter", function(self)
                 ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["QUICKLIST_MACRO_TT"])
@@ -4668,7 +4700,7 @@ local function BuildQuicklistsPage(ctx, page)
             row.macroBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
             textRight = row.macroBtn
         end
-        row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.nameText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         row.nameText:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
         row.nameText:SetPoint("RIGHT", textRight, "LEFT", -8, 0)
         row.nameText:SetJustifyH("LEFT")
@@ -4710,13 +4742,13 @@ local function BuildQuicklistsPage(ctx, page)
     local listsCard = Card(share, L["FILTER_QUICKLISTS"])
     -- Three rows here; the rows card under it gets the rest of the page.
     listsCard:SetHeight(SCROLL_TOP + 3 * ROW_H + 14)
-    local keyHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local keyHeader = listsCard.header:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     keyHeader:SetJustifyH("LEFT")
     keyHeader:SetTextColor(0.92, 0.92, 0.92, 1)
     keyHeader:SetPoint("RIGHT", listsCard.header, "RIGHT", -(4 + BTN_W * 3 + 10 + HOLD_W + 4 + 8), 0)
     keyHeader:SetWidth(KEY_W)
     keyHeader:SetText(L["QUICKLIST_COL_KEY"])
-    local holdHeader = listsCard.header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local holdHeader = listsCard.header:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     holdHeader:SetJustifyH("LEFT")
     holdHeader:SetTextColor(0.92, 0.92, 0.92, 1)
     holdHeader:SetPoint("LEFT", keyHeader, "RIGHT", 4, 0)
@@ -4850,10 +4882,10 @@ local extensionCtx
 -- label font, and the order.
 local function BuildExtensionsMenuPage(ctx, page)
     local AppsMenu = ns.AppsMenu
-    local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local title = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     title:SetPoint("TOPLEFT", page, "TOPLEFT", 8, -8)
     title:SetText(L["OPT_EXT_MENU_PAGE"])
-    local hint = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local hint = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
     hint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
     hint:SetJustifyH("LEFT")
@@ -5083,13 +5115,13 @@ local function BuildExtensionsTab(ctx)
     extensionStrip:SetPoint("TOPLEFT", extensionsTab, "TOPLEFT", 8, -8)
     extensionStrip:SetPoint("RIGHT", extensionsTab, "RIGHT", -8, 0)
     extensionStrip:SetHeight(24)
-    local title = extensionStrip:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local title = extensionStrip:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     title:SetPoint("LEFT", extensionStrip, "LEFT", 0, 0)
     title:SetText(L["FILTER_EXTENSIONS"])
     extensionStrip.title = title
-    extensionStrip.measure = extensionStrip:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    extensionStrip.measure = extensionStrip:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontHighlightSmall)
     extensionStrip.measure:Hide()
-    extensionHint = extensionsTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    extensionHint = extensionsTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     extensionHint:SetPoint("TOPLEFT", extensionStrip, "BOTTOMLEFT", 0, -6)
     extensionHint:SetPoint("RIGHT", extensionsTab, "RIGHT", -10, 0)
     extensionHint:SetJustifyH("LEFT")
@@ -5239,10 +5271,10 @@ local ROWACT_ROW_H, ROWACT_BTN_W = 26, 116
 local function BuildRowActionsList(ctx, tab, above)
     local RowActions = ns.ResultRowActions
     if not RowActions then return end
-    local header = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local header = tab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     header:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -18)
     header:SetText(L["OPT_ROWACT_HEADER"])
-    local hint = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local hint = tab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     hint:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
     hint:SetPoint("RIGHT", tab, "RIGHT", -12, 0)
     hint:SetJustifyH("LEFT")
@@ -5267,7 +5299,7 @@ local function BuildRowActionsList(ctx, tab, above)
     searchBox:SetAutoFocus(false)
     searchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
     searchBox:SetMaxLetters(64)
-    local placeholder = searchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    local placeholder = searchBox:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
     placeholder:SetPoint("LEFT", searchBox, "LEFT", 0, 0)
     placeholder:SetPoint("RIGHT", searchBox, "RIGHT", 0, 0)
     placeholder:SetJustifyH("LEFT")
@@ -5290,7 +5322,7 @@ local function BuildRowActionsList(ctx, tab, above)
     scroll:SetScrollChild(content)
     local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, card)
     ParkScrollBarInMargin(bar, card, 2)
-    local empty = content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local empty = content:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     empty:SetPoint("TOPLEFT", content, "TOPLEFT", 8, -8)
     empty:SetText(L["OPT_NO_BLACKLIST_MATCH"])
     empty:SetTextColor(0.92, 0.92, 0.92, 1)
@@ -5321,12 +5353,12 @@ local function BuildRowActionsList(ctx, tab, above)
         row.icon:SetSize(16, 16)
         row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
         row.keyBtn = CreateModernButton(row)
-        row.keyBtn:SetNormalFontObject("GameFontHighlightSmall")
-        row.keyBtn:SetHighlightFontObject("GameFontHighlightSmall")
+        row.keyBtn:SetNormalFontObject(OPT_FONTS.GameFontHighlightSmall)
+        row.keyBtn:SetHighlightFontObject(OPT_FONTS.GameFontHighlightSmall)
         ns.StyleBgFillButton(row.keyBtn)
         row.keyBtn:SetSize(ROWACT_BTN_W, 20)
         row.keyBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        row.label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
         row.label:SetJustifyH("LEFT")
         row.label:SetWordWrap(false)
         row.label:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
@@ -5447,7 +5479,7 @@ local function BuildResultClicksTab(ctx)
     local CreateTab, CreateFlyoutPresetRow, RESET_BTN_W = ctx.CreateTab, ctx.CreateFlyoutPresetRow, ctx.RESET_BTN_W
     local Gestures = ns.ResultGestures
     local tab = CreateTab(L["OPT_TAB_RESULT_CLICKS"])
-    local hint = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local hint = tab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     hint:SetPoint("TOPLEFT", tab, "TOPLEFT", 12, -10)
     hint:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -12, -10)
     hint:SetJustifyH("LEFT")
@@ -5508,7 +5540,7 @@ local function BuildResultClicksTab(ctx)
         gestureRows[i] = row
         anchor = row
     end
-    shiftLine = tab:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    shiftLine = tab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
     shiftLine:SetPoint("TOPLEFT", gestureRows[shiftRow - 1], "BOTTOMLEFT", 8, -6)
     reset = CreateModernButton(tab, L["OPT_RESET_SETTINGS"], RESET_BTN_W, 22)
     reset:SetScript("OnClick", function()
@@ -5523,7 +5555,7 @@ local function BuildFeedbackTab(ctx)
     local CreateTab, RESET_BTN_W = ctx.CreateTab, ctx.RESET_BTN_W
     local feedbackTab = CreateTab(L["OPT_TAB_FEEDBACK"])
 
-    local feedbackDesc = feedbackTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local feedbackDesc = feedbackTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     feedbackDesc:SetPoint("TOPLEFT", feedbackTab, "TOPLEFT", 12, -16)
     feedbackDesc:SetPoint("RIGHT", feedbackTab, "RIGHT", -12, 0)
     feedbackDesc:SetJustifyH("LEFT")
@@ -5568,12 +5600,12 @@ local function BuildProfilesTab(ctx)
     local Profiles = ns.Profiles
     if not Profiles then return end
     local CreateTab = ctx.CreateTab
-    local BTN_W = 110
+    local BTN_W = 132
     profilesTab = CreateTab(L["OPT_TAB_PROFILES"])
     Options._profilesTabIndex = profilesTab.tabIndex
     local RefreshTab
 
-    local desc = profilesTab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local desc = profilesTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     desc:SetPoint("TOPLEFT", profilesTab, "TOPLEFT", 12, -14)
     desc:SetPoint("RIGHT", profilesTab, "RIGHT", -12, 0)
     desc:SetJustifyH("LEFT")
@@ -5612,7 +5644,7 @@ local function BuildProfilesTab(ctx)
     local pickRow = CreateFrame("Frame", nil, profilesTab)
     pickRow:SetSize(ctx.SELECTOR_ROW_W, 24)
     pickRow:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", -8, -6)
-    local pickLabel = pickRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local pickLabel = pickRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     pickLabel:SetPoint("LEFT", pickRow, "LEFT", 8, 0)
     pickLabel:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
     pickLabel:SetText(L["PROFILE_CURRENT"])
@@ -5684,7 +5716,7 @@ local function BuildProfilesTab(ctx)
     end)
 
     -- Spec profiles: an enable toggle, then a row per specialization.
-    local specTitle = profilesTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local specTitle = profilesTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     specTitle:SetPoint("TOPLEFT", copyHolder, "BOTTOMLEFT", 0, -12)
     specTitle:SetText(L["PROFILE_SPEC_TITLE"])
     local specEnable = CreateCheckbox(profilesTab, "ProfileSpecEnable", L["PROFILE_SPEC_ENABLE"],
@@ -5700,7 +5732,7 @@ local function BuildProfilesTab(ctx)
         local row = CreateFrame("Frame", nil, profilesTab)
         row:SetSize(ctx.SELECTOR_ROW_W, 22)
         row:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -2)
-        local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
         label:SetPoint("LEFT", row, "LEFT", 8, 0)
         label:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
         row.label, row.spec = label, spec
@@ -5709,13 +5741,13 @@ local function BuildProfilesTab(ctx)
     end
 
     -- Export & import: what goes into the code, then the two buttons.
-    local exportTitle = profilesTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local exportTitle = profilesTab:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
     exportTitle:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 8, -12)
     exportTitle:SetText(L["PROFILE_EXPORT_TITLE"])
     local inclRow = CreateFrame("Frame", nil, profilesTab)
     inclRow:SetSize(ctx.SELECTOR_ROW_W, 24)
     inclRow:SetPoint("TOPLEFT", exportTitle, "BOTTOMLEFT", -8, -4)
-    local inclLabel = inclRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local inclLabel = inclRow:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
     inclLabel:SetPoint("LEFT", inclRow, "LEFT", 8, 0)
     inclLabel:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
     inclLabel:SetText(L["PROFILE_EXPORT_INCLUDE"])
@@ -5867,7 +5899,7 @@ function Options:Initialize()
 
     local WINDOW_W   = ns.OPTIONS_WINDOW_W
     local WINDOW_H   = ns.OPTIONS_WINDOW_H
-    local SIDEBAR_W  = 132
+    local SIDEBAR_W  = 150
     local FRAME_W    = WINDOW_W - SIDEBAR_W - 46
     local COL_LEFT   = 4
     local SIDEBAR_BOTTOM_INSET = 10
@@ -6053,7 +6085,7 @@ function Options:Initialize()
     optionsFrame.RestyleSidebar = RestyleSidebar
     RestyleSidebar()
 
-    local title = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local title = optionsFrame:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     title:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 4, -6)
     title:SetText(L["OPT_SETTINGS_TITLE"])
     title:SetTextColor(Utils.RGB(Look().TEXT_BODY, 1))
@@ -6201,7 +6233,7 @@ function Options:Initialize()
         HideRoundedBorder(btn)
         SetNavButtonBg(btn, NAV_CLEAR)
 
-        local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local label = btn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
         label:SetPoint("LEFT", btn, "LEFT", 10, 0)
         label:SetPoint("RIGHT", btn, "RIGHT", -10, 0)
         label:SetJustifyH("LEFT")
@@ -6252,7 +6284,7 @@ function Options:Initialize()
     -- text sitting on light panels, which would vanish here).
     local TUT_LINK = { 0.44, 0.84, 1.0 }
     local TUT_LINK_HOVER = { 0.72, 0.94, 1.0 }
-    local tutorialLabel = tutorialBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local tutorialLabel = tutorialBtn:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     tutorialLabel:SetPoint("LEFT", tutorialBtn, "LEFT", 10, 0)
     tutorialLabel:SetPoint("RIGHT", tutorialBtn, "RIGHT", -10, 0)
     tutorialLabel:SetJustifyH("LEFT")
@@ -6276,7 +6308,7 @@ function Options:Initialize()
     -- strip's right end, the settings search at its left.
     local pagedTutorial = CreateFrame("Button", nil, optionsFrame)
     pagedTutorial:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -16, -12)
-    local pagedTutorialLabel = pagedTutorial:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local pagedTutorialLabel = pagedTutorial:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
     pagedTutorialLabel:SetPoint("RIGHT")
     pagedTutorialLabel:SetText(L["OPT_TAB_TUTORIAL"])
     pagedTutorialLabel:SetTextColor(TUT_LINK[1], TUT_LINK[2], TUT_LINK[3], 1)
@@ -6366,7 +6398,7 @@ function Options:Initialize()
     end
 
     local SELECTOR_ROW_W = FRAME_W - 16
-    local SELECTOR_BTN_W = 170
+    local SELECTOR_BTN_W = 204
 
     -- Flyout-dropdown version of a preset row: same {label,value} choices and
     -- getter/setter as CreatePresetRow, but a single dropdown (like the indicator
@@ -6377,7 +6409,7 @@ function Options:Initialize()
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(SELECTOR_ROW_W, 24)
         row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
-        local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormalSmall)
         label:SetPoint("LEFT", row, "LEFT", 8, 0)
         label:SetPoint("RIGHT", row, "RIGHT", -SELECTOR_BTN_W - 18, 0)
         label:SetJustifyH("LEFT")
@@ -6440,7 +6472,7 @@ function Options:Initialize()
         end
         return row
     end
-    local RESET_BTN_W = 120
+    local RESET_BTN_W = 144
 
 
     local ctx = {
@@ -6507,7 +6539,7 @@ function Options:Initialize()
         box:SetAutoFocus(false)
         box:SetFontObject(SMALL_HIGHLIGHT_FONT)
         box:SetMaxLetters(48)
-        local placeholder = box:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+        local placeholder = box:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
         placeholder:SetPoint("LEFT", box, "LEFT", 0, 0)
         placeholder:SetText(L["OPT_SEARCH_PLACEHOLDER"])
         Utils.StyleSearchHint(placeholder, icon)
@@ -6587,9 +6619,9 @@ function Options:Initialize()
         results.rows = {}
         -- Sized to its widest hit (measured unconstrained), never a guess;
         -- registered as a click guard so the bar's closer leaves it be.
-        results.measure = results:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        results.measure = results:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontHighlightSmall)
         results.measure:Hide()
-        results.measurePath = results:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+        results.measurePath = results:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
         results.measurePath:Hide()
         Utils.RegisterClickGuard(results)
         results:Hide()
@@ -6621,11 +6653,11 @@ function Options:Initialize()
                     row = CreateFrame("Button", nil, results)
                     row:SetHeight(ROW_H)
                     Utils.InstallMenuRowHighlight(row)
-                    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                    row.label = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
                     row.label:SetPoint("LEFT", row, "LEFT", 6, 0)
                     row.label:SetJustifyH("LEFT")
                     row.label:SetWordWrap(false)
-                    row.path = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+                    row.path = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontDisableSmall)
                     row.path:SetPoint("RIGHT", row, "RIGHT", -6, 0)
                     row.path:SetJustifyH("RIGHT")
                     row.path:SetWordWrap(false)

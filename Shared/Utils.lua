@@ -2528,9 +2528,9 @@ ns.UPDATE_NOTICE_BOTTOM_PAD = 6
 ns.UPDATE_NOTICE_TOP_PAD = 1
 -- The options window: its height grows by one 28px settings row each time
 -- its tabs run out of room.
-ns.OPTIONS_WINDOW_W = 544
--- Room for General's six keybindings above its reset row (Classic chrome's too).
-ns.OPTIONS_WINDOW_H = 494
+ns.OPTIONS_WINDOW_W = 634
+-- Room for the tabs at the window's text, 2 pt over the game's (Classic chrome's too).
+ns.OPTIONS_WINDOW_H = 520
 ns.DEFAULT_FONT_SIZE = 0.9
 ns.CLEAR_BTN_SIZE = 12
 -- Blizzard's standard round-crop mask, used wherever a square icon has to

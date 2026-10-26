@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Shift+上/下|r 或 |cFF00FF00Alt+Shift+K/J|r 跳转分区\n\n"
     .. "|cFFFFD100快捷筛选：|r\n"
     .. "输入 |cFF00FF00@|r 进行分类筛选。例如：|cFF00FF00@m|r 坐骑，|cFF00FF00@s|r 统计，|cFF00FF00@g|r 装备。|cFF00FF00Tab/空格|r 选择一个分类。\n\n"
-    .. "|cFFFFD100计算器：|r\n"
-    .. "在搜索中输入算式可即时得到结果，或打开结果中的计算器条目以使用完整计算器。\n\n"
     .. "|cFFFFD100其他：|r\n"
     .. "|cFF00FF00Shift+拖动|r 重新定位  |cFF00FF00右键单击|r 打开右键菜单（固定、指引、链接等）\n\n"
     .. "|cFFFFD100斜杠命令：|r\n"

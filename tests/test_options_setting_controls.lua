@@ -36,6 +36,7 @@ function tests.everySelectorIsADropdown()
     env.PaintRoundedFill, env.HideRoundedFrameBorder = function() end, function() end
     env.ns = { CreateRoundedRectBorder = function() end, SetRoundedRectBarHeight = function() end }
     env.mmax, env.mfloor = math.max, math.floor
+    env.OPT_FONTS = setmetatable({}, { __index = function(_, name) return "EasyFindOptions" .. name end })
     local chunk = slice(source("Apps/Options/OptionsPanel.lua"), "local function AddFlyoutOptions",
         "\nlocal function ") .. "\nreturn AddFlyoutOptions"
     local AddFlyoutOptions = assert(load(chunk, "=OptionsPanel.lua AddFlyoutOptions", "t", env))()

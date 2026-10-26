@@ -205,8 +205,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Umschalt+Hoch/Runter|r oder |cFF00FF00Alt+Umschalt+K/J|r Abschnitt springen\n\n"
     .. "|cFFFFD100Schnellfilter:|r\n"
     .. "Tippe |cFF00FF00@|r für Kategoriefilter. Beispiele: |cFF00FF00@m|r Reittiere, |cFF00FF00@s|r Statistiken, |cFF00FF00@g|r Ausrüstung. |cFF00FF00Tab/Leertaste|r wählt eine Kategorie.\n\n"
-    .. "|cFFFFD100Rechner:|r\n"
-    .. "Tippe Rechenausdrücke in die Suche für ein Inline-Ergebnis oder öffne das Rechner-Ergebnis für den vollständigen Rechner.\n\n"
     .. "|cFFFFD100Sonstiges:|r\n"
     .. "|cFF00FF00Umschalt+Ziehen|r verschieben  |cFF00FF00Rechtsklick|r Kontextmenü öffnen (Anheften, Guide, Link u.a.)\n\n"
     .. "|cFFFFD100Slash-Befehle:|r\n"

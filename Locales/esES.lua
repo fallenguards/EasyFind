@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Mayús+Arriba/Abajo|r o |cFF00FF00Alt+Mayús+K/J|r saltar sección\n\n"
     .. "|cFFFFD100Filtros rápidos:|r\n"
     .. "Escribe |cFF00FF00@|r para filtros de categoría. Ejemplos: |cFF00FF00@m|r monturas, |cFF00FF00@s|r estadísticas, |cFF00FF00@g|r equipo. |cFF00FF00Tab/Espacio|r selecciona una categoría.\n\n"
-    .. "|cFFFFD100Calculadora:|r\n"
-    .. "Escribe operaciones en la búsqueda para un resultado al instante, o abre el resultado Calculadora para usar la calculadora completa.\n\n"
     .. "|cFFFFD100Otros:|r\n"
     .. "|cFF00FF00Mayús+Arrastrar|r reposicionar  |cFF00FF00Clic derecho|r abre el menú contextual (fijar, guía, enlace y más)\n\n"
     .. "|cFFFFD100Comandos:|r\n"

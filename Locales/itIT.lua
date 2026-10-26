@@ -203,8 +203,6 @@ L["OPT_SHORTCUTS_TEXT"]                 =
     .. "|cFF00FF00Maiusc+Su/Giù|r o |cFF00FF00Alt+Maiusc+K/J|r salta sezione\n\n"
     .. "|cFFFFD100Filtri rapidi:|r\n"
     .. "Digita |cFF00FF00@|r per i filtri di categoria. Esempi: |cFF00FF00@m|r cavalcature, |cFF00FF00@s|r statistiche, |cFF00FF00@g|r equipaggiamento. |cFF00FF00Tab/Spazio|r seleziona una categoria.\n\n"
-    .. "|cFFFFD100Calcolatrice:|r\n"
-    .. "Digita un calcolo nella ricerca per un risultato immediato, oppure apri il risultato Calcolatrice per la calcolatrice completa.\n\n"
     .. "|cFFFFD100Altro:|r\n"
     .. "|cFF00FF00Maiusc+Trascina|r riposiziona  |cFF00FF00Clic destro|r apre il menu contestuale (fissa, guida, link e altro)\n\n"
     .. "|cFFFFD100Comandi:|r\n"
