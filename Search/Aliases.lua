@@ -47,10 +47,6 @@ function Handlers:PromptForAlias(data)
                 added = ns.Aliases and ns.Aliases:Add(txt, data)
             end
             if added then
-                if EasyFind and EasyFind.Print and EasyFind.db
-                   and EasyFind.db.showAliasMessages ~= false then
-                    EasyFind:Print(sformat(L["ALIAS_ADDED_MSG"], txt, targetName))
-                end
                 local searchFrame = Search:GetSearchFrame()
                 local searchEditBox = searchFrame and searchFrame.editBox
                 local current = searchEditBox and searchEditBox:GetText() or ""

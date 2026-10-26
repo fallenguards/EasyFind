@@ -184,11 +184,11 @@ function tests.everyRowWorksWithNoWindow()
     end
     -- A set writes the saved setting, with no window built.
     for _, row in ipairs(rows) do
-        if row.name == "Show Alias Messages" then row.control.set(false) end
+        if row.name == "Show Minimap Button" then row.control.set(false) end
         if row.name == "Result rows" then row.control.set(9) end
         if row.name == "Lock Position" then row.control.set(true) end
     end
-    H.assertEq(env.EasyFind.db.showAliasMessages, false, "check row writes")
+    H.assertEq(env.EasyFind.db.showMinimapButton, false, "check row writes")
     H.assertEq(env.EasyFind.db.uiResultsRows, 9, "choice row writes")
     H.assertEq(env.EasyFind.db.lockPosition, true, "a once hidden check row writes")
     for _, row in ipairs(rows) do

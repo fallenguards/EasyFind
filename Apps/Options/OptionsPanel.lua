@@ -174,7 +174,6 @@ local function SyncOptionControls()
 
     if optionsFrame.visibilityModeRow then optionsFrame.visibilityModeRow:SetValue(GetVisibilityModeValue()) end
     if optionsFrame.lockPositionCheckbox then optionsFrame.lockPositionCheckbox:SetChecked(EasyFind.db.lockPosition or false) end
-    if optionsFrame.aliasMessageCheckbox then optionsFrame.aliasMessageCheckbox:SetChecked(EasyFind.db.showAliasMessages ~= false) end
     if optionsFrame.resultsDirectionRow then optionsFrame.resultsDirectionRow:SetValue(GetResultsDirectionValue()) end
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
     if optionsFrame.RefreshBorderRow then optionsFrame.RefreshBorderRow() end
@@ -1482,16 +1481,8 @@ local function BuildGeneralBindsTab(ctx)
 
     local minimapBtnCheckbox = CreateCheckbox(sec3, "MinimapBtn", L["OPT_SHOW_MINIMAP_BUTTON"],
         L["OPT_MINIMAP_BTN_TT"])
-    local aliasMessageCheckbox = CreateCheckbox(sec3, "AliasMessages", L["OPT_SHOW_ALIAS_MESSAGES"],
-        L["OPT_ALIAS_MSG_TT"])
-    aliasMessageCheckbox:SetPoint("TOPLEFT", updateNotifyCheckbox, "BOTTOMLEFT", 0, -2)
-    aliasMessageCheckbox:SetChecked(EasyFind.db.showAliasMessages ~= false)
-    aliasMessageCheckbox:SetScript("OnClick", function(self)
-        EasyFind.db.showAliasMessages = self:GetChecked()
-    end)
-    optionsFrame.aliasMessageCheckbox = aliasMessageCheckbox
 
-    minimapBtnCheckbox:SetPoint("TOPLEFT", aliasMessageCheckbox, "BOTTOMLEFT", 0, -2)
+    minimapBtnCheckbox:SetPoint("TOPLEFT", updateNotifyCheckbox, "BOTTOMLEFT", 0, -2)
     minimapBtnCheckbox:SetChecked(EasyFind.db.showMinimapButton ~= false)
     minimapBtnCheckbox:SetScript("OnClick", function(self)
         EasyFind.db.showMinimapButton = self:GetChecked()
@@ -3440,10 +3431,7 @@ local function BuildAliasesTab(ctx)
                 local applySet = analysis.newRows
 
                 local function finish()
-                    local na, nk, nb, nsn, nq = ns.Shortkeys:ApplyResolvedImport(applySet)
-                    if EasyFind and EasyFind.Print then
-                        EasyFind:Print((L["SHORTKEY_IMPORTED"]):format((na or 0) + (nk or 0) + (nb or 0) + (nsn or 0) + (nq or 0)))
-                    end
+                    ns.Shortkeys:ApplyResolvedImport(applySet)
                     if onImported then onImported() end
                 end
 

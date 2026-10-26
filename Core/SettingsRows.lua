@@ -315,9 +315,6 @@ local function GeneralRows()
                 db.showMinimapButton = on and true or false
                 EasyFind:UpdateMinimapButton()
             end),
-        Check(L["OPT_SHOW_ALIAS_MESSAGES"], L["OPT_ALIAS_MSG_TT"],
-            function() return db.showAliasMessages ~= false end,
-            function(on) db.showAliasMessages = on and true or false end),
         Choice(L["OPT_UI_THEME"], nil,
             Labeled(ns.UI_THEME_ORDER or { "Midnight" }, function(name)
                 return name == defaultTheme and DefaultTag(name) or name

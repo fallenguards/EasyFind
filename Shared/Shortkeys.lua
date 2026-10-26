@@ -657,9 +657,6 @@ end
 
 local function CommitShortkey(rowKey, name, charSpecific, combo, data)
     if not Shortkeys:SetByKey(rowKey, name, charSpecific, combo, data) then return end
-    if EasyFind and EasyFind.Print then
-        EasyFind:Print((L["SHORTKEY_SAVED"]):format(combo, name or "?"))
-    end
     local sf = ns.Search and ns.Search:GetSearchFrame()
     local eb = sf and sf.editBox
     local typedQuery = ns.Search.GetTypedQuery and ns.Search:GetTypedQuery() or (eb and eb:GetText()) or ""

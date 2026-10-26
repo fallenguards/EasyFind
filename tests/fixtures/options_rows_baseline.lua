@@ -4,7 +4,6 @@
 return {
     { "General & binds", "", "Show update reminders", "check" },
     { "General & binds", "", "Show Minimap Button", "check" },
-    { "General & binds", "", "Show Alias Messages", "check" },
     { "General & binds", "", "Theme", "choice" },
     { "General & binds", "", "Indicator Style", "choice" },
     { "General & binds", "", "Indicator Color", "choice" },

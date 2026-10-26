@@ -475,10 +475,7 @@ function Quicklists:BuildAddRows(data)
                 if not current then return end
                 if Store.Has(id, rowKey) then
                     Store.Remove(id, rowKey)
-                    Print(sformat(L["QUICKLIST_REMOVED_FMT"], data.name or "?", current.name))
-                elseif Store.Add(id, data) then
-                    Print(sformat(L["QUICKLIST_ADDED_FMT"], data.name or "?", current.name))
-                else
+                elseif not Store.Add(id, data) then
                     Print(sformat(L["QUICKLIST_FULL_FMT"], current.name))
                 end
                 Quicklists:Changed()
@@ -491,7 +488,6 @@ function Quicklists:BuildAddRows(data)
         onClick = function()
             Quicklists:PromptNew(function(list)
                 Store.Add(list.id, data)
-                Print(sformat(L["QUICKLIST_ADDED_FMT"], data.name or "?", list.name))
             end)
         end,
     }

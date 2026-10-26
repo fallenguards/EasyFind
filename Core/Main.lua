@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 25
+local DB_VERSION = 26
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -106,7 +106,6 @@ local DB_DEFAULTS = {
     -- Ver field or reset block is needed -- a signature miss rebuilds it.
     optionsSearchCache = {},
     mapPinsCollapsed = false,
-    showAliasMessages = true,
     blinkingPins = false,
     mapPinStyle = "glow",
     autoPinClear = true,
@@ -575,6 +574,15 @@ local DB_MIGRATIONS = {
         for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
             if type(slot) == "table" and type(slot.settings) == "table" then
                 slot.settings.gpsChatArrive = nil
+            end
+        end
+    end,
+    [26] = function(db)
+        -- The alias chat line and its switch are gone.
+        db.showAliasMessages = nil
+        for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
+            if type(slot) == "table" and type(slot.settings) == "table" then
+                slot.settings.showAliasMessages = nil
             end
         end
     end,
@@ -1719,15 +1727,24 @@ end
 
 -- Hidden last session: hidden again once the game has set its chat
 -- windows up (it shows them as it does), and again if it redoes that.
-local chatHideWatch
+local chatHideWatch, editModeWatch
+local function RehideChatFrames()
+    if EasyFind.db.chatFramesHidden then ns.Utils.SafeAfter(0, HideChatFrames) end
+end
 local function KeepChatFramesHidden()
     if not chatHideWatch then
         chatHideWatch = CreateFrame("Frame")
-        chatHideWatch:SetScript("OnEvent", function()
-            if EasyFind.db.chatFramesHidden then ns.Utils.SafeAfter(0, HideChatFrames) end
-        end)
+        chatHideWatch:SetScript("OnEvent", RehideChatFrames)
     end
     chatHideWatch:RegisterEvent("UPDATE_CHAT_WINDOWS")
+    -- Edit mode shows the chat again (it selects the dock's frame) and
+    -- leaves it so, tabs hidden: a child of ours under its manager hears
+    -- it close. Watched, never hooked.
+    local manager = _G["EditModeManagerFrame"]
+    if manager and not editModeWatch then
+        editModeWatch = CreateFrame("Frame", nil, manager.Border or manager)
+        editModeWatch:SetScript("OnHide", RehideChatFrames)
+    end
     ns.Utils.SafeAfter(0, HideChatFrames)
 end
 

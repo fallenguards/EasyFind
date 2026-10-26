@@ -376,9 +376,6 @@ function ThemeShare:ShowImportDialog(opts)
                 if EasyFind and EasyFind.Print then EasyFind:Print(L["SHORTKEY_IMPORT_BAD"]) end
                 return
             end
-            if EasyFind and EasyFind.Print then
-                EasyFind:Print((L["THEME_IMPORTED"]):format(name))
-            end
             if opts and opts.onImported then
                 pcall(opts.onImported, name)
             end

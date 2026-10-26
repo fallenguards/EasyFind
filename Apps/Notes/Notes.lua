@@ -879,7 +879,6 @@ function notesNS.RestoreNote(id)
     local note = RestoreNote(id)
     if not note then return nil end
     if EasyFind.db then EasyFind.db.notesInUse = true end
-    EasyFind:Print(Utils.sformat(L["NOTES_RESTORED_FMT"], NoteTitle(note)))
     if UI.RefreshEasyNotes then UI:RefreshEasyNotes() end
     return note
 end
@@ -1178,7 +1177,6 @@ function notesNS.ImportCode(str)
         local tag = strtrim((word:gsub("|", ""))):sub(1, 24)
         if tag ~= "" and not NoteTags.Index(note, tag) then note.tags[#note.tags + 1] = tag end
     end
-    EasyFind:Print(Utils.sformat(L["NOTES_IMPORTED_FMT"], NoteTitle(note)))
     UI:OpenEasyNotes()
     UI:SelectEasyNote(note.id)
     UI:HideEasyNotesPalette()
@@ -7721,7 +7719,6 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
             return { text = label, onClick = function()
                 note.reminderAt = time() + offset
                 note.updated = time()
-                EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_SET_FMT"], label))
             end }
         end
         local remindSub = {
