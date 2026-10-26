@@ -2307,43 +2307,27 @@ end
 
 -- With no route, a search box beside the glyph lists the map search's routable
 -- results underneath; a click starts navigation. Nothing is focused on open.
-local function HitRow(frame, i)
-    local rows = frame.hits
-    if rows[i] then return rows[i] end
-    local row = CreateFrame("Button", nil, frame.hitChild)
-    row:SetHeight(ROW_H)
-    Utils.InstallMenuRowHighlight(row)
-    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.text:SetPoint("LEFT", row, "LEFT", 6, 0)
-    row.text:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    row.text:SetJustifyH("LEFT")
-    row.text:SetWordWrap(false)
-    ns.GPSTrip.Note(row)
-    row:SetScript("OnClick", function(self)
-        if not self.data then return end
-        -- A trip field's finds: that field takes the place.
-        local ed = frame.trip
-        if ed and frame.hitsFor == ed then
-            ed:Pick(self.data)
-            return
-        end
-        if GPS.picking == frame then
-            GPS:SetStart(self.data)
-            return
-        end
-        if GPS.along == frame then
-            frame.search:SetText("")
-            frame.search:ClearFocus()
-            GPS:EndAlong()
-            ns.GPSTrip.Insert(GPS.Destination(self.data))
-            return
-        end
+local function PickHit(frame, data)
+    -- A trip field's finds: that field takes the place.
+    local ed = frame.trip
+    if ed and frame.hitsFor == ed then
+        ed:Pick(data)
+        return
+    end
+    if GPS.picking == frame then
+        GPS:SetStart(data)
+        return
+    end
+    if GPS.along == frame then
         frame.search:SetText("")
         frame.search:ClearFocus()
-        GPS:NavigateTo(self.data, { quiet = true })
-    end)
-    rows[i] = row
-    return row
+        GPS:EndAlong()
+        ns.GPSTrip.Insert(GPS.Destination(data))
+        return
+    end
+    frame.search:SetText("")
+    frame.search:ClearFocus()
+    GPS:NavigateTo(data, { quiet = true })
 end
 
 -- Forever towns the map search lacks (Menethil Harbor, Auberdine): labeled places in the
@@ -2417,7 +2401,6 @@ function GPS.SearchPlaces(q)
 end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
-    frame.hits = {}
     -- The tracking face's art spills 6 px past its frame: more room after it.
     local boxGap = frame.track and 16 or 12
     local box = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
@@ -2483,10 +2466,37 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     hitList:SetScript("OnSizeChanged", function(_, w) hitChild:SetWidth(w) end)
     frame.hitList, frame.hitChild = hitList, hitChild
     frame.hitBar = Utils.CreateMinimalScrollBar(hitList, hitList)
+    -- The map search's own list: its groups, its rows, its first page.
+    frame.places = ns.PlaceList.New(hitChild, {
+        click = function(row, button) if button ~= "RightButton" then PickHit(frame, row.data) end end,
+        headerClick = function(data) if GPS:CanNavigate(data) then PickHit(frame, data) end end,
+        refresh = function() frame:DrawHits() end,
+        searchBox = function() return frame.search end,
+        fontScale = function() return MapScale(frame) or 1 end,
+        -- A hovered place shown on the map, while the map is open.
+        preview = function(data)
+            local MapSearch = ns.MapSearch
+            if WorldMapFrame and WorldMapFrame:IsShown() and MapSearch and MapSearch.RunHoverPreview then
+                MapSearch:RunHoverPreview(data)
+            end
+        end,
+        endPreview = function()
+            local MapSearch = ns.MapSearch
+            if WorldMapFrame and WorldMapFrame:IsShown() and MapSearch and MapSearch.EndHoverPreview then
+                MapSearch:EndHoverPreview()
+            end
+        end,
+        decorate = function(row) ns.GPSTrip.Note(row) end,
+        fill = function(row, data)
+            local secs = frame.hitSecs
+            row.note:SetText(data and secs and secs[data] and ns.GPSTrip.AddsText(secs[data]) or "")
+        end,
+        pad = 0,
+    })
 
     -- The hits' visible height: at most what they need, the rest scrolls.
     function frame:SetHitView(h)
-        local content = (self.hitCount or 0) * ROW_H
+        local content = self.hitHeight or 0
         h = math.min(h, content)
         hitList:SetHeight(mmax(1, h))
         local scrolls = content > h + 0.5
@@ -2494,46 +2504,44 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         if scrolls then self.hitBar:UpdateThumb(content, h) end
     end
 
-    -- secs, along the way: by place, the seconds a stop there adds.
-    function frame:ShowHits(results, secs)
-        local n = 0
+    -- The hits' height on a window that grows with them.
+    function frame:HitViewH()
+        return math.min(self.hitHeight or 0, HIT_ROWS * ROW_H)
+    end
+
+    -- nil puts the list away. secs, along the way: by place, the seconds
+    -- a stop there adds, those places kept in that order. A new query
+    -- opens the groups again at the first page.
+    function frame:ShowHits(results, secs, query)
+        self.hitSecs = secs
+        self.hitArgs = nil
         if results then
+            local routable = {}
             for i = 1, #results do
-                local r = results[i]
-                if GPS:CanNavigate(r) then
-                    n = n + 1
-                    local row = HitRow(self, n)
-                    row.data = r
-                    row:ClearAllPoints()
-                    row:SetPoint("TOPLEFT", hitChild, "TOPLEFT", 0, -(n - 1) * ROW_H)
-                    row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
-                    local where = r.matchNote or r.zoneName or r.parentName or r.category
-                    row.text:SetText((r.name or "?") .. (where and where ~= r.name and ("  |cff999999" .. tostring(where) .. "|r") or ""))
-                    row.text:SetTextColor(1, 1, 1)
-                    row.note:SetText(secs and secs[r] and ns.GPSTrip.AddsText(secs[r]) or "")
-                    row:EnableMouse(true)
-                    row:Show()
-                end
+                if GPS:CanNavigate(results[i]) then routable[#routable + 1] = results[i] end
             end
             -- Searched and nothing found: says so in the list's place, never
             -- the route's steps back under a search.
-            if n == 0 then
-                n = 1
-                local row = HitRow(self, 1)
-                row.data = nil
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", hitChild, "TOPLEFT", 0, 0)
-                row:SetPoint("RIGHT", hitChild, "RIGHT", 0, 0)
-                row.text:SetText(L["MAP_NO_MATCHES"])
-                row.text:SetTextColor(unpack(ns.TEXT_DIM))
-                row.note:SetText("")
-                row:EnableMouse(false)
-                row:Show()
-            end
+            self.hitArgs = {
+                query = query or {},
+                globalEntries = secs and ns.PlaceList.FlatEntries(routable) or ns.PlaceList.WorldEntries(routable),
+                emptyText = L["MAP_NO_MATCHES"],
+            }
         end
-        for i = n + 1, #self.hits do self.hits[i]:Hide() end
-        hitChild:SetHeight(mmax(1, n * ROW_H))
         hitList:SetVerticalScroll(0)
+        self:DrawHits()
+    end
+
+    function frame:DrawHits()
+        local list = self.places
+        if self.hitArgs then
+            list:Render(self.hitArgs)
+        else
+            list:Clear()
+            hitChild:SetHeight(1)
+        end
+        local n = self.hitArgs and list.lines or 0
+        self.hitHeight = n > 0 and list.height or 0
         local had = (self.hitCount or 0) > 0
         self.hitCount = n
         self:SetHitView(HIT_ROWS * ROW_H)
@@ -2552,11 +2560,12 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         local q = box:GetText() or ""
         if q == "" or not (MapSearch and MapSearch.BuildResults) then return end
         if GPS.along == frame then
-            frame:ShowHits(ns.GPSTrip.AlongPlaces(q))
+            local results, secs = ns.GPSTrip.AlongPlaces(q)
+            frame:ShowHits(results, secs, q)
             return
         end
         local ok, results = pcall(MapSearch.BuildResults, MapSearch, q, true, true)
-        frame:ShowHits(WithTowns(q, GPS.FilterHits(ok and results or nil)))
+        frame:ShowHits(WithTowns(q, GPS.FilterHits(ok and results or nil)), nil, q)
     end
     GPS.searchFrames[#GPS.searchFrames + 1] = frame
     box:HookScript("OnTextChanged", function(self)
@@ -3927,10 +3936,10 @@ function Look.RenderEra(f)
         f.hitList:SetShown(hits)
     end
     if hits then
-        local k = math.min(f.hitCount, HIT_ROWS)
-        f:SetHitView(k * ROW_H)
+        local h = f:HitViewH()
+        f:SetHitView(h)
         widest = Look.W
-        tall = tall + 4 + k * ROW_H + 4
+        tall = tall + 4 + h + 4
     elseif route then
         local row, w
         local start = not route.arrived and Start()
@@ -3986,10 +3995,10 @@ function Look.RenderEra(f)
         f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
         f.search:Show()
         f.hitList:Show()
-        local k = math.min(f.hitCount or 0, HIT_ROWS)
-        f:SetHitView(k * ROW_H)
+        local h = f:HitViewH()
+        f:SetHitView(h)
         widest = Look.W
-        if k > 0 then tall = tall + 4 + k * ROW_H + 4 end
+        if h > 0 then tall = tall + 4 + h + 4 end
     end
     for i = n + 1, #f.eraLines do f.eraLines[i]:Hide() end
     f:SetSize(mmax(1, widest), mmax(lineH, tall))
@@ -4022,9 +4031,9 @@ RenderDock = function(f)
         f.titleBtn:Hide()
         f.track:Hide()
         for i = 1, #f.lines do f.lines[i]:Hide() end
-        local k = math.min(f.hitCount, HIT_ROWS)
-        f:SetHitView(k * ROW_H)
-        y = -DOCK_HEADER_H - (4 + k * ROW_H + 4)
+        local h = f:HitViewH()
+        f:SetHitView(h)
+        y = -DOCK_HEADER_H - (4 + h + 4)
     elseif route then
         f.title:SetText(DestText(route))
         f.title:Show()
@@ -4149,9 +4158,9 @@ RenderDock = function(f)
             f.search:SetPoint("RIGHT", f, "RIGHT", -10, 0)
             f.search:Show()
             f.hitList:Show()
-            local n = math.min(f.hitCount or 0, HIT_ROWS)
-            f:SetHitView(n * ROW_H)
-            y = -DOCK_HEADER_H - (n > 0 and (4 + n * ROW_H + 4) or 0)
+            local h = f:HitViewH()
+            f:SetHitView(h)
+            y = -DOCK_HEADER_H - (h > 0 and (4 + h + 4) or 0)
         end
     end
     for t = nTips + 1, #(f.tipLines or {}) do f.tipLines[t]:Hide() end
@@ -5141,11 +5150,11 @@ local function BuildPopout()
             -- With a route, typed places take the steps' place.
             self.list:SetShown(not (Route() and hits))
             if Route() and hits then
-                h = head + line + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
+                h = head + line + self:HitViewH() + 12
             elseif Route() then
                 h = head + line + (self.contentHeight or 0) + 4   -- the last row carries its own padding
             elseif hits then
-                h = head + (math.min(self.hitCount, HIT_ROWS) * ROW_H) + 12
+                h = head + self:HitViewH() + 12
             elseif GPS.planning then
                 h = head + 2 + (self.empty:GetStringHeight() or 14) + 12   -- "Finding a way to ..."
             elseif self.search then

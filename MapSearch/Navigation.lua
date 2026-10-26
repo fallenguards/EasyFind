@@ -104,15 +104,32 @@ local function GPSNavigates()
     return EasyFind.API.CallAction("gps", "mapClickNavigates") and true or false
 end
 
+-- The pin on the spot a route leads to: dismissing it ends the route too.
+local function RouteEndsHere(self)
+    local GPS = ns.GPS
+    local route = GPS and GPS.CurrentRoute and GPS.CurrentRoute()
+    local dest = route and route.dest
+    if not (dest and dest.x and self.waypointX and dest.mapID == WorldMapFrame:GetMapID()) then return false end
+    return math.abs(dest.x - self.waypointX) < 0.005 and math.abs(dest.y - self.waypointY) < 0.005, dest
+end
+
 local function PinEnter(self)
     if self.isLocalSearch then
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine(GPSNavigates() and L["WP_NAVIGATE"] or L["WP_PLACE"])
         GameTooltip:AddLine(L["WP_DISMISS"], 0.6, 0.6, 0.6)
         GameTooltip:Show()
-    else
-        MapSearch:ClearActivePinState()
-        MapSearch:ClearHighlight()
+        return
+    end
+    MapSearch:ClearActivePinState()
+    MapSearch:ClearHighlight()
+    -- A route's end: where it goes, and that a right-click ends it.
+    local ends, dest = RouteEndsHere(self)
+    if ends then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(dest.name or "")
+        GameTooltip:AddLine(L["WP_DISMISS_ROUTE"], 0.6, 0.6, 0.6)
+        GameTooltip:Show()
     end
 end
 
@@ -120,15 +137,6 @@ end
 -- to (its route takes the map tab), else the game's waypoint, tracked; the
 -- waypoint is world-space, so the map viewed need not be the one the player
 -- stands on. One of a cluster (several auction houses) stands alone first.
--- The pin on the spot a route leads to: dismissing it ends the route too.
-local function RouteEndsHere(self)
-    local GPS = ns.GPS
-    local route = GPS and GPS.CurrentRoute and GPS.CurrentRoute()
-    local dest = route and route.dest
-    if not (dest and dest.x and self.waypointX and dest.mapID == WorldMapFrame:GetMapID()) then return false end
-    return math.abs(dest.x - self.waypointX) < 0.005 and math.abs(dest.y - self.waypointY) < 0.005
-end
-
 local function PinClick(self, button)
     if button == "RightButton" then
         local ends = RouteEndsHere(self)

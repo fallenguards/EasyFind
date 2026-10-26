@@ -160,6 +160,7 @@ MapSearch/Search/Sources.lua
 MapSearch/Search/Scanners.lua
 MapSearch/Search/Results.lua
 MapSearch/Zones/Catalog.lua
+MapSearch/PlaceList.lua
 MapSearch/MapTab.lua
 Search/Rescaler.lua
 Core/Extensions.lua

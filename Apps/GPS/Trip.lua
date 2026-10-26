@@ -346,13 +346,14 @@ end
 
 -- The places found for what was typed: in a window with a list of its
 -- own, in the steps' place; else under the field being edited. secs,
--- along the way: by place, the seconds a stop there adds.
-function Editor:ShowHits(results, secs)
+-- along the way: by place, the seconds a stop there adds. query: what
+-- was typed, so the window's list starts over for a new one.
+function Editor:ShowHits(results, secs, query)
     local frame = self.frame
     if frame.ShowHits then
         self.drop:Hide()
         frame.hitsFor = (results and self.editing) and self or nil
-        frame:ShowHits(frame.hitsFor and results or nil, secs)
+        frame:ShowHits(frame.hitsFor and results or nil, secs, query)
         return
     end
     local n = 0
@@ -445,9 +446,10 @@ function Editor:Typed(row, text)
         local q = box and box:GetText() or ""
         if q == "" or not ns.GPS.SearchPlaces then return end
         if self.along and self.editing.adding then
-            self:ShowHits(Trip.AlongPlaces(q))
+            local results, secs = Trip.AlongPlaces(q)
+            self:ShowHits(results, secs, q)
         else
-            self:ShowHits(ns.GPS.SearchPlaces(q))
+            self:ShowHits(ns.GPS.SearchPlaces(q), nil, q)
         end
     end)
 end
@@ -677,7 +679,7 @@ local function Field(ed, i)
     box:HookScript("OnEscapePressed", function(self) self:ClearFocus() end)
     box:HookScript("OnEnterPressed", function()
         local frame = ed.frame
-        local first = (frame.hitsFor == ed and frame.hits[1]) or ed.dropRows[1]
+        local first = (frame.hitsFor == ed and frame.places:FirstPlaceRow()) or ed.dropRows[1]
         if first and first:IsShown() and first.data then ed:Pick(first.data) end
     end)
     box:HookScript("OnEditFocusLost", function() ed:CloseSoon() end)

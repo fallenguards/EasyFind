@@ -19,11 +19,7 @@ local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
 local GameTooltip_Hide = GameTooltip_Hide
 local IsAltKeyDown = IsAltKeyDown
-local GetMapChildrenInfo = C_Map and C_Map.GetMapChildrenInfo
 local GetMapInfo = C_Map and C_Map.GetMapInfo
-
-local function NameLess(a, b) return a.name < b.name end
-local function ZoneMapIDDesc(a, b) return (a.zoneMapID or 0) > (b.zoneMapID or 0) end
 
 local TAB_W, TAB_H       = 43, 55
 -- Side-tab art: retail's quest log draws the shared side tabs, whose
@@ -38,29 +34,18 @@ local TAB_ICON_SIZE      = 20
 local TAB_ICON_GOLD      = {1.00, 0.82, 0.00}
 local TAB_ICON_DIM       = {0.55, 0.45, 0.10}
 local TAB_STACK_GAP      = -3
--- The group headers' font; the classic clients have no Game15Font_Shadow.
-local HEADER_FONT = _G.Game15Font_Shadow and "Game15Font_Shadow" or "SystemFont_Shadow_Med3"
 
-local GetTopAncestor = MapUtils.GetTopAncestor
-local GetZoneUnderAncestor = MapUtils.GetZoneUnderAncestor
 local GetAncestorNames = MapUtils.GetAncestorNames
 local ExpandZoneAbbrev = MapUtils.ExpandZoneAbbrev
 
-local ROW_HEIGHT       = 22
-local ROW_ICON_SIZE    = 17
-local SECTION_HEADER_H = 22
-local GROUP_HEADER_H   = 28
-
 -- The list's text size, picked in its settings menu; rows grow with it.
 local FONT_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
-local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 local function FontScale() return EasyFind.db and EasyFind.db.mapTabFontSize or 1 end
 local function Scaled(h) return math.floor(h * FontScale() + 0.5) end
 local function ScaleFont(fs, template, scale)
     local file, size, flags = _G[template]:GetFont()
     if file then fs:SetFont(file, size * scale, flags) end
 end
-local MAX_ROW_POOL     = 300
 local ROW_POOL_RETAIN  = 80
 local HEADER_POOL_RETAIN = 40
 local SECTION_POOL_RETAIN = 12
@@ -75,51 +60,6 @@ local SEARCH_SCRATCH = {
     versionByName = {},
     candidateNames = {},
 }
-
-local worldChildrenCache = {}
-local function GetWorldChildren(mapID)
-    if not mapID or mapID == 0 then return nil end
-    local cached = worldChildrenCache[mapID]
-    if cached then return cached end
-    local result = {}
-    if not GetMapChildrenInfo then
-        worldChildrenCache[mapID] = result
-        return result
-    end
-    -- Blizzard tags instanced cities (Dalaran, etc.) as Dungeon, so an
-    -- mt-based dungeon glyph mis-fires on them. Synthesized expansions
-    -- of a continent never contain real dungeons anyway. Use the
-    -- generic zone icon for every child.
-    local children = GetMapChildrenInfo(mapID, nil, false)
-    if children then
-        for i = 1, #children do
-            local child = children[i]
-            local mt = child.mapType
-            if child.name and mt
-               and mt ~= Enum.UIMapType.Micro
-               and mt ~= Enum.UIMapType.Orphan then
-                result[#result + 1] = {
-                    name = child.name,
-                    category = "zone",
-                    isZone = true,
-                    zoneMapID = child.mapID,
-                    zoneMapType = mt,
-                    icon = ns.ZONE_ICON,
-                    synthesized = true,
-                }
-            end
-        end
-    end
-    tsort(result, NameLess)
-    worldChildrenCache[mapID] = result
-    return result
-end
-
-do
-    local inv = CreateFrame("Frame")
-    inv:RegisterEvent("PLAYER_ENTERING_WORLD")
-    inv:SetScript("OnEvent", function() worldChildrenCache = {} end)
-end
 
 local initialized = false
 local tabFrame
@@ -163,14 +103,6 @@ end
 -- mode to restore on map close+reopen (renders blank sidebar). Stash the
 -- prior mode and put it back on hide.
 local prevBlizzardDisplayMode
-local rowPool = {}
-local headerPool = {}
-local rowPoolCursor = 1
-local headerPoolCursor = 1
--- Collapse state scoped to the current query text. Reset on text change
--- so fresh matches default to expanded (auto-expand on parent match).
-local sessionCollapsed = {}
-local sessionCollapsedQuery = nil
 local lastQueryGen = 0
 local pendingSearchTimer
 local pendingSearchFrame
@@ -572,95 +504,6 @@ local function ShowPopup(isPinned, onPin, onGuide, onAddAlias, data, row)
     }, extra)
 end
 
-local function CreateResultRow(parent)
-    local row = CreateFrame("Button", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
-    -- Click on press, not release: with ButtonUp, WoW's focus-transition
-    -- machinery (when the search box is focused) absorbs the mouseUp
-    -- before OnClick fires, requiring a second click.
-    row:RegisterForClicks("LeftButtonDown", "RightButtonUp")
-    row:EnableMouse(true)
-    row:HookScript("OnMouseDown", function()
-        if panel and panel.searchBox and panel.searchBox.HasFocus and panel.searchBox:HasFocus() then
-            panel.searchBox:ClearFocus()
-        end
-    end)
-
-    local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(ROW_ICON_SIZE, ROW_ICON_SIZE)
-    icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-    row.icon = icon
-
-    local deleteBtn = Utils.CreateClearButton(row, nil)
-    deleteBtn:ClearAllPoints()
-    deleteBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    deleteBtn:Hide()
-    deleteBtn:SetScript("OnClick", function(self)
-        local data = row.data
-        if not data or not data.isRecentSearch or not data.query then return end
-        local list = EasyFind.db and EasyFind.db.mapTabRecentSearches
-        if not list then return end
-        local lowerQ = data.query:lower()
-        for i = #list, 1, -1 do
-            if type(list[i]) == "string" and list[i]:lower() == lowerQ then
-                tremove(list, i)
-            end
-        end
-        RefreshCurrentSearch()
-    end)
-    deleteBtn:SetScript("OnLeave", function(self)
-        if not row:IsMouseOver() then self:Hide() end
-    end)
-    row.deleteBtn = deleteBtn
-
-    local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    text:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-    text:SetPoint("RIGHT", deleteBtn, "LEFT", -4, 0)
-    text:SetJustifyH("LEFT")
-    text:SetWordWrap(false)
-    row.text = text
-
-    -- One highlight texture covers mouse hover and keyboard selection
-    -- (via LockHighlight) so both look identical.
-    row:SetHighlightAtlas("QuestLog-quest-glow-yellow")
-    local hl = row:GetHighlightTexture()
-    if hl then
-        hl:SetBlendMode("ADD")
-        hl:SetAllPoints(row)
-    end
-
-    return row
-end
-
-local function SetRowIcon(row, data)
-    -- Pooled rows carry their last occupant's size (recent-search rows
-    -- shrink to text height). Reset on every placement.
-    row.icon:SetSize(Scaled(ROW_ICON_SIZE), Scaled(ROW_ICON_SIZE))
-    local icon = data.icon
-    -- Dungeon/raid/delve/rare entries leave data.icon nil and rely on
-    -- the category icon; resolve it so SetRowIcon matches the MapSearch
-    -- dropdown texture.
-    if icon == nil and data.category and ns.MapSearch and ns.MapSearch.GetCategoryIcon then
-        icon = ns.MapSearch.GetCategoryIcon(data.category)
-    end
-    Utils.SetIconTexture(row.icon, icon)
-    -- A creature wears its own face, drawn by the client from its model.
-    if data.displayID and SetPortraitTextureFromCreatureDisplayID then
-        SetPortraitTextureFromCreatureDisplayID(row.icon, data.displayID)
-    end
-    -- A place it can navigate to: the GPS button first, the icon after it.
-    local GPS = ns.GPS
-    local gps = GPS and GPS.RowButton and GPS.RowButton(row, data, Scaled(ROW_ICON_SIZE))
-    row.icon:ClearAllPoints()
-    if gps then
-        gps:ClearAllPoints()
-        gps:SetPoint("LEFT", row, "LEFT", 4, 0)
-        row.icon:SetPoint("LEFT", gps, "RIGHT", 4, 0)
-    else
-        row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
-    end
-end
-
 -- Suppress hover previews briefly after every keystroke: re-renders fire
 -- OnEnter for rows that appear under a stationary cursor, which would
 -- spuriously preview pins as the user types.
@@ -728,301 +571,74 @@ local function RowOnClick(row, button)
     TriggerResultSelect(data)
 end
 
-local function RowOnEnter(row)
-    local data = row.data
-    if not data then return end
-    if data.isRecentSearch and row.deleteBtn then
-        row.deleteBtn:Show()
-        return
-    end
-    HoverPreview(data)
-    -- A vendor found by its goods, not its name, says so.
-    if data.soldName then
-        GameTooltip:SetOwner(row, "ANCHOR_LEFT")
-        GameTooltip:SetText(data.name or "", 1, 1, 1)
-        GameTooltip:AddLine(L["MAP_FOUND_BY_SELLS_FMT"]:format(data.soldName), 0.7, 0.7, 0.7, true)
-        GameTooltip:Show()
-    end
-end
-local function RowOnLeave(row)
-    if row and row.deleteBtn and not row.deleteBtn:IsMouseOver() then
-        row.deleteBtn:Hide()
-    end
-    ClearHoverPreview()
-    GameTooltip:Hide()
-end
-
-local function AcquireRow(parent)
-    local row = rowPool[rowPoolCursor]
-    if row then
-        row:SetParent(parent)
-    else
-        if #rowPool >= MAX_ROW_POOL then return nil end
-        row = CreateResultRow(parent)
-        row:SetScript("OnClick", RowOnClick)
-        row:SetScript("OnEnter", RowOnEnter)
-        row:SetScript("OnLeave", RowOnLeave)
-        tinsert(rowPool, row)
-    end
-    rowPoolCursor = rowPoolCursor + 1
-    local s = FontScale()
-    if row.fontScale ~= s then
-        row.fontScale = s
-        ScaleFont(row.text, "GameFontNormal", s)
-        row:SetHeight(Scaled(ROW_HEIGHT))
-    end
-    return row
-end
-
-local function ReleaseAllRows()
-    rowPoolCursor = 1
-    for i = 1, #rowPool do rowPool[i]:Hide(); rowPool[i].data = nil end
-end
-
-local function CreateSectionLabel(parent)
-    local hdr = CreateFrame("Frame", nil, parent)
-    hdr:SetHeight(SECTION_HEADER_H)
-    local fs = hdr:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    fs:SetPoint("CENTER", hdr, "CENTER", 0, 0)
-    fs:SetTextColor(Utils.RGB(GOLD_COLOR))
-    hdr.label = fs
-    local lineLeft = hdr:CreateTexture(nil, "ARTWORK")
-    lineLeft:SetHeight(1)
-    lineLeft:SetPoint("LEFT", hdr, "LEFT", 6, 0)
-    lineLeft:SetPoint("RIGHT", fs, "LEFT", -6, 0)
-    lineLeft:SetColorTexture(Utils.RGB(GOLD_COLOR, 0.4))
-    local lineRight = hdr:CreateTexture(nil, "ARTWORK")
-    lineRight:SetHeight(1)
-    lineRight:SetPoint("LEFT", fs, "RIGHT", 6, 0)
-    lineRight:SetPoint("RIGHT", hdr, "RIGHT", -6, 0)
-    lineRight:SetColorTexture(Utils.RGB(GOLD_COLOR, 0.4))
-    return hdr
-end
-
-local sectionLabelPool = {}
-local sectionLabelPoolCursor = 1
-
-local function AcquireSectionLabel(parent, labelText)
-    local hdr = sectionLabelPool[sectionLabelPoolCursor]
-    if not hdr then
-        hdr = CreateSectionLabel(parent)
-        tinsert(sectionLabelPool, hdr)
-    else
-        hdr:SetParent(parent)
-    end
-    sectionLabelPoolCursor = sectionLabelPoolCursor + 1
-    hdr.label:SetText(labelText or "")
-    if hdr.fontScale ~= FontScale() then
-        hdr.fontScale = FontScale()
-        ScaleFont(hdr.label, "GameFontNormalSmall", hdr.fontScale)
-        hdr:SetHeight(Scaled(SECTION_HEADER_H))
-    end
-    return hdr
-end
-
-local function ReleaseAllSectionLabels()
-    sectionLabelPoolCursor = 1
-    for i = 1, #sectionLabelPool do sectionLabelPool[i]:Hide() end
-end
-
-local function CreateGroupHeader(parent)
-    local hdr = CreateFrame("Button", nil, parent)
-    hdr:SetHeight(GROUP_HEADER_H)
-    -- See CreateResultRow: press to bypass focus-transition absorption.
-    hdr:RegisterForClicks("LeftButtonDown", "RightButtonUp")
-    hdr:HookScript("OnMouseDown", function()
-        if panel and panel.searchBox and panel.searchBox.HasFocus and panel.searchBox:HasFocus() then
-            panel.searchBox:ClearFocus()
+-- Pinning a parent here promotes it into the Pinned section,
+-- carrying its current collapsed state so the pinned copy opens
+-- the way the user was viewing it.
+local function HeaderRightClick(navigateData, capturedCollapsed)
+    if not navigateData then return end
+    local MapSearch = ns.MapSearch
+    if not MapSearch then return end
+    local isPinned = MapSearch:IsMapItemPinned(navigateData)
+    ShowPopup(isPinned, function()
+        if isPinned then
+            MapSearch:UnpinMapItem(navigateData)
+        else
+            navigateData.collapsed = capturedCollapsed or nil
+            MapSearch:PinMapItem(navigateData)
+            navigateData.collapsed = nil
         end
-    end)
-
-    local bg = hdr:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    local hoverOverlay = hdr:CreateTexture(nil, "ARTWORK", nil, -1)
-    hoverOverlay:SetBlendMode("ADD")
-    if not (ns.Caps and ns.Caps.questLogAtlas == false) then
-        bg:SetAtlas("QuestLog-tab")
-        hoverOverlay:SetAllPoints()
-        hoverOverlay:SetAtlas("QuestLog-tab")
-        hoverOverlay:SetAlpha(0.40)
-    else
-        -- No quest log sheet (Era, MoP Classic): its band drawn plain, a dark
-        -- fill in a thin rim.
-        bg:SetColorTexture(0.42, 0.38, 0.32, 0.9)
-        local fill = hdr:CreateTexture(nil, "BACKGROUND", nil, 1)
-        fill:SetPoint("TOPLEFT", 1, -1)
-        fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        fill:SetColorTexture(0.16, 0.13, 0.10, 0.95)
-        hoverOverlay:SetPoint("TOPLEFT", 1, -1)
-        hoverOverlay:SetPoint("BOTTOMRIGHT", -1, 1)
-        hoverOverlay:SetColorTexture(1, 1, 1, 0.08)
-    end
-    hoverOverlay:Hide()
-    hdr.bg = bg
-    hdr.hoverOverlay = hoverOverlay
-
-    local toggleBtn = CreateFrame("Button", nil, hdr)
-    toggleBtn:SetSize(26, 25)
-    toggleBtn:SetPoint("RIGHT", hdr, "RIGHT", -8, 0)
-    toggleBtn:SetFrameLevel(hdr:GetFrameLevel() + 2)
-    toggleBtn:RegisterForClicks("LeftButtonDown")
-    toggleBtn:HookScript("OnMouseDown", function()
-        if panel and panel.searchBox and panel.searchBox.HasFocus and panel.searchBox:HasFocus() then
-            panel.searchBox:ClearFocus()
-        end
-    end)
-    toggleBtn:SetHitRectInsets(-10, -10, -6, -6)
-    local toggleBtnBg = toggleBtn:CreateTexture(nil, "ARTWORK")
-    toggleBtnBg:SetAllPoints()
-    toggleBtnBg:SetTexture(796424)
-    toggleBtnBg:Hide()
-    toggleBtn.btnBg = toggleBtnBg
-    local toggleIcon = toggleBtn:CreateTexture(nil, "OVERLAY")
-    toggleIcon:SetSize(18, 17)
-    toggleIcon:SetPoint("CENTER")
-    ns.SetQuestLogToggle(toggleIcon, true)
-    toggleBtn.icon = toggleIcon
-    toggleBtn:SetHighlightTexture(130757)
-    toggleBtn:SetScript("OnEnter", function(self)
-        self.btnBg:Show()
-        hdr.hoverOverlay:Show()
-    end)
-    toggleBtn:SetScript("OnLeave", function(self)
-        self.btnBg:Hide()
-        if not hdr:IsMouseOver() then
-            hdr.hoverOverlay:Hide()
-            ClearHoverPreview()
-        end
-    end)
-    hdr.toggleBtn = toggleBtn
-
-    local fs = hdr:CreateFontString(nil, "OVERLAY", HEADER_FONT)
-    fs:SetPoint("LEFT", hdr, "LEFT", 10, 0)
-    fs:SetPoint("RIGHT", toggleBtn, "LEFT", -4, 0)
-    fs:SetJustifyH("LEFT")
-    fs:SetMaxLines(1)
-    fs:SetTextColor(0.60, 0.58, 0.55, 1.0)
-    hdr.label = fs
-
-    hdr:SetScript("OnEnter", function(self)
-        self.hoverOverlay:Show()
-        self.label:SetTextColor(0.90, 0.88, 0.85, 1.0)
-        if self.navigateData then HoverPreview(self.navigateData) end
-    end)
-    hdr:SetScript("OnLeave", function(self)
-        if not self.toggleBtn:IsMouseOver() then
-            self.hoverOverlay:Hide()
-            self.label:SetTextColor(self._matchColor and GOLD_COLOR[1] or 0.60,
-                                     self._matchColor and GOLD_COLOR[2] or 0.58,
-                                     self._matchColor and GOLD_COLOR[3] or 0.55, 1.0)
-            ClearHoverPreview()
-        end
-    end)
-
-    return hdr
+        RefreshCurrentSearch()
+    end, function() TriggerResultSelect(navigateData, false) end, function() PromptAlias(navigateData) end, navigateData)
 end
 
--- onToggle defaults to mutating sessionCollapsed[groupKey] (query-scoped
--- collapse state); pinned-parent headers override with a callback that
--- mutates the pin's stored `collapsed` flag instead.
-local function AcquireGroupHeader(parent, labelText, groupKey, count, collapsed, navigateData, hasChildren, onToggle, onRightClick)
-    local hdr = headerPool[headerPoolCursor]
-    if not hdr then
-        hdr = CreateGroupHeader(parent)
-        tinsert(headerPool, hdr)
-    else
-        hdr:SetParent(parent)
-    end
-    headerPoolCursor = headerPoolCursor + 1
-    hdr.label:SetText(labelText or "")
-    if hdr.fontScale ~= FontScale() then
-        hdr.fontScale = FontScale()
-        ScaleFont(hdr.label, HEADER_FONT, hdr.fontScale)
-        hdr:SetHeight(Scaled(GROUP_HEADER_H))
-    end
-    ns.SetQuestLogToggle(hdr.toggleBtn.icon, collapsed)
-    hdr.toggleBtn:SetShown(hasChildren and true or false)
-    hdr.groupKey = groupKey
-    hdr.navigateData = navigateData
-    hdr._matchColor = navigateData ~= nil
-    if navigateData then
-        hdr.label:SetTextColor(Utils.RGB(GOLD_COLOR, 1.0))
-    else
-        hdr.label:SetTextColor(0.60, 0.58, 0.55, 1.0)
-    end
-    hdr.toggleBtn:SetScript("OnClick", function(_)
-        if onToggle then
-            onToggle()
-        elseif hdr.groupKey then
-            sessionCollapsed[hdr.groupKey] = not sessionCollapsed[hdr.groupKey]
-            RefreshCurrentSearch()
+local function DeleteRecent(query)
+    local list = EasyFind.db and EasyFind.db.mapTabRecentSearches
+    if not list then return end
+    local lowerQ = query:lower()
+    for i = #list, 1, -1 do
+        if type(list[i]) == "string" and list[i]:lower() == lowerQ then
+            tremove(list, i)
         end
-    end)
-    hdr:SetScript("OnClick", function(self, button)
-        if self.toggleBtn and self.toggleBtn:IsMouseOver() then return end
-        if button == "RightButton" then
-            if onRightClick then onRightClick() end
-            return
-        end
-        if self.navigateData then
-            TriggerResultSelect(self.navigateData)
-        end
-    end)
-    return hdr
+    end
+    RefreshCurrentSearch()
 end
 
-local function ReleaseAllHeaders()
-    headerPoolCursor = 1
-    for i = 1, #headerPool do headerPool[i]:Hide() end
-    ReleaseAllSectionLabels()
-end
-
-local function DetachFrame(frame)
-    if frame and frame.SetParent then
-        pcall(frame.SetParent, frame, nil)
-    end
-end
-
-local function TrimRowPool()
-    for i = #rowPool, ROW_POOL_RETAIN + 1, -1 do
-        local row = rowPool[i]
-        if row then
-            row:Hide()
-            row.data = nil
-            DetachFrame(row)
-        end
-        rowPool[i] = nil
-    end
-    rowPoolCursor = 1
-end
-
-local function TrimHeaderPool()
-    for i = #headerPool, HEADER_POOL_RETAIN + 1, -1 do
-        local hdr = headerPool[i]
-        if hdr then
-            hdr:Hide()
-            hdr.navigateData = nil
-            hdr.groupKey = nil
-            DetachFrame(hdr)
-        end
-        headerPool[i] = nil
-    end
-    for i = #sectionLabelPool, SECTION_POOL_RETAIN + 1, -1 do
-        local hdr = sectionLabelPool[i]
-        if hdr then
-            hdr:Hide()
-            DetachFrame(hdr)
-        end
-        sectionLabelPool[i] = nil
-    end
-    headerPoolCursor = 1
-    sectionLabelPoolCursor = 1
+local mapList
+local function MapList()
+    if mapList then return mapList end
+    mapList = ns.PlaceList.New(panel.scrollChild, {
+        click = RowOnClick,
+        headerClick = function(data) TriggerResultSelect(data) end,
+        headerMenu = HeaderRightClick,
+        refresh = function() RefreshCurrentSearch() end,
+        searchBox = function() return panel and panel.searchBox end,
+        fontScale = FontScale,
+        preview = function(data) HoverPreview(data) end,
+        endPreview = ClearHoverPreview,
+        deleteRecent = DeleteRecent,
+        -- Rows on screen mean the "no matches" line is stale; the pooled
+        -- rows are placed afresh, so no selection carries over.
+        beforeRender = function(hasContent)
+            if hasContent and panel and panel.emptyMsg then panel.emptyMsg:Hide() end
+            navRowIndex = 0
+            if navFrame then Utils.SafeCallMethod(navFrame, "EnableKeyboard", false) end
+            if navKeyRepeat then navKeyRepeat.Stop() end
+        end,
+        routeButton = true,
+    })
+    visibleNavRows = mapList.navRows
+    return mapList
 end
 
 ReleaseMapTabMemory = function(trimFrames)
     if pendingSearchTimer then CancelPendingSearch() end
-    ReleaseAllRows()
-    ReleaseAllHeaders()
+    if mapList then
+        if trimFrames then
+            mapList:Trim(ROW_POOL_RETAIN, HEADER_POOL_RETAIN, SECTION_POOL_RETAIN)
+        else
+            mapList:Clear()
+        end
+    end
     if panel and panel.scrollChild then panel.scrollChild:SetHeight(1) end
     if panel and panel.emptyMsg then panel.emptyMsg:Hide() end
     if panel then
@@ -1033,10 +649,6 @@ ReleaseMapTabMemory = function(trimFrames)
     if visibleNavRows then wipe(visibleNavRows) end
     if navFrame then Utils.SafeCallMethod(navFrame, "EnableKeyboard", false) end
     if navKeyRepeat then navKeyRepeat.Stop() end
-    if trimFrames then
-        TrimRowPool()
-        TrimHeaderPool()
-    end
     if ns.MapSearch and ns.MapSearch.ReleaseIdleSearchMemory then
         ns.MapSearch:ReleaseIdleSearchMemory()
     end
@@ -1048,418 +660,6 @@ local function BuildPinnedSection()
     local pins = EasyFind.db.pinnedMapItems
     if not pins or #pins == 0 then return nil end
     return pins
-end
-
-local function GroupBySharedParent(results)
-    if not results or #results == 0 then return {} end
-    local order, groups = {}, {}
-    for i = 1, #results do
-        local r = results[i]
-        local rMapID = r.mapID or r.zoneMapID or r.entranceMapID or r.parentMapID
-        local groupName, groupMapID = GetTopAncestor(rMapID)
-        if not groupName or groupName == "" then
-            order[#order + 1] = { type = "flat", data = r }
-        else
-            local g = groups[groupName]
-            if not g then
-                g = {
-                    type = "group", name = groupName, items = {},
-                    ancestorMapID = groupMapID, navigateData = nil,
-                }
-                groups[groupName] = g
-                order[#order + 1] = g
-            end
-            if r.name == groupName then
-                -- Result is the parent zone: attach as the header's nav
-                -- target instead of rendering a duplicate row.
-                g.navigateData = r
-            else
-                g.items[#g.items + 1] = r
-            end
-        end
-    end
-    -- Synthesize navigateData for groups whose parent zone wasn't in the
-    -- result set. The header still needs something to click-navigate to.
-    for _, e in ipairs(order) do
-        if e.type == "group" and not e.navigateData and e.ancestorMapID then
-            e.navigateData = {
-                name = e.name,
-                category = "zone",
-                isZone = true,
-                zoneMapID = e.ancestorMapID,
-                synthesized = true,
-            }
-        end
-    end
-    -- A group keeps its header whenever it has a parent zone, so a
-    -- continent never displays as a solitary flat row. Single-child
-    -- groups without a matching parent collapse to flat.
-    for i = 1, #order do
-        local e = order[i]
-        if e.type == "group" and not e.navigateData and #e.items == 1 then
-            order[i] = { type = "flat", data = e.items[1] }
-        end
-    end
-    -- Within each continent group, sub-bucket items by the direct-child
-    -- zone of the continent containing them. Zone results become subgroup
-    -- headers; everything else gets indented under them. Items that don't
-    -- map to a direct child stay loose at the continent level.
-    for _, e in ipairs(order) do
-        if e.type == "group" and e.items and #e.items > 0 and e.ancestorMapID then
-            local subgroups, subgroupOrder, looseItems = {}, {}, {}
-            for _, item in ipairs(e.items) do
-                local itemMapID = item.mapID or item.zoneMapID or item.entranceMapID or item.parentMapID
-                local zoneName, zoneMapID = GetZoneUnderAncestor(itemMapID, e.ancestorMapID)
-                if zoneName then
-                    local sub = subgroups[zoneName]
-                    if not sub then
-                        sub = { name = zoneName, mapID = zoneMapID, items = {}, headerData = nil }
-                        subgroups[zoneName] = sub
-                        subgroupOrder[#subgroupOrder + 1] = sub
-                    end
-                    if itemMapID == zoneMapID and item.isZone and item.category == "zone" then
-                        sub.headerData = item
-                    else
-                        sub.items[#sub.items + 1] = item
-                    end
-                else
-                    looseItems[#looseItems + 1] = item
-                end
-            end
-            local keptOrder = {}
-            for _, sub in ipairs(subgroupOrder) do
-                if #sub.items == 0 and sub.headerData then
-                    looseItems[#looseItems + 1] = sub.headerData
-                elseif #sub.items >= 1 then
-                    if not sub.headerData then
-                        sub.headerData = {
-                            name = sub.name,
-                            category = "zone",
-                            isZone = true,
-                            zoneMapID = sub.mapID,
-                            synthesized = true,
-                        }
-                    end
-                    keptOrder[#keptOrder + 1] = sub
-                end
-            end
-            if #keptOrder > 0 then
-                e.subgroups = keptOrder
-                e.looseItems = looseItems
-            end
-        end
-    end
-    return order
-end
-
-local function RenderRows(scrollChild, pinned, localEntries, globalEntries, recentList)
-    ReleaseAllRows()
-    ReleaseAllHeaders()
-    -- Rows on screen mean the "no matches" line is stale: a later pass can
-    -- fill a list that an earlier one found empty.
-    if panel and panel.emptyMsg and ((pinned and #pinned > 0) or (localEntries and #localEntries > 0)
-        or (globalEntries and #globalEntries > 0) or (recentList and #recentList > 0)) then
-        panel.emptyMsg:Hide()
-    end
-    -- Reset nav selection: row pool is recycled so a stale frame ref in
-    -- visibleNavRows would point at a repositioned/released frame.
-    navRowIndex = 0
-    wipe(visibleNavRows)
-    if navFrame then
-        Utils.SafeCallMethod(navFrame, "EnableKeyboard", false)
-    end
-    if navKeyRepeat then navKeyRepeat.Stop() end
-    local y = 4
-    local collapsedDb = sessionCollapsed
-
-    local function placeRow(data, indent, groupName)
-        local row = AcquireRow(scrollChild)
-        if not row then return end
-        local leftInset = 4 + (indent or 0)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftInset, -y)
-        row:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -4, -y)
-        row.data = data
-        if row.UnlockHighlight then row:UnlockHighlight() end
-        visibleNavRows[#visibleNavRows + 1] = row
-        if row.deleteBtn then row.deleteBtn:Hide() end
-        SetRowIcon(row, data)
-        local name = data.name or ""
-        row.icon:Show()
-        if data.isZone then
-            row.text:SetTextColor(Utils.RGB(GOLD_COLOR))
-        else
-            row.text:SetTextColor(1, 1, 1)
-        end
-        do
-            local pathText = data.pathPrefix or ""
-            if groupName and pathText ~= "" then
-                local prefix = groupName .. " > "
-                if pathText:sub(1, #prefix) == prefix then
-                    pathText = pathText:sub(#prefix + 1)
-                elseif pathText == groupName then
-                    pathText = ""
-                end
-            end
-            if pathText ~= "" then
-                local last = pathText:match("[^>]+$")
-                if last then pathText = last:gsub("^%s+", ""):gsub("%s+$", "") end
-            end
-            -- A vendor found by what it sells says so in the path's place.
-            if data.matchNote then pathText = data.matchNote end
-            if pathText ~= "" then
-                row.text:SetText(name .. "  |cff808080" .. pathText .. "|r")
-            else
-                row.text:SetText(name)
-            end
-        end
-        row:Show()
-        y = y + Scaled(ROW_HEIGHT)
-    end
-
-    local function placeSectionLabel(text)
-        local hdr = AcquireSectionLabel(scrollChild, text)
-        hdr:ClearAllPoints()
-        hdr:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, -y)
-        hdr:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -4, -y)
-        hdr:Show()
-        y = y + Scaled(SECTION_HEADER_H)
-    end
-
-    local function placeGroupHeader(name, groupKey, count, collapsed, navigateData, hasChildren, onToggle, onRightClick, indent)
-        local hdr = AcquireGroupHeader(scrollChild, name, groupKey, count, collapsed, navigateData, hasChildren, onToggle, onRightClick)
-        hdr:ClearAllPoints()
-        local leftInset = 4 + (indent or 0)
-        hdr:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftInset, -y)
-        hdr:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -4, -y)
-        if hdr.hoverOverlay then hdr.hoverOverlay:Hide() end
-        visibleNavRows[#visibleNavRows + 1] = hdr
-        hdr:Show()
-        y = y + Scaled(GROUP_HEADER_H)
-    end
-
-    -- Pinning a parent here promotes it into the Pinned section,
-    -- carrying its current collapsed state so the pinned copy opens
-    -- the way the user was viewing it.
-    local function headerRightClick(navigateData, capturedCollapsed)
-        if not navigateData then return end
-        local MapSearch = ns.MapSearch
-        if not MapSearch then return end
-        local isPinned = MapSearch:IsMapItemPinned(navigateData)
-        ShowPopup(isPinned, function()
-            if isPinned then
-                MapSearch:UnpinMapItem(navigateData)
-            else
-                navigateData.collapsed = capturedCollapsed or nil
-                MapSearch:PinMapItem(navigateData)
-                navigateData.collapsed = nil
-            end
-            RefreshCurrentSearch()
-        end, function() TriggerResultSelect(navigateData, false) end, function() PromptAlias(navigateData) end, navigateData)
-    end
-
-    local function renderEntries(entries, sectionKey)
-        for _, e in ipairs(entries) do
-            if e.type == "flat" then
-                placeRow(e.data, 0, nil)
-            elseif e.type == "version" then
-                -- Same name, multiple mapIDs (Dalaran exists in Northrend
-                -- and Broken Isles). Default-collapsed; header navigates
-                -- to newest mapID.
-                local groupKey = sectionKey .. ":version:" .. e.name
-                local stored = collapsedDb[groupKey]
-                local collapsed = stored ~= false
-                local capturedCollapsed = collapsed
-                local onToggle = function()
-                    collapsedDb[groupKey] = not capturedCollapsed and true or false
-                    RefreshCurrentSearch()
-                end
-                local nav = e.navigateData
-                local onRClick = nav and function() headerRightClick(nav, capturedCollapsed) end or nil
-                placeGroupHeader(e.name, groupKey, nil, collapsed, nav, true, onToggle, onRClick)
-                if not collapsed then
-                    for _, item in ipairs(e.items) do
-                        placeRow(item, 18, nil)
-                    end
-                end
-            else
-                local groupKey = sectionKey .. ":" .. e.name
-                local collapsed = collapsedDb[groupKey] == true
-                -- If the parent itself matched (real, not synthesized
-                -- navigateData), show ALL world-hierarchy children.
-                -- Otherwise show just the matched children: surfacing
-                -- every sibling under a continent because one child
-                -- matched would be wrong.
-                local items
-                local usingWorldChildren = false
-                local parentMatched = e.navigateData and not e.navigateData.synthesized
-                local autoExpand = EasyFind.db.mapTabAutoExpand ~= false
-                if parentMatched and e.ancestorMapID and autoExpand then
-                    local world = GetWorldChildren(e.ancestorMapID)
-                    items = world or e.items
-                    usingWorldChildren = world and #world > 0
-                else
-                    items = e.items
-                end
-                local hasChildren = items and #items > 0
-                local nav = e.navigateData
-                local capturedCollapsed = collapsed
-                local onRClick = nav and function() headerRightClick(nav, capturedCollapsed) end or nil
-                placeGroupHeader(e.name, groupKey, nil, collapsed, nav, hasChildren, nil, onRClick)
-                if hasChildren and not collapsed then
-                    if not usingWorldChildren and e.subgroups then
-                        for _, sub in ipairs(e.subgroups) do
-                            local subKey = groupKey .. ":" .. sub.name
-                            local subCollapsed = collapsedDb[subKey] == true
-                            local subHasChildren = #sub.items > 0
-                            local subNav = sub.headerData
-                            local subCaptured = subCollapsed
-                            local subRClick = subNav and function() headerRightClick(subNav, subCaptured) end or nil
-                            placeGroupHeader(sub.name, subKey, nil, subCollapsed, subNav,
-                                subHasChildren, nil, subRClick, 18)
-                            if subHasChildren and not subCollapsed then
-                                for _, item in ipairs(sub.items) do
-                                    placeRow(item, 36, sub.name)
-                                end
-                            end
-                        end
-                        if e.looseItems then
-                            for _, item in ipairs(e.looseItems) do
-                                placeRow(item, 18, e.name)
-                            end
-                        end
-                    else
-                        -- Group duplicate-named children into nested
-                        -- version sub-groups (Arathi Highlands warfront
-                        -- variants, Dalaran Crater + revisions, etc.).
-                        -- One collapsible header per name; default-
-                        -- collapsed; header navigates to highest mapID.
-                        local byName, order = {}, {}
-                        for _, item in ipairs(items) do
-                            local n = item.name or ""
-                            local list = byName[n]
-                            if not list then
-                                list = {}
-                                byName[n] = list
-                                order[#order + 1] = n
-                            end
-                            list[#list + 1] = item
-                        end
-                        for _, n in ipairs(order) do
-                            local variants = byName[n]
-                            if #variants == 1 then
-                                placeRow(variants[1], 18, e.name)
-                            else
-                                tsort(variants, ZoneMapIDDesc)
-                                local subKey = groupKey .. ":var:" .. n
-                                local stored = collapsedDb[subKey]
-                                local subCollapsed = stored ~= false
-                                local subCaptured = subCollapsed
-                                local subToggle = function()
-                                    collapsedDb[subKey] = not subCaptured and true or false
-                                    RefreshCurrentSearch()
-                                end
-                                local subNav = variants[1]
-                                local subRClick = function() headerRightClick(subNav, subCaptured) end
-                                placeGroupHeader(n, subKey, nil, subCollapsed, subNav,
-                                    true, subToggle, subRClick, 18)
-                                if not subCollapsed then
-                                    for _, variant in ipairs(variants) do
-                                        -- Clone: mutating worldChildrenCache
-                                        -- entries would poison the cache.
-                                        placeRow({
-                                            name = variant.name,
-                                            category = variant.category,
-                                            isZone = variant.isZone,
-                                            zoneMapID = variant.zoneMapID,
-                                            zoneMapType = variant.zoneMapType,
-                                            icon = variant.icon,
-                                            synthesized = variant.synthesized,
-                                            pathPrefix = "map #" .. tostring(variant.zoneMapID),
-                                        }, 36, n)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    if recentList and #recentList > 0 then
-        placeSectionLabel(L["MAP_SECTION_RECENT_SEARCHES"])
-        for _, query in ipairs(recentList) do
-            local row = AcquireRow(scrollChild)
-            if row then
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, -y)
-                row:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -4, -y)
-                if row.UnlockHighlight then row:UnlockHighlight() end
-                visibleNavRows[#visibleNavRows + 1] = row
-                row.data = {
-                    isRecentSearch = true,
-                    query = query,
-                    name = query,
-                    icon = { file = ns.SEARCH_ICON_TEX, coords = ns.SEARCH_ICON_COORDS },
-                }
-                SetRowIcon(row, row.data)
-                row.icon:Show()
-                if row.deleteBtn then row.deleteBtn:Hide() end
-                row.text:SetTextColor(0.85, 0.85, 0.85)
-                row.text:SetText(query)
-                local textH = row.text:GetStringHeight() or 0
-                if textH < 8 then textH = 12 end
-                row.icon:SetSize(textH, textH)
-                row:Show()
-                y = y + Scaled(ROW_HEIGHT)
-            end
-        end
-    end
-    if pinned and #pinned > 0 then
-        placeSectionLabel(L["HEADER_PINNED"])
-        for _, d in ipairs(pinned) do
-            local renderAsParent = d.isZone and d.zoneMapID
-            local children = renderAsParent and GetWorldChildren(d.zoneMapID) or nil
-            if renderAsParent and children and #children > 0 then
-                local pinRef = d
-                local collapsed = pinRef.collapsed == true
-                local onToggle = function()
-                    pinRef.collapsed = not collapsed
-                    RefreshCurrentSearch()
-                end
-                local onRightClick = function()
-                    local MapSearch = ns.MapSearch
-                    if not MapSearch then return end
-                    ShowPopup(true, function()
-                        MapSearch:UnpinMapItem(pinRef)
-                        RefreshCurrentSearch()
-                    end, function() TriggerResultSelect(pinRef, false) end, function() PromptAlias(pinRef) end, pinRef)
-                end
-                placeGroupHeader(pinRef.name, "pinned:" .. pinRef.zoneMapID,
-                    nil, collapsed, pinRef, true, onToggle, onRightClick)
-                if not collapsed then
-                    for _, child in ipairs(children) do
-                        placeRow(child, 18, pinRef.name)
-                    end
-                end
-            else
-                placeRow(d, 0, nil)
-            end
-        end
-    end
-    if localEntries and #localEntries > 0 then
-        local currentMapID = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
-        local currentMapInfo = currentMapID and GetMapInfo and GetMapInfo(currentMapID)
-        local sectionLabel = currentMapInfo and L["MAP_SECTION_THIS_ZONE_NAMED"]:format(currentMapInfo.name) or L["MAP_SECTION_THIS_ZONE"]
-        placeSectionLabel(sectionLabel)
-        renderEntries(localEntries, "local")
-    end
-    if globalEntries and #globalEntries > 0 then
-        placeSectionLabel(L["MAP_SECTION_ACROSS_WORLD"])
-        renderEntries(globalEntries, "global")
-    end
-    scrollChild:SetHeight(mmax(1, y + 4))
 end
 
 -- ZONE results with these mapTypes are too coarse to be "local"
@@ -1653,10 +853,8 @@ function MapTab:RunSearch(text)
 
     -- Reset collapse state on text change so each new search starts with
     -- every matched parent auto-expanded. Same-text refreshes preserve.
-    if text ~= sessionCollapsedQuery then
-        wipe(sessionCollapsed)
-        sessionCollapsedQuery = text
-    end
+    local list = MapList()
+    list:Begin(text)
 
     if #text < 2 and not aliasMatches then
         local showRecent = EasyFind.db.mapTabShowRecent
@@ -1669,9 +867,9 @@ function MapTab:RunSearch(text)
         end
         local hasRecent = recentList and #recentList > 0
         if pinned or hasRecent then
-            RenderRows(scrollChild, pinned, nil, nil, hasRecent and recentList or nil)
+            list:Render({ query = text, pinned = pinned, recent = hasRecent and recentList or nil })
         else
-            ReleaseAllRows(); ReleaseAllHeaders()
+            list:Clear()
             scrollChild:SetHeight(1)
         end
         panel.emptyMsg:Hide()
@@ -1682,7 +880,7 @@ function MapTab:RunSearch(text)
     end
     panel.emptyMsg:Hide()
     if not MapSearch or not MapSearch.BuildResults then
-        ReleaseAllRows(); ReleaseAllHeaders(); return
+        list:Clear(); return
     end
 
     -- Multi-token queries switch to per-token matching with ancestor
@@ -1742,7 +940,7 @@ function MapTab:RunSearch(text)
     local viewedMapID = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local viewedInfo = viewedMapID and GetMapInfo and GetMapInfo(viewedMapID)
     if viewedInfo and EXCLUDE_FROM_LOCAL_MAPTYPES[viewedInfo.mapType] then
-        localEntries = GroupBySharedParent(localFiltered)
+        localEntries = ns.PlaceList.GroupBySharedParent(localFiltered)
         -- A continent-type zone match (e.g. EK while viewing EK) gets
         -- dropped from local by EXCLUDE_FROM_LOCAL_MAPTYPES, leaving its
         -- group with synthesized navigateData so auto-expand never fires.
@@ -1767,52 +965,8 @@ function MapTab:RunSearch(text)
         end
     end
 
-    -- Duplicate-named zones collapse into one header that lists every
-    -- variant (highest mapID first as "newest"). Header starts collapsed
-    -- and navigates to the newest variant.
-    local versionGroups
-    do
-        local byName = {}
-        for i = 1, #globalFiltered do
-            local r = globalFiltered[i]
-            if r and r.isZone and r.zoneMapID and r.name then
-                local key = r.name:lower()
-                local list = byName[key]
-                if not list then list = {}; byName[key] = list end
-                list[#list + 1] = r
-            end
-        end
-        local removed = {}
-        for _, list in pairs(byName) do
-            if #list >= 2 then
-                tsort(list, ZoneMapIDDesc)
-                for j = 1, #list do removed[list[j]] = true end
-                versionGroups = versionGroups or {}
-                versionGroups[#versionGroups + 1] = {
-                    type = "version",
-                    name = list[1].name,
-                    items = list,
-                    navigateData = list[1],
-                }
-            end
-        end
-        if versionGroups then
-            local kept = {}
-            for i = 1, #globalFiltered do
-                if not removed[globalFiltered[i]] then
-                    kept[#kept + 1] = globalFiltered[i]
-                end
-            end
-            globalFiltered = kept
-        end
-    end
-
-    local globalEntries = GroupBySharedParent(globalFiltered)
-    if versionGroups then
-        for i = #versionGroups, 1, -1 do
-            tinsert(globalEntries, 1, versionGroups[i])
-        end
-    end
+    local globalEntries
+    globalEntries, globalFiltered = ns.PlaceList.WorldEntries(globalFiltered)
 
     -- 'This zone' already covers the viewed continent, so drop any
     -- global group whose continent matches it.
@@ -1846,7 +1000,12 @@ function MapTab:RunSearch(text)
     panel.topResultCandidates = candidates
     panel.topResultName = candidates[1]
 
-    RenderRows(scrollChild, pinned, localEntries, globalEntries)
+    list:Render({
+        query = text, pinned = pinned,
+        localEntries = localEntries,
+        localLabel = viewedInfo and L["MAP_SECTION_THIS_ZONE_NAMED"]:format(viewedInfo.name) or L["MAP_SECTION_THIS_ZONE"],
+        globalEntries = globalEntries, globalLabel = L["MAP_SECTION_ACROSS_WORLD"],
+    })
 
     -- Behind a page (the GPS) the results are hidden, and so is their empty line.
     if activePage == nil and (not pinned or #pinned == 0)

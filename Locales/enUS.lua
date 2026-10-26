@@ -905,6 +905,7 @@ L["MAP_AUTO_EXPAND_EXAMPLE"]            = "Example: searching |cffffd200east|r m
 L["WP_PLACE"]                           = "Left-click to place waypoint and track"
 L["WP_NAVIGATE"]                        = "Left-click to navigate here (GPS)"
 L["WP_DISMISS"]                         = "Right-click to dismiss"
+L["WP_DISMISS_ROUTE"]                   = "Right-click to dismiss and end the route"
 
 -- =============================================================================
 -- Transmog outfit tooltips + vendor messages
@@ -1234,6 +1235,7 @@ L["MAP_SECTION_THIS_ZONE"]              = "This Zone"
 L["MAP_SECTION_THIS_ZONE_NAMED"]        = "This Zone (%s)"
 L["MAP_SECTION_ACROSS_WORLD"]           = "Across the World"
 L["MAP_NO_MATCHES"]                     = "No matches."
+L["MAP_SHOW_MORE_FMT"]                  = "Show %d more"
 L["MAP_EMPTY_HINT"]                     = "Start typing to search for POIs, zones, dungeons, and raids."
 L["MAP_FILTER_INSTANCES"]               = "Instances"
 L["MAP_FILTER_TRAVEL"]                  = "Travel"
