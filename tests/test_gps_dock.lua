@@ -311,7 +311,7 @@ end
 
 -- GPS:OpenWindow to GPS:CloseWindow cut from GPS.lua over a stub section
 -- and window: what shows, and what the saved state says.
-local function Windows(db)
+local function Windows(db, folded)
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
     local src = f:read("*a")
     f:close()
@@ -339,11 +339,14 @@ local function Windows(db)
         window.shown = show
         c.popoutOpen = show or nil
     end
+    local tracker = { IsCollapsed = function() return folded == true end }
+    local placed = 0
     local env = setmetatable({
         GPS = GPS, DB = function() return db end, CharDB = function() return c end, dockFrame = dock,
+        Tracker = function() return tracker end, PlaceDock = function() placed = placed + 1 end,
     }, { __index = _G })
     assert(load(src:sub(s, e), "=GPS.lua OpenWindow", "t", env))()
-    return GPS, dock, window, c
+    return GPS, dock, window, c, function() return placed end
 end
 
 function tests.closedSnappedInOpensSnappedIn()
@@ -380,6 +383,28 @@ function tests.routeFromARowKeepsItSnappedIn()
     GPS:CloseWindow()
     GPS:ShowWindow()
     H.assertTrue(dock.shown and not window.shown, "closed, it opens snapped in")
+end
+
+-- The tracker folded: a route from a row shows the section on its own
+-- (PlaceDock leaves it unfaded until the player folds the tracker again).
+function tests.routeWhileFoldedShowsTheSectionAlone()
+    local db = { gpsDocked = true }
+    local GPS, dock, _, _, placed = Windows(db, true)
+    GPS:OpenWindow()
+    H.assertTrue(dock.showFolded, "shown under the folded header")
+    H.assertTrue(dock.wasFolded, "the fold already seen, so it is not the player's new one")
+    dock.showFolded = nil
+    GPS:ShowWindow()
+    H.assertTrue(dock.showFolded, "a route into the open section shows it too")
+    H.assertTrue(placed() >= 2, "placed again at once")
+end
+
+function tests.routeUnfoldedLeavesTheFoldAlone()
+    local db = { gpsDocked = true }
+    local GPS, dock = Windows(db, false)
+    GPS:OpenWindow()
+    GPS:ShowWindow()
+    H.assertNil(dock.showFolded)
 end
 
 function tests.routeFromARowKeepsTheWindow()

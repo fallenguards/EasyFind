@@ -2314,6 +2314,7 @@ local function PickHit(frame, data)
         ed:Pick(data)
         return
     end
+    if ns.MapTab and ns.MapTab.PushRecentSearch then ns.MapTab:PushRecentSearch(frame.search:GetText()) end
     if GPS.picking == frame then
         GPS:SetStart(data)
         return
@@ -2400,6 +2401,34 @@ function GPS.SearchPlaces(q)
     return WithTowns(q, GPS.FilterHits(MapSearch:PlacesForQuery(q)))
 end
 
+-- The search list's two choices, each surface its own: the window's, the
+-- section's (snapped in or floating), and beside the map the map tab's.
+GPS.LIST_CHOICES = {
+    recent = { map = "mapTabShowRecent", popout = "gpsPopoutShowRecent", dock = "gpsDockShowRecent" },
+    expand = { map = "mapTabAutoExpand", popout = "gpsPopoutAutoExpand", dock = "gpsDockAutoExpand" },
+}
+
+function GPS.ListChoiceKey(frame, which)
+    return GPS.LIST_CHOICES[which][(frame.mapFont and "map") or (frame.isPopout and "popout") or "dock"]
+end
+
+function GPS.ListChoice(frame, which)
+    local db = DB()
+    return not (db and db[GPS.ListChoiceKey(frame, which)] == false)
+end
+
+function GPS.ListChoiceRow(frame, which)
+    local recent = which == "recent"
+    return { kind = "check", label = recent and L["MAP_SHOW_RECENT"] or L["MAP_AUTO_EXPAND"],
+        tooltip = recent and L["GPS_SHOW_RECENT_TT"] or L["MAP_AUTO_EXPAND_TT"],
+        get = function() return GPS.ListChoice(frame, which) end,
+        set = function(v)
+            local db = DB()
+            if db then db[GPS.ListChoiceKey(frame, which)] = v and true or false end
+            if frame.RefreshHits then frame:RefreshHits() end
+        end }
+end
+
 local function BuildSearch(frame, glyph, padRight, bodyPad)
     -- The tracking face's art spills 6 px past its frame: more room after it.
     local boxGap = frame.track and 16 or 12
@@ -2463,16 +2492,36 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     local hitChild = CreateFrame("Frame", nil, hitList)
     hitChild:SetSize(1, 1)
     hitList:SetScrollChild(hitChild)
-    hitList:SetScript("OnSizeChanged", function(_, w) hitChild:SetWidth(w) end)
+    -- The rows stop short of the thin bar while it shows.
+    -- Snapped in, the 3 px bar clears the fold buttons, and the banners end
+    -- where the section's header does.
+    local function FitHitChild()
+        local room = frame.isPopout and frame.hitBar and frame.hitBar:IsShown()
+            and (ns.SCROLLBAR_THUMB_W + ns.SCROLLBAR_EDGE_INSET + 4) or 0
+        hitChild:SetWidth(mmax(1, (hitList:GetWidth() or 0) - room))
+    end
+    hitList:SetScript("OnSizeChanged", FitHitChild)
     frame.hitList, frame.hitChild = hitList, hitChild
     frame.hitBar = Utils.CreateMinimalScrollBar(hitList, hitList)
     -- The map search's own list: its groups, its rows, its first page.
     frame.places = ns.PlaceList.New(hitChild, {
-        click = function(row, button) if button ~= "RightButton" then PickHit(frame, row.data) end end,
+        click = function(row, button)
+            if row.data.isRecentSearch then
+                box:SetText(row.data.query)
+            elseif button ~= "RightButton" then
+                PickHit(frame, row.data)
+            end
+        end,
         headerClick = function(data) if GPS:CanNavigate(data) then PickHit(frame, data) end end,
         refresh = function() frame:DrawHits() end,
         searchBox = function() return frame.search end,
         fontScale = function() return MapScale(frame) or 1 end,
+        autoExpand = function() return GPS.ListChoice(frame, "expand") end,
+        headerSkin = function() return GPS.HitSkin(frame) end,
+        deleteRecent = function(query)
+            if ns.MapTab and ns.MapTab.ForgetRecentSearch then ns.MapTab:ForgetRecentSearch(query) end
+            frame:RefreshHits()
+        end,
         -- A hovered place shown on the map, while the map is open.
         preview = function(data)
             local MapSearch = ns.MapSearch
@@ -2486,10 +2535,17 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
                 MapSearch:EndHoverPreview()
             end
         end,
-        decorate = function(row) ns.GPSTrip.Note(row) end,
+        -- In the window, rows wear the theme's text and highlight.
+        decorate = function(row)
+            ns.GPSTrip.Note(row)
+            if frame.isPopout then Utils.InstallMenuRowHighlight(row) end
+        end,
         fill = function(row, data)
             local secs = frame.hitSecs
             row.note:SetText(data and secs and secs[data] and ns.GPSTrip.AddsText(secs[data]) or "")
+            local theme = frame.isPopout and data and not data.isRecentSearch
+                and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+            if theme then row.text:SetTextColor(unpack(theme.leafColor)) end
         end,
         pad = 0,
     })
@@ -2502,6 +2558,37 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         local scrolls = content > h + 0.5
         self.hitBar:SetShown(scrolls)
         if scrolls then self.hitBar:UpdateThumb(content, h) end
+        FitHitChild()
+    end
+
+    -- The last searches, while the box is focused and empty (this
+    -- surface's choice); false when they do not show.
+    function frame:ShowRecent()
+        local db = DB()
+        local saved = db and db.mapTabRecentSearches
+        if not (box:HasFocus() and (box:GetText() or "") == "" and not self.hitsFor and GPS.along ~= self
+            and GPS.ListChoice(self, "recent") and saved and #saved > 0) then
+            return false
+        end
+        local limit = ns.MapTab and ns.MapTab.GetRecentLimit and ns.MapTab.GetRecentLimit() or 3
+        local recent = {}
+        for i = 1, math.min(#saved, limit) do recent[i] = saved[i] end
+        self.hitSecs = nil
+        self.hitArgs = { query = "", recent = recent }
+        hitList:SetVerticalScroll(0)
+        self:DrawHits()
+        return true
+    end
+
+    -- The list again after a choice changed: the query's places, or the
+    -- last searches, or nothing.
+    function frame:RefreshHits()
+        if self.hitsFor then return end
+        if (box:GetText() or "") ~= "" then
+            self.RunSearch()
+        elseif not self:ShowRecent() then
+            self:ShowHits(nil)
+        end
     end
 
     -- The hits' height on a window that grows with them.
@@ -2568,9 +2655,23 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         frame:ShowHits(WithTowns(q, GPS.FilterHits(ok and results or nil)), nil, q)
     end
     GPS.searchFrames[#GPS.searchFrames + 1] = frame
+    box:HookScript("OnEditFocusGained", function(self)
+        if self:HasFocus() and (self:GetText() or "") == "" then frame:ShowRecent() end
+    end)
+    -- Put away a moment later: a press on one of them takes the focus
+    -- first, and its click still lands.
+    box:HookScript("OnEditFocusLost", function()
+        Utils.SafeAfter(0.2, function()
+            if box:HasFocus() or (box:GetText() or "") ~= "" then return end
+            if frame.hitArgs and frame.hitArgs.recent then frame:ShowHits(nil) end
+        end)
+    end)
     box:HookScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
-        if text == "" then frame:ShowHits(nil) return end
+        if text == "" then
+            if not frame:ShowRecent() then frame:ShowHits(nil) end
+            return
+        end
         if pending then return end
         pending = true
         Utils.SafeAfter(0.15, function()
@@ -2852,6 +2953,8 @@ local function BuildSurface(frame, opts)
         BuildSearch(frame, glyph, padRight, bodyPad)
         -- With a route the box moves to the time line, after the time and
         -- before the Clear link, and the places it finds take the steps' place.
+        -- The places' banners clear the window's left edge as its right.
+        local hitX = 8
         frame.PlaceSearch = function(self, hasRoute)
             local box, hits = self.search, self.hitList
             box:ClearAllPoints()
@@ -2859,16 +2962,16 @@ local function BuildSurface(frame, opts)
             if hasRoute then
                 box:SetPoint("LEFT", self.eta, "LEFT", (self.eta:GetStringWidth() or 0) + 10, 0)
                 box:SetPoint("RIGHT", self.clearBtn, "LEFT", -8, 0)
-                hits:SetPoint("TOPLEFT", self.list, "TOPLEFT", 0, 0)
+                hits:SetPoint("TOPLEFT", self.list, "TOPLEFT", hitX, 0)
                 hits:SetPoint("RIGHT", self.list, "RIGHT", 0, 0)
             else
                 box:SetPoint("LEFT", glyph, "RIGHT", self.track and 16 or 12, 0)
                 box:SetPoint("RIGHT", self, "RIGHT", -padRight, 0)
                 -- Under the trip's fields where they show, as the steps start.
                 if self.trip then
-                    hits:SetPoint("TOPLEFT", self.trip, "BOTTOMLEFT", self.trip.listX or -6, -8)
+                    hits:SetPoint("TOPLEFT", self.trip, "BOTTOMLEFT", (self.trip.listX or -6) + hitX, -8)
                 else
-                    hits:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6, -8)
+                    hits:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", -6 + hitX, -8)
                 end
                 hits:SetPoint("RIGHT", self, "RIGHT", -(bodyPad - 4), 0)
             end
@@ -3496,13 +3599,18 @@ local function PlaceDock()
     local lvl = (t:GetFrameLevel() or 0) + 40
     if dockFrame:GetFrameLevel() ~= lvl then dockFrame:SetFrameLevel(lvl) end
     local collapsed = t.IsCollapsed and t:IsCollapsed()
+    -- The player folding the tracker folds the section with it; opened or
+    -- routed to while folded, it shows alone under the folded header.
+    if collapsed and not dockFrame.wasFolded then dockFrame.showFolded = nil end
+    dockFrame.wasFolded = collapsed
+    local hidden = collapsed and not dockFrame.showFolded
     -- Faded with a folded tracker; its cast button, not ours to fade, hides.
-    local alpha = collapsed and 0 or 1
+    local alpha = hidden and 0 or 1
     if dockFrame:GetAlpha() ~= alpha then
         dockFrame:SetAlpha(alpha)
         Refresh()
     end
-    DockMouse(not collapsed)
+    DockMouse(not hidden)
     -- Under the tracker's last shown section, under its header with none;
     -- hung on the screen from what the tracker's frames read, never on them.
     local mods = VisibleModules(t)
@@ -3808,6 +3916,160 @@ function Look.FoldArt(fold, look, open)
         Look.GameFold(fold, open)
         fold:SetSize(16, 15)
     end
+end
+
+-- The list's group headers dressed for where it sits: snapped in or
+-- floating, as the tracker's own section headers in that look; in the
+-- window, the theme's buttons. Beside the map, the map's own.
+GPS.hitSkins = {}
+function GPS.HitSkin(frame)
+    if frame.mapFont then return nil end
+    local skins = GPS.hitSkins
+    if frame.isPopout then
+        local gen = ns.uiThemeGeneration or 0
+        if not (skins.theme and skins.theme.gen == gen) then skins.theme = GPS.ThemeSkin(gen) end
+        return skins.theme
+    end
+    local look = frame.look or "game"
+    skins[look] = skins[look] or GPS.TrackerSkin(look)
+    return skins[look]
+end
+
+function GPS.TrackerSkin(look)
+    local plate = look == "game" and GAME_ART.tracker
+    local skin = {}
+    function skin.paint(hdr)
+        local bg, hover = hdr.bg, hdr.hoverOverlay
+        hdr.fill:Hide()
+        bg:ClearAllPoints()
+        hover:ClearAllPoints()
+        hover:SetAllPoints()
+        hover:SetBlendMode("ADD")
+        if plate then
+            bg:SetAtlas("UI-QuestTracker-Secondary-Objective-Header", false)
+            bg:SetAllPoints()
+            bg:Show()
+            hover:SetAtlas("UI-QuestTracker-Secondary-Objective-Header", false)
+            hover:SetAlpha(0.35)
+        else
+            bg:Hide()
+            hover:SetColorTexture(1, 1, 1, 0.06)
+            hover:SetAlpha(1)
+        end
+        local t = hdr.toggleBtn
+        t:SetSize(16, 16)
+        if look == "classic" then t.icon:SetSize(15, 14) else t.icon:SetSize(16, 15) end
+        if GAME_ART.tracker and look ~= "classic" then
+            t:SetHighlightAtlas("UI-QuestTrackerButton-Yellow-Highlight")
+        else
+            t:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+        end
+        local hl = t:GetHighlightTexture()
+        if hl then hl:SetBlendMode("ADD") end
+    end
+    function skin.toggle(icon, collapsed)
+        if look == "classic" then
+            icon:SetTexture(Look.FOLD_SHEET)
+            icon:SetTexCoord(unpack(collapsed and Look.FOLD_SHUT or Look.FOLD_OPEN))
+        elseif GAME_ART.tracker then
+            icon:SetAtlas(collapsed and "UI-QuestTrackerButton-Secondary-Expand" or "UI-QuestTrackerButton-Secondary-Collapse")
+        else
+            icon:SetTexture(Look.HIDE_SHEET)
+            icon:SetTexCoord(unpack(collapsed and Look.HIDE_SHUT or Look.HIDE_OPEN))
+        end
+    end
+    function skin.color(_, hover)
+        if hover then return 1, 1, 1 end
+        return 1, 0.82, 0
+    end
+    function skin.setFont(fs, scale)
+        if scale == 1 then scale = nil end
+        Look.Restyle(fs, look, 12, "ObjectiveTrackerHeaderFont", scale)
+    end
+    return skin
+end
+
+-- In the window: under the Classic skin the 1.x red panel button, gold
+-- text and its +/- buttons; on the other themes a rounded button in the
+-- window's field well (dark inset, the theme's line as its ring) that
+-- lifts to the button fill under the mouse. The toggle lights apart from
+-- the row: a disc behind its glyph, the glyph full.
+function GPS.ThemeSkin(gen)
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    local red = ns.IsClassicChrome and ns.IsClassicChrome()
+    local palette = ns.ACTIVE_UI_PALETTE
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    local rest = theme and theme.toggleNormalAlpha or 0.6
+    local skin = { gen = gen }
+    local function Face(hdr)
+        local face = hdr.efFace
+        if face then return face end
+        -- The well under the label: the label and toggle ride above its inset.
+        face = CreateFrame("Frame", nil, hdr)
+        face:SetAllPoints()
+        face:SetFrameLevel(hdr:GetFrameLevel())
+        ns.CreateRingedWell(face, 6)
+        local text = CreateFrame("Frame", nil, hdr)
+        text:SetAllPoints()
+        text:SetFrameLevel(face:GetFrameLevel() + 2)
+        hdr.label:SetParent(text)
+        hdr.toggleBtn:SetFrameLevel(face:GetFrameLevel() + 3)
+        hdr.efFace = face
+        return face
+    end
+    function skin.paint(hdr)
+        hdr.bg:Hide()
+        hdr.fill:Hide()
+        hdr.hoverOverlay:Hide()
+        local t = hdr.toggleBtn
+        t:SetSize(20, 20)
+        t.icon:SetSize(red and 16 or 14, red and 16 or 14)
+        if red then
+            if hdr.efFace then hdr.efFace:Hide() end
+            ns.PaintRedButton(hdr, ns.BTN_FILL_NORMAL)
+            t:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight", "ADD")
+            t.icon:SetAlpha(1)
+        else
+            if hdr._efRed then for _, tex in pairs(hdr._efRed) do tex:Hide() end end
+            Face(hdr):Show()
+            ns.PaintRingedWell(hdr.efFace, ring, ns.EDITBOX_INSET_FILL)
+            if t.ClearHighlightTexture then t:ClearHighlightTexture() end
+            t.btnBg:SetTexture(ns.PORTRAIT_ALPHA_MASK)
+            local f = ns.BTN_FILL_HOVER
+            t.btnBg:SetVertexColor(f[1], f[2], f[3], 1)
+            t.icon:SetAlpha(rest)
+        end
+        hdr.label:SetShadowColor(0, 0, 0, red and 1 or 0)
+    end
+    function skin.hover(hdr, on)
+        if red then
+            ns.PaintRedButton(hdr, on and ns.BTN_FILL_HOVER or ns.BTN_FILL_NORMAL)
+        else
+            ns.PaintRingedWell(hdr.efFace, ring, on and ns.BTN_FILL_NORMAL or ns.EDITBOX_INSET_FILL)
+        end
+    end
+    function skin.toggleHover(btn, on)
+        if red then return end
+        btn.btnBg:SetShown(on)
+        btn.icon:SetAlpha(on and 1 or rest)
+    end
+    function skin.toggle(icon, collapsed)
+        if red and theme then
+            icon:SetTexture(collapsed and theme.expandIcon or theme.collapseIcon)
+        else
+            ns.SetQuestLogToggle(icon, collapsed, theme)
+        end
+    end
+    function skin.color(_, hover)
+        if red then
+            if hover then return 1, 1, 1 end
+            return 1, 0.82, 0
+        end
+        local c = theme and (hover and theme.pathColorHover or theme.pathColor) or ns.GOLD_COLOR
+        return c[1], c[2], c[3]
+    end
+    return skin
 end
 
 -- The widgets of one look shown, the other's hidden.
@@ -4716,15 +4978,25 @@ function GPS:OpenWindow()
     if db and db.gpsDocked and not db.gpsNeverDock and GPS:Dock() then
         local c = CharDB()
         if c then c.popoutOpen = true end
+        GPS.ShowWhileFolded()
         return
     end
     GPS:TogglePopout(true)
 end
 
+-- Opened or routed to with the tracker folded: the section shows on its
+-- own until the player folds the tracker again.
+function GPS.ShowWhileFolded()
+    local t = Tracker()
+    if not (dockFrame and dockFrame.docked and t and t.IsCollapsed and t:IsCollapsed()) then return end
+    dockFrame.showFolded, dockFrame.wasFolded = true, true
+    PlaceDock()
+end
+
 -- A route started from a search row: a window on screen stays where it
 -- is, snapped in or floating; else it opens as it was left.
 function GPS:ShowWindow()
-    if not self:IsWindowOpen() then self:OpenWindow() end
+    if self:IsWindowOpen() then GPS.ShowWhileFolded() else self:OpenWindow() end
 end
 
 -- Closed where it is: a snapped-in section snaps back in on the next open.
@@ -4841,6 +5113,10 @@ function GPS.MenuRows(f)
     -- The search's Show buckets, the map tab's own, so the box finds what the tab would.
     if ns.MapTab and ns.MapTab.FilterRows then
         defs[#defs + 1] = { kind = "submenu", label = _G["SHOW"] or "Show", rows = ns.MapTab.FilterRows(GPS.RefreshSearches) }
+    end
+    if f.search then
+        defs[#defs + 1] = GPS.ListChoiceRow(f, "recent")
+        defs[#defs + 1] = GPS.ListChoiceRow(f, "expand")
     end
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = GPS.WorldPinRow()

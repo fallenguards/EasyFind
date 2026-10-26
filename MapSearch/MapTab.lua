@@ -591,18 +591,6 @@ local function HeaderRightClick(navigateData, capturedCollapsed)
     end, function() TriggerResultSelect(navigateData, false) end, function() PromptAlias(navigateData) end, navigateData)
 end
 
-local function DeleteRecent(query)
-    local list = EasyFind.db and EasyFind.db.mapTabRecentSearches
-    if not list then return end
-    local lowerQ = query:lower()
-    for i = #list, 1, -1 do
-        if type(list[i]) == "string" and list[i]:lower() == lowerQ then
-            tremove(list, i)
-        end
-    end
-    RefreshCurrentSearch()
-end
-
 local mapList
 local function MapList()
     if mapList then return mapList end
@@ -615,7 +603,8 @@ local function MapList()
         fontScale = FontScale,
         preview = function(data) HoverPreview(data) end,
         endPreview = ClearHoverPreview,
-        deleteRecent = DeleteRecent,
+        deleteRecent = function(query) MapTab:ForgetRecentSearch(query) end,
+        autoExpand = function() return EasyFind.db.mapTabAutoExpand ~= false end,
         -- Rows on screen mean the "no matches" line is stale; the pooled
         -- rows are placed afresh, so no selection carries over.
         beforeRender = function(hasContent)
@@ -1491,6 +1480,19 @@ function MapTab:PushRecentSearch(text)
     tinsert(list, 1, text)
     local limit = GetRecentLimit()
     while #list > limit do tremove(list) end
+end
+
+-- A recent search's X, here or in a GPS search: gone from the list.
+function MapTab:ForgetRecentSearch(query)
+    local list = EasyFind.db and EasyFind.db.mapTabRecentSearches
+    if not (list and query) then return end
+    local lowerQ = query:lower()
+    for i = #list, 1, -1 do
+        if type(list[i]) == "string" and list[i]:lower() == lowerQ then
+            tremove(list, i)
+        end
+    end
+    MapTab:RefreshIfOpen()
 end
 
 local FILTER_OPTIONS = {

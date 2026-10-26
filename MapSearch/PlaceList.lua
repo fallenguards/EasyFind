@@ -261,6 +261,8 @@ List.__index = List
 --   deleteRecent(query)       a recent search's X clicked
 --   decorate(row), fill(row, data)   the owner's own parts of a row
 --   beforeRender(hasContent)  called first on each draw
+--   autoExpand()              a matched zone lists all its zones (on)
+--   headerSkin()              the group headers' look (MapSkin)
 --   routeButton               rows carry the GPS's route button
 --   pad                       the rows' inset from the list's edges (4)
 function PlaceList.New(scrollChild, host)
@@ -465,6 +467,82 @@ function List:AcquireSectionLabel(labelText)
     return hdr
 end
 
+-- A group header's look. The map's: the quest log's tab band and its +/-
+-- glyph. A list's owner passes its own (host.headerSkin) to match where
+-- the list sits; each skin sets every part it shows.
+--   paint(hdr)            band, hover band, toggle size and highlight
+--   toggle(icon, folded)  the toggle's glyph
+--   color(hdr, hover)     the label's color
+--   setFont(fs, scale)    the label's font (HEADER_FONT scaled)
+--   hover(hdr, on)        the row lit (the hover band shown)
+--   toggleHover(btn, on)  the toggle lit apart from the row (toggleBg)
+--   toggleBg              the dark disc behind the toggle on hover
+local MAP_SKIN = { toggleBg = true }
+PlaceList.MapSkin = MAP_SKIN
+
+function MAP_SKIN.paint(hdr)
+    local bg, hover = hdr.bg, hdr.hoverOverlay
+    bg:ClearAllPoints()
+    bg:SetAllPoints()
+    hover:ClearAllPoints()
+    hover:SetBlendMode("ADD")
+    if not (ns.Caps and ns.Caps.questLogAtlas == false) then
+        bg:SetAtlas("QuestLog-tab")
+        hover:SetAllPoints()
+        hover:SetAtlas("QuestLog-tab")
+        hover:SetAlpha(0.40)
+        hdr.fill:Hide()
+    else
+        -- No quest log sheet (Era, MoP Classic): its band drawn plain, a dark
+        -- fill in a thin rim.
+        bg:SetColorTexture(0.42, 0.38, 0.32, 0.9)
+        hdr.fill:SetColorTexture(0.16, 0.13, 0.10, 0.95)
+        hdr.fill:Show()
+        hover:SetPoint("TOPLEFT", 1, -1)
+        hover:SetPoint("BOTTOMRIGHT", -1, 1)
+        hover:SetColorTexture(1, 1, 1, 0.08)
+        hover:SetAlpha(1)
+    end
+    bg:Show()
+    local t = hdr.toggleBtn
+    t:SetSize(26, 25)
+    t.icon:SetSize(18, 17)
+    t.icon:SetAlpha(1)
+    t.btnBg:SetTexture(796424)
+    t.btnBg:SetVertexColor(1, 1, 1, 1)
+    t:SetHighlightTexture(130757)
+end
+
+function MAP_SKIN.toggle(icon, collapsed)
+    ns.SetQuestLogToggle(icon, collapsed)
+end
+
+function MAP_SKIN.color(hdr, hover)
+    if hover then return 0.90, 0.88, 0.85 end
+    if hdr._matchColor then return GOLD_COLOR[1], GOLD_COLOR[2], GOLD_COLOR[3] end
+    return 0.60, 0.58, 0.55
+end
+
+local function Skin(list)
+    local get = list.host.headerSkin
+    return get and get() or MAP_SKIN
+end
+
+local function HeaderHover(hdr, on)
+    local skin = hdr.skin
+    if skin.hover then skin.hover(hdr, on) else hdr.hoverOverlay:SetShown(on) end
+    hdr.label:SetTextColor(skin.color(hdr, on))
+end
+
+local function ToggleHover(hdr, on)
+    local skin, t = hdr.skin, hdr.toggleBtn
+    if skin.toggleHover then
+        skin.toggleHover(t, on)
+    else
+        t.btnBg:SetShown(on and skin.toggleBg or false)
+    end
+end
+
 local function CreateGroupHeader(list)
     local hdr = CreateFrame("Button", nil, list.child)
     hdr:SetHeight(GROUP_HEADER_H)
@@ -472,33 +550,14 @@ local function CreateGroupHeader(list)
     hdr:RegisterForClicks("LeftButtonDown", "RightButtonUp")
     hdr:HookScript("OnMouseDown", function() ClearSearchFocus(list) end)
 
-    local bg = hdr:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    local hoverOverlay = hdr:CreateTexture(nil, "ARTWORK", nil, -1)
-    hoverOverlay:SetBlendMode("ADD")
-    if not (ns.Caps and ns.Caps.questLogAtlas == false) then
-        bg:SetAtlas("QuestLog-tab")
-        hoverOverlay:SetAllPoints()
-        hoverOverlay:SetAtlas("QuestLog-tab")
-        hoverOverlay:SetAlpha(0.40)
-    else
-        -- No quest log sheet (Era, MoP Classic): its band drawn plain, a dark
-        -- fill in a thin rim.
-        bg:SetColorTexture(0.42, 0.38, 0.32, 0.9)
-        local fill = hdr:CreateTexture(nil, "BACKGROUND", nil, 1)
-        fill:SetPoint("TOPLEFT", 1, -1)
-        fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        fill:SetColorTexture(0.16, 0.13, 0.10, 0.95)
-        hoverOverlay:SetPoint("TOPLEFT", 1, -1)
-        hoverOverlay:SetPoint("BOTTOMRIGHT", -1, 1)
-        hoverOverlay:SetColorTexture(1, 1, 1, 0.08)
-    end
-    hoverOverlay:Hide()
-    hdr.bg = bg
-    hdr.hoverOverlay = hoverOverlay
+    hdr.bg = hdr:CreateTexture(nil, "BACKGROUND")
+    hdr.fill = hdr:CreateTexture(nil, "BACKGROUND", nil, 1)
+    hdr.fill:SetPoint("TOPLEFT", 1, -1)
+    hdr.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+    hdr.hoverOverlay = hdr:CreateTexture(nil, "ARTWORK", nil, -1)
+    hdr.hoverOverlay:Hide()
 
     local toggleBtn = CreateFrame("Button", nil, hdr)
-    toggleBtn:SetSize(26, 25)
     toggleBtn:SetPoint("RIGHT", hdr, "RIGHT", -8, 0)
     toggleBtn:SetFrameLevel(hdr:GetFrameLevel() + 2)
     toggleBtn:RegisterForClicks("LeftButtonDown")
@@ -510,19 +569,16 @@ local function CreateGroupHeader(list)
     toggleBtnBg:Hide()
     toggleBtn.btnBg = toggleBtnBg
     local toggleIcon = toggleBtn:CreateTexture(nil, "OVERLAY")
-    toggleIcon:SetSize(18, 17)
     toggleIcon:SetPoint("CENTER")
-    ns.SetQuestLogToggle(toggleIcon, true)
     toggleBtn.icon = toggleIcon
-    toggleBtn:SetHighlightTexture(130757)
-    toggleBtn:SetScript("OnEnter", function(self)
-        self.btnBg:Show()
-        hdr.hoverOverlay:Show()
+    toggleBtn:SetScript("OnEnter", function()
+        ToggleHover(hdr, true)
+        HeaderHover(hdr, true)
     end)
-    toggleBtn:SetScript("OnLeave", function(self)
-        self.btnBg:Hide()
+    toggleBtn:SetScript("OnLeave", function()
+        ToggleHover(hdr, false)
         if not hdr:IsMouseOver() then
-            hdr.hoverOverlay:Hide()
+            HeaderHover(hdr, false)
             EndPreview(list)
         end
     end)
@@ -533,20 +589,15 @@ local function CreateGroupHeader(list)
     fs:SetPoint("RIGHT", toggleBtn, "LEFT", -4, 0)
     fs:SetJustifyH("LEFT")
     fs:SetMaxLines(1)
-    fs:SetTextColor(0.60, 0.58, 0.55, 1.0)
     hdr.label = fs
 
     hdr:SetScript("OnEnter", function(self)
-        self.hoverOverlay:Show()
-        self.label:SetTextColor(0.90, 0.88, 0.85, 1.0)
+        HeaderHover(self, true)
         if self.navigateData and list.host.preview then list.host.preview(self.navigateData) end
     end)
     hdr:SetScript("OnLeave", function(self)
         if not self.toggleBtn:IsMouseOver() then
-            self.hoverOverlay:Hide()
-            self.label:SetTextColor(self._matchColor and GOLD_COLOR[1] or 0.60,
-                                     self._matchColor and GOLD_COLOR[2] or 0.58,
-                                     self._matchColor and GOLD_COLOR[3] or 0.55, 1.0)
+            HeaderHover(self, false)
             EndPreview(list)
         end
     end)
@@ -564,22 +615,24 @@ function List:AcquireGroupHeader(labelText, groupKey, collapsed, navigateData, h
     end
     self.headerAt = self.headerAt + 1
     hdr.label:SetText(labelText or "")
+    local skin = Skin(self)
+    if hdr.skin ~= skin then
+        hdr.skin = skin
+        skin.paint(hdr)
+        hdr.fontScale = nil
+    end
     local s = self:Scale()
     if hdr.fontScale ~= s then
         hdr.fontScale = s
-        ScaleFont(hdr.label, HEADER_FONT, s)
+        if skin.setFont then skin.setFont(hdr.label, s) else ScaleFont(hdr.label, HEADER_FONT, s) end
         hdr:SetHeight(self:Scaled(GROUP_HEADER_H))
     end
-    ns.SetQuestLogToggle(hdr.toggleBtn.icon, collapsed)
+    skin.toggle(hdr.toggleBtn.icon, collapsed)
     hdr.toggleBtn:SetShown(hasChildren and true or false)
     hdr.groupKey = groupKey
     hdr.navigateData = navigateData
     hdr._matchColor = navigateData ~= nil
-    if navigateData then
-        hdr.label:SetTextColor(Utils.RGB(GOLD_COLOR, 1.0))
-    else
-        hdr.label:SetTextColor(0.60, 0.58, 0.55, 1.0)
-    end
+    hdr.label:SetTextColor(skin.color(hdr, false))
     local list = self
     hdr.toggleBtn:SetScript("OnClick", function()
         if onToggle then
@@ -660,6 +713,7 @@ function List:Render(args)
     local limit = self.limit
     local placed = 0
     local list = self
+    local autoExpand = not host.autoExpand or host.autoExpand()
 
     local function placeAt(frame, indent, h)
         frame:ClearAllPoints()
@@ -776,7 +830,6 @@ function List:Render(args)
                 local items
                 local usingWorldChildren = false
                 local parentMatched = e.navigateData and not e.navigateData.synthesized
-                local autoExpand = EasyFind.db.mapTabAutoExpand ~= false
                 if parentMatched and e.ancestorMapID and autoExpand then
                     local world = GetWorldChildren(e.ancestorMapID)
                     items = world or e.items

@@ -136,6 +136,33 @@ function tests.nothingFoundSaysSoOnARowThatTakesNoClick()
     H.assertEq(list.lines, 1, "it counts as the list's one line")
 end
 
+-- A list's owner dresses the group headers for where the list sits (the
+-- tracker's header art snapped in, the theme in the window); a new skin
+-- repaints the pooled headers.
+function tests.aHostSkinDressesTheHeaders()
+    local PlaceList = Load()
+    local painted, toggled = 0, 0
+    local function NewSkin()
+        return {
+            paint = function() painted = painted + 1 end,
+            toggle = function() toggled = toggled + 1 end,
+            color = function() return 0.1, 0.2, 0.3 end,
+        }
+    end
+    local skin = NewSkin()
+    local list
+    list = PlaceList.New(Frame(), { click = function() end, refresh = function() list:Redraw() end,
+        headerSkin = function() return skin end })
+    list:Render({ query = "a", globalEntries = (PlaceList.WorldEntries(Places(3, 1))) })
+    H.assertEq(painted, 1, "the one header painted")
+    H.assertEq(toggled, 1, "its toggle drawn by the skin")
+    list:Redraw()
+    H.assertEq(painted, 1, "the same skin: no repaint")
+    skin = NewSkin()
+    list:Redraw()
+    H.assertEq(painted, 2, "a new skin repaints")
+end
+
 function tests.theMapAndTheGPSDrawThroughIt()
     for _, path in ipairs({ "/MapSearch/MapTab.lua", "/Apps/GPS/GPS.lua" }) do
         local f = assert(io.open(H.ADDON_ROOT .. path, "rb"))
