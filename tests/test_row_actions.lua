@@ -36,7 +36,7 @@ local function World()
     ns.Search.GetSelectedIndex = function() return 0 end
     ns.Search.GetSearchFrame = function() return nil end
     H.loadModule("Search/Results/RowActions.lua", env, ns)
-    return ns.ResultRowActions, held, entries, function() return shown end
+    return ns.ResultRowActions, held, entries, function() return shown end, ns
 end
 
 local tests = {}
@@ -82,6 +82,26 @@ function tests.aChordDoesTheEntryOrOpensItsFlyout()
 end
 
 -- A click takes two modifiers: one alone is the row's own Result clicks.
+-- An action an extension does wears its icon in the settings list, the
+-- core Add to note and Add to quicklist too, not only the extensions' own
+-- Add entries (2026-10-26: the Shopping list alone had one).
+function tests.anExtensionsActions_wearItsIcon()
+    local RowActions, _, _, _, ns = World()
+    local Extensions = { byID = {
+        notes = { icon = "notes.tga", iconCoords = { 0, 1, 0, 1 } }, quicklists = { icon = "quicklists.tga" },
+        shoplist = { icon = "shop.tga" },
+    } }
+    Extensions.Get = function(id) return Extensions.byID[id] end
+    Extensions.AddTargets = { { key = "shop", extension = "shoplist", label = "Shopping list" } }
+    ns.Extensions = Extensions
+    local icons = {}
+    for _, a in ipairs(RowActions.List()) do icons[a.id] = a.icon end
+    H.assertEq(icons.note, "notes.tga")
+    H.assertEq(icons.quicklist, "quicklists.tga")
+    H.assertEq(icons["add:shop"], "shop.tga")
+    H.assertNil(icons.pin, "a core action of its own has none")
+end
+
 function tests.aClickChordHoldsTwoModifiers()
     local RA, held = World()
     H.assertNotNil(RA.Refusal("ALT-CLICK"), "one modifier: the kind's own gesture")

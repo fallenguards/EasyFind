@@ -649,7 +649,7 @@ function Handlers:SelectResult(data, forceGuide)
             name = data.name,
             steps = {
                 { buttonFrame = "CollectionsMicroButton" },
-                { waitForFrame = "CollectionsJournal", tabIndex = 5 },
+                { waitForFrame = "CollectionsJournal", tabIndex = 5, entry = "appearance:" .. data.appearanceItemID },
                 { waitForFrame = "WardrobeCollectionFrame", wardrobeItemsTab = true },
                 { waitForFrame = "WardrobeCollectionFrame",
                   appearanceSourceID = data.appearanceItemID,
@@ -698,7 +698,7 @@ function Handlers:SelectResult(data, forceGuide)
                 buttonFrame = "CollectionsMicroButton",
                 steps = {
                     { buttonFrame = "CollectionsMicroButton" },
-                    { waitForFrame = "CollectionsJournal", tabIndex = 4 },
+                    { waitForFrame = "CollectionsJournal", tabIndex = 4, entry = "heirloom:" .. data.heirloomItemID },
                 },
             }
             if forceGuide then EasyFind:StartGuide(guideData) else self:DirectOpen(guideData) end

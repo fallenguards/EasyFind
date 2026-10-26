@@ -221,11 +221,19 @@ function Handlers:OpenToyInToyBox(data)
         return self:ToyFrameMatches(frame, data.toyItemID, toyNameLower)
     end
 
+    -- ClassicUI Forever's window stands in: its page, the entry picked.
+    local Openers = ns.SearchOpeners
+    if Openers and Openers.ShowCollectionsEntry and Openers.ShowCollectionsEntry("toys", "toy:" .. data.toyItemID) then return end
+
     local function step(attempt)
         local journal = _G["CollectionsJournal"]
         if not (journal and journal:IsShown()) then
-            local micro = _G["CollectionsMicroButton"]
-            if micro then ClickButton(micro) end
+            -- The button toggles: pressed once, then waited on (pressed
+            -- again it shut the window it had just opened).
+            if attempt == 1 then
+                local micro = _G["CollectionsMicroButton"]
+                if micro then ClickButton(micro) end
+            end
             if attempt < 30 then
                 Utils.SafeAfter(0.05, function() step(attempt + 1) end)
             end

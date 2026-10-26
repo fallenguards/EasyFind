@@ -31,8 +31,41 @@ Openers.Replacement = Replacement
 local REPLACED_FRAMES = {
     ClassTalentFrame = "talents", QuestLogFrame = "questLog", CommunitiesFrame = "guildRoster",
     ProfessionsFrame = "tradeSkill", TradeSkillFrame = "tradeSkill", ProfessionsBookFrame = "professionsBook",
-    ClassTrainerFrame = "trainer",
+    ClassTrainerFrame = "trainer", CollectionsJournal = "collectionsWindow",
 }
+
+-- The Collections tabs by their retail number, as the replacement names
+-- its pages.
+Openers.COLLECTIONS_PAGES = { "mounts", "pets", "toys", "heirlooms", "appearances", "campsites" }
+
+-- The replacement's Collections window at a page (a key or a retail tab
+-- number), and an entry on it ("mount:<id>", "pet:<speciesID>",
+-- "toy:<itemID>", "heirloom:<itemID>", "appearance:<sourceID>") picked;
+-- true, and the cell drawing the entry when it shows. nil when the game's
+-- own window is the one in use.
+function Openers.OpenCollectionsPage(page, entry)
+    local api = Replacement("collectionsWindow")
+    if not (api and api.Open) then return nil end
+    if type(page) == "number" then page = Openers.COLLECTIONS_PAGES[page] end
+    if page then pcall(api.Open, "collectionsWindow", page) end
+    local cell
+    if entry then
+        local ok, found = pcall(api.Open, "collectionsWindow", entry)
+        if ok and found and api.GetFrame then
+            local got, frame = pcall(api.GetFrame, "collectionsWindow", "entry:" .. entry)
+            cell = got and frame or nil
+        end
+    end
+    return true, cell
+end
+
+-- The entry's cell ringed, as a row in the game's journal is.
+function Openers.ShowCollectionsEntry(page, entry)
+    local replaced, cell = Openers.OpenCollectionsPage(page, entry)
+    local Handlers = ns.ResultHandlers
+    if cell and Handlers and Handlers.HighlightRevealedFrame then Handlers:HighlightRevealedFrame(cell) end
+    return replaced
+end
 function Openers.ReplacementFrame(path)
     if path == "PlayerSpellsFrame" then
         local book, talents = Replacement("spellBook"), Replacement("talents")
@@ -181,20 +214,25 @@ local REPLACED_BY = {
     SpellbookMicroButton = "spellBook",
     TalentMicroButton = "talents",
     LegacyMicroButton = "legacyWindow",
+    CollectionsMicroButton = "collectionsWindow",
 }
-local function OpenReplacement(buttonFrame)
+-- nextStep: the step after the button; a Collections tab there opens the
+-- replacement at that page at once.
+local function OpenReplacement(buttonFrame, nextStep)
     local name = REPLACED_BY[buttonFrame]
     local api = Replacement(name)
     if not (api and api.Open) then return nil end
+    local page = name == "collectionsWindow" and nextStep and nextStep.waitForFrame == "CollectionsJournal"
+        and Openers.COLLECTIONS_PAGES[nextStep.tabIndex or 0] or nil
     local frame = api.GetFrame and api.GetFrame(name)
-    if frame and frame:IsVisible() then return true end
-    local okOpen, opened = pcall(api.Open, name)
+    if frame and frame:IsVisible() and not page then return true end
+    local okOpen, opened = pcall(api.Open, name, page)
     return (okOpen and opened) and true or false
 end
 Openers.OpenReplacement = OpenReplacement
 
 local function OpenButtonFrame(buttonFrame, nextStep)
-    local replaced = OpenReplacement(buttonFrame)
+    local replaced = OpenReplacement(buttonFrame, nextStep)
     if replaced ~= nil then return replaced end
     if buttonFrame == "PlayerSpellsMicroButton" then
         local tabIndex = nextStep and nextStep.waitForFrame == "PlayerSpellsFrame"

@@ -29,6 +29,18 @@ local function GetButtonIcon(frameName)
         return atlas, true
     end
 
+    -- The classic clients' micro buttons paint a file, cropped to the button
+    -- (LoadMicroButtonTextures): that file with the client's crop.
+    if frameName ~= "CharacterMicroButton" and frame.GetNormalTexture and frameName:find("MicroButton") then
+        local normal = frame:GetNormalTexture()
+        local file = normal and normal:GetTexture()
+        if file and not (normal.GetAtlas and normal:GetAtlas()) then
+            local icon = { file = file, coords = { normal:GetTexCoord() } }
+            buttonIconCache[frameName] = icon
+            return icon
+        end
+    end
+
     -- MicroButtons without textureName (e.g. CharacterMicroButton) use a portrait
     -- render texture that produces garbage when captured.
     if frame.IsMicroButton or (frameName and frameName:find("MicroButton")) then

@@ -102,6 +102,9 @@ function Render.BaseRowText(resultRow, entry, state)
                 if isAtlas then
                     resultRow.flatCatIcon:SetAtlas(texture)
                     resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
+                elseif type(texture) == "table" then
+                    resultRow.flatCatIcon:SetTexture(texture.file)
+                    resultRow.flatCatIcon:SetTexCoord(unpack(texture.coords))
                 elseif texture then
                     resultRow.flatCatIcon:SetTexture(texture)
                     resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)

@@ -299,6 +299,10 @@ function Guide:DirectOpen(data)
                     -- Secure release steer normally landed already;
                     -- otherwise highlights the tab (see EnsurePlayerSpellsTab).
                     Openers:EnsurePlayerSpellsTab(step.tabIndex)
+                elseif step.waitForFrame == "CollectionsJournal" and Openers.ShowCollectionsEntry(step.tabIndex, step.entry) then
+                    -- ClassicUI Forever's window stands in, opened at the
+                    -- page; the steps past it drive the game's journal.
+                    return
                 elseif step.waitForFrame ~= "EncounterJournal" then
                     ClickButton(Highlight:GetTabButton(step.waitForFrame, step.tabIndex))
                 end

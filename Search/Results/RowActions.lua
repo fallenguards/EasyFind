@@ -11,12 +11,13 @@ ns.ResultRowActions = RowActions
 local L = ns.L
 local Utils = ns.Utils
 
--- The core actions in the settings' order; extensions' Add entries follow.
+-- The core actions in the settings' order, each one an extension does with
+-- its icon; extensions' Add entries follow.
 local CORE = {
     { id = "pin",       label = "ROWACT_PIN" },
     { id = "guide",     label = "CTX_GUIDE" },
-    { id = "note",      label = "CTX_ADD_NOTE" },
-    { id = "quicklist", label = "CTX_ADD_QUICKLIST" },
+    { id = "note",      label = "CTX_ADD_NOTE", extension = "notes" },
+    { id = "quicklist", label = "CTX_ADD_QUICKLIST", extension = "quicklists" },
     { id = "alias",     label = "CTX_ADD_ALIAS" },
     { id = "shortkey",  label = "CTX_ADD_SHORTKEY" },
     { id = "macro",     label = "CTX_CREATE_MACRO" },
@@ -41,8 +42,12 @@ end
 -- Every bindable action: { id, label, icon, iconCoords }.
 function RowActions.List()
     local out = {}
-    for i = 1, #CORE do out[i] = { id = CORE[i].id, label = L[CORE[i].label] } end
     local Extensions = ns.Extensions
+    for i = 1, #CORE do
+        local owner = CORE[i].extension and Extensions and Extensions.Get(CORE[i].extension)
+        out[i] = { id = CORE[i].id, label = L[CORE[i].label],
+                   icon = owner and owner.icon, iconCoords = owner and owner.iconCoords }
+    end
     for _, target in ipairs(Extensions and Extensions.AddTargets or {}) do
         local owner = Extensions.Get(target.extension)
         if owner then

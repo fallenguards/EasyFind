@@ -24,7 +24,8 @@ function Handlers:BuildPetJournalGuideData(data)
         speciesID = data.speciesID,
         steps = {
             { buttonFrame = "CollectionsMicroButton" },
-            { waitForFrame = "CollectionsJournal", tabIndex = 2 },
+            { waitForFrame = "CollectionsJournal", tabIndex = 2,
+              entry = data.speciesID and ("pet:" .. data.speciesID) or nil },
             {
                 waitForFrame = "CollectionsJournal",
                 petID = data.petID,

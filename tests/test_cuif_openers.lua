@@ -14,7 +14,11 @@ local function Load(on, classic)
         env.ClassicUIForeverAPI = {
             version = 1,
             IsOn = function(name) return on[name] == true end,
-            Open = function(name) opened[#opened + 1] = name return true end,
+            Open = function(name, arg)
+                opened[#opened + 1] = name
+                if arg then opened[name .. ":" .. #opened] = arg end
+                return true
+            end,
             GetFrame = function() return nil end,
         }
     end
@@ -115,6 +119,61 @@ function tests.followUpOpen_leavesAnOpenWindowAlone()
     env.ClassicUIForeverAPI.GetFrame = function() return { IsVisible = function() return true end } end
     H.assertTrue(ns.SearchOpeners:OpenButtonFrame("QuestLogMicroButton"))
     H.assertEq(#opened, 0)
+end
+
+-- Its Collections window stands in for the game's journal (2026-10-27:
+-- EasyFind pressed the Collections button every 0.05 s waiting for the
+-- game's journal, toggling this window open and shut). It opens through
+-- the API at the page, the entry passed on; the game's button is left be.
+function tests.collections_openThroughTheApiAtThePage()
+    local ns, opened, env = Load({ collectionsWindow = true })
+    local pressed = 0
+    ns.Utils.ClickButton = function() pressed = pressed + 1 return true end
+    env.CollectionsMicroButton = {}
+    ns.SearchOpeners:OpenButtonFrame("CollectionsMicroButton", { waitForFrame = "CollectionsJournal", tabIndex = 4 })
+    H.assertEq(opened[1], "collectionsWindow")
+    H.assertEq(opened["collectionsWindow:1"], "heirlooms", "at the heirlooms page")
+    H.assertEq(pressed, 0, "the game's button is not pressed")
+    H.assertTrue(ns.SearchOpeners.OpenCollectionsPage(1, "mount:42"))
+    H.assertEq(opened["collectionsWindow:2"], "mounts")
+    H.assertEq(opened["collectionsWindow:3"], "mount:42", "the entry handed on")
+end
+
+-- The entry's cell, as the replacement draws it, comes back to be ringed.
+function tests.collections_theEntrysCellComesBack()
+    local ns, _, env = Load({ collectionsWindow = true })
+    local cell = {}
+    env.ClassicUIForeverAPI.GetFrame = function(_, part) if part == "entry:toy:7" then return cell end end
+    local replaced, got = ns.SearchOpeners.OpenCollectionsPage("toys", "toy:7")
+    H.assertTrue(replaced)
+    H.assertEq(got, cell)
+end
+
+function tests.collections_withoutTheReplacementTheGameRuns()
+    local ns = Load({})
+    H.assertEq(ns.SearchOpeners.OpenCollectionsPage(1, "mount:42"), nil)
+end
+
+-- A toggle button is pressed once, then waited on: pressed again each try
+-- it shut the window it had just opened.
+function tests.collectionOpeners_pressTheToggleOnce()
+    local bad = {}
+    for _, rel in ipairs({ "Search/Results/Handlers/Mounts.lua", "Search/Results/Handlers/Toys.lua" }) do
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. rel, "rb"))
+        local lines = {}
+        for line in f:lines() do lines[#lines + 1] = line end
+        f:close()
+        for i, line in ipairs(lines) do
+            if line:find("ClickButton(micro)", 1, true) then
+                local guarded = false
+                for j = math.max(1, i - 3), i do
+                    if lines[j]:find("attempt == 1", 1, true) then guarded = true end
+                end
+                if not guarded then bad[#bad + 1] = rel .. ":" .. i end
+            end
+        end
+    end
+    H.assertEq(#bad, 0, table.concat(bad, ", "))
 end
 
 local pass, fail, failures = H.runSuite("CuifOpeners", tests)

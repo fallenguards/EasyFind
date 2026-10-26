@@ -2000,6 +2000,13 @@ function Search:CreateSearchFrame()
     -- Built after the filter button exists: the apps button anchors to its
     -- left edge, so it cannot be placed before there is one.
     if ns.AppsMenu then ns.AppsMenu:Create(searchFrame, filterBtn) end
+    -- Both buttons fill the bar's height, its border too: a drag from
+    -- either moves the bar; a drag fires no click, so menus stay shut.
+    for _, btn in ipairs({ filterBtn, searchFrame.appsBtn }) do
+        btn:RegisterForDrag("LeftButton")
+        btn:SetScript("OnDragStart", function() searchFrame:GetScript("OnDragStart")(searchFrame) end)
+        btn:SetScript("OnDragStop", function() searchFrame:GetScript("OnDragStop")(searchFrame) end)
+    end
 
     -- Hover-reveal for the configurable bar controls: an unchecked "Show
     -- filter button" keeps the button clickable at alpha 0 until its spot
