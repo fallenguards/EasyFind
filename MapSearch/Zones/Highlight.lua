@@ -554,6 +554,7 @@ end
 -- preserveBreadcrumb=true keeps the click-driven breadcrumb so a hover
 -- exit doesn't wipe the gold guide the user is following.
 function MapSearch:ClearZoneHighlight(preserveBreadcrumb)
+    if self.zoomOutHint then self.zoomOutHint:Hide() end
     if not zoneHighlightFrame then return end
 
     for _, highlight in ipairs(zoneHighlightFrame.highlights) do

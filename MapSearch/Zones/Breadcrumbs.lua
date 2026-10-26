@@ -9,6 +9,7 @@ local DebugPrint = Utils.DebugPrint
 local ipairs, type, select = Utils.ipairs, Utils.type, Utils.select
 
 local GOLD_COLOR = ns.GOLD_COLOR
+local L = ns.L
 local CreateFrame = CreateFrame
 local UIParent = UIParent
 local GetMapInfo = C_Map.GetMapInfo
@@ -20,11 +21,9 @@ function MapSearch:HighlightBreadcrumbForNavigation(dcaMapID, finalTargetMapID, 
 
     local navBar = WorldMapFrame.NavBar
     if not navBar then
-        DebugPrint("No NavBar found, direct nav to DCA")
-        -- Must set pending BEFORE SetMapID: SetMapID triggers OnMapChanged sync.
-        self.pendingZoneHighlight = finalTargetMapID
-        DebugPrint("Set pendingZoneHighlight BEFORE SetMapID:", finalTargetMapID)
-        WorldMapFrame:SetMapID(dcaMapID)
+        -- The classic clients' map has no navigation bar: a right-click zooms
+        -- it out, so the guide asks for one; the map change guides on.
+        self:ShowZoomOutHint(finalTargetMapID)
         return
     end
 
@@ -271,6 +270,33 @@ function MapSearch:ShowBreadcrumbHighlight(button, finalTargetMapID)
 
     self.pendingZoneHighlight = finalTargetMapID
     DebugPrint("ShowBreadcrumbHighlight - SET pendingZoneHighlight to:", finalTargetMapID)
+end
+
+-- "Right-click the map to zoom out" over the map's top, pulsing.
+function MapSearch:ShowZoomOutHint(finalTargetMapID)
+    local hint = self.zoomOutHint
+    if not hint then
+        hint = CreateFrame("Frame", nil, WorldMapFrame.ScrollContainer or WorldMapFrame)
+        hint:SetFrameStrata("TOOLTIP")
+        hint:SetFrameLevel(300)
+        hint:EnableMouse(false)
+        hint:SetHeight(30)
+        hint:SetPoint("TOP", hint:GetParent(), "TOP", 0, -12)
+        local back = hint:CreateTexture(nil, "BACKGROUND")
+        back:SetAllPoints()
+        back:SetColorTexture(0, 0, 0, 0.75)
+        hint.text = hint:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        hint.text:SetPoint("CENTER")
+        hint.text:SetTextColor(Utils.RGB(GOLD_COLOR, 1))
+        MapFrames.AttachBounceAnimation(hint, { fromAlpha = 1, toAlpha = 0.55, duration = 0.8, groupKey = "pulseAnim" })
+        WorldMapFrame:HookScript("OnHide", function() hint:Hide() end)
+        self.zoomOutHint = hint
+    end
+    hint.text:SetText(L["MAP_GUIDE_ZOOM_OUT"])
+    hint:SetWidth(math.ceil(hint.text:GetStringWidth()) + 28)
+    hint:Show()
+    if hint.pulseAnim then hint.pulseAnim:Play() end
+    self.pendingZoneHighlight = finalTargetMapID
 end
 
 -- Maximized: breadcrumbs at screen top, indicator goes below pointing up.

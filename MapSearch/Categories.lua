@@ -10,7 +10,7 @@ local ipairs = Utils.ipairs
 Data.CATEGORY_ICONS = {
     flightmaster = "atlas:TaxiNode_Neutral",
     zeppelin = 342918,
-    boat = 1126431,
+    boat = "atlas:Ships_CargoShip-Map",
     portal = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
     tram = "Interface\\Icons\\INV_Misc_Gear_01",
     subzone = 237382,
@@ -90,7 +90,6 @@ Data.CATEGORY_ICONS = {
 if ns.Caps and ns.Caps.classic then
     local icons = Data.CATEGORY_ICONS
     icons.zeppelin = "atlas:Vehicle-Air-Horde"
-    icons.boat = "Interface\\Icons\\INV_Misc_Spyglass_02"
     icons.portal = "atlas:MagePortalAlliance"
     icons.rare = "atlas:VignetteKill"
     icons.subzone = "Interface\\Icons\\INV_Misc_Map_01"
