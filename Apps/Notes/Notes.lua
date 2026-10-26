@@ -959,15 +959,42 @@ function notesNS.ListNotes(filter)
     return out
 end
 
+-- The mark of a line added under body: its last line's bullet, box or next
+-- number, so a list ending the note goes on; none after a blank line.
+function Fmt.ListMarkAfter(body)
+    local last = (body or ""):gsub("\n$", ""):match("([^\n]*)$") or ""
+    if last:sub(1, #BULLET_PREFIX) == BULLET_PREFIX then return BULLET_PREFIX end
+    if last:sub(1, #CHECK_EMPTY_PREFIX) == CHECK_EMPTY_PREFIX
+        or last:sub(1, #CHECK_FILLED_PREFIX) == CHECK_FILLED_PREFIX then
+        return CHECK_EMPTY_PREFIX
+    end
+    local n = tonumber(last:match("^(%d+)%. "))
+    return n and (n + 1) .. ". " or ""
+end
+
+-- Text added joins the note in its own form: a checklist note takes it as
+-- a line (an item or quest tracked, anything else ticked by hand), any
+-- other note as a line under its last, carrying on a list there.
 function notesNS.AppendToNote(id, text)
     local idx = FindNoteIndex(id)
     if not idx then return false end
     text = Utils.HexColorNames(tostring(text or ""))
     if text == "" then return false end
     local note = NotesStore()[idx]
+    local CK = notesNS.Checklist
+    if CK and CK.Is(note) then
+        local line = CK.LineFromLink(text)
+        -- A spell's line would count its cooldown: a mount or ability added
+        -- here is one to tick.
+        if not line or line.link == "cooldown" then line = { text = text } end
+        CK.AddLine(note, line)
+        if notesNS.RefreshReader then notesNS.RefreshReader(id) end
+        if notesNS.ChecklistView and notesNS.ChecklistView.Refresh then notesNS.ChecklistView.Refresh() end
+        return true
+    end
     local body = note.body or ""
     if body ~= "" and body:sub(-1) ~= "\n" then body = body .. "\n" end
-    UpdateBody(id, body .. text)
+    UpdateBody(id, body .. Fmt.ListMarkAfter(body) .. text)
     if NotesWindowShown() and UI._notes.selectedID == id and UI.RefreshEasyNotes then
         UI:RefreshEasyNotes()
     end
