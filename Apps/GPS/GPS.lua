@@ -5035,7 +5035,8 @@ function GPS.FloatDockAt(left, top)
     if not dockFrame then return end
     dockFrame.docked = nil
     dockFrame.floating = true
-    dockFrame:SetFrameStrata("MEDIUM")
+    -- Over the action bars, as the window.
+    dockFrame:SetFrameStrata("HIGH")
     -- A section's width, floating or not.
     local t = ClientTracker()
     local ref = t and t.modules and t.modules[1]
@@ -5392,7 +5393,8 @@ end
 local function BuildPopout()
     local f = CreateFrame("Frame", "EasyFindGPSPopout", UIParent, "BackdropTemplate")
     f:SetSize((PopoutSize()), 120)
-    f:SetFrameStrata("MEDIUM")
+    -- Over the action bars, which share MEDIUM and cut into a window there.
+    f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -5523,7 +5525,7 @@ local function BuildPopout()
         end
         if self.headCog then
             self.headCog:ClearAllPoints()
-            self.headCog:SetPoint("LEFT", self, "TOPLEFT", 9, -(STRIP_TOP + BTN / 2))
+            self.headCog:SetPoint("LEFT", self, "TOPLEFT", 5, -(STRIP_TOP + BTN / 2))
             self.headCog:SetShown(above and GPS.CogsShown())
         end
     end
@@ -5627,6 +5629,7 @@ local function BuildPopout()
     f.isPopout = true
     -- The settings cog over the trip's fields: the window's menu, as a right-click.
     f.headCog = GPS.SettingsCog(f, ShowWindowMenu)
+    if f.headCog then f.headCog:SetSize(12, 13) end
 
     BuildSurface(f, {
         padX = 12, padY = 9, padRight = 64, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
@@ -5655,8 +5658,13 @@ local function BuildPopout()
             if tight then
                 -- One tight title row: a folded route, or no route, where the row
                 -- holds the search box and typed results unfold below.
-                self:SetHeaderPad(8, above)
-                self:SetHeight(8 + strip + headRow + 8)
+                -- The one "where to" field: 8 round its box, not round its
+                -- row, which is taller by the gap between fields.
+                local gap = 0
+                local field = not Route() and self.trip and self.trip:IsShown() and self.trip.rows[1]
+                if field and field.box then gap = mmax(0, (field:GetHeight() - field.box:GetHeight()) / 2) end
+                self:SetHeaderPad(8 - gap, above)
+                self:SetHeight(8 - gap + strip + headRow + 8 - gap)
                 self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
                     self.search:SetShown(not (Route() or GPS.planning or self.trip))

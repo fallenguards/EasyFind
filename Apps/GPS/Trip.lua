@@ -638,9 +638,16 @@ local function Field(ed, i)
         grip:SetShown(row.canDrag and (ed.drag == row.index + 1 or row:IsMouseOver()))
     end
     row.SyncGrip = SyncGrip
-    if row.SetMouseMotionEnabled then row:SetMouseMotionEnabled(true) else row:EnableMouse(true) end
     row:HookScript("OnEnter", SyncGrip)
     row:HookScript("OnLeave", SyncGrip)
+    -- After the hooks, which left its clicks on (/efd popdrag): a press on
+    -- the row's free space drags the window.
+    if row.SetMouseClickEnabled then
+        row:SetMouseMotionEnabled(true)
+        row:SetMouseClickEnabled(false)
+    else
+        row:EnableMouse(true)
+    end
     grip:SetScript("OnEnter", SyncGrip)
     grip:SetScript("OnLeave", SyncGrip)
     if Utils.AttachDelayedTooltip then

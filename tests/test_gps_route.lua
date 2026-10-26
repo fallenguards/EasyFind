@@ -130,6 +130,26 @@ function tests.factionEdge_onlyForItsFaction()
     H.assertEq(horde[1].kind, "boat")
 end
 
+-- A portal behind a quest, as MoP's Jade Forest portals open once the intro
+-- has landed the character: taken once the quest is done, never before.
+function tests.questGatedPortal_onlyOnceTheQuestIsDone()
+    local done = false
+    local _, _, Route = fresh(function(env)
+        env.C_QuestLog = { IsQuestFlaggedCompleted = function(q) return q == 31733 and done end }
+    end)
+    local d = data()
+    d.edges = { { kind = "portal", n = "Portal to Jade Forest", from = P(1, 0.5, 0.5), to = P(2, 0.5, 0.5), sec = 6,
+                  req = { quest = 31733 } } }
+    d.abilities = {}
+    local dest = { name = "Over there", mapID = 2, x = 0.5, y = 0.6 }
+    local before = build(Route, P(1, 0.1, 0.1), dest, { data = d })
+    H.assertTrue(not before or before[1].kind ~= "portal", "the portal is not there before the intro")
+    done = true
+    local after = build(Route, P(1, 0.1, 0.1), dest, { data = d })
+    H.assertEq(after[1].kind, "portal")
+    H.assertEq(after[1].arrive.ci, 2)
+end
+
 -- A flight lands only at a discovered point; an unmet flight master can
 -- start one, so the route may walk there, learn it and fly on.
 function tests.undiscoveredFlightPoint_isNeverFlownThrough()

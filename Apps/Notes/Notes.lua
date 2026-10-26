@@ -1461,7 +1461,8 @@ local function BuildReader()
     else
         f:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
     end
-    f:SetFrameStrata("MEDIUM")
+    -- Over the action bars, which share MEDIUM and cut into a window there.
+    f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:SetResizable(true)
