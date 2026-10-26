@@ -736,6 +736,7 @@ TrackStep = function(index)
     if mapID and UiMapPoint and MapSearch and MapSearch.PlaceUserWaypoint then
         MapSearch:PlaceUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
         if not route.untracked and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+            GPS.ClearQuestSuperTrack()
             C_SuperTrack.SetSuperTrackedUserWaypoint(true)
         end
         if MapSearch.RefreshAllClearButtons then MapSearch:RefreshAllClearButtons() end
@@ -2722,28 +2723,59 @@ end
 
 -- The arrow and the beacon follow the route, or let go of it for the
 -- tracker's quests.
+-- The route lets go of the game's super-track, the arrow and beacon free
+-- for a quest. The map search must stop treating the pin as its own, or
+-- it re-tracks it the moment nothing else is tracked.
+function GPS.ReleaseTracking(route)
+    route.untracked = true
+    if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+end
+
+-- The route takes the super-track: a quest's goes, so the tracker never
+-- lights a quest beside the route.
+function GPS.ClearQuestSuperTrack()
+    local ST = C_SuperTrack
+    if ST and ST.IsSuperTrackingQuest and ST.IsSuperTrackingQuest() and ST.SetSuperTrackedQuestID then
+        ST.SetSuperTrackedQuestID(0)
+    end
+end
+
 local function ToggleRouteTracking()
     local route = Route()
     if not route then return end
     if RouteTracked() then
-        route.untracked = true
-        -- Let go: the map search must stop treating the pin as its own, or
-        -- it re-tracks it the moment nothing else is tracked.
-        if ns.MapSearch and ns.MapSearch.SetEasyFindWaypointPlaced then ns.MapSearch:SetEasyFindWaypointPlaced(false) end
-        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+        GPS.ReleaseTracking(route)
     else
         route.untracked = nil
-        if C_SuperTrack then
-            if C_SuperTrack.IsSuperTrackingQuest and C_SuperTrack.IsSuperTrackingQuest() and C_SuperTrack.SetSuperTrackedQuestID then
-                C_SuperTrack.SetSuperTrackedQuestID(0)
-            end
-            if C_SuperTrack.GetSuperTrackedVignette and C_SuperTrack.GetSuperTrackedVignette() and C_SuperTrack.ClearAllSuperTrackedVignettes then
-                C_SuperTrack.ClearAllSuperTrackedVignettes()
-            end
+        GPS.ClearQuestSuperTrack()
+        if C_SuperTrack and C_SuperTrack.GetSuperTrackedVignette and C_SuperTrack.GetSuperTrackedVignette()
+            and C_SuperTrack.ClearAllSuperTrackedVignettes then
+            C_SuperTrack.ClearAllSuperTrackedVignettes()
         end
         TrackStep(route.active or 1)
     end
     Refresh()
+end
+
+-- A quest super-tracked while the route is (its POI clicked, the quest
+-- map) is the player's pick: the game picks one itself only with nothing
+-- tracked. The route lets go, as its own toggle does, so one is lit.
+do
+    local watch = CreateFrame("Frame")
+    watch:RegisterEvent("SUPER_TRACKING_CHANGED")
+    watch:SetScript("OnEvent", function()
+        Utils.SafeAfter(0, function()
+            local route = Route()
+            local ST = C_SuperTrack
+            if not (route and RouteTracked() and not route.arrived and ST and ST.IsSuperTrackingQuest
+                and ST.IsSuperTrackingQuest()) then
+                return
+            end
+            GPS.ReleaseTracking(route)
+            Refresh()
+        end)
+    end)
 end
 
 -- The toggle's faces: the game's POI atlases, or the classic sheet's cuts.
