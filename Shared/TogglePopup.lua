@@ -129,20 +129,14 @@ local function RowEntered(popup, row)
     end
     local fly = popup.flyout
     if fly and fly._togglePopup == popup and fly:IsShown() then fly:Hide() end
-    -- A row with a tooltip says what it does beside the popup.
+    -- A row with a tooltip says what it does beside the popup, in the hover
+    -- tip: it draws over the menus (the game's tooltip drew under them).
     local tip = row.def and row.def.tooltip
-    if tip then
-        GameTooltip:SetOwner(popup, "ANCHOR_NONE")
-        GameTooltip:ClearAllPoints()
-        GameTooltip:SetPoint("TOPLEFT", popup, "TOPRIGHT", 4, 0)
-        GameTooltip:SetText(row.def.label or "", 1, 1, 1)
-        GameTooltip:AddLine(tip, nil, nil, nil, true)
-        GameTooltip:Show()
-    end
+    if tip then ns.ShowHintTooltip(row, "ANCHOR_RIGHT", row.def.label, tip) end
 end
 
 local function RowLeft(popup, row)
-    if row.def and row.def.tooltip and GameTooltip:GetOwner() == popup then GameTooltip_Hide() end
+    ns.HideHintTooltip(row)
 end
 
 local function MakeCheckRow(popup)

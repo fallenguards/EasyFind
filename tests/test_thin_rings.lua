@@ -23,6 +23,11 @@ local function scan(text)
             n = tonumber(n)
             if not least or n < least then least = n end
         end
+        -- A corner named by a file constant (the hover tip's CORNER = 6).
+        for word in arg:gmatch("[%a_][%w_]*") do
+            local n = tonumber(text:match("local%s+" .. word .. "%s*=%s*(%d+)"))
+            if n and (not least or n < least) then least = n end
+        end
         local e = esc(expr)
         local ringed = text:find("SetRoundedRectBorderColor%(%s*" .. e .. "%s*,")
             or text:find("SetCalculatorRoundedFill%(%s*" .. e .. "%s*,")
@@ -58,6 +63,21 @@ function tests.scan_flagsARingedSmallFrame()
     local src = "ns.CreateRoundedRectBorder(well)\nns.SetRoundedRectBarHeight(well, 10)\n"
         .. "ns.SetRoundedRectBorderColor(well, 1, 1, 1, 1)\n"
     H.assertEq(#scan(src), 1)
+end
+
+function tests.scan_readsANamedCorner()
+    local src = "local CORNER = 6\nns.SetRoundedRectBarHeight(tip, CORNER)\n"
+        .. "ns.SetRoundedRectBorderColor(tip, 1, 1, 1, 0.45)\n"
+    H.assertEq(#scan(src), 1, "the hover tip's ring vanished at a named 6 px corner (2026-10-26)")
+end
+
+-- Its corner is set on `tip` and its ring painted on `self`, past the scan.
+function tests.hoverTip_drawsItsEdgeAsAShape()
+    local fh = assert(io.open(H.ADDON_ROOT .. "/Shared/Utils.lua", "r"))
+    local text = fh:read("a")
+    fh:close()
+    H.assertTrue(text:find("SetRoundedRectBorderEdgeShown(tip, false)", 1, true) ~= nil, "the art ring hidden")
+    H.assertTrue(text:find("SetRoundedRectFill(self.ring,", 1, true) ~= nil, "the edge painted as a shape")
 end
 
 function tests.scan_acceptsAHiddenRingOrABigCorner()

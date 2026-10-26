@@ -5374,8 +5374,9 @@ local function PaintHintTooltip(self)
     local light = theme and theme.lightTheme
     local r, g, b, rr, rg, rb = SurfaceColors(theme)
     ns.SetRoundedRectFill(self, r, g, b, 1)
-    ns.SetRoundedRectBorderColor(self, rr, rg, rb, light and 0.55 or 0.45)
+    ns.SetRoundedRectFill(self.ring, rr, rg, rb, 1, true)
     self.notch:SetColorTexture(r, g, b, 1)
+    self.ringNotch:SetColorTexture(rr, rg, rb, 1)
     self.title:SetTextColor(ns.TooltipTextColor())
     local body = light and theme.leafColor or ns.TEXT_PRIMARY
     self.body:SetTextColor(body[1], body[2], body[3], 1)
@@ -5412,11 +5413,26 @@ local function EnsureHintTooltip()
     tip:EnableMouse(false)   -- a label: the mouse passes straight through
     ns.CreateRoundedRectBorder(tip)
     ns.SetRoundedRectBarHeight(tip, CORNER)
+    ns.SetRoundedRectBorderEdgeShown(tip, false)
     -- The notch: a square in the fill color turned 45 degrees, drawn
     -- under the (opaque) fill so only the half outside the panel shows.
     tip.notch = tip:CreateTexture(nil, "BACKGROUND", nil, -1)
     tip.notch:SetSize(NOTCH, NOTCH)
     tip.notch:SetRotation(math.pi / 4)
+    -- The edge: the same shape 1 px wider in the ring color, under it (the
+    -- art's ring is gone at this corner size).
+    tip.ring = CreateFrame("Frame", nil, tip)
+    tip.ring:SetPoint("TOPLEFT", tip, "TOPLEFT", -1, 1)
+    tip.ring:SetPoint("BOTTOMRIGHT", tip, "BOTTOMRIGHT", 1, -1)
+    tip.ring:SetFrameLevel(Utils.HINT_LEVEL - 1)
+    ns.CreateRoundedRectBorder(tip.ring)
+    ns.SetRoundedRectBorderEdgeShown(tip.ring, false)
+    ns.SetRoundedRectBorderBgAlpha(tip.ring, 1)
+    ns.SetRoundedRectBarHeight(tip.ring, CORNER + 2)
+    tip.ringNotch = tip.ring:CreateTexture(nil, "BACKGROUND")
+    tip.ringNotch:SetSize(NOTCH + 2, NOTCH + 2)
+    tip.ringNotch:SetRotation(math.pi / 4)
+    tip.ringNotch:SetPoint("CENTER", tip.notch, "CENTER")
     tip.title = tip:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     tip.body = tip:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     tip.note = tip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
