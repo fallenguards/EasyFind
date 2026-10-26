@@ -78,6 +78,7 @@ local function EnsurePane()
     if pane then return pane end
     local parent = Search and Search.GetSearchFrame and Search:GetSearchFrame() or UIParent
     pane = CreateFrame("Frame", "EasyFindClipboardPane", parent, "BackdropTemplate")
+    pane._efEmbedsTooltip = true   -- a link's tooltip shown inside it stays its own
     pane:SetFrameStrata("LOW")
     pane:SetClampedToScreen(true)
     pane:SetSize(PANE_W, PANE_MIN_H)

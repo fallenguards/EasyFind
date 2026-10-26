@@ -789,6 +789,55 @@ local function StartCapture(popup)
     end)
 end
 
+-- A caller's own button takes the key itself (a new quicklist's): a click
+-- arms it, the next key is the combo (after the conflict notice), Escape
+-- stops, a right-click clears. get() reads the key it shows.
+function Shortkeys:AttachComboCapture(btn, get, onCombo, onClear, excludeListID)
+    local function Label() btn:SetText(get() or L["SHORTKEY_CLICK_TO_BIND"]) end
+    local function Stop()
+        if not btn.capturing then return end
+        btn.capturing = false
+        Utils.DisarmBindingCapture(btn)
+        Label()
+    end
+    btn._efStopCapture = Stop
+    if not btn._efCaptureHideHooked then
+        btn._efCaptureHideHooked = true
+        btn:HookScript("OnHide", function(self) if self._efStopCapture then self._efStopCapture() end end)
+    end
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    btn:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            Stop()
+            onClear()
+            Label()
+            return
+        end
+        if self.capturing then Stop() return end
+        -- Keys go to the button, not a box being typed in.
+        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        if focus then focus:ClearFocus() end
+        self.capturing = true
+        self:SetText(L["OPT_KB_PRESS_KEY"])
+        Utils.ArmBindingCapture(self, function(_, combo)
+            Stop()
+            if combo == "stop" then return end
+            local function Take()
+                onCombo(combo)
+                Label()
+            end
+            local kind, label = DetectBindConflict(nil, combo, excludeListID)
+            if kind and EasyFind and EasyFind.db and EasyFind.db.shortkeyConflictPrompt ~= false then
+                ShowConflictPopup((kind == "shortkey" and L["SHORTKEY_CONFLICT_SHORTKEY"]
+                    or L["SHORTKEY_CONFLICT_BIND"]):format(label), Take)
+            else
+                Take()
+            end
+        end)
+    end)
+    Label()
+end
+
 local function BuildCapturePopup()
     local f = CreateFrame("Frame", "EasyFindShortkeyCapture", UIParent, "BackdropTemplate")
     f:SetSize(300, 116)

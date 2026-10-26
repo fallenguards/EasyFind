@@ -57,9 +57,14 @@ function Rows.InstallTooltips(resultRow)
         -- Hover-based action hint (mirrors keyboard selection hint).
         Handlers:ApplyActionHint(self)
         -- An extension's own rows (EasyFind.API.RegisterSearchProvider):
-        -- its tooltip(row, tooltip) fills the tooltip, or says none.
+        -- its tooltip(row, tooltip) fills the tooltip, or says none. A
+        -- surface of ours already showing the tooltip inside itself (the
+        -- clipboard pane embeds a link's) keeps it: taken over here, it
+        -- went blank (2026-10-27).
         local provider = self.data and ns.Extensions and ns.Extensions.ProviderOf(self.data)
         if provider and provider.tooltip then
+            local owner = GameTooltip:IsShown() and GameTooltip:GetOwner()
+            if owner and owner._efEmbedsTooltip then return end
             AnchorRowTooltip(GameTooltip, self)
             local ok, filled = ns.Extensions.Run(provider.tooltip, self.data, GameTooltip)
             if ok and filled then GameTooltip:Show() else GameTooltip:Hide() end

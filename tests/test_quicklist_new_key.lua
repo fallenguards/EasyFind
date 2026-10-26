@@ -1,6 +1,7 @@
 -- A new quicklist's key and hold choice in its name prompt
 -- (Apps/Quicklists/Quicklists.lua PromptNew), 2026-10-26: most lists get a
--- key, so the prompt offers it under the name with the hold switch.
+-- key, so the prompt offers it under the name with the hold switch. The
+-- key button takes the key itself, no second popup.
 local H = require("Harness")
 
 local function Load()
@@ -9,7 +10,7 @@ local function Load()
     f:close()
     local s = assert(src:find("function Quicklists:PromptNew(onCreated)", 1, true))
     local _, e = src:find("\nend\r?\n", s)
-    local made, dialog, combo = {}, nil, nil
+    local made, dialog = {}, nil
     local Store = {
         CleanName = function(v) return v ~= "" and v or nil end,
         FindByName = function() return nil end,
@@ -23,11 +24,14 @@ local function Load()
         L = setmetatable({}, { __index = function(_, k) return k end }),
         ns = {
             ShowThemedDialog = function(opts) dialog = opts end,
-            Shortkeys = { PromptForCombo = function(_, _, _, onCombo) onCombo(combo) end },
+            Shortkeys = { AttachComboCapture = function(_, btn, get, onCombo, onClear)
+                btn.press = function(c) onCombo(c) btn.text = get() end
+                btn.clear = function() onClear() btn.text = get() end
+            end },
         },
     }, { __index = _G })
     assert(load(src:sub(s, e), "=Quicklists.lua PromptNew", "t", env))()
-    return Quicklists, made, function() return dialog end, function(c) combo = c end
+    return Quicklists, made, function() return dialog end
 end
 
 local function Button()
@@ -40,15 +44,16 @@ end
 local tests = {}
 
 function tests.theKeyAndHoldGoWithTheNewList()
-    local Q, made, dialog, press = Load()
+    local Q, made, dialog = Load()
     Q:PromptNew()
     local d = dialog()
     H.assertEq(d.extraButton.label, "QUICKLIST_COL_KEY", "a key row under the name")
     H.assertEq(d.checkText, "QUICKLIST_HOLD_CHECK", "and the hold switch")
     local btn = Button()
-    press("CTRL-Q")
-    d.extraButton.onClick(btn)
-    H.assertEq(btn.text, "CTRL-Q", "the button shows the key")
+    H.assertNil(d.extraButton.onClick, "no popup to open")
+    d.extraButton.setup(btn)
+    btn.press("CTRL-Q")
+    H.assertEq(btn.text, "CTRL-Q", "the button shows the key it took")
     d.onAccept("Mounts", true)
     H.assertEq(made.name, "Mounts")
     H.assertEq(made.key, "CTRL-Q")

@@ -4651,6 +4651,8 @@ function ns.CreateModernButton(parent, text, width, height)
         ns.SetRoundedRectBarHeight(self, mmin(h or self:GetHeight() or 22, 10))
         fitLabelEllipsis(self)
     end
+    -- Sized by its anchors too: the text fits the width it ends up with.
+    btn:HookScript("OnSizeChanged", fitLabelEllipsis)
 
     -- Tooltip-on-truncate. If the button's text was clipped to ellipsis,
     -- hovering for 0.5s pops the full label. Skipped silently when another
@@ -5975,7 +5977,7 @@ end
 -- frame. opts: { text, acceptText, cancelText, hasEditBox, editBoxDefault,
 -- maxLetters, onAccept(value), single (one button), readOnly (a text to
 -- copy: the box keeps it, Ctrl+C flashes Copied), extraButton (a labeled
--- button under the box: { label, text, onClick(button) }), checkText,
+-- button under the box: { label, text, onClick(button) or setup(button) }), checkText,
 -- checkDefault, checkTooltip (said on hovering the check) }.
 local themedDialog
 
@@ -6154,7 +6156,12 @@ function ns.ShowThemedDialog(opts)
         f.extraBtn:SetPoint("TOPLEFT", f, "TOPLEFT", 24 + f.extraLabel:GetStringWidth(), -used)
         f.extraBtn:SetPoint("RIGHT", f, "RIGHT", -16, 0)
         f.extraBtn:SetText(extra.text or "")
-        f.extraBtn:SetScript("OnClick", function(self) if extra.onClick then extra.onClick(self) end end)
+        if extra.onClick then
+            f.extraBtn:SetScript("OnClick", function(self) extra.onClick(self) end)
+        else
+            f.extraBtn:SetScript("OnClick", nil)
+        end
+        if extra.setup then extra.setup(f.extraBtn) end
         f.extraLabel:Show()
         f.extraBtn:Show()
         used = used + 22 + 10

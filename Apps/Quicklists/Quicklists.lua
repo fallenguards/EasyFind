@@ -407,13 +407,10 @@ function Quicklists:PromptNew(onCreated)
         hasEditBox = true,
         maxLetters = Store.NAME_MAX,
         acceptText = L["QUICKLIST_CREATE"],
-        extraButton = { label = L["QUICKLIST_COL_KEY"], text = unbound, onClick = function(btn)
-            if not (ns.Shortkeys and ns.Shortkeys.PromptForCombo) then return end
-            local box = btn:GetParent().editBox
-            if box then box:ClearFocus() end
-            ns.Shortkeys:PromptForCombo(L["QUICKLIST_KEY_NEW"], key,
-                function(combo) key = combo btn:SetText(combo) end,
-                function() key = nil btn:SetText(unbound) end)
+        extraButton = { label = L["QUICKLIST_COL_KEY"], text = unbound, setup = function(btn)
+            if not (ns.Shortkeys and ns.Shortkeys.AttachComboCapture) then return end
+            ns.Shortkeys:AttachComboCapture(btn, function() return key end,
+                function(combo) key = combo end, function() key = nil end)
         end },
         checkText = L["QUICKLIST_HOLD_CHECK"],
         checkTooltip = L["QUICKLIST_HOLD_CHECK_TT"],
