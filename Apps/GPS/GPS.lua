@@ -664,7 +664,7 @@ end
 function GPS.ShowStep(index)
     local route = Route()
     if not (route and route.steps[index] and ns.GPSPreview) then return end
-    if GPS:Open() then ns.GPSPreview:Toggle(index, true) end
+    if GPS:Open() then ns.GPSPreview:Show(index) end
 end
 
 -- A step's right-click: the route restarted there (as Shift-click), then
@@ -1872,7 +1872,7 @@ local function StepRow(container, i)
         elseif IsShiftKeyDown() then
             GPS.GoToStep(self.index)
         elseif container.previewOnHover and ns.GPSPreview then
-            ns.GPSPreview:Toggle(self.index)
+            ns.GPSPreview:Show(self.index)
         else
             GPS.ShowStep(self.index)
         end
@@ -3010,7 +3010,7 @@ local function BuildSurface(frame, opts)
             if button == "RightButton" then
                 if frame.ShowMenu then frame.ShowMenu() end
             elseif frame.previewOnHover and ns.GPSPreview then
-                ns.GPSPreview:Toggle(0)
+                ns.GPSPreview:Show(0)
             end
         end)
     end

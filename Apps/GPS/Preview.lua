@@ -503,7 +503,7 @@ local function TraceTo(x, y)
 end
 
 -- A clicked step stays the one shown; with none clicked it is the step
--- being followed. false: none, until the map opens or the route moves on.
+-- being followed.
 local pinned
 
 local function Following()
@@ -512,7 +512,6 @@ local function Following()
 end
 
 local function Shown()
-    if pinned == false then return nil end
     return pinned or Following()
 end
 
@@ -755,26 +754,47 @@ end
 -- The route moved on or the map opened: the followed step is shown again
 -- unless another is clicked. The map stays where it is.
 function Preview:Follow()
-    if pinned == false then pinned = nil end
     dirty = true
 end
 
--- A click on a step's number turns the map to that step and shows it; a
--- click on the step shown, its map up, puts it away unless keep.
-function Preview:Toggle(index, keep)
+-- A clicked step's mark grows and settles twice, so the eye lands on it.
+local PULSE_SCALE, PULSE_SECS, PULSE_BOUNCES = 1.8, 0.18, 4
+local function Pulse(region)
+    local g = region.clickPulse
+    if not g then
+        g = region:CreateAnimationGroup()
+        g:SetLooping("BOUNCE")
+        local grow = g:CreateAnimation("Scale")
+        grow:SetScaleFrom(1, 1)
+        grow:SetScaleTo(PULSE_SCALE, PULSE_SCALE)
+        grow:SetDuration(PULSE_SECS)
+        grow:SetSmoothing("OUT")
+        g:SetScript("OnLoop", function(self)
+            self.bounces = self.bounces + 1
+            if self.bounces >= PULSE_BOUNCES then self:Stop() end
+        end)
+        region.clickPulse = g
+    end
+    g:Stop()
+    g.bounces = 0
+    g:Play()
+end
+
+-- A click on a step's number turns the map to that step and shows it,
+-- its mark pulsing; clicked again, it pulses again.
+function Preview:Show(index)
     local route = Route()
     if not (route and route.steps and (index == 0 or route.steps[index])) then return end
     local mapID = TargetMap(route, index)
     local here = WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
-    local followed = Following()
-    if not keep and Shown() == index and (not mapID or here == mapID) then
-        if pinned == index and index ~= followed then pinned = nil else pinned = false end
-    else
-        if index == followed then pinned = nil else pinned = index end
-        if mapID and here ~= mapID and WorldMapFrame.SetMapID then pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID) end
-    end
+    if index == Following() then pinned = nil else pinned = index end
+    if mapID and here ~= mapID and WorldMapFrame.SetMapID then pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID) end
     dirty = true
     Draw()
+    if not marks then return end
+    for _, mark in ipairs({ marks.symbol, marks.stop, marks.stopCasing, marks.dest, marks.destIcon }) do
+        if mark:IsShown() then Pulse(mark) end
+    end
 end
 
 function Preview:Reset()
