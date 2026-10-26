@@ -74,6 +74,9 @@ function tests.aChecklistNoteTakesALine()
     CK.Init(note)
     local refreshed = 0
     notesNS.ChecklistView = { Refresh = function() refreshed = refreshed + 1 end }
+    -- A linked checklist's extension hears of each line added.
+    local told = 0
+    notesNS.LinkedChanged = function(n) if n == note then told = told + 1 end end
     local env = setmetatable({
         notesNS = notesNS, Fmt = {}, tonumber = tonumber, tostring = tostring,
         Utils = { HexColorNames = function(s) return s end },
@@ -90,6 +93,7 @@ function tests.aChecklistNoteTakesALine()
     H.assertEq(lines[2].link, nil, "a spell is ticked by hand, not a cooldown")
     H.assertTrue(lines[2].text:find("Cloud Serpent", 1, true) ~= nil)
     H.assertEq(refreshed, 2)
+    H.assertEq(told, 2, "each line added told the note's extension")
 end
 
 local pass, fail, failures = H.runSuite("NoteAppendLists", tests)

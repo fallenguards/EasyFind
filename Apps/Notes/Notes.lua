@@ -987,6 +987,7 @@ function notesNS.AppendToNote(id, text)
         -- here is one to tick.
         if not line or line.link == "cooldown" then line = { text = text } end
         CK.AddLine(note, line)
+        notesNS.LinkedChanged(note)
         if notesNS.RefreshReader then notesNS.RefreshReader(id) end
         if notesNS.ChecklistView and notesNS.ChecklistView.Refresh then notesNS.ChecklistView.Refresh() end
         return true
@@ -1000,9 +1001,77 @@ function notesNS.AppendToNote(id, text)
     return true
 end
 
+-- The window on that note, not on the list of notes it opens with.
 function notesNS.OpenNote(id)
-    if UI.SelectEasyNote then UI:SelectEasyNote(id) end
-    if UI.OpenEasyNotes then UI:OpenEasyNotes() end
+    if not (UI.OpenEasyNotes and UI.SelectEasyNote and UI.HideEasyNotesPalette) then return end
+    UI:OpenEasyNotes()
+    UI:SelectEasyNote(id)
+    UI:HideEasyNotesPalette()
+end
+
+-- Checklists an extension keeps in step with a list of its own
+-- (EasyFind.API.LinkedChecklist, Core/API.lua): found by list.source.
+function notesNS.LinkedNote(ext, key, title, create)
+    local link = ns.ChecklistLinks and ns.ChecklistLinks[ext]
+    local cat = link and link.category and link.category.key
+    for _, note in ipairs(NotesStore()) do
+        local src = note.list and note.list.source
+        if src and src.ext == ext and src.key == key then
+            -- One made before its extension named a category takes it.
+            if cat and not note.categories then note.categories, note.category = { cat }, cat end
+            return note.id
+        end
+    end
+    local CK = notesNS.Checklist
+    if not (create and CK) then return nil end
+    local note = CreateNote("")
+    note.name = title or key
+    note.scope = "account"
+    if cat then note.categories, note.category = { cat }, cat end
+    CK.Init(note).source = { ext = ext, key = key }
+    return note.id
+end
+
+-- The extension's list into its checklist; what shows it drawn again.
+function notesNS.SyncLinked(id, entries)
+    local idx = FindNoteIndex(id)
+    local note = idx and NotesStore()[idx]
+    local CK = notesNS.Checklist
+    if not (note and CK and CK.Is(note)) then return false end
+    if CK.SyncLinked(note, entries) then
+        note.updated = time()
+        if notesNS.RefreshReader then notesNS.RefreshReader(id) end
+        if notesNS.ChecklistView and notesNS.ChecklistView.Refresh then notesNS.ChecklistView.Refresh() end
+    end
+    return true
+end
+
+-- The extension's ref for each line it took in (refs[lineID]).
+function notesNS.SetLineRefs(id, refs)
+    local idx = FindNoteIndex(id)
+    local note = idx and NotesStore()[idx]
+    for _, line in ipairs(note and note.list and note.list.lines or {}) do
+        if refs[line.id] then line.ref = refs[line.id] end
+    end
+end
+
+-- A linked checklist's extension: told of the player's changes (changed),
+-- asked for its list when the checklist shows (shown).
+function notesNS.LinkedChanged(note)
+    local src = note.list and note.list.source
+    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    if not (link and link.changed) then return end
+    local lines = {}
+    for i, line in ipairs(note.list.lines) do
+        lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text }
+    end
+    xpcall(link.changed, geterrorhandler(), note.id, src.key, lines)
+end
+
+function notesNS.LinkedShown(note)
+    local src = note.list and note.list.source
+    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    if link and link.shown then xpcall(link.shown, geterrorhandler(), note.id, src.key) end
 end
 
 -- The notes as rows of the search bar: every note this character sees,
@@ -1022,6 +1091,10 @@ function notesNS.BuildSearchData()
             if alias ~= "" then keywords[#keywords + 1] = alias end
             local body = PlainSearchText(n)
             if body ~= "" then keywords[#keywords + 1] = body:sub(1, 300) end
+            -- Its categories by name: "shop" finds the shopping lists.
+            for _, cat in ipairs(UI:EasyNotesCategoriesOf(n)) do
+                keywords[#keywords + 1] = slower(UI:EasyNotesCategoryLabel(cat))
+            end
             out[#out + 1] = {
                 name = title,
                 nameLower = slower(title),
@@ -2593,10 +2666,7 @@ function UI:ApplyEasyNotesCustomFont(region, sizeOverride, flagsOverride)
     if not (origFont and origSize) then return end
     local size = sizeOverride or origSize
     local flags = flagsOverride or origFlags
-    -- FrizNotes.ttf carries the SMP bold codepoints for char-replace bold. If it
-    -- isn't loaded yet (a newly added font file needs a full client relaunch, not
-    -- just /reload), keep the base font so text still renders. No .otf fallback --
-    -- WoW can't render .otf/CFF, so STIX2Math.otf would slice glyphs the same way.
+    -- Bold by codepoint needs FrizNotes.ttf; failing that, the base font.
     if not pcall(region.SetFont, region, CUSTOM_FONT_PATH, size, flags) then
         region:SetFont(origFont, size, flags)
     end
@@ -5028,7 +5098,11 @@ function UI:EnsureEasyNotesFrame()
         frame.paletteSearchPlaceholder:SetShown((self:GetText() or "") == "")
         UI:RefreshEasyNotesPalette()
     end)
-    frame.paletteSearch:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    -- As the search bar's: Escape clears the words, then leaves the box;
+    -- the window's own Escape closes it after.
+    frame.paletteSearch:SetScript("OnEscapePressed", function(self)
+        if (self:GetText() or "") ~= "" then self:SetText("") else self:ClearFocus() end
+    end)
     frame.paletteSearch:SetScript("OnEnterPressed", function()
         local rows = UI._notes.paletteRows
         for i = 1, #rows do
@@ -6102,6 +6176,8 @@ function UI:PromptEasyNotesAlias()
         end)
         frame.aliasPopup = popup
     end
+    -- 280 a floor: wider for a long label.
+    popup:SetWidth(mmax(280, popup.label:GetStringWidth() + 28))
     popup.edit:SetText(note.alias or "")
     popup:Show()
     popup.edit:SetFocus()
@@ -7335,8 +7411,8 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
         popup.label:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -14, -10)
         popup.label:SetJustifyH("LEFT")
         popup.shell = CreateFrame("Frame", nil, popup)
-        popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 14, -28)
-        popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -14, -28)
+        popup.shell:SetPoint("TOPLEFT", popup.label, "BOTTOMLEFT", 0, -6)
+        popup.shell:SetPoint("TOPRIGHT", popup.label, "BOTTOMRIGHT", 0, -6)
         popup.shell:SetHeight(42)
         if ns.CreateRoundedRectBorder then
             ns.CreateRoundedRectBorder(popup.shell)
@@ -7378,29 +7454,20 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
     popup.itemID = itemID
     popup.itemName = itemName
     popup.label:SetText(Utils.sformat(L["NOTES_NOTE_FOR"], itemName or Utils.sformat(L["NOTES_ITEM_FMT"], itemID)))
+    -- 300 wide, the height measured: a long name wraps.
+    popup:SetHeight(98 + popup.label:GetStringHeight())
     local existing = GetItemNote(itemID)
     popup.edit:SetText(existing and existing.text or "")
     popup:Show()
     popup.edit:SetFocus()
 end
 
-if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
-    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
-        local ok, err = pcall(function()
-            if not (tooltip and tooltip.AddLine) then return end
-            local itemID = data and data.id
-            if type(itemID) ~= "number" and tooltip.GetItem then
-                local _, itemLink = tooltip:GetItem()
-                itemID = ItemIDFromLink(itemLink)
-            end
-            if type(itemID) ~= "number" then return end
-            local note = GetItemNote(itemID)
-            if not (note and type(note.text) == "string" and note.text ~= "") then return end
-            local c = UI:GetEasyNotesTooltipColor()
-            tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], note.text), c.r, c.g, c.b, true)
-        end)
-        if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
-    end)
+-- An item's own note line on its tooltip.
+function notesNS.ItemNoteLine(tooltip, itemID)
+    local note = GetItemNote(itemID)
+    if not (note and type(note.text) == "string" and note.text ~= "") then return end
+    local c = UI:GetEasyNotesTooltipColor()
+    tooltip:AddLine(Utils.sformat(L["NOTES_TOOLTIP_LINE"], note.text), c.r, c.g, c.b, true)
 end
 
 -- "Shows on" tooltip annotations: surface a brief note line on the linked
@@ -7491,42 +7558,85 @@ do
     if FCF_OpenTemporaryWindow then hooksecurefunc("FCF_OpenTemporaryWindow", HookChatWindows) end
 end
 
+-- Note lines by what a tooltip shows.
+function notesNS.TipItem(tooltip, itemID)
+    if type(itemID) ~= "number" and tooltip and tooltip.GetItem then
+        local _, itemLink = tooltip:GetItem()
+        itemID = ItemIDFromLink(itemLink)
+    end
+    if not (tooltip and tooltip.AddLine) or type(itemID) ~= "number" then return end
+    notesNS.ItemNoteLine(tooltip, itemID)
+    AddShowsOnLines(tooltip, "item", itemID)
+end
+
+function notesNS.TipSpell(tooltip, spellID)
+    if type(spellID) ~= "number" then return end
+    AddShowsOnLines(tooltip, "spell", spellID)
+end
+
+function notesNS.TipUnit(tooltip, guid)
+    if type(guid) ~= "string" or (_G.issecretvalue and _G.issecretvalue(guid)) then return end
+    if guid:find("^Player%-") then
+        local _, unit = tooltip:GetUnit()
+        AddShowsOnLines(tooltip, "player", (Ctx.UnitPlayer(unit)))
+        return
+    end
+    local npcID = tonumber(guid:match("Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
+        or guid:match("Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
+    AddShowsOnLines(tooltip, "npc", npcID)
+end
+
+function notesNS.TipGuarded(fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
+end
+
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
-    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
-        local ok, err = pcall(function()
-            local itemID = data and data.id
-            if type(itemID) ~= "number" and tooltip and tooltip.GetItem then
-                local _, itemLink = tooltip:GetItem()
-                itemID = ItemIDFromLink(itemLink)
-            end
-            AddShowsOnLines(tooltip, "item", itemID)
-        end)
-        if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
+    local T = Enum.TooltipDataType
+    TooltipDataProcessor.AddTooltipPostCall(T.Item, function(tooltip, data)
+        notesNS.TipGuarded(notesNS.TipItem, tooltip, data and data.id)
     end)
-    if Enum.TooltipDataType.Spell then
-        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(tooltip, data)
-            local ok, err = pcall(function()
-                AddShowsOnLines(tooltip, "spell", data and data.id)
-            end)
-            if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
+    if T.Spell then
+        TooltipDataProcessor.AddTooltipPostCall(T.Spell, function(tooltip, data)
+            notesNS.TipGuarded(notesNS.TipSpell, tooltip, data and data.id)
         end)
     end
-    if Enum.TooltipDataType.Unit then
-        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
-            local ok, err = pcall(function()
-                local guid = data and data.guid
-                if type(guid) ~= "string" or (_G.issecretvalue and _G.issecretvalue(guid)) then return end
-                if guid:find("^Player%-") then
-                    local _, unit = tooltip:GetUnit()
-                    AddShowsOnLines(tooltip, "player", (Ctx.UnitPlayer(unit)))
-                    return
-                end
-                local npcID = tonumber(guid:match("Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)%-")
-                    or guid:match("Vehicle%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"))
-                AddShowsOnLines(tooltip, "npc", npcID)
-            end)
-            if not ok and Utils.DebugPrint then Utils.DebugPrint(err) end
+    if T.Unit then
+        TooltipDataProcessor.AddTooltipPostCall(T.Unit, function(tooltip, data)
+            notesNS.TipGuarded(notesNS.TipUnit, tooltip, data and data.guid)
         end)
+    end
+end
+
+-- Era, TBC and Mists fill a tooltip by its own scripts, never through the
+-- data post calls above (their GameTooltip has no data handler). Their item
+-- script can run twice for one tooltip: lines go on once until it clears.
+notesNS.tipShown = setmetatable({}, { __mode = "k" })
+function notesNS.TipOnce(tooltip, key)
+    if key == nil or notesNS.tipShown[tooltip] == key then return false end
+    notesNS.tipShown[tooltip] = key
+    return true
+end
+for _, tip in ipairs({ GameTooltip, ItemRefTooltip }) do
+    if tip and tip.HasScript and tip:HasScript("OnTooltipSetItem") then
+        tip:HookScript("OnTooltipCleared", function(self) notesNS.tipShown[self] = nil end)
+        tip:HookScript("OnTooltipSetItem", function(self)
+            local id = ItemIDFromLink((select(2, self:GetItem())))
+            if notesNS.TipOnce(self, id and ("item" .. id)) then notesNS.TipGuarded(notesNS.TipItem, self, id) end
+        end)
+        if tip:HasScript("OnTooltipSetSpell") then
+            tip:HookScript("OnTooltipSetSpell", function(self)
+                local id = select(2, self:GetSpell())
+                if notesNS.TipOnce(self, id and ("spell" .. id)) then notesNS.TipGuarded(notesNS.TipSpell, self, id) end
+            end)
+        end
+        if tip:HasScript("OnTooltipSetUnit") then
+            tip:HookScript("OnTooltipSetUnit", function(self)
+                local _, unit = self:GetUnit()
+                local guid = unit and UnitGUID(unit)
+                if notesNS.TipOnce(self, guid) then notesNS.TipGuarded(notesNS.TipUnit, self, guid) end
+            end)
+        end
     end
 end
 
@@ -7557,12 +7667,18 @@ local CATEGORY_LABELS = {
     Quests = "NOTES_CAT_QUESTS", Items = "NOTES_CAT_ITEMS", Locations = "NOTES_CAT_LOCATIONS",
     Abilities = "NOTES_CAT_ABILITIES",
 }
+-- Then each extension's own (EasyFind.API.LinkChecklists' category).
 function UI:GetEasyNotesCategories()
-    return { "General", "Players", "NPCs", "Quests", "Items", "Abilities", "Locations" }
+    local out = { "General", "Players", "NPCs", "Quests", "Items", "Abilities", "Locations" }
+    local extra = {}
+    for key in pairs(ns.NoteCategories or {}) do extra[#extra + 1] = key end
+    table.sort(extra)
+    for i = 1, #extra do out[#out + 1] = extra[i] end
+    return out
 end
 function UI:EasyNotesCategoryLabel(cat)
     local key = CATEGORY_LABELS[cat]
-    return key and L[key] or cat
+    return key and L[key] or (ns.NoteCategories and ns.NoteCategories[cat]) or cat
 end
 -- A note's categories: its list, else the one older notes hold, else General.
 function UI:EasyNotesCategoriesOf(note)

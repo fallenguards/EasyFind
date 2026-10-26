@@ -285,5 +285,49 @@ function tests.view_typesLinesInPlace()
     box._scripts.OnEditFocusLost()
 end
 
+-- A checklist linked to an extension's list (an Auctionator shopping list,
+-- 2026-10-26): the list's entries in, matched by ref, ticks kept.
+function tests.linked_entriesComeInByRef()
+    local CK = Load()
+    local note = NewList(CK, "account")
+    local changed = CK.SyncLinked(note, {
+        { ref = "\"Linen Cloth\";;;;;;;;;;;;;;20", line = { link = "item", item = 2589, target = 20 } },
+        { ref = "Dust", line = { text = "Dust" } },
+    })
+    H.assertTrue(changed)
+    local lines = note.list.lines
+    H.assertEq(#lines, 2)
+    H.assertEq(lines[1].target, 20, "the entry's amount is the line's target")
+    H.assertEq(lines[2].text, "Dust")
+    -- Ticked by hand, then the list again unchanged: nothing moves.
+    CK.SetTicked(note, lines[2], "A-Realm", true)
+    local dustID = lines[2].id
+    H.assertFalse(CK.SyncLinked(note, {
+        { ref = "\"Linen Cloth\";;;;;;;;;;;;;;20", line = { link = "item", item = 2589, target = 20 } },
+        { ref = "Dust", line = { text = "Dust" } },
+    }), "the same list changes nothing")
+    H.assertTrue(CK.Ticked(note, note.list.lines[2], "A-Realm"), "the tick stays")
+    H.assertEq(note.list.lines[2].id, dustID)
+end
+
+function tests.linked_aChangedListMovesAddsAndDrops()
+    local CK = Load()
+    local note = NewList(CK, "account")
+    CK.SyncLinked(note, { { ref = "A", line = { text = "A" } }, { ref = "B", line = { text = "B" } } })
+    local b = note.list.lines[2]
+    CK.SetTicked(note, note.list.lines[1], "A-Realm", true)
+    local aID = note.list.lines[1].id
+    -- Made here, not in the list yet: it stays, after the list's lines.
+    CK.AddLine(note, { text = "Mine" })
+    CK.SyncLinked(note, { { ref = "B", line = { text = "B", target = 5 } }, { ref = "C", line = { text = "C" } } })
+    local names = {}
+    for i, line in ipairs(note.list.lines) do names[i] = line.text end
+    H.assertEq(table.concat(names, " "), "B C Mine", "B first, C new, A gone, the pending line kept")
+    H.assertTrue(note.list.lines[1] == b, "B keeps its line")
+    H.assertEq(b.target, 5, "and takes the entry's fields")
+    H.assertNil((note.list.ticks.account or {})[aID], "a dropped line's tick goes with it")
+    H.assertEq(note.body, "B\nC\nMine", "the body mirrors the lines")
+end
+
 local pass, fail, failures = H.runSuite("Checklists", tests)
 return { pass = pass, fail = fail, failures = failures }

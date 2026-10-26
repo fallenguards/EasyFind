@@ -78,6 +78,51 @@ function CK.RemoveLine(note, id)
     CK.SyncBody(note)
 end
 
+-- An extension's list into the checklist linked to it (list.source, by
+-- EasyFind.API.LinkedChecklist): entries in its order, each { ref, line }.
+-- A line holding an entry's ref keeps its id and ticks and takes the
+-- entry's fields; a new ref is a new line; a ref gone takes its line.
+-- Lines with no ref (made here, not in the list yet) stay, after the rest.
+-- True when anything changed.
+local SYNCED = { "item", "link", "target", "text" }
+function CK.SyncLinked(note, entries)
+    local list = CK.Init(note)
+    local byRef, pending, changed = {}, {}, false
+    for _, line in ipairs(list.lines) do
+        if line.ref and not byRef[line.ref] then byRef[line.ref] = line
+        elseif not line.ref then pending[#pending + 1] = line end
+    end
+    local out = {}
+    for _, e in ipairs(entries) do
+        local line = byRef[e.ref]
+        if line then
+            byRef[e.ref] = nil
+        else
+            line = { ref = e.ref, id = list.nextLine }
+            list.nextLine = list.nextLine + 1
+            changed = true
+        end
+        for _, k in ipairs(SYNCED) do
+            if line[k] ~= e.line[k] then line[k], changed = e.line[k], true end
+        end
+        out[#out + 1] = line
+    end
+    for _, line in ipairs(pending) do out[#out + 1] = line end
+    for _, gone in pairs(byRef) do
+        for _, ticks in pairs(list.ticks) do ticks[gone.id] = nil end
+        for _, seen in pairs(list.seen) do seen[gone.id] = nil end
+    end
+    if #out ~= #list.lines then changed = true end
+    for i = 1, #out do
+        if out[i] ~= list.lines[i] then changed = true end
+    end
+    if changed then
+        list.lines = out
+        CK.SyncBody(note)
+    end
+    return changed
+end
+
 function CK.MoveLine(note, id, delta)
     local lines = note.list.lines
     for i, line in ipairs(lines) do

@@ -43,8 +43,10 @@ local function Note()
     return notesNS.SelectedNote and notesNS.SelectedNote()
 end
 
+-- The player changed a list: a linked one's extension hears of it.
 local function Changed(note)
     note.updated = time()
+    if notesNS.LinkedChanged then notesNS.LinkedChanged(note) end
     View.Refresh()
 end
 
@@ -268,11 +270,14 @@ local function RowMenu(row)
     if line.link == "item" and AuctionOpen() then
         rows[#rows + 1] = { text = L["CHECK_SEARCH_AH"], onClick = function() SearchAH(line) end }
     end
-    if TARGET_ASK[line.link] then
+    -- An item ticked by hand takes a target too, and is counted from then on.
+    local counts = line.link or (line.item and "item")
+    if TARGET_ASK[counts] then
         rows[#rows + 1] = { text = L["CHECK_SET_TARGET"], onClick = function()
-            local cur = line.link == "gold" and mfloor((line.target or 0) / 10000) or line.target
-            Ask(L[TARGET_ASK[line.link]], cur, function(n)
-                line.target = line.link == "gold" and mfloor(n * 10000) or mmax(1, mfloor(n))
+            local cur = counts == "gold" and mfloor((line.target or 0) / 10000) or line.target
+            Ask(L[TARGET_ASK[counts]], cur, function(n)
+                line.link = counts
+                line.target = counts == "gold" and mfloor(n * 10000) or mmax(1, mfloor(n))
                 Changed(note)
             end, true)
         end }
@@ -746,6 +751,12 @@ function View.Refresh()
     if frame.formatButton then frame.formatButton:Hide() end
     view:Show()
     CK.Init(note)
+    -- A linked list newly shown: its extension brings it up to date (next
+    -- frame, so that redraw is not one inside this).
+    if note.list.source and UI.pulled ~= note.id and notesNS.LinkedShown then
+        UI.pulled = note.id
+        Utils.SafeAfter(0, function() notesNS.LinkedShown(note) end)
+    end
     if CK.ApplyReset(note, time()) then note.updated = time() end
     local list = note.list
     -- A line left empty goes, unless it is the one being typed.
@@ -806,7 +817,16 @@ local function EnsureEdit()
     box:EnableMouse(true)
     box:SetScript("OnEnterPressed", function() View.EndEdit("next") end)
     box:SetScript("OnEscapePressed", function() View.EndEdit() end)
-    box:SetScript("OnEditFocusLost", function() View.EndEdit() end)
+    -- A click on the line being typed keeps it typed: losing the focus to
+    -- its own row ended a new line still empty, and it went.
+    box:SetScript("OnEditFocusLost", function(self)
+        local row = UI.editRow
+        if row and UI.editing and row.line and row.line.id == UI.editing and row:IsMouseOver() then
+            Utils.SafeAfter(0, function() if UI.editing and self:IsShown() then self:SetFocus() end end)
+            return
+        end
+        View.EndEdit()
+    end)
     box:SetScript("OnKeyDown", function(self, key)
         if key == "BACKSPACE" and (self:GetText() or "") == "" then View.EndEdit("back")
         elseif key == "UP" then View.EndEdit("up")
@@ -827,6 +847,7 @@ function View.PlaceEdit()
     for _, row in ipairs(UI.rows) do
         if row:IsShown() and row.line and row.line.id == id then
             local box = EnsureEdit()
+            UI.editRow = row
             box:ClearAllPoints()
             -- Centered on the box, not on the name: emptied, the name has no height.
             box:SetPoint("LEFT", row.icon:IsShown() and row.icon or row.check, "RIGHT", 4, 0)

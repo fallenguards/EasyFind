@@ -756,6 +756,44 @@ function API.Fire(id, event, ...)
     for i = 1, #list do Run(list[i], ...) end
 end
 
+-- ==== public: linked checklists ================================================
+
+-- A checklist note an extension keeps in step with a list of its own (an
+-- Auctionator shopping list), one per (extension id, key). Each line holds
+-- the extension's ref for its entry. Entries: { ref, line = { item, link,
+-- target, text } } in the list's order. handlers.changed(noteID, key,
+-- lines) hears the player's edits (lines: { id, ref, item, link, target,
+-- text } in order); handlers.shown(noteID, key) asks for the list when the
+-- note is opened in Notes. handlers.category = { key, label }: a note
+-- category of the extension's own that its notes are filed under.
+ns.ChecklistLinks = ns.ChecklistLinks or {}
+ns.NoteCategories = ns.NoteCategories or {}
+function API.LinkChecklists(id, handlers)
+    ns.ChecklistLinks[id] = handlers
+    local cat = handlers and handlers.category
+    if cat and cat.key then ns.NoteCategories[cat.key] = cat.label or cat.key end
+end
+
+-- The extension's checklist for key: found, or made with title when make.
+-- Nil while Notes is off; finding alone never loads it.
+function API.LinkedChecklist(id, key, title, make)
+    if make and not ns.RequestNotes() then return nil end
+    return ns.Notes and ns.Notes.LinkedNote and ns.Notes.LinkedNote(id, key, title, make) or nil
+end
+
+function API.SyncChecklist(noteID, entries)
+    return ns.Notes and ns.Notes.SyncLinked and ns.Notes.SyncLinked(noteID, entries) or false
+end
+
+-- refs[lineID]: the ref each line the extension took in now stands for.
+function API.SetChecklistRefs(noteID, refs)
+    if ns.Notes and ns.Notes.SetLineRefs then ns.Notes.SetLineRefs(noteID, refs) end
+end
+
+function API.OpenNote(noteID)
+    if ns.RequestNotes() and ns.Notes.OpenNote then ns.Notes.OpenNote(noteID) end
+end
+
 -- ==== public: settings ========================================================
 
 -- Opens the options panel's Extensions tab at this extension's page.

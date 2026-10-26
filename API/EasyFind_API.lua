@@ -212,6 +212,31 @@ function API.On(id, event, fn) end
 function API.Off(id, event, fn) end
 function API.Fire(id, event, ...) end
 
+-- ==== linked checklists ========================================================
+
+---@class EasyFindChecklistEntry
+---@field ref string        the extension's own key for the entry
+---@field line { item: integer?, link: string?, target: number?, text: string? }
+
+---@class EasyFindChecklistLinks
+---@field changed fun(noteID: integer, key: string, lines: table[])? the player's edits, every line in order
+---@field shown fun(noteID: integer, key: string)? the note opened in Notes: sync it now
+---@field category { key: string, label: string }? a note category of your own, your notes filed under it
+
+---Hears a linked checklist's edits and openings for this extension.
+---@param handlers EasyFindChecklistLinks
+function API.LinkChecklists(id, handlers) end
+---The extension's checklist note for key; made (titled) when make.
+---@return integer? noteID
+function API.LinkedChecklist(id, key, title, make) end
+---The extension's list into the note, by ref: lines added, updated, dropped.
+---@param entries EasyFindChecklistEntry[]
+---@return boolean
+function API.SyncChecklist(noteID, entries) end
+---@param refs table<integer, string> lineID -> ref
+function API.SetChecklistRefs(noteID, refs) end
+function API.OpenNote(noteID) end
+
 -- ==== settings ================================================================
 
 ---@return boolean
