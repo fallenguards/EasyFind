@@ -69,5 +69,69 @@ function tests.aBrushStillClosesTheFlyoutItWasFor()
     H.assertEq(menu._openSubmenuRow, nil)
 end
 
+-- The highlight follows the cursor at once: the flyout's row lets go the
+-- moment another row is entered, while the flyout itself waits; reaching
+-- the flyout lights its row again (2026-10-26: the old row stayed lit for
+-- the whole wait, two rows lit, the menu felt laggy).
+local function LitRow(name, submenu)
+    local row = Row(name, submenu)
+    function row:SetMenuHighlightFocused(on) self.lit = on end
+    return row
+end
+
+function tests.theHighlightLeavesTheFlyoutsRowAtOnce_theFlyoutWaits()
+    local RowEntered, flyout, timers = Load()
+    local menu = { GetScale = function() return 1 end, GetFrameStrata = function() return "DIALOG" end,
+        GetFrameLevel = function() return 1 end }
+    local show, close = LitRow("Show", true), LitRow("Close")
+    RowEntered(menu, show)
+    H.assertTrue(show.lit, "lit while its flyout opens")
+    RowEntered(menu, close)
+    H.assertFalse(show.lit, "let go at once")
+    H.assertTrue(flyout:IsShown(), "the flyout waits")
+    H.assertEq(#timers, 1)
+end
+
+function tests.reachingTheFlyout_lightsItsRowAgain()
+    local RowEntered, flyout, timers = Load()
+    local menu = { GetScale = function() return 1 end, GetFrameStrata = function() return "DIALOG" end,
+        GetFrameLevel = function() return 1 end }
+    local show, close = LitRow("Show", true), LitRow("Close")
+    RowEntered(menu, show)
+    RowEntered(menu, close)
+    flyout._parentMenu = menu
+    RowEntered(flyout, LitRow("Recent searches"))
+    H.assertTrue(show.lit, "its row is the way back")
+    RowEntered(menu, show)
+    H.assertTrue(show.lit and flyout:IsShown(), "back on its row: still open and lit")
+end
+
+-- The per-frame pass lights a row by its lock or the cursor alone: it also
+-- lit the row whose flyout was open, so the old row stayed lit for the whole
+-- wait after the lock let go (2026-10-26, the Notes menu's Trash).
+function tests.theHighlightPass_anOpenFlyoutAloneLightsNothing()
+    local fh = assert(io.open(H.ADDON_ROOT .. "/Shared/Utils.lua", "rb"))
+    local src = fh:read("*a")
+    fh:close()
+    local s = assert(src:find("local function CursorMenuDriveRowHighlights(", 1, true))
+    local e = select(2, assert(src:find("\nend\r?\n", s)))
+    local lit = {}
+    local env = setmetatable({ Utils = { UpdateRoundedRowWash = function(row, on) lit[row.name] = on end } },
+        { __index = _G })
+    local Drive = assert(load(src:sub(s, e) .. "\nreturn CursorMenuDriveRowHighlights", "=Utils.lua drive", "t", env))()
+    local function Row(name, mouse)
+        return { name = name, _efMenuRowHighlightInstalled = true, _efWashActive = true,
+                 IsShown = function() return true end, IsMouseOver = function() return mouse end }
+    end
+    local trash, delete = Row("Trash", false), Row("Delete note", true)
+    local menu = { rows = { trash, delete }, _openSubmenuRow = trash }
+    Drive(menu, false)
+    H.assertFalse(lit.Trash, "its flyout waits to close, its row lets go")
+    H.assertTrue(lit["Delete note"], "the hovered row is the one lit")
+    trash._efWashFocused = true
+    Drive(menu, false)
+    H.assertTrue(lit.Trash, "the lock lights it: the cursor is in its flyout")
+end
+
 local pass, fail, failures = H.runSuite("SubmenuStaleClose", tests)
 return { pass = pass, fail = fail, failures = failures }

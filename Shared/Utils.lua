@@ -8142,14 +8142,23 @@ end
 -- is the same hover-cascade every other flyout in the addon uses, via
 -- OpenFlyoutBeside for placement.
 local function CursorMenuRowEntered(menu, row)
+    -- In a flyout: its row in the menu above lights again, the way back.
+    local parent = menu._parentMenu
+    local parentRow = parent and parent._openSubmenu == menu and parent._openSubmenuRow
+    if parentRow and parentRow.SetMenuHighlightFocused then parentRow:SetMenuHighlightFocused(true) end
     local owner = menu._openSubmenuRow
-    if owner == row then menu._subCloseToken = (menu._subCloseToken or 0) + 1 end
+    if owner == row then
+        menu._subCloseToken = (menu._subCloseToken or 0) + 1
+        if row.SetMenuHighlightFocused then row:SetMenuHighlightFocused(true) end
+    end
     if owner and owner ~= row then
         if row._submenuRows and not row.disabled then
             CursorMenuCloseSubmenu(menu)
         else
-            -- A brush over a sibling on the way to the open flyout keeps it:
-            -- it closes only if the cursor has not reached it by then.
+            -- The highlight follows the cursor at once; the flyout stays a
+            -- moment for a brush over a sibling on the way to it, and closes
+            -- if the cursor has not reached it by then.
+            if owner.SetMenuHighlightFocused then owner:SetMenuHighlightFocused(false) end
             local open = menu._openSubmenu
             menu._subCloseToken = (menu._subCloseToken or 0) + 1
             local token = menu._subCloseToken
@@ -8578,11 +8587,9 @@ local function CursorMenuOnHide(self)
     if onHide then onHide(self) end
 end
 
--- Row highlight state is DRIVEN, not event-hooked: every frame the root walks
--- its cascade and lights each row that has the mouse OR owns the open submenu
--- (the parent row stays engaged while its child is open). Driving from one
--- place survives anything that stomps per-row script hooks and needs no
--- enter/leave bookkeeping.
+-- Row highlights are driven each frame from the root down its cascade: a
+-- row is lit while it has the mouse or holds its lock (its flyout's way
+-- back), which survives anything that stomps per-row script hooks.
 local function CursorMenuDriveRowHighlights(menu, mouseYields)
     local rows = menu.rows
     if not rows then return nil end
@@ -8590,15 +8597,13 @@ local function CursorMenuDriveRowHighlights(menu, mouseYields)
     for i = 1, #rows do
         local row = rows[i]
         if row and row:IsShown() and row._efMenuRowHighlightInstalled and not row.isSeparator then
-            -- The explicit lock (_efWashFocused, result-row pattern: set at
-            -- child open, cleared at child close) is authoritative; hover and
-            -- the cascade link are additional signals, never overrides.
-            -- Last input device wins: while the keyboard holds the floor
-            -- (mouseYields, set by arrow moves and cleared by real cursor
-            -- movement), a PARKED cursor's IsMouseOver is ignored so the
-            -- keyboard selection is the single highlight.
+            -- The lock (_efWashFocused: set as the row's flyout opens or the
+            -- cursor reaches it, let go when another row is entered) and the
+            -- cursor; an open flyout alone lights nothing, or its row stays
+            -- lit beside the hovered one while the flyout waits to close.
+            -- While the keyboard holds the floor (mouseYields), a parked
+            -- cursor's IsMouseOver is ignored.
             local engaged = row._efWashFocused or (not mouseYields and row:IsMouseOver())
-                or menu._openSubmenuRow == row
             if engaged and row._copyText and not copyRow then copyRow = row end
             -- The tip follows the pointer (or the keyboard cursor), not the
             -- cascade link: a row keeps its open flyout attached while the
@@ -8611,7 +8616,7 @@ local function CursorMenuDriveRowHighlights(menu, mouseYields)
             else
                 -- Black theme keeps the ADD glow: hover shows it natively, the
                 -- cascade-owner state needs an explicit lock.
-                local holds = row._efWashFocused or menu._openSubmenuRow == row
+                local holds = row._efWashFocused
                 if holds and not row._efCascadeLocked then
                     if row.LockHighlight then row:LockHighlight() end
                 elseif not holds and row._efCascadeLocked then
