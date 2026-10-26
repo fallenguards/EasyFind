@@ -3339,7 +3339,7 @@ local function BuildPage(frame)
     note:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12 + exp:GetWidth() + 6, 10)
     note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
     note:SetJustifyH("LEFT")
-    note:SetText(L["GPS_EXP_TT"])
+    note:SetText(L["GPS_EXP_NOTE"])
     note:SetTextColor(unpack(ns.TEXT_DIM))
     note._efOwnColor = true
     exp:SetPoint("TOPRIGHT", note, "TOPLEFT", -6, 1)
