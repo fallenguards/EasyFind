@@ -4342,7 +4342,8 @@ function ns.StyleBgFillButton(btn)
         if self:IsEnabled() then
             if self._efPaintState then self._efPaintState(self, ns.BTN_FILL_NORMAL) end
             local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-            if self._label then
+            -- Under the Classic skin the paint just set the label (gold at rest).
+            if self._label and not self._efRedOn then
                 if theme and theme.leafColor then
                     self._label:SetTextColor(theme.leafColor[1], theme.leafColor[2], theme.leafColor[3], 1)
                 else
@@ -4365,7 +4366,8 @@ function ns.StyleNavPillButton(btn)
     btn.RefreshVisual = function(self)
         if not self:IsEnabled() then return end
         if self._efPaintState then self._efPaintState(self, ns.BTN_FILL_NORMAL) end
-        if not self._label then return end
+        -- Under the Classic skin the paint just set the label (gold at rest).
+        if not self._label or self._efRedOn then return end
         -- The window-fill pill wants the card color as its label (the same
         -- inversion the selected tab uses); dark themes keep light text on
         -- the slate pill.
@@ -5409,6 +5411,39 @@ local function PlaceNotch(t, owner, edge)
     n:Show()
 end
 
+-- The first anchor in `order` whose panel (pw by ph) fits on the screen
+-- (sw by sh) beside the owner's rect (left, bottom, width, height), all in
+-- one unit; the first when none does. A side with no room was clamped back
+-- over the owner: the very row being read about.
+function Utils.HintSide(order, l, b, w, h, pw, ph, gap, sw, sh)
+    for i = 1, #order do
+        local a = order[i]
+        local fits
+        if a == "ANCHOR_LEFT" then
+            fits = l - gap - pw >= 0
+        elseif a == "ANCHOR_RIGHT" then
+            fits = l + w + gap + pw <= sw
+        elseif a:find("^ANCHOR_TOP") then
+            fits = b + h + gap + ph <= sh
+        else
+            fits = b - gap - ph >= 0
+        end
+        if fits then return a end
+    end
+    return order[1]
+end
+
+-- An anchor's fallbacks: its mirror, then above, then below (or for one
+-- above or below, the other, then right, then left).
+local HINT_ORDER = {
+    ANCHOR_RIGHT = { "ANCHOR_RIGHT", "ANCHOR_LEFT", "ANCHOR_TOP", "ANCHOR_BOTTOM" },
+    ANCHOR_LEFT = { "ANCHOR_LEFT", "ANCHOR_RIGHT", "ANCHOR_TOP", "ANCHOR_BOTTOM" },
+    ANCHOR_TOP = { "ANCHOR_TOP", "ANCHOR_BOTTOM", "ANCHOR_RIGHT", "ANCHOR_LEFT" },
+    ANCHOR_BOTTOM = { "ANCHOR_BOTTOM", "ANCHOR_TOP", "ANCHOR_RIGHT", "ANCHOR_LEFT" },
+}
+
+-- anchor: an ANCHOR_ name, or a list of them in order of preference; the
+-- first whose side has room is used (HintSide).
 function ns.ShowHintTooltip(owner, anchor, title, body, note)
     if not owner or (not title and not body) then return end
     local t = EnsureHintTooltip()
@@ -5469,7 +5504,16 @@ function ns.ShowHintTooltip(owner, anchor, title, body, note)
         local x, cy = GetCursorPosition()
         t:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 12, cy / scale + 12)
     else
-        local a = ANCHORS[anchor] or ANCHORS.ANCHOR_RIGHT
+        local side = type(anchor) == "table" and anchor[1] or anchor
+        local order = type(anchor) == "table" and anchor or HINT_ORDER[anchor]
+        local ol, ob, ow, oh = owner:GetRect()
+        if order and ol then
+            -- The owner's rect and the panel's size in UIParent units.
+            local k = (ownerScale and ownerScale > 0 and ownerScale or 1) / UIParent:GetEffectiveScale()
+            side = Utils.HintSide(order, ol * k, ob * k, ow * k, oh * k, t:GetWidth() * k, t:GetHeight() * k,
+                GAP * k, UIParent:GetWidth(), UIParent:GetHeight())
+        end
+        local a = ANCHORS[side] or ANCHORS.ANCHOR_RIGHT
         t:SetPoint(a[1], owner, a[2], a[3], a[4])
         edge = a[5]
     end
@@ -8080,6 +8124,8 @@ end
 -- flyout rows alike (the EasyFind link row is a flyout); a flyout row
 -- anchors left so the cascade opening to its right is never covered.
 local MenuTip = { row = nil, token = 0 }
+-- Its right side is the submenu's: left, else above, else below.
+MenuTip.SUBMENU_SIDES = { "ANCHOR_LEFT", "ANCHOR_TOP", "ANCHOR_BOTTOM" }
 
 function MenuTip.Sync(row)
     if row == MenuTip.row then return end
@@ -8091,7 +8137,8 @@ function MenuTip.Sync(row)
     local token = MenuTip.token
     Utils.SafeAfter(ns.TOOLTIP_HOVER_DELAY, function()
         if MenuTip.token ~= token or MenuTip.row ~= row or not row:IsShown() then return end
-        ns.ShowHintTooltip(row, row._submenuRows and "ANCHOR_LEFT" or "ANCHOR_RIGHT",
+        -- A row with a submenu keeps its right side for the submenu.
+        ns.ShowHintTooltip(row, row._submenuRows and MenuTip.SUBMENU_SIDES or "ANCHOR_RIGHT",
             row.label:GetText(), row._tooltip, row._tooltipNote)
     end)
 end
