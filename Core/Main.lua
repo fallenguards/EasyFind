@@ -71,6 +71,8 @@ local DB_DEFAULTS = {
     -- Notes that apply where you are, on the empty bar: opt in.
     notesSurfaceHere = false,
     resultClicks = {},
+    -- Result actions' chords by action id (Search/Results/RowActions.lua).
+    rowActionKeys = {},
     clickSelectsRow = false,
     -- Clipboard History's own view, from the filter menu's Clipboard
     -- History flyout: which kinds show, and the order.

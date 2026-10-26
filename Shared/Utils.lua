@@ -9062,7 +9062,9 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 row._tooltip, row._tooltipNote = def.tooltip, def.tooltipNote
                 row._efLabelColor = labelColor
                 row._efCopyDone = nil
-                if def.copy then
+                -- A result action's chord sits in the same lane, always shown.
+                row._efKeyHint = not def.copy and def.keyHint or nil
+                if def.copy or row._efKeyHint then
                     if not row.hint then
                         row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         row.hint._efOwnColor = true
@@ -9078,7 +9080,13 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                         row.hint:SetPoint("RIGHT", row, "RIGHT", iconRight and -26 or -8, 0)
                     end
                     row.hint:Show()
-                    MenuCopy.PaintHint(row, false)
+                    if row._efKeyHint then
+                        row.hint:SetText(row._efKeyHint)
+                        row.hint:SetTextColor(Utils.RGB(ns.TEXT_DIM, 1))
+                        row.hint:SetAlpha(1)
+                    else
+                        MenuCopy.PaintHint(row, false)
+                    end
                     row.label:SetPoint("RIGHT", row.hint, "LEFT", -8, 0)
                 elseif row.hint then
                     row.hint:Hide()
@@ -9293,6 +9301,9 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     rightPad = rightPad + mfloor(hintW + 0.5) + 8
                     -- Beside a chevron the hint sits 6px left of it, 4px
                     -- more than the chevron pad alone accounts for.
+                    if row.chevron and row.chevron:IsShown() then rightPad = rightPad + 4 end
+                elseif row._efKeyHint and row.hint then
+                    rightPad = rightPad + mfloor(row.hint:GetStringWidth() + 0.5) + 8
                     if row.chevron and row.chevron:IsShown() then rightPad = rightPad + 4 end
                 end
                 -- Rows are inset MENU_ROW_INSET on BOTH sides of the menu, so
@@ -9599,6 +9610,26 @@ function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
         rows[#rows + 1] = { isSeparator = true }
         for i = 1, #extras do rows[#rows + 1] = extras[i] end
     end
+
+    -- A result action's chord beside its entry; unbound, where to bind one.
+    local RowActions = ns.ResultRowActions
+    local function KeyHints(list)
+        for _, r in ipairs(list) do
+            if r.actionId and not r.copy then
+                local chord = RowActions.ChordText(RowActions.KeyOf(r.actionId))
+                if chord then
+                    r.keyHint = chord
+                elseif r.tooltip then
+                    r.tooltipNote = r.tooltipNote or L["ROWACT_BIND_HINT"]
+                else
+                    r.tooltip = L["ROWACT_BIND_HINT"]
+                end
+            elseif type(r.submenu) == "table" and not r.actionId then
+                KeyHints(r.submenu)
+            end
+        end
+    end
+    if RowActions then KeyHints(rows) end
 
     if extra and extra.disabled then
         for i = 1, #rows do

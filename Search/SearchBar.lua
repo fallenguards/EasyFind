@@ -1284,6 +1284,11 @@ function Search:CreateSearchFrame()
                 return
             end
         end
+        -- A result action's chord, on the row under the mouse or picked.
+        if ns.ResultRowActions and ns.ResultRowActions.HandleKey(self, key) then
+            Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", false)
+            return
+        end
 
         -- Match the keybind capture's combo format: ALT-CTRL-SHIFT-key.
         -- GetBindingAction is the correct API (GetBindingByKey doesn't
@@ -1784,6 +1789,10 @@ function Search:CreateSearchFrame()
             return
         end
         if Search:HandleCalculatorOpenShortcut(searchFrame and searchFrame.editBox, key) then
+            Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", false)
+            return
+        end
+        if ns.ResultRowActions and ns.ResultRowActions.HandleKey(nil, key) then
             Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", false)
             return
         end
