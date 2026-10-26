@@ -5975,7 +5975,8 @@ end
 -- frame. opts: { text, acceptText, cancelText, hasEditBox, editBoxDefault,
 -- maxLetters, onAccept(value), single (one button), readOnly (a text to
 -- copy: the box keeps it, Ctrl+C flashes Copied), extraButton (a labeled
--- button under the box: { label, text, onClick(button) }) }.
+-- button under the box: { label, text, onClick(button) }), checkText,
+-- checkDefault, checkTooltip (said on hovering the check) }.
 local themedDialog
 
 function ns.ShowThemedDialog(opts)
@@ -6026,11 +6027,17 @@ function ns.ShowThemedDialog(opts)
         -- Optional "apply to all" checkbox for Windows-style batch confirms.
         -- Its state is passed to onAccept/onThird so a single prompt can decide
         -- the whole remaining set.
+        -- The template's own box, as the map tab's checks: its hover is
+        -- the box, and the label sits centered on the art.
         f.check = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         f.check:SetSize(22, 22)
-        Utils.SetCheckboxTextures(f.check, 22)
         f.check.text = f.check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        f.check.text:SetPoint("LEFT", f.check, "RIGHT", 2, 0)
+        f.check.text:SetPoint("LEFT", f.check, "RIGHT", 2, 1)
+        f.check:SetScript("OnEnter", function(self)
+            local o = f._opts
+            if o and o.checkTooltip then ns.ShowHintTooltip(self, "ANCHOR_RIGHT", o.checkText, o.checkTooltip) end
+        end)
+        f.check:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
         f.check.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
         f.check.text:SetShadowColor(0, 0, 0, 0)
 
@@ -6158,6 +6165,8 @@ function ns.ShowThemedDialog(opts)
 
     if opts.checkText then
         f.check.text:SetText(opts.checkText)
+        -- Its label clicks it too.
+        f.check:SetHitRectInsets(0, -(f.check.text:GetStringWidth() + 4), 0, 0)
         f.check:SetChecked(opts.checkDefault and true or false)
         f.check:ClearAllPoints()
         f.check:SetPoint("TOPLEFT", 16, -used)

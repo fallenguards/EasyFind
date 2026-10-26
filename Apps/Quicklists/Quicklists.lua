@@ -416,6 +416,7 @@ function Quicklists:PromptNew(onCreated)
                 function() key = nil btn:SetText(unbound) end)
         end },
         checkText = L["QUICKLIST_HOLD_CHECK"],
+        checkTooltip = L["QUICKLIST_HOLD_CHECK_TT"],
         onAccept = function(value, hold)
             local name = Store.CleanName(value)
             if not name then return end
