@@ -12,9 +12,12 @@ local PinUIItem = UIPins.Pin
 local UnpinUIItem = UIPins.Unpin
 local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 
-function Rows:ShowResultContextMenu(row, keyboardMode)
-    if not row or not row.data then return false end
-    if row.data.calculatorResult or row.data.quickFilterDef then return false end
+-- What a row's right-click menu offers: isPinned, onPin, onGuide,
+-- onAddAlias and extra for Utils.PinMenuRows. Nil for a row with no menu.
+-- Row action keys run its entries without the menu (RowActions.lua).
+function Rows:ResultMenuModel(row)
+    if not row or not row.data then return nil end
+    if row.data.calculatorResult or row.data.quickFilterDef then return nil end
 
     local pinData = row.data
     local isPinned = IsUIItemPinned(pinData)
@@ -202,8 +205,9 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
             if #sub > 0 then
                 extra.addTargets = extra.addTargets or {}
                 extra.addTargets[#extra.addTargets + 1] = {
-                    text = target.label, fullText = target.fullLabel or target.label,
+                    actionId = "add:" .. target.key, text = target.label, fullText = target.fullLabel or target.label,
                     icon = owner.icon, iconCoords = owner.iconCoords, chromeIcon = true, submenu = sub,
+                    onClick = target.onClick and function() ns.Extensions.Run(target.onClick, pinData) end,
                 }
             end
         end
@@ -262,6 +266,33 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
             if text ~= "" then Search:OnSearchTextChanged(text, true) end
         end
     end
+    local function onPin()
+        if isPinned then
+            UnpinUIItem(pinData)
+        else
+            PinUIItem(pinData)
+        end
+        local editBox = Search:GetSearchFrame() and Search:GetSearchFrame().editBox
+        local text = editBox and editBox:GetText() or ""
+        if text == "" then
+            local pinsRemain = Results:KeepPinnedResultsOpenBriefly()
+            Results:ShowEmptyQueryView()
+            if pinsRemain and editBox
+               and not (Search:GetNavFrame() and Search:GetNavFrame():IsKeyboardEnabled()) then
+                editBox.blockFocus = nil
+                editBox:SetFocus()
+            end
+        else
+            Search:OnSearchTextChanged(text, true)
+        end
+    end
+    return isPinned, onPin, onGuide, onAddAlias, extra
+end
+
+function Rows:ShowResultContextMenu(row, keyboardMode)
+    local isPinned, onPin, onGuide, onAddAlias, extra = self:ResultMenuModel(row)
+    if not extra then return false end
+
     local function FocusKeyboardMenu(menu)
         if not keyboardMode or not menu or not menu:IsShown() then return end
         local navFrame = Search:GetNavFrame()
@@ -299,26 +330,7 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         if kbOnHide then kbOnHide() end
     end
 
-    local menu = Results:ShowPinPopup(row, isPinned, function()
-        if isPinned then
-            UnpinUIItem(pinData)
-        else
-            PinUIItem(pinData)
-        end
-        local editBox = Search:GetSearchFrame() and Search:GetSearchFrame().editBox
-        local text = editBox and editBox:GetText() or ""
-        if text == "" then
-            local pinsRemain = Results:KeepPinnedResultsOpenBriefly()
-            Results:ShowEmptyQueryView()
-            if pinsRemain and editBox
-               and not (Search:GetNavFrame() and Search:GetNavFrame():IsKeyboardEnabled()) then
-                editBox.blockFocus = nil
-                editBox:SetFocus()
-            end
-        else
-            Search:OnSearchTextChanged(text, true)
-        end
-    end, onGuide, onAddAlias, extra)
+    local menu = Results:ShowPinPopup(row, isPinned, onPin, onGuide, onAddAlias, extra)
     if menu then
         -- Typing belongs to the menu now (keyboard rows, ESC to close);
         -- drop the editbox focus so keystrokes don't land in the query.

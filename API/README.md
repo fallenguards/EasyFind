@@ -256,6 +256,7 @@ An entry in a result's right-click Add flyout, beside Note and Quicklist: a plac
 | `fullLabel` | string | Its name when it is the menu's only Add entry ("Add to shopping list"). Defaults to `label`. |
 | `applies` | function `(row)` | True for the rows it takes. Without it, every row. |
 | `rows` | function `(row)` | Required. The flyout's rows, in the tile menu's shape (the provider `menu` above). Nothing returned: no entry. |
+| `onClick` | function `(row)` | A click on the entry itself, for its most common use (a new list); its flyout still opens on hover. |
 
 ```lua
 API.RegisterAddTarget({

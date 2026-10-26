@@ -67,11 +67,12 @@ function tests.addEntriesWearTheirIcons()
     API.RegisterExtension({ id = "notes", name = "Notes", icon = "notes-icon" })
     API.RegisterExtension({ id = "quicklists", name = "Quicklists", icon = "quicklists-icon" })
     API.RegisterExtension({ id = "auctionator", name = "Auctionator", icon = "auctionator-icon" })
+    local clicked = false
     local extra = {
         addNoteRows = { { text = "New note" } },
         addQuicklistRows = { { text = "Main" } },
         addTargets = { { text = "Shopping list", fullText = "Add to shopping list", icon = "auctionator-icon",
-                         chromeIcon = true, submenu = { { text = "Mats" } } } },
+                         chromeIcon = true, submenu = { { text = "Mats" } }, onClick = function() clicked = true end } },
     }
     Utils.ShowPinMenu("EFTestMenu", false, nil, nil, function() end, nil, extra)
     local add
@@ -84,6 +85,9 @@ function tests.addEntriesWearTheirIcons()
     H.assertEq(byText[ns.L["CTX_ADD_NOTE"]].icon, "notes-icon")
     H.assertEq(byText[ns.L["CTX_ADD_QUICKLIST"]].icon, "quicklists-icon")
     H.assertEq(byText["Add to shopping list"].icon, "auctionator-icon")
+    byText["Add to shopping list"].onClick()
+    H.assertTrue(clicked, "the entry's own click (a new list), its lists still a flyout")
+    H.assertEq(byText["Add to shopping list"].submenu[1].text, "Mats")
     H.assertNil(byText[ns.L["CTX_ADD_ALIAS"]].icon, "a core entry has none")
 end
 

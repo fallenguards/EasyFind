@@ -9143,11 +9143,12 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     if hl then hl:SetAlpha(0) end
                     row.onClick = nil
                     row:SetScript("OnMouseDown", nil)
-                elseif def.submenu and not (def.onClick and def.keepOpen) then
+                elseif def.submenu and not def.onClick then
                     -- A submenu row opens its flyout (it also opens on hover);
                     -- it never closes the menu or fires a leaf action. One
-                    -- with a keepOpen onClick is a toggle whose flyout opens
-                    -- on hover only: it takes the toggle branch below.
+                    -- with an onClick opens its flyout on hover only and
+                    -- takes the click below: a toggle with keepOpen, else
+                    -- an action (a list's flyout whose click makes a new one).
                     row:EnableMouse(true)
                     local hl = row:GetHighlightTexture()
                     if hl then hl:SetAlpha(1) end
@@ -9362,6 +9363,12 @@ local function MenuRowLess(a, b)
 end
 
 function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opts, extra)
+    return Utils.ShowCursorMenu(globalName, Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra), opts)
+end
+
+-- A result's right-click rows. An action a key can do carries actionId
+-- (Search/Results/RowActions.lua runs it by that id, and shows its key).
+function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
     local rows = {}
     local addRows, removeRows = {}, {}
     -- Two or more related rows fold into one flyout row; a lone one stays a
@@ -9377,18 +9384,22 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
         rows[#rows + 1] = { text = label, submenu = members }
     end
     if onAddAlias then
-        addRows[#addRows + 1] = { text = L["OPT_COL_ALIAS"], fullText = L["CTX_ADD_ALIAS"], onClick = onAddAlias }
+        addRows[#addRows + 1] = {
+            actionId = "alias", text = L["OPT_COL_ALIAS"], fullText = L["CTX_ADD_ALIAS"], tooltip = L["CTX_ADD_ALIAS_TT"],
+            onClick = onAddAlias,
+        }
     end
     if extra and extra.onAddShortkey then
         addRows[#addRows + 1] = {
-            text = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["OPT_COL_SHORTKEY"],
+            actionId = "shortkey", text = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["OPT_COL_SHORTKEY"],
             fullText = extra.hasShortkey and L["CTX_EDIT_SHORTKEY"] or L["CTX_ADD_SHORTKEY"],
+            tooltip = L["CTX_ADD_SHORTKEY_TT"],
             onClick = extra.onAddShortkey,
         }
     end
     if extra and extra.onCreateMacro then
         addRows[#addRows + 1] = {
-            text = _G["MACRO"] or "Macro", fullText = L["CTX_CREATE_MACRO"],
+            actionId = "macro", text = _G["MACRO"] or "Macro", fullText = L["CTX_CREATE_MACRO"],
             tooltip = L["CTX_CREATE_MACRO_TT"], onClick = extra.onCreateMacro,
         }
     end
@@ -9409,11 +9420,11 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
             text = isPinned and (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_UNPIN"] or "Unpin") or (_G["RECENT_ALLIES_MENU_BUTTON_LABEL_PIN"] or "Pin"),
             pinGlyph = true,
             iconOverlay = isPinned and "Interface\\RaidFrame\\ReadyCheck-NotReady" or nil,
-            onClick = onPin,
+            actionId = "pin", onClick = onPin,
         }
     end
     if onGuide then
-        rows[#rows + 1] = { text = L["CTX_GUIDE"], icon = ns.EYE_ICON_TEX, chromeIcon = true, onClick = onGuide }
+        rows[#rows + 1] = { actionId = "guide", text = L["CTX_GUIDE"], icon = ns.EYE_ICON_TEX, chromeIcon = true, onClick = onGuide }
     end
     -- GPS: directions to the row, or a route starting there; the custom
     -- line-art glyph, as Guide's eye.
@@ -9455,7 +9466,7 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
             -- Also a copy row: the chord the label names works right here,
             -- on the flyout's parent, as well as on the result row.
             rows[#rows + 1] = {
-                text = L["CTX_SEND_LINK"],
+                actionId = "send", text = L["CTX_SEND_LINK"],
                 copy = Utils.ClipboardSafeText(extra.sendLink.link),
                 copyLink = extra.sendLink.link,
                 copyKey = "Ctrl+C",
@@ -9493,11 +9504,12 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
     end
     if extra and extra.addNoteRows then
         addRows[#addRows + 1] = AppEntry("notes",
-            { text = L["CTX_NOTE"], fullText = L["CTX_ADD_NOTE"], submenu = extra.addNoteRows })
+            { actionId = "note", text = L["CTX_NOTE"], fullText = L["CTX_ADD_NOTE"], submenu = extra.addNoteRows })
     end
     if extra and extra.addQuicklistRows then
         addRows[#addRows + 1] = AppEntry("quicklists", {
-            text = L["CTX_QUICKLIST"], fullText = L["CTX_ADD_QUICKLIST"], submenu = extra.addQuicklistRows,
+            actionId = "quicklist", text = L["CTX_QUICKLIST"], fullText = L["CTX_ADD_QUICKLIST"],
+            submenu = extra.addQuicklistRows,
         })
     end
     for _, target in ipairs(extra and extra.addTargets or {}) do
@@ -9505,7 +9517,9 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
     end
     AddGroup(_G["ADD"] or "Add", addRows)
     if extra and extra.onBlacklist then
-        removeRows[#removeRows + 1] = { text = L["CTX_BLACKLIST"], onClick = extra.onBlacklist }
+        removeRows[#removeRows + 1] = {
+            actionId = "blacklist", text = L["CTX_BLACKLIST"], tooltip = L["CTX_BLACKLIST_TT"], onClick = extra.onBlacklist,
+        }
     end
     if extra and extra.onForgetPick then
         -- Only on a row search put on top from a past pick for this text.
@@ -9592,7 +9606,7 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
         end
     end
 
-    return Utils.ShowCursorMenu(globalName, rows, opts)
+    return rows
 end
 
 -- Chat channels the "Send link" flyout offers, in display order. `enabled`

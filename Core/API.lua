@@ -554,12 +554,13 @@ end
 -- where it comes from), label (its name in the flyout, "Shopping list"),
 -- fullLabel (alone in the menu, "Add to shopping list"), applies(row) (true
 -- for the rows it takes; every row without it), rows(row) (the flyout's
--- rows, in the tile menu's shape). Registering a key again replaces it.
+-- rows, in the tile menu's shape), onClick(row) (a click on the entry
+-- itself; its flyout opens on hover). Registering a key again replaces it.
 local AddTargets = {}
 Extensions.AddTargets = AddTargets
 local ADD_TARGET_FIELDS = {
     key = "string", extension = "string", label = "string", fullLabel = "string",
-    applies = "function", rows = "function",
+    applies = "function", rows = "function", onClick = "function",
 }
 function API.RegisterAddTarget(def)
     if type(def) ~= "table" then Fail("RegisterAddTarget", "expects a table") end

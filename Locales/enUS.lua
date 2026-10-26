@@ -358,7 +358,9 @@ L["WHATSNEW_BODY"]                      =
 -- Shared/Utils.lua  --  context menu labels
 -- =============================================================================
 L["CTX_ADD_ALIAS"]                      = "Add alias"
+L["CTX_ADD_ALIAS_TT"]                   = "A word of your own for this row: typing it puts the row first."
 L["CTX_BLACKLIST"]                      = "Blacklist"
+L["CTX_BLACKLIST_TT"]                   = "Hides this row from every search. The Blacklist tab in options brings it back."
 L["OPT_TAB_BLACKLIST"]                  = "Blacklist"
 L["OPT_SAVED_BLACKLIST"]                = "Blacklisted results"
 L["OPT_BLACKLIST_EMPTY_HINT"]           = "Blacklisted results never appear in any search. Right-click a result and choose Blacklist to add it; remove it here to restore it."
@@ -372,6 +374,7 @@ L["OPT_ICONS_ALL"]                      = "Show all icons"
 L["OPT_ICONS_GENERAL"]                  = "Show general icons"
 L["OPT_ICONS_SPECIFIC"]                 = "Show specific icons"
 L["CTX_ADD_SHORTKEY"]                   = "Add shortkey"
+L["CTX_ADD_SHORTKEY_TT"]                = "A key that does what clicking this row does, even with the search closed."
 L["CTX_EDIT_SHORTKEY"]                  = "Edit shortkey"
 L["SHORTKEY_FOR"]                       = "Shortkey: %s"
 L["SHORTKEY_CLICK_TO_BIND"]             = "Click, then press a key"
