@@ -1,10 +1,11 @@
 local _, ns = ...
 -- Result actions: an entry of the right-click menu (Pin, Add to note, an
 -- extension's Shopping list) done by a chord, over the row under the mouse
--- or the one the arrow keys picked. An entry with a flyout (which note,
--- which list) opens it at the cursor. A chord always holds Alt or Ctrl: a
--- plain or Shift key would be typed into the search box.
--- EasyFind.db.rowActionKeys[actionId] = "ALT-N".
+-- or the one the arrow keys picked, or by a click with two modifiers held
+-- (one modifier is the row's own Result clicks). An entry with a flyout
+-- (which note, which list) opens it at the cursor. A key chord always
+-- holds Alt or Ctrl: a plain or Shift key would type in the search box.
+-- EasyFind.db.rowActionKeys[actionId] = "ALT-N" or "ALT-SHIFT-CLICK".
 local RowActions = {}
 ns.ResultRowActions = RowActions
 local L = ns.L
@@ -70,12 +71,25 @@ function RowActions.ChordText(combo)
     for part in combo:gmatch("[^%-]+") do parts[#parts + 1] = part end
     for i = 1, #parts - 1 do parts[i] = MOD_TEXT[parts[i]] or parts[i] end
     local Text = ns.ResultText
-    parts[#parts] = Text and Text.AbbrevBinding and Text:AbbrevBinding(parts[#parts]) or parts[#parts]
+    if parts[#parts] == "CLICK" then
+        parts[#parts] = L["HINT_CLICK"]
+    else
+        parts[#parts] = Text and Text.AbbrevBinding and Text:AbbrevBinding(parts[#parts]) or parts[#parts]
+    end
     return table.concat(parts, "+")
+end
+
+-- The action a click with the modifiers held now does, if any.
+function RowActions.ActionForClick()
+    return RowActions.ActionFor(Utils.ModifierCombo("CLICK"))
 end
 
 -- Why a chord cannot be a result action, or nil when it can.
 function RowActions.Refusal(combo)
+    if combo:find("CLICK$") then
+        local _, mods = combo:gsub("%-", "")
+        return mods < 2 and L["ROWACT_CLICK_TWO_MODS"] or nil
+    end
     if not combo:find("ALT%-") and not combo:find("CTRL%-") then return L["ROWACT_NEEDS_MOD"] end
     if TAKEN[combo] or combo:match("^ALT%-%d$") or combo:match("^ALT%-NUMPAD%d$") then
         return L["ROWACT_TAKEN"]

@@ -81,6 +81,19 @@ function tests.aChordDoesTheEntryOrOpensItsFlyout()
     H.assertFalse(RA.HandleKey(nil, "P"), "no modifier: typing")
 end
 
+-- A click takes two modifiers: one alone is the row's own Result clicks.
+function tests.aClickChordHoldsTwoModifiers()
+    local RA, held = World()
+    H.assertNotNil(RA.Refusal("ALT-CLICK"), "one modifier: the kind's own gesture")
+    H.assertNil(RA.Refusal("ALT-SHIFT-CLICK"))
+    H.assertEq(RA.ChordText("ALT-SHIFT-CLICK"), "Alt+Shift+HINT_CLICK")
+    RA.Set("note", "ALT-SHIFT-CLICK")
+    held.alt, held.shift = true, true
+    H.assertEq(RA.ActionForClick(), "note")
+    held.shift = false
+    H.assertNil(RA.ActionForClick(), "Alt alone is not it")
+end
+
 -- The menu: a bound action shows its chord; an unbound one says where to bind.
 function tests.theMenuShowsChordsAndWhereToBind()
     local env = H.newEnv()

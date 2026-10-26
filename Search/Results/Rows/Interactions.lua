@@ -478,6 +478,10 @@ function Rows.InstallInteractions(resultRow, index)
             ns.ResultSecureAttributes.ArmSteerLate(self)
         end
         self._dragOriginX, self._dragOriginY = nil, nil
+        if self._rowActionPress then
+            self._rowActionPress = nil
+            return
+        end
         -- A press that only selected the row picks nothing up on release;
         -- a drag that began on it still lands below.
         if self._selectPress then
@@ -554,6 +558,15 @@ function Rows.InstallInteractions(resultRow, index)
         -- Click-time re-sync: render-time armed state can be stale (panel
         -- toggled since); PreClick attribute writes apply to this click.
         ns.ResultSecureAttributes.ApplyAtClick(self, d)
+
+        -- A result action set to this modified click: no secure action,
+        -- PostClick does the action, the release picks nothing up.
+        local rowAction = d and ns.ResultRowActions and ns.ResultRowActions.ActionForClick()
+        if rowAction then
+            ns.ResultSecureAttributes.Clear(self)
+            self._rowActionClick, self._rowActionPress = rowAction, true
+            return
+        end
 
         -- Shift+click with a chat editbox active inserts the row's real
         -- hyperlink, like shift-clicking an item anywhere in the game.
@@ -670,6 +683,12 @@ function Rows.InstallInteractions(resultRow, index)
             end
         end
 
+        if self._rowActionClick then
+            local id = self._rowActionClick
+            self._rowActionClick = nil
+            ns.ResultRowActions.Run(id, self)
+            return
+        end
         -- Shift+click chat insert: the link went into the editbox; keep
         -- the results open and don't navigate.
         if self._chatLinkInserted then

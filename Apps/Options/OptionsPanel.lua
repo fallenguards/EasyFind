@@ -5281,8 +5281,6 @@ local function BuildRowActionsList(ctx, tab, above)
         row.keyBtn:SetSize(ROWACT_BTN_W, 20)
         row.keyBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
         row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-        row.label:SetPoint("RIGHT", row.keyBtn, "LEFT", -8, 0)
         row.label:SetJustifyH("LEFT")
         row.label:SetWordWrap(false)
         row.label:SetTextColor(Utils.RGB(NORMAL_TEXT, 1))
@@ -5297,6 +5295,16 @@ local function BuildRowActionsList(ctx, tab, above)
                 return
             end
             if btn.waitingForKey then
+                -- A click with modifiers held binds that click; a plain one cancels.
+                local combo = Utils.ModifierCombo("CLICK")
+                if combo ~= "CLICK" then
+                    local refusal = RowActions.Refusal(combo)
+                    if refusal then
+                        ns.ShowHintTooltip(btn, "ANCHOR_RIGHT", RowActions.ChordText(combo), refusal)
+                        return
+                    end
+                    RowActions.Set(row.actionId, combo)
+                end
                 StopCapture(btn)
                 return
             end
@@ -5330,13 +5338,18 @@ local function BuildRowActionsList(ctx, tab, above)
             local row = rows[i] or MakeRow(i)
             row.actionId = action.id
             row.label:SetText(action.label)
+            -- The label starts at the row's edge; an extension's icon goes before it.
+            row.label:ClearAllPoints()
             if action.icon then
                 Utils.SetIconTexture(row.icon, action.icon)
                 if action.iconCoords then row.icon:SetTexCoord(unpack(action.iconCoords)) else row.icon:SetTexCoord(0, 1, 0, 1) end
                 row.icon:Show()
+                row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
             else
                 row.icon:Hide()
+                row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
             end
+            row.label:SetPoint("RIGHT", row.keyBtn, "LEFT", -8, 0)
             row:Show()
         end
         for i = #list + 1, #rows do rows[i]:Hide() end
