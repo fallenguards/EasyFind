@@ -226,10 +226,14 @@ function Rows:ResultMenuModel(row)
     if skKey then
         extra.hasShortkey = ns.Shortkeys:Get(skKey) ~= nil
         extra.onAddShortkey = function() ns.Shortkeys:PromptForKey(pinData) end
-        -- The bar steps aside so the macro on the cursor reaches the bars.
-        extra.onCreateMacro = function()
-            if ns.Shortkeys:CreateMacro(skKey, pinData.name, pinData) and Handlers.FinishResultSelection then
-                Handlers:FinishResultSelection()
+        -- An EasyFind macro does what a click on the row does: none for a
+        -- row that only shows something (a catalog item, loot, an alt's
+        -- item). The bar steps aside so the macro on the cursor reaches the bars.
+        if not pinData.lookupRow then
+            extra.onCreateMacro = function()
+                if ns.Shortkeys:CreateMacro(skKey, pinData.name, pinData) and Handlers.FinishResultSelection then
+                    Handlers:FinishResultSelection()
+                end
             end
         end
     end

@@ -9399,7 +9399,7 @@ function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
     end
     if extra and extra.onCreateMacro then
         addRows[#addRows + 1] = {
-            actionId = "macro", text = _G["MACRO"] or "Macro", fullText = L["CTX_CREATE_MACRO"],
+            actionId = "macro", text = L["CTX_EASYFIND_MACRO"], fullText = L["CTX_CREATE_MACRO"],
             tooltip = L["CTX_CREATE_MACRO_TT"], onClick = extra.onCreateMacro,
         }
     end

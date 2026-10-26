@@ -849,6 +849,10 @@ local function BuildCapturePopup()
     f.macroBtn = ns.CreateModernButton(f, L["SHORTKEY_MAKE_MACRO"], 190, 22)
     f.macroBtn:SetNormalFontObject("GameFontHighlightSmall")
     f.macroBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    -- As wide as its label needs, within the popup.
+    local labelW = f.macroBtn._label and f.macroBtn._label:GetStringWidth() or 0
+    f.macroBtn:SetSize(math.min(math.max(190, labelW + 24), f:GetWidth() - 24), 22)
+    f.macroBtn:SetText(L["SHORTKEY_MAKE_MACRO"])
     f.macroBtn:SetPoint("TOP", f.combatNote, "BOTTOM", 0, -10)
     f.macroBtn:SetScript("OnClick", function()
         local onMacro = f.onMacro
@@ -911,11 +915,12 @@ function Shortkeys:PromptForKeyByKey(rowKey, name, charSpecific, data)
     capturePopup.title:SetText((L["SHORTKEY_FOR"]):format(name or "?"))
     local existing = self:Get(rowKey)
     capturePopup.bindBtn:SetText((existing and existing.key) or L["SHORTKEY_CLICK_TO_BIND"])
-    capturePopup.onMacro = function()
+    -- No EasyFind macro for a row that only shows something (a catalog item).
+    capturePopup.onMacro = not (data and data.lookupRow) and function()
         if Shortkeys:CreateMacro(rowKey, name, data) and ns.ResultHandlers then
             ns.ResultHandlers:FinishResultSelection()
         end
-    end
+    end or nil
     ShowCapturePopup(capturePopup)
 end
 
