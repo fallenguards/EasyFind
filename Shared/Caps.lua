@@ -27,6 +27,9 @@ end
 -- A Blizzard panel is there when its addon loads. The info call says "loadable" for
 -- panels Forever then refuses (WRONG_GAME_TYPE): there the load is the test, cached.
 local panelKnown = {}
+-- A panel whose system the client lacks is never loaded to find out: TBC's
+-- achievement panel throws in its own load.
+local PANEL_SYSTEM = { Blizzard_AchievementUI = "achievements", Blizzard_HousingDashboard = "housing" }
 -- Which game this is, by its project: retail, Forever (the 1.x game on the
 -- mainline UI), or Classic Era and TBC Anniversary on the classic UI.
 local project = WOW_PROJECT_ID
@@ -36,6 +39,8 @@ local forever = (WOW_PROJECT_CAMELOT ~= nil and project == WOW_PROJECT_CAMELOT)
 local classic = project ~= nil and (project == WOW_PROJECT_CLASSIC or project == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
     or (WOW_PROJECT_MISTS_CLASSIC ~= nil and project == WOW_PROJECT_MISTS_CLASSIC))
 function Caps.PanelEnabled(addonName)
+    local system = PANEL_SYSTEM[addonName]
+    if system and Caps[system] == false then return false end
     if classic then
         -- The classic UI ships different panels: one that is not an addon
         -- there is not there at all.
@@ -115,17 +120,17 @@ Caps.journal = rule("EncounterJournalDisabled") ~= true
 Caps.journalTabs = Caps.journal and not classic
 -- Loot from the journal, or on WoW Forever from its shipped table.
 Caps.loot = Caps.journal or Caps.forever
-Caps.housing = rule("HousingDashboardDisabled") ~= true
+-- A panel probe loads the panel on classic clients: it comes last.
+Caps.housing = not Caps.forever and C_Housing ~= nil
+    and rule("HousingDashboardDisabled") ~= true
     and rule("HousingEnabled") ~= false
     and Caps.PanelEnabled("Blizzard_HousingDashboard")
-    and C_Housing ~= nil
-    and not Caps.forever
--- Forever's panel loads and is a shell; Era's and Anniversary's loads for
--- the Wrath code they share, with no button, binding or statistics.
-Caps.achievements = rule("AchievementsPanelDisabled") ~= true
+-- None on Era, TBC or Forever: their micro menus list no button, and the
+-- panel, never probed there, throws (TBC) or is a shell (Forever).
+Caps.achievements = not Caps.forever and not (Caps.era or Caps.tbc)
+    and rule("AchievementsPanelDisabled") ~= true
     and type(GetCategoryList) == "function"
     and Caps.PanelEnabled("Blizzard_AchievementUI")
-    and not Caps.forever and not (Caps.era or Caps.tbc)
 -- Forever's client asserts on a wardrobe call without the transmog
 -- location; Database.TransmogLocation supplies it on every call.
 Caps.transmog = rule("TransmogEnabled") ~= false
@@ -352,7 +357,8 @@ function Caps.CharacterSidebarSlot(sidebarIndex)
         end
         -- Only the classic-rules client drops a sidebar; retail keeps its
         -- numbers whatever the list looks like.
-        return Caps.forever and nil or sidebarIndex
+        if Caps.forever then return nil end
+        return sidebarIndex
     end
     return sidebarIndex
 end

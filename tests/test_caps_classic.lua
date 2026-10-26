@@ -16,11 +16,11 @@ env.GetBinding = function(i) return i == 1 and "TOGGLECHARACTER0" or "TOGGLEQUES
 
 -- Blizzard_GroupFinder is in at login on Era; every retail-only panel
 -- answers "loadable" and then refuses the load.
-local loaded = { Blizzard_GroupFinder = true }
+local loaded, tried = { Blizzard_GroupFinder = true }, {}
 env.C_AddOns = {
     GetAddOnInfo = function(name) return name, name, "", true, nil end,
     IsAddOnLoaded = function(name) return loaded[name] == true end,
-    LoadAddOn = function() return false, "WRONG_GAME_TYPE" end,
+    LoadAddOn = function(name) tried[name] = true return false, "WRONG_GAME_TYPE" end,
 }
 
 local function frame(shown)
@@ -33,6 +33,8 @@ env.CharacterMicroButton = frame(true)
 env.StoreMicroButton = frame(false)
 env.GetNumSkillLines = function() return 0 end
 env.GetSkillLineInfo = function() end
+-- The Wrath achievement code the classic clients share.
+env.GetCategoryList = function() return {} end
 
 H.loadModule("Shared/Caps.lua", env, ns)
 local Caps = ns.Caps
@@ -156,6 +158,59 @@ function tests.titles_areOffOnEra()
     local rows = Caps.PruneRows({ { key = "titles" }, { key = "bags" } })
     H.assertEq(#rows, 1, "titles row pruned")
     H.assertEq(rows[1].key, "bags")
+end
+
+-- 2026-10-26, TBC: Caps loaded the achievement panel to probe it and the
+-- panel threw in its own load; its client offers no achievements at all.
+function tests.achievementPanel_neverLoadedOnEraOrTBC()
+    H.assertFalse(Caps.achievements, "Era")
+    H.assertTrue(tried.Blizzard_AchievementUI == nil, "Era never loads it")
+    local env3 = H.newEnv()
+    local ns3 = H.newNs(env3)
+    env3._G = env3
+    env3.WOW_PROJECT_CLASSIC, env3.WOW_PROJECT_BURNING_CRUSADE_CLASSIC = 2, 5
+    env3.WOW_PROJECT_ID = 5
+    env3.GetBuildInfo = function() return "2.5.6", "70006", "Oct 1 2026", 20506 end
+    env3.GetNumBindings = function() return 0 end
+    env3.GetCategoryList = env.GetCategoryList
+    env3.C_AddOns = env.C_AddOns
+    H.loadModule("Shared/Caps.lua", env3, ns3)
+    H.assertTrue(ns3.Caps.tbc, "TBC")
+    H.assertFalse(ns3.Caps.achievements)
+    H.assertTrue(tried.Blizzard_AchievementUI == nil, "TBC never loads it")
+    -- A search entry waiting for AchievementFrame asks for the panel later.
+    H.assertFalse(ns3.Caps.PanelEnabled("Blizzard_AchievementUI"), "an entry's step")
+    H.assertFalse(Caps.PanelEnabled("Blizzard_AchievementUI"), "on Era too")
+    H.assertTrue(tried.Blizzard_AchievementUI == nil, "still never loaded")
+end
+
+-- A panel probe loads the panel on classic clients, so a capability's
+-- cheaper tests come first and the probe last.
+function tests.panelProbe_isTheLastTest()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Shared/Caps.lua", "rb"))
+    local src = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+    local bad, stmt = {}, nil
+    local function Check()
+        if not stmt then return end
+        local _, e = stmt:find("PanelEnabled%b()")
+        if e and (stmt:sub(e + 1):find("%f[%w]and%f[%W]") or stmt:sub(e + 1):find("%f[%w]or%f[%W]")) then
+            bad[#bad + 1] = stmt:match("^(Caps%.[%w_]+)")
+        end
+    end
+    for line in (src .. "\n"):gmatch("([^\n]*)\n") do
+        if line:find("^Caps%.[%w_]+ = ") then
+            Check()
+            stmt = line
+        elseif stmt and line:find("^%s+") and not line:find("^%s*%-%-") then
+            stmt = stmt .. "\n" .. line
+        else
+            Check()
+            stmt = nil
+        end
+    end
+    Check()
+    H.assertEq(#bad, 0, "probe not last: " .. table.concat(bad, ", "))
 end
 
 local pass, fail, failures = H.runSuite("CapsClassic", tests)

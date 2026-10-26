@@ -2368,7 +2368,7 @@ function Search:ExpandFactionHeader(headerName)
     end)
     if not i then return false end
     if not data.isHeaderExpanded then
-        C_Reputation.ExpandFactionHeader(i)
+        ns.Caps.SetFactionHeaderExpanded(i, true)
     end
     return true
 end

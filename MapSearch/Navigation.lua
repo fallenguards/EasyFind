@@ -176,9 +176,9 @@ end
 local loadingScreenFrame = CreateFrame("Frame")
 loadingScreenFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 if WAYPOINTS then
-    loadingScreenFrame:RegisterEvent("USER_WAYPOINT_UPDATED")
-    loadingScreenFrame:RegisterEvent("SUPER_TRACKING_CHANGED")
-    loadingScreenFrame:RegisterEvent("NAVIGATION_DESTINATION_REACHED")
+    Utils.RegisterEventIfValid(loadingScreenFrame, "USER_WAYPOINT_UPDATED")
+    Utils.RegisterEventIfValid(loadingScreenFrame, "SUPER_TRACKING_CHANGED")
+    Utils.RegisterEventIfValid(loadingScreenFrame, "NAVIGATION_DESTINATION_REACHED")
 end
 loadingScreenFrame:SetScript("OnEvent", function(_, event, isInitialLogin, isReloadingUI)
     if event == "NAVIGATION_DESTINATION_REACHED" then
@@ -485,10 +485,10 @@ local function HookMapModeChanges(self)
 end
 
 local function RegisterVignetteRefresh()
-    -- Classic has no vignettes: the event is unknown there and raises.
+    -- Classic has C_VignetteInfo but not this event.
     if not C_VignetteInfo then return end
     local vignetteFrame = CreateFrame("Frame")
-    vignetteFrame:RegisterEvent("VIGNETTES_UPDATED")
+    if not Utils.RegisterEventIfValid(vignetteFrame, "VIGNETTES_UPDATED") then return end
     vignetteFrame:SetScript("OnEvent", function()
         if MapSearch._previewing then return end
         if EasyFind.db.alwaysShowRares then
