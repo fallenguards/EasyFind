@@ -3439,22 +3439,31 @@ end
 -- protected); rows made later are walked on the next placing.
 local function DockMouse(on)
     if InCombatLockdown() then return end
+    -- Every pooled hit row, four times a second, was 150 ms a tick: shown,
+    -- walked only to turn back on; folded, only what is shown takes a mouse.
+    if on and not dockFrame.efMouseOffAny then return end
     local function walk(f)
-        for i = 1, select("#", f:GetChildren()) do
-            local c = select(i, f:GetChildren())
+        local kids = { f:GetChildren() }
+        for i = 1, #kids do
+            local c = kids[i]
             if on then
                 if c.efMouseOff then
                     c.efMouseOff = nil
                     c:EnableMouse(true)
                 end
-            elseif c:IsMouseEnabled() then
-                c.efMouseOff = true
-                c:EnableMouse(false)
+                walk(c)
+            elseif c:IsShown() then
+                if c:IsMouseEnabled() then
+                    c.efMouseOff = true
+                    c:EnableMouse(false)
+                    dockFrame.efMouseOffAny = true
+                end
+                walk(c)
             end
-            walk(c)
         end
     end
     walk(dockFrame)
+    if on then dockFrame.efMouseOffAny = nil end
 end
 
 local function PlaceDock()

@@ -486,6 +486,24 @@ function tests.zoneGoal_endsWhereTheCrossingLands()
     H.assertEq(last.arrive.wx, 1000, "where the boat lands")
 end
 
+-- An overland step says how it goes, as its time was worked out: flown,
+-- ridden on a ground mount, or on foot.
+function tests.overlandStep_saysFlyRideOrWalk()
+    local _, ns, Route = fresh()
+    ns.L.GPS_STEP_FLY_TO_FMT, ns.L.GPS_STEP_RIDE_TO_FMT, ns.L.GPS_STEP_WALK_TO_FMT = "Fly to %s", "Ride to %s", "Walk to %s"
+    local d = data()
+    d.edges, d.abilities, d.nodes, d.legs = {}, {}, {}, {}
+    local dest = { name = "Spot", mapID = 1, x = 0.9, y = 0.9 }
+    local function LastText(extra)
+        extra.data = d
+        local steps = build(Route, P(1, 0.1, 0.1), dest, extra)
+        return steps[#steps].text
+    end
+    H.assertEq(LastText({ canFly = true, flySpeed = 20 }), "Fly to Spot")
+    H.assertEq(LastText({ canFly = false, groundSpeed = 10 }), "Ride to Spot")
+    H.assertEq(LastText({ canFly = false, groundSpeed = 7 }), "Walk to Spot", "no faster than a run: on foot")
+end
+
 -- Two portals at one map spot on different floors: the step names the
 -- floor from the recorded height.
 function tests.stackedPortals_nameTheFloor()

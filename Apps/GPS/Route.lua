@@ -273,6 +273,7 @@ local function BuildGraph(ctx)
         detour = (not ctx.canFly and data.classic) and WALK_DETOUR or 1,
         nav = not ctx.canFly and ns.GPSNav and ns.GPSNav.Ensure(ctx.start.ci) or nil,
         fly = ctx.canFly or nil,
+        ride = (not ctx.canFly and travelSpeed > RUN + 0.5) or nil,
         walkSec = {}, walkWind = {}, walkNear = {}, least = {}, travel = {}, rides = {},
         data = data,
     }
@@ -634,6 +635,11 @@ local KIND_KEY = {
     tram = "GPS_STEP_TRAM_FMT", ferry = "GPS_STEP_BOAT_FMT", skyship = "GPS_STEP_SKYSHIP_FMT",
     seam = "GPS_STEP_TRAVEL_FMT",
 }
+-- An overland step says how it goes: flown, ridden or on foot, as its time was worked out.
+local function GoKey(g)
+    return g.fly and "GPS_STEP_FLY_TO_FMT" or g.ride and "GPS_STEP_RIDE_TO_FMT" or "GPS_STEP_WALK_TO_FMT"
+end
+
 -- What a crossing's step says while its spot is still a way off: which
 -- dock, tower or portal to head for, named by where it goes.
 local REACH_KEY = {
@@ -815,7 +821,7 @@ local function Steps(g, path, goalName, goalStep)
                                  mapID = from.p.m, x = from.p.x, y = from.p.y, go = from.p, arrive = from.p, sec = 0 })
             else
                 tinsert(steps, { kind = "travel",
-                                 text = (node.kind == "goal" and goalStep) or (L["GPS_STEP_TRAVEL_FMT"]):format(name or "?"),
+                                 text = (node.kind == "goal" and goalStep) or (L[GoKey(g)]):format(name or "?"),
                                  mapID = node.p.m, x = node.p.x, y = node.p.y, go = node.p, arrive = node.p, sec = e.sec,
                                  wind = e.wind, near = e.near, fly = g.fly })
             end
@@ -849,14 +855,14 @@ local function Steps(g, path, goalName, goalStep)
                              abilityName = e.ability.n })
             i = i + 1
         else
-            local key = KIND_KEY[e.kind] or "GPS_STEP_PORTAL_FMT"
+            local key = e.kind == "seam" and GoKey(g) or KIND_KEY[e.kind] or "GPS_STEP_PORTAL_FMT"
             local from = g.nodes[i > 1 and path[i - 1].node or g.start]
             local floor = FloorHint(g, from.p)
             local wait = e.liveWait or e.edge.wait
             local dest = EdgeDestName(e.edge, e.reverse)
             local reachKey = REACH_KEY[e.kind]
             local reachText = reachKey and WithFloor((L[reachKey]):format(dest), floor) or nil
-            Approach(from.p, reachText or (L["GPS_STEP_TRAVEL_FMT"]):format(AreaName(from.p.area) or MapName(from.p.m)))
+            Approach(from.p, reachText or (L[GoKey(g)]):format(AreaName(from.p.area) or MapName(from.p.m)))
             local text = WithFloor((L[key]):format(dest), floor)
             -- The other faction's transport: said so on the step.
             if e.hostile then text = text .. " (" .. (_G["HOSTILE"] or "Hostile") .. ")" end
