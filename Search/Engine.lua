@@ -92,6 +92,18 @@ local function makeLookup(words)
     return lookup
 end
 
+-- With no mount journal (before Wrath) a mount is an item in the bags:
+-- "mount" loads them.
+if ns.Caps and ns.Caps.mounts == false then
+    for i = 1, #PROVIDERS do
+        local words = PROVIDERS[i].key == "bags" and PROVIDERS[i].words
+        if words then
+            words[#words + 1], words[#words + 2] = "mount", "mounts"
+            words[#words + 1], words[#words + 2] = slower(_G["MOUNT"] or "mount"), slower(_G["MOUNTS"] or "mounts")
+        end
+    end
+end
+
 for i = 1, #PROVIDERS do
     if not PROVIDERS[i].lookup then
         PROVIDERS[i].lookup = makeLookup(PROVIDERS[i].words)

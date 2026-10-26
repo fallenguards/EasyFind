@@ -238,7 +238,9 @@ end
 -- `easy` is the chord being pressed (Shift held: the EasyFind link), so a
 -- row is judged by the payload that chord would copy.
 local function ResolveHovered(easy)
-    if hoverTarget and hoverTarget:IsShown() and hoverTarget:IsMouseOver() then
+    -- A scanned target is looked up again: a spot within it may copy
+    -- something else (a chat bubble's speaker name, its words).
+    if hoverTarget and not hoverTarget._efScanned and hoverTarget:IsShown() and hoverTarget:IsMouseOver() then
         return hoverTarget
     end
     local buttons = Search.GetResultButtons and Search:GetResultButtons()
@@ -251,7 +253,10 @@ local function ResolveHovered(easy)
     end
     for i = 1, #hoverScanners do
         local target = hoverScanners[i]()
-        if target and RowPayload(target, easy) then return target end
+        if target and RowPayload(target, easy) then
+            target._efScanned = true
+            return target
+        end
     end
     return nil
 end

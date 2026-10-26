@@ -1437,6 +1437,8 @@ end
 -- With the bar closed: fresh scratch, not wiped (a wiped table keeps the
 -- room its largest query took), and no word memos.
 function SearchIndex:TrimScratch()
+    -- A read waiting at a checkpoint still fills these.
+    if reading then return end
     postScratch, maskScratch, counts = {}, {}, {}
     wordSet, strongSet, resultSet, candBuf, restBuf = {}, {}, {}, {}, {}
     osaPrev2, osaPrev, osaCurr = {}, {}, {}

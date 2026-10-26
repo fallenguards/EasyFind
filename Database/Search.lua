@@ -1112,6 +1112,15 @@ end
 local prevQuery = ""
 local prevSkipKey = ""
 local prevCandidates = {}
+-- Bumped when the rows change: a scan that waited at a checkpoint across a
+-- bump keeps nothing under its query.
+local searchEpoch = 0
+-- A fresh table, not a wiped one: a waiting scan may still read its set.
+local function DropCandidates()
+    searchEpoch = searchEpoch + 1
+    prevQuery = ""
+    prevCandidates = {}
+end
 -- Scratch for building skipKey from CategoryMap.SkipKeyOrder without a
 -- per-search table allocation. Reused each search; tconcat reads buf[1..n].
 local skipKeyBuf = {}
@@ -1221,6 +1230,7 @@ end
 function Database:NoteAppendedEntries(rows)
     if ns.Aliases and ns.Aliases.InvalidateKeyIndex then ns.Aliases:InvalidateKeyIndex() end
     ClearResultCache()
+    searchEpoch = searchEpoch + 1
     if prevQuery ~= "" and rows then
         local count = #prevCandidates
         for i = 1, #rows do prevCandidates[count + i] = rows[i] end
@@ -1242,9 +1252,8 @@ function Database:ResetSearchCache()
     -- runs during the batch window must full-scan current data, or it narrows
     -- inside a candidate set from before the providers pushed their entries
     -- (typing during login made real entries unfindable until a fresh query).
-    prevQuery = ""
+    DropCandidates()
     prevSkipKey = ""
-    wipe(prevCandidates)
     ClearResultCache()
     -- Only the active-search re-run coalesces to the end of the batch.
     if self._dynamicBatchLoading then
@@ -1278,9 +1287,8 @@ function Database:TrimSearchMemory()
     wipe(statisticScopedQueryWords)
     wordCache, nameMaskCache, wordInitCache = {}, {}, {}
     Database._wordCache = wordCache
-    prevQuery = ""
+    DropCandidates()
     prevSkipKey = ""
-    prevCandidates = {}
     resultCache, resultCacheLRU = {}, {}
     Database._resultCache = resultCache
     if ns.SearchIndex and ns.SearchIndex.TrimScratch then ns.SearchIndex:TrimScratch() end
@@ -1319,8 +1327,7 @@ end
 
 function Database:SearchUI(query, skipCategories)
     if not query or query == "" or #query < 2 then
-        prevQuery = ""
-        wipe(prevCandidates)
+        DropCandidates()
         wipe(resultsBuf)
         return resultsBuf
     end
@@ -1333,7 +1340,7 @@ function Database:SearchUI(query, skipCategories)
         query = query:match("^(.-)%s+$") or query
         query = Database:NormalizeSearchQuery(query)
         queryLen = #query
-        if queryLen == 0 then prevQuery = ""; wipe(prevCandidates); wipe(resultsBuf); return resultsBuf end
+        if queryLen == 0 then DropCandidates(); wipe(resultsBuf); return resultsBuf end
     end
 
     wipe(sharedKwScores)
@@ -1472,6 +1479,7 @@ function Database:SearchUI(query, skipCategories)
     local cacheKey = query .. "\1" .. skipKey
 
     local searchSet, restAt, stopwordRest
+    local epoch, cands = searchEpoch, prevCandidates
     local cachedSet = resultCache[cacheKey]
     if cachedSet then
         -- Exact prior query (backspace / retype): re-score its cached
@@ -1798,20 +1806,20 @@ function Database:SearchUI(query, skipCategories)
                     end
                 end
                 candidateIdx = candidateIdx + 1
-                prevCandidates[candidateIdx] = data
+                cands[candidateIdx] = data
             end
         end
     end
-    for i = candidateIdx + 1, #prevCandidates do
-        prevCandidates[i] = nil
+    for i = candidateIdx + 1, #cands do
+        cands[i] = nil
     end
     prevSkipKey = skipKey
     -- A stopped scan's set lacks the rest rows: never reused or cached.
-    if stoppedEarly then
+    if stoppedEarly or epoch ~= searchEpoch then
         prevQuery = ""
     else
         prevQuery = query
-        StoreResultCache(cacheKey, prevCandidates, candidateIdx)
+        StoreResultCache(cacheKey, cands, candidateIdx)
     end
     if GATE.sawNil and not GATE.fillPending then ScheduleGateMaskFill() end
     if efStats then efStats.lastResults = matchesN; efStats.gated = GATE.gatedN end

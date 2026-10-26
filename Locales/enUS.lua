@@ -897,6 +897,7 @@ L["MAP_SEARCH_TT"]                      = "Search POIs, flight masters, zones, d
 L["MAP_SHOW_RECENT"]                    = "Show recent searches"
 L["MAP_AUTO_EXPAND"]                    = "Auto expand headers"
 L["GPS_SHOW_RECENT_TT"]                 = "Your last searches, under the box while it is focused and empty."
+L["CHAT_COPY_NAME_TT"]                 = "Or hover the name in a message and press Ctrl+C."
 L["MAP_AUTO_EXPAND_TT"]                 = "When a search matches a parent zone, list every child it contains - even ones that don't match your query."
 L["MAP_AUTO_EXPAND_EXAMPLE"]            = "Example: searching |cffffd200east|r matches Eastern Kingdoms. With this on, every zone inside Eastern Kingdoms is listed under it. With it off, only zones whose names actually match |cffffd200east|r show up (Eastern Plaguelands, etc.)."
 

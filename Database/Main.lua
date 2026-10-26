@@ -5639,6 +5639,25 @@ local function StoredRowMT(category, remote)
     return mt
 end
 
+-- A mount kept as an item (every one before Wrath): the client's Mount
+-- subclass, or on Era, which files them as Junk, its own list.
+function Stored.IsMountItem(itemID)
+    if ns.ERA_MOUNT_ITEMS then return ns.ERA_MOUNT_ITEMS[itemID] == true end
+    local getInfo = C_Item and C_Item.GetItemInfoInstant
+    if not (getInfo and itemID) then return false end
+    local _, _, _, _, _, classID, subclassID = getInfo(itemID)
+    local misc = Enum and Enum.ItemClass and Enum.ItemClass.Miscellaneous or 15
+    local mount = Enum and Enum.ItemMiscellaneousSubclass and Enum.ItemMiscellaneousSubclass.Mount or 5
+    return classID == misc and subclassID == mount
+end
+
+-- Words an item answers to past its name: a mount item, "mount".
+function Stored.AddItemKindWords(kw, itemID)
+    if not Stored.IsMountItem(itemID) then return end
+    kw[#kw + 1] = slower(_G["MOUNT"] or "Mount")
+    kw[#kw + 1] = slower(_G["MOUNTS"] or "Mounts")
+end
+
 function Stored.EmitStoredRow(entry, category, keywords, remote)
     local row = entry.row
     local itemID = row.itemID
@@ -5648,6 +5667,7 @@ function Stored.EmitStoredRow(entry, category, keywords, remote)
     local nameLower = slower(name)
     local kw = { nameLower }
     for i = 1, #keywords do kw[#kw + 1] = keywords[i] end
+    Stored.AddItemKindWords(kw, itemID)
     return setmetatable({
         name = name,
         nameLower = nameLower,
@@ -5922,6 +5942,7 @@ function Database:PopulateDynamicBags()
             or ("CharacterBag" .. (first.bag - 1) .. "Slot")
         local nameLower = slower(name)
         local kw = { "bag", "item", "inventory", nameLower }
+        Stored.AddItemKindWords(kw, itemID)
         local searchEntry = setmetatable({
             name = name,
             nameLower = nameLower,

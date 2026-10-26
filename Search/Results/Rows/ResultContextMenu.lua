@@ -331,6 +331,15 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
         if Results._contextHeldRow == row then Results._contextHeldRow = nil end
         Results:SetRowHighlightLocked(row, false)
         Results:UpdateSelectionHighlight(true)
+        -- A row the cursor came back to while the menu was open gets no
+        -- OnEnter now: it takes its hover (wash, action hint) here.
+        for _, under in ipairs(Search:GetResultButtons()) do
+            if under:IsVisible() and under:IsMouseOver() then
+                local enter = under:GetScript("OnEnter")
+                if enter then enter(under) end
+                break
+            end
+        end
         if kbOnHide then kbOnHide() end
     end
 
