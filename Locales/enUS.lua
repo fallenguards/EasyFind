@@ -712,6 +712,7 @@ L["OPT_EXTENSIONS_HINT"]                = "No extension has settings yet. Extens
 L["OPT_TAB_PROFILES"]                   = "Profiles"
 L["OPT_TAB_RESULT_CLICKS"]              = "Result actions"
 L["OPT_ROWACT_HEADER"]                  = "Actions on any row"
+L["OPT_SEARCH_ROWACT_PLACEHOLDER"]      = "Search actions or keys..."
 L["OPT_ROWACT_HINT"]                    = "A key held with Alt or Ctrl does the action on the row under the mouse, or the one picked with the arrow keys; a click on the key button with two of Alt, Ctrl and Shift held binds that click instead. One that adds somewhere opens its list at the cursor."
 L["OPT_RESULT_CLICKS_HINT"]             = "What a click, an Alt-click, a Ctrl-click and a Shift-click do on each kind of result. Shift stays the drag where it picks a thing up; the right-click menu stays as it is; a change made in combat takes effect after it."
 L["OPT_RESULT_KIND"]                    = "Result kind"

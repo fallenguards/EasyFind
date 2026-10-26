@@ -5246,8 +5246,34 @@ local function BuildRowActionsList(ctx, tab, above)
     hint:SetWordWrap(true)
     hint:SetText(L["OPT_ROWACT_HINT"])
 
+    -- Matches an action's name or its key; extensions add rows here.
+    local searchShell = CreateFrame("Frame", nil, tab)
+    searchShell:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -4, -8)
+    searchShell:SetPoint("RIGHT", tab, "RIGHT", -ctx.LIST_CARD_SIDE_INSET, 0)
+    searchShell:SetHeight(22)
+    SearchWell(searchShell)
+    local searchIcon = searchShell.ringInset:CreateTexture(nil, "OVERLAY")
+    searchIcon:SetSize(13, 13)
+    searchIcon:SetPoint("LEFT", searchShell, "LEFT", 7, 0)
+    searchIcon:SetAtlas("common-search-magnifyingglass")
+    local searchBox = CreateFrame("EditBox", nil, searchShell)
+    searchBox:SetFrameLevel(searchShell.ringInset:GetFrameLevel() + 2)
+    searchBox:SetPoint("LEFT", searchIcon, "RIGHT", 6, 0)
+    searchBox:SetPoint("RIGHT", searchShell, "RIGHT", -8, 0)
+    searchBox:SetHeight(18)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetFontObject(SMALL_HIGHLIGHT_FONT)
+    searchBox:SetMaxLetters(64)
+    local placeholder = searchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    placeholder:SetPoint("LEFT", searchBox, "LEFT", 0, 0)
+    placeholder:SetPoint("RIGHT", searchBox, "RIGHT", 0, 0)
+    placeholder:SetJustifyH("LEFT")
+    placeholder:SetWordWrap(false)
+    placeholder:SetText(L["OPT_SEARCH_ROWACT_PLACEHOLDER"])
+    Utils.StyleSearchHint(placeholder, searchIcon)
+
     local card = CreateFrame("Frame", nil, tab)
-    card:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -4, -8)
+    card:SetPoint("TOPLEFT", searchShell, "BOTTOMLEFT", 0, -6)
     ctx.AnchorListCardBottom(card, tab)
     ns.CreateRoundedRectBorder(card)
     ns.SetRoundedRectBarHeight(card, 8)
@@ -5261,6 +5287,10 @@ local function BuildRowActionsList(ctx, tab, above)
     scroll:SetScrollChild(content)
     local bar = Utils.CreateMinimalScrollBar and Utils.CreateMinimalScrollBar(scroll, card)
     ParkScrollBarInMargin(bar, card, 2)
+    local empty = content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    empty:SetPoint("TOPLEFT", content, "TOPLEFT", 8, -8)
+    empty:SetText(L["OPT_NO_BLACKLIST_MATCH"])
+    empty:SetTextColor(0.92, 0.92, 0.92, 1)
 
     local rows = {}
     -- For the dev probe /efd btncolor.
@@ -5345,8 +5375,18 @@ local function BuildRowActionsList(ctx, tab, above)
         return row
     end
     -- Built on show: an extension that registers later still gets its row.
+    local shown = {}
     local function Build()
-        local list = RowActions.List()
+        local query = (searchBox:GetText() or ""):lower()
+        local list = shown
+        wipe(list)
+        for _, action in ipairs(RowActions.List()) do
+            if query == "" or action.label:lower():find(query, 1, true)
+                or KeyText(action.id):lower():find(query, 1, true) then
+                list[#list + 1] = action
+            end
+        end
+        empty:SetShown(#list == 0)
         for i, action in ipairs(list) do
             local row = rows[i] or MakeRow(i)
             row.actionId = action.id
@@ -5366,7 +5406,7 @@ local function BuildRowActionsList(ctx, tab, above)
             row:Show()
         end
         for i = #list + 1, #rows do rows[i]:Hide() end
-        content:SetHeight(#list * ROWACT_ROW_H)
+        content:SetHeight(math.max(#list, 1) * ROWACT_ROW_H)
         content:SetWidth(scroll:GetWidth() or 1)
         Refresh()
         if bar then
@@ -5382,6 +5422,18 @@ local function BuildRowActionsList(ctx, tab, above)
     end
     tab:HookScript("OnShow", Build)
     scroll:SetScript("OnSizeChanged", Build)
+    searchBox:SetScript("OnTextChanged", function(self)
+        placeholder:SetShown((self:GetText() or "") == "")
+        scroll:SetVerticalScroll(0)
+        Build()
+    end)
+    searchBox:SetScript("OnEscapePressed", function(self)
+        if (self:GetText() or "") ~= "" then
+            self:SetText("")
+        else
+            self:ClearFocus()
+        end
+    end)
 end
 
 -- Result actions: what a click, Alt, Ctrl and Shift do on each kind of
@@ -6391,7 +6443,7 @@ function Options:Initialize()
         CreateStepperRow = CreateStepperRow,
         CreateCheckbox = CreateCheckbox,
         RESET_BTN_W = RESET_BTN_W,
-        AnchorListCardBottom = AnchorListCardBottom,
+        AnchorListCardBottom = AnchorListCardBottom, LIST_CARD_SIDE_INSET = LIST_CARD_SIDE_INSET,
     }
     BuildHomeTab(ctx)
     BuildGeneralBindsTab(ctx)
