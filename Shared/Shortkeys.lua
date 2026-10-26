@@ -884,6 +884,8 @@ local function ShowCapturePopup(f)
     f.macroBtn:SetShown(f.onMacro ~= nil)
     f:SetHeight(f.onMacro and 150 or 116)
     f:Show()
+    -- Over a dialog that opened it (a new quicklist's key).
+    f:Raise()
 end
 
 -- The same capture popup for a key that is not a row's: onCombo(combo)

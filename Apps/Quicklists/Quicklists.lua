@@ -397,13 +397,26 @@ function Quicklists:Changed()
     ns.Search:OnSearchTextChanged(ns.Search:GetTypedQuery(), true)
 end
 
+-- A new list's name, and under it its key and the hold choice, since most
+-- lists get a key.
 function Quicklists:PromptNew(onCreated)
+    local key
+    local unbound = L["SHORTKEY_CLICK_TO_BIND"]
     ns.ShowThemedDialog({
         text = L["QUICKLIST_NEW_PROMPT"],
         hasEditBox = true,
         maxLetters = Store.NAME_MAX,
         acceptText = L["QUICKLIST_CREATE"],
-        onAccept = function(value)
+        extraButton = { label = L["QUICKLIST_COL_KEY"], text = unbound, onClick = function(btn)
+            if not (ns.Shortkeys and ns.Shortkeys.PromptForCombo) then return end
+            local box = btn:GetParent().editBox
+            if box then box:ClearFocus() end
+            ns.Shortkeys:PromptForCombo(L["QUICKLIST_KEY_NEW"], key,
+                function(combo) key = combo btn:SetText(combo) end,
+                function() key = nil btn:SetText(unbound) end)
+        end },
+        checkText = L["QUICKLIST_HOLD_CHECK"],
+        onAccept = function(value, hold)
             local name = Store.CleanName(value)
             if not name then return end
             if Store.FindByName(name) then
@@ -411,6 +424,10 @@ function Quicklists:PromptNew(onCreated)
                 return
             end
             local list = Store.Create(name)
+            if list then
+                if key then Store.SetKey(list.id, key) end
+                if hold then Store.SetHold(list.id, true) end
+            end
             if list and onCreated then onCreated(list) end
             Quicklists:Changed()
         end,

@@ -5974,7 +5974,8 @@ end
 -- like the rest of EasyFind (StyleMenuPanel + CreateModernButton). One pooled
 -- frame. opts: { text, acceptText, cancelText, hasEditBox, editBoxDefault,
 -- maxLetters, onAccept(value), single (one button), readOnly (a text to
--- copy: the box keeps it, Ctrl+C flashes Copied) }.
+-- copy: the box keeps it, Ctrl+C flashes Copied), extraButton (a labeled
+-- button under the box: { label, text, onClick(button) }) }.
 local themedDialog
 
 function ns.ShowThemedDialog(opts)
@@ -6129,6 +6130,30 @@ function ns.ShowThemedDialog(opts)
         used = used + 26 + 14
     else
         f.field:Hide()
+    end
+
+    local extra = opts.extraButton
+    if extra then
+        if not f.extraBtn then
+            f.extraLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            f.extraLabel:SetTextColor(unpack(ns.TEXT_PRIMARY))
+            f.extraLabel:SetShadowColor(0, 0, 0, 0)
+            f.extraBtn = ns.CreateModernButton(f, "", 100, 22)
+        end
+        f.extraLabel:SetText(extra.label or "")
+        f.extraLabel:ClearAllPoints()
+        f.extraLabel:SetPoint("TOPLEFT", 16, -(used + 5))
+        f.extraBtn:ClearAllPoints()
+        f.extraBtn:SetPoint("TOPLEFT", f, "TOPLEFT", 24 + f.extraLabel:GetStringWidth(), -used)
+        f.extraBtn:SetPoint("RIGHT", f, "RIGHT", -16, 0)
+        f.extraBtn:SetText(extra.text or "")
+        f.extraBtn:SetScript("OnClick", function(self) if extra.onClick then extra.onClick(self) end end)
+        f.extraLabel:Show()
+        f.extraBtn:Show()
+        used = used + 22 + 10
+    elseif f.extraBtn then
+        f.extraLabel:Hide()
+        f.extraBtn:Hide()
     end
 
     if opts.checkText then
