@@ -12,7 +12,7 @@ function tests.everyRightAnchorOfTheBoxLeavesTheGearRoom()
     local bare, through = {}, 0
     for line in src:gmatch("[^\n]+") do
         if line:find('%.search:SetPoint%("RIGHT"') and not line:find("GPS.SearchRight", 1, true)
-            and not line:find("x %- %(f%.searchCog") then
+            and not line:find("x %- %(+f%.searchCog") then
             bare[#bare + 1] = line:match("^%s*(.-)%s*$")
         end
         if line:find("GPS.SearchRight(f,", 1, true) then through = through + 1 end

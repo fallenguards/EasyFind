@@ -2518,7 +2518,40 @@ end
 
 -- The search box's right end at (rel, point, x), room left for its gear.
 function GPS.SearchRight(f, rel, point, x)
-    f.search:SetPoint("RIGHT", rel, point, x - (f.searchCog and 21 or 0), 0)
+    f.search:SetPoint("RIGHT", rel, point, x - ((f.searchCog and f.searchCog:IsShown()) and 21 or 0), 0)
+end
+
+-- Whether the pop-outs wear their settings cog (on unless turned off).
+function GPS.CogsShown()
+    local db = DB()
+    return not (db and db.gpsCog == false)
+end
+
+-- A settings cog opening menu(): a surface's whole menu, as its right-click.
+function GPS.SettingsCog(parent, menu)
+    local MapTab = ns.MapTab
+    local cog = MapTab and MapTab.CreateFilterCog and MapTab.CreateFilterCog(parent)
+    if not cog then return nil end
+    cog:SetSize(15, 16)
+    cog:SetScript("OnClick", function() menu() end)
+    cog:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(_G["SETTINGS"] or "Settings")
+        GameTooltip:Show()
+    end)
+    return cog
+end
+
+-- The setting changed: each pop-out's cogs shown or not, its box fitted.
+function GPS.ApplyCogs()
+    local on = GPS.CogsShown()
+    for _, frame in ipairs(GPS.searchFrames) do
+        if frame.searchCog and frame.ShowMenu then
+            frame.searchCog:SetShown(on)
+            GPS.SearchRight(frame, frame, "RIGHT", -frame.searchPad)
+        end
+    end
+    Refresh()
 end
 
 local function BuildSearch(frame, glyph, padRight, bodyPad)
@@ -2532,11 +2565,22 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     local MapTab = ns.MapTab
     local cog = MapTab and MapTab.CreateFilterCog and MapTab.ShowDefs and MapTab.CreateFilterCog(box)
     if cog then
-        frame.searchCog = cog
+        frame.searchCog, frame.searchPad = cog, padRight
         cog:SetSize(15, 16)
         cog:SetPoint("LEFT", box, "RIGHT", 6, 0)
-        box:SetPoint("RIGHT", frame, "RIGHT", -(padRight + 21), 0)
+        -- A pop-out's cog: its whole menu, and the setting may leave it out.
+        local shown = not frame.ShowMenu or GPS.CogsShown()
+        cog:SetShown(shown)
+        box:SetPoint("RIGHT", frame, "RIGHT", -(padRight + (shown and 21 or 0)), 0)
+        if frame.ShowMenu then
+            cog:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(_G["SETTINGS"] or "Settings")
+                GameTooltip:Show()
+            end)
+        end
         cog:SetScript("OnClick", function()
+            if frame.ShowMenu then return frame.ShowMenu() end
             local defs = MapTab.ShowDefs()
             defs[#defs + 1] = { kind = "separator" }
             for _, which in ipairs({ "recent", "parents", "expand" }) do defs[#defs + 1] = GPS.ListChoiceRow(frame, which) end
@@ -4368,10 +4412,29 @@ function Look.RenderEra(f)
     local lineH = Look.LineH(scale)
     Look.Restyle(f.eraTitle, "era", 10, "GameFontHighlight", scale)
     local text = route and DestText(route) or L["APP_GPS"]
-    local widest, tall = Look.EraFill(f.eraTitle, text, lineH)
-    if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
-    local n = 0
     local hits = route and f.search and (f.hitCount or 0) > 0
+    -- A start picked: its line above the destination's, in the title's gold,
+    -- so a route from elsewhere reads so at once; a click picks another.
+    local start = route and not route.arrived and not hits and Start()
+    local lead, fromW = 0, 0
+    if start then
+        local row = Look.EraLine(f, 1)
+        Look.Restyle(row.text, "era", 10, "GameFontHighlight", scale)
+        fromW, lead = Look.EraFill(row.text, sformat(L["GPS_FROM_FMT"], start.name or "?"), lineH)
+        row.index, row.tip, row.from = nil, nil, true
+        row.shade = Look.TITLE
+        Look.ShadeLine(row)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+        row:SetSize(mmax(1, fromW), lead)
+        row:Show()
+    end
+    f.eraTitle:ClearAllPoints()
+    f.eraTitle:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -lead)
+    local widest, tall = Look.EraFill(f.eraTitle, text, lineH)
+    widest, tall = mmax(widest, fromW), tall + lead
+    if f.eraGrip:IsMouseOver() then f.eraTitle:SetTextColor(1, 1, 1) else f.eraTitle:SetTextColor(unpack(Look.TITLE)) end
+    local n = start and 1 or 0
     if route and f.search then
         -- The box after the title; the places it finds take the steps' place.
         GPS.SearchRight(f, f, "RIGHT", -10)
@@ -4385,14 +4448,6 @@ function Look.RenderEra(f)
         tall = tall + 4 + h + 4
     elseif route then
         local row, w
-        local start = not route.arrived and Start()
-        if start then
-            n = n + 1
-            row, w, tall = Look.EraRow(f, n, sformat(L["GPS_FROM_FMT"], start.name or "?"), 1, tall, scale, lineH)
-            row.shade, row.from = ns.TEXT_DIM, true
-            Look.ShadeLine(row)
-            widest = mmax(widest, w)
-        end
         local warn = GPS.DangerText(route)
         if warn then
             local line = GPS.DangerLine(f, f, "GameFontHighlight")
@@ -4485,6 +4540,26 @@ RenderDock = function(f)
         -- Widths are set, not anchored: a fresh line's anchors are not
         -- resolved yet when its height is read, and it would read as one line.
         local lineW = (f.head:GetWidth() or 260) - DOCK_INDENT
+        local dbf = DB()
+        f.expanded = not (dbf and dbf.gpsPopoutCollapsed)
+        -- A start picked: its line above the destination's, in the title's
+        -- gold, so a route from elsewhere reads so at once; a click picks another.
+        if start and f.expanded ~= false then
+            local line = DockFromLine(f)
+            Look.Restyle(line.text, look, 11, "ObjectiveTrackerLineFont", scale)
+            line.dash:SetText("")
+            line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
+            line.text:SetWidth(mmax(40, lineW - (line.reset:GetWidth() or 40) - 6))
+            line.shade = ns.GOLD_COLOR
+            Look.ShadeLine(line)
+            line:ClearAllPoints()
+            line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
+            line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
+            local h = mmax(12, line.text:GetStringHeight() or 12)
+            line:SetHeight(h)
+            line:Show()
+            y = y - h - DOCK_LINE_GAP
+        end
         f.title:ClearAllPoints()
         f.title:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
         f.title:SetWidth(lineW)
@@ -4495,10 +4570,8 @@ RenderDock = function(f)
         f.track:Show()
         y = y - (f.title:GetStringHeight() or 14) - DOCK_LINE_GAP
         local n = 0
-        -- One fold state for the section and the window, so it survives
-        -- a trip through the tracker either way.
-        local dbf = DB()
-        f.expanded = not (dbf and dbf.gpsPopoutCollapsed)
+        -- One fold state for the section and the window (read above), so it
+        -- survives a trip through the tracker either way.
         if f.expanded == false then
             -- Folded: the header alone, as the tracker's own sections fold.
             f.title:Hide()
@@ -4506,23 +4579,6 @@ RenderDock = function(f)
             f.track:Hide()
             y = -DOCK_HEADER_H
         else
-            -- A start picked: its line first; a click picks another.
-            if start then
-                local line = DockFromLine(f)
-                Look.Restyle(line.text, look, 10, "ObjectiveTrackerLineFont", scale)
-                Look.Restyle(line.dash, look, 10, "ObjectiveTrackerLineFont", scale)
-                line.text:SetText(sformat(L["GPS_FROM_FMT"], start.name or "?"))
-                line.text:SetWidth(mmax(40, lineW - (line.dash:GetStringWidth() or 8) - (line.reset:GetWidth() or 40) - 6))
-                line.shade = ns.TEXT_DIM
-                Look.ShadeLine(line)
-                line:ClearAllPoints()
-                line:SetPoint("TOPLEFT", f, "TOPLEFT", DOCK_INDENT, y)
-                line:SetPoint("RIGHT", f.head, "RIGHT", 0, 0)
-                local h = mmax(12, line.text:GetStringHeight() or 12)
-                line:SetHeight(h)
-                line:Show()
-                y = y - h - DOCK_LINE_GAP
-            end
             local warn = GPS.DangerText(route)
             if warn then
                 local line = GPS.DangerLine(f, f, "ObjectiveTrackerLineFont")
@@ -5448,21 +5504,27 @@ local function BuildPopout()
 
     -- Header top padding: 9 open, 8 in one tight row. The rest of the
     -- header hangs off the glyph and the close. above: the buttons in a
-    -- strip of their own over the trip's fields, so the first field keeps
-    -- its full width; else centered on the folded title row.
-    f.headStrip = 9
+    -- strip of their own over the trip's fields, the settings cog at its
+    -- left end; else centered on the folded title row, the cog left out.
+    f.headStrip = 11
+    local STRIP_TOP = 6
     function f:SetHeaderPad(pad, above)
         self.glyph:ClearAllPoints()
         -- The tracking face's art spills past its frame: it sits 4 px further out.
         self.glyph:SetPoint("TOPLEFT", self, "TOPLEFT", self.track and 4 or 8, -(pad + (above and self.headStrip or 0)))
         close:ClearAllPoints()
         if above then
-            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -5)
+            close:SetPoint("TOPRIGHT", self, "TOPRIGHT", -8, -STRIP_TOP)
         else
             -- On the header row: the trip's one field, else the folded title.
             local row = self.trip and self.trip:IsShown() and self.trip.rows[1]
             local h = row and row:GetHeight() or self.glyph:GetHeight()
             close:SetPoint("RIGHT", self, "TOPRIGHT", -8, -(pad + h / 2))
+        end
+        if self.headCog then
+            self.headCog:ClearAllPoints()
+            self.headCog:SetPoint("LEFT", self, "TOPLEFT", 9, -(STRIP_TOP + BTN / 2))
+            self.headCog:SetShown(above and GPS.CogsShown())
         end
     end
 
@@ -5563,6 +5625,8 @@ local function BuildPopout()
     f.ShowMenu = ShowWindowMenu
     f.menuAnchor = menuAnchor
     f.isPopout = true
+    -- The settings cog over the trip's fields: the window's menu, as a right-click.
+    f.headCog = GPS.SettingsCog(f, ShowWindowMenu)
 
     BuildSurface(f, {
         padX = 12, padY = 9, padRight = 64, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
@@ -5986,6 +6050,7 @@ do
             if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
             if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
         end)
+        Switch("gpsCog", L["GPS_COG"], L["GPS_COG_TT"], function() GPS.ApplyCogs() end)
         Check("hideDone", L["GPS_HIDE_DONE"], L["GPS_HIDE_DONE_TT"],
             function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
             function(on)

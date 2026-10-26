@@ -23,6 +23,7 @@ Walk_Kalimdor_Era.lua [AllowLoadGameType vanilla]
 Walk_EasternKingdoms_TBC.lua [AllowLoadGameType tbc]
 Walk_Kalimdor_TBC.lua [AllowLoadGameType tbc]
 Walk_Outland_TBC.lua [AllowLoadGameType tbc]
+Walk_Kalimdor_Mists.lua [AllowLoadGameType mists]
 Walk_EasternKingdoms_Retail.lua [AllowLoadGameType standard]
 Npcs_Forever.lua [AllowLoadGameType camelot]
 Npcs_Forever_deDE.lua [AllowLoadGameType camelot] [AllowLoadTextLocale deDE]
@@ -81,3 +82,4 @@ Minimap.lua
 Npcs.lua
 GPS.lua
 Trip.lua
+MapClick.lua
