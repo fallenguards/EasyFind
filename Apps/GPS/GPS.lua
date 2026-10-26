@@ -3281,6 +3281,12 @@ local function BuildPage(frame)
     note:SetTextColor(unpack(ns.TEXT_DIM))
     note._efOwnColor = true
     exp:SetPoint("TOPRIGHT", note, "TOPLEFT", -6, 1)
+    -- The note's click, as its badge's: the bug report form.
+    local noteBtn = CreateFrame("Button", nil, frame)
+    noteBtn:SetAllPoints(note)
+    noteBtn:SetScript("OnClick", function() if EasyFind.OpenBugReport then EasyFind:OpenBugReport() end end)
+    noteBtn:SetScript("OnEnter", function() note:SetTextColor(1, 1, 1) end)
+    noteBtn:SetScript("OnLeave", function() note:SetTextColor(unpack(ns.TEXT_DIM)) end)
     frame.footRule = Rule(frame)
     frame.footRule:SetPoint("BOTTOM", exp, "TOP", 0, 7)
 end

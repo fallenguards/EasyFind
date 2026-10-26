@@ -6959,6 +6959,12 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     if tipTitle then
         Utils.AttachDelayedTooltip(tag, "ANCHOR_TOPLEFT", function() return tipTitle, tipBody end)
     end
+    -- An EXP badge's click: the bug report form, its tooltip says so.
+    if kind == "exp" then
+        tag:SetScript("OnMouseUp", function(_, button)
+            if button == "LeftButton" and EasyFind.OpenBugReport then EasyFind:OpenBugReport() end
+        end)
+    end
     return tag
 end
 
