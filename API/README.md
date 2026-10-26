@@ -197,7 +197,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | Field | Type | |
 | --- | --- | --- |
 | `key` | string | Required. Its filter key, and its `@scope` key when it has `aliases`. |
-| `label` | string | Required the first time. Its row in the filter menu and its scope's pill. |
+| `label` | string | Required the first time. What its rows are ("Shopping Lists"): its scope's pill and quick filter. With `extension`, the filter menu's Extensions flyout shows the extension's name instead, or "Name: label" when the extension has more than one provider, so a player sees which addon a filter belongs to. |
 | `category` | string | The name its rows carry. Defaults to `key`. |
 | `icon`, `iconCoords` | | Required the first time, unless `extension` names one with an icon: then that one is used. The glyph left of each of its rows, painted like an extension's. |
 | `rows` | function | Returns its rows (below). Called when its rows are first needed and after `RefreshSearchProvider`. |
@@ -241,6 +241,29 @@ API.RegisterSearchProvider({
         return out
     end,
     select = function(row) GoTo(MyBookmarks[row.bookmarkIndex]) end,
+})
+```
+
+### RegisterAddTarget(def)
+
+An entry in a result's right-click Add flyout, beside Note and Quicklist: a place the row can be added to.
+
+| Field | Type | |
+| --- | --- | --- |
+| `key` | string | Required. Registering a key again replaces it. |
+| `extension` | string | Required, registered first. Its icon marks the entry, so a player sees which addon it comes from. |
+| `label` | string | Required. Its name in the Add flyout ("Shopping list"). |
+| `fullLabel` | string | Its name when it is the menu's only Add entry ("Add to shopping list"). Defaults to `label`. |
+| `applies` | function `(row)` | True for the rows it takes. Without it, every row. |
+| `rows` | function `(row)` | Required. The flyout's rows, in the tile menu's shape (the provider `menu` above). Nothing returned: no entry. |
+
+```lua
+API.RegisterAddTarget({
+    key = "wishlist", extension = "mywishlist", label = "Wishlist", fullLabel = "Add to wishlist",
+    applies = function(row) return row.itemID ~= nil end,
+    rows = function(row)
+        return { { kind = "action", label = "Main", onClick = function() AddToWishlist(row.itemID) end } }
+    end,
 })
 ```
 

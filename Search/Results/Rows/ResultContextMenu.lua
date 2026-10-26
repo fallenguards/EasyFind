@@ -188,6 +188,26 @@ function Rows:ShowResultContextMenu(row, keyboardMode)
                                     iconCoords = provider.iconCoords, rows = menuRows }
         end
     end
+    -- Extensions' entries in the Add flyout, each wearing its extension's icon.
+    for _, target in ipairs(ns.Extensions and ns.Extensions.AddTargets or {}) do
+        local owner = ns.Extensions.Get(target.extension)
+        local takes = true
+        if target.applies then
+            local ok, yes = ns.Extensions.Run(target.applies, pinData)
+            takes = ok and yes == true
+        end
+        if owner and takes then
+            local ok, defs = ns.Extensions.Run(target.rows, pinData)
+            local sub = MenuRowsOf(ok and defs or nil, 1)
+            if #sub > 0 then
+                extra.addTargets = extra.addTargets or {}
+                extra.addTargets[#extra.addTargets + 1] = {
+                    text = target.label, fullText = target.fullLabel or target.label,
+                    icon = owner.icon, iconCoords = owner.iconCoords, chromeIcon = true, submenu = sub,
+                }
+            end
+        end
+    end
     extra.wowheadUrl = ns.GetWowheadLink and ns.GetWowheadLink(pinData)
     if ns.ResultLinks then
         extra.easyFindLinkRows, extra.easyFindLinkText = ns.ResultLinks:BuildSendRows(pinData)

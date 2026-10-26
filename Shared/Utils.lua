@@ -9483,13 +9483,25 @@ function Utils.ShowPinMenu(globalName, isPinned, onPin, onGuide, onAddAlias, opt
             submenu = extra.easyFindLinkRows,
         }
     end
+    -- An entry an app or extension adds wears its icon: where it comes from.
+    local function AppEntry(id, entry)
+        local app = ns.Extensions and ns.Extensions.Get(id)
+        if app and app.icon then
+            entry.icon, entry.iconCoords, entry.chromeIcon = app.icon, app.iconCoords, true
+        end
+        return entry
+    end
     if extra and extra.addNoteRows then
-        addRows[#addRows + 1] = { text = L["CTX_NOTE"], fullText = L["CTX_ADD_NOTE"], submenu = extra.addNoteRows }
+        addRows[#addRows + 1] = AppEntry("notes",
+            { text = L["CTX_NOTE"], fullText = L["CTX_ADD_NOTE"], submenu = extra.addNoteRows })
     end
     if extra and extra.addQuicklistRows then
-        addRows[#addRows + 1] = {
+        addRows[#addRows + 1] = AppEntry("quicklists", {
             text = L["CTX_QUICKLIST"], fullText = L["CTX_ADD_QUICKLIST"], submenu = extra.addQuicklistRows,
-        }
+        })
+    end
+    for _, target in ipairs(extra and extra.addTargets or {}) do
+        addRows[#addRows + 1] = target
     end
     AddGroup(_G["ADD"] or "Add", addRows)
     if extra and extra.onBlacklist then

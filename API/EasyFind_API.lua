@@ -33,7 +33,7 @@
 
 ---@class EasyFindSearchProvider
 ---@field key string Required: its filter key and @scope key.
----@field label? string Required the first time: its filter row and scope pill.
+---@field label? string Required the first time: what its rows are, on its scope pill; the Extensions flyout shows its extension's name.
 ---@field category? string The name its rows carry; key when not given.
 ---@field icon? string|number Required the first time, unless its extension has one: the glyph left of each of its rows.
 ---@field iconCoords? number[]
@@ -50,6 +50,14 @@
 ---@field place? fun(row: EasyFindRow): { name: string, mapID: number, x: number, y: number, step: string? }|nil Where the row is now: its rows are found from the map search and the GPS too.
 ---@field link? EasyFindLink A row's EasyFind link carries your key; the receiver's copy resolves it.
 ---@field menu? fun(row: EasyFindRow): EasyFindMenuRow[]|nil Rows for the result's right-click menu, under your extension's name.
+
+---@class EasyFindAddTarget
+---@field key string Required; registering it again replaces it.
+---@field extension string Required, registered first: its icon marks the entry.
+---@field label string Required: its name in the Add flyout.
+---@field fullLabel? string Its name as the menu's only Add entry; label when not given.
+---@field applies? fun(row: EasyFindRow): boolean The rows it takes; every row without it.
+---@field rows fun(row: EasyFindRow): EasyFindMenuRow[]|nil Required: the flyout's rows.
 
 ---@class EasyFindLink
 ---@field key fun(row: EasyFindRow): string|nil A short string the link carries (an id, the sender's progress).
@@ -173,6 +181,10 @@ function API.NotifyOpenChanged(id) end
 ---@param def EasyFindSearchProvider
 ---@return boolean
 function API.RegisterSearchProvider(def) end
+---An entry in a result's right-click Add flyout, wearing its extension's icon.
+---@param def EasyFindAddTarget
+---@return boolean
+function API.RegisterAddTarget(def) end
 ---Its rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key) end
 ---Shows the search bar focused, with text searched when given.

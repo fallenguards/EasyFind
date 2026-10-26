@@ -365,6 +365,21 @@ end
 local Providers = { byKey = {}, byCategory = {} }
 Extensions.Providers = Providers
 
+-- The filter menu's Extensions flyout names extensions, not their rows:
+-- an extension's one provider shows as its name, two or more as "Name:
+-- label". The label stays the rows' name on the scope pill.
+local function NameFilterRows(owner)
+    if not owner then return end
+    local mine = {}
+    for _, p in pairs(Providers.byKey) do
+        if p.filterRow and Extensions.Get(p.extension) == owner then mine[#mine + 1] = p end
+    end
+    for i = 1, #mine do
+        local p = mine[i]
+        p.filterRow.label = #mine > 1 and L["EXT_FILTER_NAMED_FMT"]:format(owner.name, p.label) or owner.name
+    end
+end
+
 local PROVIDER_FIELDS = {
     key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table",
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
@@ -506,10 +521,12 @@ function API.RegisterSearchProvider(def)
             fn = function(database) return Populate(key, database) end,
         })
         ns.SearchEngine:AddProvider({ key = key, words = p.words or {}, loadOnLowResults = p.lowResults })
-        ns.Filters.AddExtensionFilter({
+        p.filterRow = {
             key = key, label = p.label, iconTex = p.icon, iconCoords = p.iconCoords, glyph = true,
             hasOptions = p.options ~= nil, checkboxOptions = p.options,
-        })
+        }
+        ns.Filters.AddExtensionFilter(p.filterRow)
+        NameFilterRows(owner)
         if p.aliases then
             ns.Filters:AddQuickFilter({ key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases })
         end
@@ -527,6 +544,43 @@ function API.RegisterSearchProvider(def)
             return row
         end)
     end
+    return true
+end
+
+-- ==== add targets =============================================================
+
+-- An entry in a result's right-click Add flyout, beside Note and Quicklist.
+-- def: key, extension (required: its icon marks the entry, so a player sees
+-- where it comes from), label (its name in the flyout, "Shopping list"),
+-- fullLabel (alone in the menu, "Add to shopping list"), applies(row) (true
+-- for the rows it takes; every row without it), rows(row) (the flyout's
+-- rows, in the tile menu's shape). Registering a key again replaces it.
+local AddTargets = {}
+Extensions.AddTargets = AddTargets
+local ADD_TARGET_FIELDS = {
+    key = "string", extension = "string", label = "string", fullLabel = "string",
+    applies = "function", rows = "function",
+}
+function API.RegisterAddTarget(def)
+    if type(def) ~= "table" then Fail("RegisterAddTarget", "expects a table") end
+    for k, v in pairs(def) do
+        local want = ADD_TARGET_FIELDS[k]
+        if want and type(v) ~= want then Fail("RegisterAddTarget", k .. " must be a " .. want) end
+    end
+    for _, k in ipairs({ "key", "extension", "label", "rows" }) do
+        if def[k] == nil then Fail("RegisterAddTarget", k .. " is required") end
+    end
+    local owner = Extensions.Get(def.extension)
+    if not (owner and owner.icon) then
+        Fail("RegisterAddTarget", "extension '" .. def.extension .. "' must be registered first, with its icon")
+    end
+    for i = 1, #AddTargets do
+        if AddTargets[i].key == def.key then
+            AddTargets[i] = def
+            return true
+        end
+    end
+    AddTargets[#AddTargets + 1] = def
     return true
 end
 
