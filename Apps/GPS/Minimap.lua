@@ -169,6 +169,14 @@ local function Draw()
             local color = i < active and passed or Preview.LineColor(step.kind)
             local alpha = i < active and passedAlpha or ALPHA
             if f and i == f.index then
+                -- Off the walk with no way back on foot (none from here, a
+                -- room the grid has no door to): straight back onto it, as
+                -- the arrow points.
+                if f.off > Follow.OFF_WAY then
+                    Pen(color, alpha)
+                    To(f.px, f.py)
+                    To(f.qx, f.qy)
+                end
                 local pts, seg = f.path.pts, f.seg
                 Pen(passed, passedAlpha)
                 for v = 1, seg do To(pts[2 * v - 1], pts[2 * v]) end

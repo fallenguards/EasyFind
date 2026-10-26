@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 24
+local DB_VERSION = 25
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -566,6 +566,15 @@ local DB_MIGRATIONS = {
         for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
             if type(slot) == "table" and type(slot.settings) == "table" then
                 slot.settings.achievementIndex = nil
+            end
+        end
+    end,
+    [25] = function(db)
+        -- The GPS arrival chat line and its switch are gone.
+        db.gpsChatArrive = nil
+        for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do
+            if type(slot) == "table" and type(slot.settings) == "table" then
+                slot.settings.gpsChatArrive = nil
             end
         end
     end,

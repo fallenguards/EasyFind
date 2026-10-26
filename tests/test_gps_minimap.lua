@@ -18,8 +18,10 @@ end
 
 -- A walk planned 100 yd south of the player to 300 yd north of them, the
 -- player on it; a minimap 100 px wide showing 100 yd each way. deadly:
--- the yards along the walk over ground deadly to the player.
-local function fresh(deadly)
+-- the yards along the walk over ground deadly to the player. west: the
+-- player that far west of the walk instead; sealed: no way on foot but
+-- the planned walk itself.
+local function fresh(deadly, west, sealed)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -36,11 +38,12 @@ local function fresh(deadly)
                     from = { ci = 1, wx = -100, wy = 0 } }
     ns.GPS = {
         CurrentRoute = function() return route end,
-        PlayerWorldPos = function() return 1, 0, 0 end,
+        PlayerWorldPos = function() return 1, 0, west or 0 end,
     }
     ns.GPSRoute = {
         WorldPos = function(_, mx, my) return 1, (0.5 - my) * 1000, (0.5 - mx) * 1000 end,
         WalkPath = function(_, sx, sy, tx, ty)
+            if sealed and not (sx == -100 and sy == 0) then return false end
             local len = math.sqrt((tx - sx) ^ 2 + (ty - sy) ^ 2)
             return { pts = { sx, sy, tx, ty }, cum = { 0, len }, len = len }
         end,
@@ -121,6 +124,23 @@ function tests.aTurningMinimapTurnsTheLine()
     local a = drawn.pieces[2].pts
     H.assertTrue(near(a[1], 7) and near(a[2], 0), "on to the right: " .. a[1] .. "," .. a[2])
     H.assertTrue(near(a[#a - 1], RIM) and near(a[#a], 0))
+end
+
+-- 60 yd west of the walk with no way back on foot (a room the grid has no
+-- door to, 2026-10-26): straight east onto it, in the step's color, from
+-- the edge of the player's arrow.
+function tests.offTheWalkWithNoWayBackDrawsTheStraightWayBack()
+    local drawn = fresh(nil, 60, true)
+    local back = drawn.pieces[1]
+    H.assertTrue(back ~= nil and back.color == BLUE, "the way back in the step's color")
+    local p = back.pts
+    H.assertTrue(near(p[1], 7) and near(p[2], 0), "from the arrow's edge: " .. p[1] .. "," .. p[2])
+    H.assertTrue(near(p[#p - 1], 30) and near(p[#p], 0), "to the walk 60 yd east: " .. p[#p - 1] .. "," .. p[#p])
+end
+
+function tests.onTheWalkNoWayBackIsDrawn()
+    local drawn = fresh(nil, 10, true)
+    H.assertTrue(drawn.pieces[1].color == PASSED, "within 20 yd the walk itself leads")
 end
 
 function tests.standingStillDrawsNothingAgain()

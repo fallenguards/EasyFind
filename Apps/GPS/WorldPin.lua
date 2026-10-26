@@ -694,6 +694,41 @@ local function PlacePlate(at)
     else plate:SetPoint("TOP", frame, "CENTER", 0, -44) end
 end
 
+-- A waypoint carries no floor: indoors, a spot in a building with no map
+-- of its own (Stormwind's Wizard's Sanctum) reads to the game as the ground
+-- outside, and its marker leads out through the way out (57 yards against a
+-- straight 31). Past a floor's rise and OVER yards beyond the straight way
+-- the marker leads elsewhere; it shows again SETTLE yards under that.
+local RISE, OVER, SETTLE = 20, 10, 5
+local aim = { step = nil }
+local leadsElsewhere = false
+local function MarkerLeadsElsewhere(step)
+    if not (IsIndoors and IsIndoors()) then
+        leadsElsewhere = false
+        return false
+    end
+    local d = C_Navigation and C_Navigation.GetDistance and C_Navigation.GetDistance()
+    local GPS = ns.GPS
+    if not (d and GPS and GPS.PlayerWorldPos) or (issecretvalue and issecretvalue(d)) then return false end
+    -- Where the game's waypoint stands, read once a step.
+    if aim.step ~= step then
+        aim.step, aim.ci = step, nil
+        local wp = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+        if wp and wp.position then
+            local ci, pos = C_Map.GetWorldPosFromMapPos(wp.uiMapID, wp.position)
+            if ci and pos then aim.ci, aim.x, aim.y = ci, pos:GetXY() end
+        end
+    end
+    local ci, px, py = GPS.PlayerWorldPos()
+    if not (aim.ci and ci == aim.ci) then return false end
+    local straight = ((aim.x - px) ^ 2 + (aim.y - py) ^ 2) ^ 0.5
+    local limit = (straight * straight + RISE * RISE) ^ 0.5 + OVER
+    if leadsElsewhere then limit = limit - SETTLE end
+    leadsElsewhere = d > limit
+    return leadsElsewhere
+end
+WorldPin.MarkerLeadsElsewhere = MarkerLeadsElsewhere
+
 local function Update(dt)
     local host = Host()
     local route = Route()
@@ -709,6 +744,13 @@ local function Update(dt)
     -- and the game's own marker stays hidden too.
     local current = route.steps and route.steps[route.active or 1]
     if current and (current.kind == "teleport" or current.noWay) then
+        frame:Hide()
+        HideFace(host)
+        return
+    end
+    -- The game's marker heads for a way out, not the spot: neither shows,
+    -- the arrow and the minimap line still lead.
+    if MarkerLeadsElsewhere(current) then
         frame:Hide()
         HideFace(host)
         return

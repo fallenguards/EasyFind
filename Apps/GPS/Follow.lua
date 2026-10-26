@@ -14,6 +14,7 @@ ns.GPSFollow = Follow
 local msqrt, mmax, mmin, mhuge = math.sqrt, math.max, math.min, math.huge
 
 local OFF_WAY = 20             -- yards off the walk before it is found again
+Follow.OFF_WAY = OFF_WAY
 local REFIND = 4               -- seconds at least between two findings
 -- A way found from off the walk takes over only once faster by this much,
 -- and still so after this long and this far: no swing to a way hardly

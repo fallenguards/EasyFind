@@ -777,9 +777,6 @@ local function Arrive(route)
         ns.MapSearch:ClearPinAt(dest.mapID, dest.x, dest.y)
     end
     Refresh()
-    if L["GPS_ARRIVED_AT_FMT"] and EasyFind.Print and EasyFind.db.gpsChatArrive ~= false then
-        EasyFind:Print(sformat(L["GPS_ARRIVED_AT_FMT"], route.dest and route.dest.name or "?"))
-    end
     if PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_COMPLETE then
         pcall(PlaySound, SOUNDKIT.IG_QUEST_LIST_COMPLETE)
     end
@@ -5847,7 +5844,6 @@ do
             if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
             if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
         end)
-        Switch("gpsChatArrive", L["GPS_CHAT_ARRIVE"], L["GPS_CHAT_ARRIVE_TT"], function() end)
         Check("hideDone", L["GPS_HIDE_DONE"], L["GPS_HIDE_DONE_TT"],
             function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
             function(on)
@@ -5947,7 +5943,7 @@ do
         Place("beacon", -8, gap)
         for _, key in ipairs({ "line", "click", "arrowText", "textSize" }) do Place(key, 0, -4) end
         Place("plateBorder", 0, -6)
-        for _, key in ipairs({ "gpsArrow", "gpsMinimap", "gpsZoneSteps", "gpsRowButton", "gpsChatArrive", "hideDone" }) do
+        for _, key in ipairs({ "gpsArrow", "gpsMinimap", "gpsZoneSteps", "gpsRowButton", "hideDone" }) do
             Place(key)
         end
         -- Ways of travel a route leaves out unless nothing else gets there.
