@@ -27,7 +27,7 @@ local GetCursorInfo = GetCursorInfo
 notesNS.UI = UI
 ns.Notes = notesNS
 
-local NOTES_DB_VERSION = 13
+local NOTES_DB_VERSION = 14
 local FONT_SIZE_MIN = 9
 local FONT_SIZE_MAX = 56
 local FONT_SIZE_DEFAULT = 12
@@ -338,6 +338,26 @@ local INLINE_MODES = { bold = true, italic = true, strike = true, underline = tr
 -- Inline styles are stored as markdown IN the note text, not as decorations.
 local MD_MARKERS = { bold = "**", italic = "*", underline = "__", strike = "~~" }
 
+-- A link saved with a named color (|cnIQ1:) showed broken in the editor:
+-- the color as hex, the decorations after it moved by the length change.
+function UI.HexBodyColors(n)
+    if type(n) ~= "table" or type(n.body) ~= "string" or not n.body:find("|cn", 1, true) then return end
+    local shifts = {}
+    n.body = n.body:gsub("()(|cn[^:|]+:)", function(pos, code)
+        local hex = Utils.HexColorNames(code)
+        shifts[#shifts + 1] = { pos, #hex - #code }
+        return hex
+    end)
+    for _, d in ipairs(type(n.decorations) == "table" and n.decorations or {}) do
+        local ds, de = 0, 0
+        for _, shift in ipairs(shifts) do
+            if shift[1] < d.startByte then ds = ds + shift[2] end
+            if shift[1] < d.endByte then de = de + shift[2] end
+        end
+        d.startByte, d.endByte = d.startByte + ds, d.endByte + de
+    end
+end
+
 local function NormalizeDB()
     EasyNotesDB = type(EasyNotesDB) == "table" and EasyNotesDB or {}
     local v = type(EasyNotesDB.version) == "number" and EasyNotesDB.version or 0
@@ -508,6 +528,10 @@ local function NormalizeDB()
             end
             if n then n.opensItself = nil end
         end
+    end
+    if v < 14 then
+        for _, n in ipairs(EasyNotesDB.notes) do UI.HexBodyColors(n) end
+        for _, n in ipairs(EasyNotesDB.trash) do UI.HexBodyColors(n) end
     end
     if type(EasyNotesDB.fontSize) ~= "number" then EasyNotesDB.fontSize = FONT_SIZE_DEFAULT end
     if type(EasyNotesDB.uiScale) ~= "number" then EasyNotesDB.uiScale = UI_SCALE_DEFAULT end
@@ -915,9 +939,10 @@ function notesNS.NewChecklist()
     return note
 end
 
+-- A link handed in takes the hex color form the editor reads (HexColorNames).
 function notesNS.CreateNote(opts)
     opts = opts or {}
-    local note = CreateNote(opts.body or "")
+    local note = CreateNote(Utils.HexColorNames(opts.body or ""))
     local title = opts.title and strtrim(opts.title) or ""
     if title ~= "" then note.name = title end
     if NotesWindowShown() and UI.RefreshEasyNotes then UI:RefreshEasyNotes() end
@@ -937,7 +962,7 @@ end
 function notesNS.AppendToNote(id, text)
     local idx = FindNoteIndex(id)
     if not idx then return false end
-    text = tostring(text or "")
+    text = Utils.HexColorNames(tostring(text or ""))
     if text == "" then return false end
     local note = NotesStore()[idx]
     local body = note.body or ""

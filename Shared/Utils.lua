@@ -5131,6 +5131,23 @@ function Utils.ClipboardSafeText(s)
     return s
 end
 
+-- Named colors (|cnIQ1:, |cnGREEN_FONT_COLOR:) as |cffRRGGBB, for an
+-- EditBox: it reads |c and the next eight characters as a hex color, so a
+-- named one ate the start of the link behind it (a note read "tem:2589...").
+function Utils.HexColorNames(s)
+    if type(s) ~= "string" or not s:find("|cn", 1, true) then return s end
+    return (s:gsub("|cn([^:|]+):", function(name)
+        local q = tonumber(name:match("^IQ(%d+)$"))
+        local quality = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+        local hex = quality and quality.hex and quality.hex:match("^|c(%x%x%x%x%x%x%x%x)")
+        if not hex then
+            local color = _G[name]
+            hex = type(color) == "table" and color.GenerateHexColor and color:GenerateHexColor() or nil
+        end
+        return "|c" .. (hex or "ffffffff")
+    end))
+end
+
 function Utils.StripMarkup(s)
     s = Utils.ClipboardSafeText(s)
     if not s then return s end

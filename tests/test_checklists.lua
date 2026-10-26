@@ -217,6 +217,7 @@ local function LoadView(lines)
     ns.CreateCloseX = function() return Stub() end
     ns.CreateCogButton = function() return Stub() end
     ns.Utils.HookInsertLink = function(fn) w.insert = fn end
+    ns.Utils.HexColorNames = function(s) return s end
     env.C_Spell = { GetSpellName = function() return "Spell" end, GetSpellCooldown = function() return { startTime = 0, duration = 0 } end, GetSpellTexture = function() return 1 end }
     env.C_QuestLog = { GetTitleForQuestID = function() return "Quest" end, IsQuestFlaggedCompleted = function() return false end }
     env.C_Reputation = { GetFactionDataByID = function() return { name = "Faction", reaction = 5 } end }

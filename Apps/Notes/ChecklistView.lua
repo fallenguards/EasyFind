@@ -685,6 +685,7 @@ local function EnsureView()
     Utils.HookInsertLink(function(link)
         local note = Note()
         if not (view:IsVisible() and note and CK.Is(note)) then return end
+        link = Utils.HexColorNames(link)
         if UI.edit and UI.edit:HasFocus() then
             UI.edit:Insert(link)
             return
