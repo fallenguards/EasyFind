@@ -421,6 +421,40 @@ function tests.classicWindow_usesTheDialogFrame()
     borderOption(nil)
 end
 
+-- A talent tree behind a Classic window shows through the cards in it,
+-- which keep their thin edge; menus keep their marble. The tree's own
+-- strength is a setting (2026-10-26: the cards' marble hid the art).
+function tests.classicTree_showsThroughTheWindowsCards()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    env.EasyFind.db.classicArt = "MageFire"
+    env.EasyFind.db.classicArtAlpha = 0.5
+    local win = surface(false)
+    H.assertTrue(ns.ApplyClassicChrome(win, 0.9, "dialog"))
+    H.assertTrue(near(win._efTree.clip.alpha, 0.45), "the tree at its strength in the window's opacity")
+    local card = surface(false)
+    card.GetParent = function() return win end
+    ns.ApplyCardFill(card)
+    H.assertEq(card.backdrop, ns.CLASSIC_THIN, "the card keeps its edge")
+    H.assertEq(card.bdColor[4], 0, "no marble over the tree")
+    local menu = classicSurface()
+    menu.GetParent = function() return win end
+    ns.ApplyThemeFill(menu)
+    H.assertTrue(menu._efClassicBack.bdColor[4] > 0, "a menu keeps its marble")
+    -- The options window wears its art on a frame beside its contents.
+    local panel = surface(false)
+    panel._efTreeHost = win
+    card.GetParent = function() return panel end
+    ns.ApplyCardFill(card)
+    H.assertEq(card.bdColor[4], 0, "found through the window's art frame")
+    env.EasyFind.db.classicArt = nil
+    ns.ApplyCardFill(card)
+    H.assertTrue(card.bdColor[4] > 0, "the marble alone: the card's marble is back")
+    env.EasyFind.db.classicArtAlpha = nil
+    borderOption(nil)
+end
+
 function tests.switchingThemes_leavesOnlyOneSkin()
     installClient(FOREVER_ART)
     borderOption(true)

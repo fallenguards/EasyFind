@@ -372,8 +372,8 @@ Caps.calendar = not (Caps.era or Caps.tbc)
 Caps.titles = not Caps.era
 
 -- Era lacks the quest log atlas sheet (cog, plus, minus, row glow); MoP
--- Classic keeps its old quest log, so it is not counted on there either.
-Caps.questLogAtlas = not (Caps.era or Caps.mists)
+-- Classic ships retail's own, byte for byte (wago, build 70268).
+Caps.questLogAtlas = not Caps.era
 -- The world map's tab strip beside the quest log; classic's map search
 -- opens from the side panel's corner button instead.
 Caps.mapTabStrip = not Caps.classic

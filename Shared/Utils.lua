@@ -2907,6 +2907,26 @@ local function PlaceTree(art)
     art.tex[1]:SetPoint("TOPRIGHT", art.clip, "TOPRIGHT", TREE_BLANK_RIGHT * k, 0)
 end
 
+-- The tree's own strength, picked in settings.
+function ns.ClassicArtAlpha()
+    local db = EasyFind and EasyFind.db
+    return db and db.classicArtAlpha or 1
+end
+
+-- A pane inside a window that wears a tree: its marble would hide the art.
+function ns.OverTree(frame)
+    local db = EasyFind and EasyFind.db
+    local name = db and db.classicArt
+    if not name or name == "marble" or frame._efClassicStyle ~= "thin" then return false end
+    local anc = frame:GetParent()
+    while anc do
+        local host = anc._efTreeHost or anc
+        if host._efClassicStyle == "dialog" or host._efWearsTree then return true end
+        anc = anc:GetParent()
+    end
+    return false
+end
+
 -- The picked tree inside the frame's border, or none for the marble alone.
 local function DressTree(frame, inset, alpha)
     local db = EasyFind and EasyFind.db
@@ -2940,7 +2960,7 @@ local function DressTree(frame, inset, alpha)
         art.name = name
         for i, piece in ipairs(TREE_PIECES) do art.tex[i]:SetTexture(TREE_ART .. name .. "-" .. piece.key) end
     end
-    art.clip:SetAlpha(alpha)
+    art.clip:SetAlpha(alpha * ns.ClassicArtAlpha())
     PlaceTree(art)
     art.clip:Show()
 end
@@ -2984,7 +3004,7 @@ do
         end
         -- The stone is its own color; only the window opacity applies.
         local alpha = frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha()
-        host:SetBackdropColor(1, 1, 1, alpha)
+        host:SetBackdropColor(1, 1, 1, ns.OverTree(frame) and 0 or alpha)
         host:SetBackdropBorderColor(1, 1, 1, 1)
         -- Windows and the search window may wear a talent tree; menus never.
         if want == "dialog" or frame._efWearsTree then
@@ -3203,7 +3223,9 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if not frame.combinedBorder then return end
     frame._efBgAlpha = alpha
     if frame._efForever then frame._efForever.fill:SetAlpha(alpha) end
-    if frame._efSkin == "classic" then ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, frame._efClassicAlpha or alpha) end
+    if frame._efSkin == "classic" then
+        ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, ns.OverTree(frame) and 0 or frame._efClassicAlpha or alpha)
+    end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end

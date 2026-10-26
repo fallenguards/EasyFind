@@ -103,6 +103,13 @@ function SettingsRows.ClassicBgChoices()
     return choices
 end
 
+-- The Classic frames dressed anew after a background pick.
+function SettingsRows.RedressClassic()
+    Search("UpdateWindowBorders")
+    if ns.RestyleCardFills then ns.RestyleCardFills() end
+    if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
+end
+
 function SettingsRows.VisibilityLabel(value)
     if value == ns.VISIBILITY_SMART then return L["OPT_VISIBILITY_SMARTSHOW"] end
     if value == ns.VISIBILITY_ALWAYS then return L["OPT_VISIBILITY_ALWAYS"] end
@@ -325,6 +332,18 @@ local function GeneralRows()
                 if ns.ApplyUITheme then ns.ApplyUITheme(name) end
                 if ns.RepaintWizardTheme then pcall(ns.RepaintWizardTheme) end
             end),
+        Choice(L["OPT_CLASSIC_BG"], L["OPT_CLASSIC_BG_TT"], SettingsRows.ClassicBgChoices(),
+            function() return db.classicArt or "marble" end,
+            function(value)
+                db.classicArt = value ~= "marble" and value or nil
+                SettingsRows.RedressClassic()
+            end),
+        Slider(L["OPT_CLASSIC_BG_ALPHA"], L["OPT_CLASSIC_BG_ALPHA_TT"], 10, 100, 5,
+            function() return math.floor(ns.ClassicArtAlpha() * 100 + 0.5) end,
+            function(value)
+                db.classicArtAlpha = value < 100 and value / 100 or nil
+                Soon(SettingsRows.RedressClassic)
+            end),
         Choice(L["OPT_INDICATOR_STYLE"], nil,
             Labeled(SettingsRows.IndicatorStyles(), function(name)
                 local label = StyleLabel(name)
@@ -455,13 +474,6 @@ local function SearchRows()
             end),
         Choice(L["GPS_SIZE_BORDER"], L["OPT_WINDOW_BORDER_TT"], SettingsRows.BorderChoices(),
             SettingsRows.BorderValue, SettingsRows.SetBorder),
-        Choice(L["OPT_CLASSIC_BG"], L["OPT_CLASSIC_BG_TT"], SettingsRows.ClassicBgChoices(),
-            function() return db.classicArt or "marble" end,
-            function(value)
-                db.classicArt = value ~= "marble" and value or nil
-                Search("UpdateWindowBorders")
-                if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
-            end),
         Choice(L["OPT_ICON_VISIBILITY"], nil, {
                 { label = L["OPT_ICONS_ALL"], value = "all" }, { label = L["OPT_ICONS_GENERAL"], value = "general" },
                 { label = L["OPT_ICONS_SPECIFIC"], value = "specific" },

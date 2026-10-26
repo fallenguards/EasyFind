@@ -178,6 +178,8 @@ local function SyncOptionControls()
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
     if optionsFrame.RefreshBorderRow then optionsFrame.RefreshBorderRow() end
     if optionsFrame.classicBgRow then optionsFrame.classicBgRow:SetValue(EasyFind.db.classicArt or "marble") end
+    if optionsFrame.classicAlphaRow then optionsFrame.classicAlphaRow:SetValue(mfloor(ns.ClassicArtAlpha() * 100 + 0.5)) end
+    if optionsFrame.UpdateClassicRows then optionsFrame.UpdateClassicRows() end
     if optionsFrame.searchAutocompleteCheckbox then optionsFrame.searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false) end
     if optionsFrame.showAppsButtonCheckbox then optionsFrame.showAppsButtonCheckbox:SetChecked(EasyFind.db.showAppsButton ~= false) end
     if optionsFrame.showFilterButtonCheckbox then optionsFrame.showFilterButtonCheckbox:SetChecked(EasyFind.db.showFilterButton ~= false) end
@@ -1625,7 +1627,39 @@ local function BuildGeneralBindsTab(ctx)
         ns.ThemeStudio:Open()
     end)
 
-    local indicatorRow, indicatorLabel = CreateSelectorRow(themeRow, L["OPT_INDICATOR_STYLE"])
+    -- The Classic theme's window background, the marble or a talent tree
+    -- named as its class's tab reads, and the tree's strength.
+    local classicAlphaRow
+    do
+        local function Redress()
+            optionsFrame:RepaintTheme()
+            ns.SettingsRows.RedressClassic()
+        end
+        local bgRow = ctx.CreateFlyoutPresetRow(sec3, L["OPT_CLASSIC_BG"], ns.SettingsRows.ClassicBgChoices(),
+            function() return EasyFind.db.classicArt or "marble" end,
+            function(value)
+                EasyFind.db.classicArt = value ~= "marble" and value or nil
+                Redress()
+            end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"])
+        bgRow:SetPoint("TOPLEFT", themeRow, "BOTTOMLEFT", 0, -8)
+        classicAlphaRow = CreateStepperRow(sec3, L["OPT_CLASSIC_BG_ALPHA"], 10, 100,
+            function() return mfloor(ns.ClassicArtAlpha() * 100 + 0.5) end,
+            function(value)
+                EasyFind.db.classicArtAlpha = value < 100 and value / 100 or nil
+                RunSoon(Redress)
+            end, L["OPT_CLASSIC_BG_ALPHA_TT"], SELECTOR_ROW_W, 5)
+        classicAlphaRow:SetPoint("TOPLEFT", bgRow, "BOTTOMLEFT", 0, -6)
+        optionsFrame.classicBgRow, optionsFrame.classicAlphaRow = bgRow, classicAlphaRow
+        -- Grayed and closed unless the Classic frames show.
+        optionsFrame.UpdateClassicRows = function()
+            local on = ns.IsClassicChrome() and true or false
+            bgRow:SetGroupEnabled(on)
+            classicAlphaRow:SetGroupEnabled(on)
+        end
+        optionsFrame.UpdateClassicRows()
+    end
+
+    local indicatorRow, indicatorLabel = CreateSelectorRow(classicAlphaRow, L["OPT_INDICATOR_STYLE"])
 
     local indicatorChoices = {"EasyFind Arrow", "Chevrons", "Classic Quest Arrow", "Minimap Player Arrow", "Low-res Gauntlet", "HD Gauntlet"}
     if ns.Caps and ns.Caps.classic then table.remove(indicatorChoices) end
@@ -2229,24 +2263,6 @@ local function BuildSearchTab(ctx)
         borderRow:SetValue(BorderValue())
     end
 
-    -- The Classic theme's window background: the marble, or a talent tree
-    -- named as its class's tab reads.
-    local classicBgChoices = { { label = L["CLASSIC_BG_MARBLE"], value = "marble" } }
-    local classNames = _G["LOCALIZED_CLASS_NAMES_MALE"] or {}
-    for _, tree in ipairs(ns.CLASSIC_TREES or {}) do
-        local class = tree:match("^%u%l+")
-        classicBgChoices[#classicBgChoices + 1] = {
-            label = (classNames[class:upper()] or class) .. ": " .. L["TREE_" .. tree], value = tree }
-    end
-    local classicBgRow = CreateFlyoutPresetRow(sec1, L["OPT_CLASSIC_BG"], classicBgChoices,
-        function() return EasyFind.db.classicArt or "marble" end,
-        function(value)
-            EasyFind.db.classicArt = value ~= "marble" and value or nil
-            if ns.Search and ns.Search.UpdateWindowBorders then ns.Search:UpdateWindowBorders() end
-            if optionsFrame.RepaintTheme then optionsFrame:RepaintTheme() end
-            if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
-        end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"])
-    optionsFrame.classicBgRow = classicBgRow
 
     local searchAutocompleteCheckbox = CreateCheckbox(sec1, "SearchAutocomplete",
         L["OPT_INLINE_AUTOCOMPLETE"], L["OPT_INLINE_AUTOCOMPLETE_TT"], true, CHECK_COL_W)
@@ -2516,7 +2532,6 @@ local function BuildSearchTab(ctx)
     macroPickerSearchCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
     searchAutocompleteCheckbox:SetPoint("TOPLEFT", learnPicksCheckbox, "BOTTOMLEFT", 0, -2)
     clickSelectsCheckbox:SetPoint("TOPLEFT", searchAutocompleteCheckbox, "TOPRIGHT", CHECK_COL_GAP, 0)
-    classicBgRow:SetPoint("TOPLEFT", searchAutocompleteCheckbox, "BOTTOMLEFT", 0, -4)
 
     local function RefreshUIPresetRows()
         if optionsFrame.uiFontPresetRow then
@@ -5915,6 +5930,7 @@ function Options:Initialize()
     StyleWizardBackground(bgTex)
     bgTex:SetAlpha(OPTIONS_PANEL_ALPHA)
     optionsFrame.bgTex = bgTex
+    optionsFrame._efTreeHost = bgTex
     -- Light themes: panel-level text goes dark (see RetintPanelText).
     -- Runs on every show so a theme switched while closed lands too.
     -- One owner for the panel's theme visuals: the gloss fill, panel text,
@@ -5941,6 +5957,7 @@ function Options:Initialize()
         if self.RestyleSettingsSearch then pcall(self.RestyleSettingsSearch) end
         if self.RepaintFlyouts then pcall(self.RepaintFlyouts) end
         if self.RefreshBorderRow then pcall(self.RefreshBorderRow) end
+        if self.UpdateClassicRows then self.UpdateClassicRows() end
         if self.themeBtnText then
             self.themeBtnText:SetText(EasyFind.db.uiTheme
                 or (ns.DB_DEFAULTS and ns.DB_DEFAULTS.uiTheme) or "Midnight")
@@ -6415,6 +6432,12 @@ function Options:Initialize()
 
         row.flyout = flyout
         row.SetValue = function(self, value) btnText:SetText(LabelFor(value)) end
+        row.SetGroupEnabled = function(self, enabled)
+            self:SetAlpha(enabled and 1.0 or 0.35)
+            ApplyRowLabelColor(label, enabled, self)
+            btnFrame:SetEnabled(enabled)
+            if not enabled then flyout:Hide() end
+        end
         return row
     end
     local RESET_BTN_W = 120
