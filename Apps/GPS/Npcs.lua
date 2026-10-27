@@ -127,6 +127,49 @@ end
 local function At(s, i)
     return U24(s, i * 3 - 2)
 end
+-- The starts of a newline-wrapped text's lines as 3-byte numbers, one past
+-- the last line included: made here, not shipped (2026-10-27: the tables
+-- weighed 1.6 MiB zipped over the clients and compress to nothing).
+local function LineStarts(text)
+    if not text then return nil end
+    local out, n, p = {}, 0, 1
+    while true do
+        local q = sfind(text, "\n", p, true)
+        if not q then break end
+        local v = q + 1
+        n = n + 1
+        out[n] = schar(v % 256, mfloor(v / 256) % 256, mfloor(v / 65536))
+        p = v
+        if n % 2048 == 0 then SliceCheckpoint() end
+    end
+    return tconcat(out)
+end
+N.LineStarts = LineStarts
+
+-- The tables made at login, in the idle slices, so the first query finds
+-- them ready (a query before then makes them itself, once).
+do
+    local function Warm()
+        local data = ns.NPC_DATA
+        if not data or N.n then return end
+        local Utils = ns.Utils
+        local run = Utils and Utils.RunSliced or function(fn) fn() end
+        run(function()
+            if N.n then return end
+            data.nameAt = data.nameAt or LineStarts(data.names)
+            data.localNameAt = data.localNameAt or LineStarts(data.localNames)
+            data.goodsNameAt = data.goodsNameAt or LineStarts(data.goodsNames)
+            data.localGoodsAt = data.localGoodsAt or LineStarts(data.localGoods)
+        end, function() end, 4, "npc line starts")
+    end
+    N.Warm = Warm
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_LOGIN")
+    f:SetScript("OnEvent", function(self)
+        self:UnregisterAllEvents()
+        if ns.Utils and ns.Utils.SafeAfter then ns.Utils.SafeAfter(3, Warm) else Warm() end
+    end)
+end
 -- Creature i's record field whose planes start at plane p.
 local function Planes(p, width, i)
     local rec, n = N.rec, N.n
@@ -234,7 +277,7 @@ end
 -- only once all are in.
 local function Bind()
     local data = ns.NPC_DATA
-    local rec, at = data and data.rec, data and data.nameAt
+    local rec, at = data and data.rec, data and (data.nameAt or LineStarts(data.names))
     if not (rec and at and data.spots and data.kinds and data.titleIdx and data.names and data.namesLow
             and data.titleAt and data.titleCreatures and data.titleName and data.titleLow) then
         N.n = 0
@@ -246,7 +289,8 @@ local function Bind()
     N.rec, N.spots, N.kinds, N.titleIdx = rec, data.spots, data.kinds, data.titleIdx
     N.titleAt, N.titleCreatures = data.titleAt, data.titleCreatures
     -- Other clients: their merged names, English beside them.
-    local own, ownAt = data.localNames, data.localNameAt
+    local own = data.localNames
+    local ownAt = data.localNameAt or LineStarts(own)
     if own and ownAt and data.localNamesLow and #ownAt == #at then
         N.names, N.at, N.low = own, ownAt, data.localNamesLow
         N.enNames, N.enAt, N.enLow = data.names, at, data.namesLow
@@ -273,7 +317,8 @@ local function LoadGoods()
     if N.goodsN then return N.goodsN > 0 end
     local data = ns.NPC_DATA
     if not (data and data.goodsTypes and Load()) then N.goodsN = 0 return false end
-    local types, text, at = data.goodsTypes, data.goodsNames, data.goodsNameAt
+    local types, text = data.goodsTypes, data.goodsNames
+    local at = data.goodsNameAt or LineStarts(text)
     if not (data.goodsListAt and data.goodsLists and data.sells and data.vendors and text and at
             and data.goodsNamesLow) or #at ~= (#types + 1) * 3 then
         N.goodsN = 0
@@ -281,7 +326,8 @@ local function LoadGoods()
     end
     N.goodsTypes, N.goodsListAt, N.goodsLists = types, data.goodsListAt, data.goodsLists
     N.sells, N.vendors = data.sells, data.vendors
-    local own, ownAt = data.localGoods, data.localGoodsAt
+    local own = data.localGoods
+    local ownAt = data.localGoodsAt or LineStarts(own)
     if own and ownAt and data.localGoodsLow and #ownAt == #at then
         N.goodsText, N.goodsAt, N.goodsLow = own, ownAt, data.localGoodsLow
         N.goodsEnText, N.goodsEnAt, N.goodsEnLow = text, at, data.goodsNamesLow

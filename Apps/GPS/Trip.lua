@@ -618,7 +618,7 @@ local function TintGlass(box, ink)
     if not box.searchIcon then return end
     local on = box:HasFocus() or (box:GetText() or "") ~= ""
     if ink.light then
-        local c = on and ink.primary or ink.dim
+        local c = ink.field
         box.searchIcon:SetVertexColor(c[1], c[2], c[3])
     else
         local v = on and 1 or 0.6
@@ -759,8 +759,11 @@ function Editor:Refresh(route)
         end
         Trip.Tag(row.box, adding and self.along or false)
         if row.box.alongTag then row.box.alongTag:SetTextColor(dim[1], dim[2], dim[3], 1) end
-        if row.box.Instructions then row.box.Instructions:SetTextColor(dim[1], dim[2], dim[3], 1) end
-        local typed = ink.light and ink.primary or row.textColor
+        -- On a light theme the hint, the words, the glass and the X are one
+        -- blue, the theme's a shade darker; the dim hint otherwise.
+        local hint = ink.light and ink.field or dim
+        if row.box.Instructions then row.box.Instructions:SetTextColor(hint[1], hint[2], hint[3], 1) end
+        local typed = ink.light and ink.field or row.textColor
         row.box:SetTextColor(typed[1], typed[2], typed[3], 1)
         TintGlass(row.box, ink)
         -- The along field keeps its X while open, typed in or not: the
@@ -770,7 +773,7 @@ function Editor:Refresh(route)
         local clear = row.box.clearButton
         if clear then clear:SetShown(row.along or row.box:HasFocus() or (row.box:GetText() or "") ~= "") end
         if clear and clear.texture then
-            local c = ink.light and dim or ink.hover
+            local c = ink.light and ink.field or ink.hover
             clear.texture:SetVertexColor(c[1], c[2], c[3])
         end
         if px and g.SizeFont then

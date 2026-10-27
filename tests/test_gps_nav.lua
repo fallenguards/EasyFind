@@ -351,7 +351,7 @@ end
 -- with no way searches all the ground it reaches first) and the landmarks.
 -- The varint form would be decoded on a session's first plan.
 local SHIPPED_GRIDS = {
-    "Walk_EasternKingdoms", "Walk_Kalimdor", "Walk_ZephrasIsle", "Walk_EasternKingdoms_Retail",
+    "Walk_EasternKingdoms", "Walk_Kalimdor", "Walk_ZephrasIsle",
     "Walk_EasternKingdoms_Era", "Walk_Kalimdor_Era", "Walk_EasternKingdoms_TBC", "Walk_Kalimdor_TBC",
     "Walk_Outland_TBC",
 }

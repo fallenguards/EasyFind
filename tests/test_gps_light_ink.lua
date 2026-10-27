@@ -41,7 +41,9 @@ function tests.lightTheme_thePopoutTakesTheThemesInk()
     H.assertTrue(same(ink.primary, SKY.pathColorHover), "the active step")
     H.assertTrue(same(ink.next, SKY.leafColor), "steps to come")
     H.assertTrue(same(ink.dim, SKY.textFaint), "done, the time, the links")
-    H.assertTrue(same(ink.aside, SKY.accent), "advice")
+    H.assertTrue(same(ink.aside, { SKY.accent[1] * 0.8, SKY.accent[2] * 0.8, SKY.accent[3] * 0.8 }), "advice, a shade darker")
+    H.assertTrue(same(ink.field, { SKY.leafColor[1] * 0.85, SKY.leafColor[2] * 0.85, SKY.leafColor[3] * 0.85 }),
+        "the fields' words, glass and X: one blue")
     H.assertEq(#ink.aside, 3, "no alpha of the accent's on the text")
 end
 

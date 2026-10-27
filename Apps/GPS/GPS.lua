@@ -17,15 +17,19 @@ ns.GPS = GPS
 do
     local DARK = { primary = { 1, 0.97, 0.86 }, num = ns.GOLD_COLOR, next = ns.TEXT_NEXT, dim = ns.TEXT_DIM,
         aside = ns.TEXT_ASIDE, hover = { 1, 1, 1 }, glyph = { 0.8, 0.8, 0.82 } }
-    local LIGHT = { light = true, primary = {}, num = { 0.78, 0.45, 0.0 }, next = {}, dim = {}, aside = {}, hover = {}, glyph = {} }
+    local LIGHT = { light = true, primary = {}, num = { 0.78, 0.45, 0.0 }, next = {}, dim = {}, aside = {}, hover = {}, glyph = {},
+        field = {} }
+    -- A shade darker than the theme's own: the asides and the fields' text
+    -- read better on the light fill (2026-10-27).
+    local DARKER = { aside = 0.8, field = 0.85 }
     local FROM = { primary = "pathColorHover", next = "leafColor", dim = "textFaint", aside = "accent",
-        hover = "pathColorHover", glyph = "chromeGlyph" }
+        hover = "pathColorHover", glyph = "chromeGlyph", field = "leafColor" }
     function GPS.Ink(frame)
         local theme = frame and frame.isPopout and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
         if not (theme and theme.lightTheme) then return DARK end
         for key, field in pairs(FROM) do
-            local c, dst = theme[field] or theme.leafColor, LIGHT[key]
-            dst[1], dst[2], dst[3] = c[1], c[2], c[3]
+            local c, dst, k = theme[field] or theme.leafColor, LIGHT[key], DARKER[key] or 1
+            dst[1], dst[2], dst[3] = c[1] * k, c[2] * k, c[3] * k
         end
         return LIGHT
     end
@@ -2645,6 +2649,23 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
             box.Instructions:SetTextColor(c[1], c[2], c[3], 1)
             box.Instructions._efOwnColor = true
         end
+    end
+    -- On a light theme the hint, the words, the glass and the X are one
+    -- blue, as in the trip's fields; again after the client's own focus
+    -- scripts, which tint the glass.
+    if not frame.gameLook then
+        local function PaintBox(ink)
+            ink = ink or GPS.Ink(frame)
+            if not ink.light then return end
+            local c = ink.field
+            box:SetTextColor(c[1], c[2], c[3], 1)
+            if box.Instructions then box.Instructions:SetTextColor(c[1], c[2], c[3], 1) end
+            if box.searchIcon then box.searchIcon:SetVertexColor(c[1], c[2], c[3]) end
+            if box.clearButton and box.clearButton.texture then box.clearButton.texture:SetVertexColor(c[1], c[2], c[3]) end
+        end
+        GPS.Inked(frame, PaintBox)
+        box:HookScript("OnEditFocusGained", function() PaintBox() end)
+        box:HookScript("OnEditFocusLost", function() PaintBox() end)
     end
     -- The client focuses a fresh visible EditBox on its own; refuse that.
     box._blockAutoFocus = true

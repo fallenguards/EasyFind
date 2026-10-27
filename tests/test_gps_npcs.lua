@@ -471,6 +471,41 @@ function tests.localTitlesFind_andEnglishTitlesStillFind()
     H.assertEq(find(append, "general supplies")[1].name, "Brog Hamfist", "and the English one")
 end
 
+-- The line-start tables are made at load from the names' newlines, the
+-- same bytes the catalog used to ship (2026-10-27: 1.6 MiB zipped over
+-- the clients): names, local names and goods all find without them.
+function tests.lineStartsMadeAtLoad_findTheSameRows()
+    local append, Npcs, env = fresh("Koboldungeziefer\n\n\n", nil, nil, GOODS, true)
+    local data = env.EasyFind._ns.NPC_DATA
+    local shippedAt, shippedGoodsAt = data.nameAt, data.goodsNameAt
+    data.nameAt, data.localNameAt, data.goodsNameAt, data.localGoodsAt = nil, nil, nil, nil
+    H.assertTrue(Npcs.Load() and Npcs.LoadGoods(), "binds with no tables shipped")
+    H.assertEq(find(append, "hog")[1].npcID, 448)
+    H.assertEq(find(append, "vermin")[1].name, "Koboldungeziefer", "the client's language shows")
+    H.assertEq(find(append, "hogger")[1].name, "Hogger", "a blank local line falls back to English")
+    H.assertEq(find(append, "sharp arrow")[1].matchNote, "Sells Sharp Arrow", "goods find too")
+    -- The same bytes as shipped, so every reader of them is unchanged.
+    local N = env.EasyFind._ns.GPSNpcs
+    H.assertTrue(N.LineStarts ~= nil, "exposed for this check")
+    H.assertEq(N.LineStarts(data.names), shippedAt)
+    H.assertEq(N.LineStarts(data.goodsNames), shippedGoodsAt)
+end
+
+-- The login warm fills the tables before any query, the same bytes; a
+-- catalog already bound is left alone.
+function tests.loginWarm_fillsTheTablesAhead()
+    local append, Npcs, env = fresh("Koboldungeziefer\n\n\n", nil, nil, GOODS, true)
+    local data = env.EasyFind._ns.NPC_DATA
+    local shippedAt, shippedLocalAt, shippedGoodsAt = data.nameAt, data.localNameAt, data.goodsNameAt
+    data.nameAt, data.localNameAt, data.goodsNameAt, data.localGoodsAt = nil, nil, nil, nil
+    Npcs.Warm()
+    H.assertEq(data.nameAt, shippedAt, "English names")
+    H.assertEq(data.localNameAt, shippedLocalAt, "the client's names")
+    H.assertEq(data.goodsNameAt, shippedGoodsAt, "goods")
+    H.assertTrue(Npcs.Load() and Npcs.LoadGoods())
+    H.assertEq(find(append, "vermin")[1].name, "Koboldungeziefer")
+end
+
 function tests.anItemFindsWhoSellsIt()
     local append = fresh(nil, nil, nil, GOODS)
     local rows = find(append, "sharp arrow")
