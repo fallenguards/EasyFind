@@ -185,8 +185,10 @@ local function Stub()
         SetScript = function(self, name, fn) self._scripts[name] = fn end,
         GetScript = function(self, name) return self._scripts[name] end,
         HasFocus = function() return false end,
+        SetPoint = function(self, ...) self._points[#self._points + 1] = { ... } end,
+        ClearAllPoints = function(self) self._points = {} end,
     }
-    local t = { _scripts = {} }
+    local t = { _scripts = {}, _points = {} }
     return setmetatable(t, { __index = function(_, k)
         if special[k] then return special[k] end
         if k:match("^Get%w*Texture$") then return function() return Stub() end end
@@ -235,7 +237,7 @@ local function LoadView(lines)
         AllNotes = function() return { note } end,
     }
     assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/ChecklistView.lua", "t", env))("EasyFind_Notes", notesNS)
-    return notesNS.ChecklistView, note, w, made, CK
+    return notesNS.ChecklistView, note, w, made, CK, env
 end
 
 function tests.view_buildsTheListAndTheBoard()
@@ -253,6 +255,39 @@ function tests.view_buildsTheListAndTheBoard()
     View.ShowBoard(false)
     View.Sweep()
     View.SetAllowed(false)
+end
+
+-- The box, grip, icon, name, count and X share the first line's middle,
+-- so a line with a detail under it reads as a single line does (2026-10-26).
+function tests.view_itemLineDrawsItsIconAndLinkOnTheFirstLine()
+    local View, note, _, made, _, env = LoadView({ { link = "item", item = 7, target = 20 } })
+    local link = "|cffa335ee|Hitem:7::|h[Item7]|h|r"
+    env.C_Item.GetItemInfo = function(id) if id == 7 then return "Item7", link end end
+    View.SetAllowed(true)
+    local row
+    for _, b in ipairs(made.Button) do if b.line == note.list.lines[1] then row = b end end
+    H.assertTrue(row ~= nil, "the line has a row")
+    H.assertTrue(row.icon._shown, "the item's icon shows")
+    H.assertEq(row.name._text, link, "the name is the item's link")
+    H.assertEq(row.name._points[1][1], "LEFT")
+    H.assertEq(row.name._points[1][2], row.icon, "the name follows the icon, centered on it")
+    local mid = row.check._points[1][5]
+    for name, part in pairs({ check = row.check, grip = row.grip, count = row.progress, x = row.remove }) do
+        local p = part._points[1]
+        H.assertTrue(p[2] == row and p[3]:find("^TOP") ~= nil and p[5] == mid,
+            name .. " sits on the first line: " .. tostring(p[3]) .. " " .. tostring(p[5]))
+    end
+end
+
+function tests.lineLabel_drawsItemsAndSpellsAsTheirLinks()
+    local CK, _, env = Load()
+    env.EasyFind._ns.Utils.HexColorNames = function(s) return (s:gsub("|cnIQ4:", "|cffa335ee")) end
+    env.C_Item.GetItemInfo = function(id) if id == 7 then return "Item7", "|cnIQ4:|Hitem:7::|h[Item7]|h|r" end end
+    env.C_Spell = { GetSpellLink = function(id) return "|cff71d5ff|Hspell:" .. id .. "|h[Spell]|h|r" end }
+    H.assertEq(CK.LineLabel({ item = 7 }), "|cffa335ee|Hitem:7::|h[Item7]|h|r", "an item as its link, quality in hex")
+    H.assertEq(CK.LineLabel({ link = "cooldown", spell = 3 }), "|cff71d5ff|Hspell:3|h[Spell]|h|r")
+    H.assertEq(CK.LineLabel({ item = 8 }), "Item8", "not in the cache yet: its name")
+    H.assertEq(CK.LineLabel({ item = 7, text = "Mine" }), "Mine", "a renamed line keeps its words")
 end
 
 local function Texts(note)

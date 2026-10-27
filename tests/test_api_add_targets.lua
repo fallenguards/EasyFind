@@ -50,6 +50,17 @@ end
 
 -- The Add flyout: Note, Quicklist and an extension's entry, each with
 -- its icon; a core entry (Alias) has none.
+-- A target can make a new, empty one (Notes' + menu's New shopping list):
+-- its name comes with it.
+function tests.aNewEntryNeedsItsName()
+    local _, _, API = World()
+    API.RegisterExtension({ id = "auctionator", name = "Auctionator", icon = 1 })
+    H.assertFalse(pcall(API.RegisterAddTarget, { key = "lists", extension = "auctionator", label = "Shopping list",
+        rows = Rows, new = function() end }), "new without newLabel")
+    H.assertTrue(API.RegisterAddTarget({ key = "lists", extension = "auctionator", label = "Shopping list",
+        rows = Rows, new = function() end, newLabel = "New shopping list" }))
+end
+
 function tests.addEntriesWearTheirIcons()
     local env, ns, API = World()
     env.CreateFont, env.CreateFrame = fakeWidget, fakeWidget

@@ -361,6 +361,18 @@ function CK.LineName(line)
     return link and link.Name(line) or ""
 end
 
+-- The name as drawn: an item or spell as its game link, colored, in brackets.
+function CK.LineLabel(line)
+    if line.text and line.text ~= "" then return line.text end
+    local link
+    if line.item then
+        link = C_Item and C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(line.item))
+    elseif line.link == "cooldown" and line.spell then
+        link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(line.spell)
+    end
+    return link and ns.Utils.HexColorNames(link) or CK.LineName(line)
+end
+
 -- How many lines are done on this character.
 function CK.Progress(note)
     local done, total = 0, #note.list.lines

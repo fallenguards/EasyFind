@@ -237,11 +237,14 @@ local function Empty(rows)
     return rows
 end
 
+-- The bags, quest log and factions run long: a search, and a scroll past 14.
 local function LinkMenu(owner, note)
+    local find, cap = L["SEARCH_PLACEHOLDER"], 14
     Menu(owner, {
-        { text = L["CHECK_LINK_ITEM"], submenu = Empty(BagItemRows(note)), tooltip = L["CHECK_SHIFT_CLICK_TT"] },
-        { text = L["CHECK_LINK_QUEST"], submenu = Empty(QuestRows(note)) },
-        { text = L["CHECK_LINK_REP"], submenu = Empty(FactionRows(note)) },
+        { text = L["CHECK_LINK_ITEM"], submenu = Empty(BagItemRows(note)), tooltip = L["CHECK_SHIFT_CLICK_TT"],
+          submenuSearch = find, submenuMaxRows = cap },
+        { text = L["CHECK_LINK_QUEST"], submenu = Empty(QuestRows(note)), submenuSearch = find, submenuMaxRows = cap },
+        { text = L["CHECK_LINK_REP"], submenu = Empty(FactionRows(note)), submenuSearch = find, submenuMaxRows = cap },
         { text = L["CHECK_LINK_GOLD"], onClick = function()
             Ask(L["CHECK_GOLD_ASK"], 100, function(n) AddLine(note, { link = "gold", target = mfloor(n * 10000) }) end, true)
         end },
@@ -249,7 +252,7 @@ local function LinkMenu(owner, note)
             Ask(L["CHECK_LEVEL_ASK"], (UnitLevel("player") or 1) + 1, function(n) AddLine(note, { link = "level", target = mfloor(n) }) end, true)
         end },
         { text = L["CHECK_LINK_SKILL"], submenu = Empty(SkillRows(note)) },
-        { text = L["CHECK_LINK_LOCKOUT"], submenu = Empty(LockoutRows(note)) },
+        { text = L["CHECK_LINK_LOCKOUT"], submenu = Empty(LockoutRows(note)), submenuMaxRows = cap },
         { text = L["CHECK_LINK_COOLDOWN"], onClick = function()
             Ask(L["CHECK_COOLDOWN_ASK"], "", function(v)
                 local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(tonumber(v) or v)
@@ -297,11 +300,16 @@ local function RowMenu(row)
     Menu(row, rows)
 end
 
+-- The icon of the item or spell a line names, or of the link it opens with.
 local function ItemIcon(line)
-    if line.item then return C_Item.GetItemIconByID and C_Item.GetItemIconByID(line.item) end
-    if line.link == "cooldown" then
-        return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(line.spell)
+    local kind, id = line.item and "item", line.item
+    if not kind and line.link == "cooldown" then kind, id = "spell", line.spell end
+    if not kind then
+        kind, id = smatch(line.text or "", "^|c[^|]*|H(%a+):(%d+)")
+        id = tonumber(id)
     end
+    if kind == "item" then return C_Item.GetItemIconByID and C_Item.GetItemIconByID(id) end
+    if kind == "spell" then return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id) end
 end
 
 -- Every state of the box over the box: the template's glow and pressed
@@ -321,7 +329,7 @@ local function CreateRow(i)
     -- from it carries the line to another place.
     local grip = CreateFrame("Button", nil, row)
     grip:SetSize(GRIP_W, 20)
-    grip:SetPoint("LEFT", row, "LEFT", 0, 0)
+    grip:SetPoint("LEFT", row, "TOPLEFT", 0, LINE_MID)
     Utils.AddGripDots(grip, FAINT_COLOR)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() View.DragStart(row) end)
@@ -340,7 +348,7 @@ local function CreateRow(i)
     row.remove = remove
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.check:SetSize(CHECK_W, CHECK_W)
-    row.check:SetPoint("TOPLEFT", row, "TOPLEFT", GRIP_W, -2)
+    row.check:SetPoint("LEFT", row, "TOPLEFT", GRIP_W, LINE_MID)
     if Utils.SetCheckboxTextures then Utils.SetCheckboxTextures(row.check, CHECK_W) end
     local check = row.check
     FitBox(check:GetNormalTexture(), check)
@@ -368,7 +376,7 @@ local function CreateRow(i)
     row.progress = Text(row, "GameFontHighlight")
     row.progress:SetJustifyH("RIGHT")
     -- On the name's line, left of the X: the detail line runs under it.
-    row.progress:SetPoint("TOPRIGHT", row, "TOPRIGHT", -18, -6)
+    row.progress:SetPoint("RIGHT", row, "TOPRIGHT", -18, LINE_MID)
     row.detail = Text(row, "GameFontDisableSmall")
     -- A click on the line types in it; the auction search for an item
     -- line is on its menu.
@@ -422,9 +430,9 @@ local function FillRow(row, note, line, y)
     row.icon:SetShown(icon ~= nil)
     if icon then row.icon:SetTexture(icon) end
     row.name:ClearAllPoints()
-    row.name:SetPoint("TOPLEFT", icon and row.icon or row.check, "TOPRIGHT", 4, icon and 0 or -4)
+    row.name:SetPoint("LEFT", icon and row.icon or row.check, "RIGHT", 4, 0)
     row.name:SetPoint("RIGHT", row.progress, "LEFT", -6, 0)
-    row.name:SetText(CK.LineName(line))
+    row.name:SetText(CK.LineLabel(line))
     local c = row.done and DONE_COLOR or OPEN_COLOR
     row.name:SetTextColor(c[1], c[2], c[3], 1)
     row.progress:SetText(progress or "")
@@ -505,7 +513,7 @@ local function FillBoard(note)
         row.name:ClearAllPoints()
         row.name:SetPoint("LEFT", row, "LEFT", 0, 0)
         row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-        row.name:SetText(CK.LineName(line))
+        row.name:SetText(CK.LineLabel(line))
         row.name:SetTextColor(1, 1, 1, 1)
         row.name:SetAlpha(1)
         row:Show()
@@ -705,7 +713,7 @@ end
 
 local EVENTS = { "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE", "QUEST_TURNED_IN", "UPDATE_FACTION", "PLAYER_MONEY",
     "PLAYER_LEVEL_UP", "SKILL_LINES_CHANGED", "UPDATE_INSTANCE_INFO", "SPELL_UPDATE_COOLDOWN",
-    "BAG_UPDATE_COOLDOWN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }
+    "BAG_UPDATE_COOLDOWN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "GET_ITEM_INFO_RECEIVED" }
 local watcher = CreateFrame("Frame")
 watcher:SetScript("OnEvent", function()
     if UI.queued then return end

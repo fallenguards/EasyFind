@@ -555,12 +555,13 @@ end
 -- fullLabel (alone in the menu, "Add to shopping list"), applies(row) (true
 -- for the rows it takes; every row without it), rows(row) (the flyout's
 -- rows, in the tile menu's shape), onClick(row) (a click on the entry
--- itself; its flyout opens on hover). Registering a key again replaces it.
+-- itself; its flyout opens on hover), new() and newLabel (a new, empty one,
+-- from Notes' + menu). Registering a key again replaces it.
 local AddTargets = {}
 Extensions.AddTargets = AddTargets
 local ADD_TARGET_FIELDS = {
     key = "string", extension = "string", label = "string", fullLabel = "string",
-    applies = "function", rows = "function", onClick = "function",
+    applies = "function", rows = "function", onClick = "function", new = "function", newLabel = "string",
 }
 function API.RegisterAddTarget(def)
     if type(def) ~= "table" then Fail("RegisterAddTarget", "expects a table") end
@@ -571,6 +572,7 @@ function API.RegisterAddTarget(def)
     for _, k in ipairs({ "key", "extension", "label", "rows" }) do
         if def[k] == nil then Fail("RegisterAddTarget", k .. " is required") end
     end
+    if def.new and not def.newLabel then Fail("RegisterAddTarget", "newLabel is required with new") end
     local owner = Extensions.Get(def.extension)
     if not (owner and owner.icon) then
         Fail("RegisterAddTarget", "extension '" .. def.extension .. "' must be registered first, with its icon")

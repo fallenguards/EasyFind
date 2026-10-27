@@ -59,6 +59,8 @@
 ---@field applies? fun(row: EasyFindRow): boolean The rows it takes; every row without it.
 ---@field rows fun(row: EasyFindRow): EasyFindMenuRow[]|nil Required: the flyout's rows.
 ---@field onClick? fun(row: EasyFindRow) A click on the entry itself; its flyout opens on hover.
+---@field new? fun() Makes a new, empty one: Notes' + menu lists it, with newLabel.
+---@field newLabel? string Its New entry's name ("New shopping list"); needed with new.
 
 ---@class EasyFindLink
 ---@field key fun(row: EasyFindRow): string|nil A short string the link carries (an id, the sender's progress).

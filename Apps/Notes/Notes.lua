@@ -1979,21 +1979,11 @@ Ctx.SetOnChange(function(event)
     end
 end)
 
--- Reminders: a note may carry an optional reminderAt timestamp. A slow ticker
--- (and the context watcher's PLAYER_ENTERING_WORLD) fire due ones with a chat
--- alert, then clear them so each fires once.
+-- Due reminders (Reminders.lua), from a slow ticker and the context
+-- watcher's PLAYER_ENTERING_WORLD.
 function UI:CheckEasyNotesReminders()
-    if type(EasyNotesDB) ~= "table" or type(EasyNotesDB.notes) ~= "table" then return end
-    local now = time()
-    local notes = EasyNotesDB.notes
-    for i = 1, #notes do
-        local note = notes[i]
-        if note.reminderAt and note.reminderAt <= now then
-            note.reminderAt = nil
-            EasyFind:Print(Utils.sformat(L["NOTES_REMINDER_FMT"], NoteTitle(note)))
-            if PlaySound and SOUNDKIT then pcall(PlaySound, SOUNDKIT.IG_QUEST_LOG_OPEN) end
-        end
-    end
+    if type(EasyNotesDB) ~= "table" or type(EasyNotesDB.notes) ~= "table" or not notesNS.Reminders then return end
+    notesNS.Reminders.CheckDue(EasyNotesDB.notes, time())
 end
 if C_Timer and C_Timer.NewTicker then
     C_Timer.NewTicker(60, function() UI:CheckEasyNotesReminders() end)
@@ -2121,6 +2111,9 @@ local function StyleAccentButton(btn, label, w, h)
     TrackThemedButton(btn, true)
     PaintAccentButton(btn)
 end
+-- For the Notes files that build their own small windows.
+notesNS.StyleSubtleButton, notesNS.StyleAccentButton = StyleSubtleButton, StyleAccentButton
+notesNS.NoteTitle = NoteTitle
 
 -- The window's parts, shared by the window and its preview in the theme
 -- studio, so the two can never differ.
@@ -2323,6 +2316,20 @@ end
 local function FindLineEndByte(text, pos)
     local nlIdx = text:find("\n", pos + 1)
     return nlIdx and (nlIdx - 1) or #text
+end
+
+-- A checkbox line under the caret (lo nil) or in the selection: its strike
+-- is the tick's, so the strike button stands down there.
+function Fmt.TouchesCheckbox(text, caret, lo, hi)
+    local pos = lo and FindLineStartByte(text, lo - 1) or FindLineStartByte(text, caret or 0)
+    local last = hi or pos
+    while true do
+        local prefix = text:sub(pos, pos + #CHECK_EMPTY_PREFIX - 1)
+        if prefix == CHECK_EMPTY_PREFIX or prefix == CHECK_FILLED_PREFIX then return true end
+        local nlIdx = text:find("\n", pos, true)
+        if not nlIdx or nlIdx >= last then return false end
+        pos = nlIdx + 1
+    end
 end
 
 -- Project the raw note text to a plain, lowercased string for find/replace,
@@ -4235,7 +4242,7 @@ function UI:EnsureEasyNotesFrame()
     frame.newButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     frame.newButton:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
-            Utils.ShowCursorMenu("EasyNotesNewMenu", {
+            local rows = {
                 { text = L["NOTES_NEW"], onClick = function()
                     CreateNote("")
                     UI:HideEasyNotesPalette()
@@ -4243,7 +4250,14 @@ function UI:EnsureEasyNotesFrame()
                     UI:FocusEasyNoteEditor()
                 end },
                 { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
-            }, { toggleOwner = self })
+            }
+            -- An extension's own lists (a shopping list), in its icon.
+            local Extensions = ns.Extensions
+            for _, target in ipairs(Extensions and Extensions.AddTargets or {}) do
+                local owner = target.new and Extensions.Get(target.extension)
+                if owner then rows[#rows + 1] = { text = target.newLabel, icon = owner.icon, onClick = target.new } end
+            end
+            Utils.ShowCursorMenu("EasyNotesNewMenu", rows, { toggleOwner = self })
             return
         end
         CreateNote("")
@@ -5570,6 +5584,14 @@ end
 function UI:RefreshEasyNotesToolbarButton(btn)
     if not btn or not btn.actionKey then return end
     local active = UI._notes.activeModes[btn.actionKey]
+    if btn.actionKey == "strike" then
+        local editor = Fmt.ActiveFormatEditor()
+        local cs = UI._notes.curSelection
+        local off = editor and Fmt.TouchesCheckbox(editor:GetText() or "", editor:GetCursorPosition() or 0,
+            cs and cs.lo, cs and cs.hi)
+        btn:SetAlpha(off and 0.35 or 1)
+        if off then active = nil end
+    end
     -- A light theme's toolbar is pale: the engaged fill takes the theme's
     -- control accent and resting ink its dark text, or neither shows.
     local look = ns.ThemeSetOf(btn)
@@ -5732,6 +5754,7 @@ function UI:ApplyEasyNotesFormat(action, capturedLo, capturedHi, capturedCursor)
         self:PromptEasyNotesColor(lo, hi, cursor)
         return
     end
+    if action.mode == "strike" and Fmt.TouchesCheckbox(text, cursor, lo, hi) then return end
 
     if action.numbered then
         local before = text:sub(1, cursor)
@@ -7832,23 +7855,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
                     if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
                 end }
         end
-        local function remindRow(label, offset)
-            return { text = label, onClick = function()
-                note.reminderAt = time() + offset
-                note.updated = time()
-            end }
-        end
-        local remindSub = {
-            remindRow(L["NOTES_REMIND_1H"], 3600),
-            remindRow(L["NOTES_REMIND_4H"], 4 * 3600),
-            remindRow(L["NOTES_REMIND_TOMORROW"], 24 * 3600),
-            remindRow(L["NOTES_REMIND_3D"], 3 * 24 * 3600),
-            remindRow(L["NOTES_REMIND_1W"], 7 * 24 * 3600),
-            { isSeparator = true },
-            { text = note.reminderAt and L["NOTES_REMIND_CLEAR"] or L["NOTES_REMIND_NONE"],
-              disabled = not note.reminderAt,
-              onClick = function() note.reminderAt = nil; note.updated = time() end },
-        }
+        local function remindSub() return notesNS.Reminders.MenuRows(note) end
 
         local newSub = {
             { text = L["NOTES_NEW"], onClick = function()
