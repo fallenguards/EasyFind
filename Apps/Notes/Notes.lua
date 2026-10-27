@@ -2066,8 +2066,21 @@ end
 -- but a paint already applied does not, so a repaint sweep is required.
 local themedButtons = {}
 
+-- Under the Classic skin the window's buttons are the 1.x red panel
+-- buttons EasyFind's own are; true while they wear it.
+function UI.PaintClassicButton(btn, hovered)
+    if ns.IsClassicChrome and ns.IsClassicChrome() and ns.PaintRedButton then
+        ns.SetRoundedRectBorderShown(btn, false)
+        ns.PaintRedButton(btn, hovered and ns.BTN_FILL_HOVER or ns.BTN_FILL_NORMAL)
+        return true
+    end
+    if btn._efRedOn and ns.DropRedButton then ns.DropRedButton(btn) end
+    return false
+end
+
 local function PaintSubtleButton(btn, hovered)
     if not ns.SetRoundedRectFill then return end
+    if UI.PaintClassicButton(btn, hovered) then return end
     -- Fill only. Text stays GameFontHighlightSmall white and is never recolored,
     -- exactly like EasyFind's theme/font/indicator selector buttons: constant
     -- color and font before and after hover. Control fills stay dark on every
@@ -2079,6 +2092,7 @@ end
 -- The same fill as the window's other buttons, so the header reads as one.
 local function PaintAccentButton(btn)
     if not ns.SetRoundedRectFill then return end
+    if UI.PaintClassicButton(btn, false) then return end
     local ac = ns.ThemeSetOf(btn).BTN_FILL_NORMAL or ns.ThemeSetOf(btn).NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
     ns.SetRoundedRectFill(btn, ac[1], ac[2], ac[3], 1, true)
 end
@@ -4177,6 +4191,8 @@ function UI:EnsureEasyNotesFrame()
     frame = CreateFrame("Frame", "EasyNotesFrame", UIParent)
     -- Its colors: the Notes page of the theme (ns.ThemeSetOf).
     frame._efSurface = "notes"
+    -- Its Classic frame at a window's full weight.
+    frame._efClassicStyle = "window"
     -- Built hidden: a new frame starts shown, so its first open ran no OnShow.
     frame:Hide()
     UI._notes.frame = frame
@@ -4248,12 +4264,13 @@ function UI:EnsureEasyNotesFrame()
         ns.SetRoundedRectBorderEdgeShown(frame, false)
         if db.border == false then ns.SetRoundedRectRingShown(frame, false) end
         if ns.Results.ApplySearchWindowFill then
-            ns.Results:ApplySearchWindowFill(frame)
-            -- The body follows a theme change in place, the header too.
+            -- Its border as set (the frame art, the line or none) and the
+            -- fill; again at each theme change, the header too.
+            UI:ApplyEasyNotesWindowLook()
             if ns.RegisterThemeCallback then
                 ns.RegisterThemeCallback(function()
-                    ns.Results:ApplySearchWindowFill(frame)
-                    ns.SetRoundedRectBorderBgAlpha(frame, db.opacity or OPACITY_DEFAULT)
+                    UI:ApplyEasyNotesWindowLook()
+                    ns.SetRoundedRectBorderBgAlpha(frame, NormalizeDB().opacity or OPACITY_DEFAULT)
                 end)
             end
         else
@@ -4303,11 +4320,11 @@ function UI:EnsureEasyNotesFrame()
         UI:FocusEasyNoteEditor()
     end)
     frame.newButton:SetScript("OnEnter", function(self)
-        if ns.SetRoundedRectFill then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
+        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, true) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
         UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW_TT"])
     end)
     frame.newButton:SetScript("OnLeave", function(self)
-        if ns.SetRoundedRectFill then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
+        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, false) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
         UI:HideNotesTip(self)
     end)
 
@@ -9425,16 +9442,20 @@ end
 
 -- The window's lock (no drag, no resize) and its border, as set.
 -- The window's border by its setting: none, the line, or the theme's own
--- frame art where it has one (the line where it has none).
+-- frame art where it has one (the line where it has none). The art is the
+-- default, by the window border switch as EasyFind's own windows; an old
+-- explicit "iron" keeps it whatever the switch says.
 function UI:ApplyEasyNotesWindowLook()
     local frame, db = UI._notes.frame, NormalizeDB()
     if not frame then return end
     if frame.resizeGrip then frame.resizeGrip:SetShown(not db.locked) end
     local on = db.border ~= false
-    local iron = on and db.borderStyle == "iron"
+    local iron = on and db.borderStyle ~= "line"
     frame._efForeverSurface, frame._efClassicSurface = iron or nil, iron or nil
-    frame._efSkinOff, frame._efSkinForced = (not iron) or nil, iron or nil
-    local dressed = ns.ApplySkin ~= nil and ns.ApplySkin(frame)
+    frame._efSkinOff, frame._efSkinForced = (not iron) or nil, (iron and db.borderStyle == "iron") or nil
+    -- The skin, else the fill, or the Classic tree under a clear one.
+    if ns.ApplyThemeFill then ns.ApplyThemeFill(frame) end
+    local dressed = frame._efSkin ~= nil
     if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, on and not dressed) end
     if ns.SetRoundedRectBarHeight then ns.SetRoundedRectBarHeight(frame, dressed and 2 or 14) end
 end
@@ -9448,7 +9469,7 @@ end
 local function NotesBorderValue()
     local db = NormalizeDB()
     if db.border == false then return "off" end
-    if db.borderStyle == "iron" and ns.ThemeHasChrome and ns.ThemeHasChrome() then return "iron" end
+    if db.borderStyle ~= "line" and ns.ThemeHasChrome and ns.ThemeHasChrome() then return "iron" end
     return "line"
 end
 
@@ -9507,10 +9528,10 @@ function notesNS.SettingRows()
             function(v)
                 local db = NormalizeDB()
                 db.border = Utils.OffOrNil(v ~= "off")
-                db.borderStyle = v == "iron" and "iron" or nil
+                db.borderStyle = v == "line" and "line" or nil
                 UI:ApplyEasyNotesWindowLook()
             end,
-            { choices = NotesBorderChoices(), default = "line" }),
+            { choices = NotesBorderChoices(), default = "iron" }),
         Row(L["NOTES_AUTO_RESIZE"], "check", nil,
             function() return NormalizeDB().autoResize and true or false end,
             function(on)

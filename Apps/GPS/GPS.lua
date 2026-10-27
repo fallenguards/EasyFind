@@ -2585,11 +2585,6 @@ function GPS.SettingsCog(parent, menu)
     if not cog then return nil end
     cog:SetSize(15, 16)
     cog:SetScript("OnClick", function() menu() end)
-    cog:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(_G["SETTINGS"] or "Settings")
-        GameTooltip:Show()
-    end)
     return cog
 end
 
@@ -2626,13 +2621,6 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         cog:SetShown(shown)
         if frame.ShowMenu then GPS.CogHover(cog, frame) end
         box:SetPoint("RIGHT", frame, "RIGHT", -(padRight + (shown and 21 or 0)), 0)
-        if frame.ShowMenu then
-            cog:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(_G["SETTINGS"] or "Settings")
-                GameTooltip:Show()
-            end)
-        end
         cog:SetScript("OnClick", function()
             if frame.ShowMenu then return frame.ShowMenu() end
             local defs = MapTab.ShowDefs()
@@ -5455,6 +5443,8 @@ end
 local function BuildPopout()
     local f = CreateFrame("Frame", "EasyFindGPSPopout", UIParent, "BackdropTemplate")
     f.isPopout = true
+    -- Its Classic frame at a window's full weight.
+    f._efClassicStyle = "window"
     f:SetSize((PopoutSize()), 120)
     -- Over the action bars, which share MEDIUM and cut into a window there.
     f:SetFrameStrata("HIGH")

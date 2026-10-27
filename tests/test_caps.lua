@@ -23,5 +23,13 @@ function tests.specs_offOnForever_whereTheAPIAnswersOne()
     H.assertFalse(Load(1).specs)
 end
 
+-- Forever's character window has the currency tab (Blizzard_TokenUI's
+-- Camelot files): the currency search is on there (2026-10-27).
+function tests.currencies_onForever()
+    local caps = Load(1)
+    H.assertTrue(caps.forever, "loaded as Forever")
+    H.assertTrue(caps.currencies, "Forever has the currency tab")
+end
+
 local pass, fail, failures = H.runSuite("Caps", tests)
 return { pass = pass, fail = fail, failures = failures }

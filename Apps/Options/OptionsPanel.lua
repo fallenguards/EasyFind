@@ -427,11 +427,15 @@ end
 -- A settings group's ring, in the search wells' ring color: a filled shape
 -- 1 px larger under the group, whole at its small corners.
 local groupRings = {}
+-- The ring is a filled shape under the card, its fill showing 1 px past
+-- the card's own; a card in the Classic stone edge has no fill over it
+-- (the tree shows through), so the ring is off there.
 local function PaintGroupRing(ring)
     local palette = ns.ThemeSetOf(ring).palette
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local c = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
     ns.SetRoundedRectFill(ring, c[1], c[2], c[3], c[4] or 1, true)
+    ns.SetRoundedRectBorderShown(ring, not ns.IsClassicChrome())
 end
 
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)

@@ -53,6 +53,9 @@ local TRASH_SIZE = 44
 local BRAND = "EasyFind"
 -- The search bar's thin border line.
 local RING_R, RING_G, RING_B = 0.42, 0.42, 0.42
+local CLASSIC_TREE_ART = "Interface\\TalentFrame\\"
+local CLASSIC_MARBLE = "Interface\\FrameGeneral\\UI-Background-Marble"
+local CLASSIC_STONE = { 0.62, 0.61, 0.60 }
 -- The micro menu slot: the game's own micro button background (up, and
 -- down while the extension is open) with the extension's glyph on it.
 -- Not the Character button's portrait shadow rings: without a portrait
@@ -379,12 +382,33 @@ end
 local function PaintDisc(frame, rec)
     frame._efBorderGroup = BorderGroup(rec)
     local palette = ns.ACTIVE_UI_PALETTE
-    local fill = (palette and palette.windowFill) or ns.SEARCH_WINDOW_FILL_COLOR or { 0.05, 0.05, 0.06 }
-    frame.disc:SetVertexColor(fill[1], fill[2], fill[3], 1)
+    local classic = palette and palette.chrome == "classic"
+    local disc = frame.disc
+    if classic then
+        -- The picked Classic background, as the bar wears it: the tree, or
+        -- the marble.
+        local db = EasyFind and EasyFind.db
+        local tree = db and db.classicArt
+        if tree and tree ~= "marble" then
+            disc:SetTexture(CLASSIC_TREE_ART .. tree .. "-TopLeft")
+            disc:SetTexCoord(0.3, 0.8, 0.35, 0.85)
+        else
+            disc:SetTexture(CLASSIC_MARBLE, "REPEAT", "REPEAT")
+            disc:SetTexCoord(0, 0.15, 0, 0.15)
+        end
+        disc:SetVertexColor(1, 1, 1, 1)
+    else
+        local fill = (palette and palette.windowFill) or ns.SEARCH_WINDOW_FILL_COLOR or { 0.05, 0.05, 0.06 }
+        disc:SetColorTexture(1, 1, 1, 1)
+        disc:SetTexCoord(0, 1, 0, 1)
+        disc:SetVertexColor(fill[1], fill[2], fill[3], 1)
+    end
     local style = BorderStyle(rec)
     -- The search bar's border in this theme: a studio theme's own ring,
-    -- else the theme's frame line (bronze on Forever), else its gray.
-    local line = (palette and (palette.borderColor or palette.backdropBorder)) or { RING_R, RING_G, RING_B }
+    -- else the theme's frame line (bronze on Forever), else its gray. The
+    -- Classic border color is white for its art: the bar's stone instead.
+    local line = (palette and (palette.borderColor or (classic and CLASSIC_STONE) or palette.backdropBorder))
+        or { RING_R, RING_G, RING_B }
     frame.ringLine:SetVertexColor(line[1], line[2], line[3], 1)
     frame.ringLine:SetShown(style == "easyfind")
     frame.ring:SetShown(style == "minimap")

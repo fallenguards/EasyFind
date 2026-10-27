@@ -1762,16 +1762,11 @@ local function CreateFilterCog(parent)
     end
     local iconTex = cog:CreateTexture(nil, "ARTWORK")
     CogArt(iconTex)
+    -- A cog says settings by itself: no tooltip, a clear glow on hover.
     local hoverTex = cog:CreateTexture(nil, "HIGHLIGHT")
     CogArt(hoverTex)
-    hoverTex:SetAlpha(0.4)
-    cog:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(_G["SETTINGS"] or "Settings")
-        GameTooltip:AddLine(L["MAP_FILTER_TT"], 0.7, 0.7, 0.7, true)
-        GameTooltip:Show()
-    end)
-    cog:SetScript("OnLeave", GameTooltip_Hide)
+    hoverTex:SetBlendMode("ADD")
+    hoverTex:SetAlpha(0.7)
     return cog
 end
 MapTab.CreateFilterCog = CreateFilterCog

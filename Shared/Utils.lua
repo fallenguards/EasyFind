@@ -1937,6 +1937,10 @@ ns.CLASSIC_BACKDROP = {            -- bar, results, menus
 -- that far outside the frame, rows and scroll bars run to the frame's edge
 -- clear of it.
 ns.CLASSIC_OUTSET = 6
+-- A window's full-weight frame (_efClassicStyle "window"): the dialog
+-- border at its own size, its metal ending 12 in, hung that far outside so
+-- the window's contents keep their places.
+ns.CLASSIC_WINDOW_OUTSET = 12
 -- Panes inside a window: the thin tooltip edge, so no metal nests in metal.
 ns.CLASSIC_THIN = {
     bgFile = CLASSIC_DIALOG_BG,
@@ -2988,11 +2992,18 @@ function ns.ClassicTreeUnderFill(frame)
     local p = ns.ACTIVE_UI_PALETTE
     if not (p and p.chrome == "classic" and ns.ShowsTree(frame)) then
         if frame._efTree and not frame._efSkin then frame._efTree.clip:Hide() end
+        -- Off the tree: the fill at the surface's opacity again.
+        if frame._efUnderTree then
+            frame._efUnderTree = nil
+            for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(frame._efBgAlpha or 1) end
+        end
         return false
     end
     if frame._efArtCells then
         for _, cell in pairs(frame._efArtCells) do cell:Hide() end
     end
+    -- The fill stays clear: opacity and resize repaints pass it by.
+    frame._efUnderTree = true
     ns.SetRoundedRectFill(frame, 0, 0, 0, 0, true)
     DressTree(frame, 2, frame._efBgAlpha or ns.GetSearchWindowAlpha(), math.max(0, frame:GetFrameLevel() - 1))
     return true
@@ -3000,19 +3011,26 @@ end
 
 do
     -- The bar, results and menus wear the art on a frame CLASSIC_OUTSET
-    -- outside their own, under them; a band inside a window's border
-    -- (_efClassicInside) and the windows keep it on themselves.
+    -- outside their own, under them, and a "window" its full frame
+    -- CLASSIC_WINDOW_OUTSET out; a band inside a window's border
+    -- (_efClassicInside) and the dialog windows keep it on themselves.
     local function ClassicHost(frame, want)
         local back = frame._efClassicBack
-        if want ~= "tooltip" or frame._efClassicInside then
+        if (want ~= "tooltip" and want ~= "window") or frame._efClassicInside then
             if back then back:Hide() end
+            frame._efClassicOutset = nil
             return frame
         end
         if not back then
             back = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-            back:SetPoint("TOPLEFT", frame, "TOPLEFT", -ns.CLASSIC_OUTSET, ns.CLASSIC_OUTSET)
-            back:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", ns.CLASSIC_OUTSET, -ns.CLASSIC_OUTSET)
             frame._efClassicBack = back
+        end
+        local o = want == "window" and ns.CLASSIC_WINDOW_OUTSET or ns.CLASSIC_OUTSET
+        if frame._efClassicOutset ~= o then
+            frame._efClassicOutset = o
+            back:ClearAllPoints()
+            back:SetPoint("TOPLEFT", frame, "TOPLEFT", -o, o)
+            back:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", o, -o)
         end
         back:SetFrameLevel(math.max(0, frame:GetFrameLevel() - 1))
         back:Show()
@@ -3022,7 +3040,7 @@ do
 
     local function DressClassic(frame)
         local style = frame._efClassicStyle
-        local want = (style == "dialog" or style == "thin") and style or "tooltip"
+        local want = (style == "dialog" or style == "thin" or style == "window") and style or "tooltip"
         local host = ClassicHost(frame, want)
         if not host.SetBackdrop and BackdropTemplateMixin then
             Mixin(host, BackdropTemplateMixin)
@@ -3032,7 +3050,8 @@ do
             if host.OnBackdropSizeChanged then host:HookScript("OnSizeChanged", host.OnBackdropSizeChanged) end
         end
         if not host.SetBackdrop then return false end
-        local backdrop = (want == "dialog" and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN) or ns.CLASSIC_BACKDROP
+        local backdrop = ((want == "dialog" or want == "window") and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN)
+            or ns.CLASSIC_BACKDROP
         if frame._efClassicChrome ~= want or frame._efClassicHost ~= host then
             if host ~= frame and frame.SetBackdrop then frame:SetBackdrop(nil) end
             host:SetBackdrop(backdrop)
@@ -3043,7 +3062,7 @@ do
         host:SetBackdropColor(1, 1, 1, (ns.OverTree(frame) or ns.ShowsTree(frame)) and 0 or alpha)
         host:SetBackdropBorderColor(1, 1, 1, 1)
         if want ~= "thin" then
-            DressTree(frame, backdrop.insets.left - (host ~= frame and ns.CLASSIC_OUTSET or 0), alpha)
+            DressTree(frame, backdrop.insets.left - (host ~= frame and frame._efClassicOutset or 0), alpha)
         elseif frame._efTree then
             frame._efTree.clip:Hide()
         end
@@ -3120,7 +3139,7 @@ do
                 local u, px = f.u or FOREVER.unit, FOREVER.px
                 ReachBand(frame, px.outLeft * u, px.outRight * u, px.outTop * u, px.outBottom * u)
             elseif frame._efClassicBack and frame._efClassicBack:IsShown() then
-                local o = ns.CLASSIC_OUTSET
+                local o = frame._efClassicOutset or ns.CLASSIC_OUTSET
                 ReachBand(frame, o, o, o, o)
             else
                 DropBand(frame)
@@ -3318,7 +3337,9 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     -- A tree, skinned or under the fill, at the surface's opacity.
     local tree = frame._efTree
     if tree and tree.clip:IsShown() then tree.clip:SetAlpha(frame._efClassicAlpha or alpha) end
-    for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
+    if not frame._efUnderTree then
+        for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
+    end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end
     end
@@ -3842,7 +3863,7 @@ function ns.UpdateThemeFillGradient(frame)
     end
     -- Only ApplyThemeFill's windows: this runs for every rounded frame, and
     -- the window ramp on a control left it the wrong color until hovered.
-    if not frame._efThemeFillTarget then return end
+    if not frame._efThemeFillTarget or frame._efUnderTree then return end
     local palette = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
     local bottom = palette and palette.windowFillBottom
     local top = palette and palette.windowFillTop

@@ -155,8 +155,8 @@ local function characterTab(frameName)
     for i = 1, #subs do if subs[i] == frameName then return true end end
     return false
 end
-Caps.currencies = not Caps.forever and ((not classic and C_CurrencyInfo ~= nil)
-    or (classic and characterTab("TokenFrame") and type(_G["GetCurrencyListSize"]) == "function"))
+Caps.currencies = (not classic and C_CurrencyInfo ~= nil)
+    or (classic and characterTab("TokenFrame") and type(_G["GetCurrencyListSize"]) == "function")
 Caps.warbandBank = C_Bank ~= nil and C_Bank.FetchPurchasedBankTabData ~= nil and not Caps.forever
 Caps.classTalents = C_ClassTalents ~= nil and C_Traits ~= nil
 Caps.oldTalents = type(GetTalentInfo) == "function" and type(GetNumTalentTabs) == "function"

@@ -374,6 +374,32 @@ function tests.classic_borderOn_wearsTheTooltipFrame()
     borderOption(nil)
 end
 
+-- A window (Notes, the GPS pop-out, the chat) wears the dialog frame at its
+-- full weight, hung outside so its contents keep their places: the bar's
+-- half-weight edge read thin and uneven on a window (2026-10-27).
+function tests.classicWindow_wearsTheFullFrameOutside()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = classicSurface()
+    f._efClassicStyle = "window"
+    ns.ApplyThemeFill(f)
+    H.assertEq(f._efSkin, "classic")
+    local back = f._efClassicBack
+    H.assertTrue(back and back.shown, "on a frame under it")
+    H.assertEq(back.backdrop, ns.CLASSIC_DIALOG, "the full-weight frame")
+    local tl, br = back.points[#back.points - 1], back.points[#back.points]
+    H.assertTrue(tl[4] == -ns.CLASSIC_WINDOW_OUTSET and tl[5] == ns.CLASSIC_WINDOW_OUTSET, "outside by its metal")
+    H.assertTrue(br[4] == ns.CLASSIC_WINDOW_OUTSET and br[5] == -ns.CLASSIC_WINDOW_OUTSET)
+    -- The same frame as a menu again: back to the half weight's place.
+    f._efClassicStyle = nil
+    ns.ApplyThemeFill(f)
+    tl = back.points[#back.points - 1]
+    H.assertTrue(tl[4] == -ns.CLASSIC_OUTSET, "the half weight's outset")
+    H.assertEq(back.backdrop, ns.CLASSIC_BACKDROP)
+    borderOption(nil)
+end
+
 function tests.classic_borderOff_isRounded()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = CLASSIC
@@ -538,6 +564,35 @@ function tests.classicTree_backsAWindowWithoutTheFrameArt()
     env.EasyFind.db.classicArt = nil
     ns.ApplyThemeFill(win)
     H.assertEq(win._efTree.clip.shown, false, "the marble alone: no tree")
+end
+
+-- The fill over the tree stays clear through the window's opacity and its
+-- resizes (2026-10-27: Notes on Classic was the plain navy, its callback's
+-- opacity set ramping the fill back over the tree).
+function tests.classicTree_fillStaysClearThroughOpacityAndResize()
+    installClient(FOREVER_ART)
+    local ramped = { chrome = "classic", windowFill = { 0.05, 0.05, 0.1 },
+                     windowFillBottom = { 0.03, 0.03, 0.07 }, windowFillTop = { 0.07, 0.07, 0.13 } }
+    ns.ACTIVE_UI_PALETTE = ramped
+    borderOption(nil)
+    env.EasyFind.db.classicArt = "MageFire"
+    local win = surface(false)
+    ns.SetRoundedRectBorderBgAlpha(win, 0.9)
+    ns.ApplyThemeFill(win)
+    ns.SetRoundedRectBorderBgAlpha(win, 0.9)
+    ns.UpdateThemeFillGradient(win)
+    ns.SetRoundedRectBarHeight(win, 14)
+    for _, t in pairs(win.combinedBorder.fill) do
+        H.assertEq(t.alpha, 0, "the fill stays clear over the tree")
+    end
+    H.assertTrue(near(win._efTree.clip.alpha, 0.9), "the tree at the window's opacity")
+    -- Off the tree, the fill is back at the window's opacity.
+    ns.ACTIVE_UI_PALETTE = PLAIN
+    ns.ApplyThemeFill(win)
+    for _, t in pairs(win.combinedBorder.fill) do
+        H.assertTrue(near(t.alpha, 0.9), "the fill shows again")
+    end
+    env.EasyFind.db.classicArt = nil
 end
 
 -- A frame built without the backdrop template gets the backdrop mixed in,
