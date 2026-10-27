@@ -9005,8 +9005,14 @@ function Utils.CursorMenuSearch(menu, placeholder)
     return shell
 end
 
+-- No menu runs off the screen: past this many rows it scrolls.
+Utils.MENU_MAX_ROWS = 16
+
 function Utils.ShowCursorMenu(globalName, rows, opts)
     opts = opts or {}
+    if not opts.maxRows and type(rows) == "table" and #rows > Utils.MENU_MAX_ROWS then
+        opts.maxRows = Utils.MENU_MAX_ROWS
+    end
 
     -- A keepOpen reshow replaces the pooled child frame: HideOtherMenus fires
     -- the old child's OnHide, which wipes the parent's _openSubmenuRow -- and
