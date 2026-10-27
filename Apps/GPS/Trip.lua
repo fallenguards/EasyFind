@@ -597,12 +597,33 @@ end
 -- dim placeholder), ringed in the theme's line color, softened (its
 -- results border is no color on Classic: white, a tint for its art).
 -- Repainted with the theme.
+-- On a light theme a near-white well in the window's border color.
 local wells = {}
 local function PaintWell(well)
     local palette = ns.ACTIVE_UI_PALETTE
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    if palette and ns.GPS.Ink(well.owner).light then
+        local c = palette.windowFillTop or palette.windowFill or { 0.9, 0.9, 0.9 }
+        ns.PaintRingedWell(well, palette.backdropBorder or ring,
+            { c[1] + (1 - c[1]) * 0.8, c[2] + (1 - c[2]) * 0.8, c[3] + (1 - c[3]) * 0.8 })
+        return
+    end
     ns.PaintRingedWell(well, ring, ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+end
+
+-- The field's glass: the client's gray, white once in use; the ink's on a
+-- light theme, where white is lost.
+local function TintGlass(box, ink)
+    if not box.searchIcon then return end
+    local on = box:HasFocus() or (box:GetText() or "") ~= ""
+    if ink.light then
+        local c = on and ink.primary or ink.dim
+        box.searchIcon:SetVertexColor(c[1], c[2], c[3])
+    else
+        local v = on and 1 or 0.6
+        box.searchIcon:SetVertexColor(v, v, v)
+    end
 end
 if ns.ApplyUITheme then
     Utils.PostHook(ns, "ApplyUITheme", function()
@@ -672,6 +693,7 @@ local function Field(ed, i)
         well:SetPoint("TOPLEFT", box, "TOPLEFT", -5, 1)
         well:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, -1)
         well:SetFrameLevel(row:GetFrameLevel())
+        well.owner = ed.frame
         ns.CreateRingedWell(well, 6)
         box:SetFrameLevel(well:GetFrameLevel() + 2)   -- over the ring and its inset
         PaintWell(well)
@@ -679,9 +701,9 @@ local function Field(ed, i)
     end
     if box.Instructions then
         box.Instructions:SetWordWrap(false)
-        box.Instructions:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
         box.Instructions._efOwnColor = true
     end
+    row.textColor = { box:GetTextColor() }
     -- The client focuses a fresh visible EditBox on its own; refuse that.
     box._blockAutoFocus = true
     box:HookScript("OnEditFocusGained", function(self)
@@ -691,6 +713,9 @@ local function Field(ed, i)
     end)
     box:HookScript("OnMouseDown", function(self) self._blockAutoFocus = nil end)
     box:HookScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    -- After the client's own focus scripts, which tint the glass.
+    box:HookScript("OnEditFocusGained", function(self) TintGlass(self, ns.GPS.Ink(ed.frame)) end)
+    box:HookScript("OnEditFocusLost", function(self) TintGlass(self, ns.GPS.Ink(ed.frame)) end)
     box:HookScript("OnEnterPressed", function()
         local frame = ed.frame
         local first = (frame.hitsFor == ed and frame.places:FirstPlaceRow()) or ed.dropRows[1]
@@ -718,6 +743,9 @@ function Editor:Refresh(route)
     local start = g.Start and g.Start()
     local px = g.MapTextPx and g.MapTextPx(self.frame)
     self.px = px
+    local ink = g.Ink(self.frame)
+    local dim = ink.dim
+    if self.PaintAdd then self:PaintAdd(ink) end
     local boxH = mmax(20, (px or 12) + 8)
     local rowH = boxH + 10
     local y, n = 0, 0
@@ -730,12 +758,21 @@ function Editor:Refresh(route)
             if row.box.Instructions then row.box.Instructions:SetText(placeholder or "") end
         end
         Trip.Tag(row.box, adding and self.along or false)
+        if row.box.alongTag then row.box.alongTag:SetTextColor(dim[1], dim[2], dim[3], 1) end
+        if row.box.Instructions then row.box.Instructions:SetTextColor(dim[1], dim[2], dim[3], 1) end
+        local typed = ink.light and ink.primary or row.textColor
+        row.box:SetTextColor(typed[1], typed[2], typed[3], 1)
+        TintGlass(row.box, ink)
         -- The along field keeps its X while open, typed in or not: the
         -- client's box hid it when empty and unfocused, and a field that
         -- never took focus had no way to close.
         row.along = (adding and self.along) or nil
         local clear = row.box.clearButton
         if clear then clear:SetShown(row.along or row.box:HasFocus() or (row.box:GetText() or "") ~= "") end
+        if clear and clear.texture then
+            local c = ink.light and dim or ink.hover
+            clear.texture:SetVertexColor(c[1], c[2], c[3])
+        end
         if px and g.SizeFont then
             g.SizeFont(row.box, px)
             if row.box.Instructions then g.SizeFont(row.box.Instructions, px) end
@@ -749,9 +786,12 @@ function Editor:Refresh(route)
         else
             row.mark:SetTexture(TEX_RING)
             row.mark:SetSize(RING, RING)
-            row.mark:SetVertexColor(RING_GREY[1], RING_GREY[2], RING_GREY[3], 1)
+            row.mark:SetVertexColor(ink.glyph[1], ink.glyph[2], ink.glyph[3], 1)
         end
-        for k = 1, 3 do row.dots[k]:SetShown(n > 1) end
+        for k = 1, 3 do
+            row.dots[k]:SetShown(n > 1)
+            row.dots[k]:SetColorTexture(dim[1], dim[2], dim[3], 1)
+        end
         -- Any row of a planned trip drags, the start too: two rows swap.
         row.canDrag = not adding and #stops >= 1
         row:SetHeight(rowH)
@@ -864,8 +904,16 @@ function Trip.BuildEditor(frame)
     addText:SetText(L["GPS_TRIP_ADD"])
     addText:SetTextColor(DIM[1], DIM[2], DIM[3], 1)
     addText._efOwnColor = true
-    add:SetScript("OnEnter", function() addText:SetTextColor(1, 1, 1, 1) end)
-    add:SetScript("OnLeave", function() addText:SetTextColor(DIM[1], DIM[2], DIM[3], 1) end)
+    add:SetScript("OnEnter", function() addText:SetTextColor(Utils.RGB(ns.GPS.Ink(frame).hover)) end)
+    add:SetScript("OnLeave", function() addText:SetTextColor(Utils.RGB(ns.GPS.Ink(frame).dim)) end)
+    -- In the window's ink, again with each refresh (a theme change).
+    function ed:PaintAdd(ink)
+        ring:SetVertexColor(ink.glyph[1], ink.glyph[2], ink.glyph[3], 1)
+        plus:SetTextColor(ink.glyph[1], ink.glyph[2], ink.glyph[3], 1)
+        for k = 1, 3 do self.addDots[k]:SetColorTexture(ink.dim[1], ink.dim[2], ink.dim[3], 1) end
+        local c = add:IsMouseOver() and ink.hover or ink.dim
+        addText:SetTextColor(c[1], c[2], c[3], 1)
+    end
     add:SetScript("OnClick", function()
         ed.adding = "focus"
         ed:Refresh(Route())

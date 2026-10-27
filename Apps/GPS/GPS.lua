@@ -11,6 +11,36 @@ local Utils = ns.Utils
 local GPS = {}
 ns.GPS = GPS
 
+-- The steps' ink. The pop-out wears the theme's fill, light on a light
+-- theme, so its text there is the theme's own dark ink; beside the map and
+-- on the dock the art is dark whatever the theme.
+do
+    local DARK = { primary = { 1, 0.97, 0.86 }, num = ns.GOLD_COLOR, next = ns.TEXT_NEXT, dim = ns.TEXT_DIM,
+        aside = ns.TEXT_ASIDE, hover = { 1, 1, 1 }, glyph = { 0.8, 0.8, 0.82 } }
+    local LIGHT = { light = true, primary = {}, num = { 0.78, 0.45, 0.0 }, next = {}, dim = {}, aside = {}, hover = {}, glyph = {} }
+    local FROM = { primary = "pathColorHover", next = "leafColor", dim = "textFaint", aside = "accent",
+        hover = "pathColorHover", glyph = "chromeGlyph" }
+    function GPS.Ink(frame)
+        local theme = frame and frame.isPopout and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+        if not (theme and theme.lightTheme) then return DARK end
+        for key, field in pairs(FROM) do
+            local c, dst = theme[field] or theme.leafColor, LIGHT[key]
+            dst[1], dst[2], dst[3] = c[1], c[2], c[3]
+        end
+        return LIGHT
+    end
+    -- Painted in the frame's ink now and on each theme change: paint(ink).
+    function GPS.Inked(frame, paint)
+        frame.inkPaints = frame.inkPaints or {}
+        frame.inkPaints[#frame.inkPaints + 1] = paint
+        paint(GPS.Ink(frame))
+    end
+    function GPS.RepaintInk(frame)
+        local ink = GPS.Ink(frame)
+        for i = 1, #(frame.inkPaints or {}) do frame.inkPaints[i](ink) end
+    end
+end
+
 local CreateFrame = CreateFrame
 local UIParent = UIParent
 local GameTooltip = GameTooltip
@@ -2145,12 +2175,12 @@ local function FromRow(container)
     local label = reset:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("RIGHT", reset, "RIGHT", 0, 0)
     label:SetText(_G["RESET"] or "Reset")
-    label:SetTextColor(unpack(ns.TEXT_DIM))
+    GPS.Inked(container, function(ink) label:SetTextColor(unpack(ink.dim)) end)
     label._efOwnColor = true
     reset:SetWidth((label:GetStringWidth() or 40) + 4)
     reset:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    reset:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1) end)
-    reset:SetScript("OnLeave", function() label:SetTextColor(unpack(ns.TEXT_DIM)) end)
+    reset:SetScript("OnEnter", function() label:SetTextColor(unpack(GPS.Ink(container).hover)) end)
+    reset:SetScript("OnLeave", function() label:SetTextColor(unpack(GPS.Ink(container).dim)) end)
     reset:SetScript("OnClick", function() GPS:SetStart(nil) end)
     row.reset = reset
     row.text:SetPoint("RIGHT", reset, "LEFT", -6, 0)
@@ -2268,7 +2298,7 @@ local function Render(container)
         from:SetPoint("TOPLEFT", container.list, "TOPLEFT", 0, -y + offset)
         from:SetPoint("RIGHT", container.list, "RIGHT", 0, 0)
         from.text:SetText(sformat(L["GPS_FROM_FMT"], s and s.name or L["GPS_FROM_HERE"]))
-        from.text:SetTextColor(unpack(ns.TEXT_DIM))
+        from.text:SetTextColor(unpack(GPS.Ink(container).dim))
         from.reset:SetShown(s ~= nil)
         from:SetHeight(rowBase)
         from:Show()
@@ -2321,7 +2351,7 @@ local function Render(container)
             end
             row.text:SetWidth(mmax(40, listW - 36))
             row.text:SetText(list[t].text)
-            row.text:SetTextColor(unpack(ns.TEXT_ASIDE))
+            row.text:SetTextColor(unpack(GPS.Ink(container).aside))
             local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
             row:SetHeight(rowH)
             row:Show()
@@ -2353,17 +2383,16 @@ local function Render(container)
         row.text:SetText(StepText(step, active))
         local rowH = mmax(rowBase, (row.text:GetStringHeight() or 0) + 8)
         row:SetHeight(rowH)
-        -- The window's art is dark whatever the theme: the dark colors,
-        -- not the theme's text, which a light theme turns dark.
+        local ink = GPS.Ink(container)
         if active then
-            row.text:SetTextColor(1, 0.97, 0.86)
-            row.num:SetTextColor(unpack(ns.GOLD_COLOR))
+            row.text:SetTextColor(unpack(ink.primary))
+            row.num:SetTextColor(unpack(ink.num))
         elseif done then
-            row.text:SetTextColor(unpack(ns.TEXT_DIM))
-            row.num:SetTextColor(unpack(ns.TEXT_DIM))
+            row.text:SetTextColor(unpack(ink.dim))
+            row.num:SetTextColor(unpack(ink.dim))
         else
-            row.text:SetTextColor(unpack(ns.TEXT_NEXT))
-            row.num:SetTextColor(unpack(ns.TEXT_NEXT))
+            row.text:SetTextColor(unpack(ink.next))
+            row.num:SetTextColor(unpack(ink.next))
         end
         row:Show()
         y = y + rowH
@@ -2735,6 +2764,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         fill = function(row, data)
             local secs = frame.hitSecs
             row.note:SetText(data and secs and secs[data] and ns.GPSTrip.AddsText(secs[data]) or "")
+            row.note:SetTextColor(unpack(GPS.Ink(frame).dim))
             local theme = frame.isPopout and data and not data.isRecentSearch
                 and ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
             if theme then row.text:SetTextColor(unpack(theme.leafColor)) end
@@ -3084,7 +3114,7 @@ local function BuildSurface(frame, opts)
     title:SetPoint("RIGHT", frame, "RIGHT", -padRight, 0)
     title:SetJustifyH("LEFT")
     title:SetWordWrap(false)
-    title:SetTextColor(1, 0.97, 0.86)
+    GPS.Inked(frame, function(ink) title:SetTextColor(unpack(ink.primary)) end)
     title._efOwnColor = true
     frame.title = title
     if not opts.titleOpensMap then
@@ -3106,8 +3136,8 @@ local function BuildSurface(frame, opts)
         -- the tracker opens its log entry; the steps keep their own click.
         local btn = CreateFrame("Button", nil, frame)
         btn:SetAllPoints(title)
-        btn:SetScript("OnEnter", function() title:SetTextColor(unpack(ns.GOLD_COLOR)) end)
-        btn:SetScript("OnLeave", function() title:SetTextColor(1, 0.97, 0.86) end)
+        btn:SetScript("OnEnter", function() title:SetTextColor(unpack(GPS.Ink(frame).num)) end)
+        btn:SetScript("OnLeave", function() title:SetTextColor(unpack(GPS.Ink(frame).primary)) end)
         btn:SetScript("OnClick", function() GPS:Open() end)
         btn:Hide()
         frame.titleBtn = btn
@@ -3118,7 +3148,7 @@ local function BuildSurface(frame, opts)
     eta:SetPoint("TOPLEFT", glyph, "BOTTOMLEFT", 16 + 6, -4)   -- under the name, not the glyph
     eta:SetJustifyH("LEFT")
     eta:SetWordWrap(false)
-    eta:SetTextColor(unpack(ns.TEXT_DIM))
+    GPS.Inked(frame, function(ink) eta:SetTextColor(unpack(ink.dim)) end)
     eta._efOwnColor = true
     frame.eta = eta
 
@@ -3130,15 +3160,15 @@ local function BuildSurface(frame, opts)
         local text = link:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         text:SetPoint("RIGHT", link, "RIGHT", 0, 0)
         text:SetText(L["GPS_CLEAR"])
-        text:SetTextColor(unpack(ns.TEXT_DIM))
+        GPS.Inked(frame, function(ink) text:SetTextColor(unpack(ink.dim)) end)
         text._efOwnColor = true
         link.text = text
         link:SetWidth((text:GetStringWidth() or 60) + 4)
         -- On the time line's row, anchored to the frame (the line then
         -- ends at the link; anchoring the two to each other would loop).
         link:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -(padY + 16 + 4))
-        link:SetScript("OnEnter", function() text:SetTextColor(1, 1, 1) end)
-        link:SetScript("OnLeave", function() text:SetTextColor(unpack(ns.TEXT_DIM)) end)
+        link:SetScript("OnEnter", function() text:SetTextColor(unpack(GPS.Ink(frame).hover)) end)
+        link:SetScript("OnLeave", function() text:SetTextColor(unpack(GPS.Ink(frame).dim)) end)
         link:SetScript("OnClick", function() GPS:Clear() end)
         eta:SetPoint("RIGHT", link, "LEFT", -8, 0)
         frame.clearBtn = link
@@ -3219,7 +3249,7 @@ local function BuildSurface(frame, opts)
     empty:SetJustifyH("LEFT")
     empty:SetWordWrap(true)
     empty:SetText(L["GPS_EMPTY"])
-    empty:SetTextColor(unpack(ns.TEXT_DIM))
+    GPS.Inked(frame, function(ink) empty:SetTextColor(unpack(ink.dim)) end)
     empty._efOwnColor = true
     frame.empty = empty
     -- With a search box the hint has no text at all: the box says what to do.
@@ -3311,8 +3341,7 @@ end
 local function Rule(frame)
     local rule = frame:CreateTexture(nil, "ARTWORK")
     rule:SetHeight(1)
-    local d = ns.TEXT_DIM
-    rule:SetColorTexture(d[1], d[2], d[3], 0.35)
+    GPS.Inked(frame, function(ink) rule:SetColorTexture(ink.dim[1], ink.dim[2], ink.dim[3], 0.35) end)
     rule:SetPoint("LEFT", frame, "LEFT", 12, 0)
     rule:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
     return rule
@@ -3365,15 +3394,15 @@ local function BuildPage(frame)
     note:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 10)
     note:SetJustifyH("LEFT")
     note:SetText(L["GPS_EXP_NOTE"])
-    note:SetTextColor(unpack(ns.TEXT_DIM))
+    GPS.Inked(frame, function(ink) note:SetTextColor(unpack(ink.dim)) end)
     note._efOwnColor = true
     exp:SetPoint("TOPRIGHT", note, "TOPLEFT", -6, 1)
     -- The note's click, as its badge's: the bug report form.
     local noteBtn = CreateFrame("Button", nil, frame)
     noteBtn:SetAllPoints(note)
     noteBtn:SetScript("OnClick", function() if EasyFind.OpenBugReport then EasyFind:OpenBugReport() end end)
-    noteBtn:SetScript("OnEnter", function() note:SetTextColor(1, 1, 1) end)
-    noteBtn:SetScript("OnLeave", function() note:SetTextColor(unpack(ns.TEXT_DIM)) end)
+    noteBtn:SetScript("OnEnter", function() note:SetTextColor(unpack(GPS.Ink(frame).hover)) end)
+    noteBtn:SetScript("OnLeave", function() note:SetTextColor(unpack(GPS.Ink(frame).dim)) end)
     frame.footRule = Rule(frame)
     frame.footRule:SetPoint("BOTTOM", exp, "TOP", 0, 7)
 end
@@ -5137,6 +5166,14 @@ end
 -- The pop-out's rim: "iron" (the theme's frame art, only where it has
 -- one), "quest" (the quest log's paper), "line" (the search bar's) or
 -- "off". The theme's own art by default; an older "border off" is the line.
+-- The quest log's paper, where the client has it; never round a light
+-- theme's window, its dark art a frame the theme does not wear.
+function GPS.QuestRimOffered()
+    if not GAME_ART.questRim then return false end
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    return not (theme and theme.lightTheme)
+end
+
 function GPS.PopoutRim()
     local db = DB()
     local rim = db and db.gpsPopoutRim
@@ -5144,7 +5181,7 @@ function GPS.PopoutRim()
     if rim == nil and db and db.gpsPopoutBorder == false then rim = "line" end
     if rim ~= "quest" and rim ~= "line" then rim = "iron" end
     if rim == "iron" and not GPS.ThemeHasChrome() then rim = "quest" end
-    if rim == "quest" and not GAME_ART.questRim then rim = "line" end
+    if rim == "quest" and not GPS.QuestRimOffered() then rim = "line" end
     return rim
 end
 
@@ -5189,7 +5226,7 @@ function GPS.StyleMenu(border)
         if border then
             rows[#rows + 1] = { isSeparator = true }
             local rims = { { "line", "GPS_BORDER_LINE" } }
-            if GAME_ART.questRim then table.insert(rims, 1, { "quest", "GPS_BORDER_QUEST" }) end
+            if GPS.QuestRimOffered() then table.insert(rims, 1, { "quest", "GPS_BORDER_QUEST" }) end
             if GPS.ThemeHasChrome() then table.insert(rims, 1, { "iron", "GPS_BORDER_IRON" }) end
             local function setRim(rim)
                 local d = DB()
@@ -5417,6 +5454,7 @@ end
 
 local function BuildPopout()
     local f = CreateFrame("Frame", "EasyFindGPSPopout", UIParent, "BackdropTemplate")
+    f.isPopout = true
     f:SetSize((PopoutSize()), 120)
     -- Over the action bars, which share MEDIUM and cut into a window there.
     f:SetFrameStrata("HIGH")
@@ -5517,7 +5555,8 @@ local function BuildPopout()
     ns.RegisterThemeCallback(function()
         f:ApplyBorderShape()
         if f.glyphTex then f.glyphTex:SetVertexColor(unpack(ns.ChromeGlyphColor())) end
-        -- The steps' grays follow the background (lifted over a talent tree).
+        -- The text follows the fill: lifted over a talent tree, dark on a light theme.
+        GPS.RepaintInk(f)
         Refresh()
     end)
 
@@ -5552,7 +5591,7 @@ local function BuildPopout()
         end
         if self.headCog then
             self.headCog:ClearAllPoints()
-            self.headCog:SetPoint("LEFT", self, "TOPLEFT", 5, -(STRIP_TOP + BTN / 2))
+            self.headCog:SetPoint("LEFT", self, "TOPLEFT", 6, -(STRIP_TOP + BTN / 2))
             self.headCog:SetShown(above and GPS.CogsShown())
         end
     end
@@ -5578,9 +5617,9 @@ local function BuildPopout()
     local function tintMax(r, g, b)
         for i = 1, #edges do edges[i]:SetVertexColor(r, g, b, 1) end
     end
-    tintMax(unpack(ns.TEXT_DIM))
-    maximize:SetScript("OnEnter", function() tintMax(1, 1, 1) end)
-    maximize:SetScript("OnLeave", function() tintMax(unpack(ns.TEXT_DIM)) end)
+    GPS.Inked(f, function(ink) tintMax(unpack(ink.dim)) end)
+    maximize:SetScript("OnEnter", function() tintMax(unpack(GPS.Ink(f).hover)) end)
+    maximize:SetScript("OnLeave", function() tintMax(unpack(GPS.Ink(f).dim)) end)
     maximize:SetScript("OnClick", function()
         if ns.MapTab and ns.MapTab.ShowPage then ns.MapTab:ShowPage("gps") end
     end)
@@ -5604,9 +5643,9 @@ local function BuildPopout()
         bar:SetVertexColor(r, g, b, 1)
         post:SetVertexColor(r, g, b, 1)
     end
-    tintFold(unpack(ns.TEXT_DIM))
-    collapse:SetScript("OnEnter", function() tintFold(1, 1, 1) end)
-    collapse:SetScript("OnLeave", function() tintFold(unpack(ns.TEXT_DIM)) end)
+    GPS.Inked(f, function(ink) tintFold(unpack(ink.dim)) end)
+    collapse:SetScript("OnEnter", function() tintFold(unpack(GPS.Ink(f).hover)) end)
+    collapse:SetScript("OnLeave", function() tintFold(unpack(GPS.Ink(f).dim)) end)
     collapse:SetScript("OnClick", function()
         f.collapsed = not f.collapsed or nil
         local db = DB()
@@ -5653,7 +5692,6 @@ local function BuildPopout()
     end)
     f.ShowMenu = ShowWindowMenu
     f.menuAnchor = menuAnchor
-    f.isPopout = true
     -- The settings cog over the trip's fields: the window's menu, as a right-click.
     f.headCog = GPS.SettingsCog(f, ShowWindowMenu)
     if f.headCog then
@@ -5762,7 +5800,7 @@ local function BuildPopout()
         left:SetVertexColor(r, g, b, 1)
         right:SetVertexColor(r, g, b, 1)
     end
-    tintFields(unpack(ns.TEXT_DIM))
+    GPS.Inked(f, function(ink) tintFields(unpack(ink.dim)) end)
     -- up: the fields show, a click hides them.
     function fields:Point(up)
         self.up = up
@@ -5770,13 +5808,13 @@ local function BuildPopout()
         right:SetRotation(up and -mpi / 4 or mpi / 4)
     end
     fields:SetScript("OnEnter", function(self)
-        tintFields(1, 1, 1)
+        tintFields(unpack(GPS.Ink(f).hover))
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.up and L["GPS_FIELDS_HIDE"] or L["GPS_FIELDS_SHOW"])
         GameTooltip:Show()
     end)
     fields:SetScript("OnLeave", function()
-        tintFields(unpack(ns.TEXT_DIM))
+        tintFields(unpack(GPS.Ink(f).dim))
         GameTooltip_Hide()
     end)
     fields:SetScript("OnClick", function(self)
