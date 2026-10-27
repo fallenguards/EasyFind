@@ -346,7 +346,7 @@ local function ApplyInter(fs, weight, sizeOverride, flags)
     end
     -- Blizzard font objects carry a drop shadow and SetFont does not clear
     -- it; wizard text is flat, so strip it for every string that gets here.
-    fs:SetShadowColor(0, 0, 0, 0)
+    ns.ShadeText(fs)
 end
 
 local frame
@@ -1441,7 +1441,7 @@ local function BuildPageTheme(parent)
         label:SetPoint("CENTER")
         label:SetText(themeName)
         label._efOwnColor = true
-        label:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(label)
         label:SetTextColor(pal.leafColor[1], pal.leafColor[2], pal.leafColor[3], 1)
         swatch:SetScript("OnClick", function(self)
             EasyFind.db.uiTheme = self._themeName

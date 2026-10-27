@@ -49,7 +49,7 @@ function Filters:AttachLootOptionsFlyout(row, dropdown, ctx)
         Utils.SetCheckboxTextures(subRow, CHECK_SIZE)
 
         local subLabel = subRow:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        subLabel:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(subLabel)
         subLabel:SetPoint("LEFT", subRow:GetNormalTexture(), "RIGHT", 4, 0)
         subLabel:SetText(sub.label)
         subRow._label = subLabel

@@ -129,7 +129,7 @@ function Filters:BuildMountOptionsPopup(StylePopup, CHECK_SIZE)
     local typeHeader = optionsPopup:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     typeHeader:SetPoint("TOPLEFT", optionsPopup, "TOPLEFT", PAD + 8, y - 2)
     typeHeader:SetText(_G["TYPE"] or "Type")
-    typeHeader:SetShadowColor(0, 0, 0, 0)
+    ns.ShadeText(typeHeader)
     -- Gold on dark themes; gold is unreadable on light fills, so those recolor
     -- to the theme accent. Refills on every open and live theme flip.
     optionsPopup._efOnThemeRestyle = function()

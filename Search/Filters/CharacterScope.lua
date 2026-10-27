@@ -130,7 +130,7 @@ function Filters:BuildCharacterScopeSelector(opts)
         radio:SetTexture(ns.RADIO_OFF_TEX)
 
         local label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        label:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(label)
         label:SetPoint("LEFT", radio, "RIGHT", 4, 0)
         label:SetJustifyH("LEFT")
         label:SetWordWrap(false)

@@ -86,7 +86,7 @@ function Filters:BuildCatalogOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardF
         local h = optionsPopup:CreateFontString(nil, "ARTWORK", "GameFontNormal")
         h:SetPoint("TOPLEFT", optionsPopup, "TOPLEFT", PAD + 8, y - 2)
         h:SetText(text)
-        h:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(h)
         headers[#headers + 1] = h
         return h
     end

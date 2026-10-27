@@ -287,7 +287,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
             if not fs then
                 fs = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
                 fs:SetJustifyH("LEFT")
-                fs:SetShadowColor(0, 0, 0, 0)
+                ns.ShadeText(fs)
                 fs._efOwnColor = true
                 popup.titles[nTitle] = fs
             end

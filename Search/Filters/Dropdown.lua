@@ -120,7 +120,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
             -- Covers filter rows (optKey) and the Toggle All row, which
             -- opts in via its label field.
             if child.label then
-                child.label:SetShadowColor(0, 0, 0, 0)
+                ns.ShadeText(child.label)
                 -- Disabled rows keep their dim gray (SetFlyoutRowEnabled
                 -- owns that state); painting theme text over them made
                 -- disabled and enabled read identically.
@@ -170,7 +170,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
     local uncheckLabel = uncheckRow:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     uncheckLabel:SetPoint("LEFT", 8, 0)
     uncheckLabel:SetText(L["FILTER_TOGGLE_ALL"])
-    uncheckLabel:SetShadowColor(0, 0, 0, 0)
+    ns.ShadeText(uncheckLabel)
     -- The recolor loop matches rows via optKey; this special row opts in
     -- through label alone.
     uncheckRow.label = uncheckLabel

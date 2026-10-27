@@ -51,7 +51,7 @@ function Filters:BuildSelectDropdown(opts)
         radio:SetPoint("LEFT", 0, 0)
         radio:SetTexture(ns.RADIO_OFF_TEX)
         local label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        label:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(label)
         label:SetPoint("LEFT", radio, "RIGHT", 4, 0)
         label:SetText(def.label)
         row._label = label

@@ -1988,6 +1988,8 @@ function ns.StyleMenuPanel(frame)
     if not frame.combinedBorder then
         ns.CreateRoundedRectBorder(frame)
         ns.SetRoundedRectBorderShown(frame, true)
+        -- Its text shaded as all of ours is, on every show.
+        ns.KeepTextShaded(frame)
     end
     frame._efForeverSurface = true
     frame._efClassicSurface = true
@@ -2049,7 +2051,7 @@ local function RetintMenuTextWalk(frame, leaf)
             local region = select(i, frame:GetRegions())
             if region and region.GetObjectType and region:GetObjectType() == "FontString"
                and not region._efOwnColor then
-                region:SetShadowColor(0, 0, 0, 0)
+                ns.ShadeText(region)
                 region:SetTextColor(leaf[1], leaf[2], leaf[3], 1)
             end
         end
@@ -2405,7 +2407,7 @@ function Utils.StyleSearchHint(placeholder, icon)
     local c = ns.SEARCH_HINT_COLOR
     if placeholder then
         placeholder:SetTextColor(c[1], c[2], c[3], 1)
-        placeholder:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(placeholder)
     end
     if icon then
         icon:SetVertexColor(c[1], c[2], c[3], 1)
@@ -4382,7 +4384,7 @@ function Utils.SetFlyoutRowEnabled(row, enabled)
     row:SetEnabled(enabled)
     local a = enabled and 1 or 0.35
     if row._label then
-        row._label:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(row._label)
         if not enabled then
             row._label:SetTextColor(0.4, 0.4, 0.4)
         elseif row._label._efOwnColor then
@@ -4698,7 +4700,7 @@ function ns.CreateModernButton(parent, text, width, height)
     -- Flat button design: the font object's baked drop shadow reads as
     -- smear on the pill fills. The label owns its color (light text on
     -- the dark pill on every theme); the menu text pass must not touch it.
-    label:SetShadowColor(0, 0, 0, 0)
+    ns.ShadeText(label)
     label._efOwnColor = true
     btn._label = label
 
@@ -6126,7 +6128,7 @@ function ns.ShowThemedDialog(opts)
         -- ShowThemedDialog owns this color per prompt type; flat text, no
         -- font-object shadow, on either polarity.
         f.message._efOwnColor = true
-        f.message:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(f.message)
 
         -- The field as the theme draws its search shells: rounded, in the
         -- buttons' fill, painted at each show.
@@ -6143,7 +6145,7 @@ function ns.ShowThemedDialog(opts)
         eb:SetFontObject("GameFontHighlight")
         eb:SetAutoFocus(false)
         eb:SetJustifyH("LEFT")
-        eb:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(eb)
         f.field = field
         f.editBox = eb
 
@@ -6166,7 +6168,7 @@ function ns.ShowThemedDialog(opts)
         end)
         f.check:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
         f.check.text:SetTextColor(unpack(ns.TEXT_PRIMARY))
-        f.check.text:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(f.check.text)
 
         local function checkedState()
             return f.check:IsShown() and f.check:GetChecked() and true or false
@@ -6271,7 +6273,7 @@ function ns.ShowThemedDialog(opts)
         if not f.extraBtn then
             f.extraLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
             f.extraLabel:SetTextColor(unpack(ns.TEXT_PRIMARY))
-            f.extraLabel:SetShadowColor(0, 0, 0, 0)
+            ns.ShadeText(f.extraLabel)
             f.extraBtn = ns.CreateModernButton(f, "", 100, 22)
         end
         f.extraLabel:SetText(extra.label or "")
@@ -6718,7 +6720,7 @@ function ns.BuildFlowText(parent, str, opts)
             ns.RegisterAddonFont(fs, interWeight, interSize, interFlags)
         end
         -- Flow text is flat body copy; never carry the font object's shadow.
-        fs:SetShadowColor(0, 0, 0, 0)
+        ns.ShadeText(fs)
     end
 
     local container = CreateFrame("Frame", nil, parent)
@@ -9282,7 +9284,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 -- SetScaledFont's shadow re-apply when font/size are
                 -- unchanged, so a row first built on a dark theme keeps its
                 -- shadow after a switch to light unless it's set per open.
-                row.label:SetShadowColor(0, 0, 0, 0)
+                ns.ShadeText(row.label)
                 -- Anchoring follows the menu's icon side; pooled rows serve
                 -- menus of either style, so re-anchor per open. The label is
                 -- ALWAYS right-constrained: an unconstrained label renders
@@ -9373,7 +9375,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     if not row.hint then
                         row.hint = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                         row.hint._efOwnColor = true
-                        row.hint:SetShadowColor(0, 0, 0, 0)
+                        ns.ShadeText(row.hint)
                     end
                     local ff, fs, ffl = row.label:GetFont()
                     if ff then row.hint:SetFont(ff, fs, ffl or "") end
