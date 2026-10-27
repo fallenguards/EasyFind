@@ -3502,6 +3502,10 @@ local function HasRoundedAncestor(region)
     local parent = region:GetParent()
     for _ = 1, 5 do
         if not parent then return false end
+        -- A window's own fill is the theme's, light on a light theme: text
+        -- on it is panel text, not a dark control's (2026-10-27: the Notes
+        -- title stayed white on light blue).
+        if parent._efThemeFillTarget then return false end
         if parent.combinedBorder then return true end
         parent = parent:GetParent()
     end

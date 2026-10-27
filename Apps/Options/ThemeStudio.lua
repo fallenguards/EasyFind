@@ -905,8 +905,8 @@ local function BuildWindowMock(parent)
     w.input:SetHeight(22)
     w.input:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 192, 10)
     w.input:SetPoint("RIGHT", card, "RIGHT", -10, 0)
-    ns.CreateRingedWell(w.input, 6)
-    w.inputText = w.input:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    -- The text on the well's inset, a frame over the well itself.
+    w.inputText = ns.CreateRingedWell(w.input, 6):CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     w.inputText._efOwnColor = true
     w.inputText:SetPoint("LEFT", w.input, "LEFT", 8, 0)
     w.inputText:SetPoint("RIGHT", w.input, "RIGHT", -8, 0)

@@ -4204,6 +4204,9 @@ function UI:EnsureEasyNotesFrame()
     -- below menus/flyouts (TOOLTIP) so dropdowns never render under the notes.
     frame:SetFrameStrata("DIALOG")
     frame:SetFrameLevel(880)
+    -- Its text in the theme's colors from the first show: dark on a light
+    -- theme (a theme change repaints it after, by its name).
+    if ns.ThemePanelText then ns.ThemePanelText(frame) end
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     frame:EnableMouseWheel(true)
@@ -5113,14 +5116,16 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteSearchShell:SetPoint("TOPLEFT", frame.palette, "TOPLEFT", 10, -10)
     frame.paletteSearchShell:SetPoint("TOPRIGHT", frame.palette, "TOPRIGHT", -10, -10)
     frame.paletteSearchShell:SetHeight(24)
-    -- Our input box, as every search box is.
-    ns.CreateRingedWell(frame.paletteSearchShell, 6)
+    -- Our input box, as every search box is. Its inset is a frame over the
+    -- shell: the glass and the hint go on it, the box and the button above.
+    local well = ns.CreateRingedWell(frame.paletteSearchShell, 6)
     ns.PaintInputWell(frame.paletteSearchShell)
     -- Filter button (triangle) opens a themed menu to filter the note list by
     -- character and category, mirroring the main search bar's filter.
     frame.paletteFilterBtn = CreateFrame("Button", nil, frame.paletteSearchShell)
     frame.paletteFilterBtn:SetSize(20, 20)
     frame.paletteFilterBtn:SetPoint("RIGHT", frame.paletteSearchShell, "RIGHT", -4, 0)
+    frame.paletteFilterBtn:SetFrameLevel(well:GetFrameLevel() + 1)
     do
         local farrow = frame.paletteFilterBtn:CreateTexture(nil, "OVERLAY")
         farrow:SetSize(10, 10)
@@ -5137,7 +5142,7 @@ function UI:EnsureEasyNotesFrame()
         if UI._notes._filterMenu and UI._notes._filterMenu:IsShown() then return end
         self.arrow:SetVertexColor(0.7, 0.7, 0.74, 1)
     end)
-    frame.paletteSearchIcon = frame.paletteSearchShell:CreateTexture(nil, "OVERLAY")
+    frame.paletteSearchIcon = well:CreateTexture(nil, "OVERLAY")
     frame.paletteSearchIcon:SetSize(12, 12)
     frame.paletteSearchIcon:SetPoint("LEFT", frame.paletteSearchShell, "LEFT", 8, 0)
     frame.paletteSearchIcon:SetAtlas("common-search-magnifyingglass")
@@ -5146,10 +5151,11 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteSearch:SetPoint("LEFT", frame.paletteSearchIcon, "RIGHT", 6, 0)
     frame.paletteSearch:SetPoint("RIGHT", frame.paletteFilterBtn, "LEFT", -4, 0)
     frame.paletteSearch:SetHeight(20)
+    frame.paletteSearch:SetFrameLevel(well:GetFrameLevel() + 1)
     frame.paletteSearch:SetAutoFocus(false)
     frame.paletteSearch:SetFontObject("GameFontHighlightSmall")
     frame.paletteSearch:SetTextColor(0.95, 0.95, 0.95, 1)
-    frame.paletteSearchPlaceholder = frame.paletteSearchShell:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    frame.paletteSearchPlaceholder = well:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     frame.paletteSearchPlaceholder:SetPoint("LEFT", frame.paletteSearchIcon, "RIGHT", 6, 0)
     frame.paletteSearchPlaceholder:SetText(L["NOTES_SEARCH"])
     frame.paletteSearchPlaceholder:SetTextColor(0.48, 0.48, 0.52, 1)

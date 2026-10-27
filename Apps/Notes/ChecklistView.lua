@@ -23,6 +23,23 @@ local ROW_H, ROW_H2, CELL_W, NAME_W, GRIP_W, CHECK_W, EDGE_R = 26, 36, 56, 150, 
 -- The middle of a row's first line, where its box, X and count sit.
 local LINE_MID = -13
 local DONE_COLOR, OPEN_COLOR, FAINT_COLOR = { 0.45, 0.85, 0.45 }, { 1, 1, 1 }, { 0.65, 0.65, 0.65 }
+-- The lines' colors follow the theme: a light theme's own dark text
+-- (2026-10-27: white lines on light blue). Changed in place, so every
+-- paint reads the current ones.
+local LINE_INK = {
+    dark = { DONE_COLOR = { 0.45, 0.85, 0.45 }, OPEN_COLOR = { 1, 1, 1 }, FAINT_COLOR = { 0.65, 0.65, 0.65 } },
+    light = { DONE_COLOR = { 0.12, 0.50, 0.18 } },
+}
+local function TintLines()
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    local set = (theme and theme.lightTheme) and LINE_INK.light or LINE_INK.dark
+    local open = set == LINE_INK.light and theme.leafColor or LINE_INK.dark.OPEN_COLOR
+    local faint = set == LINE_INK.light and theme.textFaint or LINE_INK.dark.FAINT_COLOR
+    local done = set.DONE_COLOR
+    OPEN_COLOR[1], OPEN_COLOR[2], OPEN_COLOR[3] = open[1], open[2], open[3]
+    FAINT_COLOR[1], FAINT_COLOR[2], FAINT_COLOR[3] = faint[1], faint[2], faint[3]
+    DONE_COLOR[1], DONE_COLOR[2], DONE_COLOR[3] = done[1], done[2], done[3]
+end
 local READY_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 
@@ -527,7 +544,7 @@ local function FillBoard(note)
         row.name:SetPoint("LEFT", row, "LEFT", 0, 0)
         row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         row.name:SetText(CK.LineLabel(line))
-        row.name:SetTextColor(1, 1, 1, 1)
+        row.name:SetTextColor(OPEN_COLOR[1], OPEN_COLOR[2], OPEN_COLOR[3], 1)
         row.name:SetAlpha(1)
         row:Show()
         for c, charKey in ipairs(chars) do
@@ -747,6 +764,7 @@ end
 -- Shown while the editor view is up and the open note is a checklist; the
 -- text editor and its format toolbar give way to it.
 function View.Refresh()
+    TintLines()
     local note = Note()
     local frame = NotesUI._notes and NotesUI._notes.frame
     local want = UI.allowed and CK.Is(note) and frame ~= nil
@@ -1189,3 +1207,10 @@ local sweeper = CreateFrame("Frame")
 sweeper:RegisterEvent("PLAYER_LOGOUT")
 sweeper:SetScript("OnEvent", View.Sweep)
 Utils.SafeAfter(5, View.Sweep)
+
+-- A theme change repaints the lines in its colors while they show.
+if ns.RegisterThemeCallback then
+    ns.RegisterThemeCallback(function()
+        if UI.view and UI.view:IsShown() then View.Refresh() end
+    end)
+end
