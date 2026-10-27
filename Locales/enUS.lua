@@ -329,26 +329,29 @@ L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r Directions to any place: flights, boats, portals, teleports and the walk, with an arrow at your character, the route on the map and trips with several stops\n" ..
-    "    |cff999999-|r On WoW Forever, Classic Era and TBC Anniversary the walk follows the ground: around cliffs, water and creatures far above your level\n" ..
-    "    |cff999999-|r Named creatures on the map search, by name, service or what they sell, each on its nearest spot, so directions lead to any of them\n" ..
+    "    |cff999999-|r Directions to any place: flights, boats, portals and teleports, with an arrow to follow, the route on your map and trips with several stops\n" ..
+    "    |cff999999-|r On WoW Forever and the Classic clients the route walks around cliffs, water and creatures far above your level\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMap search|r\n" ..
+    "    |cff999999-|r Find named creatures by name, service or what they sell, and get directions to them\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
-    "    |cff999999-|r A full notes companion: notes for places, activities, classes, targets and players, checklists the game ticks off, tags, a trash with undo and share codes\n" ..
-    "    |cff999999-|r A note shows where it applies, in tooltips, on names in chat or by itself; Ctrl+Right-click on any item or spell opens its note\n" ..
+    "    |cff999999-|r Notes that appear where they matter: in tooltips, on players in chat, or on their own\n" ..
+    "    |cff999999-|r Checklists the game ticks off for you, tags, share codes and a trash with undo\n" ..
     "|cffFFD100\226\128\162|r |cffffffffChat|r\n" ..
-    "    |cff999999-|r A messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat\n" ..
+    "    |cff999999-|r A full chat window for whispers and channels, with history, that can replace the game's chat\n" ..
     "|cffFFD100\226\128\162|r |cffffffffClipboard History|r\n" ..
-    "    |cff999999-|r What you copied and every link that passed through chat, under @clipboard or on a key, with Add to note on any entry\n" ..
+    "    |cff999999-|r Everything you copy and every link from chat, saved to paste again\n" ..
     "|cffFFD100\226\128\162|r |cffffffffQuicklists|r\n" ..
-    "    |cff999999-|r Named result lists on a key, pressed or held, or from a macro on an action bar\n" ..
+    "    |cff999999-|r Your own lists of results, opened with a key or a macro\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTheme Studio|r\n" ..
+    "    |cff999999-|r Create your own custom themes, previewed live as you edit, and share them as a code\n" ..
     "|cffFFD100\226\128\162|r |cffffffffThemes|r\n" ..
-    "    |cff999999-|r Theme Studio gives each window its own look, with a Classic theme and a Forever theme in the 1.x style\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind runs on both, GPS included\n" ..
+    "    |cff999999-|r New Classic and Forever themes in the 1.x style, with a talent tree of your choice as the background\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic clients|r\n" ..
+    "    |cff999999-|r EasyFind now runs on Classic Era, TBC Anniversary and Mists Classic, GPS included\n" ..
     "|cffFFD100\226\128\162|r |cffffffffSettings|r\n" ..
-    "    |cff999999-|r Every addon's settings in the search bar: the game's panel, AceConfig tables and EasyFind's own, each changed on its row; extensions feed theirs through the API\n" ..
+    "    |cff999999-|r Search any addon's settings from the bar and change them right on the result\n" ..
     "|cffFFD100\226\128\162|r |cffffffffExtensions|r\n" ..
-    "    |cff999999-|r Extension rows with a hint on hover, a link that carries their data, a menu of their own, and a place the map search and the GPS find\n"
+    "    |cff999999-|r Other addons can add their own results, windows and settings to EasyFind\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

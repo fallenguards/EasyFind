@@ -11,7 +11,7 @@ local Utils = ns.Utils
 local CreateFrame = CreateFrame
 local UIParent = UIParent
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
-local mmax, mmin, mceil = math.max, math.min, math.ceil
+local mmax, mmin, mceil, mfloor = math.max, math.min, math.ceil, math.floor
 
 local GOLD     = ns.GOLD_COLOR
 local TEXT_BODY = ns.TEXT_BODY
@@ -113,13 +113,30 @@ end
 
 -- Lays the feature blocks out for the container's current width and
 -- returns the stack's height.
+-- The body's inline colors were picked for a dark window: on a light
+-- theme its white, gray and gold go to the theme's own text (2026-10-27:
+-- the feature titles were white on light blue).
+local function Hex(c)
+    return string.format("%02x%02x%02x", mfloor(c[1] * 255 + 0.5), mfloor(c[2] * 255 + 0.5), mfloor(c[3] * 255 + 0.5))
+end
+local function ForTheme(text)
+    local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
+    if not (text and theme and theme.lightTheme) then return text end
+    return (text:gsub("|c[fF][fF]([%x][%x][%x][%x][%x][%x])", function(rgb)
+        rgb = rgb:lower()
+        if rgb == "ffffff" then return "|cff" .. Hex(theme.pathColorHover) end
+        if rgb == "999999" then return "|cff" .. Hex(theme.textFaint) end
+        if rgb == "ffd100" then return "|cff" .. Hex(theme.accent) end
+    end))
+end
+
 local function RenderFeatures(blocks, features)
     local y = 0
     for i, feat in ipairs(features) do
         local b = EnsureBlock(blocks, i)
         local hasTitle = feat.title ~= nil
         b.title:ClearAllPoints()
-        b.title:SetText(feat.title or "")
+        b.title:SetText(ForTheme(feat.title) or "")
         b.title:SetShown(hasTitle)
         local offer = hasTitle and feat.showme and ns.ShowMe and ns.ShowMe:Has(feat.showme)
         b.btn._showme = offer and feat.showme or nil
@@ -133,7 +150,7 @@ local function RenderFeatures(blocks, features)
         b.body:ClearAllPoints()
         b.body:SetPoint("TOPLEFT", blocks, "TOPLEFT", 0, -y)
         b.body:SetPoint("RIGHT", blocks, "RIGHT", 0, 0)
-        b.body:SetText(table.concat(feat.lines, "\n"))
+        b.body:SetText(ForTheme(table.concat(feat.lines, "\n")))
         b.body:SetShown(#feat.lines > 0)
         if #feat.lines > 0 then y = y + mceil(b.body:GetStringHeight()) end
         y = y + WN_BLOCK_GAP
