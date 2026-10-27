@@ -65,7 +65,7 @@ local STATE_KEYS = {
     nativeKeybindsImported = true, suggestedKeybindsSeeded = true, suggestedKeybindsApplied = true,
     achievementIndex = true, classicRecipes = true, gpsChar = true, gpsHearth = true,
     gpsBoats = true, gpsFlown = true, macroButtons = true, minimapIcon = true,
-    chatFramesHidden = true, customThemes = true, themeStudioDraft = true,
+    chatFramesHidden = true, objectiveTrackerHidden = true, customThemes = true, themeStudioDraft = true,
     notesInUse = true, chatInUse = true,
 }
 

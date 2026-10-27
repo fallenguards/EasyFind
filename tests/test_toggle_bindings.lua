@@ -26,6 +26,7 @@ local CLIENT = {
     TOGGLE_VOICE_SELF_MUTE = "VoiceChat_ToggleMutedFromUserAction",
     TOGGLE_VOICE_SELF_DEAFEN = "VoiceChat_ToggleDeafenedFromUserAction",
     EASYFIND_TOGGLECHATFRAME = "EasyFind:ToggleChatFrames",
+    EASYFIND_TOGGLEOBJECTIVETRACKER = "EasyFind:ToggleObjectiveTracker",
     TOGGLEWORLDMAP = "ToggleWorldMap",
     TOGGLEFPS = "FramerateFrame:Toggle: SetShown(not IsShown())",
     TOGGLEBATTLEFIELDMINIMAP = "ToggleBattlefieldMap",
@@ -88,6 +89,10 @@ local function load()
     ns.Database.uiSearchData = {}
     env.EasyFind._ns = ns
     env.EasyFind.ToggleChatFrames = function() env.ChatFrame1:SetShown(not env.ChatFrame1:IsShown()) end
+    env.ObjectiveTrackerFrame = Frame(true)
+    env.EasyFind.ToggleObjectiveTracker = function()
+        env.ObjectiveTrackerFrame:SetShown(not env.ObjectiveTrackerFrame:IsShown())
+    end
     H.loadModule("Search/Openers.lua", env, ns)
     H.loadModule("Apps/Settings/BlizzSearch.lua", env, ns)
     return ns.BlizzOptionsSearch, cvars, env

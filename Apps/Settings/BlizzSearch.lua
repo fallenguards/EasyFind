@@ -2068,6 +2068,18 @@ local TOGGLE_BINDING_STATE = {
             end
         end,
     },
+    EASYFIND_TOGGLEOBJECTIVETRACKER = {
+        get = function()
+            local tracker = _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
+            return tracker and tracker:IsShown()
+        end,
+        run = function()
+            if EasyFind and EasyFind.ToggleObjectiveTracker then
+                EasyFind:ToggleObjectiveTracker()
+                return true
+            end
+        end,
+    },
     TOGGLEWORLDMAP = {
         get = function() return WorldMapFrame and WorldMapFrame:IsShown() end,
         run = function()
@@ -2381,6 +2393,20 @@ local function CollectKeybindings()
             keywords = { "chat", "chat frame", "chat window", "hide chat", "show chat", "toggle" },
             settingType = "keybind",
             bindingAction = "EASYFIND_TOGGLECHATFRAME",
+            customToggle = true,
+        }, GetSettingsCatMT("Game Settings", "Keybindings", nil, { "Game Settings", "Keybindings" })))
+    end
+
+    -- Toggle Objective Tracker: the same for the quest objectives (the quest
+    -- watch on the classic clients).
+    do
+        local trackerToggleName = Loc["KEYBIND_TOGGLE_FMT"]:format(_G["HUD_EDIT_MODE_OBJECTIVE_TRACKER_LABEL"] or Loc["GPS_STYLE_TRACKER"])
+        tinsert(entries, setmetatable({
+            name = trackerToggleName,
+            nameLower = SearchLower(trackerToggleName),
+            keywords = { "objective", "objectives", "tracker", "quest tracker", "quest watch", "hide quests", "toggle" },
+            settingType = "keybind",
+            bindingAction = "EASYFIND_TOGGLEOBJECTIVETRACKER",
             customToggle = true,
         }, GetSettingsCatMT("Game Settings", "Keybindings", nil, { "Game Settings", "Keybindings" })))
     end

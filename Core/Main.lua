@@ -1177,6 +1177,7 @@ local function OnPlayerLogin()
     -- theme seed and the module Initialize loop read the db.
     if ns.Profiles then ns.Profiles:OnLogin() end
     EasyFind:RestoreChatFramesHidden()
+    EasyFind:RestoreObjectiveTrackerHidden()
 
     -- Seed the live theme slots BEFORE the module Initialize loop below:
     -- the search UI is created (and painted) inside it, and a seed after
@@ -1763,6 +1764,59 @@ function EasyFind:ToggleChatFrames()
     HideChatFrames()
     EasyFind.db.chatFramesHidden = true
     KeepChatFramesHidden()
+end
+
+-- Hide/show the game's objective tracker (the quest watch on the classic
+-- clients). No binding or setting ships for it, so the "Toggle Objective
+-- Tracker" search entry provides one. Kept across sessions.
+local function TrackerFrame()
+    -- Retail's tracker, Mists' watch frame, Era's quest watch (nothing
+    -- happened there, 2026-10-28).
+    return _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
+end
+local trackerHideWatch, trackerEditModeWatch
+local function HideTracker()
+    local manager = _G["EditModeManagerFrame"]
+    if manager and manager:IsShown() then return end
+    local t = TrackerFrame()
+    if t and t:IsShown() then t:Hide() end
+    if ns.GPS and ns.GPS.PlaceDock then ns.GPS.PlaceDock() end
+end
+local function RehideTracker()
+    if EasyFind.db.objectiveTrackerHidden then ns.Utils.SafeAfter(0, HideTracker) end
+end
+local function KeepTrackerHidden()
+    -- Quest changes and edit mode show the tracker again: a child of ours
+    -- under it hears each show, one under the edit mode manager its close.
+    -- Watched, never hooked.
+    local t = TrackerFrame()
+    if t and not trackerHideWatch then
+        trackerHideWatch = CreateFrame("Frame", nil, t)
+        trackerHideWatch:SetScript("OnShow", RehideTracker)
+    end
+    local manager = _G["EditModeManagerFrame"]
+    if manager and not trackerEditModeWatch then
+        trackerEditModeWatch = CreateFrame("Frame", nil, manager.Border or manager)
+        trackerEditModeWatch:SetScript("OnHide", RehideTracker)
+    end
+    ns.Utils.SafeAfter(0, HideTracker)
+end
+
+function EasyFind:RestoreObjectiveTrackerHidden()
+    if EasyFind.db.objectiveTrackerHidden then KeepTrackerHidden() end
+end
+
+function EasyFind:ToggleObjectiveTracker()
+    local t = TrackerFrame()
+    if not t then return end
+    if EasyFind.db.objectiveTrackerHidden then
+        EasyFind.db.objectiveTrackerHidden = nil
+        t:Show()
+        if ns.GPS and ns.GPS.PlaceDock then ns.GPS.PlaceDock() end
+        return
+    end
+    EasyFind.db.objectiveTrackerHidden = true
+    KeepTrackerHidden()
 end
 
 function EasyFind:OpenOptions()

@@ -3495,9 +3495,12 @@ end
 -- with none to snap into (its tracker hidden, or a watch without room).
 local function Host()
     local Replacement = ns.SearchOpeners and ns.SearchOpeners.Replacement
+    local api = Replacement and Replacement("questWatch")
+    if api then return api.WatchRoom and "era" or nil, api end
+    -- The tracker hidden by Toggle Objective Tracker: nothing to snap into.
+    local db = DB()
+    if db and db.objectiveTrackerHidden then return nil end
     if Replacement then
-        local api = Replacement("questWatch")
-        if api then return api.WatchRoom and "era" or nil, api end
         if Replacement("hideObjectiveTracker") then return nil end
         if Replacement("questTracker") then return ClientTracker() and "classic" or nil end
     end
@@ -5263,6 +5266,8 @@ function GPS.StyleMenu(border)
         return rows
     end }
 end
+
+GPS.PlaceDock = PlaceDock
 
 function GPS:Dock(slot)
     if not (Tracker() or Watch()) then return false end
