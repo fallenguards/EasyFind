@@ -430,7 +430,6 @@ function Search:CreateSearchFrame()
     ns.CreateRoundedRectDivider(containerFrame)
     containerFrame._efForeverSurface = true
     containerFrame._efClassicSurface = true
-    containerFrame._efWearsTree = true
     -- The bar drags by the search frame: the band's reach goes to it.
     containerFrame._efBandDragOwner = searchFrame
     ns.SetRoundedRectBarHeight(containerFrame, searchFrame:GetHeight())

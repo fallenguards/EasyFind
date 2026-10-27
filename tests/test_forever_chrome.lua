@@ -446,8 +446,9 @@ function tests.classicWindow_usesTheDialogFrame()
 end
 
 -- A talent tree behind a Classic window shows through the cards in it,
--- which keep their thin edge; menus keep their marble. The tree takes the
--- window's opacity, the one setting for it (2026-10-27).
+-- which keep their thin edge. Menus, results and every other surface wear
+-- the tree too (2026-10-27: they kept the marble). The tree takes the
+-- surface's opacity, the one setting for it.
 function tests.classicTree_showsThroughTheWindowsCards()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = CLASSIC
@@ -465,7 +466,10 @@ function tests.classicTree_showsThroughTheWindowsCards()
     local menu = classicSurface()
     menu.GetParent = function() return win end
     ns.ApplyThemeFill(menu)
-    H.assertTrue(menu._efClassicBack.bdColor[4] > 0, "a menu keeps its marble")
+    H.assertEq(menu._efClassicBack.bdColor[4], 0, "a menu wears the tree, no marble")
+    H.assertTrue(menu._efTree and menu._efTree.clip.shown ~= false, "the menu's own tree")
+    ns.SetRoundedRectBorderBgAlpha(menu, 0.5)
+    H.assertTrue(near(menu._efTree.clip.alpha, 0.5), "its tree follows its opacity")
     -- The options window wears its art on a frame beside its contents.
     local panel = surface(false)
     panel._efTreeHost = win

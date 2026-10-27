@@ -385,7 +385,7 @@ function Editor:ShowHits(results, secs, query)
         row:Show()
     end
     for i = n + 1, #self.dropRows do self.dropRows[i]:Hide() end
-    if ns.StripShadows then ns.StripShadows(self.drop) end
+    if ns.ShadeText then ns.ShadeText(self.drop) end
     self.drop:SetHeight(mmax(1, n * DROP_ROW_H + DROP_PAD * 2))
     self.drop:SetShown(n > 0 and self.editing ~= nil)
 end

@@ -357,7 +357,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     popup:SetScale(opts.scale or 1)
     Utils.RefreshMenuRowHighlights(popup, live)
     Utils.OpenFlyoutBeside(popup, anchor, 4)
-    if ns.FlatText then ns.FlatText(popup) end
+    if ns.KeepTextShaded then ns.KeepTextShaded(popup) end
     popup:Show()
     return popup
 end

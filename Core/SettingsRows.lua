@@ -107,6 +107,9 @@ end
 function SettingsRows.RedressClassic()
     Search("UpdateWindowBorders")
     if ns.RestyleCardFills then ns.RestyleCardFills() end
+    -- A tree's text wears a shadow and lighter grays, the marble's neither.
+    if ns.ShadeTextEverywhere then ns.ShadeTextEverywhere() end
+    if ns.FireThemeCallbacks then ns.FireThemeCallbacks() end
     if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
 end
 

@@ -2397,6 +2397,7 @@ ns.TEXT_PRIMARY = {1.00, 0.97, 0.86}
 ns.TEXT_BODY = {0.78, 0.78, 0.80}
 ns.TEXT_DIM = {0.55, 0.55, 0.58}
 ns.TEXT_ASIDE = {0.56, 0.74, 0.82}   -- an aside among steps (advice), apart from the done gray
+ns.TEXT_NEXT = {0.78, 0.78, 0.80}    -- what is still ahead (a route's steps to come)
 -- One look for a search box's hint: the lens and the placeholder in the
 -- same gray, no shadow to smear the text on a dark inset.
 ns.SEARCH_HINT_COLOR = { 0.66, 0.66, 0.70 }
@@ -2907,7 +2908,7 @@ local function PlaceTree(art)
     art.tex[1]:SetPoint("TOPRIGHT", art.clip, "TOPRIGHT", TREE_BLANK_RIGHT * k, 0)
 end
 
--- A pane inside a window that wears a tree: its marble would hide the art.
+-- A card inside a surface that wears a tree: its marble would hide the art.
 function ns.OverTree(frame)
     local db = EasyFind and EasyFind.db
     local name = db and db.classicArt
@@ -2915,18 +2916,18 @@ function ns.OverTree(frame)
     local anc = frame:GetParent()
     while anc do
         local host = anc._efTreeHost or anc
-        if host._efClassicStyle == "dialog" or host._efWearsTree then return true end
+        if host._efClassicSurface and host._efClassicStyle ~= "thin" then return true end
         anc = anc:GetParent()
     end
     return false
 end
 
--- A window or the search bar wearing a picked tree: the tree is its whole
--- background, none of the marble.
+-- Every Classic surface but a card (windows, the bar, results, menus)
+-- wears a picked tree: the tree is its whole background, none of the marble.
 function ns.ShowsTree(frame)
     local db = EasyFind and EasyFind.db
     local name = db and db.classicArt
-    return name ~= nil and name ~= "marble" and (frame._efClassicStyle == "dialog" or frame._efWearsTree == true)
+    return name ~= nil and name ~= "marble" and frame._efClassicStyle ~= "thin"
 end
 
 -- The picked tree inside the frame's border, or none for the marble alone.
@@ -3011,9 +3012,10 @@ do
         local alpha = frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha()
         host:SetBackdropColor(1, 1, 1, (ns.OverTree(frame) or ns.ShowsTree(frame)) and 0 or alpha)
         host:SetBackdropBorderColor(1, 1, 1, 1)
-        -- Windows and the search window may wear a talent tree; menus never.
-        if want == "dialog" or frame._efWearsTree then
+        if want ~= "thin" then
             DressTree(frame, backdrop.insets.left - (host ~= frame and ns.CLASSIC_OUTSET or 0), alpha)
+        elseif frame._efTree then
+            frame._efTree.clip:Hide()
         end
         return true
     end
@@ -3255,6 +3257,8 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if frame._efSkin == "classic" then
         local marble = not (ns.OverTree(frame) or ns.ShowsTree(frame))
         ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, marble and (frame._efClassicAlpha or alpha) or 0)
+        local tree = frame._efTree
+        if tree and tree.clip:IsShown() then tree.clip:SetAlpha(frame._efClassicAlpha or alpha) end
     end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
@@ -3438,8 +3442,8 @@ local function RetintFontString(fs, theme, shadowOnly)
     -- _efOwnColor text likewise has a dedicated painter (row RefreshVisual,
     -- ApplyRowLabelColor): classification here would freeze whatever theme
     -- was active when the color snapshot was taken.
-    -- No font shadow on either polarity: our text is flat everywhere.
-    fs:SetShadowColor(0, 0, 0, 0)
+    -- No font shadow on either polarity, but over a Classic talent tree.
+    fs:SetShadowColor(0, 0, 0, ns.TextShadowed() and 1 or 0)
     if shadowOnly or fs._efOwnColor then return end
     local orig = fs._efOrigTextColor
     -- Tagged link text follows the live link table on BOTH polarities;
@@ -3452,7 +3456,8 @@ local function RetintFontString(fs, theme, shadowOnly)
         return
     end
     if not theme.lightTheme then
-        fs:SetTextColor(orig[1], orig[2], orig[3], orig[4])
+        local r, g, b = ns.TreeTextColor(orig[1], orig[2], orig[3])
+        fs:SetTextColor(r, g, b, orig[4])
         return
     end
     local r, g, b = orig[1], orig[2], orig[3]
@@ -3544,30 +3549,77 @@ function ns.RetintPanelText(root)
     Utils.retintLinkColor = nil
 end
 
--- Our text carries no font shadow, on either polarity: the game's font
--- objects bring one, so every font string and edit box under a root is
--- flattened, now and again each time the root shows (rows made since).
-function ns.StripShadows(f)
-    if not f then return end
-    if f.SetShadowColor then f:SetShadowColor(0, 0, 0, 0) end
-    if f.GetRegions then
-        for i = 1, select("#", f:GetRegions()) do
-            local region = select(i, f:GetRegions())
-            if region and region.SetShadowColor then region:SetShadowColor(0, 0, 0, 0) end
-        end
+-- Our text carries no font shadow, on either polarity, except over a
+-- Classic talent tree: the art is bright and the text wears the game's
+-- drop shadow there (2026-10-27).
+function ns.TextShadowed()
+    local db = EasyFind and EasyFind.db
+    local art = db and db.classicArt
+    return art ~= nil and art ~= "marble" and ns.IsClassicChrome() or false
+end
+
+do
+    local function Shade(text, alpha)
+        text:SetShadowColor(0, 0, 0, alpha)
+        if alpha > 0 and text.SetShadowOffset then text:SetShadowOffset(1, -1) end
     end
-    if f.GetChildren then
-        for i = 1, select("#", f:GetChildren()) do
-            ns.StripShadows((select(i, f:GetChildren())))
+
+    -- Every font string and edit box under a root shaded as TextShadowed says.
+    function ns.ShadeText(f, alpha)
+        if not f then return end
+        alpha = alpha or (ns.TextShadowed() and 1 or 0)
+        if f.SetShadowColor then Shade(f, alpha) end
+        if f.GetRegions then
+            for i = 1, select("#", f:GetRegions()) do
+                local region = select(i, f:GetRegions())
+                if region and region.SetShadowColor then Shade(region, alpha) end
+            end
+        end
+        if f.GetChildren then
+            for i = 1, select("#", f:GetChildren()) do
+                ns.ShadeText((select(i, f:GetChildren())), alpha)
+            end
         end
     end
 end
-function ns.FlatText(root)
+
+-- Over a Classic talent tree the gray and aside text is lifted: the art is
+-- bright and the dark grays were lost on it (2026-10-27, the mock's C).
+-- The live tables change in place; a color painted once maps across.
+do
+    local LIFTS = {
+        { live = ns.TEXT_DIM, flat = { 0.55, 0.55, 0.58 }, tree = { 0.82, 0.82, 0.84 } },
+        { live = ns.TEXT_NEXT, flat = { 0.78, 0.78, 0.80 }, tree = { 0.93, 0.93, 0.95 } },
+        { live = ns.TEXT_ASIDE, flat = { 0.56, 0.74, 0.82 }, tree = { 0.72, 0.90, 1.00 } },
+    }
+    local function Near(c, r, g, b)
+        return math.abs(c[1] - r) < 0.02 and math.abs(c[2] - g) < 0.02 and math.abs(c[3] - b) < 0.02
+    end
+
+    function ns.LiftTreeText()
+        local tree = ns.TextShadowed()
+        for _, l in ipairs(LIFTS) do
+            local c = tree and l.tree or l.flat
+            l.live[1], l.live[2], l.live[3] = c[1], c[2], c[3]
+        end
+    end
+
+    -- A gray or aside painted from either look, in the one showing now.
+    function ns.TreeTextColor(r, g, b)
+        for _, l in ipairs(LIFTS) do
+            if Near(l.flat, r, g, b) or Near(l.tree, r, g, b) then return l.live[1], l.live[2], l.live[3] end
+        end
+        return r, g, b
+    end
+end
+
+-- A root's text shaded now and again each time it shows (rows made since).
+function ns.KeepTextShaded(root)
     if not root then return end
-    ns.StripShadows(root)
-    if not root._efFlatHooked and root.HookScript then
-        root._efFlatHooked = true
-        root:HookScript("OnShow", ns.StripShadows)
+    ns.ShadeText(root)
+    if not root._efShadeHooked and root.HookScript then
+        root._efShadeHooked = true
+        root:HookScript("OnShow", function(self) ns.ShadeText(self) end)
     end
 end
 -- A glossed panel's text in the theme's colors, now and on each show.
@@ -3580,7 +3632,8 @@ function ns.ThemePanelText(root)
     end
 end
 -- Every window of ours by its name, at a theme change and after login.
-function ns.FlatTextEverywhere()
+function ns.ShadeTextEverywhere()
+    ns.LiftTreeText()
     if not EnumerateFrames then return end
     local f = EnumerateFrames()
     while f do
@@ -3588,7 +3641,7 @@ function ns.FlatTextEverywhere()
         -- Ours are named EasyFind..., the notes companion's EasyNotes...
         local name = f.GetName and f:GetName()
         if type(name) == "string" and (name:sub(1, 8) == "EasyFind" or name:sub(1, 9) == "EasyNotes") then
-            ns.FlatText(f)
+            ns.KeepTextShaded(f)
             -- Glossed panels: their text goes dark on a light theme too.
             if name:sub(1, 9) == "EasyNotes" then ns.ThemePanelText(f) end
         end
@@ -6038,7 +6091,7 @@ function ns.ShowPasteDialog(opts)
     f.acceptBtn:SetText(opts.acceptText or L["SHORTKEY_IMPORT"])
     f._onAccept = opts.onAccept
     f.editBox:SetText("")
-    ns.FlatText(f)
+    ns.KeepTextShaded(f)
     f:Show()
     Utils.SafeAfter(0, function() if f:IsShown() then f.editBox:SetFocus() end end)
 end
@@ -6286,7 +6339,7 @@ function ns.ShowThemedDialog(opts)
     used = used + 22 + 14
     f:SetHeight(used)
 
-    ns.FlatText(f)
+    ns.KeepTextShaded(f)
     f:Show()
     if f._hasEditBox then
         f.editBox:SetFocus()
@@ -9607,7 +9660,7 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
         menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT",
             x / scale + (opts.offsetX or 0), y / scale + (opts.offsetY or 0))
     end
-    ns.FlatText(menu)
+    ns.KeepTextShaded(menu)
     menu:Show()
     -- Uniform per-row pills carry no geometry dependency, so this can run
     -- synchronously again (the old positional corner masks needed resolved

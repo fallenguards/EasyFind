@@ -540,7 +540,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     end
     -- Every window of ours: flat text, no font shadow; panel text and cog
     -- glyphs in the theme's colors.
-    if ns.FlatTextEverywhere then ns.FlatTextEverywhere() end
+    if ns.ShadeTextEverywhere then ns.ShadeTextEverywhere() end
     if ns.RetintCogs then ns.RetintCogs() end
     if ns.RetintCloseXs then ns.RetintCloseXs() end
     -- Let registered windows (calculator popup) restyle to the new palette
@@ -559,7 +559,7 @@ end
 -- SetScaledFont actually re-applies a font object (which restores the
 -- object's own shadow).
 local function ApplyThemeShadow(fontString)
-    local wantLight = THEMES["Modern"].lightTheme and true or false
+    local wantLight = (THEMES["Modern"].lightTheme and not ns.TextShadowed()) and true or false
     if fontString._efShadowLight == wantLight then return end
     fontString._efShadowLight = wantLight
     fontString:SetShadowColor(0, 0, 0, wantLight and 0 or 1)

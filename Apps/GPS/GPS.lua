@@ -2362,8 +2362,8 @@ local function Render(container)
             row.text:SetTextColor(unpack(ns.TEXT_DIM))
             row.num:SetTextColor(unpack(ns.TEXT_DIM))
         else
-            row.text:SetTextColor(0.78, 0.78, 0.80)
-            row.num:SetTextColor(0.78, 0.78, 0.80)
+            row.text:SetTextColor(unpack(ns.TEXT_NEXT))
+            row.num:SetTextColor(unpack(ns.TEXT_NEXT))
         end
         row:Show()
         y = y + rowH
@@ -2381,7 +2381,7 @@ local function Render(container)
     container.contentHeight = y
     container.list:SetHeight(mmax(1, y))
     -- Rows made this render carry the font's shadow until flattened.
-    if ns.StripShadows then ns.StripShadows(container.list) end
+    if ns.ShadeText then ns.ShadeText(container.list) end
     if container.OnRouteChanged then container:OnRouteChanged(true) end
 end
 
@@ -5517,6 +5517,8 @@ local function BuildPopout()
     ns.RegisterThemeCallback(function()
         f:ApplyBorderShape()
         if f.glyphTex then f.glyphTex:SetVertexColor(unpack(ns.ChromeGlyphColor())) end
+        -- The steps' grays follow the background (lifted over a talent tree).
+        Refresh()
     end)
 
     -- The calculator's stroke close, not a stock round button. The header's
@@ -5835,7 +5837,7 @@ local function BuildPopout()
         f:SetPoint("TOPRIGHT", UIParent, "RIGHT", -40, 200)
     end
     f:Hide()
-    if ns.FlatText then ns.FlatText(f) end
+    if ns.KeepTextShaded then ns.KeepTextShaded(f) end
     return f
 end
 
