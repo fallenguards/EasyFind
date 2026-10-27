@@ -2066,6 +2066,56 @@ end
 -- but a paint already applied does not, so a repaint sweep is required.
 local themedButtons = {}
 
+-- A light theme (the window's own palette, a studio theme's too): its
+-- palette, else nil. Every light color below comes from it, so each light
+-- theme gets the look in its own colors (2026-10-27).
+function UI.NotesLight(frame)
+    local p = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
+    return (p and p.light and p.windowFill and p.accent) and p or nil
+end
+
+function UI.MixColor(a, b, t)
+    return a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t
+end
+UI.WHITE = { 1, 1, 1 }
+
+-- The glyphs on a button: white on a light theme's solid accent, their
+-- own grays otherwise.
+function UI.PaintNotesGlyphs(btn, light)
+    local function rgb(t, r, g, b) if t then t:SetVertexColor(r, g, b, 1) end end
+    if light then
+        rgb(btn.gearIcon, 1, 1, 1)
+        rgb(btn.houseIcon, 1, 1, 1)
+        rgb(btn.icon, 1, 1, 1)
+        if btn.x1 then btn.x1:SetColorTexture(1, 1, 1, 1) btn.x2:SetColorTexture(1, 1, 1, 1) end
+        if btn.text then btn.text:SetTextColor(1, 1, 1, 1) end
+        return
+    end
+    rgb(btn.gearIcon, 0.84, 0.84, 0.86)
+    rgb(btn.houseIcon, 1, 1, 1)
+    rgb(btn.icon, 0.95, 0.95, 0.97)
+    if btn.x1 then btn.x1:SetColorTexture(0.84, 0.84, 0.86, 1) btn.x2:SetColorTexture(0.84, 0.84, 0.86, 1) end
+end
+
+-- A light theme's button: the accent, solid, a step lighter under the
+-- mouse; true when painted so.
+function UI.PaintLightButton(btn, hovered)
+    local p = UI.NotesLight(btn)
+    if not p then
+        if btn._efLightLook then btn._efLightLook = nil UI.PaintNotesGlyphs(btn, false) end
+        return false
+    end
+    local a = p.accent
+    if hovered then
+        ns.SetRoundedRectFill(btn, UI.MixColor(a, UI.WHITE, 0.18))
+    else
+        ns.SetRoundedRectFill(btn, a[1], a[2], a[3])
+    end
+    btn._efLightLook = true
+    UI.PaintNotesGlyphs(btn, true)
+    return true
+end
+
 -- Under the Classic skin the window's buttons are the 1.x red panel
 -- buttons EasyFind's own are; true while they wear it.
 function UI.PaintClassicButton(btn, hovered)
@@ -2081,6 +2131,7 @@ end
 local function PaintSubtleButton(btn, hovered)
     if not ns.SetRoundedRectFill then return end
     if UI.PaintClassicButton(btn, hovered) then return end
+    if UI.PaintLightButton(btn, hovered) then return end
     -- Fill only. Text stays GameFontHighlightSmall white and is never recolored,
     -- exactly like EasyFind's theme/font/indicator selector buttons: constant
     -- color and font before and after hover. Control fills stay dark on every
@@ -2093,6 +2144,7 @@ end
 local function PaintAccentButton(btn)
     if not ns.SetRoundedRectFill then return end
     if UI.PaintClassicButton(btn, false) then return end
+    if UI.PaintLightButton(btn, false) then return end
     local ac = ns.ThemeSetOf(btn).BTN_FILL_NORMAL or ns.ThemeSetOf(btn).NAV_SELECTED_FILL or { 0.20, 0.30, 0.45 }
     ns.SetRoundedRectFill(btn, ac[1], ac[2], ac[3], 1, true)
 end
@@ -2123,6 +2175,7 @@ if ns.RegisterThemeCallback then
         end
         local frame = UI._notes.frame
         if frame and frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
+        if UI.PaintNotesSearch then UI.PaintNotesSearch() end
         -- The list's cards take the new theme (dark over a Classic tree).
         if UI._notes.paletteShown and UI.RefreshEasyNotesPalette then UI:RefreshEasyNotesPalette() end
     end)
@@ -4323,11 +4376,11 @@ function UI:EnsureEasyNotesFrame()
         UI:FocusEasyNoteEditor()
     end)
     frame.newButton:SetScript("OnEnter", function(self)
-        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, true) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
+        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, true) and not UI.PaintLightButton(self, true) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
         UI:ShowNotesTipDelayed(self, "ANCHOR_BOTTOM", L["NOTES_NEW_TT"])
     end)
     frame.newButton:SetScript("OnLeave", function(self)
-        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, false) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
+        if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, false) and not UI.PaintLightButton(self, false) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1], c[2], c[3], 1, true) end
         UI:HideNotesTip(self)
     end)
 
@@ -5120,6 +5173,25 @@ function UI:EnsureEasyNotesFrame()
     -- shell: the glass and the hint go on it, the box and the button above.
     local well = ns.CreateRingedWell(frame.paletteSearchShell, 6)
     ns.PaintInputWell(frame.paletteSearchShell)
+    -- On a light theme a pale well with the theme's dark text, glass and
+    -- hint; repainted at each theme change.
+    function UI.PaintNotesSearch()
+        local light = UI.NotesLight(frame)
+        if light then
+            local f = light.windowFillTop or light.windowFill
+            ns.PaintInputWell(frame.paletteSearchShell, { UI.MixColor(f, UI.WHITE, 0.6) })
+            local s, t = light.textFaint or { 0.24, 0.35, 0.48 }, light.pathColorHover or { 0.05, 0.17, 0.36 }
+            frame.paletteSearchPlaceholder:SetTextColor(s[1], s[2], s[3], 1)
+            frame.paletteSearchIcon:SetVertexColor(s[1], s[2], s[3], 1)
+            frame.paletteSearch:SetTextColor(t[1], t[2], t[3], 1)
+            frame.paletteFilterBtn.arrow:SetVertexColor(t[1], t[2], t[3], 1)
+        else
+            ns.PaintInputWell(frame.paletteSearchShell)
+            Utils.StyleSearchHint(frame.paletteSearchPlaceholder, frame.paletteSearchIcon)
+            frame.paletteSearch:SetTextColor(0.95, 0.95, 0.95, 1)
+            frame.paletteFilterBtn.arrow:SetVertexColor(0.7, 0.7, 0.74, 1)
+        end
+    end
     -- Filter button (triangle) opens a themed menu to filter the note list by
     -- character and category, mirroring the main search bar's filter.
     frame.paletteFilterBtn = CreateFrame("Button", nil, frame.paletteSearchShell)
@@ -5159,6 +5231,7 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteSearchPlaceholder:SetPoint("LEFT", frame.paletteSearchIcon, "RIGHT", 6, 0)
     frame.paletteSearchPlaceholder:SetText(L["NOTES_SEARCH"])
     frame.paletteSearchPlaceholder:SetTextColor(0.48, 0.48, 0.52, 1)
+    UI.PaintNotesSearch()
     frame.paletteSearch:SetScript("OnTextChanged", function(self)
         frame.paletteSearchPlaceholder:SetShown((self:GetText() or "") == "")
         UI:RefreshEasyNotesPalette()
@@ -6993,7 +7066,15 @@ local function PaintPaletteRow(row)
         -- the list reads as one surface with the buttons instead of black slabs.
         local c
         local look = ns.ThemeSetOf(row)
-        if selected then
+        local light = UI.NotesLight(row)
+        if light then
+            -- A light theme: the window's fill tinted toward its accent,
+            -- more under the mouse; the selected card nearly white.
+            local f, a = light.windowFill, light.accent
+            if selected then c = { UI.MixColor(f, UI.WHITE, 0.45) }
+            elseif over then c = { UI.MixColor(f, a, 0.22) }
+            else c = { UI.MixColor(f, a, 0.14) } end
+        elseif selected then
             c = look.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }
         elseif ns.ClassicTreeShown() then
             -- Over a talent tree: a dark card, the pale wash over it on hover.
@@ -7008,8 +7089,19 @@ local function PaintPaletteRow(row)
     -- The second line and the time in the theme's text color, a step
     -- down: the dim gray read badly on the row fills.
     local tr, tg, tb = ns.TooltipTextColor()
-    row.subtitle:SetTextColor(tr, tg, tb, 0.75)
-    row.timeText:SetTextColor(tr, tg, tb, 0.75)
+    local light = UI.NotesLight(row)
+    if light then
+        -- The title in the theme's darkest text, its lines a lighter
+        -- shade of the same: one family, never another hue.
+        local t, s = light.pathColorHover or { 0.05, 0.17, 0.36 }, light.textFaint or { 0.24, 0.35, 0.48 }
+        row.title:SetTextColor(t[1], t[2], t[3], 1)
+        row.subtitle:SetTextColor(s[1], s[2], s[3], 1)
+        row.timeText:SetTextColor(s[1], s[2], s[3], 1)
+    else
+        row.title:SetTextColor(1, 1, 1, 1)
+        row.subtitle:SetTextColor(tr, tg, tb, 0.75)
+        row.timeText:SetTextColor(tr, tg, tb, 0.75)
+    end
     if row.actionBar then row.actionBar:SetShown(over) end
     -- Pinned notes show a gold pin even when not hovered, so pinned state is
     -- visible at a glance (the action bar only appears on hover).

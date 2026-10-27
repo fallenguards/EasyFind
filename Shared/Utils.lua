@@ -2570,6 +2570,8 @@ local TC_LEFT  = {0, CAP_TEX_RATIO, 0, 1}
 local TC_MID   = {CAP_TEX_RATIO, 1 - CAP_TEX_RATIO, 0, 1}
 local TC_RIGHT = {1 - CAP_TEX_RATIO, 1, 0, 1}
 local BORDER_R, BORDER_G, BORDER_B = 0.42, 0.42, 0.42
+-- Every window's ring where its theme names none (ApplyThemeFill).
+ns.WINDOW_RING_COLOR = { 0.30, 0.30, 0.33, 0.6 }
 
 local function CreateTexPart(frame, layer, texPath, tc, vertR, vertG, vertB, vertA)
     local tex = frame:CreateTexture(nil, layer)
@@ -2624,6 +2626,10 @@ end
 -- 2 * cornerSize, the silhouette collapses to a horizontal pill.
 local COMBINED_TEX_FILL   = "Interface\\AddOns\\EasyFind\\textures\\CombinedFill"
 local COMBINED_TEX_BORDER = "Interface\\AddOns\\EasyFind\\textures\\CombinedBorder"
+-- Its line is 2 texels of a 64-texel corner: under about 11 px a corner
+-- draws a fraction of a pixel and the arcs vanish (the Notes and chat
+-- windows, 2026-10-27). Small corners wear the same ring drawn 12 wide.
+ns.COMBINED_TEX_BORDER_SMALL = "Interface\\AddOns\\EasyFind\\textures\\CombinedBorderSmall"
 local CR = 0.25
 
 local TC9 = {
@@ -3219,6 +3225,14 @@ local function ApplyContainerCornerSize(frame)
     local h = frame.cbBarHeight or frame:GetHeight() or 0
     if h <= 0 then return end
     local cornerSize = h / 2
+    local ringTex = cornerSize < 11 and ns.COMBINED_TEX_BORDER_SMALL or COMBINED_TEX_BORDER
+    if frame._efRingTex ~= ringTex then
+        frame._efRingTex = ringTex
+        for name, t in pairs(frame.combinedBorder.border) do
+            t:SetTexture(ringTex)
+            t:SetTexCoord(unpack(TC9[name]))
+        end
+    end
     AnchorNineSlice(frame, frame.combinedBorder.fill,   cornerSize)
     AnchorNineSlice(frame, frame.combinedBorder.border, cornerSize)
     if frame._efArtCells then
@@ -3911,16 +3925,12 @@ function ns.ApplyThemeFill(frame)
     local palette = set and set.palette or ns.ACTIVE_UI_PALETTE
     local windowFill = set and set.SEARCH_WINDOW_FILL_COLOR or ns.SEARCH_WINDOW_FILL_COLOR
     local cWhite = CreateColor and CreateColor(1, 1, 1, 1)
-    -- A studio theme tints the ring; the stock tint returns when the
-    -- next theme has no borderColor slot.
+    -- A studio theme tints the ring; else every window wears the one soft
+    -- line (Forever its bronze), never a ring of its own (2026-10-27: the
+    -- chat's read white beside the Notes' gray-blue).
     local ring = palette and palette.borderColor
-    if ring then
-        frame._efPaletteRing = true
-        ns.SetRoundedRectBorderColor(frame, ring[1], ring[2], ring[3], ring[4] or 1)
-    elseif frame._efPaletteRing then
-        frame._efPaletteRing = nil
-        ns.SetRoundedRectBorderColor(frame, BORDER_R, BORDER_G, BORDER_B, 1)
-    end
+        or ((palette and palette.chrome == "forever") and ns.ForeverLineColor()) or ns.WINDOW_RING_COLOR
+    ns.SetRoundedRectBorderColor(frame, ring[1], ring[2], ring[3], ring[4] or 1)
 
     local artPath = palette and palette.fillTexture
     -- Forever's page at its own size, cropped; another atlas fitted across.
@@ -5139,6 +5149,40 @@ local escArmed = false
 local SetOverrideBindingClick = SetOverrideBindingClick
 local ClearOverrideBindings = ClearOverrideBindings
 
+-- A game window open: one of the panel manager's, or one its Escape list
+-- closes. Read only; nothing of the game's is called or written.
+do
+    local PANEL_SIDES = { "left", "center", "right", "doublewide", "fullscreen" }
+    function ns.GamePanelOpen()
+        local GetUIPanel = _G.GetUIPanel
+        if GetUIPanel then
+            for i = 1, #PANEL_SIDES do
+                if GetUIPanel(PANEL_SIDES[i]) then return true end
+            end
+        end
+        local special = _G.UISpecialFrames
+        for i = 1, special and #special or 0 do
+            local f = _G[special[i]]
+            if f and f.IsShown and f:IsShown() then return true end
+        end
+        return false
+    end
+end
+
+-- An entry wants Escape now: its predicate says so, and a background
+-- window (yields) lets a game window that is open take it first
+-- (2026-10-27: Escape closed the chat before the talents).
+function Utils.EscEntryWants(entry)
+    -- Hidden (its OnHide hook wiped by a SetScript): never the key's owner.
+    if entry.frame and not entry.frame:IsShown() then return false end
+    if entry.yields and ns.GamePanelOpen() then return false end
+    if not entry.shouldEat then return true end
+    -- pcall fail-open: a broken predicate must never leave ESC bound
+    -- (captured input is worse than a missed close).
+    local ok, eat = pcall(entry.shouldEat)
+    return ok and eat and true or false
+end
+
 local function EscArm()
     if not escOwner or InCombatLockdown() then return end
     -- An entry only wants ESC while its shouldEat predicate (if any)
@@ -5148,15 +5192,7 @@ local function EscArm()
     -- outside explicit UI state).
     local wantArmed = false
     for i = #escStack, 1, -1 do
-        local entry = escStack[i]
-        -- pcall fail-open: a broken predicate must never leave ESC bound
-        -- (captured input is worse than a missed close).
-        local wants = true
-        if entry.shouldEat then
-            local ok, eat = pcall(entry.shouldEat)
-            wants = ok and eat and true or false
-        end
-        if wants then
+        if Utils.EscEntryWants(escStack[i]) then
             wantArmed = true
             break
         end
@@ -5234,12 +5270,7 @@ local function EnsureEscDispatch()
         -- lower one.
         for i = #escStack, 1, -1 do
             local entry = escStack[i]
-            local wants = true
-            if entry.shouldEat then
-                local ok, eat = pcall(entry.shouldEat)
-                wants = ok and eat and true or false
-            end
-            if wants then
+            if Utils.EscEntryWants(entry) then
                 -- close() reports whether it actually dismissed anything. A
                 -- predicate that keeps claiming ESC while its close is a
                 -- no-op would eat every press forever, so a false (or an
@@ -5254,6 +5285,18 @@ local function EnsureEscDispatch()
     end)
     escOwner:RegisterEvent("PLAYER_REGEN_DISABLED")
     escOwner:RegisterEvent("PLAYER_REGEN_ENABLED")
+    -- While a background window that yields is up, a game window opening
+    -- or closing re-arms: no event says so, so a light look every 0.1 s.
+    local wait = 0
+    escOwner.WatchYields = function(on)
+        if not on then escOwner:SetScript("OnUpdate", nil) return end
+        escOwner:SetScript("OnUpdate", function(_, dt)
+            wait = wait - dt
+            if wait > 0 then return end
+            wait = 0.1
+            EscArm()
+        end)
+    end
     escOwner:SetScript("OnEvent", function(_, event)
         if event == "PLAYER_REGEN_DISABLED" then
             if escArmed then
@@ -5866,24 +5909,36 @@ function Utils.AttachCopiedFlash(editBox, parent, anchorTo, yOffset)
     return holder
 end
 
-function Utils.AttachEscClose(frame, close, shouldEat)
+-- opts.yields: a background window (the chat): a game window that is
+-- open takes Escape before it.
+function Utils.WatchEscYields()
+    for i = 1, #escStack do
+        if escStack[i].yields then return escOwner.WatchYields(true) end
+    end
+    escOwner.WatchYields(false)
+end
+function Utils.AttachEscClose(frame, close, shouldEat, opts)
     EnsureEscDispatch()
     close = close or function() frame:Hide() end
+    local yields = opts and opts.yields or nil
     frame:HookScript("OnShow", function()
         EscRemove(frame)
-        escStack[#escStack + 1] = { frame = frame, close = close, shouldEat = shouldEat }
+        escStack[#escStack + 1] = { frame = frame, close = close, shouldEat = shouldEat, yields = yields }
+        Utils.WatchEscYields()
         EscArm()
     end)
     frame:HookScript("OnHide", function()
         EscRemove(frame)
+        Utils.WatchEscYields()
         EscArm()
     end)
     if frame:IsShown() then
-        escStack[#escStack + 1] = { frame = frame, close = close, shouldEat = shouldEat }
+        escStack[#escStack + 1] = { frame = frame, close = close, shouldEat = shouldEat, yields = yields }
+        Utils.WatchEscYields()
         EscArm()
     end
 end
-ns.AttachEscClose = function(frame, close, shouldEat) return Utils.AttachEscClose(frame, close, shouldEat) end
+ns.AttachEscClose = function(frame, close, shouldEat, opts) return Utils.AttachEscClose(frame, close, shouldEat, opts) end
 
 -- Hidden clipboard box. WoW has no set-clipboard API: a copy is a focused
 -- editbox with the payload selected receiving the user's HARDWARE Ctrl+C.
@@ -6179,8 +6234,8 @@ local function BuildPasteDialog()
     local x = ns.CreateCloseX(f, 14)
     x:SetPoint("TOPRIGHT", -8, -8)
     x:SetScript("OnClick", function() f:Hide() end)
-    ns.AttachEscClose(f)
     f:SetScript("OnHide", function(self) self._onAccept = nil end)
+    ns.AttachEscClose(f)
     f:Hide()
     return f
 end
@@ -7166,6 +7221,24 @@ end
 -- to the row the name sits on, or the row takes the mouse. superscript makes
 -- it the smaller kind that rides a word (ns.SuperscriptTag places it).
 ns.TAG_COLORS = { new = { 0.3, 0.85, 1.0 }, exp = { 1.0, 0.55, 0.12 } }
+-- On a light theme a tag is the theme's accent with no glow: white text
+-- with a light glow was lost on the light fill (2026-10-27). Every tag is
+-- repainted at a theme change.
+ns._featureTags = setmetatable({}, { __mode = "k" })
+function ns.PaintFeatureTag(tag)
+    local p = ns.ACTIVE_UI_PALETTE
+    local a = p and p.light and p.accent
+    if a then
+        tag.text:SetTextColor(a[1], a[2], a[3])
+        tag.glow:Hide()
+    else
+        tag.text:SetTextColor(1, 1, 1)
+        tag.glow:Show()
+    end
+end
+function ns.RepaintFeatureTags()
+    for tag in pairs(ns._featureTags) do ns.PaintFeatureTag(tag) end
+end
 function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     local c = ns.TAG_COLORS[kind] or ns.TAG_COLORS.new
     local tag = CreateFrame("Frame", nil, parent)
@@ -7189,6 +7262,9 @@ function ns.CreateFeatureTag(parent, kind, tipTitle, tipBody, superscript)
     glow:SetVertexColor(c[1], c[2], c[3], 0.5)
     glow:SetBlendMode("ADD")
     ns.CreateBouncePulse(glow, 0.8, 0.1, 1.5):Play()
+    tag.text, tag.glow = text, glow
+    ns._featureTags[tag] = true
+    ns.PaintFeatureTag(tag)
     if tipTitle then
         Utils.AttachDelayedTooltip(tag, "ANCHOR_TOPLEFT", function() return tipTitle, tipBody end)
     end

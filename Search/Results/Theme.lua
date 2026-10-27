@@ -547,6 +547,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     if ns.ShadeTextEverywhere then ns.ShadeTextEverywhere() end
     if ns.RetintCogs then ns.RetintCogs() end
     if ns.RetintCloseXs then ns.RetintCloseXs() end
+    if ns.RepaintFeatureTags then ns.RepaintFeatureTags() end
     -- Let registered windows (calculator popup) restyle to the new palette
     -- while open.
     if ns.FireThemeCallbacks then ns.FireThemeCallbacks() end

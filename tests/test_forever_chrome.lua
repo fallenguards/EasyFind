@@ -137,7 +137,9 @@ function tests.bandOff_lineBorderWearsTheThemesBronze()
     ns.ACTIVE_UI_PALETTE = PLAIN
     ns.ApplyThemeFill(f)
     ns.SetRoundedRectDivider(f, 30, true)
-    for _, t in pairs(f.combinedBorder.border) do H.assertTrue(near(t.vertex[1], 0.42), "gray border") end
+    for _, t in pairs(f.combinedBorder.border) do
+        H.assertTrue(near(t.vertex[1], ns.WINDOW_RING_COLOR[1]), "every window's soft line")
+    end
     H.assertTrue(near(f.combinedDivider.color[1], 0.42), "gray divider")
     env.EasyFind.db.themeFrameArt = nil
 end
@@ -372,6 +374,20 @@ function tests.classic_borderOn_wearsTheTooltipFrame()
     ns.SetRoundedRectRingShown(f, true)
     H.assertTrue(not roundedShown(f, "border"), "a ring request cannot show the rounded ring over the frame")
     borderOption(nil)
+end
+
+-- The rounded ring's 2-texel line on a corner under 11 px is a fraction of
+-- a pixel and the arcs vanish (2026-10-27: the Notes and chat windows):
+-- small corners wear the thick ring, larger ones keep the fine one.
+function tests.smallCorners_wearTheThickRing()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = PLAIN
+    local win = surface(false)
+    ns.SetRoundedRectBarHeight(win, 14)
+    H.assertEq(win._efRingTex, ns.COMBINED_TEX_BORDER_SMALL, "a 7 px corner")
+    for _, t in pairs(win.combinedBorder.border) do H.assertEq(t.tex, ns.COMBINED_TEX_BORDER_SMALL) end
+    ns.SetRoundedRectBarHeight(win, 30)
+    H.assertTrue(win._efRingTex ~= ns.COMBINED_TEX_BORDER_SMALL, "a 15 px corner keeps the fine ring")
 end
 
 -- A window (Notes, the GPS pop-out, the chat) wears the dialog frame at its
