@@ -521,6 +521,7 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     ns.uiThemeGeneration = (ns.uiThemeGeneration or 0) + 1
     -- Frame art the theme lacks comes off every frame that wore it.
     if ns.RedressSkins then ns.RedressSkins() end
+    if ns.RepaintThemeFills then ns.RepaintThemeFills() end
     if ns.RepaintInputWells then ns.RepaintInputWells() end
     -- Menus that are OPEN during the flip never get their OnShow refill;
     -- restyle them right now so nothing wears the previous theme.

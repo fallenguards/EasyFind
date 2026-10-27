@@ -3264,6 +3264,12 @@ function ns.PaintInputWell(shell, fill)
     ns.PaintRingedWell(shell, ring, fill or look.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
 end
 
+-- Every window-fill surface in the theme just applied: a window, menu or
+-- extension's panel follows a theme change with no callback of its own.
+function ns.RepaintThemeFills()
+    for frame in pairs(ns._themeFills) do pcall(ns.ApplyThemeFill, frame) end
+end
+
 -- Every input box painted above, in the theme just applied.
 function ns.RepaintInputWells()
     for shell in pairs(ns._inputWells) do ns.PaintInputWell(shell) end
@@ -3542,7 +3548,8 @@ local function RetintControlFill(frame)
     -- State-driven fills (sidebar nav pills) opt out: their resting colors
     -- collide with the canonical button fills, so classification would
     -- stamp button colors onto whatever state they held at first walk.
-    if frame._efNoAutoRetint then return end
+    -- A window's fill is ApplyThemeFill's alone (RepaintThemeFills).
+    if frame._efNoAutoRetint or frame._efThemeFillTarget then return end
     if not (frame.combinedBorder and frame.combinedBorder.fill and frame.combinedBorder.fill.mm) then return end
     if frame._efControlFillKind == nil then
         local r, g, b = frame.combinedBorder.fill.mm:GetVertexColor()
@@ -3855,11 +3862,14 @@ end
 -- windowFillBottom/Top give a vertical two-stop gradient (also the
 -- pre-relaunch fallback while a new art file is not yet in the client's
 -- addon manifest).
+-- Every window-fill surface (weak), repainted at each theme change.
+ns._themeFills = setmetatable({}, { __mode = "k" })
 function ns.ApplyThemeFill(frame)
     if not (frame and frame.combinedBorder and frame.combinedBorder.fill) then return end
     -- Marks this frame as a window-fill surface: UpdateThemeFillGradient
     -- refuses to ramp anything without this flag.
     frame._efThemeFillTarget = true
+    ns._themeFills[frame] = true
     if ns.ApplySkin(frame) then return end
     if ns.ClassicTreeUnderFill(frame) then return end
     local fill = frame.combinedBorder.fill
@@ -4670,8 +4680,14 @@ function ns.RampButtonFill(frame, r, g, b, a)
     if not CreateColor then return end
     local top, bottom = frame._efRampTop or {}, frame._efRampBottom or {}
     frame._efRampTop, frame._efRampBottom = top, bottom
-    top[1], top[2], top[3] = r * 0.65, g * 0.65, b * 0.65
-    bottom[1], bottom[2], bottom[3] = math.min(1, r * 1.2), math.min(1, g * 1.2), math.min(1, b * 1.2)
+    -- Against the window's own ramp: light where the window is dark, so a
+    -- button's light end never sits on the window's (2026-10-27).
+    local pal = ns.ThemePaletteOf and ns.ThemePaletteOf(frame) or ns.ACTIVE_UI_PALETTE
+    local wb, wt = pal and pal.windowFillBottom, pal and pal.windowFillTop
+    local windowLightBelow = wb and wt and (0.3 * wb[1] + 0.59 * wb[2] + 0.11 * wb[3]) > (0.3 * wt[1] + 0.59 * wt[2] + 0.11 * wt[3])
+    local dark, light = windowLightBelow and bottom or top, windowLightBelow and top or bottom
+    dark[1], dark[2], dark[3] = r * 0.65, g * 0.65, b * 0.65
+    light[1], light[2], light[3] = math.min(1, r * 1.2), math.min(1, g * 1.2), math.min(1, b * 1.2)
     ns.RampFillCells(frame, frame.combinedBorder.fill, bottom, top, a or 1)
 end
 

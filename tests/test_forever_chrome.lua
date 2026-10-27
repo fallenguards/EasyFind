@@ -506,6 +506,23 @@ function tests.themeChange_takesTheClassicEdgeOffEveryCard()
     borderOption(nil)
 end
 
+-- A theme change repaints every window-fill surface itself: a window with
+-- no theme callback of its own (an extension's) follows at once
+-- (2026-10-27: Notes kept the old fill over the tree until a reload).
+function tests.themeChange_repaintsEveryWindowFill()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = FOREVER
+    borderOption(nil)
+    local win = surface(false)
+    ns.ApplyThemeFill(win)
+    H.assertTrue(win._efTree == nil or win._efTree.clip.shown == false, "no tree on Forever")
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    env.EasyFind.db.classicArt = "MageFire"
+    ns.RepaintThemeFills()
+    H.assertTrue(win._efTree and win._efTree.clip.shown ~= false, "the tree, with no callback of its own")
+    env.EasyFind.db.classicArt = nil
+end
+
 -- A window without the Classic frame art (Notes on its line border, or the
 -- frame art off) still has the picked tree for its background, under its
 -- own ring; the marble alone keeps the marble (2026-10-27).

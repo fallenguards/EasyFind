@@ -2109,6 +2109,8 @@ if ns.RegisterThemeCallback then
         end
         local frame = UI._notes.frame
         if frame and frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
+        -- The list's cards take the new theme (dark over a Classic tree).
+        if UI._notes.paletteShown and UI.RefreshEasyNotesPalette then UI:RefreshEasyNotesPalette() end
     end)
 end
 
