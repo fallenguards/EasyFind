@@ -565,6 +565,31 @@ local function AddFlyoutChecks(flyout, defs, itemWidth)
     flyout:SetSize(rowW + 6, 3 - y)
 end
 
+-- A flyout of looks shows the one under the cursor, after a short rest (a
+-- theme is heavy to apply); a click keeps it, the flyout closing without
+-- one puts the saved look back. apply(value) shows a value. Returns the
+-- hover handler and keep(value), for the pick.
+local function HoverPreview(flyout, getter, apply)
+    local saved, shown, token
+    flyout:HookScript("OnShow", function() saved, shown = getter(), nil end)
+    flyout:HookScript("OnHide", function()
+        token = nil
+        if shown ~= nil and shown ~= saved then apply(saved) end
+        shown = nil
+    end)
+    local function Hover(value)
+        local mine = {}
+        token = mine
+        Utils.SafeAfter(0.12, function()
+            if token ~= mine or not flyout:IsShown() or value == (shown or saved) then return end
+            shown = value
+            apply(value)
+        end)
+    end
+    local function Keep(value) saved, shown, token = value, nil, nil end
+    return Hover, Keep
+end
+
 -- onHover(value): a choice under the cursor, for a preview of it.
 local function AddFlyoutOptions(flyout, choices, itemWidth, onSelect, labelFn, styleFn, onHover)
     -- The selector's row as a dropdown in the search bar: these choices, the
@@ -1540,7 +1565,15 @@ local function BuildGeneralBindsTab(ctx)
         return name
     end
     local themeFlyout = CreateFlyoutPanel(themeBtnFrame, "EasyFindTheme", SELECTOR_BTN_W, #themeChoices + 1)
+    local themeHover, keepTheme = HoverPreview(themeFlyout,
+        function() return EasyFind.db.uiTheme or defaultTheme end,
+        function(name)
+            if ns.ApplyUITheme then ns.ApplyUITheme(name) end
+            optionsFrame:RepaintTheme()
+            if ns.RepaintWizardTheme then pcall(ns.RepaintWizardTheme) end
+        end)
     local function SelectTheme(name)
+        keepTheme(name)
         EasyFind.db.uiTheme = name
         themeBtnText:SetText(name)
         if ns.ApplyUITheme then ns.ApplyUITheme(name) end
@@ -1572,7 +1605,7 @@ local function BuildGeneralBindsTab(ctx)
         end
         local order = ns.UI_THEME_ORDER or themeChoices
         themeRows = AddFlyoutOptions(themeFlyout, order, SELECTOR_BTN_W - 6,
-            SelectTheme, ThemeFlyoutLabel, StyleThemeFlyoutRow)
+            SelectTheme, ThemeFlyoutLabel, StyleThemeFlyoutRow, themeHover)
         if not themeImportRow then
             themeImportRow = CreateFrame("Button", nil, themeFlyout)
             themeImportRow:SetSize(SELECTOR_BTN_W - 6, 18)
@@ -1672,7 +1705,7 @@ local function BuildGeneralBindsTab(ctx)
             function(value)
                 EasyFind.db.classicArt = value ~= "marble" and value or nil
                 Redress()
-            end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"])
+            end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"], nil, true)
         bgRow:SetPoint("TOPLEFT", themeRow, "BOTTOMLEFT", 0, -8)
         classicBgRow = bgRow
         optionsFrame.classicBgRow = bgRow
@@ -1877,16 +1910,21 @@ local function BuildGeneralBindsTab(ctx)
             end
         end
     end
-    AddFlyoutOptions(fontFlyout, fontChoices, SELECTOR_BTN_W - 6, function(name)
+    local function ApplyFont(name)
         EasyFind.db.font = name
-        fontBtnText:SetText(FontLabel(name))
         if ns.RegisterAddonFontsIn then ns.RegisterAddonFontsIn(optionsFrame) end
         if ns.RefreshAddonFont then ns.RefreshAddonFont() end
         if ns.Search then
             if ns.Search.UpdateFontSize then ns.Search:UpdateFontSize() end
             if ns.Search.RefreshResults then ns.Search:RefreshResults() end
         end
-    end, FontLabel, StyleFontChoiceRow)
+    end
+    local fontHover, keepFont = HoverPreview(fontFlyout, function() return EasyFind.db.font or "Default" end, ApplyFont)
+    AddFlyoutOptions(fontFlyout, fontChoices, SELECTOR_BTN_W - 6, function(name)
+        keepFont(name)
+        ApplyFont(name)
+        fontBtnText:SetText(FontLabel(name))
+    end, FontLabel, StyleFontChoiceRow, fontHover)
     optionsFrame.fontBtnText = fontBtnText
     optionsFrame.fontFlyout = fontFlyout
 
@@ -6397,8 +6435,9 @@ function Options:Initialize()
     -- getter/setter as CreatePresetRow, but a single dropdown (like the indicator
     -- selector) instead of a button row. globalPrefix names the flyout frames and
     -- must be unique. Returns the row, which carries :SetValue for refresh.
-    -- onHover(value): a choice hovered in the flyout, for a preview of it.
-    local function CreateFlyoutPresetRow(parent, labelText, choices, getter, setter, globalPrefix, defaultValue, tooltipText, onHover)
+    -- onHover(value): a choice hovered in the flyout, for a preview of it;
+    -- preview: the hovered choice shows through the setter (HoverPreview).
+    local function CreateFlyoutPresetRow(parent, labelText, choices, getter, setter, globalPrefix, defaultValue, tooltipText, onHover, preview)
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(SELECTOR_ROW_W, 24)
         row._efControl = { kind = "choice", get = getter, set = setter, choices = choices, tooltip = tooltipText }
@@ -6428,7 +6467,10 @@ function Options:Initialize()
         local values = {}
         for i = 1, #choices do values[i] = choices[i].value end
         local flyout = CreateFlyoutPanel(btnFrame, globalPrefix, SELECTOR_BTN_W, #values)
+        local keep
+        if preview then onHover, keep = HoverPreview(flyout, getter, setter) end
         local function Pick(value)
+            if keep then keep(value) end
             setter(value)
             btnText:SetText(LabelFor(value))
         end
