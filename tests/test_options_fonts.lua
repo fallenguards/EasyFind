@@ -19,6 +19,21 @@ function tests.theWindowNamesOnlyItsOwnFonts()
     H.assertEq(#bad, 0, "use OPT_FONTS." .. (bad[1] or "") .. ": " .. table.concat(bad, ", "))
 end
 
+-- The kit extensions build their pages with names the same fonts, and a
+-- page's own text asks the kit (the descriptions read small, 2026-10-26).
+function tests.theExtensionKitAndPagesUseTheLargerFonts()
+    local fh = assert(io.open(H.ADDON_ROOT .. "/Core/API.lua", "r"))
+    local api = fh:read("a")
+    fh:close()
+    local s = assert(api:find("local function Kit(ctx)", 1, true))
+    local _, e = assert(api:find("\nend\r?\n", s))
+    local kit = api:sub(s, e)
+    local bare = {}
+    for name in kit:gmatch('[^(]"(%u%a*Font%a*)"') do bare[#bare + 1] = name end
+    H.assertEq(#bare, 0, "the kit names a game font bare: " .. table.concat(bare, ", "))
+    H.assertTrue(kit:find("kit.Font = Font", 1, true) ~= nil, "pages can ask for it")
+end
+
 function tests.theButtonsWearTheLargerFontToo()
     local fh = assert(io.open(H.ADDON_ROOT .. "/Apps/Options/OptionsPanel.lua", "r"))
     local text = fh:read("a")

@@ -6140,7 +6140,7 @@ do
         end
         PaintSwatches()
         -- The rest under a heading of its own: dropdowns, then switches.
-        local generalHead = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        local generalHead = page:CreateFontString(nil, "ARTWORK", kit.Font and kit.Font("GameFontNormal") or "GameFontNormal")
         generalHead:SetPoint("TOPLEFT", prevRow, "BOTTOMLEFT", 8, -14)
         generalHead:SetText(_G["GENERAL"] or "General")
         local function Control(key)
@@ -6162,7 +6162,7 @@ do
             Place(key)
         end
         -- Ways of travel a route leaves out unless nothing else gets there.
-        local head = page:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        local head = page:CreateFontString(nil, "ARTWORK", kit.Font and kit.Font("GameFontNormal") or "GameFontNormal")
         head:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -14)
         head:SetText(L["GPS_AVOID"])
         prev = head

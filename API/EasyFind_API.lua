@@ -93,6 +93,7 @@
 ---@field separator? boolean A line between groups.
 
 ---@class EasyFindSettingsKit
+---@field Font fun(name: string): string The settings window's own font for a game font's name (2 pt larger); use it for any text a page makes itself.
 ---@field ROW_WIDTH number
 ---@field BUTTON_WIDTH number
 local kit = {}

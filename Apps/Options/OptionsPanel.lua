@@ -6476,6 +6476,7 @@ function Options:Initialize()
 
 
     local ctx = {
+        Fonts = OPT_FONTS,
         CreateTab = CreateTab, SwitchToTab = SwitchToTab,
         FRAME_W = FRAME_W, COL_LEFT = COL_LEFT,
         FlashBindButton = FlashBindButton,

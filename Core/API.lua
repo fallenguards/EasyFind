@@ -217,13 +217,17 @@ end
 local kitNames = 0
 local function Kit(ctx)
     local kit = { ROW_WIDTH = ctx.SELECTOR_ROW_W, BUTTON_WIDTH = ctx.SELECTOR_BTN_W }
+    -- The settings window's text, 2 pt over the game's fonts.
+    local fonts = ctx.Fonts or {}
+    local function Font(name) return fonts[name] or name end
+    kit.Font = Font
     -- The page's title and a line under it; returns what to anchor below.
     function kit.Title(parent, title, hint)
-        local head = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local head = parent:CreateFontString(nil, "OVERLAY", Font("GameFontNormal"))
         head:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -8)
         head:SetText(title)
         if not hint then return head end
-        local line = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local line = parent:CreateFontString(nil, "OVERLAY", Font("GameFontHighlightSmall"))
         line:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -6)
         line:SetPoint("RIGHT", parent, "RIGHT", -10, 0)
         line:SetJustifyH("LEFT")
@@ -264,14 +268,14 @@ local function Kit(ctx)
     function kit.Keybind(parent, label, action, tooltip)
         local row = CreateFrame("Frame", nil, parent)
         row:SetSize(ctx.SELECTOR_ROW_W, 24)
-        local text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local text = row:CreateFontString(nil, "OVERLAY", Font("GameFontHighlightSmall"))
         text:SetPoint("LEFT", row, "LEFT", 8, 0)
         text:SetPoint("RIGHT", row, "RIGHT", -ctx.SELECTOR_BTN_W - 18, 0)
         text:SetJustifyH("LEFT")
         text:SetText(label)
         local btn = ns.CreateModernButton(row)
-        btn:SetNormalFontObject("GameFontHighlightSmall")
-        btn:SetHighlightFontObject("GameFontHighlightSmall")
+        btn:SetNormalFontObject(Font("GameFontHighlightSmall"))
+        btn:SetHighlightFontObject(Font("GameFontHighlightSmall"))
         btn:SetSize(ctx.SELECTOR_BTN_W, 22)
         btn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
         btn:SetText(ctx.GetCurrentKeybindText(action))
