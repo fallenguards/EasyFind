@@ -2932,8 +2932,9 @@ function ns.ShowsTree(frame)
     return name ~= nil and name ~= "marble" and frame._efClassicStyle ~= "thin"
 end
 
--- The picked tree inside the frame's border, or none for the marble alone.
-local function DressTree(frame, inset, alpha)
+-- The picked tree inside the frame's border, or none for the marble alone;
+-- level: the art's frame level (the frame's own by default).
+local function DressTree(frame, inset, alpha, level)
     local db = EasyFind and EasyFind.db
     local name = db and db.classicArt
     if name == "marble" then name = nil end
@@ -2965,9 +2966,28 @@ local function DressTree(frame, inset, alpha)
         art.name = name
         for i, piece in ipairs(TREE_PIECES) do art.tex[i]:SetTexture(TREE_ART .. name .. "-" .. piece.key) end
     end
+    art.clip:SetFrameLevel(level or frame:GetFrameLevel())
     art.clip:SetAlpha(alpha)
     PlaceTree(art)
     art.clip:Show()
+end
+
+-- A surface without the Classic frame art (a window on its line border, or
+-- the frame art option off) under the Classic theme: the picked tree is its
+-- background all the same, under its own fill and ring (2026-10-27: Notes
+-- kept the marble). False, and no tree, when none shows.
+function ns.ClassicTreeUnderFill(frame)
+    local p = ns.ACTIVE_UI_PALETTE
+    if not (p and p.chrome == "classic" and ns.ShowsTree(frame)) then
+        if frame._efTree and not frame._efSkin then frame._efTree.clip:Hide() end
+        return false
+    end
+    if frame._efArtCells then
+        for _, cell in pairs(frame._efArtCells) do cell:Hide() end
+    end
+    ns.SetRoundedRectFill(frame, 0, 0, 0, 0, true)
+    DressTree(frame, 2, frame._efBgAlpha or ns.GetSearchWindowAlpha(), math.max(0, frame:GetFrameLevel() - 1))
+    return true
 end
 
 do
@@ -3259,9 +3279,10 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     if frame._efSkin == "classic" then
         local marble = not (ns.OverTree(frame) or ns.ShowsTree(frame))
         ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, marble and (frame._efClassicAlpha or alpha) or 0)
-        local tree = frame._efTree
-        if tree and tree.clip:IsShown() then tree.clip:SetAlpha(frame._efClassicAlpha or alpha) end
     end
+    -- A tree, skinned or under the fill, at the surface's opacity.
+    local tree = frame._efTree
+    if tree and tree.clip:IsShown() then tree.clip:SetAlpha(frame._efClassicAlpha or alpha) end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
         for _, t in pairs(frame._efArtCells) do t:SetAlpha(alpha) end
@@ -3557,7 +3578,8 @@ end
 function ns.TextShadowed()
     local db = EasyFind and EasyFind.db
     local art = db and db.classicArt
-    return art ~= nil and art ~= "marble" and ns.IsClassicChrome() or false
+    local p = ns.ACTIVE_UI_PALETTE
+    return art ~= nil and art ~= "marble" and p ~= nil and p.chrome == "classic"
 end
 
 do
@@ -3813,6 +3835,7 @@ function ns.ApplyThemeFill(frame)
     -- refuses to ramp anything without this flag.
     frame._efThemeFillTarget = true
     if ns.ApplySkin(frame) then return end
+    if ns.ClassicTreeUnderFill(frame) then return end
     local fill = frame.combinedBorder.fill
     local set = ns.ThemeSetOf and ns.ThemeSetOf(frame)
     local palette = set and set.palette or ns.ACTIVE_UI_PALETTE

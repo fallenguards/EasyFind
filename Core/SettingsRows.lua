@@ -104,12 +104,15 @@ function SettingsRows.ClassicBgChoices()
 end
 
 -- The Classic frames dressed anew after a background pick.
+-- A Classic background picked: the whole theme applied again, as a theme
+-- change does, so every window, open menu and extension follows at once
+-- (text shadow and grays included); then the frame art and the cards.
 function SettingsRows.RedressClassic()
+    local db = EasyFind.db
+    local theme = db and db.uiTheme or (ns.DB_DEFAULTS and ns.DB_DEFAULTS.uiTheme)
+    if ns.ApplyUITheme and theme then ns.ApplyUITheme(theme) end
     Search("UpdateWindowBorders")
     if ns.RestyleCardFills then ns.RestyleCardFills() end
-    -- A tree's text wears a shadow and lighter grays, the marble's neither.
-    if ns.ShadeTextEverywhere then ns.ShadeTextEverywhere() end
-    if ns.FireThemeCallbacks then ns.FireThemeCallbacks() end
     if ns.RepaintWizardTheme then ns.RepaintWizardTheme() end
 end
 

@@ -484,6 +484,23 @@ function tests.classicTree_showsThroughTheWindowsCards()
     borderOption(nil)
 end
 
+-- A window without the Classic frame art (Notes on its line border, or the
+-- frame art off) still has the picked tree for its background, under its
+-- own ring; the marble alone keeps the marble (2026-10-27).
+function tests.classicTree_backsAWindowWithoutTheFrameArt()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(nil)
+    env.EasyFind.db.classicArt = "MageFire"
+    local win = surface(false)
+    ns.ApplyThemeFill(win)
+    H.assertEq(win._efSkin, nil, "no frame art on it")
+    H.assertTrue(win._efTree and win._efTree.clip.shown ~= false, "the tree behind it")
+    env.EasyFind.db.classicArt = nil
+    ns.ApplyThemeFill(win)
+    H.assertEq(win._efTree.clip.shown, false, "the marble alone: no tree")
+end
+
 -- A frame built without the backdrop template gets the backdrop mixed in,
 -- and with it the template's retile on resize: a card sized by anchors
 -- after it was dressed wore the marble stretched (2026-10-26).

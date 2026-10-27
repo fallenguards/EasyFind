@@ -9,7 +9,7 @@ local function Load(classicArt, classic)
     f:close()
     local s = assert(src:find("function ns.TextShadowed()", 1, true))
     local e = select(2, assert(src:find("\n%-%- A root's text shaded now", s)))
-    local ns = { IsClassicChrome = function() return classic end,
+    local ns = { ACTIVE_UI_PALETTE = { chrome = classic and "classic" or nil },
         TEXT_DIM = { 0.55, 0.55, 0.58 }, TEXT_NEXT = { 0.78, 0.78, 0.80 }, TEXT_ASIDE = { 0.56, 0.74, 0.82 } }
     local env = setmetatable({ ns = ns, EasyFind = { db = { classicArt = classicArt } } }, { __index = _G })
     assert(load(src:sub(s, e), "=Utils.lua shadows", "t", env))()
