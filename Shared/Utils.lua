@@ -3267,7 +3267,10 @@ end
 -- Every window-fill surface in the theme just applied: a window, menu or
 -- extension's panel follows a theme change with no callback of its own.
 function ns.RepaintThemeFills()
-    for frame in pairs(ns._themeFills) do pcall(ns.ApplyThemeFill, frame) end
+    for frame in pairs(ns._themeFills) do
+        pcall(ns.ApplyThemeFill, frame)
+        pcall(ns.ShadeText, frame)
+    end
 end
 
 -- Every input box painted above, in the theme just applied.
@@ -3869,7 +3872,13 @@ function ns.ApplyThemeFill(frame)
     -- Marks this frame as a window-fill surface: UpdateThemeFillGradient
     -- refuses to ramp anything without this flag.
     frame._efThemeFillTarget = true
-    ns._themeFills[frame] = true
+    if not ns._themeFills[frame] then
+        ns._themeFills[frame] = true
+        -- Its text follows the one shadow rule too, an extension's window
+        -- with no code of its own for it (2026-10-27: EasyChat's text kept
+        -- the font objects' shadow on light themes).
+        ns.KeepTextShaded(frame)
+    end
     if ns.ApplySkin(frame) then return end
     if ns.ClassicTreeUnderFill(frame) then return end
     local fill = frame.combinedBorder.fill
@@ -5526,20 +5535,26 @@ end
 local function PaintHintTooltip(self)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     local light = theme and theme.lightTheme
-    local r, g, b, rr, rg, rb = SurfaceColors(theme)
-    ns.SetRoundedRectFill(self, r, g, b, 1)
-    ns.SetRoundedRectFill(self.ring, rr, rg, rb, 1, true)
-    self.notch:SetColorTexture(r, g, b, 1)
-    self.ringNotch:SetColorTexture(rr, rg, rb, 1)
+    -- A theme with frame art dresses it as a menu (the iron, the picked
+    -- background); its own ring and pointer stay off then.
+    local skinned = ns.ApplySkin(self)
+    self.ring:SetShown(not skinned)
+    self._efSkinned = skinned or nil
+    if not skinned then
+        local r, g, b, rr, rg, rb = SurfaceColors(theme)
+        ns.SetRoundedRectFill(self, r, g, b, 1)
+        ns.SetRoundedRectFill(self.ring, rr, rg, rb, 1, true)
+        self.notch:SetColorTexture(r, g, b, 1)
+        self.ringNotch:SetColorTexture(rr, rg, rb, 1)
+    end
     self.title:SetTextColor(ns.TooltipTextColor())
     local body = light and theme.leafColor or ns.TEXT_PRIMARY
     self.body:SetTextColor(body[1], body[2], body[3], 1)
     local note = light and (theme.textFaint or theme.leafColor) or ns.TEXT_DIM
     self.note:SetTextColor(note[1], note[2], note[3], 1)
-    local shadow = 0   -- flat text on either polarity
-    self.title:SetShadowColor(0, 0, 0, shadow)
-    self.body:SetShadowColor(0, 0, 0, shadow)
-    self.note:SetShadowColor(0, 0, 0, shadow)
+    ns.ShadeText(self.title)
+    ns.ShadeText(self.body)
+    ns.ShadeText(self.note)
     -- The rule under the title wears the menu separator color.
     local sep = theme and theme.separatorColor
     if sep then
@@ -5565,6 +5580,7 @@ local function EnsureHintTooltip()
     tip:SetFrameLevel(Utils.HINT_LEVEL)
     tip:SetClampedToScreen(true)
     tip:EnableMouse(false)   -- a label: the mouse passes straight through
+    tip._efClassicSurface, tip._efForeverSurface = true, true
     ns.CreateRoundedRectBorder(tip)
     ns.SetRoundedRectBarHeight(tip, CORNER)
     ns.SetRoundedRectBorderEdgeShown(tip, false)
@@ -5625,7 +5641,7 @@ end
 local function PlaceNotch(t, owner, edge)
     local n = t.notch
     n:ClearAllPoints()
-    if not edge then n:Hide(); return end
+    if not edge or t._efSkinned then n:Hide(); return end
     local w, h = t:GetWidth(), t:GetHeight()
     local ocx, ocy = owner:GetCenter()
     local left, bottom = t:GetLeft(), t:GetBottom()
