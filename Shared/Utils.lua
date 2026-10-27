@@ -2490,6 +2490,14 @@ function ns.RowWashColor()
         windowFill[3] + (leaf[3] - windowFill[3]) * f
 end
 
+-- A row under the cursor or the keyboard: the wash's color and alpha. Over
+-- a Classic tree a light wash, picked from a mock (the gray read as a slab).
+function ns.RowHighlight()
+    if ns.ClassicTreeShown() then return 1, 1, 1, 0.22 * ns.GetSearchWindowAlpha() end
+    local r, g, b = ns.RowWashColor()
+    return r, g, b, ns.RowWashAlpha()
+end
+
 -- Row washes sit a step below the window itself so the hover/selection
 -- highlight never reads as fully solid: even at 100% window opacity the
 -- wash paints at this fraction of it, then scales down with the setting.
@@ -3246,12 +3254,19 @@ end
 -- An input's well in its window's theme: the theme's line as a ring round
 -- the dark inset, or round fill (ns.INPUT_ERROR_FILL for a refused entry).
 ns.INPUT_ERROR_FILL = { 0.35, 0.08, 0.08 }
+ns._inputWells = setmetatable({}, { __mode = "k" })
 function ns.PaintInputWell(shell, fill)
+    ns._inputWells[shell] = true
     local look = ns.ThemeSetOf and ns.ThemeSetOf(shell) or ns
     local palette = look.palette or ns.ACTIVE_UI_PALETTE
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
     ns.PaintRingedWell(shell, ring, fill or look.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+end
+
+-- Every input box painted above, in the theme just applied.
+function ns.RepaintInputWells()
+    for shell in pairs(ns._inputWells) do ns.PaintInputWell(shell) end
 end
 
 -- Corner radius tracks BAR height, not container height (which grows
@@ -3477,7 +3492,7 @@ local function RetintFontString(fs, theme, shadowOnly)
     -- ApplyRowLabelColor): classification here would freeze whatever theme
     -- was active when the color snapshot was taken.
     -- No font shadow on either polarity, but over a Classic talent tree.
-    fs:SetShadowColor(0, 0, 0, ns.TextShadowed() and 1 or 0)
+    fs:SetShadowColor(0, 0, 0, ns.ClassicTreeShown() and 1 or 0)
     if shadowOnly or fs._efOwnColor then return end
     local orig = fs._efOrigTextColor
     -- Tagged link text follows the live link table on BOTH polarities;
@@ -3583,10 +3598,10 @@ function ns.RetintPanelText(root)
     Utils.retintLinkColor = nil
 end
 
--- Our text carries no font shadow, on either polarity, except over a
--- Classic talent tree: the art is bright and the text wears the game's
--- drop shadow there (2026-10-27).
-function ns.TextShadowed()
+-- A Classic talent tree backs the windows. Its art is bright: our text
+-- wears the game's drop shadow over it (flat otherwise), the grays lift,
+-- rows light with a pale wash and list cards sit on a dark one (2026-10-27).
+function ns.ClassicTreeShown()
     local db = EasyFind and EasyFind.db
     local art = db and db.classicArt
     local p = ns.ACTIVE_UI_PALETTE
@@ -3599,10 +3614,10 @@ do
         if alpha > 0 and text.SetShadowOffset then text:SetShadowOffset(1, -1) end
     end
 
-    -- Every font string and edit box under a root shaded as TextShadowed says.
+    -- Every font string and edit box under a root shaded as ClassicTreeShown says.
     function ns.ShadeText(f, alpha)
         if not f then return end
-        alpha = alpha or (ns.TextShadowed() and 1 or 0)
+        alpha = alpha or (ns.ClassicTreeShown() and 1 or 0)
         if f.SetShadowColor then Shade(f, alpha) end
         if f.GetRegions then
             for i = 1, select("#", f:GetRegions()) do
@@ -3632,7 +3647,7 @@ do
     end
 
     function ns.LiftTreeText()
-        local tree = ns.TextShadowed()
+        local tree = ns.ClassicTreeShown()
         for _, l in ipairs(LIFTS) do
             local c = tree and l.tree or l.flat
             l.live[1], l.live[2], l.live[3] = c[1], c[2], c[3]
@@ -4082,8 +4097,7 @@ function Utils.UpdateRoundedRowWash(row, wants, layout, washColor)
     if washColor then
         washR, washG, washB, washA = washColor[1], washColor[2], washColor[3], washColor[4]
     else
-        washR, washG, washB = ns.RowWashColor()
-        washA = ns.RowWashAlpha()
+        washR, washG, washB, washA = ns.RowHighlight()
     end
     if not (wants and washR) then
         if row.hoverWash then row.hoverWash:Hide() end

@@ -5094,13 +5094,9 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteSearchShell:SetPoint("TOPLEFT", frame.palette, "TOPLEFT", 10, -10)
     frame.paletteSearchShell:SetPoint("TOPRIGHT", frame.palette, "TOPRIGHT", -10, -10)
     frame.paletteSearchShell:SetHeight(24)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(frame.paletteSearchShell)
-        ns.SetRoundedRectBarHeight(frame.paletteSearchShell, 10)
-        local c = ns.ThemeSetOf(frame).BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
-        ns.SetRoundedRectFill(frame.paletteSearchShell, c[1], c[2], c[3], 1, true)
-        ns.SetRoundedRectBorderEdgeShown(frame.paletteSearchShell, false)
-    end
+    -- Our input box, as every search box is.
+    ns.CreateRingedWell(frame.paletteSearchShell, 6)
+    ns.PaintInputWell(frame.paletteSearchShell)
     -- Filter button (triangle) opens a themed menu to filter the note list by
     -- character and category, mirroring the main search bar's filter.
     frame.paletteFilterBtn = CreateFrame("Button", nil, frame.paletteSearchShell)
@@ -6974,12 +6970,15 @@ local function PaintPaletteRow(row)
         local look = ns.ThemeSetOf(row)
         if selected then
             c = look.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }
+        elseif ns.ClassicTreeShown() then
+            -- Over a talent tree: a dark card, the pale wash over it on hover.
+            c = over and { 0.34, 0.34, 0.34, 0.65 } or { 0, 0, 0, 0.55 }
         elseif over then
             c = look.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
         else
             c = look.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
         end
-        ns.SetRoundedRectFill(row, c[1], c[2], c[3], 1, true)
+        ns.SetRoundedRectFill(row, c[1], c[2], c[3], c[4] or 1, true)
     end
     -- The second line and the time in the theme's text color, a step
     -- down: the dim gray read badly on the row fills.

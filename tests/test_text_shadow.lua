@@ -7,7 +7,7 @@ local function Load(classicArt, classic)
     local f = assert(io.open(H.ADDON_ROOT .. "/Shared/Utils.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local s = assert(src:find("function ns.TextShadowed()", 1, true))
+    local s = assert(src:find("function ns.ClassicTreeShown()", 1, true))
     local e = select(2, assert(src:find("\n%-%- A root's text shaded now", s)))
     local ns = { ACTIVE_UI_PALETTE = { chrome = classic and "classic" or nil },
         TEXT_DIM = { 0.55, 0.55, 0.58 }, TEXT_NEXT = { 0.78, 0.78, 0.80 }, TEXT_ASIDE = { 0.56, 0.74, 0.82 } }

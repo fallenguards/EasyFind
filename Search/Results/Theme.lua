@@ -562,7 +562,7 @@ end
 -- SetScaledFont actually re-applies a font object (which restores the
 -- object's own shadow).
 local function ApplyThemeShadow(fontString)
-    local wantLight = (THEMES["Modern"].lightTheme and not ns.TextShadowed()) and true or false
+    local wantLight = (THEMES["Modern"].lightTheme and not ns.ClassicTreeShown()) and true or false
     if fontString._efShadowLight == wantLight then return end
     fontString._efShadowLight = wantLight
     fontString:SetShadowColor(0, 0, 0, wantLight and 0 or 1)
@@ -622,7 +622,7 @@ end
 -- frame sits one level below its row so row content renders above it,
 -- and it dies with the row.
 function Results:UpdateRowWash(row)
-    local washR, washG, washB = ns.RowWashColor()
+    local washR, washG, washB, washA = ns.RowHighlight()
     local wants = washR and (row._efHlLocked or row._efHlHover)
     local hl = row.hoverWash
     if not wants then
@@ -662,7 +662,7 @@ function Results:UpdateRowWash(row)
     -- The wash paints on top of the window's own fill, so it fades with
     -- the window-opacity setting and sits a step below solid (RowWashAlpha),
     -- rather than a fixed alpha of 1 over a translucent window.
-    ns.SetRoundedRectFill(hl, washR, washG, washB, ns.RowWashAlpha(), true)
+    ns.SetRoundedRectFill(hl, washR, washG, washB, washA, true)
     hl:Show()
 end
 
