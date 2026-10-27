@@ -433,6 +433,7 @@ function tests.classicTree_showsThroughTheWindowsCards()
     local win = surface(false)
     H.assertTrue(ns.ApplyClassicChrome(win, 0.9, "dialog"))
     H.assertTrue(near(win._efTree.clip.alpha, 0.45), "the tree at its strength in the window's opacity")
+    H.assertEq(win.bdColor[4], 0, "no marble under the tree: it read as a shadow behind it")
     local card = surface(false)
     card.GetParent = function() return win end
     ns.ApplyCardFill(card)
@@ -451,6 +452,8 @@ function tests.classicTree_showsThroughTheWindowsCards()
     env.EasyFind.db.classicArt = nil
     ns.ApplyCardFill(card)
     H.assertTrue(card.bdColor[4] > 0, "the marble alone: the card's marble is back")
+    ns.ApplyClassicChrome(win, 0.9, "dialog")
+    H.assertTrue(near(win.bdColor[4], 0.9), "and the window's")
     env.EasyFind.db.classicArtAlpha = nil
     borderOption(nil)
 end

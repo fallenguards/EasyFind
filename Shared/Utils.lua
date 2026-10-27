@@ -2927,6 +2927,14 @@ function ns.OverTree(frame)
     return false
 end
 
+-- A window or the search bar wearing a picked tree: the tree is its whole
+-- background, none of the marble.
+function ns.ShowsTree(frame)
+    local db = EasyFind and EasyFind.db
+    local name = db and db.classicArt
+    return name ~= nil and name ~= "marble" and (frame._efClassicStyle == "dialog" or frame._efWearsTree == true)
+end
+
 -- The picked tree inside the frame's border, or none for the marble alone.
 local function DressTree(frame, inset, alpha)
     local db = EasyFind and EasyFind.db
@@ -3004,7 +3012,7 @@ do
         end
         -- The stone is its own color; only the window opacity applies.
         local alpha = frame._efClassicAlpha or frame._efBgAlpha or ns.GetSearchWindowAlpha()
-        host:SetBackdropColor(1, 1, 1, ns.OverTree(frame) and 0 or alpha)
+        host:SetBackdropColor(1, 1, 1, (ns.OverTree(frame) or ns.ShowsTree(frame)) and 0 or alpha)
         host:SetBackdropBorderColor(1, 1, 1, 1)
         -- Windows and the search window may wear a talent tree; menus never.
         if want == "dialog" or frame._efWearsTree then
@@ -3224,7 +3232,8 @@ function ns.SetRoundedRectBorderBgAlpha(frame, alpha)
     frame._efBgAlpha = alpha
     if frame._efForever then frame._efForever.fill:SetAlpha(alpha) end
     if frame._efSkin == "classic" then
-        ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, ns.OverTree(frame) and 0 or frame._efClassicAlpha or alpha)
+        local marble = not (ns.OverTree(frame) or ns.ShowsTree(frame))
+        ns.ClassicHost(frame):SetBackdropColor(1, 1, 1, marble and (frame._efClassicAlpha or alpha) or 0)
     end
     for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(alpha) end
     if frame._efArtCells then
