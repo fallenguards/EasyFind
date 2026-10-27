@@ -113,6 +113,10 @@ function kit.Choice(page, label, choices, get, set, tooltip, default) end
 ---@return Frame
 function kit.Stepper(page, label, min, max, step, get, set, tooltip, width) end
 
+---A button in the settings window's own text, as its other buttons.
+---@return Button
+function kit.Button(page, text, width, height) end
+
 ---@class EasyFindSettingsRow
 ---@field name string The setting's label.
 ---@field path? string|string[] Where it sits in your window.

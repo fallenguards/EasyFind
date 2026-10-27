@@ -189,7 +189,6 @@ local function SyncOptionControls()
     if optionsFrame.resultShortcutHintsCheckbox then optionsFrame.resultShortcutHintsCheckbox:SetChecked(EasyFind.db.showResultShortcutHints ~= false) end
     if optionsFrame.RefreshBorderRow then optionsFrame.RefreshBorderRow() end
     if optionsFrame.classicBgRow then optionsFrame.classicBgRow:SetValue(EasyFind.db.classicArt or "marble") end
-    if optionsFrame.classicAlphaRow then optionsFrame.classicAlphaRow:SetValue(mfloor(ns.ClassicArtAlpha() * 100 + 0.5)) end
     if optionsFrame.UpdateClassicRows then optionsFrame.UpdateClassicRows() end
     if optionsFrame.searchAutocompleteCheckbox then optionsFrame.searchAutocompleteCheckbox:SetChecked(EasyFind.db.searchAutocomplete ~= false) end
     if optionsFrame.showAppsButtonCheckbox then optionsFrame.showAppsButtonCheckbox:SetChecked(EasyFind.db.showAppsButton ~= false) end
@@ -1662,7 +1661,7 @@ local function BuildGeneralBindsTab(ctx)
 
     -- The Classic theme's window background, the marble or a talent tree
     -- named as its class's tab reads, and the tree's strength.
-    local classicAlphaRow
+    local classicBgRow
     do
         local function Redress()
             optionsFrame:RepaintTheme()
@@ -1675,24 +1674,16 @@ local function BuildGeneralBindsTab(ctx)
                 Redress()
             end, "EasyFindClassicBg", "marble", L["OPT_CLASSIC_BG_TT"])
         bgRow:SetPoint("TOPLEFT", themeRow, "BOTTOMLEFT", 0, -8)
-        classicAlphaRow = CreateStepperRow(sec3, L["OPT_CLASSIC_BG_ALPHA"], 10, 100,
-            function() return mfloor(ns.ClassicArtAlpha() * 100 + 0.5) end,
-            function(value)
-                EasyFind.db.classicArtAlpha = value < 100 and value / 100 or nil
-                RunSoon(Redress)
-            end, L["OPT_CLASSIC_BG_ALPHA_TT"], SELECTOR_ROW_W, 5)
-        classicAlphaRow:SetPoint("TOPLEFT", bgRow, "BOTTOMLEFT", 0, -6)
-        optionsFrame.classicBgRow, optionsFrame.classicAlphaRow = bgRow, classicAlphaRow
+        classicBgRow = bgRow
+        optionsFrame.classicBgRow = bgRow
         -- Grayed and closed unless the Classic frames show.
         optionsFrame.UpdateClassicRows = function()
-            local on = ns.IsClassicChrome() and true or false
-            bgRow:SetGroupEnabled(on)
-            classicAlphaRow:SetGroupEnabled(on)
+            bgRow:SetGroupEnabled(ns.IsClassicChrome() and true or false)
         end
         optionsFrame.UpdateClassicRows()
     end
 
-    local indicatorRow, indicatorLabel = CreateSelectorRow(classicAlphaRow, L["OPT_INDICATOR_STYLE"])
+    local indicatorRow, indicatorLabel = CreateSelectorRow(classicBgRow, L["OPT_INDICATOR_STYLE"])
 
     local indicatorChoices = {"EasyFind Arrow", "Chevrons", "Classic Quest Arrow", "Minimap Player Arrow", "Low-res Gauntlet", "HD Gauntlet"}
     if ns.Caps and ns.Caps.classic then table.remove(indicatorChoices) end
@@ -6488,7 +6479,7 @@ function Options:Initialize()
 
 
     local ctx = {
-        Fonts = OPT_FONTS,
+        Fonts = OPT_FONTS, CreateButton = CreateModernButton,
         CreateTab = CreateTab, SwitchToTab = SwitchToTab,
         FRAME_W = FRAME_W, COL_LEFT = COL_LEFT,
         FlashBindButton = FlashBindButton,

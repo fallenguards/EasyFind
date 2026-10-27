@@ -2907,12 +2907,6 @@ local function PlaceTree(art)
     art.tex[1]:SetPoint("TOPRIGHT", art.clip, "TOPRIGHT", TREE_BLANK_RIGHT * k, 0)
 end
 
--- The tree's own strength, picked in settings.
-function ns.ClassicArtAlpha()
-    local db = EasyFind and EasyFind.db
-    return db and db.classicArtAlpha or 1
-end
-
 -- A pane inside a window that wears a tree: its marble would hide the art.
 function ns.OverTree(frame)
     local db = EasyFind and EasyFind.db
@@ -2968,7 +2962,7 @@ local function DressTree(frame, inset, alpha)
         art.name = name
         for i, piece in ipairs(TREE_PIECES) do art.tex[i]:SetTexture(TREE_ART .. name .. "-" .. piece.key) end
     end
-    art.clip:SetAlpha(alpha * ns.ClassicArtAlpha())
+    art.clip:SetAlpha(alpha)
     PlaceTree(art)
     art.clip:Show()
 end

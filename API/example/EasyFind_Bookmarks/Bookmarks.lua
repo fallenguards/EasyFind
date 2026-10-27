@@ -77,7 +77,7 @@ API.RegisterExtension({
                 API.RefreshSearchProvider("bookmarks")
             end)
         zone:SetPoint("TOPLEFT", below, "BOTTOMLEFT", 0, -8)
-        local add = API.CreateButton(page, "Bookmark this spot", 160, 22)
+        local add = kit.Button(page, "Bookmark this spot", 160, 22)
         add:SetPoint("TOPLEFT", zone, "BOTTOMLEFT", 8, -12)
         add:SetScript("OnClick", AskName)
     end,

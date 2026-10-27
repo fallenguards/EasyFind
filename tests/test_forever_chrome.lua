@@ -446,17 +446,16 @@ function tests.classicWindow_usesTheDialogFrame()
 end
 
 -- A talent tree behind a Classic window shows through the cards in it,
--- which keep their thin edge; menus keep their marble. The tree's own
--- strength is a setting (2026-10-26: the cards' marble hid the art).
+-- which keep their thin edge; menus keep their marble. The tree takes the
+-- window's opacity, the one setting for it (2026-10-27).
 function tests.classicTree_showsThroughTheWindowsCards()
     installClient(FOREVER_ART)
     ns.ACTIVE_UI_PALETTE = CLASSIC
     borderOption(true)
     env.EasyFind.db.classicArt = "MageFire"
-    env.EasyFind.db.classicArtAlpha = 0.5
     local win = surface(false)
     H.assertTrue(ns.ApplyClassicChrome(win, 0.9, "dialog"))
-    H.assertTrue(near(win._efTree.clip.alpha, 0.45), "the tree at its strength in the window's opacity")
+    H.assertTrue(near(win._efTree.clip.alpha, 0.9), "the tree in the window's opacity")
     H.assertEq(win.bdColor[4], 0, "no marble under the tree: it read as a shadow behind it")
     local card = surface(false)
     card.GetParent = function() return win end
@@ -478,7 +477,6 @@ function tests.classicTree_showsThroughTheWindowsCards()
     H.assertTrue(card.bdColor[4] > 0, "the marble alone: the card's marble is back")
     ns.ApplyClassicChrome(win, 0.9, "dialog")
     H.assertTrue(near(win.bdColor[4], 0.9), "and the window's")
-    env.EasyFind.db.classicArtAlpha = nil
     borderOption(nil)
 end
 

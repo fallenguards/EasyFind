@@ -35,7 +35,6 @@ local function Setup()
     ns.DEFAULT_FONT_SIZE, ns.SEARCH_WINDOW_ALPHA = 0.9, 0.95
     ns.ThemeHasChrome = function() return true end
     ns.CLASSIC_TREES = {}
-    ns.ClassicArtAlpha = function() return env.EasyFind.db.classicArtAlpha or 1 end
     ns.Caps = { iconSearch = true }
     ns.IsCompanionLoadable = function() return true end
     ns.Profiles = {

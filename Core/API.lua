@@ -299,6 +299,11 @@ local function Kit(ctx)
         row.button = btn
         return row
     end
+    -- A button in the window's own text, as its other buttons.
+    function kit.Button(parent, text, width, height)
+        local make = ctx.CreateButton or ns.CreateModernButton
+        return make(parent, text, width or 120, height or 22)
+    end
     return kit
 end
 

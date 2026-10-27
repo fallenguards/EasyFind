@@ -6,7 +6,6 @@ return {
     { "General & binds", "", "Show Minimap Button", "check" },
     { "General & binds", "", "Theme", "choice" },
     { "General & binds", "", "Classic background", "choice" },
-    { "General & binds", "", "Background opacity", "slider" },
     { "General & binds", "", "Indicator Style", "choice" },
     { "General & binds", "", "Indicator Color", "choice" },
     { "General & binds", "", "Font", "choice" },

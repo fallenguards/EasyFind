@@ -29,7 +29,7 @@ local function BuildNotesSettings(page, kit)
         box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
         anchor = box
     end
-    local open = API.CreateButton(page, L["NOTES_OPT_OPEN"], 140, 22)
+    local open = kit.Button(page, L["NOTES_OPT_OPEN"], 140, 22)
     open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
     open:SetScript("OnClick", function() API.OpenExtension("notes") end)
 end

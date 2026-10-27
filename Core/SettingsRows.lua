@@ -338,12 +338,6 @@ local function GeneralRows()
                 db.classicArt = value ~= "marble" and value or nil
                 SettingsRows.RedressClassic()
             end),
-        Slider(L["OPT_CLASSIC_BG_ALPHA"], L["OPT_CLASSIC_BG_ALPHA_TT"], 10, 100, 5,
-            function() return math.floor(ns.ClassicArtAlpha() * 100 + 0.5) end,
-            function(value)
-                db.classicArtAlpha = value < 100 and value / 100 or nil
-                Soon(SettingsRows.RedressClassic)
-            end),
         Choice(L["OPT_INDICATOR_STYLE"], nil,
             Labeled(SettingsRows.IndicatorStyles(), function(name)
                 local label = StyleLabel(name)
