@@ -227,6 +227,34 @@ local function ButtonUnder(x, y, except)
     return nil
 end
 
+-- The button a drop would fold into, lit gold as the extensions menu lights
+-- the tile a dragged one would group with; nil hides it.
+local foldTarget
+local function ShowFoldTarget(over)
+    if not over then
+        if foldTarget then foldTarget:Hide() end
+        return
+    end
+    if not foldTarget then
+        foldTarget = CreateFrame("Frame", nil, UIParent)
+        foldTarget:Hide()
+        local t = foldTarget:CreateTexture(nil, "OVERLAY")
+        t:SetAllPoints()
+        t:SetColorTexture(1, 0.82, 0, 0.35)
+        local mask = foldTarget:CreateMaskTexture()
+        mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(t)
+        t:AddMaskTexture(mask)
+    end
+    foldTarget:SetParent(over)
+    foldTarget:ClearAllPoints()
+    foldTarget:SetPoint("CENTER", over, "CENTER")
+    local d = over.disc and over.disc:IsShown() and over.disc:GetWidth() or over:GetWidth()
+    foldTarget:SetSize(d, d)
+    foldTarget:SetFrameLevel(over:GetFrameLevel() + 5)
+    foldTarget:Show()
+end
+
 -- ==== the micro menu ========================================================
 -- The game's micro menu (MicroMenu) is a grid layout frame: it positions
 -- every child that carries a layoutIndex, in that order, and follows the
@@ -1139,6 +1167,7 @@ local function MoveTickPlace(self)
     local rec = self.rec
     -- Over the remove target: the button just rides the cursor, dimmed.
     if OverTrash(x, y) then
+        ShowFoldTarget(nil)
         if rec.micro then
             rec.micro = nil
             ApplyMode(self)
@@ -1151,6 +1180,7 @@ local function MoveTickPlace(self)
         return
     end
     local over = ButtonUnder(x, y, self)
+    ShowFoldTarget(over)
     -- Over the micro menu (and not over a button to fold into): the button
     -- itself previews the drop, in the bar's look, in the slot it would
     -- take. Off the bar it is round again and rides the cursor.
@@ -1196,6 +1226,7 @@ local function MoveTick(self)
 end
 
 local function MoveEnd(self)
+    ShowFoldTarget(nil)
     self.icon:SetAlpha(1)
     self:SetAlpha(1)
     do
@@ -1288,6 +1319,7 @@ local function CancelButtonDrag(btn)
     end
     ApplyMode(btn)
     ShowTrash(false)
+    ShowFoldTarget(nil)
     DisarmDragEscape()
 end
 
@@ -1657,12 +1689,14 @@ function ExtensionButtons:BeginDragFromMenu(app)
             GhostMicroLook(g, false)
         end
         ShowTrash(false)
+        ShowFoldTarget(nil)
         g:Hide()
     end)
     g:SetScript("OnUpdate", function(self)
         local x, y = CursorUI()
         local trash = OverTrash(x, y)
         local over = (not trash) and ButtonUnder(x, y, nil) or nil
+        ShowFoldTarget(over)
         local slot = (not over and not trash) and MicroSlotAt(x, y, self) or nil
         if slot then
             -- In the bar, in its look, at the slot the drop would take.
@@ -1685,6 +1719,7 @@ function ExtensionButtons:BeginDragFromMenu(app)
         self:SetScript("OnUpdate", nil)
         DisarmDragEscape()
         ShowTrash(false)
+        ShowFoldTarget(nil)
         local held = self.slot
         if held then
             MicroRemove(self)
