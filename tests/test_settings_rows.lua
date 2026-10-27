@@ -72,7 +72,8 @@ local function ExtensionRows(env, ns)
     ns.GPSWorldPin = { Style = function() return "flame" end, DefaultStyle = function() return "calm" end }
     ns.GOLD_COLOR = { 1, 0.82, 0 }
     local gpsEnv = setmetatable({ L = L, Utils = Utils, ns = ns, DB = function() return {} end, Refresh = function() end,
-        Route = function() end, Reroute = function() end }, { __index = env })
+        Route = function() end, Reroute = function() end,
+        GPS = { CogMode = function() return "hover" end, ApplyCogs = function() end } }, { __index = env })
     local gps = assert(load(slice(gpsSrc, "local TEXT_SIZES = ", "\n") .. "\n"
         .. slice(gpsSrc, "local OptionsPage = {}", "\n-- The extension: its tile opens")
         .. "\nreturn OptionsPage.Rows", "=GPS rows", "t", gpsEnv))()

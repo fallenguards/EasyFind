@@ -2521,10 +2521,32 @@ function GPS.SearchRight(f, rel, point, x)
     f.search:SetPoint("RIGHT", rel, point, x - ((f.searchCog and f.searchCog:IsShown()) and 21 or 0), 0)
 end
 
--- Whether the pop-outs wear their settings cog (on unless turned off).
-function GPS.CogsShown()
+-- How the pop-outs wear their settings cog: "hover" (the default: while
+-- the cursor is on the window), "show" or "hide"; the old off switch hides.
+function GPS.CogMode()
     local db = DB()
-    return not (db and db.gpsCog == false)
+    local v = db and db.gpsCog
+    if v == false or v == "hide" then return "hide" end
+    return v == "show" and "show" or "hover"
+end
+
+function GPS.CogsShown() return GPS.CogMode() ~= "hide" end
+
+-- On hover the cog keeps its place, seen only while the cursor is on win.
+function GPS.CogHover(cog, win)
+    if GPS.CogMode() ~= "hover" then
+        Utils.SafeOnUpdate(cog, nil)
+        cog:SetAlpha(1)
+        return
+    end
+    cog:SetAlpha(win:IsMouseOver() and 1 or 0)
+    local wait = 0
+    Utils.SafeOnUpdate(cog, function(self, dt)
+        wait = wait - dt
+        if wait > 0 then return end
+        wait = 0.1
+        self:SetAlpha(win:IsMouseOver() and 1 or 0)
+    end)
 end
 
 -- A settings cog opening menu(): a surface's whole menu, as its right-click.
@@ -2548,8 +2570,10 @@ function GPS.ApplyCogs()
     for _, frame in ipairs(GPS.searchFrames) do
         if frame.searchCog and frame.ShowMenu then
             frame.searchCog:SetShown(on)
+            GPS.CogHover(frame.searchCog, frame)
             GPS.SearchRight(frame, frame, "RIGHT", -frame.searchPad)
         end
+        if frame.headCog then GPS.CogHover(frame.headCog, frame) end
     end
     Refresh()
 end
@@ -2571,6 +2595,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
         -- A pop-out's cog: its whole menu, and the setting may leave it out.
         local shown = not frame.ShowMenu or GPS.CogsShown()
         cog:SetShown(shown)
+        if frame.ShowMenu then GPS.CogHover(cog, frame) end
         box:SetPoint("RIGHT", frame, "RIGHT", -(padRight + (shown and 21 or 0)), 0)
         if frame.ShowMenu then
             cog:SetScript("OnEnter", function(self)
@@ -5629,7 +5654,10 @@ local function BuildPopout()
     f.isPopout = true
     -- The settings cog over the trip's fields: the window's menu, as a right-click.
     f.headCog = GPS.SettingsCog(f, ShowWindowMenu)
-    if f.headCog then f.headCog:SetSize(12, 13) end
+    if f.headCog then
+        f.headCog:SetSize(12, 13)
+        GPS.CogHover(f.headCog, f)
+    end
 
     BuildSurface(f, {
         padX = 12, padY = 9, padRight = 64, bodyPadRight = 12, search = true, compact = true, titleOpensMap = true,
@@ -6058,7 +6086,16 @@ do
             if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
             if ns.MapTab and ns.MapTab.RefreshIfOpen then ns.MapTab:RefreshIfOpen() end
         end)
-        Switch("gpsCog", L["GPS_COG"], L["GPS_COG_TT"], function() GPS.ApplyCogs() end)
+        Choice("gpsCog", L["GPS_COG"], L["GPS_COG_TT"], {
+                { label = L["GPS_COG_HOVER"], value = "hover" }, { label = _G["SHOW"] or "Show", value = "show" },
+                { label = _G["HIDE"] or "Hide", value = "hide" },
+            }, "hover",
+            function() return GPS.CogMode() end,
+            function(v)
+                local db = DB()
+                if db then db.gpsCog = (v ~= "hover") and v or nil end
+                GPS.ApplyCogs()
+            end)
         Check("hideDone", L["GPS_HIDE_DONE"], L["GPS_HIDE_DONE_TT"],
             function() local d = DB() return d ~= nil and d.gpsHideDone == true end,
             function(on)

@@ -9,7 +9,7 @@ local NIL_DEFAULT_SETTINGS = {
     "appearanceItemClass", "appearanceItemSlot", "appearanceItemSourceFilters", "heirloomFilter", "lootFilter",
     "npcFilters", "appsMenu", "chatFindMessages", "classicArt", "classicArtAlpha", "clipboardMaxDays", "clipboardMaxEntries",
     "optionsPosition", "themeStudioHoverPreview",
-    "gpsArrowPos", "gpsArrowText", "gpsAutoLearn", "gpsBeaconStyle", "gpsDockSlot", "gpsDocked", "gpsHideDone",
+    "gpsArrowPos", "gpsArrowText", "gpsAutoLearn", "gpsBeaconStyle", "gpsCog", "gpsDockSlot", "gpsDocked", "gpsHideDone",
     "gpsLaunchWindow", "gpsLineColors", "gpsLineWidth", "gpsMapClick", "gpsNeverDock", "gpsPopout",
     "gpsPopoutCollapsed", "gpsPopoutFieldsHidden", "gpsPopoutNextOnly", "gpsPopoutSize", "gpsPopoutStyle",
     "gpsPopoutText", "gpsShowDetours", "gpsShowOtherWays", "gpsWatchSlot", "gpsWorldPin",

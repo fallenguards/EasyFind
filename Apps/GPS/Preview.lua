@@ -92,6 +92,22 @@ local function Build()
     -- Or the place's own: a creature's face, a map icon.
     marks.destIcon = overlay:CreateTexture(nil, "OVERLAY", nil, 5)
     marks.destIcon:Hide()
+    -- Over the journey's end: a right-click ends the route, as on our map pins.
+    local hit = CreateFrame("Button", nil, overlay)
+    hit:SetFrameLevel(overlay:GetFrameLevel() + 10)
+    hit:RegisterForClicks("RightButtonUp")
+    hit:SetScript("OnClick", function() if ns.GPS and ns.GPS.Clear then ns.GPS:Clear() end end)
+    hit:SetScript("OnEnter", function(self)
+        local route = Route()
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(route and route.dest and route.dest.name or "")
+        GameTooltip:AddLine(ns.L["WP_DISMISS_ROUTE"], 0.6, 0.6, 0.6)
+        GameTooltip:Show()
+    end)
+    hit:SetScript("OnLeave", GameTooltip_Hide)
+    hit:Hide()
+    marks.hit = hit
+    Preview._marks = marks   -- dev tools
     syms = {}
     overlay:Hide()
     return true
@@ -651,6 +667,7 @@ local function Draw()
     local symbol = hovered and hovered.symbol
     marks.dest:Hide()
     marks.destIcon:Hide()
+    marks.hit:Hide()
     marks.stopCasing:Hide()
     if hovered and hovered.b and hovered.final then
         -- The journey's end: the place's own icon when it has one, else
@@ -671,6 +688,8 @@ local function Draw()
         mark:SetSize(size, size)
         mark:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
         mark:Show()
+        marks.hit:SetAllPoints(mark)
+        marks.hit:Show()
     elseif hovered and hovered.b and symbol then
         -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
         marks.stop:Hide()

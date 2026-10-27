@@ -900,7 +900,8 @@ function Trip.BuildEditor(frame)
     frame.clearBtn:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
     frame.clearBtn:SetPoint("TOP", ed, "BOTTOM", 0, -3)
     frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6 + shift, -(4 + etaH + (frame.listGap or 8)))
-    if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", shift, -10) end
+    -- Arrived: where the steps were, under the Clear link's row.
+    if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", shift, -(4 + etaH + (frame.listGap or 8))) end
 
     frame.trip = ed
     ed:Refresh(Route())
