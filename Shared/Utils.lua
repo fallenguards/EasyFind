@@ -7075,12 +7075,18 @@ end
 -- A word sized by its text carries the badge along through a later font or
 -- text change (the chat's brand, restyled after this ran); one pinned at
 -- both sides is measured.
+-- The tag as an exponent on the text's last word, wherever the text sits
+-- in a box spanning both sides: left, centered or right.
 function ns.SuperscriptTag(tag, fontString)
     tag:ClearAllPoints()
-    if fontString:GetNumPoints() == 1 then
+    local justify = fontString:GetNumPoints() > 1 and fontString:GetJustifyH() or "RIGHT"
+    local w = fontString:GetStringWidth() or 0
+    if justify == "CENTER" then
+        tag:SetPoint("BOTTOMLEFT", fontString, "CENTER", w / 2 + 1, 1)
+    elseif justify == "RIGHT" then
         tag:SetPoint("BOTTOMLEFT", fontString, "RIGHT", 1, 1)
     else
-        tag:SetPoint("BOTTOMLEFT", fontString, "LEFT", (fontString:GetStringWidth() or 0) + 1, 1)
+        tag:SetPoint("BOTTOMLEFT", fontString, "LEFT", w + 1, 1)
     end
 end
 

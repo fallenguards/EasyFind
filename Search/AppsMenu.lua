@@ -592,23 +592,26 @@ local function PaintTile(row, item, dropdown)
         PaintTileBadge(row)
     end
     row.label:SetText(item.name or "")
-    -- Same font as result-row titles (pathFont), like every menu, at the
-    -- labels' own size.
-    local theme = Results.GetActiveTheme and Results:GetActiveTheme()
-    Results:SetScaledFont(row.label, (theme and theme.pathFont) or ns.LEAF_FONT)
-    local scale = Settings().labelSize
-    if scale ~= 1 then
-        local file, size, flags = row.label:GetFont()
-        if file and size then row.label:SetFont(file, size * scale, flags) end
-    end
+    -- Medium is the search bar's own text ("Type to search..."); the labels'
+    -- size setting scales from it.
+    local bar = ns.Search and ns.Search.GetSearchFrame and ns.Search:GetSearchFrame()
+    local ref = bar and bar.editBox and bar.editBox.placeholder
+    local file, size, flags
+    if ref then file, size, flags = ref:GetFont() end
+    if file and size then row.label:SetFont(file, size * Settings().labelSize, flags) end
     -- An experimental app wears the EXP badge after its name.
     local exp = item.app and item.app.experimental
     if exp and not row.expTag then
         row.expTag = ns.CreateFeatureTag(dropdown, "exp", L["TAG_EXP_TITLE"], exp, true)
     end
     if row.expTag then
+        local shown = exp ~= nil and labels ~= "hidden"
+        -- Left of the icon, the name ends short of it by the tag's room.
+        if labels == "left" then
+            row.label:SetPoint("RIGHT", row.icon, "LEFT", -8 - (shown and row.expTag:GetWidth() + 1 or 0), 0)
+        end
         ns.SuperscriptTag(row.expTag, row.label)
-        row.expTag:SetShown(exp ~= nil and labels ~= "hidden")
+        row.expTag:SetShown(shown)
     end
     row:Show()
 end
