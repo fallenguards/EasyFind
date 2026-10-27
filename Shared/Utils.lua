@@ -9986,7 +9986,7 @@ function ns.BuildChatSendRows(link)
     local Chat = ns.Chat
     local list = Chat and Chat.ListConversations and Chat:ListConversations() or {}
     if #list > 0 then rows[#rows + 1] = { isSeparator = true } end
-    for i = 1, math.min(#list, 12) do
+    for i = 1, #list do
         local c = list[i]
         rows[#rows + 1] = { text = c.label, onClick = function() Chat:ComposeWith(c.key, link) end }
     end
@@ -10018,7 +10018,7 @@ function ns.BuildAddNoteRows(link, name)
     local notes = Notes.ListNotes()
     if notes and #notes > 0 then
         rows[#rows + 1] = { isSeparator = true }
-        for i = 1, math.min(#notes, 20) do
+        for i = 1, #notes do
             local noteID = notes[i].id
             rows[#rows + 1] = {
                 text = notes[i].title,

@@ -7971,7 +7971,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
               keepOpen = true, onClick = function() UI:ToggleEasyNotesAutoResize() end },
             { text = L["NOTES_TRASH"], submenu = (function()
                   local trashed, out = notesNS.TrashList(), {}
-                  for i = 1, math.min(#trashed, 15) do
+                  for i = 1, #trashed do
                       local entry = trashed[i]
                       out[#out + 1] = { text = entry.title .. "  (" .. FormatRelTime(entry.deletedAt) .. ")",
                           onClick = function()
