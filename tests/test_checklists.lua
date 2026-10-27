@@ -232,7 +232,8 @@ local function LoadView(lines)
     for _, line in ipairs(lines) do CK.AddLine(note, line) end
     local notesNS = {
         Checklist = CK, Context = {},
-        UI = { _notes = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub() } } },
+        UI = { _notes = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub(),
+            GetFrameLevel = function() return 1 end } } },
         SelectedNote = function() return note end,
         AllNotes = function() return { note } end,
     }
@@ -288,6 +289,141 @@ function tests.lineLabel_drawsItemsAndSpellsAsTheirLinks()
     H.assertEq(CK.LineLabel({ link = "cooldown", spell = 3 }), "|cff71d5ff|Hspell:3|h[Spell]|h|r")
     H.assertEq(CK.LineLabel({ item = 8 }), "Item8", "not in the cache yet: its name")
     H.assertEq(CK.LineLabel({ item = 7, text = "Mine" }), "Mine", "a renamed line keeps its words")
+end
+
+-- Every way a count is written after or before the words (2026-10-26).
+function tests.splitCount_readsEveryForm()
+    local CK = Load()
+    for _, typed in ipairs({ "Linen Cloak x20", "Linen Cloak X20", "Linen Cloak x 20", "Linen Cloak*20", "Linen Cloak * 20",
+        "Linen Cloak 20", "20x Linen Cloak", "20 x Linen Cloak", "20* Linen Cloak", "20 Linen Cloak", "Linen Cloak \195\15120" }) do
+        local words, n = CK.SplitCount(typed)
+        H.assertEq(words, "Linen Cloak", typed)
+        H.assertEq(n, 20, typed)
+    end
+    local link = "|cff1eff00|Hitem:5::|h[Thing]|h|r"
+    for _, typed in ipairs({ link .. "x20", link .. " x20", link .. " 20", link .. "*20", "20x" .. link, "20 " .. link }) do
+        local words, n = CK.SplitCount(typed)
+        H.assertEq(words, link, typed)
+        H.assertEq(n, 20, typed)
+    end
+    H.assertEq(select(2, CK.SplitCount("Onyx x3")), 3)
+    H.assertEq((CK.SplitCount("Onyx x3")), "Onyx", "a name ending in x keeps it")
+    H.assertEq(select(2, CK.SplitCount("Linen Cloak")), nil)
+    H.assertEq(select(2, CK.SplitCount("20")), nil, "a number alone is the words")
+    H.assertEq(select(2, CK.SplitCount("Bandage 0")), nil, "no count of 0")
+end
+
+function tests.typedLine_plainListTakesACountOnlyOnALink()
+    local CK = Load()
+    H.assertEq(CK.TypedLine("Repair 2", false).text, "Repair 2", "words stay as typed")
+    local line = CK.TypedLine("|cff1eff00|Hitem:5::|h[Thing]|h|r x20", false)
+    H.assertEq(line.item, 5)
+    H.assertEq(line.link, "item", "counted toward its count")
+    H.assertEq(line.target, 20)
+    H.assertEq(CK.TypedLine("|cff1eff00|Hitem:5::|h[Thing]|h|r", false).link, nil, "no count: ticked by hand")
+end
+
+function tests.typedLine_itemListLooksUpNames()
+    local CK, _, env = Load()
+    local ids = { ["Linen Cloak"] = 2589, ["Net-o-Matic 5000"] = 4 }
+    env.C_Item.GetItemInfoInstant = function(name) return ids[name] end
+    local line = CK.TypedLine("Linen Cloak x20", true)
+    H.assertEq(line.item, 2589)
+    H.assertEq(line.target, 20)
+    line = CK.TypedLine("Net-o-Matic 5000", true)
+    H.assertEq(line.item, 4, "a name ending in a number is the item")
+    H.assertEq(line.target, nil)
+    line = CK.TypedLine("Mystery 3", true)
+    H.assertEq(line.text, "Mystery", "an unknown name keeps its count")
+    H.assertEq(line.target, 3)
+    H.assertEq(CK.LineState({ list = { ticks = {}, seen = {}, scope = "account" } }, line) == true, false)
+end
+
+function tests.retype_keepsTheItemWhenOnlyItsCountChanges()
+    local CK = Load()
+    local line = { item = 7, link = "item", target = 2 }
+    H.assertEq(CK.EditText(line), "Item7 x2", "typed as its name and count")
+    CK.Retype(line, "Item7 x5", false)
+    H.assertEq(line.item, 7)
+    H.assertEq(line.target, 5)
+    CK.Retype(line, "Item7", false)
+    H.assertEq(line.item, 7)
+    H.assertEq(line.link, nil, "no count: ticked by hand")
+    CK.Retype(line, "lin x3", true, 9)
+    H.assertEq(line.item, 9, "the item picked for the words")
+    H.assertEq(line.target, 3)
+end
+
+function tests.setCount_givesOrTakesTheCount()
+    local CK = Load()
+    local line = { item = 1 }
+    CK.SetCount(line, 4)
+    H.assertEq(line.link, "item")
+    H.assertEq(line.target, 4)
+    CK.SetCount(line, 0)
+    H.assertEq(line.link, nil)
+    H.assertEq(line.target, nil)
+    H.assertFalse(CK.HasCount({ link = "gold", target = 100 }), "gold keeps its own menu")
+end
+
+function tests.view_doubleClickTypesTheCountOverIt()
+    local View, note, _, made = LoadView({ { link = "item", item = 1, target = 2 } })
+    View.SetAllowed(true)
+    local row
+    for _, b in ipairs(made.Button) do if b.line == note.list.lines[1] then row = b end end
+    H.assertTrue(row.count._shown, "a count to change")
+    row.count._scripts.OnDoubleClick(row.count)
+    local box
+    for _, b in ipairs(made.EditBox or {}) do if b._text == "2" then box = b end end
+    H.assertTrue(box ~= nil, "the count in a box")
+    box._text = "7"
+    box._scripts.OnEditFocusLost(box)
+    H.assertEq(note.list.lines[1].target, 7)
+end
+
+-- A shopping list's line: the catalog's names under it, the first picked.
+function tests.view_itemListSuggestsAndEnterTakesThePick()
+    local View, note, _, made, _, env = LoadView({})
+    local ns = env.EasyFind._ns
+    note.list.source = { ext = "Shop", key = "k" }
+    ns.ChecklistLinks = { Shop = { items = true } }
+    ns.StyleMenuPanel = function() end
+    ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function(self, on) self._picked = on end end
+    ns.Database = { ScoreName = function() return 100 end }
+    ns.ItemSearch = { Search = function() return { { data = { itemID = 2589, nameLower = "linen cloak", name = "linen cloak" } } } end }
+    View.SetAllowed(true)
+    View.AddNew()
+    local box = made.EditBox[1]
+    box.HasFocus = function() return true end
+    box._text = "lin x20"
+    box._scripts.OnTextChanged(box, true)
+    box._scripts.OnEnterPressed(box)
+    local line = note.list.lines[1]
+    H.assertEq(line.item, 2589, "the pick")
+    H.assertEq(line.target, 20, "with the count typed")
+end
+
+function tests.view_escapeKeepsTheWordsAsTyped()
+    local View, note, _, made, _, env = LoadView({})
+    local ns = env.EasyFind._ns
+    note.list.source = { ext = "Shop", key = "k" }
+    ns.ChecklistLinks = { Shop = { items = true } }
+    ns.StyleMenuPanel = function() end
+    ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function() end end
+    ns.Database = { ScoreName = function() return 100 end }
+    ns.ItemSearch = { Search = function() return { { data = { itemID = 2589, nameLower = "linen cloak", name = "linen cloak" } } } end }
+    View.SetAllowed(true)
+    View.AddNew()
+    local box = made.EditBox[1]
+    box.HasFocus = function() return true end
+    box._text = "lin x20"
+    box._scripts.OnTextChanged(box, true)
+    box._scripts.OnEscapePressed(box)
+    box._scripts.OnEnterPressed(box)
+    local line = note.list.lines[1]
+    H.assertEq(line.text, "lin")
+    H.assertEq(line.target, 20)
+    H.assertEq(line.item, nil)
 end
 
 local function Texts(note)

@@ -8653,6 +8653,8 @@ local function CursorMenuDriveRowHighlights(menu, mouseYields)
             local hot = (not mouseYields and row:IsMouseOver())
                 or (mouseYields and menu.keyboardIndex == i)
             if hot and row._tooltip and not tipRow then tipRow = row end
+            -- A row with a click of its own shows its X only under the cursor.
+            if row._efRemoveOnHover then row.removeX:SetShown(hot) end
             if row._efWashActive then
                 Utils.UpdateRoundedRowWash(row, engaged)
             else
@@ -8737,6 +8739,9 @@ local function CursorMenuOnEvent(self, event)
     -- hiding here on mouse-down would make the mouse-up click instantly
     -- reopen the menu it just closed.
     if self.toggleOwner and Utils.IsFrameVisiblyMouseOver(self.toggleOwner) then return end
+    -- A press answering a row's question (removeAsk) is not one outside.
+    local dialog = _G.EasyFindThemedDialog
+    if dialog and dialog:IsShown() and dialog:IsMouseOver() then return end
     if not CursorMenuChainHasMouse(self) then self:Hide() end
 end
 
@@ -9241,12 +9246,13 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                 row._efLabelLeft = (leftIcons or (def.icon and def.inlineIcon)) and 28 or 8
                 row.label:SetPoint("LEFT", row, "LEFT", row._efLabelLeft, 0)
                 -- A remove row keeps an X at its right edge: a click on it
-                -- drops what the row names and lists the menu anew.
+                -- drops what the row names (after a yes, with removeAsk) and
+                -- lists the menu anew.
                 if def.remove and not row.removeX then
                     row.removeX = ns.CreateCloseX(row, 10)
                     row.removeX:SetPoint("RIGHT", row, "RIGHT", -8, 0)
-                    row.removeX:SetScript("OnClick", function()
-                        if row._efRemove then row._efRemove() end
+                    local function Relist()
+                        if not menu:IsShown() then return end
                         local o = menu._lastOpts
                         local fresh = menu._rowsProvider and menu._rowsProvider(o and o._searchText)
                         if fresh and #fresh > 0 then
@@ -9256,11 +9262,24 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                         else
                             menu:Hide()
                         end
+                    end
+                    row.removeX:SetScript("OnClick", function()
+                        local remove, ask = row._efRemove, row._efRemoveAsk
+                        if not ask then
+                            if remove then remove() end
+                            return Relist()
+                        end
+                        ns.ShowThemedDialog({ text = ask, acceptText = _G.REMOVE or "Remove", cancelText = _G.CANCEL or "Cancel",
+                            onAccept = function()
+                                if remove then remove() end
+                                Relist()
+                            end })
                     end)
                 end
-                row._efRemove = def.remove
+                row._efRemove, row._efRemoveAsk = def.remove, def.removeAsk
+                row._efRemoveOnHover = def.remove ~= nil and def.onClick ~= nil or nil
                 if row.removeX then
-                    row.removeX:SetShown(def.remove ~= nil)
+                    row.removeX:SetShown(def.remove ~= nil and not row._efRemoveOnHover)
                     -- Above its row however the pooled row was leveled, or the
                     -- row takes the press and closes the menu.
                     row.removeX:SetFrameLevel(row:GetFrameLevel() + 2)

@@ -732,6 +732,20 @@ function NoteTags.Toggle(note, tag)
     note.updated = time()
 end
 
+-- A tag off every note, and out of the list's tag filter.
+function NoteTags.Delete(tag)
+    local notes = NotesStore()
+    for i = 1, #notes do
+        local j = NoteTags.Index(notes[i], tag)
+        if j then tremove(notes[i].tags, j) end
+    end
+    local set = UI._notes and UI._notes.tagFilter
+    if set then
+        set[slower(tag)] = nil
+        UI._notes.tagFilter = next(set) and set or nil
+    end
+end
+
 function NoteTags.All()
     local seen, out = {}, {}
     local notes = NotesStore()
@@ -7893,6 +7907,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
         end
 
         -- Every tag in use, ticked on this note; a new word typed is offered.
+        -- A click ticks one on or off here; its X takes it off every note.
         local function tagEditRows()
             local t = { { searchAdd = true, text = L["NOTES_TAG_ADD_FMT"], keepOpen = true, onClick = function(typed)
                 local tag = strtrim(((typed or ""):gsub("|", ""):gsub("^#", ""))):sub(1, 24)
@@ -7905,6 +7920,12 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
                     onClick = function()
                         NoteTags.Toggle(note, tag)
                         if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                    end,
+                    removeAsk = Utils.sformat(L["NOTES_TAG_DELETE_ASK"], tag),
+                    remove = function()
+                        NoteTags.Delete(tag)
+                        if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
+                        if UI.RefreshEasyNotes then UI:RefreshEasyNotes() end
                     end }
             end
             if #tags == 0 then t[#t + 1] = { text = L["NOTES_NO_TAGS_YET"], disabled = true } end

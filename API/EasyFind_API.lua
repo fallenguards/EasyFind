@@ -225,6 +225,7 @@ function API.Fire(id, event, ...) end
 ---@field changed fun(noteID: integer, key: string, lines: table[])? the player's edits, every line in order
 ---@field shown fun(noteID: integer, key: string)? the note opened in Notes: sync it now
 ---@field category { key: string, label: string }? a note category of your own, your notes filed under it
+---@field items boolean? names typed in your notes are items, each with a count, and the editor suggests them
 
 ---Hears a linked checklist's edits and openings for this extension.
 ---@param handlers EasyFindChecklistLinks

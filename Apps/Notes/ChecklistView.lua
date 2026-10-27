@@ -14,7 +14,7 @@ local Utils = ns.Utils
 local L = ns.L
 local CreateFrame, time = CreateFrame, time
 local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
-local ipairs, smatch, strtrim = ipairs, string.match, strtrim
+local ipairs, smatch, sfind, slower, mmin, strtrim = ipairs, string.match, string.find, string.lower, math.min, strtrim
 
 -- GRIP_W: the margin left of the boxes the drag grip shows in, outside
 -- the window's text edge, so a row starts where the header's buttons do;
@@ -377,6 +377,17 @@ local function CreateRow(i)
     row.progress:SetJustifyH("RIGHT")
     -- On the name's line, left of the X: the detail line runs under it.
     row.progress:SetPoint("RIGHT", row, "TOPRIGHT", -18, LINE_MID)
+    -- A double-click on a count types a new one in its place.
+    local count = CreateFrame("Button", nil, row)
+    count:SetPoint("TOPLEFT", row.progress, "TOPLEFT", -4, 3)
+    count:SetPoint("BOTTOMRIGHT", row.progress, "BOTTOMRIGHT", 4, -3)
+    count:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    count:SetScript("OnClick", function(_, button)
+        if button == "RightButton" then RowMenu(row) end
+    end)
+    count:SetScript("OnDoubleClick", function() View.EditCount(row) end)
+    Utils.AttachDelayedTooltip(count, "ANCHOR_RIGHT", function() return L["CHECK_COUNT_TT"] end)
+    row.count = count
     row.detail = Text(row, "GameFontDisableSmall")
     -- A click on the line types in it; the auction search for an item
     -- line is on its menu.
@@ -437,6 +448,7 @@ local function FillRow(row, note, line, y)
     row.name:SetTextColor(c[1], c[2], c[3], 1)
     row.progress:SetText(progress or "")
     row.progress:SetTextColor(c[1], c[2], c[3], 1)
+    row.count:SetShown(CK.HasCount(line))
     local hasDetail = detail and detail ~= ""
     row.detail:SetShown(hasDetail)
     if hasDetail then
@@ -508,6 +520,7 @@ local function FillBoard(note)
         row:SetSize(NAME_W, ROW_H)
         row.check:Hide()
         row.icon:Hide()
+        row.count:Hide()
         row.progress:SetText("")
         row.detail:Hide()
         row.name:ClearAllPoints()
@@ -813,6 +826,126 @@ local function Neighbor(id, step)
     end
 end
 
+-- Suggestions under the line typed in a list of items: the item catalog's
+-- best names for the words (the main search's scoring), one picked. Up and
+-- Down move the pick, Enter or a press takes it, Tab types it in, Escape
+-- puts the list away and leaves the words as typed.
+local SUGGEST_MAX, SUGGEST_H = 6, 20
+
+local function SuggestList()
+    local s = UI.suggest
+    if s then return s end
+    local frame = NotesUI._notes.frame
+    s = CreateFrame("Frame", nil, frame)
+    s:SetFrameLevel(frame:GetFrameLevel() + 60)
+    s:SetToplevel(true)
+    ns.StyleMenuPanel(s)
+    s.rows, s.count = {}, 0
+    s:Hide()
+    UI.suggest = s
+    return s
+end
+
+local function SuggestRow(s, i)
+    local row = s.rows[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, s)
+    row:SetHeight(SUGGEST_H)
+    row:SetPoint("TOPLEFT", s, "TOPLEFT", 4, -4 - (i - 1) * SUGGEST_H)
+    row:SetPoint("TOPRIGHT", s, "TOPRIGHT", -4, -4 - (i - 1) * SUGGEST_H)
+    Utils.InstallMenuRowHighlight(row)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(16, 16)
+    row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+    row.name = Text(row, "GameFontHighlight")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row:SetScript("OnClick", function(self)
+        if UI.editing then
+            UI.pickOver = self.itemID
+            View.EndEdit()
+        end
+    end)
+    s.rows[i] = row
+    return row
+end
+
+function View.HideSuggest()
+    local s = UI.suggest
+    if s then
+        s:Hide()
+        s.pick = nil
+    end
+end
+
+function View.SetPick(i)
+    local s = UI.suggest
+    if not s then return end
+    s.pick = i
+    for k, row in ipairs(s.rows) do row:SetMenuHighlightFocused(k == i) end
+end
+
+-- The item picked while the list shows.
+local function Picked()
+    local s = UI.suggest
+    local row = s and s:IsShown() and s.pick and s.rows[s.pick]
+    return row and row.itemID or nil
+end
+
+local function SuggestUnderMouse()
+    local s = UI.suggest
+    if not (s and s:IsShown()) then return nil end
+    for i = 1, s.count do
+        if s.rows[i]:IsMouseOver() then return s.rows[i].itemID end
+    end
+end
+
+-- The catalog's best names for the words typed; an exact name is the pick.
+function View.Suggest(text)
+    local search, db = ns.ItemSearch, ns.Database
+    local words = CK.SplitCount(text)
+    if not (search and db and db.ScoreName and UI.edit:HasFocus() and CK.ItemsList(Note()))
+        or sfind(words, "|", 1, true) then
+        return View.HideSuggest()
+    end
+    local want = slower(words)
+    local hits = search:Search(want, function(n, ql, qLen) return db:ScoreName(n, ql, qLen) end)
+    local n = mmin(hits and #hits or 0, SUGGEST_MAX)
+    if n == 0 then return View.HideSuggest() end
+    local s = SuggestList()
+    local pick = 1
+    for i = 1, n do
+        local d = hits[i].data
+        local row = SuggestRow(s, i)
+        row.itemID = d.itemID
+        row.icon:SetTexture(C_Item.GetItemIconByID and C_Item.GetItemIconByID(d.itemID))
+        row.name:SetText(C_Item.GetItemNameByID and C_Item.GetItemNameByID(d.itemID) or d.name)
+        local q = d.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[d.quality]
+        row.name:SetTextColor(q and q.r or 1, q and q.g or 1, q and q.b or 1, 1)
+        row:Show()
+        if d.nameLower == want and pick == 1 then pick = i end
+    end
+    for i = n + 1, #s.rows do s.rows[i]:Hide() end
+    s.count = n
+    s:ClearAllPoints()
+    s:SetPoint("TOPLEFT", UI.edit, "BOTTOMLEFT", -6, -4)
+    s:SetPoint("TOPRIGHT", UI.edit, "BOTTOMRIGHT", 6, -4)
+    s:SetHeight(8 + n * SUGGEST_H)
+    s:Show()
+    View.SetPick(pick)
+end
+
+-- Tab: the pick typed into the box as its link, the count kept.
+local function TypePick(box)
+    local id = Picked()
+    if not id then return end
+    local _, count = CK.SplitCount(box:GetText() or "")
+    local text = CK.EditText({ item = id, link = count and "item" or nil, target = count })
+    box:SetText(text)
+    box:SetCursorPosition(#text)
+    View.HideSuggest()
+end
+
 -- One box, laid over the words of the line being typed.
 local function EnsureEdit()
     if UI.edit then return UI.edit end
@@ -820,14 +953,29 @@ local function EnsureEdit()
     box:SetAutoFocus(false)
     box:SetFontObject("GameFontHighlight")
     ns.RegisterAddonFont(box)
-    box:SetMaxLetters(120)
+    -- Room for an item's link and a count.
+    box:SetMaxLetters(255)
     box:SetHeight(ROW_H - 6)
     box:EnableMouse(true)
     box:SetScript("OnEnterPressed", function() View.EndEdit("next") end)
-    box:SetScript("OnEscapePressed", function() View.EndEdit() end)
-    -- A click on the line being typed keeps it typed: losing the focus to
-    -- its own row ended a new line still empty, and it went.
+    box:SetScript("OnEscapePressed", function()
+        if UI.suggest and UI.suggest:IsShown() then return View.HideSuggest() end
+        View.EndEdit()
+    end)
+    box:SetScript("OnTabPressed", TypePick)
+    box:SetScript("OnTextChanged", function(self, userInput)
+        if userInput then View.Suggest(self:GetText() or "") end
+    end)
+    -- A press on a suggestion takes it. A click on the line being typed
+    -- keeps it typed: losing the focus to its own row ended a new line
+    -- still empty, and it went.
     box:SetScript("OnEditFocusLost", function(self)
+        local over = SuggestUnderMouse()
+        if over then
+            UI.pickOver = over
+            View.EndEdit()
+            return
+        end
         local row = UI.editRow
         if row and UI.editing and row.line and row.line.id == UI.editing and row:IsMouseOver() then
             Utils.SafeAfter(0, function() if UI.editing and self:IsShown() then self:SetFocus() end end)
@@ -836,7 +984,10 @@ local function EnsureEdit()
         View.EndEdit()
     end)
     box:SetScript("OnKeyDown", function(self, key)
-        if key == "BACKSPACE" and (self:GetText() or "") == "" then View.EndEdit("back")
+        local s = UI.suggest
+        if s and s:IsShown() and (key == "UP" or key == "DOWN") then
+            View.SetPick(((s.pick or 0) + (key == "DOWN" and 1 or -1) - 1) % s.count + 1)
+        elseif key == "BACKSPACE" and (self:GetText() or "") == "" then View.EndEdit("back")
         elseif key == "UP" then View.EndEdit("up")
         elseif key == "DOWN" then View.EndEdit("down") end
     end)
@@ -862,7 +1013,11 @@ function View.PlaceEdit()
             box:SetPoint("RIGHT", row.progress, "LEFT", -6, 0)
             row.name:SetAlpha(0)
             if not box:IsShown() then
-                local text = row.line.text or CK.LineName(row.line)
+                local text = CK.EditText(row.line)
+                UI.editShown = text
+                -- Suggestions come from the item catalog: loaded on this
+                -- click, never on a keystroke.
+                if CK.ItemsList(Note()) and ns.RequestItemCatalog then ns.RequestItemCatalog() end
                 box:SetText(text)
                 box:Show()
                 box:SetFocus()
@@ -902,21 +1057,27 @@ function View.EndEdit(move)
     UI.editing = nil
     local box = UI.edit
     local text = strtrim(box:GetText() or "")
+    local pick = UI.pickOver or Picked()
+    UI.pickOver = nil
+    View.HideSuggest()
     box:Hide()
     box:ClearFocus()
     local note = Note()
     local line = note and LineByID(note, id)
     if not line then View.Refresh() return end
     local prev, nextID = Neighbor(id, -1), Neighbor(id, 1)
-    local from = CK.LineFromLink(text)
-    if from then
-        line.text = nil
-        for k, v in pairs(from) do line[k] = v end
-    elseif text == "" and not line.link then
+    if text == "" and not line.link then
         CK.RemoveLine(note, id)
         line = nil
-    elseif text ~= CK.LineName(line) or line.text then
-        line.text = text ~= "" and text or nil
+    elseif text == "" then
+        line.text = nil
+    elseif pick or text ~= UI.editShown then
+        if line.link and line.link ~= "item" then
+            -- A line the game ticks keeps what it reads; the words rename it.
+            line.text = text
+        else
+            CK.Retype(line, text, CK.ItemsList(note), pick)
+        end
     end
     CK.SyncBody(note)
     if move == "next" and line then
@@ -926,6 +1087,60 @@ function View.EndEdit(move)
     elseif move == "down" then
         UI.editing = nextID
     end
+    Changed(note)
+end
+
+-- The count typed over itself ----------------------------------------------------
+
+local function EnsureCountBox()
+    local box = UI.countBox
+    if box then return box end
+    box = CreateFrame("EditBox", nil, UI.list)
+    box:SetAutoFocus(false)
+    box:SetFontObject("GameFontHighlight")
+    ns.RegisterAddonFont(box)
+    box:SetNumeric(true)
+    box:SetMaxLetters(6)
+    box:SetJustifyH("RIGHT")
+    box:SetSize(48, ROW_H - 6)
+    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEscapePressed", function(self)
+        self.cancel = true
+        self:ClearFocus()
+    end)
+    box:SetScript("OnEditFocusLost", function() View.EndCount() end)
+    box:Hide()
+    UI.countBox = box
+    return box
+end
+
+function View.EditCount(row)
+    local line = row.line
+    if not (line and CK.HasCount(line)) or UI.board then return end
+    if UI.editing then View.EndEdit() end
+    local box = EnsureCountBox()
+    box.line, box.cancel = line, false
+    box:ClearAllPoints()
+    box:SetPoint("RIGHT", row.progress, "RIGHT", 0, 0)
+    box:SetText(tostring(line.target))
+    row.progress:SetAlpha(0)
+    UI.countRow = row
+    box:Show()
+    box:SetFocus()
+    box:HighlightText()
+end
+
+-- Enter or a click away keeps the count typed; emptied or 0, the line has
+-- none; Escape leaves it as it was.
+function View.EndCount()
+    local box = UI.countBox
+    if not (box and box:IsShown()) then return end
+    box:Hide()
+    if UI.countRow then UI.countRow.progress:SetAlpha(1) end
+    local note, line = Note(), box.line
+    box.line = nil
+    if box.cancel or not (note and line) then return end
+    CK.SetCount(line, tonumber(box:GetText() or ""))
     Changed(note)
 end
 

@@ -772,6 +772,7 @@ end
 -- text } in order); handlers.shown(noteID, key) asks for the list when the
 -- note is opened in Notes. handlers.category = { key, label }: a note
 -- category of the extension's own that its notes are filed under.
+-- handlers.items: names typed in its notes are items with a count each.
 ns.ChecklistLinks = ns.ChecklistLinks or {}
 ns.NoteCategories = ns.NoteCategories or {}
 function API.LinkChecklists(id, handlers)

@@ -345,7 +345,7 @@ function CK.LineState(note, line)
     local c = Ctx(note)
     local link = line.link and LINKS[line.link]
     if not link then
-        return CK.Ticked(note, line, c.char), nil, nil
+        return CK.Ticked(note, line, c.char), line.target and sformat(L["CHECK_COUNT_FMT"], line.target), nil
     end
     local done, progress, detail, have, need = link.State(line, c)
     local seen = note.list.seen
@@ -490,4 +490,117 @@ function CK.LineFromLink(link)
     if quest then return { link = "quest", quest = quest } end
     local spell = tonumber(smatch(link or "", "|Hspell:(%d+)"))
     if spell then return { link = "cooldown", spell = spell } end
+end
+
+-- A list of items (a shopping list): a name typed in it is looked up, and
+-- keeps a count written with it.
+function CK.ItemsList(note)
+    local src = note and note.list and note.list.source
+    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    return link ~= nil and link.items == true
+end
+
+-- A count written with the words: "Linen Cloak x20", "x 20", "*20", "* 20",
+-- " 20", "20x Linen Cloak", "20 Linen Cloak". The words, and the count or nil.
+local COUNT_AFTER = { "^(.-)%s+[xX%*]%s*(%d+)$", "^(.-|[hr])%s*[xX%*]%s*(%d+)$", "^(.-)%*%s*(%d+)$", "^(.-)%s+(%d+)$" }
+local COUNT_BEFORE = { "^(%d+)%s*[xX%*]%s+(.+)$", "^(%d+)%s*%*%s*(.+)$", "^(%d+)%s*[xX]%s*(|.+)$", "^(%d+)%s+(.+)$" }
+
+local function Trim(s) return smatch(s, "^%s*(.-)%s*$") end
+
+function CK.SplitCount(text)
+    text = Trim((text or ""):gsub("\195\151", "x"))
+    for _, p in ipairs(COUNT_AFTER) do
+        local words, n = smatch(text, p)
+        n = tonumber(n)
+        if words and Trim(words) ~= "" and n and n > 0 then return Trim(words), n end
+    end
+    for _, p in ipairs(COUNT_BEFORE) do
+        local n, words = smatch(text, p)
+        n = tonumber(n)
+        if words and n and n > 0 then return Trim(words), n end
+    end
+    return text, nil
+end
+
+-- The item a typed name stands for: the client's lookup, else that exact
+-- name in the item catalog.
+function CK.ItemByName(name)
+    if not name or name == "" or sfind(name, "|", 1, true) then return nil end
+    local id = C_Item and C_Item.GetItemInfoInstant and C_Item.GetItemInfoInstant(name)
+    if id then return id end
+    local search, db = ns.ItemSearch, ns.Database
+    if not (search and db and db.ScoreName) then return nil end
+    local want = slower(name)
+    local hits = search:Search(want, function(n, ql, qLen) return db:ScoreName(n, ql, qLen) end)
+    for i = 1, hits and #hits or 0 do
+        if hits[i].data.nameLower == want then return hits[i].data.itemID end
+    end
+end
+
+-- A line from typed words. A link in them makes it that item, quest or
+-- spell; an item counts toward a count written with it. In a list of
+-- items a name is looked up too, and one unknown keeps its count.
+function CK.TypedLine(text, items)
+    local words, count = CK.SplitCount(text)
+    local line = CK.LineFromLink(words)
+    if not line and items then
+        -- A name ending in a number ("Net-o-Matic 5000") is the item.
+        local whole = CK.ItemByName(text)
+        if whole then return { item = whole } end
+        local id = CK.ItemByName(words)
+        line = id and { item = id }
+    end
+    if line and line.item then
+        if count then line.link, line.target = "item", count end
+        return line
+    end
+    if line then return line end
+    if items and count then return { text = words, target = count } end
+    return { text = text }
+end
+
+-- The words a line is typed as: its own, or its item or spell as a link,
+-- and its count after.
+function CK.EditText(line)
+    local words = CK.LineLabel(line)
+    local count = (line.link == "item" or not line.link) and line.target
+    return count and sformat("%s x%d", words, count) or words
+end
+
+-- A line with a count of its own to change: an item's, or a name's in a
+-- list of items.
+function CK.HasCount(line)
+    return line.target ~= nil and (line.link == "item" or not line.link)
+end
+
+-- n above 0 the line's count; else it has none (an item is ticked by hand).
+function CK.SetCount(line, n)
+    if n and n > 0 then
+        line.target = mfloor(n)
+        if line.item then line.link = "item" end
+    else
+        line.target = nil
+        if line.link == "item" then line.link = nil end
+    end
+end
+
+-- Typed words into a line: what TypedLine makes of them, or the line's own
+-- item when its name is typed plain (its count changed); pick: an item
+-- chosen from the suggestions for the words.
+local TYPED = { "text", "item", "link", "target", "quest", "spell" }
+function CK.Retype(line, text, items, pick)
+    local new
+    if pick then
+        local _, count = CK.SplitCount(text)
+        new = { item = pick, link = count and "item" or nil, target = count }
+    else
+        new = CK.TypedLine(text, items)
+        if line.item and not new.item then
+            local words, count = CK.SplitCount(text)
+            if slower(words) == slower(ItemName(line.item)) then
+                new = { item = line.item, link = count and "item" or nil, target = count }
+            end
+        end
+    end
+    for _, k in ipairs(TYPED) do line[k] = new[k] end
 end
