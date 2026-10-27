@@ -708,9 +708,20 @@ local plainBodyCache = {}
 local function PlainSearchText(note)
     local body = note.body or ""
     local cached = plainBodyCache[note]
-    if cached and cached.body == body then return cached.plain end
-    local plain = slower(StripColorEscapes(MapSelection(body, GlyphPlain)))
-    plainBodyCache[note] = { body = body, plain = plain }
+    local plain
+    if cached and cached.body == body then
+        plain = cached.plain
+    else
+        plain = slower(StripColorEscapes(MapSelection(body, GlyphPlain)))
+        plainBodyCache[note] = { body = body, plain = plain }
+    end
+    -- A checklist's lines, read fresh: they live outside the body.
+    local CK = notesNS.Checklist
+    if CK and CK.Is(note) then
+        local parts = { plain }
+        for _, line in ipairs(note.list.lines) do parts[#parts + 1] = slower(CK.LineName(line) or "") end
+        plain = table.concat(parts, "\n")
+    end
     return plain
 end
 
@@ -807,7 +818,9 @@ local function SortedNotes(filter)
         if tagWord then
             textOK = NoteTags.Matches(n, nil, tagWord)
         else
-            textOK = filter == "" or sfind(PlainSearchText(n), filter, 1, true) or NoteTags.Matches(n, nil, filter)
+            -- The shown title, the body, then the tags.
+            textOK = filter == "" or sfind(slower(NoteTitle(n)), filter, 1, true)
+                or sfind(PlainSearchText(n), filter, 1, true) or NoteTags.Matches(n, nil, filter)
         end
         if charOK and catOK and tagOK and textOK then
             list[#list + 1] = n
@@ -2047,11 +2060,6 @@ local function ConfirmDeleteNote(id)
         onAccept = function()
             local wasPalette = UI._notes.paletteShown
             for i = 1, #ids do DeleteNote(ids[i]) end
-            if #ids == 1 then
-                EasyFind:Print(Utils.sformat(L["NOTES_DELETED_ONE_UNDO"], prompt and name or "?"))
-            else
-                EasyFind:Print(Utils.sformat(L["NOTES_DELETED_MANY_UNDO"], #ids))
-            end
             local sel = UI._notes.paletteSelection
             for k in pairs(sel) do sel[k] = nil end
             UI:RefreshEasyNotes()
@@ -5141,16 +5149,18 @@ function UI:EnsureEasyNotesFrame()
                 grip:SetScript("OnUpdate", nil)
                 grip._resizing = nil
                 local dims = UI._notes.paletteShown and EasyNotesDB.window or EasyNotesDB.editorWindow
-                dims.w = math.floor(frame:GetWidth() + 0.5)
-                dims.h = math.floor(frame:GetHeight() + 0.5)
+                local pad = UI._notes.chromePad or 0
+                dims.w = math.floor(frame:GetWidth() - 2 * pad + 0.5)
+                dims.h = math.floor(frame:GetHeight() - 2 * pad + 0.5)
                 if not grip:IsMouseOver() then grip:SetAlpha(0) end
                 return
             end
             local s = frame:GetEffectiveScale()
             local mx, my = GetCursorPosition()
             mx, my = mx / s, my / s
-            local nw = mmax(MIN_WIDTH, grip._startW + (mx - grip._startCX))
-            local nh = mmax(MIN_HEIGHT, grip._startH + (grip._startCY - my))
+            local pad = UI._notes.chromePad or 0
+            local nw = mmax(MIN_WIDTH + 2 * pad, grip._startW + (mx - grip._startCX))
+            local nh = mmax(MIN_HEIGHT + 2 * pad, grip._startH + (grip._startCY - my))
             frame:SetSize(nw, nh)
         end)
     end)
@@ -5341,6 +5351,8 @@ function UI:EnsureEasyNotesFrame()
     frame:HookScript("OnShow", function() frame.selectionWatcher:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
     frame:HookScript("OnHide", function() frame.selectionWatcher:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
     if frame:IsShown() then frame.selectionWatcher:RegisterEvent("GLOBAL_MOUSE_DOWN") end
+    -- The pieces made above, placed clear of the frame art.
+    UI:LayoutEasyNotesChrome(frame._efSkin ~= nil)
 
     return frame
 end
@@ -5512,12 +5524,13 @@ function UI:UpdateEasyNotesAutoResize()
     local contentH = frame.editor:GetHeight() or 0
     -- The formatting toolbar sits below the window, so it no longer adds to the
     -- window's own height.
-    local chrome = HEADER_H + 14 + FOOTER_H + 4 + (UI._notes.attachHasContent and ATTACH_H + 2 or 0)
-    local needed = mmax(MIN_HEIGHT, contentH + chrome)
+    local pad = UI._notes.chromePad or 0
+    local chrome = HEADER_H + 14 + FOOTER_H + 4 + (UI._notes.attachHasContent and ATTACH_H + 2 or 0) + 2 * pad
+    local needed = mmax(MIN_HEIGHT + 2 * pad, contentH + chrome)
     if math.abs(needed - (frame:GetHeight() or 0)) > 0.5 then
         frame:SetHeight(needed)
-        EasyNotesDB.editorWindow.h = math.floor(needed + 0.5)
-        EasyNotesDB.editorWindow.w = math.floor(frame:GetWidth() + 0.5)
+        EasyNotesDB.editorWindow.h = math.floor(needed - 2 * pad + 0.5)
+        EasyNotesDB.editorWindow.w = math.floor(frame:GetWidth() - 2 * pad + 0.5)
     end
 end
 
@@ -6590,11 +6603,12 @@ end
 function UI:UpdateEasyNotesEditorTop()
     local frame = UI._notes.frame
     if not (frame and frame.editorScroll) then return end
-    local top = HEADER_H + EDITOR_TOP + (UI._notes.attachHasContent and ATTACH_H + 2 or 0)
-    local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0)
+    local pad = UI._notes.chromePad or 0
+    local top = HEADER_H + EDITOR_TOP + (UI._notes.attachHasContent and ATTACH_H + 2 or 0) + pad
+    local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0) + pad
     frame.editorScroll:ClearAllPoints()
-    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -top)
-    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, bottom)
+    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16 + pad, -top)
+    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16 - pad, bottom)
     UI:QueueEasyNotesDragHandleRefresh()
 end
 
@@ -7021,8 +7035,9 @@ end
 
 local function ApplyEasyNotesWindowSize(frame, dims)
     if not (frame and dims) then return end
-    frame:SetSize(mmax(MIN_WIDTH, dims.w or DEFAULT_WIDTH),
-                  mmax(MIN_HEIGHT, dims.h or DEFAULT_HEIGHT))
+    local pad = UI._notes.chromePad or 0
+    frame:SetSize(mmax(MIN_WIDTH, dims.w or DEFAULT_WIDTH) + 2 * pad,
+                  mmax(MIN_HEIGHT, dims.h or DEFAULT_HEIGHT) + 2 * pad)
 end
 
 function UI:ShowEasyNotesPalette()
@@ -7075,12 +7090,14 @@ local function PaintPaletteRow(row)
             elseif over then c = { UI.MixColor(f, a, 0.22) }
             else c = { UI.MixColor(f, a, 0.14) } end
         elseif selected then
-            c = look.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }
+            -- Dark themes: the accent and the hover fill each lifted toward
+            -- white, so both stand off the plain card.
+            c = { UI.MixColor(look.CONTROL_ACCENT or { 0.17, 0.48, 0.72 }, UI.WHITE, 0.12) }
         elseif ns.ClassicTreeShown() then
             -- Over a talent tree: a dark card, the pale wash over it on hover.
             c = over and { 0.34, 0.34, 0.34, 0.65 } or { 0, 0, 0, 0.55 }
         elseif over then
-            c = look.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }
+            c = { UI.MixColor(look.BTN_FILL_HOVER or { 0.22, 0.27, 0.34 }, UI.WHITE, 0.10) }
         else
             c = look.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
         end
@@ -9556,6 +9573,46 @@ function UI:ApplyEasyNotesWindowLook()
     local dressed = frame._efSkin ~= nil
     if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, on and not dressed) end
     if ns.SetRoundedRectBarHeight then ns.SetRoundedRectBarHeight(frame, dressed and 2 or 14) end
+    self:LayoutEasyNotesChrome(dressed)
+end
+
+-- The frame art's inner lip reaches into the window: dressed, the
+-- contents step in by the chrome pad and the window grows by it, so the
+-- note keeps its room (the toolbar and buttons sat on the iron,
+-- 2026-10-27); without the art they sit flush as before. The saved sizes
+-- are the contents' own, the pad added on top.
+local CHROME_PAD = 10
+function UI:LayoutEasyNotesChrome(dressed)
+    local frame = UI._notes.frame
+    local pad = dressed and CHROME_PAD or 0
+    local was = UI._notes.chromePad or 0
+    UI._notes.chromePad = pad
+    if pad ~= was then
+        frame:SetSize((frame:GetWidth() or MIN_WIDTH) + 2 * (pad - was), (frame:GetHeight() or MIN_HEIGHT) + 2 * (pad - was))
+    end
+    if frame.SetResizeBounds then frame:SetResizeBounds(MIN_WIDTH + 2 * pad, MIN_HEIGHT + 2 * pad) end
+    local function At(piece, p1, x1, y1, p2, x2, y2)
+        if not piece then return end
+        piece:ClearAllPoints()
+        piece:SetPoint(p1, frame, p1, x1, y1)
+        piece:SetPoint(p2, frame, p2, x2, y2)
+    end
+    At(frame.header, "TOPLEFT", pad, -pad, "TOPRIGHT", -pad, -pad)
+    At(frame.footer, "BOTTOMLEFT", pad, pad, "BOTTOMRIGHT", -pad, pad)
+    At(frame.palette, "TOPLEFT", 12 + pad, -HEADER_H - 4 - pad, "BOTTOMRIGHT", -12 - pad, 8 + pad)
+    At(frame.findBar, "BOTTOMLEFT", 12 + pad, FOOTER_H + 2 + pad, "BOTTOMRIGHT", -12 - pad, FOOTER_H + 2 + pad)
+    if frame.resizeGrip then
+        frame.resizeGrip:ClearAllPoints()
+        frame.resizeGrip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2 - pad, 2 + pad)
+    end
+    -- The side panel clears the metal hung outside the window.
+    if frame.headerPanel then
+        local out = dressed and (ns.CLASSIC_WINDOW_OUTSET + 2) or 0
+        frame.headerPanel:ClearAllPoints()
+        frame.headerPanel:SetPoint("TOPRIGHT", frame, "TOPLEFT", 3 - out, 0)
+        frame.headerPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", 3 - out, 0)
+    end
+    self:UpdateEasyNotesEditorTop()
 end
 
 -- The border row's choices and value, the iron only where the theme has it.

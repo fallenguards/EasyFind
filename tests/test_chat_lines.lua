@@ -5,7 +5,6 @@
 --   refusal  what was asked cannot be done (combat, a bad code, a full list)
 --   asked    the player asked for this text (/ef help)
 --   alert    news the player did not click for (a reminder due, a reply)
---   undo     the line carries the way back (Deleted... Undo)
 --   release  the What's New and tour offers
 --   dev      dev mode only
 --   helper   a local print helper's own body
@@ -15,8 +14,6 @@ local ALLOWED = {
     ["Apps/GPS/GPS.lua|GPS drag: "] = { 1, "error" },
     ["Apps/GPS/GPS.lua|GPS menu: "] = { 2, "error" },
     ["Apps/Guide/Highlight.lua|MSG_GUIDE_TARGET_LOCKED"] = { 1, "refusal" },
-    ["Apps/Notes/Notes.lua|NOTES_DELETED_MANY_UNDO"] = { 1, "undo" },
-    ["Apps/Notes/Notes.lua|NOTES_DELETED_ONE_UNDO"] = { 1, "undo" },
     ["Apps/Notes/Notes.lua|NOTES_LINK_ASKING_FMT"] = { 1, "alert" },
     ["Apps/Notes/Notes.lua|NOTES_LINK_NO_ANSWER_FMT"] = { 1, "alert" },
     ["Apps/Notes/Notes.lua|NOTES_NOTHING_TO_UNDO"] = { 1, "refusal" },
