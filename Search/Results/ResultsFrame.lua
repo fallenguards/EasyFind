@@ -123,8 +123,10 @@ function Results:CreateResultsFrame()
     end)
     resultsFrame:SetScript("OnEvent", function(self, event)
         if event ~= "GLOBAL_MOUSE_DOWN" then return end
-        if self:IsMouseOver() then return end
+        if Utils.IsFrameVisiblyMouseOver(self) then return end
         if Search:GetSearchFrame() and Search:GetSearchFrame():IsMouseOver() then return end
+        -- The bar and results share one frame of art, drawn outside them.
+        if Utils.IsFrameVisiblyMouseOver(Search.containerFrame) then return end
         if OptionsSurface:IsOptionsSurfaceMouseOver() then return end
         -- Any active cursor menu and its flyout cascade (pin/right-click menu,
         -- the Send-link channel submenu) count as inside: those submenus are

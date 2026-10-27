@@ -3002,6 +3002,9 @@ do
         if not host.SetBackdrop and BackdropTemplateMixin then
             Mixin(host, BackdropTemplateMixin)
             if host.OnBackdropLoaded then host:OnBackdropLoaded() end
+            -- The template's own resize script retiles the marble; mixed in
+            -- by hand, a frame sized by its anchors later wore it stretched.
+            if host.OnBackdropSizeChanged then host:HookScript("OnSizeChanged", host.OnBackdropSizeChanged) end
         end
         if not host.SetBackdrop then return false end
         local backdrop = (want == "dialog" and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN) or ns.CLASSIC_BACKDROP
@@ -3024,6 +3027,22 @@ do
     -- One owner for a surface's frame art: the Forever border or the Classic
     -- frames while the window border option is on, else the rounded pieces
     -- as they were last asked to show. True while a skin dresses the frame.
+    -- Art drawn outside the frame takes the mouse as the frame does (or
+    -- as _efBandDragOwner, the one that drags for it): a press there drags.
+    local function ReachBand(frame, l, r, t, b)
+        local owner = frame._efBandDragOwner or frame
+        if not frame._efBandInsets then
+            local il, ir, it, ib = owner:GetHitRectInsets()
+            frame._efBandInsets = { il or 0, ir or 0, it or 0, ib or 0 }
+        end
+        owner:SetHitRectInsets(-l, -r, -t, -b)
+    end
+    local function DropBand(frame)
+        if not frame._efBandInsets then return end
+        (frame._efBandDragOwner or frame):SetHitRectInsets(unpack(frame._efBandInsets))
+        frame._efBandInsets = nil
+    end
+
     function ns.ApplySkin(frame)
         if not (frame and frame.combinedBorder) then return false end
         local want
@@ -3045,11 +3064,9 @@ do
             frame._efForeverOn = nil
             frame._efForever.fill:Hide()
             frame._efForever.border:Hide()
-            if frame._efBandInsets then
-                (frame._efBandDragOwner or frame):SetHitRectInsets(unpack(frame._efBandInsets))
-                frame._efBandInsets = nil
-            end
+            DropBand(frame)
         elseif was == "classic" and want ~= "classic" then
+            DropBand(frame)
             frame._efClassicChrome, frame._efClassicHost = nil, nil
             if frame.SetBackdrop then frame:SetBackdrop(nil) end
             if frame._efClassicBack then frame._efClassicBack:Hide() end
@@ -3070,16 +3087,13 @@ do
                 f.fill:SetAlpha(frame._efBgAlpha or 1)
                 LayoutForever(frame)
                 ShowForeverPieces(frame)
-                -- The band lies outside the frame: the mouse reaches it
-                -- there too, for a drag by the frame (or the one that
-                -- drags for it, _efBandDragOwner: the search bar's).
-                local owner = frame._efBandDragOwner or frame
-                if not frame._efBandInsets then
-                    local l, r, t, b = owner:GetHitRectInsets()
-                    frame._efBandInsets = { l or 0, r or 0, t or 0, b or 0 }
-                end
                 local u, px = f.u or FOREVER.unit, FOREVER.px
-                owner:SetHitRectInsets(-px.outLeft * u, -px.outRight * u, -px.outTop * u, -px.outBottom * u)
+                ReachBand(frame, px.outLeft * u, px.outRight * u, px.outTop * u, px.outBottom * u)
+            elseif frame._efClassicBack and frame._efClassicBack:IsShown() then
+                local o = ns.CLASSIC_OUTSET
+                ReachBand(frame, o, o, o, o)
+            else
+                DropBand(frame)
             end
             return true
         end
@@ -3115,11 +3129,13 @@ function ns.SquareOutline(frame)
     end
 end
 
--- Whether the cursor is on a skinned frame or its band outside it: the hit
--- rect reaches the band, IsMouseOver reads the rect alone.
+-- Whether the cursor is on a skinned frame or its art outside it: the hit
+-- rect reaches the art, IsMouseOver reads the rect alone.
 function ns.IsMouseOverWithBand(frame)
     if not (frame and frame.IsShown and frame:IsShown()) then return false end
     if frame:IsMouseOver() then return true end
+    local back = frame._efClassicBack
+    if back and back:IsShown() and back:IsMouseOver() then return true end
     if not frame._efForeverOn then return false end
     local f, px = frame._efForever, FOREVER.px
     local u = f and f.u or FOREVER.unit
@@ -4802,6 +4818,10 @@ function ns.CreateModernButton(parent, text, width, height)
     end)
 
     if text then btn:SetText(text) end
+    -- Its first paint again, now that it has its paint state: a button
+    -- built inside a shown page hears no OnShow, so the Classic red waited
+    -- for a hover or the page's next show.
+    ns.PaintButtonRamp(btn)
     return btn
 end
 end
@@ -7193,7 +7213,7 @@ end
 function Utils.IsFrameVisiblyMouseOver(frame)
     if type(frame) ~= "table" or not frame.IsMouseOver then return false end
     if frame.IsShown and not frame:IsShown() then return false end
-    return frame:IsMouseOver()
+    return ns.IsMouseOverWithBand(frame)
 end
 
 -- Click-guard registry: the ONE list of floating EasyFind windows whose
@@ -7227,8 +7247,8 @@ function Utils.AttachOutsideClickClose(popup, owner, extraGuards)
     popup:HookScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
     popup:HookScript("OnEvent", function(self, event)
         if event ~= "GLOBAL_MOUSE_DOWN" then return end
-        if self:IsMouseOver() then return end
-        if owner and owner.IsMouseOver and owner:IsMouseOver() then return end
+        if ns.IsMouseOverWithBand(self) then return end
+        if owner and owner.IsMouseOver and Utils.IsFrameVisiblyMouseOver(owner) then return end
         if extraGuards then
             for i = 1, #extraGuards do
                 if Utils.IsFrameVisiblyMouseOver(extraGuards[i]) then return end
@@ -8099,7 +8119,7 @@ local function MouseFocusOwnedBy(target)
 end
 
 local function CursorMenuHasMouse(self)
-    if self:IsMouseOver() then return true end
+    if ns.IsMouseOverWithBand(self) then return true end
     if self.rows then
         for i = 1, #self.rows do
             if Utils.IsFrameVisiblyMouseOver(self.rows[i]) then

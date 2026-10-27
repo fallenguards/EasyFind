@@ -890,6 +890,7 @@ local function CreateModernButton(parent, text, width, height)
     btn._label:SetTextColor(1, 1, 1, 1)
     btn._label:SetShadowColor(0, 0, 0, 0)
     btn:SetText(text)
+    ns.PaintButtonRamp(btn)   -- the Classic gold label again, over the white
     return btn
 end
 
@@ -4694,10 +4695,11 @@ local function BuildQuicklistsPage(ctx, page)
             row.macroBtn:SetNormalFontObject(OPT_FONTS.GameFontHighlightSmall)
             row.macroBtn:SetHighlightFontObject(OPT_FONTS.GameFontHighlightSmall)
             row.macroBtn:SetPoint("RIGHT", row.keyBtn, "LEFT", -4, 0)
-            row.macroBtn:SetScript("OnEnter", function(self)
+            -- Hooked: the button's own scripts paint its hover.
+            row.macroBtn:HookScript("OnEnter", function(self)
                 ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["QUICKLIST_MACRO_TT"])
             end)
-            row.macroBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+            row.macroBtn:HookScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
             textRight = row.macroBtn
         end
         row.nameText = row:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)

@@ -390,6 +390,30 @@ function tests.classic_borderOff_isRounded()
     borderOption(nil)
 end
 
+-- The Classic metal lies outside the frame: a press on it lands on the
+-- frame (its hit rect reaches it) and no closer reads it as a click
+-- outside; the search bar hid on a click on its own border (2026-10-26).
+function tests.classic_metalOutsideTheFrameTakesTheMouse()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local f = classicSurface()
+    function f:SetHitRectInsets(...) self.hit = { ... } end
+    function f:GetHitRectInsets() return table.unpack(self.hit or { 0, 0, 0, 0 }) end
+    function f:IsMouseOver() return false end
+    ns.ApplyThemeFill(f)
+    local o = ns.CLASSIC_OUTSET
+    H.assertEq(table.concat(f.hit, ","), table.concat({ -o, -o, -o, -o }, ","), "the hit rect reaches the metal")
+    f._efClassicBack.IsMouseOver = function() return true end
+    H.assertTrue(ns.IsMouseOverWithBand(f), "the metal counts as the frame")
+    H.assertTrue(ns.Utils.IsFrameVisiblyMouseOver(f), "for every closer that asks")
+    borderOption(false)
+    ns.ApplyThemeFill(f)
+    H.assertEq(table.concat(f.hit, ","), "0,0,0,0", "the frame's own hit rect again")
+    H.assertTrue(not ns.IsMouseOverWithBand(f), "no metal, nothing outside counts")
+    borderOption(nil)
+end
+
 -- The tutorial's tiles hide their ring this way; off the Classic theme
 -- the ring came back, broken into light pixels at their small corners.
 function tests.edgeOff_staysOffWhenTheSkinComesOff()
@@ -455,6 +479,33 @@ function tests.classicTree_showsThroughTheWindowsCards()
     ns.ApplyClassicChrome(win, 0.9, "dialog")
     H.assertTrue(near(win.bdColor[4], 0.9), "and the window's")
     env.EasyFind.db.classicArtAlpha = nil
+    borderOption(nil)
+end
+
+-- A frame built without the backdrop template gets the backdrop mixed in,
+-- and with it the template's retile on resize: a card sized by anchors
+-- after it was dressed wore the marble stretched (2026-10-26).
+function tests.aMixedInBackdrop_retilesOnResize()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local retiled = 0
+    env.BackdropTemplateMixin = {
+        SetBackdrop = function(self, b) self.backdrop = b end,
+        SetBackdropColor = function(self, ...) self.bdColor = { ... } end,
+        SetBackdropBorderColor = function() end,
+        OnBackdropLoaded = function() end,
+        OnBackdropSizeChanged = function() retiled = retiled + 1 end,
+    }
+    env.Mixin = function(target, src) for k, v in pairs(src) do target[k] = v end return target end
+    local win = surface(false)
+    win.SetBackdrop = false
+    H.assertTrue(ns.ApplyClassicChrome(win, 0.9, "dialog"))
+    H.assertEq(win.backdrop, ns.CLASSIC_DIALOG)
+    H.assertTrue(win.hooks.OnSizeChanged ~= nil, "the template's resize script, hooked")
+    win.hooks.OnSizeChanged(win)
+    H.assertEq(retiled, 1)
+    env.BackdropTemplateMixin, env.Mixin = nil, nil
     borderOption(nil)
 end
 

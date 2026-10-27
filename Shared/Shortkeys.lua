@@ -905,8 +905,8 @@ local function BuildCapturePopup()
         f:Hide()
         if onMacro then onMacro() end
     end)
-    f.macroBtn:SetScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["CTX_CREATE_MACRO_TT"]) end)
-    f.macroBtn:SetScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
+    f.macroBtn:HookScript("OnEnter", function(self) ns.ShowHintTooltip(self, "ANCHOR_TOP", nil, L["CTX_CREATE_MACRO_TT"]) end)
+    f.macroBtn:HookScript("OnLeave", function(self) ns.HideHintTooltip(self) end)
 
     local close = ns.CreateCloseX(f, 14)
     close:SetPoint("TOPRIGHT", -8, -8)
