@@ -484,6 +484,28 @@ function tests.classicTree_showsThroughTheWindowsCards()
     borderOption(nil)
 end
 
+-- A theme change takes the Classic art off every frame that wore it, cards
+-- included, whatever their own painter does (2026-10-27: the settings
+-- cards kept the stone edge on a light theme until a reload).
+function tests.themeChange_takesTheClassicEdgeOffEveryCard()
+    installClient(FOREVER_ART)
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    borderOption(true)
+    local card = surface(false)
+    ns.ApplyCardFill(card)
+    H.assertEq(card._efSkin, "classic", "dressed under Classic")
+    ns.ACTIVE_UI_PALETTE = { light = true }
+    ns.RedressSkins()
+    H.assertEq(card._efSkin, nil, "the edge is off")
+    H.assertEq(card.backdrop, nil, "no stone backdrop left")
+    ns.ACTIVE_UI_PALETTE = CLASSIC
+    ns.ApplyCardFill(card)
+    ns.ACTIVE_UI_PALETTE = { light = true }
+    ns.ApplyCardFill(card)
+    H.assertEq(card._efSkin, nil, "a light card's own paint takes it off too")
+    borderOption(nil)
+end
+
 -- A window without the Classic frame art (Notes on its line border, or the
 -- frame art off) still has the picked tree for its background, under its
 -- own ring; the marble alone keeps the marble (2026-10-27).

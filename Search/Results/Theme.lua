@@ -519,6 +519,9 @@ function ns.ApplyUITheme(themeName, skipRepaint)
     -- Rows retint their hover glow lazily against this generation, and each
     -- window's own set rebuilds against it.
     ns.uiThemeGeneration = (ns.uiThemeGeneration or 0) + 1
+    -- Frame art the theme lacks comes off every frame that wore it.
+    if ns.RedressSkins then ns.RedressSkins() end
+    if ns.RepaintInputWells then ns.RepaintInputWells() end
     -- Menus that are OPEN during the flip never get their OnShow refill;
     -- restyle them right now so nothing wears the previous theme.
     if ns.RestyleShownMenuPanels then

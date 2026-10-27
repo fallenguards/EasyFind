@@ -3061,6 +3061,9 @@ do
         frame._efBandInsets = nil
     end
 
+    -- Every frame a skin has dressed (weak), for RedressSkins.
+    local skinned = setmetatable({}, { __mode = "k" })
+
     function ns.ApplySkin(frame)
         if not (frame and frame.combinedBorder) then return false end
         local want
@@ -3078,6 +3081,7 @@ do
             end
         end
         local was = frame._efSkin
+        if want or was then skinned[frame] = true end
         if was == "forever" and want ~= "forever" then
             frame._efForeverOn = nil
             frame._efForever.fill:Hide()
@@ -3126,6 +3130,13 @@ do
             for _, t in pairs(frame.combinedBorder.border) do t:SetVertexColor(c[1], c[2], c[3], c[4]) end
         end
         return false
+    end
+
+    -- At a theme change every frame a skin dressed is asked again: art the
+    -- new theme lacks comes off whatever its own painter does (2026-10-27:
+    -- settings cards kept the Classic edge on a light theme until a reload).
+    function ns.RedressSkins()
+        for frame in pairs(skinned) do ns.ApplySkin(frame) end
     end
 end
 
@@ -4345,6 +4356,7 @@ function ns.ApplyCardFill(frame)
     local sectionAlpha = section[4] or 0.92
     local pal = set and set.palette or ns.ACTIVE_UI_PALETTE
     if pal and pal.light then
+        ns.ApplySkin(frame)
         frame._efThemeFillTarget = nil
         if frame._efArtCells then
             for _, cell in pairs(frame._efArtCells) do cell:Hide() end
