@@ -7270,6 +7270,17 @@ end
 -- overflow, then clamps horizontally and vertically. Works for deeply nested
 -- chains by positioning each flyout absolutely against the screen rather than
 -- letting a cascade run off the edge. Width/height/scale must be set first.
+-- Menus keep this far inside the screen's edge: their border art draws
+-- outside the frame, and a frame flush with the edge lost it.
+Utils.MENU_EDGE = 8
+
+function Utils.ClampMenu(popup, s)
+    if not popup.SetClampedToScreen then return end
+    popup:SetClampedToScreen(true)
+    local m = Utils.MENU_EDGE / (s or popup:GetEffectiveScale() or 1)
+    popup:SetClampRectInsets(-m, m, m, -m)
+end
+
 function Utils.OpenFlyoutBeside(popup, anchorFrame, gap)
     gap = gap or 4
     popup:ClearAllPoints()
@@ -7285,28 +7296,29 @@ function Utils.OpenFlyoutBeside(popup, anchorFrame, gap)
     local pW = (popup:GetWidth() or 0) * s
     local pH = (popup:GetHeight() or 0) * s
     local gapPx = gap * s
+    local edge = Utils.MENU_EDGE
 
     -- Horizontal: right if it fits, else left if it fits, else the roomier side.
     local x
-    if (screenW - aRight) >= (pW + gapPx) then
+    if (screenW - aRight - edge) >= (pW + gapPx) then
         x = aRight + gapPx
-    elseif (aLeft - gapPx - pW) >= 0 then
+    elseif (aLeft - gapPx - pW - edge) >= 0 then
         x = aLeft - gapPx - pW
     elseif (screenW - aRight) >= aLeft then
         x = aRight + gapPx
     else
         x = aLeft - gapPx - pW
     end
-    if x + pW > screenW then x = screenW - pW end
-    if x < 0 then x = 0 end
+    if x + pW > screenW - edge then x = screenW - edge - pW end
+    if x < edge then x = edge end
 
     -- Vertical: top-align with the anchor, then keep both edges on-screen.
     local top = aTop
-    if top - pH < 0 then top = pH end
-    if top > screenH then top = screenH end
+    if top - pH < edge then top = pH + edge end
+    if top > screenH - edge then top = screenH - edge end
 
     popup:SetPoint("TOPLEFT", ui, "BOTTOMLEFT", x / s, top / s)
-    if popup.SetClampedToScreen then popup:SetClampedToScreen(true) end
+    Utils.ClampMenu(popup, s)
 end
 
 -- Position a dropdown list directly below its button, kept fully on-screen:
@@ -7328,18 +7340,19 @@ function Utils.OpenDropdownBelow(popup, button, gap)
     local pH = (popup:GetHeight() or 0) * s
     local gapPx = gap * s
 
+    local edge = Utils.MENU_EDGE
     local x = bLeft
-    if x + pW > screenW then x = screenW - pW end
-    if x < 0 then x = 0 end
+    if x + pW > screenW - edge then x = screenW - edge - pW end
+    if x < edge then x = edge end
 
     -- Drop below; flip above when it would overflow the bottom.
     local top = bBottom - gapPx
-    if top - pH < 0 then top = bTop + gapPx + pH end
-    if top > screenH then top = screenH end
-    if top - pH < 0 then top = pH end
+    if top - pH < edge then top = bTop + gapPx + pH end
+    if top > screenH - edge then top = screenH - edge end
+    if top - pH < edge then top = pH + edge end
 
     popup:SetPoint("TOPLEFT", ui, "BOTTOMLEFT", x / s, top / s)
-    if popup.SetClampedToScreen then popup:SetClampedToScreen(true) end
+    Utils.ClampMenu(popup, s)
 end
 
 -- Shared "dropdown button" used by every filter selector: a styled button
@@ -8790,7 +8803,7 @@ local function CreateCursorMenu(globalName)
     -- the first menu of each kind never heard a click outside it.
     menu:Hide()
     menu:EnableMouse(true)
-    menu:SetClampedToScreen(true)
+    Utils.ClampMenu(menu)
     menu.rows = {}
     ns.StyleMenuPanel(menu)
 
@@ -9220,7 +9233,12 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                     end)
                 end
                 row._efRemove = def.remove
-                if row.removeX then row.removeX:SetShown(def.remove ~= nil) end
+                if row.removeX then
+                    row.removeX:SetShown(def.remove ~= nil)
+                    -- Above its row however the pooled row was leveled, or the
+                    -- row takes the press and closes the menu.
+                    row.removeX:SetFrameLevel(row:GetFrameLevel() + 2)
+                end
                 -- The chevron or the X owns the right edge; a right-side
                 -- icon steps inward beside it.
                 local trailing = def.submenu or def.remove
@@ -9354,6 +9372,12 @@ function Utils.ShowCursorMenu(globalName, rows, opts)
                         if button ~= "LeftButton" then return end
                         MenuCopy.Arm(self)
                     end)
+                elseif def.remove and not def.onClick then
+                    -- A row whose one action is its X: a press on the row does
+                    -- nothing, so several can be removed in a row.
+                    row:EnableMouse(true)
+                    row.onClick = nil
+                    row:SetScript("OnMouseDown", nil)
                 else
                     row:EnableMouse(true)
                     local hl = row:GetHighlightTexture()
