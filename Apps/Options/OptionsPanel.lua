@@ -4981,7 +4981,9 @@ end
 local function ScrollingPage(holder)
     local scroll = CreateFrame("ScrollFrame", nil, holder)
     scroll:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
-    scroll:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -12, 0)
+    -- Room under the view for the more-below chevron: the holder runs to
+    -- the window's edge, and below it the chevron sat on the frame art.
+    scroll:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -12, 14)
     local page = CreateFrame("Frame", nil, scroll)
     page:SetSize(1, 1)
     scroll:SetScrollChild(page)
