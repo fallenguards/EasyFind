@@ -41,7 +41,7 @@ end
 
 function tests.searchFindsANoteByItsCategoriesNames()
     local src = Source()
-    local s = assert(src:find("function notesNS.BuildSearchData()", 1, true))
+    local s = assert(src:find("function notesNS.NoteSearchRow(n)", 1, true))
     local body = src:sub(s, (src:find("\nend\r?\n", s)))
     H.assertTrue(body:find("UI:EasyNotesCategoriesOf(n)", 1, true) ~= nil, "each of its categories")
     H.assertTrue(body:find("UI:EasyNotesCategoryLabel(cat)", 1, true) ~= nil, "by its shown name")

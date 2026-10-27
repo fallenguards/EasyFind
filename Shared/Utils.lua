@@ -3214,6 +3214,17 @@ function ns.PaintRingedWell(frame, ring, fill)
     ns.SetRoundedRectFill(frame.ringInset, fill[1], fill[2], fill[3], fill[4] or 1, true)
 end
 
+-- An input's well in its window's theme: the theme's line as a ring round
+-- the dark inset, or round fill (ns.INPUT_ERROR_FILL for a refused entry).
+ns.INPUT_ERROR_FILL = { 0.35, 0.08, 0.08 }
+function ns.PaintInputWell(shell, fill)
+    local look = ns.ThemeSetOf and ns.ThemeSetOf(shell) or ns
+    local palette = look.palette or ns.ACTIVE_UI_PALETTE
+    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
+    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
+    ns.PaintRingedWell(shell, ring, fill or look.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+end
+
 -- Corner radius tracks BAR height, not container height (which grows
 -- when results open). Callers must pin it via this setter on creation
 -- and again whenever fontSize / theme changes the bar's pixel height.
@@ -9747,7 +9758,7 @@ function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
             copy = extra.easyFindLinkText and Utils.ClipboardSafeText(extra.easyFindLinkText),
             copyLink = extra.easyFindLinkText,
             copyKey = "Ctrl+Shift+C",
-            tooltip = L["EFLINK_ROW_TT"],
+            tooltip = extra.easyFindLinkTooltip or L["EFLINK_ROW_TT"],
             tooltipNote = L["EFLINK_ROW_TT_NOTE"],
             submenu = extra.easyFindLinkRows,
         }

@@ -807,8 +807,7 @@ local function SortedNotes(filter)
         if tagWord then
             textOK = NoteTags.Matches(n, nil, tagWord)
         else
-            textOK = filter == "" or sfind(PlainSearchText(n), filter, 1, true)
-                or sfind(slower(n.alias or ""), filter, 1, true) or NoteTags.Matches(n, nil, filter)
+            textOK = filter == "" or sfind(PlainSearchText(n), filter, 1, true) or NoteTags.Matches(n, nil, filter)
         end
         if charOK and catOK and tagOK and textOK then
             list[#list + 1] = n
@@ -1089,38 +1088,59 @@ function notesNS.LinkedShown(note)
 end
 
 -- The notes as rows of the search bar: every note this character sees,
--- found by title, alias and body, opened on Enter. The bar is the one
--- door that needs no window open first.
+-- found by title and body, opened on Enter. The bar is the one door that
+-- needs no window open first; its aliases (key note:<id>) find a note too.
+function notesNS.NoteShown(n)
+    return EasyNotesDB.shareAcrossCharacters == true or n.scope == "account" or not n.character
+        or n.character == CurrentCharKey()
+end
+
+function notesNS.NoteSearchRow(n)
+    local title = NoteTitle(n)
+    local keywords = { "note", "notes" }
+    local body = PlainSearchText(n)
+    if body ~= "" then keywords[#keywords + 1] = body:sub(1, 300) end
+    -- Its categories by name: "shop" finds the shopping lists.
+    for _, cat in ipairs(UI:EasyNotesCategoriesOf(n)) do
+        keywords[#keywords + 1] = slower(UI:EasyNotesCategoryLabel(cat))
+    end
+    return {
+        name = title,
+        nameLower = slower(title),
+        category = "Notes",
+        keywordsLower = keywords,
+        searchCommandDesc = FormatRelTime(n.updated),
+        icon = ns.NOTES_ICON_TEX,
+        noteID = n.id,
+    }
+end
+
 function notesNS.BuildSearchData()
     local notes = NotesStore()
-    local shareAll = EasyNotesDB.shareAcrossCharacters == true
-    local charKey = CurrentCharKey()
     local out = {}
     for i = 1, #notes do
-        local n = notes[i]
-        if shareAll or n.scope == "account" or not n.character or n.character == charKey then
-            local title = NoteTitle(n)
-            local keywords = { "note", "notes" }
-            local alias = n.alias and slower(strtrim(n.alias)) or ""
-            if alias ~= "" then keywords[#keywords + 1] = alias end
-            local body = PlainSearchText(n)
-            if body ~= "" then keywords[#keywords + 1] = body:sub(1, 300) end
-            -- Its categories by name: "shop" finds the shopping lists.
-            for _, cat in ipairs(UI:EasyNotesCategoriesOf(n)) do
-                keywords[#keywords + 1] = slower(UI:EasyNotesCategoryLabel(cat))
-            end
-            out[#out + 1] = {
-                name = title,
-                nameLower = slower(title),
-                category = "Notes",
-                keywordsLower = keywords,
-                searchCommandDesc = FormatRelTime(n.updated),
-                icon = ns.NOTES_ICON_TEX,
-                noteID = n.id,
-            }
-        end
+        if notesNS.NoteShown(notes[i]) then out[#out + 1] = notesNS.NoteSearchRow(notes[i]) end
     end
     return out
+end
+
+if ns.Aliases and ns.Aliases.RegisterKeyResolver then
+    ns.Aliases:RegisterKeyResolver("note", function(key)
+        local idx = FindNoteIndex(tonumber(key:match("^note:(%d+)$")))
+        local n = idx and NotesStore()[idx]
+        return n and notesNS.NoteShown(n) and notesNS.NoteSearchRow(n) or nil
+    end)
+end
+
+-- A note's alias of old (its own field, opened by /notes <alias>) into the
+-- search bar's aliases, once EasyFind's settings are there.
+function notesNS.MoveAliases()
+    if EasyNotesDB.aliasesMoved or not (EasyFind.db and ns.Aliases) then return end
+    for _, n in ipairs(NotesStore()) do
+        local alias = n.alias and strtrim(n.alias) or ""
+        if alias == "" or ns.Aliases:AddByKey(alias, "note:" .. n.id, NoteTitle(n)) then n.alias = nil end
+    end
+    EasyNotesDB.aliasesMoved = true
 end
 
 -- A note made from the bar's "New note: ..." row: titled by the query,
@@ -1988,6 +2008,7 @@ Ctx.SetOnChange(function(event)
     if event == "PLAYER_ENTERING_WORLD" and UI.CheckEasyNotesReminders then
         pcall(UI.CheckEasyNotesReminders, UI)
     end
+    if event == "PLAYER_ENTERING_WORLD" then notesNS.MoveAliases() end
     if UI.OnEasyNotesContextChanged then
         pcall(UI.OnEasyNotesContextChanged, UI, event)
     end
@@ -4854,14 +4875,9 @@ function UI:EnsureEasyNotesFrame()
         end)
     end
 
-    frame.aliasButton = CreateFrame("Button", nil, frame.footer)
-    StyleSubtleButton(frame.aliasButton, "@", BTN_W, BTN_H)
-    frame.aliasButton:SetPoint("LEFT", frame.footer, "LEFT", 30, 2)
-    frame.aliasButton:SetScript("OnClick", function() UI:PromptEasyNotesAlias() end)
-
     frame.findButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.findButton, "", BTN_W, BTN_H)
-    frame.findButton:SetPoint("LEFT", frame.aliasButton, "RIGHT", 4, 0)
+    frame.findButton:SetPoint("LEFT", frame.footer, "LEFT", 30, 2)
     if frame.findButton.text then frame.findButton.text:Hide() end
     do
         local t = frame.findButton:CreateTexture(nil, "OVERLAY")
@@ -4919,7 +4935,6 @@ function UI:EnsureEasyNotesFrame()
     frame.autoResizeButton:Hide()
     frame.findButton:Hide()
     frame.headerNavButton:Hide()
-    frame.aliasButton:Hide()
 
     frame.toolbar = Builders.Toolbar(frame)
     frame.toolbarDivider = frame.toolbar.divider
@@ -6158,77 +6173,16 @@ function UI:PromptEasyNotesColor(lo, hi, cursor)
     end
 end
 
+-- A note's alias is the search bar's: typed there, it finds the note.
 function UI:PromptEasyNotesAlias()
     local note = GetSelectedNote()
-    if not note then return end
-    local frame = UI._notes.frame
-    if not frame then return end
-    local popup = frame.aliasPopup
-    if not popup then
-        popup = CreateFrame("Frame", nil, frame)
-        popup:SetSize(280, 90)
-        popup:SetPoint("CENTER")
-        popup:SetFrameLevel(frame:GetFrameLevel() + 20)
-        if ns.CreateRoundedRectBorder then
-            ns.CreateRoundedRectBorder(popup)
-            ns.SetRoundedRectBarHeight(popup, 10)
-            ns.SetRoundedRectFill(popup, 0.08, 0.08, 0.09, 1, true)
-            ns.SetRoundedRectBorderEdgeShown(popup, false)
-        end
-        popup.label = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        popup.label:SetPoint("TOP", popup, "TOP", 0, -10)
-        popup.label:SetText(L["NOTES_ALIAS_LABEL"])
-        popup.shell = CreateFrame("Frame", nil, popup)
-        popup.shell:SetPoint("TOPLEFT", popup, "TOPLEFT", 14, -28)
-        popup.shell:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -14, -28)
-        popup.shell:SetHeight(22)
-        if ns.CreateRoundedRectBorder then
-            ns.CreateRoundedRectBorder(popup.shell)
-            ns.SetRoundedRectBarHeight(popup.shell, 10)
-            ns.SetRoundedRectFill(popup.shell, 0.11, 0.11, 0.12, 1, true)
-            ns.SetRoundedRectBorderEdgeShown(popup.shell, false)
-        end
-        popup.edit = CreateFrame("EditBox", nil, popup.shell)
-        popup.edit:SetPoint("TOPLEFT", popup.shell, "TOPLEFT", 8, -2)
-        popup.edit:SetPoint("BOTTOMRIGHT", popup.shell, "BOTTOMRIGHT", -8, 2)
-        popup.edit:SetAutoFocus(true)
-        popup.edit:SetFontObject("GameFontHighlightSmall")
-        popup.edit:SetTextColor(0.96, 0.96, 0.96, 1)
-        popup.edit:SetMaxLetters(32)
-        popup.ok = CreateFrame("Button", nil, popup)
-        StyleAccentButton(popup.ok, "OK")
-        popup.ok:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -14, 10)
-        popup.cancel = CreateFrame("Button", nil, popup)
-        StyleSubtleButton(popup.cancel, _G.CANCEL, 60, STD_BTN_H)
-        popup.cancel:SetPoint("RIGHT", popup.ok, "LEFT", -6, 0)
-        local function close() popup:Hide() end
-        popup.cancel:SetScript("OnClick", close)
-        popup.edit:SetScript("OnEscapePressed", close)
-        popup.edit:SetScript("OnEnterPressed", function() popup.ok:Click() end)
-        popup.ok:SetScript("OnClick", function()
-            local n = GetSelectedNote()
-            if not n then close(); return end
-            n.alias = strtrim(popup.edit:GetText() or "")
-            n.updated = time()
-            close()
-        end)
-        frame.aliasPopup = popup
-    end
-    -- 280 a floor: wider for a long label.
-    popup:SetWidth(mmax(280, popup.label:GetStringWidth() + 28))
-    popup.edit:SetText(note.alias or "")
-    popup:Show()
-    popup.edit:SetFocus()
+    local handlers = ns.ResultHandlers
+    if note and handlers and handlers.PromptForAlias then handlers:PromptForAlias(notesNS.NoteSearchRow(note)) end
 end
 
 -- An input's well: the theme's line as a ring round the dark inset.
 function Builders.PaintFindInput(shell)
-    if not shell.ringInset then return end
-    local look = ns.ThemeSetOf(shell)
-    local palette = look.palette
-    local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
-    local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
-    ns.PaintRingedWell(shell, ring, look.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
+    if shell.ringInset then ns.PaintInputWell(shell) end
 end
 
 function Builders.MakeFindInput(parent, placeholderText)
@@ -7284,7 +7238,7 @@ function UI:ShowEasyNotesRowMenu(row)
     local text = note and ns.ResultLinks and ns.ResultLinks:BuildShareText({ name = NoteTitle(note), category = "Notes", noteID = note.id })
     if text then
         rows[#rows + 1] = { text = L["CTX_EASYFIND_LINK"], copy = Utils.ClipboardSafeText(text), copyLink = text,
-            tooltip = L["EFLINK_ROW_TT"], submenu = ns.BuildSendLinkRows(text) }
+            tooltip = L["EFLINK_NOTE_TT"], submenu = ns.BuildSendLinkRows(text) }
     end
     rows[#rows + 1] = { isSeparator = true }
     -- The row's note, or the whole selection when the row is part of one.
@@ -7438,12 +7392,7 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
         popup:SetPoint("CENTER")
         popup:SetFrameLevel(frame:GetFrameLevel() + 20)
         popup:EnableMouse(true)
-        if ns.CreateRoundedRectBorder then
-            ns.CreateRoundedRectBorder(popup)
-            ns.SetRoundedRectBarHeight(popup, 10)
-            ns.SetRoundedRectFill(popup, 0.08, 0.08, 0.09, 1, true)
-            ns.SetRoundedRectBorderEdgeShown(popup, false)
-        end
+        ns.StyleMenuPanel(popup)
         popup.label = popup:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         popup.label:SetPoint("TOPLEFT", popup, "TOPLEFT", 14, -10)
         popup.label:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -14, -10)
@@ -7452,12 +7401,8 @@ function UI:PromptEasyNotesItemNote(itemID, itemName)
         popup.shell:SetPoint("TOPLEFT", popup.label, "BOTTOMLEFT", 0, -6)
         popup.shell:SetPoint("TOPRIGHT", popup.label, "BOTTOMRIGHT", 0, -6)
         popup.shell:SetHeight(42)
-        if ns.CreateRoundedRectBorder then
-            ns.CreateRoundedRectBorder(popup.shell)
-            ns.SetRoundedRectBarHeight(popup.shell, 10)
-            ns.SetRoundedRectFill(popup.shell, 0.11, 0.11, 0.12, 1, true)
-            ns.SetRoundedRectBorderEdgeShown(popup.shell, false)
-        end
+        ns.CreateRingedWell(popup.shell, 6)
+        ns.PaintInputWell(popup.shell)
         popup.edit = CreateFrame("EditBox", nil, popup.shell)
         popup.edit:SetPoint("TOPLEFT", popup.shell, "TOPLEFT", 8, -4)
         popup.edit:SetPoint("BOTTOMRIGHT", popup.shell, "BOTTOMRIGHT", -8, 4)
@@ -7984,7 +7929,7 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
                   out[#out + 1] = { text = L["NOTES_TRASH_EMPTY"], disabled = #trashed == 0,
                       onClick = function() notesNS.EmptyTrash() end }
                   return out
-              end)() },
+              end)(), submenuMaxRows = 10 },
             { text = L["NOTES_DELETE"], icon = "Interface\\AddOns\\EasyFind_Notes\\Images\\trash", inlineIcon = true,
               onClick = function()
                   local id = UI._notes.selectedID
@@ -8662,9 +8607,6 @@ function UI:RefreshEasyNotesPalette()
         -- strip SMP styling + color codes: the row font can't render them
         local preview = (notesNS.Checklist and notesNS.Checklist.Is(note)) and notesNS.Checklist.Preview(note)
             or StripColorEscapes(MapSelection((note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
-        if note.alias and note.alias ~= "" then
-            preview = "@" .. note.alias .. "  " .. preview
-        end
         row.subtitle:SetText(Fmt.BoxIcons(preview))
         row.timeText:SetText(FormatRelTime(note.updated))
         row:ClearAllPoints()
@@ -8690,25 +8632,6 @@ function UI:RefreshEasyNotesPalette()
     end
 end
 
-function UI:FindEasyNoteByAlias(raw)
-    raw = slower(strtrim(raw or ""))
-    if raw == "" then return nil end
-    local notes = NotesStore()
-    for i = 1, #notes do
-        local n = notes[i]
-        if n.alias and slower(n.alias) == raw then return n end
-    end
-end
-
-function UI:OpenEasyNoteByAlias(raw)
-    local n = self:FindEasyNoteByAlias(raw)
-    if not n then return false end
-    self:OpenEasyNotes()
-    self:SelectEasyNote(n.id)
-    self:HideEasyNotesPalette()
-    return true
-end
-
 function notesNS.Open() UI:OpenEasyNotes() end
 function notesNS.Refresh()
     if UI._notes.paletteShown then UI:RefreshEasyNotesPalette() end
@@ -8720,15 +8643,13 @@ function notesNS.IsOpen()
     return frame ~= nil and frame:IsShown()
 end
 
--- /notes: toggles the window; /notes <alias> opens that note, and any other
--- word opens the list searching for it.
+-- /notes: toggles the window; a word opens the list searching for it.
 function notesNS.Slash(msg)
     msg = strtrim(msg or "")
     if msg == "" then return UI:ToggleEasyNotes() end
     if slower(msg) == "undo" then return notesNS.RestoreLastDeleted() end
     if slower(msg) == "import" then return notesNS.PromptImportCode() end
     if slower(msg) == "read" then return notesNS.ToggleReader() end
-    if UI:OpenEasyNoteByAlias(msg) then return end
     UI:OpenEasyNotes()
     local frame = UI._notes.frame
     if frame and frame.paletteSearch then frame.paletteSearch:SetText(msg) end

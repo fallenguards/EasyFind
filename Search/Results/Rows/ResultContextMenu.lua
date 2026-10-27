@@ -215,6 +215,8 @@ function Rows:ResultMenuModel(row)
     extra.wowheadUrl = ns.GetWowheadLink and ns.GetWowheadLink(pinData)
     if ns.ResultLinks then
         extra.easyFindLinkRows, extra.easyFindLinkText = ns.ResultLinks:BuildSendRows(pinData)
+        -- A note's link gives whoever clicks it a copy of the note.
+        extra.easyFindLinkTooltip = pinData.noteID and ns.L["EFLINK_NOTE_TT"] or nil
     end
     local chatLink = ns.GetResultLink and ns.GetResultLink(pinData)
     if chatLink then
