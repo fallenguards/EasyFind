@@ -103,7 +103,7 @@ function kit.Title(page, title, hint) end
 ---@param set fun(on: boolean)
 ---@return CheckButton
 function kit.Checkbox(page, label, get, set, tooltip) end
----@param choices { label: string, value: any }[]
+---@param choices { label: string, value: any, disabled?: fun(): boolean }[] disabled: grayed, no click.
 ---@param get fun(): any
 ---@param set fun(value: any)
 ---@return Frame

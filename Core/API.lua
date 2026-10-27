@@ -255,7 +255,12 @@ local function Kit(ctx)
     end
     function kit.Choice(parent, label, choices, get, set, tooltip, default)
         kitNames = kitNames + 1
-        return ctx.CreateFlyoutPresetRow(parent, label, choices, Read(get), function(v) Run(set, v) end,
+        -- A choice's disabled() is the extension's too: read guarded.
+        local list = {}
+        for i, c in ipairs(choices) do
+            list[i] = c.disabled and { label = c.label, value = c.value, disabled = Read(c.disabled) } or c
+        end
+        return ctx.CreateFlyoutPresetRow(parent, label, list, Read(get), function(v) Run(set, v) end,
             "EasyFindExtChoice" .. kitNames, default, tooltip)
     end
     function kit.Stepper(parent, label, min, max, step, get, set, tooltip, width)

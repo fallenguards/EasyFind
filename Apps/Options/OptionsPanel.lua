@@ -6442,6 +6442,16 @@ function Options:Initialize()
             btnText:SetText(LabelFor(value))
         end
         local flyoutRows = AddFlyoutOptions(flyout, values, SELECTOR_BTN_W - 6, Pick, FlyoutLabelFor, nil, onHover)
+        -- A choice waiting on another setting (choice.disabled()) shows gray
+        -- and takes no click.
+        flyout:HookScript("OnShow", function()
+            for i = 1, #flyoutRows do
+                local c = choices[i]
+                local off = c and c.disabled and c.disabled() or false
+                flyoutRows[i]:SetEnabled(not off)
+                flyoutRows[i]._label:SetAlpha(off and 0.4 or 1)
+            end
+        end)
         -- The choices listed anew (a theme change offers other looks).
         row.SetChoices = function(_, list)
             for i = #choices, 1, -1 do choices[i] = nil end
