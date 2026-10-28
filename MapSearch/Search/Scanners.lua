@@ -86,7 +86,7 @@ function MapSearch:ScanFlightMasters(mapID)
                         local entry = {
                             name = node.name .. " (Flight Master)",
                             category = "flightmaster",
-                            icon = "atlas:TaxiNode_Neutral",
+                            icon = CATEGORY_ICONS.flightmaster,
                             isStatic = true,
                             x = x,
                             y = y,

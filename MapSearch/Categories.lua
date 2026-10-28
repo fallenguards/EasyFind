@@ -7,12 +7,16 @@ local Utils = ns.Utils
 local sfind = Utils.sfind
 local ipairs = Utils.ipairs
 
+-- The ways of travel wear the map's own glyphs, on every client: the
+-- portal in the player's faction, the skyship the Alliance airship.
+local playerFaction = UnitFactionGroup and UnitFactionGroup("player")
 Data.CATEGORY_ICONS = {
-    flightmaster = "atlas:TaxiNode_Neutral",
-    zeppelin = 342918,
+    flightmaster = "atlas:FlightMaster",
+    zeppelin = "atlas:Vehicle-Air-Horde",
+    skyship = "atlas:Vehicle-Air-Alliance",
     boat = "atlas:Ships_CargoShip-Map",
-    portal = "Interface\\Icons\\Spell_Arcane_PortalDalaran",
-    tram = "Interface\\Icons\\INV_Misc_Gear_01",
+    portal = playerFaction == "Horde" and "atlas:MagePortalHorde" or "atlas:MagePortalAlliance",
+    tram = "atlas:Vehicle-AllianceCart",
     subzone = 237382,
     -- The 1121272 sheet's icons are wrapped in a wide soft glow that gets
     -- clipped inside the row's icon slot; these atlases are tight, no-bleed.
@@ -89,8 +93,6 @@ Data.CATEGORY_ICONS = {
 -- map glyphs instead.
 if ns.Caps and ns.Caps.classic then
     local icons = Data.CATEGORY_ICONS
-    icons.zeppelin = "atlas:Vehicle-Air-Horde"
-    icons.portal = "atlas:MagePortalAlliance"
     icons.rare = "atlas:VignetteKill"
     icons.subzone = "Interface\\Icons\\INV_Misc_Map_01"
     icons.classtrainer = "atlas:Class"

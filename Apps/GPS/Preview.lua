@@ -113,11 +113,6 @@ local function Build()
     return true
 end
 
-local function PortalAtlas()
-    local faction = UnitFactionGroup and UnitFactionGroup("player")
-    return faction == "Horde" and "MagePortalHorde" or "MagePortalAlliance"
-end
-
 
 local function Sym(i)
     local t = syms[i]
@@ -358,13 +353,12 @@ end
 
 -- The map's own symbol for what a leg ends at; a way to a flight master or
 -- a dock takes the symbol of the step it leads into.
-local SYMBOL_KEY = { taxi = "flightmaster", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "zeppelin",
-                     tram = "tram" }
+local SYMBOL_KEY = { taxi = "flightmaster", boat = "boat", ferry = "boat", zeppelin = "zeppelin", skyship = "skyship",
+                     tram = "tram", portal = "portal" }
 local function SymbolOf(route, i)
     local step = route.steps[i]
     local nxt = route.steps[i + 1]
     local kind = (step.approach and nxt) and nxt.kind or step.kind
-    if kind == "portal" then return "atlas:" .. PortalAtlas() end
     local icons = ns.MapSearchData and ns.MapSearchData.CATEGORY_ICONS
     return icons and SYMBOL_KEY[kind] and icons[SYMBOL_KEY[kind]] or nil
 end
