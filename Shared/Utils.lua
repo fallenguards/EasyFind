@@ -1976,6 +1976,13 @@ function ns.IsClassicChrome()
     local p = ns.ACTIVE_UI_PALETTE
     return p ~= nil and p.chrome == "classic" and ns.FrameArtOn()
 end
+-- The Classic theme's own controls (the red buttons, Era's lists and
+-- sliders, gold list names): the theme's whatever the border choice
+-- (picking the line border took them off every window, 2026-10-27).
+function ns.ClassicLook()
+    local p = ns.ACTIVE_UI_PALETTE
+    return p ~= nil and p.chrome == "classic"
+end
 -- style: "dialog" for a window, anything else the thin tooltip frame.
 function ns.ApplyClassicChrome(frame, alpha, style)
     if not (frame and frame.combinedBorder and ns.ApplySkin) then return false end
@@ -3009,18 +3016,24 @@ function ns.ClassicTreeUnderFill(frame)
     -- round through the art cells instead.
     if frame._efArtPath or not (p and p.chrome == "classic" and ns.ShowsTree(frame)) then
         if frame._efTree and not frame._efSkin then frame._efTree.clip:Hide() end
-        -- Off the tree: the fill at the surface's opacity again.
+        -- Off the tree: the fill at the surface's opacity again, round again.
         if frame._efUnderTree then
             frame._efUnderTree = nil
             for _, t in pairs(frame.combinedBorder.fill) do t:SetAlpha(frame._efBgAlpha or 1) end
+            ns.SetRoundedRectBarHeight(frame, frame.cbBarHeight)
         end
         return false
     end
     if frame._efArtCells then
         for _, cell in pairs(frame._efArtCells) do cell:Hide() end
     end
-    -- The fill stays clear: opacity and resize repaints pass it by.
-    frame._efUnderTree = true
+    -- The fill stays clear: opacity and resize repaints pass it by. The
+    -- corners go square with it (the ring rounded over the art's square
+    -- corners read as a border drawn behind it, 2026-10-27).
+    if not frame._efUnderTree then
+        frame._efUnderTree = true
+        ns.SetRoundedRectBarHeight(frame, frame.cbBarHeight)
+    end
     ns.SetRoundedRectFill(frame, 0, 0, 0, 0, true)
     DressTree(frame, 2, frame._efBgAlpha or ns.GetSearchWindowAlpha(), math.max(0, frame:GetFrameLevel() - 1))
     return true
@@ -3235,7 +3248,8 @@ local function ApplyContainerCornerSize(frame)
     LayoutForever(frame)
     local h = frame.cbBarHeight or frame:GetHeight() or 0
     if h <= 0 then return end
-    local cornerSize = h / 2
+    -- Square under a Classic tree: a painting cannot bend round a corner.
+    local cornerSize = frame._efUnderTree and 1 or h / 2
     local ringTex = cornerSize < 11 and ns.COMBINED_TEX_BORDER_SMALL or COMBINED_TEX_BORDER
     if frame._efRingTex ~= ringTex then
         frame._efRingTex = ringTex
@@ -4760,12 +4774,12 @@ function ns.PaintButtonRamp(btn)
     if not fill then return end
     -- Under the Classic skin the red, from the first show (nothing else
     -- paints a button's state before it is hovered).
-    if btn._efPaintState and (ns.IsClassicChrome() or btn._efRedOn) then
+    if btn._efPaintState and (ns.ClassicLook() or btn._efRedOn) then
         btn._efPaintState(btn, not btn:IsEnabled() and ns.BTN_FILL_DISABLED
             or (btn:IsMouseOver() and ns.BTN_FILL_HOVER) or ns.BTN_FILL_NORMAL)
         if btn._efRedOn then return end
     end
-    btn._efRamp = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.IsClassicChrome() or nil
+    btn._efRamp = ns.ThemeSurfaceOf and ns.ThemeSurfaceOf(btn) == "options" and not ns.ClassicLook() or nil
     local r, g, b, a = btn._efFillR, btn._efFillG, btn._efFillB, btn._efFillA
     if not r then r, g, b, a = fill.mm:GetVertexColor() end
     if btn._efRamp then
@@ -4784,7 +4798,7 @@ end
 -- A theme flip repaints every button that enters or leaves the Classic skin.
 function ns.RestyleModernButtons()
     for btn in pairs(ns.RampedButtons) do ns.PaintButtonRamp(btn) end
-    local classic = ns.IsClassicChrome()
+    local classic = ns.ClassicLook()
     for btn in pairs(modernButtons) do
         if btn._efPaintState and (classic or btn._efRedOn) then
             local fill = not btn:IsEnabled() and ns.BTN_FILL_DISABLED
@@ -4926,7 +4940,7 @@ function ns.CreateModernButton(parent, text, width, height)
     end
 
     local function PaintState(self, fillTable)
-        if ns.IsClassicChrome() then
+        if ns.ClassicLook() then
             ns.SetRoundedRectBorderShown(self, false)
             PaintRed(self, fillTable)
             self._efControlFillKind = false

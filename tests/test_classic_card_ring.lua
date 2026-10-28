@@ -16,6 +16,7 @@ local function Load(classic)
         SetRoundedRectFill = function() end,
         SetRoundedRectBorderShown = function(_, v) shown = v end,
         IsClassicChrome = function() return classic end,
+        ClassicLook = function() return classic end,
     }
     local env = setmetatable({ ns = ns }, { __index = _G })
     local fn = assert(load(src:sub(s, e) .. "\nreturn PaintGroupRing", "=OptionsPanel.lua ring", "t", env))()

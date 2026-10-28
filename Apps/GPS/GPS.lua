@@ -4297,7 +4297,7 @@ end
 -- the row: a disc behind its glyph, the glyph full.
 function GPS.ThemeSkin(gen)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
-    local red = ns.IsClassicChrome and ns.IsClassicChrome()
+    local red = ns.ClassicLook and ns.ClassicLook()
     local palette = ns.ACTIVE_UI_PALETTE
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local ring = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }

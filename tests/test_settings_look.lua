@@ -50,6 +50,7 @@ local function LoadRamp(surface, classic)
     H.loadModule("Shared/Utils.lua", env, ns)
     ns.ThemeSurfaceOf = function() return surface end
     ns.IsClassicChrome = function() return classic end
+    ns.ClassicLook = function() return classic end
     return ns, env
 end
 

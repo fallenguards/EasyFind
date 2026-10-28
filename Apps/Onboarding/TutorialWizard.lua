@@ -461,7 +461,7 @@ local function MakeButton(parent, text, variant, w)
             local f = hoverNudge or 0
             local pal = ns.ACTIVE_UI_PALETTE
             -- Classic: the 1.x red button, as the settings window's.
-            if ns.IsClassicChrome() and ns.PaintRedButton then
+            if ns.ClassicLook() and ns.PaintRedButton then
                 ns.SetRoundedRectBorderShown(b, false)
                 ns.PaintRedButton(b, f > 0 and ns.BTN_FILL_HOVER or f < 0 and ns.BTN_FILL_PRESSED or ns.BTN_FILL_NORMAL)
                 return
@@ -757,7 +757,7 @@ local function FeatureTile(parent, atlas, file, coords, title, desc, onClick)
     if onClick then
         tile:SetScript("OnEnter", function(self)
             self:SetScale(1.04)
-            hoverGlow:SetShown(ns.IsClassicChrome())
+            hoverGlow:SetShown(ns.ClassicLook())
             -- The band fill is dark on every theme, so hover brightens by
             -- mixing toward white (clamped) instead of scaling the color.
             local hr, hg, hb = ThemeBandFill()

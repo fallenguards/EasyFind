@@ -277,7 +277,7 @@ end
 local classicSelectors = {}
 local ERA_FRAME = "Interface\\Glues\\CharacterCreate\\CharacterCreate-LabelFrame"
 local function DressSelector(btn)
-    local classic = ns.IsClassicChrome()
+    local classic = ns.ClassicLook()
     local era = btn._efEra
     if classic and not era then
         local k = 28 / 33
@@ -386,7 +386,7 @@ local ERA_LIST = {
 }
 local function PaintFlyoutWell(flyout)
     -- Classic: Era's dropdown list, its metal 2 px inside the list's edge.
-    local classic = ns.IsClassicChrome()
+    local classic = ns.ClassicLook()
     local back = flyout._efEraList
     if classic and not back then
         back = CreateFrame("Frame", nil, flyout, "BackdropTemplate")
@@ -435,7 +435,7 @@ local function PaintGroupRing(ring)
     local line = palette and palette.separator or { 0.42, 0.42, 0.42 }
     local c = palette and palette.borderColor or { line[1], line[2], line[3], 0.7 }
     ns.SetRoundedRectFill(ring, c[1], c[2], c[3], c[4] or 1, true)
-    ns.SetRoundedRectBorderShown(ring, not ns.IsClassicChrome())
+    ns.SetRoundedRectBorderShown(ring, not ns.ClassicLook())
 end
 
 local function CreateFlyoutPanel(btnFrame, globalPrefix, width, numChoices)
@@ -778,7 +778,7 @@ local function CreateCheckbox(parent, name, label, tooltipText, compact, width, 
         else
             text:SetTextColor(0.50, 0.50, 0.50, 1)
         end
-        local classic = ns.IsClassicChrome()
+        local classic = ns.ClassicLook()
         track:SetShown(not classic)
         if classic then
             local box = EraBox(self, track)
@@ -885,7 +885,7 @@ local SetModernButtonAlpha = ns.SetRoundedRectBorderBgAlpha
 local CLASSIC_LIST_HL = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
 
 local function SetNavButtonBg(btn, color)
-    local classic = ns.IsClassicChrome()
+    local classic = ns.ClassicLook()
     local hl = btn._efListHL
     if classic and not hl then
         hl = btn:CreateTexture(nil, "BACKGROUND")
@@ -1713,9 +1713,9 @@ local function BuildGeneralBindsTab(ctx)
         bgRow:SetPoint("TOPLEFT", themeRow, "BOTTOMLEFT", 0, -8)
         classicBgRow = bgRow
         optionsFrame.classicBgRow = bgRow
-        -- Grayed and closed unless the Classic frames show.
+        -- Grayed and closed unless the Classic theme is on.
         optionsFrame.UpdateClassicRows = function()
-            bgRow:SetGroupEnabled(ns.IsClassicChrome() and true or false)
+            bgRow:SetGroupEnabled(ns.ClassicLook() and true or false)
         end
         optionsFrame.UpdateClassicRows()
     end
@@ -6165,7 +6165,7 @@ function Options:Initialize()
     -- plain white on it (the tinted window fill was harder to read).
     local function PaintTabLabel(label, hovered)
         local pal = Look().palette
-        if ns.IsClassicChrome() then
+        if ns.ClassicLook() then
             -- The 1.x lists: gold names, white under the cursor.
             if hovered then label:SetTextColor(1, 1, 1, 1) else label:SetTextColor(1, 0.82, 0, 1) end
         elseif pal and pal.light then
@@ -6182,7 +6182,7 @@ function Options:Initialize()
             -- Light themes: window-fill pill on the card-colored column,
             -- so the label inverts to the column color.
             local pal = Look().palette
-            if ns.IsClassicChrome() then
+            if ns.ClassicLook() then
                 btn.label:SetTextColor(1, 1, 1, 1)
             elseif pal and pal.light then
                 local card = ns.SECTION_TABLE_FILL

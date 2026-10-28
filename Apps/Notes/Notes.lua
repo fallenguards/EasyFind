@@ -2127,7 +2127,7 @@ end
 -- Under the Classic skin the window's buttons are the 1.x red panel
 -- buttons EasyFind's own are; true while they wear it.
 function UI.PaintClassicButton(btn, hovered)
-    if ns.IsClassicChrome and ns.IsClassicChrome() and ns.PaintRedButton then
+    if ns.ClassicLook and ns.ClassicLook() and ns.PaintRedButton then
         ns.SetRoundedRectBorderShown(btn, false)
         ns.PaintRedButton(btn, hovered and ns.BTN_FILL_HOVER or ns.BTN_FILL_NORMAL)
         return true
