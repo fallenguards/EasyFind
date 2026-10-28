@@ -53,5 +53,32 @@ function tests.noNavigationBar_asksForARightClick_andLeavesTheMap()
     H.assertFalse(hint.shown, "the next step clears it")
 end
 
+-- The words on the map itself beside the game's right-click glyph: a
+-- black box held them (2026-10-28).
+function tests.theHintIsAGlyphAndWordsOnTheMap()
+    local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/Zones/Breadcrumbs.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find('hint%.glyph:SetAtlas%("NPE_RightClick"%)') ~= nil, "the game's right-click glyph, on every client")
+    H.assertTrue(src:find('hint%.text:SetPoint%("LEFT", hint%.glyph, "RIGHT", 6, 0%)') ~= nil, "the words beside it")
+    H.assertTrue(src:find("SetColorTexture%(0, 0, 0, 0%.75%)") == nil, "no box")
+    H.assertTrue(src:find('hint:SetPoint%("BOTTOM", hint:GetParent%(%), "BOTTOM", 0, 14%)') ~= nil,
+        "over the map's bottom: the top has the zone names")
+end
+
+-- A hover on the map (its zone outline) put the hint away before any
+-- right-click (2026-10-28): the hint stays through a hover's outline and
+-- its end, and goes with the breadcrumb guide it belongs to.
+function tests.theHintStaysThroughAHoverOnTheMap()
+    local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/Zones/Highlight.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("if self%.zoomOutHint and not preserveBreadcrumb then self%.zoomOutHint:Hide%(%) end") ~= nil,
+        "a hover's end keeps it")
+    H.assertTrue(src:find("local hintShown = self%.zoomOutHint ~= nil and self%.zoomOutHint:IsShown%(%)%s+"
+        .. "DebugPrint%(.-%)%s+self:ClearZoneHighlight%(%)%s+self%.pendingZoneHighlight, self%._zoneGuide = savedPending, savedGuide%s+"
+        .. "if hintShown then self%.zoomOutHint:Show%(%) end") ~= nil, "a hover's outline keeps it")
+end
+
 local pass, fail, failures = H.runSuite("MapZoomOutHint", tests)
 return { pass = pass, fail = fail, failures = failures }

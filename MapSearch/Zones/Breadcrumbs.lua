@@ -17,7 +17,9 @@ local GetMapPath = MapUtils.GetMapPath
 function MapSearch:HighlightBreadcrumbForNavigation(dcaMapID, finalTargetMapID, targetParentPath, dcaIndex)
     DebugPrint("HighlightBreadcrumbForNavigation: DCA=", dcaMapID, "finalTarget=", finalTargetMapID)
 
+    local guide = self._zoneGuide
     self:ClearZoneHighlight()
+    self._zoneGuide = guide
 
     local navBar = WorldMapFrame.NavBar
     if not navBar then
@@ -272,7 +274,11 @@ function MapSearch:ShowBreadcrumbHighlight(button, finalTargetMapID)
     DebugPrint("ShowBreadcrumbHighlight - SET pendingZoneHighlight to:", finalTargetMapID)
 end
 
--- "Right-click the map to zoom out" over the map's top, pulsing.
+-- "Right-click the map to zoom out" over the map's bottom (the top has
+-- the zone names), pulsing: the game's mouse glyph with its right button
+-- lit, the words beside it on the map itself (a black box held them,
+-- 2026-10-28).
+local ZOOM_HINT_GLYPH = 28
 function MapSearch:ShowZoomOutHint(finalTargetMapID)
     local hint = self.zoomOutHint
     if not hint then
@@ -280,20 +286,23 @@ function MapSearch:ShowZoomOutHint(finalTargetMapID)
         hint:SetFrameStrata("TOOLTIP")
         hint:SetFrameLevel(300)
         hint:EnableMouse(false)
-        hint:SetHeight(30)
-        hint:SetPoint("TOP", hint:GetParent(), "TOP", 0, -12)
-        local back = hint:CreateTexture(nil, "BACKGROUND")
-        back:SetAllPoints()
-        back:SetColorTexture(0, 0, 0, 0.75)
+        hint:SetHeight(ZOOM_HINT_GLYPH + 2)
+        hint:SetPoint("BOTTOM", hint:GetParent(), "BOTTOM", 0, 14)
+        hint.glyph = hint:CreateTexture(nil, "OVERLAY")
+        hint.glyph:SetSize(ZOOM_HINT_GLYPH, ZOOM_HINT_GLYPH)
+        hint.glyph:SetPoint("LEFT")
+        hint.glyph:SetAtlas("NPE_RightClick")
         hint.text = hint:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        hint.text:SetPoint("CENTER")
+        hint.text:SetPoint("LEFT", hint.glyph, "RIGHT", 6, 0)
         hint.text:SetTextColor(Utils.RGB(GOLD_COLOR, 1))
+        hint.text:SetShadowColor(0, 0, 0, 1)
+        hint.text:SetShadowOffset(1, -1)
         MapFrames.AttachBounceAnimation(hint, { fromAlpha = 1, toAlpha = 0.55, duration = 0.8, groupKey = "pulseAnim" })
         WorldMapFrame:HookScript("OnHide", function() hint:Hide() end)
         self.zoomOutHint = hint
     end
     hint.text:SetText(L["MAP_GUIDE_ZOOM_OUT"])
-    hint:SetWidth(math.ceil(hint.text:GetStringWidth()) + 28)
+    hint:SetWidth(ZOOM_HINT_GLYPH + 6 + math.ceil(hint.text:GetStringWidth()))
     hint:Show()
     if hint.pulseAnim then hint.pulseAnim:Play() end
     self.pendingZoneHighlight = finalTargetMapID

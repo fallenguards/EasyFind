@@ -1335,6 +1335,8 @@ local function CreateSearchBox(parent)
     if editBox.clearButton then
         editBox.clearButton:HookScript("OnClick", function()
             if ReleaseMapTabMemory then ReleaseMapTabMemory(false) end
+            -- The X ends a "show me how" under way with the search.
+            if ns.MapSearch and ns.MapSearch.ClearZoneHighlight then ns.MapSearch:ClearZoneHighlight() end
         end)
     end
 

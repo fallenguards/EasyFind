@@ -129,8 +129,9 @@ function MapSearch:RunHoverPreview(data)
     -- rect where the zone sits on the currently-viewed map. Strictly
     -- visible-only: PreviewZoneHighlight bails when the zone isn't on
     -- this map, when we're already inside it, and never changes maps.
+    -- Not while a click's guide holds the outline: the hover's end wiped it.
     self._previewingZone = nil
-    if data.isZone and data.zoneMapID and self.PreviewZoneHighlight then
+    if data.isZone and data.zoneMapID and self.PreviewZoneHighlight and not self._zoneGuide then
         self:PreviewZoneHighlight(data.zoneMapID)
         self._previewingZone = data.zoneMapID
     end

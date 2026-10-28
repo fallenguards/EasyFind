@@ -2216,6 +2216,11 @@ ns.ART = {
     lorewalker = { tex = ns.ART_DIR .. "lorewalker", coords = { 0, 0.59375, 0, 0.9375 } },
     crafting_orders = { tex = ns.ART_DIR .. "crafting-orders", coords = { 0, 0.90625, 0, 0.84375 } },
     rostrum = { tex = ns.ART_DIR .. "rostrum", coords = { 0, 0.96875, 0, 0.53125 } },
+    -- The quest log's header band and its fold glyphs, for the clients without its sheet.
+    questlog_tab = { tex = ns.ART_DIR .. "questlog-tab", coords = { 0, 1, 0, 0.6875 } },
+    questlog_expand = { tex = ns.ART_DIR .. "questlog-expand", coords = { 0, 0.5625, 0, 0.5625 } },
+    questlog_shrink = { tex = ns.ART_DIR .. "questlog-shrink", coords = { 0, 0.5625, 0, 0.5625 } },
+    questlog_glow = { tex = ns.ART_DIR .. "questlog-glow", coords = { 0, 0.57617, 0, 0.78125 } },
 }
 
 -- Reputation glyph: the player's faction crest; neutral gets the Alliance one.
@@ -2250,13 +2255,16 @@ ns.SETTING_ICON = (not (ns.Caps and ns.Caps.questLogAtlas == false)) and { atlas
     or { tex = "Interface\\Buttons\\UI-OptionsButton", desaturate = true }
 -- Classic's gold options cog stands in for retail's interact cursor.
 ns.OPTIONS_CATEGORY_ICON_TEX = (ns.Caps and ns.Caps.classic) and "Interface\\Buttons\\UI-OptionsButton" or 4675635
--- The quest log's expand/collapse glyph; Era's own buttons lacking its sheet.
+-- The quest log's expand/collapse glyph; our copy of it where the client
+-- lacks its sheet (Era's red buttons stood in, 2026-10-28).
 function ns.SetQuestLogToggle(tex, collapsed, theme)
     if (not (ns.Caps and ns.Caps.questLogAtlas == false)) then
         tex:SetAtlas(collapsed and (theme and theme.expandAtlas or "QuestLog-icon-expand")
             or (theme and theme.collapseAtlas or "QuestLog-icon-shrink"))
     else
-        tex:SetTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+        local art = collapsed and ns.ART.questlog_expand or ns.ART.questlog_shrink
+        tex:SetTexture(art.tex)
+        tex:SetTexCoord(art.coords[1], art.coords[2], art.coords[3], art.coords[4])
     end
 end
 

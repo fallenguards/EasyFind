@@ -278,14 +278,16 @@ function ns.GetDirectionalRotation(direction)
     local style = ns.GetIndicatorTexture()
     -- baseDown is the rotation that points the indicator downward.
     local baseDown = style.rotation or (style.preRotated and 0 or mpi)
+    -- SetRotation turns counter-clockwise: a quarter turn on from down
+    -- points right (left and right were swapped, 2026-10-28).
     if direction == "down" then
         return baseDown
     elseif direction == "up" then
         return baseDown + mpi
     elseif direction == "right" then
-        return baseDown - mpi / 2
-    elseif direction == "left" then
         return baseDown + mpi / 2
+    elseif direction == "left" then
+        return baseDown - mpi / 2
     end
     return baseDown
 end

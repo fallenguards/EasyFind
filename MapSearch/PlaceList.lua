@@ -367,7 +367,14 @@ local function CreateResultRow(list)
 
     -- One highlight texture covers mouse hover and keyboard selection
     -- (via LockHighlight) so both look identical.
-    row:SetHighlightAtlas("QuestLog-quest-glow-yellow")
+    if not (ns.Caps and ns.Caps.questLogAtlas == false) then
+        row:SetHighlightAtlas("QuestLog-quest-glow-yellow")
+    else
+        -- Our copy of the glow where the client lacks the sheet (a green box on Era, 2026-10-28).
+        local art = ns.ART.questlog_glow
+        row:SetHighlightTexture(art.tex)
+        row:GetHighlightTexture():SetTexCoord(art.coords[1], art.coords[2], art.coords[3], art.coords[4])
+    end
     local hl = row:GetHighlightTexture()
     if hl then
         hl:SetBlendMode("ADD")
@@ -480,6 +487,38 @@ end
 local MAP_SKIN = { toggleBg = true }
 PlaceList.MapSkin = MAP_SKIN
 
+-- Our copy of the band drawn in three slices, its rounded ends at the
+-- band's own proportion: stretched whole across a header, the ends went
+-- ragged (2026-10-28). BAND_CAP: an end's width in the art's 128 px.
+local BAND_CAP = 20
+local function PlaceBandCaps(hdr)
+    local capW = BAND_CAP / 44 * (hdr:GetHeight() or GROUP_HEADER_H)
+    for _, t in ipairs({ hdr.bgL, hdr.bgR, hdr.hoverL, hdr.hoverR }) do t:SetWidth(capW) end
+end
+
+local function BandCaps(hdr)
+    if hdr.bgL then return end
+    local function Cap(layer, sub, side)
+        local t = hdr:CreateTexture(nil, layer, nil, sub)
+        t:SetPoint("TOP" .. side)
+        t:SetPoint("BOTTOM" .. side)
+        return t
+    end
+    hdr.bgL, hdr.bgR = Cap("BACKGROUND", 0, "LEFT"), Cap("BACKGROUND", 0, "RIGHT")
+    hdr.hoverL, hdr.hoverR = Cap("ARTWORK", -1, "LEFT"), Cap("ARTWORK", -1, "RIGHT")
+    hdr.hoverL:SetBlendMode("ADD")
+    hdr.hoverR:SetBlendMode("ADD")
+    hdr.hoverL:Hide()
+    hdr.hoverR:Hide()
+    hdr:HookScript("OnSizeChanged", PlaceBandCaps)
+end
+
+local function HideBandCaps(hdr)
+    if not hdr.bgL then return end
+    for _, t in ipairs({ hdr.bgL, hdr.bgR, hdr.hoverL, hdr.hoverR }) do t:Hide() end
+end
+PlaceList.HideBandCaps = HideBandCaps
+
 function MAP_SKIN.paint(hdr)
     local bg, hover = hdr.bg, hdr.hoverOverlay
     bg:ClearAllPoints()
@@ -487,21 +526,36 @@ function MAP_SKIN.paint(hdr)
     hover:ClearAllPoints()
     hover:SetBlendMode("ADD")
     if not (ns.Caps and ns.Caps.questLogAtlas == false) then
+        HideBandCaps(hdr)
         bg:SetAtlas("QuestLog-tab")
         hover:SetAllPoints()
         hover:SetAtlas("QuestLog-tab")
         hover:SetAlpha(0.40)
         hdr.fill:Hide()
     else
-        -- No quest log sheet (Era, MoP Classic): its band drawn plain, a dark
-        -- fill in a thin rim.
-        bg:SetColorTexture(0.42, 0.38, 0.32, 0.9)
-        hdr.fill:SetColorTexture(0.16, 0.13, 0.10, 0.95)
-        hdr.fill:Show()
-        hover:SetPoint("TOPLEFT", 1, -1)
-        hover:SetPoint("BOTTOMRIGHT", -1, 1)
-        hover:SetColorTexture(1, 1, 1, 0.08)
-        hover:SetAlpha(1)
+        -- No quest log sheet (Era, MoP Classic): our copy of its band, so
+        -- the headers are retail's (a plain box stood in, 2026-10-28).
+        local art, u, v = ns.ART.questlog_tab, BAND_CAP / 128, ns.ART.questlog_tab.coords[4]
+        BandCaps(hdr)
+        for _, t in ipairs({ bg, hover, hdr.bgL, hdr.bgR, hdr.hoverL, hdr.hoverR }) do t:SetTexture(art.tex) end
+        hdr.bgL:SetTexCoord(0, u, 0, v)
+        hdr.hoverL:SetTexCoord(0, u, 0, v)
+        hdr.bgR:SetTexCoord(1 - u, 1, 0, v)
+        hdr.hoverR:SetTexCoord(1 - u, 1, 0, v)
+        bg:SetTexCoord(u, 1 - u, 0, v)
+        hover:SetTexCoord(u, 1 - u, 0, v)
+        bg:ClearAllPoints()
+        bg:SetPoint("TOPLEFT", hdr.bgL, "TOPRIGHT")
+        bg:SetPoint("BOTTOMRIGHT", hdr.bgR, "BOTTOMLEFT")
+        hover:SetPoint("TOPLEFT", hdr.hoverL, "TOPRIGHT")
+        hover:SetPoint("BOTTOMRIGHT", hdr.hoverR, "BOTTOMLEFT")
+        hover:SetAlpha(0.40)
+        hdr.hoverL:SetAlpha(0.40)
+        hdr.hoverR:SetAlpha(0.40)
+        hdr.bgL:Show()
+        hdr.bgR:Show()
+        PlaceBandCaps(hdr)
+        hdr.fill:Hide()
     end
     bg:Show()
     local t = hdr.toggleBtn
@@ -515,6 +569,14 @@ end
 
 function MAP_SKIN.toggle(icon, collapsed)
     ns.SetQuestLogToggle(icon, collapsed)
+end
+
+function MAP_SKIN.hover(hdr, on)
+    hdr.hoverOverlay:SetShown(on)
+    if hdr.hoverL and hdr.bgL:IsShown() then
+        hdr.hoverL:SetShown(on)
+        hdr.hoverR:SetShown(on)
+    end
 end
 
 function MAP_SKIN.color(hdr, hover)
@@ -618,6 +680,7 @@ function List:AcquireGroupHeader(labelText, groupKey, collapsed, navigateData, h
     local skin = Skin(self)
     if hdr.skin ~= skin then
         hdr.skin = skin
+        if skin ~= MAP_SKIN then HideBandCaps(hdr) end
         skin.paint(hdr)
         hdr.fontScale = nil
     end

@@ -64,6 +64,9 @@ function MapSearch:HighlightZoneOnMap(targetMapID, zoneName)
         DebugPrint("Already viewing target zone, nothing to do")
         return
     end
+    -- A guide under way: a row's hover preview leaves the map's outline to
+    -- it (the cursor leaving the row wiped the guide, 2026-10-28).
+    self._zoneGuide = targetMapID
 
     -- Ancestor target: highlight breadcrumb directly, else DCA overshoots.
     local currentParentChain = GetMapPath(currentMapID)

@@ -92,6 +92,33 @@ local function ScanZoneBoundsOnMap(targetMapID, viewMapID, projL, projR, projT, 
     return foundL + inset, foundR - inset, foundT + inset, foundB - inset
 end
 
+-- A map's region on the map shown, from the map's own world assignments
+-- (where a position on the shown map lands in the target's world): the
+-- classic world map's art box and its position answers reach far past a
+-- continent's land. Bounds in fractions of the shown map, or nil.
+local function RegionBoundsOnMap(targetMapID, viewMapID, l, r, t, b)
+    local GetWorldPos = C_Map.GetWorldPosFromMapPos
+    if not (GetWorldPos and CreateVector2D) then return nil end
+    local instance = GetWorldPos(targetMapID, CreateVector2D(0.5, 0.5))
+    if not instance then return nil end
+    local step = 0.02
+    local pos = CreateVector2D(0, 0)
+    local minX, maxX, minY, maxY
+    for x = mmax(0, l), mmin(1, r), step do
+        for y = mmax(0, t), mmin(1, b), step do
+            pos:SetXY(x, y)
+            if GetWorldPos(viewMapID, pos) == instance then
+                if not minX or x < minX then minX = x end
+                if not maxX or x > maxX then maxX = x end
+                if not minY or y < minY then minY = y end
+                if not maxY or y > maxY then maxY = y end
+            end
+        end
+    end
+    if not minX then return nil end
+    return minX, mmin(1, maxX + step), minY, mmin(1, maxY + step)
+end
+
 -- Hover-only HighlightZone variant. Never calls SetMapID, never touches
 -- pendingZoneHighlight; bails when the zone isn't on the current map or
 -- when we're already viewing it.
@@ -221,13 +248,16 @@ function MapSearch:HighlightZone(mapID)
         return
     end
 
-    -- Save pending so we can still navigate after highlighting an intermediate.
-    local savedPending = self.pendingZoneHighlight
+    -- Save pending so we can still navigate after highlighting an intermediate;
+    -- the zoom-out hint with it (a hover on the map put it away, 2026-10-28).
+    local savedPending, savedGuide = self.pendingZoneHighlight, self._zoneGuide
+    local hintShown = self.zoomOutHint ~= nil and self.zoomOutHint:IsShown()
     DebugPrint("HighlightZone: saved pending:", savedPending)
 
     self:ClearZoneHighlight()
 
-    self.pendingZoneHighlight = savedPending
+    self.pendingZoneHighlight, self._zoneGuide = savedPending, savedGuide
+    if hintShown then self.zoomOutHint:Show() end
     DebugPrint("HighlightZone: restored pending:", self.pendingZoneHighlight)
 
     local canvas = WorldMapFrame.ScrollContainer.Child
@@ -346,6 +376,27 @@ function MapSearch:HighlightZone(mapID)
         local pixelWidth = texWidth * canvasWidth
         local pixelHeight = texHeight * canvasHeight
         local isAtlas = not fileDataID or fileDataID == 0
+        -- The arrow and the click box go by the art the player sees: the
+        -- API's rect for a continent on Era's world map lies elsewhere
+        -- (the arrow pointed at the other continent, 2026-10-28).
+        if not isAtlas then
+            zoneLeftPx, zoneTopPx, width, height = pixelPosX, pixelPosY, pixelWidth, pixelHeight
+            zoneRightPx, zoneBottomPx = pixelPosX + pixelWidth, pixelPosY + pixelHeight
+            zoneCenterPxX, zoneCenterPxY = pixelPosX + pixelWidth / 2, pixelPosY + pixelHeight / 2
+            -- A continent's art on the classic world map is padded far past
+            -- the land (Kalimdor's box reached the other continent): the
+            -- map's own region for it places the arrow.
+            local l, r, t, b = posX, posX + texWidth, posY, posY + texHeight
+            if l < 0 or r > 1 or t < 0 or b > 1 or (r - l) * (b - t) > 0.3 then
+                local sL, sR, sT, sB = RegionBoundsOnMap(mapID, parentMapID, l, r, t, b)
+                if sL then
+                    zoneLeftPx, zoneTopPx = sL * canvasWidth, sT * canvasHeight
+                    zoneRightPx, zoneBottomPx = sR * canvasWidth, sB * canvasHeight
+                    width, height = zoneRightPx - zoneLeftPx, zoneBottomPx - zoneTopPx
+                    zoneCenterPxX, zoneCenterPxY = (zoneLeftPx + zoneRightPx) / 2, (zoneTopPx + zoneBottomPx) / 2
+                end
+            end
+        end
 
         local layers = isAtlas and 2 or 4
         for i = 1, layers do
@@ -554,7 +605,8 @@ end
 -- preserveBreadcrumb=true keeps the click-driven breadcrumb so a hover
 -- exit doesn't wipe the gold guide the user is following.
 function MapSearch:ClearZoneHighlight(preserveBreadcrumb)
-    if self.zoomOutHint then self.zoomOutHint:Hide() end
+    -- The zoom-out hint goes with the breadcrumb guide it belongs to.
+    if self.zoomOutHint and not preserveBreadcrumb then self.zoomOutHint:Hide() end
     if not zoneHighlightFrame then return end
 
     for _, highlight in ipairs(zoneHighlightFrame.highlights) do
@@ -610,6 +662,7 @@ function MapSearch:ClearZoneHighlight(preserveBreadcrumb)
 
     -- pendingWaypoint must survive: it's the final destination through the chain.
     self.pendingZoneHighlight = nil
+    self._zoneGuide = nil
 end
 
 function MapSearch:IsOnContinentMap()
