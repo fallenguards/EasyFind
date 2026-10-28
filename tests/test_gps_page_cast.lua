@@ -14,7 +14,7 @@ local function LoadFitPage(placed)
     local route = { active = 2, steps = { { kind = "walk" }, { kind = "teleport", itemID = 6948 } } }
     local env = setmetatable({
         Route = function() return route end, mmax = math.max,
-        SetupCast = function(btn, step, active) placed[#placed + 1] = { btn, step, active } end,
+        SetupCast = function(btn, step, active, ahead) placed[#placed + 1] = { btn, step, active, ahead } end,
     }, { __index = _G })
     return assert(load(src:sub(s, e) .. "\nreturn FitPage", "=GPS.lua FitPage", "t", env))(), route
 end
@@ -46,6 +46,8 @@ function tests.theButtonsArePlacedInsideTheFittedList()
     H.assertEq(placed[2][1], "cast 2")
     H.assertTrue(placed[2][3], "the step that is up")
     H.assertFalse(placed[1][3])
+    H.assertTrue(placed[2][4], "still ahead: its button shows")
+    H.assertFalse(placed[1][4], "taken: none")
 end
 
 -- Render's own shape: the list at its full height, then FitPage.
@@ -63,6 +65,26 @@ function tests.stepsTallerThanTheRoomRenderOnce()
     page:Render()
     H.assertEq(renders, 1)
     H.assertEq(height(), 292, "the room above the foot rule")
+end
+
+-- Every step still ahead has its button, the one that is up bright and a
+-- later one dimmed (the teleport after a stop showed none, 2026-10-27).
+function tests.aLaterStepsButtonShowsDimmed()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("local function SetupCast%(btn, step, active, ahead%)") ~= nil)
+    H.assertTrue(src:find("if not %(active or ahead%) or not %(spellID or itemID%)") ~= nil)
+    H.assertTrue(src:find("btn:SetAlpha%(active and 1 or 0%.55%)") ~= nil, "a later step's dimmed")
+    local calls = 0
+    for args in src:gmatch("SetupCast(%b())") do
+        if args:find("^%(row%.cast") then
+            local _, commas = args:gsub(",", "")
+            H.assertEq(commas, 3, "the call says which steps are still ahead: " .. args)
+            calls = calls + 1
+        end
+    end
+    H.assertEq(calls, 4, "every list's rows")
 end
 
 function tests.noRouteNoButtons()

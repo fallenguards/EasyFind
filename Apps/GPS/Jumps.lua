@@ -131,21 +131,53 @@ function Jumps.PlaceAt(ci, x, y)
     return name or zoneName
 end
 
--- A walk that jumps down a ledge says how and where: at full health, or
--- with what lands the character safely when the drop is past what a fall
--- leaves; near the place the highest one is (the map marks each).
-function Jumps.StepText(step)
+-- A walk's highest ledge: the jump, its height, what a full-health
+-- character survives there, and the continent.
+local function Drop(step)
     local jumps = step and step.jumps
     if not jumps then return nil end
     local top = jumps[1]
     for i = 2, #jumps do
         if jumps[i].h > top.h then top = jumps[i] end
     end
-    local high = top.h
     local Nav = ns.GPSNav
     local ci = step.arrive and step.arrive.ci or 0
     local survive
     if Nav and Nav.DropHeights then survive = select(2, Nav.DropHeights(ci)) end
+    return top, top.h, survive, ci
+end
+
+-- What lands this character at a walk's ledge, where the drop is past
+-- what full health survives; nil where a jump at full health does.
+function Jumps.StepHelper(step)
+    local _, high, survive = Drop(step)
+    if not high then return nil end
+    return (not survive or high > survive) and Jumps.Helper() or nil
+end
+
+-- What a step's button casts: a teleport's spell or item, else what lands
+-- the character at the step's ledge. spellID, itemID, toy.
+function Jumps.StepCast(step)
+    if not step then return nil end
+    if step.kind == "teleport" then return step.spellID, step.itemID, step.toy end
+    local helper = Jumps.StepHelper(step)
+    if not helper then return nil end
+    if helper.kind == "item" then return nil, helper.id end
+    return helper.id
+end
+
+function Jumps.HasCast(step)
+    local spellID, itemID = Jumps.StepCast(step)
+    return (spellID or itemID) ~= nil
+end
+
+-- A walk that jumps down a ledge says how and where: at full health, or
+-- with what lands the character safely when the drop is past what a fall
+-- leaves; near the place the highest one is (the map marks each).
+function Jumps.StepText(step)
+    local top, high, survive, ci = Drop(step)
+    if not top then return nil end
+    local jumps = step.jumps
     -- By its jump list: a walk split by zone copies its other fields.
     local place = Jumps.placeOf[jumps]
     if place == nil then

@@ -3,19 +3,16 @@
 -- the steps start: the same drop below the fields as the step list.
 local H = require("Harness")
 
-local function Drop(src, what)
-    local y = src:match(what .. ':SetPoint%("TOPLEFT", ed, "BOTTOMLEFT", [^,]+, (%-%b())%)')
-    return y
-end
-
 local tests = {}
 
 function tests.arrivalLineStartsWhereTheStepsDo()
     local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Trip.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local list, empty = Drop(src, "frame%.list"), Drop(src, "frame%.empty")
+    local list = src:match('frame%.list:SetPoint%("TOPLEFT", ed, "BOTTOMLEFT", [^,]+, (%-%b())%)')
     H.assertTrue(list ~= nil, "the step list hangs from the fields")
+    -- The drop the arrival line takes (Trip.PlaceEmpty with the steps' place).
+    local empty = src:match("ed%.emptyX, ed%.emptyStepsY = [^,]+, (%-%b())")
     H.assertEq(empty, list, "the arrival line drops as far as the steps")
 end
 

@@ -70,6 +70,98 @@ function tests.build_unpricedLegLeavesNoTotal()
     H.assertNil(total)
 end
 
+-- The editor's drag (Editor:LayDrag): the dragged row rides with the
+-- cursor, the others step into the order its drop makes, and the button
+-- up ends it whether or not the grip hears the drop (a grip hidden
+-- mid-drag left the drag on, its line and grip stuck, 2026-10-27).
+local function LoadDrag(cursor, laid, reordered)
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Trip.lua", "rb"))
+    local src = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+    local s = assert(src:find("\nlocal function CursorY(ed)", 1, true), "the drag's start")
+    local e = assert(src:find("\n-- A row's mark,", s, true), "the drag's end")
+    local Editor = {}
+    local env = setmetatable({
+        Editor = Editor, mmax = math.max, mmin = math.min,
+        Lay = function(_, row, slot, y) laid[row.name] = { slot = slot, y = y } end,
+        GetCursorPosition = function() return 0, cursor.y end,
+        IsMouseButtonDown = function() return cursor.down end,
+        Trip = { Reorder = function(i, j) reordered[#reordered + 1] = { i, j } end },
+        Route = function() return {} end,
+        GetTime = function() return 0 end,
+    }, { __index = _G })
+    assert(load(src:sub(s, e), "=Trip.lua drag", "t", env))()
+    return Editor
+end
+
+-- Three rows 30 tall from the editor's top at 300: tops 300, 270, 240.
+local function DragEditor(cursor, laid, reordered)
+    local Editor = LoadDrag(cursor, laid, reordered)
+    local ed = { orderRows = {} }
+    for k, v in pairs(Editor) do ed[k] = v end
+    for k = 1, 3 do
+        ed.orderRows[k] = { name = "row" .. k, index = k - 1, canDrag = true, level = 5, alpha = 1,
+            GetTop = function() return 300 - (k - 1) * 30 end, GetHeight = function() return 30 end,
+            GetFrameLevel = function(self) return self.level end,
+            SetFrameLevel = function(self, l) self.level = l end,
+            SetAlpha = function(self, a) self.alpha = a end,
+            IsMouseOver = function() return false end,
+            grip = { SetShown = function(self, on) self.shown = on end } }
+    end
+    function ed:GetTop() return 300 end
+    function ed:GetEffectiveScale() return 1 end
+    function ed:Watch() end
+    function ed:Refresh() self.refreshed = (self.refreshed or 0) + 1 end
+    return ed
+end
+
+function tests.drag_theOthersStepAsideAndTheDropReorders()
+    local cursor, laid, reordered = { y = 230, down = true }, {}, {}
+    local ed = DragEditor(cursor, laid, reordered)
+    local row3 = ed.orderRows[3]
+    ed:DragStart(row3)
+    H.assertEq(ed.drag, 3)
+    H.assertEq(row3.level, 15, "lifted over the others")
+    cursor.y = 295   -- above the first row's middle
+    ed:OnUpdate()
+    H.assertEq(ed.dropAt, 1)
+    H.assertEq(laid.row1.slot, 2); H.assertEq(laid.row1.y, 30)
+    H.assertEq(laid.row2.slot, 3); H.assertEq(laid.row2.y, 60)
+    H.assertEq(laid.row3.slot, 1); H.assertEq(laid.row3.y, 0, "held within the rows' span")
+    H.assertTrue(row3.grip.shown, "the dragged row's grip stays")
+    cursor.y = 262   -- above the second row's middle
+    ed:OnUpdate()
+    H.assertEq(ed.dropAt, 2)
+    H.assertEq(laid.row1.slot, 1)
+    H.assertEq(laid.row2.slot, 3)
+    H.assertEq(laid.row3.slot, 2); H.assertEq(laid.row3.y, 28, "under the cursor, as grabbed")
+    cursor.down = false
+    ed:OnUpdate()
+    H.assertNil(ed.drag, "the button up ends the drag")
+    H.assertEq(reordered[1][1], 3); H.assertEq(reordered[1][2], 2)
+    H.assertEq(row3.level, 5); H.assertEq(row3.alpha, 1)
+    H.assertNil(ed.refreshed, "the reorder lays the rows again, not a refresh")
+end
+
+function tests.drag_droppedInPlaceOrOnChangedRowsOnlyRefreshes()
+    local cursor, laid, reordered = { y = 230, down = true }, {}, {}
+    local ed = DragEditor(cursor, laid, reordered)
+    ed:DragStart(ed.orderRows[3])
+    ed:OnUpdate()
+    H.assertEq(ed.dropAt, 3)
+    cursor.down = false
+    ed:OnUpdate()
+    H.assertEq(#reordered, 0)
+    H.assertEq(ed.refreshed, 1)
+    cursor.down = true
+    ed:DragStart(ed.orderRows[2])
+    ed.orderRows[3] = nil   -- the rows changed under the drag
+    ed:OnUpdate()
+    H.assertNil(ed.drag)
+    H.assertEq(#reordered, 0)
+    H.assertEq(ed.refreshed, 2)
+end
+
 function tests.edits_changeTheStopsAndPlanAgain()
     local Trip, route = Load({ stops = { { name = "A", mapID = 1 }, { name = "B", mapID = 2 }, { name = "C", mapID = 3 } } })
     Trip.Move(3, 1)

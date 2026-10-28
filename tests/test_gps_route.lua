@@ -204,8 +204,11 @@ function tests.advice_namesTheFlightPathWorthLearning()
 end
 
 -- A stop to learn a flight master: there, learn it, then fly on from it.
+-- The way there names the flight master, not the stop as a place ("Ride
+-- to Orgrimmar, Durotar", 2026-10-27).
 function tests.stop_learnsThereThenFliesOn()
-    local _, _, Route = fresh()
+    local _, ns, Route = fresh()
+    ns.L.GPS_REACH_FLIGHT_FMT = "Go to the flight master at %s"
     local d = data()
     d.edges, d.abilities = {}, {}
     local dest = { name = "Far corner", mapID = 1, x = 0.9, y = 0.91 }
@@ -219,6 +222,7 @@ function tests.stop_learnsThereThenFliesOn()
     end
     H.assertTrue(learnAt ~= nil, "a step to learn Beta")
     H.assertEq(steps[learnAt].nodeID, 2)
+    H.assertEq(steps[learnAt - 1].text, "Go to the flight master at Beta", "the way there says what it reaches")
     H.assertTrue(flyAfter ~= nil and flyAfter.nodeID == 2, "then a flight from Beta, now learned")
     local sum = 0
     for i = 1, #steps do sum = sum + (steps[i].sec or 0) end
@@ -1262,6 +1266,51 @@ function tests.riding_tbcFliesInOutland()
     H.assertTrue(fly and math.abs(fly - 26.6) < 0.01, "artisan: 280%")
     _, fly = ride({ 33388, 33391, 34090 }, 1)
     H.assertNil(fly, "Kalimdor: no flying on Anniversary")
+end
+
+-- Era and TBC keep no journal: a mount is an item in the bags, an epic
+-- one at 100% with Journeyman riding (on Era from level 60), or a
+-- paladin's or warlock's spell. The walk to Thrall said "Walk" with a
+-- mount in the bags (2026-10-27).
+local function bags(env, items, level)
+    env.NUM_BAG_SLOTS = 1
+    env.UnitLevel = function() return level or 60 end
+    env.C_Container = {
+        GetContainerNumSlots = function(bag) return bag == 0 and #items or 0 end,
+        GetContainerItemID = function(_, slot) return items[slot] and items[slot][1] end,
+    }
+    local quality, mount = {}, {}
+    for _, it in ipairs(items) do quality[it[1]], mount[it[1]] = it[2], it[3] end
+    env.C_Item = {
+        GetItemInfoInstant = function(id)
+            if mount[id] then return id, "Miscellaneous", "Mount", "", 0, 15, 5 end
+            return id, "Consumable", "Potion", "", 0, 0, 1
+        end,
+        GetItemQualityByID = function(id) return quality[id] end,
+    }
+end
+
+function tests.riding_eraAndTbcMountsFromTheBags()
+    local d = data()
+    d.classic = true
+    local function ride(spells, items, caps, level)
+        local env, ns, Route = fresh()
+        ns.Caps = caps
+        rider(env, spells, {})
+        bags(env, items, level)
+        return (Route.Riding(d))
+    end
+    local function near(a, b) return math.abs(a - b) < 0.01 end
+    local tbc, era = { classic = true, tbc = true }, { classic = true, era = true }
+    local rare, epic, potion = { 5656, 3, true }, { 18796, 4, true }, { 929, 1 }
+    H.assertTrue(near(ride({ 33388 }, { potion, rare }, tbc), 11.2), "a 60% mount with Apprentice riding")
+    H.assertTrue(near(ride({ 33388 }, { epic }, tbc), 11.2), "an epic mount with Apprentice riding: 60%")
+    H.assertTrue(near(ride({ 33388, 33391 }, { rare, epic }, tbc), 14), "Journeyman: the epic at 100%")
+    H.assertEq(ride({ 33388 }, { potion }, tbc), 7, "no mount in the bags")
+    H.assertTrue(near(ride({ 33388, 33391, 23214 }, {}, tbc), 14), "a paladin's Charger")
+    H.assertTrue(near(ride({}, { epic }, era, 60), 14), "Era at 60: the epic at 100%")
+    H.assertTrue(near(ride({}, { epic }, era, 45), 11.2), "Era under 60: 60%")
+    H.assertEq(ride({ 33388 }, { epic }, { classic = true, forever = true }), 7, "Forever reads its journal, not the bags")
 end
 
 -- The journal walks once; a mount learned walks it again.

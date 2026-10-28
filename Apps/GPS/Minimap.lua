@@ -16,8 +16,13 @@ local SCALE = 0.7              -- the line's width against the world map's
 local ROUND = 6                -- how far back a bend is cut to round it, in pixels
 local HOLE = 7                 -- pixels kept clear around the player's arrow
 local ALPHA = 0.9
+-- The step's spot: a disc in the step's color on its dark rim, where the
+-- game sets no waypoint (Era, TBC) and so shows no blip of its own there.
+local TEX_DISC = "Interface\\AddOns\\EasyFind\\textures\\FilterButtonCircle"
+local MARK, CASING, CASING_COLOR = 12, 2, { 0.06, 0.05, 0.08 }
+local OWN_MARK = not (C_Map and C_Map.SetUserWaypoint)
 
-local frame, lines, driver
+local frame, lines, driver, mark
 local since = 0
 local version = 0              -- bumped on every route change
 local drawn = {}               -- what the last drawing was taken from
@@ -101,14 +106,38 @@ local function Pen(color, alpha)
     penColor, penAlpha, lastX = color, alpha, nil
 end
 
--- The next point of the line being traced, in world yards.
-local function To(wx, wy)
+-- A world point in minimap pixels from its middle, turned with the minimap.
+local function Pixel(wx, wy)
     local a, dx, dy = view.axes, wx - view.px, wy - view.py
     local x = -(dx * a[3] + dy * a[4]) * view.k
     local y = (dx * a[1] + dy * a[2]) * view.k
-    x, y = x * view.cos - y * view.sin, x * view.sin + y * view.cos
+    return x * view.cos - y * view.sin, x * view.sin + y * view.cos
+end
+
+-- The next point of the line being traced, in world yards.
+local function To(wx, wy)
+    local x, y = Pixel(wx, wy)
     if lastX then Segment(lastX, lastY, x, y) end
     lastX, lastY = x, y
+end
+
+-- The step's spot marked, within the rim and clear of the player's arrow.
+local function PlaceMark(route, ci)
+    local Follow = ns.GPSFollow
+    local step = route.steps[route.active or 1]
+    local target = step and step.kind ~= "teleport" and (Follow.RIDES[step.kind] and step.arrive or (step.go or step.arrive))
+    local tci, tx, ty
+    if target then tci, tx, ty = Follow.World(target) end
+    if tci ~= ci then mark:Hide() return end
+    local x, y = Pixel(tx, ty)
+    local r = view.rim
+    local inside = view.square and (mabs(x) <= r and mabs(y) <= r) or (x * x + y * y <= r * r)
+    if not inside or x * x + y * y < HOLE * HOLE then mark:Hide() return end
+    local c = ns.GPSPreview.LineColor(step.kind)
+    mark.disc:SetVertexColor(c[1], c[2], c[3], 1)
+    mark:ClearAllPoints()
+    mark:SetPoint("CENTER", frame, "CENTER", x, y)
+    mark:Show()
 end
 
 -- Trace's pen here: the leg's own color, red where deadly.
@@ -131,14 +160,29 @@ end
 
 local function Hide()
     if lines then lines:Hide() end
+    if mark then mark:Hide() end
     drawn.at = nil
+end
+
+-- Era, TBC and Mists have no view radius call: the minimap's reach in
+-- yards per zoom level instead, as retail reports it (/efd gpsmm,
+-- 2026-10-27; its zoom 1 to 5 are these 0 to 4, its zoom 0 reaches
+-- farther). The last level carries the step on, unmeasured.
+local ZOOM_RADIUS = {
+    outdoors = { 233.33, 200, 166.67, 133.33, 100, 66.67 },
+    indoors = { 150, 120, 90, 60, 40, 25 },
+}
+local function ViewRadius()
+    if C_Minimap and C_Minimap.GetViewRadius then return C_Minimap.GetViewRadius() end
+    local set = ZOOM_RADIUS[(IsIndoors and IsIndoors()) and "indoors" or "outdoors"]
+    return set[(Minimap.GetZoom and Minimap:GetZoom() or 0) + 1]
 end
 
 local function Draw()
     local route = Route()
     local Follow = ns.GPSFollow
     local ci, px, py = ns.GPS.PlayerWorldPos()
-    local radius = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius()
+    local radius = ViewRadius()
     local half = Minimap:GetWidth() / 2
     local axes = ci and Follow.Axes(ci)
     if not (route and axes and radius and radius > 0 and half > 0 and Minimap:IsVisible()) then return Hide() end
@@ -209,6 +253,7 @@ local function Draw()
     end
     Flush()
     lines:Finish()
+    if mark then PlaceMark(route, ci) end
 end
 Mini._Draw = Draw   -- tests
 
@@ -224,6 +269,21 @@ local function Build()
     frame:SetAllPoints(Minimap)
     frame:EnableMouse(false)
     lines = ns.GPSPreview.NewLines(frame, "CENTER")
+    if not OWN_MARK then return end
+    mark = CreateFrame("Frame", nil, frame)
+    mark:SetWidth(MARK + 2 * CASING)
+    mark:SetHeight(MARK + 2 * CASING)
+    local casing = mark:CreateTexture(nil, "OVERLAY", nil, 1)
+    casing:SetTexture(TEX_DISC)
+    casing:SetAllPoints(mark)
+    casing:SetVertexColor(CASING_COLOR[1], CASING_COLOR[2], CASING_COLOR[3], 0.9)
+    mark.disc = mark:CreateTexture(nil, "OVERLAY", nil, 2)
+    mark.disc:SetTexture(TEX_DISC)
+    mark.disc:SetWidth(MARK)
+    mark.disc:SetHeight(MARK)
+    mark.disc:SetPoint("CENTER", mark, "CENTER", 0, 0)
+    mark:Hide()
+    Mini._mark = mark   -- tests
 end
 
 -- A route change or the option flipped: drawn only while a route is followed.

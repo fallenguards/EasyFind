@@ -49,6 +49,9 @@ function Trip.Build(stops, via, avoid, quick, draw)
         local legSteps, legTotal, legAdvice = g:BuildRoute(stops[k], k == 1 and via or nil, avoid, quick, draw, from)
         if not legSteps then return nil end
         for i = 1, #legSteps do steps[#steps + 1] = legSteps[i] end
+        -- The leg's last step knows the trip's stop it reaches: the map marks
+        -- it with the stop's own icon (step.stop is a crossing's stop number).
+        if #legSteps > 0 then legSteps[#legSteps].tripStop = stops[k] end
         if legTotal then total = total + legTotal else priced = false end
         advice = advice or legAdvice
         from = StopPoint(stops[k])
@@ -518,58 +521,104 @@ function Editor:Cleared(row)
     end
 end
 
--- Dragging a stop's grip: the place the stop would go, by the cursor.
--- The rows in trip order, the start first: positions for a drag.
-function Editor:Target()
-    local _, cy = GetCursorPosition()
-    cy = cy / self:GetEffectiveScale()
-    local n = #self.orderRows
-    for j = 1, n do
-        local r = self.orderRows[j]
-        local top, bottom = r:GetTop(), r:GetBottom()
-        if top and bottom and cy > (top + bottom) / 2 then return j end
+-- A row's place: its top y down from the editor's, and its right end.
+-- The first row shares its line with the header's buttons: the window's
+-- fold and close, the page's pop-out centered on it 6 in from the edge
+-- (the editor stops 14 short). On the page every row ends where the
+-- first does, 5 short of the button.
+local function Lay(ed, row, slot, y, planned)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", ed, "TOPLEFT", 0, -y)
+    local frame, btn = ed.frame, ed.frame.popoutBtn
+    if btn then
+        row:SetPoint("TOPRIGHT", ed, "TOPRIGHT", -(btn:GetWidth() + 5 - 8), -y)
+    elseif slot == 1 and not (frame.buttonsAbove and planned) then
+        row:SetPoint("RIGHT", ed, "RIGHT", -(frame.firstRowRight or mmax(0, (frame.padRight or 0) - 14)), 0)
+    else
+        row:SetPoint("RIGHT", ed, "RIGHT", 0, 0)
     end
-    return n + 1
+end
+
+-- Dragging a row by its grip: the row rides with the cursor and the
+-- others step into the order its drop would make; the drop makes it. The
+-- rows' places are taken as the drag starts and the cursor read against
+-- them, the rows themselves being on the move.
+local function CursorY(ed)
+    local _, cy = GetCursorPosition()
+    return cy / ed:GetEffectiveScale()
+end
+
+-- The order position the dragged row would take: before the first slot
+-- whose middle the cursor is above.
+function Editor:Target()
+    local cy, top = CursorY(self), self:GetTop() or 0
+    local slots, i = self.slots, self.drag
+    local j = #slots + 1
+    for k = 1, #slots do
+        if cy > top - slots[k] - self.slotH / 2 then j = k break end
+    end
+    return j > i and j - 1 or j
 end
 
 function Editor:DragStart(row)
-    self.drag = row.index + 1
-    self.line:Show()
+    if self.drag then return end
+    local top = self:GetTop() or 0
+    self.slots = {}
+    for k = 1, #self.orderRows do self.slots[k] = top - (self.orderRows[k]:GetTop() or top) end
+    self.slotH = row:GetHeight()
+    self.drag, self.dragRow, self.dropAt = row.index + 1, row, row.index + 1
+    self.grab = (row:GetTop() or top) - CursorY(self)
+    self.level = row:GetFrameLevel()
+    row:SetFrameLevel(self.level + 10)
+    row:SetAlpha(0.8)
     self:Watch()
 end
 
+-- The drop: the trip in the order shown, or the rows back in their places.
 function Editor:DragStop()
-    local i = self.drag
-    self.drag = nil
-    self.line:Hide()
-    self:Watch()
+    local i, row = self.drag, self.dragRow
     if not i then return end
-    local j = self:Target()
-    if j > i then j = j - 1 end
-    Trip.Reorder(i, j)
+    local j = self.dropAt
+    self.drag, self.dragRow, self.slots = nil, nil, nil
+    row:SetFrameLevel(self.level)
+    row:SetAlpha(1)
+    self:Watch()
+    if j == i then self:Refresh(Route()) else Trip.Reorder(i, j) end
 end
 
--- Each frame: the drag's line where the row would land; a pending close
--- once a hit's click had its chance.
+-- The rows as the drag stands: the dragged one under the cursor, within
+-- the rows' span, the others in the order its drop would make.
+function Editor:LayDrag()
+    local i, n = self.drag, #self.slots
+    if #self.orderRows ~= n then
+        self.dropAt = i
+        self:DragStop()
+        return
+    end
+    local j = self:Target()
+    self.dropAt = j
+    for p = 1, n do
+        if p ~= i then
+            local slot = p
+            if p < i and p >= j then slot = p + 1 elseif p > i and p <= j then slot = p - 1 end
+            Lay(self, self.orderRows[p], slot, self.slots[slot], true)
+        end
+    end
+    local y = (self:GetTop() or 0) - (CursorY(self) + self.grab)
+    Lay(self, self.dragRow, j, mmax(self.slots[1], mmin(self.slots[n], y)), true)
+end
+
+-- Each frame: the drag's rows; a pending close once a hit's click had
+-- its chance.
 function Editor:OnUpdate()
     -- The grip shows on the row under the cursor, while a drag holds it.
     for i = 1, #self.orderRows do
         local r = self.orderRows[i]
         r.grip:SetShown(r.canDrag and (self.drag == r.index + 1 or r:IsMouseOver()))
     end
+    -- The button up ends the drag whether or not the grip heard the drop.
     if self.drag then
-        local j = self:Target()
-        local n = #self.orderRows
-        local r = self.orderRows[mmin(j, n)]
-        if r then
-            self.line:ClearAllPoints()
-            if j > n then
-                self.line:SetPoint("TOPLEFT", r, "BOTTOMLEFT", 0, -1)
-            else
-                self.line:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 1)
-            end
-            self.line:SetPoint("RIGHT", r, "RIGHT", 0, 0)
-        end
+        if IsMouseButtonDown("LeftButton") then self:LayDrag() else self:DragStop() end
     end
     if self.closeAt and GetTime() >= self.closeAt then
         local frame = self.frame
@@ -643,12 +692,17 @@ local function Field(ed, i)
         dot:SetPoint("CENTER", row, "TOPLEFT", GRIP_W + MARK / 2, (2 - k) * 3)
         row.dots[k] = dot
     end
-    -- The drag grip, six dots left of the mark, shown while the cursor
-    -- is on a row that can move.
+    -- The drag grip: six dots left of the mark, the grip itself the whole
+    -- margin up to the field, mark and all, so a press lands on it; shown
+    -- while the cursor is on a row that can move.
     local grip = CreateFrame("Button", nil, row)
-    grip:SetSize(GRIP_W, 20)
-    grip:SetPoint("LEFT", row, "LEFT", 0, 0)
-    Utils.AddGripDots(grip, DIM)
+    grip:SetWidth(GRIP_W + MARK)
+    grip:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    grip:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
+    local dots = CreateFrame("Frame", nil, grip)
+    dots:SetSize(GRIP_W, 20)
+    dots:SetPoint("LEFT", grip, "LEFT", 0, 0)
+    Utils.AddGripDots(dots, DIM)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function() ed:DragStart(row) end)
     grip:SetScript("OnDragStop", function() ed:DragStop() end)
@@ -798,25 +852,12 @@ function Editor:Refresh(route)
         -- Any row of a planned trip drags, the start too: two rows swap.
         row.canDrag = not adding and #stops >= 1
         row:SetHeight(rowH)
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
-        -- The first row shares its line with the header's buttons: the
-        -- window's fold and close, the page's pop-out centered on it 6 in
-        -- from the edge (the editor stops 14 short). On the page every row
-        -- ends where the first does, 5 short of the button.
         local btn = self.frame.popoutBtn
-        if btn then
-            if n == 1 then
-                btn:ClearAllPoints()
-                btn:SetPoint("RIGHT", self, "TOPRIGHT", 8, -rowH / 2)
-            end
-            row:SetPoint("TOPRIGHT", self, "TOPRIGHT", -(btn:GetWidth() + 5 - 8), -y)
-        elseif n == 1 and not (self.frame.buttonsAbove and route) then
-            -- The header's buttons share this row (in the window, with no route).
-            row:SetPoint("RIGHT", self, "RIGHT", -(self.frame.firstRowRight or mmax(0, (self.frame.padRight or 0) - 14)), 0)
-        else
-            row:SetPoint("RIGHT", self, "RIGHT", 0, 0)
+        if btn and n == 1 then
+            btn:ClearAllPoints()
+            btn:SetPoint("RIGHT", self, "TOPRIGHT", 8, -rowH / 2)
         end
+        Lay(self, row, n, y, route ~= nil)
         row:Show()
         y = y + rowH
         return row
@@ -855,6 +896,7 @@ function Editor:Refresh(route)
     for i = n + 1, #self.rows do self.rows[i]:Hide() end
     -- Laid again under a still cursor: each grip as the cursor stands now.
     for i = 1, n do self.rows[i].SyncGrip() end
+    if self.drag then self:LayDrag() end
     if px and g.SizeFont then g.SizeFont(self.addText, px) end
     self.add:ClearAllPoints()
     self.add:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
@@ -923,12 +965,6 @@ function Trip.BuildEditor(frame)
     end)
     ed.add, ed.addText = add, addText
 
-    local line = ed:CreateTexture(nil, "OVERLAY")
-    line:SetHeight(2)
-    line:SetColorTexture(1, 0.82, 0, 0.9)
-    line:Hide()
-    ed.line = line
-
     -- Our menus' panel, above the route's step buttons (a teleport's icon
     -- sits in its own frame over its row).
     local drop = CreateFrame("Frame", nil, ed)
@@ -951,11 +987,20 @@ function Trip.BuildEditor(frame)
     frame.clearBtn:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
     frame.clearBtn:SetPoint("TOP", ed, "BOTTOM", 0, -3)
     frame.list:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", -6 + shift, -(4 + etaH + (frame.listGap or 8)))
-    -- Arrived: where the steps were, under the Clear link's row.
-    if frame.empty then frame.empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", shift, -(4 + etaH + (frame.listGap or 8))) end
+    ed.emptyX, ed.emptyStepsY = shift, -(4 + etaH + (frame.listGap or 8))
 
     frame.trip = ed
+    Trip.PlaceEmpty(frame, false)
     ed:Refresh(Route())
+end
+
+-- The hint's place: right under the fields while a first way is found (the
+-- window's height counts it there), else where the steps were, under the
+-- Clear link's row, for the arrival announcement.
+function Trip.PlaceEmpty(frame, underFields)
+    local ed, empty = frame.trip, frame.empty
+    if not (ed and empty) then return end
+    empty:SetPoint("TOPLEFT", ed, "BOTTOMLEFT", ed.emptyX, underFields and -10 or ed.emptyStepsY)
 end
 
 -- Folded, the window shows its title row: the fields go, the title and

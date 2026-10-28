@@ -1121,6 +1121,16 @@ function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly, displayID)
     self:RefreshAllClearButtons()
 end
 
+-- A GPS route's end as the map's own pin (its glow, its tooltip, a
+-- right-click clears it), staying until that click, wherever the place
+-- was picked; x, y: its spot on the map shown. A hover preview holding
+-- the pin is left alone.
+function MapSearch:PinRouteEnd(dest, x, y)
+    if self._previewing or not (dest and x and y) then return end
+    pinHoverClearsOverride = false
+    self:ShowWaypointAt(x, y, dest.icon, dest.category, nil, dest.displayID)
+end
+
 function MapSearch:RefreshAllClearButtons()
     local frames = {
         _G["EasyFindSearchFrame"],

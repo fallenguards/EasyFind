@@ -176,13 +176,16 @@ function WorldPin.NewEmblem(parent)
     return seat
 end
 
--- The plate as the keybind buttons are: a flat block in the window's
--- color with the theme's text, no shadow under it. The live color tables
--- follow the theme; Repaint reads them again on a theme change.
+-- The plate as the keybind buttons are: a block in the theme's own
+-- window fill (the Classic marble, a window from the middle of a picked
+-- tree's painting, Forever's page) with the theme's text. The live color
+-- tables follow the theme; Repaint reads them again on a theme change.
 local plates = {}   -- the beacon's and the arrow's
+WorldPin._plates = plates   -- dev tools
 local function PaintPlate(p)
-    local fill = ns.SEARCH_WINDOW_FILL_COLOR or { 0.05, 0.05, 0.06 }
-    if ns.SetRoundedRectBorderFillColor then ns.SetRoundedRectBorderFillColor(p, fill[1], fill[2], fill[3], 0.96) end
+    p._efArtPath = ns.ClassicTreePiece("TopLeft")
+    p._efArtCenter = p._efArtPath ~= nil
+    ns.ApplyThemeFill(p)
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     local main = ns.TEXT_PRIMARY or { 1, 1, 1 }
     local faint = (theme and theme.lightTheme and theme.textFaint) or ns.TEXT_DIM or main
@@ -229,7 +232,7 @@ function WorldPin.NewPlate(parent)
     local p = CreateFrame("Frame", nil, parent)
     if ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(p)
-        ns.SetRoundedRectBorderBgAlpha(p, 1)
+        ns.SetRoundedRectBorderBgAlpha(p, 0.96)
         ns.SetRoundedRectBorderEdgeShown(p, false)
     end
     local font = (ns.LEAF_FONT and _G[ns.LEAF_FONT]) and ns.LEAF_FONT or "GameFontHighlight"

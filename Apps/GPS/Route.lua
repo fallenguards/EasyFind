@@ -1184,19 +1184,49 @@ local STEADY_STYLE = 404468   -- the "Flight Style: Steady" aura
 -- The capability sets of the mounts this character owns; nil until the
 -- journal is walked again (a mount learned or lost).
 local ownedSets
+-- Era and TBC keep mounts as items, no journal: the best in the bags (an
+-- epic one the 100% kind) or a paladin's or warlock's own; false for none.
+local bagMount
+local CLASS_MOUNTS = { [13819] = 60, [23214] = 100, [5784] = 60, [23161] = 100 }
 
 function Route.ForgetKnown() knownCache = nil end
-function Route.ForgetMounts() ownedSets = nil end
+function Route.ForgetMounts() ownedSets, bagMount = nil, nil end
 
 if CreateFrame then
     local f = CreateFrame("Frame")
     f:RegisterEvent("TAXI_NODE_STATUS_CHANGED")
     f:SetScript("OnEvent", function() knownCache = nil end)
     local mounts = CreateFrame("Frame")
-    for _, event in ipairs({ "NEW_MOUNT_ADDED", "COMPANION_LEARNED", "COMPANION_UNLEARNED" }) do
+    for _, event in ipairs({ "NEW_MOUNT_ADDED", "COMPANION_LEARNED", "COMPANION_UNLEARNED", "BAG_UPDATE_DELAYED",
+                             "LEARNED_SPELL_IN_TAB" }) do
         ns.Utils.RegisterEventIfValid(mounts, event)
     end
     mounts:SetScript("OnEvent", Route.ForgetMounts)
+end
+
+local function BagMountPct()
+    if bagMount ~= nil then return bagMount or nil end
+    bagMount = false
+    local C = C_Container
+    local info = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    local quality = C_Item and C_Item.GetItemQualityByID
+    if C and C.GetContainerNumSlots and C.GetContainerItemID and info then
+        for bag = 0, (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4) do
+            for slot = 1, C.GetContainerNumSlots(bag) or 0 do
+                local id = C.GetContainerItemID(bag, slot)
+                if id then
+                    local _, _, _, _, _, classID, subclassID = info(id)
+                    if classID == 15 and subclassID == 5 then
+                        bagMount = mmax(bagMount or 0, (quality and quality(id)) == 4 and 100 or 60)
+                    end
+                end
+            end
+        end
+    end
+    for spell, pct in pairs(CLASS_MOUNTS) do
+        if IsPlayerSpell and IsPlayerSpell(spell) then bagMount = mmax(bagMount or 0, pct) end
+    end
+    return bagMount or nil
 end
 
 local function OwnedSets(rules)
@@ -1255,6 +1285,13 @@ function Route.Riding(data)
         local _, flies = Capability(rules.sets[set], riding, true, sky, steady, map)
         local speed = flies == "sky" and skySpeed or flies and RUN * (1 + flies / 100) or nil
         if speed and (not fly or speed > fly) then fly = speed end
+    end
+    -- An epic mount from the bags runs at 100% with Journeyman riding, on
+    -- Era from level 60 (no riding spell to ask there).
+    if not groundPct and (caps.era or caps.tbc) then
+        groundPct = BagMountPct()
+        local level = UnitLevel and UnitLevel("player") or 0
+        if groundPct == 100 and not (riding >= 150 or (caps.era and level >= 60)) then groundPct = 60 end
     end
     -- Anniversary ships no mount tables: Expert riding flies at 150%,
     -- Artisan at 280%, in Outland alone.
@@ -1337,7 +1374,9 @@ local function ViaStop(route, dest, opts, start, known, listed)
     -- Each leg works out its masters on the way as the trip would (o.advise as asked).
     local o = Copy(opts)
     o.via, o.start, o.known, o.listed, o.draw = nil, start, known or false, listed, nil
-    local s1, t1, a1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y }, o)
+    -- The leg there says what it reaches, the flight master, not the stop's name as a place.
+    local reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(via.name or "?")
+    local s1, t1, a1 = route:Build({ name = via.name, mapID = here.m, x = here.x, y = here.y, step = reachText }, o)
     if not s1 then return nil end
     local learned = {}
     for id in pairs(known or {}) do learned[id] = true end
@@ -1356,7 +1395,7 @@ local function ViaStop(route, dest, opts, start, known, listed)
     for i = 1, #s1 do steps[#steps + 1] = s1[i] end
     steps[#steps + 1] = { kind = "learn", text = (L["GPS_STEP_LEARN_FMT"]):format(via.name or "?"),
                           mapID = here.m, x = here.x, y = here.y, go = here, arrive = here, sec = LEARN_SECONDS,
-                          nodeID = via.id, reach = via.name, reachText = (L["GPS_REACH_FLIGHT_FMT"]):format(via.name or "?") }
+                          nodeID = via.id, reach = via.name, reachText = reachText }
     for i = 1, #s2 do steps[#steps + 1] = s2[i] end
     return steps, t1 + LEARN_SECONDS + t2, ViaAdvice(list, a1, a2, via.id, t1, t2)
 end

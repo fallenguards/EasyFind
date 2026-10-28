@@ -93,5 +93,19 @@ function tests.aLegOffTheMapIsCutAtItsEdge()
     H.assertNil(OnMap(1.2, 0, 1.2, 1), "nothing of it on the map")
 end
 
+-- The ship's rigging was lost at the symbol sizes (2026-10-28): the
+-- cargo ship glyph is drawn half again as big, the other symbols as is.
+function tests.theShipSymbolIsDrawnBigger()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/Preview.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find('local SYMBOL_SCALE = { %["atlas:Ships%-CargoShip%-Map"%] = 1%.5 }') ~= nil
+        or src:find('local SYMBOL_SCALE = { %["atlas:Ships_CargoShip%-Map"%] = 1%.5 }') ~= nil, "the ship at 1.5")
+    H.assertTrue(src:find("size = size %* %(SYMBOL_SCALE%[symbol%] or 1%)%s+t:ClearAllPoints%(%)%s+t:SetSize%(size, size%)") ~= nil,
+        "applied to every symbol size")
+    local cat = assert(io.open(H.ADDON_ROOT .. "/MapSearch/Categories.lua", "rb")):read("*a")
+    H.assertTrue(cat:find('boat = "atlas:Ships_CargoShip%-Map"') ~= nil, "the boat is that glyph on every client")
+end
+
 local pass, fail, failures = H.runSuite("GPSPreview", tests)
 return { pass = pass, fail = fail, failures = failures }

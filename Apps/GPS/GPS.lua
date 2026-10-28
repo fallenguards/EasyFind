@@ -1833,9 +1833,9 @@ local function CastButton(row, inset)
     return btn
 end
 
--- Only the step that is up offers its button: a later or taken teleport
--- shows no icon, or it reads as a thing to press.
-local function SetupCast(btn, step, active)
+-- Every step still ahead offers its button, the one that is up bright
+-- and a later one dimmed; a taken teleport shows none.
+local function SetupCast(btn, step, active, ahead)
     if not btn then return false end
     -- In a fight a secure button can be neither hidden nor changed: it was
     -- hidden as the fight began and comes back after it.
@@ -1848,7 +1848,11 @@ local function SetupCast(btn, step, active)
         local top, bottom, rt, rb = clip:GetTop(), clip:GetBottom(), row:GetTop(), row:GetBottom()
         outside = top and rt and (rt > top + 1 or rb < bottom - 1) or false
     end
-    if not active or not (step and step.kind == "teleport" and (step.spellID or step.itemID))
+    -- A teleport's spell or item, or what lands the character at a walk's ledge.
+    local J = ns.GPSJumps
+    local spellID, itemID, toy
+    if J then spellID, itemID, toy = J.StepCast(step) end
+    if not (active or ahead) or not (spellID or itemID)
         or outside or not row:IsVisible() or row:GetEffectiveAlpha() < 0.05 then
         btn:Hide()
         return false
@@ -1857,21 +1861,22 @@ local function SetupCast(btn, step, active)
     btn:SetPoint("RIGHT", row, "RIGHT", btn.inset, 0)
     btn:SetFrameStrata(row:GetFrameStrata())
     btn:SetFrameLevel(row:GetFrameLevel() + 3)
-    btn.spellID, btn.itemID = step.spellID, step.itemID
+    btn:SetAlpha(active and 1 or 0.55)
+    btn.spellID, btn.itemID, btn.toy = spellID, itemID, toy
     local tex
-    if step.itemID then
-        if step.toy then
+    if itemID then
+        if toy then
             btn:SetAttribute("type", "toy")
-            btn:SetAttribute("toy", step.itemID)
+            btn:SetAttribute("toy", itemID)
         else
             btn:SetAttribute("type", "item")
-            btn:SetAttribute("item", "item:" .. step.itemID)
+            btn:SetAttribute("item", "item:" .. itemID)
         end
-        tex = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(step.itemID)
+        tex = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(itemID)
     else
         btn:SetAttribute("type", "spell")
-        btn:SetAttribute("spell", step.spellID)
-        tex = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(step.spellID)
+        btn:SetAttribute("spell", spellID)
+        tex = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellID)
     end
     btn.icon:SetTexture(tex or 134400)
     UpdateCooldown(btn)
@@ -2225,6 +2230,7 @@ local function Render(container)
         -- search box says what to do, or the hint does.
         local finding = container.trip and GPS.planning
         if finding then
+            ns.GPSTrip.PlaceEmpty(container, true)
             Planner.Show(container.empty)
         elseif not container.search then
             container.empty:SetText(L["GPS_EMPTY"])
@@ -2255,6 +2261,7 @@ local function Render(container)
         -- Arrived: the announcement in the body where the time line and
         -- the steps were, nothing left to follow.
         container.eta:SetText("")
+        if container.trip then ns.GPSTrip.PlaceEmpty(container, false) end
         container.empty:SetText(L["GPS_ARRIVED_AT_FMT"] and sformat(L["GPS_ARRIVED_AT_FMT"], route.dest.name or "?") or L["GPS_ARRIVED"])
         container.empty:Show()
     else
@@ -2378,9 +2385,9 @@ local function Render(container)
         row.num:SetText(tostring(i) .. ".")
         local active = (route.active or 1) == i and not route.arrived
         local done = route.arrived or i < (route.active or 1)
-        SetupCast(row.cast, step, active)
+        SetupCast(row.cast, step, active, not done)
         -- Room for the button in or out of view: FitPage places it again.
-        local cast = active and step.kind == "teleport" and (step.spellID or step.itemID)
+        local cast = not done and ns.GPSJumps and ns.GPSJumps.HasCast(step)
         row.learnID = step.kind == "learn" and not route.arrived and step.nodeID or nil
         if not row.learnID then row.drop:Hide() end
         row.text:SetWidth(mmax(40, listW - 12 - row.num:GetWidth() - ((cast or row.learnID) and 32 or 6)))
@@ -3342,7 +3349,10 @@ local function FitPage(self, hasRoute)
     if hasRoute and route then
         for _, row in ipairs(self.rows or {}) do
             local step = row.index and row:IsShown() and route.steps[row.index]
-            if step then SetupCast(row.cast, step, (route.active or 1) == row.index and not route.arrived) end
+            if step then
+                SetupCast(row.cast, step, (route.active or 1) == row.index and not route.arrived,
+                          row.index >= (route.active or 1) and not route.arrived)
+            end
         end
     end
 end
@@ -4550,7 +4560,7 @@ function Look.RenderEra(f)
                                        scale, lineH)
             row.index = (not route.arrived) and i or nil
             Look.ShadeLine(row)
-            widest = mmax(widest, w + (SetupCast(row.cast, items[i], active) and 20 or 0))
+            widest = mmax(widest, w + (SetupCast(row.cast, items[i], active, i >= at and not route.arrived) and 20 or 0))
             EraTips(TipsAfter(tips, i, #items))
         end
         EraTips(TipsAfter(tips, nil, #items))
@@ -4694,7 +4704,8 @@ RenderDock = function(f)
                 Look.Restyle(row.dash, look, 10, "ObjectiveTrackerLineFont", scale)
                 row.index = (not route.arrived) and i or nil
                 row.text:SetText(StepText(items[i], (route.active or 1) == i and not route.arrived))
-                local cast = SetupCast(row.cast, items[i], (route.active or 1) == i and not route.arrived)
+                local cast = SetupCast(row.cast, items[i], (route.active or 1) == i and not route.arrived,
+                                       i >= (route.active or 1) and not route.arrived)
                 row.text:SetWidth(mmax(40, lineW - (row.dash:GetStringWidth() or 8) - (cast and 24 or 0)))
                 local active = (route.active or 1) == i and not route.arrived
                 local done = i < (route.active or 1)

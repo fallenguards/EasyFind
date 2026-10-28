@@ -9,7 +9,7 @@ if not ns then return end
 local Preview = {}
 ns.GPSPreview = Preview
 
-local msqrt, macos, mceil, mmax, mmin = math.sqrt, math.acos, math.ceil, math.max, math.min
+local msqrt, macos, mceil, mmax, mmin, mabs = math.sqrt, math.acos, math.ceil, math.max, math.min, math.abs
 local CreateVector2D = CreateVector2D
 local SetPortraitTextureFromCreatureDisplayID = _G.SetPortraitTextureFromCreatureDisplayID
 
@@ -131,9 +131,13 @@ end
 -- Where a walk jumps down a ledge: the slow fall face, on every client.
 local JUMP_SYMBOL = "Interface\\Icons\\Spell_Magic_FeatherFall"
 
+-- The ship's rigging is lost at the symbol sizes: drawn half again as big.
+local SYMBOL_SCALE = { ["atlas:Ships_CargoShip-Map"] = 1.5 }
+
 local function SetSymbol(t, symbol, x, y, size)
     local atlas = type(symbol) == "string" and symbol:match("^atlas:(.+)$")
     if atlas then t:SetAtlas(atlas) else t:SetTexture(symbol) end
+    size = size * (SYMBOL_SCALE[symbol] or 1)
     t:ClearAllPoints()
     t:SetSize(size, size)
     t:SetPoint("CENTER", overlay, "TOPLEFT", x, y)
@@ -535,6 +539,53 @@ end
 local drawn = {}
 local dirty = true
 
+-- The journey's end on the map shown, as a fraction of it: its own map's
+-- spot, or that spot carried onto another map it falls on (a dock given
+-- on the continent, the zone shown); nil off the map. Kept for the route
+-- and map it was worked out for.
+local endSpot = {}
+local function EndOnMap(route, mapID)
+    if endSpot.route == route and endSpot.map == mapID then return endSpot.x, endSpot.y end
+    endSpot.route, endSpot.map, endSpot.x, endSpot.y = route, mapID, nil, nil
+    local dest = route.dest
+    if not (dest and dest.x and dest.mapID and not dest.zone) then return nil end
+    if dest.mapID == mapID then
+        endSpot.x, endSpot.y = dest.x, dest.y
+    elseif C_Map.GetMapPosFromWorldPos then
+        local ci, wx, wy = World({ m = dest.mapID, x = dest.x, y = dest.y })
+        local ok, _, pos
+        if ci then ok, _, pos = pcall(C_Map.GetMapPosFromWorldPos, ci, CreateVector2D(wx, wy), mapID) end
+        local x, y
+        if ok and pos then x, y = pos:GetXY() end
+        if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then endSpot.x, endSpot.y = x, y end
+    end
+    return endSpot.x, endSpot.y
+end
+
+-- Whether the map's own pin stands on the journey's end on this map.
+local function PinAtEnd(route, mapID)
+    local MapSearch = ns.MapSearch
+    local pin = MapSearch and MapSearch.GetActivePinState and MapSearch:GetActivePinState()
+    if not (pin and pin.mapID == mapID and pin.x) then return false end
+    local x, y = EndOnMap(route, mapID)
+    return x ~= nil and mabs(pin.x - x) < 0.0005 and mabs(pin.y - y) < 0.0005
+end
+
+-- The map's own pin on the journey's end while the map shows where it
+-- falls, as a click in the map tab leaves it, whichever way the place was
+-- picked (the pop-out's search, a trip's field). Only a place with a face,
+-- an icon or a kind of its own (a vendor, an inn, a dock: its kind's
+-- icon): a spot clicked on the map has the emblem for its mark. Placed as
+-- the route or the map shown changes, so a pin cleared by hand stays cleared.
+local function PinEnd(route, mapID)
+    local MapSearch, dest = ns.MapSearch, route.dest
+    if route.arrived or not (MapSearch and MapSearch.PinRouteEnd and dest
+        and (dest.icon or dest.displayID or dest.category)) then return end
+    local x, y = EndOnMap(route, mapID)
+    if not x or PinAtEnd(route, mapID) then return end
+    MapSearch:PinRouteEnd(dest, x, y)
+end
+
 local function Draw()
     local route = Route()
     local canvas = Canvas()
@@ -545,6 +596,7 @@ local function Draw()
         return
     end
     if not overlay and not Build() then return end
+    if drawn.route ~= route or drawn.map ~= mapID then PinEnd(route, mapID) end
     shownMap, shownIndex = mapID, Shown()
     local span, round = px(Span()), px(ROUND)
     local cw, ch = canvas:GetWidth(), canvas:GetHeight()
@@ -669,18 +721,25 @@ local function Draw()
     marks.destIcon:Hide()
     marks.hit:Hide()
     marks.stopCasing:Hide()
-    if hovered and hovered.b and hovered.final then
-        -- The journey's end: the place's own icon when it has one, else
-        -- the emblem, centered on the spot.
+    -- The journey's end, or a stop on the way with a face or icon of its
+    -- own (its own pin is under the stop, not to be covered).
+    local place = hovered and hovered.b and (hovered.final and route.dest or hovered.step.tripStop) or nil
+    local own = place and not place.zone and (place.displayID or place.icon) or nil
+    if hovered and hovered.b and hovered.final and PinAtEnd(route, mapID) then
+        -- The map's own pin stands on the end: it is the mark, nothing of ours over it.
         marks.stop:Hide()
         marks.symbol:Hide()
-        local dest = route.dest
+    elseif hovered and hovered.b and (hovered.final or own) then
+        -- The place's own icon when it has one, else the emblem, centered
+        -- on the spot.
+        marks.stop:Hide()
+        marks.symbol:Hide()
         local mark = marks.dest
-        if dest and not dest.zone and (dest.displayID or dest.icon) then
+        if own then
             mark = marks.destIcon
-            ns.Utils.SetIconTexture(mark, dest.icon)
-            if dest.displayID and SetPortraitTextureFromCreatureDisplayID then
-                SetPortraitTextureFromCreatureDisplayID(mark, dest.displayID)
+            ns.Utils.SetIconTexture(mark, place.icon)
+            if place.displayID and SetPortraitTextureFromCreatureDisplayID then
+                SetPortraitTextureFromCreatureDisplayID(mark, place.displayID)
             end
         end
         local size = mark == marks.dest and px(DEST) or px(DEST) * DEST_EDGE * 2
@@ -688,8 +747,10 @@ local function Draw()
         mark:SetSize(size, size)
         mark:SetPoint("CENTER", overlay, "TOPLEFT", hovered.b[1], hovered.b[2])
         mark:Show()
-        marks.hit:SetAllPoints(mark)
-        marks.hit:Show()
+        if hovered.final then
+            marks.hit:SetAllPoints(mark)
+            marks.hit:Show()
+        end
     elseif hovered and hovered.b and symbol then
         -- A portal, flight master or dock: the map's symbol on its spot, no arrow.
         marks.stop:Hide()
@@ -844,6 +905,8 @@ end
 if WorldMapFrame then
     WorldMapFrame:HookScript("OnShow", function()
         Preview:Follow()
+        -- The map drops a pin for elsewhere as it opens: the end's goes back on.
+        drawn.map = nil
         since = 0.1
         driver:SetScript("OnUpdate", Tick)
     end)

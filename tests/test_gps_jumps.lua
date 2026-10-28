@@ -68,6 +68,26 @@ function tests.stepText_saysHowToJump()
     H.assertEq(J.StepText({ jumps = { { h = 15 } } }), "full 15", "survivable needs no helper")
 end
 
+-- The step's button: a teleport's spell or item, and at a ledge past what
+-- full health survives, what lands the character (2026-10-27: "Use Slow
+-- Fall" with no icon to press).
+function tests.stepCast_whatTheButtonPresses()
+    local J = Load({ known = { [130] = true } })
+    H.assertEq(J.StepCast({ kind = "teleport", spellID = 3561 }), 3561, "a teleport's spell")
+    local _, item = J.StepCast({ kind = "teleport", itemID = 6948 })
+    H.assertEq(item, 6948)
+    H.assertEq(J.StepCast({ jumps = { { h = 30 } } }), 130, "a ledge past survival: Slow Fall")
+    H.assertNil(J.StepCast({ jumps = { { h = 15 } } }), "a survivable ledge: nothing to press")
+    H.assertNil(J.StepCast({ text = "Walk" }))
+    H.assertTrue(J.HasCast({ jumps = { { h = 30 } } }))
+    H.assertFalse(J.HasCast({ jumps = { { h = 15 } } }))
+    J = Load({ items = { [260810] = 1 } })
+    local spell, parachute = J.StepCast({ jumps = { { h = 30 } } })
+    H.assertNil(spell)
+    H.assertEq(parachute, 260810, "an item in the bags: the item")
+    H.assertNil(Load({}).StepCast({ jumps = { { h = 30 } } }), "nothing that lands: no button")
+end
+
 -- Where the ledge is (2026-10-26, "no idea what ledge"): the nearest area
 -- of its zone, else a landmark beside it (a city has no areas), else the
 -- zone. Map 1 is 1000 yd a side on continent 0; the zone stand-in is it.

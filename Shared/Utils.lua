@@ -2950,6 +2950,15 @@ function ns.ShowsTree(frame)
     return name ~= nil and name ~= "marble" and frame._efClassicStyle ~= "thin"
 end
 
+-- One piece of the picked tree's painting (TopLeft, TopRight, BottomLeft,
+-- BottomRight), for a surface too small for the whole: a window of it
+-- (ApplyThemeFill, _efArtPath). Nil without a tree.
+ns.CLASSIC_TREE_PIECE = 256   -- the pieces' texture size
+function ns.ClassicTreePiece(key)
+    if not ns.ClassicTreeShown() then return nil end
+    return TREE_ART .. EasyFind.db.classicArt .. "-" .. key
+end
+
 -- The picked tree inside the frame's border, or none for the marble alone;
 -- level: the art's frame level (the frame's own by default).
 local function DressTree(frame, inset, alpha, level)
@@ -2996,7 +3005,9 @@ end
 -- kept the marble). False, and no tree, when none shows.
 function ns.ClassicTreeUnderFill(frame)
     local p = ns.ACTIVE_UI_PALETTE
-    if not (p and p.chrome == "classic" and ns.ShowsTree(frame)) then
+    -- A frame with its own window of the painting (_efArtPath) crops it
+    -- round through the art cells instead.
+    if frame._efArtPath or not (p and p.chrome == "classic" and ns.ShowsTree(frame)) then
         if frame._efTree and not frame._efSkin then frame._efTree.clip:Hide() end
         -- Off the tree: the fill at the surface's opacity again.
         if frame._efUnderTree then
@@ -3774,9 +3785,14 @@ function ns.UpdateThemeArtCrop(frame)
         local u = scale and FOREVER.UnitOf and FOREVER.UnitOf(frame)
         sx, sy = AtlasSteps(atlas, w, fh, u and atlas.width * scale * u, u and atlas.height * scale * u)
     end
-    local x1, x2 = c * sx, (w - c) * sx
-    local y1, y2 = c * sy, (fh - c) * sy
-    local xe, ye = w * sx, fh * sy
+    -- A window of a painting is taken from its middle (_efArtCenter).
+    local x0, y0 = 0, 0
+    if frame._efArtCenter and tile then
+        x0, y0 = math.max(0, (tile - w) / 2) * sx, math.max(0, (tile - fh) / 2) * sy
+    end
+    local x1, x2 = x0 + c * sx, x0 + (w - c) * sx
+    local y1, y2 = y0 + c * sy, y0 + (fh - c) * sy
+    local xe, ye = x0 + w * sx, y0 + fh * sy
     if not tile then
         if xe > 1 then xe = 1 end
         if ye > 1 then ye = 1 end
@@ -3785,7 +3801,6 @@ function ns.UpdateThemeArtCrop(frame)
     if x2 > xe then x2 = xe end
     if y1 > ye then y1 = ye end
     if y2 > ye then y2 = ye end
-    local x0, y0 = 0, 0
     if atlas then
         x0, x1, x2, xe = AtlasU(atlas, 0), AtlasU(atlas, x1), AtlasU(atlas, x2), AtlasU(atlas, xe)
         y0, y1, y2, ye = AtlasV(atlas, 0), AtlasV(atlas, y1), AtlasV(atlas, y2), AtlasV(atlas, ye)
@@ -3932,10 +3947,15 @@ function ns.ApplyThemeFill(frame)
         or ((palette and palette.chrome == "forever") and ns.ForeverLineColor()) or ns.WINDOW_RING_COLOR
     ns.SetRoundedRectBorderColor(frame, ring[1], ring[2], ring[3], ring[4] or 1)
 
-    local artPath = palette and palette.fillTexture
+    -- The frame's own window of a painting (a tree piece on the GPS plates)
+    -- comes before the palette's art.
+    local own = frame._efArtPath
+    local artPath = own or (palette and palette.fillTexture)
     -- Forever's page at its own size, cropped; another atlas fitted across.
     local atlasInfo, pageScale
-    if palette and palette.fillAtlas == FOREVER.fillAtlas then
+    if own then
+        atlasInfo = nil
+    elseif palette and palette.fillAtlas == FOREVER.fillAtlas then
         atlasInfo, pageScale = FOREVER.Page()
     else
         atlasInfo = palette and palette.fillAtlas and C_Texture and C_Texture.GetAtlasInfo
@@ -3949,7 +3969,7 @@ function ns.ApplyThemeFill(frame)
         local cells = EnsureThemeArtOverlay(frame)
         frame._efArtAtlas, frame._efArtPageScale = atlasInfo, pageScale
         -- A tiling texture repeats at its own size instead of one stretched crop.
-        local tile = not atlasInfo and palette.fillTile or nil
+        local tile = not atlasInfo and (own and ns.CLASSIC_TREE_PIECE or palette.fillTile) or nil
         frame._efArtTile = tile
         local wrap = tile and "REPEAT" or nil
         if cells.mm:SetTexture(artPath, wrap, wrap) then

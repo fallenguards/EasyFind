@@ -21,7 +21,7 @@ end
 -- the yards along the walk over ground deadly to the player. west: the
 -- player that far west of the walk instead; sealed: no way on foot but
 -- the planned walk itself.
-local function fresh(deadly, west, sealed)
+local function fresh(deadly, west, sealed, zoom, waypoints)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
@@ -30,10 +30,18 @@ local function fresh(deadly, west, sealed)
     local state = { rotate = false, facing = 0 }
     env.Minimap = H.newFrame()
     env.C_Minimap = { GetViewRadius = function() return 100 end }
+    -- zoom: a classic client, no view radius call, at this zoom level.
+    if zoom then
+        env.C_Minimap = nil
+        env.Minimap.GetZoom = function() return zoom.level end
+        env.IsIndoors = function() return zoom.indoors end
+    end
     env.GetCVarBool = function() return state.rotate end
     env.GetPlayerFacing = function() return state.facing end
     -- World x north, y west; the map's up is north and its left west.
     env.C_Map = { GetBestMapForUnit = function() return 7 end }
+    -- waypoints: a client with user waypoints (retail), whose blip marks the spot.
+    if waypoints then env.C_Map.SetUserWaypoint = function() end end
     local route = { steps = { { kind = "travel", go = { ci = 1, wx = 300, wy = 0 } } }, active = 1,
                     from = { ci = 1, wx = -100, wy = 0 } }
     ns.GPS = {
@@ -73,6 +81,7 @@ local function fresh(deadly, west, sealed)
     H.loadModule("Apps/GPS/Follow.lua", env, ns)
     H.loadModule("Apps/GPS/Minimap.lua", env, ns)
     ns.GPSMinimap:Refresh()
+    ns.GPSMinimap._ns = ns   -- the test's hand on the player's spot
     return drawn, state, now, ns.GPSMinimap
 end
 
@@ -95,6 +104,50 @@ function tests.walkedPartFadedAndTheWayAheadInBlue()
     H.assertTrue(near(b[#b - 1], 0) and near(b[#b], -7), "to the player's arrow, short of it")
     H.assertTrue(near(a[1], 0) and near(a[2], 7), "on past the arrow")
     H.assertTrue(near(a[#a - 1], 0) and near(a[#a], RIM), "up to the rim")
+end
+
+-- Era, TBC and Mists have no view radius call, and their minimap showed
+-- no line at all (2026-10-27): the reach by zoom level stands in.
+function tests.noViewRadiusCall_theZoomLevelSaysTheReach()
+    local drawn = fresh(nil, nil, nil, { level = 4, indoors = false })
+    H.assertEq(#drawn.pieces, 2, "drawn at all")
+    H.assertTrue(near(drawn.pieces[1].pts[2], -RIM), "zoom 4 outdoors, 100 yd: the walk behind reaches the rim")
+    drawn = fresh(nil, nil, nil, { level = 0, indoors = false })
+    local b = drawn.pieces[1].pts
+    H.assertTrue(math.abs(b[2] + 100 * 50 / 233.33) < 0.1, "zoom 0, 233 yd: 100 yd behind is 21 px down: " .. b[2])
+    drawn = fresh(nil, nil, nil, { level = 5, indoors = true })
+    H.assertTrue(near(drawn.pieces[1].pts[2], -RIM), "indoors at zoom 5, 25 yd: the rim")
+end
+
+-- Era and TBC set no user waypoint, so the game shows no blip at the
+-- step's spot on the minimap (2026-10-28): our disc stands there, within
+-- the rim, in the step's color; retail keeps the game's own.
+function tests.noUserWaypoints_theStepsSpotWearsADisc()
+    local drawn, state, now, Mini = fresh(nil, nil, nil, { level = 1, indoors = false })   -- 200 yd: the spot at 75 px is past the rim
+    local mark = Mini._mark
+    H.assertTrue(mark ~= nil, "the disc is made where the client sets no waypoint")
+    H.assertFalse(mark:IsShown(), "300 yd north on a 200 yd minimap: past the rim, hidden")
+    local placed
+    mark.SetPoint = function(_, p, _, _, x, y) placed = { x = x, y = y } end
+    local color
+    mark.disc.SetVertexColor = function(_, r, g, b) color = { r, g, b } end
+    state.rotate = false
+    now.t = now.t + 1
+    -- The player 240 yd along: the spot 60 yd ahead, 15 px up the minimap.
+    local ns = Mini._ns
+    ns.GPS.PlayerWorldPos = function() return 1, 240, 0 end
+    Mini._Draw()
+    H.assertTrue(mark:IsShown(), "within the rim: shown")
+    H.assertTrue(near(placed.x, 0) and near(placed.y, 15), "15 px up: " .. tostring(placed and placed.y))
+    H.assertTrue(color[1] == BLUE[1] and color[3] == BLUE[3], "in the walk's color")
+    ns.GPS.PlayerWorldPos = function() return 1, 298, 0 end
+    Mini._Draw()
+    H.assertFalse(mark:IsShown(), "under the player's arrow: hidden")
+end
+
+function tests.withUserWaypoints_theGamesBlipIsEnough()
+    local _, _, _, Mini = fresh(nil, nil, nil, nil, true)
+    H.assertNil(Mini._mark, "no disc of ours beside the game's")
 end
 
 -- Deadly ground from 20 to 60 yd ahead of the player: red there, the way
