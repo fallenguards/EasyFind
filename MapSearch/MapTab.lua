@@ -2585,7 +2585,7 @@ function PlaceTab()
         -- Against the visible border's outer edge, down from the pane's top.
         -- The game's border art ends 9 inside the window (the tab art has
         -- 3 of padding); a frame drawn round the window with the game's
-        -- faded out ends 4 inside (measured with /efd maptabs).
+        -- faded out ends 4 inside (measured).
         local wmf = _G["WorldMapFrame"]
         local nine = wmf and wmf.BorderFrame and wmf.BorderFrame.NineSlice
         local inset = (nine and nine:GetAlpha() < 0.01) and -4 or -12

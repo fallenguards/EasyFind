@@ -295,27 +295,26 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r 前往任何地點的路線：飛行、搭船、傳送門、傳送和步行，配有角色旁的箭頭、地圖上的路線和多站行程\n" ..
-    "    |cff999999-|r 在WoW Forever、經典時代和TBC週年版中，步行路線貼合地形：繞開懸崖、水域和遠高於你等級的生物\n" ..
-    "    |cff999999-|r 地圖搜尋中的有名生物，可按名稱、服務或所售物品尋找，每個都在最近的位置，路線可通往其中任何一個\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff筆記|r\n" ..
-    "    |cff999999-|r 完整的筆記套件：地點、活動、職業、目標和玩家的筆記，遊戲自動勾選的清單，標籤，可復原的回收桶和分享碼\n" ..
-    "    |cff999999-|r 筆記在適用之處顯示：提示資訊中、聊天的名字上或自動彈出；對物品或法術Ctrl+右鍵開啟其筆記\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff聊天|r\n" ..
-    "    |cff999999-|r 用於密語和頻道的聊天工具，有對話串和歷史紀錄，作為EasyFind Chat單獨安裝\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
+    "    |cff999999-|r 前往地點和NPC的即時路線\n" ..
+    "    |cff999999-|r 在地圖任意位置Alt+點擊，即可向該處啟動GPS，而不必是有名字的地點或NPC\n" ..
+    "    |cff999999-|r 在WoW Forever和經典客戶端中，路線會繞開懸崖、水域和遠高於你等級的生物\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff筆記 (WIP)|r\n" ..
+    "    |cff999999-|r 典型的筆記應用程式，加上WoW功能：按區域、副本等篩選，在物品或玩家的提示資訊上設定筆記，等等\n" ..
+    "    |cff999999-|r 像往常一樣在主搜尋列中搜尋筆記，或在筆記選單中直接搜尋\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff聊天 (WIP)|r\n" ..
+    "    |cff999999-|r 用於密語和頻道的完整聊天視窗，附歷史紀錄，如需要可取代遊戲聊天\n" ..
+    "    |cff999999-|r 可從主搜尋列搜尋\n" ..
     "|cffFFD100\226\128\162|r |cffffffff剪貼簿歷史|r\n" ..
-    "    |cff999999-|r 複製過的內容和經過聊天的每個連結，位於@clipboard下或按鍵開啟，每條都可加入筆記\n" ..
+    "    |cff999999-|r 你複製的所有內容和聊天中的每個連結，儲存起來可在你的所有角色上再次貼上\n" ..
     "|cffFFD100\226\128\162|r |cffffffff快速清單|r\n" ..
-    "    |cff999999-|r 按鍵開啟的具名結果清單，可按下或長按，也可透過快捷列上的巨集開啟\n" ..
+    "    |cff999999-|r 把想快速取用而無需搜尋的結果組成一個清單：按下快捷鍵開啟帶有全部結果的搜尋列並在其中搜尋，或按住快捷鍵，在想要的列上放開即可觸發\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff主題工坊 (WIP)|r\n" ..
+    "    |cff999999-|r 建立自己的主題，編輯時即時預覽，並以代碼分享\n" ..
     "|cffFFD100\226\128\162|r |cffffffff主題|r\n" ..
-    "    |cff999999-|r 主題工坊讓每個視窗擁有自己的外觀，附帶1.x風格的經典主題和Forever主題\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff經典時代與TBC週年版|r\n" ..
-    "    |cff999999-|r EasyFind在兩者上都能執行，包括GPS\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff設定|r\n" ..
-    "    |cff999999-|r 在搜尋列中找到每個插件的設定：遊戲設定面板、AceConfig 表和 EasyFind 自己的設定，都可在列內直接更改；擴充套件透過 API 提供自己的設定\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff擴充功能|r\n" ..
-    "    |cff999999-|r 擴充套件列懸停時顯示操作提示，連結帶有其資料，有自己的選單，地圖搜尋和 GPS 也能找到其位置\n"
+    "    |cff999999-|r 1.x風格的全新經典主題和Forever主題，可選任意天賦樹作為背景\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff經典客戶端|r\n" ..
+    "    |cff999999-|r EasyFind現已支援經典時代、TBC週年版和潘達利亞之謎經典版，包括GPS\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"
@@ -532,6 +531,7 @@ L["EXTBTN_UNLOCK"]                      = "解鎖"
 L["EXTBTN_SNAP"]                        = "吸附到小地圖"
 L["EXTBTN_REMOVE"]                      = "移除按鈕"
 L["EXTBTN_TT_HINT"]                     = "左鍵開啟。右鍵查看選項。"
+L["EXTMENU_TT_DRAG"]                    = "拖曳可重新排列，拖出視窗可變為按鈕。"
 L["EXTBTN_BORDER_EASYFIND"]             = "EasyFind"
 L["EXTBTN_BORDER_MINIMAP"]              = "小地圖"
 L["EXTBTN_BORDER_NONE"]                 = "無"
@@ -1357,6 +1357,8 @@ L["GPS_PLATE_STEP_BOTH_FMT"]            = "本步：%s，%s"
 L["GPS_SIZE_NEXT_ONLY"]                 = "僅顯示下一步"
 L["GPS_STEP_CORPSE"]                    = "返回你的屍體"
 L["GPS_TO_ETA_FMT"]                     = "前往%s：%s"
+L["GPS_ETA_WIP"]                        = "(WIP)"
+L["GPS_ETA_WIP_TT"]                     = "預計時間仍在完善中，請僅作參考。"
 L["GPS_TRIP_ADD"]                       = "新增目的地"
 L["GPS_TRIP_DRAG"]                      = "拖曳以調整順序"
 L["GPS_TRIP_FROM"]                      = "你的位置"
@@ -1583,3 +1585,30 @@ L["ROWACT_PIN"]                          = "釘選或取消釘選"
 L["ROWACT_TAKEN"]                        = "EasyFind 已在搜尋框中使用該按鍵。"
 L["TUT_FEATURE_MAP_DESC_CLASSIC"]        = "在世界地圖旁搜尋，使用其右下角的按鈕。"
 L["WP_DISMISS_ROUTE"]                    = "右鍵點擊移除並結束路線"
+L["CHAT_HOVER_COPY_NAME"]                = "懸停在名字上並按Ctrl+C。"
+L["CHECK_COUNT_FMT"]                     = "x%d"
+L["CHECK_COUNT_TT"]                      = "雙擊更改數量。"
+L["EFLINK_NOTE_TT"]                      = "將此筆記作為連結傳送。任何有EasyFind的人點擊後都會在自己的筆記中得到一份副本。"
+L["GPS_ALT_CLICK_PIN"]                   = "<Alt+點擊可用GPS前往此地點>"
+L["GPS_COG"]                             = "設定齒輪"
+L["GPS_COG_HOVER"]                       = "懸停時"
+L["GPS_COG_TT"]                          = "彈出視窗上的齒輪，用於開啟其選單。右鍵點擊也可以開啟。"
+L["GPS_EXP_NOTE"]                        = "GPS仍在建置中：路線和時間可能有誤。點擊告訴我哪裡出了錯。"
+L["GPS_MAP_POINT_FMT"]                   = "%s %.1f, %.1f"
+L["MAP_GUIDE_ZOOM_OUT"]                  = "右鍵點擊地圖可縮小"
+L["NOTES_REMIND_CLEAR_ALL"]              = "全部清除"
+L["NOTES_REMIND_CUSTOM"]                 = "自訂..."
+L["NOTES_REMIND_DATE"]                   = "日期"
+L["NOTES_REMIND_DATE_FMT"]               = "%s %d %s"
+L["NOTES_REMIND_REPEAT"]                 = "重複"
+L["NOTES_REMIND_REPEATS_FMT"]            = "%s (%s)"
+L["NOTES_REMIND_TIME"]                   = "時間"
+L["NOTES_REMIND_TODAY_FMT"]              = "今天，%s"
+L["NOTES_REMIND_TOMORROW_FMT"]           = "明天，%s"
+L["NOTES_REPEAT_DAY"]                    = "每天"
+L["NOTES_REPEAT_DAYS"]                   = "所選日期"
+L["NOTES_REPEAT_MONTH"]                  = "每月"
+L["NOTES_REPEAT_ONCE"]                   = "一次"
+L["NOTES_REPEAT_WEEK"]                   = "每週"
+L["NOTES_REPEAT_YEAR"]                   = "每年"
+L["NOTES_TAG_DELETE_ASK"]                = "要從所有筆記中移除標籤\"%s\"嗎？"

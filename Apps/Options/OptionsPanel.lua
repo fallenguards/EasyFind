@@ -5365,7 +5365,7 @@ local function BuildRowActionsList(ctx, tab, above)
     empty:SetTextColor(0.92, 0.92, 0.92, 1)
 
     local rows = {}
-    -- For the dev probe /efd btncolor.
+    -- For the dev probe of the button colors.
     optionsFrame.rowActionRows = rows
     local function KeyText(id)
         return RowActions.ChordText(RowActions.KeyOf(id)) or (_G["NOT_BOUND"] or "Not Bound")

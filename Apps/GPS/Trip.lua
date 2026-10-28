@@ -715,7 +715,7 @@ local function Field(ed, i)
     row.SyncGrip = SyncGrip
     row:HookScript("OnEnter", SyncGrip)
     row:HookScript("OnLeave", SyncGrip)
-    -- After the hooks, which left its clicks on (/efd popdrag): a press on
+    -- After the hooks, which left its clicks on (measured): a press on
     -- the row's free space drags the window.
     if row.SetMouseClickEnabled then
         row:SetMouseMotionEnabled(true)

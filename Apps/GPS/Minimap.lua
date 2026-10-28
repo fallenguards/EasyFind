@@ -165,7 +165,7 @@ local function Hide()
 end
 
 -- Era, TBC and Mists have no view radius call: the minimap's reach in
--- yards per zoom level instead, as retail reports it (/efd gpsmm,
+-- yards per zoom level instead, as retail reports it (measured,
 -- 2026-10-27; its zoom 1 to 5 are these 0 to 4, its zoom 0 reaches
 -- farther). The last level carries the step on, unmeasured.
 local ZOOM_RADIUS = {

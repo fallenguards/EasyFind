@@ -127,7 +127,7 @@ function UI.FillFormatMaps(enc)
     for k, v in next, BOLD_ITALIC_MAP do BOLD_ITALIC_REVERSE_MAP[v] = k end
 end
 UI.FillFormatMaps(1)
--- Live map references for the EasyFindDev test harness (contents are refilled
+-- Live map references for the dev test harness (contents are refilled
 -- in place on encoding switch, so these stay valid).
 UI._fmtMaps = { bold = BOLD_MAP, italic = ITALIC_MAP, boldItalic = BOLD_ITALIC_MAP }
 

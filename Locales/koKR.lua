@@ -295,27 +295,26 @@ L["SHOWME_SAY_MICRO"]                   = "마이크로 메뉴에 달라붙습�
 L["SHOWME_SAY_TOGGLE"]                  = "클릭하면 열리고 다시 클릭하면 닫힙니다"
 L["SHOWME_SAY_REMOVE"]                  = "여기로 드래그하면 제거됩니다"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r 어디로든 길 안내: 비행, 배, 차원문, 순간이동과 도보를 캐릭터 옆의 화살표, 지도 위 경로, 여러 경유지가 있는 여정으로\n" ..
-    "    |cff999999-|r WoW Forever, 클래식 시대, TBC 애니버서리에서는 도보가 지형을 따릅니다: 절벽, 물, 내 레벨보다 훨씬 높은 생물을 피해서\n" ..
-    "    |cff999999-|r 지도 검색의 이름 있는 생물을 이름, 서비스, 파는 물건으로 찾아 각각 가장 가까운 자리에 표시하므로 길 안내가 그 생물에게로 이어집니다\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff메모|r\n" ..
-    "    |cff999999-|r 완전한 메모 도구: 장소, 활동, 직업, 대상, 플레이어별 메모, 게임이 체크해 주는 체크리스트, 태그, 되돌리기가 있는 휴지통, 공유 코드\n" ..
-    "    |cff999999-|r 메모는 적용되는 곳에 나타납니다: 툴팁, 채팅의 이름, 또는 저절로; 아이템이나 주문에 Ctrl+오른쪽 클릭하면 그 메모가 열립니다\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff대화|r\n" ..
-    "    |cff999999-|r 귓속말과 채널을 위한 메신저, 스레드와 기록 포함, EasyFind Chat으로 따로 설치\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
+    "    |cff999999-|r 장소와 NPC까지 실시간 길 안내\n" ..
+    "    |cff999999-|r 지도 아무 곳이나 Alt+클릭하면 이름 있는 장소나 NPC 대신 그 지점으로 GPS를 시작합니다\n" ..
+    "    |cff999999-|r WoW Forever와 클래식 클라이언트에서는 경로가 절벽, 물, 내 레벨보다 훨씬 높은 생물을 피해 갑니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff메모 (WIP)|r\n" ..
+    "    |cff999999-|r WoW 기능이 더해진 일반적인 메모 앱: 지역, 인스턴스 등으로 필터링, 아이템이나 플레이어 툴팁에 메모 달기 등\n" ..
+    "    |cff999999-|r 평소처럼 메인 검색창에서 메모를 찾거나 메모 메뉴에서 직접 찾습니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff대화 (WIP)|r\n" ..
+    "    |cff999999-|r 귓속말과 채널을 위한 완전한 채팅 창, 기록 포함, 원하면 게임 채팅을 대신합니다\n" ..
+    "    |cff999999-|r 메인 검색창에서 검색 가능\n" ..
     "|cffFFD100\226\128\162|r |cffffffff클립보드 기록|r\n" ..
-    "    |cff999999-|r 복사한 것과 채팅을 거친 모든 링크를 @clipboard 또는 키 하나로, 각 항목에 메모에 추가 버튼\n" ..
+    "    |cff999999-|r 복사한 모든 것과 채팅의 모든 링크를 모든 캐릭터에서 다시 붙여넣도록 저장\n" ..
     "|cffFFD100\226\128\162|r |cffffffff빠른 목록|r\n" ..
-    "    |cff999999-|r 이름 있는 결과 목록을 키 하나로, 누르거나 길게 눌러서, 또는 행동 단축바의 매크로로\n" ..
+    "    |cff999999-|r 검색 없이 빠르게 쓰고 싶은 결과들을 묶어 목록으로: 단축키를 누르면 검색창이 그 목록과 함께 열려 그 안에서 검색하고, 단축키를 누른 채 원하는 행 위에서 놓으면 바로 실행됩니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff테마 스튜디오 (WIP)|r\n" ..
+    "    |cff999999-|r 편집하는 동안 실시간 미리보기로 나만의 테마를 만들고 코드로 공유하세요\n" ..
     "|cffFFD100\226\128\162|r |cffffffff테마|r\n" ..
-    "    |cff999999-|r 테마 스튜디오로 창마다 고유한 모양을, 1.x 스타일의 클래식 테마와 Forever 테마와 함께\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff클래식 시대와 TBC 애니버서리|r\n" ..
-    "    |cff999999-|r EasyFind가 둘 다에서 동작합니다. GPS 포함\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff설정|r\n" ..
-    "    |cff999999-|r 검색창에서 모든 애드온의 설정을 찾습니다: 게임 설정 패널, AceConfig 테이블, EasyFind 자체 설정을 각 행에서 바로 바꿀 수 있고, 확장은 API로 자기 설정을 제공합니다\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff확장 기능|r\n" ..
-    "    |cff999999-|r 확장 행에 마우스를 올리면 동작 안내가 뜨고, 링크에 데이터가 실리며, 전용 메뉴가 있고, 지도 검색과 GPS가 그 위치를 찾습니다\n"
+    "    |cff999999-|r 1.x 스타일의 새 클래식 테마와 Forever 테마, 원하는 특성 트리를 배경으로\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff클래식 클라이언트|r\n" ..
+    "    |cff999999-|r EasyFind가 이제 클래식 시대, TBC 애니버서리, 판다리아의 안개 클래식에서 동작합니다. GPS 포함\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "별칭 추가"
@@ -532,6 +531,7 @@ L["EXTBTN_UNLOCK"]                      = "잠금 해제"
 L["EXTBTN_SNAP"]                        = "미니맵에 붙이기"
 L["EXTBTN_REMOVE"]                      = "버튼 제거"
 L["EXTBTN_TT_HINT"]                     = "좌클릭으로 열기. 우클릭으로 옵션."
+L["EXTMENU_TT_DRAG"]                    = "끌어서 순서를 바꾸거나, 창 밖으로 끌어내면 버튼이 됩니다."
 L["EXTBTN_BORDER_EASYFIND"]             = "EasyFind"
 L["EXTBTN_BORDER_MINIMAP"]              = "미니맵"
 L["EXTBTN_BORDER_NONE"]                 = "없음"
@@ -1357,6 +1357,8 @@ L["GPS_PLATE_STEP_BOTH_FMT"]            = "이번 단계: %s, %s"
 L["GPS_SIZE_NEXT_ONLY"]                 = "다음 단계만"
 L["GPS_STEP_CORPSE"]                    = "시체로 돌아가기"
 L["GPS_TO_ETA_FMT"]                     = "%s까지: %s"
+L["GPS_ETA_WIP"]                        = "(WIP)"
+L["GPS_ETA_WIP_TT"]                     = "예상 시간은 아직 작업 중이니 참고만 해 주세요."
 L["GPS_TRIP_ADD"]                       = "목적지 추가"
 L["GPS_TRIP_DRAG"]                      = "끌어서 순서 바꾸기"
 L["GPS_TRIP_FROM"]                      = "현재 위치"
@@ -1583,3 +1585,30 @@ L["ROWACT_PIN"]                          = "고정 또는 고정 해제"
 L["ROWACT_TAKEN"]                        = "EasyFind가 검색창에서 이미 그 키를 사용합니다."
 L["TUT_FEATURE_MAP_DESC_CLASSIC"]        = "세계 지도 옆에서 검색합니다. 지도 오른쪽 아래 모서리의 버튼을 누르세요."
 L["WP_DISMISS_ROUTE"]                    = "오른쪽 클릭으로 제거하고 경로 종료"
+L["CHAT_HOVER_COPY_NAME"]                = "이름에 마우스를 올리고 Ctrl+C."
+L["CHECK_COUNT_FMT"]                     = "x%d"
+L["CHECK_COUNT_TT"]                      = "더블 클릭으로 개수를 바꿉니다."
+L["EFLINK_NOTE_TT"]                      = "이 메모를 링크로 보냅니다. EasyFind가 있는 사람이 클릭하면 자기 메모에 사본이 생깁니다."
+L["GPS_ALT_CLICK_PIN"]                   = "<Alt+클릭으로 이 위치까지 GPS>"
+L["GPS_COG"]                             = "설정 톱니바퀴"
+L["GPS_COG_HOVER"]                       = "마우스를 올리면"
+L["GPS_COG_TT"]                          = "팝아웃 창의 톱니바퀴로 메뉴를 엽니다. 오른쪽 클릭으로도 열립니다."
+L["GPS_EXP_NOTE"]                        = "GPS는 아직 만드는 중입니다: 경로와 시간이 틀릴 수 있습니다. 어디가 잘못됐는지 클릭해서 알려 주세요."
+L["GPS_MAP_POINT_FMT"]                   = "%s %.1f, %.1f"
+L["MAP_GUIDE_ZOOM_OUT"]                  = "지도를 오른쪽 클릭하면 축소됩니다"
+L["NOTES_REMIND_CLEAR_ALL"]              = "모두 지우기"
+L["NOTES_REMIND_CUSTOM"]                 = "직접 지정..."
+L["NOTES_REMIND_DATE"]                   = "날짜"
+L["NOTES_REMIND_DATE_FMT"]               = "%s %d %s"
+L["NOTES_REMIND_REPEAT"]                 = "반복"
+L["NOTES_REMIND_REPEATS_FMT"]            = "%s (%s)"
+L["NOTES_REMIND_TIME"]                   = "시간"
+L["NOTES_REMIND_TODAY_FMT"]              = "오늘, %s"
+L["NOTES_REMIND_TOMORROW_FMT"]           = "내일, %s"
+L["NOTES_REPEAT_DAY"]                    = "매일"
+L["NOTES_REPEAT_DAYS"]                   = "선택한 요일"
+L["NOTES_REPEAT_MONTH"]                  = "매월"
+L["NOTES_REPEAT_ONCE"]                   = "한 번"
+L["NOTES_REPEAT_WEEK"]                   = "매주"
+L["NOTES_REPEAT_YEAR"]                   = "매년"
+L["NOTES_TAG_DELETE_ASK"]                = "모든 메모에서 \"%s\" 태그를 제거할까요?"

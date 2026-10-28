@@ -2,11 +2,11 @@
 --
 -- Stormwind's Wizard's Sanctum: its portal hall is reached up the stairs
 -- round the Mage Tower, a teleport at the top of the tower's inner stairs,
--- then a corridor the map files hold no floor for (/efd wayin, 2026-10-26).
+-- then a corridor the map files hold no floor for (measured 2026-10-26).
 -- A route to a portal there goes to the stairs and says to enter; one from
 -- there says to leave. hall: the outline round every portal and landing
 -- there, clear of the tower, as world x, y pairs; inside: a spot on the
--- hall's floor at its mouth; stairs: their foot (/efd here).
+-- hall's floor at its mouth; stairs: their foot (measured).
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns then return end

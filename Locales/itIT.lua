@@ -295,27 +295,26 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS|r\n" ..
-    "    |cff999999-|r Indicazioni per qualsiasi luogo: voli, navi, portali, teletrasporti e la camminata, con una freccia sul personaggio, il percorso sulla mappa e viaggi con più fermate\n" ..
-    "    |cff999999-|r Su WoW Forever, Classic Era e TBC Anniversary la camminata segue il terreno: aggira dirupi, acqua e creature molto sopra il tuo livello\n" ..
-    "    |cff999999-|r Creature con nome nella ricerca sulla mappa, per nome, servizio o merce, ognuna nel punto più vicino, così le indicazioni portano a ciascuna di esse\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffNote|r\n" ..
-    "    |cff999999-|r Un compagno per le note completo: note per luoghi, attività, classi, bersagli e giocatori, liste che il gioco spunta, tag, un cestino con annulla e codici di condivisione\n" ..
-    "    |cff999999-|r Una nota compare dove si applica: nei tooltip, sui nomi in chat o da sola; Ctrl+clic destro su un oggetto o un incantesimo apre la sua nota\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat|r\n" ..
-    "    |cff999999-|r Un messenger per sussurri e canali, con discussioni e cronologia, installato a parte come EasyFind Chat\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
+    "    |cff999999-|r Indicazioni in tempo reale verso luoghi e PNG\n" ..
+    "    |cff999999-|r Alt+clic in un punto qualsiasi della mappa avvia il GPS verso quel punto invece che verso un luogo o un PNG con nome\n" ..
+    "    |cff999999-|r Su WoW Forever e sui client Classic il percorso aggira dirupi, acqua e creature molto sopra il tuo livello\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNote (WIP)|r\n" ..
+    "    |cff999999-|r Una tipica app per le note con funzioni di WoW in più: filtra per zona, spedizione e altro, metti note sui tooltip di oggetti o giocatori, e così via\n" ..
+    "    |cff999999-|r Cerca le note dalla barra di ricerca principale come sempre, o nel menu delle note stesso\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat (WIP)|r\n" ..
+    "    |cff999999-|r Una finestra di chat completa per sussurri e canali, con cronologia, che può sostituire la chat del gioco se lo desideri\n" ..
+    "    |cff999999-|r Ricercabile dalla barra di ricerca principale\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCronologia degli appunti|r\n" ..
-    "    |cff999999-|r Ciò che hai copiato e ogni link passato in chat, sotto @clipboard o su un tasto, con Aggiungi a nota su ogni voce\n" ..
+    "    |cff999999-|r Tutto ciò che copi e ogni link dalla chat, salvati per incollarli di nuovo su tutti i tuoi personaggi\n" ..
     "|cffFFD100\226\128\162|r |cffffffffListe rapide|r\n" ..
-    "    |cff999999-|r Elenchi di risultati con nome su un tasto, premuto o tenuto, o da una macro su una barra delle azioni\n" ..
+    "    |cff999999-|r Componi una lista di risultati raggruppati a cui accedere in fretta senza cercare: premi il tasto per aprire la barra di ricerca con tutti e cercare tra loro, oppure tienilo premuto e rilascialo sulla riga che vuoi\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffStudio dei temi (WIP)|r\n" ..
+    "    |cff999999-|r Crea i tuoi temi, con anteprima dal vivo mentre modifichi, e condividili come codice\n" ..
     "|cffFFD100\226\128\162|r |cffffffffTemi|r\n" ..
-    "    |cff999999-|r Lo Studio dei temi dà a ogni finestra il suo aspetto, con un tema Classic e un tema Forever nello stile 1.x\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
-    "    |cff999999-|r EasyFind funziona su entrambi, GPS compreso\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffImpostazioni|r\n" ..
-    "    |cff999999-|r Le impostazioni di ogni addon nella barra di ricerca: il pannello del gioco, le tabelle AceConfig e quelle di EasyFind, ognuna modificabile sulla sua riga; le estensioni forniscono le proprie tramite l'API\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEstensioni|r\n" ..
-    "    |cff999999-|r Righe delle estensioni con un suggerimento al passaggio, un link che porta i loro dati, un menu proprio e un luogo che la ricerca sulla mappa e il GPS trovano\n"
+    "    |cff999999-|r Nuovi temi Classic e Forever nello stile 1.x, con un albero dei talenti a tua scelta come sfondo\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClient Classic|r\n" ..
+    "    |cff999999-|r EasyFind ora funziona su Classic Era, TBC Anniversary e Mists Classic, GPS compreso\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"
@@ -532,6 +531,7 @@ L["EXTBTN_UNLOCK"]                      = "Sblocca"
 L["EXTBTN_SNAP"]                        = "Aggancia alla minimappa"
 L["EXTBTN_REMOVE"]                      = "Rimuovi pulsante"
 L["EXTBTN_TT_HINT"]                     = "Clic sinistro apre. Clic destro per le opzioni."
+L["EXTMENU_TT_DRAG"]                    = "Trascina per riordinare, o trascinalo fuori dalla finestra per farne un pulsante."
 L["EXTBTN_BORDER_EASYFIND"]             = "EasyFind"
 L["EXTBTN_BORDER_MINIMAP"]              = "Minimappa"
 L["EXTBTN_BORDER_NONE"]                 = "Nessuno"
@@ -1357,6 +1357,8 @@ L["GPS_PLATE_STEP_BOTH_FMT"]            = "Questo passo: %s, %s"
 L["GPS_SIZE_NEXT_ONLY"]                 = "Solo il prossimo passo"
 L["GPS_STEP_CORPSE"]                    = "Torna al tuo cadavere"
 L["GPS_TO_ETA_FMT"]                     = "Verso %s: %s"
+L["GPS_ETA_WIP"]                        = "(WIP)"
+L["GPS_ETA_WIP_TT"]                     = "Prendi i tempi stimati con cautela: sono ancora in lavorazione."
 L["GPS_TRIP_ADD"]                       = "Aggiungi destinazione"
 L["GPS_TRIP_DRAG"]                      = "Trascina per riordinare"
 L["GPS_TRIP_FROM"]                      = "La tua posizione"
@@ -1583,3 +1585,30 @@ L["ROWACT_PIN"]                          = "Fissa o sblocca"
 L["ROWACT_TAKEN"]                        = "EasyFind usa già quel tasto nella casella di ricerca."
 L["TUT_FEATURE_MAP_DESC_CLASSIC"]        = "Cerca accanto alla mappa del mondo, dal pulsante nel suo angolo in basso a destra."
 L["WP_DISMISS_ROUTE"]                    = "Clic destro per rimuovere e terminare il percorso"
+L["CHAT_HOVER_COPY_NAME"]                = "Passa sul nome e premi Ctrl+C."
+L["CHECK_COUNT_FMT"]                     = "x%d"
+L["CHECK_COUNT_TT"]                      = "Doppio clic per cambiare il numero."
+L["EFLINK_NOTE_TT"]                      = "Invia questa nota come link. Chi ha EasyFind e ci clicca ne riceve una copia nelle sue note."
+L["GPS_ALT_CLICK_PIN"]                   = "<Alt+clic per il GPS verso questo luogo>"
+L["GPS_COG"]                             = "Ingranaggio delle impostazioni"
+L["GPS_COG_HOVER"]                       = "Al passaggio"
+L["GPS_COG_TT"]                          = "Un ingranaggio sulle finestre staccate che apre il loro menu. Anche un clic destro lo apre."
+L["GPS_EXP_NOTE"]                        = "Il GPS è ancora in costruzione: percorsi e tempi possono sbagliare. Clicca per dirmi dove sbaglia."
+L["GPS_MAP_POINT_FMT"]                   = "%s %.1f, %.1f"
+L["MAP_GUIDE_ZOOM_OUT"]                  = "Clic destro sulla mappa per allontanare"
+L["NOTES_REMIND_CLEAR_ALL"]              = "Cancella tutto"
+L["NOTES_REMIND_CUSTOM"]                 = "Personalizzato..."
+L["NOTES_REMIND_DATE"]                   = "Data"
+L["NOTES_REMIND_DATE_FMT"]               = "%s %d %s"
+L["NOTES_REMIND_REPEAT"]                 = "Ripeti"
+L["NOTES_REMIND_REPEATS_FMT"]            = "%s (%s)"
+L["NOTES_REMIND_TIME"]                   = "Ora"
+L["NOTES_REMIND_TODAY_FMT"]              = "Oggi, %s"
+L["NOTES_REMIND_TOMORROW_FMT"]           = "Domani, %s"
+L["NOTES_REPEAT_DAY"]                    = "Ogni giorno"
+L["NOTES_REPEAT_DAYS"]                   = "Giorni scelti"
+L["NOTES_REPEAT_MONTH"]                  = "Ogni mese"
+L["NOTES_REPEAT_ONCE"]                   = "Una volta"
+L["NOTES_REPEAT_WEEK"]                   = "Ogni settimana"
+L["NOTES_REPEAT_YEAR"]                   = "Ogni anno"
+L["NOTES_TAG_DELETE_ASK"]                = "Rimuovere il tag \"%s\" da ogni nota?"
