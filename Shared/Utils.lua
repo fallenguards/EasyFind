@@ -3043,7 +3043,9 @@ function ns.ClassicTreeUnderFill(frame)
         ns.SetRoundedRectBarHeight(frame, frame.cbBarHeight)
     end
     ns.SetRoundedRectFill(frame, 0, 0, 0, 0, true)
-    DressTree(frame, 2, frame._efBgAlpha or ns.GetSearchWindowAlpha(), math.max(0, frame:GetFrameLevel() - 1))
+    -- To the frame's edge: the square ring is 1 px, drawn over the art; an
+    -- inset showed as a bare strip inside it (2026-10-28).
+    DressTree(frame, 0, frame._efBgAlpha or ns.GetSearchWindowAlpha(), math.max(0, frame:GetFrameLevel() - 1))
     return true
 end
 
