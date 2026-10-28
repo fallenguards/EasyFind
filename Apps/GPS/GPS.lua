@@ -974,7 +974,10 @@ local function UpdateEtaText(route)
     for i = 1, #surfaces do
         local s = surfaces[i]
         if s.SetEta then s:SetEta(route)
-        elseif s.eta then s.eta:SetText(eta) end
+        elseif s.eta then
+            s.eta:SetText(eta)
+            if s.PlaceEtaTag then s:PlaceEtaTag(eta ~= "") end
+        end
         if route and s.PlaceSearch then s:PlaceSearch(true) end
     end
 end
@@ -2261,6 +2264,7 @@ local function Render(container)
         -- Arrived: the announcement in the body where the time line and
         -- the steps were, nothing left to follow.
         container.eta:SetText("")
+        container:PlaceEtaTag(false)
         if container.trip then ns.GPSTrip.PlaceEmpty(container, false) end
         container.empty:SetText(L["GPS_ARRIVED_AT_FMT"] and sformat(L["GPS_ARRIVED_AT_FMT"], route.dest.name or "?") or L["GPS_ARRIVED"])
         container.empty:Show()
@@ -2277,6 +2281,7 @@ local function Render(container)
         local linkText = container.clearBtn and container.clearBtn.text
         if px and linkText then
             SizeFont(container.eta, px)
+            SizeFont(container.etaTagText, px)
             SizeFont(linkText, px)
             container.clearBtn:SetWidth(container.noClear and container.fieldsBtn:GetWidth()
                 or (linkText:GetStringWidth() or 60) + 4)
@@ -2296,7 +2301,10 @@ local function Render(container)
     if container.isPopout and container.eta and container.etaScale ~= (scale or 0) then
         container.etaScale = scale or 0
         ScaleFont(container.eta, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
+        ScaleFont(container.etaTagText, "GameFontHighlightSmall", scale and MAP_STEP_PX * scale)
     end
+    -- The tag after the time, sized with the fonts above; not while a plan is under way.
+    container:PlaceEtaTag(not route.arrived and not GPS.planning and route.eta ~= nil and route.eta > 0)
     -- A wrapped line is measured at the width it is given outright: a new
     -- row's anchors may not be placed yet when it is measured.
     local listW = container.list:GetWidth() or 0
@@ -3168,6 +3176,30 @@ local function BuildSurface(frame, opts)
     eta._efOwnColor = true
     frame.eta = eta
 
+    -- The time is still being tuned: a (WIP) after it says so on hover.
+    local tag = CreateFrame("Button", nil, frame)
+    local tagText = tag:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    tagText:SetPoint("LEFT")
+    tagText:SetText(L["GPS_ETA_WIP"])
+    GPS.Inked(frame, function(ink) tagText:SetTextColor(unpack(ink.dim)) end)
+    tagText._efOwnColor = true
+    tag:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(L["GPS_ETA_WIP_TT"], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    tag:SetScript("OnLeave", GameTooltip_Hide)
+    tag:Hide()
+    frame.etaTag, frame.etaTagText = tag, tagText
+    frame.PlaceEtaTag = function(self, shown)
+        local w, h = tagText:GetStringWidth() or 0, tagText:GetStringHeight() or 0
+        tag:SetSize(mmax(1, w), mmax(1, h))
+        -- Right after the time's words: the line itself spans to the Clear link.
+        tag:ClearAllPoints()
+        tag:SetPoint("LEFT", eta, "LEFT", (eta:GetStringWidth() or 0) + 4, 0)
+        tag:SetShown(shown and self.eta:IsShown())
+    end
+
     -- Clear route as a small text link at the right end of the time line:
     -- always in view, never a button competing with the steps.
     do
@@ -3241,7 +3273,12 @@ local function BuildSurface(frame, opts)
             box:ClearAllPoints()
             hits:ClearAllPoints()
             if hasRoute then
-                box:SetPoint("LEFT", self.eta, "LEFT", (self.eta:GetStringWidth() or 0) + 10, 0)
+                -- After the time's words, and its (WIP) tag when that shows.
+                if self.etaTag:IsShown() then
+                    box:SetPoint("LEFT", self.etaTag, "RIGHT", 10, 0)
+                else
+                    box:SetPoint("LEFT", self.eta, "LEFT", (self.eta:GetStringWidth() or 0) + 10, 0)
+                end
                 box:SetPoint("RIGHT", self.clearBtn, "LEFT", -8, 0)
                 hits:SetPoint("TOPLEFT", self.list, "TOPLEFT", hitX, 0)
                 hits:SetPoint("RIGHT", self.list, "RIGHT", 0, 0)
@@ -3288,6 +3325,7 @@ local function BuildSurface(frame, opts)
     frame.OnRouteChanged = function(self, hasRoute)
         self.clearBtn:SetShown(hasRoute and not self.noClear)
         self.eta:SetShown(hasRoute)
+        if not hasRoute then self.etaTag:Hide() end
         if self.titleBtn then self.titleBtn:SetShown(hasRoute) end
         -- With the trip's fields the track toggle sits on the time line.
         if self.track and self.trip then self.track:SetShown(hasRoute) end
@@ -5760,7 +5798,7 @@ local function BuildPopout()
                 if field and field.box then gap = mmax(0, (field:GetHeight() - field.box:GetHeight()) / 2) end
                 self:SetHeaderPad(8 - gap, above)
                 self:SetHeight(8 - gap + strip + headRow + 8 - gap)
-                self.list:Hide(); self.eta:Hide(); self.clearBtn:Hide(); self.empty:Hide()
+                self.list:Hide(); self.eta:Hide(); self.etaTag:Hide(); self.clearBtn:Hide(); self.empty:Hide()
                 if self.search then
                     self.search:SetShown(not (Route() or GPS.planning or self.trip))
                     self.hitList:Hide()
