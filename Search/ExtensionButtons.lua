@@ -969,6 +969,7 @@ local function OpenFolderMenu(btn)
                 if desc then GameTooltip:AddLine(desc, 1, 1, 1, true) end
                 local key = ShortkeyText(self.app)
                 if key then GameTooltip:AddLine((L["SHORTKEY_FOR"]):format(key), 0.7, 0.7, 0.7) end
+                GameTooltip:AddLine(L["EXTMENU_TT_DRAG"], 0.7, 0.7, 0.7, true)
                 GameTooltip:Show()
             end)
             row:SetScript("OnLeave", GameTooltip_Hide)
