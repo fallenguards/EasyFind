@@ -30,7 +30,6 @@ local mfloor = Utils.mfloor or math.floor
 local date = date
 local time = time
 local CreateFrame = CreateFrame
-local hooksecurefunc = hooksecurefunc
 local strlenutf8 = strlenutf8
 local GameTooltip = GameTooltip
 local UIParent = UIParent

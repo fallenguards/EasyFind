@@ -93,7 +93,7 @@ function tests.theHighlightLeavesTheFlyoutsRowAtOnce_theFlyoutWaits()
 end
 
 function tests.reachingTheFlyout_lightsItsRowAgain()
-    local RowEntered, flyout, timers = Load()
+    local RowEntered, flyout = Load()
     local menu = { GetScale = function() return 1 end, GetFrameStrata = function() return "DIALOG" end,
         GetFrameLevel = function() return 1 end }
     local show, close = LitRow("Show", true), LitRow("Close")

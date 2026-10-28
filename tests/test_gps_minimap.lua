@@ -123,7 +123,7 @@ end
 -- step's spot on the minimap (2026-10-28): our disc stands there, within
 -- the rim, in the step's color; retail keeps the game's own.
 function tests.noUserWaypoints_theStepsSpotWearsADisc()
-    local drawn, state, now, Mini = fresh(nil, nil, nil, { level = 1, indoors = false })   -- 200 yd: the spot at 75 px is past the rim
+    local _, state, now, Mini = fresh(nil, nil, nil, { level = 1, indoors = false })   -- 200 yd: the spot at 75 px is past the rim
     local mark = Mini._mark
     H.assertTrue(mark ~= nil, "the disc is made where the client sets no waypoint")
     H.assertFalse(mark:IsShown(), "300 yd north on a 200 yd minimap: past the rim, hidden")

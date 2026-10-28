@@ -34,7 +34,7 @@ read_globals = {
     -- WoW Lua extensions
     "bit",
     "debugstack", "debugprofilestart", "debugprofilestop", "strsplit", "strtrim", "wipe", "hooksecurefunc",
-    "format", "time", "date", "C_EventUtils",
+    "format", "time", "date", "C_EventUtils", "GREEN_FONT_COLOR", "ItemRefTooltip",
 
     -- Alerts
     "C_SummonInfo", "C_UnitAuras", "UnitXPMax", "RequestRaidInfo", "issecretvalue", "IsResting", "StartDuel",
@@ -228,4 +228,9 @@ exclude_files = {
     "dev/tests/vendor/*",
     -- The developer docs: annotations for editors and an example addon.
     "API/**",
+    -- Local tooling under junctions that a checkout lacks.
+    "dev/tools/roads/**",
 }
+
+-- The tests run on the lua in PATH (5.4): table.unpack, coroutine.isyieldable.
+files["tests"] = { std = "max" }

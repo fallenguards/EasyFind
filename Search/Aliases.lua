@@ -38,12 +38,11 @@ function Handlers:PromptForAlias(data)
         onAccept = function(txt, wholeCategory)
             txt = strtrim(txt or "")
             if txt == "" then return end
-            local added, targetName
+            local added
             if canCategory and wholeCategory then
-                targetName = sformat(L["ALIAS_CATEGORY_LABEL"], catLabel or data.name or data.category)
+                local targetName = sformat(L["ALIAS_CATEGORY_LABEL"], catLabel or data.name or data.category)
                 added = ns.Aliases and ns.Aliases:AddCategory(txt, data.category, targetName)
             else
-                targetName = label
                 added = ns.Aliases and ns.Aliases:Add(txt, data)
             end
             if added then

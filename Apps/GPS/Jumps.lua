@@ -9,7 +9,7 @@ local Jumps = {}
 ns.GPSJumps = Jumps
 
 local L = ns.L
-local sformat, mfloor, mmax, mhuge = string.format, math.floor, math.max, math.huge
+local sformat, mfloor, mhuge = string.format, math.floor, math.huge
 local issecret = _G.issecretvalue or function() return false end
 local C_Spell, C_Item, C_Container = C_Spell, C_Item, C_Container
 

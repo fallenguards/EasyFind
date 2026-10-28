@@ -10,7 +10,7 @@ function tests.theArrowFollowsTheHighlightArt()
     local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/Zones/Highlight.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    H.assertTrue(src:find("if not isAtlas then%s+zoneLeftPx, zoneTopPx, width, height = pixelPosX, pixelPosY, pixelWidth, pixelHeight%s+"
+    H.assertTrue(src:find("if not isAtlas then%s+zoneLeftPx, zoneTopPx = pixelPosX, pixelPosY%s+"
         .. "zoneRightPx, zoneBottomPx = pixelPosX %+ pixelWidth, pixelPosY %+ pixelHeight%s+"
         .. "zoneCenterPxX, zoneCenterPxY = pixelPosX %+ pixelWidth / 2, pixelPosY %+ pixelHeight / 2") ~= nil,
         "the art's box stands in for the rectangle where the art is a file")

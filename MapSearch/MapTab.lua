@@ -10,7 +10,6 @@ local ResultHandlers = ns.ResultHandlers
 local SafeAfter = Utils.SafeAfter
 local tinsert = Utils.tinsert
 local tremove = Utils.tremove
-local tsort = Utils.tsort
 local mmin, mmax = Utils.mmin, Utils.mmax
 
 local GOLD_COLOR = ns.GOLD_COLOR

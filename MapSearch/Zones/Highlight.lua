@@ -380,7 +380,7 @@ function MapSearch:HighlightZone(mapID)
         -- API's rect for a continent on Era's world map lies elsewhere
         -- (the arrow pointed at the other continent, 2026-10-28).
         if not isAtlas then
-            zoneLeftPx, zoneTopPx, width, height = pixelPosX, pixelPosY, pixelWidth, pixelHeight
+            zoneLeftPx, zoneTopPx = pixelPosX, pixelPosY
             zoneRightPx, zoneBottomPx = pixelPosX + pixelWidth, pixelPosY + pixelHeight
             zoneCenterPxX, zoneCenterPxY = pixelPosX + pixelWidth / 2, pixelPosY + pixelHeight / 2
             -- A continent's art on the classic world map is padded far past
@@ -392,7 +392,6 @@ function MapSearch:HighlightZone(mapID)
                 if sL then
                     zoneLeftPx, zoneTopPx = sL * canvasWidth, sT * canvasHeight
                     zoneRightPx, zoneBottomPx = sR * canvasWidth, sB * canvasHeight
-                    width, height = zoneRightPx - zoneLeftPx, zoneBottomPx - zoneTopPx
                     zoneCenterPxX, zoneCenterPxY = (zoneLeftPx + zoneRightPx) / 2, (zoneTopPx + zoneBottomPx) / 2
                 end
             end
