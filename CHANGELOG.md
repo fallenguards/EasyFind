@@ -4,29 +4,40 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
-## [4.0.0] - 2026-10-22
+## [4.0.0] - 2026-10-28
 
 ### Added
 - **GPS**: directions to any place EasyFind can find. Plan a route from where you stand, or from any start, and it works out flights, boats, zeppelins, the tram, portals, teleports and the hearthstone, then walks the rest. The steps show in a small window, on the map's GPS page or as a section in the objective tracker; an arrow at your character leads along the walk, the route draws on the map and the minimap, and a beacon marks where the current step leads. A trip can take several stops, you can search along the route, share a route as a link, and a red line warns when the route crosses creatures far above your level. On WoW Forever, Classic Era and TBC Anniversary, walks follow a baked walking grid of the world: around cliffs and water, down the ledges your character can take, and around dangerous ground when you ask
 - **Notes**: a companion for notes that know where they apply. Notes for places, activities, classes, targets and players show in tooltips, on names in chat, or open by themselves; checklists the game ticks off; tags, a trash with undo, share codes, and Ctrl+Right-click on any item or spell for its note
-- **Chat**: a messenger for whispers and channels, with threads and history, installed separately as EasyFind Chat and searched from the bar
+- **Chat**: a messenger for whispers and channels, with threads and history, searched from the bar
 - **Clipboard History**: what you copied and pasted in game and every link that passed through chat, under @clipboard, with a key to open it and Add to note on any entry
 - **Quicklists**: named result lists on a key, pressed or held, and a macro that opens one from an action bar
 - **Creatures on the map search**: named creatures found by name, title, service or what they sell, each on its nearest spot and with their portrait; "repair", "food" or "ammo" finds who offers it
-- **Classic Era and TBC Anniversary**: EasyFind runs on both, with the Skills tab searchable and everything the client lacks kept out of the results
+- **Classic Era and TBC Anniversary**: EasyFind runs on both: talents, professions and their recipes, reputations, the spellbook, the Skills tab, Looking For Group and the Social window in search, each opened in its own window, skill and talent ranks on a bar, and everything the client lacks kept out of the results
+- **MoP Classic**: EasyFind runs on it, with currencies, collections, gear sets, the Group Finder, PvP, talents and the calendar in search, town services on the map search, and GPS routes that fly where your licenses allow
+- **Result actions**: what a click, Alt-click and Ctrl-click do on each kind of result, set in the options; a key held with Alt or Ctrl does an action on the row under the mouse; an option makes a click select a row and Enter open it
 - **Addon settings in the search bar**: every addon's settings, from the game's settings panel, from AceConfig options tables and from EasyFind's own panel, each changed on its row: a check box, a slider, a drop-down or a button, with Alt-click opening where it lives; other addons feed the settings of their own windows through the API
 - **Extensions API**: other addons register search results, extensions, settings pages and actions through EasyFind.API, with a developer guide and an example extension
 - **Extensions**: a row says what its click does on hover, carries the extension's data in its EasyFind link, has a menu of its own on right-click, lists only what it chooses when its @scope is empty, and is found from the map search and the GPS window when it knows where it is
-- **Themes**: Theme Studio gives each window its own look; a Classic theme and a Forever theme in the 1.x style; the extensions menu arranges by drag and pops an extension out from a right-click
+- **Extensions menu**: arrange it by drag, and pop an extension out from a right-click
+- **Theme Studio**: create your own custom themes, previewed live as you edit, and share them as a code
+- **Themes**: new Classic and Forever themes in the 1.x style, with a talent tree of your choice as the background
 - **Create macro**: on any result's menu, a macro that does it lands on your cursor for any action bar
-- **GPS**: a border for the caption under the arrow, in the settings and the caption's menu; creatures as a filter in both map searches, off until picked
+- **GPS**: the caption under the arrow in the theme's own fill, with a border in the settings and the caption's menu; creatures as a filter in both map searches, off until picked
+- **GPS**: enemy guards count as deadly ground at any level; a ledge to jump says where it is and the map marks it; Stormwind's Wizard's Sanctum is entered up its stairs; the trip fields show your last searches; a switch hides finished steps, and the window takes a text size
+- **GPS**: a WIP tag after the time still to go says on hover that the estimates are still being worked on; the journey's end wears the map's own pin from any pick, a stop on the way its own icon, and on the classic clients the step's spot shows on the minimap and the bags' mount counts for riding
 - **Notes**: the window's border is a choice, EasyFind's line or the theme's own frame art
+- **Notes**: a note in several categories, tag chips in any color, a note shared as a link that opens on a click, and any checklist line can point at a target
+- **Indicators**: a Chevrons style, the tutorial pointer's sliding chevrons
 
 ### Changed
+- Each game client gets its own download, holding only what that client uses
 - Per-character settings are keyed by the full name, so WoW Forever surnames stay apart
 - Search: typos and abbreviations look words up instead of every entry, and result rows build in slices, so the first search never stalls the game
 - Map search: equal matches list nearest first, and every row's subtext names its kind and place
 - Options: the tabs sit in the game's settings list under EasyFind, and every companion's settings page uses the panel's own controls
+- Travel: flight masters, zeppelins, boats, portals and the tram wear the map's own glyphs on every client, the boat a cargo ship drawn larger on the route
+- Map search: the zone headers, their fold glyphs and the row hover glow are retail's on Classic Era and Mists Classic, drawn from a copy of retail's art
 
 ### Fixed
 - GPS: a portal lands where the world database's portal to that place lands (the Caverns of Time portals landed in Shattrath and Dalaran); a tile at a zone border no longer warns of the neighbour zone's creatures; the danger line goes with its route and starts at the step numbers' edge
@@ -34,6 +45,10 @@ All notable changes to EasyFind will be documented in this file.
 - Settings rows: the subtext names the addon, then the page
 - The Notes and Chat windows close on Escape through EasyFind's own dispatch, and the GPS section writes nothing into the objective tracker: both could taint the game's protected actions for the rest of the session (collapsing the tracker in combat errored)
 - Search: Alt-click on a spell no longer opens the game's talents too
+- Settings search: Toggle Objective Tracker hides the quest watch on Classic Era (it did nothing there)
+- Map guide: a zone's "show me how" stays through a hover on the map, its arrow stands beside the continent on the classic world map and faces the zone, the right-click hint sits over the map's bottom with the mouse glyph, and the search box's X ends a guide
+- Search boxes: the GPS, trip and map tab boxes drop their focus on a click anywhere else
+- Themes: no bare strip between a window's painting and its square ring
 - Map search: a double click no longer starts GPS directions; a row on another map opens that map before it pins
 - WoW Forever: item and coin calls go through the replacements the client has, no spec rows where there are no specializations, Titles and the Equipment Manager follow the new sidebar
 - Settings rows: the Toggle Sound and Toggle Minimap checkboxes follow a click, and Toggle Auto Self Cast flips self-cast instead of opening the settings
