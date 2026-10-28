@@ -1286,6 +1286,7 @@ local function CreateSearchBox(parent)
     editBox:SetSize(301, 20)
     editBox:SetAutoFocus(false)
     editBox:SetMaxLetters(60)
+    Utils.ReleaseFocusOnOutsideClick(editBox)
     if editBox.Instructions then
         -- Some locales render the descriptive placeholder wider than the
         -- box; fall back to Blizzard's plain "Search" when it can't fit.

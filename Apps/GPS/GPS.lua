@@ -2652,6 +2652,7 @@ local function BuildSearch(frame, glyph, padRight, bodyPad)
     end
     box:SetAutoFocus(false)
     box:SetMaxLetters(60)
+    Utils.ReleaseFocusOnOutsideClick(box)
     if box.Instructions then
         box.Instructions:SetText(L["GPS_SEARCH_PLACEHOLDER"] or SEARCH or "Search")
         box.Instructions:SetWordWrap(false)   -- cut with an ellipsis when the box is narrow

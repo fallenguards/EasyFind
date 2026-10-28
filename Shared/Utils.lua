@@ -7521,6 +7521,29 @@ function Utils.IsClickGuardMouseOver()
     return false
 end
 
+-- An edit box of ours drops its focus on a click anywhere but on it:
+-- the client keeps the focus through clicks elsewhere (the GPS and map
+-- tab boxes on Era, 2026-10-28). Watched only while the box has focus.
+function Utils.ReleaseFocusOnOutsideClick(box)
+    if not box or box._efReleasesFocus then return end
+    box._efReleasesFocus = true
+    local watcher = Utils._focusWatcher
+    if not watcher then
+        watcher = CreateFrame("Frame")
+        Utils._focusWatcher = watcher
+        watcher:SetScript("OnEvent", function(self)
+            local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+            if not (focus and focus._efReleasesFocus) then return end
+            if not focus:IsMouseOver() then focus:ClearFocus() end
+        end)
+    end
+    box:HookScript("OnEditFocusGained", function() watcher:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
+    box:HookScript("OnEditFocusLost", function()
+        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        if not (focus and focus._efReleasesFocus) then watcher:UnregisterEvent("GLOBAL_MOUSE_DOWN") end
+    end)
+end
+
 -- A click outside the popup (and its owner or extra guards) hides it.
 function Utils.AttachOutsideClickClose(popup, owner, extraGuards)
     if not popup or popup._efOutsideClose then return end
