@@ -136,6 +136,7 @@ local function AttachPickerSearch(popup)
     InstallAccessorOverlay(popup)
 
     local searchBox = CreateFrame("EditBox", "EasyFindPickerSearchBox", popup, "InputBoxTemplate")
+    ns.Utils.ReleaseFocusOnOutsideClick(searchBox)
     searchBox:SetAutoFocus(false)
     searchBox:SetHeight(18)
     searchBox:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 68, 15)

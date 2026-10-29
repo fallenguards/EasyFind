@@ -1001,6 +1001,7 @@ local function EnsureEdit()
         end
         View.EndEdit()
     end)
+    Utils.ReleaseFocusOnOutsideClick(box)
     box:SetScript("OnKeyDown", function(self, key)
         local s = UI.suggest
         if s and s:IsShown() and (key == "UP" or key == "DOWN") then
@@ -1127,6 +1128,7 @@ local function EnsureCountBox()
         self:ClearFocus()
     end)
     box:SetScript("OnEditFocusLost", function() View.EndCount() end)
+    Utils.ReleaseFocusOnOutsideClick(box)
     box:Hide()
     UI.countBox = box
     return box

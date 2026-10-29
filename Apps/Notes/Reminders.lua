@@ -248,6 +248,7 @@ function R.ShowCustom(note)
         ns.PaintInputWell(shell)
         p.shell = shell
         p.timeBox = CreateFrame("EditBox", nil, shell)
+        ns.Utils.ReleaseFocusOnOutsideClick(p.timeBox)
         p.timeBox:SetPoint("TOPLEFT", shell, "TOPLEFT", 8, 0)
         p.timeBox:SetPoint("BOTTOMRIGHT", shell, "BOTTOMRIGHT", -8, 0)
         p.timeBox:SetAutoFocus(false)

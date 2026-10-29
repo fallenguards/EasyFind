@@ -428,6 +428,7 @@ function Calculator:EnsureCalculatorFrame()
     clearInput:Hide()
 
     local editBox = CreateFrame("EditBox", nil, inputShell)
+    Utils.ReleaseFocusOnOutsideClick(editBox)
     Calculator._calculator.popupEditBox = editBox
     editBox:SetPoint("LEFT", inputShell, "LEFT", 12, 0)
     editBox:SetPoint("RIGHT", clearInput, "LEFT", -6, 0)
@@ -668,6 +669,7 @@ function Calculator:EnsureCalculatorCopyBox()
     local box = Calculator._calculator.copyBox
     if box then return box end
 
+    -- keeps focus: a copy box: its text stays selected until it closes
     box = CreateFrame("EditBox", "EasyFindCalculatorCopyBox", UIParent)
     box:SetSize(1, 1)
     -- Match the copy pattern used by chat-copy addons: the edit box must be

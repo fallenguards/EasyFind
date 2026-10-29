@@ -6023,6 +6023,7 @@ end
 
 local function EnsureClipboardBox()
     if box then return box end
+    -- keeps focus: a copy box: its text stays selected until it closes
     box = CreateFrame("EditBox", "EasyFindClipboardBox", UIParent)
     box:SetAutoFocus(false)
     -- Multi-line, so a copied transcript keeps its line breaks.
@@ -6253,6 +6254,7 @@ local function BuildPasteDialog()
     local scroll = CreateFrame("ScrollFrame", "EasyFindPasteDialogScroll", boxFrame)
     scroll:SetPoint("TOPLEFT", 8, -8)
     scroll:SetPoint("BOTTOMRIGHT", -14, 8)
+    -- keeps focus: a paste box: it holds the caret until its dialog closes
     local editBox = CreateFrame("EditBox", nil, scroll)
     editBox:SetMultiLine(true)
     editBox:SetAutoFocus(false)
@@ -6344,6 +6346,7 @@ function ns.ShowThemedDialog(opts)
         ns.SetRoundedRectBorderEdgeShown(field, false)
         field._efControlFillKind = "BTN_FILL_NORMAL"
         local eb = CreateFrame("EditBox", nil, field)
+        Utils.ReleaseFocusOnOutsideClick(eb)
         eb:SetPoint("LEFT", 8, 0)
         eb:SetPoint("RIGHT", -8, 0)
         eb:SetHeight(20)
@@ -9264,6 +9267,7 @@ function Utils.CursorMenuSearch(menu, placeholder)
         shell:SetPoint("TOPRIGHT", menu, "TOPRIGHT", -8, -6)
         ns.CreateRingedWell(shell, 6)
         local edit = CreateFrame("EditBox", nil, shell)
+        Utils.ReleaseFocusOnOutsideClick(edit)
         edit:SetPoint("LEFT", shell, "LEFT", 8, 0)
         edit:SetPoint("RIGHT", shell, "RIGHT", -8, 0)
         edit:SetHeight(20)

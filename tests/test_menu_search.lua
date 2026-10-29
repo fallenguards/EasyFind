@@ -27,6 +27,7 @@ local function Load()
     local Utils = {
         ShowCursorMenu = function(name, _, opts) shown[#shown + 1] = { name = name, opts = opts } end,
         LayoutCursorMenuRows = function() end,
+        ReleaseFocusOnOutsideClick = function() end,
     }
     local ns = {
         CreateRingedWell = function(shell) shell.ringInset = { GetFrameLevel = function() return 1 end } end,

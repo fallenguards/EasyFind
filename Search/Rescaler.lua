@@ -203,6 +203,7 @@ StaticPopupDialogs["EASYFIND_RESET_FIELD"] = {
 
 local function CreateDimLabel(parent, anchor, relPoint, xOff, yOff, prefix)
     local box = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+    Utils.ReleaseFocusOnOutsideClick(box)
     box:SetSize(50, 20)
     box:SetAutoFocus(false)
     box:SetMaxLetters(5)
@@ -612,6 +613,7 @@ local function BuildUnifiedWindowOverlay(parent, searchBar, preview, anchorAbove
     overlay.scaleHandle = CreateScaleHandle(overlay, cornerPoint, 0, 0, false, flipV)
 
     local heightBox = CreateFrame("EditBox", nil, overlay, "InputBoxTemplate")
+    Utils.ReleaseFocusOnOutsideClick(heightBox)
     heightBox:SetSize(50, 20)
     heightBox:SetAutoFocus(false)
     heightBox:SetMaxLetters(3)

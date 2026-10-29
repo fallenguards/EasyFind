@@ -216,6 +216,7 @@ local function LoadView(lines)
     ns.Utils.CreateMinimalScrollBar = function() return Stub() end
     ns.Utils.AttachDelayedTooltip = function() end
     ns.Utils.AddGripDots = function() end
+    ns.Utils.ReleaseFocusOnOutsideClick = function() end
     ns.CreateCloseX = function() return Stub() end
     ns.CreateCogButton = function() return Stub() end
     ns.Utils.HookInsertLink = function(fn) w.insert = fn end

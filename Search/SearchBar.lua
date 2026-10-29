@@ -482,6 +482,7 @@ function Search:CreateSearchFrame()
     searchFrame.modeBtn = iconHolder
     searchFrame.iconHolder = iconHolder
 
+    -- keeps focus: the search bar keeps its own focus and outside-click rules
     local editBox = CreateFrame("EditBox", "EasyFindSearchBox", searchFrame)
     editBox:SetHeight(contentSz)
     editBox:SetPoint("LEFT", iconHolder, "RIGHT", 0, 0)

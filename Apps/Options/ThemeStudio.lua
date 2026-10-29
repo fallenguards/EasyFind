@@ -1399,6 +1399,7 @@ local function BuildStudio()
     ns.SetRoundedRectFill(nameShell, inset[1], inset[2], inset[3], 1, true)
 
     nameBox = CreateFrame("EditBox", nil, nameShell)
+    Utils.ReleaseFocusOnOutsideClick(nameBox)
     nameBox:SetPoint("TOPLEFT", nameShell, "TOPLEFT", 8, 0)
     nameBox:SetPoint("BOTTOMRIGHT", nameShell, "BOTTOMRIGHT", -8, 0)
     nameBox:SetAutoFocus(false)

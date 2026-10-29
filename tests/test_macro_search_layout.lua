@@ -43,7 +43,7 @@ local function Attach()
     local f = assert(io.open(H.ADDON_ROOT .. "/Search/MacroListSearch.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local ns = { Utils = { slower = string.lower, sfind = string.find } }
+    local ns = { Utils = { slower = string.lower, sfind = string.find, ReleaseFocusOnOutsideClick = function() end } }
     assert(load(src, "=MacroListSearch.lua", "t", env))("EasyFind", ns)
     return sel, box
 end

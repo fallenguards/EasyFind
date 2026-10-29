@@ -150,6 +150,7 @@ local function AttachMacroListSearch(frame)
     sel:SetSetupCallback(InitMacroButton)
 
     local searchBox = CreateFrame("EditBox", "EasyFindMacroListSearchBox", frame, "SearchBoxTemplate")
+    Utils.ReleaseFocusOnOutsideClick(searchBox)
     searchBox:SetAutoFocus(false)
     -- The bar heads the grid, flush with the outer icons. Only the icons
     -- move down (a third row scrolls in); the selector and its scroll bar
