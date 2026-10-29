@@ -515,6 +515,9 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
                 else
                     resultRow.icon:SetVertexColor(0.4, 0.4, 0.4, 1)
                 end
+            -- An extension's row out of reach (a quest not yet takeable).
+            elseif data.iconDimmed then
+                resultRow.icon:SetVertexColor(0.4, 0.4, 0.4, 1)
             else
                 resultRow.icon:SetVertexColor(1, 1, 1, 1)
             end

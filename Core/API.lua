@@ -478,14 +478,14 @@ end
 -- rows), options (its filter row's toggles: { label, tooltip, get, set },
 -- { header = text }, { separator = true }, or one-of-several radio rows
 -- { choice = { { label, value, tooltip }, ... }, get, set }), rows() -> list of
--- { name, icon, ... }, select(row), tooltip(row, tooltip) -> true when
+-- { name, icon, iconDimmed (drawn gray), ... }, select(row), tooltip(row, tooltip) -> true when
 -- it filled it, leave(row), extension (the extension whose addon holds
 -- the rest), loadOnSearch (true or a function: load that addon for
 -- search), hint (what a row's gestures do, under its name on hover: a
 -- sentence, { click, alt, ctrl, shift }, or a function of the row giving
 -- either; a row's own hint wins), browse(row) -> whether the row is in
 -- the scope's list when nothing is typed (every row without it),
--- place(row) -> { name, mapID, x, y, step } where the row is now: its
+-- place(row) -> { name, mapID, x, y, step, icon } where the row is now: its
 -- rows are then found from the map search and the GPS too (a row's
 -- mapID names the map it is on, for the map's own list), link = { key
 -- = fn(row) -> string, resolve = fn(tail) -> row } (a row's EasyFind
