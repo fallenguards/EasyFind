@@ -1103,7 +1103,7 @@ end
 -- or partial cache. Discarding forces one clean re-scan under the fixed
 -- scan (which now waits for EJ_LOOT_DATA_RECIEVED and refuses to mark
 -- specs complete on unresolved reads).
-ns.LOOT_ITEM_CACHE_VER = 6 -- 6: instance shorthands and wings join the source words
+ns.LOOT_ITEM_CACHE_VER = 7 -- 7: TBC's heroic loot apart from its normal
 ns.BOSS_CACHE_VER = 3 -- 3: rows packed into one string instead of per-row tables
 ns.STATISTIC_CACHE_VER = 3 -- 3: path/chain once per category; rows packed into one string
 ns.MOUNT_CACHE_VER = 2 -- 2: rows packed into one string instead of per-row tables
@@ -1398,8 +1398,18 @@ local LOOT_DIFF_IDS = {
     mythic  = { dungeon = 23, raid = 16 },
 }
 
+-- The chosen loot difficulty where this client has it, else Normal.
+function Database.LootDifficulty()
+    local key = EasyFind.db.lootDifficulty or "normal"
+    local offered = ns.Caps and ns.Caps.lootDifficulties or {}
+    for i = 1, #offered do
+        if offered[i] == key then return key end
+    end
+    return "normal"
+end
+
 function Database:GetEJDifficultyID(sourceType)
-    local diffKey = EasyFind.db.lootDifficulty or "normal"
+    local diffKey = Database.LootDifficulty()
     local diffIDs = LOOT_DIFF_IDS[diffKey]
     if not diffIDs then return nil end
     local srcKey = sourceType == "Raid" and "raid" or "dungeon"
@@ -1522,14 +1532,27 @@ local function RebuildLootSearchData()
         end
     end
 
-    local wantDiff = EasyFind.db.lootDifficulty or "normal"
+    local wantDiff = Database.LootDifficulty()
+    -- Shipped loot has no spec lists: the class wears or wields it.
+    local wantClass
+    if not wantAll then
+        if type(lootFilter) == "table" then wantClass = lootFilter.classID
+        else wantClass = select(3, UnitClass("player")) end
+    end
 
-    -- "*" is every spec or difficulty: WoW Forever's shipped loot.
-    local function wanted(specs, diffs)
+    -- "*" is every spec or difficulty: the shipped loot of the clients
+    -- with no journal.
+    local function wanted(specs, diffs, itemID)
         local specMatch = wantAll
         if not specMatch and specs then
             for i = 1, #specs do
-                if specs[i] == "*" or wantSpec[specs[i]] then specMatch = true; break end
+                if specs[i] == "*" then
+                    specMatch = not wantClass or Database.LootForClass(itemID, wantClass)
+                    break
+                elseif wantSpec[specs[i]] then
+                    specMatch = true
+                    break
+                end
             end
         end
         if not specMatch then return false end
@@ -1573,7 +1596,7 @@ local function RebuildLootSearchData()
                 local live = rawget(lootItemCache, itemID)
                 local specs = live and live._cachedSpecs or row._cachedSpecs
                 local diffs = live and live._cachedDiffs or row._cachedDiffs
-                if wanted(specs, diffs) then
+                if wanted(specs, diffs, itemID) then
                     local entry = live or corpus:StubAt(ri)
                     uiSearchData[#uiSearchData + 1] = entry
                     lootEntries[#lootEntries + 1] = entry
@@ -1583,7 +1606,7 @@ local function RebuildLootSearchData()
     end
     for itemID, entry in pairs(lootItemCache) do
         if not (Corpora.lootItemRi and Corpora.lootItemRi[itemID])
-           and wanted(entry._cachedSpecs, entry._cachedDiffs) then
+           and wanted(entry._cachedSpecs, entry._cachedDiffs, itemID) then
             uiSearchData[#uiSearchData + 1] = entry
             lootEntries[#lootEntries + 1] = entry
         end
@@ -1675,7 +1698,7 @@ function Database:GetLootItemLink(entry)
         local live = lootItemCache[entry.itemID]
         if live then links = live.lootItemLinks end
     end
-    local selected = EasyFind.db.lootDifficulty or "normal"
+    local selected = Database.LootDifficulty()
     if links and links[selected] then return links[selected] end
     for _, dk in ipairs(links and DIFF_PRIORITY or {}) do
         if links[dk] then return links[dk] end
@@ -3823,19 +3846,23 @@ function Corpora.StaticBossName(boss)
     return names and names[boss.enc] or boss.boss
 end
 
+-- A boss with a heroic mode (TBC's dungeons) lists each mode's loot.
+Corpora.STATIC_DIFF = { any = { key = "*" }, normal = { key = "normal" }, heroic = { key = "heroic" } }
 local function PopulateStaticLoot(database)
     local names = ns.STATIC_LOOT_NAMES or {}
     local insts = Corpora.StaticInstances()
-    local diff = { key = "*" }
     local GetName = C_Item and C_Item.GetItemNameByID
     for _, boss in ipairs(ns.STATIC_LOOT) do
         local e = insts[boss.inst]
         local inst = { id = boss.inst, name = Corpora.StaticInstanceName(boss.inst, e), isRaid = e and e.raid or false }
         local bossName = Corpora.StaticBossName(boss)
-        for _, itemID in ipairs(boss.items) do
-            local name = (GetName and GetName(itemID)) or names[itemID]
-            CacheLootInfo(database, { itemID = itemID, name = name }, inst, bossName, boss.enc, diff, nil, "*",
-                GetItemInfoInstant)
+        local diffs = Corpora.STATIC_DIFF
+        for _, list in ipairs({ { boss.items, boss.heroic and diffs.normal or diffs.any }, { boss.heroic or {}, diffs.heroic } }) do
+            for _, itemID in ipairs(list[1]) do
+                local name = (GetName and GetName(itemID)) or names[itemID]
+                CacheLootInfo(database, { itemID = itemID, name = name }, inst, bossName, boss.enc, list[2], nil, "*",
+                    GetItemInfoInstant)
+            end
         end
     end
     RebuildLootSearchData()

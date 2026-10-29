@@ -81,19 +81,26 @@ function Filters:AttachLootOptionsFlyout(row, dropdown, ctx)
     -- Difficulty dropdown bar via the shared single-select template, so it is
     -- pixel- and width-identical to the class/spec selector below it and to the
     -- catalog quality bar.
-    local DIFF_OPTIONS = {
-        { value = "lfr",    label = _G["RAID_FINDER"] or "Raid Finder" },
-        { value = "normal", label = _G["PLAYER_DIFFICULTY1"] or "Normal" },
-        { value = "heroic", label = _G["PLAYER_DIFFICULTY2"] or "Heroic" },
-        { value = "mythic", label = _G["PLAYER_DIFFICULTY6"] or "Mythic" },
+    local DIFF_LABELS = {
+        lfr    = _G["RAID_FINDER"] or "Raid Finder",
+        normal = _G["PLAYER_DIFFICULTY1"] or "Normal",
+        heroic = _G["PLAYER_DIFFICULTY2"] or "Heroic",
+        mythic = _G["PLAYER_DIFFICULTY6"] or "Mythic",
     }
+    -- The client's own difficulties; none on Era and Forever, and no bar.
+    local DIFF_OPTIONS = {}
+    for _, key in ipairs(ns.Caps.lootDifficulties) do
+        DIFF_OPTIONS[#DIFF_OPTIONS + 1] = { value = key, label = DIFF_LABELS[key] }
+    end
+    local hasDifficulty = #DIFF_OPTIONS > 0
+    if not hasDifficulty then DIFF_OPTIONS[1] = { value = "normal", label = DIFF_LABELS.normal } end
 
     local diffSel = Filters:BuildSelectDropdown({
         parent = lootOptionsPopup,
         name = "EasyFindDiffPopup",
         width = LOOT_POPUP_WIDTH - LOOT_POPUP_PAD * 2,
         options = DIFF_OPTIONS,
-        getValue = function() return EasyFind.db.lootDifficulty or "normal" end,
+        getValue = function() return ns.Database.LootDifficulty() end,
         setValue = function(v)
             EasyFind.db.lootDifficulty = v
             -- The link a loot row shows follows the difficulty: listeners re-rate.
@@ -155,8 +162,12 @@ function Filters:AttachLootOptionsFlyout(row, dropdown, ctx)
 
     local gy = -LOOT_POPUP_PAD
     diffBtn:ClearAllPoints()
-    diffBtn:SetPoint("TOPLEFT", lootOptionsPopup, "TOPLEFT", LOOT_POPUP_PAD, gy)
-    gy = gy - 27 - 4
+    if hasDifficulty then
+        diffBtn:SetPoint("TOPLEFT", lootOptionsPopup, "TOPLEFT", LOOT_POPUP_PAD, gy)
+        gy = gy - 27 - 4
+    else
+        diffBtn:Hide()
+    end
     specSelectRow:ClearAllPoints()
     specSelectRow:SetPoint("TOPLEFT", lootOptionsPopup, "TOPLEFT", LOOT_POPUP_PAD, gy)
     gy = gy - 27 - 6
@@ -177,7 +188,7 @@ function Filters:AttachLootOptionsFlyout(row, dropdown, ctx)
     end
     -- The difficulty button must fit its widest possible selection:
     -- left text inset + widest difficulty name + gap + arrow + inset.
-    local diffBtnW = 14 + Utils.MaxRowLabelWidth(diffPopupRows) + 2 + 22 + 10
+    local diffBtnW = hasDifficulty and (14 + Utils.MaxRowLabelWidth(diffPopupRows) + 2 + 22 + 10) or 0
     if diffBtnW > contentW then contentW = diffBtnW end
     -- The class/spec selector shares the bar width, so its designed width is a
     -- floor. Both bars then get popupW - pad, so they render identically wide

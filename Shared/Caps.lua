@@ -387,6 +387,13 @@ Caps.mapTabStrip = not Caps.classic
 Caps.itemCatalog = true
 Caps.iconSearch = not classic
 
+-- The loot difficulties each client has: none on Era and Forever, no Raid
+-- Finder on TBC, no Mythic before Warlords.
+Caps.lootDifficulties = (Caps.era or Caps.forever) and {}
+    or Caps.tbc and { "normal", "heroic" }
+    or Caps.mists and { "lfr", "normal", "heroic" }
+    or { "lfr", "normal", "heroic", "mythic" }
+
 -- Spell ranks: Forever has them; retail's spells carry no rank text.
 Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~= nil
 

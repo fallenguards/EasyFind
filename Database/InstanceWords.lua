@@ -177,9 +177,8 @@ end
 -- Armor types by armor subclass id, so "sm cloth" finds the cloth there.
 local ARMOR_KEYWORDS = { [1] = {"cloth"}, [2] = {"leather"}, [3] = {"mail"}, [4] = {"plate"}, [6] = {"shield", "shields"} }
 
--- Who wears and wields what, by class token: the armor type a class is
--- built for and the weapons it can learn. The rules of 1.x and 2.x on
--- Classic Era, TBC Anniversary and WoW Forever; the later ones elsewhere.
+-- Who wears and wields what, by class: 1.x and 2.x rules on Era, TBC and
+-- Forever, the later ones elsewhere.
 local W, PA, H, R, PR, S, M, WL, D = "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID"
 local DK, MO, DH, EV = "DEATHKNIGHT", "MONK", "DEMONHUNTER", "EVOKER"
 local CLASS_ID = { [W] = 1, [PA] = 2, [H] = 3, [R] = 4, [PR] = 5, [DK] = 6, [S] = 7, [M] = 8, [WL] = 9,
@@ -187,8 +186,10 @@ local CLASS_ID = { [W] = 1, [PA] = 2, [H] = 3, [R] = 4, [PR] = 5, [DK] = 6, [S] 
 local oldRules = ns.Caps and (ns.Caps.era or ns.Caps.tbc or ns.Caps.forever)
 local ARMOR_CLASSES = oldRules and {
     [1] = { PR, M, WL }, [2] = { R, D, H, S }, [3] = { W, PA, H, S }, [4] = { W, PA }, [6] = { W, PA, S },
+    [7] = { PA }, [8] = { D }, [9] = { S },
 } or {
     [1] = { PR, M, WL }, [2] = { R, D, MO, DH }, [3] = { H, S, EV }, [4] = { W, PA, DK }, [6] = { W, PA, S },
+    [7] = { PA }, [8] = { D }, [9] = { S }, [10] = { DK },
 }
 local WEAPON_CLASSES = oldRules and {
     [0] = { W, PA, H, S }, [1] = { W, PA, H, S }, [2] = { W, H, R }, [3] = { W, H, R },
@@ -243,10 +244,31 @@ local function Has(list, token)
     return false
 end
 
--- A query word naming an armor type or a class, against a loot row: the
--- item is of that type, or the class wears and wields it (its own class
--- restriction first, then the journal's class list, then the rules).
--- nil when the word names neither; 0 when it does and the item is not.
+-- The class wears or wields the item: its own class restriction, else
+-- the rules above. A cloak is cloth anyone wears.
+local function ClassUses(itemID, token, bit)
+    local mask = ns.STATIC_LOOT_CLASSES and ns.STATIC_LOOT_CLASSES[itemID]
+    if mask then return bband(mask, bit) ~= 0 end
+    local _, _, _, equipLoc, _, classID, subclassID = GetItemInfoInstant(itemID)
+    if equipLoc == "INVTYPE_CLOAK" then return true end
+    local list
+    if classID == 4 then list = ARMOR_CLASSES[subclassID]
+    elseif classID == 2 then list = WEAPON_CLASSES[subclassID] end
+    return not list or Has(list, token)
+end
+
+local CLASS_TOKEN = {}
+for token, id in pairs(CLASS_ID) do CLASS_TOKEN[id] = token end
+
+-- Shipped loot by class (no journal to ask): the filter menu's class.
+function Database.LootForClass(itemID, classID)
+    local token = CLASS_TOKEN[classID]
+    if not token then return true end
+    return ClassUses(itemID, token, 2 ^ (classID - 1))
+end
+
+-- A query word naming an armor type or class, against a loot row: nil
+-- when it names neither, 0 when the item is not of it.
 function Database.LootWordScore(data, word)
     local kind = GearWords()[word]
     if not kind then return nil end
@@ -263,9 +285,5 @@ function Database.LootWordScore(data, word)
         end
         return 0
     end
-    local list
-    if classID == 4 then list = ARMOR_CLASSES[subclassID]
-    elseif classID == 2 then list = WEAPON_CLASSES[subclassID] end
-    if not list or Has(list, kind.class) then return 110 end
-    return 0
+    return ClassUses(itemID, kind.class, kind.bit) and 110 or 0
 end

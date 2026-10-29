@@ -1,6 +1,7 @@
--- Guardrail: a companion's data file shipped for a client is turned on
--- there. The item catalog's Era, TBC and Mists data loaded, but its
--- switch still said "off on every classic client" (2026-10-29).
+-- Shared/Caps.lua on each client. A companion's data file shipped for a
+-- client is turned on there: the item catalog's Era, TBC and Mists data
+-- loaded, but its switch still said "off on every classic client"; and
+-- the loot filter offered retail's difficulties everywhere (2026-10-29).
 local H = require("Harness")
 
 local CLIENTS = {
@@ -76,5 +77,15 @@ function tests.aCompanionsDataIsTurnedOnWhereItShips()
     H.assertEq(#off, 0, "\n  " .. table.concat(off, "\n  "))
 end
 
-local pass, fail, failures = H.runSuite("CompanionDataCaps", tests)
+function tests.eachClientsOwnLootDifficulties()
+    local want = {
+        retail = "lfr normal heroic mythic", Forever = "", Era = "",
+        TBC = "normal heroic", Mists = "lfr normal heroic",
+    }
+    for _, client in ipairs(CLIENTS) do
+        H.assertEq(table.concat(ClientCaps(client).lootDifficulties, " "), want[client.name], client.name)
+    end
+end
+
+local pass, fail, failures = H.runSuite("ClientCaps", tests)
 return { pass = pass, fail = fail, failures = failures }
