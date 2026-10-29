@@ -86,3 +86,4 @@ Npcs.lua
 GPS.lua
 Trip.lua
 MapClick.lua
+QuestDirections.lua

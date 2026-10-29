@@ -31,6 +31,8 @@ globals = {
 
 -- WoW API globals (read-only)
 read_globals = {
+    "GetNumQuestLogEntries", "GetQuestIndexForWatch", "GetQuestLogTitle", "QUEST_LOG",
+    "QuestMapFrame_OpenToQuestDetails", "QUESTS_LABEL", "GetQuestUiMapID",
     -- WoW Lua extensions
     "bit",
     "debugstack", "debugprofilestart", "debugprofilestop", "strsplit", "strtrim", "wipe", "hooksecurefunc",
