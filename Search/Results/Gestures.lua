@@ -32,6 +32,7 @@ local V = {
     dressroom   = _G["DRESSUP_FRAME"] or "Dressing Room",
     encounter   = _G["ENCOUNTER_JOURNAL"] or "Encounter Journal",
     loot        = _G["LOOT"] or "Loot",
+    gps         = L["APP_GPS"],
     achievements = _G["ACHIEVEMENTS"] or "Achievements",
     none        = _G["NONE"] or "None",
     click        = L["HINT_CLICK"],
@@ -246,6 +247,8 @@ local function Word(data, kind, action)
         local actionKind = ns.ResultHandlers:GetBagItemActionKind(data)
         return actionKind == "equip" and V.equip or actionKind == "open" and V.open or V.use
     end
+    -- No journal: the loot's source is directions to its instance.
+    if action == "encounter" and not (ns.Caps and ns.Caps.journal) then return V.gps end
     return V[kind.byAction[action].word]
 end
 
