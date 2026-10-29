@@ -170,10 +170,28 @@ local function IsOrphanName(name)
     return name ~= nil and orphanNames[name:lower()] == true
 end
 
+-- Where a row leads: the place it stands for (a boss's door), else its
+-- provider's place(row), asked a few seconds apart; else the row itself.
+function GPS.LeadsTo(data)
+    if data.gpsDest then return data.gpsDest end
+    if data.placeOf or data.x ~= nil then return data end
+    local Extensions = ns.Extensions
+    local provider = Extensions and Extensions.ProviderOf and Extensions.ProviderOf(data)
+    if not (provider and provider.place) then return data end
+    local now = GetTime()
+    if not (data._gpsPlaceAt and now - data._gpsPlaceAt < 5) then
+        data._gpsPlaceAt = now
+        local ok, place = Extensions.Run(provider.place, data)
+        data._gpsPlace = ok and type(place) == "table" and place.mapID and place.x and place.y
+            and { name = place.name, mapID = place.mapID, x = place.x, y = place.y, step = place.step,
+                  icon = place.icon or data.icon } or nil
+    end
+    return data._gpsPlace or data
+end
+
 function GPS:CanNavigate(data)
     if not data then return false end
-    -- A row standing for a place elsewhere (a boss, at its dungeon's door).
-    if data.gpsDest then data = data.gpsDest end
+    data = GPS.LeadsTo(data)
     -- An extension's row: where it is right now (MapSearch.ResolvePlace).
     if data.placeOf and ns.MapSearch and ns.MapSearch.ResolvePlace then ns.MapSearch.ResolvePlace(data) end
     local mapID = data.zoneMapID or data.mapID
@@ -1230,7 +1248,7 @@ end
 GPS.Destination = Destination   -- the trip editor's stops
 
 function GPS:NavigateTo(data, opts)
-    if data and data.gpsDest then data = data.gpsDest end
+    if data then data = GPS.LeadsTo(data) end
     if not self:CanNavigate(data) then return false end
     local db = DB()
     if not db then return false end
