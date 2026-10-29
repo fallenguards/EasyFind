@@ -20,8 +20,9 @@ end
 
 -- The toc rule an opening guard line asks for, or nil.
 local function GateRule(line)
-    if line:find("^if not %(ns and ns%.Caps and ns%.Caps%.forever%) then return end")
-       or line:find("^if not %(ns%.Caps and ns%.Caps%.forever%) then return end") then
+    -- A companion's guard names ns first (its prelude has no "if not ns").
+    line = line:gsub("^if not %(ns and ns%.Caps", "if not (ns.Caps")
+    if line:find("^if not %(ns%.Caps and ns%.Caps%.forever%) then return end") then
         return "[AllowLoadGameType camelot]"
     elseif line:find("^if ns%.Caps and ns%.Caps%.forever then return end") then
         return "[AllowLoadGameType standard]"

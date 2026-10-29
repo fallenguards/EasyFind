@@ -379,8 +379,9 @@ Caps.questLogAtlas = not Caps.era
 -- opens from the side panel's corner button instead.
 Caps.mapTabStrip = not Caps.classic
 
--- The item catalog and icon list are built from retail's files.
-Caps.itemCatalog = not classic
+-- Every client ships its own item catalog (Apps/Items/Data_*.lua); the
+-- icon list is built from retail's files.
+Caps.itemCatalog = true
 Caps.iconSearch = not classic
 
 -- Spell ranks: Forever has them; retail's spells carry no rank text.
