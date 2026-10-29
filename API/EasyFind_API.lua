@@ -154,7 +154,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 0,
+    MINOR = 1,
 }
 local API = EasyFind.API
 

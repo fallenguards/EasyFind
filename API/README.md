@@ -18,11 +18,11 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
-if not (API and API.VERSION == 1) then return end
+if not (API and API.VERSION == 1 and API.MINOR >= 1) then return end
 ```
 
 ## Quick start
@@ -210,10 +210,10 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `lowResults` | boolean | Also loaded when a search finds little. |
 | `aliases` | string list | An `@scope`: `@` and one of these lists only its rows. |
 | `browse` | function | `browse(row)` returns whether the row is in the scope's list while nothing is typed (a quest log, not every quest). Without it, every row is. Typing searches all rows either way. |
-| `place` | function | `place(row)` returns where the row is right now, `{ name, mapID, x, y, step }` as `navigate` takes, or nil. Its rows are then found from the map search and the GPS window too, and a pick there pins or routes to that spot. A row's `mapID` names the map it is on, for the map's own list. |
+| `place` | function | `place(row)` returns where the row is right now, `{ name, mapID, x, y, step, icon }` as `navigate` takes, or nil. Its rows are then found from the map search and the GPS window too, and a pick there pins or routes to that spot. A row with no `x` of its own gets the GPS button to that spot, and `icon` marks the route's end on the map. A row's `mapID` names the map it is on, for the map's own list. |
 | `link` | table | `{ key = function(row), resolve = function(tail) }`. A row's EasyFind link (Send, the Ctrl+Shift+C copy) carries `key(row)`, a short string of yours, such as an id and the sender's progress. On the receiver, whose copy of your extension resolves it, `resolve(tail)` returns the row to show: its tooltip, hint and click are yours as for any row, so the tooltip can show what the sender sent. Without `link`, a row's link finds the receiver's own row by name. Keep the key short: it travels inside a chat message. |
 | `menu` | function | `menu(row)` returns rows for the result's right-click menu, in the tile menu's shape (`{ kind = "action", label, onClick, tooltip }`, `{ kind = "check", label, get, set }`, `{ kind = "separator" }`, `{ kind = "menu", label, rows }` for a flyout within). They sit under one row named after your extension, with its glyph. Return nothing for a row with no rows of its own. |
-| `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`. `label` and `tooltip` may be functions. |
+| `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`, or one-of-several radio rows `{ choice = { { label, value, tooltip }, ... }, get, set }` (`get` returns the value, `set` takes it; MINOR 1). `label` and `tooltip` may be functions. |
 | `hint` | string, table or function | What a row's gestures do, shown under its name on hover: a sentence, or `{ click, alt, ctrl, shift }` with each gesture's target ("Click: Directions \| Alt: Quest log"), or a function of the row returning either. A row's own `hint` wins. |
 | `extension` | string | The extension it belongs to. Its addon loading on demand, `select` loads it first. An extension whose addon is turned off shows no filter row or scope. |
 | `loadOnSearch` | boolean or function | Load the extension's addon when its rows are first needed. |
@@ -224,6 +224,7 @@ A row is a table:
 | --- | --- |
 | `name` | Required. What is searched and shown. |
 | `icon` | Texture path or file id, shown at the row's right in its own colors. |
+| `iconDimmed` | `true`: the icon is drawn gray, for a row out of reach (a quest the character cannot take yet; MINOR 1). |
 | `keywords` | More words that find it. |
 | `searchCommandDesc` | Its subtext: a dim note shown with the name. |
 | `hint` | What its gestures do, as the provider's `hint`, for this row alone. |

@@ -7,7 +7,7 @@ local slower, sfind = Utils.slower, Utils.sfind
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 0 }
+local API = { VERSION = 1, MINOR = 1 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
