@@ -21,10 +21,12 @@ end
 -- the yards along the walk over ground deadly to the player. west: the
 -- player that far west of the walk instead; sealed: no way on foot but
 -- the planned walk itself.
-local function fresh(deadly, west, sealed, zoom, waypoints)
+local function fresh(deadly, west, sealed, zoom, waypoints, settings)
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
+    env.EasyFind.db = env.EasyFind.db or {}
+    for k, v in pairs(settings or {}) do env.EasyFind.db[k] = v end
     local now = { t = 100 }
     env.GetTime = function() return now.t end
     local state = { rotate = false, facing = 0 }
@@ -166,6 +168,15 @@ function tests.deadlyGroundAlreadyWalkedIsNotRed()
     local drawn = fresh({ n = 2, 20, 60 })
     H.assertEq(#drawn.pieces, 2)
     H.assertTrue(drawn.pieces[1].color == PASSED and drawn.pieces[2].color == BLUE)
+end
+
+-- The GPS settings' Red on dangerous stretches switch, off: the same
+-- deadly ground ahead draws in the way's own color.
+function tests.redTurnedOff_deadlyGroundAheadKeepsItsColor()
+    local drawn = fresh({ n = 2, 120, 160 }, nil, nil, nil, nil, { gpsDangerRed = false })
+    for i = 1, #drawn.pieces do
+        H.assertTrue(drawn.pieces[i].color ~= RED, "piece " .. i .. " is red")
+    end
 end
 
 function tests.aTurningMinimapTurnsTheLine()

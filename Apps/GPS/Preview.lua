@@ -484,7 +484,8 @@ end
 -- deadly to the player on continent ci (nil: none), to(x, y) per point.
 function Preview.Trace(path, ci, s, x, y, from, pen, to)
     local Npcs = ns.GPSNpcs
-    local d = ci and Npcs and Npcs.DeadlyAlong
+    local db = EasyFind and EasyFind.db
+    local d = ci and Npcs and Npcs.DeadlyAlong and not (db and db.gpsDangerRed == false)
         and Npcs.DeadlyAlong(path, ci, UnitLevel("player"), UnitFactionGroup("player"))
     local n, r = d and d.n or 0, 1
     while r < n and d[r + 1] <= from do r = r + 2 end
@@ -865,7 +866,8 @@ function Preview:Show(index)
     if mapID and here ~= mapID and WorldMapFrame.SetMapID then pcall(WorldMapFrame.SetMapID, WorldMapFrame, mapID) end
     dirty = true
     Draw()
-    if not marks then return end
+    local db = EasyFind and EasyFind.db
+    if not marks or (db and db.gpsClickPulse == false) then return end
     for _, mark in ipairs({ marks.symbol, marks.stop, marks.stopCasing, marks.dest, marks.destIcon }) do
         if mark:IsShown() then Pulse(mark) end
     end

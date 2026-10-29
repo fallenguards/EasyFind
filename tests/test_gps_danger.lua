@@ -37,7 +37,7 @@ local function Load(skullAt, guardAt)
         },
     }
     local env = setmetatable({
-        GPS = GPS, ns = ns, sformat = string.format,
+        GPS = GPS, ns = ns, sformat = string.format, DB = function() return state.db end,
         L = { GPS_DANGER = "Deadly.", GPS_DANGER_GUARDS = "Guards." },
         UnitLevel = function() return state.level or 15 end,
         UnitFactionGroup = function() return "Alliance" end,
@@ -94,6 +94,15 @@ function tests.keptUntilTheLevelChanges()
     H.assertEq(state.asked, asked, "read once for these steps")
     state.level = 30
     H.assertNil(GPS.DangerText(route), "at 30 nothing there cons skull")
+end
+
+-- The GPS settings' Danger warnings switch, off.
+function tests.warningsTurnedOff_noWarning()
+    local GPS, route, state = Load(30)
+    state.db = { gpsDangerWarn = false }
+    H.assertNil(GPS.DangerText(route))
+    state.db = {}
+    H.assertEq(GPS.DangerText(route), "Deadly.", "on by default")
 end
 
 function tests.withoutTheCatalog_noWarning()

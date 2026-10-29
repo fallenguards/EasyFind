@@ -2112,7 +2112,8 @@ end
 -- once put away, or while its walks are not all drawn. Kept per steps.
 GPS.dangerFound = setmetatable({}, { __mode = "k" })
 function GPS.DangerText(route)
-    if route.dangerSeen or route.arrived then return nil end
+    local db = DB()
+    if route.dangerSeen or route.arrived or (db and db.gpsDangerWarn == false) then return nil end
     local Npcs, Engine, Follow = ns.GPSNpcs, ns.GPSRoute, ns.GPSFollow
     local level = UnitLevel("player")
     if not (Npcs and Npcs.DeadlyAlong and Engine and Engine.WalkPath and Follow and level) then return nil end
@@ -6188,6 +6189,14 @@ do
         end
         Switch("gpsArrow", L["GPS_ARROW"], L["GPS_ARROW_TT"], Refresh)
         Switch("gpsMinimap", L["GPS_MINIMAP_LINE"], L["GPS_MINIMAP_LINE_TT"], Refresh)
+        Switch("gpsClickPulse", L["GPS_CLICK_PULSE"], L["GPS_CLICK_PULSE_TT"], function() end)
+        -- Danger is known only where the creature catalog says it.
+        if ns.NPC_DATA and ns.NPC_DATA.danger then
+            Switch("gpsDangerWarn", L["GPS_DANGER_WARN"], L["GPS_DANGER_WARN_TT"], Refresh)
+            Switch("gpsDangerRed", L["GPS_DANGER_RED"], L["GPS_DANGER_RED_TT"], function()
+                if ns.GPSPreview and ns.GPSPreview.ColorsChanged then ns.GPSPreview.ColorsChanged() end
+            end)
+        end
         Switch("gpsZoneSteps", L["GPS_ZONE_STEPS"], L["GPS_ZONE_STEPS_TT"], function()
             local route = Route()
             if route and not route.arrived then Reroute(route) end
@@ -6305,8 +6314,9 @@ do
         Place("beacon", -8, gap)
         for _, key in ipairs({ "line", "click", "arrowText", "textSize" }) do Place(key, 0, -4) end
         Place("plateBorder", 0, -6)
-        for _, key in ipairs({ "gpsArrow", "gpsMinimap", "gpsZoneSteps", "gpsRowButton", "hideDone" }) do
-            Place(key)
+        for _, key in ipairs({ "gpsArrow", "gpsMinimap", "gpsClickPulse", "gpsZoneSteps", "gpsDangerWarn",
+                               "gpsDangerRed", "gpsRowButton", "hideDone" }) do
+            if rows[key] then Place(key) end
         end
         -- Ways of travel a route leaves out unless nothing else gets there.
         local head = page:CreateFontString(nil, "ARTWORK", kit.Font and kit.Font("GameFontNormal") or "GameFontNormal")
