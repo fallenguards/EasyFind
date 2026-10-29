@@ -195,6 +195,10 @@ function Text:GetFlatSubtext(data)
         if last and #path > 1 and last ~= data.addon then return data.addon .. ": " .. last end
         return data.addon
     end
+    -- A boss names its kind with its instance: "Dungeon boss: Uldaman".
+    if data.category == "Boss" and data.instanceName then
+        return sformat(L[data.isRaidBoss and "SUBTEXT_RAID_BOSS" or "SUBTEXT_DUNGEON_BOSS"], data.instanceName)
+    end
     if data.path and #data.path > 0 then
         return data.path[#data.path]
     end
@@ -213,7 +217,9 @@ function Text:GetFlatSubtext(data)
     if data.transmogSetID then return L["SUBTEXT_APPEARANCE_SET"] end
     if data.appearanceItemID then return L["SUBTEXT_APPEARANCE_ITEM"] end
     if data.itemID and data.category == "Loot" then
-        return data.lootInstanceName or _G["LOOT"] or "Loot"
+        if not data.lootInstanceName then return _G["LOOT"] or "Loot" end
+        return sformat(L[data.lootSourceType == "Raid" and "SUBTEXT_RAID_LOOT" or "SUBTEXT_DUNGEON_LOOT"],
+            data.lootInstanceName)
     end
     -- Naming the holders is the whole point of a stored-item result: the item
     -- is not reachable from here, so what the row answers is who has it.

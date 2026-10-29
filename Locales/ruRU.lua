@@ -1625,3 +1625,7 @@ L["GPS_DANGER_RED"]                     = "Красный на опасных у
 L["GPS_DANGER_RED_TT"]                  = "Маршрут становится красным на карте и миникарте там, где он пересекает такую местность."
 L["GPS_MENU_DIRECTIONS"]               = "Маршрут"
 L["GPS_QUEST_LEVEL_FMT"]               = "Уровень %d"
+L["SUBTEXT_DUNGEON_BOSS"]               = "Босс подземелья: %s"
+L["SUBTEXT_RAID_BOSS"]                  = "Босс рейда: %s"
+L["SUBTEXT_DUNGEON_LOOT"]               = "Добыча подземелья: %s"
+L["SUBTEXT_RAID_LOOT"]                  = "Добыча рейда: %s"
