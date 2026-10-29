@@ -22,24 +22,10 @@ ns.ITEM_SEARCH_BLOB = [[
 (action figure) night elf druid staff	31253	1	254	1	2	0
 (action figure) tauren hunter polearm	31266	1	254	1	2	0
 (action figure) troll priest staff	31257	1	254	1	2	0
-(deprecated)gems of goliathon	28049	1	254	1	12	0
-(deprecated)mana bomb schematics	25752	1	254	1	12	0
-(deprecated)mana bomb schematics	25753	1	254	1	12	0
-(deprecated)mana bomb schematics - page 1	25747	1	254	1	12	0
-(deprecated)mana bomb schematics - page 2	25748	1	254	1	12	0
-(deprecated)mana bomb schematics - page 3	25749	1	254	1	12	0
-(deprecated)mana bomb schematics - page 4	25750	1	254	1	12	0
-(old)heavy throwing axe	3136	1	254	1	12	0
-(old)medium throwing axe	3128	1	254	1	12	0
-(old)medium throwing knife	2945	1	254	1	12	0
-(old)wicked throwing dagger	3109	1	254	1	12	0
 10 pound mud snapper	6292	1	254	15	15	0
-10% test speed boots	18163	1	254	1	4	0
-1000 test dagger 60 blue	19810	3	254	60	2	0
 103 pound mightfish	13917	1	254	55	15	0
 12 pound lobster	13909	1	254	55	15	0
 12 pound mud snapper	6294	1	254	15	15	0
-13% test speed boots	18164	1	254	1	4	0
 130 epic warrior 1h axe	25799	4	254	130	2	0
 130 epic warrior axe	24524	4	254	130	2	0
 130 epic warrior bracelets	24526	4	254	130	4	0
@@ -55,449 +41,35 @@ ns.ITEM_SEARCH_BLOB = [[
 130 epic warrior sabatons	24536	4	254	130	4	0
 130 epic warrior trinket	25798	4	254	130	4	0
 130 epic warrior waistband	24537	4	254	130	4	0
-130 test caster belt	24561	4	254	130	4	0
-130 test caster boots	24565	4	254	130	4	0
-130 test caster bracer	24572	4	254	130	4	0
-130 test caster cloak	24567	4	254	130	4	0
-130 test caster gloves	24566	4	254	130	4	0
-130 test caster helm	24563	4	254	130	4	0
-130 test caster legs	25800	4	254	130	4	0
-130 test caster neck	24571	4	254	130	4	0
-130 test caster ring	24568	4	254	130	4	0
-130 test caster robe	24564	4	254	130	4	0
-130 test caster shoulder	24562	4	254	130	4	0
-130 test caster staff	24570	4	254	130	2	0
-130 test caster trinket	25801	4	254	130	4	0
-130 test caster wand	24569	4	254	130	2	0
-1300 test dagger 63 blue	19313	3	254	63	2	0
 15 pound lobster	13910	1	254	55	15	0
 15 pound mud snapper	6295	1	254	15	15	0
 15 pound salmon	13901	1	254	55	15	0
-15% test speed boots	18165	1	254	1	4	0
-1500 test sword 63 blue	19427	3	254	63	2	0
-1500 test sword 80 purple	19457	4	254	80	2	0
 17 pound catfish	6309	1	254	15	15	0
-1700 test dagger 60 white	21035	1	254	60	2	0
 18 pound salmon	13902	1	254	55	15	0
-1800 test dagger 63 blue	19622	3	254	63	2	0
 19 pound catfish	6310	1	254	15	15	0
 19 pound lobster	13911	1	254	55	15	0
 2 stone sledgehammer	26051	2	254	11	2	0
 20-slot bag	1977	1	254	1	1	0
-2000 test dagger 63 blue	19314	3	254	63	2	0
-2000 test sword 63 blue	21782	3	254	63	2	0
 21 pound lobster	13912	1	254	55	15	0
-2100 test 2h axe 63 blue	19185	3	254	63	2	0
 22 pound catfish	6311	1	254	15	15	0
 22 pound lobster	13913	1	254	55	15	0
 22 pound salmon	13903	1	254	55	15	0
-2200 test 2h axe 63 blue	19188	3	254	63	2	0
-2200 test sword 63 blue	19502	3	254	63	2	0
-2200 test sword 70 purple	19504	4	254	70	2	0
-2200 test sword 80 purple	19503	4	254	80	2	0
-2300 test 2h axe 63 blue	19189	3	254	63	2	0
-2400 test 2h axe 63 blue	19190	3	254	63	2	0
 25 pound salmon	13904	1	254	55	15	0
-2500 test 2h axe 60 blue	19809	3	254	60	2	0
-2500 test 2h axe 60 blue (bear)	19811	3	254	60	2	0
-2500 test 2h axe 63 blue	19191	3	254	63	2	0
 26 pound catfish	6363	1	254	25	15	0
-2600 test 2h axe 63 blue	19192	3	254	63	2	0
-2700 test 2h axe 63 blue	19186	3	254	63	2	0
-2800 test 2h axe 63 blue	19193	3	254	63	2	0
-2800 test bow	21036	1	254	60	2	0
-2800 test bow 63 blue	19490	3	254	63	2	0
 29 pound salmon	13905	1	254	55	15	0
-2900 test 2h axe 63 blue	19194	3	254	63	2	0
-2900 test sword 63 blue	19428	3	254	63	2	0
-2900 test sword 80 purple	19456	4	254	80	2	0
-3000 test 2h axe 63 blue	19195	3	254	63	2	0
-3100 test 2h axe 63 blue	19196	3	254	63	2	0
 32 pound catfish	6364	1	254	25	15	0
 32 pound salmon	13906	1	254	55	15	0
-3200 test 2h axe 63 blue	19187	3	254	63	2	0
-3300 test 2h axe 60 white	21034	1	254	60	2	0
-3300 test 2h axe 63 blue	19197	3	254	63	2	0
-3300 test crossbow 63 blue	19489	3	254	63	2	0
 34 pound redgill	13885	1	254	45	15	0
-3400 test 2h axe 63 blue	19198	3	254	63	2	0
-3500 test 2h axe 63 blue	19199	3	254	63	2	0
-3500 test 2h axe 70 purple	19455	4	254	70	2	0
-3500 test 2h axe 80 purple	19662	4	254	80	2	0
-3600 test 2h axe 63 blue	19200	3	254	63	2	0
 37 pound redgill	13886	1	254	45	15	0
-3700 test 2h axe 63 blue	19201	3	254	63	2	0
-3800 test 2h axe 63 blue	19184	3	254	63	2	0
 40 pound grouper	13876	1	254	45	15	0
 42 pound redgill	13882	1	254	45	15	0
 45 pound redgill	13883	1	254	45	15	0
 47 pound grouper	13877	1	254	45	15	0
 49 pound redgill	13884	1	254	45	15	0
-5% test speed boots	18161	1	254	1	4	0
 500 pound chicken	21028	1	254	1	12	0
 52 pound redgill	13887	1	254	45	15	0
 53 pound grouper	13878	1	254	45	15	0
 59 pound grouper	13879	1	254	45	15	0
-59 test green axe1h	26672	0	254	81	2	0
-59 test green axe2h	26686	2	254	81	2	0
-59 test green bow	26714	2	254	81	2	0
-59 test green cloth belt	26056	2	254	81	4	0
-59 test green cloth boot	26057	2	254	81	4	0
-59 test green cloth chest	26058	2	254	81	4	0
-59 test green cloth cloak	26504	2	254	81	4	0
-59 test green cloth hand	26059	2	254	81	4	0
-59 test green cloth head	26060	2	254	81	4	0
-59 test green cloth legs	26061	2	254	81	4	0
-59 test green cloth necklace	26532	2	254	81	4	0
-59 test green cloth ring	26518	2	254	81	4	0
-59 test green cloth shoulder	26062	2	254	81	4	0
-59 test green cloth wrist	26063	2	254	81	4	0
-59 test green crossbow	26728	2	254	81	2	0
-59 test green dagger	26574	2	254	81	2	0
-59 test green druid belt	26812	2	254	81	4	0
-59 test green druid boot	26813	2	254	81	4	0
-59 test green druid chest	26814	2	254	81	4	0
-59 test green druid hand	26815	2	254	81	4	0
-59 test green druid head	26816	2	254	81	4	0
-59 test green druid legs	26817	2	254	81	4	0
-59 test green druid shoulder	26818	2	254	81	4	0
-59 test green druid wrist	26819	2	254	81	4	0
-59 test green druid/warrior cloak	27190	2	254	81	4	0
-59 test green druid/warrior necklace	27218	2	254	81	4	0
-59 test green druid/warrior ring	27204	2	254	81	4	0
-59 test green feral staff	26798	2	254	81	2	0
-59 test green fistweapon	26658	2	254	81	2	0
-59 test green gun	26742	2	254	81	2	0
-59 test green healer mace	26784	2	254	81	2	0
-59 test green hunter belt	26280	2	254	81	4	0
-59 test green hunter boot	26281	2	254	81	4	0
-59 test green hunter chest	26282	2	254	81	4	0
-59 test green hunter hand	26283	2	254	81	4	0
-59 test green hunter head	26284	2	254	81	4	0
-59 test green hunter legs	26285	2	254	81	4	0
-59 test green hunter shoulder	26286	2	254	81	4	0
-59 test green hunter wrist	26287	2	254	81	4	0
-59 test green mace1h	26588	2	254	81	2	0
-59 test green mace2h	26602	2	254	81	2	0
-59 test green off hand	26560	2	254	81	4	0
-59 test green paladin belt	27036	2	254	81	4	0
-59 test green paladin boot	27037	2	254	81	4	0
-59 test green paladin chest	27038	2	254	81	4	0
-59 test green paladin cloak	27274	2	254	81	4	0
-59 test green paladin hand	27039	2	254	81	4	0
-59 test green paladin head	27040	2	254	81	4	0
-59 test green paladin legs	27041	2	254	81	4	0
-59 test green paladin necklace	27302	2	254	81	4	0
-59 test green paladin ring	27288	2	254	81	4	0
-59 test green paladin shoulder	27042	2	254	81	4	0
-59 test green paladin wrist	27043	2	254	81	4	0
-59 test green polearm	26700	2	254	81	2	0
-59 test green rogue belt	26168	2	254	81	4	0
-59 test green rogue boot	26169	2	254	81	4	0
-59 test green rogue chest	26170	2	254	81	4	0
-59 test green rogue hand	26171	2	254	81	4	0
-59 test green rogue head	26172	2	254	81	4	0
-59 test green rogue legs	26173	2	254	81	4	0
-59 test green rogue shoulder	26174	2	254	81	4	0
-59 test green rogue wrist	26175	2	254	81	4	0
-59 test green rogue/hunter cloak	27148	2	254	81	4	0
-59 test green rogue/hunter necklace	27176	2	254	81	4	0
-59 test green rogue/hunter ring	27162	2	254	81	4	0
-59 test green shaman belt	26924	2	254	81	4	0
-59 test green shaman boot	26925	2	254	81	4	0
-59 test green shaman chest	26926	2	254	81	4	0
-59 test green shaman cloak	27232	2	254	81	4	0
-59 test green shaman hand	26927	2	254	81	4	0
-59 test green shaman head	26928	2	254	81	4	0
-59 test green shaman legs	26929	2	254	81	4	0
-59 test green shaman necklace	27260	2	254	81	4	0
-59 test green shaman ring	27246	2	254	81	4	0
-59 test green shaman shoulder	26930	2	254	81	4	0
-59 test green shaman wrist	26931	2	254	81	4	0
-59 test green shield	26546	2	254	81	4	0
-59 test green spell dagger	26770	2	254	81	2	0
-59 test green staff	26644	2	254	81	2	0
-59 test green sword1h	26616	2	254	81	2	0
-59 test green sword2h	26630	2	254	81	2	0
-59 test green wand	26756	2	254	81	2	0
-59 test green warrior belt	26392	2	254	81	4	0
-59 test green warrior boot	26393	2	254	81	4	0
-59 test green warrior chest	26394	2	254	81	4	0
-59 test green warrior hand	26395	2	254	81	4	0
-59 test green warrior head	26396	2	254	81	4	0
-59 test green warrior legs	26397	2	254	81	4	0
-59 test green warrior shoulder	26398	2	254	81	4	0
-59 test green warrior wrist	26399	2	254	81	4	0
-60 test green axe1h	26673	2	254	84	2	0
-60 test green axe2h	26687	2	254	84	2	0
-60 test green bow	26715	2	254	84	2	0
-60 test green cloth belt	26064	2	254	84	4	0
-60 test green cloth boot	26065	2	254	84	4	0
-60 test green cloth chest	26066	2	254	84	4	0
-60 test green cloth cloak	26505	2	254	84	4	0
-60 test green cloth hand	26067	2	254	84	4	0
-60 test green cloth head	26068	2	254	84	4	0
-60 test green cloth legs	26069	2	254	84	4	0
-60 test green cloth necklace	26533	2	254	84	4	0
-60 test green cloth ring	26519	2	254	84	4	0
-60 test green cloth shoulder	26070	2	254	84	4	0
-60 test green cloth wrist	26071	2	254	84	4	0
-60 test green crossbow	26729	2	254	84	2	0
-60 test green dagger	26575	2	254	84	2	0
-60 test green druid belt	26820	2	254	84	4	0
-60 test green druid boot	26821	2	254	84	4	0
-60 test green druid chest	26822	2	254	84	4	0
-60 test green druid hand	26823	2	254	84	4	0
-60 test green druid head	26824	2	254	84	4	0
-60 test green druid legs	26825	2	254	84	4	0
-60 test green druid shoulder	26826	2	254	84	4	0
-60 test green druid wrist	26827	2	254	84	4	0
-60 test green druid/warrior cloak	27191	2	254	84	4	0
-60 test green druid/warrior necklace	27219	2	254	84	4	0
-60 test green druid/warrior ring	27205	2	254	84	4	0
-60 test green feral staff	26799	2	254	84	2	0
-60 test green fistweapon	26659	2	254	84	2	0
-60 test green gun	26743	2	254	84	2	0
-60 test green healer mace	26785	2	254	84	2	0
-60 test green hunter belt	26288	2	254	84	4	0
-60 test green hunter boot	26289	2	254	84	4	0
-60 test green hunter chest	26290	2	254	84	4	0
-60 test green hunter hand	26291	2	254	84	4	0
-60 test green hunter head	26292	2	254	84	4	0
-60 test green hunter legs	26293	2	254	84	4	0
-60 test green hunter shoulder	26294	2	254	84	4	0
-60 test green hunter wrist	26295	2	254	84	4	0
-60 test green mace1h	26589	2	254	84	2	0
-60 test green mace2h	26603	2	254	84	2	0
-60 test green off hand	26561	2	254	84	4	0
-60 test green paladin belt	27044	2	254	84	4	0
-60 test green paladin boot	27045	2	254	84	4	0
-60 test green paladin chest	27046	2	254	84	4	0
-60 test green paladin cloak	27275	2	254	84	4	0
-60 test green paladin hand	27047	2	254	84	4	0
-60 test green paladin head	27048	2	254	84	4	0
-60 test green paladin legs	27049	2	254	84	4	0
-60 test green paladin necklace	27303	2	254	84	4	0
-60 test green paladin ring	27289	2	254	84	4	0
-60 test green paladin shoulder	27050	2	254	84	4	0
-60 test green paladin wrist	27051	2	254	84	4	0
-60 test green polearm	26701	2	254	84	2	0
-60 test green rogue belt	26176	2	254	84	4	0
-60 test green rogue boot	26177	2	254	84	4	0
-60 test green rogue chest	26178	2	254	84	4	0
-60 test green rogue hand	26179	2	254	84	4	0
-60 test green rogue head	26180	2	254	84	4	0
-60 test green rogue legs	26181	2	254	84	4	0
-60 test green rogue shoulder	26182	2	254	84	4	0
-60 test green rogue wrist	26183	2	254	84	4	0
-60 test green rogue/hunter cloak	27149	2	254	84	4	0
-60 test green rogue/hunter necklace	27177	2	254	84	4	0
-60 test green rogue/hunter ring	27163	2	254	84	4	0
-60 test green shaman belt	26932	2	254	84	4	0
-60 test green shaman boot	26933	2	254	84	4	0
-60 test green shaman chest	26934	2	254	84	4	0
-60 test green shaman cloak	27233	2	254	84	4	0
-60 test green shaman hand	26935	2	254	84	4	0
-60 test green shaman head	26936	2	254	84	4	0
-60 test green shaman legs	26937	2	254	84	4	0
-60 test green shaman necklace	27261	2	254	84	4	0
-60 test green shaman ring	27247	2	254	84	4	0
-60 test green shaman shoulder	26938	2	254	84	4	0
-60 test green shaman wrist	26939	2	254	84	4	0
-60 test green shield	26547	2	254	84	4	0
-60 test green spell dagger	26771	2	254	84	2	0
-60 test green staff	26645	2	254	84	2	0
-60 test green sword1h	26617	2	254	84	2	0
-60 test green sword2h	26631	2	254	84	2	0
-60 test green wand	26757	2	254	84	2	0
-60 test green warrior belt	26400	2	254	84	4	0
-60 test green warrior boot	26401	2	254	84	4	0
-60 test green warrior chest	26402	2	254	84	4	0
-60 test green warrior hand	26403	2	254	84	4	0
-60 test green warrior head	26404	2	254	84	4	0
-60 test green warrior legs	26405	2	254	84	4	0
-60 test green warrior shoulder	26406	2	254	84	4	0
-60 test green warrior wrist	26407	2	254	84	4	0
-61 test green axe1h	26674	2	254	87	2	0
-61 test green axe2h	26688	2	254	87	2	0
-61 test green bow	26716	2	254	87	2	0
-61 test green cloth belt	26072	2	254	87	4	0
-61 test green cloth boot	26073	2	254	87	4	0
-61 test green cloth chest	26074	2	254	87	4	0
-61 test green cloth cloak	26506	2	254	87	4	0
-61 test green cloth hand	26075	2	254	87	4	0
-61 test green cloth head	26076	2	254	87	4	0
-61 test green cloth legs	26077	2	254	87	4	0
-61 test green cloth necklace	26534	2	254	87	4	0
-61 test green cloth ring	26520	2	254	87	4	0
-61 test green cloth shoulder	26078	2	254	87	4	0
-61 test green cloth wrist	26079	2	254	87	4	0
-61 test green crossbow	26730	2	254	87	2	0
-61 test green dagger	26576	2	254	87	2	0
-61 test green druid belt	26828	2	254	87	4	0
-61 test green druid boot	26829	2	254	87	4	0
-61 test green druid chest	26830	2	254	87	4	0
-61 test green druid hand	26831	2	254	87	4	0
-61 test green druid head	26832	2	254	87	4	0
-61 test green druid legs	26833	2	254	87	4	0
-61 test green druid shoulder	26834	2	254	87	4	0
-61 test green druid wrist	26835	2	254	87	4	0
-61 test green druid/warrior cloak	27192	2	254	87	4	0
-61 test green druid/warrior necklace	27220	2	254	87	4	0
-61 test green druid/warrior ring	27206	2	254	87	4	0
-61 test green feral staff	26800	2	254	87	2	0
-61 test green fistweapon	26660	2	254	87	2	0
-61 test green gun	26744	2	254	87	2	0
-61 test green healer mace	26786	2	254	87	2	0
-61 test green hunter belt	26296	2	254	87	4	0
-61 test green hunter boot	26297	2	254	87	4	0
-61 test green hunter chest	26298	2	254	87	4	0
-61 test green hunter hand	26299	2	254	87	4	0
-61 test green hunter head	26300	2	254	87	4	0
-61 test green hunter legs	26301	2	254	87	4	0
-61 test green hunter shoulder	26302	2	254	87	4	0
-61 test green hunter wrist	26303	2	254	87	4	0
-61 test green mace1h	26590	2	254	87	2	0
-61 test green mace2h	26604	2	254	87	2	0
-61 test green off hand	26562	2	254	87	4	0
-61 test green paladin belt	27052	2	254	87	4	0
-61 test green paladin boot	27053	2	254	87	4	0
-61 test green paladin chest	27054	2	254	87	4	0
-61 test green paladin cloak	27276	2	254	87	4	0
-61 test green paladin hand	27055	2	254	87	4	0
-61 test green paladin head	27056	2	254	87	4	0
-61 test green paladin legs	27057	2	254	87	4	0
-61 test green paladin necklace	27304	2	254	87	4	0
-61 test green paladin ring	27290	2	254	87	4	0
-61 test green paladin shoulder	27058	2	254	87	4	0
-61 test green paladin wrist	27059	2	254	87	4	0
-61 test green polearm	26702	2	254	87	2	0
-61 test green rogue belt	26184	2	254	87	4	0
-61 test green rogue boot	26185	2	254	87	4	0
-61 test green rogue chest	26186	2	254	87	4	0
-61 test green rogue hand	26187	2	254	87	4	0
-61 test green rogue head	26188	2	254	87	4	0
-61 test green rogue legs	26189	2	254	87	4	0
-61 test green rogue shoulder	26190	2	254	87	4	0
-61 test green rogue wrist	26191	2	254	87	4	0
-61 test green rogue/hunter cloak	27150	2	254	87	4	0
-61 test green rogue/hunter necklace	27178	2	254	87	4	0
-61 test green rogue/hunter ring	27164	2	254	87	4	0
-61 test green shaman belt	26940	2	254	87	4	0
-61 test green shaman boot	26941	2	254	87	4	0
-61 test green shaman chest	26942	2	254	87	4	0
-61 test green shaman cloak	27234	2	254	87	4	0
-61 test green shaman hand	26943	2	254	87	4	0
-61 test green shaman head	26944	2	254	87	4	0
-61 test green shaman legs	26945	2	254	87	4	0
-61 test green shaman necklace	27262	2	254	87	4	0
-61 test green shaman ring	27248	2	254	87	4	0
-61 test green shaman shoulder	26946	2	254	87	4	0
-61 test green shaman wrist	26947	2	254	87	4	0
-61 test green shield	26548	2	254	87	4	0
-61 test green spell dagger	26772	2	254	87	2	0
-61 test green staff	26646	2	254	87	2	0
-61 test green sword1h	26618	2	254	87	2	0
-61 test green sword2h	26632	2	254	87	2	0
-61 test green wand	26758	2	254	87	2	0
-61 test green warrior belt	26408	2	254	87	4	0
-61 test green warrior boot	26409	2	254	87	4	0
-61 test green warrior chest	26410	2	254	87	4	0
-61 test green warrior hand	26411	2	254	87	4	0
-61 test green warrior head	26412	2	254	87	4	0
-61 test green warrior legs	26413	2	254	87	4	0
-61 test green warrior shoulder	26414	2	254	87	4	0
-61 test green warrior wrist	26415	2	254	87	4	0
-62 test green axe1h	26675	2	254	90	2	0
-62 test green axe2h	26689	2	254	90	2	0
-62 test green bow	26717	2	254	90	2	0
-62 test green cloth belt	26080	2	254	90	4	0
-62 test green cloth boot	26081	2	254	90	4	0
-62 test green cloth chest	26082	2	254	90	4	0
-62 test green cloth cloak	26507	2	254	90	4	0
-62 test green cloth hand	26083	2	254	90	4	0
-62 test green cloth head	26084	2	254	90	4	0
-62 test green cloth legs	26085	2	254	90	4	0
-62 test green cloth necklace	26535	2	254	90	4	0
-62 test green cloth ring	26521	2	254	90	4	0
-62 test green cloth shoulder	26086	2	254	90	4	0
-62 test green cloth wrist	26087	2	254	90	4	0
-62 test green crossbow	26731	2	254	90	2	0
-62 test green dagger	26577	2	254	90	2	0
-62 test green druid belt	26836	2	254	90	4	0
-62 test green druid boot	26837	2	254	90	4	0
-62 test green druid chest	26838	2	254	90	4	0
-62 test green druid hand	26839	2	254	90	4	0
-62 test green druid head	26840	2	254	90	4	0
-62 test green druid legs	26841	2	254	90	4	0
-62 test green druid shoulder	26842	2	254	90	4	0
-62 test green druid wrist	26843	2	254	90	4	0
-62 test green druid/warrior cloak	27193	2	254	90	4	0
-62 test green druid/warrior necklace	27221	2	254	90	4	0
-62 test green druid/warrior ring	27207	2	254	90	4	0
-62 test green feral staff	26801	2	254	90	2	0
-62 test green fistweapon	26661	2	254	90	2	0
-62 test green gun	26745	2	254	90	2	0
-62 test green healer mace	26787	2	254	90	2	0
-62 test green hunter belt	26304	2	254	90	4	0
-62 test green hunter boot	26305	2	254	90	4	0
-62 test green hunter chest	26306	2	254	90	4	0
-62 test green hunter hand	26307	2	254	90	4	0
-62 test green hunter head	26308	2	254	90	4	0
-62 test green hunter legs	26309	2	254	90	4	0
-62 test green hunter shoulder	26310	2	254	90	4	0
-62 test green hunter wrist	26311	2	254	90	4	0
-62 test green mace1h	26591	2	254	90	2	0
-62 test green mace2h	26605	2	254	90	2	0
-62 test green off hand	26563	2	254	90	4	0
-62 test green paladin belt	27060	2	254	90	4	0
-62 test green paladin boot	27061	2	254	90	4	0
-62 test green paladin chest	27062	2	254	90	4	0
-62 test green paladin cloak	27277	2	254	90	4	0
-62 test green paladin hand	27063	2	254	90	4	0
-62 test green paladin head	27064	2	254	90	4	0
-62 test green paladin legs	27065	2	254	90	4	0
-62 test green paladin necklace	27305	2	254	90	4	0
-62 test green paladin ring	27291	2	254	90	4	0
-62 test green paladin shoulder	27066	2	254	90	4	0
-62 test green paladin wrist	27067	2	254	90	4	0
-62 test green polearm	26703	2	254	90	2	0
-62 test green rogue belt	26192	2	254	90	4	0
-62 test green rogue boot	26193	2	254	90	4	0
-62 test green rogue chest	26194	2	254	90	4	0
-62 test green rogue hand	26195	2	254	90	4	0
-62 test green rogue head	26196	2	254	90	4	0
-62 test green rogue legs	26197	2	254	90	4	0
-62 test green rogue shoulder	26198	2	254	90	4	0
-62 test green rogue wrist	26199	2	254	90	4	0
-62 test green rogue/hunter cloak	27151	2	254	90	4	0
-62 test green rogue/hunter necklace	27179	2	254	90	4	0
-62 test green rogue/hunter ring	27165	2	254	90	4	0
-62 test green shaman belt	26948	2	254	90	4	0
-62 test green shaman boot	26949	2	254	90	4	0
-62 test green shaman chest	26950	2	254	90	4	0
-62 test green shaman cloak	27235	2	254	90	4	0
-62 test green shaman hand	26951	2	254	90	4	0
-62 test green shaman head	26952	2	254	90	4	0
-62 test green shaman legs	26953	2	254	90	4	0
-62 test green shaman necklace	27263	2	254	90	4	0
-62 test green shaman ring	27249	2	254	90	4	0
-62 test green shaman shoulder	26954	2	254	90	4	0
-62 test green shaman wrist	26955	2	254	90	4	0
-62 test green shield	26549	2	254	90	4	0
-62 test green spell dagger	26773	2	254	90	2	0
-62 test green staff	26647	2	254	90	2	0
-62 test green sword1h	26619	2	254	90	2	0
-62 test green sword2h	26633	2	254	90	2	0
-62 test green wand	26759	2	254	90	2	0
-62 test green warrior belt	26416	2	254	90	4	0
-62 test green warrior boot	26417	2	254	90	4	0
-62 test green warrior chest	26418	2	254	90	4	0
-62 test green warrior hand	26419	2	254	90	4	0
-62 test green warrior head	26420	2	254	90	4	0
-62 test green warrior legs	26421	2	254	90	4	0
-62 test green warrior shoulder	26422	2	254	90	4	0
-62 test green warrior wrist	26423	2	254	90	4	0
 63 blue fire belt	21045	3	254	63	4	0
 63 blue fire bindings	21046	3	254	63	4	0
 63 blue fire boots	21047	3	254	63	4	0
@@ -575,276 +147,6 @@ ns.ITEM_SEARCH_BLOB = [[
 63 green warrior ring	20290	2	254	63	4	0
 63 green warrior sabatons	20291	2	254	63	4	0
 63 green warrior waistband	20292	2	254	63	4	0
-63 test green axe1h	26676	2	254	93	2	0
-63 test green axe2h	26690	2	254	93	2	0
-63 test green bow	26718	2	254	93	2	0
-63 test green cloth belt	26088	2	254	93	4	0
-63 test green cloth boot	26089	2	254	93	4	0
-63 test green cloth chest	26090	2	254	93	4	0
-63 test green cloth cloak	26508	2	254	93	4	0
-63 test green cloth hand	26091	2	254	93	4	0
-63 test green cloth head	26092	2	254	93	4	0
-63 test green cloth legs	26093	2	254	93	4	0
-63 test green cloth necklace	26536	2	254	93	4	0
-63 test green cloth ring	26522	2	254	93	4	0
-63 test green cloth shoulder	26094	2	254	93	4	0
-63 test green cloth wrist	26095	2	254	93	4	0
-63 test green crossbow	26732	2	254	93	2	0
-63 test green dagger	26578	2	254	93	2	0
-63 test green druid belt	26844	2	254	93	4	0
-63 test green druid boot	26845	2	254	93	4	0
-63 test green druid chest	26846	2	254	93	4	0
-63 test green druid hand	26847	2	254	93	4	0
-63 test green druid head	26848	2	254	93	4	0
-63 test green druid legs	26849	2	254	93	4	0
-63 test green druid shoulder	26850	2	254	93	4	0
-63 test green druid wrist	26851	2	254	93	4	0
-63 test green druid/warrior cloak	27194	2	254	93	4	0
-63 test green druid/warrior necklace	27222	2	254	93	4	0
-63 test green druid/warrior ring	27208	2	254	93	4	0
-63 test green feral staff	26802	2	254	93	2	0
-63 test green fistweapon	26662	2	254	93	2	0
-63 test green gun	26746	2	254	93	2	0
-63 test green healer mace	26788	2	254	93	2	0
-63 test green hunter belt	26312	2	254	93	4	0
-63 test green hunter boot	26313	2	254	93	4	0
-63 test green hunter chest	26314	2	254	93	4	0
-63 test green hunter hand	26315	2	254	93	4	0
-63 test green hunter head	26316	2	254	93	4	0
-63 test green hunter legs	26317	2	254	93	4	0
-63 test green hunter shoulder	26318	2	254	93	4	0
-63 test green hunter wrist	26319	2	254	93	4	0
-63 test green mace1h	26592	2	254	93	2	0
-63 test green mace2h	26606	2	254	93	2	0
-63 test green off hand	26564	2	254	93	4	0
-63 test green paladin belt	27068	2	254	93	4	0
-63 test green paladin boot	27069	2	254	93	4	0
-63 test green paladin chest	27070	2	254	93	4	0
-63 test green paladin cloak	27278	2	254	93	4	0
-63 test green paladin hand	27071	2	254	93	4	0
-63 test green paladin head	27072	2	254	93	4	0
-63 test green paladin legs	27073	2	254	93	4	0
-63 test green paladin necklace	27306	2	254	93	4	0
-63 test green paladin ring	27292	2	254	93	4	0
-63 test green paladin shoulder	27074	2	254	93	4	0
-63 test green paladin wrist	27075	2	254	93	4	0
-63 test green polearm	26704	2	254	93	2	0
-63 test green rogue belt	26200	2	254	93	4	0
-63 test green rogue boot	26201	2	254	93	4	0
-63 test green rogue chest	26202	2	254	93	4	0
-63 test green rogue hand	26203	2	254	93	4	0
-63 test green rogue head	26204	2	254	93	4	0
-63 test green rogue legs	26205	2	254	93	4	0
-63 test green rogue shoulder	26206	2	254	93	4	0
-63 test green rogue wrist	26207	2	254	93	4	0
-63 test green rogue/hunter cloak	27152	2	254	93	4	0
-63 test green rogue/hunter necklace	27180	2	254	93	4	0
-63 test green rogue/hunter ring	27166	2	254	93	4	0
-63 test green shaman belt	26956	2	254	93	4	0
-63 test green shaman boot	26957	2	254	93	4	0
-63 test green shaman chest	26958	2	254	93	4	0
-63 test green shaman cloak	27236	2	254	93	4	0
-63 test green shaman hand	26959	2	254	93	4	0
-63 test green shaman head	26960	2	254	93	4	0
-63 test green shaman legs	26961	2	254	93	4	0
-63 test green shaman necklace	27264	2	254	93	4	0
-63 test green shaman ring	27250	2	254	93	4	0
-63 test green shaman shoulder	26962	2	254	93	4	0
-63 test green shaman wrist	26963	2	254	93	4	0
-63 test green shield	26550	2	254	93	4	0
-63 test green spell dagger	26774	2	254	93	2	0
-63 test green staff	26648	2	254	93	2	0
-63 test green sword1h	26620	2	254	93	2	0
-63 test green sword2h	26634	2	254	93	2	0
-63 test green wand	26760	2	254	93	2	0
-63 test green warrior belt	26424	2	254	93	4	0
-63 test green warrior boot	26425	2	254	93	4	0
-63 test green warrior chest	26426	2	254	93	4	0
-63 test green warrior hand	26427	2	254	93	4	0
-63 test green warrior head	26428	2	254	93	4	0
-63 test green warrior legs	26429	2	254	93	4	0
-63 test green warrior shoulder	26430	2	254	93	4	0
-63 test green warrior wrist	26431	2	254	93	4	0
-64 test green axe1h	26677	2	254	96	2	0
-64 test green axe2h	26691	2	254	96	2	0
-64 test green bow	26719	2	254	96	2	0
-64 test green cloth belt	26096	2	254	96	4	0
-64 test green cloth boot	26097	2	254	96	4	0
-64 test green cloth chest	26098	2	254	96	4	0
-64 test green cloth cloak	26509	2	254	96	4	0
-64 test green cloth hand	26099	2	254	96	4	0
-64 test green cloth head	26100	2	254	96	4	0
-64 test green cloth legs	26101	2	254	96	4	0
-64 test green cloth necklace	26537	2	254	96	4	0
-64 test green cloth ring	26523	2	254	96	4	0
-64 test green cloth shoulder	26102	2	254	96	4	0
-64 test green cloth wrist	26103	2	254	96	4	0
-64 test green crossbow	26733	2	254	96	2	0
-64 test green dagger	26579	2	254	96	2	0
-64 test green druid belt	26852	2	254	96	4	0
-64 test green druid boot	26853	2	254	96	4	0
-64 test green druid chest	26854	2	254	96	4	0
-64 test green druid hand	26855	2	254	96	4	0
-64 test green druid head	26856	2	254	96	4	0
-64 test green druid legs	26857	2	254	96	4	0
-64 test green druid shoulder	26858	2	254	96	4	0
-64 test green druid wrist	26859	2	254	96	4	0
-64 test green druid/warrior cloak	27195	2	254	96	4	0
-64 test green druid/warrior necklace	27223	2	254	96	4	0
-64 test green druid/warrior ring	27209	2	254	96	4	0
-64 test green feral staff	26803	2	254	96	2	0
-64 test green fistweapon	26663	2	254	96	2	0
-64 test green gun	26747	2	254	96	2	0
-64 test green healer mace	26789	2	254	96	2	0
-64 test green hunter belt	26320	2	254	96	4	0
-64 test green hunter boot	26321	2	254	96	4	0
-64 test green hunter chest	26322	2	254	96	4	0
-64 test green hunter hand	26323	2	254	96	4	0
-64 test green hunter head	26324	2	254	96	4	0
-64 test green hunter legs	26325	2	254	96	4	0
-64 test green hunter shoulder	26326	2	254	96	4	0
-64 test green hunter wrist	26327	2	254	96	4	0
-64 test green mace1h	26593	2	254	96	2	0
-64 test green mace2h	26607	2	254	96	2	0
-64 test green off hand	26565	2	254	96	4	0
-64 test green paladin belt	27076	2	254	96	4	0
-64 test green paladin boot	27077	2	254	96	4	0
-64 test green paladin chest	27078	2	254	96	4	0
-64 test green paladin cloak	27279	2	254	96	4	0
-64 test green paladin hand	27079	2	254	96	4	0
-64 test green paladin head	27080	2	254	96	4	0
-64 test green paladin legs	27081	2	254	96	4	0
-64 test green paladin necklace	27307	2	254	96	4	0
-64 test green paladin ring	27293	2	254	96	4	0
-64 test green paladin shoulder	27082	2	254	96	4	0
-64 test green paladin wrist	27083	2	254	96	4	0
-64 test green polearm	26705	2	254	96	2	0
-64 test green rogue belt	26208	2	254	96	4	0
-64 test green rogue boot	26209	2	254	96	4	0
-64 test green rogue chest	26210	2	254	96	4	0
-64 test green rogue hand	26211	2	254	96	4	0
-64 test green rogue head	26212	2	254	96	4	0
-64 test green rogue legs	26213	2	254	96	4	0
-64 test green rogue shoulder	26214	2	254	96	4	0
-64 test green rogue wrist	26215	2	254	96	4	0
-64 test green rogue/hunter cloak	27153	2	254	96	4	0
-64 test green rogue/hunter necklace	27181	2	254	96	4	0
-64 test green rogue/hunter ring	27167	2	254	96	4	0
-64 test green shaman belt	26964	2	254	96	4	0
-64 test green shaman boot	26965	2	254	96	4	0
-64 test green shaman chest	26966	2	254	96	4	0
-64 test green shaman cloak	27237	2	254	96	4	0
-64 test green shaman hand	26967	2	254	96	4	0
-64 test green shaman head	26968	2	254	96	4	0
-64 test green shaman legs	26969	2	254	96	4	0
-64 test green shaman necklace	27265	2	254	96	4	0
-64 test green shaman ring	27251	2	254	96	4	0
-64 test green shaman shoulder	26970	2	254	96	4	0
-64 test green shaman wrist	26971	2	254	96	4	0
-64 test green shield	26551	2	254	96	4	0
-64 test green spell dagger	26775	2	254	96	2	0
-64 test green staff	26649	2	254	96	2	0
-64 test green sword1h	26621	2	254	96	2	0
-64 test green sword2h	26635	2	254	96	2	0
-64 test green wand	26761	2	254	96	2	0
-64 test green warrior belt	26432	2	254	96	4	0
-64 test green warrior boot	26433	2	254	96	4	0
-64 test green warrior chest	26434	2	254	96	4	0
-64 test green warrior hand	26435	2	254	96	4	0
-64 test green warrior head	26436	2	254	96	4	0
-64 test green warrior legs	26437	2	254	96	4	0
-64 test green warrior shoulder	26438	2	254	96	4	0
-64 test green warrior wrist	26439	2	254	96	4	0
-65 test green axe1h	26678	2	254	99	2	0
-65 test green axe2h	26692	2	254	99	2	0
-65 test green bow	26720	2	254	99	2	0
-65 test green cloth belt	26104	2	254	99	4	0
-65 test green cloth boot	26105	2	254	99	4	0
-65 test green cloth chest	26106	2	254	99	4	0
-65 test green cloth cloak	26510	2	254	99	4	0
-65 test green cloth hand	26107	2	254	99	4	0
-65 test green cloth head	26108	2	254	99	4	0
-65 test green cloth legs	26109	2	254	99	4	0
-65 test green cloth necklace	26538	2	254	99	4	0
-65 test green cloth ring	26524	2	254	99	4	0
-65 test green cloth shoulder	26110	2	254	99	4	0
-65 test green cloth wrist	26111	2	254	99	4	0
-65 test green crossbow	26734	2	254	99	2	0
-65 test green dagger	26580	2	254	99	2	0
-65 test green druid belt	26860	2	254	99	4	0
-65 test green druid boot	26861	2	254	99	4	0
-65 test green druid chest	26862	2	254	99	4	0
-65 test green druid hand	26863	2	254	99	4	0
-65 test green druid head	26864	2	254	99	4	0
-65 test green druid legs	26865	2	254	99	4	0
-65 test green druid shoulder	26866	2	254	99	4	0
-65 test green druid wrist	26867	2	254	99	4	0
-65 test green druid/warrior cloak	27196	2	254	99	4	0
-65 test green druid/warrior necklace	27224	2	254	99	4	0
-65 test green druid/warrior ring	27210	2	254	99	4	0
-65 test green feral staff	26804	2	254	99	2	0
-65 test green fistweapon	26664	2	254	99	2	0
-65 test green gun	26748	2	254	99	2	0
-65 test green healer mace	26790	2	254	99	2	0
-65 test green hunter belt	26328	2	254	99	4	0
-65 test green hunter boot	26329	2	254	99	4	0
-65 test green hunter chest	26330	2	254	99	4	0
-65 test green hunter hand	26331	2	254	99	4	0
-65 test green hunter head	26332	2	254	99	4	0
-65 test green hunter legs	26333	2	254	99	4	0
-65 test green hunter shoulder	26334	2	254	99	4	0
-65 test green hunter wrist	26335	2	254	99	4	0
-65 test green mace1h	26594	2	254	99	2	0
-65 test green mace2h	26608	2	254	99	2	0
-65 test green off hand	26566	2	254	99	4	0
-65 test green paladin belt	27084	2	254	99	4	0
-65 test green paladin boot	27085	2	254	99	4	0
-65 test green paladin chest	27086	2	254	99	4	0
-65 test green paladin cloak	27280	2	254	99	4	0
-65 test green paladin hand	27087	2	254	99	4	0
-65 test green paladin head	27088	2	254	99	4	0
-65 test green paladin legs	27089	2	254	99	4	0
-65 test green paladin necklace	27308	2	254	99	4	0
-65 test green paladin ring	27294	2	254	99	4	0
-65 test green paladin shoulder	27090	2	254	99	4	0
-65 test green paladin wrist	27091	2	254	99	4	0
-65 test green polearm	26706	2	254	99	2	0
-65 test green rogue belt	26216	2	254	99	4	0
-65 test green rogue boot	26217	2	254	99	4	0
-65 test green rogue chest	26218	2	254	99	4	0
-65 test green rogue hand	26219	2	254	99	4	0
-65 test green rogue head	26220	2	254	99	4	0
-65 test green rogue legs	26221	2	254	99	4	0
-65 test green rogue shoulder	26222	2	254	99	4	0
-65 test green rogue wrist	26223	2	254	99	4	0
-65 test green rogue/hunter cloak	27154	2	254	99	4	0
-65 test green rogue/hunter necklace	27182	2	254	99	4	0
-65 test green rogue/hunter ring	27168	2	254	99	4	0
-65 test green shaman belt	26972	2	254	99	4	0
-65 test green shaman boot	26973	2	254	99	4	0
-65 test green shaman chest	26974	2	254	99	4	0
-65 test green shaman cloak	27238	2	254	99	4	0
-65 test green shaman hand	26975	2	254	99	4	0
-65 test green shaman head	26976	2	254	99	4	0
-65 test green shaman legs	26977	2	254	99	4	0
-65 test green shaman necklace	27266	2	254	99	4	0
-65 test green shaman ring	27252	2	254	99	4	0
-65 test green shaman shoulder	26978	2	254	99	4	0
-65 test green shaman wrist	26979	2	254	99	4	0
-65 test green shield	26552	2	254	99	4	0
-65 test green spell dagger	26776	2	254	99	2	0
-65 test green staff	26650	2	254	99	2	0
-65 test green sword1h	26622	2	254	99	2	0
-65 test green sword2h	26636	2	254	99	2	0
-65 test green wand	26762	2	254	99	2	0
-65 test green warrior belt	26440	2	254	99	4	0
-65 test green warrior boot	26441	2	254	99	4	0
-65 test green warrior chest	26442	2	254	99	4	0
-65 test green warrior hand	26443	2	254	99	4	0
-65 test green warrior head	26444	2	254	99	4	0
-65 test green warrior legs	26445	2	254	99	4	0
-65 test green warrior shoulder	26446	2	254	99	4	0
-65 test green warrior wrist	26447	2	254	99	4	0
 66 epic fire belt	21058	4	254	66	4	0
 66 epic fire bindings	21059	4	254	66	4	0
 66 epic fire boots	21060	4	254	66	4	0
@@ -871,640 +173,9 @@ ns.ITEM_SEARCH_BLOB = [[
 66 epic shadow shroud	21096	4	254	66	4	0
 66 epic shadow staff	21097	4	254	66	2	0
 66 epic shadow wand	21098	4	254	66	2	0
-66 test green axe1h	26679	2	254	102	2	0
-66 test green axe2h	26693	2	254	102	2	0
-66 test green bow	26721	2	254	102	2	0
-66 test green cloth belt	26112	2	254	102	4	0
-66 test green cloth boot	26113	2	254	102	4	0
-66 test green cloth chest	26114	2	254	102	4	0
-66 test green cloth cloak	26511	2	254	102	4	0
-66 test green cloth hand	26115	2	254	102	4	0
-66 test green cloth head	26116	2	254	102	4	0
-66 test green cloth legs	26117	2	254	102	4	0
-66 test green cloth necklace	26539	2	254	102	4	0
-66 test green cloth ring	26525	2	254	102	4	0
-66 test green cloth shoulder	26118	2	254	102	4	0
-66 test green cloth wrist	26119	2	254	102	4	0
-66 test green crossbow	26735	2	254	102	2	0
-66 test green dagger	26581	2	254	102	2	0
-66 test green druid belt	26868	2	254	102	4	0
-66 test green druid boot	26869	2	254	102	4	0
-66 test green druid chest	26870	2	254	102	4	0
-66 test green druid hand	26871	2	254	102	4	0
-66 test green druid head	26872	2	254	102	4	0
-66 test green druid legs	26873	2	254	102	4	0
-66 test green druid shoulder	26874	2	254	102	4	0
-66 test green druid wrist	26875	2	254	102	4	0
-66 test green druid/warrior cloak	27197	2	254	102	4	0
-66 test green druid/warrior necklace	27225	2	254	102	4	0
-66 test green druid/warrior ring	27211	2	254	102	4	0
-66 test green feral staff	26805	2	254	102	2	0
-66 test green fistweapon	26665	2	254	102	2	0
-66 test green gun	26749	2	254	102	2	0
-66 test green healer mace	26791	2	254	102	2	0
-66 test green hunter belt	26336	2	254	102	4	0
-66 test green hunter boot	26337	2	254	102	4	0
-66 test green hunter chest	26338	2	254	102	4	0
-66 test green hunter hand	26339	2	254	102	4	0
-66 test green hunter head	26340	2	254	102	4	0
-66 test green hunter legs	26341	2	254	102	4	0
-66 test green hunter shoulder	26342	2	254	102	4	0
-66 test green hunter wrist	26343	2	254	102	4	0
-66 test green mace1h	26595	2	254	102	2	0
-66 test green mace2h	26609	2	254	102	2	0
-66 test green off hand	26567	2	254	102	4	0
-66 test green paladin belt	27092	2	254	102	4	0
-66 test green paladin boot	27093	2	254	102	4	0
-66 test green paladin chest	27094	2	254	102	4	0
-66 test green paladin cloak	27281	2	254	102	4	0
-66 test green paladin hand	27095	2	254	102	4	0
-66 test green paladin head	27096	2	254	102	4	0
-66 test green paladin legs	27097	2	254	102	4	0
-66 test green paladin necklace	27309	2	254	102	4	0
-66 test green paladin ring	27295	2	254	102	4	0
-66 test green paladin shoulder	27098	2	254	102	4	0
-66 test green paladin wrist	27099	2	254	102	4	0
-66 test green polearm	26707	2	254	102	2	0
-66 test green rogue belt	26224	2	254	102	4	0
-66 test green rogue boot	26225	2	254	102	4	0
-66 test green rogue chest	26226	2	254	102	4	0
-66 test green rogue hand	26227	2	254	102	4	0
-66 test green rogue head	26228	2	254	102	4	0
-66 test green rogue legs	26229	2	254	102	4	0
-66 test green rogue shoulder	26230	2	254	102	4	0
-66 test green rogue wrist	26231	2	254	102	4	0
-66 test green rogue/hunter cloak	27155	2	254	102	4	0
-66 test green rogue/hunter necklace	27183	2	254	102	4	0
-66 test green rogue/hunter ring	27169	2	254	102	4	0
-66 test green shaman belt	26980	2	254	102	4	0
-66 test green shaman boot	26981	2	254	102	4	0
-66 test green shaman chest	26982	2	254	102	4	0
-66 test green shaman cloak	27239	2	254	102	4	0
-66 test green shaman hand	26983	2	254	102	4	0
-66 test green shaman head	26984	2	254	102	4	0
-66 test green shaman legs	26985	2	254	102	4	0
-66 test green shaman necklace	27267	2	254	102	4	0
-66 test green shaman ring	27253	2	254	102	4	0
-66 test green shaman shoulder	26986	2	254	102	4	0
-66 test green shaman wrist	26987	2	254	102	4	0
-66 test green shield	26553	2	254	102	4	0
-66 test green spell dagger	26777	2	254	102	2	0
-66 test green staff	26651	2	254	102	2	0
-66 test green sword1h	26623	2	254	102	2	0
-66 test green sword2h	26637	2	254	102	2	0
-66 test green wand	26763	2	254	102	2	0
-66 test green warrior belt	26448	2	254	102	4	0
-66 test green warrior boot	26449	2	254	102	4	0
-66 test green warrior chest	26450	2	254	102	4	0
-66 test green warrior hand	26451	2	254	102	4	0
-66 test green warrior head	26452	2	254	102	4	0
-66 test green warrior legs	26453	2	254	102	4	0
-66 test green warrior shoulder	26454	2	254	102	4	0
-66 test green warrior wrist	26455	2	254	102	4	0
-67 test green axe1h	26680	2	254	105	2	0
-67 test green axe2h	26694	2	254	105	2	0
-67 test green bow	26722	2	254	105	2	0
-67 test green cloth belt	26120	2	254	105	4	0
-67 test green cloth boot	26121	2	254	105	4	0
-67 test green cloth chest	26122	2	254	105	4	0
-67 test green cloth cloak	26512	2	254	105	4	0
-67 test green cloth hand	26123	2	254	105	4	0
-67 test green cloth head	26124	2	254	105	4	0
-67 test green cloth legs	26125	2	254	105	4	0
-67 test green cloth necklace	26540	2	254	105	4	0
-67 test green cloth ring	26526	2	254	105	4	0
-67 test green cloth shoulder	26126	2	254	105	4	0
-67 test green cloth wrist	26127	2	254	105	4	0
-67 test green crossbow	26736	2	254	105	2	0
-67 test green dagger	26582	2	254	105	2	0
-67 test green druid belt	26876	2	254	105	4	0
-67 test green druid boot	26877	2	254	105	4	0
-67 test green druid chest	26878	2	254	105	4	0
-67 test green druid hand	26879	2	254	105	4	0
-67 test green druid head	26880	2	254	105	4	0
-67 test green druid legs	26881	2	254	105	4	0
-67 test green druid shoulder	26882	2	254	105	4	0
-67 test green druid wrist	26883	2	254	105	4	0
-67 test green druid/warrior cloak	27198	2	254	105	4	0
-67 test green druid/warrior necklace	27226	2	254	105	4	0
-67 test green druid/warrior ring	27212	2	254	105	4	0
-67 test green feral staff	26806	2	254	105	2	0
-67 test green fistweapon	26666	2	254	105	2	0
-67 test green gun	26750	2	254	105	2	0
-67 test green healer mace	26792	2	254	105	2	0
-67 test green hunter belt	26344	2	254	105	4	0
-67 test green hunter boot	26345	2	254	105	4	0
-67 test green hunter chest	26346	2	254	105	4	0
-67 test green hunter hand	26347	2	254	105	4	0
-67 test green hunter head	26348	2	254	105	4	0
-67 test green hunter legs	26349	2	254	105	4	0
-67 test green hunter shoulder	26350	2	254	105	4	0
-67 test green hunter wrist	26351	2	254	105	4	0
-67 test green mace1h	26596	2	254	105	2	0
-67 test green mace2h	26610	2	254	105	2	0
-67 test green off hand	26568	2	254	105	4	0
-67 test green paladin belt	27100	2	254	105	4	0
-67 test green paladin boot	27101	2	254	105	4	0
-67 test green paladin chest	27102	2	254	105	4	0
-67 test green paladin cloak	27282	2	254	105	4	0
-67 test green paladin hand	27103	2	254	105	4	0
-67 test green paladin head	27104	2	254	105	4	0
-67 test green paladin legs	27105	2	254	105	4	0
-67 test green paladin necklace	27310	2	254	105	4	0
-67 test green paladin ring	27296	2	254	105	4	0
-67 test green paladin shoulder	27106	2	254	105	4	0
-67 test green paladin wrist	27107	2	254	105	4	0
-67 test green polearm	26708	2	254	105	2	0
-67 test green rogue belt	26232	2	254	105	4	0
-67 test green rogue boot	26233	2	254	105	4	0
-67 test green rogue chest	26234	2	254	105	4	0
-67 test green rogue hand	26235	2	254	105	4	0
-67 test green rogue head	26236	2	254	105	4	0
-67 test green rogue legs	26237	2	254	105	4	0
-67 test green rogue shoulder	26238	2	254	105	4	0
-67 test green rogue wrist	26239	2	254	105	4	0
-67 test green rogue/hunter cloak	27156	2	254	105	4	0
-67 test green rogue/hunter necklace	27184	2	254	105	4	0
-67 test green rogue/hunter ring	27170	2	254	105	4	0
-67 test green shaman belt	26988	2	254	105	4	0
-67 test green shaman boot	26989	2	254	105	4	0
-67 test green shaman chest	26990	2	254	105	4	0
-67 test green shaman cloak	27240	2	254	105	4	0
-67 test green shaman hand	26991	2	254	105	4	0
-67 test green shaman head	26992	2	254	105	4	0
-67 test green shaman legs	26993	2	254	105	4	0
-67 test green shaman necklace	27268	2	254	105	4	0
-67 test green shaman ring	27254	2	254	105	4	0
-67 test green shaman shoulder	26994	2	254	105	4	0
-67 test green shaman wrist	26995	2	254	105	4	0
-67 test green shield	26554	2	254	105	4	0
-67 test green spell dagger	26778	2	254	105	2	0
-67 test green staff	26652	2	254	105	2	0
-67 test green sword1h	26624	2	254	105	2	0
-67 test green sword2h	26638	2	254	105	2	0
-67 test green wand	26764	2	254	105	2	0
-67 test green warrior belt	26456	2	254	105	4	0
-67 test green warrior boot	26457	2	254	105	4	0
-67 test green warrior chest	26458	2	254	105	4	0
-67 test green warrior hand	26459	2	254	105	4	0
-67 test green warrior head	26460	2	254	105	4	0
-67 test green warrior legs	26461	2	254	105	4	0
-67 test green warrior shoulder	26462	2	254	105	4	0
-67 test green warrior wrist	26463	2	254	105	4	0
 68 pound grouper	13880	1	254	45	15	0
-68 test green axe1h	26681	2	254	108	2	0
-68 test green axe2h	26695	2	254	108	2	0
-68 test green bow	26723	2	254	108	2	0
-68 test green cloth belt	26128	2	254	108	4	0
-68 test green cloth boot	26129	2	254	108	4	0
-68 test green cloth chest	26130	2	254	108	4	0
-68 test green cloth cloak	26513	2	254	108	4	0
-68 test green cloth hand	26131	2	254	108	4	0
-68 test green cloth head	26132	2	254	108	4	0
-68 test green cloth legs	26133	2	254	108	4	0
-68 test green cloth necklace	26541	2	254	108	4	0
-68 test green cloth ring	26527	2	254	108	4	0
-68 test green cloth shoulder	26134	2	254	108	4	0
-68 test green cloth wrist	26135	2	254	108	4	0
-68 test green crossbow	26737	2	254	108	2	0
-68 test green dagger	26583	2	254	108	2	0
-68 test green druid belt	26884	2	254	108	4	0
-68 test green druid boot	26885	2	254	108	4	0
-68 test green druid chest	26886	2	254	108	4	0
-68 test green druid hand	26887	2	254	108	4	0
-68 test green druid head	26888	2	254	108	4	0
-68 test green druid legs	26889	2	254	108	4	0
-68 test green druid shoulder	26890	2	254	108	4	0
-68 test green druid wrist	26891	2	254	108	4	0
-68 test green druid/warrior cloak	27199	2	254	108	4	0
-68 test green druid/warrior necklace	27227	2	254	108	4	0
-68 test green druid/warrior ring	27213	2	254	108	4	0
-68 test green feral staff	26807	2	254	108	2	0
-68 test green fistweapon	26667	2	254	108	2	0
-68 test green gun	26751	2	254	108	2	0
-68 test green healer mace	26793	2	254	108	2	0
-68 test green hunter belt	26352	2	254	108	4	0
-68 test green hunter boot	26353	2	254	108	4	0
-68 test green hunter chest	26354	2	254	108	4	0
-68 test green hunter hand	26355	2	254	108	4	0
-68 test green hunter head	26356	2	254	108	4	0
-68 test green hunter legs	26357	2	254	108	4	0
-68 test green hunter shoulder	26358	2	254	108	4	0
-68 test green hunter wrist	26359	2	254	108	4	0
-68 test green mace1h	26597	2	254	108	2	0
-68 test green mace2h	26611	2	254	108	2	0
-68 test green off hand	26569	2	254	108	4	0
-68 test green paladin belt	27108	2	254	108	4	0
-68 test green paladin boot	27109	2	254	108	4	0
-68 test green paladin chest	27110	2	254	108	4	0
-68 test green paladin cloak	27283	2	254	108	4	0
-68 test green paladin hand	27111	2	254	108	4	0
-68 test green paladin head	27112	2	254	108	4	0
-68 test green paladin legs	27113	2	254	108	4	0
-68 test green paladin necklace	27311	2	254	108	4	0
-68 test green paladin ring	27297	2	254	108	4	0
-68 test green paladin shoulder	27114	2	254	108	4	0
-68 test green paladin wrist	27115	2	254	108	4	0
-68 test green polearm	26709	2	254	108	2	0
-68 test green rogue belt	26240	2	254	108	4	0
-68 test green rogue boot	26241	2	254	108	4	0
-68 test green rogue chest	26242	2	254	108	4	0
-68 test green rogue hand	26243	2	254	108	4	0
-68 test green rogue head	26244	2	254	108	4	0
-68 test green rogue legs	26245	2	254	108	4	0
-68 test green rogue shoulder	26246	2	254	108	4	0
-68 test green rogue wrist	26247	2	254	108	4	0
-68 test green rogue/hunter cloak	27157	2	254	108	4	0
-68 test green rogue/hunter necklace	27185	2	254	108	4	0
-68 test green rogue/hunter ring	27171	2	254	108	4	0
-68 test green shaman belt	26996	2	254	108	4	0
-68 test green shaman boot	26997	2	254	108	4	0
-68 test green shaman chest	26998	2	254	108	4	0
-68 test green shaman cloak	27241	2	254	108	4	0
-68 test green shaman hand	26999	2	254	108	4	0
-68 test green shaman head	27000	2	254	108	4	0
-68 test green shaman legs	27001	2	254	108	4	0
-68 test green shaman necklace	27269	2	254	108	4	0
-68 test green shaman ring	27255	2	254	108	4	0
-68 test green shaman shoulder	27002	2	254	108	4	0
-68 test green shaman wrist	27003	2	254	108	4	0
-68 test green shield	26555	2	254	108	4	0
-68 test green spell dagger	26779	2	254	108	2	0
-68 test green staff	26653	2	254	108	2	0
-68 test green sword1h	26625	2	254	108	2	0
-68 test green sword2h	26639	2	254	108	2	0
-68 test green wand	26765	2	254	108	2	0
-68 test green warrior belt	26464	2	254	108	4	0
-68 test green warrior boot	26465	2	254	108	4	0
-68 test green warrior chest	26466	2	254	108	4	0
-68 test green warrior hand	26467	2	254	108	4	0
-68 test green warrior head	26468	2	254	108	4	0
-68 test green warrior legs	26469	2	254	108	4	0
-68 test green warrior shoulder	26470	2	254	108	4	0
-68 test green warrior wrist	26471	2	254	108	4	0
-69 test green axe1h	26682	2	254	111	2	0
-69 test green axe2h	26696	2	254	111	2	0
-69 test green bow	26724	2	254	111	2	0
-69 test green cloth belt	26136	2	254	111	4	0
-69 test green cloth boot	26137	2	254	111	4	0
-69 test green cloth chest	26138	2	254	111	4	0
-69 test green cloth cloak	26514	2	254	111	4	0
-69 test green cloth hand	26139	2	254	111	4	0
-69 test green cloth head	26140	2	254	111	4	0
-69 test green cloth legs	26141	2	254	111	4	0
-69 test green cloth necklace	26542	2	254	111	4	0
-69 test green cloth ring	26528	2	254	111	4	0
-69 test green cloth shoulder	26142	2	254	111	4	0
-69 test green cloth wrist	26143	2	254	111	4	0
-69 test green crossbow	26738	2	254	111	2	0
-69 test green dagger	26584	2	254	111	2	0
-69 test green druid belt	26892	2	254	111	4	0
-69 test green druid boot	26893	2	254	111	4	0
-69 test green druid chest	26894	2	254	111	4	0
-69 test green druid hand	26895	2	254	111	4	0
-69 test green druid head	26896	2	254	111	4	0
-69 test green druid legs	26897	2	254	111	4	0
-69 test green druid shoulder	26898	2	254	111	4	0
-69 test green druid wrist	26899	2	254	111	4	0
-69 test green druid/warrior cloak	27200	2	254	111	4	0
-69 test green druid/warrior necklace	27228	2	254	111	4	0
-69 test green druid/warrior ring	27214	2	254	111	4	0
-69 test green feral staff	26808	2	254	111	2	0
-69 test green fistweapon	26668	2	254	111	2	0
-69 test green gun	26752	2	254	111	2	0
-69 test green healer mace	26794	2	254	111	2	0
-69 test green hunter belt	26360	2	254	111	4	0
-69 test green hunter boot	26361	2	254	111	4	0
-69 test green hunter chest	26362	2	254	111	4	0
-69 test green hunter hand	26363	2	254	111	4	0
-69 test green hunter head	26364	2	254	111	4	0
-69 test green hunter legs	26365	2	254	111	4	0
-69 test green hunter shoulder	26366	2	254	111	4	0
-69 test green hunter wrist	26367	2	254	111	4	0
-69 test green mace1h	26598	2	254	111	2	0
-69 test green mace2h	26612	2	254	111	2	0
-69 test green off hand	26570	2	254	111	4	0
-69 test green paladin belt	27116	2	254	111	4	0
-69 test green paladin boot	27117	2	254	111	4	0
-69 test green paladin chest	27118	2	254	111	4	0
-69 test green paladin cloak	27284	2	254	111	4	0
-69 test green paladin hand	27119	2	254	111	4	0
-69 test green paladin head	27120	2	254	111	4	0
-69 test green paladin legs	27121	2	254	111	4	0
-69 test green paladin necklace	27312	2	254	111	4	0
-69 test green paladin ring	27298	2	254	111	4	0
-69 test green paladin shoulder	27122	2	254	111	4	0
-69 test green paladin wrist	27123	2	254	111	4	0
-69 test green polearm	26710	2	254	111	2	0
-69 test green rogue belt	26248	2	254	111	4	0
-69 test green rogue boot	26249	2	254	111	4	0
-69 test green rogue chest	26250	2	254	111	4	0
-69 test green rogue hand	26251	2	254	111	4	0
-69 test green rogue head	26252	2	254	111	4	0
-69 test green rogue legs	26253	2	254	111	4	0
-69 test green rogue shoulder	26254	2	254	111	4	0
-69 test green rogue wrist	26255	2	254	111	4	0
-69 test green rogue/hunter cloak	27158	2	254	111	4	0
-69 test green rogue/hunter necklace	27186	2	254	111	4	0
-69 test green rogue/hunter ring	27172	2	254	111	4	0
-69 test green shaman belt	27004	2	254	111	4	0
-69 test green shaman boot	27005	2	254	111	4	0
-69 test green shaman chest	27006	2	254	111	4	0
-69 test green shaman cloak	27242	2	254	111	4	0
-69 test green shaman hand	27007	2	254	111	4	0
-69 test green shaman head	27008	2	254	111	4	0
-69 test green shaman legs	27009	2	254	111	4	0
-69 test green shaman necklace	27270	2	254	111	4	0
-69 test green shaman ring	27256	2	254	111	4	0
-69 test green shaman shoulder	27010	2	254	111	4	0
-69 test green shaman wrist	27011	2	254	111	4	0
-69 test green shield	26556	2	254	111	4	0
-69 test green spell dagger	26780	2	254	111	2	0
-69 test green staff	26654	2	254	111	2	0
-69 test green sword1h	26626	2	254	111	2	0
-69 test green sword2h	26640	2	254	111	2	0
-69 test green wand	26766	2	254	111	2	0
-69 test green warrior belt	26472	2	254	111	4	0
-69 test green warrior boot	26473	2	254	111	4	0
-69 test green warrior chest	26474	2	254	111	4	0
-69 test green warrior hand	26475	2	254	111	4	0
-69 test green warrior head	26476	2	254	111	4	0
-69 test green warrior legs	26477	2	254	111	4	0
-69 test green warrior shoulder	26478	2	254	111	4	0
-69 test green warrior wrist	26479	2	254	111	4	0
 7 pound lobster	13907	1	254	55	15	0
 70 pound mightfish	13914	1	254	55	15	0
-70 test green axe1h	26683	2	254	114	2	0
-70 test green axe2h	26697	2	254	114	2	0
-70 test green bow	26725	2	254	114	2	0
-70 test green cloth belt	26144	2	254	114	4	0
-70 test green cloth boot	26145	2	254	114	4	0
-70 test green cloth chest	26146	2	254	114	4	0
-70 test green cloth cloak	26515	2	254	114	4	0
-70 test green cloth hand	26147	2	254	114	4	0
-70 test green cloth head	26148	2	254	114	4	0
-70 test green cloth legs	26149	2	254	114	4	0
-70 test green cloth necklace	26543	2	254	114	4	0
-70 test green cloth ring	26529	2	254	114	4	0
-70 test green cloth shoulder	26150	2	254	114	4	0
-70 test green cloth wrist	26151	2	254	114	4	0
-70 test green crossbow	26739	2	254	114	2	0
-70 test green dagger	26585	2	254	114	2	0
-70 test green druid belt	26900	2	254	114	4	0
-70 test green druid boot	26901	2	254	114	4	0
-70 test green druid chest	26902	2	254	114	4	0
-70 test green druid hand	26903	2	254	114	4	0
-70 test green druid head	26904	2	254	114	4	0
-70 test green druid legs	26905	2	254	114	4	0
-70 test green druid shoulder	26906	2	254	114	4	0
-70 test green druid wrist	26907	2	254	114	4	0
-70 test green druid/warrior cloak	27201	2	254	114	4	0
-70 test green druid/warrior necklace	27229	2	254	114	4	0
-70 test green druid/warrior ring	27215	2	254	114	4	0
-70 test green feral staff	26809	2	254	114	2	0
-70 test green fistweapon	26669	2	254	114	2	0
-70 test green gun	26753	2	254	114	2	0
-70 test green healer mace	26795	2	254	114	2	0
-70 test green hunter belt	26368	2	254	114	4	0
-70 test green hunter boot	26369	2	254	114	4	0
-70 test green hunter chest	26370	2	254	114	4	0
-70 test green hunter hand	26371	2	254	114	4	0
-70 test green hunter head	26372	2	254	114	4	0
-70 test green hunter legs	26373	2	254	114	4	0
-70 test green hunter shoulder	26374	2	254	114	4	0
-70 test green hunter wrist	26375	2	254	114	4	0
-70 test green mace1h	26599	2	254	114	2	0
-70 test green mace2h	26613	2	254	114	2	0
-70 test green off hand	26571	2	254	114	4	0
-70 test green paladin belt	27124	2	254	114	4	0
-70 test green paladin boot	27125	2	254	114	4	0
-70 test green paladin chest	27126	2	254	114	4	0
-70 test green paladin cloak	27285	2	254	114	4	0
-70 test green paladin hand	27127	2	254	114	4	0
-70 test green paladin head	27128	2	254	114	4	0
-70 test green paladin legs	27129	2	254	114	4	0
-70 test green paladin necklace	27313	2	254	114	4	0
-70 test green paladin ring	27299	2	254	114	4	0
-70 test green paladin shoulder	27130	2	254	114	4	0
-70 test green paladin wrist	27131	2	254	114	4	0
-70 test green polearm	26711	2	254	114	2	0
-70 test green rogue belt	26256	2	254	114	4	0
-70 test green rogue boot	26257	2	254	114	4	0
-70 test green rogue chest	26258	2	254	114	4	0
-70 test green rogue hand	26259	2	254	114	4	0
-70 test green rogue head	26260	2	254	114	4	0
-70 test green rogue legs	26261	2	254	114	4	0
-70 test green rogue shoulder	26262	2	254	114	4	0
-70 test green rogue wrist	26263	2	254	114	4	0
-70 test green rogue/hunter cloak	27159	2	254	114	4	0
-70 test green rogue/hunter necklace	27187	2	254	114	4	0
-70 test green rogue/hunter ring	27173	2	254	114	4	0
-70 test green shaman belt	27012	2	254	114	4	0
-70 test green shaman boot	27013	2	254	114	4	0
-70 test green shaman chest	27014	2	254	114	4	0
-70 test green shaman cloak	27243	2	254	114	4	0
-70 test green shaman hand	27015	2	254	114	4	0
-70 test green shaman head	27016	2	254	114	4	0
-70 test green shaman legs	27017	2	254	114	4	0
-70 test green shaman necklace	27271	2	254	114	4	0
-70 test green shaman ring	27257	2	254	114	4	0
-70 test green shaman shoulder	27018	2	254	114	4	0
-70 test green shaman wrist	27019	2	254	114	4	0
-70 test green shield	26557	2	254	114	4	0
-70 test green spell dagger	26781	2	254	114	2	0
-70 test green staff	26655	2	254	114	2	0
-70 test green sword1h	26627	2	254	114	2	0
-70 test green sword2h	26641	2	254	114	2	0
-70 test green wand	26767	2	254	114	2	0
-70 test green warrior belt	26480	2	254	114	4	0
-70 test green warrior boot	26481	2	254	114	4	0
-70 test green warrior chest	26482	2	254	114	4	0
-70 test green warrior hand	26483	2	254	114	4	0
-70 test green warrior head	26484	2	254	114	4	0
-70 test green warrior legs	26485	2	254	114	4	0
-70 test green warrior shoulder	26486	2	254	114	4	0
-70 test green warrior wrist	26487	2	254	114	4	0
-71 test green axe1h	26684	2	254	117	2	0
-71 test green axe2h	26698	2	254	117	2	0
-71 test green bow	26726	2	254	117	2	0
-71 test green cloth belt	26152	2	254	117	4	0
-71 test green cloth boot	26153	2	254	117	4	0
-71 test green cloth chest	26154	2	254	117	4	0
-71 test green cloth cloak	26516	2	254	117	4	0
-71 test green cloth hand	26155	2	254	117	4	0
-71 test green cloth head	26156	2	254	117	4	0
-71 test green cloth legs	26157	2	254	117	4	0
-71 test green cloth necklace	26544	2	254	117	4	0
-71 test green cloth ring	26530	2	254	117	4	0
-71 test green cloth shoulder	26158	2	254	117	4	0
-71 test green cloth wrist	26159	2	254	117	4	0
-71 test green crossbow	26740	2	254	117	2	0
-71 test green dagger	26586	2	254	117	2	0
-71 test green druid belt	26908	2	254	117	4	0
-71 test green druid boot	26909	2	254	117	4	0
-71 test green druid chest	26910	2	254	117	4	0
-71 test green druid hand	26911	2	254	117	4	0
-71 test green druid head	26912	2	254	117	4	0
-71 test green druid legs	26913	2	254	117	4	0
-71 test green druid shoulder	26914	2	254	117	4	0
-71 test green druid wrist	26915	2	254	117	4	0
-71 test green druid/warrior cloak	27202	2	254	117	4	0
-71 test green druid/warrior necklace	27230	2	254	117	4	0
-71 test green druid/warrior ring	27216	2	254	117	4	0
-71 test green feral staff	26810	2	254	117	2	0
-71 test green fistweapon	26670	2	254	117	2	0
-71 test green gun	26754	2	254	117	2	0
-71 test green healer mace	26796	2	254	117	2	0
-71 test green hunter belt	26376	2	254	117	4	0
-71 test green hunter boot	26377	2	254	117	4	0
-71 test green hunter chest	26378	2	254	117	4	0
-71 test green hunter hand	26379	2	254	117	4	0
-71 test green hunter head	26380	2	254	117	4	0
-71 test green hunter legs	26381	2	254	117	4	0
-71 test green hunter shoulder	26382	2	254	117	4	0
-71 test green hunter wrist	26383	2	254	117	4	0
-71 test green mace1h	26600	2	254	117	2	0
-71 test green mace2h	26614	2	254	117	2	0
-71 test green off hand	26572	2	254	117	4	0
-71 test green paladin belt	27132	2	254	117	4	0
-71 test green paladin boot	27133	2	254	117	4	0
-71 test green paladin chest	27134	2	254	117	4	0
-71 test green paladin cloak	27286	2	254	117	4	0
-71 test green paladin hand	27135	2	254	117	4	0
-71 test green paladin head	27136	2	254	117	4	0
-71 test green paladin legs	27137	2	254	117	4	0
-71 test green paladin necklace	27314	2	254	117	4	0
-71 test green paladin ring	27300	2	254	117	4	0
-71 test green paladin shoulder	27138	2	254	117	4	0
-71 test green paladin wrist	27139	2	254	117	4	0
-71 test green polearm	26712	2	254	117	2	0
-71 test green rogue belt	26264	2	254	117	4	0
-71 test green rogue boot	26265	2	254	117	4	0
-71 test green rogue chest	26266	2	254	117	4	0
-71 test green rogue hand	26267	2	254	117	4	0
-71 test green rogue head	26268	2	254	117	4	0
-71 test green rogue legs	26269	2	254	117	4	0
-71 test green rogue shoulder	26270	2	254	117	4	0
-71 test green rogue wrist	26271	2	254	117	4	0
-71 test green rogue/hunter cloak	27160	2	254	117	4	0
-71 test green rogue/hunter necklace	27188	2	254	117	4	0
-71 test green rogue/hunter ring	27174	2	254	117	4	0
-71 test green shaman belt	27020	2	254	117	4	0
-71 test green shaman boot	27021	2	254	117	4	0
-71 test green shaman chest	27022	2	254	117	4	0
-71 test green shaman cloak	27244	2	254	117	4	0
-71 test green shaman hand	27023	2	254	117	4	0
-71 test green shaman head	27024	2	254	117	4	0
-71 test green shaman legs	27025	2	254	117	4	0
-71 test green shaman necklace	27272	2	254	117	4	0
-71 test green shaman ring	27258	2	254	117	4	0
-71 test green shaman shoulder	27026	2	254	117	4	0
-71 test green shaman wrist	27027	2	254	117	4	0
-71 test green shield	26558	2	254	117	4	0
-71 test green spell dagger	26782	2	254	117	2	0
-71 test green staff	26656	2	254	117	2	0
-71 test green sword1h	26628	2	254	117	2	0
-71 test green sword2h	26642	2	254	117	2	0
-71 test green wand	26768	2	254	117	2	0
-71 test green warrior belt	26488	2	254	117	4	0
-71 test green warrior boot	26489	2	254	117	4	0
-71 test green warrior chest	26490	2	254	117	4	0
-71 test green warrior hand	26491	2	254	117	4	0
-71 test green warrior head	26492	2	254	117	4	0
-71 test green warrior legs	26493	2	254	117	4	0
-71 test green warrior shoulder	26494	2	254	117	4	0
-71 test green warrior wrist	26495	2	254	117	4	0
-72 test green axe1h	26685	2	254	120	2	0
-72 test green axe2h	26699	2	254	120	2	0
-72 test green bow	26727	2	254	120	2	0
-72 test green cloth belt	26160	2	254	120	4	0
-72 test green cloth boot	26161	2	254	120	4	0
-72 test green cloth chest	26162	2	254	120	4	0
-72 test green cloth cloak	26517	2	254	120	4	0
-72 test green cloth hand	26163	2	254	120	4	0
-72 test green cloth head	26164	2	254	120	4	0
-72 test green cloth legs	26165	2	254	120	4	0
-72 test green cloth necklace	26545	2	254	120	4	0
-72 test green cloth ring	26531	2	254	120	4	0
-72 test green cloth shoulder	26166	2	254	120	4	0
-72 test green cloth wrist	26167	2	254	120	4	0
-72 test green crossbow	26741	2	254	120	2	0
-72 test green dagger	26587	2	254	120	2	0
-72 test green druid belt	26916	2	254	120	4	0
-72 test green druid boot	26917	2	254	120	4	0
-72 test green druid chest	26918	2	254	120	4	0
-72 test green druid hand	26919	2	254	120	4	0
-72 test green druid head	26920	2	254	120	4	0
-72 test green druid legs	26921	2	254	120	4	0
-72 test green druid shoulder	26922	2	254	120	4	0
-72 test green druid wrist	26923	2	254	120	4	0
-72 test green druid/warrior cloak	27203	2	254	120	4	0
-72 test green druid/warrior necklace	27231	2	254	120	4	0
-72 test green druid/warrior ring	27217	2	254	120	4	0
-72 test green feral staff	26811	2	254	120	2	0
-72 test green fistweapon	26671	2	254	120	2	0
-72 test green gun	26755	2	254	120	2	0
-72 test green healer mace	26797	2	254	120	2	0
-72 test green hunter belt	26384	2	254	120	4	0
-72 test green hunter boot	26385	2	254	120	4	0
-72 test green hunter chest	26386	2	254	120	4	0
-72 test green hunter hand	26387	2	254	120	4	0
-72 test green hunter head	26388	2	254	120	4	0
-72 test green hunter legs	26389	2	254	120	4	0
-72 test green hunter shoulder	26390	2	254	120	4	0
-72 test green hunter wrist	26391	2	254	120	4	0
-72 test green mace1h	26601	2	254	120	2	0
-72 test green mace2h	26615	2	254	120	2	0
-72 test green off hand	26573	2	254	120	4	0
-72 test green paladin belt	27140	2	254	120	4	0
-72 test green paladin boot	27141	2	254	120	4	0
-72 test green paladin chest	27142	2	254	120	4	0
-72 test green paladin cloak	27287	2	254	120	4	0
-72 test green paladin hand	27143	2	254	120	4	0
-72 test green paladin head	27144	2	254	120	4	0
-72 test green paladin legs	27145	2	254	120	4	0
-72 test green paladin necklace	27315	2	254	120	4	0
-72 test green paladin ring	27301	2	254	120	4	0
-72 test green paladin shoulder	27146	2	254	120	4	0
-72 test green paladin wrist	27147	2	254	120	4	0
-72 test green polearm	26713	2	254	120	2	0
-72 test green rogue belt	26272	2	254	120	4	0
-72 test green rogue boot	26273	2	254	120	4	0
-72 test green rogue chest	26274	2	254	120	4	0
-72 test green rogue hand	26275	2	254	120	4	0
-72 test green rogue head	26276	2	254	120	4	0
-72 test green rogue legs	26277	2	254	120	4	0
-72 test green rogue shoulder	26278	2	254	120	4	0
-72 test green rogue wrist	26279	2	254	120	4	0
-72 test green rogue/hunter cloak	27161	2	254	120	4	0
-72 test green rogue/hunter necklace	27189	2	254	120	4	0
-72 test green rogue/hunter ring	27175	2	254	120	4	0
-72 test green shaman belt	27028	2	254	120	4	0
-72 test green shaman boot	27029	2	254	120	4	0
-72 test green shaman chest	27030	2	254	120	4	0
-72 test green shaman cloak	27245	2	254	120	4	0
-72 test green shaman hand	27031	2	254	120	4	0
-72 test green shaman head	27032	2	254	120	4	0
-72 test green shaman legs	27033	2	254	120	4	0
-72 test green shaman necklace	27273	2	254	120	4	0
-72 test green shaman ring	27259	2	254	120	4	0
-72 test green shaman shoulder	27034	2	254	120	4	0
-72 test green shaman wrist	27035	2	254	120	4	0
-72 test green shield	26559	2	254	120	4	0
-72 test green spell dagger	26783	2	254	120	2	0
-72 test green staff	26657	2	254	120	2	0
-72 test green sword1h	26629	2	254	120	2	0
-72 test green sword2h	26643	2	254	120	2	0
-72 test green wand	26769	2	254	120	2	0
-72 test green warrior belt	26496	2	254	120	4	0
-72 test green warrior boot	26497	2	254	120	4	0
-72 test green warrior chest	26498	2	254	120	4	0
-72 test green warrior hand	26499	2	254	120	4	0
-72 test green warrior head	26500	2	254	120	4	0
-72 test green warrior legs	26501	2	254	120	4	0
-72 test green warrior shoulder	26502	2	254	120	4	0
-72 test green warrior wrist	26503	2	254	120	4	0
-8% test speed boots	18162	1	254	1	4	0
 85 pound mightfish	13915	1	254	55	15	0
 9 pound lobster	13908	1	254	55	15	0
 90 epic frost belt	20324	4	254	90	4	0
@@ -1600,16 +271,8 @@ ns.ITEM_SEARCH_BLOB = [[
 92 pound mightfish	13916	1	254	55	15	0
 99-year-old port	5334	1	254	1	12	0
 <unused> glyphic rune	9572	1	254	1	12	0
-[dnt] test mount	33302	4	254	20	15	0
 [ph[ filled green brewfest stein	37895	3	254	5	2	0
-[test] steadfast breastplate	32970	2	254	43	4	0
 [txt]rexxar's misha summoner	31767	1	254	1	12	0
-[unused] abom stoone	22933	1	254	1	12	0
-[unused] letter cookie	23086	1	254	0	15	0
-[unused] metzen and carnes' test robe of asskicking	30718	0	254	1	4	0
-[unused] scourge invasion boss summoner	22486	1	254	1	13	0
-[unused] scourge invasion focus object	22485	1	254	1	15	0
-[unused]triangulation device	29025	1	254	1	12	0
 a bloodstained envelope	22930	1	254	1	12	0
 a bloodstained envelope	22970	1	254	45	12	0
 a bloodstained journal page	939	1	254	1	12	0
@@ -1863,45 +526,11 @@ agile boots	4788	2	254	20	4	0
 agile mountain bracers	31426	2	254	102	4	0
 agmond's belt pouch	4981	1	254	35	1	0
 ahanu's leather goods	16283	1	254	1	12	0
-ahn'qiraj mace [ph]	21127	4	254	75	2	0
-ahn'qiraj staff [ph]	21125	4	254	75	2	0
-ahn'qiraj wand [ph]	21124	4	254	75	2	0
 ahn'qiraj war effort supplies	21509	1	254	10	15	0
 ahn'qiraj war effort supplies	21510	1	254	20	15	0
 ahn'qiraj war effort supplies	21511	1	254	30	15	0
 ahn'qiraj war effort supplies	21512	1	254	40	15	0
 ahn'qiraj war effort supplies	21513	1	254	50	15	0
-ahnqiraj test item a cloth belt	21429	1	254	1	4	0
-ahnqiraj test item a cloth bracer	21433	1	254	1	4	0
-ahnqiraj test item a cloth feet	21431	1	254	1	4	0
-ahnqiraj test item a cloth gloves	21437	1	254	1	4	0
-ahnqiraj test item a cloth helm	21434	1	254	1	4	0
-ahnqiraj test item a cloth legs	21419	1	254	1	4	0
-ahnqiraj test item a cloth robe	21430	1	254	1	4	0
-ahnqiraj test item a cloth shoulders	21435	1	254	1	4	0
-ahnqiraj test item b leather belt	21425	1	254	1	4	0
-ahnqiraj test item b leather boots	21427	1	254	1	4	0
-ahnqiraj test item b leather bracer	21432	1	254	1	4	0
-ahnqiraj test item b leather chest	21420	1	254	1	4	0
-ahnqiraj test item b leather gauntlets	21428	1	254	1	4	0
-ahnqiraj test item b leather helm	21426	1	254	1	4	0
-ahnqiraj test item b leather pants	21423	1	254	1	4	0
-ahnqiraj test item b leather shoulder	21424	1	254	1	4	0
-ahnqiraj test item c mail belt	21451	1	254	1	4	0
-ahnqiraj test item c mail boots	21449	1	254	1	4	0
-ahnqiraj test item c mail chest	21421	1	254	1	4	0
-ahnqiraj test item c mail gloves	21450	1	254	1	4	0
-ahnqiraj test item c mail helm	21446	1	254	1	4	0
-ahnqiraj test item c mail legs	21448	1	254	1	4	0
-ahnqiraj test item c mail shoulders	21447	1	254	1	4	0
-ahnqiraj test item d plate belt	21441	1	254	1	4	0
-ahnqiraj test item d plate boots	21442	1	254	1	4	0
-ahnqiraj test item d plate bracer	21445	1	254	1	4	0
-ahnqiraj test item d plate chest	21422	1	254	1	4	0
-ahnqiraj test item d plate gloves	21444	1	254	1	4	0
-ahnqiraj test item d plate helm	21439	1	254	1	4	0
-ahnqiraj test item d plate legs	21440	1	254	1	4	0
-ahnqiraj test item d plate shoulders	21443	1	254	1	4	0
 ahuurn's elixir	24428	1	254	1	12	0
 air elemental gas	27807	1	254	1	12	0
 air sapta	6638	1	254	1	0	0
@@ -1944,12 +573,7 @@ aldor supplies package	34595	1	254	1	0	0
 aldor tabard	31779	1	254	20	4	0
 aldori legacy defender	28825	4	254	125	4	0
 alembic of infernal power	27896	3	254	115	4	0
-alex bug test item	17122	6	254	1	12	0
-alex test bk helm	27486	1	254	60	4	0
 alex's ring of audacity	12947	6	254	60	4	0
-alex's test beatdown mace	32091	4	254	70	2	0
-alex's test beatdown staff	19879	4	254	70	2	0
-alexander's test healthstone	30347	1	254	1	0	0
 alexandrite ring	25055	2	254	114	4	0
 algae fists	6906	3	254	28	4	0
 algaz battle hammer	25139	2	254	114	2	0
@@ -2442,8 +1066,6 @@ ash covered boots	18716	3	254	61	4	0
 ash tempered legguards	30941	2	254	111	4	0
 ash-covered helm	30961	2	254	114	4	0
 ashbringer	13262	5	254	76	2	0
-ashbringer test 001	16024	1	254	1	12	0
-ashbringer test 002	16025	1	254	1	12	0
 ashenvale longbow	25241	2	254	84	2	0
 ashes of al'ar	32458	4	254	70	15	0
 ashjre'thul, crossbow of smiting	19361	4	254	77	2	0
@@ -3197,8 +1819,6 @@ bile-etched spaulders	18384	3	254	62	4	0
 billy club	4563	1	254	9	2	0
 binary brew	37496	1	254	5	0	0
 binary brew	37906	1	254	5	0	0
-bind on acquire test item	8688	0	254	40	4	0
-bind on use test item	1258	0	254	40	4	0
 binding girdle	5275	2	254	15	4	0
 bindings of elements	16671	3	254	57	4	0
 bindings of faith	22519	4	254	88	4	0
@@ -3270,7 +1890,6 @@ black mageweave leggings	9999	2	254	41	4	0
 black mageweave robe	10001	2	254	42	4	0
 black mageweave shoulders	10027	2	254	46	4	0
 black mageweave vest	9998	2	254	41	4	0
-black mail shoulderpads of might (test)	907	1	254	1	4	0
 black malice	3194	3	254	21	2	0
 black menace	6831	3	254	44	2	0
 black metal axe	885	2	254	24	2	0
@@ -3426,7 +2045,6 @@ blade of unquenched thirst	31193	3	254	97	2	0
 blade of vaulted secrets	21413	4	254	70	2	0
 blade of wizardry	31336	4	254	100	2	0
 blade's edge ogre brew	32424	1	254	25	0	0
-blade's edge test shard	32372	1	254	1	12	0
 bladeangel's money belt	33211	4	254	128	4	0
 bladebane armguards	14550	4	254	49	4	0
 bladed chaos tunic	34397	4	254	159	4	0
@@ -4598,7 +3216,6 @@ broken electro-lantern	1630	0	254	1	15	0
 broken elemental bracer	5446	0	254	1	15	0
 broken engine part	34476	0	254	70	12	0
 broken fang	7073	0	254	1	15	0
-broken fast test thrown	5559	1	254	43	15	0
 broken fitz's throwing axe	25641	3	254	103	15	0
 broken flightblade throwing axe	13173	3	254	60	15	0
 broken gleaming throwing axe	15326	1	254	40	15	0
@@ -4627,7 +3244,6 @@ broken spear	4880	0	254	1	15	0
 broken sprite darter egg	11111	1	254	37	12	0
 broken spyglass	34840	0	254	1	15	0
 broken tears	6083	1	254	1	12	0
-broken test throwing axe	25665	3	254	60	15	0
 broken throwing tomahawk	4959	1	254	7	15	0
 broken tools	4703	1	254	1	12	0
 broken tooth	1222	0	254	1	15	0
@@ -5582,7 +4198,6 @@ choker of the high shaman	4112	2	254	44	4	0
 choker of the shifting sands	21505	4	254	70	4	0
 choker of vile intent	29381	4	254	110	4	0
 choking band	11868	2	254	53	4	0
-chows blade of doom! (test)	1018	1	254	1	2	0
 chromatic boots	19387	4	254	77	4	0
 chromatic carapace	12871	4	254	1	15	0
 chromatic cloak	18509	4	254	62	4	0
@@ -5778,7 +4393,6 @@ cloak of warding	18413	3	254	62	4	0
 cloak of whispering shells	27789	3	254	112	4	0
 cloak of woven energy	29813	3	254	106	4	0
 cloaked hood	1280	2	254	38	4	0
-cloaked hood test	19743	2	254	38	4	0
 clocktock's jumpers	31441	2	254	105	4	0
 clockwork rocket bot	34425	3	254	1	15	0
 clopper's equipment	23830	1	254	1	12	0
@@ -6185,7 +4799,6 @@ conjured sourdough	8075	1	254	45	0	0
 conjured sparkling water	8078	1	254	55	0	0
 conjured spring water	3772	1	254	35	0	0
 conjured sweet roll	8076	1	254	55	0	0
-conjured test item	3249	1	254	1	15	0
 conjured water	5350	1	254	5	0	0
 conjurer's bracers	9846	2	254	35	4	0
 conjurer's breeches	9851	2	254	37	4	0
@@ -6876,8 +5489,6 @@ dacian falx	922	1	254	26	2	0
 daffodil bouquet	1325	1	254	1	12	0
 dagger of bad mojo	33389	4	254	132	2	0
 dagger of sockety goodness	23230	2	254	41	2	0
-dagger of spell penetration - fire 150 resist (test)	21516	3	254	63	2	0
-dagger of spell penetration - frost 150 resist (test)	21518	3	254	63	2	0
 dagger of veiled shadows	21404	4	254	70	2	0
 daggerfen battlevest	24751	2	254	102	4	0
 daggerfen belt	24749	2	254	102	4	0
@@ -7154,7 +5765,6 @@ deadmire's tooth	5945	1	254	1	12	0
 deadskull shield	3761	2	254	32	4	0
 deadwalker mantle	14538	3	254	62	4	0
 deadwood headdress feather	21377	1	254	1	12	0
-deadwood headdress feather deprecated	20739	1	254	1	12	0
 deadwood ritual totem	20741	1	254	45	15	0
 deadwood sledge	13025	3	254	37	2	0
 deanship claymore	13049	3	254	29	2	0
@@ -7576,7 +6186,6 @@ design: citrine pendant of golden healing	20976	2	254	39	9	0
 design: coronet of verdant flame	24172	4	254	74	9	0
 design: crimson sun	33156	1	254	70	9	0
 design: cut azerothian diamond	21951	1	254	55	9	0
-design: cut emerald - deprecated	21950	1	254	55	9	0
 design: dark iron scorpid	21956	2	254	60	9	0
 design: dawnstone crab	24180	3	254	74	9	0
 design: dawnstone crab	31358	3	254	74	9	0
@@ -8011,7 +6620,6 @@ doom's edge	19362	4	254	70	2	0
 doombringer	13053	3	254	60	2	0
 doomcaller's circlet	21337	4	254	81	4	0
 doomcaller's footwraps	21338	4	254	78	4	0
-doomcaller's handwraps [ph]	21339	4	254	78	4	0
 doomcaller's mantle	21335	4	254	78	4	0
 doomcaller's robes	21334	4	254	88	4	0
 doomcaller's trousers	21336	4	254	81	4	0
@@ -8034,7 +6642,6 @@ doomulus prime	22348	3	254	65	2	0
 doomwarder blood	6252	1	254	1	12	0
 dormant mana powder	23385	0	254	1	15	0
 dormant wind kissed blade	19018	5	254	80	12	0
-dormant wind kissed blade deprecated	18589	5	254	80	12	0
 dory's embrace	33484	4	254	136	4	0
 dos ogris	32668	1	254	75	0	0
 double axe	927	1	254	24	2	0
@@ -8182,7 +6789,6 @@ drake-scale vest	1677	2	254	46	4	0
 drakeclaw band	10795	3	254	54	4	0
 drakefang butcher	12463	3	254	53	2	0
 drakefire amulet	16309	3	254	63	4	0
-drakefire amulet (old) (unused)	12186	1	254	1	12	0
 drakefire headguard	10743	2	254	51	4	0
 drakefist hammer	28437	4	254	107	2	0
 drakehide tunic	31157	3	254	109	4	0
@@ -8296,11 +6902,6 @@ drillmaster zurok's orders	28099	1	254	1	12	0
 dripping spider mandible	4585	0	254	1	15	0
 driving gloves	3152	1	254	9	4	0
 drudge boots	21532	4	254	77	4	0
-druid 105 epic bear test chest	30528	4	254	105	4	0
-druid 105 epic feral test chest	29890	4	254	105	4	0
-druid 105 epic moonkin test chest	29892	4	254	105	4	0
-druid 150 epic feral test chest	29891	4	254	150	4	0
-druid 150 epic moonkin test chest	29893	4	254	150	4	0
 druid signal	31763	1	254	1	12	0
 druidic force boots	30335	2	254	114	4	0
 druidic helmet of second sight	31110	3	254	109	4	0
@@ -8410,7 +7011,6 @@ dwarf spine	18206	1	254	0	12	0
 dwarven charge	9626	2	254	42	2	0
 dwarven cloth britches	79	1	254	5	4	0
 dwarven defender	6187	2	254	17	4	0
-dwarven explorer's monocle (test)	1163	1	254	10	4	0
 dwarven fishing pole	3567	2	254	19	2	0
 dwarven flamestick	5241	2	254	18	2	0
 dwarven guard cloak	4504	2	254	31	4	0
@@ -8439,7 +7039,6 @@ earth warder's gloves	21318	2	254	58	4	0
 earth warder's vest	21311	2	254	48	4	0
 earthblood chestguard	28735	4	254	115	4	0
 earthborn kilt	9402	3	254	60	4	0
-earthborn kilt test	19742	3	254	60	4	0
 earthbreaker's greaves	29313	3	254	97	4	0
 earthcaller's headdress	29135	3	254	115	4	0
 earthcaller's mace	25492	2	254	93	2	0
@@ -9119,8 +7718,6 @@ epoch's whispering cinch	27911	3	254	115	4	0
 epoch-mender	28033	3	254	112	2	0
 equilibrium epaulets	34208	4	254	159	4	0
 eredar wand of obliteration	28783	4	254	125	2	0
-eric test item a	17162	1	254	1	0	0
-eric test item b	17163	1	254	1	0	0
 eridan's supplies	11617	1	254	1	12	0
 eridan's vial	11682	1	254	1	12	0
 eroded axe	25397	0	254	69	2	0
@@ -9158,7 +7755,6 @@ essence of the elements	11129	1	254	1	12	0
 essence of the exile	6851	1	254	1	0	0
 essence of the falcon	32357	1	254	1	12	0
 essence of the firelord	19017	1	254	1	12	0
-essence of the firelord deprecated	18566	1	254	1	12	0
 essence of the hawk	32356	1	254	1	12	0
 essence of the immortals	34544	4	254	70	15	0
 essence of the martyr	29376	4	254	110	4	0
@@ -9475,23 +8071,6 @@ farstrider's buckler	23395	1	254	9	4	0
 farstrider's longbow	22982	3	254	21	2	0
 farstrider's shield	28153	2	254	12	4	0
 farstrider's tunic	23405	2	254	12	4	0
-fast test 1h axe	5551	0	254	60	2	0
-fast test 1h mace	5553	0	254	60	2	0
-fast test 1h sword	5555	0	254	60	2	0
-fast test 2h axe	5552	0	254	45	2	0
-fast test 2h mace	5554	0	254	45	2	0
-fast test 2h sword	5556	0	254	45	2	0
-fast test ammo	19286	0	254	45	6	0
-fast test bow	5548	0	254	70	2	0
-fast test crossbow	5546	0	254	70	2	0
-fast test dagger	5549	0	254	60	2	0
-fast test fist	19226	0	254	60	2	0
-fast test generic	5561	0	254	1	2	0
-fast test gun	5550	0	254	70	2	0
-fast test polearm	5545	0	254	45	2	0
-fast test spear	5557	0	254	45	2	0
-fast test staff	5558	0	254	45	2	0
-fast test wand	5560	0	254	33	2	0
 fast-growing flower	15586	1	254	1	12	0
 fat gnome and little elf	28110	1	254	60	0	0
 fat sack of coins	11937	1	254	1	15	0
@@ -9666,7 +8245,6 @@ felsteel reaper	23543	4	254	105	2	0
 felsteel shield spike	23530	2	254	70	0	0
 felsteel stabilizer	23787	1	254	70	7	0
 felsteel whisper knives	29204	3	254	110	2	0
-felstone (deprecated)	5564	1	254	30	15	0
 felstone bindings	24821	2	254	84	4	0
 felstone bulwark	32255	4	254	141	4	0
 felstone chain vest	24816	2	254	84	4	0
@@ -10170,7 +8748,6 @@ flax bracers	6060	1	254	5	4	0
 flax gloves	3275	1	254	5	4	0
 flax vest	3270	1	254	5	4	0
 flayed demon skin	20310	1	254	25	12	0
-flayed demon skin (old)	6437	1	254	1	12	0
 flayed demon skin (old2)	6766	1	254	25	12	0
 flayed doomguard belt	19134	4	254	68	4	0
 flayer-hide leggings	29939	2	254	81	4	0
@@ -10223,7 +8800,6 @@ flintrock shoulders	7755	3	254	38	4	0
 flintweed seed	22147	1	254	70	15	0
 floon's debt	25769	1	254	1	12	0
 flowing ritual robes	20032	4	254	65	4	0
-flowing ritual robes deprecated	19926	4	254	63	4	0
 fluctuating cloak	18382	3	254	62	4	0
 fluorescent green mechanostrider	13325	3	254	30	15	0
 fluorescent tanzanite	30600	4	254	70	3	0
@@ -10233,7 +8809,6 @@ flute of xavaric	11668	1	254	54	12	0
 flutterer silk handwraps	26009	2	254	20	4	0
 flying broom	33176	3	254	1	15	0
 flying machine control	34060	3	254	70	7	0
-flying reindeer reins (test)	34150	3	254	1	15	0
 flying tiger goggles	4368	2	254	20	4	0
 foamspittle staff	1405	2	254	17	2	0
 focused mana bindings	32270	4	254	141	4	0
@@ -11518,7 +10093,6 @@ goblin rocket boots	7189	2	254	45	4	0
 goblin rocket fuel	9061	1	254	42	7	0
 goblin rocket helmet	10588	2	254	47	4	0
 goblin rocket launcher	23836	3	254	70	4	0
-goblin rocket launcher [ph]	35485	3	254	70	4	0
 goblin rumors	5804	1	254	1	12	0
 goblin sapper charge	10646	1	254	41	7	0
 goblin screwdriver	1936	2	254	18	2	0
@@ -13541,13 +12115,7 @@ hungering bone cudgel	25773	3	254	100	2	0
 hungering spineripper	28416	3	254	115	2	0
 hunt tracker blade	15706	2	254	57	2	0
 hunter 105 epic ammo box	29886	1	254	1	15	0
-hunter 105 epic test chest	29882	4	254	105	4	0
-hunter 105 epic test gun	29884	4	254	105	2	0
-hunter 105/150 epic test ammo pouch	29889	3	254	103	11	0
-hunter 120 epic test bullets	29885	4	254	120	6	0
 hunter 150 epic ammo box	29887	1	254	1	15	0
-hunter 150 epic test chest	29883	4	254	150	4	0
-hunter 150 epic test gun	29888	4	254	150	2	0
 hunter's boomstick	2511	1	254	14	2	0
 hunter's insignia medal	15704	2	254	60	4	0
 hunter's muzzle loader	3040	2	254	19	2	0
@@ -14168,7 +12736,6 @@ isaac's heart	190180	1	254	1	12	0
 ishaal's almanac	32523	1	254	1	12	0
 ishaal's almanac	32564	1	254	1	12	0
 ishamuhale's fang	5101	1	254	1	12	0
-item properties test	18747	3	254	63	4	0
 items for magister astalor bloodsworn	24277	0	254	1	15	0
 ivar's head	3621	1	254	1	12	0
 iverron's antidote	10642	1	254	1	12	0
@@ -14282,10 +12849,6 @@ jazeraint leggings	9903	2	254	42	4	0
 jazeraint pauldrons	9904	2	254	41	4	0
 jazeraint shield	9899	2	254	42	4	0
 jeering spectre's essence	22224	1	254	1	12	0
-jeff test gloves	12962	1	254	1	4	0
-jeff test shield	12961	1	254	1	4	0
-jeff test sword	12971	1	254	50	2	0
-jeff test sword ii	12972	1	254	50	2	0
 jeklik's crusher	19918	4	254	65	2	0
 jeklik's opaline talisman	19923	3	254	68	4	0
 jennea's flask	7207	1	254	1	12	0
@@ -14415,8 +12978,6 @@ justice bearer's pauldrons	27539	3	254	115	4	0
 justicebringer 2000 specs	32472	4	254	127	4	0
 justicebringer 3000 specs	35185	4	254	159	4	0
 jutebraid gloves	10654	2	254	31	4	0
-jyoo random item test	17342	1	254	1	2	0
-jyoo test item	1259	0	254	1	2	0
 k'iru's presage	34671	3	254	115	2	0
 kadrak's flag	10622	1	254	1	12	0
 kael's standard	34161	1	254	70	12	0
@@ -14566,7 +13127,6 @@ kirin'var journeyman's belt	29771	2	254	111	4	0
 kirin'var scout's belt	29772	2	254	111	4	0
 kiss of the spider	22954	4	254	85	4	0
 kite shield	2446	1	254	27	4	0
-kjordan's test ring	33994	4	254	130	4	0
 klaven mortwake's journal	7908	1	254	1	12	0
 klinfran's head	18953	1	254	1	12	0
 knife of a thousand lies	31667	4	254	40	2	0
@@ -14830,7 +13390,6 @@ large iron metamorphosis geode	32624	1	254	1	15	0
 large knapsack	1725	1	254	35	1	0
 large metal shield	2445	1	254	22	4	0
 large moneybag	6754	1	254	15	1	0
-large moneybag (old)	1014	1	254	1	12	0
 large obsidian shard	22203	1	254	1	7	0
 large ogre chain armor	914	2	254	30	4	0
 large opal	12799	2	254	55	3	0
@@ -14921,8 +13480,6 @@ lean wolf steak	12209	1	254	25	0	0
 leather chef's belt	9682	2	254	44	4	0
 leather chestguard of the sun	34371	4	254	159	4	0
 leather gauntlets of the sun	34372	4	254	159	4	0
-leather helmet a (test)	1021	1	254	1	4	0
-leather helmet d (test)	1020	1	254	1	4	0
 leatherworker's satchel	34482	2	254	65	1	0
 lecraft rabbit pelt	19482	1	254	1	12	0
 leech pants	6910	3	254	31	4	0
@@ -15149,271 +13706,6 @@ letter to jin'zil	5594	1	254	1	12	0
 letter to jorgen	5948	1	254	1	12	0
 letter to kialon	26048	1	254	1	12	0
 letter to the city architect	2891	1	254	1	12	0
-level 15 test gear cloth - mage/priest/warlock	13642	1	254	1	15	0
-level 15 test gear leather - druid/shaman	13643	1	254	1	15	0
-level 15 test gear leather - hunter/rogue	13644	1	254	1	15	0
-level 15 test gear mail - paladin/warrior	13645	1	254	1	15	0
-level 20 test gear cloth - mage/priest/warlock	13646	1	254	1	15	0
-level 20 test gear leather - druid/shaman	13660	1	254	1	15	0
-level 20 test gear leather - hunter/rogue	13664	1	254	1	15	0
-level 20 test gear mail - paladin/warrior	13656	1	254	1	15	0
-level 25 test gear cloth - mage/priest/warlock	13647	1	254	1	15	0
-level 25 test gear leather - druid/shaman	13661	1	254	1	15	0
-level 25 test gear leather - hunter/rogue	13665	1	254	1	15	0
-level 25 test gear mail - paladin/warrior	13657	1	254	1	15	0
-level 30 test gear cloth - mage/priest/warlock	13648	1	254	1	15	0
-level 30 test gear leather - druid/shaman	13662	1	254	1	15	0
-level 30 test gear leather - hunter/rogue	13666	1	254	1	15	0
-level 30 test gear mail - paladin/warrior	13658	1	254	1	15	0
-level 35 test gear cloth - mage/priest/warlock	13649	1	254	1	15	0
-level 35 test gear leather - druid/shaman	13663	1	254	1	15	0
-level 35 test gear leather - hunter/rogue	13667	1	254	1	15	0
-level 35 test gear mail - paladin/warrior	13659	1	254	1	15	0
-level 40 test gear cloth - mage/priest/warlock	13650	1	254	1	15	0
-level 40 test gear leather - druid	13668	1	254	1	15	0
-level 40 test gear leather - rogue	13674	1	254	1	15	0
-level 40 test gear mail - hunter	13686	1	254	1	15	0
-level 40 test gear mail - shaman	13692	1	254	1	15	0
-level 40 test gear plate - paladin/warrior	13680	1	254	1	15	0
-level 45 test gear cloth - mage/priest/warlock	13651	1	254	1	15	0
-level 45 test gear leather - druid	13669	1	254	1	15	0
-level 45 test gear leather - rogue	13675	1	254	1	15	0
-level 45 test gear mail - hunter	13687	1	254	1	15	0
-level 45 test gear mail - shaman	13693	1	254	1	15	0
-level 45 test gear plate - paladin/warrior	13681	1	254	1	15	0
-level 50 test gear cloth - mage/priest/warlock	13652	1	254	1	15	0
-level 50 test gear cloth - mage/priest/warlock 2	17843	1	254	1	15	0
-level 50 test gear leather - druid	13670	1	254	1	15	0
-level 50 test gear leather - druid 2	17844	1	254	1	15	0
-level 50 test gear leather - rogue	13676	1	254	1	15	0
-level 50 test gear leather - rogue 2	17845	1	254	1	15	0
-level 50 test gear mail - hunter	13688	1	254	1	15	0
-level 50 test gear mail - hunter 2	17846	1	254	1	15	0
-level 50 test gear mail - shaman	13694	1	254	1	15	0
-level 50 test gear mail - shaman 2	17847	1	254	1	15	0
-level 50 test gear plate - paladin/warrior	13682	1	254	1	15	0
-level 50 test gear plate - paladin/warrior 2	17848	1	254	1	15	0
-level 55 test gear cloth - mage/priest/warlock	13653	1	254	1	15	0
-level 55 test gear cloth - mage/priest/warlock 2	17837	1	254	1	15	0
-level 55 test gear leather - druid	13671	1	254	1	15	0
-level 55 test gear leather - druid 2	17838	1	254	1	15	0
-level 55 test gear leather - rogue	13677	1	254	1	15	0
-level 55 test gear leather - rogue 2	17839	1	254	1	15	0
-level 55 test gear mail - hunter	13689	1	254	1	15	0
-level 55 test gear mail - hunter 2	17840	1	254	1	15	0
-level 55 test gear mail - shaman	13695	1	254	1	15	0
-level 55 test gear mail - shaman 2	17841	1	254	1	15	0
-level 55 test gear plate - paladin/warrior	13683	1	254	1	15	0
-level 55 test gear plate - paladin/warrior 2	17842	1	254	1	15	0
-level 60 test gear cloth - mage/priest/warlock	13654	1	254	1	15	0
-level 60 test gear cloth - mage/priest/warlock 2	17831	1	254	1	15	0
-level 60 test gear green - cloth	27391	1	254	1	15	0
-level 60 test gear green - cloth 2	27554	1	254	1	15	0
-level 60 test gear green - leather - druid	27392	1	254	1	15	0
-level 60 test gear green - leather - druid 2	27565	1	254	1	15	0
-level 60 test gear green - leather - rogue	27393	1	254	1	15	0
-level 60 test gear green - leather - rogue 2	27576	1	254	1	15	0
-level 60 test gear green - leather - rogue 3	28076	1	254	1	15	0
-level 60 test gear green - mail - hunter	27394	1	254	1	15	0
-level 60 test gear green - mail - hunter 2	27587	1	254	1	15	0
-level 60 test gear green - mail - shaman	27395	1	254	1	15	0
-level 60 test gear green - mail - shaman 2	27608	1	254	1	15	0
-level 60 test gear green - plate - pally	27396	1	254	1	15	0
-level 60 test gear green - plate - pally 2	27619	1	254	1	15	0
-level 60 test gear green - plate - warrior	27397	1	254	1	15	0
-level 60 test gear green - plate - warrior 2	27630	1	254	1	15	0
-level 60 test gear green - plate - warrior 3	28088	1	254	1	15	0
-level 60 test gear leather - druid	13672	1	254	1	15	0
-level 60 test gear leather - druid 2	17832	1	254	1	15	0
-level 60 test gear leather - rogue	13678	1	254	1	15	0
-level 60 test gear leather - rogue 2	17833	1	254	1	15	0
-level 60 test gear mail - hunter	13690	1	254	1	15	0
-level 60 test gear mail - hunter 2	17834	1	254	1	15	0
-level 60 test gear mail - shaman	13696	1	254	1	15	0
-level 60 test gear mail - shaman 2	17835	1	254	1	15	0
-level 60 test gear plate - paladin/warrior	13684	1	254	1	15	0
-level 60 test gear plate - paladin/warrior 2	17836	1	254	1	15	0
-level 61 test gear green - cloth	27316	1	254	1	15	0
-level 61 test gear green - cloth 2	27555	1	254	1	15	0
-level 61 test gear green - leather - druid	27337	1	254	1	15	0
-level 61 test gear green - leather - druid 2	27566	1	254	1	15	0
-level 61 test gear green - leather - rogue	27327	1	254	1	15	0
-level 61 test gear green - leather - rogue 2	27577	1	254	1	15	0
-level 61 test gear green - leather - rogue 3	28077	1	254	1	15	0
-level 61 test gear green - mail - hunter	27347	1	254	1	15	0
-level 61 test gear green - mail - hunter 2	27588	1	254	1	15	0
-level 61 test gear green - mail - shaman	27378	1	254	1	15	0
-level 61 test gear green - mail - shaman 2	27607	1	254	1	15	0
-level 61 test gear green - plate - pally	27358	1	254	1	15	0
-level 61 test gear green - plate - pally 2	27618	1	254	1	15	0
-level 61 test gear green - plate - warrior	27368	1	254	1	15	0
-level 61 test gear green - plate - warrior 2	27629	1	254	1	15	0
-level 61 test gear green - plate - warrior 3	28089	1	254	1	15	0
-level 62 test gear green - cloth	27318	1	254	1	15	0
-level 62 test gear green - cloth 2	27556	1	254	1	15	0
-level 62 test gear green - leather - druid	27338	1	254	1	15	0
-level 62 test gear green - leather - druid 2	27567	1	254	1	15	0
-level 62 test gear green - leather - rogue	27328	1	254	1	15	0
-level 62 test gear green - leather - rogue 2	27578	1	254	1	15	0
-level 62 test gear green - leather - rogue 3	28078	1	254	1	15	0
-level 62 test gear green - mail - hunter	27348	1	254	1	15	0
-level 62 test gear green - mail - hunter 2	27589	1	254	1	15	0
-level 62 test gear green - mail - shaman	27379	1	254	1	15	0
-level 62 test gear green - mail - shaman 2	27606	1	254	1	15	0
-level 62 test gear green - plate - pally	27359	1	254	1	15	0
-level 62 test gear green - plate - pally 2	27617	1	254	1	15	0
-level 62 test gear green - plate - warrior	27369	1	254	1	15	0
-level 62 test gear green - plate - warrior 2	27628	1	254	1	15	0
-level 62 test gear green - plate - warrior 3	28090	1	254	1	15	0
-level 63 test gear green - cloth	27319	1	254	1	15	0
-level 63 test gear green - cloth 2	27557	1	254	1	15	0
-level 63 test gear green - leather - druid	27339	1	254	1	15	0
-level 63 test gear green - leather - druid 2	27568	1	254	1	15	0
-level 63 test gear green - leather - rogue	27329	1	254	1	15	0
-level 63 test gear green - leather - rogue 2	27579	1	254	1	15	0
-level 63 test gear green - leather - rogue 3	28079	1	254	1	15	0
-level 63 test gear green - mail - hunter	27349	1	254	1	15	0
-level 63 test gear green - mail - hunter 2	27590	1	254	1	15	0
-level 63 test gear green - mail - shaman	27380	1	254	1	15	0
-level 63 test gear green - mail - shaman 2	27605	1	254	1	15	0
-level 63 test gear green - plate - pally	27360	1	254	1	15	0
-level 63 test gear green - plate - pally 2	27616	1	254	1	15	0
-level 63 test gear green - plate - warrior	27370	1	254	1	15	0
-level 63 test gear green - plate - warrior 2	27627	1	254	1	15	0
-level 63 test gear green - plate - warrior 3	28091	1	254	1	15	0
-level 64 test gear green - cloth	27320	1	254	1	15	0
-level 64 test gear green - cloth 2	27558	1	254	1	15	0
-level 64 test gear green - leather - druid	27340	1	254	1	15	0
-level 64 test gear green - leather - druid 2	27569	1	254	1	15	0
-level 64 test gear green - leather - rogue	27330	1	254	1	15	0
-level 64 test gear green - leather - rogue 2	27580	1	254	1	15	0
-level 64 test gear green - leather - rogue 3	28080	1	254	1	15	0
-level 64 test gear green - mail - hunter	27350	1	254	1	15	0
-level 64 test gear green - mail - hunter 2	27597	1	254	1	15	0
-level 64 test gear green - mail - shaman	27381	1	254	1	15	0
-level 64 test gear green - mail - shaman 2	27604	1	254	1	15	0
-level 64 test gear green - plate - pally	27361	1	254	1	15	0
-level 64 test gear green - plate - pally 2	27615	1	254	1	15	0
-level 64 test gear green - plate - warrior	27371	1	254	1	15	0
-level 64 test gear green - plate - warrior 2	27626	1	254	1	15	0
-level 64 test gear green - plate - warrior 3	28092	1	254	1	15	0
-level 65 test gear cloth - mage	13655	1	254	1	15	0
-level 65 test gear cloth - mage 2	17851	1	254	1	15	0
-level 65 test gear cloth - priest	17824	1	254	1	15	0
-level 65 test gear cloth - priest 2	17852	1	254	1	15	0
-level 65 test gear cloth - warlock	17825	1	254	1	15	0
-level 65 test gear cloth - warlock 2	17853	1	254	1	15	0
-level 65 test gear green - cloth	27321	1	254	1	15	0
-level 65 test gear green - cloth 2	27559	1	254	1	15	0
-level 65 test gear green - leather - druid	27341	1	254	1	15	0
-level 65 test gear green - leather - druid 2	27570	1	254	1	15	0
-level 65 test gear green - leather - rogue	27331	1	254	1	15	0
-level 65 test gear green - leather - rogue 2	27581	1	254	1	15	0
-level 65 test gear green - leather - rogue 3	28081	1	254	1	15	0
-level 65 test gear green - mail - hunter	27351	1	254	1	15	0
-level 65 test gear green - mail - hunter 2	27596	1	254	1	15	0
-level 65 test gear green - mail - shaman	27382	1	254	1	15	0
-level 65 test gear green - mail - shaman 2	27603	1	254	1	15	0
-level 65 test gear green - plate - pally	27362	1	254	1	15	0
-level 65 test gear green - plate - pally 2	27614	1	254	1	15	0
-level 65 test gear green - plate - warrior	27372	1	254	1	15	0
-level 65 test gear green - plate - warrior 2	27625	1	254	1	15	0
-level 65 test gear green - plate - warrior 3	28093	1	254	1	15	0
-level 65 test gear leather - druid	13673	1	254	1	15	0
-level 65 test gear leather - druid 2	17854	1	254	1	15	0
-level 65 test gear leather - rogue	13679	1	254	1	15	0
-level 65 test gear leather - rogue 2	17855	1	254	1	15	0
-level 65 test gear leather - rogue 3	17856	1	254	1	15	0
-level 65 test gear mail - hunter	13691	1	254	1	15	0
-level 65 test gear mail - hunter 2	17857	1	254	1	15	0
-level 65 test gear mail - hunter 3	17858	1	254	1	15	0
-level 65 test gear mail - shaman	13697	1	254	1	15	0
-level 65 test gear mail - shaman 2	17859	1	254	1	15	0
-level 65 test gear plate - paladin	13685	1	254	1	15	0
-level 65 test gear plate - paladin 2	17860	1	254	1	15	0
-level 65 test gear plate - warrior	17826	1	254	1	15	0
-level 65 test gear plate - warrior 2	17861	1	254	1	15	0
-level 65 test gear plate - warrior 3	17862	1	254	1	15	0
-level 66 test gear green - cloth	27322	1	254	1	15	0
-level 66 test gear green - cloth 2	27560	1	254	1	15	0
-level 66 test gear green - leather - druid	27342	1	254	1	15	0
-level 66 test gear green - leather - druid 2	27571	1	254	1	15	0
-level 66 test gear green - leather - rogue	27332	1	254	1	15	0
-level 66 test gear green - leather - rogue 2	27582	1	254	1	15	0
-level 66 test gear green - leather - rogue 3	28082	1	254	1	15	0
-level 66 test gear green - mail - hunter	27352	1	254	1	15	0
-level 66 test gear green - mail - hunter 2	27595	1	254	1	15	0
-level 66 test gear green - mail - shaman	27383	1	254	1	15	0
-level 66 test gear green - mail - shaman 2	27602	1	254	1	15	0
-level 66 test gear green - plate - pally	27363	1	254	1	15	0
-level 66 test gear green - plate - pally 2	27613	1	254	1	15	0
-level 66 test gear green - plate - warrior	27373	1	254	1	15	0
-level 66 test gear green - plate - warrior 2	27624	1	254	1	15	0
-level 66 test gear green - plate - warrior 3	28094	1	254	1	15	0
-level 67 test gear green - cloth	27323	1	254	1	15	0
-level 67 test gear green - cloth 2	27561	1	254	1	15	0
-level 67 test gear green - leather - druid	27343	1	254	1	15	0
-level 67 test gear green - leather - druid 2	27572	1	254	1	15	0
-level 67 test gear green - leather - rogue	27333	1	254	1	15	0
-level 67 test gear green - leather - rogue 2	27586	1	254	1	15	0
-level 67 test gear green - leather - rogue 3	28083	1	254	1	15	0
-level 67 test gear green - mail - hunter	27353	1	254	1	15	0
-level 67 test gear green - mail - hunter 2	27594	1	254	1	15	0
-level 67 test gear green - mail - shaman	27384	1	254	1	15	0
-level 67 test gear green - mail - shaman 2	27601	1	254	1	15	0
-level 67 test gear green - plate - pally	27364	1	254	1	15	0
-level 67 test gear green - plate - pally 2	27612	1	254	1	15	0
-level 67 test gear green - plate - warrior	27374	1	254	1	15	0
-level 67 test gear green - plate - warrior 2	27623	1	254	1	15	0
-level 67 test gear green - plate - warrior 3	28095	1	254	1	15	0
-level 68 test gear green - cloth	27324	1	254	1	15	0
-level 68 test gear green - cloth 2	27562	1	254	1	15	0
-level 68 test gear green - leather - druid	27344	1	254	1	15	0
-level 68 test gear green - leather - druid 2	27573	1	254	1	15	0
-level 68 test gear green - leather - rogue	27334	1	254	1	15	0
-level 68 test gear green - leather - rogue 2	27585	1	254	1	15	0
-level 68 test gear green - leather - rogue 3	28084	1	254	1	15	0
-level 68 test gear green - mail - hunter	27354	1	254	1	15	0
-level 68 test gear green - mail - hunter 2	27593	1	254	1	15	0
-level 68 test gear green - mail - shaman	27385	1	254	1	15	0
-level 68 test gear green - mail - shaman 2	27600	1	254	1	15	0
-level 68 test gear green - plate - pally	27365	1	254	1	15	0
-level 68 test gear green - plate - pally 2	27611	1	254	1	15	0
-level 68 test gear green - plate - warrior	27375	1	254	1	15	0
-level 68 test gear green - plate - warrior 2	27622	1	254	1	15	0
-level 68 test gear green - plate - warrior 3	28096	1	254	1	15	0
-level 69 test gear green - cloth	27325	1	254	1	15	0
-level 69 test gear green - cloth 2	27563	1	254	1	15	0
-level 69 test gear green - leather - druid	27345	1	254	1	15	0
-level 69 test gear green - leather - druid 2	27574	1	254	1	15	0
-level 69 test gear green - leather - rogue	27335	1	254	1	15	0
-level 69 test gear green - leather - rogue 2	27584	1	254	1	15	0
-level 69 test gear green - leather - rogue 3	28085	1	254	1	15	0
-level 69 test gear green - mail - hunter	27355	1	254	1	15	0
-level 69 test gear green - mail - hunter 2	27592	1	254	1	15	0
-level 69 test gear green - mail - shaman	27386	1	254	1	15	0
-level 69 test gear green - mail - shaman 2	27599	1	254	1	15	0
-level 69 test gear green - plate - pally	27366	1	254	1	15	0
-level 69 test gear green - plate - pally 2	27610	1	254	1	15	0
-level 69 test gear green - plate - warrior	27376	1	254	1	15	0
-level 69 test gear green - plate - warrior 2	27621	1	254	1	15	0
-level 69 test gear green - plate - warrior 3	28097	1	254	1	15	0
-level 70 test gear green - cloth	27326	1	254	1	15	0
-level 70 test gear green - cloth 2	27564	1	254	1	15	0
-level 70 test gear green - leather - druid	27346	1	254	1	15	0
-level 70 test gear green - leather - druid 2	27575	1	254	1	15	0
-level 70 test gear green - leather - rogue	27336	1	254	1	15	0
-level 70 test gear green - leather - rogue 2	27583	1	254	1	15	0
-level 70 test gear green - leather - rogue 3	28086	1	254	1	15	0
-level 70 test gear green - mail - hunter	27356	1	254	1	15	0
-level 70 test gear green - mail - hunter 2	27591	1	254	1	15	0
-level 70 test gear green - mail - shaman	27387	1	254	1	15	0
-level 70 test gear green - mail - shaman 2	27598	1	254	1	15	0
-level 70 test gear green - plate - pally	27367	1	254	1	15	0
-level 70 test gear green - plate - pally 2	27609	1	254	1	15	0
-level 70 test gear green - plate - warrior	27377	1	254	1	15	0
-level 70 test gear green - plate - warrior 2	27620	1	254	1	15	0
-level 70 test gear green - plate - warrior 3	28098	1	254	1	15	0
 lewis' note	15998	1	254	1	12	0
 lexicon demonica	30827	1	254	1	12	0
 ley orb	7508	2	254	13	4	0
@@ -15861,7 +14153,6 @@ loosely threaded vest	25340	0	254	66	4	0
 lord alexander's battle axe	13003	3	254	56	2	0
 lord blackwood's blade	23132	3	254	62	2	0
 lord blackwood's buckler	23139	3	254	62	4	0
-lord brandon's tabard (test)	746	1	254	1	4	0
 lord general's sword	11817	3	254	56	2	0
 lord grayson's satchel	18804	1	254	1	12	0
 lord of frost's private label	35720	1	254	35	0	0
@@ -16039,8 +14330,6 @@ mag'hari ritualist's horns	28169	3	254	103	4	0
 mag'hari scout's tunic	28172	3	254	103	4	0
 mag'hari warlord's legplates	28175	3	254	103	4	0
 magatha's note	10678	1	254	0	12	0
-mage 105 epic test chest	29855	4	254	105	4	0
-mage 150 epic test chest	29865	4	254	150	4	0
 mage dragon robe	4989	2	254	50	4	0
 mage's mark of the sha'tar	31382	3	254	109	4	0
 mage-collar of the firestorm	27488	3	254	115	4	0
@@ -16121,9 +14410,6 @@ mail combat gauntlets	4075	2	254	34	4	0
 mail combat headguard	4077	2	254	35	4	0
 mail combat leggings	6402	2	254	36	4	0
 mail combat spaulders	6404	2	254	35	4	0
-mail helmet a (test)	1027	1	254	1	4	0
-mail helmet c (test)	1023	1	254	1	4	0
-mail helmet d (test)	1022	1	254	1	4	0
 mail of fevered pursuit	30907	4	254	151	4	0
 maimfist's choker	25809	3	254	109	4	0
 main gauche	2526	1	254	34	2	0
@@ -16231,7 +14517,6 @@ manasurge pendant	29368	4	254	110	4	0
 manaweave cloak	24260	4	254	105	4	0
 manaweave robe	7509	2	254	20	4	0
 mandokir's sting	20038	4	254	66	2	0
-mandokir's sting deprecated	19868	4	254	66	2	0
 mangled ravager carapace	23972	0	254	1	15	0
 mangled ravager claw	23974	0	254	1	15	0
 mangled ravager fang	23973	0	254	1	15	0
@@ -17360,9 +15645,6 @@ nautical compass	23738	1	254	1	12	0
 nautical map	23739	1	254	1	12	0
 navuud's concoction	29737	1	254	1	12	0
 nax ph crit plate shoulders	23034	4	254	83	4	0
-naxxramas polearm [ph]	22817	4	254	77	2	0
-naxxramas sword 1h 1 [ph]	22805	4	254	77	2	0
-naxxramas sword 2h 2 [ph]	22814	4	254	81	2	0
 nazan's head	23901	1	254	0	12	0
 nazan's riding crop	33833	1	254	1	12	0
 nazzivus monument glyph	23859	1	254	1	12	0
@@ -17395,7 +15677,6 @@ necrotic rune	22484	2	254	1	15	0
 necrotic wand	7708	3	254	35	2	0
 needle fang	27935	0	254	1	15	0
 needle shrike	27631	3	254	94	2	0
-needle shrike deprecated	24410	3	254	94	15	0
 needle threader	13021	3	254	47	2	0
 neeka's report	6167	1	254	1	12	0
 neeru's herb pouch	9628	1	254	1	12	0
@@ -17654,8 +15935,6 @@ nimboya's laden pike	9319	1	254	1	0	0
 nimboya's mystical staff	4134	3	254	46	2	0
 nimboya's pike	15002	1	254	1	12	0
 nimbus boots	6998	2	254	25	4	0
-ninja grenade [ph]	35499	1	254	70	7	0
-ninja hook [ph]	35713	3	254	115	15	0
 nissa's remains	2828	1	254	1	12	0
 nitrin's instructions	28664	0	254	1	15	0
 nitroglycerin	5017	1	254	1	12	0
@@ -17762,7 +16041,6 @@ oddly magical belt	18475	2	254	60	4	0
 odious greaves	18379	3	254	62	4	0
 odo's ley staff	6318	3	254	26	2	0
 of love and family	14679	1	254	1	12	0
-off hand test dagger	3145	1	254	1	2	0
 offering of the sha'tar	31408	1	254	1	15	0
 oglethorpe's pledge of secrecy	10794	1	254	0	12	0
 oglethorpe's signed pledge	11282	1	254	1	12	0
@@ -17785,7 +16063,6 @@ ogre vanquisher's belt	31425	2	254	102	4	0
 ogre warbeads	21982	1	254	1	12	0
 ogre's monocle	1968	1	254	1	12	0
 ogrela reagent dust	32595	1	254	70	15	0
-ogrela test tunic	32594	2	254	120	4	0
 ogremage staff	2226	2	254	27	2	0
 ogremind ring	1993	2	254	36	4	0
 ogreseer fists	11665	3	254	54	4	0
@@ -17842,7 +16119,6 @@ oldwinterhoof cleansing totem	4750	1	254	1	4	0
 olemba root	25863	1	254	1	12	0
 olemba seed	25745	1	254	1	12	0
 olmann sewar	4116	2	254	41	2	0
-omar's test item	34835	1	254	0	0	0
 omarion's handbook	22719	1	254	60	15	0
 omega orb	7749	2	254	41	4	0
 omenai vest	25508	2	254	93	4	0
@@ -18151,12 +16427,6 @@ painted chain leggings	10635	1	254	5	4	0
 painted gnoll armband	782	1	254	1	12	0
 painweaver band	13098	3	254	63	4	0
 pair of ivory tusks	25463	1	254	1	12	0
-paladin 105 command test chest	29894	4	254	105	4	0
-paladin 105 epic test chest	29835	4	254	105	4	0
-paladin 105 test 2h axe	29880	4	254	105	2	0
-paladin 150 command test chest	29895	4	254	150	4	0
-paladin 150 epic test chest	29836	4	254	150	4	0
-paladin 150 test 2h axe	29881	4	254	150	2	0
 pale ghoulfish	19804	2	254	45	15	0
 pale leggings	12255	2	254	46	4	0
 pale moon cloak	18734	3	254	62	4	0
@@ -19014,7 +17284,6 @@ pious legwraps	10043	2	254	31	4	0
 pip's skinner	12709	3	254	63	2	0
 pirate's eye patch	19986	3	254	52	4	0
 pirate's footlocker	9276	1	254	45	15	0
-pirates patch (test)	1162	1	254	10	4	0
 pit fighter's shield	4507	3	254	42	4	0
 pit lord's satchel	34845	4	254	70	1	0
 pitchfork	1485	0	254	25	2	0
@@ -19310,11 +17579,7 @@ plans: wildguard helm	31392	4	254	75	9	0
 plans: wildguard leggings	31391	4	254	75	9	0
 plans: wildthorn mail	12691	2	254	54	9	0
 plasma rat's hyper-scythe	28253	3	254	115	2	0
-plate helmet d1 (test)	1025	1	254	1	4	0
-plate helmet d2 (test)	1024	1	254	1	4	0
-plate helmet d3 (test)	1026	1	254	1	4	0
 plate of the shaman king	13168	3	254	60	4	0
-plate shoulderpad (test)	908	1	254	1	4	0
 plate wall shield	3988	0	254	65	4	0
 plated abomination ribcage	23000	4	254	85	4	0
 plated armorfish	13890	1	254	55	12	0
@@ -19497,8 +17762,6 @@ pridelord pants	14677	2	254	58	4	0
 pridelord pauldrons	14678	2	254	57	4	0
 pridemail leggings	12105	2	254	60	4	0
 pridewing venom sac	5808	1	254	1	12	0
-priest 105 epic test chest	29878	4	254	105	4	0
-priest 150 epic test chest	29879	4	254	150	4	0
 priest's mace	2075	2	254	12	2	0
 primal air	22451	2	254	65	7	0
 primal bands	15005	1	254	9	4	0
@@ -19602,7 +17865,6 @@ private's tabard	15196	1	254	20	4	0
 privateer musket	5309	2	254	20	2	0
 privateer's cape	6179	2	254	19	4	0
 prodigious shadowshard pendant	17773	2	254	42	4	0
-promotion test item	23656	1	254	1	0	0
 pronged reaver	6692	3	254	36	2	0
 proof of deed	10022	1	254	1	12	0
 prophetic aura	19789	3	254	60	15	0
@@ -19733,8 +17995,6 @@ pvp plate helm alliance	16026	1	254	60	4	0
 pvp plate legplates alliance	16028	1	254	60	4	0
 pvp plate shoulder alliance	16031	1	254	60	4	0
 pvp plate wrist alliance	16033	1	254	60	4	0
-pvp test alliance ear	18105	1	254	1	0	0
-pvp test horde ear	18106	1	254	1	0	0
 px83-enigmatron	11473	1	254	1	12	0
 pyremail wristguards	11765	3	254	57	4	0
 pyrestone	32231	4	254	100	3	0
@@ -19743,13 +18003,6 @@ pyrewood shackle	3218	1	254	1	12	0
 pyric caduceus	11748	3	254	53	2	0
 pyroblast cinnamon ball	37582	1	254	1	0	0
 pysan's old greatsword	1975	3	254	28	2	0
-qa test ring +100 expertise rating	34038	3	254	1	4	0
-qa test ring +100 hit rating	34037	3	254	1	4	0
-qa test ring +100 spell hit rating	34805	4	254	130	4	0
-qa test ring +100% stun resist	34776	4	254	130	4	0
-qa test ring +285 spell damage	17886	3	254	1	4	0
-qa test ring +300 resilience rating	34036	3	254	1	4	0
-qae test item update	22026	1	254	1	0	0
 qaenchant 2h weapon +25 agility	18599	1	254	1	0	0
 qaenchant 2h weapon +35 agility	29846	1	254	1	0	0
 qaenchant 2h weapon +70 attack power	29847	1	254	1	0	0
@@ -20608,7 +18861,6 @@ regal wizard hat	7470	2	254	42	4	0
 regenerating belt of vek'nilash	21609	4	254	81	4	0
 regent's cloak	5969	2	254	23	4	0
 reign of misery	34176	4	254	154	2	0
-reindeer reins (test)	21044	3	254	1	15	0
 reinforced bow	3026	1	254	21	2	0
 reinforced buckler	3817	0	254	33	4	0
 reinforced chain belt	1754	0	254	26	4	0
@@ -20757,7 +19009,6 @@ resilient robe	14405	2	254	33	4	0
 resilient sinew	9591	1	254	1	12	0
 resilient tail hair	25409	0	254	1	15	0
 resilient tunic	14398	2	254	33	4	0
-resist test item	10555	1	254	1	4	0
 resolute cape	24258	4	254	105	4	0
 resonating axe	30364	2	254	108	2	0
 resonating skull	13155	1	254	1	0	0
@@ -20926,7 +19177,6 @@ ring of pure silver	1116	2	254	31	4	0
 ring of reciprocity	30738	4	254	120	4	0
 ring of recurrence	28753	4	254	115	4	0
 ring of redemption	23066	4	254	92	4	0
-ring of righteous flame (test)	996	1	254	2	4	0
 ring of saviors	1447	4	254	46	4	0
 ring of scorn	3235	2	254	20	4	0
 ring of silver might	20827	2	254	26	4	0
@@ -20965,7 +19215,6 @@ ring of the stonebark	31528	2	254	108	4	0
 ring of the underwood	2951	3	254	36	4	0
 ring of the unliving	20624	4	254	72	4	0
 ring of twilight shadows	20828	2	254	28	4	0
-ring of uber resists (test)	5828	6	254	1	4	0
 ring of umbral doom	28323	3	254	115	4	0
 ring of unrelenting storms	30667	4	254	115	4	0
 ring of unspoken names	21417	4	254	65	4	0
@@ -21148,13 +19397,6 @@ rod of the unyielding	29109	2	254	87	2	0
 rod of the void caller	29399	2	254	93	2	0
 rodentia flint axe	2281	2	254	11	2	0
 rodentia shortsword	2282	1	254	10	2	0
-rogue 105 epic test chest	29823	4	254	105	4	0
-rogue 105 epic test dagger 1300	29826	4	254	105	2	0
-rogue 105 epic test dagger 1800	29825	4	254	105	2	0
-rogue 150 epic test chest	29824	4	254	150	4	0
-rogue 150 epic test dagger 1300	29827	4	254	150	2	0
-rogue 150 epic test dagger 1800	29828	4	254	150	2	0
-rogue test dagger	6036	0	254	39	2	0
 rogue's diary	24282	0	254	1	15	0
 rohan's exorcism censer	18819	1	254	1	12	0
 rokaro's letter	16785	1	254	1	12	0
@@ -22485,11 +20727,6 @@ shalehusk boots	11787	3	254	58	4	0
 shaleskin cape	12066	2	254	58	4	0
 shaleskin shale	29464	1	254	1	12	0
 shallow-grave trousers	33538	4	254	128	4	0
-shaman 105 epic nuker test chest	29898	4	254	105	4	0
-shaman 105 test melee chest	29896	4	254	105	4	0
-shaman 150 epic nuker test chest	29899	4	254	150	4	0
-shaman 150 epic test 1h axe 2200	30176	4	254	150	2	0
-shaman 150 test melee chest	29897	4	254	150	4	0
 shaman testing axe	33542	4	254	125	2	0
 shaman testing dagger	33543	4	254	125	2	0
 shaman voodoo charm	8363	1	254	0	12	0
@@ -22852,7 +21089,6 @@ silver dress robes	2618	1	254	50	4	0
 silver hakkari bijou	19714	3	254	61	12	0
 silver hand blade	25143	2	254	84	2	0
 silver hook	5567	0	254	1	15	0
-silver mail shoulderpads (test)	909	1	254	1	4	0
 silver moonstone pendant	33201	2	254	103	4	0
 silver ore	2775	2	254	10	7	0
 silver piffeny band	7342	1	254	30	4	0
@@ -23502,7 +21738,6 @@ soul-trader's waistband	38285	1	254	1	4	0
 soul-wand of the aldor	27885	3	254	112	2	0
 soulbound keepsake	13624	1	254	1	12	0
 soulbound keepsake	13752	1	254	1	12	0
-soulbound test gem	33060	3	254	70	3	0
 soulcatcher halo	10630	3	254	51	4	0
 soulcloth gloves	21863	4	254	100	4	0
 soulcloth shoulders	21864	4	254	100	4	0
@@ -23816,8 +22051,6 @@ staff of primal fury	33465	4	254	132	2	0
 staff of protection	12252	2	254	39	2	0
 staff of rampant growth	20581	4	254	71	2	0
 staff of soran'ruk	15109	2	254	25	2	0
-staff of spell penetration - fire (test)	21101	3	254	63	2	0
-staff of spell penetration - frost (test)	21102	3	254	63	2	0
 staff of the ashtongue deathsworn	31417	3	254	109	2	0
 staff of the blessed seer	2271	3	254	23	2	0
 staff of the dreghood elders	29513	1	254	1	12	0
@@ -24296,7 +22529,6 @@ sublime wristguards	18497	3	254	60	4	0
 subterranean cape	14149	3	254	18	4	0
 subtle crimson spinel	32198	4	254	100	3	0
 subtle living ruby	24032	3	254	70	3	0
-succubi stone (deprecated)	5563	1	254	20	15	0
 succubus summoning scroll	6623	1	254	1	12	0
 succulent pork ribs	2685	1	254	20	0	0
 succulent sausage	34064	1	254	35	0	0
@@ -24606,7 +22838,6 @@ tabard of the defender	38314	4	254	1	4	0
 tabard of the hand	24344	1	254	20	4	0
 tabard of the protector	28788	1	254	60	4	0
 tabard of the scarlet crusade	23192	2	254	1	4	0
-tabard of the scarlet crusade deprecated	7725	1	254	1	4	0
 tabard of the shattered sun	35221	1	254	20	4	0
 tabard of the void	38311	4	254	1	4	0
 tabetha's instructions	7516	1	254	0	0	0
@@ -24933,7 +23164,6 @@ taming rod	23703	1	254	10	12	0
 taming totem	23896	1	254	10	12	0
 taming totem	23897	1	254	10	12	0
 taming totem	23898	1	254	10	12	0
-tan leather shoulderpads (test)	906	1	254	1	4	0
 tangled mane	27894	0	254	1	15	0
 tanglemoss leggings	18390	3	254	61	4	0
 tanglewood staff	1720	3	254	46	2	0
@@ -25009,8 +23239,6 @@ tawny windrider	25474	3	254	70	15	0
 tazan's key	7208	1	254	1	12	0
 tazan's logbook	7295	1	254	1	12	0
 tazan's satchel	7209	1	254	1	15	0
-tchilton test dawnstone	28389	4	254	60	7	0
-tchilton test ruby	28388	4	254	60	7	0
 tea with sugar	15723	2	254	60	0	0
 teacher's sash	10747	2	254	41	4	0
 teal kodo	15293	4	254	60	15	0
@@ -25121,10 +23349,6 @@ terror flame dagger	27463	3	254	115	2	0
 terror pit girdle	28778	4	254	125	4	0
 terrorcloth mantle	25925	2	254	99	4	0
 terrorweave tunic	30730	4	254	120	4	0
-test	12385	1	254	4	0	0
-test_ears_hidden(builtbyblue)	33073	1	254	0	4	0
-test_eyes_hidden(builtbyblue)	33074	1	254	0	4	0
-test_noseandears_hidden(builtbyblue)	33075	1	254	0	4	0
 testament of hope	13315	2	254	61	4	0
 testboots - puffed mail green	13214	0	254	1	4	0
 testing darkrune	32426	1	254	73	0	0
@@ -25489,7 +23713,6 @@ thorium belt	12406	2	254	50	4	0
 thorium boots	12409	2	254	56	4	0
 thorium bracers	12408	2	254	51	4	0
 thorium brotherhood contract	18628	4	254	60	12	0
-thorium brotherhood contract (old)	18593	1	254	1	12	0
 thorium flight blade	34419	3	254	50	2	0
 thorium greatsword	12764	2	254	52	2	0
 thorium grenade	15993	1	254	52	7	0
@@ -25539,7 +23762,6 @@ threshadon fang	5516	0	254	16	2	0
 threshadon tooth	2668	1	254	1	12	0
 thresher eye	5412	1	254	1	12	0
 thresher oil	33126	1	254	1	12	0
-thrice strung longbow deprecated	19966	3	254	68	2	0
 throat piercers	29584	2	254	19	2	0
 thug boots	121	1	254	1	4	0
 thug boots	6138	1	254	1	4	0
@@ -25572,7 +23794,6 @@ thunderbrow ring	13097	3	254	29	4	0
 thundercaller's gauntlets	31280	3	254	106	4	0
 thunderforge leggings	25511	2	254	93	4	0
 thunderfury, blessed blade of the windseeker	19019	5	254	80	2	0
-thunderfury, blessed blade of the windseeker deprecated	17802	5	254	80	2	0
 thunderhawk saliva gland	4897	1	254	1	12	0
 thunderhawk wings	5164	1	254	1	12	0
 thunderheart bands	34446	4	254	154	4	0
@@ -25633,24 +23854,6 @@ tidefury helm	28349	3	254	115	4	0
 tidefury kilt	27909	3	254	115	4	0
 tidefury shoulderguards	27802	3	254	115	4	0
 tier 5 arrow box	32561	1	254	70	15	0
-tier 5 druid test gear	32543	1	254	70	15	0
-tier 5 druid test gear box 2	32544	1	254	70	15	0
-tier 5 hunter test gear	32545	1	254	70	15	0
-tier 5 hunter test gear box 2	32546	1	254	70	15	0
-tier 5 mage test gear	32547	1	254	70	15	0
-tier 5 mage test gear box 2	32548	1	254	70	15	0
-tier 5 paladin test gear	32549	1	254	70	15	0
-tier 5 paladin test gear box 2	32550	1	254	70	15	0
-tier 5 priest test gear	32551	1	254	70	15	0
-tier 5 priest test gear box 2	32552	1	254	70	15	0
-tier 5 rogue test gear	32553	1	254	70	15	0
-tier 5 rogue test gear box 2	32554	1	254	70	15	0
-tier 5 shaman test gear	32555	1	254	70	15	0
-tier 5 shaman test gear box 2	32556	1	254	70	15	0
-tier 5 warlock test gear	32557	1	254	70	15	0
-tier 5 warlock test gear box 2	32558	1	254	70	15	0
-tier 5 warrior test gear	32559	1	254	70	15	0
-tier 5 warrior test gear box 2	32560	1	254	70	15	0
 tiger band	6749	2	254	31	4	0
 tiger hide boots	4942	1	254	12	4	0
 tiger hunter gloves	4107	2	254	37	4	0
@@ -25660,7 +23863,6 @@ tigerseye	818	2	254	15	3	0
 tigerseye band	25439	2	254	18	4	0
 tigerstrike mantle	13108	3	254	34	4	0
 tightly sealed trunk	20708	1	254	15	15	0
-tigole's boomstick (test)	2189	6	254	100	2	0
 tigule's harpoon	19946	3	254	68	2	0
 tigule's strawberry ice cream	7228	1	254	25	0	0
 tiller's vest	3444	1	254	11	4	0
@@ -25914,7 +24116,6 @@ tome of tranquilizing shot	16665	2	254	60	9	0
 tome of valor	6776	1	254	20	12	0
 tome of water elemental	1568	1	254	30	9	0
 tome of water elemental ii	4155	1	254	40	9	0
-tome of whirlwind (test)	951	1	254	1	0	0
 tomes of alterac	3660	1	254	1	12	0
 tool kit	33039	1	254	1	12	0
 tooth of eranikus	10837	3	254	56	2	0
@@ -25945,7 +24146,6 @@ torch of the dormant flame	6653	1	254	1	12	0
 torch of the eternal flame	6654	1	254	1	12	0
 torchlight wand	5240	2	254	21	2	0
 tork wrench	11855	2	254	19	4	0
-torka's egg cracker [unused]	4943	1	254	8	2	0
 torment of the worgen	23864	1	254	0	0	0
 torment vine	2932	1	254	40	7	0
 tormented demonsoul robes	34936	4	254	141	4	0
@@ -26256,12 +24456,8 @@ tuurik torch	25098	2	254	117	4	0
 tuxedo jacket	10036	1	254	1	4	0
 tuxedo pants	10035	1	254	35	4	0
 tuxedo shirt	10034	1	254	1	4	0
-twain component test	6896	0	254	20	2	0
 twain random sword	6174	0	254	20	2	0
 twain random sword foo	7170	0	254	20	2	0
-twain test	7707	0	254	40	2	0
-twain test cloak	7248	1	254	12	4	0
-twain test item visual sword	7171	1	254	1	2	0
 twain's shoulder	4728	1	254	0	4	0
 twig of the world tree	13047	3	254	58	2	0
 twilight armor	7429	2	254	40	4	0
@@ -26325,7 +24521,6 @@ tyr's hand holy water	24284	1	254	1	12	0
 tyrael's hilt	39656	3	254	20	15	0
 tyrande's staff	14083	1	254	4	2	0
 tyranis' pendant	6767	1	254	1	12	0
-tyranis' pendant (old)	6683	1	254	1	12	0
 tyrant's armguards	14834	2	254	43	4	0
 tyrant's belt	14838	2	254	43	4	0
 tyrant's chestpiece	14835	2	254	48	4	0
@@ -26420,7 +24615,6 @@ uni-mind headdress	28744	4	254	115	4	0
 unidentified eye	33854	0	254	1	15	0
 unidentified ore	5733	1	254	1	12	0
 unidentified plant parts	24401	1	254	0	12	0
-unique equippable test item	24420	0	254	40	4	0
 uniting charm	25633	2	254	102	4	0
 unkempt belt	21002	0	254	3	4	0
 unkempt bracers	21003	0	254	5	4	0
@@ -26771,7 +24965,6 @@ versicolor treat	16167	1	254	15	0	0
 very berry cream	22238	1	254	1	0	0
 vessel of dragon's blood	7867	1	254	1	12	0
 vessel of rebirth	19016	5	254	70	12	0
-vessel of rebirth deprecated	18565	5	254	70	12	0
 vessel of tainted blood	19071	1	254	1	12	0
 vest of elements	16666	3	254	63	4	0
 vest of living lightning	24357	3	254	91	4	0
@@ -27064,7 +25257,6 @@ voidhide cord	31198	3	254	103	4	0
 voidplate girdle	31195	3	254	103	4	0
 voidscale belt	31197	3	254	103	4	0
 voidstone	23732	1	254	1	12	0
-voidstone (deprecated)	5562	1	254	10	15	0
 voidwalker summoning scroll	6544	1	254	1	12	0
 voidweave cilice	31199	3	254	103	4	0
 volatile healing potion	28100	1	254	60	0	0
@@ -27245,8 +25437,6 @@ warleader's greaves	14865	2	254	60	4	0
 warleader's leggings	14867	2	254	62	4	0
 warleader's shield	15991	2	254	63	4	0
 warleader's shoulders	14868	2	254	61	4	0
-warlock 105 epic test chest	29875	4	254	105	4	0
-warlock 150 epic test chest	29876	4	254	105	4	0
 warlock orb 35	6899	0	254	35	4	0
 warlord goretooth's command	12563	1	254	1	12	0
 warlord's axe	15238	2	254	58	2	0
@@ -27357,12 +25547,6 @@ warpstalker helm	32085	4	254	110	4	0
 warpthread vest	30518	2	254	114	4	0
 warpweaver's gloves	30521	2	254	108	4	0
 warpwood binding	18393	3	254	61	4	0
-warrior 105 epic test chest	29829	4	254	105	4	0
-warrior 105 test 1h sword	29831	4	254	105	2	0
-warrior 105 test 2h axe	29833	4	254	105	2	0
-warrior 150 epic test chest	29830	4	254	150	4	0
-warrior 150 test 1h sword	29832	4	254	150	2	0
-warrior 150 test 2h axe	29834	4	254	150	2	0
 warrior's boots	2967	1	254	10	4	0
 warrior's bracers	3214	1	254	9	4	0
 warrior's buckler	3648	1	254	9	4	0
@@ -27465,8 +25649,6 @@ wayfarer's knapsack	11742	2	254	55	1	0
 wayfaring gloves	5337	2	254	16	4	0
 weak flux	2880	1	254	5	7	0
 weak troll's blood potion	3382	1	254	8	0	0
-weapon of mass destruction (test)	5418	1	254	1	15	0
-weapon of massive destruction (test)	5417	1	254	1	15	0
 weather beaten buckler	21022	0	254	2	4	0
 weather-beaten fishing hat	33820	3	254	115	4	0
 weather-beaten journal	34109	1	254	40	9	0
@@ -27795,7 +25977,6 @@ winterfall e'ko	12431	1	254	1	12	0
 winterfall firewater	12820	1	254	50	0	0
 winterfall ritual totem	20742	1	254	50	15	0
 winterfall spirit beads	21383	1	254	1	12	0
-winterfall spirit beads deprecated	20740	1	254	1	12	0
 winterhoof cleansing totem	5411	1	254	1	4	0
 wintersbite	3819	1	254	39	7	0
 winterspring blood sample	21928	1	254	1	12	0
@@ -27974,7 +26155,6 @@ woven bracers	3607	1	254	10	4	0
 woven copper ring	21931	2	254	15	4	0
 woven gloves	2369	1	254	10	4	0
 woven ivy necklace	19159	3	254	51	4	0
-woven ivy necklace deprecated	19122	3	254	51	4	0
 woven pants	2366	1	254	10	4	0
 woven vest	2364	1	254	10	4	0
 woven wand	3425	1	254	1	12	0
@@ -28110,7 +26290,6 @@ zandalar confessor's mantle	19841	4	254	68	4	0
 zandalar confessor's wraps	19843	4	254	61	4	0
 zandalar demoniac's mantle	19849	4	254	61	4	0
 zandalar demoniac's robe	20033	4	254	65	4	0
-zandalar demoniac's robe deprecated	19847	4	254	65	4	0
 zandalar demoniac's wraps	19848	4	254	61	4	0
 zandalar freethinker's armguards	19827	4	254	61	4	0
 zandalar freethinker's belt	19826	4	254	61	4	0
@@ -28121,7 +26300,6 @@ zandalar haruspex's tunic	19838	4	254	65	4	0
 zandalar honor token	19858	2	254	1	12	0
 zandalar illusionist's mantle	19845	4	254	61	4	0
 zandalar illusionist's robe	20034	4	254	65	4	0
-zandalar illusionist's robe deprecated	19844	4	254	65	4	0
 zandalar illusionist's wraps	19846	4	254	61	4	0
 zandalar madcap's bracers	19836	4	254	61	4	0
 zandalar madcap's mantle	19835	4	254	61	4	0
@@ -28209,8 +26387,5 @@ zuluhed's key	31664	1	254	1	13	0
 zum'rah's vexing cane	18082	3	254	47	2	0
 zurai's report	24382	1	254	1	12	0
 zweihander	2529	1	254	46	2	0
-zzdeprecated warsong mark of honor	19322	2	254	1	12	0
-zzdeprecatedheart of the sky	23364	3	254	60	7	0
-zzdeprecatedperfect diamond	23366	3	254	60	7	0
 zzunusedlieutenant general's mount	16344	1	254	60	15	0
 ]]

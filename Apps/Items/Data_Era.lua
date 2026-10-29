@@ -7,79 +7,34 @@ if not (ns and ns.Caps and ns.Caps.era) then return end
 ns.ITEM_SEARCH_BLOB = [[
 "defective" magic 8-ball	233208	3	254	55	15	0
 "mage-eye" blunderbuss	3041	2	254	31	2	0
-(old)heavy throwing axe	3136	1	254	19	2	0
-(old)medium throwing axe	3128	1	254	4	2	0
-(old)medium throwing knife	2945	1	254	3	2	0
-(old)wicked throwing dagger	3109	1	254	26	2	0
 10 pound mud snapper	6292	1	254	15	15	0
-10% test speed boots	18163	1	254	1	4	0
-1000 test dagger 60 blue	19810	3	254	60	2	0
 103 pound mightfish	13917	1	254	55	15	0
 12 pound lobster	13909	1	254	55	15	0
 12 pound mud snapper	6294	1	254	15	15	0
-13% test speed boots	18164	1	254	1	4	0
-1300 test dagger 63 blue	19313	3	254	63	2	0
 15 pound lobster	13910	1	254	55	15	0
 15 pound mud snapper	6295	1	254	15	15	0
 15 pound salmon	13901	1	254	55	15	0
-15% test speed boots	18165	1	254	1	4	0
-1500 test sword 63 blue	19427	3	254	63	2	0
-1500 test sword 80 purple	19457	4	254	80	2	0
 17 pound catfish	6309	1	254	15	15	0
 18 pound salmon	13902	1	254	55	15	0
-1800 test dagger 63 blue	19622	3	254	63	2	0
 19 pound catfish	6310	1	254	15	15	0
 19 pound lobster	13911	1	254	55	15	0
 20-slot bag	1977	1	254	1	1	0
-2000 test dagger 63 blue	19314	3	254	63	2	0
-2000 test sword 63 blue	21782	3	254	63	2	0
 21 pound lobster	13912	1	254	55	15	0
-2100 test 2h axe 63 blue	19185	3	254	63	2	0
 22 pound catfish	6311	1	254	15	15	0
 22 pound lobster	13913	1	254	55	15	0
 22 pound salmon	13903	1	254	55	15	0
-2200 test 2h axe 63 blue	19188	3	254	63	2	0
-2200 test sword 63 blue	19502	3	254	63	2	0
-2200 test sword 70 purple	19504	4	254	70	2	0
-2200 test sword 80 purple	19503	4	254	80	2	0
-2300 test 2h axe 63 blue	19189	3	254	63	2	0
-2400 test 2h axe 63 blue	19190	3	254	63	2	0
 25 pound salmon	13904	1	254	55	15	0
-2500 test 2h axe 60 blue	19809	3	254	60	2	0
-2500 test 2h axe 60 blue (bear)	19811	3	254	60	2	0
-2500 test 2h axe 63 blue	19191	3	254	63	2	0
 26 pound catfish	6363	1	254	25	15	0
-2600 test 2h axe 63 blue	19192	3	254	63	2	0
-2700 test 2h axe 63 blue	19186	3	254	63	2	0
-2800 test 2h axe 63 blue	19193	3	254	63	2	0
-2800 test bow 63 blue	19490	3	254	63	2	0
 29 pound salmon	13905	1	254	55	15	0
-2900 test 2h axe 63 blue	19194	3	254	63	2	0
-2900 test sword 63 blue	19428	3	254	63	2	0
-2900 test sword 80 purple	19456	4	254	80	2	0
-2hander animation as 1hander test copy	215235	3	254	45	2	0
-3000 test 2h axe 63 blue	19195	3	254	63	2	0
-3100 test 2h axe 63 blue	19196	3	254	63	2	0
 32 pound catfish	6364	1	254	25	15	0
 32 pound salmon	13906	1	254	55	15	0
-3200 test 2h axe 63 blue	19187	3	254	63	2	0
-3300 test 2h axe 63 blue	19197	3	254	63	2	0
-3300 test crossbow 63 blue	19489	3	254	63	2	0
 34 pound redgill	13885	1	254	45	15	0
-3400 test 2h axe 63 blue	19198	3	254	63	2	0
-3500 test 2h axe 63 blue	19199	3	254	63	2	0
-3500 test 2h axe 70 purple	19455	4	254	70	2	0
-3500 test 2h axe 80 purple	19662	4	254	80	2	0
-3600 test 2h axe 63 blue	19200	3	254	63	2	0
 37 pound redgill	13886	1	254	45	15	0
-3700 test 2h axe 63 blue	19201	3	254	63	2	0
-3800 test 2h axe 63 blue	19184	3	254	63	2	0
 40 pound grouper	13876	1	254	45	15	0
 42 pound redgill	13882	1	254	45	15	0
 45 pound redgill	13883	1	254	45	15	0
 47 pound grouper	13877	1	254	45	15	0
 49 pound redgill	13884	1	254	45	15	0
-5% test speed boots	18161	1	254	1	4	0
 500 pound chicken	21028	1	254	1	12	0
 52 pound redgill	13887	1	254	45	15	0
 53 pound grouper	13878	1	254	45	15	0
@@ -126,7 +81,6 @@ ns.ITEM_SEARCH_BLOB = [[
 68 pound grouper	13880	1	254	45	15	0
 7 pound lobster	13907	1	254	55	15	0
 70 pound mightfish	13914	1	254	55	15	0
-8% test speed boots	18162	1	254	1	4	0
 85 pound mightfish	13915	1	254	55	15	0
 9 pound lobster	13908	1	254	55	15	0
 9-60 repair manual	213419	3	254	45	4	0
@@ -211,11 +165,6 @@ ns.ITEM_SEARCH_BLOB = [[
 92 pound mightfish	13916	1	254	55	15	0
 99-year-old port	5334	1	254	1	12	0
 <unused> glyphic rune	9572	1	254	1	12	0
-[dnt] super strong lockbox	241233	1	254	60	15	0
-[unused] abom stoone	22933	1	254	1	12	0
-[unused] letter cookie	23086	1	254	0	0	0
-[unused] scourge invasion boss summoner	22486	1	254	1	13	0
-[unused] scourge invasion focus object	22485	1	254	1	15	0
 a bloodstained envelope	22930	1	254	1	12	0
 a bloodstained envelope	22970	1	254	45	12	0
 a bloodstained journal page	939	1	254	1	12	0
@@ -423,45 +372,11 @@ agent of nozdormu	20402	2	254	60	15	0
 agile boots	4788	2	254	20	4	0
 agmond's belt pouch	4981	1	254	35	1	0
 ahanu's leather goods	16283	1	254	1	12	0
-ahn'qiraj mace [ph]	21127	4	254	75	2	0
-ahn'qiraj staff [ph]	21125	4	254	75	2	0
-ahn'qiraj wand [ph]	21124	4	254	75	2	0
 ahn'qiraj war effort supplies	21509	1	254	10	15	0
 ahn'qiraj war effort supplies	21510	1	254	20	15	0
 ahn'qiraj war effort supplies	21511	1	254	30	15	0
 ahn'qiraj war effort supplies	21512	1	254	40	15	0
 ahn'qiraj war effort supplies	21513	1	254	50	15	0
-ahnqiraj test item a cloth belt	21429	1	254	1	4	0
-ahnqiraj test item a cloth bracer	21433	1	254	1	4	0
-ahnqiraj test item a cloth feet	21431	1	254	1	4	0
-ahnqiraj test item a cloth gloves	21437	1	254	1	4	0
-ahnqiraj test item a cloth helm	21434	1	254	1	4	0
-ahnqiraj test item a cloth legs	21419	1	254	1	4	0
-ahnqiraj test item a cloth robe	21430	1	254	1	4	0
-ahnqiraj test item a cloth shoulders	21435	1	254	1	4	0
-ahnqiraj test item b leather belt	21425	1	254	1	4	0
-ahnqiraj test item b leather boots	21427	1	254	1	4	0
-ahnqiraj test item b leather bracer	21432	1	254	1	4	0
-ahnqiraj test item b leather chest	21420	1	254	1	4	0
-ahnqiraj test item b leather gauntlets	21428	1	254	1	4	0
-ahnqiraj test item b leather helm	21426	1	254	1	4	0
-ahnqiraj test item b leather pants	21423	1	254	1	4	0
-ahnqiraj test item b leather shoulder	21424	1	254	1	4	0
-ahnqiraj test item c mail belt	21451	1	254	1	4	0
-ahnqiraj test item c mail boots	21449	1	254	1	4	0
-ahnqiraj test item c mail chest	21421	1	254	1	4	0
-ahnqiraj test item c mail gloves	21450	1	254	1	4	0
-ahnqiraj test item c mail helm	21446	1	254	1	4	0
-ahnqiraj test item c mail legs	21448	1	254	1	4	0
-ahnqiraj test item c mail shoulders	21447	1	254	1	4	0
-ahnqiraj test item d plate belt	21441	1	254	1	4	0
-ahnqiraj test item d plate boots	21442	1	254	1	4	0
-ahnqiraj test item d plate bracer	21445	1	254	1	4	0
-ahnqiraj test item d plate chest	21422	1	254	1	4	0
-ahnqiraj test item d plate gloves	21444	1	254	1	4	0
-ahnqiraj test item d plate helm	21439	1	254	1	4	0
-ahnqiraj test item d plate legs	21440	1	254	1	4	0
-ahnqiraj test item d plate shoulders	21443	1	254	1	4	0
 air sapta	6638	1	254	1	0	0
 air totem	5178	1	254	30	5	0
 akiris reed	4029	1	254	1	12	0
@@ -483,9 +398,7 @@ albino crocscale boots	17728	3	254	53	4	0
 alchemist's wand	5235	1	254	7	2	0
 alchemists' stone	13503	4	254	60	7	0
 alcor's sunrazor	14555	4	254	63	2	0
-alex bug test item	17122	6	254	1	12	0
 alex's ring of audacity	12947	6	254	60	4	0
-alex's test beatdown staff	19879	4	254	70	2	0
 algae fists	6906	3	254	28	4	0
 algae gauntlets	209568	3	254	30	4	0
 alien egg	12467	1	254	1	12	0
@@ -866,8 +779,6 @@ artorius's head	18955	1	254	1	12	0
 ash covered boots	18716	3	254	61	4	0
 ashbringer	13262	5	254	76	2	0
 ashbringer	241082	5	254	76	2	0
-ashbringer test 001	16024	1	254	1	12	0
-ashbringer test 002	16025	1	254	1	12	0
 ashes of arrogance	242315	4	254	96	4	0
 ashjre'thul, crossbow of smiting	19361	4	254	77	2	0
 ashjre'thul, crossbow of smiting	230801	4	254	77	2	0
@@ -1582,8 +1493,6 @@ bile-covered gauntlets	21682	4	254	78	4	0
 bile-covered gauntlets	233564	4	254	78	4	0
 bile-etched spaulders	18384	3	254	62	4	0
 billy club	4563	1	254	9	2	0
-bind on acquire test item	8688	0	254	40	4	0
-bind on use test item	1258	0	254	40	4	0
 binding girdle	5275	2	254	15	4	0
 bindings of elements	16671	3	254	57	4	0
 bindings of elements	226751	3	254	57	4	0
@@ -1658,7 +1567,6 @@ black mageweave robe	10001	2	254	42	4	0
 black mageweave shoulders	10027	2	254	46	4	0
 black mageweave vest	217246	2	254	41	4	0
 black mageweave vest	9998	2	254	41	4	0
-black mail shoulderpads of might (test)	907	1	254	1	4	0
 black malice	3194	3	254	21	2	0
 black menace	6831	3	254	44	2	0
 black metal axe	885	2	254	24	2	0
@@ -3500,7 +3408,6 @@ choker of the high shaman	4112	2	254	44	4	0
 choker of the shifting sands	21505	4	254	70	4	0
 choker of the shifting sands	234813	4	254	77	4	0
 choking band	11868	2	254	53	4	0
-chows blade of doom! (test)	1018	1	254	1	2	0
 chromatic boots	19387	4	254	77	4	0
 chromatic boots	230741	4	254	77	4	0
 chromatic carapace	12871	4	254	1	15	0
@@ -3657,7 +3564,6 @@ cloak of veiled shadows	21406	4	254	67	4	0
 cloak of veiled shadows	233432	4	254	76	4	0
 cloak of warding	18413	3	254	62	4	0
 cloaked hood	1280	2	254	38	4	0
-cloaked hood test	19743	2	254	38	4	0
 clobberclub	235888	4	0	85	2	0
 cloth request	2724	1	254	1	12	0
 cloud serpent fang	213709	1	0	1	5	0
@@ -3945,7 +3851,6 @@ conjured sourdough	8075	1	254	45	0	0
 conjured sparkling water	8078	1	254	55	0	0
 conjured spring water	3772	1	254	35	0	0
 conjured sweet roll	8076	1	254	55	0	0
-conjured test item	3249	1	254	1	15	0
 conjured water	5350	1	254	5	0	0
 conjurer's bracers	9846	2	254	35	4	0
 conjurer's breeches	9851	2	254	37	4	0
@@ -4500,8 +4405,6 @@ d'sak's sacktastic	21195	3	254	62	1	0
 d'sak's small bag	21313	3	254	62	1	0
 dacian falx	922	1	254	26	2	0
 daffodil bouquet	1325	1	254	1	12	0
-dagger of spell penetration - fire 150 resist (test)	21516	3	254	63	2	0
-dagger of spell penetration - frost 150 resist (test)	21518	3	254	63	2	0
 dagger of veiled shadows	21404	4	254	70	2	0
 dagger of veiled shadows	233433	4	254	79	2	0
 dagger of veiled shadows	235006	4	254	79	2	0
@@ -4774,7 +4677,6 @@ deadskull shield	3761	2	254	32	4	0
 deadwalker mantle	14538	3	254	62	4	0
 deadwind cage "key"	235785	1	254	1	13	0
 deadwood headdress feather	21377	1	254	1	12	0
-deadwood headdress feather deprecated	20739	1	254	1	12	0
 deadwood ritual totem	20741	1	254	45	15	0
 deadwood sledge	13025	3	254	37	2	0
 deanship claymore	13049	3	254	29	2	0
@@ -5396,7 +5298,6 @@ doomcaller's circlet	233381	4	254	81	4	0
 doomcaller's footwraps	21338	4	254	78	4	0
 doomcaller's footwraps	233377	4	254	78	4	0
 doomcaller's garb	233670	4	254	88	4	0
-doomcaller's handwraps [ph]	21339	4	254	78	4	0
 doomcaller's headguard	233669	4	254	81	4	0
 doomcaller's mantle	21335	4	254	78	4	0
 doomcaller's mantle	233379	4	254	78	4	0
@@ -5424,7 +5325,6 @@ doomwarder blood	6252	1	254	1	12	0
 dormant holy rune	213452	2	0	1	15	0
 dormant wind kissed blade	19018	5	254	80	12	0
 dormant wind kissed blade	232018	5	254	80	12	0
-dormant wind kissed blade deprecated	18589	5	254	80	12	0
 double axe	927	1	254	24	2	0
 double link tunic	1717	3	254	30	4	0
 double mail belt	3808	0	254	34	4	0
@@ -5574,7 +5474,6 @@ drakeclaw band of the juggernaut	220630	4	254	55	4	0
 drakeclaw band of the stalker	220627	4	254	55	4	0
 drakefang butcher	12463	3	254	53	2	0
 drakefire amulet	16309	3	254	63	4	0
-drakefire amulet (old) (unused)	12186	1	254	1	13	0
 drakefire headguard	10743	2	254	51	4	0
 drakesfire epaulets	13133	3	254	61	4	0
 drakestone	10796	3	254	54	4	0
@@ -5867,7 +5766,6 @@ dwarf spine	18206	1	254	0	12	0
 dwarven charge	9626	2	254	42	2	0
 dwarven cloth britches	79	1	254	5	4	0
 dwarven defender	6187	2	254	17	4	0
-dwarven explorer's monocle (test)	1163	1	254	10	4	0
 dwarven fishing pole	3567	2	254	19	2	0
 dwarven flamestick	5241	2	254	18	2	0
 dwarven guard cloak	4504	2	254	31	4	0
@@ -5891,7 +5789,6 @@ earth totem	5175	1	254	4	5	0
 earth warder's gloves	21318	2	254	58	4	0
 earth warder's vest	21311	2	254	48	4	0
 earthborn kilt	9402	3	254	60	4	0
-earthborn kilt test	19742	3	254	60	4	0
 earthcalm orb	21185	4	254	62	4	0
 earthcalm orb	234749	4	254	75	4	0
 earthclasp barrier	9661	2	254	43	4	0
@@ -6555,8 +6452,6 @@ epaulets of ten storms	231201	4	254	76	4	0
 epaulets of ten storms	232209	4	254	76	4	0
 epoch's end	225893	4	254	77	2	0
 equipment stash key	209030	1	254	1	13	0
-eric test item a	17162	1	254	1	0	0
-eric test item b	17163	1	254	1	0	0
 eridan's supplies	11617	1	254	1	12	0
 eridan's vial	11682	1	254	1	12	0
 eruption's boots, legs, and shoulders set	227376	1	254	55	15	0
@@ -6588,7 +6483,6 @@ essence of pain	2930	1	254	22	7	0
 essence of the elements	11129	1	254	1	12	0
 essence of the exile	6851	1	254	1	0	0
 essence of the firelord	19017	5	254	1	12	0
-essence of the firelord deprecated	18566	5	254	1	12	0
 essence of the pure flame	18815	4	254	75	4	0
 essence of the pure flame	228293	4	254	77	4	0
 essence of undeath	12808	2	254	55	5	0
@@ -6799,24 +6693,6 @@ farmer's broom	3335	1	254	6	2	0
 farmer's shovel	3334	1	254	7	2	0
 farraki papyrus	221360	1	254	50	15	0
 farren's report	3721	1	254	1	12	0
-fast test 1h axe	5551	0	254	60	2	0
-fast test 1h mace	5553	0	254	60	2	0
-fast test 1h sword	5555	0	254	60	2	0
-fast test 2h axe	5552	0	254	45	2	0
-fast test 2h mace	5554	0	254	45	2	0
-fast test 2h sword	5556	0	254	45	2	0
-fast test ammo	19286	0	254	45	6	0
-fast test bow	5548	0	254	70	2	0
-fast test crossbow	5546	0	254	70	2	0
-fast test dagger	5549	0	254	60	2	0
-fast test fist	19226	0	254	60	2	0
-fast test generic	5561	0	254	1	2	0
-fast test gun	5550	0	254	69	2	0
-fast test polearm	5545	0	254	45	2	0
-fast test spear	5557	0	254	45	2	0
-fast test staff	5558	0	254	45	2	0
-fast test thrown	5559	1	254	43	2	0
-fast test wand	5560	0	254	33	2	0
 fast-growing flower	15586	1	254	1	12	0
 fat sack of coins	11937	1	254	1	15	0
 fate of ramaladni	22708	1	254	1	12	0
@@ -6921,7 +6797,6 @@ felix's bucket of bolts	16314	1	254	1	12	0
 felix's chest	16313	1	254	1	12	0
 felnok's package	12445	1	254	1	12	0
 felstalker hoof	6640	1	254	1	12	0
-felstone (deprecated)	5564	1	254	30	5	0
 felstone field cauldron key	13194	1	254	1	12	0
 felstone good luck charm	13473	2	254	54	4	0
 felstone reaver	15239	2	254	61	2	0
@@ -7437,7 +7312,6 @@ flax bracers	6060	1	254	5	4	0
 flax gloves	3275	1	254	5	4	0
 flax vest	3270	1	254	5	4	0
 flayed demon skin	20310	1	254	25	12	0
-flayed demon skin (old)	6437	1	254	25	12	0
 flayed demon skin (old2)	6766	1	254	25	12	0
 flayed doomguard belt	19134	4	254	68	4	0
 flayed doomguard belt	228355	4	254	68	4	0
@@ -7476,7 +7350,6 @@ flint and tinder	4471	1	254	5	5	0
 flintrock shoulders	7755	3	254	38	4	0
 flowing ritual robes	20032	4	254	65	4	0
 flowing ritual robes	230917	4	254	68	4	0
-flowing ritual robes deprecated	19926	4	254	63	4	0
 flowing scarf	209423	3	0	30	4	0
 fluctuating cloak	18382	3	254	62	4	0
 fluorescent green mechanostrider	13325	3	254	40	15	0
@@ -10136,7 +10009,6 @@ horn of the swift gray wolf	18798	4	254	60	15	0
 horn of the swift timber wolf	18797	4	254	60	15	0
 horn of the timber wolf	1132	3	254	40	15	0
 horn of the winter wolf	1133	1	254	40	15	0
-horn of uber buffing (test)	12789	1	254	1	15	0
 horn of vorlus	6805	1	254	1	12	0
 horn of xelthos	210183	1	0	25	15	0
 horn ring	17692	2	254	23	4	0
@@ -10797,7 +10669,6 @@ irradiated tower shield	213351	3	254	45	4	0
 irradiated trousers	215379	3	254	45	4	0
 isaac's heart	190180	1	254	1	12	0
 ishamuhale's fang	5101	1	254	1	12	0
-item properties test	18747	3	254	63	4	0
 ivar's head	3621	1	254	1	12	0
 iverron's antidote	10642	1	254	1	12	0
 ivory band	11995	2	254	28	4	0
@@ -10893,10 +10764,6 @@ jazeraint leggings	9903	2	254	42	4	0
 jazeraint pauldrons	9904	2	254	41	4	0
 jazeraint shield	9899	2	254	42	4	0
 jeering spectre's essence	22224	1	254	1	12	0
-jeff test gloves	12962	1	254	1	4	0
-jeff test shield	12961	1	254	1	4	0
-jeff test sword	12971	1	254	50	2	0
-jeff test sword ii	12972	1	254	50	2	0
 jeklik's crusher	19918	4	254	65	2	0
 jeklik's crusher	230911	4	254	68	2	0
 jeklik's crusher	231861	4	254	68	2	0
@@ -11053,8 +10920,6 @@ juno's shadow	17061	3	254	58	4	0
 jurassic wristguards	6198	2	254	30	4	0
 justice badge	213343	4	254	45	4	0
 jutebraid gloves	10654	2	254	31	4	0
-jyoo random item test	17342	1	254	1	2	0
-jyoo test item	1259	0	254	1	2	0
 ka-boom!	228136	1	254	60	5	0
 kadrak's flag	10622	1	254	1	12	0
 kaigy's clasp	235886	4	0	85	4	0
@@ -11491,7 +11356,6 @@ large hoof	5871	0	254	1	15	0
 large knapsack	1725	1	254	35	1	0
 large metal shield	2445	1	254	22	4	0
 large moneybag	6754	1	254	15	1	0
-large moneybag (old)	1014	1	254	25	1	0
 large obsidian shard	22203	1	254	1	7	0
 large ogre chain armor	914	2	254	30	4	0
 large opal	12799	2	254	55	7	0
@@ -11586,8 +11450,6 @@ lean venison	5480	1	254	25	0	0
 lean wolf flank	1015	1	254	19	7	0
 lean wolf steak	12209	1	254	25	0	0
 leather chef's belt	9682	2	254	44	4	0
-leather helmet a (test)	1021	1	254	1	4	0
-leather helmet d (test)	1020	1	254	1	4	0
 leather-reinforced runecloth bag	227844	3	254	60	1	0
 lecraft rabbit pelt	19482	1	254	1	12	0
 leech pants	6910	3	254	31	4	0
@@ -11825,95 +11687,6 @@ letter to jin'zil	5594	1	254	1	12	0
 letter to jorgen	5948	1	254	1	12	0
 letter to the city architect	2891	1	254	1	12	0
 lev's oil-stained bindings	213285	3	254	45	4	0
-level 15 test gear cloth - mage/priest/warlock	13642	1	254	1	15	0
-level 15 test gear leather - druid/shaman	13643	1	254	1	15	0
-level 15 test gear leather - hunter/rogue	13644	1	254	1	15	0
-level 15 test gear mail - paladin/warrior	13645	1	254	1	15	0
-level 20 test gear cloth - mage/priest/warlock	13646	1	254	1	15	0
-level 20 test gear leather - druid/shaman	13660	1	254	1	15	0
-level 20 test gear leather - hunter/rogue	13664	1	254	1	15	0
-level 20 test gear mail - paladin/warrior	13656	1	254	1	15	0
-level 25 test gear cloth - mage/priest/warlock	13647	1	254	1	15	0
-level 25 test gear leather - druid/shaman	13661	1	254	1	15	0
-level 25 test gear leather - hunter/rogue	13665	1	254	1	15	0
-level 25 test gear mail - paladin/warrior	13657	1	254	1	15	0
-level 30 test gear cloth - mage/priest/warlock	13648	1	254	1	15	0
-level 30 test gear leather - druid/shaman	13662	1	254	1	15	0
-level 30 test gear leather - hunter/rogue	13666	1	254	1	15	0
-level 30 test gear mail - paladin/warrior	13658	1	254	1	15	0
-level 35 test gear cloth - mage/priest/warlock	13649	1	254	1	15	0
-level 35 test gear leather - druid/shaman	13663	1	254	1	15	0
-level 35 test gear leather - hunter/rogue	13667	1	254	1	15	0
-level 35 test gear mail - paladin/warrior	13659	1	254	1	15	0
-level 40 test gear cloth - mage/priest/warlock	13650	1	254	1	15	0
-level 40 test gear leather - druid	13668	1	254	1	15	0
-level 40 test gear leather - rogue	13674	1	254	1	15	0
-level 40 test gear mail - hunter	13686	1	254	1	15	0
-level 40 test gear mail - shaman	13692	1	254	1	15	0
-level 40 test gear plate - paladin/warrior	13680	1	254	1	15	0
-level 45 test gear cloth - mage/priest/warlock	13651	1	254	1	15	0
-level 45 test gear leather - druid	13669	1	254	1	15	0
-level 45 test gear leather - rogue	13675	1	254	1	15	0
-level 45 test gear mail - hunter	13687	1	254	1	15	0
-level 45 test gear mail - shaman	13693	1	254	1	15	0
-level 45 test gear plate - paladin/warrior	13681	1	254	1	15	0
-level 50 test gear cloth - mage/priest/warlock	13652	1	254	1	15	0
-level 50 test gear cloth - mage/priest/warlock 2	17843	1	254	1	15	0
-level 50 test gear leather - druid	13670	1	254	1	15	0
-level 50 test gear leather - druid 2	17844	1	254	1	15	0
-level 50 test gear leather - rogue	13676	1	254	1	15	0
-level 50 test gear leather - rogue 2	17845	1	254	1	15	0
-level 50 test gear mail - hunter	13688	1	254	1	15	0
-level 50 test gear mail - hunter 2	17846	1	254	1	15	0
-level 50 test gear mail - shaman	13694	1	254	1	15	0
-level 50 test gear mail - shaman 2	17847	1	254	1	15	0
-level 50 test gear plate - paladin/warrior	13682	1	254	1	15	0
-level 50 test gear plate - paladin/warrior 2	17848	1	254	1	15	0
-level 55 test gear cloth - mage/priest/warlock	13653	1	254	1	15	0
-level 55 test gear cloth - mage/priest/warlock 2	17837	1	254	1	15	0
-level 55 test gear leather - druid	13671	1	254	1	15	0
-level 55 test gear leather - druid 2	17838	1	254	1	15	0
-level 55 test gear leather - rogue	13677	1	254	1	15	0
-level 55 test gear leather - rogue 2	17839	1	254	1	15	0
-level 55 test gear mail - hunter	13689	1	254	1	15	0
-level 55 test gear mail - hunter 2	17840	1	254	1	15	0
-level 55 test gear mail - shaman	13695	1	254	1	15	0
-level 55 test gear mail - shaman 2	17841	1	254	1	15	0
-level 55 test gear plate - paladin/warrior	13683	1	254	1	15	0
-level 55 test gear plate - paladin/warrior 2	17842	1	254	1	15	0
-level 60 test gear cloth - mage/priest/warlock	13654	1	254	1	15	0
-level 60 test gear cloth - mage/priest/warlock 2	17831	1	254	1	15	0
-level 60 test gear leather - druid	13672	1	254	1	15	0
-level 60 test gear leather - druid 2	17832	1	254	1	15	0
-level 60 test gear leather - rogue	13678	1	254	1	15	0
-level 60 test gear leather - rogue 2	17833	1	254	1	15	0
-level 60 test gear mail - hunter	13690	1	254	1	15	0
-level 60 test gear mail - hunter 2	17834	1	254	1	15	0
-level 60 test gear mail - shaman	13696	1	254	1	15	0
-level 60 test gear mail - shaman 2	17835	1	254	1	15	0
-level 60 test gear plate - paladin/warrior	13684	1	254	1	15	0
-level 60 test gear plate - paladin/warrior 2	17836	1	254	1	15	0
-level 65 test gear cloth - mage	13655	1	254	1	15	0
-level 65 test gear cloth - mage 2	17851	1	254	1	15	0
-level 65 test gear cloth - priest	17824	1	254	1	15	0
-level 65 test gear cloth - priest 2	17852	1	254	1	15	0
-level 65 test gear cloth - warlock	17825	1	254	1	15	0
-level 65 test gear cloth - warlock 2	17853	1	254	1	15	0
-level 65 test gear leather - druid	13673	1	254	1	15	0
-level 65 test gear leather - druid 2	17854	1	254	1	15	0
-level 65 test gear leather - rogue	13679	1	254	1	15	0
-level 65 test gear leather - rogue 2	17855	1	254	1	15	0
-level 65 test gear leather - rogue 3	17856	1	254	1	15	0
-level 65 test gear mail - hunter	13691	1	254	1	15	0
-level 65 test gear mail - hunter 2	17857	1	254	1	15	0
-level 65 test gear mail - hunter 3	17858	1	254	1	15	0
-level 65 test gear mail - shaman	13697	1	254	1	15	0
-level 65 test gear mail - shaman 2	17859	1	254	1	15	0
-level 65 test gear plate - paladin	13685	1	254	1	15	0
-level 65 test gear plate - paladin 2	17860	1	254	1	15	0
-level 65 test gear plate - warrior	17826	1	254	1	15	0
-level 65 test gear plate - warrior 2	17861	1	254	1	15	0
-level 65 test gear plate - warrior 3	17862	1	254	1	15	0
 lewis' note	15998	1	254	1	12	0
 ley orb	7508	2	254	10	4	0
 ley staff	9513	2	254	10	2	0
@@ -12333,7 +12106,6 @@ lord blackwood's blade	23132	3	254	62	2	0
 lord blackwood's blade	238361	4	254	62	2	0
 lord blackwood's buckler	23139	3	254	62	4	0
 lord blackwood's buckler	238360	4	254	62	4	0
-lord brandon's tabard (test)	746	1	254	1	4	0
 lord general's sword	11817	3	254	56	2	0
 lord general's sword	227940	3	254	60	2	0
 lord grayson's satchel	18804	1	254	1	12	0
@@ -12539,9 +12311,6 @@ mail combat gauntlets	4075	2	254	34	4	0
 mail combat headguard	4077	2	254	35	4	0
 mail combat leggings	6402	2	254	36	4	0
 mail combat spaulders	6404	2	254	35	4	0
-mail helmet a (test)	1027	1	254	1	4	0
-mail helmet c (test)	1023	1	254	1	4	0
-mail helmet d (test)	1022	1	254	1	4	0
 main gauche	2526	1	254	34	2	0
 major discolored healing potion	241650	1	0	70	0	0
 major firestone	13701	1	254	56	4	0
@@ -12605,7 +12374,6 @@ manaweave robe	7509	2	254	20	4	0
 mandokir's sting	20038	4	254	66	2	0
 mandokir's sting	230993	4	254	69	2	0
 mandokir's sting	231868	4	254	69	2	0
-mandokir's sting deprecated	19868	4	254	66	2	0
 mangled coin purse	221372	0	0	1	15	0
 mangy claw	3183	1	254	1	12	0
 manifold epiphany	205949	1	0	1	0	0
@@ -13203,7 +12971,6 @@ monster hunter's second rune fragment	204689	1	0	1	0	0
 monster hunter's third rune fragment	204690	1	0	1	0	0
 monster item - stave_2h_jeweled_a_02 - red	240217	0	0	1	2	0
 monster omelet	12218	1	254	45	0	0
-monster weapon [dnt]	242710	0	0	1	2	0
 monstrous crawler leg	6184	1	254	1	12	0
 monstrous glaive	18502	3	254	62	2	0
 monstrous silithid chitin	234006	1	254	60	7	0
@@ -13434,9 +13201,6 @@ nature's breath	19118	2	254	50	2	0
 nature's embrace	17741	3	254	51	4	0
 nature's whisper	20645	2	254	60	4	0
 nax ph crit plate shoulders	23034	4	254	83	4	0
-naxxramas polearm [ph]	22817	4	254	77	2	0
-naxxramas sword 1h 1 [ph]	22805	4	254	77	2	0
-naxxramas sword 2h 2 [ph]	22814	4	254	81	2	0
 neatly wrapped box	9537	1	254	1	15	0
 necklace and gem salvage	7887	1	254	1	12	0
 necklace of calisea	1714	3	254	43	4	0
@@ -13855,7 +13619,6 @@ oddly magical belt	18475	2	254	60	4	0
 odious greaves	18379	3	254	62	4	0
 odo's ley staff	6318	3	254	26	2	0
 of love and family	14679	1	254	1	12	0
-off hand test dagger	3145	1	254	1	2	0
 offering coin	208823	1	0	1	0	0
 offering of bone	217721	1	254	1	15	0
 offering of flesh	217720	1	254	1	15	0
@@ -14854,7 +14617,6 @@ pious legwraps	10043	2	254	31	4	0
 pip's skinner	12709	3	254	63	2	0
 pirate's eye patch	19986	3	254	52	4	0
 pirate's footlocker	9276	1	254	45	15	0
-pirates patch (test)	1162	1	254	10	4	0
 piston pendant	213345	4	254	45	4	0
 pit fighter's shield	4507	2	254	42	4	0
 pitchfork	1485	0	254	25	2	0
@@ -15143,12 +14905,8 @@ plans: warcrest of the great chief	228314	3	254	61	9	0
 plans: whitesoul helm	12711	3	254	60	9	0
 plans: wicked mithril blade	8029	2	254	45	9	0
 plans: wildthorn mail	12691	2	254	54	9	0
-plate helmet d1 (test)	1025	1	254	1	4	0
-plate helmet d2 (test)	1024	1	254	1	4	0
-plate helmet d3 (test)	1026	1	254	1	4	0
 plate of the shaman king	13168	3	254	60	4	0
 plate of the shaman king	228571	3	254	60	4	0
-plate shoulderpad (test)	908	1	254	1	4	0
 plate wall shield	3988	0	254	65	4	0
 plated abomination ribcage	23000	4	254	85	4	0
 plated abomination ribcage	236304	4	254	85	4	0
@@ -15407,7 +15165,6 @@ privateer musket	5309	2	254	20	2	0
 privateer's cape	6179	2	254	19	4	0
 privateer's ornate pistol	202256	2	254	12	2	0
 prodigious shadowshard pendant	17773	2	254	42	4	0
-promotion test item	23656	1	254	1	0	0
 pronged reaver	6692	3	254	36	2	0
 proof of deed	10022	1	254	1	12	0
 prophecy of a broken vow	205953	2	0	25	0	0
@@ -15554,8 +15311,6 @@ pvp plate helm alliance	16026	1	254	60	4	0
 pvp plate legplates alliance	16028	1	254	60	4	0
 pvp plate shoulder alliance	16031	1	254	60	4	0
 pvp plate wrist alliance	16033	1	254	60	4	0
-pvp test alliance ear	18105	1	254	1	0	0
-pvp test horde ear	18106	1	254	1	0	0
 px83-enigmatron	11473	1	254	1	12	0
 pyremail wristguards	11765	3	254	57	4	0
 pyrestone orb	10709	2	254	55	4	0
@@ -16335,7 +16090,6 @@ resilient robe	14405	2	254	33	4	0
 resilient sinew	9591	1	254	1	12	0
 resilient tunic	14398	2	254	33	4	0
 resin loop	228080	3	254	62	4	0
-resist test item	10555	1	254	1	4	0
 resolute epiphany	221488	2	0	50	0	0
 resolve's boots, legs, and shoulders set	227378	1	254	55	15	0
 resolve's gloves and belt set	227353	1	254	55	15	0
@@ -16471,7 +16225,6 @@ ring of pure silver	1116	2	254	31	4	0
 ring of redemption	23066	4	254	92	4	0
 ring of redemption	236116	4	254	92	4	0
 ring of resurrection	241032	4	254	98	4	0
-ring of righteous flame (test)	996	1	254	2	4	0
 ring of saviors	1447	4	254	46	4	0
 ring of scorn	3235	2	254	20	4	0
 ring of shadowsight	209821	3	254	30	4	0
@@ -16515,7 +16268,6 @@ ring of the shadow	1462	2	254	25	4	0
 ring of the underwood	2951	3	254	36	4	0
 ring of the unliving	20624	4	254	72	4	0
 ring of the unliving	234160	4	254	75	4	0
-ring of uber resists (test)	5828	6	254	1	4	0
 ring of unspoken names	21417	4	254	65	4	0
 ring of unspoken names	233440	4	254	74	4	0
 ring of zoram	5445	1	254	1	12	0
@@ -16665,7 +16417,6 @@ rod of the ogre magi	228484	3	254	63	2	0
 rod of the sleepwalker	1155	3	254	29	2	0
 rodentia flint axe	2281	2	254	11	2	0
 rodentia shortsword	2282	1	254	10	2	0
-rogue test dagger	6036	0	254	39	2	0
 rogue's diary	24282	0	254	1	15	0
 rohan's exorcism censer	18819	1	254	1	12	0
 roland's mana gem	10478	1	254	0	12	0
@@ -17024,7 +16775,6 @@ rune-inscribed pendant	3353	1	254	1	12	0
 rune-inscribed tablet	9562	1	254	1	12	0
 runeblade of baron rivendare	13505	4	254	63	2	0
 runeblade of baron rivendare	228543	4	254	63	2	0
-runecarving test - crippling poison	202316	1	254	20	0	0
 runecloth	14047	1	254	50	7	0
 runecloth bag	14046	1	254	52	1	0
 runecloth bandage	14529	1	254	52	0	0
@@ -18176,7 +17926,6 @@ shaky's payment	3922	1	254	1	12	0
 shalehusk boots	11787	3	254	58	4	0
 shaleskin cape	12066	2	254	58	4	0
 shaman voodoo charm	8363	1	254	0	12	0
-shane test (delete me)	5378	1	254	1	0	0
 shapeshifter's sigil	230244	4	254	76	4	0
 shard of crystallized light	239011	5	254	60	7	0
 shard of light	227938	1	254	50	12	0
@@ -18525,7 +18274,6 @@ silver hakkari bijou	19714	3	254	61	12	0
 silver hand sabatons	209581	3	254	30	4	0
 silver hand training hammer	215373	1	254	31	2	0
 silver hook	5567	0	254	1	15	0
-silver mail shoulderpads (test)	909	1	254	1	4	0
 silver massacre coin	221365	3	254	50	12	0
 silver ore	2775	2	254	10	7	0
 silver piffeny band	7342	1	254	30	4	0
@@ -19544,8 +19292,6 @@ staff of rampant growth	20581	4	254	71	2	0
 staff of rampant growth	234153	4	254	75	2	0
 staff of rime	229972	4	254	79	2	0
 staff of soran'ruk	15109	2	254	25	2	0
-staff of spell penetration - fire (test)	21101	3	254	63	2	0
-staff of spell penetration - frost (test)	21102	3	254	63	2	0
 staff of the blessed seer	2271	3	254	23	2	0
 staff of the evil genius	213354	3	254	45	2	0
 staff of the friar	3415	3	254	24	2	0
@@ -20032,7 +19778,6 @@ stylish red shirt	4330	1	254	22	4	0
 sub-zero pauldrons	209828	3	254	30	4	0
 sublime wristguards	18497	3	254	60	4	0
 subterranean cape	14149	2	254	18	4	0
-succubi stone (deprecated)	5563	1	254	20	5	0
 succubus summoning scroll	6623	1	254	1	12	0
 succulent pork ribs	2685	1	254	20	0	0
 sul'thraze the lasher	223526	4	254	55	2	0
@@ -20239,7 +19984,6 @@ tabard of mastery	191481	4	254	1	4	0
 tabard of stormwind	11364	1	254	1	4	0
 tabard of the argent dawn	22999	1	254	60	4	0
 tabard of the scarlet crusade	23192	1	254	1	4	0
-tabard of the scarlet crusade deprecated	7725	1	254	1	4	0
 tabard of the scarlet enclave	237302	3	0	1	4	0
 tabard project (aidan)	215450	1	254	20	4	0
 tabetha's instructions	7516	1	254	0	0	0
@@ -20518,7 +20262,6 @@ taming rod	15920	1	254	10	12	0
 taming rod	15921	1	254	10	12	0
 taming rod	15922	1	254	10	12	0
 taming rod	15923	1	254	10	12	0
-tan leather shoulderpads (test)	906	1	254	1	4	0
 tanglemoss leggings	18390	3	254	61	4	0
 tanglemoss leggings	228468	3	254	61	4	0
 tanglewood staff	1720	3	254	46	2	0
@@ -20653,8 +20396,6 @@ ternary mantle	233521	4	254	76	4	0
 teronis' journal	5505	1	254	1	12	0
 terrestris	224279	4	254	79	4	0
 terrestris	231890	4	254	79	4	0
-test	12385	1	254	0	0	0
-test	4842	1	254	0	0	0
 testament of avenging wrath	226399	2	0	60	0	0
 testament of divine steed	228238	2	0	60	0	0
 testament of enhanced blessings	216768	2	0	25	0	0
@@ -20947,7 +20688,6 @@ thorium boots	12409	2	254	56	4	0
 thorium bracers	12408	2	254	51	4	0
 thorium brotherhood contract	18628	4	254	60	12	0
 thorium brotherhood contract	227730	4	254	60	12	0
-thorium brotherhood contract (old)	18593	4	254	60	12	0
 thorium greatsword	12764	2	254	52	2	0
 thorium grenade	15993	1	254	52	7	0
 thorium headed arrow	18042	2	254	57	6	0
@@ -20990,7 +20730,6 @@ threshadon claw	2669	1	254	1	12	0
 threshadon fang	5516	0	254	16	2	0
 threshadon tooth	2668	1	254	1	12	0
 thresher eye	5412	1	254	1	12	0
-thrice strung longbow deprecated	19966	3	254	68	2	0
 thrill's boots, legs, and shoulders set	227373	1	254	55	15	0
 thrill's gloves and belt set	227348	1	254	55	15	0
 thrill's helm and chestpiece set	227395	1	254	55	15	0
@@ -21019,7 +20758,6 @@ thunderbrew's boot flask	744	2	254	44	4	0
 thunderbrow ring	13097	3	254	29	4	0
 thunderfury, blessed blade of the windseeker	19019	5	254	80	2	0
 thunderfury, blessed blade of the windseeker	230224	5	254	80	2	0
-thunderfury, blessed blade of the windseeker deprecated	17802	5	254	80	2	0
 thunderhawk saliva gland	4897	1	254	1	12	0
 thunderhawk wings	5164	1	254	1	12	0
 thunderhorn cleansing totem	5415	1	254	1	12	0
@@ -21056,13 +20794,11 @@ tigerblood talisman	216513	4	254	40	4	0
 tigerseye	818	2	254	15	7	0
 tigerstrike mantle	13108	3	254	34	4	0
 tightly sealed trunk	20708	1	254	15	15	0
-tigole's boomstick (test)	2189	6	254	100	2	0
 tigule's harpoon	19946	3	254	68	2	0
 tigule's harpoon	231272	4	254	68	2	0
 tigule's harpoon	231849	4	254	68	2	0
 tigule's strawberry ice cream	7228	1	254	25	0	0
 tiller's vest	3444	1	254	11	4	0
-tim's test ranged weapon 2	240994	1	254	2	2	0
 timberland armguards	5315	2	254	18	4	0
 timberland cape	7739	2	254	18	4	0
 timberling seed	5168	1	254	1	12	0
@@ -21287,7 +21023,6 @@ tome of tranquilizing shot	16665	2	254	60	9	0
 tome of valor	6776	1	254	20	12	0
 tome of water elemental	1568	1	254	30	9	0
 tome of water elemental ii	4155	1	254	40	9	0
-tome of whirlwind (test)	951	1	254	1	0	0
 tomes of alterac	3660	1	254	1	12	0
 toolbox key	227928	1	0	1	15	0
 tooth of eranikus	10837	3	254	56	2	0
@@ -21321,7 +21056,6 @@ torch of the dormant flame	6653	1	254	1	12	0
 torch of the eternal flame	6654	1	254	1	12	0
 torchlight wand	5240	2	254	21	2	0
 tork wrench	11855	2	254	19	4	0
-torka's egg cracker [unused]	4943	1	254	8	2	0
 torment vine	2932	1	254	40	7	0
 torn bear pelt	11407	1	254	1	15	0
 torn diary page - page 1	242425	3	254	1	15	0
@@ -21609,12 +21343,8 @@ tusker sword	15252	2	254	49	2	0
 tuxedo jacket	10036	1	254	35	4	0
 tuxedo pants	10035	1	254	35	4	0
 tuxedo shirt	10034	1	254	1	4	0
-twain component test	6896	0	254	20	2	0
 twain random sword	6174	0	254	20	2	0
 twain random sword foo	7170	0	254	20	2	0
-twain test	7707	0	254	40	2	0
-twain test cloak	7248	1	254	12	4	0
-twain test item visual sword	7171	1	254	1	2	0
 twain's shoulder	4728	1	254	0	4	0
 twig of the world tree	13047	3	254	58	2	0
 twilight armor	7429	2	254	40	4	0
@@ -21689,7 +21419,6 @@ typhoon	228347	4	254	68	2	0
 tyr's fall	241001	4	254	96	2	0
 tyrande's staff	14083	1	254	4	2	0
 tyranis' pendant	6767	1	254	1	12	0
-tyranis' pendant (old)	6683	1	254	1	12	0
 tyrant's armguards	14834	2	254	43	4	0
 tyrant's belt	14838	2	254	43	4	0
 tyrant's chestpiece	14835	2	254	48	4	0
@@ -21909,7 +21638,6 @@ very berry cream	22238	1	254	1	0	0
 vessel of dragon's blood	7867	1	254	1	12	0
 vessel of rebirth	19016	5	254	70	12	0
 vessel of rebirth	231382	5	0	70	12	0
-vessel of rebirth deprecated	18565	5	254	70	12	0
 vessel of tainted blood	19071	1	254	1	12	0
 vest of elements	16666	3	254	63	4	0
 vest of elements	226749	3	254	63	4	0
@@ -22045,7 +21773,6 @@ void-powered vambraces	220689	3	254	50	4	0
 void-touched emblem	234614	4	254	60	4	0
 void-touched leather gauntlets	211502	4	254	30	4	0
 void-touched leather gloves	211423	4	254	30	4	0
-voidstone (deprecated)	5562	1	254	10	5	0
 voidwalker brooch	209817	3	0	30	4	0
 voidwalker summoning scroll	6544	1	254	1	12	0
 volatile concoction belt	213321	3	254	45	4	0
@@ -22531,8 +22258,6 @@ waywatcher wristguards	240084	4	254	98	4	0
 weak flux	2880	1	254	5	7	0
 weak troll's blood potion	3382	1	254	8	0	0
 weapon cleaning cloth	221362	1	254	1	7	0
-weapon of mass destruction (test)	5418	1	254	1	15	0
-weapon of massive destruction (test)	5417	1	254	1	15	0
 weather-worn boots	1173	1	254	10	4	0
 weatherbeaten parchment	6495	1	254	1	12	0
 weathered belt	3583	1	254	12	4	0
@@ -22801,7 +22526,6 @@ winterfall e'ko	12431	1	254	1	12	0
 winterfall firewater	12820	1	254	50	0	0
 winterfall ritual totem	20742	1	254	50	15	0
 winterfall spirit beads	21383	1	254	1	12	0
-winterfall spirit beads deprecated	20740	1	254	1	12	0
 winterhoof cleansing totem	5411	1	254	1	4	0
 wintersbite	3819	1	254	39	7	0
 winterspring blood sample	21928	1	254	1	12	0
@@ -22951,7 +22675,6 @@ woven boots	2367	1	254	10	4	0
 woven bracers	3607	1	254	10	4	0
 woven gloves	2369	1	254	10	4	0
 woven ivy necklace	19159	3	254	51	4	0
-woven ivy necklace deprecated	19122	3	254	51	4	0
 woven pants	2366	1	254	10	4	0
 woven vest	2364	1	254	10	4	0
 woven wand	3425	1	254	1	12	0
@@ -23075,7 +22798,6 @@ zandalar demoniac's mantle	19849	4	254	61	4	0
 zandalar demoniac's mantle	231349	4	254	65	4	0
 zandalar demoniac's robe	20033	4	254	65	4	0
 zandalar demoniac's robe	231348	4	254	68	4	0
-zandalar demoniac's robe deprecated	19847	4	254	65	4	0
 zandalar demoniac's wraps	19848	4	254	61	4	0
 zandalar demoniac's wraps	231347	4	254	65	4	0
 zandalar freethinker's armguards	19827	4	254	61	4	0
@@ -23095,7 +22817,6 @@ zandalar illusionist's mantle	19845	4	254	61	4	0
 zandalar illusionist's mantle	231325	4	254	65	4	0
 zandalar illusionist's robe	20034	4	254	65	4	0
 zandalar illusionist's robe	231327	4	254	68	4	0
-zandalar illusionist's robe deprecated	19844	4	254	65	4	0
 zandalar illusionist's wraps	19846	4	254	61	4	0
 zandalar illusionist's wraps	231326	4	254	65	4	0
 zandalar madcap's bracers	19836	4	254	61	4	0
