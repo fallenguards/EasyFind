@@ -17,8 +17,17 @@ local wipe = wipe
 local function ClassicProfessions(out)
     local seen = {}
     local texture = C_Spell and C_Spell.GetSpellTexture
+    -- Gathering skills open no window, so have no recipes: matched by the
+    -- client's spells of their name (Herbalism's differs per client).
+    local noWindow = {}
+    local spellInfo = C_Spell and C_Spell.GetSpellInfo
+    for _, id in ipairs({ 9134, 353982, 8613, 7620 }) do
+        local spell = spellInfo and spellInfo(id)
+        local name = type(spell) == "table" and spell.name or (GetSpellInfo and GetSpellInfo(id))
+        if name then noWindow[name] = true end
+    end
     local function add(name, icon)
-        if not name or name == "" or seen[name] then return end
+        if not name or name == "" or seen[name] or noWindow[name] then return end
         seen[name] = true
         out[#out + 1] = { skillLine = name, name = name, icon = icon or (texture and texture(name)) }
     end

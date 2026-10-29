@@ -117,18 +117,22 @@ end
 
 -- The filter flyout's list: the skill list's profession headers, and every
 -- window the character opened (a hunter's Beast Training has no skill line).
+-- Herbalism, Skinning and Fishing open no window, so have no switch
+-- (Herbalism listed on Era, 2026-10-29).
 function tests.flyoutListsTheCharactersProfessions()
     local lines = {
-        { "Professions", true }, { "Mining" }, { "Weapon Skills", true }, { "Swords" },
-        { "Secondary Skills", true }, { "Cooking" },
+        { "Professions", true }, { "Herbalism" }, { "Mining" }, { "Skinning" }, { "Weapon Skills", true },
+        { "Swords" }, { "Secondary Skills", true }, { "Cooking" }, { "Fishing" },
     }
+    local spells = { [9134] = { name = "Herbalism" }, [8613] = { name = "Skinning" }, [7620] = { name = "Fishing" } }
     local out = {}
     local env = setmetatable({
         ns = { Database = { ClassicRecipeBook = function() return { ["Beast Training"] = { spellID = 5149 } } end } },
         TRADE_SKILLS = "Professions", SECONDARY_SKILLS = "Secondary Skills",
         GetNumSkillLines = function() return #lines end,
         GetSkillLineInfo = function(i) return lines[i][1], lines[i][2] or false end,
-        C_Spell = { GetSpellTexture = function(id) return type(id) == "number" and id or nil end },
+        C_Spell = { GetSpellTexture = function(id) return type(id) == "number" and id or nil end,
+                    GetSpellInfo = function(id) return spells[id] end },
     }, { __index = _G })
     env._G = env
     local chunk = slice("Search/Filters/ProfessionOptions.lua", "local function ClassicProfessions",
