@@ -489,7 +489,10 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
                 end
             end
         end
-        if same then return end
+        if same then
+            self:RestoreHoveredRow()
+            return
+        end
         renderGen = renderGen + 1
         if not last then last = {}; self._lastRenderSig = last end
         last.n = n

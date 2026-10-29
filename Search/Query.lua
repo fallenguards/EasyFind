@@ -324,7 +324,8 @@ function Search:OnSearchTextChangedNow(text, force)
     end
     -- Treat whitespace-only as empty (pins show on focus, not on blank spaces)
     if text then text = strtrim(text) end
-    Tooltips:ClearResultTooltips()
+    -- A rows-only rerun (a chat line) keeps the hovered row's tooltip.
+    if not rowsOnly then Tooltips:ClearResultTooltips() end
     local quickFilter = self:GetQuickFilter()
     -- @icons owns the whole dropdown: the icon grid renders instead of the
     -- row pipeline, filtered live by whatever follows the token. The grid
