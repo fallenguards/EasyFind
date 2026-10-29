@@ -542,6 +542,5 @@ local RETAIL_LOCATIONS = {
     },
 }
 
-ns.STATIC_LOCATIONS = RETAIL_LOCATIONS
--- The dev tools read this.
-EasyFind.staticLocations = ns.STATIC_LOCATIONS
+-- Into the list made above (the dev tools read it as EasyFind.staticLocations).
+for mapID, places in pairs(RETAIL_LOCATIONS) do ns.STATIC_LOCATIONS[mapID] = places end
