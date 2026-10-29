@@ -15,7 +15,9 @@ local type = Utils.type
 -- label and tooltip either a
 -- string or a function (labels that carry the live snippet trigger). A
 -- { header = text } entry is a dim caption over the rows that follow; a
--- { separator = true } entry is a rule between groups.
+-- { separator = true } entry is a rule between groups; a { choice =
+-- { { label, value, tooltip }, ... }, get, set } entry is one-of-several
+-- radio rows (get returns the value, set takes it).
 -- Returns the popup and its sync function; the dropdown attaches it
 -- beside the row the way it attaches the richer per-key popups.
 function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
@@ -38,8 +40,10 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
     measure:Hide()
     local widest = 0
     for _, def in ipairs(sub.checkboxOptions) do
-        measure:SetText(Resolve(def.label or def.header) or "")
-        widest = math.max(widest, measure:GetStringWidth() or 0)
+        for _, c in ipairs(def.choice or { def }) do
+            measure:SetText(Resolve(c.label or c.header) or "")
+            widest = math.max(widest, measure:GetStringWidth() or 0)
+        end
     end
     local WIDTH = math.ceil(PAD * 2 + 4 + CHECK_SIZE + 4 + widest + 10)
 
@@ -59,6 +63,37 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
             caption:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD + 4, y - 4)
             caption:SetText(Resolve(def.header) or "")
             y = y - HEADER_H
+        elseif def.choice then
+            for _, c in ipairs(def.choice) do
+                local row = CreateFrame("Button", nil, popup)
+                row:SetSize(WIDTH - PAD * 2, ROW_H)
+                row:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD, y)
+                local dot = row:CreateTexture(nil, "ARTWORK")
+                dot:SetSize(CHECK_SIZE, CHECK_SIZE)
+                dot:SetPoint("LEFT", 4, 0)
+                local text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+                text:SetPoint("LEFT", dot, "RIGHT", 4, 0)
+                text:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+                text:SetJustifyH("LEFT")
+                text:SetWordWrap(false)
+                row._label, row._dot, row.def, row.choiceDef, row.value = text, dot, c, def, c.value
+                Utils.InstallMenuRowHighlight(row)
+                row:SetScript("OnClick", function(self)
+                    ns.Extensions.Run(def.set, self.value)
+                    for i = 1, #rows do
+                        if rows[i].choiceDef == def then
+                            rows[i]._dot:SetTexture(rows[i].value == self.value and ns.RADIO_ON_TEX or ns.RADIO_OFF_TEX)
+                        end
+                    end
+                end)
+                if c.tooltip then
+                    Utils.AttachDelayedTooltip(row, "ANCHOR_RIGHT", function()
+                        return Resolve(c.label), Resolve(c.tooltip)
+                    end)
+                end
+                rows[#rows + 1] = row
+                y = y - ROW_H
+            end
         else
         local row = CreateFrame("CheckButton", nil, popup)
         row:SetSize(WIDTH - PAD * 2, ROW_H)
@@ -96,7 +131,10 @@ function Filters:BuildCheckboxOptionsPopup(sub, StylePopup, CHECK_SIZE)
         for i = 1, #rows do
             local def = rows[i].def
             rows[i]._label:SetText(Resolve(def.label) or "")
-            if def.get then
+            if rows[i].choiceDef then
+                local ok, value = ns.Extensions.Run(rows[i].choiceDef.get)
+                rows[i]._dot:SetTexture(ok and value == rows[i].value and ns.RADIO_ON_TEX or ns.RADIO_OFF_TEX)
+            elseif def.get then
                 local ok, on = ns.Extensions.Run(def.get)
                 rows[i]:SetChecked(ok and on and true or false)
             else

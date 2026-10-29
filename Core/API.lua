@@ -476,7 +476,8 @@ end
 -- its words, its filter or its scope), lowResults (also when a search
 -- finds little), aliases (an @scope: "@" and one of these lists only its
 -- rows), options (its filter row's toggles: { label, tooltip, get, set },
--- { header = text }, { separator = true }), rows() -> list of
+-- { header = text }, { separator = true }, or one-of-several radio rows
+-- { choice = { { label, value, tooltip }, ... }, get, set }), rows() -> list of
 -- { name, icon, ... }, select(row), tooltip(row, tooltip) -> true when
 -- it filled it, leave(row), extension (the extension whose addon holds
 -- the rest), loadOnSearch (true or a function: load that addon for
