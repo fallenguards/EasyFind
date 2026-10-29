@@ -1103,7 +1103,7 @@ end
 -- or partial cache. Discarding forces one clean re-scan under the fixed
 -- scan (which now waits for EJ_LOOT_DATA_RECIEVED and refuses to mark
 -- specs complete on unresolved reads).
-ns.LOOT_ITEM_CACHE_VER = 5 -- 5: weapon types join the slot words
+ns.LOOT_ITEM_CACHE_VER = 6 -- 6: instance shorthands and wings join the source words
 ns.BOSS_CACHE_VER = 3 -- 3: rows packed into one string instead of per-row tables
 ns.STATISTIC_CACHE_VER = 3 -- 3: path/chain once per category; rows packed into one string
 ns.MOUNT_CACHE_VER = 2 -- 2: rows packed into one string instead of per-row tables
@@ -1165,6 +1165,7 @@ local function GetHeavySearchWordLookup()
         AddHeavySearchWord(_G[statKey])
         AddHeavySearchWords(words)
     end
+    Database.AddGearAndInstanceSearchWords(AddHeavySearchWord)
     return heavySearchWordLookup
 end
 
@@ -3763,6 +3764,14 @@ local function CacheLootInfo(database, lootInfo, inst, encName, encID, diff, sp,
     end
     if inst.name then
         for w in inst.name:lower():gmatch("%a+") do sourceKws[#sourceKws + 1] = w end
+        local abbrs = Database.InstanceAbbrs(slower(inst.name))
+        if abbrs then
+            for i = 1, #abbrs do sourceKws[#sourceKws + 1] = abbrs[i] end
+        end
+    end
+    local wings = encName and Database.BOSS_WING_WORDS[slower(encName)]
+    if wings then
+        for i = 1, #wings do sourceKws[#sourceKws + 1] = wings[i] end
     end
 
     local itemLinks = {}
@@ -4877,23 +4886,6 @@ end
 -- Dungeon/raid initialisms that pick non-leading letters (e.g. "BWL" from
 -- blackWing) which the standard prefix scoring can't reach. Exposed so
 -- MapSearch can inject the same aliases on dungeon-entrance POIs.
-local INSTANCE_ABBRS = {
-    ["blackwing lair"]    = {"bwl"},
-    ["blackrock depths"]  = {"brd"},
-    ["blackfathom deeps"] = {"bfd"},
-    ["ragefire chasm"]    = {"rfc"},
-    ["razorfen downs"]    = {"rfd"},
-    ["razorfen kraul"]    = {"rfk"},
-    ["scarlet monastery"] = {"sm"},
-    ["scarlet halls"]     = {"sm"},
-    ["shadowfang keep"]   = {"sfk"},
-    ["zul'farrak"]        = {"zf"},
-    ["wailing caverns"]   = {"wc"},
-    ["icecrown citadel"]  = {"icc"},
-    ["black temple"]      = {"bt"},
-    ["naxxramas"]         = {"nax", "naxx"},
-}
-ns.INSTANCE_ABBRS = INSTANCE_ABBRS
 
 -- Boss entries are the biggest single category in uiSearchData (~3 MB
 -- on a fully-loaded EJ tier set). path is only read at render time for
@@ -4931,7 +4923,7 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
 
     local instLower = slower(instName or "")
     local kw = { instLower, "boss", "bosses" }
-    local abbrs = INSTANCE_ABBRS[instLower]
+    local abbrs = Database.InstanceAbbrs(instLower)
     if abbrs then
         for ai = 1, #abbrs do kw[#kw + 1] = abbrs[ai] end
     end
@@ -4969,12 +4961,23 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
 end
 
 local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon, entrance)
-    return setmetatable({
+    local mt = GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
+    local entry = setmetatable({
         name = encName,
         nameLower = slower(encName),
         encounterID = encID,
         icon = icon,
-    }, GetBossInstanceMT(tier, isRaid, instID, instName, entrance))
+    }, mt)
+    -- A boss with a wing keeps its own keyword list: the instance's and the wing's.
+    local wings = Database.BOSS_WING_WORDS[entry.nameLower]
+    if wings then
+        local kw = {}
+        for _, w in ipairs(mt.__index_proto.keywords) do kw[#kw + 1] = w end
+        for _, w in ipairs(wings) do kw[#kw + 1] = w end
+        entry.keywords = kw
+    end
+    Database.AddInstanceSearchWords(instName, encName)
+    return entry
 end
 
 -- The clients with no journal: a row per boss of Database/Loot_*.lua.
@@ -5057,11 +5060,18 @@ function Corpora.BossRowKeywords(row)
     Corpora.bossKwBuf[n] = "boss"
     n = n + 1
     Corpora.bossKwBuf[n] = "bosses"
-    local abbrs = instLower and INSTANCE_ABBRS[instLower]
+    local abbrs = instLower and Database.InstanceAbbrs(instLower)
     if abbrs then
         for i = 1, #abbrs do
             n = n + 1
             Corpora.bossKwBuf[n] = abbrs[i]
+        end
+    end
+    local wings = row.name and Database.BOSS_WING_WORDS[slower(row.name)]
+    if wings then
+        for i = 1, #wings do
+            n = n + 1
+            Corpora.bossKwBuf[n] = wings[i]
         end
     end
     for i = #Corpora.bossKwBuf, n + 1, -1 do Corpora.bossKwBuf[i] = nil end
@@ -5122,6 +5132,7 @@ local function HydratePersistedBossCache()
         if row.name and row.name ~= ""
            and row.encounterID and row.instanceID and row.instanceName then
             uiSearchData[#uiSearchData + 1] = corpus:StubAt(ri)
+            Database.AddInstanceSearchWords(row.instanceName, row.name)
             inserted = inserted + 1
         end
     end, { name = true, encounterID = true, instanceID = true, instanceName = true }, true)

@@ -43,6 +43,7 @@ Core/API.lua
 Core/SettingsRows.lua
 Database/TeleportData.lua
 Database/Main.lua
+Database/InstanceWords.lua
 Database/SearchIndex.lua
 Database/Search.lua
 Database/Dynamic.lua

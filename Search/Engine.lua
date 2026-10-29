@@ -73,8 +73,10 @@ local PROVIDERS = {
     { key = "bank", words = { "bank", "banked", "vault", "warband" }, loadWhenEnabled = true },
     { key = "transmogSets", words = { "appearance", "appearances", "appset", "appsets", "set", "sets", "tmog", "transmog", "xmog" }, loadOnLowResults = true },
     { key = "appearanceItems", words = { "appearance", "appearances", "item", "items", "tmog", "transmog", "xmog" }, explicitOnly = true },
-    { key = "loot", words = { "gear", "item", "items", "loot" }, heavyQuery = true },
-    { key = "bosses", lookup = BOSS_WORDS, loadWhenEnabled = true },
+    -- instanceTriggers: an instance's or a boss's name, or the shorthand
+    -- players use ("sm", "smgy"), loads its loot and its bosses.
+    { key = "loot", words = { "gear", "item", "items", "loot" }, heavyQuery = true, instanceTriggers = true },
+    { key = "bosses", lookup = BOSS_WORDS, loadWhenEnabled = true, instanceTriggers = true },
     -- Loaded on demand like the rest: only the first-focus warm chains
     -- loaded it before, and on a fresh profile those run for a long
     -- time, so turning the filter on showed nothing (3.1.2 zip test).
@@ -319,6 +321,9 @@ function Engine:RequestProviders(ctx, onChanged, resultCount)
                 or self:ShouldLoadForLowResults(ctx, spec, resultCount)
             if spec.heavyQuery and Database and Database.QueryNeedsHeavySearchData then
                 shouldRequest = shouldRequest or Database:QueryNeedsHeavySearchData(ctx.text)
+            end
+            if spec.instanceTriggers and Database and Database.QueryNamesAnInstance then
+                shouldRequest = shouldRequest or Database:QueryNamesAnInstance(ctx.text)
             end
             if shouldRequest and gateCategories and not viaPill then
                 local minLen = gateMap[gateCategories[key]]

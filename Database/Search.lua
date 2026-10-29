@@ -1374,12 +1374,16 @@ function Database:SearchUI(query, skipCategories)
     -- alone shouldn't flood with bosses). Achievements (~175 entries with
     -- broad keywords) are gated behind "ach"/"stat" or a strong name match.
     local bossQueryWord = false
+    local instanceQueryWord = false
     local achQueryWord = false
     local statQueryWord = false
     local lootStatWordCount = 0
     local lootGearContext = false
     for qi = 1, #queryWords do
         local qw = queryWords[qi]
+        if Database.IsInstanceSearchWord and Database:IsInstanceSearchWord(qw) then
+            instanceQueryWord = true
+        end
         if BOSS_QUERY_WORDS[qw] then
             bossQueryWord = true
         end
@@ -1599,7 +1603,13 @@ function Database:SearchUI(query, skipCategories)
                     local qw = queryWords[qi]
                     if not STOPWORDS[qw] then
                     local qwLen = #qw
+                    -- "stockades" is "stockade": a plural typed, or a plural kept.
+                    local qwStem = qwLen > 3 and ssub(qw, qwLen, qwLen) == "s" and ssub(qw, 1, qwLen - 1) or nil
+                    local qwPlural = qw .. "s"
                     local bestWord = 0
+                    -- An armor type or a class: the item's own kind answers.
+                    local gearScore = Database.LootWordScore and Database.LootWordScore(data, qw)
+                    if gearScore then bestWord = gearScore end
 
                     -- Name match must outrank lootSourceKw (boss name) below,
                     -- else loot named for the query gets buried under same-
@@ -1655,7 +1665,7 @@ function Database:SearchUI(query, skipCategories)
                     if data.lootSourceKw then
                         for ki = 1, #data.lootSourceKw do
                             local kw = data.lootSourceKw[ki]
-                            if kw == qw then
+                            if kw == qw or kw == qwStem or kw == qwPlural then
                                 bestWord = mmax(bestWord, 110)
                             elseif sfind(kw, qw, 1, true) == 1 then
                                 bestWord = mmax(bestWord, 100)
@@ -1672,7 +1682,7 @@ function Database:SearchUI(query, skipCategories)
                 end
 
                 score = totalScore
-            elseif cat == "Boss" and not bossQueryWord then
+            elseif cat == "Boss" and not bossQueryWord and not instanceQueryWord then
                 score = Database:ScoreName(nameLower, query, queryLen, queryWords)
             else
                 local isAchEntry = cat == "Achievement Category" or cat == "Statistic"
