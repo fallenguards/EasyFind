@@ -166,7 +166,7 @@ local function fresh(localNames, creatures, names, goods, noLoad, titles, localT
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind._ns = ns
-    ns.Caps = { forever = true }
+    ns.Caps = { forever = true, instanceTable = true }
     local function vec(x, y) return { x = x, y = y, GetXY = function(self) return self.x, self.y end } end
     env.CreateVector2D = vec
     env.unpacked = 0

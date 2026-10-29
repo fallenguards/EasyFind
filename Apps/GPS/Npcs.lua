@@ -527,7 +527,8 @@ local function SpotPoint(k)
     local m = Spot.map(k)
     if m == 0 then
         local e
-        if ns.Caps and ns.Caps.forever then e = Entrance(Spot.xy(k)) else e = RetailEntrance(Spot.xy(k)) end
+        -- The shipped entrances where a client has them (Forever, Era, TBC).
+        if ns.Caps and ns.Caps.instanceTable then e = Entrance(Spot.xy(k)) else e = RetailEntrance(Spot.xy(k)) end
         if e then return e.m, e.x, e.y, e end
         return nil
     end

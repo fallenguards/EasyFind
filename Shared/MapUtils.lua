@@ -370,10 +370,8 @@ function MapUtils.GetMapPath(mapID)
     return path
 end
 
--- Dungeon and raid entrances on a map, in the encounter journal's shape
--- ({ name, position = { x, y } }) plus isRaid and the entrance's zone spot:
--- the journal on retail; on WoW Forever, which has none, its own entrances
--- (Database/Instances_Forever.lua, loaded after this file).
+-- A map's instance entrances in the journal's shape: the journal's on
+-- retail, else the shipped ones (Database/Instances_*.lua, loaded after).
 local foreverEntrances = {}
 local function ForeverEntrancesForMap(mapID)
     local list = foreverEntrances[mapID]
@@ -406,7 +404,7 @@ end
 
 function ns.GetDungeonEntrancesForMap(mapID)
     if not mapID then return nil end
-    if ns.Caps and ns.Caps.forever then return ForeverEntrancesForMap(mapID) end
+    if ns.Caps and ns.Caps.instanceTable then return ForeverEntrancesForMap(mapID) end
     local fn = C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap
     if not fn then return nil end
     local ok, list = pcall(fn, mapID)

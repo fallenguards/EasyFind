@@ -6,7 +6,7 @@ local H = require("Harness")
 local function fresh(forever)
     local env = H.newEnv()
     local ns = H.newNs(env)
-    ns.Caps = { forever = forever }
+    ns.Caps = { forever = forever, instanceTable = forever }
     env.GetRealZoneText = function(id) return id == 36 and "Die Todesminen" or "" end
     env.C_EncounterJournal = { GetDungeonEntrancesForMap = function(m) return { { name = "journal " .. m } } end }
     H.loadModule("Shared/MapUtils.lua", env, ns)
@@ -52,6 +52,23 @@ function tests.retail_asksTheJournal()
     local ns = fresh(false)
     local list = ns.GetDungeonEntrancesForMap(1436)
     H.assertEq(list[1].name, "journal 1436")
+end
+
+-- Classic Era and TBC Anniversary ship their entrances too: the map search
+-- and the instance rows answered nothing there (2026-10-28).
+function tests.era_andTbc_answerFromTheirOwnTables()
+    for file, cap in pairs({ ["Database/Instances_Era.lua"] = "era", ["Database/Instances_TBC.lua"] = "tbc" }) do
+        local env = H.newEnv()
+        local ns = H.newNs(env)
+        ns.Caps = { [cap] = true, classic = true, instanceTable = true }
+        env.GetRealZoneText = function() return "" end
+        env.C_EncounterJournal = { GetDungeonEntrancesForMap = function() return {} end }
+        H.loadModule("Shared/MapUtils.lua", env, ns)
+        H.loadModule(file, env, ns)
+        local list = ns.GetDungeonEntrancesForMap(1436)   -- Westfall
+        H.assertEq(#list, 1, file)
+        H.assertEq(list[1].name, "Deadmines", file)
+    end
 end
 
 local pass, fail, failures = H.runSuite("ForeverInstances", tests)

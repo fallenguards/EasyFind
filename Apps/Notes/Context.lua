@@ -343,7 +343,7 @@ local function Instances()
             instances[#instances + 1] = { type = raid and "raid" or "dungeon", id = id, name = name }
         end
     end
-    if Caps.forever then
+    if Caps.instanceTable then
         for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
             local ok, name = pcall(GetRealZoneText, e.id)
             addOne(e.id, (ok and type(name) == "string" and name ~= "") and name or e.n, e.raid)

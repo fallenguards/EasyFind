@@ -121,6 +121,9 @@ Caps.journalTabs = Caps.journal and not classic
 -- Loot and bosses from the journal, or from the table shipped for WoW
 -- Forever, Classic Era and TBC Anniversary (Database/Loot_*.lua).
 Caps.loot = Caps.journal or Caps.forever or Caps.era or Caps.tbc
+-- Instance entrances from the table shipped for the client (Database/
+-- Instances_*.lua), not the journal. Forever's table loads on every client.
+Caps.instanceTable = (Caps.forever or Caps.era or Caps.tbc) and true or false
 -- A panel probe loads the panel on classic clients: it comes last.
 Caps.housing = not Caps.forever and C_Housing ~= nil
     and rule("HousingDashboardDisabled") ~= true

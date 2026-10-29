@@ -64,7 +64,7 @@ local function Load(opts)
         return f
     end
     local ns = H.newNs(env)
-    ns.Caps = { forever = opts.forever, retail = not opts.forever, specs = not opts.forever }
+    ns.Caps = { forever = opts.forever, instanceTable = opts.forever, retail = not opts.forever, specs = not opts.forever }
     ns.PlayerName = function() return opts.forever and "Ana Brightwood" or "Ana" end
     ns.CurrentCharacterKey = function() return ns.PlayerName() .. "-Stormrage" end
     ns.FOREVER_INSTANCES = { { id = 36, n = "Deadmines", raid = false }, { id = 409, n = "Molten Core", raid = true } }
