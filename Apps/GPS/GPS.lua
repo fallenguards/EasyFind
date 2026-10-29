@@ -1714,6 +1714,7 @@ function GPS:Clear(opts)
     local route = Route()
     if route then EasyFind.API.Fire("gps", "routeCleared") end
     if route and not route.arrived then LiftPin(route) end
+    if ns.MapSearch and ns.MapSearch.ClearRouteEnd then ns.MapSearch:ClearRouteEnd() end
     local c = CharDB()
     if c then c.route, c.start = nil, nil end
     GPS.picking = nil

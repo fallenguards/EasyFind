@@ -42,6 +42,7 @@ local indicatorFrame
 local waypointPin
 local pinHoverClearsOverride = nil
 local activePinState = nil
+local routeEndPinned = false
 local efTrackedVignetteGUID = nil
 local efPlacedWaypoint = false
 -- True only for the brief window while EasyFind itself is calling
@@ -1007,6 +1008,7 @@ end
 -- displayID: a creature's model, drawn as its face on the pin.
 function MapSearch:ShowWaypointAt(x, y, icon, category, arrowOnly, displayID)
     if not x or not y then return end
+    routeEndPinned = false
     self:ClearHighlight()
 
     -- Save pin state so it can be restored after map close/reopen or map change
@@ -1129,6 +1131,14 @@ function MapSearch:PinRouteEnd(dest, x, y)
     if self._previewing or not (dest and x and y) then return end
     pinHoverClearsOverride = false
     self:ShowWaypointAt(x, y, dest.icon, dest.category, nil, dest.displayID)
+    routeEndPinned = true
+end
+
+-- The route's end pin goes with the route; a pin the player placed stays.
+function MapSearch:ClearRouteEnd()
+    if not routeEndPinned then return end
+    routeEndPinned = false
+    self:ClearAll()
 end
 
 function MapSearch:RefreshAllClearButtons()
