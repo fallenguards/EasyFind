@@ -393,6 +393,34 @@ function tests.learned_recordAndBoost()
     ns.Database.uiSearchData = nil
 end
 
+-- An extension's row with no spot of its own (a quest, filed under its
+-- zone's map) is remembered as itself, not as a map place: the pick was
+-- saved as a frozen "World Map" copy shown beside the live quest row
+-- (Era, 2026-10-29). An old pick saved that way finds the live row.
+function tests.learned_placelessProviderRowIsTheLiveRow()
+    env.EasyFind.db.aliases = {}
+    env.EasyFind.db.queryLearn = {}
+    env.EasyFind.db.learnFromPicks = true
+    local savedExtensions = ns.Extensions
+    ns.Extensions = { ProviderOf = function(d) return d.category == "questie" and { key = "questie" } or nil end }
+    local quest = { name = "Wanted: DWARVES!", nameLower = "wanted: dwarves!", category = "questie", questId = 1, mapID = 1416 }
+    local place = { name = "Copper Vein", category = "questie", mapID = 1, x = 0.5, y = 0.5 }
+    Aliases:InvalidateKeyIndex()
+    ns.Database.uiSearchData = { quest, place }
+    H.assertEq(Aliases:GetEntryKey(quest), "ext:questie:Wanted: DWARVES!")
+    H.assertEq(Aliases:GetEntryKey({ providerRow = quest, mapSearchResult = true, name = quest.name, category = "questie" }),
+        "ext:questie:Wanted: DWARVES!", "the map search's copy is the row")
+    H.assertTrue(Aliases:GetEntryKey(place):find("^map:") ~= nil, "a row with its own spot stays a place")
+    ns.Learned:RecordPick(quest, "wanted dwar")
+    H.assertEq(ns.Learned:GetBoost("wanted dwar"), quest, "the live row, not a copy")
+    -- An old pick, saved as a map place with a frozen copy.
+    env.EasyFind.db.queryLearn = { ["wanted dwar"] = { key = "map:questie:1416:wanted: dwarves!:0:0", n = 1, at = 1, w = 1,
+        snapshot = { name = "Wanted: DWARVES!", category = "questie", mapSearchResult = true, mapID = 1416 } } }
+    H.assertEq(ns.Learned:GetBoost("wanted dwar"), quest, "an old pick finds the live row")
+    ns.Extensions = savedExtensions
+    ns.Database.uiSearchData = nil
+end
+
 -- A pick for a kind of place (inn) stands for the nearest of its kind: a
 -- second innkeeper picked replaces the first, a name query keeps both.
 function tests.learned_kindPickKeepsOnePerKind()

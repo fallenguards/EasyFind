@@ -27,10 +27,19 @@ local time = time
 -- "MÜNZEN" and "münzen" hash to different keys.
 local normalize = SearchText.Normalize
 
+-- An extension row with no spot (a quest under its zone's map) is no map
+-- place: kept and found by its provider and name.
+local function PlacelessProviderRow(data)
+    if not data or data.x ~= nil then return false end
+    local Extensions = ns.Extensions
+    return Extensions ~= nil and Extensions.ProviderOf ~= nil and Extensions.ProviderOf(data) ~= nil
+end
+
 local function IsMapAliasTarget(data)
-    return data and (data.mapSearchResult or data.isZone or data.isDungeonEntrance
+    if not data or data.providerRow or PlacelessProviderRow(data) then return false end
+    return data.mapSearchResult or data.isZone or data.isDungeonEntrance
         or data.zoneMapID or data.entranceMapID
-        or (data.category and (data.x or data.entranceX or data.mapID or data.coordMapID)))
+        or (data.category and (data.x or data.entranceX or data.mapID or data.coordMapID))
 end
 
 local function MapAliasKey(data)
@@ -160,6 +169,9 @@ function Aliases:GetEntryKey(data)
             if cid then return "currency:" .. cid end
         end
     end
+    -- The map search's copy of an extension's row is that row.
+    if data.providerRow then return Aliases:GetEntryKey(data.providerRow) end
+    if PlacelessProviderRow(data) and data.name then return "ext:" .. data.category .. ":" .. data.name end
     if IsMapAliasTarget(data) then
         return MapAliasKey(data)
     end
@@ -347,8 +359,21 @@ local function FillCreature(entry)
     return entry
 end
 
+-- An old pick of a placeless row, saved as a map place: its live row.
+local function LiveProviderRow(snapshot)
+    local data = ns.Database and ns.Database.uiSearchData
+    for i = 1, data and #data or 0 do
+        local d = data[i]
+        if d.category == snapshot.category and d.name == snapshot.name then return d end
+    end
+    return nil
+end
+
 -- A saved map row: the snapshot first (it keeps the zone it was picked in).
 local function SavedEntry(key, snapshot)
+    if snapshot and smatch(key or "", "^map:") and PlacelessProviderRow(snapshot) then
+        return LiveProviderRow(snapshot)
+    end
     if snapshot and smatch(key or "", "^map:") then return FillMapRow(FillCreature(snapshot)) end
     return FillMapRow(FillCreature(Aliases:FindEntryByKey(key) or snapshot))
 end
