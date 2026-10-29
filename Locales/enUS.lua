@@ -1679,3 +1679,7 @@ L["APP_DESC_NOTES"]                     = "Notes and checklists that show where 
 L["APP_DESC_GPS"]                       = "Directions to any place, with travel times."
 L["APP_DESC_QUICKLISTS"]                = "Your own lists of results, each opened from a key."
 L["APP_DESC_CHAT"]                      = "A messenger for whispers and channels, with threads and history."
+L["OPT_EXT_RESET"]                      = "Reset to default"
+L["OPT_EXT_RESET_TT"]                   = "Every setting on this page back to its default."
+L["OPT_EXT_RESET_NONE_TT"]              = "This page has nothing to reset."
+L["POPUP_RESET_EXTENSION"]              = "Reset all settings for %s?"

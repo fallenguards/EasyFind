@@ -4956,7 +4956,12 @@ end
 local function ExtensionPageDefs()
     local defs = {}
     if ns.AppsMenu then
-        defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage }
+        defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage,
+            reset = function()
+                local s = ns.AppsMenu.Settings()
+                s.columns, s.labels, s.labelSize, s.order = nil, nil, nil, nil
+                if ns.AppsMenu.Rebuild then ns.AppsMenu:Rebuild() end
+            end }
     end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then
         defs[#defs + 1] = { id = "snippets", name = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX,
@@ -5060,10 +5065,46 @@ local function SelectExtensionPage(id)
     if ns.SettingsRows then ns.SettingsRows.extensionPage = id end
     for _, entry in ipairs(extensionPages) do
         local on = entry.def.id == id
-        if on then EnsureExtensionPage(entry) end
+        if on then
+            EnsureExtensionPage(entry)
+            extensionsTab.currentEntry = entry
+        end
         if entry.frame then entry.frame:SetShown(on) end
     end
     if extensionsTab and extensionsTab.picker then extensionsTab.picker.Refresh() end
+    -- A page of settings resets; a page of the player's own things has nothing to.
+    local reset = extensionsTab and extensionsTab.resetBtn
+    if reset then
+        local can = extensionsTab.currentEntry ~= nil and extensionsTab.currentEntry.def.reset ~= nil
+        reset:SetEnabled(can)
+        reset:SetAlpha(can and 1 or 0.5)
+    end
+end
+
+-- Reset to default, right of the picker: the page's settings back to
+-- theirs after a confirmation naming the extension.
+local function LayoutExtensionReset(anchor)
+    local reset = extensionsTab.resetBtn
+    if not reset then
+        local measure = extensionStrip.measure
+        measure:SetText(L["OPT_EXT_RESET"])
+        reset = CreateModernButton(extensionStrip, L["OPT_EXT_RESET"], math.ceil(measure:GetStringWidth() or 0) + 24, 22)
+        reset:SetScript("OnClick", function()
+            local entry = extensionsTab.currentEntry
+            if not (entry and entry.def.reset) then return end
+            ShowResetConfirm(sformat(L["POPUP_RESET_EXTENSION"], entry.def.name or entry.def.id), function()
+                entry.def.reset()
+                Options:SyncControls()
+            end)
+        end)
+        Utils.AttachDelayedTooltip(reset, "ANCHOR_TOP", function()
+            local entry = extensionsTab.currentEntry
+            return (entry and entry.def.reset) and L["OPT_EXT_RESET_TT"] or L["OPT_EXT_RESET_NONE_TT"]
+        end)
+        extensionsTab.resetBtn = reset
+    end
+    reset:ClearAllPoints()
+    reset:SetPoint("LEFT", anchor, "RIGHT", 10, 0)
 end
 
 local function RevealOnExtensionPage(id, target)
@@ -5130,6 +5171,7 @@ local function LayoutExtensionPicker()
         extensionStrip.title, LabelFor(extensionCurrent))
     btnFrame:ClearAllPoints()
     btnFrame:SetPoint("LEFT", extensionStrip.title, "RIGHT", 10, 0)
+    LayoutExtensionReset(btnFrame)
     local flyout = CreateFlyoutPanel(btnFrame, prefix, width, #values)
     AddFlyoutOptions(flyout, values, width - 6, function(id)
         SelectExtensionPage(id)
