@@ -5061,6 +5061,7 @@ local function EnsureExtensionPage(entry)
 end
 
 local function SelectExtensionPage(id)
+    if optionsFrame and optionsFrame.ClearPageSearch and id ~= extensionCurrent then optionsFrame.ClearPageSearch() end
     extensionCurrent = id
     if ns.SettingsRows then ns.SettingsRows.extensionPage = id end
     for _, entry in ipairs(extensionPages) do
@@ -6437,6 +6438,20 @@ function Options:Initialize()
                 shell:SetPoint("RIGHT", sidebar, "RIGHT", -8, 0)
             end
         end
+        if optionsFrame.PlacePageSearch then optionsFrame.PlacePageSearch() end
+    end
+
+    -- Search this page: left of the X, or left of the Tutorial link in the
+    -- game's settings window (no X there).
+    function optionsFrame.PlacePageSearch()
+        local pageShell = optionsFrame.pageSearchShell
+        if not pageShell then return end
+        pageShell:ClearAllPoints()
+        if optionsFrame.paged then
+            pageShell:SetPoint("RIGHT", pagedTutorial, "LEFT", -12, 0)
+        else
+            pageShell:SetPoint("RIGHT", optionsFrame.closeBtn, "LEFT", -10, 0)
+        end
     end
 
     local function GetCurrentKeybindText(action)
@@ -6598,6 +6613,282 @@ function Options:Initialize()
     BuildShortcutsTab(ctx)
     BuildFeedbackTab(ctx)
 
+    -- ==== search this page, in the title band ==============================
+    -- The open page down to matching settings; kept rows close up the gaps.
+    do
+        local shell = CreateFrame("Frame", nil, optionsFrame)
+        shell:Hide()
+        -- Over the window's background frame, or the ring hides under it.
+        shell:SetFrameLevel(optionsFrame.bgTex:GetFrameLevel() + 2)
+        shell:SetSize(190, 22)
+        SearchWell(shell)
+        local icon = shell.ringInset:CreateTexture(nil, "OVERLAY")
+        icon:SetSize(13, 13)
+        icon:SetPoint("LEFT", shell, "LEFT", 7, 0)
+        icon:SetAtlas("common-search-magnifyingglass")
+        local box = CreateFrame("EditBox", nil, shell)
+        box:SetFrameLevel(shell.ringInset:GetFrameLevel() + 2)
+        box:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+        box:SetPoint("RIGHT", shell, "RIGHT", -8, 0)
+        box:SetHeight(18)
+        box:SetAutoFocus(false)
+        box:SetFontObject(SMALL_HIGHLIGHT_FONT)
+        box:SetMaxLetters(48)
+        local placeholder = box:CreateFontString(nil, "ARTWORK", OPT_FONTS.GameFontDisableSmall)
+        placeholder:SetPoint("LEFT", box, "LEFT", 0, 0)
+        placeholder:SetText(L["OPT_PAGE_SEARCH_PLACEHOLDER"])
+        Utils.StyleSearchHint(placeholder, icon)
+        optionsFrame.pageSearchBox = box
+        optionsFrame.pageSearchShell = shell
+        optionsFrame.PlacePageSearch()
+
+        local hidden, moved, resized = {}, {}, {}
+        local function RestorePage()
+            for obj in pairs(hidden) do obj:Show() end
+            for obj, points in pairs(moved) do
+                obj:ClearAllPoints()
+                for _, p in ipairs(points) do obj:SetPoint(p[1], p[2], p[3], p[4], p[5]) end
+            end
+            for frame, height in pairs(resized) do frame:SetHeight(height) end
+            wipe(hidden)
+            wipe(moved)
+            wipe(resized)
+        end
+        local function CurrentTab()
+            for i, tf in ipairs(tabFrames) do
+                if tf:IsShown() then return i, tf end
+            end
+            return nil
+        end
+        local function Matches(lower, words)
+            for i = 1, #words do
+                if not string.find(lower, words[i], 1, true) then return false end
+            end
+            return true
+        end
+        local function Covers(a, b)
+            local top, bottom = a:GetTop(), a:GetBottom()
+            local bTop, bBottom = b:GetTop(), b:GetBottom()
+            if not (top and bottom and bTop and bBottom) then return false end
+            local center = (bTop + bBottom) / 2
+            return center <= top + 1 and center >= bottom - 1
+        end
+        -- A row below a hidden one takes its slot: the first shown anchor up.
+        local function BelowPoint(p, rp)
+            return string.find(p or "", "^TOP") ~= nil and string.find(rp or "", "^BOTTOM") ~= nil
+        end
+        local function Reanchor(obj)
+            local n = obj:GetNumPoints()
+            local orig, points, changed = {}, {}, false
+            for i = 1, n do
+                local p, rel, rp, x, y = obj:GetPoint(i)
+                orig[i] = { p, rel, rp, x, y }
+                if rel and hidden[rel] and BelowPoint(p, rp) then
+                    local guard = 0
+                    repeat
+                        local hp, hrel, hrp, hx, hy = rel:GetPoint(1)
+                        if not hrel then break end
+                        x, y, rp, rel = (x or 0) + (hx or 0), hy, hrp, hrel
+                        guard = guard + 1
+                    until not (hidden[rel] and BelowPoint(hp, hrp)) or guard >= 64
+                    changed = true
+                end
+                points[i] = { p, rel, rp, x, y }
+            end
+            if not changed then return end
+            moved[obj] = orig
+            obj:ClearAllPoints()
+            for i = 1, n do
+                local q = points[i]
+                obj:SetPoint(q[1], q[2], q[3], q[4], q[5])
+            end
+        end
+        local function Members(list)
+            local out = {}
+            local children = { list:GetChildren() }
+            for i = 1, #children do
+                if children[i]:IsShown() then out[#out + 1] = children[i] end
+            end
+            local regions = { list:GetRegions() }
+            for i = 1, #regions do
+                local r = regions[i]
+                if r:IsShown() and r.IsObjectType and r:IsObjectType("FontString") then out[#out + 1] = r end
+            end
+            return out
+        end
+        -- Rows a list stacks from its own top (a card's key rows) close up
+        -- into the first slots; a card shrinks by what it lost.
+        local function StackedRow(m, list)
+            if not m.GetChildren then return false end
+            for k = 1, m:GetNumPoints() do
+                local p, rel = m:GetPoint(k)
+                if rel ~= list or string.find(p, "^BOTTOM") then return false end
+            end
+            local p = m:GetPoint(1)
+            return string.find(p or "", "^TOP") ~= nil
+        end
+        local function Compact(list, members, resize)
+            local slots, rows = {}, {}
+            for _, m in ipairs(members) do
+                if StackedRow(m, list) then
+                    local y = select(5, m:GetPoint(1))
+                    slots[#slots + 1] = y
+                    if not hidden[m] then rows[#rows + 1] = { m, y } end
+                end
+            end
+            if #rows == 0 or #rows == #slots then return end
+            table.sort(slots, function(a, b) return a > b end)
+            table.sort(rows, function(a, b) return a[2] > b[2] end)
+            for i, r in ipairs(rows) do
+                local m = r[1]
+                local points = {}
+                for k = 1, m:GetNumPoints() do points[k] = { m:GetPoint(k) } end
+                if not moved[m] then moved[m] = points end
+                m:ClearAllPoints()
+                for k, q in ipairs(points) do
+                    m:SetPoint(q[1], q[2], q[3], q[4], k == 1 and slots[i] or q[5])
+                end
+            end
+            if resize then
+                resized[list] = list:GetHeight()
+                list:SetHeight(list:GetHeight() - (slots[#rows] - slots[#slots]))
+            end
+        end
+
+        local function Narrow(text)
+            RestorePage()
+            local words = {}
+            for w in string.lower(text or ""):gmatch("%S+") do words[#words + 1] = w end
+            if #words == 0 then return end
+            local tab, tf = CurrentTab()
+            if not tab then return end
+            local onExtensions = tab == Options._extensionsTabIndex
+            local pageID = onExtensions and extensionCurrent or nil
+            local roots = { [tf] = true }
+            local entry = onExtensions and extensionsTab.currentEntry
+            if entry and entry.frame then roots[entry.frame] = true end
+            local hits = {}
+            for _, hit in ipairs(optionsFrame.SettingsIndex()) do
+                if hit.tab == tab and hit.pageID == pageID and hit.region and hit.region:IsVisible() then
+                    hits[#hits + 1] = hit
+                end
+            end
+            -- A frame holding another setting is a list (the page, a card);
+            -- its own label is a header. Any other labelled frame is a row.
+            local holds = {}
+            for _, hit in ipairs(hits) do
+                local f = hit.target:GetParent()
+                while f and not holds[f] do
+                    holds[f] = true
+                    if f == tf then break end
+                    f = f:GetParent()
+                end
+            end
+            local function IsList(f)
+                if roots[f] or holds[f] then return true end
+                local parent = f:GetParent()
+                return parent ~= nil and parent.IsObjectType and parent:IsObjectType("ScrollFrame")
+            end
+            local kept, whole, lists, headers = {}, {}, {}, {}
+            for _, hit in ipairs(hits) do
+                local t = hit.target
+                local match = Matches(hit.lower, words)
+                if IsList(t) then
+                    lists[t] = true
+                    headers[#headers + 1] = hit
+                    if match then kept[hit.region] = true end
+                else
+                    lists[t:GetParent()] = true
+                    if match then kept[t] = true end
+                end
+            end
+            -- A matching header keeps its section: down to the next header.
+            for _, h in ipairs(headers) do
+                if kept[h.region] then
+                    local bottom, nextTop = h.region:GetBottom() or 0, nil
+                    for _, o in ipairs(headers) do
+                        local top = o.target == h.target and o.region:GetTop()
+                        if top and top < bottom and (not nextTop or top > nextTop) then nextTop = top end
+                    end
+                    for _, m in ipairs(Members(h.target)) do
+                        local top = m:GetTop()
+                        if top and top <= bottom + 1 and (not nextTop or top > nextTop + 1) then whole[m] = true end
+                    end
+                end
+            end
+            local keptBelow = {}
+            for obj in pairs(kept) do
+                local f = obj:GetParent()
+                while f and not keptBelow[f] do keptBelow[f] = true f = f:GetParent() end
+            end
+            for obj in pairs(whole) do
+                local f = obj:GetParent()
+                while f and not keptBelow[f] do keptBelow[f] = true f = f:GetParent() end
+            end
+            local function InsideWhole(f)
+                while f do
+                    if whole[f] then return true end
+                    if f == tf then return false end
+                    f = f:GetParent()
+                end
+                return false
+            end
+            local done = {}
+            for list in pairs(lists) do
+                if not InsideWhole(list) then
+                    local members = Members(list)
+                    local reps = {}
+                    for _, m in ipairs(members) do
+                        if kept[m] or whole[m] or keptBelow[m] then reps[#reps + 1] = m end
+                    end
+                    for _, m in ipairs(members) do
+                        if not (kept[m] or whole[m] or keptBelow[m]) then
+                            local stay = m.IsObjectType and (m:IsObjectType("ScrollFrame") or m:IsObjectType("Slider"))
+                            for i = 1, #reps do
+                                if stay then break end
+                                stay = Covers(m, reps[i]) or Covers(reps[i], m)
+                            end
+                            if not stay then
+                                hidden[m] = true
+                                m:Hide()
+                            end
+                        end
+                    end
+                    done[list] = members
+                end
+            end
+            for list, members in pairs(done) do
+                for _, m in ipairs(members) do
+                    if not hidden[m] then Reanchor(m) end
+                end
+                Compact(list, members, not roots[list])
+            end
+        end
+        box:SetScript("OnTextChanged", function(self)
+            local text = self:GetText() or ""
+            placeholder:SetShown(text == "")
+            Narrow(text)
+        end)
+        box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+        box:SetScript("OnEscapePressed", function(self)
+            self:SetText("")
+            self:ClearFocus()
+        end)
+        -- A tab leaving takes its narrowing with it; Home and Feedback show no box.
+        local noBox = { [L["OPT_TAB_HOME"]] = true, [L["OPT_TAB_FEEDBACK"]] = true }
+        local function SyncShown()
+            local i = CurrentTab()
+            local label = i and tabButtons[i] and tabButtons[i].label and tabButtons[i].label:GetText()
+            shell:SetShown(i ~= nil and not noBox[label])
+        end
+        for _, tf in ipairs(tabFrames) do
+            tf:HookScript("OnHide", function() if box:GetText() ~= "" then box:SetText("") end end)
+            tf:HookScript("OnShow", SyncShown)
+        end
+        SyncShown()
+        optionsFrame.ClearPageSearch = function() if box:GetText() ~= "" then box:SetText("") end end
+    end
+
     -- ==== settings search, above the tabs =================================
     -- Every label on every tab (extension pages built for it) is indexed
     -- once, on the first search. Typing lists the hits under the box with
@@ -6670,7 +6961,7 @@ function Options:Initialize()
                         if plain:find("[%w\128-\255]") and not seen[key] then
                             seen[key] = true
                             index[#index + 1] = {
-                                label = plain, lower = string.lower(plain),
+                                label = plain, lower = string.lower(plain), region = r,
                                 tab = tabIndex, pageID = pageID, pageName = pageName, target = frame,
                             }
                         end
