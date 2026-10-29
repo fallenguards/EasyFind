@@ -799,7 +799,7 @@ function Search:OnSearchTextChangedNow(text, force)
                 local d = r.data
                 -- Read once: on a packed row every field read is a call.
                 local cat = d and d.category
-                local bucket = Filters:GetUIBucket(d)
+                local bucket = Filters.GetUIBucket(d)
                 local bucketOff = bucket and filters[bucket] == false
                 if (explicitStatistics and bucket == "statistics")
                    or (explicitBosses and bucket == "bosses") then

@@ -333,10 +333,6 @@ local function GetUIBucket(d)
     return bucket
 end
 
-function Filters:GetUIBucket(data)
-    return GetUIBucket(data)
-end
-
 function Filters:IsGuildAchievementData(data)
     return data and data.isGuildAchievement == true
 end
