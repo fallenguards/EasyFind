@@ -802,8 +802,10 @@ function ResultLinks:AttachHyperlinks(frame)
         if not (GameTooltip and link) then return end
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
         if pcall(GameTooltip.SetHyperlink, GameTooltip, link) then GameTooltip:Show() else GameTooltip:Hide() end
-    end, function()
-        if GameTooltip then GameTooltip:Hide() end
+    end, function(self)
+        -- Only the tooltip this frame's link opened: a leave fired as the
+        -- chat redraws must never hide another frame's.
+        if GameTooltip and GameTooltip:IsOwned(self) then GameTooltip:Hide() end
     end)
     frame:SetScript("OnHyperlinkClick", function(self, link, text, button)
         if IsOurLink(link) and button ~= "LeftButton" then return end
