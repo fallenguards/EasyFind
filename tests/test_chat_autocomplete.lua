@@ -81,17 +81,17 @@ tests["chat: client name completion keeps its selection through a keystroke"] = 
     -- The client's completion for the next keystroke: the user typed "y",
     -- Blizzard's handler (which runs first) filled "an" and selected it,
     -- then our hook sees the box in that state.
-    box.text = "/w Bryan"
+    box.text = "/w Fallen"
     box.caret = 6
     box.hl = { 6, 8 }
     box:Fire("OnTextChanged", true)
     H.assertDeepEq(box.hl, { 6, 8 }, "selection untouched")
-    H.assertEq(box.text, "/w Bryan", "text untouched")
+    H.assertEq(box.text, "/w Fallen", "text untouched")
     H.assertEq(box.caret, 6, "caret untouched")
 end
 
 tests["chat: strip with no ghost leaves the selection alone"] = function()
-    local box = newEditBox("/w Bryan")
+    local box = newEditBox("/w Fallen")
     attachChat(box)
     box.caret = 6
     box.hl = { 6, 8 }
