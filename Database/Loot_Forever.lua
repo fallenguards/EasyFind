@@ -5,7 +5,7 @@ local _, ns = ...
 -- dev/tools/forever_loot.py; do not edit by hand.
 if not (ns.Caps and ns.Caps.forever) then return end
 
-ns.FOREVER_LOOT = {
+ns.STATIC_LOOT = {
     { inst = 33, enc = 2748, boss = "Rethilgore", items = { 5254 } },
     { inst = 33, enc = 2749, boss = "Razorclaw the Butcher", items = { 1292, 6226, 6633 } },
     { inst = 33, enc = 2750, boss = "Baron Silverlaine", items = { 6321, 6323 } },
@@ -192,7 +192,7 @@ ns.FOREVER_LOOT = {
 }
 
 -- English names, for items the client has not cached yet.
-ns.FOREVER_LOOT_NAMES = {
+ns.STATIC_LOOT_NAMES = {
     [872] = "Rockslicer",
     [888] = "Naga Battle Gloves",
     [1155] = "Rod of the Sleepwalker",

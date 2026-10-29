@@ -31,6 +31,7 @@ local V = {
     appearances = _G["WARDROBE"] or "Appearances",
     dressroom   = _G["DRESSUP_FRAME"] or "Dressing Room",
     encounter   = _G["ENCOUNTER_JOURNAL"] or "Encounter Journal",
+    loot        = _G["LOOT"] or "Loot",
     achievements = _G["ACHIEVEMENTS"] or "Achievements",
     none        = _G["NONE"] or "None",
     click        = L["HINT_CLICK"],

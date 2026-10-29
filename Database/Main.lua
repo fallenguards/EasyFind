@@ -3797,21 +3797,35 @@ function Database:CancelDynamicScans(includeBosses)
 end
 
 -- scanAllSpecs=true pre-caches every class/spec combo (loading screen path).
--- WoW Forever has no encounter journal: its loot comes from Loot_Forever.lua,
--- every item for every class and difficulty, named by the client when cached.
-local function PopulateForeverLoot(database)
-    local names = ns.FOREVER_LOOT_NAMES or {}
+-- The clients with no journal ship bosses and loot in Database/Loot_*.lua.
+function Corpora.StaticInstances()
     local insts = {}
     for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do insts[e.id] = insts[e.id] or e end
+    return insts
+end
+
+function Corpora.StaticInstanceName(inst, e)
+    local zone = GetRealZoneText and GetRealZoneText(inst)
+    return (zone and zone ~= "") and zone or (e and e.n)
+end
+
+function Corpora.StaticBossName(boss)
+    local names = ns.STATIC_LOOT_BOSS_NAMES
+    return names and names[boss.enc] or boss.boss
+end
+
+local function PopulateStaticLoot(database)
+    local names = ns.STATIC_LOOT_NAMES or {}
+    local insts = Corpora.StaticInstances()
     local diff = { key = "*" }
     local GetName = C_Item and C_Item.GetItemNameByID
-    for _, boss in ipairs(ns.FOREVER_LOOT) do
+    for _, boss in ipairs(ns.STATIC_LOOT) do
         local e = insts[boss.inst]
-        local zone = GetRealZoneText and GetRealZoneText(boss.inst)
-        local inst = { id = boss.inst, name = (zone and zone ~= "") and zone or (e and e.n), isRaid = e and e.raid or false }
+        local inst = { id = boss.inst, name = Corpora.StaticInstanceName(boss.inst, e), isRaid = e and e.raid or false }
+        local bossName = Corpora.StaticBossName(boss)
         for _, itemID in ipairs(boss.items) do
             local name = (GetName and GetName(itemID)) or names[itemID]
-            CacheLootInfo(database, { itemID = itemID, name = name }, inst, boss.boss, boss.enc, diff, nil, "*",
+            CacheLootInfo(database, { itemID = itemID, name = name }, inst, bossName, boss.enc, diff, nil, "*",
                 GetItemInfoInstant)
         end
     end
@@ -3820,8 +3834,8 @@ end
 
 function Database:PopulateDynamicLoot(scanAllSpecs)
     if InCombatLockdown() then return false end
-    if ns.FOREVER_LOOT and not (ns.Caps and ns.Caps.journal) then
-        PopulateForeverLoot(self)
+    if ns.STATIC_LOOT and not (ns.Caps and ns.Caps.journal) then
+        PopulateStaticLoot(self)
         return
     end
     HydratePersistedLootCache()
@@ -3947,8 +3961,8 @@ end
 
 function Database:PopulateDynamicLootAsync(done, scanAllSpecs)
     if InCombatLockdown() then done(false, "cancelled"); return end
-    if ns.FOREVER_LOOT and not (ns.Caps and ns.Caps.journal) then
-        PopulateForeverLoot(self)
+    if ns.STATIC_LOOT and not (ns.Caps and ns.Caps.journal) then
+        PopulateStaticLoot(self)
         done(true)
         return
     end
@@ -4909,7 +4923,9 @@ function Corpora.BuildBossSteps(tier, isRaid, instID, instName, bossName, encoun
     }
 end
 
-local function GetBossInstanceMT(tier, isRaid, instID, instName)
+-- entrance: the shipped instance row where there is no journal (GPS to
+-- its door, no journal steps).
+local function GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
     local cached = bossInstanceMTCache[instID]
     if cached then return cached end
 
@@ -4932,9 +4948,14 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName)
         keywords          = kw,
         path              = pathArr,
     }
+    if entrance then
+        proto.gpsDest = { name = instName, mapID = entrance.m, x = entrance.x, y = entrance.y,
+                          isDungeonEntrance = true, category = isRaid and "raid" or "dungeon" }
+    end
     local mt = {
         __index = function(t, k)
             if k == "steps" then
+                if entrance then return nil end
                 local v = Corpora.BuildBossSteps(tier, isRaid, instID, instName, t.name, t.encounterID)
                 rawset(t, "steps", v)
                 return v
@@ -4947,13 +4968,34 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName)
     return mt
 end
 
-local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon)
+local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon, entrance)
     return setmetatable({
         name = encName,
         nameLower = slower(encName),
         encounterID = encID,
         icon = icon,
-    }, GetBossInstanceMT(tier, isRaid, instID, instName))
+    }, GetBossInstanceMT(tier, isRaid, instID, instName, entrance))
+end
+
+-- The clients with no journal: a row per boss of Database/Loot_*.lua.
+function Corpora.PopulateStaticBosses(database)
+    RemoveEntriesByCategory("Boss")
+    ClearBossInstanceCache()
+    local insts = Corpora.StaticInstances()
+    local seen = {}
+    for _, boss in ipairs(ns.STATIC_LOOT) do
+        local e = insts[boss.inst]
+        local instName = Corpora.StaticInstanceName(boss.inst, e)
+        if instName and not seen[boss.enc] then
+            seen[boss.enc] = true
+            -- No entrance of its own: a world boss, a raid's worth.
+            local isRaid = e == nil or e.raid or false
+            uiSearchData[#uiSearchData + 1] = BuildBossEntry(1, isRaid, boss.inst, instName,
+                Corpora.StaticBossName(boss), boss.enc, nil, e)
+        end
+    end
+    if database.ResetSearchCache then database:ResetSearchCache() end
+    return true
 end
 
 local function AddBossEntry(tier, isRaid, instID, instName, encName, encID, getCreatureInfo)
@@ -5098,6 +5140,7 @@ function Database:HydrateCachedBosses()
 end
 
 function Database:PopulateDynamicBosses()
+    if ns.STATIC_LOOT and not (ns.Caps and ns.Caps.journal) then return Corpora.PopulateStaticBosses(self) end
     if HydratePersistedBossCache() then return true end
 
     RemoveEntriesByCategory("Boss")
@@ -5163,7 +5206,7 @@ function Database:PopulateDynamicBosses()
 end
 
 function Database:PopulateDynamicBossesAsync(done)
-    if not Utils.SafeAfter then
+    if not Utils.SafeAfter or (ns.STATIC_LOOT and not (ns.Caps and ns.Caps.journal)) then
         self:PopulateDynamicBosses()
         done(true)
         return

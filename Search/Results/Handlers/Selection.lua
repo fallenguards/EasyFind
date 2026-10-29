@@ -498,6 +498,11 @@ function Handlers:SelectResult(data, forceGuide)
     -- click already ran the command; nothing else for SelectResult to do.
     if data.slashCommand then return end
 
+    -- A boss on a client with no journal: its loot, listed.
+    if data.category == "Boss" and data.encounterID and not (ns.Caps and ns.Caps.journal) then
+        EasyFind.API.ShowScope("loot", data.name)
+        return
+    end
 
 
     -- Profession row: OpenProfessionTarget is the ONE owner of profession

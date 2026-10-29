@@ -118,8 +118,9 @@ Caps.journal = rule("EncounterJournalDisabled") ~= true
 -- The journal's top tabs past Dungeons and Raids (Journeys, Traveler's Log,
 -- Suggested Content, Item Sets, Tutorials): MoP Classic's has none.
 Caps.journalTabs = Caps.journal and not classic
--- Loot from the journal, or on WoW Forever from its shipped table.
-Caps.loot = Caps.journal or Caps.forever
+-- Loot and bosses from the journal, or from the table shipped for WoW
+-- Forever, Classic Era and TBC Anniversary (Database/Loot_*.lua).
+Caps.loot = Caps.journal or Caps.forever or Caps.era or Caps.tbc
 -- A panel probe loads the panel on classic clients: it comes last.
 Caps.housing = not Caps.forever and C_Housing ~= nil
     and rule("HousingDashboardDisabled") ~= true
@@ -389,7 +390,7 @@ Caps.spellRanks = Caps.forever and C_Spell ~= nil and C_Spell.GetSpellSubtext ~=
 -- missing is dropped from providers, filters and quick filters at load.
 local NEEDS = {
     pets = "pets", toys = "toys", heirlooms = "heirlooms", currencies = "currencies",
-    housing = "housing", loot = "loot", bosses = "journal", delves = "delves", delve = "delves",
+    housing = "housing", loot = "loot", bosses = "loot", delves = "delves", delve = "delves",
     warband = "warbandBank", achievements = "achievements", statistics = "achievements",
     talents = "talents", outfits = "outfits", appearances = "transmog",
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",

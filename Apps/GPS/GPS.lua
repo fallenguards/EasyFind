@@ -172,6 +172,8 @@ end
 
 function GPS:CanNavigate(data)
     if not data then return false end
+    -- A row standing for a place elsewhere (a boss, at its dungeon's door).
+    if data.gpsDest then data = data.gpsDest end
     -- An extension's row: where it is right now (MapSearch.ResolvePlace).
     if data.placeOf and ns.MapSearch and ns.MapSearch.ResolvePlace then ns.MapSearch.ResolvePlace(data) end
     local mapID = data.zoneMapID or data.mapID
@@ -1228,6 +1230,7 @@ end
 GPS.Destination = Destination   -- the trip editor's stops
 
 function GPS:NavigateTo(data, opts)
+    if data and data.gpsDest then data = data.gpsDest end
     if not self:CanNavigate(data) then return false end
     local db = DB()
     if not db then return false end

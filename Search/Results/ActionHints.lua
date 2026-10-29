@@ -49,6 +49,7 @@ local HINTS = {
     openMap          = Hint(V.click, V.openMap),
     pinOnMap         = Hint(V.click, V.pinOnMap),
     encounter        = Hint(V.click, V.encounter),
+    bossLoot         = Hint(V.click, V.loot),
     settings         = Hint(V.click, V.settings),
 }
 
@@ -90,7 +91,9 @@ function Handlers:GetActionHint(data)
         if data.isZone then return HINTS.openMap end
         return HINTS.pinOnMap
     end
-    if data.encounterID and data.category == "Boss" then return HINTS.encounter end
+    if data.encounterID and data.category == "Boss" then
+        return (ns.Caps and ns.Caps.journal) and HINTS.encounter or HINTS.bossLoot
+    end
     if data.settingVariable or data.bindingAction then return HINTS.settings end
     return nil
 end
