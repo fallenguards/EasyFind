@@ -424,6 +424,20 @@ local function SearchWell(shell)
     PaintSearchWell(shell)
 end
 
+-- The X at a search field's right end: shown while it holds text, a click
+-- clears it as Esc does. After the box's own scripts (it hooks them).
+local function AddSearchClear(shell, box)
+    local clear = Utils.CreateClearButton(shell)
+    clear:SetFrameLevel(box:GetFrameLevel() + 1)
+    box:SetPoint("RIGHT", clear, "LEFT", -4, 0)
+    clear:SetScript("OnClick", function()
+        local onEscape = box:GetScript("OnEscapePressed")
+        if onEscape then onEscape(box) else box:SetText("") end
+    end)
+    box:HookScript("OnTextChanged", function(self) clear:SetShown((self:GetText() or "") ~= "") end)
+    return clear
+end
+
 -- A settings group's ring, in the search wells' ring color: a filled shape
 -- 1 px larger under the group, whole at its small corners.
 local groupRings = {}
@@ -6874,6 +6888,7 @@ function Options:Initialize()
             self:SetText("")
             self:ClearFocus()
         end)
+        AddSearchClear(shell, box)
         -- A tab leaving takes its narrowing with it; Home and Feedback show no box.
         local noBox = { [L["OPT_TAB_HOME"]] = true, [L["OPT_TAB_FEEDBACK"]] = true }
         local function SyncShown()
@@ -7146,6 +7161,7 @@ function Options:Initialize()
         box:SetScript("OnEditFocusGained", function(self)
             if (self:GetText() or "") ~= "" then Run(self:GetText()) end
         end)
+        AddSearchClear(shell, box)
         results:HookScript("OnShow", function(self) self:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
         results:HookScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
         results:SetScript("OnEvent", function(self, event)
