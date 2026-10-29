@@ -4821,6 +4821,7 @@ function Database:PopulateDynamicAbilities()
             row.teleportNameEnLower = teleportNameEn
         end
         uiSearchData[#uiSearchData + 1] = row
+        return row
     end
 
     if classic then
@@ -4900,6 +4901,34 @@ function Database:PopulateDynamicAbilities()
                                         injected.keywords[#injected.keywords + 1] = flyoutKw
                                     end
                                 end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Profession actions (Fishing, Survey, Cooking Fire, Disenchant) sit in
+    -- the professions book, outside the skill lines. Each profession's first
+    -- castable slot opens its window: that one is the profession row.
+    if GetProfessions and GetProfessionInfo then
+        for _, profIndex in pairs({ GetProfessions() }) do
+            local profName, _, _, _, numAbilities, spellOffset = GetProfessionInfo(profIndex)
+            if profName and spellOffset and numAbilities and numAbilities > 0 then
+                local opener = true
+                for s = spellOffset + 1, spellOffset + numAbilities do
+                    local itemInfo = SBOOK.GetSpellBookItemInfo(s, BANK)
+                    if itemInfo and itemInfo.itemType == SPELL_TYPE and not itemInfo.isPassive then
+                        if opener then
+                            opener = false
+                        else
+                            -- Cast by ID: a profession's spells share names with its passive.
+                            local row = injectAbility(itemInfo.name, nil, itemInfo.spellID or itemInfo.actionID,
+                                itemInfo.iconID, profName, nil, false, false, s)
+                            if row then
+                                row.spellName = nil
+                                row.professionAbility = true
                             end
                         end
                     end

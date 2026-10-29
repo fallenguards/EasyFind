@@ -161,6 +161,7 @@ function Gestures.Available(data, kind, action)
     if kind == "pet" and action == "summon" then return Icons:IsPetSummonable(data) end
     if kind == "toy" and action == "use" then return not data.isToyboxOnly end
     if kind == "ability" and action == "cast" then return not Icons:IsSpellbookOnlyAbility(data) end
+    if kind == "ability" and action == "spellbook" then return not data.professionAbility end
     if kind == "bag" then
         local actionKind = Handlers:GetBagItemActionKind(data)
         if action == "action" then return actionKind ~= nil end

@@ -110,7 +110,8 @@ function Handlers:GetLinkHint(data)
         and ns.SecureOpeners.OpenKeyForData(data)
     if data.spellID and data.category == "Ability"
        and not Icons:IsSpellbookOnlyAbility(data) then
-        click, ctrlWhere = V.cast, V.spellbook
+        click = V.cast
+        if not data.professionAbility then ctrlWhere = V.spellbook end
     elseif data.mountID then
         if Icons:IsMountSummonable(data) then click, ctrlWhere = V.summon, V.journal
         else click = V.journal end

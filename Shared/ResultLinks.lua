@@ -493,7 +493,8 @@ local function PadPreClick(self, mouseButton, down)
         return
     end
     SA.ApplyAtClick(self, d)
-    self._efShowWhereItLives = d.macroIndex or (IsControlKeyDown and IsControlKeyDown()) or nil
+    self._efShowWhereItLives = d.macroIndex
+        or (not d.professionAbility and IsControlKeyDown and IsControlKeyDown()) or nil
     if not self._efShowWhereItLives then return end
     if ns.SecureOpeners and ns.SecureOpeners.OpenKeyForData(d) then return end
     if d.spellID and d.category == "Ability"

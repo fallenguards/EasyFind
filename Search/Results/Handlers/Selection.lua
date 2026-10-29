@@ -752,7 +752,8 @@ function Handlers:SelectResult(data, forceGuide)
     end
 
     if data.spellID then
-        if forceGuide or Handlers:IsSourceModifierHeld(data) or Icons:IsSpellbookOnlyAbility(data) then
+        if (forceGuide or Handlers:IsSourceModifierHeld(data) or Icons:IsSpellbookOnlyAbility(data))
+           and not data.professionAbility then
             -- Guide never opens the panel itself: the micro button is
             -- highlighted for the user's own click, then the reveal
             -- steers inside the open spellbook.
