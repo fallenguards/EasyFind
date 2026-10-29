@@ -1548,7 +1548,6 @@ L["CTX_ADD_ALIAS_TT"]                    = "Ein eigenes Wort für diese Zeile: T
 L["CTX_ADD_SHORTKEY_TT"]                 = "Eine Taste, die tut, was ein Klick auf diese Zeile tut, auch bei geschlossener Suche."
 L["CTX_BLACKLIST_TT"]                    = "Blendet diese Zeile in jeder Suche aus. Der Reiter Blacklist in den Optionen holt sie zurück."
 L["CTX_EASYFIND_MACRO"]                  = "EasyFind-Makro"
-L["EXT_FILTER_NAMED_FMT"]                = "%s: %s"
 L["GPS_DANGER_GUARDS"]                   = "Auf dieser Route wirst du sehr wahrscheinlich sterben: Sie führt an feindlichen Wachen vorbei. Die roten Abschnitte der Route sind die gefährlichen Stellen."
 L["GPS_JUMP_FULL_AT_FMT"]                = "Spring mit vollem Leben den Absatz bei %s hinunter (%d m)"
 L["GPS_JUMP_HELPER_AT_FMT"]              = "Benutze %s und spring dann den Absatz bei %s hinunter (%d m)"

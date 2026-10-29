@@ -107,8 +107,9 @@ function tests.quickFilterOverridesDisabledFilterMenu()
 end
 
 -- An extension's results (EasyFind.API), as Snippets registers them.
+env.EasyFind.API.RegisterExtension({ id = "snippets", name = "Snippets", icon = 1 })
 env.EasyFind.API.RegisterSearchProvider({
-    key = "snippets", category = "Snippet", label = "Snippets", icon = 1, eager = true, lowResults = true,
+    key = "snippets", category = "Snippet", label = "Snippets", extension = "snippets", eager = true, lowResults = true,
     words = { "snippet", "snippets", "snip" }, aliases = { "snip", "snippets" },
 })
 

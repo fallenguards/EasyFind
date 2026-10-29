@@ -1546,7 +1546,6 @@ L["CTX_ADD_ALIAS_TT"]                    = "Uma palavra sua para esta linha: dig
 L["CTX_ADD_SHORTKEY_TT"]                 = "Uma tecla que faz o que o clique nesta linha faz, mesmo com a busca fechada."
 L["CTX_BLACKLIST_TT"]                    = "Oculta esta linha de todas as buscas. A aba Lista negra nas opções a traz de volta."
 L["CTX_EASYFIND_MACRO"]                  = "Macro do EasyFind"
-L["EXT_FILTER_NAMED_FMT"]                = "%s: %s"
 L["GPS_DANGER_GUARDS"]                   = "É muito provável que você morra nesta rota: ela passa por guardas inimigos. Os trechos vermelhos da rota são as partes perigosas."
 L["GPS_JUMP_FULL_AT_FMT"]                = "Com a vida cheia, salte da beirada perto de %s (%d m)"
 L["GPS_JUMP_HELPER_AT_FMT"]              = "Use %s e depois salte da beirada perto de %s (%d m)"

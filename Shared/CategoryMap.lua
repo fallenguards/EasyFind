@@ -133,6 +133,12 @@ function CategoryMap.Add(e)
     end
 end
 
+-- A switch between filters and their parent: an extension's row over its
+-- providers (EasyFind.API).
+function CategoryMap.AddGroup(key, parent)
+    INTERMEDIATE_PARENT[key] = parent
+end
+
 -- True when the provider's filter (or an ancestor filter) is unchecked in the
 -- filter menu (EasyFind.db.uiSearchFilters). Database/Dynamic.lua's load-gate
 -- reads this so an unchecked category never loads or indexes -- the SAME menu

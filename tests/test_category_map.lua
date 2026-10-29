@@ -66,6 +66,20 @@ function tests.explicitIntentSuppressesSkip()
     H.assertEq(out["Statistics"], true)
 end
 
+-- An extension's row over its providers (EasyFind.API): off, it skips them
+-- all; one provider off skips only its own.
+function tests.anExtensionRowSkipsItsProviders()
+    CategoryMap.AddGroup("ext.fish", "extensions")
+    CategoryMap.Add({ key = "fishPools", parent = "ext.fish", categories = { "fishPools" } })
+    CategoryMap.Add({ key = "fishZones", parent = "ext.fish", categories = { "fishZones" } })
+    H.assertTrue(CategoryMap.IsProviderFilterOff({ ["ext.fish"] = false }, "fishZones"))
+    H.assertTrue(CategoryMap.IsProviderFilterOff({ extensions = false }, "fishPools"), "under Extensions")
+    local out = {}
+    CategoryMap.BuildSkipCategories({ fishZones = false }, out)
+    H.assertTrue(out.fishZones)
+    H.assertNil(out.fishPools, "its sibling stays")
+end
+
 function tests.noFiltersOffMeansNothingSkipped()
     local out = { Stale = true }
     local any = CategoryMap.BuildSkipCategories({}, out)

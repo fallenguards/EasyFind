@@ -1546,7 +1546,6 @@ L["CTX_ADD_ALIAS_TT"]                    = "为此行设置你自己的词：输
 L["CTX_ADD_SHORTKEY_TT"]                 = "一个按键，即使搜索已关闭，也能执行点击此行的操作。"
 L["CTX_BLACKLIST_TT"]                    = "在所有搜索中隐藏此行。选项中的“黑名单”标签页可将其恢复。"
 L["CTX_EASYFIND_MACRO"]                  = "EasyFind 宏"
-L["EXT_FILTER_NAMED_FMT"]                = "%s：%s"
 L["GPS_DANGER_GUARDS"]                   = "你很可能会死在这条路线上：沿途会经过敌方卫兵。路线上的红色路段就是危险区域。"
 L["GPS_JUMP_FULL_AT_FMT"]                = "在满血时从%s附近的高处跳下（%d码）"
 L["GPS_JUMP_HELPER_AT_FMT"]              = "使用%s，然后从%s附近的高处跳下（%d码）"

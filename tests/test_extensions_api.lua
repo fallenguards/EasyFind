@@ -264,9 +264,11 @@ function tests.provider_refusesWhatCannotWork()
     raises(function() API.RegisterSearchProvider({ key = "x" }) end, "label is required")
     raises(function() API.RegisterSearchProvider({ key = "a b", label = "X" }) end, "key must be")
     raises(function() API.RegisterSearchProvider({ key = "x", label = "X", rows = {} }) end, "rows must be a function")
-    API.RegisterSearchProvider({ key = "x", label = "X", icon = 1 })
-    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y" }) end, "icon is required")
-    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y", icon = 1, category = "x" }) end, "taken")
+    raises(function() API.RegisterSearchProvider({ key = "x", label = "X", icon = 1 }) end, "extension is required")
+    raises(function() API.RegisterSearchProvider({ key = "x", label = "X", extension = "e" }) end, "registered first")
+    API.RegisterExtension({ id = "e", name = "E", icon = 1 })
+    API.RegisterSearchProvider({ key = "x", label = "X", extension = "e" })
+    raises(function() API.RegisterSearchProvider({ key = "y", label = "Y", extension = "e", category = "x" }) end, "taken")
 end
 
 function tests.provider_borrowsItsExtensionIcon()
@@ -283,9 +285,10 @@ function tests.provider_plugsInEverywhere()
     local _, ns, API = fresh()
     local w = wired(ns)
     local opt = { label = "Show all", get = function() return true end, set = function() end }
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
     API.RegisterSearchProvider({
         key = "marks", label = "Bookmarks", category = "Bookmark", words = { "mark" }, lowResults = true,
-        eager = true, aliases = { "bm" }, options = { opt }, icon = 7,
+        eager = true, aliases = { "bm" }, options = { opt }, icon = 7, extension = "marks",
     })
     H.assertEq(w.cats[1].key, "marks")
     H.assertEq(w.cats[1].parent, "extensions", "under the Extensions filter")
@@ -302,7 +305,9 @@ end
 function tests.provider_rowsTakeItsCategory()
     local _, ns, API = fresh()
     local w = wired(ns)
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1, rows = function() return { { name = "Home" } } end })
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
+        rows = function() return { { name = "Home" } } end })
     H.assertTrue(w.providers.marks.fn(ns.Database))
     H.assertEq(w.replaced.marks[1].category, "marks")
 end
@@ -310,7 +315,8 @@ end
 function tests.provider_noRowsYetIsNotReady()
     local _, ns, API = fresh()
     local w = wired(ns)
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1 })
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks" })
     H.assertFalse(w.providers.marks.fn(ns.Database), "retried later")
     H.assertEq(w.replaced.marks, false, "its category emptied")
 end
@@ -346,7 +352,8 @@ function tests.selectRow_getsACopyAfterTheBarCloses()
     local _, ns, API = fresh()
     wired(ns)
     local got, finished
-    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", icon = 1,
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
         select = function(row) got = row end })
     local data = { category = "marks", name = "Home", id = 4 }
     H.assertTrue(ns.Extensions.SelectRow(data, function() finished = true end))

@@ -438,7 +438,7 @@ function Harness.newNs(env)
     Harness.loadCharKeyCode(env, ns)
     -- The public API (Core/API.lua): every companion registers through it.
     -- Where a provider's rows plug in, until a test loads the real module.
-    ns.CategoryMap = { Add = function() end, ProviderCategory = {} }
+    ns.CategoryMap = { Add = function() end, AddGroup = function() end, ProviderCategory = {} }
     ns.SearchEngine = { AddProvider = function() end }
     ns.Database.AddDynamicProvider = function() end
     ns.Filters.AddExtensionFilter = function() end

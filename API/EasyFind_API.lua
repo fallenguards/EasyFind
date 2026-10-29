@@ -33,9 +33,9 @@
 
 ---@class EasyFindSearchProvider
 ---@field key string Required: its filter key and @scope key.
----@field label? string Required the first time: what its rows are, on its scope pill; the Extensions flyout shows its extension's name.
+---@field label? string Required the first time: what its rows are, on its scope pill and its switch in its extension's filter row.
 ---@field category? string The name its rows carry; key when not given.
----@field icon? string|number Required the first time, unless its extension has one: the glyph left of each of its rows.
+---@field icon? string|number The glyph left of each of its rows; its extension's when not given.
 ---@field iconCoords? number[]
 ---@field rows? fun(): EasyFindRow[] Its rows.
 ---@field select? fun(row: EasyFindRow) A click or Enter on a row (a copy).
@@ -66,7 +66,7 @@
 ---@field key fun(row: EasyFindRow): string|nil A short string the link carries (an id, the sender's progress).
 ---@field resolve fun(tail: string): EasyFindRow|nil The row the receiver shows for it.
 ---@field options? EasyFindOption[] Toggles on its filter row's flyout.
----@field extension? string The extension it belongs to.
+---@field extension? string Required the first time: the extension it belongs to, registered first. Its filter row is the extension's one row.
 ---@field loadOnSearch? boolean|fun(): boolean Load that extension's addon for its rows.
 ---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint What a row's gestures do, under its name on hover.
 

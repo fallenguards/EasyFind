@@ -82,7 +82,7 @@ Your extension sits right next to EasyFind's own: in the extensions menu, in sea
 Only a few things, and EasyFind checks them when you register, with an error that names what is missing:
 
 - An extension has an `id`, a `name` and an `icon`.
-- A search provider has a `key`, a `label` and an icon. One that names its extension with `extension` and has no icon of its own uses the extension's.
+- A search provider has a `key`, a `label` and the `extension` it belongs to, registered first. With no icon of its own it uses the extension's.
 - Each field has the type this guide gives it.
 
 One thing EasyFind does for every extension: it paints the icon in the theme's icon color wherever it shows (the menu tile, buttons on screen, launcher rows, the glyph by your rows, your filter row). That is how every icon follows the user's theme, dark or light, with no work from you. Icons you put on your own rows, such as an item's icon, keep their colors.
@@ -197,9 +197,9 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | Field | Type | |
 | --- | --- | --- |
 | `key` | string | Required. Its filter key, and its `@scope` key when it has `aliases`. |
-| `label` | string | Required the first time. What its rows are ("Shopping Lists"): its scope's pill and quick filter. With `extension`, the filter menu's Extensions flyout shows the extension's name instead, or "Name: label" when the extension has more than one provider, so a player sees which addon a filter belongs to. |
+| `label` | string | Required the first time. What its rows are ("Shopping Lists"): its scope's pill and quick filter. The filter menu's Extensions flyout has one row per extension, with its name and icon, so a player sees which addon a filter belongs to. An extension with more than one provider gets one row all the same: it turns them all on or off, and its flyout has a switch for each provider, named by its label, then their `options`. |
 | `category` | string | The name its rows carry. Defaults to `key`. |
-| `icon`, `iconCoords` | | Required the first time, unless `extension` names one with an icon: then that one is used. The glyph left of each of its rows, painted like an extension's. |
+| `icon`, `iconCoords` | | The glyph left of each of its rows, painted like an extension's. Its extension's when not given. |
 | `rows` | function | Returns its rows (below). Called when its rows are first needed and after `RefreshSearchProvider`. |
 | `select` | function `(row)` | A click or Enter on one of its rows. Gets a copy of the row. |
 | `tooltip` | function `(row, tooltip)` | Fills `GameTooltip` for a row. Return `true` to show it. |
@@ -215,7 +215,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `menu` | function | `menu(row)` returns rows for the result's right-click menu, in the tile menu's shape (`{ kind = "action", label, onClick, tooltip }`, `{ kind = "check", label, get, set }`, `{ kind = "separator" }`, `{ kind = "menu", label, rows }` for a flyout within). They sit under one row named after your extension, with its glyph. Return nothing for a row with no rows of its own. |
 | `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`, or one-of-several radio rows `{ choice = { { label, value, tooltip }, ... }, get, set }` (`get` returns the value, `set` takes it; MINOR 1). `label` and `tooltip` may be functions. |
 | `hint` | string, table or function | What a row's gestures do, shown under its name on hover: a sentence, or `{ click, alt, ctrl, shift }` with each gesture's target ("Click: Directions \| Alt: Quest log"), or a function of the row returning either. A row's own `hint` wins. |
-| `extension` | string | The extension it belongs to. Its addon loading on demand, `select` loads it first. An extension whose addon is turned off shows no filter row or scope. |
+| `extension` | string | Required the first time: the extension it belongs to, registered first. Its addon loading on demand, `select` loads it first. An extension whose addon is turned off shows no filter row or scope. |
 | `loadOnSearch` | boolean or function | Load the extension's addon when its rows are first needed. |
 
 A row is a table:

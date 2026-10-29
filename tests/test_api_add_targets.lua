@@ -14,7 +14,6 @@ end
 local function World()
     local env = H.newEnv()
     local ns = H.newNs(env)
-    ns.L.EXT_FILTER_NAMED_FMT = "%s: %s"
     local filterRows = {}
     ns.Filters.AddExtensionFilter = function(row) filterRows[#filterRows + 1] = row end
     return env, ns, env.EasyFind.API, filterRows
@@ -24,16 +23,54 @@ local function Rows() return {} end
 
 local tests = {}
 
-function tests.theFlyoutNamesTheExtension()
-    local _, _, API, filterRows = World()
+function tests.oneRowPerExtension()
+    local env, ns, API, filterRows = World()
+    local entries, groups = {}, {}
+    ns.CategoryMap.Add = function(e) entries[e.key] = e end
+    ns.CategoryMap.AddGroup = function(key, parent) groups[key] = parent end
     API.RegisterExtension({ id = "auctionator", name = "Auctionator", icon = 1 })
     API.RegisterSearchProvider({ key = "lists", label = "Shopping Lists", extension = "auctionator", rows = Rows })
-    H.assertEq(filterRows[1].label, "Auctionator")
-    API.RegisterSearchProvider({ key = "prices", label = "Prices", extension = "auctionator", rows = Rows })
-    H.assertEq(filterRows[1].label, "Auctionator: Shopping Lists", "two providers: each says which")
-    H.assertEq(filterRows[2].label, "Auctionator: Prices")
-    API.RegisterSearchProvider({ key = "loose", label = "Bookmarks", icon = 2, rows = Rows })
-    H.assertEq(filterRows[3].label, "Bookmarks", "no extension: its own label")
+    H.assertEq(#filterRows, 1)
+    H.assertEq(filterRows[1].label, "Auctionator", "the row names the extension")
+    H.assertEq(filterRows[1].key, "lists", "one provider: the row is its switch")
+    H.assertEq(entries.lists.parent, "extensions")
+
+    local opt = { label = "Sold only", get = function() return true end, set = function() end }
+    API.RegisterSearchProvider({ key = "prices", label = "Prices", extension = "auctionator", rows = Rows,
+        options = { opt } })
+    H.assertEq(#filterRows, 1, "two providers: still one row")
+    local row = filterRows[1]
+    H.assertEq(row.label, "Auctionator")
+    H.assertEq(row.key, "ext.auctionator", "the row switches the whole extension")
+    H.assertEq(groups["ext.auctionator"], "extensions")
+    H.assertEq(entries.lists.parent, "ext.auctionator", "the first provider moved under it")
+    H.assertEq(entries.prices.parent, "ext.auctionator")
+    H.assertTrue(row.hasOptions)
+    local o = row.checkboxOptions
+    H.assertEq(o[1].label, "Shopping Lists", "a switch per provider")
+    H.assertEq(o[2].label, "Prices")
+    H.assertTrue(o[3].separator)
+    H.assertEq(o[4].header, "Prices", "then each provider's options, under its name")
+    H.assertTrue(o[5] == opt)
+    H.assertNil(o[6])
+
+    env.EasyFind.db = { uiSearchFilters = {} }
+    local reran = false
+    ns.Filters.RerunActiveSearch = function() reran = true end
+    H.assertTrue(o[2].get(), "on unless set off")
+    o[2].set(false)
+    H.assertEq(env.EasyFind.db.uiSearchFilters.prices, false, "the provider's own filter")
+    H.assertFalse(o[2].get())
+    H.assertTrue(reran, "the search follows")
+end
+
+function tests.aProviderNeedsItsExtension()
+    local _, _, API, filterRows = World()
+    H.assertFalse(pcall(API.RegisterSearchProvider, { key = "loose", label = "Bookmarks", icon = 2, rows = Rows }),
+        "no extension")
+    H.assertFalse(pcall(API.RegisterSearchProvider, { key = "loose", label = "Bookmarks", extension = "nobody" }),
+        "not registered")
+    H.assertEq(#filterRows, 0)
 end
 
 function tests.anAddTargetNeedsItsExtension()

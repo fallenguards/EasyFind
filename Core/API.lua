@@ -379,22 +379,58 @@ end
 
 -- ==== search providers ========================================================
 
-local Providers = { byKey = {}, byCategory = {} }
+local Providers = { byKey = {}, byCategory = {}, byExtension = {} }
 Extensions.Providers = Providers
 
--- The filter menu's Extensions flyout names extensions, not their rows:
--- an extension's one provider shows as its name, two or more as "Name:
--- label". The label stays the rows' name on the scope pill.
-local function NameFilterRows(owner)
-    if not owner then return end
-    local mine = {}
-    for _, p in pairs(Providers.byKey) do
-        if p.filterRow and Extensions.Get(p.extension) == owner then mine[#mine + 1] = p end
+-- The filter menu's Extensions flyout: one row per extension, its name
+-- and icon, however many providers it has. One provider: the row is that
+-- provider's switch, its options the flyout. More: the row switches them
+-- all, its flyout a switch for each, then their options. A provider's
+-- label stays its rows' name on the scope pill.
+local function ProviderSwitch(p)
+    return {
+        label = p.label,
+        get = function() return EasyFind.db.uiSearchFilters[p.key] ~= false end,
+        set = function(on)
+            EasyFind.db.uiSearchFilters[p.key] = on
+            ns.Filters:RerunActiveSearch()
+        end,
+    }
+end
+
+local function JoinFilterRow(owner, p)
+    local group = Providers.byExtension[owner.id]
+    local isNew = not group
+    if isNew then
+        group = { providers = {}, row = { glyph = true } }
+        Providers.byExtension[owner.id] = group
     end
-    for i = 1, #mine do
-        local p = mine[i]
-        p.filterRow.label = #mine > 1 and L["EXT_FILTER_NAMED_FMT"]:format(owner.name, p.label) or owner.name
+    local list, row = group.providers, group.row
+    list[#list + 1] = p
+    row.label, row.iconTex, row.iconCoords = owner.name, owner.icon, owner.iconCoords
+    if #list == 1 then
+        row.key, row.checkboxOptions = p.key, p.options
+    else
+        -- A key no provider can have (keys are letters, digits, - and _).
+        row.key = "ext." .. owner.id
+        ns.CategoryMap.AddGroup(row.key, "extensions")
+        local opts = {}
+        for i = 1, #list do
+            list[i].categoryEntry.parent = row.key
+            opts[i] = ProviderSwitch(list[i])
+        end
+        for i = 1, #list do
+            local more = list[i].options
+            if more then
+                opts[#opts + 1] = { separator = true }
+                opts[#opts + 1] = { header = list[i].label }
+                for j = 1, #more do opts[#opts + 1] = more[j] end
+            end
+        end
+        row.checkboxOptions = opts
     end
+    row.hasOptions = row.checkboxOptions ~= nil
+    if isNew then ns.Filters.AddExtensionFilter(row) end
 end
 
 local PROVIDER_FIELDS = {
@@ -468,9 +504,10 @@ end
 
 -- ==== public: search ==========================================================
 
--- def: key (required, stable: the filter and @scope key), label
--- and icon (required the first time; its extension's icon when it has
--- none), category (the name its rows carry; key when not given),
+-- def: key (required, stable: the filter and @scope key), extension
+-- and label (required the first time: an extension registered first,
+-- whose filter row it joins), icon (its extension's when not given),
+-- category (the name its rows carry; key when not given),
 -- iconCoords, words (typing one loads the
 -- rows), eager (small: searched from the first keystroke), lazy (only by
 -- its words, its filter or its scope), lowResults (also when a search
@@ -479,9 +516,8 @@ end
 -- { header = text }, { separator = true }, or one-of-several radio rows
 -- { choice = { { label, value, tooltip }, ... }, get, set }), rows() -> list of
 -- { name, icon, iconDimmed (drawn gray), ... }, select(row), tooltip(row, tooltip) -> true when
--- it filled it, leave(row), extension (the extension whose addon holds
--- the rest), loadOnSearch (true or a function: load that addon for
--- search), hint (what a row's gestures do, under its name on hover: a
+-- it filled it, leave(row), loadOnSearch (true or a function: load its
+-- extension's addon for search), hint (what a row's gestures do, under its name on hover: a
 -- sentence, { click, alt, ctrl, shift }, or a function of the row giving
 -- either; a row's own hint wins), browse(row) -> whether the row is in
 -- the scope's list when nothing is typed (every row without it),
@@ -517,13 +553,15 @@ function API.RegisterSearchProvider(def)
         end
     else
         if type(def.label) ~= "string" then Fail("RegisterSearchProvider", "label is required") end
+        -- Every provider is an extension's: its filter row is the extension's.
+        if def.extension == nil then Fail("RegisterSearchProvider", "extension is required") end
         local owner = Extensions.Get(def.extension)
-        if def.icon == nil and not (owner and owner.icon) then
-            Fail("RegisterSearchProvider", "icon is required (or an extension that has one)")
+        if not owner then
+            Fail("RegisterSearchProvider", "extension '" .. def.extension .. "' must be registered first")
         end
         -- Its extension's addon turned off in the AddOns list: no filter
         -- row or scope for results that can never come.
-        if owner and not Extensions.Available(owner) then return false end
+        if not Extensions.Available(owner) then return false end
         local category = def.category or key
         if ns.CategoryMap.ProviderCategory[key] or Providers.byCategory[category] then
             Fail("RegisterSearchProvider", "key '" .. key .. "' is taken")
@@ -533,18 +571,14 @@ function API.RegisterSearchProvider(def)
         if p.icon == nil then p.icon, p.iconCoords = owner.icon, owner.iconCoords end
         p.category = category
         Providers.byKey[key], Providers.byCategory[category] = p, p
-        ns.CategoryMap.Add({ key = key, parent = "extensions", categories = { category } })
+        p.categoryEntry = { key = key, parent = "extensions", categories = { category } }
+        ns.CategoryMap.Add(p.categoryEntry)
         ns.Database:AddDynamicProvider({
             key = key, category = category, eager = p.eager, lazy = p.lazy,
             fn = function(database) return Populate(key, database) end,
         })
         ns.SearchEngine:AddProvider({ key = key, words = p.words or {}, loadOnLowResults = p.lowResults })
-        p.filterRow = {
-            key = key, label = p.label, iconTex = p.icon, iconCoords = p.iconCoords, glyph = true,
-            hasOptions = p.options ~= nil, checkboxOptions = p.options,
-        }
-        ns.Filters.AddExtensionFilter(p.filterRow)
-        NameFilterRows(owner)
+        JoinFilterRow(owner, p)
         if p.aliases then
             ns.Filters:AddQuickFilter({ key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases })
         end

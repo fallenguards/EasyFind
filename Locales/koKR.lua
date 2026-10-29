@@ -1546,7 +1546,6 @@ L["CTX_ADD_ALIAS_TT"]                    = "이 줄에 붙이는 나만의 단�
 L["CTX_ADD_SHORTKEY_TT"]                 = "검색이 닫혀 있어도 이 줄을 클릭한 것과 같은 일을 하는 키."
 L["CTX_BLACKLIST_TT"]                    = "모든 검색에서 이 줄을 숨깁니다. 옵션의 차단 목록 탭에서 되돌릴 수 있습니다."
 L["CTX_EASYFIND_MACRO"]                  = "EasyFind 매크로"
-L["EXT_FILTER_NAMED_FMT"]                = "%s: %s"
 L["GPS_DANGER_GUARDS"]                   = "이 경로에서는 죽을 가능성이 매우 높습니다: 적 경비병 곁을 지나갑니다. 경로의 빨간 구간이 위험한 부분입니다."
 L["GPS_JUMP_FULL_AT_FMT"]                = "생명력이 가득할 때 %s 근처의 절벽에서 뛰어내리세요 (%d미터)"
 L["GPS_JUMP_HELPER_AT_FMT"]              = "%s을(를) 사용한 뒤 %s 근처의 절벽에서 뛰어내리세요 (%d미터)"
