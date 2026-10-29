@@ -121,10 +121,10 @@ Fully translated into English, German, French, Italian, Spanish (EU and Latin Am
 
 ## Feedback
 
-- GitHub issues: https://github.com/wowaddonmaker/EasyFind/issues/new/choose
+- GitHub issues: https://github.com/fallenguards/EasyFind/issues/new/choose
 - CurseForge: https://www.curseforge.com/wow/addons/easyfind
 
 ## Links
 
-- GitHub: https://github.com/wowaddonmaker/EasyFind
-- Changelog: https://github.com/wowaddonmaker/EasyFind/blob/main/CHANGELOG.md
+- GitHub: https://github.com/fallenguards/EasyFind
+- Changelog: https://github.com/fallenguards/EasyFind/blob/main/CHANGELOG.md

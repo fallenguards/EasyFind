@@ -592,9 +592,9 @@ local RUNTIME_FIELDS = {
     "firstInstall",
 }
 
-local GITHUB_ISSUES_URL = "https://github.com/wowaddonmaker/EasyFind/issues/new"
+local GITHUB_ISSUES_URL = "https://github.com/fallenguards/EasyFind/issues/new"
 -- Consumed by the What's New footer's "See full changelog" link.
-ns.GITHUB_CHANGELOG_URL = "https://github.com/wowaddonmaker/EasyFind/blob/main/CHANGELOG.md"
+ns.GITHUB_CHANGELOG_URL = "https://github.com/fallenguards/EasyFind/blob/main/CHANGELOG.md"
 
 local function UrlEncode(str)
     return str:gsub("([^%w%-%.%_%~ ])", function(c)
