@@ -328,26 +328,18 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
-    "    |cff999999-|r Real time directions to places and NPCs\n" ..
-    "    |cff999999-|r Alt+click anywhere on the map to start GPS to that spot instead of a named place or NPC\n" ..
-    "    |cff999999-|r On WoW Forever and the Classic clients the route walks around cliffs, water and creatures far above your level\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffNotes (WIP)|r\n" ..
-    "    |cff999999-|r A typical notes app with added WoW functionality: filter by zone, instance and more, set notes on item or player tooltips, and so on\n" ..
-    "    |cff999999-|r Search notes from the main search bar as usual, or in the notes menu itself\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat (WIP)|r\n" ..
-    "    |cff999999-|r A full chat window for whispers and channels, with history, that can replace the game's chat if desired\n" ..
-    "    |cff999999-|r Searchable from the main search bar\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClipboard History|r\n" ..
-    "    |cff999999-|r Everything you copy and every link from chat, saved to paste again across all of your characters\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffQuicklists|r\n" ..
-    "    |cff999999-|r Assemble a list of grouped results you want quick access to without searching: press the keybind to open the search bar with them all and search within them, or hold the bind and let go over the row you want\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTheme Studio (WIP)|r\n" ..
-    "    |cff999999-|r Create your own custom themes, previewed live as you edit, and share them as a code\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffThemes|r\n" ..
-    "    |cff999999-|r New Classic and Forever themes in the 1.x style, with a talent tree of your choice as the background\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic clients|r\n" ..
-    "    |cff999999-|r EasyFind now runs on Classic Era, TBC Anniversary and Mists Classic, GPS included\n"
+    "|cffFFD100\226\128\162|r |cffffffffLoot and bosses on Classic Era and TBC Anniversary|r\n" ..
+    "    |cff999999-|r Every dungeon and raid boss and what it drops, found by name and kept to your class; GPS leads to the instance's entrance\n" ..
+    "    |cff999999-|r Shorthands work: \"sm\", \"stockades\", \"sm cloth\", \"sm rogue\"\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffItem search on Classic|r\n" ..
+    "    |cff999999-|r Any item found by name on Classic Era, TBC Anniversary and Mists Classic\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffQuest directions|r\n" ..
+    "    |cff999999-|r Right-click a quest in the objective tracker or the quest log for Directions, and find the quests in your log in search with the GPS button (retail, WoW Forever and Mists Classic)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSettings|r\n" ..
+    "    |cff999999-|r Search this page: a box in the settings window's title narrows the open page\n" ..
+    "    |cff999999-|r Reset to default on every extension's page\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
+    "    |cff999999-|r Turned-off filter categories hide their rows again, the loot filter lists only the game's own difficulties, Search settings finds drop-downs and headers again, and search boxes let go of the keyboard on a click elsewhere\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

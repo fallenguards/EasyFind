@@ -295,26 +295,18 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
-    "    |cff999999-|r Indicaciones en tiempo real hacia lugares y PNJ\n" ..
-    "    |cff999999-|r Alt+clic en cualquier punto del mapa inicia el GPS hacia ese punto en vez de hacia un lugar o PNJ con nombre\n" ..
-    "    |cff999999-|r En WoW Forever y los clientes Classic la ruta rodea acantilados, agua y criaturas muy por encima de tu nivel\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffNotas (WIP)|r\n" ..
-    "    |cff999999-|r Una app de notas típica con funciones de WoW añadidas: filtrar por zona, calabozo y más, poner notas en las descripciones de objetos o jugadores, y más\n" ..
-    "    |cff999999-|r Busca notas desde la barra de búsqueda principal como siempre, o en el propio menú de notas\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffChat (WIP)|r\n" ..
-    "    |cff999999-|r Una ventana de chat completa para susurros y canales, con historial, que puede sustituir al chat del juego si lo deseas\n" ..
-    "    |cff999999-|r Se puede buscar desde la barra de búsqueda principal\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffHistorial del portapapeles|r\n" ..
-    "    |cff999999-|r Todo lo que copias y cada enlace del chat, guardado para pegarlo de nuevo en todos tus personajes\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffListas rápidas|r\n" ..
-    "    |cff999999-|r Reúne una lista de resultados agrupados a los que quieras acceder rápido sin buscar: pulsa la tecla para abrir la barra de búsqueda con todos y buscar entre ellos, o mantén la tecla y suéltala sobre la fila que quieras\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEstudio de temas (WIP)|r\n" ..
-    "    |cff999999-|r Crea tus propios temas, con vista previa en vivo mientras editas, y compártelos como un código\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTemas|r\n" ..
-    "    |cff999999-|r Nuevos temas Classic y Forever al estilo 1.x, con un árbol de talentos a tu elección como fondo\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClientes Classic|r\n" ..
-    "    |cff999999-|r EasyFind ya funciona en Classic Era, TBC Anniversary y Mists Classic, GPS incluido\n"
+    "|cffFFD100\226\128\162|r |cffffffffBotín y jefes en Classic Era y TBC Anniversary|r\n" ..
+    "    |cff999999-|r Cada jefe de calabozo y de banda y lo que suelta, encontrados por su nombre y ajustados a tu clase; el GPS lleva a la entrada de la instancia\n" ..
+    "    |cff999999-|r Funcionan las abreviaturas: \"sm\", \"sm pícaro\"\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBúsqueda de objetos en Classic|r\n" ..
+    "    |cff999999-|r Cualquier objeto encontrado por su nombre en Classic Era, TBC Anniversary y Mists Classic\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffIndicaciones de misiones|r\n" ..
+    "    |cff999999-|r Clic derecho en una misión del rastreador de objetivos o del registro de misiones para Indicaciones, y las misiones de tu registro en la búsqueda con el botón de GPS (retail, WoW Forever y Mists Classic)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffAjustes|r\n" ..
+    "    |cff999999-|r Buscar en esta página: un cuadro en el título de la ventana de ajustes filtra la página abierta\n" ..
+    "    |cff999999-|r Restablecer en la página de cada extensión\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
+    "    |cff999999-|r Las categorías de filtro desactivadas vuelven a ocultar sus filas, el filtro de botín muestra solo las dificultades del juego, Buscar ajustes vuelve a encontrar desplegables y encabezados, y los cuadros de búsqueda sueltan el teclado al hacer clic fuera\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

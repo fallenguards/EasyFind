@@ -295,26 +295,18 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffGPS (WIP)|r\n" ..
-    "    |cff999999-|r Des itinéraires en temps réel vers les lieux et les PNJ\n" ..
-    "    |cff999999-|r Alt+clic n'importe où sur la carte lance le GPS vers cet endroit plutôt que vers un lieu ou un PNJ nommé\n" ..
-    "    |cff999999-|r Sur WoW Forever et les clients Classic, l'itinéraire contourne les falaises, l'eau et les créatures bien au-dessus de votre niveau\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffNotes (WIP)|r\n" ..
-    "    |cff999999-|r Une application de notes classique enrichie pour WoW : filtrer par zone, donjon et plus, placer des notes sur les infobulles d'objets ou de joueurs, et ainsi de suite\n" ..
-    "    |cff999999-|r Cherchez vos notes depuis la barre de recherche principale comme d'habitude, ou dans le menu des notes lui-même\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDiscussion (WIP)|r\n" ..
-    "    |cff999999-|r Une fenêtre de discussion complète pour les chuchotements et les canaux, avec historique, qui peut remplacer le chat du jeu si vous le souhaitez\n" ..
-    "    |cff999999-|r Consultable depuis la barre de recherche principale\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffHistorique du presse-papiers|r\n" ..
-    "    |cff999999-|r Tout ce que vous copiez et chaque lien du chat, enregistrés pour être collés à nouveau sur tous vos personnages\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffListes rapides|r\n" ..
-    "    |cff999999-|r Composez une liste de résultats groupés auxquels accéder vite sans chercher : appuyez sur le raccourci pour ouvrir la barre de recherche avec tous et chercher parmi eux, ou maintenez-le et relâchez-le sur la ligne voulue\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffStudio de thèmes (WIP)|r\n" ..
-    "    |cff999999-|r Créez vos propres thèmes, prévisualisés en direct pendant l'édition, et partagez-les sous forme de code\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffThèmes|r\n" ..
-    "    |cff999999-|r De nouveaux thèmes Classic et Forever dans le style 1.x, avec l'arbre de talents de votre choix en arrière-plan\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClients Classic|r\n" ..
-    "    |cff999999-|r EasyFind fonctionne désormais sur Classic Era, TBC Anniversary et Mists Classic, GPS compris\n"
+    "|cffFFD100\226\128\162|r |cffffffffButin et boss sur Classic Era et TBC Anniversary|r\n" ..
+    "    |cff999999-|r Chaque boss de donjon et de raid et ce qu'il laisse tomber, trouvés par leur nom et limités à votre classe ; le GPS mène à l'entrée de l'instance\n" ..
+    "    |cff999999-|r Les abréviations marchent : \"sm\", \"sm voleur\"\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRecherche d'objets sur Classic|r\n" ..
+    "    |cff999999-|r N'importe quel objet trouvé par son nom sur Classic Era, TBC Anniversary et Mists Classic\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffItinéraire des quêtes|r\n" ..
+    "    |cff999999-|r Clic droit sur une quête du suivi des objectifs ou du journal de quêtes pour l'Itinéraire, et les quêtes de votre journal dans la recherche avec le bouton GPS (retail, WoW Forever et Mists Classic)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRéglages|r\n" ..
+    "    |cff999999-|r Chercher sur cette page : un champ dans le titre de la fenêtre des réglages filtre la page ouverte\n" ..
+    "    |cff999999-|r Valeurs par défaut sur la page de chaque extension\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCorrections|r\n" ..
+    "    |cff999999-|r Les catégories de filtre désactivées masquent de nouveau leurs lignes, le filtre de butin ne propose que les difficultés du jeu, Rechercher un réglage retrouve les menus déroulants et les en-têtes, et les champs de recherche libèrent le clavier quand on clique ailleurs\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

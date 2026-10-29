@@ -4,6 +4,41 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [4.0.1] - 2026-10-29
+
+### Added
+- **Loot and bosses on Classic Era and TBC Anniversary**: every dungeon and raid boss and what it drops, found by name and kept to the class chosen in the filter menu; TBC's heroic dungeons list their own loot; a boss row lists its loot on a click and its GPS button leads to the instance's entrance. WoW Forever gets the boss rows too
+- **Item search on Classic Era, TBC Anniversary and Mists Classic**: any item in the game found by name
+- **Instance shorthands**: "sm", "smgy", "stockades", "sm cloth" or "sm rogue" find the instance, its wing, its bosses and its loot; a plural finds its singular, and an armor type or a class narrows the loot
+- **Instance entrances on Classic Era and TBC Anniversary**: the map search finds dungeon and raid entrances, and GPS leads a dungeon's creatures to its door
+- **Quest directions**: Directions on the right-click menu of the objective tracker and the quest log (retail, WoW Forever, Mists Classic); the quests in your log show in search with the GPS button
+- **Search this page**: a box in the settings window's title narrows the open page to the settings whose names match
+- **Reset to default**: a button on every extension's settings page puts its settings back
+- **GPS settings**: switches for the pulse on a clicked step, the danger warning and the red on dangerous stretches
+- **Chat**: the unread count on its button can be turned off, and its settings reset to default
+- **Extensions API**: one-of-several choices in a filter row's options, a grayed row icon, and the GPS button on rows an extension places (API 1.1)
+
+### Changed
+- **Boss and loot rows**: the line under the name says Dungeon boss, Raid boss, Dungeon loot or Raid loot, with the instance
+- **Search settings**: an X clears the field while it holds text
+
+### Fixed
+- **Filters**: a category turned off in the filter menu hides its rows again
+- **Loot filter**: the difficulty choice lists only the game's own difficulties (none on Classic Era and WoW Forever, Normal and Heroic on TBC Anniversary, no Mythic on Mists Classic), and WoW Forever's loot follows the class chosen
+- **Item search on WoW Forever**: developer test items no longer show
+- **Search settings**: drop-down rows, headers and key rows are found again
+- **Search fields**: every search and name box lets go of the keyboard on a click anywhere else, instead of taking every key until Esc
+- **Item tooltips on results**: stay up when a chat line arrives while the bar is open
+- **GPS**: Clear route takes the route's end pin off the map
+- **Loot rows on WoW Forever**: the Alt hint names GPS, not the Dungeon Journal the client lacks
+- **Professions filter on classic clients**: Herbalism, Skinning and Fishing are no longer listed, as they have no recipes
+- **Remembered picks**: a picked extension row is remembered as itself, not as a second copy marked World Map
+
+### Technical Notes
+- **Tests**: every test file counts toward the total; a field defined twice in one file, a companion file that does not take EasyFind's namespace, an edit box that neither lets go on an outside click nor says why, a client's catalog data with its switch off, and a developer item in a built catalog each fail the suite
+
+---
+
 ## [4.0.0] - 2026-10-28
 
 ### Added
