@@ -6945,7 +6945,9 @@ function Options:Initialize()
             if owner and owner.IsObjectType and owner:IsObjectType("Button") then return false end
             local fontObj = fs.GetFontObject and fs:GetFontObject()
             local fontName = fontObj and fontObj.GetName and fontObj:GetName()
+            -- The panel's own copies are EasyFindOptionsGameFont*.
             return fontName ~= nil and string.find(fontName, "^GameFontNormal") ~= nil
+                or fontName ~= nil and string.find(fontName, "^EasyFindOptionsGameFontNormal") ~= nil
         end
         local function IndexFrame(frame, tabIndex, pageName, pageID, pageByFrame, seen)
             if not frame or frame == shell then return end
