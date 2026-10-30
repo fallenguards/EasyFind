@@ -98,6 +98,55 @@ local function PaintAmountText(amountText, inert)
         amountText:SetTextColor(0.9, 0.82, 0.65, 1.0)
     end
 end
+local GetCoinTextureString = C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString or GetCoinTextureString
+local DECOR_WARN, DECOR_WARN_LIGHT, DECOR_GOOD_LIGHT = { 1.0, 0.58, 0.22 }, { 0.72, 0.36, 0.05 }, { 0.12, 0.50, 0.18 }
+
+-- A decorator's text (RegisterRowDecorator, slot "price") at a flat row's
+-- right, left of the amount or the right-side icon, in the theme's tone
+-- for its state word. Asked once per row and data until the decorators
+-- change (a registration, a refresh after a scan).
+function Render.DecorateRow(resultRow, entry, state)
+    local slot = resultRow.decorText
+    if not slot then return end
+    local data, Ext = entry.data, ns.Extensions
+    if not (data and entry.isFlat and Ext and Ext.DecoratorText) or entry.isPathNode or entry.isSectionHeader
+       or entry.isPinHeader or data.calculatorResult then
+        slot:Hide()
+        return
+    end
+    local gen = Ext.Decorators.generation
+    if resultRow._decorData ~= data or resultRow._decorGen ~= gen then
+        local value, word = Ext.DecoratorText("price", data)
+        if type(value) == "number" then value = GetCoinTextureString and GetCoinTextureString(value) or tostring(value) end
+        resultRow._decorData, resultRow._decorGen, resultRow._decorValue, resultRow._decorWord = data, gen, value, word
+    end
+    local value = resultRow._decorValue
+    if not value then
+        slot:Hide()
+        return
+    end
+    slot:SetText(value)
+    local word, light = resultRow._decorWord, state.theme and state.theme.lightTheme
+    if word == "good" then
+        local c = light and DECOR_GOOD_LIGHT or ns.COPIED_COLOR
+        slot:SetTextColor(c[1], c[2], c[3], 1)
+    elseif word == "warn" then
+        local c = light and DECOR_WARN_LIGHT or DECOR_WARN
+        slot:SetTextColor(c[1], c[2], c[3], 1)
+    else
+        PaintAmountText(slot, false)
+    end
+    slot:ClearAllPoints()
+    if resultRow.amountText:IsShown() then
+        slot:SetPoint("RIGHT", resultRow.amountText, "LEFT", -6, 0)
+    elseif resultRow.icon:IsShown() and resultRow.icon:GetPoint(1) == "RIGHT" then
+        slot:SetPoint("RIGHT", resultRow.icon, "LEFT", -3, 0)
+    else
+        slot:SetPoint("RIGHT", resultRow, "RIGHT", -8, 0)
+    end
+    slot:Show()
+end
+
 local GetButtonIcon = Icons.GetButtonIcon
 local GetFrameArtworkIcon = Icons.GetFrameArtworkIcon
 local IsMenuBarSpecificIconData = Icons.IsMenuBarSpecificIconData

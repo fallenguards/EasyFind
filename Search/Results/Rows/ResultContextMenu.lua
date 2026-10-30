@@ -173,7 +173,8 @@ function Rows:ResultMenuModel(row)
                 out[#out + 1] = { text = d.label, tooltip = d.tooltip, icon = on and MENU_CHECK or nil, picked = on,
                     onClick = function() ns.Extensions.Run(d.set, not on) end }
             elseif d.kind == "action" and d.label then
-                out[#out + 1] = { text = d.label, tooltip = d.tooltip,
+                -- Grayed out with its reason: a line not voiced yet.
+                out[#out + 1] = { text = d.label, tooltip = d.tooltip, disabled = d.disabled == true or nil,
                     onClick = function() ns.Extensions.Run(d.onClick) end }
             elseif d.kind == "menu" and d.label and depth < 3 then
                 local sub = MenuRowsOf(d.rows, depth + 1)
@@ -190,6 +191,11 @@ function Rows:ResultMenuModel(row)
             extra.extensionMenu = { label = owner and owner.name or provider.label, icon = provider.icon,
                                     iconCoords = provider.iconCoords, rows = menuRows }
         end
+    end
+    -- Decorators' entries (RegisterRowDecorator menu): a voice's Play on a
+    -- quest row, each wearing its extension's icon.
+    if ns.Extensions and ns.Extensions.DecoratorMenuRows then
+        extra.decoratorRows = ns.Extensions.DecoratorMenuRows(pinData, function(defs) return MenuRowsOf(defs, 1) end)
     end
     -- Extensions' entries in the Add flyout, each wearing its extension's icon.
     for _, target in ipairs(ns.Extensions and ns.Extensions.AddTargets or {}) do

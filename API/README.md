@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -268,6 +268,41 @@ API.RegisterAddTarget({
     applies = function(row) return row.itemID ~= nil end,
     rows = function(row)
         return { { kind = "action", label = "Main", onClick = function() AddToWishlist(row.itemID) end } }
+    end,
+})
+```
+
+### RegisterRowDecorator(def)
+
+Your mark on rows another provider owns (MINOR 4): a price at the right of EasyFind's item rows, your entries on the right-click menu of quest, zone or boss rows. No rows of your own, nothing typed to find them: the rows EasyFind already has carry it.
+
+| Field | Type | |
+| --- | --- | --- |
+| `id` | string | Required. The extension of that id, registered first, lends its icon; `extension` names another. |
+| `slot` | string | Where `text` paints. One decorator per slot shows, the first registered; `"price"` is the slot at a row's right. |
+| `label` | string | Your entries' name when they fold under one row. |
+| `applies` | function `(row)` | True for the rows you take, by their fields (`row.questId`, `row.mapID`, `row.npcID`, `row.itemID`). Without it, rows with an `itemID`, narrowed by `categories`. |
+| `categories` | string list | With no `applies`: the item rows' `category` names you take (`"Bag"`, `"Loot"`). |
+| `text` | function `(row, link)` | At paint, for shown rows: a string, or copper EasyFind formats as coins, or nil for nothing. A second value is a state word EasyFind paints from the theme: `"good"`, `"warn"`, or `"dim"` (the default). Never a color code. Asked once per row until the rows rebuild or you call `RefreshRowDecorations`. |
+| `tooltip` | function `(row, link, tooltip)` | Your lines under the row's own tooltip (`AddLine`, `AddDoubleLine`). |
+| `menu` | function `(row, link)` | Rows for the row's right-click menu in the tile menu's shape (`{ kind = "action", label, onClick, tooltip, disabled }`, `check`, `separator`, `menu`). They land in the menu itself, each wearing your icon; `disabled = true` grays one out, its `tooltip` saying why. |
+| `submenu` | boolean | `true`: your menu rows fold under one row named `label`, as they do by themselves past four. |
+| `subtext` | function `(row)` | A part appended to the row's subtext. |
+| `keep`, `sortKey` | function `(row)` | Held for the filter flyout (a toggle dropping rows, a sort choice); registered now, acted on in a later MINOR. |
+
+`link` is the bag item's link, the loot row's, else `"item:ID"`; nil on a row without an item. `UnregisterRowDecorator(id, slot)` takes it back; `RefreshRowDecorations()` repaints the shown rows (new prices after a scan). The map tab's own rows have the game's menu, not this one.
+
+```lua
+API.RegisterRowDecorator({
+    id = "spoken", label = "Spoken",
+    applies = function(row) return row.questId ~= nil or row.npcID ~= nil end,
+    menu = function(row)
+        local voiced = HasVoice(row)
+        return {
+            { kind = "action", label = "Play", disabled = not voiced, tooltip = voiced and "Hear it" or "No voice for this line yet",
+              onClick = function() Play(row) end },
+            { kind = "action", label = "Open in Compendium", onClick = function() OpenCompendium(row) end },
+        }
     end,
 })
 ```

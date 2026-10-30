@@ -87,6 +87,21 @@
 ---@field mapID? number The map it is on, for the map search's list of that map.
 ---@field createRow? boolean The row makes a new thing: it wears the green plus badge (MINOR 4).
 
+---@class EasyFindRowDecorator
+---@field id string The extension of that id lends its icon.
+---@field extension? string Another extension's id, when id is not one.
+---@field slot? string Where text paints; one shows per slot ("price").
+---@field label? string Your entries' name when they fold under one row.
+---@field applies? fun(row: EasyFindRow): boolean The rows you take; without it, rows with an itemID.
+---@field categories? string[] With no applies: the item rows' category names you take.
+---@field text? fun(row: EasyFindRow, link: string|nil): string|number|nil, string|nil A string or copper, and "good", "dim" or "warn".
+---@field tooltip? fun(row: EasyFindRow, link: string|nil, tooltip: table) Lines under the row's tooltip.
+---@field menu? fun(row: EasyFindRow, link: string|nil): table Rows for the row's menu, in the tile menu's shape.
+---@field submenu? boolean Your menu rows under one row named label.
+---@field subtext? fun(row: EasyFindRow): string|nil A part after the row's subtext.
+---@field keep? fun(row: EasyFindRow): boolean Held for the filter flyout.
+---@field sortKey? fun(row: EasyFindRow): string|number Held for the filter flyout.
+
 ---@class EasyFindOption
 ---@field label? string|fun(): string
 ---@field tooltip? string|fun(): string
@@ -197,6 +212,14 @@ function API.RegisterSearchProvider(def) end
 ---@param def EasyFindAddTarget
 ---@return boolean
 function API.RegisterAddTarget(def) end
+---Your mark on rows another provider owns (MINOR 4): text at an item row's right, lines under its tooltip, entries on its menu wearing your icon, a part after its subtext.
+---@param def EasyFindRowDecorator
+---@return boolean
+function API.RegisterRowDecorator(def) end
+---Takes a decorator back; the next registered for its slot shows.
+function API.UnregisterRowDecorator(id, slot) end
+---Shown rows paint their decorations again (new prices after a scan).
+function API.RefreshRowDecorations() end
 ---Its rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key) end
 ---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.

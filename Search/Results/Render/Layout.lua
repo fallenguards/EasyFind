@@ -64,6 +64,8 @@ function Render.ApplyFlatResultAnchoring(resultRow, entry, state)
             resultRow.repBar:SetPoint("RIGHT", resultRow.icon, "LEFT", -4, 0)
         end
         rightAnchor, rightOffset = resultRow.repBar, -4
+    elseif resultRow.decorText and resultRow.decorText:IsShown() then
+        rightAnchor, rightOffset = resultRow.decorText, -4
     elseif mainIconOnRight and resultRow.icon:IsShown() then
         rightAnchor, rightOffset = resultRow.icon, -4
     elseif resultRow.settingSliderGroup and resultRow.settingSliderGroup:IsShown() then

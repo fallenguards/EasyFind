@@ -559,6 +559,11 @@ function Rows.InstallTooltips(resultRow)
             end
         end
     end)
+    -- Decorators' lines under the row's tooltip (RegisterRowDecorator tooltip).
+    resultRow:HookScript("OnEnter", function(self)
+        if not (self.data and GameTooltip:IsShown() and GameTooltip:GetOwner() == self) then return end
+        if ns.Extensions.DecorateTooltip(self.data, GameTooltip) then GameTooltip:Show() end
+    end)
 
     resultRow:SetScript("OnLeave", function(self)
         self._efHlHover = nil

@@ -157,6 +157,11 @@ function Rows:CreateResultButton(index)
     amountText:SetTextColor(0.9, 0.82, 0.65, 1.0)
     amountText:Hide()
     resultRow.amountText = amountText
+    -- A decorator's text (an extension's price), left of the amount.
+    local decorText = resultRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    decorText:SetJustifyH("RIGHT")
+    decorText:Hide()
+    resultRow.decorText = decorText
 
     Rows.CreateCalculatorWidgets(resultRow, index)
     Rows.CreateSettingWidgets(resultRow)

@@ -648,6 +648,163 @@ function API.RegisterAddTarget(def)
     return true
 end
 
+-- ==== row decorators ==========================================================
+
+-- An extension's mark on rows another provider owns: a price at an item
+-- row's right, a voice on a quest row's menu. def: id (required; the
+-- extension of that id, registered first, lends its icon; extension names
+-- another), slot (the painted text's place, "price"; the first registered
+-- per slot shows), label, applies(row) (true for the rows it takes;
+-- without it, rows with an itemID, narrowed by categories), text(row,
+-- link) (paint time: a string or copper, and a state word "good", "dim",
+-- "warn"), tooltip(row, link, tooltip) (lines under the row's), menu(row,
+-- link) (rows in the tile menu's shape, each wearing the extension's icon
+-- in the row's menu; submenu = true folds them under its label, as do
+-- more than four), subtext(row) (a part after the row's subtext), keep and
+-- sortKey (held for the filter flyout). The link: the bag item's, the loot
+-- row's, else "item:ID"; nil on a row without an item.
+local Decorators = { list = {}, bySlot = {}, generation = 0 }
+Extensions.Decorators = Decorators
+local DECORATOR_FIELDS = {
+    id = "string", extension = "string", slot = "string", label = "string", categories = "table",
+    applies = "function", text = "function", tooltip = "function", menu = "function", subtext = "function",
+    keep = "function", sortKey = "function", submenu = "boolean",
+}
+
+function API.UnregisterRowDecorator(id, slot)
+    local list = Decorators.list
+    for i = #list, 1, -1 do
+        local d = list[i]
+        if d.id == id and d.slot == slot then
+            table.remove(list, i)
+            if Decorators.bySlot[slot] == d then
+                Decorators.bySlot[slot] = nil
+                for j = 1, #list do
+                    if list[j].slot == slot then Decorators.bySlot[slot] = list[j] break end
+                end
+            end
+        end
+    end
+    Decorators.generation = Decorators.generation + 1
+end
+
+-- Shown rows paint again (a scan brought new prices).
+function API.RefreshRowDecorations()
+    Decorators.generation = Decorators.generation + 1
+    if ns.Results and ns.Results.RefreshShownResults then ns.Results:RefreshShownResults(true) end
+end
+
+function API.RegisterRowDecorator(def)
+    if type(def) ~= "table" then Fail("RegisterRowDecorator", "expects a table") end
+    for k, v in pairs(def) do
+        local want = DECORATOR_FIELDS[k]
+        if want and type(v) ~= want then Fail("RegisterRowDecorator", k .. " must be a " .. want) end
+    end
+    if type(def.id) ~= "string" then Fail("RegisterRowDecorator", "id is required") end
+    local owner = Extensions.Get(def.extension or def.id)
+    if not (owner and owner.icon) then
+        Fail("RegisterRowDecorator", "extension '" .. tostring(def.extension or def.id) .. "' must be registered first, with its icon")
+    end
+    def.extension = owner.id
+    if def.categories then
+        local set = {}
+        for i = 1, #def.categories do set[def.categories[i]] = true end
+        def.categorySet = set
+    end
+    API.UnregisterRowDecorator(def.id, def.slot)
+    Decorators.list[#Decorators.list + 1] = def
+    if def.slot and not Decorators.bySlot[def.slot] then Decorators.bySlot[def.slot] = def end
+    API.RefreshRowDecorations()
+    return true
+end
+
+local function DecoratorTakes(def, row)
+    if def.applies then
+        local ok, yes = Run(def.applies, row)
+        return ok and yes == true
+    end
+    if row.itemID == nil then return false end
+    return not def.categorySet or def.categorySet[row.category] == true
+end
+Extensions.DecoratorTakes = DecoratorTakes
+
+function Extensions.DecoratorLink(row)
+    if row.bagItemLink then return row.bagItemLink end
+    if row.category == "Loot" and ns.Database and ns.Database.GetLootItemLink then
+        local link = ns.Database:GetLootItemLink(row)
+        if link then return link end
+    end
+    return row.itemID and ("item:" .. row.itemID) or nil
+end
+
+-- The slot's text for the row at paint: the value, its state word and the
+-- decorator; nil when none claims the row or it says nothing.
+function Extensions.DecoratorText(slot, row)
+    local def = Decorators.bySlot[slot]
+    if not (def and def.text and DecoratorTakes(def, row)) then return nil end
+    local ok, value, word = xpcall(def.text, Report, row, Extensions.DecoratorLink(row))
+    if not (ok and value) then return nil end
+    return value, word, def
+end
+
+-- The decorators' parts after the row's subtext, joined, or nil.
+function Extensions.DecoratorSubtext(row)
+    local out
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.subtext and DecoratorTakes(d, row) then
+            local ok, part = Run(d.subtext, row)
+            if ok and type(part) == "string" and part ~= "" then out = out and (out .. ", " .. part) or part end
+        end
+    end
+    return out
+end
+
+-- The decorators' lines under the row's tooltip; true when one wrote.
+function Extensions.DecorateTooltip(row, tooltip)
+    local any = false
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.tooltip and DecoratorTakes(d, row) then
+            Run(d.tooltip, row, Extensions.DecoratorLink(row), tooltip)
+            any = true
+        end
+    end
+    return any
+end
+
+-- The decorators' entries for the row's menu, in the cursor menu's shape
+-- (convert turns the tile menu's rows into it): each wears its extension's
+-- icon; a decorator asking for a submenu, or giving more than four rows,
+-- folds under its label.
+function Extensions.DecoratorMenuRows(row, convert)
+    local out
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.menu and DecoratorTakes(d, row) then
+            local ok, defs = Run(d.menu, row, Extensions.DecoratorLink(row))
+            local rows = ok and defs and convert(defs) or nil
+            if rows and #rows > 0 then
+                local owner = Extensions.Get(d.extension)
+                out = out or {}
+                if d.submenu or #rows > 4 then
+                    out[#out + 1] = { text = d.label or owner.name, icon = owner.icon, iconCoords = owner.iconCoords,
+                                      chromeIcon = true, submenu = rows }
+                else
+                    for j = 1, #rows do
+                        local r = rows[j]
+                        if not (r.isSeparator or r.icon) then
+                            r.icon, r.iconCoords, r.chromeIcon = owner.icon, owner.iconCoords, true
+                        end
+                        out[#out + 1] = r
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
 -- The rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key)
     if ns.Database and ns.Database.RefreshDynamicCategory then ns.Database:RefreshDynamicCategory(key) end

@@ -10082,6 +10082,8 @@ function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
         local m = extra.extensionMenu
         rows[#rows + 1] = { text = m.label, icon = m.icon, iconCoords = m.iconCoords, chromeIcon = true, submenu = m.rows }
     end
+    -- Decorators' entries, each with its extension's glyph (RegisterRowDecorator).
+    for _, r in ipairs(extra and extra.decoratorRows or {}) do rows[#rows + 1] = r end
     if extra and extra.wowheadUrl then
         -- Our own chain-link glyph (textures/link.tga), the same custom
         -- treatment as Guide's eye and Pin's diamond. A copy row: the URL

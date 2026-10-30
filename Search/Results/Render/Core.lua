@@ -346,6 +346,7 @@ local function LayoutRow(owner, resultRow, i, st)
 
     local repSideBySide = Render.RowContent(owner, resultRow, entry, st, isInertRow)
     if repSideBySide then st.anyRepSideBySide = true end
+    Render.DecorateRow(resultRow, entry, st)
     Part("content")
 
     if resultRow._efDesat ~= isInertRow then

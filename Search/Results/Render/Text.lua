@@ -158,7 +158,11 @@ function Render.BaseRowText(resultRow, entry, state)
         resultRow.pathSubtext:ClearAllPoints()
         resultRow.pathSubtext:SetPoint("TOPLEFT", resultRow.text, "BOTTOMLEFT", 0, -state.stackGap)
         resultRow.pathSubtext:SetPoint("RIGHT", resultRow.amountText, "LEFT", -4, 0)
-        resultRow.pathSubtext:SetText(Text:GetFlatSubtext(data))
+        local subtext = Text:GetFlatSubtext(data)
+        -- A decorator's part after it (RegisterRowDecorator subtext).
+        local part = ns.Extensions and ns.Extensions.DecoratorSubtext and ns.Extensions.DecoratorSubtext(data)
+        if part then subtext = (subtext and subtext ~= "") and (subtext .. ", " .. part) or part end
+        resultRow.pathSubtext:SetText(subtext)
         Results:SetScaledFont(resultRow.pathSubtext, theme.leafFont)
         resultRow.pathSubtext:SetTextColor(unpack(theme.pathColor))
         resultRow.pathSubtext:Show()
