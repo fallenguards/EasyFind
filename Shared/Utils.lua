@@ -8030,11 +8030,22 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
         if not self._driverArmed and self.ArmDriver then self:ArmDriver() end
     end
 
+    -- The ease's target, dropped once anything else moves the frame (rows
+    -- laid out above, a jump): chased, it pulled the view back each frame.
+    local function LiveTarget()
+        local target = bar._scrollTarget
+        if target and bar._easeAt and mabs(scrollFrame:GetVerticalScroll() - bar._easeAt) > SCROLL_EPS then
+            bar._scrollTarget, target = nil, nil
+        end
+        return target
+    end
+
     local function ScrollByDelta(delta)
         local range = scrollFrame:GetVerticalScrollRange()
         if range <= 0 then return end
-        local current = bar._scrollTarget or scrollFrame:GetVerticalScroll()
+        local current = LiveTarget() or scrollFrame:GetVerticalScroll()
         bar._scrollTarget = mmax(0, mmin(range, current - delta * WHEEL_STEP))
+        bar._easeAt = scrollFrame:GetVerticalScroll()
         bar:NudgeVisible()
     end
     bar.ScrollByDelta = function(_, delta) ScrollByDelta(delta) end
@@ -8082,7 +8093,7 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
             return
         end
 
-        if self._scrollTarget then
+        if LiveTarget() then
             local cur = scrollFrame:GetVerticalScroll()
             local diff = self._scrollTarget - cur
             if mabs(diff) < SCROLL_EPS then
@@ -8091,6 +8102,7 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
             else
                 scrollFrame:SetVerticalScroll(cur + diff * SCROLL_LERP)
             end
+            self._easeAt = scrollFrame:GetVerticalScroll()
             self:NudgeVisible()
         end
 
@@ -8139,6 +8151,7 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
 
         local ratio = (trackT - cursorY) / trackH
         bar._scrollTarget = mmax(0, mmin(range, ratio * range))
+        bar._easeAt = scrollFrame:GetVerticalScroll()
         bar:NudgeVisible()
     end)
 
