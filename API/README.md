@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -212,6 +212,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `aliases` | string list | An `@scope`: `@` and one of these lists only its rows. |
 | `browse` | function | `browse(row)` returns whether the row is in the scope's list while nothing is typed (a quest log, not every quest). Without it, every row is. Typing searches all rows either way. |
 | `place` | function | `place(row)` returns where the row is right now, `{ name, mapID, x, y, step, icon }` as `navigate` takes, or nil. Its rows are then found from the map search and the GPS window too, and a pick there pins or routes to that spot. A row with no `x` of its own gets the GPS button to that spot, and `icon` marks the route's end on the map. A row's `mapID` names the map it is on, for the map's own list. |
+| `places` | function | `places(row)` returns every spot the row stands for, a list of `{ name, mapID, x, y, step, icon }` (MINOR 3). The row stays one entry in the map search, its spots pinned together on the viewed map and ranked by the nearest, as a cluster of same-named places is; the map's own list shows it where one of its spots is. `place(row)` stays the one spot for the GPS. |
 | `link` | table | `{ key = function(row), resolve = function(tail) }`. A row's EasyFind link (Send, the Ctrl+Shift+C copy) carries `key(row)`, a short string of yours, such as an id and the sender's progress. On the receiver, whose copy of your extension resolves it, `resolve(tail)` returns the row to show: its tooltip, hint and click are yours as for any row, so the tooltip can show what the sender sent. Without `link`, a row's link finds the receiver's own row by name. Keep the key short: it travels inside a chat message. |
 | `menu` | function | `menu(row)` returns rows for the result's right-click menu, in the tile menu's shape (`{ kind = "action", label, onClick, tooltip }`, `{ kind = "check", label, get, set }`, `{ kind = "separator" }`, `{ kind = "menu", label, rows }` for a flyout within). They sit under one row named after your extension, with its glyph. Return nothing for a row with no rows of its own. |
 | `options` | list | Toggles on its filter row's flyout: `{ label, tooltip, get, set }`, `{ header = text }`, `{ separator = true }`, or one-of-several radio rows `{ choice = { { label, value, tooltip }, ... }, get, set }` (`get` returns the value, `set` takes it; MINOR 1). `label` and `tooltip` may be functions. |
@@ -280,6 +281,7 @@ Your rows changed: they are rebuilt now, and an open search shows them.
 | --- | --- |
 | `OpenSearch(text)` | Shows the search bar focused, with `text` searched when given. |
 | `ShowScope(key, text)` | Shows the search bar on that `@scope`'s list. |
+| `ShowPlaces(key, row)` | Opens the world map on the map tab searched for the row, its `places` pinned on the viewed map, else the nearest one's map (MINOR 3). `key` is the provider's, `row` the copy `select` got. Returns true when shown. |
 
 ## Linked checklists
 

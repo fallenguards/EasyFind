@@ -7,7 +7,7 @@ local slower, sfind = Utils.slower, Utils.sfind
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 2 }
+local API = { VERSION = 1, MINOR = 3 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -438,7 +438,7 @@ local PROVIDER_FIELDS = {
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
     leave = "function", extension = "string", loadOnSearch = "any", hint = "any", browse = "function",
-    place = "function", link = "table", menu = "function",
+    place = "function", places = "function", link = "table", menu = "function",
 }
 
 function Extensions.Provider(key) return key and Providers.byKey[key] or nil end
@@ -597,6 +597,14 @@ function API.RegisterSearchProvider(def)
         end)
     end
     return true
+end
+
+-- A provider row's spots on the map tab: the map searched for the row,
+-- its spots pinned on the viewed map, else the nearest one's map (MINOR 3).
+function API.ShowPlaces(key, row)
+    local p = Providers.byKey[key]
+    if not (p and type(row) == "table" and ns.MapSearch and ns.MapSearch.ShowProviderPlaces) then return false end
+    return ns.MapSearch:ShowProviderPlaces(p, row)
 end
 
 -- ==== add targets =============================================================

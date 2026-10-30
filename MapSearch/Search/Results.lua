@@ -70,17 +70,46 @@ local function RequestUISearchGlobalInstances(self)
     end)
 end
 
+-- Every spot a provider's row stands for (places(row)), as map places of
+-- the row's name and category, read once per row.
+local function ProviderSpots(p, d)
+    local ok, list = pcall(p.places, d)
+    if not (ok and type(list) == "table") then return nil end
+    local spots
+    for i = 1, #list do
+        local s = list[i]
+        if type(s) == "table" and s.mapID and s.x and s.y then
+            local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(s.mapID)
+            spots = spots or {}
+            spots[#spots + 1] = { name = d.name, category = p.category, icon = s.icon or d.icon, providerRow = d,
+                mapID = s.mapID, coordMapID = s.mapID, x = s.x, y = s.y, step = s.step, destName = s.name,
+                zoneName = info and info.name or nil }
+        end
+    end
+    return spots
+end
+MapSearch.ProviderSpots = ProviderSpots
+
+local function AnySpotOn(spots, mapID)
+    for i = 1, #spots do
+        if spots[i].coordMapID == mapID then return true end
+    end
+    return false
+end
+
 -- Rows of extensions whose provider knows where a row is (place(row) ->
--- { name, mapID, x, y, step }): offered to the map search by name and
--- keywords, the spot asked for when one is picked. onlyMap: those the row
--- says are on that map. One map row per search row, kept across queries.
+-- { name, mapID, x, y, step }, or places(row), every spot it stands for):
+-- offered to the map search by name and keywords, the spot asked for when
+-- one is picked. onlyMap: those the row says are on that map. One map row
+-- per search row, kept across queries; its spots fold under it as
+-- same-named places do.
 local providerPOIs = setmetatable({}, { __mode = "k" })
 local function AppendProviderRows(fresh, query, onlyMap)
     local Extensions, data = ns.Extensions, ns.Database and ns.Database.uiSearchData
     if not (Extensions and Extensions.Providers and data and query and #query >= 2) then return end
     local wanted
     for _, p in pairs(Extensions.Providers.byKey) do
-        if p.place then
+        if p.place or p.places then
             wanted = wanted or {}
             wanted[p.category] = p
         end
@@ -89,16 +118,21 @@ local function AppendProviderRows(fresh, query, onlyMap)
     for i = 1, #data do
         local d = data[i]
         local p = d.category and wanted[d.category]
-        if p and d.name and (not onlyMap or d.mapID == onlyMap) then
+        if p and d.name then
             local poi = providerPOIs[d]
             if not poi then
                 poi = { category = p.category, providerRow = d, placeOf = p.place }
+                if p.places then poi.spots = ProviderSpots(p, d) end
                 providerPOIs[d] = poi
             end
-            if poi.name ~= d.name then poi.name, poi.nameLower, poi.nameNorm, poi.searchMask = d.name, nil, nil, nil end
-            if poi.keywords ~= d.keywords then poi.keywords, poi.kwLower, poi.searchMask = d.keywords, nil, nil end
-            poi.icon, poi.matchNote = d.icon, p.label
-            fresh[#fresh + 1] = poi
+            local here = not onlyMap or d.mapID == onlyMap
+            if onlyMap and poi.spots then here = AnySpotOn(poi.spots, onlyMap) end
+            if here then
+                if poi.name ~= d.name then poi.name, poi.nameLower, poi.nameNorm, poi.searchMask = d.name, nil, nil, nil end
+                if poi.keywords ~= d.keywords then poi.keywords, poi.kwLower, poi.searchMask = d.keywords, nil, nil end
+                poi.icon, poi.matchNote, poi.allInstances = d.icon, p.label, nil
+                fresh[#fresh + 1] = poi
+            end
         end
     end
 end
@@ -113,12 +147,12 @@ function MapSearch.ResolvePlace(data)
     data.placedAt = now
     local ok, place = pcall(data.placeOf, data.providerRow)
     if ok and type(place) == "table" and place.mapID and place.x and place.y then
-        data.mapID, data.x, data.y = place.mapID, place.x, place.y
+        data.mapID, data.coordMapID, data.x, data.y = place.mapID, place.mapID, place.x, place.y
         data.step, data.destName = place.step, place.name
         local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(place.mapID)
         data.zoneName = info and info.name or nil
     else
-        data.mapID, data.x, data.y, data.step, data.destName = nil, nil, nil, nil, nil
+        data.mapID, data.coordMapID, data.x, data.y, data.step, data.destName = nil, nil, nil, nil, nil, nil
     end
     return data
 end
@@ -502,6 +536,18 @@ local function AttachDuplicateSets(results, duplicates)
     end
 end
 
+-- A provider row's spots fold under it: those on the viewed map in the
+-- map's own list, all of them in a global search.
+local function AttachProviderSpots(results)
+    local viewed = not Search.isGlobalSearch and WorldMapFrame and WorldMapFrame:GetMapID()
+    for i = 1, #results do
+        local r = results[i]
+        if r.spots and not r.allInstances then
+            r.allInstances = viewed and MapSearch.SpotsOnMap(r.spots, viewed) or r.spots
+        end
+    end
+end
+
 -- The rows with their scores, keys and spot sets, so the same query comes
 -- back as it was; and every scored place, the other spots included, for
 -- a longer query to narrow over.
@@ -586,6 +632,7 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
         AppendNameMatches(results, seen, duplicates, fresh, query)
         AppendCategoryMatches(results, seen, duplicates, fresh, matchedCategory, relatedCategories)
         AttachDuplicateSets(results, duplicates)
+        AttachProviderSpots(results)
     end
 
     -- The player has moved since a cached hit: equal matches ranked again.

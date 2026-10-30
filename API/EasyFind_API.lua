@@ -49,6 +49,7 @@
 ---@field aliases? string[] An @scope: @ and one of these lists only its rows.
 ---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every row without it.
 ---@field place? fun(row: EasyFindRow): { name: string, mapID: number, x: number, y: number, step: string? }|nil Where the row is now: its rows are found from the map search and the GPS too.
+---@field places? fun(row: EasyFindRow): { name: string, mapID: number, x: number, y: number, step: string?, icon: string|number? }[] Every spot the row stands for (MINOR 3): one map row, its spots pinned together on the viewed map, ranked by the nearest; place stays the GPS's one spot.
 ---@field link? EasyFindLink A row's EasyFind link carries your key; the receiver's copy resolves it.
 ---@field menu? fun(row: EasyFindRow): EasyFindMenuRow[]|nil Rows for the result's right-click menu, under your extension's name.
 
@@ -196,6 +197,9 @@ function API.RegisterSearchProvider(def) end
 function API.RegisterAddTarget(def) end
 ---Its rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key) end
+---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.
+---@return boolean
+function API.ShowPlaces(key, row) end
 ---Shows the search bar focused, with text searched when given.
 ---@param text string?
 ---@return boolean
