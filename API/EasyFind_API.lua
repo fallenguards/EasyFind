@@ -103,8 +103,9 @@ local kit = {}
 function kit.Title(page, title, hint) end
 ---@param get fun(): boolean
 ---@param set fun(on: boolean)
+---@param width? number The row's width; the switch then sits at its end, for two columns of switches (MINOR 3). Without it, a full row with the switch where the dropdowns start.
 ---@return CheckButton
-function kit.Checkbox(page, label, get, set, tooltip) end
+function kit.Checkbox(page, label, get, set, tooltip, width) end
 ---@param choices { label: string, value: any, disabled?: fun(): boolean }[] disabled: grayed, no click.
 ---@param get fun(): any
 ---@param set fun(value: any)

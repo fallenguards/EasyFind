@@ -242,10 +242,11 @@ local function Kit(ctx)
             return value
         end
     end
-    -- Full-width rows, the switch starting where the dropdowns start.
-    function kit.Checkbox(parent, label, get, set, tooltip)
-        local box = ctx.CreateCheckbox(parent, nil, label, tooltip, true, ctx.SELECTOR_ROW_W,
-            ctx.SELECTOR_ROW_W - 8 - ctx.SELECTOR_BTN_W)
+    -- Full-width rows, the switch starting where the dropdowns start; a
+    -- width given, the switch at the row's end (columns of switches, MINOR 3).
+    function kit.Checkbox(parent, label, get, set, tooltip, width)
+        local box = ctx.CreateCheckbox(parent, nil, label, tooltip, true, width or ctx.SELECTOR_ROW_W,
+            not width and (ctx.SELECTOR_ROW_W - 8 - ctx.SELECTOR_BTN_W) or nil)
         box:SetChecked(Read(get)() and true or false)
         if box.RefreshVisual then box:RefreshVisual() end
         box:SetScript("OnClick", function(self)

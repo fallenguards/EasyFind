@@ -362,7 +362,7 @@ Actions not listed here are EasyFind's own and may change.
 | Function | |
 | --- | --- |
 | `kit.Title(page, title, hint)` | The page's title, and a line under it. Returns what to anchor the next control to. |
-| `kit.Checkbox(page, label, get, set, tooltip)` | `get()` returns the state, `set(on)` stores it. |
+| `kit.Checkbox(page, label, get, set, tooltip, width)` | `get()` returns the state, `set(on)` stores it. Without `width` a full row with the switch where the dropdowns start; with one, a row that wide with the switch at its end, for two columns of switches (MINOR 3). |
 | `kit.Choice(page, label, choices, get, set, tooltip, default)` | A flyout of `{ { label, value }, ... }`. |
 | `kit.Stepper(page, label, min, max, step, get, set, tooltip, width)` | A number with - and + buttons. |
 | `kit.ROW_WIDTH`, `kit.BUTTON_WIDTH` | Widths the panel's rows use. |
