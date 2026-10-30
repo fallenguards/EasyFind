@@ -21,7 +21,7 @@ end
 -- id -> where it registers: its companion's files, and core's stub for
 -- the ones that load on demand.
 local BUNDLED = {
-    calculator = { "Apps/Calc" }, clipboard = { "Apps/Clipboard" }, gps = { "Apps/GPS" },
+    calculator = { "Apps/Calc" }, clipboard = { "Apps/Clipboard" },
     quicklists = { "Apps/Quicklists" }, snippets = { "Apps/Snippets" },
     icons = { "Apps/Icons", "Core/Extensions.lua" }, notes = { "Apps/Notes", "Core/Extensions.lua" },
     chat = { "Core/Extensions.lua" },

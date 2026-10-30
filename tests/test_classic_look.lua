@@ -25,7 +25,7 @@ function tests.controlsFollowTheThemeNotTheBorder()
     -- The button painters ask the look, never the art.
     H.assertTrue(utils:find("if btn%._efPaintState and %(ns%.ClassicLook%(%) or btn%._efRedOn%) then") ~= nil)
     H.assertTrue(utils:find("local function PaintState%(self, fillTable%)%s+if ns%.ClassicLook%(%) then") ~= nil)
-    for _, rel in ipairs({ "Apps/Notes/Notes.lua", "Apps/GPS/GPS.lua", "Apps/Onboarding/TutorialWizard.lua" }) do
+    for _, rel in ipairs({ "Apps/Notes/Notes.lua", "Apps/Onboarding/TutorialWizard.lua" }) do
         local src = Read(rel)
         H.assertNil(src:find("IsClassicChrome() and ns.PaintRedButton", 1, true), rel .. ": red buttons by the look")
     end

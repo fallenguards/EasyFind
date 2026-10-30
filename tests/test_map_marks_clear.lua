@@ -1,7 +1,7 @@
 -- Every mark EasyFind puts on the world map is cleared by a right-click
 -- (2026-10-27: the route's end emblem took no mouse at all). Our location
--- pin clears the search and the route ending there; the route preview's
--- end mark clears the route.
+-- pin clears the search and the route ending there; the GPS extension's
+-- end mark is its own repo's test.
 local H = require("Harness")
 
 local function Read(rel)
@@ -12,15 +12,6 @@ local function Read(rel)
 end
 
 local tests = {}
-
-function tests.theRoutesEndMarkClearsTheRoute()
-    local src = Read("Apps/GPS/Preview.lua")
-    local hit = src:match('local hit = CreateFrame%("Button".-marks%.hit = hit')
-    H.assertTrue(hit ~= nil, "a button over the end mark")
-    H.assertTrue(hit:find('RegisterForClicks%("RightButtonUp"%)') ~= nil, "it takes a right-click")
-    H.assertTrue(hit:find("GPS:Clear()", 1, true) ~= nil, "which ends the route")
-    H.assertTrue(src:find("marks.hit:SetAllPoints(mark)", 1, true) ~= nil, "laid over whichever end mark shows")
-end
 
 function tests.theLocationPinClearsOnRightClick()
     local src = Read("MapSearch/Navigation.lua")

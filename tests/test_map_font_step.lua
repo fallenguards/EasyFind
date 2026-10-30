@@ -60,13 +60,5 @@ function tests.theMenuTicksTheNearest()
     H.assertEq(table.concat(ticked, ","), "OPT_FONT_LARGE")
 end
 
--- The steps beside the map read at the pop-out's size: the game's small type.
-function tests.theMapStepsMatchThePopout()
-    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/GPS/GPS.lua", "rb"))
-    local src = f:read("*a")
-    f:close()
-    H.assertEq(tonumber(src:match("local MAP_STEP_PX = (%d+)")), 10)
-end
-
 local pass, fail, failures = H.runSuite("MapFontStep", tests)
 return { pass = pass, fail = fail, failures = failures }

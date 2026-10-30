@@ -82,18 +82,12 @@ function tests.aBoxNotOursIsLeftAlone()
     box.hooks.OnEditFocusLost()
 end
 
-function tests.everySearchBoxOfTheGpsAndTheMapTabReleases()
-    local function Read(rel)
-        local f = assert(io.open(H.ADDON_ROOT .. "/" .. rel, "rb"))
-        local src = f:read("*a")
-        f:close()
-        return src
-    end
-    H.assertTrue(Read("Apps/GPS/GPS.lua"):find("box:SetMaxLetters%(60%)%s+Utils%.ReleaseFocusOnOutsideClick%(box%)") ~= nil,
-        "the GPS search box")
-    H.assertTrue(Read("Apps/GPS/Trip.lua"):find("box:SetMaxLetters%(60%)%s+ns%.Utils%.ReleaseFocusOnOutsideClick%(box%)") ~= nil,
-        "a trip's field")
-    H.assertTrue(Read("MapSearch/MapTab.lua"):find("editBox:SetMaxLetters%(60%)%s+Utils%.ReleaseFocusOnOutsideClick%(editBox%)") ~= nil,
+-- The GPS extension's boxes: its own repo's test.
+function tests.theMapTabsSearchBoxReleases()
+    local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/MapTab.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("editBox:SetMaxLetters%(60%)%s+Utils%.ReleaseFocusOnOutsideClick%(editBox%)") ~= nil,
         "the map tab's search box")
 end
 

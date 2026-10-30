@@ -53,7 +53,7 @@ local function Setup()
     H.loadModule("Search/Results/Gestures.lua", env, ns)
     ns.ExtensionPages = {
         { id = "notes", name = "Notes" }, { id = "chat", name = "Chat" },
-        { id = "clipboard", name = "Clipboard History" }, { id = "gps", name = "GPS" },
+        { id = "clipboard", name = "Clipboard History" },
     }
     H.loadModule("Core/SettingsRows.lua", env, ns)
     return env, ns
@@ -67,15 +67,6 @@ local function ExtensionRows(env, ns)
         EasyFind = env.EasyFind }, { __index = env })
     local clip = assert(load(slice(source("Apps/Clipboard/Clipboard.lua"), "local SOURCES = {",
         "\nlocal function BuildSettings") .. "\nreturn SettingRows", "=Clipboard rows", "t", clipEnv))()
-    local gpsSrc = source("Apps/GPS/GPS.lua")
-    ns.GPSWorldPin = { Style = function() return "flame" end, DefaultStyle = function() return "calm" end }
-    ns.GOLD_COLOR = { 1, 0.82, 0 }
-    local gpsEnv = setmetatable({ L = L, Utils = Utils, ns = ns, DB = function() return {} end, Refresh = function() end,
-        Route = function() end, Reroute = function() end,
-        GPS = { CogMode = function() return "hover" end, ApplyCogs = function() end } }, { __index = env })
-    local gps = assert(load(slice(gpsSrc, "local TEXT_SIZES = ", "\n") .. "\n"
-        .. slice(gpsSrc, "local OptionsPage = {}", "\n-- The extension: its tile opens")
-        .. "\nreturn OptionsPage.Rows", "=GPS rows", "t", gpsEnv))()
     local notesNS = {}
     local notesEnv = setmetatable({ L = L, Utils = Utils, ns = ns, notesNS = notesNS, UI = {},
         NormalizeDB = function() return {} end,
@@ -84,7 +75,7 @@ local function ExtensionRows(env, ns)
         OPACITY_MIN = 0.4, OPACITY_DEFAULT = 1, OPACITY_STEP = 0.05 }, { __index = env })
     assert(load(slice(source("Apps/Notes/Notes.lua"), "local function NotesBorderChoices()",
         "\n-- The extension's settings page") .. "\nreturn nil", "=Notes rows", "t", notesEnv))()
-    return { { "notes", "Notes", notesNS.SettingRows }, { "clipboard", "Clipboard History", clip }, { "gps", "GPS", gps } }
+    return { { "notes", "Notes", notesNS.SettingRows }, { "clipboard", "Clipboard History", clip } }
 end
 
 local function LabelMatches(label, name)
@@ -114,8 +105,8 @@ function tests.theWindowsRowsAllStay()
     local baseline = dofile(H.ADDON_ROOT .. "/tests/fixtures/options_rows_baseline.lua")
     local used, missing = {}, {}
     for _, b in ipairs(baseline) do
-        -- Chat's rows are EasyChat's (its own repo and test).
-        if b[2] ~= "Chat" then
+        -- Chat's and GPS's rows are their own repos' to test.
+        if b[2] ~= "Chat" and b[2] ~= "GPS" then
             local found
             for i, row in ipairs(rows) do
                 if not used[i] and row.path[1] == b[1] and (row.path[2] or "") == b[2]
@@ -156,7 +147,7 @@ function tests.everyWindowControlIsARow()
     for key in src:gmatch("Options:AddAction%(\"([%a]+)\"") do
         if not actions[key] then missing[#missing + 1] = "AddAction " .. key end
     end
-    for _, path in ipairs({ "Apps/GPS/GPS.lua", "Apps/Notes/Notes.lua", "Apps/Clipboard/Clipboard.lua" }) do
+    for _, path in ipairs({ "Apps/Notes/Notes.lua", "Apps/Clipboard/Clipboard.lua" }) do
         for call, key in source(path):gmatch("kit%.([%a]+)%(page, L%[\"([%u%d_]+)\"%]") do
             if call ~= "Title" and not Declares(rows, L[key]) then missing[#missing + 1] = path .. " " .. key end
         end

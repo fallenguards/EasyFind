@@ -33,14 +33,10 @@ function tests.eachWayOfTravelWearsItsGlyph()
         "no classic stand-in for a way of travel")
 end
 
-function tests.theScannerAndTheRouteTakeTheSameGlyphs()
+function tests.theScannerTakesTheCategoryGlyph()
     local scan = Read("MapSearch/Search/Scanners.lua")
     H.assertTrue(scan:find("icon = CATEGORY_ICONS%.flightmaster,") ~= nil, "the flight master scan takes the category's glyph")
     H.assertTrue(scan:find("TaxiNode_Neutral") == nil, "the old node glyph is gone from the scan")
-    local preview = Read("Apps/GPS/Preview.lua")
-    H.assertTrue(preview:find('skyship = "skyship"') ~= nil and preview:find('portal = "portal"') ~= nil,
-        "a skyship and a portal step take their own symbols")
-    H.assertTrue(preview:find("PortalAtlas") == nil, "the portal symbol comes from the category table")
 end
 
 local pass, fail, failures = H.runSuite("TransportIcons", tests)

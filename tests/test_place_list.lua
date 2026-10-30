@@ -185,8 +185,8 @@ function tests.aHostSkinDressesTheHeaders()
     H.assertEq(painted, 2, "a new skin repaints")
 end
 
-function tests.theMapAndTheGPSDrawThroughIt()
-    for _, path in ipairs({ "/MapSearch/MapTab.lua", "/Apps/GPS/GPS.lua" }) do
+function tests.theMapDrawsThroughIt()
+    for _, path in ipairs({ "/MapSearch/MapTab.lua" }) do
         local f = assert(io.open(H.ADDON_ROOT .. path, "rb"))
         local src = f:read("*a")
         f:close()

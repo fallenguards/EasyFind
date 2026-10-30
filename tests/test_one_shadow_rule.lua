@@ -5,7 +5,7 @@
 -- fill outside every window, is the one exception.
 local H = require("Harness")
 
-local KNOWN = { ["Apps/GPS/WorldPin.lua"] = true }
+local KNOWN = {}
 
 local tests = {}
 

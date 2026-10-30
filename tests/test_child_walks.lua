@@ -6,7 +6,6 @@
 local H = require("Harness")
 
 local KNOWN = {
-    ["Apps/GPS/WorldPin.lua"] = 4,
     ["Apps/Guide/Highlight.lua"] = 7,
     ["Apps/Icons/IconPickerSearch.lua"] = 1,
     ["MapSearch/MapTab.lua"] = 2,
