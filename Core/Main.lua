@@ -637,9 +637,8 @@ local SUGGESTED_KEYBINDS = {
     EASYFIND_MAP_FOCUS = "CTRL-M",
 }
 
--- Chat-hello hyperlink. Clicking the link in the welcome message opens the
--- restyled What's New popup. SetItemRef receives any |H...|h chat link, so
--- our custom prefix is detected before falling through to Blizzard's handler.
+-- The welcome message's links. ResultLinks registers the easyfind link type
+-- with the game, so SetItemRef returns and the post-hook below sees the click.
 -- The release the What's New popup describes: bumped, and the body
 -- rewritten, with every release.
 local WHATSNEW_CONTENT_VERSION = "4.0.2"

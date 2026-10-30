@@ -39,8 +39,10 @@ local ChatEdit_InsertLink = _G["ChatEdit_InsertLink"]
 local ChatEdit_GetActiveWindow = _G["ChatEdit_GetActiveWindow"]
 local ChatFrame_OpenChat = _G["ChatFrame_OpenChat"]
 local AddMessageEventFilter = _G["ChatFrame_AddMessageEventFilter"]
+local LinkUtil = _G["LinkUtil"]
 
-local LINK_PREFIX = "easyfind:row:"
+local LINK_TYPE = "easyfind"
+local LINK_PREFIX = LINK_TYPE .. ":row:"
 local MARKER = "EasyFind"
 local MAX_NAME = 60
 local MAX_MESSAGE = 255
@@ -713,6 +715,12 @@ function ResultLinks:Install()
         for i = 1, #CHAT_EVENTS do
             AddMessageEventFilter(CHAT_EVENTS[i], ChatFilter)
         end
+    end
+    -- Our type in the game's link registry: SetItemRef answers it Handled.
+    -- Unregistered, Era's ItemRef tooltip throws on it and no post-hook runs.
+    if LinkUtil and LinkUtil.RegisterLinkHandler
+       and not (LinkUtil.IsLinkHandlerRegistered and LinkUtil.IsLinkHandlerRegistered(LINK_TYPE)) then
+        LinkUtil.RegisterLinkHandler(LINK_TYPE, function() end)
     end
     -- hooksecurefunc, never a replacement: secure code reads SetItemRef and
     -- a replaced global taints every reader (see Core/Main.lua).
