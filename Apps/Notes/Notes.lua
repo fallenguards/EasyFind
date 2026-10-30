@@ -27,7 +27,7 @@ local GetCursorInfo = GetCursorInfo
 notesNS.UI = UI
 ns.Notes = notesNS
 
-local NOTES_DB_VERSION = 14
+local NOTES_DB_VERSION = 15
 local FONT_SIZE_MIN = 9
 local FONT_SIZE_MAX = 56
 local FONT_SIZE_DEFAULT = 12
@@ -532,6 +532,22 @@ local function NormalizeDB()
     if v < 14 then
         for _, n in ipairs(EasyNotesDB.notes) do UI.HexBodyColors(n) end
         for _, n in ipairs(EasyNotesDB.trash) do UI.HexBodyColors(n) end
+    end
+    -- A window tag reads as the window ("Auction House"), no longer "open".
+    if v < 15 then
+        local label = notesNS.Context.WindowLabel
+        local function rename(list)
+            for _, e in ipairs(list or {}) do
+                if e.type == "uistate" and label(e.id) then e.name = label(e.id) end
+            end
+        end
+        for _, store in ipairs({ EasyNotesDB.notes, EasyNotesDB.trash }) do
+            for _, n in ipairs(store) do
+                rename(n.appliesIn)
+                rename(n.showsOn)
+                for _, r in ipairs(n.rules or {}) do rename(r.conds) end
+            end
+        end
     end
     if type(EasyNotesDB.fontSize) ~= "number" then EasyNotesDB.fontSize = FONT_SIZE_DEFAULT end
     if type(EasyNotesDB.uiScale) ~= "number" then EasyNotesDB.uiScale = UI_SCALE_DEFAULT end
@@ -1040,11 +1056,25 @@ end
 function notesNS.LinkedNote(ext, key, title, create)
     local link = ns.ChecklistLinks and ns.ChecklistLinks[ext]
     local cat = link and link.category and link.category.key
+    local window = link and link.category and link.category.window
+    -- The category's window as the note's tag ("Auction House"), given
+    -- once: a tag the player took off stays off.
+    local function TagLinkedWindow(note)
+        local label = window and notesNS.Context.WindowLabel(window)
+        if not label or note.list.windowTagged then return end
+        note.list.windowTagged = true
+        note.appliesIn = note.appliesIn or {}
+        for _, e in ipairs(note.appliesIn) do
+            if e.type == "uistate" and e.id == window then return end
+        end
+        note.appliesIn[#note.appliesIn + 1] = { type = "uistate", id = window, name = label }
+    end
     for _, note in ipairs(NotesStore()) do
         local src = note.list and note.list.source
         if src and src.ext == ext and src.key == key then
             -- One made before its extension named a category takes it.
             if cat and not note.categories then note.categories, note.category = { cat }, cat end
+            TagLinkedWindow(note)
             return note.id
         end
     end
@@ -1055,6 +1085,7 @@ function notesNS.LinkedNote(ext, key, title, create)
     note.scope = "account"
     if cat then note.categories, note.category = { cat }, cat end
     CK.Init(note).source = { ext = ext, key = key }
+    TagLinkedWindow(note)
     return note.id
 end
 
@@ -8235,6 +8266,30 @@ do
         return rows
     end
 
+    -- "Auction House open" and the other windows as toggles on the note:
+    -- on, the note opens the window when that one opens and carries the
+    -- window's tag ("Auction House"), added when missing; off leaves the tag.
+    function NoteWhen.WindowRows(note)
+        local rows = {}
+        for _, w in ipairs(Ctx.Windows()) do
+            local key = CtxKey(w)
+            local have
+            for _, e in ipairs(note.appliesIn or {}) do
+                if CtxKey(e) == key then have = e break end
+            end
+            rows[#rows + 1] = { text = L["NOTES_CTX_OPEN_FMT"]:format(w.name), keepOpen = true,
+                tooltip = L["NOTES_AUTO_WINDOWS_TT"], icon = (have and have.opens) and MENU_CHECK_TEX or nil,
+                onClick = function()
+                    if not have then
+                        ToggleNoteContext(note, w)
+                        have = note.appliesIn[#note.appliesIn]
+                    end
+                    Auto.FlipOpens(note, have)
+                end }
+        end
+        return rows
+    end
+
     -- A picked single: a flyout with that switch and Remove.
     function Auto.Picked(note, e)
         return { text = Auto.Label(e), icon = MENU_CHECK_TEX, submenu = function()
@@ -8368,6 +8423,8 @@ do
             end
         end
         Auto.Now(note, rows, have)
+        rows[#rows + 1] = { text = L["NOTES_AUTO_WINDOWS"], tooltip = L["NOTES_AUTO_WINDOWS_TT"],
+            submenu = function() return NoteWhen.WindowRows(note) end }
         local fresh = {}
         rows[#rows + 1] = Auto.Searching({ text = L["NOTES_AUTO_ALL_OF"], tooltip = L["NOTES_AUTO_ALL_OF_TT"],
             submenu = function(t) return NoteWhen.RuleRows(note, fresh, t) end })

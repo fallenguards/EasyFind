@@ -383,11 +383,25 @@ local function Classes()
     return out
 end
 
-local function Fixed()
+-- The client's windows as tags: "Auction House" (a note with it applies
+-- there); the open switch on one is the "Auction House open" toggle.
+function Ctx.Windows()
     local out = {}
     for _, w in ipairs(WINDOWS) do
         if not w.retail or Caps.retail then out[#out + 1] = { type = "uistate", id = w.id, name = L[w.label] } end
     end
+    return out
+end
+
+function Ctx.WindowLabel(id)
+    for _, w in ipairs(WINDOWS) do
+        if w.id == id then return L[w.label] end
+    end
+    return nil
+end
+
+local function Fixed()
+    local out = Ctx.Windows()
     out[#out + 1] = { type = "group", id = "solo", name = L["NOTES_CTX_SOLO"] }
     out[#out + 1] = { type = "group", id = "party", name = L["NOTES_CTX_PARTY"] }
     out[#out + 1] = { type = "group", id = "raid", name = L["NOTES_CTX_RAIDGROUP"] }

@@ -827,8 +827,10 @@ end
 -- target, text } } in the list's order. handlers.changed(noteID, key,
 -- lines) hears the player's edits (lines: { id, ref, item, link, target,
 -- text } in order); handlers.shown(noteID, key) asks for the list when the
--- note is opened in Notes. handlers.category = { key, label }: a note
--- category of the extension's own that its notes are filed under.
+-- note is opened in Notes. handlers.category = { key, label, window }: a
+-- note category of the extension's own that its notes are filed under;
+-- window names the client window its notes belong to ("auctionhouse"),
+-- whose tag each note gets, so it applies there.
 -- handlers.items: names typed in its notes are items with a count each.
 -- handlers.search(noteID, key, line): the player asked for the line's
 -- auction search (Search AH on its menu, Ctrl+click on it); true when the
