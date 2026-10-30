@@ -90,3 +90,45 @@ API.RegisterSearchProvider({
           end },
     },
 })
+
+-- Chat and GPS came inside EasyFind until each became an addon of its own:
+-- a player who used one and lacks it now is told once, with its page to
+-- copy. A page waits for its project's slug.
+local MOVED_PAGE = "https://www.curseforge.com/wow/addons/"
+local MOVED = {
+    { addon = "EasyFind_Chat", name = L["APP_CHAT"], project = "EasyFind: Chat Extension", slug = nil,
+      used = function(db) return db.chatInUse == true end },
+    { addon = "EasyFind_GPS", name = L["APP_GPS"], project = "EasyFind: GPS Navigation Extension", slug = nil,
+      used = function(db)
+          for key in pairs(db) do
+              if type(key) == "string" and key:sub(1, 3) == "gps" then return true end
+          end
+          return false
+      end },
+}
+
+local function TellMoved()
+    local db = EasyFind.db
+    if not db or InCombatLockdown() then return end
+    db.movedTold = type(db.movedTold) == "table" and db.movedTold or {}
+    for _, m in ipairs(MOVED) do
+        if m.slug and not db.movedTold[m.addon] and m.used(db) and not C_AddOns.DoesAddOnExist(m.addon) then
+            db.movedTold[m.addon] = true
+            ns.ShowThemedDialog({
+                text = L["EXT_MOVED_FMT"]:format(m.name, m.project),
+                hasEditBox = true, readOnly = true, editBoxDefault = MOVED_PAGE .. m.slug,
+                single = true, acceptText = _G["OKAY"] or "Okay",
+                onAccept = function() C_Timer.After(0.5, TellMoved) end,
+            })
+            return
+        end
+    end
+end
+
+local movedWatch = CreateFrame("Frame")
+movedWatch:Hide()
+movedWatch:RegisterEvent("PLAYER_LOGIN")
+movedWatch:SetScript("OnEvent", function(self)
+    self:UnregisterAllEvents()
+    C_Timer.After(10, TellMoved)
+end)
