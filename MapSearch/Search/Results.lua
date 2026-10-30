@@ -383,9 +383,12 @@ local function POIResultLess(a, b)
     return sa > sb
 end
 
+-- Same-named places fold into one row (every auction house); a creature
+-- is one of a kind: five NPCs named Thrall are five rows, each at its own.
 local function GetPOIDuplicateKey(poi)
     return (poi.name or "") .. (poi.category or "")
         .. (poi.isZone and (poi.pathPrefix or "") or "")
+        .. (poi.npcID and ("#" .. poi.npcID) or "")
 end
 
 -- The cache's entry for the query, or the candidates: the last query's

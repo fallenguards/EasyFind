@@ -1,8 +1,8 @@
--- A folded map row (one name, several places: every creature called
--- Thrall) pins only its spots on the viewed map (MapSearch.SpotsOnMap,
--- MapSearch/Navigation.lua). Drawn whole, each spot's x and y from another
--- map landed on the viewed one: a click on Thrall in Swamp of Sorrows
--- covered it in Thralls from across the world.
+-- A folded map row (one name, several places: a flight master scanned at
+-- continent and zone level) pins only its spots on the viewed map
+-- (MapSearch.SpotsOnMap, MapSearch/Navigation.lua). Drawn whole, each
+-- spot's x and y from another map landed on the viewed one. Creatures no
+-- longer fold at all (test_creature_rows_apart).
 local H = require("Harness")
 
 local function Read(path)
