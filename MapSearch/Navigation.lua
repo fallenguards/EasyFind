@@ -129,9 +129,12 @@ local function GPSNavigates()
 end
 
 -- The pin on the spot a route leads to: dismissing it ends the route too.
+-- The GPS's own end pin marks it on whatever map is viewed.
 local function RouteEndsHere(self)
     local dest = EasyFind.API.CallAction("gps", "destination")
-    if not (dest and dest.x and self.waypointX and dest.mapID == WorldMapFrame:GetMapID()) then return false end
+    if not dest then return false end
+    if routeEndPinned then return true, dest end
+    if not (dest.x and self.waypointX and dest.mapID == WorldMapFrame:GetMapID()) then return false end
     return math.abs(dest.x - self.waypointX) < 0.005 and math.abs(dest.y - self.waypointY) < 0.005, dest
 end
 
@@ -1169,6 +1172,7 @@ end
 
 function MapSearch:ClearAll()
     activePinState = nil
+    routeEndPinned = false
     self:ClearHighlight()
     -- One still waiting for the map to close goes too.
     MapSearch.DropWaypointChange("place")
