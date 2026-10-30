@@ -4,6 +4,29 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [4.0.2] - 2026-10-30
+
+### Changed
+- **Chat and GPS are extensions**: both ship as addons of their own on CurseForge (EasyFind: Chat Extension, EasyFind: GPS Navigation Extension) and no longer come inside EasyFind's zip; a line in chat after the update says where they went, with their pages, and settings carry over for anyone who installs them
+- **Map tab filter menu**: the cog opens the game's own menu, as the rest of the tab is the game's look; the GPS window keeps EasyFind's
+
+### Added
+- **Profession actions**: Fishing, Survey and Cooking Fire cast from their search rows
+- **Map tab**: an extension's rows (quests) get their own Show switch in the cog menu
+- **Notes**: a Close with Esc setting, off by default; Esc still closes a menu inside the window
+- **Checklists**: Ctrl+click an item line with the auction house open to search it, as Search AH on its menu does; a shopping list's note searches with the list's own term, and the menu entry works on the classic auction frame too
+- **Extensions API 1.3**: `places(row)` folds a provider row's spots on the map tab and `ShowPlaces` opens them; `iconWell` puts a provider's marks in a round well on map pins; `kit.Checkbox` takes a width for two columns of switches; a linked checklist's `search` handler; one filter row per extension, a provider naming its extension
+
+### Fixed
+- **Map**: a folded row pins only its spots on the viewed map; a hovered result pins only on the map it is on; same-named creatures are separate rows, each at its own place; a zone copied into another world is not a place, so routes to Arathi Highlands plan again
+- **GPS end pin**: right-clicking it on any map ends the route
+- **Scroll bars**: a wheel ease stops once its list is moved by its owner (the chat's list no longer ran away)
+
+### Technical Notes
+- **Tests**: every edit box in every EasyFind-family addon drops its focus on an outside click, checked at edit, at commit and in CI
+
+---
+
 ## [4.0.1] - 2026-10-29
 
 ### Added
