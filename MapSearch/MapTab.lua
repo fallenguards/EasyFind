@@ -1687,8 +1687,28 @@ local function ShowDefs(onChanged)
     return defs
 end
 
+-- The extensions whose rows this tab lists (quests), a check each after
+-- NPCs, keyed by category as GetFilterBucket buckets them.
+local function PlacedDefs(defs, onChanged)
+    local filters, placed = Filters(), {}
+    for _, p in pairs(ns.Extensions.Providers.byKey) do
+        if p.place then placed[#placed + 1] = p end
+    end
+    table.sort(placed, function(a, b) return a.label < b.label end)
+    for _, p in ipairs(placed) do
+        local key = p.category
+        defs[#defs + 1] = { kind = "check", label = p.label,
+            get = function() return filters[key] ~= false end,
+            set = function(v)
+                filters[key] = v and true or false
+                onChanged(key, v)
+            end }
+    end
+end
+
 local function MapOptionsDefs(onChanged, onFontPick)
     local defs = ShowDefs(onChanged)
+    PlacedDefs(defs, onChanged)
     defs[#defs + 1] = { kind = "separator" }
     defs[#defs + 1] = { kind = "check", label = L["MAP_SHOW_PARENTS"], tooltip = L["MAP_SHOW_PARENTS_TT"],
         get = function() return EasyFind.db.mapTabShowParents ~= false end,

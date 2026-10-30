@@ -90,6 +90,9 @@ local function GetFilterBucket(data)
     -- StaticLocations subcategories (classtrainer_*, prof_*, etc.) bucket here.
     if sfind(cat, "^classtrainer_") or sfind(cat, "^prof_") then return "services" end
     if cat == "guildbank" or cat == "guildservices" or cat == "trainingdummy" then return "services" end
+    -- An extension's rows on the map (quests): a bucket of their own.
+    local ext = ns.Extensions
+    if ext and ext.Providers and ext.Providers.byCategory[cat] then return cat end
     return "other"
 end
 ns.MapSearch.GetFilterBucket = GetFilterBucket
