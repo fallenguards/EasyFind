@@ -171,10 +171,13 @@ local function PinClick(self, button)
     end
     if button ~= "LeftButton" or not (self.isLocalSearch and self.waypointX and self.waypointY) then return end
     local x, y, cat = self.waypointX, self.waypointY, self.waypointCategory
-    if activePinState and activePinState.instances then MapSearch:ShowWaypointAt(x, y, nil, cat) end
+    local sel = MapSearch._selected
+    -- One of a cluster stands alone in its own look: an extension's spot keeps its glyph.
+    if activePinState and activePinState.instances then
+        MapSearch:ShowWaypointAt(x, y, self.waypointIcon or (sel and sel.icon), cat, nil, self.waypointDisplayID)
+    end
     local viewingMapID = WorldMapFrame:GetMapID()
     if not viewingMapID then return end
-    local sel = MapSearch._selected
     if sel and GPSNavigates() and EasyFind.API.CallAction("gps", "navigate", { name = sel.name, mapID = viewingMapID,
             x = x, y = y, icon = sel.icon, category = sel.category or cat, displayID = sel.displayID }) then
         return
@@ -940,6 +943,8 @@ function MapSearch:ShowMultipleWaypoints(instances)
             pin.waypointX = instance.x
             pin.waypointY = instance.y
             pin.waypointCategory = instance.category
+            pin.waypointIcon = instance.icon
+            pin.waypointDisplayID = instance.displayID
             if pinHoverClearsOverride == true then
                 pin.isLocalSearch = false
             else

@@ -68,11 +68,22 @@ MapSearch.PinMapItem   = function(_, data) return PinMapItem(data) end
 MapSearch.UnpinMapItem = function(_, data) return UnpinMapItem(data) end
 
 local function GetCategoryIcon(category)
-    return CATEGORY_ICONS[category] or CATEGORY_ICONS.unknown
+    local icon = CATEGORY_ICONS[category]
+    if icon then return icon end
+    -- An extension's category: its provider's glyph, never the question mark.
+    local p = ns.Extensions and ns.Extensions.Providers and ns.Extensions.Providers.byCategory[category]
+    return p and p.icon or CATEGORY_ICONS.unknown
+end
+
+-- "Show me how" leads to a thing's own window; a spot an extension or the
+-- creature catalog placed has none to lead to.
+local function GuideAllowed(data)
+    return not (data.providerRow or data.placeOf or data.npcID or data.category == "npc")
 end
 
 ns.MapSearch = ns.MapSearch or MapSearch
 ns.MapSearch.GetCategoryIcon = GetCategoryIcon
+ns.MapSearch.GuideAllowed = GuideAllowed
 
 local function GetFilterBucket(data)
     if not data then return "other" end

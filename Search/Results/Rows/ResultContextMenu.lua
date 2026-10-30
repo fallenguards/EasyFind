@@ -24,7 +24,7 @@ function Rows:ResultMenuModel(row)
     local hasGuide = pinData.steps or pinData.transmogSetID
         or (pinData.category == "Loot" and pinData.itemID)
         or pinData.petID or pinData.speciesID
-        or pinData.mapSearchResult
+        or (pinData.mapSearchResult and ns.MapSearch.GuideAllowed(pinData))
     local onGuide = hasGuide and function()
         Handlers:SelectResult(pinData, true)
     end or nil

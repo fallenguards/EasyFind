@@ -563,7 +563,8 @@ local function RowOnClick(row, button)
         ShowPopup(isPinned, function()
             if isPinned then MapSearch:UnpinMapItem(data) else MapSearch:PinMapItem(data) end
             RefreshCurrentSearch()
-        end, function() TriggerResultSelect(data, false) end, function() PromptAlias(data) end, data, row)
+        end, MapSearch.GuideAllowed(data) and function() TriggerResultSelect(data, false) end or nil,
+        function() PromptAlias(data) end, data, row)
         return
     end
 
@@ -588,7 +589,8 @@ local function HeaderRightClick(navigateData, capturedCollapsed)
             navigateData.collapsed = nil
         end
         RefreshCurrentSearch()
-    end, function() TriggerResultSelect(navigateData, false) end, function() PromptAlias(navigateData) end, navigateData)
+    end, MapSearch.GuideAllowed(navigateData) and function() TriggerResultSelect(navigateData, false) end or nil,
+    function() PromptAlias(navigateData) end, navigateData)
 end
 
 local mapList
