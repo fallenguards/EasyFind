@@ -73,8 +73,8 @@ local EXTENSIONS_LINK = "easyfind:extensions"
 local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 local SPLIT_VERSION = "4.0.2"
 local FIRST_PARTY = {
-    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = nil, split = true },
-    { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = nil, split = true },
+    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = "easyfind-chat-extension", split = true },
+    { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension", split = true },
     { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension" },
     { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
 }
