@@ -704,6 +704,7 @@ local function ShowWhatsNewChatMessage(version)
     -- usual "EasyFind:" Print prefix would say the name twice.
     print(ns.CHAT_LOGO .. msg)
 end
+ns.ShowWhatsNewChatMessage = ShowWhatsNewChatMessage
 
 -- Compare two dotted version strings numerically: -1 / 0 / 1 for a<b, a==b, a>b.
 -- Missing or non-numeric segments count as 0, so "2.0" == "2.0.0" and a
