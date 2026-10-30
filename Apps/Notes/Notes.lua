@@ -5319,9 +5319,9 @@ function UI:EnsureEasyNotesFrame()
         end)
     end
 
-    -- ESC closes the notes window when nothing has keyboard focus, through
-    -- EasyFind's own ESC dispatch (never UISpecialFrames, which the game
-    -- walks): menus first, then the row selection, then the window.
+    -- ESC with nothing focused, through EasyFind's own ESC dispatch (never
+    -- UISpecialFrames, which the game walks): menus first, then the row
+    -- selection, then the window, if the setting (off by default) lets it.
     Utils.AttachEscClose(frame, function()
         if UI:CloseEasyNotesOpenMenus() then return true end
         if next(UI._notes.paletteSelection) then
@@ -5329,8 +5329,11 @@ function UI:EnsureEasyNotesFrame()
             UI:RepaintEasyNotesPaletteRows()
             return true
         end
+        if NormalizeDB().escCloses ~= true then return false end
         UI:CloseEasyNotes()
         return true
+    end, function()
+        return NormalizeDB().escCloses == true or next(UI._notes.paletteSelection) ~= nil or UI:HasEasyNotesOpenMenus()
     end)
 
     -- Left-clicking anywhere that is not a note row clears the list selection.
@@ -5694,6 +5697,16 @@ function UI:CloseEasyNotesOpenMenus()
     hideIfShown(UI._notes._filterMenu)
     hideIfShown(UI._notes._colorMenu)
     return closed
+end
+
+-- The same menus, asked without closing: whether Esc has one to take.
+function UI:HasEasyNotesOpenMenus()
+    local frame = UI._notes.frame
+    for _, f in ipairs({ frame and frame.listMenuFlyout, frame and frame.fontSizeFlyout, UI._notes._moreMenu,
+                         UI._notes._filterMenu, UI._notes._colorMenu }) do
+        if f and f:IsShown() then return true end
+    end
+    return false
 end
 
 -- The toolbar spans the window width (anchored below it); the button row
@@ -9711,6 +9724,12 @@ function notesNS.SettingRows()
                 NormalizeDB().foldHoverOnly = on or nil
                 UI.RefreshEasyNotesFoldShown()
             end),
+        Row(L["NOTES_OPT_ESC"], "check", L["NOTES_OPT_ESC_TT"],
+            function() return NormalizeDB().escCloses == true end,
+            function(on)
+                NormalizeDB().escCloses = on or nil
+                if Utils.RefreshEscArm then Utils.RefreshEscArm() end
+            end),
         Row(L["NOTES_TOOLTIP_COLOR"], "button", L["NOTES_TOOLTIP_COLOR_TT"], nil, nil,
             { press = function() notesNS.PickTooltipColor() end }),
         Row(L["OPT_KEYBIND_HOVER_NOTE"], "keybind", nil, nil, nil, { action = "EASYFIND_HOVER_NOTE" }),
@@ -9777,8 +9796,10 @@ function notesNS.BuildSettingsPage(page, kit)
     classColors:SetPoint("TOPLEFT", resize, "BOTTOMLEFT", 0, 0)
     local foldHover = Control(7)
     foldHover:SetPoint("TOPLEFT", classColors, "BOTTOMLEFT", 0, 0)
+    local escClose = Control(8)
+    escClose:SetPoint("TOPLEFT", foldHover, "BOTTOMLEFT", 0, 0)
     local hoverBind = kit.Keybind(page, L["OPT_KEYBIND_HOVER_NOTE"], "EASYFIND_HOVER_NOTE", L["OPT_KB_HOVER_NOTE_TT_DESC"])
-    hoverBind:SetPoint("TOPLEFT", foldHover, "BOTTOMLEFT", 0, -4)
+    hoverBind:SetPoint("TOPLEFT", escClose, "BOTTOMLEFT", 0, -4)
     -- Which kinds of situation show as chips over the list: a menu of
     -- ticks, listed anew after each.
     local kindsRow = CreateFrame("Frame", nil, page)
