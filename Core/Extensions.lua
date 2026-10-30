@@ -41,13 +41,6 @@ API.RegisterExtension({
     keywords = { "notes" }, settings = BuildNotesSettings,
 })
 
-API.RegisterExtension({
-    id = "chat", addon = "EasyFind_Chat", loadInCombat = true, loadAtLogin = true,
-    name = L["APP_CHAT"], description = L["APP_DESC_CHAT"],
-    icon = ns.CHAT_ICON_TEX, experimental = L["CHAT_EXP_TT"],
-    keywords = { "chat" },
-})
-
 -- Their search results, the same way: the rows come with the addon.
 API.RegisterSearchProvider({
     key = "notes", category = "Notes", extension = "notes",
@@ -70,26 +63,6 @@ API.RegisterSearchProvider({
 
 -- The windows that can wear their own look, as pages of the theme studio.
 ns.AddThemeSurface("notes", L["APP_NOTES"], { addon = "EasyFind_Notes" })
-
--- Chat's conversations, and its messages only when asked: a row for every
--- message crowded other searches out. A messenger never opened has nothing
--- to find, so its addon loads for a search only once it has been used.
-local function RefreshChatRows() API.RefreshSearchProvider("chat") end
-API.RegisterSearchProvider({
-    key = "chat", category = "Chat", extension = "chat",
-    label = L["APP_CHAT"], icon = ns.CHAT_ICON_TEX,
-    words = { "chat", "message", "messages", "whisper", "whispers", "conversation" },
-    loadOnSearch = function() return EasyFind.db and EasyFind.db.chatInUse end,
-    options = {
-        ns.Extensions.DbOption("chatFindChats", L["CHAT_OPT_CHATS"], L["CHAT_OPT_CHATS_TT"], RefreshChatRows),
-        { label = L["CHAT_OPT_MESSAGES"], tooltip = L["CHAT_OPT_MESSAGES_TT"],
-          get = function() return EasyFind.db.chatFindMessages == true end,
-          set = function(on)
-              EasyFind.db.chatFindMessages = on
-              RefreshChatRows()
-          end },
-    },
-})
 
 -- Chat and GPS came inside EasyFind until each became an addon of its own:
 -- a player who used one and lacks it now is told once, with its page to

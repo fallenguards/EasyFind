@@ -24,7 +24,6 @@ local BUNDLED = {
     calculator = { "Apps/Calc" }, clipboard = { "Apps/Clipboard" },
     quicklists = { "Apps/Quicklists" }, snippets = { "Apps/Snippets" },
     icons = { "Apps/Icons", "Core/Extensions.lua" }, notes = { "Apps/Notes", "Core/Extensions.lua" },
-    chat = { "Core/Extensions.lua" },
 }
 
 local function Registers(path, id, fn, field)
@@ -56,7 +55,7 @@ end
 -- The extensions' search results, the same way.
 local PROVIDERS = {
     snippets = { "Apps/Snippets" }, clipboard = { "Apps/Clipboard" }, quicklists = { "Apps/Quicklists" },
-    notes = { "Apps/Notes", "Core/Extensions.lua" }, chat = { "Core/Extensions.lua" },
+    notes = { "Apps/Notes", "Core/Extensions.lua" },
 }
 
 function tests.eachBundledProvider_registersThroughTheAPI()

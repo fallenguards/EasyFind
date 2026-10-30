@@ -5,9 +5,7 @@
 -- here until it does and is added below.
 local H = require("Harness")
 
-local SETS_UP_AT_LOGIN = {
-    LoadChatIfInUse = "EasyChat f60ba72: its Setup also runs at PLAYER_LOGIN",
-}
+local SETS_UP_AT_LOGIN = {}
 
 local tests = {}
 

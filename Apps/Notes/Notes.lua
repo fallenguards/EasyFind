@@ -7362,8 +7362,8 @@ function UI:ShowEasyNotesRowMenu(row)
     local rows = {
         { text = L["NOTES_RENAME"], onClick = function() UI:BeginEasyNotesRowRename(row) end },
     }
-    -- The note's words into the messenger, plain, when that companion is in.
-    if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat")) then
+    -- The note's words into the Chat extension, plain, when it is in.
+    if EasyFind.API.HasAction("chat", "compose") then
         rows[#rows + 1] = { text = L["NOTES_SEND_MESSAGE"], onClick = function()
             local idx = FindNoteIndex(row.noteID)
             local note = idx and NotesStore()[idx] or nil

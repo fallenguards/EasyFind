@@ -2445,7 +2445,6 @@ ns.CLIPBOARD_ICON_COORDS = { 0, 1, 0, 1 }
 -- GPS extension glyph: a map pin in the same white line-art family.
 ns.GPS_ICON_TEX        = "Interface\\AddOns\\EasyFind\\textures\\gps-icon"
 ns.NOTES_ICON_TEX      = "Interface\\AddOns\\EasyFind\\textures\\notes-icon"
-ns.CHAT_ICON_TEX       = "Interface\\AddOns\\EasyFind\\textures\\chat-icon"
 ns.QUICKLIST_ICON_TEX  = "Interface\\AddOns\\EasyFind\\textures\\quicklists-icon"
 ns.NOTES_ICON_COORDS   = { 0, 1, 0, 1 }
 ns.EXTENSIONS_ICON_TEX = "Interface\\AddOns\\EasyFind\\textures\\apps-icon"
@@ -10291,23 +10290,19 @@ function ns.BuildSendLinkRows(link, copyKey, copyNote)
     return rows
 end
 
--- The messenger's threads for a result's link: a new conversation, then
--- each thread it has, most recent first. Unloaded, the messenger offers
--- the new conversation alone and loads on that click; absent, nothing.
+-- The Chat extension's threads for a result's link: a new conversation,
+-- then each thread it has, most recent first; without it, nothing.
 function ns.BuildChatSendRows(link)
-    if not link then return nil end
-    if ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Chat") then return nil end
+    local API = EasyFind.API
+    if not (link and API.HasAction("chat", "compose")) then return nil end
     local rows = {
-        { text = L["CHAT_NEW_CONVERSATION"], onClick = function()
-            EasyFind.API.CallAction("chat", "compose", link)
-        end },
+        { text = L["CHAT_NEW_CONVERSATION"], onClick = function() API.CallAction("chat", "compose", link) end },
     }
-    local Chat = ns.Chat
-    local list = Chat and Chat.ListConversations and Chat:ListConversations() or {}
+    local list = API.HasAction("chat", "conversations") and API.CallAction("chat", "conversations") or {}
     if #list > 0 then rows[#rows + 1] = { isSeparator = true } end
     for i = 1, #list do
         local c = list[i]
-        rows[#rows + 1] = { text = c.label, onClick = function() Chat:ComposeWith(c.key, link) end }
+        rows[#rows + 1] = { text = c.label, onClick = function() API.CallAction("chat", "compose", link, c.key) end }
     end
     return rows
 end

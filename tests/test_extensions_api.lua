@@ -116,14 +116,6 @@ function tests.loadAtLogin_onlyWhatWorksUnopened()
     H.assertEq(table.concat(loaded, ","), "Rec_LoD")
 end
 
-function tests.chat_loadsAtLogin()
-    local f = assert(io.open(H.ADDON_ROOT .. "/Core/Extensions.lua", "rb"))
-    local src = f:read("*a")
-    f:close()
-    H.assertTrue(src:find('id = "chat", addon = "EasyFind_Chat", loadInCombat = true, loadAtLogin = true', 1, true) ~= nil,
-        "conversations recorded from login, not from the chat's first open")
-end
-
 function tests.launch_noLoadInCombatUnlessAllowed()
     local env, ns, API = fresh()
     ns.IsCompanionLoadable = function() return true end
