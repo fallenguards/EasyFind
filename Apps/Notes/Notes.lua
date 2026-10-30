@@ -1100,6 +1100,17 @@ function notesNS.LinkedShown(note)
     if link and link.shown then xpcall(link.shown, geterrorhandler(), note.id, src.key) end
 end
 
+-- A line's auction search by the extension the list is linked to (its
+-- own term, exact match and all); true when it took it.
+function notesNS.LinkedSearch(note, line)
+    local src = note.list and note.list.source
+    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    if not (link and link.search) then return false end
+    local ok, took = xpcall(link.search, geterrorhandler(), note.id, src.key,
+        { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text })
+    return ok and took == true
+end
+
 -- The notes as rows of the search bar: every note this character sees,
 -- found by title and body, opened on Enter. The bar is the one door that
 -- needs no window open first; its aliases (key note:<id>) find a note too.

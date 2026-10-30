@@ -289,7 +289,7 @@ A checklist note your extension keeps in step with a list of its own, both ways 
 
 | Function | |
 | --- | --- |
-| `LinkChecklists(id, handlers)` | `handlers.changed(noteID, key, lines)`: the player edited the note (`lines`: every line in order, `{ id, ref, item, link, target, text }`; a new line has no `ref`). `handlers.shown(noteID, key)`: the note was opened in Notes, sync it. `handlers.category = { key, label }`: a note category of your own (listed in Notes' filter, found by search), your notes filed under it. |
+| `LinkChecklists(id, handlers)` | `handlers.changed(noteID, key, lines)`: the player edited the note (`lines`: every line in order, `{ id, ref, item, link, target, text }`; a new line has no `ref`). `handlers.shown(noteID, key)`: the note was opened in Notes, sync it. `handlers.category = { key, label }`: a note category of your own (listed in Notes' filter, found by search), your notes filed under it. `handlers.search(noteID, key, line)`: the player asked for the line's auction search (Search AH on its menu, or Ctrl+click on the line) with the house open; search it your way and return true, else the house's own bar takes the item's name (MINOR 3). |
 | `LinkedChecklist(id, key, title, make)` | Your note for `key`, or nil. With `make` it is created (titled `title`) and Notes loaded; without, Notes is never loaded for it. |
 | `SyncChecklist(noteID, entries)` | Your list into the note: `entries` in order, each `{ ref, line = { item, link, target, text } }`. Lines matched by `ref` keep their ticks; new refs are added, missing ones dropped. |
 | `SetChecklistRefs(noteID, refs)` | After writing the player's edits to your list: `refs[lineID]` is the `ref` that line now stands for. |

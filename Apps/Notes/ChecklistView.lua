@@ -15,6 +15,7 @@ local L = ns.L
 local CreateFrame, time = CreateFrame, time
 local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
 local ipairs, smatch, sfind, slower, mmin, strtrim = ipairs, string.match, string.find, string.lower, math.min, strtrim
+local IsControlKeyDown = IsControlKeyDown
 
 -- GRIP_W: the margin left of the boxes the drag grip shows in, outside
 -- the window's text edge, so a row starts where the header's buttons do;
@@ -69,20 +70,34 @@ end
 
 -- The auction house
 
+-- The house: retail's frame, or the classic one.
 local function AuctionOpen()
-    local ah = _G["AuctionHouseFrame"]
+    local ah = _G["AuctionHouseFrame"] or _G["AuctionFrame"]
     return ah ~= nil and ah:IsShown()
 end
 
--- The item's name in the auction house's own search bar, then its search.
+-- The line searched at the auction house: by the extension its list is
+-- linked to when that searches (the list's own term), else the item's
+-- name in the house's own bar (retail's, or the classic browse box).
 local function SearchAH(line)
-    local ah = _G["AuctionHouseFrame"]
-    local bar = ah and ah:IsShown() and ah.SearchBar
-    if not (bar and bar.SetSearchText and bar.StartSearch and line.item) then return end
-    local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(line.item)
+    local note = Note()
+    if note and notesNS.LinkedSearch and notesNS.LinkedSearch(note, line) then
+        UI.lastSearched = line.id
+        return
+    end
+    local name = line.item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(line.item)
     if not name then return end
-    bar:SetSearchText(name)
-    bar:StartSearch()
+    local ah, classic = _G["AuctionHouseFrame"], _G["AuctionFrame"]
+    local bar = ah and ah:IsShown() and ah.SearchBar
+    if bar and bar.SetSearchText and bar.StartSearch then
+        bar:SetSearchText(name)
+        bar:StartSearch()
+    elseif classic and classic:IsShown() and _G["BrowseName"] and _G["AuctionFrameBrowse_Search"] then
+        _G["BrowseName"]:SetText(name)
+        _G["AuctionFrameBrowse_Search"]()
+    else
+        return
+    end
     UI.lastSearched = line.id
 end
 
@@ -287,7 +302,8 @@ local function RowMenu(row)
     local note, line = Note(), row.line
     if not (note and line) then return end
     local rows = {}
-    if line.link == "item" and AuctionOpen() then
+    -- An item line; on a linked list any named line, its extension searches the name.
+    if AuctionOpen() and (line.link == "item" or (note.list.source and (line.text or "") ~= "")) then
         rows[#rows + 1] = { text = L["CHECK_SEARCH_AH"], onClick = function() SearchAH(line) end }
     end
     -- An item ticked by hand takes a target too, and is counted from then on.
@@ -406,11 +422,13 @@ local function CreateRow(i)
     Utils.AttachDelayedTooltip(count, "ANCHOR_RIGHT", function() return L["CHECK_COUNT_TT"] end)
     row.count = count
     row.detail = Text(row, "GameFontDisableSmall")
-    -- A click on the line types in it; the auction search for an item
-    -- line is on its menu.
+    -- A click on the line types in it; Ctrl+click searches it at an open
+    -- auction house (and nothing elsewhere), as its menu's Search AH does.
     row:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
             RowMenu(self)
+        elseif IsControlKeyDown() then
+            if self.line and AuctionOpen() then SearchAH(self.line) end
         elseif self.line and not UI.board then
             View.Edit(self.line.id)
         end

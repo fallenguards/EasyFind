@@ -236,6 +236,7 @@ function API.Fire(id, event, ...) end
 ---@field shown fun(noteID: integer, key: string)? the note opened in Notes: sync it now
 ---@field category { key: string, label: string }? a note category of your own, your notes filed under it
 ---@field items boolean? names typed in your notes are items, each with a count, and the editor suggests them
+---@field search fun(noteID: integer, key: string, line: table): boolean? the player asked for the line's auction search (Search AH on its menu, Ctrl+click on it): search it your way and return true; else the house's own bar takes the item's name (MINOR 3)
 
 ---Hears a linked checklist's edits and openings for this extension.
 ---@param handlers EasyFindChecklistLinks

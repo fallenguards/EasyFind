@@ -830,6 +830,9 @@ end
 -- note is opened in Notes. handlers.category = { key, label }: a note
 -- category of the extension's own that its notes are filed under.
 -- handlers.items: names typed in its notes are items with a count each.
+-- handlers.search(noteID, key, line): the player asked for the line's
+-- auction search (Search AH on its menu, Ctrl+click on it); true when the
+-- extension searched it, else the house's own bar takes the item's name.
 ns.ChecklistLinks = ns.ChecklistLinks or {}
 ns.NoteCategories = ns.NoteCategories or {}
 function API.LinkChecklists(id, handlers)
