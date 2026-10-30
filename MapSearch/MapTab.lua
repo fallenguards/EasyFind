@@ -1642,8 +1642,9 @@ local function FontRows(onPick)
         end
         local rows = {}
         for _, choice in ipairs(FONT_SIZES) do
-            rows[#rows + 1] = { text = L[choice[1]], keepOpen = true,
+            rows[#rows + 1] = { text = L[choice[1]], keepOpen = true, radio = true,
                 icon = choice[2] == near and MENU_CHECK or nil,
+                get = function() return choice[2] == near end,
                 onClick = function()
                     EasyFind.db.mapTabFontSize = choice[2]
                     onPick()
@@ -1718,6 +1719,57 @@ local function MapOptionsDefs(onChanged, onFontPick)
         end }
     defs[#defs + 1] = { kind = "submenu", label = L["OPT_FONT_SIZE"], rows = FontRows(onFontPick) }
     return defs
+end
+
+local function NativeTip(elem, title, text)
+    elem:SetTooltip(function(tooltip)
+        GameTooltip_SetTitle(tooltip, title)
+        GameTooltip_AddNormalLine(tooltip, text)
+    end)
+end
+
+-- Flyout rows as the game's menu entries: a row with a state is a check
+-- (a radio among sizes), one with only a flyout a button; the rows are
+-- read again on every rebuild, so each click shows the new state.
+local function AddNativeRows(elem, rows)
+    for _, r in ipairs(type(rows) == "function" and rows() or rows) do
+        local sub
+        if r.separator then
+            elem:CreateDivider()
+        elseif r.get then
+            sub = (r.radio and elem.CreateRadio or elem.CreateCheckbox)(elem, r.text, r.get, r.onClick)
+        else
+            sub = elem:CreateButton(r.text, r.onClick)
+        end
+        if sub then
+            if r.disabled then sub:SetEnabled(false) end
+            if r.tooltip then NativeTip(sub, r.text, r.tooltip) end
+            if r.submenu then AddNativeRows(sub, r.submenu) end
+        end
+    end
+end
+
+-- The cog's menu as the game draws its own: the map tab is the game's
+-- look throughout (the GPS window keeps EasyFind's). False where the
+-- client has no menu kit (the toggle popup stands in).
+local function ShowNativeMapOptions(owner, defs)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return false end
+    local ok = pcall(MenuUtil.CreateContextMenu, owner, function(_, root)
+        for _, d in ipairs(defs) do
+            if d.kind == "title" then
+                root:CreateTitle(d.label)
+            elseif d.kind == "separator" then
+                root:CreateDivider()
+            elseif d.kind == "check" then
+                local box = root:CreateCheckbox(d.label, d.get, function() d.set(not d.get()) end)
+                if d.tooltip then NativeTip(box, d.label, d.tooltip) end
+                if d.rows then AddNativeRows(box, d.rows) end
+            elseif d.kind == "submenu" then
+                AddNativeRows(root:CreateButton(d.label), d.rows)
+            end
+        end
+    end)
+    return ok
 end
 
 -- A Show choice changed, here or in a GPS box: every list it shapes
@@ -2261,7 +2313,8 @@ local function CreatePanel(qmf)
     end
     p.OnFontPicked = OnFontPicked
     cog:SetScript("OnClick", function()
-        ns.ShowTogglePopup("EasyFindMapTabOptions", cog, MapOptionsDefs(OnFilterChanged, OnFontPicked), {})
+        local defs = MapOptionsDefs(OnFilterChanged, OnFontPicked)
+        if not ShowNativeMapOptions(cog, defs) then ns.ShowTogglePopup("EasyFindMapTabOptions", cog, defs, {}) end
     end)
 
     p.AlignToBlizzardSearch = function()
