@@ -646,6 +646,8 @@ local WHATSNEW_CONTENT_VERSION = "4.0.1"
 
 local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"
+local PAGE_LINK_PREFIX = "easyfind:page:"
+local EXTENSIONS_LINK = "easyfind:extensions"
 local whatsNewHookInstalled = false
 
 local function InstallWhatsNewHyperlinkHook()
@@ -666,6 +668,10 @@ local function InstallWhatsNewHyperlinkHook()
             if ns.RequestOnboarding() and ns.Wizard.Show then
                 xpcall(ns.Wizard.Show, ErrorHandler, ns.Wizard)
             end
+        elseif link and link:sub(1, #PAGE_LINK_PREFIX) == PAGE_LINK_PREFIX then
+            ns.ShowExtensionPage(link:sub(#PAGE_LINK_PREFIX + 1))
+        elseif link == EXTENSIONS_LINK then
+            ns.ShowExtensionPages()
         end
     end)
 end
@@ -677,6 +683,7 @@ local function BlueChatLink(target, label)
     return sformat("|cff%02x%02x%02x|H%s|h[%s]|h|r",
         LC[1] * 255, LC[2] * 255, LC[3] * 255, target, label)
 end
+ns.BlueChatLink = BlueChatLink
 
 -- The tutorial offered in chat instead of opened: WoW Forever's beta has
 -- lost saved variables between sessions, and a wizard that opens on every
@@ -1299,6 +1306,8 @@ local function OnPlayerLogin()
     if currentVersion and currentVersion ~= lastSeen then
         -- A new install reaches here with lastSeen nil: nothing to announce.
         if lastSeen ~= nil then
+            -- The extensions notice (Core/Extensions.lua) reads the version left.
+            if ns.NoteUpgrade then ns.NoteUpgrade(lastSeen) end
             if CompareVersion(lastSeen, REVAMPED_TUTORIAL_VERSION) < 0 then
                 -- Upgrading from before the tutorial revamp: send them through
                 -- the new-player tutorial rather than a What's New notice.

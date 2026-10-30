@@ -64,44 +64,93 @@ API.RegisterSearchProvider({
 -- The windows that can wear their own look, as pages of the theme studio.
 ns.AddThemeSurface("notes", L["APP_NOTES"], { addon = "EasyFind_Notes" })
 
--- Chat and GPS came inside EasyFind until each became an addon of its own:
--- a player who used one and lacks it now is told once, with its page to
--- copy. A page waits for its project's slug.
-local MOVED_PAGE = "https://www.curseforge.com/wow/addons/"
-local MOVED = {
-    { addon = "EasyFind_Chat", name = L["APP_CHAT"], project = "EasyFind: Chat Extension", slug = nil,
-      used = function(db) return db.chatInUse == true end },
-    { addon = "EasyFind_GPS", name = L["APP_GPS"], project = "EasyFind: GPS Navigation Extension", slug = nil,
-      used = function(db)
-          for key in pairs(db) do
-              if type(key) == "string" and key:sub(1, 3) == "gps" then return true end
-          end
-          return false
-      end },
+-- EasyFind's own extensions on CurseForge: the upgrade notice below names
+-- them, a click on one gives its page's address. A page waits for its
+-- project's slug; split: came inside EasyFind until SPLIT_VERSION.
+local PAGE = "https://www.curseforge.com/wow/addons/"
+local PAGE_LINK = "easyfind:page:"
+local EXTENSIONS_LINK = "easyfind:extensions"
+local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
+local SPLIT_VERSION = "4.0.2"
+local FIRST_PARTY = {
+    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = nil, split = true },
+    { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = nil, split = true },
+    { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension" },
+    { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
 }
+ns.FirstPartyExtensions = FIRST_PARTY
 
-local function TellMoved()
-    local db = EasyFind.db
-    if not db or InCombatLockdown() then return end
-    db.movedTold = type(db.movedTold) == "table" and db.movedTold or {}
-    for _, m in ipairs(MOVED) do
-        if m.slug and not db.movedTold[m.addon] and m.used(db) and not C_AddOns.DoesAddOnExist(m.addon) then
-            db.movedTold[m.addon] = true
-            ns.ShowThemedDialog({
-                text = L["EXT_MOVED_FMT"]:format(m.name, m.project),
-                hasEditBox = true, readOnly = true, editBoxDefault = MOVED_PAGE .. m.slug,
-                single = true, acceptText = _G["OKAY"] or "Okay",
-                onAccept = function() C_Timer.After(0.5, TellMoved) end,
-            })
+local function Links(pick)
+    local list = {}
+    for _, e in ipairs(FIRST_PARTY) do
+        if e.slug and pick(e) then list[#list + 1] = ns.BlueChatLink(PAGE_LINK .. e.slug, e.project) end
+    end
+    return list
+end
+
+-- A page link clicked in chat: the address to copy (no browser from here).
+function ns.ShowExtensionPage(slug)
+    for _, e in ipairs(FIRST_PARTY) do
+        if e.slug == slug then
+            ns.ShowThemedDialog({ text = e.project .. "\n" .. L["EXT_PAGE_COPY"], hasEditBox = true, readOnly = true,
+                editBoxDefault = PAGE .. slug, single = true, acceptText = _G["OKAY"] or "Okay" })
             return
         end
     end
 end
 
-local movedWatch = CreateFrame("Frame")
-movedWatch:Hide()
-movedWatch:RegisterEvent("PLAYER_LOGIN")
-movedWatch:SetScript("OnEvent", function(self)
+-- The [Extensions] link: every page in one menu, a click on one its
+-- address; a check marks one already installed.
+function ns.ShowExtensionPages()
+    local rows = {}
+    for _, e in ipairs(FIRST_PARTY) do
+        if e.slug then
+            local have = C_AddOns.DoesAddOnExist(e.addon)
+            rows[#rows + 1] = { text = e.project, icon = have and MENU_CHECK or nil,
+                tooltip = have and L["EXT_INSTALLED"] or L["EXT_PAGE_TT"],
+                onClick = function() ns.ShowExtensionPage(e.slug) end }
+        end
+    end
+    ns.Utils.ShowCursorMenu("EasyFindExtensionPagesMenu", rows, { iconSide = "left" })
+end
+
+-- A player upgrading from before the split is told once, in chat: from
+-- 4.0.0 or 4.0.1, where Chat and GPS went, then the [Extensions] link;
+-- from earlier, the link alone. Noted at the upgrade, told at the next
+-- login out of combat.
+function ns.NoteUpgrade(from)
+    if ns.CompareVersion(from, SPLIT_VERSION) < 0 then EasyFind.db.extensionsNoticeFrom = from end
+end
+
+-- installed(addon): the game's answer; a preview passes its own.
+local function TellExtensions(installed)
+    local db = EasyFind.db
+    local from = db and db.extensionsNoticeFrom
+    if not from or InCombatLockdown() then return end
+    db.extensionsNoticeFrom = nil
+    installed = installed or C_AddOns.DoesAddOnExist
+    local pages = ns.BlueChatLink(EXTENSIONS_LINK, L["FILTER_EXTENSIONS"])
+    local msg
+    if ns.CompareVersion(from, "4.0.0") < 0 then
+        msg = L["EXT_NEW_FMT"]:format(ns.version, pages)
+    else
+        local missing = Links(function(e) return e.split and not installed(e.addon) end)
+        msg = L["EXT_SPLIT_FMT"]:format(ns.version)
+        if #missing == 2 then
+            msg = msg .. " " .. L["EXT_SPLIT_GET_FMT"]:format(L["EXT_AND_FMT"]:format(missing[1], missing[2]))
+        elseif #missing == 1 then
+            msg = msg .. " " .. L["EXT_SPLIT_GET_FMT"]:format(missing[1])
+        end
+        msg = msg .. " " .. L["EXT_OTHERS_FMT"]:format(pages)
+    end
+    print(ns.CHAT_LOGO .. msg)
+end
+ns.TellExtensions = TellExtensions
+
+local noticeWatch = CreateFrame("Frame")
+noticeWatch:Hide()
+noticeWatch:RegisterEvent("PLAYER_LOGIN")
+noticeWatch:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
-    C_Timer.After(10, TellMoved)
+    C_Timer.After(10, TellExtensions)
 end)

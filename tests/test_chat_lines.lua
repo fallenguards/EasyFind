@@ -38,6 +38,7 @@ local ALLOWED = {
     ["Core/Main.lua|ERR_OPTIONS_REGISTER_FAILED"] = { 1, "error" },
     ["Core/Main.lua|TUTORIAL_CHAT_OFFER"] = { 1, "release" },
     ["Core/Main.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
+    ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
     ["Core/Main.lua|%s|cFF00FF00EasyFind:|r %s"] = { 1, "helper" },
     ["Database/Dynamic.lua|ERR_SEARCH_DATA_FAILED"] = { 1, "error" },
     ["Database/Main.lua|ERR_DATABASE_INIT_FAILED"] = { 1, "error" },
