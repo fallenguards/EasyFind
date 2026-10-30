@@ -295,18 +295,16 @@ L["SHOWME_SAY_MICRO"]                   = "마이크로 메뉴에 달라붙습�
 L["SHOWME_SAY_TOGGLE"]                  = "클릭하면 열리고 다시 클릭하면 닫힙니다"
 L["SHOWME_SAY_REMOVE"]                  = "여기로 드래그하면 제거됩니다"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff클래식 시대와 TBC 애니버서리의 전리품과 우두머리|r\n" ..
-    "    |cff999999-|r 모든 던전과 공격대 우두머리와 그 전리품을 이름으로 찾고 내 직업에 맞게 걸러 줍니다. GPS가 인스턴스 입구로 안내합니다\n" ..
-    "    |cff999999-|r 줄임말도 됩니다: \"sm\", \"sm 도적\"\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff클래식 아이템 검색|r\n" ..
-    "    |cff999999-|r 클래식 시대, TBC 애니버서리, 판다리아의 안개 클래식에서 모든 아이템을 이름으로 찾습니다\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff퀘스트 길 안내|r\n" ..
-    "    |cff999999-|r 목표 추적기나 퀘스트 목록에서 퀘스트를 오른쪽 클릭하면 길 안내가 있고, 퀘스트 목록의 퀘스트가 GPS 버튼과 함께 검색에 나옵니다 (리테일, WoW Forever, 판다리아의 안개 클래식)\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff설정|r\n" ..
-    "    |cff999999-|r 이 페이지에서 검색: 설정 창 제목줄의 입력란이 열린 페이지를 좁혀 줍니다\n" ..
-    "    |cff999999-|r 모든 확장 기능 페이지에 기본값으로 초기화\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff채팅과 GPS는 이제 확장 기능입니다|r\n" ..
+    "    |cff999999-|r CurseForge의 별도 애드온이 되어 다른 모든 분께 EasyFind가 더 가벼워집니다. 사용하셨다면 설치하세요. 설정은 그대로 이어집니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff검색에서 전문 기술|r\n" ..
+    "    |cff999999-|r 낚시, 탐사, 모닥불을 해당 행에서 바로 시전합니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff지도 탭|r\n" ..
+    "    |cff999999-|r 필터 메뉴가 게임 자체 메뉴가 되었고, 확장 기능의 행(퀘스트)에 표시 스위치가 생겼으며, 결과는 자기 지도에만 표시되고 묶인 행은 보고 있는 지도의 지점만 표시합니다\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff메모|r\n" ..
+    "    |cff999999-|r 새 설정에서 닫기를 켜지 않으면 Esc를 눌러도 창이 열린 채로 남습니다. 구매 목록 메모에서는 경매장에서 아이템을 Ctrl+클릭하면 검색합니다\n" ..
     "|cffFFD100\226\128\162|r |cffffffff수정|r\n" ..
-    "    |cff999999-|r 꺼 둔 필터 범주가 다시 행을 숨기고, 전리품 필터가 게임에 있는 난이도만 보여 주며, 설정 검색이 드롭다운과 머리글을 다시 찾고, 검색창이 바깥을 클릭하면 키보드를 놓아 줍니다\n"
+    "    |cff999999-|r 같은 이름의 생물이 각각의 행으로 나뉘고, 다른 세계로 복사된 지역이 더는 경로를 막지 않으며, 스크롤한 목록이 주인이 옮긴 뒤 달아나지 않고, 어느 지도에서든 GPS 종점 핀을 오른쪽 클릭하면 경로가 끝납니다\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "별칭 추가"
@@ -1258,6 +1256,8 @@ L["NOTES_OPT_CHAT_NAMES"]                = "채팅의 이름에 메모 표시"
 L["NOTES_OPT_CHAT_NAMES_TT"]             = "채팅에서 플레이어 이름에 마우스를 올리면 그에 대한 메모가 보입니다."
 L["NOTES_OPT_CLICK_HINT"]                = "툴팁에 메모 안내"
 L["NOTES_OPT_CLICK_HINT_TT"]             = "Ctrl+오른쪽 클릭으로 메모를 열 수 있는 아이템과 주문은 툴팁에 그 사실을 표시합니다."
+L["NOTES_OPT_ESC"]                      = "Esc로 닫기"
+L["NOTES_OPT_ESC_TT"]                   = "끄면 Esc를 눌러도 창이 열린 채로 남습니다. X 버튼과 메모 버튼으로는 계속 닫힙니다. 창 안에 열린 메뉴는 Esc로 닫힙니다."
 L["NOTES_OPT_FOLD_HOVER"]               = "태그 화살표를 마우스를 올렸을 때만 표시"
 L["NOTES_OPT_FOLD_HOVER_TT"]            = "태그 줄을 접었을 때 화살표는 마우스가 창 위에 있는 동안에만 표시됩니다."
 L["NOTES_HINT_MAKE"]                     = "<Ctrl+오른쪽 클릭으로 메모 만들기>"
@@ -1377,6 +1377,14 @@ L["OPT_EXT_RESET"]                      = "기본값으로 초기화"
 L["OPT_EXT_RESET_TT"]                   = "이 페이지의 모든 설정을 기본값으로 되돌립니다."
 L["OPT_EXT_RESET_NONE_TT"]              = "이 페이지에는 초기화할 설정이 없습니다."
 L["POPUP_RESET_EXTENSION"]              = "%s의 모든 설정을 초기화할까요?"
+L["EXT_SPLIT_FMT"]                      = "EasyFind %s이(가) 더 가벼워졌습니다. 채팅과 GPS는 이제 별도의 애드온인 확장 기능입니다."
+L["EXT_SPLIT_GET_FMT"]                  = "사용하셨다면 CurseForge에서 %s을(를) 받으세요. 설정은 그대로 이어집니다."
+L["EXT_AND_FMT"]                        = "%s 및 %s"
+L["EXT_OTHERS_FMT"]                     = "다른 %s도 나와 있고, 더 준비 중입니다."
+L["EXT_NEW_FMT"]                        = "EasyFind %s에 %s이(가) 생겼습니다. CurseForge의 별도 애드온이며, 더 준비 중입니다."
+L["EXT_PAGE_COPY"]                      = "아래 주소를 복사(Ctrl+C)해서 브라우저에서 여세요."
+L["EXT_PAGE_TT"]                        = "클릭하면 페이지 주소가 나옵니다."
+L["EXT_INSTALLED"]                      = "설치됨"
 L["OPT_PAGE_SEARCH_PLACEHOLDER"]        = "이 페이지에서 검색..."
 L["SUBTEXT_DUNGEON_BOSS"]               = "던전 우두머리: %s"
 L["SUBTEXT_RAID_BOSS"]                  = "공격대 우두머리: %s"

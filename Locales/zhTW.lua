@@ -295,18 +295,16 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff經典時代和TBC週年版的拾取與首領|r\n" ..
-    "    |cff999999-|r 每個地城和團隊副本首領及其掉落，可按名稱找到，並依你的職業篩選；GPS會帶你前往副本入口\n" ..
-    "    |cff999999-|r 支援縮寫：\"sm\"、\"sm 盜賊\"\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff經典客戶端的物品搜尋|r\n" ..
-    "    |cff999999-|r 在經典時代、TBC週年版和潘達利亞之謎經典版中按名稱找到任何物品\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff任務導航|r\n" ..
-    "    |cff999999-|r 在任務追蹤或任務日誌中右鍵點擊任務即可導航，任務日誌中的任務也會帶著GPS按鈕出現在搜尋中（正式版、WoW Forever和潘達利亞之謎經典版）\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff設定|r\n" ..
-    "    |cff999999-|r 搜尋本頁：設定視窗標題列中的輸入框可篩選目前頁面\n" ..
-    "    |cff999999-|r 每個擴充功能的頁面都有恢復預設\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff聊天和GPS現在是擴充功能|r\n" ..
+    "    |cff999999-|r 成為CurseForge上獨立的插件，讓其他人的EasyFind更輕；如果你用過它們，安裝即可，設定會保留\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff從搜尋使用專業技能|r\n" ..
+    "    |cff999999-|r 釣魚、勘測和營火可直接從其結果列施放\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff地圖分頁|r\n" ..
+    "    |cff999999-|r 它的篩選選單改為遊戲內建選單；擴充功能的結果列（任務）有了顯示開關；結果只在它自己的地圖上標記，收合列只標記目前地圖上的地點\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff筆記|r\n" ..
+    "    |cff999999-|r 除非新設定要求關閉，否則按Esc視窗保持開啟；在購物清單的筆記裡，於拍賣場中Ctrl+點擊物品即可搜尋\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 關閉的篩選類別會再次隱藏其結果，拾取篩選只列出遊戲本身的難度，搜尋設定重新找到下拉選單和標題，搜尋框在點擊別處時會釋放鍵盤\n"
+    "    |cff999999-|r 同名生物分為各自的列，複製到另一個世界的區域不再阻礙路線，被捲動的清單在擁有者移動後不再亂跑，在任何地圖上右鍵點擊GPS終點圖釘即可結束路線\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"
@@ -1258,6 +1256,8 @@ L["NOTES_OPT_CHAT_NAMES"]                = "聊天中名字上的筆記"
 L["NOTES_OPT_CHAT_NAMES_TT"]             = "將滑鼠懸停在聊天中的玩家名字上，查看你關於他的筆記。"
 L["NOTES_OPT_CLICK_HINT"]                = "提示資訊中的筆記提示"
 L["NOTES_OPT_CLICK_HINT_TT"]             = "可以Ctrl+右鍵開啟筆記的物品和法術，會在提示資訊中說明。"
+L["NOTES_OPT_ESC"]                      = "按Esc關閉"
+L["NOTES_OPT_ESC_TT"]                   = "關閉時，按Esc視窗保持開啟；它的X和按鈕仍會關閉它。視窗內開啟的選單仍會在Esc時關閉。"
 L["NOTES_OPT_FOLD_HOVER"]               = "僅懸停時顯示標籤箭頭"
 L["NOTES_OPT_FOLD_HOVER_TT"]            = "標籤列收合後，其箭頭僅在滑鼠位於視窗上時顯示。"
 L["NOTES_HINT_MAKE"]                     = "<Ctrl+右鍵建立筆記>"
@@ -1377,6 +1377,14 @@ L["OPT_EXT_RESET"]                      = "恢復預設"
 L["OPT_EXT_RESET_TT"]                   = "本頁的所有設定恢復為預設值。"
 L["OPT_EXT_RESET_NONE_TT"]              = "本頁沒有可恢復的設定。"
 L["POPUP_RESET_EXTENSION"]              = "恢復 %s 的所有設定？"
+L["EXT_SPLIT_FMT"]                      = "EasyFind %s 更輕了：聊天和GPS現在是擴充功能，各自獨立的插件。"
+L["EXT_SPLIT_GET_FMT"]                  = "如果你用過它們，請到CurseForge取得%s；你的設定會保留。"
+L["EXT_AND_FMT"]                        = "%s和%s"
+L["EXT_OTHERS_FMT"]                     = "其他%s也已推出，更多即將到來。"
+L["EXT_NEW_FMT"]                        = "EasyFind %s 有了%s：CurseForge上各自獨立的插件，更多即將到來。"
+L["EXT_PAGE_COPY"]                      = "複製下方位址（Ctrl+C）並在瀏覽器中開啟。"
+L["EXT_PAGE_TT"]                        = "點擊取得頁面位址。"
+L["EXT_INSTALLED"]                      = "已安裝"
 L["OPT_PAGE_SEARCH_PLACEHOLDER"]        = "搜尋本頁..."
 L["SUBTEXT_DUNGEON_BOSS"]               = "地城首領：%s"
 L["SUBTEXT_RAID_BOSS"]                  = "團隊副本首領：%s"

@@ -328,18 +328,16 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffLoot and bosses on Classic Era and TBC Anniversary|r\n" ..
-    "    |cff999999-|r Every dungeon and raid boss and what it drops, found by name and kept to your class; GPS leads to the instance's entrance\n" ..
-    "    |cff999999-|r Shorthands work: \"sm\", \"stockades\", \"sm cloth\", \"sm rogue\"\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffItem search on Classic|r\n" ..
-    "    |cff999999-|r Any item found by name on Classic Era, TBC Anniversary and Mists Classic\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffQuest directions|r\n" ..
-    "    |cff999999-|r Right-click a quest in the objective tracker or the quest log for Directions, and find the quests in your log in search with the GPS button (retail, WoW Forever and Mists Classic)\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSettings|r\n" ..
-    "    |cff999999-|r Search this page: a box in the settings window's title narrows the open page\n" ..
-    "    |cff999999-|r Reset to default on every extension's page\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat and GPS are extensions now|r\n" ..
+    "    |cff999999-|r Addons of their own on CurseForge, so EasyFind is lighter for everyone else; if you used them, install them and your settings carry over\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffProfessions from search|r\n" ..
+    "    |cff999999-|r Fishing, Survey and Cooking Fire cast from their rows\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMap tab|r\n" ..
+    "    |cff999999-|r Its filter menu is the game's own; an extension's rows (quests) get a Show switch; a result pins on its own map only, and a folded row only its spots on the map you view\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
+    "    |cff999999-|r Esc leaves the window open unless its new setting says close; in a shopping list's note, Ctrl+click an item at the auction house to search it\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Turned-off filter categories hide their rows again, the loot filter lists only the game's own difficulties, Search settings finds drop-downs and headers again, and search boxes let go of the keyboard on a click elsewhere\n"
+    "    |cff999999-|r Same-named creatures are separate rows, a zone copied into another world no longer blocks a route, a scrolled list no longer runs away after its owner moves it, and right-clicking the GPS's end pin on any map ends the route\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

@@ -295,18 +295,16 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffSaque e chefes no Classic Era e TBC Anniversary|r\n" ..
-    "    |cff999999-|r Cada chefe de masmorra e de raide e o que ele deixa cair, encontrados pelo nome e filtrados para a sua classe; o GPS leva à entrada da instância\n" ..
-    "    |cff999999-|r Abreviações funcionam: \"sm\", \"sm ladino\"\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBusca de itens no Classic|r\n" ..
-    "    |cff999999-|r Qualquer item encontrado pelo nome no Classic Era, TBC Anniversary e Mists Classic\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDireções de missões|r\n" ..
-    "    |cff999999-|r Clique com o botão direito em uma missão no rastreador de objetivos ou no registro de missões para Direções, e as missões do seu registro aparecem na busca com o botão de GPS (retail, WoW Forever e Mists Classic)\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffConfigurações|r\n" ..
-    "    |cff999999-|r Buscar nesta página: uma caixa no título da janela de configurações filtra a página aberta\n" ..
-    "    |cff999999-|r Restaurar padrão na página de cada extensão\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffChat e GPS agora são extensões|r\n" ..
+    "    |cff999999-|r Addons próprios no CurseForge, para que o EasyFind fique mais leve para todo o resto; se você os usava, instale-os e suas configurações continuam\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffProfissões pela busca|r\n" ..
+    "    |cff999999-|r Pesca, Sondar e Fogueira são conjurados pelas suas linhas\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffAba do mapa|r\n" ..
+    "    |cff999999-|r O menu de filtros é o do próprio jogo; as linhas de uma extensão (missões) ganham um interruptor em Exibir; um resultado é marcado só no próprio mapa, e uma linha agrupada só com seus pontos no mapa que você vê\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
+    "    |cff999999-|r Esc deixa a janela aberta a menos que a nova configuração mande fechar; na nota de uma lista de compras, Ctrl+clique em um item na casa de leilões o busca\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Categorias de filtro desligadas voltam a esconder suas linhas, o filtro de saque mostra só as dificuldades do jogo, Buscar configurações volta a encontrar menus suspensos e cabeçalhos, e as caixas de busca soltam o teclado com um clique fora\n"
+    "    |cff999999-|r Criaturas de mesmo nome são linhas separadas, uma zona copiada para outro mundo não bloqueia mais uma rota, uma lista rolada não foge mais depois que o dono a move, e o clique direito no alfinete final do GPS em qualquer mapa encerra a rota\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"
@@ -1258,6 +1256,8 @@ L["NOTES_OPT_CHAT_NAMES"]                = "Notas nos nomes do chat"
 L["NOTES_OPT_CHAT_NAMES_TT"]             = "Passe o mouse sobre o nome de um jogador no chat para ver suas notas sobre ele."
 L["NOTES_OPT_CLICK_HINT"]                = "Dica de nota nas dicas de tela"
 L["NOTES_OPT_CLICK_HINT_TT"]             = "Itens e feitiços em que Ctrl+clique direito abre uma nota avisam isso na dica de tela."
+L["NOTES_OPT_ESC"]                      = "Fechar com Esc"
+L["NOTES_OPT_ESC_TT"]                   = "Desligado, Esc deixa a janela aberta; o X e o botão dela continuam fechando. Um menu aberto nela continua fechando com Esc."
 L["NOTES_OPT_FOLD_HOVER"]               = "Mostrar a seta das etiquetas só ao passar o mouse"
 L["NOTES_OPT_FOLD_HOVER_TT"]            = "Com a linha de etiquetas recolhida, a seta só aparece enquanto o mouse está sobre a janela."
 L["NOTES_HINT_MAKE"]                     = "<Ctrl+clique direito para criar uma nota>"
@@ -1377,6 +1377,14 @@ L["OPT_EXT_RESET"]                      = "Restaurar padrão"
 L["OPT_EXT_RESET_TT"]                   = "Todas as configurações desta página voltam ao padrão."
 L["OPT_EXT_RESET_NONE_TT"]              = "Esta página não tem nada para restaurar."
 L["POPUP_RESET_EXTENSION"]              = "Restaurar todas as configurações de %s?"
+L["EXT_SPLIT_FMT"]                      = "O EasyFind %s está mais leve: Chat e GPS agora são extensões, addons próprios."
+L["EXT_SPLIT_GET_FMT"]                  = "Se você os usava, pegue %s no CurseForge; suas configurações continuam."
+L["EXT_AND_FMT"]                        = "%s e %s"
+L["EXT_OTHERS_FMT"]                     = "Outras %s também já saíram, e mais vêm por aí."
+L["EXT_NEW_FMT"]                        = "O EasyFind %s tem %s: addons próprios no CurseForge, e mais vêm por aí."
+L["EXT_PAGE_COPY"]                      = "Copie o endereço abaixo (Ctrl+C) e abra no seu navegador."
+L["EXT_PAGE_TT"]                        = "Clique para o endereço da página."
+L["EXT_INSTALLED"]                      = "Instalada"
 L["OPT_PAGE_SEARCH_PLACEHOLDER"]        = "Buscar nesta página..."
 L["SUBTEXT_DUNGEON_BOSS"]               = "Chefe de masmorra: %s"
 L["SUBTEXT_RAID_BOSS"]                  = "Chefe de raide: %s"
