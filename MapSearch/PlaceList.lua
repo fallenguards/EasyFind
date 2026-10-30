@@ -68,7 +68,8 @@ function PlaceList.WorldChildren(mapID)
             local mt = child.mapType
             if child.name and mt
                and mt ~= Enum.UIMapType.Micro
-               and mt ~= Enum.UIMapType.Orphan then
+               and mt ~= Enum.UIMapType.Orphan
+               and not ns.MapUtils.IsWorldCopy(child, children, mapID) then
                 result[#result + 1] = {
                     name = child.name,
                     category = "zone",

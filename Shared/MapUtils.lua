@@ -13,6 +13,7 @@ local GetMapInfo = C_Map and C_Map.GetMapInfo
 local GetMapChildrenInfo = C_Map and C_Map.GetMapChildrenInfo
 local GetMapInfoAtPosition = C_Map and C_Map.GetMapInfoAtPosition
 local GetMapRectOnMap = C_Map and C_Map.GetMapRectOnMap
+local GetWorldPosFromMapPos = C_Map and C_Map.GetWorldPosFromMapPos
 
 local PARENT_OVERRIDES = {
     [2346] = 2274,
@@ -120,11 +121,43 @@ function MapUtils.GetMapRectViaContinent(mapID, viewMapID)
     return (tL - vL) / vW, (tR - vL) / vW, (tT - vT) / vH, (tB - vT) / vH
 end
 
+-- The world a map's middle is in (the instance GetWorldPosFromMapPos names).
+local worldOf = {}
+local function WorldOf(mapID)
+    local w = worldOf[mapID]
+    if w == nil then
+        local ok, inst = pcall(GetWorldPosFromMapPos, mapID, CreateVector2D(0.5, 0.5))
+        w = ok and inst or false
+        worldOf[mapID] = w
+    end
+    return w
+end
+
+-- A zone-typed child in a world of its own, named like a sibling that is
+-- on its parent's world: a story's copy of the zone (two more Arathi
+-- Highlands under the Eastern Kingdoms), not a place to list. A zone in
+-- its own world with no such sibling stays (old Quel'Thalas under it).
+function MapUtils.IsWorldCopy(child, siblings, parentID)
+    local T = Enum.UIMapType
+    if child.mapType ~= T.Zone or not (siblings and GetWorldPosFromMapPos and CreateVector2D) then return false end
+    local home
+    for i = 1, #siblings do
+        local s = siblings[i]
+        if s ~= child and s.name == child.name and s.mapType == T.Zone then
+            if home == nil then home = WorldOf(parentID) end
+            if home and WorldOf(s.mapID) == home then return WorldOf(child.mapID) ~= home end
+        end
+    end
+    return false
+end
+
 -- A child map (GetMapChildrenInfo's) that is a place of its parent's: a
--- dungeon-typed one under a zone, or drawn on or navbar-listed by a continent.
-function MapUtils.IsPlaceMap(child, parentID, parentType)
+-- dungeon-typed one under a zone, or drawn on or navbar-listed by a continent;
+-- never a copy of a sibling (siblings: the parent's children, when known).
+function MapUtils.IsPlaceMap(child, parentID, parentType, siblings)
     local T, mt = Enum.UIMapType, child.mapType
     if mt == T.Micro or mt == T.Orphan then return false end
+    if MapUtils.IsWorldCopy(child, siblings, parentID) then return false end
     if mt ~= T.Dungeon or parentType == T.Zone then return true end
     if parentType ~= T.Continent then return false end
     -- Oribos, one building, has no rect on its continent; old copies of a

@@ -57,7 +57,7 @@ function MapSearch:GetDirectChildZones(mapID)
         local parentType = info and info.mapType
         for _, child in ipairs(children) do
             if child.name and not seen[child.mapID] then
-                if MapUtils.IsPlaceMap(child, mapID, parentType) then
+                if MapUtils.IsPlaceMap(child, mapID, parentType, children) then
                     seen[child.mapID] = true
                     tinsert(zones, {
                         mapID = child.mapID,
@@ -108,7 +108,7 @@ function MapSearch:GetAllWorldZones(startMapID, depth, parentPath)
                 tinsert(fullPath, {mapID = startMapID, name = parentName})
             end
 
-            if MapUtils.IsPlaceMap(child, startMapID, parentType) then
+            if MapUtils.IsPlaceMap(child, startMapID, parentType, children) then
                 tinsert(allZones, {
                     mapID = child.mapID,
                     name = child.name,

@@ -124,7 +124,8 @@ function MapSearch:ScanAllFlightMasters()
                 local mt = child.mapType
                 -- Zones and a continent's dungeon-typed places (Oribos): a
                 -- continent's own scan repeats its zones' nodes, mispositioned.
-                if mt == Enum.UIMapType.Zone or (mt == Enum.UIMapType.Dungeon and parentType == Enum.UIMapType.Continent
+                if (mt == Enum.UIMapType.Zone and not ns.MapUtils.IsWorldCopy(child, children, parentMapID))
+                    or (mt == Enum.UIMapType.Dungeon and parentType == Enum.UIMapType.Continent
                     and ns.MapUtils.IsPlaceMap(child, parentMapID, parentType)) then
                     local nodes = self:ScanFlightMasters(child.mapID)
                     for _, node in ipairs(nodes) do
