@@ -655,6 +655,8 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
     d.pathPrefix = r.pathPrefix
     d.x = r.x or r.entranceX
     d.y = r.y or r.entranceY
+    -- The map its x and y are on: a hover pins it only there.
+    d.coordMapID = r.x and (r.coordMapID or r.mapID) or r.entranceMapID
     d.keywords = r.keywords
     d.query = query
     d.isZone = nil

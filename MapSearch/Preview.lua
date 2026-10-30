@@ -40,10 +40,9 @@ function MapSearch:GetPreviewCoords(data)
         px, py = data.x, data.y
         pIcon = data.icon
         pCat = data.category
-        -- coordMapID identifies the map the (x,y) coords are valid on
-        -- (set by local scanners). Falls back to entranceMapID for
-        -- legacy POI shapes that didn't carry the field.
-        pMapID = data.entranceMapID or data.coordMapID
+        -- The map its x and y are on; a row naming only its mapID is on
+        -- that one, never on whichever map is viewed.
+        pMapID = data.entranceMapID or data.coordMapID or data.mapID
     end
     -- Coords on the current map: use directly. Forward the live pin
     -- reference (when present) so previews can glow the native icon
