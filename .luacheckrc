@@ -96,7 +96,7 @@ read_globals = {
     "SELECTED_CHAT_FRAME", "COMBATLOG", "CombatLogClearEntries",
     "ChatFrame_OpenChat", "DEFAULT_CHAT_FRAME",
     "UnitFactionGroup", "IsSpellKnown", "PlayerHasToy", "IsFlyableArea", "IsAdvancedFlyableArea", "geterrorhandler", "IsPlayerMoving", "IsFalling", "UnitPosition",
-    "StaticPopup_Show", "GameTooltip_Hide", "PlaySound", "ReloadUI",
+    "StaticPopup_Show", "GameTooltip_Hide", "GameTooltip_SetTitle", "GameTooltip_AddNormalLine", "PlaySound", "ReloadUI",
     "GetSpellInfo", "GetItemInfo", "UseToyByItemID", "GetItemClassInfo", "CreateAtlasMarkup",
     "GetSpellLink", "GetAchievementLink",
     "GetMacroSpell", "GetMacroItem",
