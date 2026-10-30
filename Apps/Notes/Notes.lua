@@ -6490,7 +6490,8 @@ function NoteWhen.TagRows(note, d)
     local rows = {}
     if d.kind ~= "showsOn" then
         rows[1] = NoteWhen.OpenRow(note, d.entry or d.rule)
-        rows[2] = { isSeparator = true }
+        rows[2] = NoteWhen.OnceRow(note, d.entry or d.rule)
+        rows[3] = { isSeparator = true }
     end
     rows[#rows + 1] = { text = _G["REMOVE"] or "Remove", onClick = function() NoteWhen.RemoveTag(note, d) end }
     return rows
@@ -6526,7 +6527,7 @@ local function MakeAttachPill(frame, i)
         local head = d.kind == "appliesIn" and L["NOTES_APPLIES_IN"]
             or d.kind == "rule" and L["NOTES_AUTO_ALL_OF"] or L["NOTES_SHOWS_ON"]
         local tip = head .. "\n|cffe6e6e6" .. d.name .. "|r"
-        if d.opens then tip = tip .. "\n" .. L["NOTES_AUTO_OPEN_TT"] end
+        if d.opens then tip = tip .. "\n" .. L[d.once and "NOTES_AUTO_OPEN_ONCE_TT" or "NOTES_AUTO_OPEN_TT"] end
         UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", tip .. "\n|cff99999e" .. L["NOTES_RIGHT_REMOVE"] .. "|r")
     end)
     pill:SetScript("OnLeave", function(self) UI:HideNotesTip(self) end)
@@ -6547,14 +6548,14 @@ function UI:RefreshEasyNotesAttachBar()
     if note then
         for _, e in ipairs(note.appliesIn or {}) do
             entries[#entries + 1] = { kind = "appliesIn", entry = e, name = e.name or tostring(e.id),
-                color = TagColor(CtxKey(e)), opens = e.opens }
+                color = TagColor(CtxKey(e)), opens = e.opens, once = e.once }
         end
         for _, r in ipairs(note.rules or {}) do
             if #r.conds > 0 then
                 local names = {}
                 for _, c in ipairs(r.conds) do names[#names + 1] = c.name or tostring(c.id) end
                 entries[#entries + 1] = { kind = "rule", rule = r, name = table.concat(names, " + "),
-                    color = TagColor(CtxKey(r.conds[1])), opens = r.opens }
+                    color = TagColor(CtxKey(r.conds[1])), opens = r.opens, once = r.once }
             end
         end
         for _, e in ipairs(note.showsOn or {}) do
@@ -7479,7 +7480,8 @@ end
 
 -- Notes set to open by themselves: one whose place comes up opens the
 -- window on it, when the window is closed (never over a note in use);
--- when its place ends, the window goes again if it still shows it.
+-- when that place ends, the window goes again if it still shows it. A
+-- next-time-only switch is spent by the opening.
 function UI:OpenNotesThatApply()
     local any = false
     local store = NotesStore()
@@ -7488,29 +7490,35 @@ function UI:OpenNotesThatApply()
     end
     local was, now = UI._notes.opensApplied or {}, {}
     UI._notes.opensApplied = now
+    local opened, set = UI._notes.openedFor, nil
+    if any or opened then set = select(2, Ctx.Active()) end
     if any then
-        local _, set = Ctx.Active()
         local visible = SortedNotes("")
         for i = 1, #visible do
             local n = visible[i]
-            if Ctx.OpensNow(n, set) then now[n.id] = true end
+            local holder = Ctx.OpensNow(n, set)
+            if holder then now[n.id] = holder end
         end
     end
     local frame = UI._notes.frame
-    local opened = UI._notes.openedFor
-    if opened and not now[opened] then
-        UI._notes.openedFor = nil
+    if opened and not (UI._notes.openedOn and Ctx.Holds(UI._notes.openedOn, set)) then
+        UI._notes.openedFor, UI._notes.openedOn = nil, nil
         if frame and frame:IsShown() and UI._notes.selectedID == opened then self:CloseEasyNotes() end
     end
     if frame and frame:IsShown() then return end
     for i = 1, #store do
         local id = store[i].id
-        if now[id] and not was[id] then
+        local holder = now[id]
+        if holder and not was[id] then
             frame = self:EnsureEasyNotesFrame()
             if not frame then return end
             NormalizeDB()
             UI._notes.selectedID = id
-            UI._notes.openedFor = id
+            UI._notes.openedFor, UI._notes.openedOn = id, holder
+            if holder.once then
+                holder.opens, holder.once = nil, nil
+                store[i].updated = time()
+            end
             frame:Show()
             self:HideEasyNotesPalette()
             self:RefreshEasyNotes()
@@ -8157,13 +8165,27 @@ do
     end
     NoteWhen.Changed = Auto.Changed
 
+    -- The open switch flipped; off takes the next-time-only mark with it.
+    function Auto.FlipOpens(note, holder)
+        holder.opens = not holder.opens or nil
+        if not holder.opens then holder.once = nil end
+        note.updated = time()
+        Auto.Changed()
+    end
+
     -- The switch that opens the notes window when this single or this
-    -- combination brings the note up.
+    -- combination brings the note up, and its next-time-only mark.
     function NoteWhen.OpenRow(note, holder)
         return { text = L["NOTES_AUTO_OPEN"], tooltip = L["NOTES_AUTO_OPEN_TT"], keepOpen = true,
             icon = holder.opens and MENU_CHECK_TEX or nil,
+            onClick = function() Auto.FlipOpens(note, holder) end }
+    end
+
+    function NoteWhen.OnceRow(note, holder)
+        return { text = L["NOTES_AUTO_OPEN_ONCE"], tooltip = L["NOTES_AUTO_OPEN_ONCE_TT"], keepOpen = true,
+            disabled = not holder.opens, icon = holder.once and MENU_CHECK_TEX or nil,
             onClick = function()
-                holder.opens = not holder.opens or nil
+                holder.once = not holder.once or nil
                 note.updated = time()
                 Auto.Changed()
             end }
@@ -8178,11 +8200,7 @@ do
             local holder = d.kind ~= "showsOn" and (d.entry or d.rule) or nil
             rows[i] = { text = d.name, icon = d.opens and MENU_CHECK_TEX or nil, keepOpen = true,
                 tooltip = holder and L["NOTES_AUTO_OPEN_TT"] or nil,
-                onClick = holder and function()
-                    holder.opens = not holder.opens or nil
-                    note.updated = time()
-                    Auto.Changed()
-                end or nil,
+                onClick = holder and function() Auto.FlipOpens(note, holder) end or nil,
                 remove = function() NoteWhen.RemoveTag(note, d) end }
         end
         return rows
@@ -8191,7 +8209,7 @@ do
     -- A picked single: a flyout with that switch and Remove.
     function Auto.Picked(note, e)
         return { text = Auto.Label(e), icon = MENU_CHECK_TEX, submenu = function()
-            return { NoteWhen.OpenRow(note, e), { isSeparator = true },
+            return { NoteWhen.OpenRow(note, e), NoteWhen.OnceRow(note, e), { isSeparator = true },
                 { text = _G["REMOVE"] or "Remove", onClick = function() ToggleNoteContext(note, e) Auto.Changed() end } }
         end }
     end
@@ -8289,6 +8307,7 @@ do
         if r then
             rows[#rows + 1] = { isSeparator = true }
             rows[#rows + 1] = NoteWhen.OpenRow(note, note.rules[r])
+            rows[#rows + 1] = NoteWhen.OnceRow(note, note.rules[r])
             rows[#rows + 1] = { text = L["NOTES_AUTO_DROP_ALL"], onClick = function()
                 local i = Auto.RuleIndex(note, state.rule)
                 if i then

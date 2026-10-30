@@ -273,27 +273,32 @@ function Ctx.Applies(note, set)
     return false
 end
 
--- A condition set to open the notes window (a single, or every part of a
--- combination) that is true now.
+-- Whether a condition holds in set: a single's key, or every part of a combination.
+function Ctx.Holds(holder, set)
+    local conds = holder.conds
+    if conds then
+        if #conds == 0 then return false end
+        for c = 1, #conds do
+            if set[Key(conds[c])] ~= true then return false end
+        end
+        return true
+    end
+    return set[Key(holder)] == true
+end
+
+-- The condition set to open the notes window (a single, or a combination)
+-- that holds now, or nil.
 function Ctx.OpensNow(note, set)
-    if not note then return false end
+    if not note then return nil end
     local singles = note.appliesIn
     for i = 1, singles and #singles or 0 do
-        if singles[i].opens and set[Key(singles[i])] == true then return true end
+        if singles[i].opens and Ctx.Holds(singles[i], set) then return singles[i] end
     end
     local rules = note.rules
     for r = 1, rules and #rules or 0 do
-        local conds = rules[r].conds
-        local all = rules[r].opens == true and conds ~= nil and #conds > 0
-        for c = 1, all and #conds or 0 do
-            if set[Key(conds[c])] ~= true then
-                all = false
-                break
-            end
-        end
-        if all then return true end
+        if rules[r].opens == true and Ctx.Holds(rules[r], set) then return rules[r] end
     end
-    return false
+    return nil
 end
 
 function Ctx.AnyOpens(note)

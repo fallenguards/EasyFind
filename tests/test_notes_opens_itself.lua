@@ -21,14 +21,17 @@ local function Load(notes)
     function UI:CloseEasyNotes() frame.shown = false end
     function UI:HideEasyNotesPalette() end
     function UI:RefreshEasyNotes() end
+    -- A note stands for its own condition here: its place, opens, once.
     local env = setmetatable({
         UI = UI,
+        time = os.time,
         NotesStore = function() return notes end,
         SortedNotes = function() return notes end,
         NormalizeDB = function() end,
         Ctx = {
             Active = function() return {}, here end,
-            OpensNow = function(n, set) return n.opens == true and set[n.place] == true end,
+            Holds = function(h, set) return set[h.place] == true end,
+            OpensNow = function(n, set) return (n.opens == true and set[n.place] == true) and n or nil end,
             AnyOpens = function(n) return n.opens == true end,
         },
     }, { __index = _G })
@@ -82,6 +85,26 @@ function tests.leftOpenOnAnotherNoteStaysOpen()
     here.ah = nil
     UI:OpenNotesThatApply()
     H.assertTrue(frame.shown, "switched to another note: kept open")
+end
+
+-- Only the next time: the opening spends the switch; the window stays
+-- while the place lasts, goes when it ends, and the next visit opens nothing.
+function tests.onlyTheNextTime_thenTheSwitchIsSpent()
+    local notes = { { id = 1, place = "ah", opens = true, once = true } }
+    local UI, frame, here = Load(notes)
+    here.ah = true
+    UI:OpenNotesThatApply()
+    H.assertTrue(frame.shown, "opened this once")
+    H.assertNil(notes[1].opens, "the switch turned itself off")
+    H.assertNil(notes[1].once)
+    UI:OpenNotesThatApply()
+    H.assertTrue(frame.shown, "stays open while the place lasts")
+    here.ah = nil
+    UI:OpenNotesThatApply()
+    H.assertFalse(frame.shown, "goes when the place ends")
+    here.ah = true
+    UI:OpenNotesThatApply()
+    H.assertFalse(frame.shown, "the next visit opens nothing")
 end
 
 local pass, fail, failures = H.runSuite("NotesOpensItself", tests)
