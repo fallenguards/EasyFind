@@ -15,15 +15,15 @@ local tests = {}
 
 function tests.escLeavesTheWindow_unlessTheSettingSays()
     local src = Read("Apps/Notes/Notes.lua")
-    local s = assert(src:find("Utils.AttachEscClose(frame, function()", 1, true))
-    local e = assert(src:find("\n    end)\n", s, true))
+    local s = assert(src:find("Utils.AttachEscClose(frame, W.Bound(function()", 1, true))
+    local e = assert(src:find("\n    end))\n", s, true))
     local block = src:sub(s, e)
     H.assertTrue(block:find("if NormalizeDB().escCloses ~= true then return false end", 1, true) ~= nil,
         "the window stays unless the setting is on")
     H.assertTrue(block:find("UI:CloseEasyNotes()", 1, true) ~= nil, "on, Esc still closes it")
     H.assertTrue(block:find("UI:CloseEasyNotesOpenMenus()", 1, true) < block:find("escCloses ~= true", 1, true),
         "menus close first, setting or not")
-    H.assertTrue(block:find("end, function()\n        return NormalizeDB().escCloses == true or next(UI._notes.paletteSelection) ~= nil or UI:HasEasyNotesOpenMenus()", 1, true) ~= nil,
+    H.assertTrue(block:find("end), W.Bound(function()\n        return NormalizeDB().escCloses == true or next(UI._notes.paletteSelection) ~= nil or UI:HasEasyNotesOpenMenus()", 1, true) ~= nil,
         "Esc is taken only with something to do")
 end
 

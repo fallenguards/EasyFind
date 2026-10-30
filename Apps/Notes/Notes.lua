@@ -607,16 +607,123 @@ local function CharCount(body)
     return count
 end
 
-UI._notes = {
-    selectedID = nil,
-    paletteRows = {},
-    paletteSelection = {},
-    contextChips = {},
-    paletteShown = false,
-    toolbarShown = false,
-    loadingNote = false,
-    snippetFocus = false,
-}
+-- Notes windows: the main one and any opened beside it, each a full
+-- window the one builder makes. The module's per-window state (its frame,
+-- note, editor selection, palette) belongs to the window in use: UI._notes
+-- routes each key there and the rest to state every window shares, so the
+-- code reads as it always did. A window's scripts, timers and callbacks
+-- run as that window; between them the last window used stands.
+do
+    local W = { list = {}, shared = { toolbarShown = false, snippetFocus = false }, KEYS = {} }
+    notesNS.Windows = W
+    for k in ("frame selectedID paletteShown paletteRows paletteSelection paletteSelAnchor contextChips contextMatches"
+        .. " loadingNote applyingFormat inputBusy activeModes curSelection selAnchor lastSelection lastEditorText lastCursor"
+        .. " lastFmtCursor fmtToken _fmtQueued keepModesOnNextRefresh typingColor renameRow runOverlays decoTextures"
+        .. " overlayQueued dragHandles dragHandleQueued dragActive dragDriver findMatches findIndex findBarShown headerMode"
+        .. " linkBtns attachHidden attachHasContent attachHasTags chromePad pendingEnter caretTex colorButton _colorMenu"
+        .. " _moreMenu _filterMenu editHistory PinTopLeftAnchor openedFor openedOn"):gmatch("%S+") do
+        W.KEYS[k] = true
+    end
+    function W.New(name)
+        local w = { name = name, paletteRows = {}, paletteSelection = {}, contextChips = {}, paletteShown = false,
+                    loadingNote = false }
+        W.list[#W.list + 1] = w
+        return w
+    end
+    W.main = W.New("EasyNotesFrame")
+    W.active, W.last = W.main, W.main
+    UI._notes = setmetatable({}, {
+        __index = function(_, k)
+            if W.KEYS[k] then return W.active[k] end
+            return W.shared[k]
+        end,
+        __newindex = function(_, k, v)
+            if W.KEYS[k] then W.active[k] = v else W.shared[k] = v end
+        end,
+    })
+    function W.Run(w, fn, ...)
+        local prev = W.active
+        W.active = w
+        local a, b = fn(...)
+        W.active = prev
+        return a, b
+    end
+    -- Scripts a hand is on make the window the one used: menus and dialogs
+    -- opened from it act on it.
+    local HANDS = { OnMouseDown = true, OnMouseUp = true, OnClick = true, OnDoubleClick = true, OnDragStart = true,
+        OnReceiveDrag = true, OnEditFocusGained = true, OnChar = true, OnKeyDown = true, OnEnterPressed = true,
+        OnMouseWheel = true }
+    function W.BoundTo(w, fn, name)
+        return function(...)
+            if HANDS[name] then W.last = w end
+            return W.Run(w, fn, ...)
+        end
+    end
+    function W.Bound(fn, name) return W.BoundTo(W.active, fn, name) end
+    -- A frame made by a window's code: its scripts run as that window.
+    local realCreate = CreateFrame
+    function W.CreateFrame(...)
+        local f = realCreate(...)
+        local w, setScript, hookScript = W.active, f.SetScript, f.HookScript
+        f.SetScript = function(self, name, fn)
+            return setScript(self, name, fn and W.BoundTo(w, fn, name) or nil)
+        end
+        f.HookScript = function(self, name, fn)
+            return hookScript(self, name, W.BoundTo(w, fn, name))
+        end
+        return f
+    end
+    -- Between scripts the last window used stands, whatever an error left.
+    local ticker = realCreate("Frame")
+    ticker:SetScript("OnUpdate", function() W.active = W.last end)
+    CreateFrame = W.CreateFrame
+    Utils = setmetatable({ SafeAfter = function(delay, fn) return ns.Utils.SafeAfter(delay, W.Bound(fn)) end },
+        { __index = ns.Utils })
+    function W.Each(fn)
+        for i = 1, #W.list do
+            if W.list[i].frame then W.Run(W.list[i], fn, W.list[i]) end
+        end
+    end
+    function W.ShowingNote(id)
+        for i = 1, #W.list do
+            local w = W.list[i]
+            if w.frame and w.frame:IsShown() and not w.paletteShown and w.selectedID == id then return w end
+        end
+        return nil
+    end
+    -- A window free for a note: a closed one beside the main, else a new one.
+    function W.Free()
+        for i = 1, #W.list do
+            local w = W.list[i]
+            if w ~= W.main and w.frame and not w.frame:IsShown() then return w end
+        end
+        return W.New("EasyNotesFrame" .. (#W.list + 1))
+    end
+    -- The note shown in window w, else where it already shows, else in a free one.
+    function W.OpenNote(id, w)
+        w = w or W.ShowingNote(id) or W.Free()
+        W.Run(w, function()
+            local frame = UI:EnsureEasyNotesFrame()
+            if not frame then return end
+            NormalizeDB()
+            UI._notes.selectedID = id
+            frame:Show()
+            frame:Raise()
+            UI:HideEasyNotesPalette()
+            UI:RefreshEasyNotes()
+        end)
+        if w.frame then W.last = w end
+        return w.frame and w or nil
+    end
+    -- The window whose editor has the keyboard, else the one used last.
+    function W.Focused()
+        for i = 1, #W.list do
+            local f = W.list[i].frame
+            if f and f:IsShown() and f.editor and f.editor:HasFocus() then return W.list[i] end
+        end
+        return W.last
+    end
+end
 
 local function GetSelectedNote()
     local id = UI._notes.selectedID
@@ -2228,8 +2335,10 @@ if ns.RegisterThemeCallback then
             elseif btn._efAccent then PaintAccentButton(btn)
             else PaintSubtleButton(btn, false) end
         end
-        local frame = UI._notes.frame
-        if frame and frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
+        notesNS.Windows.Each(function()
+            local frame = UI._notes.frame
+            if frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
+        end)
         if UI.PaintNotesSearch then UI.PaintNotesSearch() end
         -- The list's cards take the new theme (dark over a Classic tree).
         if UI._notes.paletteShown and UI.RefreshEasyNotesPalette then UI:RefreshEasyNotesPalette() end
@@ -2786,8 +2895,8 @@ function UI:AdjustEasyNotesUIScale(delta, reset, absolute)
     if nxt > UI_SCALE_MAX then nxt = UI_SCALE_MAX end
     if nxt == cur and not reset then return end
     db.uiScale = nxt
-    local frame = UI._notes.frame
-    if frame then
+    notesNS.Windows.Each(function()
+        local frame = UI._notes.frame
         -- SetScale reinterprets the anchor offset at the new scale, which
         -- shifts the window; capture the corner and re-pin it afterwards.
         local left, top = frame:GetLeft(), frame:GetTop()
@@ -2800,16 +2909,13 @@ function UI:AdjustEasyNotesUIScale(delta, reset, absolute)
         self:ApplyEasyNotesEditorFont()
         UI:QueueEasyNotesOverlayUpdate()
         UI:ReSettleEasyNotesOverlay()
-    end
+    end)
 end
 
 function UI:ApplyEasyNotesOpacity()
-    local frame = UI._notes.frame
-    if not frame then return end
     local op = NormalizeDB().opacity or OPACITY_DEFAULT
-    if ns.SetRoundedRectBorderBgAlpha then
-        ns.SetRoundedRectBorderBgAlpha(frame, op)
-    end
+    if not ns.SetRoundedRectBorderBgAlpha then return end
+    notesNS.Windows.Each(function() ns.SetRoundedRectBorderBgAlpha(UI._notes.frame, op) end)
 end
 
 function UI:AdjustEasyNotesOpacity(delta, reset, absolute)
@@ -4296,7 +4402,8 @@ function UI:EnsureEasyNotesFrame()
     if frame then return frame end
 
     local db = NormalizeDB()
-    frame = CreateFrame("Frame", "EasyNotesFrame", UIParent)
+    local W = notesNS.Windows
+    frame = CreateFrame("Frame", W.active.name, UIParent)
     -- Its colors: the Notes page of the theme (ns.ThemeSetOf).
     frame._efSurface = "notes"
     -- Its Classic frame at a window's full weight.
@@ -4307,7 +4414,9 @@ function UI:EnsureEasyNotesFrame()
     frame:SetSize(mmax(MIN_WIDTH, db.window.w or DEFAULT_WIDTH),
                   mmax(MIN_HEIGHT, db.window.h or DEFAULT_HEIGHT))
     frame:SetScale(db.uiScale or UI_SCALE_DEFAULT)
-    frame:SetPoint("CENTER")
+    -- A window beside the main one starts a step down and right of the middle.
+    local beside = W.active ~= W.main and (#W.list - 1) or 0
+    frame:SetPoint("CENTER", UIParent, "CENTER", 36 * beside, -36 * beside)
     -- Same strata as the active search bar (DIALOG): above normal windows,
     -- below menus/flyouts (TOOLTIP) so dropdowns never render under the notes.
     frame:SetFrameStrata("DIALOG")
@@ -4379,10 +4488,10 @@ function UI:EnsureEasyNotesFrame()
             -- fill; again at each theme change, the header too.
             UI:ApplyEasyNotesWindowLook()
             if ns.RegisterThemeCallback then
-                ns.RegisterThemeCallback(function()
+                ns.RegisterThemeCallback(W.Bound(function()
                     UI:ApplyEasyNotesWindowLook()
                     ns.SetRoundedRectBorderBgAlpha(frame, NormalizeDB().opacity or OPACITY_DEFAULT)
-                end)
+                end))
             end
         else
             local c = ns.ThemeSetOf(frame).SEARCH_WINDOW_FILL_COLOR or { 0.052, 0.052, 0.060 }
@@ -5353,23 +5462,26 @@ function UI:EnsureEasyNotesFrame()
         hooksecurefunc("HandleModifiedItemClick", function(link)
             if not link then return end
             if not (IsShiftKeyDown and IsShiftKeyDown()) then return end
-            local nf = UI._notes.frame
-            if not (nf and nf:IsShown() and not UI._notes.paletteShown) then return end
-            local editor = nf.editor
-            if not (editor and editor.HasFocus and editor:HasFocus()) then return end
-            local pos = editor:GetCursorPosition() or 0
-            local txt = editor:GetText() or ""
-            UI._notes.inputBusy = true
-            editor:SetText(txt:sub(1, pos) .. link .. txt:sub(pos + 1))
-            editor:SetCursorPosition(pos + #link)
-            UI._notes.inputBusy = nil
+            -- Into the window whose editor has the keyboard.
+            W.Run(W.Focused(), function()
+                local nf = UI._notes.frame
+                if not (nf and nf:IsShown() and not UI._notes.paletteShown) then return end
+                local editor = nf.editor
+                if not (editor and editor.HasFocus and editor:HasFocus()) then return end
+                local pos = editor:GetCursorPosition() or 0
+                local txt = editor:GetText() or ""
+                UI._notes.inputBusy = true
+                editor:SetText(txt:sub(1, pos) .. link .. txt:sub(pos + 1))
+                editor:SetCursorPosition(pos + #link)
+                UI._notes.inputBusy = nil
+            end)
         end)
     end
 
     -- ESC with nothing focused, through EasyFind's own ESC dispatch (never
     -- UISpecialFrames, which the game walks): menus first, then the row
     -- selection, then the window, if the setting (off by default) lets it.
-    Utils.AttachEscClose(frame, function()
+    Utils.AttachEscClose(frame, W.Bound(function()
         if UI:CloseEasyNotesOpenMenus() then return true end
         if next(UI._notes.paletteSelection) then
             for k in next, UI._notes.paletteSelection do UI._notes.paletteSelection[k] = nil end
@@ -5379,9 +5491,9 @@ function UI:EnsureEasyNotesFrame()
         if NormalizeDB().escCloses ~= true then return false end
         UI:CloseEasyNotes()
         return true
-    end, function()
+    end), W.Bound(function()
         return NormalizeDB().escCloses == true or next(UI._notes.paletteSelection) ~= nil or UI:HasEasyNotesOpenMenus()
-    end)
+    end))
 
     -- Left-clicking anywhere that is not a note row clears the list selection.
     -- Single owner for outside-click deselect: rows' own handlers manage row
@@ -7424,6 +7536,7 @@ function UI:ShowEasyNotesRowMenu(row)
     end
     local rows = {
         { text = L["NOTES_RENAME"], onClick = function() UI:BeginEasyNotesRowRename(row) end },
+        { text = L["NOTES_OPEN_WINDOW"], onClick = function() notesNS.Windows.OpenNote(row.noteID) end },
     }
     -- The note's words into the Chat extension, plain, when it is in.
     if EasyFind.API.HasAction("chat", "compose") then
@@ -7511,55 +7624,64 @@ local function ContextMatchSort(a, b)
     return a.label < b.label
 end
 
--- Notes set to open by themselves: one whose place comes up opens the
--- window on it, when the window is closed (never over a note in use);
--- when that place ends, the window goes again if it still shows it. A
+-- Notes set to open by themselves: each one whose place comes up opens,
+-- in the main window when that is closed, else in a window of its own,
+-- never over a note in use. When the place ends, the window it opened
+-- goes again if it still shows it (its switch may say stay). A
 -- next-time-only switch is spent by the opening.
 function UI:OpenNotesThatApply()
+    local W = notesNS.Windows
     local any = false
     local store = NotesStore()
     for i = 1, #store do
         if Ctx.AnyOpens(store[i]) then any = true break end
     end
-    local was, now = UI._notes.opensApplied or {}, {}
-    UI._notes.opensApplied = now
-    local opened, set = UI._notes.openedFor, nil
+    local shown = UI._notes.opensShown or {}
+    UI._notes.opensShown = shown
+    local opened = false
+    for i = 1, #W.list do
+        if W.list[i].openedFor then opened = true break end
+    end
+    local set
     if any or opened then set = select(2, Ctx.Active()) end
+    local now = {}
     if any then
         local visible = SortedNotes("")
         for i = 1, #visible do
-            local n = visible[i]
-            local holder = Ctx.OpensNow(n, set)
-            if holder then now[n.id] = holder end
+            local holder = Ctx.OpensNow(visible[i], set)
+            if holder then now[visible[i].id] = holder end
         end
     end
-    local frame = UI._notes.frame
-    local on = UI._notes.openedOn
-    if opened and not (on and Ctx.Holds(on, set)) then
-        UI._notes.openedFor, UI._notes.openedOn = nil, nil
-        -- The switch's "Close it when this ends", off: the window stays.
-        if frame and frame:IsShown() and UI._notes.selectedID == opened and not (on and on.keep) then
-            self:CloseEasyNotes()
+    -- A note's place gone: it may open again when the place comes back.
+    for id in pairs(shown) do
+        if not now[id] then shown[id] = nil end
+    end
+    for i = 1, #W.list do
+        local w = W.list[i]
+        local on = w.openedOn
+        if w.openedFor and not (on and Ctx.Holds(on, set)) then
+            local frame, id = w.frame, w.openedFor
+            w.openedFor, w.openedOn = nil, nil
+            if frame and frame:IsShown() and w.selectedID == id and not (on and on.keep) then
+                W.Run(w, function() UI:CloseEasyNotes() end)
+            end
         end
     end
-    if frame and frame:IsShown() then return end
     for i = 1, #store do
         local id = store[i].id
         local holder = now[id]
-        if holder and not was[id] then
-            frame = self:EnsureEasyNotesFrame()
-            if not frame then return end
-            NormalizeDB()
-            UI._notes.selectedID = id
-            UI._notes.openedFor, UI._notes.openedOn = id, holder
+        if holder and not shown[id] then
+            shown[id] = true
+            if not W.ShowingNote(id) then
+                local w = W.main
+                if w.frame and w.frame:IsShown() then w = nil end
+                w = W.OpenNote(id, w)
+                if w then w.openedFor, w.openedOn = id, holder end
+            end
             if holder.once then
                 holder.opens, holder.once = nil, nil
                 store[i].updated = time()
             end
-            frame:Show()
-            self:HideEasyNotesPalette()
-            self:RefreshEasyNotes()
-            return
         end
     end
 end
@@ -9909,7 +10031,7 @@ function notesNS.BuildSettingsPage(page, kit)
         ns.RegisterThemeCallback(function()
             if border.SetChoices then border:SetChoices(NotesBorderChoices()) end
             if border.SetValue then border:SetValue(NotesBorderValue()) end
-            UI:ApplyEasyNotesWindowLook()
+            notesNS.Windows.Each(function() UI:ApplyEasyNotesWindowLook() end)
         end)
     end
     local resize = Control(5)

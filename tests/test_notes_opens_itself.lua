@@ -1,7 +1,8 @@
 -- Tests for notes that open by themselves (Apps/Notes/Notes.lua
 -- UI:OpenNotesThatApply): a note set to, whose place comes up, opens the
--- closed window on it; it goes again when the place ends; a window in use
--- is never taken over; notes not set to never open.
+-- closed main window on it, a second note a window of its own; each goes
+-- again when the place ends; a window in use is never taken over; notes
+-- not set to never open.
 
 local H = require("Harness")
 
@@ -13,18 +14,54 @@ local function Load(notes)
     local _, e = src:find("\nend\r?\n", s)
     assert(e, "end of OpenNotesThatApply not found")
     local here = {}
-    local frame = { shown = false }
-    function frame:IsShown() return self.shown end
-    function frame:Show() self.shown = true end
-    local UI = { _notes = {} }
-    function UI:EnsureEasyNotesFrame() UI._notes.frame = frame return frame end
-    function UI:CloseEasyNotes() frame.shown = false end
-    function UI:HideEasyNotesPalette() end
-    function UI:RefreshEasyNotes() end
-    -- A note stands for its own condition here: its place, opens, once.
+    -- The windows: the main one and those opened beside it.
+    local W = { list = {}, shared = {} }
+    local function NewWindow(name)
+        local frame = { shown = false }
+        function frame:IsShown() return self.shown end
+        function frame:Show() self.shown = true end
+        local w = { name = name, frame = frame }
+        W.list[#W.list + 1] = w
+        return w
+    end
+    W.main = NewWindow("main")
+    W.active = W.main
+    function W.Run(w, fn, ...)
+        local prev = W.active
+        W.active = w
+        local a = fn(...)
+        W.active = prev
+        return a
+    end
+    function W.ShowingNote(id)
+        for _, w in ipairs(W.list) do
+            if w.frame.shown and w.selectedID == id then return w end
+        end
+        return nil
+    end
+    function W.OpenNote(id, w)
+        w = w or W.ShowingNote(id)
+        if not w then
+            for _, x in ipairs(W.list) do
+                if x ~= W.main and not x.frame.shown then w = x break end
+            end
+        end
+        w = w or NewWindow("beside" .. #W.list)
+        w.selectedID = id
+        w.frame.shown = true
+        return w
+    end
+    local UI = {}
+    UI._notes = setmetatable({}, {
+        __index = function(_, k) if k == "opensShown" then return W.shared[k] end return W.active[k] end,
+        __newindex = function(_, k, v) if k == "opensShown" then W.shared[k] = v else W.active[k] = v end end,
+    })
+    function UI:CloseEasyNotes() W.active.frame.shown = false end
+    -- A note stands for its own condition here: its place, opens, once, keep.
     local env = setmetatable({
         UI = UI,
         time = os.time,
+        notesNS = { Windows = W },
         NotesStore = function() return notes end,
         SortedNotes = function() return notes end,
         NormalizeDB = function() end,
@@ -36,88 +73,127 @@ local function Load(notes)
         },
     }, { __index = _G })
     assert(load(src:sub(s, e), "=Notes.lua OpenNotesThatApply", "t", env))()
-    return UI, frame, here
+    return UI, W, here
 end
 
 local tests = {}
 
 function tests.opensOnItsPlace_andGoesWhenItEnds()
     local notes = { { id = 1, place = "icc", opens = true }, { id = 2, place = "ah" } }
-    local UI, frame, here = Load(notes)
+    local UI, W, here = Load(notes)
     UI:OpenNotesThatApply()
-    H.assertFalse(frame.shown, "nowhere yet")
+    H.assertFalse(W.main.frame.shown, "nowhere yet")
     here.icc = true
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "its place came up")
-    H.assertEq(UI._notes.selectedID, 1)
+    H.assertTrue(W.main.frame.shown, "its place came up")
+    H.assertEq(W.main.selectedID, 1)
+    H.assertEq(#W.list, 1, "the main window was free")
     here.icc = nil
     UI:OpenNotesThatApply()
-    H.assertFalse(frame.shown, "its place ended")
+    H.assertFalse(W.main.frame.shown, "its place ended")
 end
 
 function tests.onlyNotesSetToOpen()
-    local UI, frame, here = Load({ { id = 2, place = "ah" } })
+    local UI, W, here = Load({ { id = 2, place = "ah" } })
     here.ah = true
     UI:OpenNotesThatApply()
-    H.assertFalse(frame.shown)
+    H.assertFalse(W.main.frame.shown)
 end
 
+-- The main window in use on another note: the note opens beside it.
 function tests.neverOverAWindowInUse()
     local notes = { { id = 1, place = "ah", opens = true } }
-    local UI, frame, here = Load(notes)
-    UI:EnsureEasyNotesFrame()
-    frame.shown = true
-    UI._notes.selectedID = 7
+    local UI, W, here = Load(notes)
+    W.main.frame.shown = true
+    W.main.selectedID = 7
     here.ah = true
     UI:OpenNotesThatApply()
-    H.assertEq(UI._notes.selectedID, 7, "the note in use stays")
+    H.assertEq(W.main.selectedID, 7, "the note in use stays")
+    H.assertEq(#W.list, 2, "a window of its own")
+    H.assertEq(W.list[2].selectedID, 1)
+    H.assertTrue(W.list[2].frame.shown)
     here.ah = nil
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "a window it did not open stays open")
+    H.assertTrue(W.main.frame.shown, "a window it did not open stays open")
+    H.assertFalse(W.list[2].frame.shown, "the one it opened goes")
 end
 
 function tests.leftOpenOnAnotherNoteStaysOpen()
     local notes = { { id = 1, place = "ah", opens = true } }
-    local UI, frame, here = Load(notes)
+    local UI, W, here = Load(notes)
     here.ah = true
     UI:OpenNotesThatApply()
-    UI._notes.selectedID = 3
+    W.main.selectedID = 3
     here.ah = nil
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "switched to another note: kept open")
+    H.assertTrue(W.main.frame.shown, "switched to another note: kept open")
+end
+
+-- Two notes set to the same place: both open, one window each.
+function tests.twoNotesOpenInTwoWindows()
+    local notes = { { id = 1, place = "ah", opens = true }, { id = 2, place = "ah", opens = true } }
+    local UI, W, here = Load(notes)
+    here.ah = true
+    UI:OpenNotesThatApply()
+    H.assertEq(W.main.selectedID, 1)
+    H.assertEq(#W.list, 2)
+    H.assertEq(W.list[2].selectedID, 2)
+    UI:OpenNotesThatApply()
+    H.assertEq(#W.list, 2, "a second look opens nothing twice")
+    here.ah = nil
+    UI:OpenNotesThatApply()
+    H.assertFalse(W.main.frame.shown)
+    H.assertFalse(W.list[2].frame.shown)
 end
 
 -- Only the next time: the opening spends the switch; the window stays
 -- while the place lasts, goes when it ends, and the next visit opens nothing.
 function tests.onlyTheNextTime_thenTheSwitchIsSpent()
     local notes = { { id = 1, place = "ah", opens = true, once = true } }
-    local UI, frame, here = Load(notes)
+    local UI, W, here = Load(notes)
     here.ah = true
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "opened this once")
+    H.assertTrue(W.main.frame.shown, "opened this once")
     H.assertNil(notes[1].opens, "the switch turned itself off")
     H.assertNil(notes[1].once)
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "stays open while the place lasts")
+    H.assertTrue(W.main.frame.shown, "stays open while the place lasts")
     here.ah = nil
     UI:OpenNotesThatApply()
-    H.assertFalse(frame.shown, "goes when the place ends")
+    H.assertFalse(W.main.frame.shown, "goes when the place ends")
     here.ah = true
     UI:OpenNotesThatApply()
-    H.assertFalse(frame.shown, "the next visit opens nothing")
+    H.assertFalse(W.main.frame.shown, "the next visit opens nothing")
 end
 
 -- "Close it when this ends" off: the window it opened stays when the place ends.
 function tests.keepOn_theWindowStaysWhenThePlaceEnds()
     local notes = { { id = 1, place = "ah", opens = true, keep = true } }
-    local UI, frame, here = Load(notes)
+    local UI, W, here = Load(notes)
     here.ah = true
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown)
+    H.assertTrue(W.main.frame.shown)
     here.ah = nil
     UI:OpenNotesThatApply()
-    H.assertTrue(frame.shown, "left to the player")
-    H.assertNil(UI._notes.openedFor, "no longer the opener's")
+    H.assertTrue(W.main.frame.shown, "left to the player")
+    H.assertNil(W.main.openedFor, "no longer the opener's")
+end
+
+-- Closed by the player while the place lasts: it does not come back until
+-- the place does.
+function tests.closedByHand_staysClosedForThatVisit()
+    local notes = { { id = 1, place = "ah", opens = true } }
+    local UI, W, here = Load(notes)
+    here.ah = true
+    UI:OpenNotesThatApply()
+    W.main.frame.shown = false
+    UI:OpenNotesThatApply()
+    H.assertFalse(W.main.frame.shown, "closed is closed")
+    here.ah = nil
+    UI:OpenNotesThatApply()
+    here.ah = true
+    UI:OpenNotesThatApply()
+    H.assertTrue(W.main.frame.shown, "the next visit opens it again")
 end
 
 local pass, fail, failures = H.runSuite("NotesOpensItself", tests)

@@ -231,10 +231,27 @@ local function LoadView(lines)
     local note = { id = 1, list = nil }
     CK.Init(note)
     for _, line in ipairs(lines) do CK.AddLine(note, line) end
+    -- One notes window, as Notes.lua's windows table hands it over.
+    local main = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub(),
+        GetFrameLevel = function() return 1 end } }
+    local Windows = { list = { main }, main = main, active = main, last = main, CreateFrame = env.CreateFrame }
+    function Windows.Run(w, fn, ...)
+        local prev = Windows.active
+        Windows.active = w
+        local a = fn(...)
+        Windows.active = prev
+        return a
+    end
+    function Windows.Bound(fn)
+        local w = Windows.active
+        return function(...) return Windows.Run(w, fn, ...) end
+    end
+    function Windows.Each(fn)
+        for _, w in ipairs(Windows.list) do Windows.Run(w, fn, w) end
+    end
     local notesNS = {
-        Checklist = CK, Context = {},
-        UI = { _notes = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub(),
-            GetFrameLevel = function() return 1 end } } },
+        Checklist = CK, Context = {}, Windows = Windows,
+        UI = { _notes = { frame = main.frame } },
         SelectedNote = function() return note end,
         AllNotes = function() return { note } end,
     }

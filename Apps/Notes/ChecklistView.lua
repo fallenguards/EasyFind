@@ -12,7 +12,8 @@ local CK = notesNS.Checklist
 local NotesUI = notesNS.UI
 local Utils = ns.Utils
 local L = ns.L
-local CreateFrame, time = CreateFrame, time
+-- Frames made here belong to the notes window in use (their scripts run as it).
+local CreateFrame, time = notesNS.Windows.CreateFrame, time
 local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
 local ipairs, smatch, sfind, slower, mmin, strtrim = ipairs, string.match, string.find, string.lower, math.min, strtrim
 local IsControlKeyDown = IsControlKeyDown
@@ -44,10 +45,24 @@ end
 local READY_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MENU_CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
 
--- Frames and state in one table (upvalue budget); open: the rows of the
--- lines not ticked, in order, the ones a drag can move among; editing:
--- the id of the line being typed in.
-local UI = { rows = {}, cells = {}, heads = {}, open = {}, allowed = false, board = false }
+-- Frames and state in one table, a set per notes window (the view stands
+-- in its window's editor space); UI reads the set of the window in use.
+-- open: the rows of the lines not ticked, in order, the ones a drag can
+-- move among; editing: the id of the line being typed in.
+View.States = setmetatable({}, { __mode = "k" })
+function View.State()
+    local w = notesNS.Windows.active
+    local s = View.States[w]
+    if not s then
+        s = { rows = {}, cells = {}, heads = {}, open = {}, allowed = false, board = false }
+        View.States[w] = s
+    end
+    return s
+end
+local UI = setmetatable({}, {
+    __index = function(_, k) return View.State()[k] end,
+    __newindex = function(_, k, v) View.State()[k] = v end,
+})
 
 local function Text(parent, template)
     local fs = parent:CreateFontString(nil, "OVERLAY", template)
@@ -741,10 +756,11 @@ local function EnsureView()
     UI.empty:SetWordWrap(true)
     UI.empty:SetText(L["CHECK_EMPTY"])
 
-    -- Shift-clicked items, quests and spells join the open list; into the
-    -- line being typed, where one is.
-    Utils.HookInsertLink(function(link)
+    -- Shift-clicked items, quests and spells join the open list of the
+    -- window used last; into the line being typed, where one is.
+    Utils.HookInsertLink(notesNS.Windows.Bound(function(link)
         local note = Note()
+        if notesNS.Windows.last ~= notesNS.Windows.active then return end
         if not (view:IsVisible() and note and CK.Is(note)) then return end
         link = Utils.HexColorNames(link)
         if UI.edit and UI.edit:HasFocus() then
@@ -752,7 +768,7 @@ local function EnsureView()
             return
         end
         AddLine(note, CK.LineFromLink(link))
-    end)
+    end))
 
     view:SetScript("OnShow", function() View.Watch(true) end)
     view:SetScript("OnHide", function() View.Watch(false) end)
@@ -764,18 +780,19 @@ local EVENTS = { "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE", "QUEST_TURNED_IN", "U
     "BAG_UPDATE_COOLDOWN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED", "GET_ITEM_INFO_RECEIVED" }
 local watcher = CreateFrame("Frame")
 watcher:SetScript("OnEvent", function()
-    if UI.queued then return end
-    UI.queued = true
+    if View.queued then return end
+    View.queued = true
     Utils.SafeAfter(0.3, function()
-        UI.queued = nil
-        View.Refresh()
+        View.queued = nil
+        notesNS.Windows.Each(View.Refresh)
     end)
 end)
 
--- The game's events refresh the list only while it shows.
+-- The game's events refresh the lists only while one shows.
 function View.Watch(on)
+    View.watching = (View.watching or 0) + (on and 1 or -1)
     for _, e in ipairs(EVENTS) do
-        if on then watcher:RegisterEvent(e) else watcher:UnregisterEvent(e) end
+        if View.watching > 0 then watcher:RegisterEvent(e) else watcher:UnregisterEvent(e) end
     end
 end
 
@@ -1014,7 +1031,7 @@ local function EnsureEdit()
         end
         local row = UI.editRow
         if row and UI.editing and row.line and row.line.id == UI.editing and row:IsMouseOver() then
-            Utils.SafeAfter(0, function() if UI.editing and self:IsShown() then self:SetFocus() end end)
+            Utils.SafeAfter(0, notesNS.Windows.Bound(function() if UI.editing and self:IsShown() then self:SetFocus() end end))
             return
         end
         View.EndEdit()
@@ -1231,6 +1248,6 @@ Utils.SafeAfter(5, View.Sweep)
 -- A theme change repaints the lines in its colors while they show.
 if ns.RegisterThemeCallback then
     ns.RegisterThemeCallback(function()
-        if UI.view and UI.view:IsShown() then View.Refresh() end
+        notesNS.Windows.Each(function() if UI.view and UI.view:IsShown() then View.Refresh() end end)
     end)
 end
