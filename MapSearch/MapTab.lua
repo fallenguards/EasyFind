@@ -1718,7 +1718,7 @@ function MapTab.FilterChanged(key)
         local txt = uiSb:GetText() or ""
         if txt ~= "" then uiMod:OnSearchTextChanged(txt) end
     end
-    if ns.GPS and ns.GPS.RefreshSearches then ns.GPS.RefreshSearches() end
+    EasyFind.API.Fire("easyfind", "mapFiltersChanged")
 end
 
 -- The Show choices for a GPS search box's gear.
@@ -2237,8 +2237,7 @@ local function CreatePanel(qmf)
     local function OnFontPicked()
         MapTab.ScaleChrome(p)
         RefreshCurrentSearch()
-        -- The GPS page's steps follow the same size.
-        if ns.GPS and ns.GPS.RefreshSurfaces then ns.GPS.RefreshSurfaces() end
+        EasyFind.API.Fire("easyfind", "mapTextSizeChanged")
     end
     p.OnFontPicked = OnFontPicked
     cog:SetScript("OnClick", function()

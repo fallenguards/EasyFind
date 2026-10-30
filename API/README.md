@@ -321,6 +321,7 @@ What EasyFind's own extensions offer:
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |
+| `gps` | `destination()` | Where the route goes, `{ name, mapID, x, y }`, or nil without one. |
 | `loot` | `ensure(fn)` | Loads the loot rows and calls `fn()` once they are in (at once when they are). Returns false on a client without loot. |
 | `loot` | `entries()` | A fresh list of the cached drops, one table each: `{ itemID, name, icon, slotName, links = { [difficulty] = itemLink }, bossName, encounterID, instanceName, instanceID, isRaid }`. Nil before `ensure`. |
 | `loot` | `link(itemID)` | The item link EasyFind's own loot row shows for it (the chosen difficulty, then the best known), or nil when it is not a cached drop. |
@@ -333,12 +334,21 @@ What EasyFind's own extensions offer:
 | `snippets` | `create(body, name)` | Opens the snippet editor on a new snippet. |
 | `snippets` | `attachExpansion(editBox)` | Snippet keywords typed into that edit box expand, as in the chat box. |
 | `chat` | `compose(text, conversation)` | Starts a message in the messenger. |
+| `chat` | `conversations()` | The messenger's conversations, newest first: `{ key, label }` each; a key goes to `compose`. |
 
 | Extension | Event | |
 | --- | --- | --- |
 | `gps` | `routeStarted(dest)` | A route was planned. |
 | `gps` | `arrived(dest)` | The player reached the end. |
 | `gps` | `routeCleared()` | The route was ended. |
+
+EasyFind's own news, under the id `easyfind`, for an extension that sits in its surfaces:
+
+| Event | |
+| --- | --- |
+| `trackerChanged()` | The objective tracker was hidden or shown through EasyFind; something docked to it places itself again. |
+| `mapFiltersChanged()` | The map search's filters changed; lists drawn from it search again. |
+| `mapTextSizeChanged()` | The map tab's text size changed; text beside the map follows it. |
 
 Actions not listed here are EasyFind's own and may change.
 
@@ -439,7 +449,7 @@ API.RegisterExtension({ id = "big", open = OpenBigWindow })
 API.RegisterSearchProvider({ key = "big", rows = BigRows, select = OpenBigItem })
 ```
 
-The tile, its launcher row, the filter row and the scope are there before the addon ever loads. A click loads it, then opens. EasyFind's Notes, Chat and Icon Search work this way.
+The tile, its launcher row, the filter row and the scope are there before the addon ever loads. A click loads it, then opens. EasyFind's Notes and Icon Search work this way.
 
 ## Rules EasyFind keeps for you
 

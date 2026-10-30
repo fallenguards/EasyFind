@@ -130,9 +130,7 @@ end
 
 -- The pin on the spot a route leads to: dismissing it ends the route too.
 local function RouteEndsHere(self)
-    local GPS = ns.GPS
-    local route = GPS and GPS.CurrentRoute and GPS.CurrentRoute()
-    local dest = route and route.dest
+    local dest = EasyFind.API.CallAction("gps", "destination")
     if not (dest and dest.x and self.waypointX and dest.mapID == WorldMapFrame:GetMapID()) then return false end
     return math.abs(dest.x - self.waypointX) < 0.005 and math.abs(dest.y - self.waypointY) < 0.005, dest
 end
@@ -165,7 +163,7 @@ local function PinClick(self, button)
     if button == "RightButton" then
         local ends = RouteEndsHere(self)
         MapSearch:ClearAll()
-        if ends then ns.GPS:Clear() end
+        if ends then EasyFind.API.CallAction("gps", "clear") end
         return
     end
     if button ~= "LeftButton" or not (self.isLocalSearch and self.waypointX and self.waypointY) then return end

@@ -36,9 +36,11 @@ local function LoadToggle()
     env._G = env
     local ns = H.newNs(env)
     ns.Utils.SafeAfter = function(_, fn) fn() end
+    -- The news an extension docked there (the GPS) hears.
     local placed = { n = 0 }
-    ns.GPS = { PlaceDock = function() placed.n = placed.n + 1 end }
-    env.EasyFind = { db = {} }
+    env.EasyFind = { db = {}, API = { Fire = function(id, event)
+        if id == "easyfind" and event == "trackerChanged" then placed.n = placed.n + 1 end
+    end } }
     env.CreateFrame = function(_, _, parent) return Frame(parent, true) end
     env.ObjectiveTrackerFrame = Frame(nil, true)
     local chunk = assert(load("local _, ns = ...\n" .. src:sub(s, e), "=Core/Main.lua tracker", "t", env))
@@ -53,7 +55,7 @@ function tests.toggleHidesTheTrackerAndKeepsItHidden()
     EasyFind:ToggleObjectiveTracker()
     H.assertFalse(env.ObjectiveTrackerFrame:IsShown(), "hidden")
     H.assertTrue(EasyFind.db.objectiveTrackerHidden, "kept across sessions")
-    H.assertEq(placed.n, 1, "GPS places its dock again")
+    H.assertEq(placed.n, 1, "EasyFind tells the GPS its dock moves")
     env.ObjectiveTrackerFrame:Show()
     H.assertFalse(env.ObjectiveTrackerFrame:IsShown(), "a quest update showing it: hidden again")
 end

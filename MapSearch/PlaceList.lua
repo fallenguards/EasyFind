@@ -406,8 +406,7 @@ function List:SetRowIcon(row, data)
         SetPortraitTextureFromCreatureDisplayID(row.icon, data.displayID)
     end
     -- A place it can navigate to: the GPS button first, the icon after it.
-    local GPS = ns.GPS
-    local gps = self.host.routeButton and GPS and GPS.RowButton and GPS.RowButton(row, data, size)
+    local gps = self.host.routeButton and EasyFind.API.CallAction("gps", "rowButton", row, data, size)
     row.icon:ClearAllPoints()
     if gps then
         gps:ClearAllPoints()

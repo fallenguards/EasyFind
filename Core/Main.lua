@@ -1779,7 +1779,7 @@ local function HideTracker()
     if manager and manager:IsShown() then return end
     local t = TrackerFrame()
     if t and t:IsShown() then t:Hide() end
-    if ns.GPS and ns.GPS.PlaceDock then ns.GPS.PlaceDock() end
+    EasyFind.API.Fire("easyfind", "trackerChanged")
 end
 local function RehideTracker()
     if EasyFind.db.objectiveTrackerHidden then ns.Utils.SafeAfter(0, HideTracker) end
@@ -1811,7 +1811,7 @@ function EasyFind:ToggleObjectiveTracker()
     if EasyFind.db.objectiveTrackerHidden then
         EasyFind.db.objectiveTrackerHidden = nil
         t:Show()
-        if ns.GPS and ns.GPS.PlaceDock then ns.GPS.PlaceDock() end
+        EasyFind.API.Fire("easyfind", "trackerChanged")
         return
     end
     EasyFind.db.objectiveTrackerHidden = true

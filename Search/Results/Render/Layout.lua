@@ -116,10 +116,9 @@ end
 
 function Render.ApplyGPSButton(resultRow, entry, state)
     local data = entry.data
-    local GPS = ns.GPS
     local size = state.theme.iconSize or 15
     local btn = data and not (entry.isSectionHeader or entry.isPinHeader or entry.isPathNode)
-        and GPS and GPS.RowButton and GPS.RowButton(resultRow, data, size, NavigateFromResults, state.theme.chromeGlyph)
+        and EasyFind.API.CallAction("gps", "rowButton", resultRow, data, size, NavigateFromResults, state.theme.chromeGlyph)
     if not btn then
         if resultRow.gpsBtn then resultRow.gpsBtn:Hide() end
         return

@@ -143,7 +143,7 @@ function Rows:ResultMenuModel(row)
         end
     end
     -- Zones and points of interest can be navigated to by the GPS extension.
-    if ns.GPS and ns.GPS.CanNavigate and ns.GPS:CanNavigate(pinData) then
+    if EasyFind.API.CallAction("gps", "canNavigate", pinData) then
         -- From the search bar the directions open in the GPS window, and
         -- the bar steps aside as it does after any chosen result (hidden
         -- outright when it auto-hides).
@@ -152,7 +152,7 @@ function Rows:ResultMenuModel(row)
                 Handlers:FinishResultSelection()
             end
         end
-        if ns.GPS.SetStart then extra.onGPSFrom = function() ns.GPS:SetStart(pinData) end end
+        extra.onGPSFrom = function() EasyFind.API.CallAction("gps", "setStart", pinData) end
     end
     -- The extension's own rows for its result (RegisterSearchProvider
     -- menu), given in the tile menu's shape, as the cursor menu's rows;
