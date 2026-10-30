@@ -1139,9 +1139,14 @@ function notesNS.NoteSearchRow(n)
     }
 end
 
+-- The Create note row first (the green plus, as Create snippet), then the notes.
 function notesNS.BuildSearchData()
     local notes = NotesStore()
-    local out = {}
+    local out = { {
+        name = L["NOTES_CREATE"], nameLower = slower(L["NOTES_CREATE"]), category = "Notes",
+        keywordsLower = { "note", "notes", "new" }, searchCommandDesc = L["NOTES_CREATE_SUB"],
+        icon = ns.NOTES_ICON_TEX, createRow = true, noPin = true,
+    } }
     for i = 1, #notes do
         if notesNS.NoteShown(notes[i]) then out[#out + 1] = notesNS.NoteSearchRow(notes[i]) end
     end
@@ -9868,7 +9873,8 @@ EasyFind.API.RegisterAction("notes", "refresh", notesNS.Refresh)
 EasyFind.API.RegisterSearchProvider({
     key = "notes", rows = notesNS.BuildSearchData,
     select = function(row)
-        if row.noteID then notesNS.OpenNote(row.noteID)
+        if row.createRow then notesNS.NewFromSearch("")
+        elseif row.noteID then notesNS.OpenNote(row.noteID)
         elseif row.noteLink then NoteLink.Take(row.noteLink) end
     end,
 })

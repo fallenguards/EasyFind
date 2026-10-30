@@ -85,6 +85,7 @@
 ---@field searchCommandDesc? string Its subtext.
 ---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint This row's own hint.
 ---@field mapID? number The map it is on, for the map search's list of that map.
+---@field createRow? boolean The row makes a new thing: it wears the green plus badge (MINOR 4).
 
 ---@class EasyFindOption
 ---@field label? string|fun(): string
@@ -157,7 +158,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 2,
+    MINOR = 4,
 }
 local API = EasyFind.API
 

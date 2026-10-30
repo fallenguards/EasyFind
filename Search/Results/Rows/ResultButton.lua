@@ -243,32 +243,25 @@ function Rows:CreateResultButton(index)
     flatCatIcon:Hide()
     resultRow.flatCatIcon = flatCatIcon
 
-    -- "Create snippet" badge on the LEFT category icon's corner, the same
-    -- treatment as the pin badge, so the create row reads apart from saved
-    -- snippets at a glance. Anchored to flatCatIcon: resultRow.icon is the
-    -- RIGHT-side slot in flat rows, so a badge there had no rect to sit on.
-    -- Shipped texture, not sprite-sheet texcoords: Blizzard reshuffles its
-    -- sheets across patches and a moved crop turns the badge into noise.
-    -- The cyan ADD glow underneath is the same treatment as the NEW feature
-    -- labels (collections-newglow is atlas-addressed, so patch-stable).
-    -- Green, matching the "currently active" marker green (|cff4dff4d) so
-    -- EasyFind's accent green stays one color everywhere.
-    local snippetCreateBadge = resultRow:CreateTexture(nil, "OVERLAY", nil, 7)
-    snippetCreateBadge:SetSize(13, 13)
-    snippetCreateBadge:SetTexture("Interface\\AddOns\\EasyFind\\textures\\snippet-create-badge")
-    snippetCreateBadge:SetVertexColor(0.302, 1.0, 0.302, 1)
-    snippetCreateBadge:SetPoint("BOTTOMLEFT", flatCatIcon, "BOTTOMRIGHT", -7, -1)
-    snippetCreateBadge:Hide()
-    resultRow.snippetCreateBadge = snippetCreateBadge
+    -- The create rows' badge (Create snippet, Create note, an extension's)
+    -- on the left category icon's corner, as the pin badge sits: a shipped
+    -- texture in the accent green, the NEW labels' ADD glow under it.
+    local createBadge = resultRow:CreateTexture(nil, "OVERLAY", nil, 7)
+    createBadge:SetSize(13, 13)
+    createBadge:SetTexture("Interface\\AddOns\\EasyFind\\textures\\snippet-create-badge")
+    createBadge:SetVertexColor(0.302, 1.0, 0.302, 1)
+    createBadge:SetPoint("BOTTOMLEFT", flatCatIcon, "BOTTOMRIGHT", -7, -1)
+    createBadge:Hide()
+    resultRow.createBadge = createBadge
 
-    local snippetCreateGlow = resultRow:CreateTexture(nil, "OVERLAY", nil, 6)
-    snippetCreateGlow:SetPoint("CENTER", snippetCreateBadge, "CENTER", 0, 0)
-    snippetCreateGlow:SetSize(28, 28)
-    snippetCreateGlow:SetAtlas("collections-newglow")
-    snippetCreateGlow:SetVertexColor(0.3, 1.0, 0.35, 0.9)
-    snippetCreateGlow:SetBlendMode("ADD")
-    snippetCreateGlow:Hide()
-    resultRow.snippetCreateGlow = snippetCreateGlow
+    local createGlow = resultRow:CreateTexture(nil, "OVERLAY", nil, 6)
+    createGlow:SetPoint("CENTER", createBadge, "CENTER", 0, 0)
+    createGlow:SetSize(28, 28)
+    createGlow:SetAtlas("collections-newglow")
+    createGlow:SetVertexColor(0.3, 1.0, 0.35, 0.9)
+    createGlow:SetBlendMode("ADD")
+    createGlow:Hide()
+    resultRow.createGlow = createGlow
 
     Rows.InstallInteractions(resultRow, index)
 

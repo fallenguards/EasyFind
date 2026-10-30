@@ -717,7 +717,7 @@ function Search:OnSearchTextChangedNow(text, force)
                 local d = results[ri].data
                 if d and d.snippetsLauncher then
                     results[ri].score = LEARNED_SCORE + 2
-                elseif d and d.snippetCreate then
+                elseif d and d.createRow and d.category == "Snippet" then
                     results[ri].score = LEARNED_SCORE + 1
                 end
             end
@@ -945,7 +945,7 @@ function Search:OnSearchTextChangedNow(text, force)
             combined[#combined + 1] = { score = 1, data = {
                 name = Utils.sformat(ns.L["NOTES_ROW_NEW_FMT"], title), category = "Notes",
                 searchCommandDesc = ns.L["NOTES_ROW_NEW_SUB"], icon = ns.NOTES_ICON_TEX,
-                noteCreate = true, noPin = true, noLearn = true,
+                createRow = true, noPin = true, noLearn = true,
                 nativeRun = function() ns.Notes.NewFromSearch(title) end,
             } }
         end

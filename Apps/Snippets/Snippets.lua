@@ -742,7 +742,7 @@ function Snippets:BuildSearchData()
         searchCommandDesc = L["SNIPPET_CREATE_SUB"],
         nativeRun = OpenEditorNew,
         noPin = true,
-        snippetCreate = true,
+        createRow = true,
     }
     local list = SnippetList()
     if list then

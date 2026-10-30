@@ -243,7 +243,7 @@ end
 local function Fire(data)
     local shortcuts = ns.ResultShortcuts
     if shortcuts then shortcuts._resultShortcutActivation = true end
-    if data.category == "Snippet" and not data.snippetCreate and EasyFind.API.HasAction("snippets", "run") then
+    if data.category == "Snippet" and not data.createRow and EasyFind.API.HasAction("snippets", "run") then
         EasyFind.API.CallAction("snippets", "run", data.name)
     elseif not (ns.ResultRows and ns.ResultRows.ActivateSettingResult
             and ns.ResultRows:ActivateSettingResult(data)) then

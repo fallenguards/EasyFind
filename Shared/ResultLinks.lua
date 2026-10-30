@@ -159,7 +159,7 @@ local function Shareable(data)
     if not data or data.noPin or UNSHAREABLE_CATEGORY[data.category] then return false end
     return not (data.calculatorResult or data.calculatorExpression or data.calculatorLauncher
         or data.quickFilterDef or data.searchCommand or data.nativeRun
-        or data.copyText or data.snippetCreate or data.snippetsLauncher)
+        or data.copyText or data.createRow or data.snippetsLauncher)
 end
 
 -- The row's link key, or nil when it gets no EasyFind link.

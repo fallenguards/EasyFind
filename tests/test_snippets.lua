@@ -93,9 +93,9 @@ function tests.buildSearchData_createRowPlusSnippets()
     })
     local rows = Snippets:BuildSearchData()
     H.assertEq(#rows, 4, "app row + create row + 2 snippets")
-    H.assertTrue(rows[1].nativeRun ~= nil and not rows[1].snippetCreate,
+    H.assertTrue(rows[1].nativeRun ~= nil and not rows[1].createRow,
         "first row is the Snippets app launcher")
-    H.assertTrue(rows[2].snippetCreate == true, "second row is the create row")
+    H.assertTrue(rows[2].createRow == true, "second row is the create row")
     H.assertEq(rows[3].name, "Greeting")
     H.assertEq(rows[3].category, "Snippet")
     H.assertTrue(hasValue(rows[3].keywordsLower, "hi"), "keyword searchable, lowered")

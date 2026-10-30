@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -227,6 +227,7 @@ A row is a table:
 | `name` | Required. What is searched and shown. |
 | `icon` | Texture path or file id, shown at the row's right in its own colors. |
 | `iconDimmed` | `true`: the icon is drawn gray, for a row out of reach (a quest the character cannot take yet; MINOR 1). |
+| `createRow` | `true`: the row makes a new thing (Create shopping list). It wears the green plus badge of EasyFind's own Create snippet and Create note rows, and never travels as a link (MINOR 4). |
 | `keywords` | More words that find it. |
 | `searchCommandDesc` | Its subtext: a dim note shown with the name. |
 | `hint` | What its gestures do, as the provider's `hint`, for this row alone. |
