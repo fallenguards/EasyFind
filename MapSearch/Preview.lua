@@ -15,19 +15,10 @@ local ResolveZoneForMap = MapUtils.ResolveZoneForMap
 function MapSearch:GetPreviewCoords(data)
     local currentMapID = WorldMapFrame:GetMapID()
     if data.allInstances then
-        -- Filter instances to those whose (x,y) are valid on the
-        -- currently viewed map. FMs scanned at both continent and
-        -- zone level merge into a single result with multiple
-        -- instances; without this filter, both render, and one is
-        -- always at the wrong pixel for whichever map you're on.
-        local valid = {}
-        for i = 1, #data.allInstances do
-            local inst = data.allInstances[i]
-            local instMap = inst.entranceMapID or inst.coordMapID
-            if inst.x and inst.y and (not instMap or instMap == currentMapID) then
-                valid[#valid + 1] = inst
-            end
-        end
+        -- Only the spots on the viewed map: a flight master scanned at
+        -- continent and zone level, or creatures sharing a name, fold
+        -- into one row with other maps' x and y.
+        local valid = MapSearch.SpotsOnMap(data.allInstances, currentMapID)
         if #valid > 1 then
             return { instances = valid }
         elseif #valid == 1 then

@@ -638,6 +638,18 @@ function MapSearch:NavigateToEntrance(name, x, y, icon, category, targetMapID, d
     end
 end
 
+-- A folded row's spots (one name, several places) on the given map; the
+-- rest are another map's x and y. A spot with no map is that map's.
+function MapSearch.SpotsOnMap(instances, mapID)
+    local here = {}
+    for i = 1, #instances do
+        local s = instances[i]
+        local m = s.entranceMapID or s.coordMapID
+        if s.x and s.y and (not m or m == mapID) then here[#here + 1] = s end
+    end
+    return here
+end
+
 -- directOverride: optional. When non-nil, takes precedence over the
 -- per-surface *MapDirectOpen SavedVariables. Used by the right-click
 -- Guide menu to force breadcrumb/teaching mode regardless of the
@@ -732,9 +744,15 @@ function MapSearch:SelectResult(data, directOverride)
         end
 
         -- A spot on another map (a creature, a place across the world):
-        -- open that map and pin it there, or guide the way to it.
-        local spot = data.allInstances and #data.allInstances == 1 and data.allInstances[1] or data
-        local spotMapID = not (data.allInstances and #data.allInstances > 1) and spot.coordMapID
+        -- open that map and pin it there, or guide the way to it. A folded
+        -- row pins its spots on the viewed map, else its own on its map.
+        local spots = data.allInstances
+        if spots and #spots > 1 then
+            spots = MapSearch.SpotsOnMap(spots, WorldMapFrame:GetMapID())
+            if #spots == 0 then spots = { data } end
+        end
+        local spot = spots and #spots == 1 and spots[1] or data
+        local spotMapID = not (spots and #spots > 1) and spot.coordMapID
         if spotMapID and spot.x and spot.y and spotMapID ~= WorldMapFrame:GetMapID() then
             self:ClearHighlight()
             self.pendingWaypoint = { x = spot.x, y = spot.y, icon = spot.icon, category = spot.category,
@@ -748,11 +766,10 @@ function MapSearch:SelectResult(data, directOverride)
             return
         end
 
-        if data.allInstances and #data.allInstances > 1 then
-            -- Show ALL instances on the map
-            self:ShowMultipleWaypoints(data.allInstances)
-        elseif data.allInstances and #data.allInstances == 1 then
-            local single = data.allInstances[1]
+        if spots and #spots > 1 then
+            self:ShowMultipleWaypoints(spots)
+        elseif spots and #spots == 1 then
+            local single = spots[1]
             if single.x and single.y then
                 self:ShowWaypointAt(single.x, single.y, single.icon, single.category, nil, single.displayID)
                 if single.vignetteGUID and SetSuperTrackedVignette then
@@ -782,15 +799,15 @@ function MapSearch:SelectResult(data, directOverride)
         if not self:IsGlobalSearchActive() and directMode then
             local autoX, autoY, autoMapID
             local viewedMap = WorldMapFrame and WorldMapFrame:GetMapID()
-            if data.allInstances and #data.allInstances > 1 then
+            if spots and #spots > 1 then
                 -- Multiple instances: navigate to the nearest one
-                local nearest = self:GetNearestInstance(data.allInstances, viewedMap)
+                local nearest = self:GetNearestInstance(spots, viewedMap)
                 if nearest then
                     autoX, autoY = nearest.x, nearest.y
                     autoMapID = nearest.mapID or viewedMap
                 end
-            elseif data.allInstances and #data.allInstances == 1 then
-                local single = data.allInstances[1]
+            elseif spots and #spots == 1 then
+                local single = spots[1]
                 autoX, autoY = single.x, single.y
                 autoMapID = single.mapID or viewedMap
             elseif data.x and data.y then
