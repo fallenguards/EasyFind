@@ -88,7 +88,12 @@ function Frames.SquareIcon(icon)
     return icon:lower():find("^interface\\icons\\") ~= nil or icon:find("^atlas:classicon%-") ~= nil
 end
 
-function Frames.SetPinIcon(pin, icon, face)
+-- An extension's small glyph (a quest's "?", iconWell) in a dark well
+-- ringed in gold: bare, it was lost in the map's art.
+local WELL_RING = { ns.GOLD_COLOR[1], ns.GOLD_COLOR[2], ns.GOLD_COLOR[3], 0.8 }
+local WELL_FILL = { 0.05, 0.04, 0.03, 0.92 }
+function Frames.SetPinIcon(pin, icon, face, category)
+    ns.SetIconWell(pin.icon, nil)
     Utils.SetIconTexture(pin.icon, icon)
     local round = not face and Frames.SquareIcon(icon)
     if round and not pin.iconMask then
@@ -104,6 +109,8 @@ function Frames.SetPinIcon(pin, icon, face)
         pin.icon:RemoveMaskTexture(pin.iconMask)
         pin.iconRound = nil
     end
+    local provider = category and not face and ns.Extensions.Providers.byCategory[category]
+    if provider and provider.iconWell then ns.SetIconWell(pin.icon, WELL_RING, WELL_FILL) end
 end
 
 function Frames.AddWaypointPinVisuals(pin, opts)

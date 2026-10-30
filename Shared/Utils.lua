@@ -3331,6 +3331,52 @@ function ns.PaintInputWell(shell, fill)
     ns.PaintRingedWell(shell, ring, fill or look.EDITBOX_INSET_FILL or ns.EDITBOX_INSET_FILL or { 0.02, 0.02, 0.03 })
 end
 
+-- A round well under a small glyph on a clear ground (a quest's "?" on a
+-- map pin): a disc of fill in a 1 px ring, under the icon on its frame,
+-- the glyph drawn smaller inside. ring nil takes it away; call that before
+-- a reused pin's next icon is set, as it puts the glyph's full size back.
+function ns.SetIconWell(icon, ring, fill)
+    local well = icon.efWell
+    if not ring then
+        if well and well.ring:IsShown() then
+            well.ring:Hide()
+            well.disc:Hide()
+            icon:SetTexCoord(0, 1, 0, 1)
+        end
+        return
+    end
+    if not well then
+        local owner = icon:GetParent()
+        local layer, sublevel = icon:GetDrawLayer()
+        local function Circle(below, inset)
+            local t = owner:CreateTexture(nil, layer, nil, math.max(-8, (sublevel or 0) - below))
+            t:SetColorTexture(1, 1, 1, 1)
+            t:SetPoint("TOPLEFT", icon, "TOPLEFT", inset, -inset)
+            t:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -inset, inset)
+            local mask = owner:CreateMaskTexture()
+            mask:SetTexture(ns.PORTRAIT_ALPHA_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            mask:SetAllPoints(t)
+            t:AddMaskTexture(mask)
+            return t
+        end
+        well = { ring = Circle(2, 0), disc = Circle(1, 1) }
+        icon.efWell = well
+    end
+    well.ring:SetVertexColor(ring[1], ring[2], ring[3], ring[4] or 1)
+    well.disc:SetVertexColor(fill[1], fill[2], fill[3], fill[4] or 1)
+    well.ring:Show()
+    well.disc:Show()
+    -- A whole file only: an atlas or a cut keeps its size.
+    local ulx, uly, _, _, _, _, lrx, lry = icon:GetTexCoord()
+    local file = icon:GetTexture()
+    if file and ulx == 0 and uly == 0 and lrx == 1 and lry == 1 then
+        -- The glyph at 72% of the well.
+        local pad = (1 / 0.72 - 1) / 2
+        icon:SetTexture(file, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        icon:SetTexCoord(-pad, 1 + pad, -pad, 1 + pad)
+    end
+end
+
 -- Every window-fill surface in the theme just applied: a window, menu or
 -- extension's panel follows a theme change with no callback of its own.
 function ns.RepaintThemeFills()

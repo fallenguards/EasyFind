@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -200,6 +200,7 @@ Registering an id again adds to it, which is how a load-on-demand extension fill
 | `label` | string | Required the first time. What its rows are ("Shopping Lists"): its scope's pill and quick filter. The filter menu's Extensions flyout has one row per extension, with its name and icon, so a player sees which addon a filter belongs to. An extension with more than one provider gets one row all the same: it turns them all on or off, and its flyout has a switch for each provider, named by its label, then their `options`. |
 | `category` | string | The name its rows carry. Defaults to `key`. |
 | `icon`, `iconCoords` | | The glyph left of each of its rows, painted like an extension's. Its extension's when not given. |
+| `iconWell` | boolean | `true`: a row's icon on the map's pin (a pick in the map search, a route's end) sits in a dark round well ringed in gold. For small glyphs on a clear ground (a quest's "?"), which vanish in the map's art; an older EasyFind ignores it (MINOR 2). |
 | `rows` | function | Returns its rows (below). Called when its rows are first needed and after `RefreshSearchProvider`. |
 | `select` | function `(row)` | A click or Enter on one of its rows. Gets a copy of the row. |
 | `tooltip` | function `(row, tooltip)` | Fills `GameTooltip` for a row. Return `true` to show it. |

@@ -37,6 +37,7 @@
 ---@field category? string The name its rows carry; key when not given.
 ---@field icon? string|number The glyph left of each of its rows; its extension's when not given.
 ---@field iconCoords? number[]
+---@field iconWell? boolean Its rows' icons on a map pin sit in a dark round well, for small glyphs on a clear ground (MINOR 2).
 ---@field rows? fun(): EasyFindRow[] Its rows.
 ---@field select? fun(row: EasyFindRow) A click or Enter on a row (a copy).
 ---@field tooltip? fun(row: EasyFindRow, tooltip: GameTooltip): boolean Fill it; true shows it.
@@ -154,7 +155,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 1,
+    MINOR = 2,
 }
 local API = EasyFind.API
 

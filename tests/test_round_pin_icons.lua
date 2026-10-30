@@ -9,6 +9,8 @@ local function Load()
     env._G = env
     local ns = H.newNs(env)
     ns.Utils.SetIconTexture = function() end
+    ns.SetIconWell = function() end
+    ns.Extensions = { Providers = { byCategory = {} } }
     H.loadModule("MapSearch/Frames.lua", env, ns)
     return ns.MapSearchFrames
 end

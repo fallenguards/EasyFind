@@ -7,7 +7,7 @@ local slower, sfind = Utils.slower, Utils.sfind
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 1 }
+local API = { VERSION = 1, MINOR = 2 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -434,7 +434,7 @@ local function JoinFilterRow(owner, p)
 end
 
 local PROVIDER_FIELDS = {
-    key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table",
+    key = "string", label = "string", category = "string", icon = "texture", iconCoords = "table", iconWell = "boolean",
     words = "table", eager = "boolean", lazy = "boolean", lowResults = "boolean",
     aliases = "table", options = "table", rows = "function", select = "function", tooltip = "function",
     leave = "function", extension = "string", loadOnSearch = "any", hint = "any", browse = "function",
@@ -508,7 +508,7 @@ end
 -- and label (required the first time: an extension registered first,
 -- whose filter row it joins), icon (its extension's when not given),
 -- category (the name its rows carry; key when not given),
--- iconCoords, words (typing one loads the
+-- iconCoords, iconWell (its marks on the map in a round well), words (typing one loads the
 -- rows), eager (small: searched from the first keystroke), lazy (only by
 -- its words, its filter or its scope), lowResults (also when a search
 -- finds little), aliases (an @scope: "@" and one of these lists only its
