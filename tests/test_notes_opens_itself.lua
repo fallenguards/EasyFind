@@ -107,5 +107,18 @@ function tests.onlyTheNextTime_thenTheSwitchIsSpent()
     H.assertFalse(frame.shown, "the next visit opens nothing")
 end
 
+-- "Close it when this ends" off: the window it opened stays when the place ends.
+function tests.keepOn_theWindowStaysWhenThePlaceEnds()
+    local notes = { { id = 1, place = "ah", opens = true, keep = true } }
+    local UI, frame, here = Load(notes)
+    here.ah = true
+    UI:OpenNotesThatApply()
+    H.assertTrue(frame.shown)
+    here.ah = nil
+    UI:OpenNotesThatApply()
+    H.assertTrue(frame.shown, "left to the player")
+    H.assertNil(UI._notes.openedFor, "no longer the opener's")
+end
+
 local pass, fail, failures = H.runSuite("NotesOpensItself", tests)
 return { pass = pass, fail = fail, failures = failures }

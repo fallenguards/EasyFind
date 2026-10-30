@@ -6491,7 +6491,8 @@ function NoteWhen.TagRows(note, d)
     if d.kind ~= "showsOn" then
         rows[1] = NoteWhen.OpenRow(note, d.entry or d.rule)
         rows[2] = NoteWhen.OnceRow(note, d.entry or d.rule)
-        rows[3] = { isSeparator = true }
+        rows[3] = NoteWhen.CloseRow(note, d.entry or d.rule)
+        rows[4] = { isSeparator = true }
     end
     rows[#rows + 1] = { text = _G["REMOVE"] or "Remove", onClick = function() NoteWhen.RemoveTag(note, d) end }
     return rows
@@ -6528,6 +6529,7 @@ local function MakeAttachPill(frame, i)
             or d.kind == "rule" and L["NOTES_AUTO_ALL_OF"] or L["NOTES_SHOWS_ON"]
         local tip = head .. "\n|cffe6e6e6" .. d.name .. "|r"
         if d.opens then tip = tip .. "\n" .. L[d.once and "NOTES_AUTO_OPEN_ONCE_TT" or "NOTES_AUTO_OPEN_TT"] end
+        if d.opens and d.keep then tip = tip .. "\n" .. L["NOTES_AUTO_KEEP_TT"] end
         UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", tip .. "\n|cff99999e" .. L["NOTES_RIGHT_REMOVE"] .. "|r")
     end)
     pill:SetScript("OnLeave", function(self) UI:HideNotesTip(self) end)
@@ -6548,14 +6550,14 @@ function UI:RefreshEasyNotesAttachBar()
     if note then
         for _, e in ipairs(note.appliesIn or {}) do
             entries[#entries + 1] = { kind = "appliesIn", entry = e, name = e.name or tostring(e.id),
-                color = TagColor(CtxKey(e)), opens = e.opens, once = e.once }
+                color = TagColor(CtxKey(e)), opens = e.opens, once = e.once, keep = e.keep }
         end
         for _, r in ipairs(note.rules or {}) do
             if #r.conds > 0 then
                 local names = {}
                 for _, c in ipairs(r.conds) do names[#names + 1] = c.name or tostring(c.id) end
                 entries[#entries + 1] = { kind = "rule", rule = r, name = table.concat(names, " + "),
-                    color = TagColor(CtxKey(r.conds[1])), opens = r.opens, once = r.once }
+                    color = TagColor(CtxKey(r.conds[1])), opens = r.opens, once = r.once, keep = r.keep }
             end
         end
         for _, e in ipairs(note.showsOn or {}) do
@@ -7501,9 +7503,13 @@ function UI:OpenNotesThatApply()
         end
     end
     local frame = UI._notes.frame
-    if opened and not (UI._notes.openedOn and Ctx.Holds(UI._notes.openedOn, set)) then
+    local on = UI._notes.openedOn
+    if opened and not (on and Ctx.Holds(on, set)) then
         UI._notes.openedFor, UI._notes.openedOn = nil, nil
-        if frame and frame:IsShown() and UI._notes.selectedID == opened then self:CloseEasyNotes() end
+        -- The switch's "Close it when this ends", off: the window stays.
+        if frame and frame:IsShown() and UI._notes.selectedID == opened and not (on and on.keep) then
+            self:CloseEasyNotes()
+        end
     end
     if frame and frame:IsShown() then return end
     for i = 1, #store do
@@ -7817,6 +7823,18 @@ function UI:ShowEasyNotesMenu(name, rows, opts)
     -- the left like the main filter dropdown.
     if opts.labelFontObject == nil then opts.labelFontObject = GameFontHighlightSmall end
     if opts.iconSide == nil then opts.iconSide = "left" end
+    -- A menu worked in (toggles, a search, flyouts) stays until a click
+    -- outside or Esc, as the filter menu does; the cursor drifting off it
+    -- for a third of a second closed it mid-use. A plain action menu still
+    -- goes when the mouse leaves.
+    if opts.stayOpen == nil then
+        local worked = opts.rowsProvider ~= nil
+        for i = 1, not worked and #rows or 0 do
+            local r = rows[i]
+            if r.keepOpen or r.submenu or r.submenuSearch then worked = true break end
+        end
+        opts.stayOpen = worked
+    end
     return Utils.ShowCursorMenu(name, rows, opts)
 end
 
@@ -8165,10 +8183,10 @@ do
     end
     NoteWhen.Changed = Auto.Changed
 
-    -- The open switch flipped; off takes the next-time-only mark with it.
+    -- The open switch flipped; off takes its next-time-only and stay marks with it.
     function Auto.FlipOpens(note, holder)
         holder.opens = not holder.opens or nil
-        if not holder.opens then holder.once = nil end
+        if not holder.opens then holder.once, holder.keep = nil, nil end
         note.updated = time()
         Auto.Changed()
     end
@@ -8186,6 +8204,17 @@ do
             disabled = not holder.opens, icon = holder.once and MENU_CHECK_TEX or nil,
             onClick = function()
                 holder.once = not holder.once or nil
+                note.updated = time()
+                Auto.Changed()
+            end }
+    end
+
+    -- Ticked (the default), the window it opened goes when the place ends.
+    function NoteWhen.CloseRow(note, holder)
+        return { text = L["NOTES_AUTO_CLOSE"], tooltip = L["NOTES_AUTO_CLOSE_TT"], keepOpen = true,
+            disabled = not holder.opens, icon = (holder.opens and not holder.keep) and MENU_CHECK_TEX or nil,
+            onClick = function()
+                holder.keep = not holder.keep or nil
                 note.updated = time()
                 Auto.Changed()
             end }
@@ -8209,7 +8238,7 @@ do
     -- A picked single: a flyout with that switch and Remove.
     function Auto.Picked(note, e)
         return { text = Auto.Label(e), icon = MENU_CHECK_TEX, submenu = function()
-            return { NoteWhen.OpenRow(note, e), NoteWhen.OnceRow(note, e), { isSeparator = true },
+            return { NoteWhen.OpenRow(note, e), NoteWhen.OnceRow(note, e), NoteWhen.CloseRow(note, e), { isSeparator = true },
                 { text = _G["REMOVE"] or "Remove", onClick = function() ToggleNoteContext(note, e) Auto.Changed() end } }
         end }
     end
@@ -8308,6 +8337,7 @@ do
             rows[#rows + 1] = { isSeparator = true }
             rows[#rows + 1] = NoteWhen.OpenRow(note, note.rules[r])
             rows[#rows + 1] = NoteWhen.OnceRow(note, note.rules[r])
+            rows[#rows + 1] = NoteWhen.CloseRow(note, note.rules[r])
             rows[#rows + 1] = { text = L["NOTES_AUTO_DROP_ALL"], onClick = function()
                 local i = Auto.RuleIndex(note, state.rule)
                 if i then
