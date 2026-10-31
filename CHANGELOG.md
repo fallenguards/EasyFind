@@ -4,6 +4,13 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Boss rows on Classic Era, TBC Anniversary and WoW Forever**: each boss wears its face at the row's right; the rows were blank where the client's journal gives no picture
+
+---
+
 ## [4.0.2] - 2026-10-30
 
 ### Changed
