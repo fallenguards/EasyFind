@@ -570,6 +570,21 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             else
                 resultRow.icon:SetVertexColor(1, 1, 1, 1)
             end
+        elseif Render.IsBossResultData(data) and data.displayID and SetPortraitTextureFromCreatureDisplayID then
+            -- A journal with no boss icons (the classic clients): the face,
+            -- drawn by the client from the boss's model.
+            local face = data.displayID
+            if resultRow.icon._efFace ~= face then
+                resultRow.icon:SetTexture(nil)
+                resultRow.icon:SetTexCoord(0, 1, 0, 1)
+                if state.belowView then resultRow._efFacePending = face else DrawFace(resultRow, face) end
+            end
+            resultRow.icon:SetSize(rowIconSize, rowIconSize)
+            resultRow.icon:ClearAllPoints()
+            resultRow.icon:SetPoint("RIGHT", resultRow, "RIGHT", rightOffset, 0)
+            resultRow.icon:Show()
+            resultRow.icon:SetDesaturated(false)
+            resultRow.icon:SetVertexColor(1, 1, 1, 1)
         else
             Icons:SetRowIcon(resultRow, "hidden", nil, rowIconSize)
         end

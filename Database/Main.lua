@@ -1104,7 +1104,7 @@ end
 -- scan (which now waits for EJ_LOOT_DATA_RECIEVED and refuses to mark
 -- specs complete on unresolved reads).
 ns.LOOT_ITEM_CACHE_VER = 7 -- 7: TBC's heroic loot apart from its normal
-ns.BOSS_CACHE_VER = 3 -- 3: rows packed into one string instead of per-row tables
+ns.BOSS_CACHE_VER = 4 -- 3: rows packed into one string instead of per-row tables; 4: a boss's display id
 ns.STATISTIC_CACHE_VER = 3 -- 3: path/chain once per category; rows packed into one string
 ns.MOUNT_CACHE_VER = 2 -- 2: rows packed into one string instead of per-row tables
 ns.HOUSING_CACHE_VER = 3 -- 3: isRoom for the Room filter; rows packed into one string
@@ -5016,13 +5016,14 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
     return mt
 end
 
-local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon, entrance)
+local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon, entrance, displayID)
     local mt = GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
     local entry = setmetatable({
         name = encName,
         nameLower = slower(encName),
         encounterID = encID,
         icon = icon,
+        displayID = displayID,
     }, mt)
     -- A boss with a wing keeps its own keyword list: the instance's and the wing's.
     local wings = Database.BOSS_WING_WORDS[entry.nameLower]
@@ -5036,11 +5037,22 @@ local function BuildBossEntry(tier, isRaid, instID, instName, encName, encID, ic
     return entry
 end
 
+-- A boss's picture from the journal's creature call: its icon, and the
+-- display id its face is drawn from where the journal has no icons (the
+-- classic clients answer the call with no journal to open).
+local function BossFace(getCreatureInfo, encID)
+    if not (getCreatureInfo and encID) then return nil, nil end
+    local ok, _, _, _, displayInfo, iconImage = pcall(getCreatureInfo, 1, encID)
+    if not ok then return nil, nil end
+    return (iconImage and iconImage ~= 0) and iconImage or nil, (displayInfo and displayInfo ~= 0) and displayInfo or nil
+end
+
 -- The clients with no journal: a row per boss of Database/Loot_*.lua.
 function Corpora.PopulateStaticBosses(database)
     RemoveEntriesByCategory("Boss")
     ClearBossInstanceCache()
     local insts = Corpora.StaticInstances()
+    local getCreatureInfo = EJ("GetCreatureInfo")
     local seen = {}
     for _, boss in ipairs(ns.STATIC_LOOT) do
         local e = insts[boss.inst]
@@ -5049,8 +5061,11 @@ function Corpora.PopulateStaticBosses(database)
             seen[boss.enc] = true
             -- No entrance of its own: a world boss, a raid's worth.
             local isRaid = e == nil or e.raid or false
+            -- The journal's creature call answers nothing on Classic Era: the
+            -- face comes with the table (its creature's display id, d).
+            local icon, displayID = BossFace(getCreatureInfo, boss.enc)
             uiSearchData[#uiSearchData + 1] = BuildBossEntry(1, isRaid, boss.inst, instName,
-                Corpora.StaticBossName(boss), boss.enc, nil, e)
+                Corpora.StaticBossName(boss), boss.enc, icon, e, displayID or boss.d)
         end
     end
     if database.ResetSearchCache then database:ResetSearchCache() end
@@ -5058,25 +5073,18 @@ function Corpora.PopulateStaticBosses(database)
 end
 
 local function AddBossEntry(tier, isRaid, instID, instName, encName, encID, getCreatureInfo)
-    local icon
-    if getCreatureInfo then
-        local ok, _, _, _, _, iconImage = pcall(getCreatureInfo, 1, encID)
-        if ok and iconImage and iconImage ~= 0 then
-            icon = iconImage
-        end
-    end
-
-    local entry = BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon)
+    local icon, displayID = BossFace(getCreatureInfo, encID)
+    local entry = BuildBossEntry(tier, isRaid, instID, instName, encName, encID, icon, nil, displayID)
     uiSearchData[#uiSearchData + 1] = entry
     return entry
 end
 
 local BOSS_ROW_SPEC = {
     { "tier" }, { "isRaid" }, { "instanceID" },
-    { "instanceName" }, { "name" }, { "encounterID" }, { "icon" },
+    { "instanceName" }, { "name" }, { "encounterID" }, { "icon" }, { "displayID" },
 }
 
-local function AddBossCacheRow(cacheRows, tier, isRaid, instID, instName, encName, encID, icon)
+local function AddBossCacheRow(cacheRows, tier, isRaid, instID, instName, encName, encID, entry)
     if not cacheRows then return end
     cacheRows[#cacheRows + 1] = {
         tier = tier,
@@ -5085,7 +5093,8 @@ local function AddBossCacheRow(cacheRows, tier, isRaid, instID, instName, encNam
         instanceName = instName,
         name = encName,
         encounterID = encID,
-        icon = icon,
+        icon = entry and entry.icon,
+        displayID = entry and entry.displayID,
     }
 end
 
@@ -5257,7 +5266,7 @@ function Database:PopulateDynamicBosses()
                     if not encName then break end
 
                     local entry = AddBossEntry(tier, isRaid, instID, instName, encName, encID, getCreatureInfo)
-                    AddBossCacheRow(cacheRows, tier, isRaid, instID, instName, encName, encID, entry and entry.icon)
+                    AddBossCacheRow(cacheRows, tier, isRaid, instID, instName, encName, encID, entry)
                     encIdx = encIdx + 1
                 end
 
@@ -5376,7 +5385,7 @@ function Database:PopulateDynamicBossesAsync(done)
                     if not (encID and seenEncounters[encID]) then
                         if encID then seenEncounters[encID] = true end
                         local entry = AddBossEntry(state.tier, isRaid, state.instID, state.instName, encName, encID, getCreatureInfo)
-                        AddBossCacheRow(cacheRows, state.tier, isRaid, state.instID, state.instName, encName, encID, entry and entry.icon)
+                        AddBossCacheRow(cacheRows, state.tier, isRaid, state.instID, state.instName, encName, encID, entry)
                         emittedSinceRefresh = true
                     end
                     state.encIdx = state.encIdx + 1
