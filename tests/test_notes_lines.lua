@@ -94,11 +94,17 @@ local function Load(body)
         return a, b
     end
     function W.Each(fn) for _, w in ipairs(W.list) do W.Run(w, fn, w) end end
+    function W.Bound(fn)
+        local w = W.active
+        return function(...) return W.Run(w, fn, ...) end
+    end
     function W.AnyShown() return true end
     function W.ShowingNote(id) return id == 1 and main or nil end
     function W.Focused() return main end
     function W.ListFollows() W.followed = W.followed + 1 end
     local UI = { _notes = { frame = frame }, overlays = 0, reloads = 0, menus = {} }
+    function UI:EnsureEasyNotesFrame() return frame end
+    function UI:CloseEasyNotesOpenMenus() return false end
     function UI:QueueEasyNotesOverlayUpdate() self.overlays = self.overlays + 1 end
     function UI:RefreshEasyNotes() self.reloads = self.reloads + 1 end
     function UI:ShowEasyNotesMenu(name, rows) self.menus[#self.menus + 1] = { name = name, rows = rows } end
@@ -250,6 +256,42 @@ function tests.aLinkedListsExtension_hearsOfAChange_onceItSettles()
     H.assertEq(told, 0, "not yet")
     for _, timer in ipairs(t.timers) do timer.fn() end
     H.assertEq(told, 1, "once for the two keystrokes")
+end
+
+-- A list of items: the catalog's names under the line typed, Tab takes
+-- the pick with the count kept, Escape puts the names away before the
+-- editor's menus.
+function tests.aListOfItems_suggestsNames_tabTakesThePick()
+    local Lines, note, CK, t = Load()
+    note.list.source = { ext = "Shop", key = "k" }
+    t.ns.ChecklistLinks = { Shop = { items = true } }
+    t.ns.StyleMenuPanel = function() end
+    t.ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function(self, on) self._picked = on end end
+    t.ns.Database = { ScoreName = function() return 100 end }
+    t.ns.ItemSearch = { Search = function() return { { data = { itemID = 2589, nameLower = "linen cloak", name = "linen cloak" } } } end }
+    note.body = CK.EMPTY .. "lin x20"
+    CK.Reconcile(note)
+    t.editor._text, t.editor._focus = note.body, true
+    t.editor.GetCursorPosition = function() return #note.body end
+    t.UI:EnsureEasyNotesFrame()
+    H.assertTrue(t.editor._efLinesHooked, "the editor hooked as its window is made")
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    t.editor._scripts.OnTextChanged(t.editor, true)
+    for _, timer in ipairs(t.timers) do timer.fn() end
+    local panel = Lines.States[t.W.main].suggest
+    H.assertTrue(panel ~= nil and panel._shown, "the names show under the line")
+    H.assertEq(panel.rows[1].itemID, 2589)
+    H.assertTrue(panel.rows[1]._picked, "the first picked")
+    H.assertTrue(t.UI:CloseEasyNotesOpenMenus(), "Escape takes the names first")
+    H.assertFalse(panel._shown)
+    t.editor._scripts.OnTextChanged(t.editor, true)
+    for _, timer in ipairs(t.timers) do timer.fn() end
+    H.assertTrue(panel._shown)
+    t.editor._scripts.OnTabPressed(t.editor)
+    H.assertEq(t.editor._text, CK.EMPTY .. "Item2589 x20", "Tab: the pick's words, the count kept")
+    H.assertFalse(panel._shown)
+    t.editor._scripts.OnTextChanged(t.editor, false)
+    H.assertFalse(panel._shown, "words set by the code show no names")
 end
 
 local pass, fail, failures = H.runSuite("NotesLines", tests)

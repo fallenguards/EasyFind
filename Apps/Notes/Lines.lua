@@ -16,8 +16,8 @@ local Utils = ns.Utils
 local L = ns.L
 -- Frames made here belong to the notes window in use (their scripts run as it).
 local CreateFrame, time = W.CreateFrame, time
-local sformat, mmax, mfloor, tonumber, tostring = string.format, math.max, math.floor, tonumber, tostring
-local ipairs, smatch, strtrim = ipairs, string.match, strtrim
+local sformat, mmax, mmin, mfloor, tonumber, tostring = string.format, math.max, math.min, math.floor, tonumber, tostring
+local ipairs, smatch, slower, strtrim = ipairs, string.match, string.lower, strtrim
 local IsControlKeyDown = IsControlKeyDown
 
 local BOX_GLYPH, TICKED_GLYPH = CK.EMPTY:sub(1, 3), CK.FILLED:sub(1, 3)
@@ -494,8 +494,9 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
                 tail.text:SetTextColor(c[1], c[2], c[3], 1)
                 local w = 16 + (progress and progress ~= "" and (tail.text:GetStringWidth() + 2) or 0) + (icon and 18 or 0)
                 tail:SetSize(mmax(22, w), lineH)
+                tail.lineY, tail.lineH = lineYs[p.line] or 0, lineH
                 tail:ClearAllPoints()
-                tail:SetPoint("TOPRIGHT", editor, "TOPRIGHT", 0, -(lineYs[p.line] or 0))
+                tail:SetPoint("TOPRIGHT", editor, "TOPRIGHT", 0, -tail.lineY)
                 tail:Show()
             end
         end
@@ -825,6 +826,170 @@ end
 function Lines.Refresh()
     local s = S()
     if s.boardShown then Lines.ShowBoard(true) end
+end
+
+-- Suggestions: in a list of items, the catalog's best names under the
+-- line typed, the exact one picked. Tab or a click takes the pick, its
+-- link and the count typed; Escape puts the names away.
+
+local SUGGEST_MAX, SUGGEST_H = 6, 20
+
+local function SuggestPanel()
+    local s = S()
+    if s.suggest then return s.suggest end
+    local frame = Frame()
+    local panel = CreateFrame("Frame", nil, frame)
+    panel:SetFrameLevel(frame:GetFrameLevel() + 60)
+    ns.StyleMenuPanel(panel)
+    panel.rows, panel.count = {}, 0
+    panel:Hide()
+    s.suggest = panel
+    return panel
+end
+
+local function SuggestRow(panel, i)
+    local row = panel.rows[i]
+    if row then return row end
+    row = CreateFrame("Button", nil, panel)
+    row:SetHeight(SUGGEST_H)
+    row:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4 - (i - 1) * SUGGEST_H)
+    row:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -4, -4 - (i - 1) * SUGGEST_H)
+    Utils.InstallMenuRowHighlight(row)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(16, 16)
+    row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+    row.name = Text(row, "GameFontHighlight")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.name:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row:SetScript("OnClick", function(self) Lines.TakePick(self.itemID) end)
+    panel.rows[i] = row
+    return row
+end
+
+function Lines.HideSuggest()
+    local panel = S().suggest
+    if panel then
+        panel:Hide()
+        panel.pick = nil
+    end
+end
+
+function Lines.SetPick(i)
+    local panel = S().suggest
+    if not panel then return end
+    panel.pick = i
+    for k, row in ipairs(panel.rows) do row:SetMenuHighlightFocused(k == i) end
+end
+
+-- The box line the caret is on, its words, and the editor's text.
+local function CaretLine(editor)
+    local text = editor:GetText() or ""
+    local caret = editor:GetCursorPosition() or 0
+    for _, f in ipairs(CK.BodyLines(text)) do
+        if caret >= f.contentStart - 1 and caret <= f.lineEnd then
+            return f, text:sub(f.contentStart, f.lineEnd), text
+        end
+    end
+end
+
+function Lines.Suggest()
+    local note, frame = Note(), Frame()
+    local editor = frame and frame.editor
+    if not (note and editor and editor:HasFocus() and CK.ItemsList(note)) then return Lines.HideSuggest() end
+    local f, content = CaretLine(editor)
+    local words = f and CK.SplitCount(content)
+    if not words or words == "" or words:find("|", 1, true) then return Lines.HideSuggest() end
+    local search, db = ns.ItemSearch, ns.Database
+    if not (search and db and db.ScoreName) then
+        -- The catalog loads on the first words typed, never sooner.
+        if ns.RequestItemCatalog then ns.RequestItemCatalog() end
+        return Lines.HideSuggest()
+    end
+    local want = slower(words)
+    local hits = search:Search(want, function(n, ql, qLen) return db:ScoreName(n, ql, qLen) end)
+    local n = mmin(hits and #hits or 0, SUGGEST_MAX)
+    local tail
+    for _, t in ipairs(S().tails) do
+        if t:IsShown() and t.line and CK.LineStart(note, t.line.id) == f.start then tail = t end
+    end
+    if n == 0 or not tail then return Lines.HideSuggest() end
+    local panel = SuggestPanel()
+    local pick = 1
+    for i = 1, n do
+        local d = hits[i].data
+        local row = SuggestRow(panel, i)
+        row.itemID = d.itemID
+        row.icon:SetTexture(C_Item.GetItemIconByID and C_Item.GetItemIconByID(d.itemID))
+        row.name:SetText(C_Item.GetItemNameByID and C_Item.GetItemNameByID(d.itemID) or d.name)
+        local q = d.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[d.quality]
+        row.name:SetTextColor(q and q.r or 1, q and q.g or 1, q and q.b or 1, 1)
+        row:Show()
+        if d.nameLower == want and pick == 1 then pick = i end
+    end
+    for i = n + 1, #panel.rows do panel.rows[i]:Hide() end
+    panel.count = n
+    panel:ClearAllPoints()
+    panel:SetPoint("TOPLEFT", editor, "TOPLEFT", -6, -(tail.lineY + tail.lineH + 2))
+    panel:SetPoint("TOPRIGHT", editor, "TOPRIGHT", 6, -(tail.lineY + tail.lineH + 2))
+    panel:SetHeight(8 + n * SUGGEST_H)
+    panel:Show()
+    Lines.SetPick(pick)
+end
+
+-- The pick into the line's words: its link, the count typed kept.
+function Lines.TakePick(itemID)
+    local panel = S().suggest
+    local frame = Frame()
+    local editor = frame and frame.editor
+    if not itemID and panel and panel:IsShown() and panel.pick then
+        local row = panel.rows[panel.pick]
+        itemID = row and row.itemID
+    end
+    if not (itemID and editor) then return false end
+    local f, content, text = CaretLine(editor)
+    if not f then return false end
+    local words = CK.PickedText(content, itemID)
+    editor:SetText(text:sub(1, f.contentStart - 1) .. words .. text:sub(f.lineEnd + 1))
+    editor:SetCursorPosition(f.contentStart - 1 + #words)
+    editor:SetFocus()
+    Lines.HideSuggest()
+    return true
+end
+
+-- The editor of each window: typing shows the names, Tab takes the pick,
+-- leaving hides them; Escape puts them away ahead of the menus.
+function Lines.HookEditor(frame)
+    local editor = frame and frame.editor
+    if not editor or editor._efLinesHooked then return end
+    editor._efLinesHooked = true
+    editor:HookScript("OnTextChanged", function(_, userInput)
+        if userInput then Utils.SafeAfter(0, W.Bound(Lines.Suggest)) else Lines.HideSuggest() end
+    end)
+    editor:HookScript("OnTabPressed", function() Lines.TakePick() end)
+    editor:HookScript("OnEditFocusLost", function()
+        -- A press on a name takes the focus first: the pick still lands.
+        Utils.SafeAfter(0, W.Bound(function()
+            local panel = S().suggest
+            if panel and panel:IsShown() and not panel:IsMouseOver() then Lines.HideSuggest() end
+        end))
+    end)
+end
+
+local ensure = NotesUI.EnsureEasyNotesFrame
+function NotesUI.EnsureEasyNotesFrame(self)
+    local frame = ensure(self)
+    Lines.HookEditor(frame)
+    return frame
+end
+
+local closeMenus = NotesUI.CloseEasyNotesOpenMenus
+function NotesUI.CloseEasyNotesOpenMenus(self)
+    local panel = S().suggest
+    if panel and panel:IsShown() then
+        Lines.HideSuggest()
+        return true
+    end
+    return closeMenus(self)
 end
 
 -- Shift-clicked items, quests and spells: into the editor at its caret
