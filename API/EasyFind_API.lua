@@ -99,6 +99,8 @@
 ---@field menu? fun(row: EasyFindRow, link: string|nil): table Rows for the row's menu, in the tile menu's shape.
 ---@field submenu? boolean Your menu rows under one row named label.
 ---@field subtext? fun(row: EasyFindRow): string|nil A part after the row's subtext.
+---@field select? fun(row: EasyFindRow, link: string|nil, gesture: string): boolean A boss or loot row's gesture ("click", "alt", "ctrl") where the client has no Adventure Guide; true when you handled it (MINOR 5).
+---@field hint? fun(row: EasyFindRow): string|EasyFindHint|nil The gestures' words while select takes the row: the click's, or { click, alt, ctrl } (MINOR 5).
 ---@field keep? fun(row: EasyFindRow): boolean Held for the filter flyout.
 ---@field sortKey? fun(row: EasyFindRow): string|number Held for the filter flyout.
 

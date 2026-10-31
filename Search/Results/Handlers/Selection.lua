@@ -295,6 +295,10 @@ end
 -- walks it. The loot "open" action other extensions call lands here too.
 function Handlers:OpenLootSource(data, useFast)
     if not (ns.Caps and ns.Caps.journal) then
+        -- An extension's journal first (RegisterRowDecorator select), told
+        -- the gesture that led here.
+        local held = ns.ResultGestures and ns.ResultGestures.Held and ns.ResultGestures.Held() or "click"
+        if ns.Extensions and ns.Extensions.DecoratorSelect(data, held) then return end
         for _, e in ipairs(ns.FOREVER_INSTANCES or {}) do
             if e.id == data.instanceID and EasyFind.API.HasAction("gps", "navigate") then
                 EasyFind.API.CallAction("gps", "navigate", { name = data.lootInstanceName or e.n, mapID = e.m,
@@ -498,9 +502,14 @@ function Handlers:SelectResult(data, forceGuide)
     -- click already ran the command; nothing else for SelectResult to do.
     if data.slashCommand then return end
 
-    -- A boss on a client with no journal: its loot, listed.
+    -- A boss on a client with no journal: an extension's journal takes
+    -- the gesture it wants (RegisterRowDecorator select), the rest list
+    -- the boss's loot.
     if data.category == "Boss" and data.encounterID and not (ns.Caps and ns.Caps.journal) then
-        EasyFind.API.ShowScope("loot", data.name)
+        local gesture = (Handlers:IsSourceModifierHeld(data) and "alt") or (Handlers:IsSourceCtrlHeld(data) and "ctrl") or "click"
+        if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then
+            EasyFind.API.ShowScope("loot", data.name)
+        end
         return
     end
 

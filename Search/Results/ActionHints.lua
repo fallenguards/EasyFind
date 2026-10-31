@@ -92,7 +92,14 @@ function Handlers:GetActionHint(data)
         return HINTS.pinOnMap
     end
     if data.encounterID and data.category == "Boss" then
-        return (ns.Caps and ns.Caps.journal) and HINTS.encounter or HINTS.bossLoot
+        if ns.Caps and ns.Caps.journal then return HINTS.encounter end
+        -- No journal: an extension taking the row names its gestures' words;
+        -- the loot listing stands for the ones it leaves out.
+        local words = ns.Extensions and ns.Extensions.DecoratorHint and ns.Extensions.DecoratorHint(data)
+        if not words then return HINTS.bossLoot end
+        local s = Hint(V.click, words.click or V.loot, "Alt", words.alt or V.loot)
+        if words.ctrl then s = s .. " | Ctrl: " .. words.ctrl end
+        return s
     end
     if data.settingVariable or data.bindingAction then return HINTS.settings end
     return nil

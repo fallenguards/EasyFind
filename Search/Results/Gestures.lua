@@ -243,13 +243,17 @@ function Gestures.Blocked(data)
     return Gestures.ActionFor(data, Gestures.Held()) == "none"
 end
 
-local function Word(data, kind, action)
+local function Word(data, kind, action, gesture)
     if kind.key == "bag" and action == "action" then
         local actionKind = ns.ResultHandlers:GetBagItemActionKind(data)
         return actionKind == "equip" and V.equip or actionKind == "open" and V.open or V.use
     end
-    -- No journal: the loot's source is directions to its instance.
-    if action == "encounter" and not (ns.Caps and ns.Caps.journal) then return V.gps end
+    -- No journal: the loot's source is an extension's journal when one
+    -- names this gesture, else directions to its instance.
+    if action == "encounter" and not (ns.Caps and ns.Caps.journal) then
+        local words = ns.Extensions and ns.Extensions.DecoratorHint and ns.Extensions.DecoratorHint(data)
+        return words and words[gesture] or V.gps
+    end
     return V[kind.byAction[action].word]
 end
 
@@ -266,7 +270,7 @@ function Gestures.Hint(data)
         local action = Gestures.ActionFor(data, gesture)
         if action and action ~= "none" then
             local lead = gesture == "click" and (action == "sendLink" and V.clickDrag or V.click) or MOD_NAME[gesture]
-            local part = lead .. ": " .. Word(data, kind, action)
+            local part = lead .. ": " .. Word(data, kind, action, gesture)
             s = s and (s .. " | " .. part) or part
         end
     end

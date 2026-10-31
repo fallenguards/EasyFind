@@ -120,6 +120,55 @@ function tests.subtextAndTooltipJoinTheRows()
     H.assertFalse(E.DecorateTooltip({ itemID = 1 }, tt))
 end
 
+-- The gestures where the client has no journal (MINOR 5): the first
+-- decorator taking the row answers the gestures it wants and names their
+-- words; one it declines is EasyFind's own.
+function tests.selectAnswersTheGesturesItWants_hintNamesThem()
+    local _, ns, API = Env()
+    local got = {}
+    API.RegisterRowDecorator({ id = "spoken", applies = function(row) return row.category == "Boss" end,
+        select = function(row, _, gesture) got[#got + 1] = gesture return gesture == "click" end,
+        hint = function() return "DungeonJournal" end })
+    local E = ns.Extensions
+    H.assertTrue(E.DecoratorSelect({ category = "Boss", encounterID = 1, name = "Hamhock" }, "click"))
+    H.assertFalse(E.DecoratorSelect({ category = "Boss", encounterID = 1 }, "alt"), "declined: EasyFind's own way")
+    H.assertEq(table.concat(got, " "), "click alt", "told the gesture each time")
+    H.assertFalse(E.DecoratorSelect({ category = "Loot", itemID = 5 }, "click"), "a row it does not take")
+    H.assertEq(E.DecoratorHint({ category = "Boss", encounterID = 1 }).click, "DungeonJournal", "a bare word is the click's")
+    H.assertNil(E.DecoratorHint({ category = "Boss", encounterID = 1 }).alt, "the rest left to EasyFind's words")
+    H.assertNil(E.DecoratorHint({ category = "Loot", itemID = 5 }))
+    API.RegisterRowDecorator({ id = "spoken", applies = function(row) return row.category == "Boss" end,
+        select = function() return true end, hint = function() return { click = "Journal", alt = "Loot list" } end })
+    local words = E.DecoratorHint({ category = "Boss" })
+    H.assertEq(words.click, "Journal")
+    H.assertEq(words.alt, "Loot list")
+    API.RegisterRowDecorator({ id = "spoken", applies = function(row) return row.category == "Boss" end, select = function() return true end })
+    H.assertEq(next(E.DecoratorHint({ category = "Boss" })), nil, "select with no hint: an empty set, a decorator all the same")
+    H.assertTrue(pcall(API.RegisterRowDecorator, { id = "prices", select = function() return true end }), "select alone is fine")
+end
+
+function tests.theJournalPathsAskIt()
+    local function Read(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a")
+        f:close()
+        return src
+    end
+    local sel = Read("Search/Results/Handlers/Selection.lua")
+    local boss = assert(sel:find('if data.category == "Boss" and data.encounterID and not (ns.Caps and ns.Caps.journal) then', 1, true))
+    H.assertTrue(sel:find('local gesture = (Handlers:IsSourceModifierHeld(data) and "alt") or (Handlers:IsSourceCtrlHeld(data) and "ctrl") or "click"\n        if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then\n            EasyFind.API.ShowScope("loot", data.name)', boss, true) ~= nil,
+        "a boss row's gesture asks the decorators before listing its loot")
+    local loot = assert(sel:find("function Handlers:OpenLootSource(data, useFast)", 1, true))
+    H.assertTrue(sel:find("if ns.Extensions and ns.Extensions.DecoratorSelect(data, held) then return end", loot, true) < sel:find("ns.FOREVER_INSTANCES", loot, true),
+        "a loot row's journal gesture asks them before the directions, the gesture told")
+    H.assertTrue(Read("Search/Results/Gestures.lua"):find("return words and words[gesture] or V.gps", 1, true) ~= nil, "the loot hint's word for the gesture")
+    local hints = Read("Search/Results/ActionHints.lua")
+    H.assertTrue(hints:find('local s = Hint(V.click, words.click or V.loot, "Alt", words.alt or V.loot)', 1, true) ~= nil,
+        "the boss hint: the decorator's words, the loot for the gestures left out")
+    H.assertTrue(hints:find("if not words then return HINTS.bossLoot end", 1, true) ~= nil, "no decorator: as before")
+    H.assertTrue(Read("API/README.md"):find("| `select` |", 1, true) ~= nil, "documented")
+end
+
 function tests.aDecoratorNeedsItsExtension()
     local _, _, API = Env()
     local ok = pcall(API.RegisterRowDecorator, { id = "nobody", text = function() end })

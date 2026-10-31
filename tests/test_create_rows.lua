@@ -44,7 +44,7 @@ function tests.notesOfferTheCreateRowFirst()
 end
 
 function tests.theApiOffersIt()
-    H.assertTrue(Read("Core/API.lua"):find("MINOR = 4", 1, true) ~= nil)
+    H.assertTrue(Read("Core/API.lua"):find("MINOR = 5", 1, true) ~= nil)
     H.assertTrue(Read("API/README.md"):find("`createRow`", 1, true) ~= nil, "documented for extensions")
 end
 

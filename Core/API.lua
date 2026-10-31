@@ -7,7 +7,7 @@ local slower, sfind = Utils.slower, Utils.sfind
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 4 }
+local API = { VERSION = 1, MINOR = 5 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -660,15 +660,20 @@ end
 -- "warn"), tooltip(row, link, tooltip) (lines under the row's), menu(row,
 -- link) (rows in the tile menu's shape, each wearing the extension's icon
 -- in the row's menu; submenu = true folds them under its label, as do
--- more than four), subtext(row) (a part after the row's subtext), keep and
--- sortKey (held for the filter flyout). The link: the bag item's, the loot
--- row's, else "item:ID"; nil on a row without an item.
+-- more than four), subtext(row) (a part after the row's subtext), select(row,
+-- link, gesture) (a boss or loot row's gesture, "click", "alt" or "ctrl",
+-- where the client has no Adventure Guide: true when it handled it, else
+-- EasyFind's own action for that gesture), hint(row) (the gestures' words
+-- while select takes the row: a word for the click, or { click, alt, ctrl },
+-- EasyFind's own word standing for any left out), keep and sortKey (held
+-- for the filter flyout). The link: the bag item's, the loot row's, else
+-- "item:ID"; nil on a row without an item.
 local Decorators = { list = {}, bySlot = {}, generation = 0 }
 Extensions.Decorators = Decorators
 local DECORATOR_FIELDS = {
     id = "string", extension = "string", slot = "string", label = "string", categories = "table",
     applies = "function", text = "function", tooltip = "function", menu = "function", subtext = "function",
-    keep = "function", sortKey = "function", submenu = "boolean",
+    select = "function", hint = "function", keep = "function", sortKey = "function", submenu = "boolean",
 }
 
 function API.UnregisterRowDecorator(id, slot)
@@ -771,6 +776,36 @@ function Extensions.DecorateTooltip(row, tooltip)
         end
     end
     return any
+end
+
+-- The first decorator taking the row whose select handled the gesture
+-- ("click", "alt" or "ctrl"): true then.
+function Extensions.DecoratorSelect(row, gesture)
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.select and DecoratorTakes(d, row) then
+            local ok, took = Run(d.select, row, Extensions.DecoratorLink(row), gesture or "click")
+            if ok and took == true then return true end
+        end
+    end
+    return false
+end
+
+-- The gestures' words from the first decorator with a select taking the
+-- row, as { click, alt, ctrl } (a bare word is the click's; one with no
+-- hint gives an empty set); nil when no such decorator takes the row.
+function Extensions.DecoratorHint(row)
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.select and DecoratorTakes(d, row) then
+            local ok, words = true, nil
+            if d.hint then ok, words = Run(d.hint, row) end
+            if ok and type(words) == "string" and words ~= "" then return { click = words } end
+            if ok and type(words) == "table" then return words end
+            return {}
+        end
+    end
+    return nil
 end
 
 -- The decorators' entries for the row's menu, in the cursor menu's shape

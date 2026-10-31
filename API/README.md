@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -288,6 +288,8 @@ Your mark on rows another provider owns (MINOR 4): a price at the right of EasyF
 | `menu` | function `(row, link)` | Rows for the row's right-click menu in the tile menu's shape (`{ kind = "action", label, onClick, tooltip, disabled }`, `check`, `separator`, `menu`). They land in the menu itself, each wearing your icon; `disabled = true` grays one out, its `tooltip` saying why. |
 | `submenu` | boolean | `true`: your menu rows fold under one row named `label`, as they do by themselves past four. |
 | `subtext` | function `(row)` | A part appended to the row's subtext. |
+| `select` | function `(row, link, gesture)` | MINOR 5. On a client without the Adventure Guide (Classic Era, TBC Anniversary, Mists Classic, WoW Forever), a boss row's gestures and a loot row's journal gesture (Alt by default, the row's "source" gesture) ask the first decorator taking the row, `gesture` being `"click"`, `"alt"` or `"ctrl"` (Shift stays EasyFind's link). Return `true` when you handled it; anything else falls through to EasyFind's own action for that gesture (the boss's loot listed, directions to the instance), so a decorator answers the gestures it wants and leaves the rest. Never asked where the client has the Adventure Guide. |
+| `hint` | function `(row)` | MINOR 5. With `select`: the words for the row's hint while you take it. A word is the click's (`"DungeonJournal"`); a table `{ click, alt, ctrl }` names each gesture's, and EasyFind's own word stands for any you leave out, so a boss row reads "Click: DungeonJournal | Alt: Loot" from `{ click = "DungeonJournal" }`. EasyFind writes the gesture before the word. |
 | `keep`, `sortKey` | function `(row)` | Held for the filter flyout (a toggle dropping rows, a sort choice); registered now, acted on in a later MINOR. |
 
 `link` is the bag item's link, the loot row's, else `"item:ID"`; nil on a row without an item. `UnregisterRowDecorator(id, slot)` takes it back; `RefreshRowDecorations()` repaints the shown rows (new prices after a scan). The map tab's own rows have the game's menu, not this one.
