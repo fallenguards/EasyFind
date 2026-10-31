@@ -36,6 +36,26 @@ function tests.noWordList_stillScores()
     H.assertTrue(Database:ScoreName("randal hunter", "randal hunter", 13) > 0, "a two-word name")
 end
 
+-- Every query word in the name outranks a row that needs a keyword (a
+-- setting's page) for one of them: "spoken stop" puts Stop all Spoken
+-- narration above the Spoken settings' Stop All rows (2026-10-31). Rows
+-- met by keywords alone score as they did.
+function tests.everyWordInTheName_outranksAWordMetByAKeyword()
+    local words = { "spoken", "stop" }
+    local narration = Database:ScoreEntryFields({ nameLower = "stop all spoken narration", keywordsLower = {} }, words)
+    local setting = Database:ScoreEntryFields({ nameLower = "stop all", keywordsLower = { "spoken", "game settings" } }, words)
+    H.assertEq(narration, 210, "both words in the name")
+    H.assertEq(setting, 185, "one word in the name, one by its page")
+    H.assertTrue(narration > setting)
+    local prefixes = Database:ScoreEntryFields({ nameLower = "stop spoken", keywordsLower = {} }, { "spo", "sto" })
+    H.assertTrue(prefixes > setting, "two name prefixes still outrank a word met by a keyword")
+    -- A row met by keywords alone: the same score as before the change
+    -- (its first word a prefix of the two-word keyword at 90, the second an
+    -- exact word at 100; 0.75 per word and 0.6 for the row is the old 0.45).
+    local keywordsOnly = Database:ScoreEntryFields({ nameLower = "a map", keywordsLower = { "eastern kingdoms" } }, { "eastern", "kingdoms" })
+    H.assertEq(keywordsOnly, 95, "keywords alone: as before")
+end
+
 function tests.queryAsksFor_exactAndPrefixWords()
     local ask = { "teleport", "tp", "portal", "dungeon" }
     H.assertTrue(Database.QueryAsksFor({ "kara", "teleport" }, ask), "exact word")

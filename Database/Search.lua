@@ -1091,7 +1091,12 @@ function Database:ScoreEntryFields(data, queryWords)
                 best = nameBest
                 nameMatches = nameMatches + 1
             else
-                best = kwBest
+                -- A word the name lacks, met by a keyword (a setting's page,
+                -- a nickname): worth less than one in the name, so a row
+                -- holding every word in its name comes first ("spoken stop":
+                -- Stop all Spoken narration above the Spoken settings' Stop
+                -- All rows, which hold "stop" alone and "spoken" by their page).
+                best = mfloor(kwBest * 0.75)
             end
             if best == 0 then return 0 end
             total = total + best
@@ -1100,11 +1105,11 @@ function Database:ScoreEntryFields(data, queryWords)
     end
 
     if matched < 2 then return 0 end
-    -- Discount pure-keyword matches: keyword sums (90/word) beat the
+    -- Discount pure-keyword matches further: keyword sums beat the
     -- avg-capped name-only score (110 max), so an item whose keyword list
     -- contains "Eastern Kingdoms" would outrank the actual zone.
     if nameMatches == 0 then
-        total = mfloor(total * 0.45)
+        total = mfloor(total * 0.6)
     end
     return total + matched * 5
 end
