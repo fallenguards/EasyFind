@@ -358,6 +358,10 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     Utils.RefreshMenuRowHighlights(popup, live)
     Utils.OpenFlyoutBeside(popup, anchor, 4)
     if ns.KeepTextShaded then ns.KeepTextShaded(popup) end
+    -- The labels in the theme's text color on every show: a row made on a
+    -- later open wears its font object's own gold until then, and the
+    -- panel's refill on show repaints only after a theme change.
+    if ns.RetintMenuText then ns.RetintMenuText(popup) end
     popup:Show()
     return popup
 end
