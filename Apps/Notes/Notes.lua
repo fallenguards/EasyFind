@@ -706,21 +706,63 @@ do
         end
         return W.New("EasyNotesFrame" .. (#W.list + 1))
     end
-    -- A window opened from the list sits at its right, else at its left.
-    function W.PlaceBeside(w)
+    -- A window opened from the list sits at its right, else at its left;
+    -- one that would land on another steps down and right of it.
+    local STEP = 24
+    function W.Place(w)
         local frame, main = w.frame, W.main.frame
-        if not (frame and main and main:IsShown() and main ~= frame) then return end
-        local right, left, top = main:GetRight(), main:GetLeft(), main:GetTop()
-        if not (right and left and top) then return end
-        local gap = 8 + 2 * (frame._efClassicOutset or 0)
-        local width, screen = frame:GetWidth(), UIParent:GetWidth() / frame:GetScale()
-        frame:ClearAllPoints()
-        if right + gap + width > screen and left - gap - width >= 0 then
-            frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", left - gap, top)
-        else
-            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", right + gap, top)
+        local left, top = frame:GetLeft(), frame:GetTop()
+        if not (left and top) then return end
+        if main and main ~= frame and main:IsShown() and main:GetRight() then
+            local gap = 8 + 2 * (frame._efClassicOutset or 0)
+            local width, screen = frame:GetWidth(), UIParent:GetWidth() / frame:GetScale()
+            top = main:GetTop()
+            if main:GetRight() + gap + width > screen and main:GetLeft() - gap - width >= 0 then
+                left = main:GetLeft() - gap - width
+            else
+                left = main:GetRight() + gap
+            end
         end
+        local function taken(l, t)
+            for i = 1, #W.list do
+                local f = W.list[i].frame
+                if f and f ~= frame and f:IsShown() and f:GetLeft()
+                   and math.abs(f:GetLeft() - l) < STEP and math.abs(f:GetTop() - t) < STEP then return true end
+            end
+            return false
+        end
+        for _ = 1, #W.list do
+            if not taken(left, top) then break end
+            left, top = left + STEP, top - STEP
+        end
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
     end
+    -- The window used comes to the top; the others keep their order under
+    -- it, a band of levels apart so no part of one shows through another.
+    local BASE, BAND = 880, 100
+    function W.Raise(w)
+        local order = {}
+        for i = 1, #W.list do
+            local f = W.list[i].frame
+            if f and W.list[i] ~= w then order[#order + 1] = f end
+        end
+        table.sort(order, function(a, b) return a:GetFrameLevel() < b:GetFrameLevel() end)
+        if w.frame then order[#order + 1] = w.frame end
+        for i = 1, #order do order[i]:SetFrameLevel(BASE + BAND * (i - 1)) end
+    end
+    -- A press on a window brings it up: the topmost under the cursor.
+    local press = realCreate("Frame")
+    press:RegisterEvent("GLOBAL_MOUSE_DOWN")
+    press:SetScript("OnEvent", function()
+        local top
+        for i = 1, #W.list do
+            local f = W.list[i].frame
+            if f and f:IsShown() and f:IsMouseOver()
+               and (not top or f:GetFrameLevel() > top.frame:GetFrameLevel()) then top = W.list[i] end
+        end
+        if top and top.frame:GetFrameLevel() < BASE + BAND * (#W.list - 1) then W.Raise(top) end
+    end)
     -- The note in the window showing it, else in a free one beside the
     -- list; `after` runs as that window once it shows.
     function W.OpenNote(id, after)
@@ -732,10 +774,10 @@ do
             NormalizeDB()
             UI._notes.selectedID = id
             frame:Show()
-            frame:Raise()
+            W.Raise(w)
             UI:HideEasyNotesPalette()
             UI:RefreshEasyNotes()
-            if fresh then W.PlaceBeside(w) end
+            if fresh then W.Place(w) end
             if after then after() end
         end)
         if w.frame then W.last = w end
@@ -4254,7 +4296,7 @@ function UI:OpenEasyNotes()
     if not frame then return nil end
     NormalizeDB()
     frame:Show()
-    frame:Raise()
+    W.Raise(W.main)
     self:RefreshEasyNotes()
     self:ShowEasyNotesPalette()
     return frame

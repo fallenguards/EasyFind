@@ -16,6 +16,7 @@ local function FakeFrame()
     function f:SetScript(name, fn) self.scripts[name] = fn end
     function f:HookScript(name, fn) self.scripts[name] = fn end
     function f:IsShown() return self.shown end
+    function f:RegisterEvent() end
     return f
 end
 
@@ -117,33 +118,60 @@ function tests.theListIsTheMainWindow_notesOpenBesideIt()
     H.assertTrue(Read("Apps/Notes/ChecklistView.lua"):find("notesNS.Windows.ListFollows()", 1, true) ~= nil, "a tick on a list too")
 end
 
-function tests.aNoteWindowSitsBesideTheList()
+local function Placed(l, t, w, level)
+    local f = FakeFrame()
+    f.shown, f.level = true, level or 880
+    function f:GetLeft() return l end
+    function f:GetRight() return l + w end
+    function f:GetTop() return t end
+    function f:GetWidth() return w end
+    function f:GetScale() return 1 end
+    function f:ClearAllPoints() end
+    function f:SetPoint(_, _, _, x, y) l, t = x, y self.placed = { x, y } end
+    function f:GetFrameLevel() return self.level end
+    function f:SetFrameLevel(n) self.level = n end
+    return f
+end
+
+function tests.aNoteWindowSitsBesideTheList_steppedOffOneAlreadyThere()
     local env, W = Load()
-    local points = {}
-    local function Frame(l, r, t, w)
-        local f = FakeFrame()
-        f.shown = true
-        function f:GetLeft() return l end
-        function f:GetRight() return r end
-        function f:GetTop() return t end
-        function f:GetWidth() return w end
-        function f:GetScale() return 1 end
-        function f:ClearAllPoints() end
-        function f:SetPoint(...) points[#points + 1] = { ... } end
-        return f
-    end
     env.UIParent = { GetWidth = function() return 1000 end }
-    W.main.frame = Frame(100, 400, 700, 300)
+    W.main.frame = Placed(100, 700, 300)
     local other = W.New("EasyNotesFrame2")
-    other.frame = Frame(0, 300, 500, 300)
-    W.PlaceBeside(other)
-    H.assertEq(points[1][1], "TOPLEFT")
-    H.assertEq(points[1][4], 408, "at the list's right, a gap between")
-    H.assertEq(points[1][5], 700, "its top at the list's")
-    W.main.frame = Frame(650, 950, 700, 300)
-    W.PlaceBeside(other)
-    H.assertEq(points[2][1], "TOPRIGHT", "no room at the right: at its left")
-    H.assertEq(points[2][4], 642)
+    other.frame = Placed(0, 500, 300)
+    W.Place(other)
+    H.assertEq(other.frame.placed[1], 408, "at the list's right, a gap between")
+    H.assertEq(other.frame.placed[2], 700, "its top at the list's")
+    local third = W.New("EasyNotesFrame3")
+    third.frame = Placed(0, 500, 300)
+    W.Place(third)
+    H.assertEq(third.frame.placed[1], 432, "the spot taken: a step right")
+    H.assertEq(third.frame.placed[2], 676, "and down")
+    W.main.frame = Placed(650, 700, 300)
+    other.frame.shown, third.frame.shown = false, false
+    W.Place(other)
+    H.assertEq(other.frame.placed[1], 342, "no room at the right: at its left")
+    W.main.frame.shown = false
+    other.frame.shown = true
+    third.frame = Placed(342, 700, 300)
+    W.Place(third)
+    H.assertEq(third.frame.placed[1], 366, "no list: off the window it would cover")
+    H.assertEq(third.frame.placed[2], 676)
+end
+
+function tests.theWindowUsedComesToTheTop_theOthersKeepTheirOrder()
+    local _, W = Load()
+    W.main.frame = Placed(0, 0, 10, 880)
+    local a, b = W.New("EasyNotesFrame2"), W.New("EasyNotesFrame3")
+    a.frame, b.frame = Placed(0, 0, 10, 980), Placed(0, 0, 10, 1080)
+    W.Raise(W.main)
+    H.assertEq(W.main.frame.level, 1080, "the list on top")
+    H.assertEq(a.frame.level, 880)
+    H.assertEq(b.frame.level, 980, "the rest in their order, a band apart")
+    W.Raise(a)
+    H.assertEq(a.frame.level, 1080)
+    H.assertEq(W.main.frame.level, 980)
+    H.assertEq(b.frame.level, 880)
 end
 
 function tests.theChecklistViewKeepsASetPerWindow()
