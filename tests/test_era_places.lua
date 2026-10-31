@@ -44,6 +44,35 @@ function tests.otherClientsKeepTheirOwn()
     H.assertNil(ns.STATIC_LOCATIONS, "TBC loads none of Era's")
 end
 
+-- A weapon master's row carries the weapons it teaches (trainer spell ids)
+-- and the words players type for them: "sword trainer" found nothing
+-- while "weapon trainer" did (Trade chat, 2026-10-31).
+function tests.weaponMastersTeachTheirWeapons()
+    local ns = Load({ classic = true, era = true })
+    local function Has(list, word)
+        for _, w in ipairs(list or {}) do if w == word then return true end end
+        return false
+    end
+    local masters = 0
+    for _, places in pairs(ns.STATIC_LOCATIONS) do
+        for _, loc in ipairs(places) do
+            if loc.name == "Weapon Master" then
+                masters = masters + 1
+                H.assertTrue(type(loc.teaches) == "table" and #loc.teaches > 0, "every master teaches something")
+                H.assertTrue(Has(loc.keywords, "trainer"), "a trainer")
+            end
+        end
+    end
+    H.assertTrue(masters >= 6, "the capitals' weapon masters, got " .. masters)
+    local stormwind = Find(ns.STATIC_LOCATIONS[1453], "Weapon Master")
+    H.assertNotNil(stormwind, "Stormwind's weapon master")
+    H.assertTrue(Has(stormwind.keywords, "sword") and Has(stormwind.keywords, "swords"), "swords in Stormwind")
+    H.assertTrue(Has(stormwind.keywords, "dagger"), "daggers in Stormwind")
+    local ironforge = Find(ns.STATIC_LOCATIONS[1455], "Weapon Master")
+    H.assertNotNil(ironforge, "Ironforge's weapon master")
+    H.assertTrue(Has(ironforge.keywords, "mace") and Has(ironforge.keywords, "gun"), "maces and guns in Ironforge")
+end
+
 function tests.theTocLoadsIt()
     local f = assert(io.open(H.ADDON_ROOT .. "/EasyFind.toc", "rb"))
     local toc = f:read("*a")

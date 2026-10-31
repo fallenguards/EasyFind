@@ -167,6 +167,11 @@ local function MapSubtext(data)
     if data.soldName and typeLabel and zone and zone ~= "" then
         return sformat(L["NPC_SUBTEXT_SELLS_FMT"], typeLabel, zone, data.soldName)
     end
+    -- A weapon master (its name is its kind): where, the weapons it teaches.
+    if data.teachesText and data.teachesText ~= "" then
+        if zone and zone ~= "" then return sformat(L["NPC_SUBTEXT_TEACHES_FMT"], zone, data.teachesText) end
+        return data.teachesText
+    end
     if data.matchNote then
         return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
     end

@@ -35,6 +35,16 @@ function tests.mapRows_leadWithTheirKind()
         "MAP_KIND_PROF_TRAINER: Ironforge")
 end
 
+-- A weapon master's row names its weapons after its place.
+function tests.weaponMasters_listTheirWeapons()
+    ns.L["NPC_SUBTEXT_TEACHES_FMT"] = "%s; teaches %s"
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "trainer", zoneName = "Stormwind City",
+        teachesText = "One-Handed Swords, Daggers" }), "Stormwind City; teaches One-Handed Swords, Daggers")
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "trainer", teachesText = "Daggers" }), "Daggers")
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "trainer", zoneName = "Ironforge", teachesText = "" }),
+        "Ironforge", "no names resolved: the place alone")
+end
+
 function tests.mapRows_withoutAPlace_showTheKindAlone()
     H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "zone", zoneMapType = 2 }), "Continent")
     H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc" }), "MAP_KIND_NPC")

@@ -78,9 +78,27 @@ local function GetNameNorm(entry)
     return nameNorm
 end
 
+local SpellNameOf = C_Spell and C_Spell.GetSpellName
+    or (GetSpellInfo and function(id) return (GetSpellInfo(id)) end)
+
 local function PreparePOI(entry)
     if not entry then return entry end
     GetNameLower(entry)
+    -- A weapon master's weapons (its trainer spells): the client's names
+    -- in its subtext and among its words, so "sword trainer" finds it.
+    if entry.teaches and not entry.teachesText then
+        local names = {}
+        local keywords = entry.keywords or {}
+        entry.keywords = keywords
+        for i = 1, #entry.teaches do
+            local name = SpellNameOf and SpellNameOf(entry.teaches[i])
+            if name and name ~= "" then
+                names[#names + 1] = name
+                keywords[#keywords + 1] = name
+            end
+        end
+        entry.teachesText = table.concat(names, ", ")
+    end
     if entry.keywords and not entry.kwLower then
         local kwLower = {}
         for i = 1, #entry.keywords do

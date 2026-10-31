@@ -996,6 +996,7 @@ L["NPC_ROLE_QUEST"]                    = "Quest givers"
 L["NPC_ROLE_FLIGHT"]                   = "Flight masters"
 -- A vendor's subtext in the search bar: its kind, its zone, the item.
 L["NPC_SUBTEXT_SELLS_FMT"]             = "%s: %s; sells %s"
+L["NPC_SUBTEXT_TEACHES_FMT"]           = "%s; teaches %s"
 L["MAP_FOUND_BY_SELLS_FMT"]            = "Found by what it sells: %s"
 L["FILTER_GAME_OPTIONS"]                = "Game Options"
 L["FILTER_ADDON_OPTIONS"]               = "AddOn Options"

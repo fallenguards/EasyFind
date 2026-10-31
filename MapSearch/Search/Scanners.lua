@@ -287,6 +287,7 @@ function MapSearch:GetStaticLocations(mapID)
                 x = loc.x,
                 y = loc.y,
                 keywords = loc.keywords,
+                teaches = loc.teaches,
             }
             tinsert(results, PreparePOI(entry))
         end

@@ -1321,6 +1321,7 @@ L["NOTES_TAG_FIND_ADD"]                  = "Trouver ou ajouter une étiquette...
 L["NOTES_TAG_ADD_FMT"]                   = "Ajouter l'étiquette \"%s\""
 L["NOTES_CAT_ABILITIES"]                 = _G["ABILITIES"] or "Capacités"
 L["NPC_SUBTEXT_SELLS_FMT"]               = "%s : %s ; vend %s"
+L["NPC_SUBTEXT_TEACHES_FMT"]             = "%s ; enseigne %s"
 L["MAP_FOUND_BY_SELLS_FMT"]            = "Trouvé par ce qu'il vend : %s"
 L["CHECK_ADD_ITEM"]                      = "Ajouter un objet"
 L["CHECK_TRACK"]                         = "Suivre"
