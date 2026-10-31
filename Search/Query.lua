@@ -13,6 +13,7 @@ local InCombatLockdown = InCombatLockdown
 local GetTime = GetTime
 local slower = SearchText.Normalize
 local tinsert = Utils.tinsert
+local sfind = Utils.sfind
 local wipe = wipe
 
 local IsUIItemPinned = UIPins.IsPinned
@@ -58,6 +59,13 @@ local LEARNED_SCORE = 1e8
 -- dungeons over the Dungeon Finder the moment the word completed, and the
 -- list reshuffled at the next letter.
 local CATEGORY_ROW_SCORE = 450
+-- An extension's launcher: its name typed sits above every natural row; one
+-- of its words typed sits between a name prefix (500) and an exact name
+-- (1000), so "auction house" is the place before the auction extension.
+local LAUNCHER_NAME_SCORE = 2e6
+local LAUNCHER_WORD_SCORE = 900
+-- Rows that are the item itself: the catalog's copy of it stays out.
+local ITEM_ROW_CATEGORY = { Bag = true, Bank = true, Warband = true, Loot = true }
 
 -- Identity of a map row across the pooled copies the map search hands out:
 -- boosted injections record theirs so the same POI is not shown again when
@@ -616,6 +624,14 @@ function Search:OnSearchTextChangedNow(text, force)
             suppressMapCategory = boostCat
         end
         if catRows then
+            -- The band lifts rows and never lowers one: a boosted row whose
+            -- name is the word itself keeps its natural score (Bank, 1000),
+            -- or the catalog's "bank voucher" (500) would sit above it.
+            local natural = wipe(SCRATCH.mapNaturalScore)
+            for ri = 1, mapResults and #mapResults or 0 do
+                local r = mapResults[ri]
+                if r.data then natural[MapRowKey(r.data)] = r.score or 0 end
+            end
             for j = #catRows, 1, -1 do
                 local src = catRows[j]
                 local rowKey = MapRowKey(src)
@@ -623,7 +639,10 @@ function Search:OnSearchTextChangedNow(text, force)
                     seenMapRows[rowKey] = true
                     local wrapped = {}
                     for k, v in pairs(src) do wrapped[k] = v end
-                    tinsert(results, 1, { data = wrapped, score = CATEGORY_ROW_SCORE - j, isAlias = true })
+                    local score = CATEGORY_ROW_SCORE - j
+                    local own = natural[rowKey]
+                    if own and own > score then score = own end
+                    tinsert(results, 1, { data = wrapped, score = score, isAlias = true })
                 end
             end
         end
@@ -877,8 +896,11 @@ function Search:OnSearchTextChangedNow(text, force)
     local promoted = SCRATCH.aliasSeen
     for ri = 1, #results do
         local r = results[ri]
-        if r.isAlias or not IsPromoted(promoted, r.data) then
+        local d = r.data
+        if r.isAlias or not IsPromoted(promoted, d) then
             combined[#combined + 1] = r
+            local itemID = d and d.itemID
+            if itemID and ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = true end
         end
     end
     if mapResults then
@@ -927,8 +949,11 @@ function Search:OnSearchTextChangedNow(text, force)
     -- above natural matches but below aliases and learned picks.
     if not quickFilter and not calculatorData and not calculatorLauncher and ns.Extensions then
         local launchers = ns.Extensions.LauncherMatches(text, wipe(SCRATCH.launchers))
+        local lowerText = slower(text)
         for li = 1, #launchers do
-            combined[#combined + 1] = { data = launchers[li], score = 2e6 }
+            local launcher = launchers[li]
+            local byName = launcher.nameLower and sfind(launcher.nameLower, lowerText, 1, true) ~= nil
+            combined[#combined + 1] = { data = launcher, score = byName and LAUNCHER_NAME_SCORE or LAUNCHER_WORD_SCORE }
         end
     end
     -- Under @notes a query that is no note's title offers to make one so
