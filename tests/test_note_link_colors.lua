@@ -44,8 +44,8 @@ function tests.notesTakeLinksThroughIt()
     local notes = Source("/Apps/Notes/Notes.lua")
     H.assertTrue(notes:find("CreateNote(Utils.HexColorNames(", 1, true) ~= nil, "a new note's body")
     H.assertTrue(notes:find("text = Utils.HexColorNames(", 1, true) ~= nil, "an appended text")
-    H.assertTrue(Source("/Apps/Notes/ChecklistView.lua"):find("link = Utils.HexColorNames(link)", 1, true) ~= nil,
-        "a link shift-clicked into a checklist")
+    H.assertTrue(Source("/Apps/Notes/Lines.lua"):find("link = Utils.HexColorNames(link)", 1, true) ~= nil,
+        "a link shift-clicked into a note")
 end
 
 function tests.savedNotesAreRepairedWithTheirDecorations()

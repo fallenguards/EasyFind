@@ -51,7 +51,7 @@ local function Linked()
         ns = { ChecklistLinks = { auctionator = { category = { key = "ShoppingLists", window = "auctionhouse" } } } },
     }
     local fns = Chunk("Apps/Notes/Notes.lua", "function notesNS.LinkedNote(ext, key, title, create)",
-        "-- The extension's list into its checklist", "notesNS", env)
+        "-- The extension's list into its note", "notesNS", env)
     return fns, store
 end
 
@@ -81,7 +81,7 @@ function tests.theToggleAndTheRenameAreWired()
     local src = Read("Apps/Notes/Notes.lua")
     H.assertTrue(src:find("function NoteWhen.WindowRows(note)", 1, true) ~= nil, "the window toggles")
     H.assertTrue(src:find('L["NOTES_AUTO_WINDOWS"]', 1, true) ~= nil, "offered in Auto-show")
-    H.assertTrue(src:find("local NOTES_DB_VERSION = 15", 1, true) ~= nil)
+    H.assertTrue(src:find("local NOTES_DB_VERSION = 16", 1, true) ~= nil)
     H.assertTrue(src:find("if v < 15 then", 1, true) ~= nil, "stored names migrate to the window's")
 end
 

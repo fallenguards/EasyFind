@@ -77,13 +77,13 @@ function tests.bodyStillMatches()
     H.assertEq(names(SortedNotes("")), "Checklist,Untitled note", "no words: every note")
 end
 
-function tests.checklistLinesAreSearched()
+function tests.checkboxLinesAreSearched()
     local PlainSearchText = LoadPlainText()
-    local list = { kind = "checklist", body = "", list = { lines = { { text = "Buy Ore" }, { text = "Kill boars" } } } }
+    local list = { body = "\226\150\161 Buy Ore\n\226\150\161 Kill boars", list = { lines = { { id = 1 }, { id = 2 } } } }
     H.assertTrue(PlainSearchText(list):find("buy ore", 1, true) ~= nil, "a line's words, lowered")
     H.assertTrue(PlainSearchText(list):find("kill boars", 1, true) ~= nil)
-    list.list.lines[1].text = "Sell Ore"
-    H.assertTrue(PlainSearchText(list):find("sell ore", 1, true) ~= nil, "a renamed line counts at once")
+    list.body = "\226\150\161 Sell Ore\n\226\150\161 Kill boars"
+    H.assertTrue(PlainSearchText(list):find("sell ore", 1, true) ~= nil, "a retyped line counts at once")
     H.assertEq(PlainSearchText({ body = "Hello There" }), "hello there", "a plain note: its body")
 end
 

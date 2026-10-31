@@ -27,7 +27,7 @@ local GetCursorInfo = GetCursorInfo
 notesNS.UI = UI
 ns.Notes = notesNS
 
-local NOTES_DB_VERSION = 15
+local NOTES_DB_VERSION = 16
 local FONT_SIZE_MIN = 9
 local FONT_SIZE_MAX = 56
 local FONT_SIZE_DEFAULT = 12
@@ -481,6 +481,16 @@ local function NormalizeDB()
             end
         end
     end
+    if v < 16 then
+        -- Checklist notes become notes: their lines as checkbox lines of
+        -- text, their ticks on the list; a box ticked in the words too.
+        local CK = notesNS.Checklist
+        for _, store in ipairs({ EasyNotesDB.notes, EasyNotesDB.trash }) do
+            for i = 1, #(type(store) == "table" and store or {}) do
+                if store[i] and CK then CK.Migrate(store[i], ns.CurrentCharacterKey()) end
+            end
+        end
+    end
     EasyNotesDB.version = NOTES_DB_VERSION
     if type(EasyNotesDB.trash) ~= "table" then EasyNotesDB.trash = {} end
     if type(EasyNotesDB.nextID) ~= "number" then EasyNotesDB.nextID = 1 end
@@ -915,13 +925,6 @@ local function PlainSearchText(note)
         plain = slower(StripColorEscapes(MapSelection(body, GlyphPlain)))
         plainBodyCache[note] = { body = body, plain = plain }
     end
-    -- A checklist's lines, read fresh: they live outside the body.
-    local CK = notesNS.Checklist
-    if CK and CK.Is(note) then
-        local parts = { plain }
-        for _, line in ipairs(note.list.lines) do parts[#parts + 1] = slower(CK.LineName(line) or "") end
-        plain = table.concat(parts, "\n")
-    end
     return plain
 end
 
@@ -1133,6 +1136,7 @@ local function UpdateBody(id, body)
     if note.body == body then return end
     note.body = body
     note.updated = time()
+    if notesNS.Lines then notesNS.Lines.BodyChanged(note) end
     if notesNS.RefreshReader then notesNS.RefreshReader(id) end
     notesNS.Windows.ListFollows()
 end
@@ -1154,17 +1158,13 @@ local function NotesWindowShown()
     return frame and frame:IsShown()
 end
 
+-- A note that starts as a list: its first box waiting for words.
 function notesNS.NewChecklist()
-    local note = CreateNote("")
+    local note = CreateNote(CHECK_EMPTY_PREFIX)
     note.scope = "account"
     note.name = L["CHECK_NEW_NAME"]
-    if notesNS.Checklist then notesNS.Checklist.Init(note) end
-    -- Straight to typing its first line.
-    notesNS.Windows.OpenNote(note.id, function()
-        if notesNS.ChecklistView then notesNS.ChecklistView.AddNew() end
-    end)
-    notesNS.Refresh()
-    return note
+    if notesNS.Checklist then notesNS.Checklist.Reconcile(note) end
+    return notesNS.OpenNewNote(note)
 end
 
 -- A link handed in takes the hex color form the editor reads (HexColorNames).
@@ -1200,33 +1200,18 @@ function Fmt.ListMarkAfter(body)
     return n and (n + 1) .. ". " or ""
 end
 
--- Text added joins the note in its own form: a checklist note takes it as
--- a line (an item or quest tracked, anything else ticked by hand), any
--- other note as a line under its last, carrying on a list there.
+-- Text added joins the note as a line under its last, carrying on a list
+-- there: an item link on a checkbox line counts that item.
 function notesNS.AppendToNote(id, text)
     local idx = FindNoteIndex(id)
     if not idx then return false end
     text = Utils.HexColorNames(tostring(text or ""))
     if text == "" then return false end
     local note = NotesStore()[idx]
-    local CK = notesNS.Checklist
-    if CK and CK.Is(note) then
-        local line = CK.LineFromLink(text)
-        -- A spell's line would count its cooldown: a mount or ability added
-        -- here is one to tick.
-        if not line or line.link == "cooldown" then line = { text = text } end
-        CK.AddLine(note, line)
-        notesNS.LinkedChanged(note)
-        if notesNS.RefreshReader then notesNS.RefreshReader(id) end
-        if notesNS.ChecklistView and notesNS.ChecklistView.Refresh then notesNS.ChecklistView.Refresh() end
-        return true
-    end
     local body = note.body or ""
     if body ~= "" and body:sub(-1) ~= "\n" then body = body .. "\n" end
     UpdateBody(id, body .. Fmt.ListMarkAfter(body) .. text)
-    if NotesWindowShown() and UI._notes.selectedID == id and UI.RefreshEasyNotes then
-        UI:RefreshEasyNotes()
-    end
+    if notesNS.Lines then notesNS.Lines.Reload(note) end
     return true
 end
 
@@ -1280,16 +1265,15 @@ function notesNS.LinkedNote(ext, key, title, create)
     return note.id
 end
 
--- The extension's list into its checklist; what shows it drawn again.
+-- The extension's list into its note; what shows it drawn again.
 function notesNS.SyncLinked(id, entries)
     local idx = FindNoteIndex(id)
     local note = idx and NotesStore()[idx]
     local CK = notesNS.Checklist
-    if not (note and CK and CK.Is(note)) then return false end
+    if not (note and CK and note.list) then return false end
     if CK.SyncLinked(note, entries) then
-        note.updated = time()
         if notesNS.RefreshReader then notesNS.RefreshReader(id) end
-        if notesNS.ChecklistView and notesNS.ChecklistView.Refresh then notesNS.ChecklistView.Refresh() end
+        if notesNS.Lines then notesNS.Lines.Reload(note) end
     end
     return true
 end
@@ -3312,7 +3296,12 @@ do
                 box:SetPoint("CENTER", editor, "TOPLEFT", cx, -((p.line - 1) * advance + lineH / 2))
                 ns.PaintRingedWell(box, ring, fill)
                 box.tick:SetSize(side * 1.3, side * 1.3)
-                box.tick:SetShown(p.glyph == TICKED_GLYPH)
+                -- A note's tick is its list's; a line the game ticks sits dimmer.
+                local ticked, line
+                if notesNS.Lines then ticked, line = notesNS.Lines.TickedAt(editor, p.byteStart) end
+                if ticked == nil then ticked = p.glyph == TICKED_GLYPH end
+                box.tick:SetShown(ticked)
+                box:SetAlpha(line and line.link and 0.7 or 1)
                 box:Show()
             end
         end
@@ -3564,9 +3553,12 @@ function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
         for i = 1, #texPool do texPool[i]:Hide() end
         for i = 1, #runPool do runPool[i]:Hide() end
         Fmt.PlaceCheckboxes(editor, nil)
+        if notesNS.Lines then notesNS.Lines.PlaceTails(editor, nil) end
         return
     end
     decos = decos or {}
+    -- A note's ticked lines read struck and green.
+    if notesNS.Lines then decos = notesNS.Lines.WithTicks(editor, text, decos) end
     local used = 0
     local wrapWidth = editor:GetWidth() or 1
     local meter = GetMeasureMeter(editor)
@@ -3579,6 +3571,7 @@ function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
     local positions = LayoutCharacters(text, editor, wrapWidth)
     local lineYs, _, advance = MeasureLineYMap(text, editor, positions)
     Fmt.PlaceCheckboxes(editor, boxed and positions or nil, advance, oneLineH)
+    if notesNS.Lines then notesNS.Lines.PlaceTails(editor, boxed and positions or nil, lineYs, oneLineH) end
     local strikeY = math.floor(oneLineH * 0.50 + 0.5)
     local underlineY = math.floor(oneLineH * 0.92 + 0.5)
     local usedRuns = 0
@@ -3864,9 +3857,10 @@ local function MergeAdjacentDecorations(decorations)
         local nxt = decorations[i + 1]
         -- Color ranges only merge when they carry the same rgb; two abutting
         -- ranges of different colours are distinct and must stay separate.
+        -- A line's mark (its id over its box) never merges.
         local sameColor = cur.kind ~= "color"
             or (cur.r == nxt.r and cur.g == nxt.g and cur.b == nxt.b)
-        if cur.kind == nxt.kind and sameColor and nxt.startByte <= cur.endByte then
+        if cur.kind == nxt.kind and cur.kind ~= "line" and sameColor and nxt.startByte <= cur.endByte then
             cur.endByte = math.max(cur.endByte, nxt.endByte)
             tremove(decorations, i + 1)
         else
@@ -4262,11 +4256,17 @@ function UI:ExtendActiveDecoration(kind, oldCursor, newCursor)
     }
 end
 
+-- A note's box ticks on its list (Lines.ToggleAt), the words as they
+-- are; a snippet's box flips in its words.
 function UI:ToggleEasyNotesCheckbox(text, lineStart)
     local note = Fmt.ActiveFormatDoc()
     if not note then return text end
     local prefixLen = MatchLinePrefix(text, lineStart)
     if prefixLen == 0 then return text end
+    if note == GetSelectedNote() and notesNS.Lines then
+        notesNS.Lines.ToggleAt(note, lineStart)
+        return text
+    end
     local prefix = text:sub(lineStart, lineStart + prefixLen - 1)
     note.decorations = note.decorations or {}
     if prefix == CHECK_EMPTY_PREFIX then
@@ -5665,6 +5665,7 @@ function UI:RefreshEasyNotes()
     end
     if note and NormalizeDB().richText2 then UI:MigrateNoteToRichText2(note) end
     if note then UI:MigrateColorEscapes(note) end
+    if note and notesNS.Lines then notesNS.Lines.NoteLoaded(note) end
     -- Clean any decoration ranges that an earlier shift bug corrupted (negative
     -- starts, ranges past the end): clamp to the body and drop empties.
     if note and note.decorations then
@@ -5709,7 +5710,7 @@ function UI:RefreshEasyNotes()
     self:RefreshEasyNotesAttachBar()
     self:RefreshEasyNotesDragHandles()
     if UI._notes.paletteShown then self:RefreshEasyNotesPalette() end
-    if notesNS.ChecklistView then notesNS.ChecklistView.Refresh() end
+    if notesNS.Lines then notesNS.Lines.Refresh() end
 end
 
 function UI:SelectEasyNote(id)
@@ -7293,7 +7294,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
         end
     end
     self:RefreshEasyNotesDragHandles()
-    if notesNS.ChecklistView then notesNS.ChecklistView.SetAllowed(shown) end
+    if notesNS.Lines then notesNS.Lines.ViewShown(shown) end
 end
 
 local function ApplyEasyNotesWindowSize(frame, dims)
@@ -8357,10 +8358,10 @@ function UI:ShowEasyNotesOverflowMenu(anchor)
                   if id then ConfirmDeleteNote(id) end
               end },
         }
-        -- A checklist's own settings lead.
-        local CKV = notesNS.ChecklistView
-        if CKV and notesNS.Checklist and notesNS.Checklist.Is(note) then
-            tinsert(rows, 1, { text = L["CHECK_MENU"], submenu = CKV.MenuRows(note, anchor) })
+        -- The checkbox lines' own entries lead: what a line can track, and
+        -- with lines, the ticks' settings.
+        if notesNS.Lines then
+            tinsert(rows, 1, { text = L["CHECK_MENU"], submenu = notesNS.Lines.MenuRows(note, anchor) })
         end
         return rows
     end
@@ -9075,7 +9076,7 @@ function UI:RefreshEasyNotesPalette()
             end
         end
         -- strip SMP styling + color codes: the row font can't render them
-        local preview = (notesNS.Checklist and notesNS.Checklist.Is(note)) and notesNS.Checklist.Preview(note)
+        local preview = (notesNS.Checklist and notesNS.Checklist.IsList(note)) and notesNS.Checklist.Preview(note)
             or StripColorEscapes(MapSelection((note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
         row.subtitle:SetText(Fmt.BoxIcons(preview))
         row.timeText:SetText(FormatRelTime(note.updated))

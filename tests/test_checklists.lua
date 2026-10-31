@@ -1,6 +1,10 @@
--- Tests for Apps/Notes/Checklist.lua: checklist notes in Notes.
+-- Tests for Apps/Notes/Checklist.lua: a note's checkbox lines as its list.
+-- The words are the note's text; each box line carries its id in a "line"
+-- decoration and its fields (item, link, count) on note.list by that id.
 
 local H = require("Harness")
+
+local LINK5 = "|cff1eff00|Hitem:5::|h[Thing]|h|r"
 
 local function Load()
     local env = H.newEnv()
@@ -30,19 +34,47 @@ local function Load()
     return notesNS.Checklist, w, env
 end
 
-local function NewList(CK, scope)
-    local note = { id = 1 }
+local function NewNote(CK, scope)
+    local note = { id = 1, body = "", decorations = {} }
     CK.Init(note)
     note.list.scope = scope or "account"
     return note
 end
 
+-- The body's line marks: "id@start" each, in order.
+local function Marks(note)
+    local out = {}
+    for _, d in ipairs(note.decorations) do
+        if d.kind == "line" then out[#out + 1] = d.id .. "@" .. d.startByte end
+    end
+    return table.concat(out, " ")
+end
+
+local function IDs(note)
+    local out = {}
+    for i, line in ipairs(note.list.lines) do out[i] = line.id end
+    return table.concat(out, " ")
+end
+
 local tests = {}
+
+-- The model's box glyphs are the editor's.
+function tests.theBoxGlyphsAreTheEditors()
+    local CK = Load()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local empty = assert(load("return " .. src:match("\nlocal CHECK_EMPTY_PREFIX = ([^\n]+)")))()
+    local filled = assert(load("return " .. src:match("\nlocal CHECK_FILLED_PREFIX = ([^\n]+)")))()
+    H.assertEq(CK.EMPTY, empty)
+    H.assertEq(CK.FILLED, filled)
+    H.assertEq(#CK.EMPTY, #CK.FILLED, "the same bytes long: a migration moves nothing")
+end
 
 function tests.handTicks_followTheListScope()
     local CK = Load()
-    local note = NewList(CK, "character")
-    local line = CK.AddLine(note, { text = "Repair" })
+    local note = NewNote(CK, "character")
+    local line = CK.AppendLine(note, { text = "Repair" })
     CK.SetTicked(note, line, "A-Realm", true)
     H.assertTrue(CK.Ticked(note, line, "A-Realm"))
     H.assertFalse(CK.Ticked(note, line, "B-Realm"), "per character")
@@ -53,8 +85,8 @@ end
 
 function tests.itemLine_countsBagsBankAndOtherCharacters()
     local CK, w = Load()
-    local note = NewList(CK, "account")
-    local line = CK.AddLine(note, { link = "item", item = 13468, target = 10 })
+    local note = NewNote(CK, "account")
+    local line = CK.AppendLine(note, { link = "item", item = 13468, target = 10 })
     w.bags[13468], w.bank[13468] = 4, 2
     w.stored[13468] = { ["Alt-Realm"] = { bags = 3, bank = 0 }, ["Tester-Realm"] = { bags = 4, bank = 2 } }
     local done, progress, detail = CK.LineState(note, line)
@@ -67,8 +99,8 @@ end
 
 function tests.itemLine_perCharacterListCountsOnlyThisCharacter()
     local CK, w = Load()
-    local note = NewList(CK, "character")
-    local line = CK.AddLine(note, { link = "item", item = 1, target = 5 })
+    local note = NewNote(CK, "character")
+    local line = CK.AppendLine(note, { link = "item", item = 1, target = 5 })
     w.bags[1] = 2
     w.stored[1] = { ["Alt-Realm"] = { bags = 9, bank = 0 } }
     local _, progress = CK.LineState(note, line)
@@ -77,9 +109,9 @@ end
 
 function tests.dailyReset_clearsTicksOnceAfterItPasses()
     local CK, w = Load()
-    local note = NewList(CK)
+    local note = NewNote(CK)
     note.list.reset.every = "daily"
-    local line = CK.AddLine(note, { text = "Daily quest" })
+    local line = CK.AppendLine(note, { text = "Daily quest" })
     local now = 1800000000
     w.resetLeft = 3600
     CK.SetTicked(note, line, "A-Realm", true)
@@ -115,8 +147,8 @@ end
 
 function tests.board_listsEveryCharacterThatReadTheList()
     local CK, w = Load()
-    local note = NewList(CK, "character")
-    local line = CK.AddLine(note, { link = "item", item = 1, target = 1 })
+    local note = NewNote(CK, "character")
+    local line = CK.AppendLine(note, { link = "item", item = 1, target = 1 })
     w.bags[1] = 1
     CK.LineState(note, line)
     note.list.seen["Alt-Realm"] = { [line.id] = { p = "0/1" } }
@@ -138,29 +170,10 @@ function tests.linksBecomeLines()
     H.assertNil(CK.LineFromLink("plain words"))
 end
 
-function tests.insertLine_goesAfterTheLineNamed()
-    local CK = Load()
-    local note = NewList(CK)
-    local a = CK.AddLine(note, { text = "A" })
-    CK.AddLine(note, { text = "C" })
-    CK.InsertLine(note, { text = "B" }, a.id)
-    H.assertEq(note.body, "A\nB\nC")
-end
-
-function tests.body_mirrorsLineNamesForSearch()
-    local CK = Load()
-    local note = NewList(CK)
-    CK.AddLine(note, { text = "Repair" })
-    CK.AddLine(note, { link = "item", item = 7, target = 2 })
-    H.assertEq(note.body, "Repair\nItem7")
-    CK.RemoveLine(note, 1)
-    H.assertEq(note.body, "Item7")
-end
-
 function tests.goldLine_accountSumsTheLedger()
     local CK, w, env = Load()
-    local note = NewList(CK, "account")
-    local line = CK.AddLine(note, { link = "gold", target = 100 * 10000 })
+    local note = NewNote(CK, "account")
+    local line = CK.AppendLine(note, { link = "gold", target = 100 * 10000 })
     w.money = 40 * 10000
     env.EasyFindDB = { charGold = { ["Alt-Realm"] = 70 * 10000, ["Tester-Realm"] = 40 * 10000 } }
     local done, progress = CK.LineState(note, line)
@@ -168,136 +181,146 @@ function tests.goldLine_accountSumsTheLedger()
     H.assertEq(progress, "110g/100g")
 end
 
--- A frame that answers every method: Get* reads 0, the rest do nothing.
-local function Stub()
-    local special = {
-        GetText = function(self) return self._text or "" end,
-        SetText = function(self, v) self._text = v end,
-        GetChecked = function() return false end,
-        IsShown = function(self) return self._shown ~= false end,
-        IsVisible = function(self) return self._shown ~= false end,
-        Show = function(self) self._shown = true end,
-        Hide = function(self) self._shown = false end,
-        SetShown = function(self, v) self._shown = v and true or false end,
-        CreateFontString = function() return Stub() end,
-        CreateTexture = function() return Stub() end,
-        GetHighlightTexture = function() return Stub() end,
-        SetScript = function(self, name, fn) self._scripts[name] = fn end,
-        GetScript = function(self, name) return self._scripts[name] end,
-        HasFocus = function() return false end,
-        SetPoint = function(self, ...) self._points[#self._points + 1] = { ... } end,
-        ClearAllPoints = function(self) self._points = {} end,
-    }
-    local t = { _scripts = {}, _points = {} }
-    return setmetatable(t, { __index = function(_, k)
-        if special[k] then return special[k] end
-        if k:match("^Get%w*Texture$") then return function() return Stub() end end
-        if k:sub(1, 3) == "Get" then return function() return 0 end end
-        return function() end
-    end })
+-- The words are the note: a line appended writes "box words" under the
+-- last, marked with its id; the mark finds the line again.
+function tests.appendLine_writesTheWordsAndMarksTheLine()
+    local CK = Load()
+    local note = NewNote(CK)
+    local a = CK.AppendLine(note, { text = "Repair" })
+    local b = CK.AppendLine(note, { link = "item", item = 7, target = 2 })
+    H.assertEq(note.body, CK.EMPTY .. "Repair\n" .. CK.EMPTY .. "Item7 x2")
+    H.assertEq(Marks(note), "1@1 2@" .. (#CK.EMPTY + #"Repair" + 2))
+    H.assertEq(CK.LineAt(note, 1), a)
+    H.assertEq(CK.LineAt(note, CK.LineStart(note, b.id)), b)
+    H.assertEq(b.link, "item")
+    H.assertEq(b.target, 2, "the count read back from the words")
+    H.assertTrue(CK.Is(note))
+    H.assertTrue(CK.IsList(note), "every line a box line")
+    H.assertEq(CK.Preview(note), "CHECK_PREVIEW_FMT", "the list's own preview (its words, on the harness)")
+    note.body = "Shopping\n" .. note.body
+    for _, d in ipairs(note.decorations) do d.startByte, d.endByte = d.startByte + 9, d.endByte + 9 end
+    CK.Reconcile(note)
+    H.assertFalse(CK.IsList(note), "words above the lines: a note with a list in it")
 end
 
--- The view on stub frames over a list of lines; made: the frames by kind.
-local function LoadView(lines)
-    local CK, w, env = Load()
-    local made = {}
-    env.CreateFrame = function(kind)
-        local f = Stub()
-        made[kind] = made[kind] or {}
-        made[kind][#made[kind] + 1] = f
-        return f
+-- Typing around the lines keeps their ids: the marks move with the words
+-- as the editor shifts them; a line typed in between is new.
+function tests.reconcile_keepsIdsThroughEdits()
+    local CK = Load()
+    local note = NewNote(CK)
+    CK.AppendLine(note, { text = "A" })
+    CK.AppendLine(note, { text = "B" })
+    H.assertEq(IDs(note), "1 2")
+    local bStart = CK.LineStart(note, 2)
+    -- A new box line typed between A and B: B's mark moved past it.
+    local inserted = CK.EMPTY .. "New\n"
+    note.body = note.body:sub(1, bStart - 1) .. inserted .. note.body:sub(bStart)
+    for _, d in ipairs(note.decorations) do
+        if d.startByte >= bStart then d.startByte, d.endByte = d.startByte + #inserted, d.endByte + #inserted end
     end
-    local ns = env.EasyFind._ns
-    ns.CreateModernButton = function() local b = Stub() b._label = Stub() return b end
-    ns.RegisterAddonFont = function() end
-    ns.ShowTogglePopup = function() end
-    ns.ShowThemedDialog = function() end
-    ns.Utils.ShowCursorMenu = function() return Stub() end
-    ns.Utils.CreateMinimalScrollBar = function() return Stub() end
-    ns.Utils.AttachDelayedTooltip = function() end
-    ns.Utils.AddGripDots = function() end
-    ns.Utils.ReleaseFocusOnOutsideClick = function() end
-    ns.CreateCloseX = function() return Stub() end
-    ns.CreateCogButton = function() return Stub() end
-    ns.Utils.HookInsertLink = function(fn) w.insert = fn end
-    ns.Utils.HexColorNames = function(s) return s end
-    env.C_Spell = { GetSpellName = function() return "Spell" end, GetSpellCooldown = function() return { startTime = 0, duration = 0 } end, GetSpellTexture = function() return 1 end }
-    env.C_QuestLog = { GetTitleForQuestID = function() return "Quest" end, IsQuestFlaggedCompleted = function() return false end }
-    env.C_Reputation = { GetFactionDataByID = function() return { name = "Faction", reaction = 5 } end }
-    env.UnitLevel = function() return 30 end
-    env.GetProfessions = function() return nil end
-    env.GetNumSavedInstances = function() return 0 end
-    env.C_Item.GetItemIconByID = function() return 1 end
-    local note = { id = 1, list = nil }
-    CK.Init(note)
-    for _, line in ipairs(lines) do CK.AddLine(note, line) end
-    -- One notes window, as Notes.lua's windows table hands it over.
-    local main = { frame = { editorScroll = Stub(), toolbar = Stub(), charCounter = Stub(), formatButton = Stub(),
-        GetFrameLevel = function() return 1 end } }
-    local Windows = { list = { main }, main = main, active = main, last = main, CreateFrame = env.CreateFrame }
-    function Windows.Run(w, fn, ...)
-        local prev = Windows.active
-        Windows.active = w
-        local a = fn(...)
-        Windows.active = prev
-        return a
-    end
-    function Windows.Bound(fn)
-        local w = Windows.active
-        return function(...) return Windows.Run(w, fn, ...) end
-    end
-    function Windows.Each(fn)
-        for _, w in ipairs(Windows.list) do Windows.Run(w, fn, w) end
-    end
-    Windows.listFollowed = 0
-    function Windows.ListFollows() Windows.listFollowed = Windows.listFollowed + 1 end
-    local notesNS = {
-        Checklist = CK, Context = {}, Windows = Windows,
-        UI = { _notes = { frame = main.frame } },
-        SelectedNote = function() return note end,
-        AllNotes = function() return { note } end,
-    }
-    assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/ChecklistView.lua", "t", env))("EasyFind_Notes", notesNS)
-    return notesNS.ChecklistView, note, w, made, CK, env
+    H.assertTrue(CK.Reconcile(note))
+    H.assertEq(IDs(note), "1 3 2", "A and B keep their ids, the new line takes the next")
+    H.assertEq(note.list.lines[2].text, "New")
+    H.assertFalse(CK.Reconcile(note), "nothing changed: nothing to tell")
+    -- Words added to B.
+    note.body = note.body .. " done"
+    H.assertTrue(CK.Reconcile(note))
+    H.assertEq(note.list.lines[3].text, "B done")
 end
 
-function tests.view_buildsTheListAndTheBoard()
-    local View, note, w, _, CK = LoadView({ { text = "Plain" }, { link = "item", item = 1, target = 2 }, { link = "quest", quest = 9 },
-        { link = "rep", faction = 72, standing = 8 }, { link = "gold", target = 10000 }, { link = "level", target = 40 },
-        { link = "skill", skill = "Tailoring", target = 300 }, { link = "lockout", instance = "Molten Core" },
-        { link = "cooldown", spell = 18560 } })
-    View.SetAllowed(true)
-    w.insert("|Hitem:5:0|h[Thing]|h")
-    H.assertEq(#note.list.lines, 10, "a shift-clicked item joined the list")
-    local added = note.list.lines[10]
-    H.assertEq(added.item, 5)
-    H.assertFalse((CK.LineState(note, added)), "not ticked on arrival")
-    View.ShowBoard(true)
-    View.ShowBoard(false)
-    View.Sweep()
-    View.SetAllowed(false)
+function tests.reconcile_aLineGoneTakesItsTicks_aBoxMovedOffALineStartIsNoLine()
+    local CK = Load()
+    local note = NewNote(CK)
+    local a = CK.AppendLine(note, { text = "A" })
+    local b = CK.AppendLine(note, { text = "B" })
+    CK.SetTicked(note, b, "X-Realm", true)
+    -- B's line deleted from the body, its mark with it.
+    local bStart = CK.LineStart(note, b.id)
+    note.body = note.body:sub(1, bStart - 2)
+    for i = #note.decorations, 1, -1 do
+        if note.decorations[i].startByte >= bStart then table.remove(note.decorations, i) end
+    end
+    CK.Reconcile(note)
+    H.assertEq(IDs(note), "1")
+    H.assertNil(note.list.ticks.account[b.id], "its tick went with it")
+    -- The newline before A's box gone: the box sits inside a line now.
+    note.body = "Words " .. note.body
+    for _, d in ipairs(note.decorations) do d.startByte, d.endByte = d.startByte + 6, d.endByte + 6 end
+    CK.Reconcile(note)
+    H.assertEq(IDs(note), "", "no box at a line's start: no line")
+    H.assertEq(Marks(note), "", "its mark gone too")
+    H.assertFalse(CK.Is(note))
+    H.assertTrue(a ~= nil)
 end
 
--- The box, grip, icon, name, count and X share the first line's middle,
--- so a line with a detail under it reads as a single line does (2026-10-26).
-function tests.view_itemLineDrawsItsIconAndLinkOnTheFirstLine()
-    local View, note, _, made, _, env = LoadView({ { link = "item", item = 7, target = 20 } })
-    local link = "|cffa335ee|Hitem:7::|h[Item7]|h|r"
-    env.C_Item.GetItemInfo = function(id) if id == 7 then return "Item7", link end end
-    View.SetAllowed(true)
-    local row
-    for _, b in ipairs(made.Button) do if b.line == note.list.lines[1] then row = b end end
-    H.assertTrue(row ~= nil, "the line has a row")
-    H.assertTrue(row.icon._shown, "the item's icon shows")
-    H.assertEq(row.name._text, link, "the name is the item's link")
-    H.assertEq(row.name._points[1][1], "LEFT")
-    H.assertEq(row.name._points[1][2], row.icon, "the name follows the icon, centered on it")
-    local mid = row.check._points[1][5]
-    for name, part in pairs({ check = row.check, grip = row.grip, count = row.progress, x = row.remove }) do
-        local p = part._points[1]
-        H.assertTrue(p[2] == row and p[3]:find("^TOP") ~= nil and p[5] == mid,
-            name .. " sits on the first line: " .. tostring(p[3]) .. " " .. tostring(p[5]))
+-- What the words say a line is.
+function tests.readContent_linksCountsAndNames()
+    local CK, _, env = Load()
+    local note = NewNote(CK)
+    note.body = CK.EMPTY .. LINK5 .. " x20\n" .. CK.EMPTY .. "Repair 2\n" .. CK.EMPTY .. "|Hquest:4321:60|h[Quest]|h\n"
+        .. CK.EMPTY .. "|Hspell:18560:0|h[Mooncloth]|h"
+    CK.Reconcile(note)
+    local lines = note.list.lines
+    H.assertEq(lines[1].item, 5)
+    H.assertEq(lines[1].link, "item", "a count after a link: counted toward it")
+    H.assertEq(lines[1].target, 20)
+    H.assertNil(lines[1].text)
+    H.assertEq(lines[2].text, "Repair 2", "plain words stay as typed, number and all")
+    H.assertNil(lines[2].target)
+    H.assertEq(lines[3].link, "quest")
+    H.assertEq(lines[3].quest, 4321)
+    H.assertNil(lines[4].link, "a spell's link is words; a cooldown is tracked on purpose")
+    -- The link's count changed in the words.
+    note.body = note.body:gsub("x20", "x7")
+    CK.Reconcile(note)
+    H.assertEq(lines[1].target, 7)
+    -- The link taken out, the item's plain name left: still the item.
+    local plain = CK.EMPTY .. "Item5 x3"
+    local firstLen = note.body:find("\n", 1, true) - 1
+    note.body = plain .. note.body:sub(firstLen + 1)
+    local shift = #plain - firstLen
+    for _, d in ipairs(note.decorations) do
+        if d.startByte > 1 then d.startByte, d.endByte = d.startByte + shift, d.endByte + shift end
     end
+    CK.Reconcile(note)
+    H.assertEq(lines[1].item, 5, "its own name typed plain keeps the item")
+    H.assertEq(lines[1].target, 3)
+    H.assertTrue(env ~= nil)
+end
+
+function tests.readContent_aListOfItemsLooksNamesUpOnceSettled()
+    local CK, _, env = Load()
+    local ids = { ["Linen Cloak"] = 2589, ["Net-o-Matic 5000"] = 4 }
+    env.C_Item.GetItemInfoInstant = function(name) return ids[name] end
+    local note = NewNote(CK)
+    note.list.source = { ext = "Shop", key = "k" }
+    env.EasyFind._ns.ChecklistLinks = { Shop = { items = true } }
+    note.body = CK.EMPTY .. "Linen Cloak x20\n" .. CK.EMPTY .. "Net-o-Matic 5000\n" .. CK.EMPTY .. "Mystery 3"
+    CK.Reconcile(note)
+    local lines = note.list.lines
+    H.assertEq(lines[1].text, "Linen Cloak", "while typing: words and a count")
+    H.assertEq(lines[1].target, 20)
+    CK.Reconcile(note, true)
+    H.assertEq(lines[1].item, 2589, "settled: the item named")
+    H.assertEq(lines[1].link, "item")
+    H.assertEq(lines[1].target, 20)
+    H.assertEq(lines[2].item, 4, "a name ending in a number is the item")
+    H.assertNil(lines[2].target)
+    H.assertEq(lines[3].text, "Mystery", "an unknown name keeps its count")
+    H.assertEq(lines[3].target, 3)
+end
+
+function tests.readContent_aTrackedLineKeepsItsLink_theWordsRenameIt()
+    local CK = Load()
+    local note = NewNote(CK)
+    local q = CK.AppendLine(note, { link = "quest", quest = 9, text = "Quest" })
+    H.assertEq(note.body, CK.EMPTY .. "Quest")
+    note.body = CK.EMPTY .. "Quest, the hard part"
+    CK.Reconcile(note)
+    H.assertEq(q.link, "quest")
+    H.assertEq(q.quest, 9)
+    H.assertEq(q.text, "Quest, the hard part")
+    H.assertEq(CK.LineName(q), "Quest, the hard part")
 end
 
 function tests.lineLabel_drawsItemsAndSpellsAsTheirLinks()
@@ -320,10 +343,9 @@ function tests.splitCount_readsEveryForm()
         H.assertEq(words, "Linen Cloak", typed)
         H.assertEq(n, 20, typed)
     end
-    local link = "|cff1eff00|Hitem:5::|h[Thing]|h|r"
-    for _, typed in ipairs({ link .. "x20", link .. " x20", link .. " 20", link .. "*20", "20x" .. link, "20 " .. link }) do
+    for _, typed in ipairs({ LINK5 .. "x20", LINK5 .. " x20", LINK5 .. " 20", LINK5 .. "*20", "20x" .. LINK5, "20 " .. LINK5 }) do
         local words, n = CK.SplitCount(typed)
-        H.assertEq(words, link, typed)
+        H.assertEq(words, LINK5, typed)
         H.assertEq(n, 20, typed)
     end
     H.assertEq(select(2, CK.SplitCount("Onyx x3")), 3)
@@ -333,154 +355,26 @@ function tests.splitCount_readsEveryForm()
     H.assertEq(select(2, CK.SplitCount("Bandage 0")), nil, "no count of 0")
 end
 
-function tests.typedLine_plainListTakesACountOnlyOnALink()
-    local CK = Load()
-    H.assertEq(CK.TypedLine("Repair 2", false).text, "Repair 2", "words stay as typed")
-    local line = CK.TypedLine("|cff1eff00|Hitem:5::|h[Thing]|h|r x20", false)
-    H.assertEq(line.item, 5)
-    H.assertEq(line.link, "item", "counted toward its count")
-    H.assertEq(line.target, 20)
-    H.assertEq(CK.TypedLine("|cff1eff00|Hitem:5::|h[Thing]|h|r", false).link, nil, "no count: ticked by hand")
-end
-
-function tests.typedLine_itemListLooksUpNames()
-    local CK, _, env = Load()
-    local ids = { ["Linen Cloak"] = 2589, ["Net-o-Matic 5000"] = 4 }
-    env.C_Item.GetItemInfoInstant = function(name) return ids[name] end
-    local line = CK.TypedLine("Linen Cloak x20", true)
-    H.assertEq(line.item, 2589)
-    H.assertEq(line.target, 20)
-    line = CK.TypedLine("Net-o-Matic 5000", true)
-    H.assertEq(line.item, 4, "a name ending in a number is the item")
-    H.assertEq(line.target, nil)
-    line = CK.TypedLine("Mystery 3", true)
-    H.assertEq(line.text, "Mystery", "an unknown name keeps its count")
-    H.assertEq(line.target, 3)
-    H.assertEq(CK.LineState({ list = { ticks = {}, seen = {}, scope = "account" } }, line) == true, false)
-end
-
-function tests.retype_keepsTheItemWhenOnlyItsCountChanges()
-    local CK = Load()
-    local line = { item = 7, link = "item", target = 2 }
-    H.assertEq(CK.EditText(line), "Item7 x2", "typed as its name and count")
-    CK.Retype(line, "Item7 x5", false)
-    H.assertEq(line.item, 7)
-    H.assertEq(line.target, 5)
-    CK.Retype(line, "Item7", false)
-    H.assertEq(line.item, 7)
-    H.assertEq(line.link, nil, "no count: ticked by hand")
-    CK.Retype(line, "lin x3", true, 9)
-    H.assertEq(line.item, 9, "the item picked for the words")
-    H.assertEq(line.target, 3)
-end
-
-function tests.setCount_givesOrTakesTheCount()
+function tests.setCount_givesOrTakesTheCount_pickedTextIsTheItemsLink()
     local CK = Load()
     local line = { item = 1 }
     CK.SetCount(line, 4)
     H.assertEq(line.link, "item")
     H.assertEq(line.target, 4)
+    H.assertEq(CK.EditText(line), "Item1 x4", "typed as its name and count")
     CK.SetCount(line, 0)
     H.assertEq(line.link, nil)
     H.assertEq(line.target, nil)
     H.assertFalse(CK.HasCount({ link = "gold", target = 100 }), "gold keeps its own menu")
+    H.assertEq(CK.PickedText("lin x3", 9), "Item9 x3", "the pick's words, the count kept")
 end
 
-function tests.view_doubleClickTypesTheCountOverIt()
-    local View, note, _, made = LoadView({ { link = "item", item = 1, target = 2 } })
-    View.SetAllowed(true)
-    local row
-    for _, b in ipairs(made.Button) do if b.line == note.list.lines[1] then row = b end end
-    H.assertTrue(row.count._shown, "a count to change")
-    row.count._scripts.OnDoubleClick(row.count)
-    local box
-    for _, b in ipairs(made.EditBox or {}) do if b._text == "2" then box = b end end
-    H.assertTrue(box ~= nil, "the count in a box")
-    box._text = "7"
-    box._scripts.OnEditFocusLost(box)
-    H.assertEq(note.list.lines[1].target, 7)
-end
-
--- A shopping list's line: the catalog's names under it, the first picked.
-function tests.view_itemListSuggestsAndEnterTakesThePick()
-    local View, note, _, made, _, env = LoadView({})
-    local ns = env.EasyFind._ns
-    note.list.source = { ext = "Shop", key = "k" }
-    ns.ChecklistLinks = { Shop = { items = true } }
-    ns.StyleMenuPanel = function() end
-    ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function(self, on) self._picked = on end end
-    ns.Database = { ScoreName = function() return 100 end }
-    ns.ItemSearch = { Search = function() return { { data = { itemID = 2589, nameLower = "linen cloak", name = "linen cloak" } } } end }
-    View.SetAllowed(true)
-    View.AddNew()
-    local box = made.EditBox[1]
-    box.HasFocus = function() return true end
-    box._text = "lin x20"
-    box._scripts.OnTextChanged(box, true)
-    box._scripts.OnEnterPressed(box)
-    local line = note.list.lines[1]
-    H.assertEq(line.item, 2589, "the pick")
-    H.assertEq(line.target, 20, "with the count typed")
-end
-
-function tests.view_escapeKeepsTheWordsAsTyped()
-    local View, note, _, made, _, env = LoadView({})
-    local ns = env.EasyFind._ns
-    note.list.source = { ext = "Shop", key = "k" }
-    ns.ChecklistLinks = { Shop = { items = true } }
-    ns.StyleMenuPanel = function() end
-    ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function() end end
-    ns.Database = { ScoreName = function() return 100 end }
-    ns.ItemSearch = { Search = function() return { { data = { itemID = 2589, nameLower = "linen cloak", name = "linen cloak" } } } end }
-    View.SetAllowed(true)
-    View.AddNew()
-    local box = made.EditBox[1]
-    box.HasFocus = function() return true end
-    box._text = "lin x20"
-    box._scripts.OnTextChanged(box, true)
-    box._scripts.OnEscapePressed(box)
-    box._scripts.OnEnterPressed(box)
-    local line = note.list.lines[1]
-    H.assertEq(line.text, "lin")
-    H.assertEq(line.target, 20)
-    H.assertEq(line.item, nil)
-end
-
-local function Texts(note)
-    local out = {}
-    for i, line in ipairs(note.list.lines) do out[i] = line.text or "" end
-    return table.concat(out, "|")
-end
-
-function tests.view_typesLinesInPlace()
-    local View, note, _, made = LoadView({ { text = "Plain" }, { text = "Other" } })
-    View.SetAllowed(true)
-    View.AddNew()
-    local box = made.EditBox and made.EditBox[1]
-    H.assertTrue(box ~= nil and box:IsShown(), "a new line opens for typing")
-    box:SetText("Bread")
-    box._scripts.OnEnterPressed()
-    H.assertEq(Texts(note), "Plain|Other|Bread|", "Enter keeps the line and opens one under it")
-    box._scripts.OnEnterPressed()
-    H.assertEq(Texts(note), "Plain|Other|Bread", "Enter on an empty line stops, the line gone")
-    H.assertTrue(not box:IsShown())
-    View.Edit(note.list.lines[2].id)
-    H.assertEq(box:GetText(), "Other", "a line's words to type over")
-    box:SetText("Others")
-    box._scripts.OnKeyDown(box, "UP")
-    H.assertEq(note.list.lines[2].text, "Others", "moving off keeps the words")
-    H.assertEq(box:GetText(), "Plain", "up: the line above")
-    box:SetText("")
-    box._scripts.OnKeyDown(box, "BACKSPACE")
-    H.assertEq(Texts(note), "Others|Bread", "Backspace on an emptied line removes it")
-    box._scripts.OnEditFocusLost()
-end
-
--- A checklist linked to an extension's list (an Auctionator shopping list,
--- 2026-10-26): the list's entries in, matched by ref, ticks kept.
+-- A note linked to an extension's list (an Auctionator shopping list,
+-- 2026-10-26): the list's entries in, matched by ref, ticks kept; the
+-- body is then the lines.
 function tests.linked_entriesComeInByRef()
     local CK = Load()
-    local note = NewList(CK, "account")
+    local note = NewNote(CK, "account")
     local changed = CK.SyncLinked(note, {
         { ref = "\"Linen Cloth\";;;;;;;;;;;;;;20", line = { link = "item", item = 2589, target = 20 } },
         { ref = "Dust", line = { text = "Dust" } },
@@ -490,6 +384,8 @@ function tests.linked_entriesComeInByRef()
     H.assertEq(#lines, 2)
     H.assertEq(lines[1].target, 20, "the entry's amount is the line's target")
     H.assertEq(lines[2].text, "Dust")
+    H.assertEq(note.body, CK.EMPTY .. "Item2589 x20\n" .. CK.EMPTY .. "Dust", "the body is the lines")
+    H.assertEq(Marks(note), "1@1 2@" .. (#CK.EMPTY + #"Item2589 x20" + 2))
     -- Ticked by hand, then the list again unchanged: nothing moves.
     CK.SetTicked(note, lines[2], "A-Realm", true)
     local dustID = lines[2].id
@@ -503,13 +399,13 @@ end
 
 function tests.linked_aChangedListMovesAddsAndDrops()
     local CK = Load()
-    local note = NewList(CK, "account")
+    local note = NewNote(CK, "account")
     CK.SyncLinked(note, { { ref = "A", line = { text = "A" } }, { ref = "B", line = { text = "B" } } })
     local b = note.list.lines[2]
     CK.SetTicked(note, note.list.lines[1], "A-Realm", true)
     local aID = note.list.lines[1].id
-    -- Made here, not in the list yet: it stays, after the list's lines.
-    CK.AddLine(note, { text = "Mine" })
+    -- Typed here, not in the list yet: it stays, after the list's lines.
+    CK.AppendLine(note, { text = "Mine" })
     CK.SyncLinked(note, { { ref = "B", line = { text = "B", target = 5 } }, { ref = "C", line = { text = "C" } } })
     local names = {}
     for i, line in ipairs(note.list.lines) do names[i] = line.text end
@@ -517,7 +413,31 @@ function tests.linked_aChangedListMovesAddsAndDrops()
     H.assertTrue(note.list.lines[1] == b, "B keeps its line")
     H.assertEq(b.target, 5, "and takes the entry's fields")
     H.assertNil((note.list.ticks.account or {})[aID], "a dropped line's tick goes with it")
-    H.assertEq(note.body, "B\nC\nMine", "the body mirrors the lines")
+    H.assertEq(note.body, CK.EMPTY .. "B x5\n" .. CK.EMPTY .. "C\n" .. CK.EMPTY .. "Mine", "the body is the lines, a count in the words")
+end
+
+-- Notes of the old checklist kind become text, their lines as box lines
+-- with their ids and ticks; a box ticked in the words opens, its tick on
+-- the list.
+function tests.migrate_theOldKindAndTickedBoxes()
+    local CK = Load()
+    local old = { id = 1, kind = "checklist", body = "Item7\nRepair",
+        list = { scope = "account", lines = { { id = 4, link = "item", item = 7, target = 2 }, { id = 9, text = "Repair" } },
+                 ticks = { account = { [9] = true } }, seen = {}, resetAt = {}, nextLine = 10, reset = { every = "never" } } }
+    H.assertTrue(CK.Migrate(old, "Me-Realm"))
+    H.assertNil(old.kind)
+    H.assertEq(old.body, CK.EMPTY .. "Item7 x2\n" .. CK.EMPTY .. "Repair")
+    H.assertEq(IDs(old), "4 9", "the ids stay")
+    H.assertTrue(CK.Ticked(old, old.list.lines[2], "Me-Realm"), "the tick stays")
+    H.assertFalse(CK.Migrate(old, "Me-Realm"), "done once")
+    local ticked = { id = 2, body = CK.FILLED .. "Done\n" .. CK.EMPTY .. "Open\nwords " .. CK.FILLED .. "not a box",
+        decorations = { { kind = "strike", startByte = 5, endByte = 9 } } }
+    H.assertTrue(CK.Migrate(ticked, "Me-Realm"))
+    H.assertEq(ticked.body, CK.EMPTY .. "Done\n" .. CK.EMPTY .. "Open\nwords " .. CK.EMPTY .. "not a box", "every ticked glyph opens")
+    H.assertEq(IDs(ticked), "1 2", "two lines; the glyph inside words is none")
+    H.assertTrue(CK.Ticked(ticked, ticked.list.lines[1], "Me-Realm"), "the first was ticked")
+    H.assertFalse(CK.Ticked(ticked, ticked.list.lines[2], "Me-Realm"))
+    H.assertEq(#ticked.decorations, 2, "the tick's strike went; two line marks stand")
 end
 
 local pass, fail, failures = H.runSuite("Checklists", tests)

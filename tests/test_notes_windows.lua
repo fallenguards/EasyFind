@@ -115,7 +115,7 @@ function tests.theListIsTheMainWindow_notesOpenBesideIt()
         "a note opening by itself takes a window of its own")
     H.assertNil(src:find("UI:SelectEasyNote(note.id)\n    UI:HideEasyNotesPalette()", 1, true), "no path turns the list into a note")
     H.assertTrue(src:find("notesNS.Windows.ListFollows()", 1, true) ~= nil, "typing in a note reaches the list")
-    H.assertTrue(Read("Apps/Notes/ChecklistView.lua"):find("notesNS.Windows.ListFollows()", 1, true) ~= nil, "a tick on a list too")
+    H.assertTrue(Read("Apps/Notes/Lines.lua"):find("W.ListFollows()", 1, true) ~= nil, "a line dropped or added too")
 end
 
 local function Placed(l, t, w, level)
@@ -174,11 +174,11 @@ function tests.theWindowUsedComesToTheTop_theOthersKeepTheirOrder()
     H.assertEq(b.frame.level, 880)
 end
 
-function tests.theChecklistViewKeepsASetPerWindow()
-    local src = Read("Apps/Notes/ChecklistView.lua")
-    H.assertTrue(src:find("View.States[w]", 1, true) ~= nil, "a state per window")
-    H.assertTrue(src:find("local CreateFrame, time = notesNS.Windows.CreateFrame, time", 1, true) ~= nil, "its frames are the windows'")
-    H.assertTrue(src:find("notesNS.Windows.Each(View.Refresh)", 1, true) ~= nil, "events refresh every window")
+function tests.theLinesKeepASetPerWindow()
+    local src = Read("Apps/Notes/Lines.lua")
+    H.assertTrue(src:find("Lines.States[w]", 1, true) ~= nil, "a state per window")
+    H.assertTrue(src:find("local CreateFrame, time = W.CreateFrame, time", 1, true) ~= nil, "its frames are the windows'")
+    H.assertTrue(src:find("W.Each(function(w)\n            local note = Note()", 1, true) ~= nil, "events refresh every window")
 end
 
 local pass, fail, failures = H.runSuite("NotesWindows", tests)

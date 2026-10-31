@@ -15,4 +15,4 @@ Context.lua
 Checklist.lua
 Notes.lua
 Reminders.lua
-ChecklistView.lua
+Lines.lua

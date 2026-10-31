@@ -25,6 +25,8 @@ end
 
 local function Run(env, ...)
     local chunks = { ... }
+    -- The lines' hooks ask notesNS.Lines; none here.
+    env.notesNS = env.notesNS or {}
     setmetatable(env, { __index = _G })
     for i = 1, #chunks do assert(load(chunks[i], "=Notes.lua", "t", env))() end
     return env

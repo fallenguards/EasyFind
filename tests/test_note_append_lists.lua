@@ -1,7 +1,6 @@
--- Adding to a note from a result's menu (2026-10-26): a checklist note's
--- body only mirrors its lines, so text appended there never became a line
--- and was overwritten on its next change. A checklist takes a line; any
--- other note carries on the list its last line is in.
+-- Adding to a note from a result's menu (2026-10-26): the text joins the
+-- note as a line under its last, carrying on the list its last line is
+-- in; on a checkbox line an item's link counts that item.
 local H = require("Harness")
 
 local function Source(path)
@@ -67,33 +66,33 @@ function tests.aListEndingTheNoteGoesOn()
     H.assertEq(Mark(""), "")
 end
 
-function tests.aChecklistNoteTakesALine()
+function tests.aNoteWithLinesTakesALine()
     local notesNS = Checklist()
     local CK = notesNS.Checklist
-    local note = { id = 7, body = "" }
-    CK.Init(note)
-    local refreshed = 0
-    notesNS.ChecklistView = { Refresh = function() refreshed = refreshed + 1 end }
-    -- A linked checklist's extension hears of each line added.
-    local told = 0
-    notesNS.LinkedChanged = function(n) if n == note then told = told + 1 end end
+    local note = { id = 7, body = CK.EMPTY .. "Repair", decorations = {} }
+    CK.Reconcile(note)
+    local reloaded, told = 0, 0
+    notesNS.Lines = {
+        Reload = function() reloaded = reloaded + 1 end,
+        BodyChanged = function(n) if CK.Reconcile(n) then told = told + 1 end end,
+    }
     local env = setmetatable({
         notesNS = notesNS, Fmt = {}, tonumber = tonumber, tostring = tostring,
         Utils = { HexColorNames = function(s) return s end },
         FindNoteIndex = function(id) return id == 7 and 1 or nil end,
         NotesStore = function() return { note } end,
-        UpdateBody = function() error("a checklist's body is its lines") end,
+        UpdateBody = function(_, body) note.body = body notesNS.Lines.BodyChanged(note) end,
     }, { __index = _G })
     LoadNotesPart(env, "function Fmt.ListMarkAfter(", "function notesNS.AppendToNote(")
     H.assertTrue(notesNS.AppendToNote(7, "|cffffffff|Hitem:2589::|h[Linen Cloth]|h|r"))
     H.assertTrue(notesNS.AppendToNote(7, "|cff71d5ff|Hspell:148396|h[Cloud Serpent]|h|r"))
     local lines = note.list.lines
-    H.assertEq(#lines, 2)
-    H.assertEq(lines[1].item, 2589, "an item line")
-    H.assertEq(lines[2].link, nil, "a spell is ticked by hand, not a cooldown")
-    H.assertTrue(lines[2].text:find("Cloud Serpent", 1, true) ~= nil)
-    H.assertEq(refreshed, 2)
-    H.assertEq(told, 2, "each line added told the note's extension")
+    H.assertEq(#lines, 3, "each a line under the last")
+    H.assertEq(lines[2].item, 2589, "an item line")
+    H.assertEq(lines[3].link, nil, "a spell is words to tick, not a cooldown")
+    H.assertTrue(lines[3].text:find("Cloud Serpent", 1, true) ~= nil)
+    H.assertEq(reloaded, 2, "the window on it draws it again")
+    H.assertEq(told, 2, "each line added reached the lines")
 end
 
 local pass, fail, failures = H.runSuite("NoteAppendLists", tests)

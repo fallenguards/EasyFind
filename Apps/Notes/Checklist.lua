@@ -2,16 +2,23 @@ local _, notesNS = ...
 local ns = EasyFind and EasyFind._ns
 if not (ns and notesNS.Context) then return end
 
--- Checklist notes: lines ticked by hand, or linked to something the game
+-- A note's checkbox lines: ticked by hand, or linked to something the game
 -- answers (an item count, a quest, a reputation, gold, a level, a skill, a
--- lockout, a cooldown). A list is account wide or kept per character, and
--- may clear its hand ticks on a schedule.
+-- lockout, a cooldown). The words of a line are the note's text; what the
+-- line is (its id, item, link, count) lives in note.list by its id, and a
+-- "line" decoration over the box glyph carries the id through edits. Ticks
+-- are account wide or kept per character, and may clear on a schedule.
 local CK = {}
 notesNS.Checklist = CK
 
 local L = ns.L
 local sformat, slower, sfind, smatch, mfloor, mmax = string.format, string.lower, string.find, string.match, math.floor, math.max
 local ipairs, pairs, type, tonumber, tostring, time, date = ipairs, pairs, type, tonumber, tostring, time, date
+local tremove = table.remove
+
+-- The box glyphs at a line's start, as Notes.lua spells them: the open
+-- box, and the ticked one of notes before ticks moved out of the words.
+CK.EMPTY, CK.FILLED = "\226\150\161 ", "\226\150\163 "
 
 local function Plain(v)
     return v ~= nil and not (issecretvalue and issecretvalue(v))
@@ -25,7 +32,6 @@ CK.CharName = CharName
 -- Lists
 
 function CK.Init(note)
-    note.kind = "checklist"
     note.list = note.list or {}
     local list = note.list
     list.scope = list.scope or "account"
@@ -38,8 +44,19 @@ function CK.Init(note)
     return list
 end
 
+-- A note with checkbox lines.
 function CK.Is(note)
-    return note and note.kind == "checklist" and type(note.list) == "table"
+    return note ~= nil and type(note.list) == "table" and #note.list.lines > 0
+end
+
+-- A note that is a list: every line of it a checkbox line.
+function CK.IsList(note)
+    if not CK.Is(note) then return false end
+    for line in (note.body or ""):gmatch("[^\n]+") do
+        local head = line:sub(1, #CK.EMPTY)
+        if head ~= CK.EMPTY and head ~= CK.FILLED then return false end
+    end
+    return true
 end
 
 -- Whose hand ticks a list keeps: "account" or a character key.
@@ -47,46 +64,180 @@ local function Holder(list, charKey)
     return list.scope == "character" and charKey or "account"
 end
 
--- A line after line afterID, or last.
-function CK.InsertLine(note, line, afterID)
-    local list = CK.Init(note)
-    line.id = list.nextLine
-    list.nextLine = list.nextLine + 1
-    local at = #list.lines + 1
-    for i, l in ipairs(list.lines) do
-        if l.id == afterID then at = i + 1 break end
+-- The body's checkbox lines in order: where each box starts, its words.
+function CK.BodyLines(body)
+    local found, pos = {}, 1
+    body = body or ""
+    while true do
+        local nl = sfind(body, "\n", pos, true)
+        local lineEnd = nl and nl - 1 or #body
+        local head = body:sub(pos, pos + #CK.EMPTY - 1)
+        if head == CK.EMPTY or head == CK.FILLED then
+            found[#found + 1] = { start = pos, contentStart = pos + #CK.EMPTY, lineEnd = lineEnd }
+        end
+        if not nl then break end
+        pos = nl + 1
     end
-    table.insert(list.lines, at, line)
-    CK.SyncBody(note)
-    return line
+    return found
 end
 
-function CK.AddLine(note, line)
-    return CK.InsertLine(note, line, nil)
+local function ItemName(id)
+    return (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)) or ("item:" .. id)
 end
 
-function CK.RemoveLine(note, id)
-    local list = note.list
-    for i, line in ipairs(list.lines) do
-        if line.id == id then
-            table.remove(list.lines, i)
-            break
+-- A line's fields from its words. A line the game ticks (not an item)
+-- keeps what it reads, the words rename it. Else a link in the words makes
+-- it that item or quest, with a count written after it (a spell's link is
+-- words: a cooldown is tracked on purpose); a plain name is the line's own
+-- item while it reads as that item's name, or, in a list of items once
+-- the typing settles, the item it names; the rest is text, with its count
+-- in a list of items. True when a field changed.
+local READ = { "text", "item", "link", "target", "quest", "spell" }
+function CK.ReadContent(line, content, items, settle)
+    local words, count = CK.SplitCount(content)
+    local new
+    local fromLink = CK.LineFromLink(words)
+    if fromLink and fromLink.link == "cooldown" then fromLink = nil end
+    if line.link and line.link ~= "item" and not fromLink then
+        new = { text = content ~= "" and content or nil }
+        for _, k in ipairs(READ) do
+            if k ~= "text" then new[k] = line[k] end
+        end
+    elseif fromLink and fromLink.item then
+        new = { item = fromLink.item, link = count and "item" or nil, target = count }
+    elseif fromLink then
+        new = fromLink
+    else
+        if line.item and slower(words) == slower(ItemName(line.item)) then
+            new = { item = line.item, link = count and "item" or nil, target = count }
+        elseif items and settle then
+            -- A name ending in a number ("Net-o-Matic 5000") is the item.
+            local whole = CK.ItemByName(content)
+            local id = whole or CK.ItemByName(words)
+            if whole then new = { item = whole }
+            elseif id then new = { item = id, link = count and "item" or nil, target = count } end
+        end
+        if not new then
+            if items and count then new = { text = words, target = count }
+            else new = { text = content ~= "" and content or nil } end
         end
     end
-    for _, ticks in pairs(list.ticks) do ticks[id] = nil end
-    for _, seen in pairs(list.seen) do seen[id] = nil end
-    CK.SyncBody(note)
+    local changed = false
+    for _, k in ipairs(READ) do
+        if line[k] ~= new[k] then line[k], changed = new[k], true end
+    end
+    return changed
 end
 
--- An extension's list into the checklist linked to it (list.source, by
+-- The list brought in step with the body: each checkbox line keeps the id
+-- its "line" decoration carries, a new one gets the next; the lines read
+-- their words; a line gone takes its ticks. True when anything changed.
+function CK.Reconcile(note, settle)
+    local found = CK.BodyLines(note.body)
+    if #found == 0 and not (note.list and #note.list.lines > 0) then return false end
+    local list = CK.Init(note)
+    local decos = note.decorations
+    local idAt = {}
+    for i = 1, #(decos or {}) do
+        local d = decos[i]
+        if d.kind == "line" then idAt[d.startByte] = d end
+    end
+    local byId = {}
+    for _, line in ipairs(list.lines) do byId[line.id] = line end
+    local items = CK.ItemsList(note)
+    local out, kept, changed = {}, {}, false
+    for _, f in ipairs(found) do
+        local d = idAt[f.start]
+        if not d then
+            note.decorations = note.decorations or {}
+            decos = note.decorations
+            d = { kind = "line", id = list.nextLine, startByte = f.start, endByte = f.start + #CK.EMPTY - 1 }
+            list.nextLine = list.nextLine + 1
+            decos[#decos + 1] = d
+            changed = true
+        end
+        kept[d] = true
+        local line = byId[d.id]
+        if line then byId[d.id] = nil else line, changed = { id = d.id }, true end
+        if CK.ReadContent(line, (note.body or ""):sub(f.contentStart, f.lineEnd), items, settle) then changed = true end
+        out[#out + 1] = line
+    end
+    -- A box no longer at a line's start: its mark goes.
+    for i = #(decos or {}), 1, -1 do
+        if decos[i].kind == "line" and not kept[decos[i]] then tremove(decos, i) end
+    end
+    for id in pairs(byId) do
+        for _, ticks in pairs(list.ticks) do ticks[id] = nil end
+        for _, seen in pairs(list.seen) do seen[id] = nil end
+        changed = true
+    end
+    if #out ~= #list.lines then changed = true end
+    list.lines = out
+    return changed
+end
+
+-- The line whose box starts at startByte, by its decoration.
+function CK.LineAt(note, startByte)
+    local decos, list = note.decorations, note.list
+    if not (decos and list) then return nil end
+    for i = 1, #decos do
+        local d = decos[i]
+        if d.kind == "line" and d.startByte == startByte then
+            for _, line in ipairs(list.lines) do
+                if line.id == d.id then return line end
+            end
+            return nil
+        end
+    end
+end
+
+-- Where line id's box starts in the body.
+function CK.LineStart(note, id)
+    for _, d in ipairs(note.decorations or {}) do
+        if d.kind == "line" and d.id == id then return d.startByte end
+    end
+end
+
+-- The body as the lines alone, one a line, each marked with its id.
+local function WriteLines(note, lines)
+    local parts, decos, pos = {}, {}, 1
+    for i, line in ipairs(lines) do
+        local text = CK.EMPTY .. CK.EditText(line)
+        parts[i] = text
+        decos[#decos + 1] = { kind = "line", id = line.id, startByte = pos, endByte = pos + #CK.EMPTY - 1 }
+        pos = pos + #text + 1
+    end
+    note.body = table.concat(parts, "\n")
+    note.decorations = decos
+    note.list.lines = lines
+    note.updated = time()
+end
+
+-- A line under the note's last, with the fields given.
+function CK.AppendLine(note, line)
+    local body = note.body or ""
+    if body ~= "" and body:sub(-1) ~= "\n" then body = body .. "\n" end
+    local start = #body + 1
+    note.body = body .. CK.EMPTY .. CK.EditText(line)
+    note.updated = time()
+    CK.Reconcile(note)
+    local made = CK.LineAt(note, start)
+    for k, v in pairs(line) do
+        if made and k ~= "id" then made[k] = v end
+    end
+    return made
+end
+
+-- An extension's list into the note linked to it (list.source, by
 -- EasyFind.API.LinkedChecklist): entries in its order, each { ref, line }.
 -- A line holding an entry's ref keeps its id and ticks and takes the
 -- entry's fields; a new ref is a new line; a ref gone takes its line.
--- Lines with no ref (made here, not in the list yet) stay, after the rest.
--- True when anything changed.
+-- Lines with no ref (typed here, not in the list yet) stay, after the
+-- rest. The body is then the lines. True when anything changed.
 local SYNCED = { "item", "link", "target", "text" }
 function CK.SyncLinked(note, entries)
     local list = CK.Init(note)
+    CK.Reconcile(note)
     local byRef, pending, changed = {}, {}, false
     for _, line in ipairs(list.lines) do
         if line.ref and not byRef[line.ref] then byRef[line.ref] = line
@@ -116,22 +267,51 @@ function CK.SyncLinked(note, entries)
     for i = 1, #out do
         if out[i] ~= list.lines[i] then changed = true end
     end
-    if changed then
-        list.lines = out
-        CK.SyncBody(note)
-    end
+    if changed then WriteLines(note, out) end
     return changed
 end
 
-function CK.MoveLine(note, id, delta)
-    local lines = note.list.lines
-    for i, line in ipairs(lines) do
-        if line.id == id then
-            local j = i + delta
-            if j >= 1 and j <= #lines then lines[i], lines[j] = lines[j], lines[i] end
-            return
+-- A note of the old checklist kind becomes its lines as text; a ticked box
+-- in the words (the old tick) opens, its tick kept on the list for whoever
+-- keeps them. True when the note changed.
+function CK.Migrate(note, charKey)
+    if note.kind == "checklist" and type(note.list) == "table" then
+        CK.Init(note)
+        WriteLines(note, note.list.lines)
+        note.kind = nil
+        return true
+    end
+    local body = note.body or ""
+    if not sfind(body, CK.FILLED, 1, true) then return false end
+    local filled, pos = {}, 1
+    while true do
+        local s = sfind(body, CK.FILLED, pos, true)
+        if not s then break end
+        if s == 1 or body:sub(s - 1, s - 1) == "\n" then filled[#filled + 1] = s end
+        pos = s + 1
+    end
+    -- The same bytes long: nothing else moves.
+    note.body = body:gsub(CK.FILLED, CK.EMPTY)
+    local decos = note.decorations or {}
+    for i = #decos, 1, -1 do
+        local d = decos[i]
+        if d.kind == "strike" then
+            for _, s in ipairs(filled) do
+                if d.startByte == s + #CK.EMPTY then tremove(decos, i) break end
+            end
         end
     end
+    CK.Reconcile(note)
+    local list = CK.Init(note)
+    for _, s in ipairs(filled) do
+        local line = CK.LineAt(note, s)
+        if line then
+            local key = Holder(list, charKey)
+            list.ticks[key] = list.ticks[key] or {}
+            list.ticks[key][line.id] = true
+        end
+    end
+    return true
 end
 
 function CK.Ticked(note, line, charKey)
@@ -148,10 +328,6 @@ function CK.SetTicked(note, line, charKey, on)
 end
 
 -- Game links: each answers done, a progress text and a detail line.
-
-local function ItemName(id)
-    return (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)) or ("item:" .. id)
-end
 
 local function Span(sec)
     sec = mmax(0, mfloor(sec))
@@ -467,14 +643,6 @@ function CK.ApplyReset(note, now)
     return cleared
 end
 
--- The note body mirrors the line names, so search and titles see them.
-function CK.SyncBody(note)
-    local parts = {}
-    for _, line in ipairs(note.list.lines) do parts[#parts + 1] = CK.LineName(line) end
-    note.body = table.concat(parts, "\n")
-    note.updated = time()
-end
-
 function CK.Preview(note)
     local done, total = CK.Progress(note)
     return sformat(L["CHECK_PREVIEW_FMT"], done, total)
@@ -495,7 +663,7 @@ end
 -- A list of items (a shopping list): a name typed in it is looked up, and
 -- keeps a count written with it.
 function CK.ItemsList(note)
-    local src = note and note.list and note.list.source
+    local src = note and type(note.list) == "table" and note.list.source
     local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
     return link ~= nil and link.items == true
 end
@@ -537,28 +705,6 @@ function CK.ItemByName(name)
     end
 end
 
--- A line from typed words. A link in them makes it that item, quest or
--- spell; an item counts toward a count written with it. In a list of
--- items a name is looked up too, and one unknown keeps its count.
-function CK.TypedLine(text, items)
-    local words, count = CK.SplitCount(text)
-    local line = CK.LineFromLink(words)
-    if not line and items then
-        -- A name ending in a number ("Net-o-Matic 5000") is the item.
-        local whole = CK.ItemByName(text)
-        if whole then return { item = whole } end
-        local id = CK.ItemByName(words)
-        line = id and { item = id }
-    end
-    if line and line.item then
-        if count then line.link, line.target = "item", count end
-        return line
-    end
-    if line then return line end
-    if items and count then return { text = words, target = count } end
-    return { text = text }
-end
-
 -- The words a line is typed as: its own, or its item or spell as a link,
 -- and its count after.
 function CK.EditText(line)
@@ -584,23 +730,9 @@ function CK.SetCount(line, n)
     end
 end
 
--- Typed words into a line: what TypedLine makes of them, or the line's own
--- item when its name is typed plain (its count changed); pick: an item
--- chosen from the suggestions for the words.
-local TYPED = { "text", "item", "link", "target", "quest", "spell" }
-function CK.Retype(line, text, items, pick)
-    local new
-    if pick then
-        local _, count = CK.SplitCount(text)
-        new = { item = pick, link = count and "item" or nil, target = count }
-    else
-        new = CK.TypedLine(text, items)
-        if line.item and not new.item then
-            local words, count = CK.SplitCount(text)
-            if slower(words) == slower(ItemName(line.item)) then
-                new = { item = line.item, link = count and "item" or nil, target = count }
-            end
-        end
-    end
-    for _, k in ipairs(TYPED) do line[k] = new[k] end
+-- The words of a line picked from the suggestions: the item's link, the
+-- count typed kept.
+function CK.PickedText(text, pick)
+    local _, count = CK.SplitCount(text)
+    return CK.EditText({ item = pick, link = count and "item" or nil, target = count })
 end
