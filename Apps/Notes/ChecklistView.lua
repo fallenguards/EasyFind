@@ -81,6 +81,7 @@ local function Changed(note)
     note.updated = time()
     if notesNS.LinkedChanged then notesNS.LinkedChanged(note) end
     View.Refresh()
+    notesNS.Windows.ListFollows()
 end
 
 -- The auction house

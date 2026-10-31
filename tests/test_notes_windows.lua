@@ -96,6 +96,56 @@ function tests.freeWindowsAndTheOneShowingANote()
     H.assertEq(env.CreateFrame, W.CreateFrame, "frames made here are the windows'")
 end
 
+-- The main window is the list; a note opened anyhow gets a window of its
+-- own beside it, and the list follows edits made there.
+function tests.theListIsTheMainWindow_notesOpenBesideIt()
+    local src = Read("Apps/Notes/Notes.lua")
+    local s = assert(src:find('row:SetScript("OnDoubleClick", function(self, button)', 1, true))
+    local block = src:sub(s, assert(src:find("\n    end)\n", s, true)))
+    H.assertTrue(block:find("notesNS.Windows.OpenNote(self.noteID)", 1, true) ~= nil, "a double-click opens the note in its own window")
+    H.assertNil(block:find("HideEasyNotesPalette", 1, true), "the list stays")
+    H.assertTrue(src:find("function notesNS.OpenNote(id)\n    if FindNoteIndex(id) then notesNS.Windows.OpenNote(id) end", 1, true) ~= nil,
+        "a link or a search result opens the note beside the list")
+    H.assertTrue(src:find("if W.active ~= W.main then return W.Run(W.main, function() return UI:OpenEasyNotes() end) end", 1, true) ~= nil,
+        "opening the list opens the main window, whichever window asks")
+    H.assertTrue(src:find("if W.active ~= W.main then UI:OpenEasyNotes() else UI:ToggleEasyNotesPalette() end", 1, true) ~= nil,
+        "Home on a note's window brings up the list")
+    H.assertTrue(src:find("local w = W.OpenNote(id)\n                if w then w.openedFor, w.openedOn = id, holder end", 1, true) ~= nil,
+        "a note opening by itself takes a window of its own")
+    H.assertNil(src:find("UI:SelectEasyNote(note.id)\n    UI:HideEasyNotesPalette()", 1, true), "no path turns the list into a note")
+    H.assertTrue(src:find("notesNS.Windows.ListFollows()", 1, true) ~= nil, "typing in a note reaches the list")
+    H.assertTrue(Read("Apps/Notes/ChecklistView.lua"):find("notesNS.Windows.ListFollows()", 1, true) ~= nil, "a tick on a list too")
+end
+
+function tests.aNoteWindowSitsBesideTheList()
+    local env, W = Load()
+    local points = {}
+    local function Frame(l, r, t, w)
+        local f = FakeFrame()
+        f.shown = true
+        function f:GetLeft() return l end
+        function f:GetRight() return r end
+        function f:GetTop() return t end
+        function f:GetWidth() return w end
+        function f:GetScale() return 1 end
+        function f:ClearAllPoints() end
+        function f:SetPoint(...) points[#points + 1] = { ... } end
+        return f
+    end
+    env.UIParent = { GetWidth = function() return 1000 end }
+    W.main.frame = Frame(100, 400, 700, 300)
+    local other = W.New("EasyNotesFrame2")
+    other.frame = Frame(0, 300, 500, 300)
+    W.PlaceBeside(other)
+    H.assertEq(points[1][1], "TOPLEFT")
+    H.assertEq(points[1][4], 408, "at the list's right, a gap between")
+    H.assertEq(points[1][5], 700, "its top at the list's")
+    W.main.frame = Frame(650, 950, 700, 300)
+    W.PlaceBeside(other)
+    H.assertEq(points[2][1], "TOPRIGHT", "no room at the right: at its left")
+    H.assertEq(points[2][4], 642)
+end
+
 function tests.theChecklistViewKeepsASetPerWindow()
     local src = Read("Apps/Notes/ChecklistView.lua")
     H.assertTrue(src:find("View.States[w]", 1, true) ~= nil, "a state per window")

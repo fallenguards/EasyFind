@@ -249,6 +249,8 @@ local function LoadView(lines)
     function Windows.Each(fn)
         for _, w in ipairs(Windows.list) do Windows.Run(w, fn, w) end
     end
+    Windows.listFollowed = 0
+    function Windows.ListFollows() Windows.listFollowed = Windows.listFollowed + 1 end
     local notesNS = {
         Checklist = CK, Context = {}, Windows = Windows,
         UI = { _notes = { frame = main.frame } },
