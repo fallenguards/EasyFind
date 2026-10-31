@@ -617,7 +617,7 @@ function Search:OnSearchTextChangedNow(text, force)
        and not calculatorData and not calculatorLauncher then
         local boostCat = ns.MapSearchData and ns.MapSearchData.KEYWORD_TO_CATEGORY
             and ns.MapSearchData.KEYWORD_TO_CATEGORY[slower(text)]
-        local localScope = boostCat and EasyFind.db.mapCategoryScope == "local"
+        local localScope = boostCat and ns.MapSearch and ns.MapSearch.ZoneOnlyForCategory(boostCat) or false
         local catRows = boostCat and ns.MapSearch and ns.MapSearch.GetCategoryResultsForUI
             and ns.MapSearch:GetCategoryResultsForUI(boostCat, localScope and 8 or 3, true, localScope, text)
         if localScope then

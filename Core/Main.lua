@@ -19,7 +19,7 @@ ns.eventFrame = eventFrame
 EasyFind.db = {}
 
 -- Increment when DB schema changes; migrations [N] run when savedVersion < N.
-local DB_VERSION = 26
+local DB_VERSION = 27
 local REVAMPED_TUTORIAL_VERSION = "2.0.0"
 ns.REVAMPED_TUTORIAL_VERSION = REVAMPED_TUTORIAL_VERSION
 
@@ -311,9 +311,9 @@ local DB_DEFAULTS = {
     mapTabAutocomplete = true,
     showAppsButton = true,
     showFilterButton = true,
-    -- Breadth of the category-word boost: "all" pins your zone's results
-    -- above the world list; "local" shows only your zone's for that category.
-    mapCategoryScope = "all",
+    -- "This zone only" per map category (a filter bucket key -> true), `all`
+    -- for every category; absent, every zone's places show, yours first.
+    mapZoneOnly = {},
     learnFromPicks = true,
     macroPickerSearch = true,
     spotlightsDone = {},
@@ -585,6 +585,11 @@ local DB_MIGRATIONS = {
                 slot.settings.showAliasMessages = nil
             end
         end
+    end,
+    [27] = function(db)
+        -- "This zone only" is per map category: the one switch becomes all of them.
+        if db.mapCategoryScope == "local" then db.mapZoneOnly = { all = true } end
+        db.mapCategoryScope = nil
     end,
 }
 

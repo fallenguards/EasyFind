@@ -395,6 +395,12 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
             end
             -- Collections and Map carry many sub-filters; give their flyouts
             -- the same Toggle All row the main menu has (created below).
+            -- A filter is on unless set false; a scope switch ("this zone
+            -- only") is off unless set true.
+            local function FilterOn(def, target)
+                if def.scope then return target[def.key] == true end
+                return target[def.key] ~= false
+            end
             local toggleAllRow
             local toggleAllOffset = (opt.key == "collections" or opt.key == "map") and 1 or 0
             for si, sub in ipairs(opt.flyoutSubFilters) do
@@ -449,6 +455,24 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                 end
 
                 InstallMenuRowHighlight(subRow)
+
+                -- A delayed hover tooltip carries what a short label cannot.
+                if sub.tooltip then
+                    subRow:HookScript("OnEnter", function(self)
+                        local token = (self._tipToken or 0) + 1
+                        self._tipToken = token
+                        Utils.SafeAfter(ns.TOOLTIP_HOVER_DELAY, function()
+                            if self._tipToken ~= token or not self:IsMouseOver() then return end
+                            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                            GameTooltip:SetText(sub.tooltip, 1, 1, 1, 1, true)
+                            GameTooltip:Show()
+                        end)
+                    end)
+                    subRow:HookScript("OnLeave", function(self)
+                        self._tipToken = (self._tipToken or 0) + 1
+                        GameTooltip:Hide()
+                    end)
+                end
 
                 subRow:SetScript("OnClick", function(self)
                     local target = sub.dbTable and EasyFind.db[sub.dbTable]
@@ -765,13 +789,20 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local function SyncChildChecks()
                         local subTarget = sub.dbTable and EasyFind.db[sub.dbTable]
                                        or EasyFind.db.uiSearchFilters
-                        local subOn = subTarget[sub.key] ~= false
+                        -- Under a scope switch for every category, the
+                        -- per-category ones have nothing left to say.
+                        local subOn
+                        if sub.scope then
+                            subOn = subTarget[sub.key] ~= true
+                        else
+                            subOn = subTarget[sub.key] ~= false
+                        end
                         SetFlyoutRowEnabled(nestedToggleAll, subOn)
                         for _, child in ipairs(children) do
                             local cr = childRows[child.key]
                             local childTarget = child.dbTable and EasyFind.db[child.dbTable]
                                            or EasyFind.db.uiSearchFilters
-                            cr:SetChecked(childTarget[child.key] ~= false)
+                            cr:SetChecked(FilterOn(child, childTarget))
                             SetFlyoutRowEnabled(cr, subOn)
                         end
                     end
@@ -782,7 +813,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                         for _, child in ipairs(children) do
                             local target = child.dbTable and EasyFind.db[child.dbTable]
                                            or EasyFind.db.uiSearchFilters
-                            if target[child.key] ~= false then
+                            if FilterOn(child, target) then
                                 allUnchecked = false
                                 break
                             end
@@ -859,12 +890,8 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
             row.flyoutSubRows = subRows
 
             -- Behavior checkbox at the bottom of a flyout, below the bucket
-            -- toggles. Collections: "Hide tooltips" (per-group
-            -- EasyFind.db.hideTooltips the OnEnter handlers consult). Map:
-            -- "This zone only" narrows category words (GitHub #21) to the
-            -- current zone; unchecked default is all zones, this zone's
-            -- first. The boost itself is always on for category words --
-            -- the checkbox is breadth, not on/off.
+            -- toggles: Collections' "Hide tooltips" (per-group
+            -- EasyFind.db.hideTooltips the OnEnter handlers consult).
             local extraRows = 0
             local behaviorRow
             local function MakeBehaviorRow(labelText, slot)
@@ -881,32 +908,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                 InstallMenuRowHighlight(r)
                 return r
             end
-            if opt.key == "map" then
-                behaviorRow = MakeBehaviorRow(L["FILTER_MAP_SCOPE_LOCAL"], 0)
-                behaviorRow._isMapScope = true
-                behaviorRow:SetScript("OnClick", function(self)
-                    EasyFind.db.mapCategoryScope = self:GetChecked() and "local" or "all"
-                    Filters:RerunActiveSearch()
-                end)
-                -- Delayed hover tooltip carries the explanation the short
-                -- label can't: what "this zone only" limits, and that the
-                -- unchecked default is all zones with this zone's first.
-                behaviorRow:HookScript("OnEnter", function(self)
-                    local token = (self._tipToken or 0) + 1
-                    self._tipToken = token
-                    Utils.SafeAfter(ns.TOOLTIP_HOVER_DELAY, function()
-                        if self._tipToken ~= token or not self:IsMouseOver() then return end
-                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetText(L["FILTER_MAP_SCOPE_LOCAL_TT"], 1, 1, 1, 1, true)
-                        GameTooltip:Show()
-                    end)
-                end)
-                behaviorRow:HookScript("OnLeave", function(self)
-                    self._tipToken = (self._tipToken or 0) + 1
-                    GameTooltip:Hide()
-                end)
-                extraRows = 1
-            elseif opt.key == "collections" then
+            if opt.key == "collections" then
                 behaviorRow = MakeBehaviorRow(L["FILTER_HIDE_TOOLTIPS"], 0)
                 behaviorRow:SetScript("OnClick", function(self)
                     EasyFind.db.hideTooltips = EasyFind.db.hideTooltips or {}
@@ -923,17 +925,13 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     if sr then
                         local target = sub.dbTable and EasyFind.db[sub.dbTable]
                                        or EasyFind.db.uiSearchFilters
-                        sr:SetChecked(target[sub.key] ~= false)
+                        sr:SetChecked(FilterOn(sub, target))
                         SetFlyoutRowEnabled(sr, parentEnabled)
                     end
                 end
                 if behaviorRow then
-                    if behaviorRow._isMapScope then
-                        behaviorRow:SetChecked(EasyFind.db.mapCategoryScope == "local")
-                    else
-                        local ht = EasyFind.db.hideTooltips
-                        behaviorRow:SetChecked(ht and ht.collections == true)
-                    end
+                    local ht = EasyFind.db.hideTooltips
+                    behaviorRow:SetChecked(ht and ht.collections == true)
                     SetFlyoutRowEnabled(behaviorRow, parentEnabled)
                 end
                 if toggleAllRow then
@@ -957,7 +955,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     for _, sub in ipairs(opt.flyoutSubFilters) do
                         local target = sub.dbTable and EasyFind.db[sub.dbTable]
                                        or EasyFind.db.uiSearchFilters
-                        if target[sub.key] ~= false then
+                        if not sub.scope and target[sub.key] ~= false then
                             allUnchecked = false
                             break
                         end
@@ -965,7 +963,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     for _, sub in ipairs(opt.flyoutSubFilters) do
                         local target = sub.dbTable and EasyFind.db[sub.dbTable]
                                        or EasyFind.db.uiSearchFilters
-                        target[sub.key] = allUnchecked
+                        if not sub.scope then target[sub.key] = allUnchecked end
                     end
                     SyncSubChecks()
                     Filters.ResyncShownOptionPopups()

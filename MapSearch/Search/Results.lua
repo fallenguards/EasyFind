@@ -23,6 +23,7 @@ local POICouldMatch = Search.POICouldMatch
 local BuildEntranceLookup = Search.BuildEntranceLookup
 local EnrichZoneWithEntrance = Search.EnrichZoneWithEntrance
 local AppendLocalSearchSources = Search.AppendLocalSearchSources
+local AppendWorldStaticLocations = Search.AppendWorldStaticLocations
 local AppendZoneSearchResults = Search.AppendZoneSearchResults
 local AppendGlobalInstanceSearchSources = Search.AppendGlobalInstanceSearchSources
 local AppendAlwaysFindableLocations = Search.AppendAlwaysFindableLocations
@@ -390,6 +391,7 @@ local function Nearest(poi, pci, px, py)
     return d
 end
 
+local playerCI, playerX, playerY
 local function TakeDistances(results)
     local m = GetBestMapForUnit("player")
     local pos = m and GetPlayerMapPosition(m, "player")
@@ -397,10 +399,33 @@ local function TakeDistances(results)
     if pos then ok, pci, wp = pcall(GetWorldPosFromMapPos, m, pos) end
     local px, py
     if ok and pci and wp then px, py = wp:GetXY() else pci = nil end
+    playerCI, playerX, playerY = pci, px, py
     for i = 1, #results do
         local r = results[i]
         nearOf[r] = (pci and not r.isZone) and Nearest(r, pci, px, py) or FAR
     end
+end
+
+-- The nearest of a folded place's spots stands for the row (its zone, its
+-- spot): the first found is whichever zone the table listed first.
+local function NearestInstance(r)
+    local list = r.isStatic and r.allInstances
+    if not (list and playerCI) then return r end
+    local best, bd = r, FAR
+    for i = 1, #list do
+        local poi = list[i]
+        local ci, wx, wy = WorldSpot(poi)
+        if ci == playerCI then
+            local d = (wx - playerX) ^ 2 + (wy - playerY) ^ 2
+            if d < bd then best, bd = poi, d end
+        end
+    end
+    return best
+end
+
+-- A row stands in a map when its spot, its entrance or its zone is it.
+local function InZone(r, mapID)
+    return (r.entranceMapID or r.zoneMapID or r.mapID) == mapID
 end
 
 local function POIResultLess(a, b)
@@ -776,7 +801,10 @@ function MapSearch:SearchForUI(query, filters)
     local fresh = reuseUIFreshRows
 
     do
-        AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, true)
+        -- Static names stay unmarked: same-named places fold after scoring,
+        -- so another zone's weapon master is not hidden behind this zone's.
+        AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, false)
+        AppendWorldStaticLocations(self, pois, existingNames, searchMapID)
     end
     Part("local")
 
@@ -830,11 +858,16 @@ function MapSearch:SearchForUI(query, filters)
     do
         local mtFilters = EasyFind.db.uiMapFilters
         if filters ~= nil then mtFilters = filters or nil end
-        if mtFilters then
+        -- "This zone only": a category so switched keeps to the player's zone.
+        local only = EasyFind.db.mapZoneOnly
+        local scoped = only ~= nil and next(only) ~= nil
+        if mtFilters or scoped then
             wipe(reuseUISearchFiltered)
             local filtered = reuseUISearchFiltered
+            local ZoneOnly = ns.MapSearch.ZoneOnly
             for _, r in ipairs(scored) do
-                if ns.MapSearch.PassesFilter(r, mtFilters) then
+                if (not mtFilters or ns.MapSearch.PassesFilter(r, mtFilters))
+                   and not (scoped and ZoneOnly(r) and not InZone(r, searchMapID)) then
                     filtered[#filtered + 1] = r
                 end
             end
@@ -853,7 +886,12 @@ function MapSearch:SearchForUI(query, filters)
             d = {}
             reuseUISearchResultData[ri] = d
         end
-        FillUIRow(d, r, searchMapID, query, kindQuery)
+        local src = NearestInstance(r)
+        FillUIRow(d, src, searchMapID, query, kindQuery)
+        if src ~= r and kindQuery then
+            local near = nearOf[r]
+            d.nearYards = near and near < FAR and near ^ 0.5 or nil
+        end
         d.mapRank, d.mapNear = ri, nearOf[r] or FAR
         local out = results[ri]
         if not out then
@@ -988,7 +1026,7 @@ function MapSearch:PlacesForQuery(text)
     for _, r in ipairs(self:SearchForUI(text, filters) or {}) do pass[#pass + 1] = CopyRow(r.data) end
     local category = ns.MapSearchData and ns.MapSearchData.KEYWORD_TO_CATEGORY
         and ns.MapSearchData.KEYWORD_TO_CATEGORY[slower(text)]
-    local localOnly = category and EasyFind.db.mapCategoryScope == "local"
+    local localOnly = category and ns.MapSearch.ZoneOnlyForCategory(category) or false
     local out, seen = {}, {}
     local function Add(row)
         local key = (row.nameLower or row.name or "") .. "\1" .. tostring(row.mapID or "")

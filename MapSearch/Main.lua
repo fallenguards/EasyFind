@@ -156,6 +156,26 @@ local function PassesFilter(data, filters)
 end
 ns.MapSearch.PassesFilter = PassesFilter
 
+-- "This zone only" for a result's category (EasyFind.db.mapZoneOnly: a
+-- bucket or sub-bucket key -> true, `all` for every category). A zone is a
+-- zone wherever you stand, so zone rows are never kept home.
+local function ZoneOnly(data)
+    local only = EasyFind.db and EasyFind.db.mapZoneOnly
+    if not only then return false end
+    local bucket = GetFilterBucket(data)
+    if bucket == "zones" then return false end
+    if only.all == true or only[bucket] == true then return true end
+    local sub = GetSubBucket(data, bucket)
+    return sub ~= nil and only[sub] == true
+end
+ns.MapSearch.ZoneOnly = ZoneOnly
+
+local scopeProbe = {}
+function ns.MapSearch.ZoneOnlyForCategory(category)
+    scopeProbe.category = category
+    return ZoneOnly(scopeProbe)
+end
+
 function MapSearch:Initialize()
     self:CreateHighlightFrame()
     self:CreateZoneHighlightFrame()

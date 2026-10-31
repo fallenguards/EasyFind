@@ -302,6 +302,31 @@ function MapSearch:GetStaticLocations(mapID)
     return results
 end
 
+-- Every map's places in one list for the bar's search from anywhere, each
+-- with its zone's name (its subtext) and its filter buckets (the "this zone
+-- only" switches). Built once.
+local worldStaticLocations
+function MapSearch:GetWorldStaticLocations()
+    if worldStaticLocations then return worldStaticLocations end
+    local results = {}
+    for mapID, locations in pairs(STATIC_LOCATIONS) do
+        local info = GetMapInfo(mapID)
+        local zoneName = info and info.name or nil
+        for _, loc in ipairs(locations) do
+            local entry = PreparePOI({
+                name = loc.name, category = loc.category, icon = loc.icon, isStatic = true,
+                mapID = mapID, coordMapID = mapID, x = loc.x, y = loc.y,
+                keywords = loc.keywords, teaches = loc.teaches, zoneName = zoneName,
+            })
+            entry.scopeBucket = MapSearch.GetFilterBucket(entry)
+            entry.scopeSub = MapSearch.GetSubBucket(entry, entry.scopeBucket)
+            tinsert(results, entry)
+        end
+    end
+    worldStaticLocations = results
+    return results
+end
+
 function MapSearch:ScanVignettes(mapID)
     local rares = {}
     if not GetVignettes or not GetVignettePosition then return rares end

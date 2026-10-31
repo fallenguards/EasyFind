@@ -497,6 +497,27 @@ end
 -- The same for systems this client does not have (Shared/Caps.lua).
 if ns.Caps and ns.Caps.PruneRows then ns.Caps.PruneRows(UI_FILTER_OPTIONS) end
 
+-- "This zone only" per map category: the last row of the Map flyout holds
+-- the switch for every category and opens one per category, the flyout's
+-- own leaves (zones aside: a zone is a zone wherever you stand). Scope rows
+-- read EasyFind.db.mapZoneOnly, off unless set, and no Toggle All flips them.
+for _, opt in ipairs(UI_FILTER_OPTIONS) do
+    if opt.key == "map" and opt.flyoutSubFilters then
+        local leaves = {}
+        for _, sub in ipairs(opt.flyoutSubFilters) do
+            if sub.key ~= "zones" then
+                for _, leaf in ipairs(type(sub.subFilters) == "table" and sub.subFilters or { sub }) do
+                    leaves[#leaves + 1] = { key = leaf.key, label = leaf.label, dbTable = "mapZoneOnly", scope = true }
+                end
+            end
+        end
+        opt.flyoutSubFilters[#opt.flyoutSubFilters + 1] = {
+            key = "all", label = L["FILTER_MAP_SCOPE_LOCAL"], dbTable = "mapZoneOnly", scope = true,
+            tooltip = L["FILTER_MAP_SCOPE_LOCAL_TT"], subFilters = leaves,
+        }
+    end
+end
+
 Filters.UI_FILTER_OPTIONS = UI_FILTER_OPTIONS
 
 -- An extension's filter row under Extensions (EasyFind.API). The menu is

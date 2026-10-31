@@ -97,5 +97,15 @@ function tests.aWrongTypedValueGetsItsOwnDefault()
     H.assertEq(db.dbVersion, version)
 end
 
+function tests.theOneZoneSwitchBecomesEveryCategorys()
+    local db, version = Load({ dbVersion = 26, mapCategoryScope = "local" })
+    H.assertEq(db.mapZoneOnly.all, true, "step 27 keeps a narrowed search narrowed")
+    H.assertNil(db.mapCategoryScope)
+    H.assertEq(db.dbVersion, version)
+    local wide = Load({ dbVersion = 26, mapCategoryScope = "all" })
+    H.assertNil(wide.mapZoneOnly.all, "an open search stays open")
+    H.assertNil(wide.mapCategoryScope)
+end
+
 local pass, fail, failures = H.runSuite("Migrations", tests)
 return { pass = pass, fail = fail, failures = failures }

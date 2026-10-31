@@ -366,6 +366,23 @@ local function AppendLocalSearchSources(self, out, existingNames, zoneNames, map
     return dungeonEntrances
 end
 
+-- Every other zone's places for the bar, so a trainer or a weapon master is
+-- found from anywhere, nearest first; a category switched to "this zone
+-- only" stays home.
+local function AppendWorldStaticLocations(self, out, existingNames, playerMapID)
+    local db = EasyFind and EasyFind.db
+    local only = db and db.mapZoneOnly
+    if only and only.all == true then return end
+    local list = self:GetWorldStaticLocations()
+    for i = 1, #list do
+        local loc = list[i]
+        if loc.mapID ~= playerMapID
+           and not (only and (only[loc.scopeBucket] == true or (loc.scopeSub and only[loc.scopeSub] == true))) then
+            AppendSearchCandidate(out, existingNames, nil, loc, false)
+        end
+    end
+end
+
 local function MarkGlobalInstanceSeen(seen, nameSeen, name, mapID)
     if not name then return false end
     local key = name .. "|" .. mapID
@@ -816,6 +833,7 @@ Search.CollectMapGarbage = CollectMapGarbage
 Search.GetLocalScans = GetLocalScans
 Search.AppendSearchCandidate = AppendSearchCandidate
 Search.AppendLocalSearchSources = AppendLocalSearchSources
+Search.AppendWorldStaticLocations = AppendWorldStaticLocations
 Search.BuildPromotedInstanceCache = BuildPromotedInstanceCache
 Search.AppendZoneSearchResults = AppendZoneSearchResults
 Search.AppendGlobalInstanceSearchSources = AppendGlobalInstanceSearchSources
