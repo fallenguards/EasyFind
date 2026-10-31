@@ -251,12 +251,12 @@ function tests.pixelSpacing_makesAWholePixelStep()
 end
 
 -- Enter's key comes before its new line; the fallback runs a frame later.
-local function LoadEnter()
-    local UI = { _notes = { activeModes = { check = true } } }
+local function LoadEnter(modes)
+    local UI = { _notes = { activeModes = modes or {} } }
     function UI.RefreshAllEasyNotesToolbarButtons() end
     local later = {}
     local env = Run({
-        Fmt = {}, UI = UI, CHECK_EMPTY_PREFIX = BOX, BULLET_PREFIX = "\226\128\162 ",
+        Fmt = {}, UI = UI, CHECK_EMPTY_PREFIX = BOX, CHECK_FILLED_PREFIX = TICKED, BULLET_PREFIX = "\226\128\162 ",
         Utils = { SafeAfter = function(_, fn) later[#later + 1] = fn end },
     }, (Extract(Source(), "local function FindLineStartByte("):gsub("^local ", "")),
        Extract(Source(), "function Fmt.HandleEditorEnterKey("),
@@ -265,7 +265,7 @@ local function LoadEnter()
         for i = 1, #later do later[i]() end
         for i = #later, 1, -1 do later[i] = nil end
     end
-    return env.Fmt, NextFrame
+    return env.Fmt, NextFrame, UI
 end
 
 local function EnterEditor(text, caret)
@@ -294,8 +294,51 @@ function tests.enter_typedAhead_boxGoesFirst()
     H.assertEq(ed.caret, 12, "caret after the letters")
 end
 
+-- The line itself carries the list on: a box from a new checklist, a
+-- migration or a reload, with no list mode switched on (2026-10-31).
+function tests.enter_theLineDecides_noModeNeeded()
+    local Fmt = LoadEnter({})
+    local ed = EnterEditor(BOX .. "a", 5)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = BOX .. "a\n", 6
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, BOX .. "a\n" .. BOX, "a box line goes on")
+    ed = EnterEditor(TICKED .. "a", 5)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = TICKED .. "a\n", 6
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, TICKED .. "a\n" .. BOX, "after a ticked box, an open one")
+    local bullet = "\226\128\162 "
+    ed = EnterEditor(bullet .. "a", 5)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = bullet .. "a\n", 6
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, bullet .. "a\n" .. bullet, "a bullet line too")
+    ed = EnterEditor("plain", 5)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = "plain\n", 6
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, "plain\n", "a plain line stays plain")
+end
+
+function tests.enter_onAnEmptyMark_endsTheList()
+    local Fmt, _, UI = LoadEnter({ check = true })
+    local ed = EnterEditor(BOX .. "a\n" .. BOX, 10)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = BOX .. "a\n" .. BOX .. "\n", 11
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, BOX .. "a\n", "the empty box and the new line go")
+    H.assertEq(ed.caret, 6, "the caret on the plain line left")
+    H.assertNil(UI._notes.activeModes.check, "the list mode off with it")
+    ed = EnterEditor("1. a\n2. ", 8)
+    Fmt.HandleEditorEnterKey(ed)
+    ed.text, ed.caret = "1. a\n2. \n", 9
+    Fmt.FinishEnter(ed)
+    H.assertEq(ed.text, "1. a\n", "a bare number ends its list too")
+end
+
 function tests.enter_withNoNewLine_addsNoBox()
-    local Fmt, NextFrame = LoadEnter()
+    local Fmt, NextFrame = LoadEnter({ check = true })
     local ed = EnterEditor(BOX .. "af", 5)
     Fmt.HandleEditorEnterKey(ed)
     NextFrame()

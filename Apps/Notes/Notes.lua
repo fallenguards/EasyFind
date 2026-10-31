@@ -9309,8 +9309,9 @@ function Fmt.HandleEditorFormatKey(editor, k)
     return false
 end
 
--- Enter continues an active list line (bullet / checkbox / numbered) and
--- ends a header line, exactly like the notes editor.
+-- Enter carries a list line on (a bullet, a box or the next number) and
+-- ends a header line. The line the caret is on says so, else the list
+-- mode switched on; a line that is only its mark ends the list instead.
 function Fmt.HandleEditorEnterKey(editor)
     local modes = UI._notes.activeModes or {}
     if UI._notes.headerMode then
@@ -9318,13 +9319,25 @@ function Fmt.HandleEditorEnterKey(editor)
         UI._notes.headerMode = nil
         UI:RefreshAllEasyNotesToolbarButtons()
     end
-    local prefix
-    if modes.list then prefix = BULLET_PREFIX
-    elseif modes.check then prefix = CHECK_EMPTY_PREFIX
+    local text = editor:GetText() or ""
+    local caret = editor:GetCursorPosition() or 0
+    local ls = FindLineStartByte(text, caret)
+    local head = text:sub(ls, ls + #CHECK_EMPTY_PREFIX - 1)
+    local mark, prefix
+    if text:sub(ls, ls + #BULLET_PREFIX - 1) == BULLET_PREFIX then mark, prefix = BULLET_PREFIX, BULLET_PREFIX
+    elseif head == CHECK_EMPTY_PREFIX or head == CHECK_FILLED_PREFIX then mark, prefix = head, CHECK_EMPTY_PREFIX
+    else
+        mark = text:sub(ls, ls + 12):match("^(%d+%. )")
+        if not mark then
+            if modes.list then prefix = BULLET_PREFIX
+            elseif modes.check then prefix = CHECK_EMPTY_PREFIX end
+        end
     end
+    local nl = text:find("\n", ls, true)
+    local endList = mark and caret == ls - 1 + #mark and (nl and nl - 1 or #text) == ls - 1 + #mark and ls or nil
     -- The new line's mark goes in with the line itself (FinishEnter on its
     -- text change): a frame later, keys typed meanwhile were already on it.
-    UI._notes.pendingEnter = { editor = editor, at = editor:GetCursorPosition() or 0, ins = prefix }
+    UI._notes.pendingEnter = { editor = editor, at = caret, ins = prefix, endList = endList }
     if not Utils.SafeAfter then return end
     Utils.SafeAfter(0, function()
         if editor:IsShown() then Fmt.FinishEnter(editor) end
@@ -9332,7 +9345,8 @@ function Fmt.HandleEditorEnterKey(editor)
     end)
 end
 
--- The mark at the start of the line Enter made, before anything typed on it.
+-- The mark at the start of the line Enter made, before anything typed on
+-- it; after an empty mark, the mark and the new line go instead.
 function Fmt.FinishEnter(editor)
     local p = UI._notes.pendingEnter
     if not p or p.editor ~= editor then return end
@@ -9340,6 +9354,16 @@ function Fmt.FinishEnter(editor)
     local nl = p.at + 1
     if txt:sub(nl, nl) ~= "\n" then return end
     UI._notes.pendingEnter = nil
+    if p.endList then
+        local modes = UI._notes.activeModes
+        if modes then modes.list, modes.check, modes.numlist = nil, nil, nil end
+        UI._notes.inputBusy = true
+        editor:SetText(txt:sub(1, p.endList - 1) .. txt:sub(nl + 1))
+        editor:SetCursorPosition(p.endList - 1)
+        UI._notes.inputBusy = nil
+        UI:RefreshAllEasyNotesToolbarButtons()
+        return
+    end
     local ins = p.ins
     if not ins then
         local pn = txt:sub(FindLineStartByte(txt, nl - 1), nl - 1):match("^(%d+)%. ")
