@@ -435,5 +435,27 @@ function tests.scoreTransientName_scoresAsScoreNameAndCachesNothing()
     end
 end
 
+-- Same name and score: what the player holds, then the game's own rows, the
+-- catalog, recipes, the addons' settings, an extension's rows last. The Era
+-- intent audit had Spoken's Master Volume over the game's, a recipe over the
+-- potion, and a fishing catch over the herb.
+function tests.sameName_ownThenGameThenCatalogThenAddons()
+    ns.Extensions = { ProviderOf = function(d) return d.category == "fishing" and {} or nil end }
+    local less = Database.TieCategoryLess
+    local function Row(cat) return { category = cat } end
+    H.assertTrue(less(Row("Game Settings"), Row("AddOn Settings")), "the game's setting before an addon's")
+    H.assertTrue(less(Row("Menu Bar"), Row("AddOn Settings")), "a panel before an addon's setting")
+    H.assertTrue(less(Row("Bag"), Row("Item")), "the held item before the catalog's")
+    H.assertTrue(less(Row("Bank"), Row("Loot")), "the banked item before a drop")
+    H.assertTrue(less(Row("Item"), Row("Profession")), "the item before the recipe that makes it")
+    H.assertTrue(less(Row("Item"), Row("fishing")), "the item before an extension's row")
+    H.assertTrue(less(Row("AddOn Settings"), Row("fishing")), "every core row before an extension's")
+    H.assertTrue(less(Row("Talent"), Row("Bag")), "talents still lead")
+    H.assertTrue(not less(Row("Bag"), Row("Bag")), "the same category is no order")
+    H.assertTrue(less(Row("Ability"), Row("Macro")) and not less(Row("Macro"), Row("Ability")),
+        "other core rows by category name")
+    ns.Extensions = nil
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -109,12 +109,22 @@ local scoreNameUsedWords = {}
 -- then alphabetically so equal-length ties stay stable across re-sorts.
 -- Same score, same name (Swipe the ability and Swipe the talent are two
 -- rows): a fixed order, or the pair flips between sessions with provider
--- load order. Talents lead, then the category name.
-local TIE_CATEGORY_RANK = { Talent = 1, Talents = 1 }
+-- load order. Talents, then what the player holds, the game's own rows,
+-- the catalog and loot, recipes, the addons' settings; an extension's
+-- rows after every core row; the category name last.
+local TIE_CATEGORY_RANK = { Talent = 1, Talents = 1, Bag = 2, Bank = 2, Warband = 2,
+    ["Game Settings"] = 3, Item = 5, Loot = 5, Profession = 6, ["AddOn Settings"] = 8 }
+local function TieRank(d, category)
+    local rank = TIE_CATEGORY_RANK[category]
+    if rank then return rank end
+    local ext = ns.Extensions
+    if ext and ext.ProviderOf and ext.ProviderOf(d) then return 9 end
+    return 4
+end
 local function TieCategoryLess(a, b)
     local ac, bc = a.category or "", b.category or ""
     if ac == bc then return false end
-    local ar, br = TIE_CATEGORY_RANK[ac] or 9, TIE_CATEGORY_RANK[bc] or 9
+    local ar, br = TieRank(a, ac), TieRank(b, bc)
     if ar ~= br then return ar < br end
     return ac < bc
 end
