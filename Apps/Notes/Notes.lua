@@ -5367,7 +5367,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.palette = CreateFrame("Frame", nil, frame)
     frame.palette:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -HEADER_H - 4)
-    frame.palette:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 8)
+    frame.palette:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 4)
     if ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(frame.palette)
         ns.SetRoundedRectBarHeight(frame.palette, 10)
@@ -5471,7 +5471,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.paletteList = CreateFrame("ScrollFrame", nil, frame.palette)
     frame.paletteList:SetPoint("TOPLEFT", frame.paletteSearchShell, "BOTTOMLEFT", 0, -6)
-    frame.paletteList:SetPoint("BOTTOMRIGHT", frame.palette, "BOTTOMRIGHT", -10, 10)
+    frame.paletteList:SetPoint("BOTTOMRIGHT", frame.palette, "BOTTOMRIGHT", -10, 4)
     frame.paletteListChild = CreateFrame("Frame", nil, frame.paletteList)
     frame.paletteListChild:SetSize(1, 1)
     frame.paletteList:SetScrollChild(frame.paletteListChild)
@@ -7232,6 +7232,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if frame.paletteButton then frame.paletteButton:SetShown(shown) end
     if frame.newButton then frame.newButton:SetShown(not shown) end
     if frame.settingsButton then frame.settingsButton:Show() end
+    if frame.headerDivider then frame.headerDivider:SetShown(shown) end
     if frame.homeTitle then frame.homeTitle:SetShown(not shown) end
     if frame.homeExp then frame.homeExp:SetShown(not shown) end
     if not shown and frame.findBar and frame.findBar:IsShown() then
@@ -9899,11 +9900,13 @@ function UI:LayoutEasyNotesChrome(dressed)
     end
     At(frame.header, "TOPLEFT", pad, -pad, "TOPRIGHT", -pad, -pad)
     At(frame.footer, "BOTTOMLEFT", pad, pad, "BOTTOMRIGHT", -pad, pad)
-    At(frame.palette, "TOPLEFT", 12 + pad, -HEADER_H - 4 - pad, "BOTTOMRIGHT", -12 - pad, 8 + pad)
+    At(frame.palette, "TOPLEFT", 12 + pad, -HEADER_H - 4 - pad, "BOTTOMRIGHT", -12 - pad, 4 + pad)
     At(frame.findBar, "BOTTOMLEFT", 12 + pad, FOOTER_H + 2 + pad, "BOTTOMRIGHT", -12 - pad, FOOTER_H + 2 + pad)
+    -- The grip in the corner the eye sees: on the art's inner lip.
     if frame.resizeGrip then
+        local lip = math.floor(pad / 2)
         frame.resizeGrip:ClearAllPoints()
-        frame.resizeGrip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2 - pad, 2 + pad)
+        frame.resizeGrip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2 - lip, 2 + lip)
     end
     -- The side panel clears the metal hung outside the window.
     if frame.headerPanel then
