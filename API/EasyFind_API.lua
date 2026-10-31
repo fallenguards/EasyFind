@@ -27,6 +27,8 @@
 ---@field label? string
 ---@field tooltip? string
 ---@field onClick? fun() An action row's command.
+---@field closes? boolean The action opens another window: on a result's menu the search bar steps aside after it (MINOR 5).
+---@field disabled? boolean The action grayed out, its tooltip saying why.
 ---@field get? fun(): boolean A check row's state.
 ---@field set? fun(on: boolean) Stores a check row's state.
 ---@field rows? EasyFindMenuRow[]|fun(): EasyFindMenuRow[] A menu row's flyout.

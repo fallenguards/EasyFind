@@ -169,6 +169,23 @@ function tests.theJournalPathsAskIt()
     H.assertTrue(Read("API/README.md"):find("| `select` |", 1, true) ~= nil, "documented")
 end
 
+-- An action that opens another window (closes) steps the bar aside after
+-- it, as core's own GPS entry does; one without stays in the bar.
+function tests.aClosingActionStepsTheBarAside()
+    local function Read(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a"):gsub("\r\n", "\n")
+        f:close()
+        return src
+    end
+    local src = Read("Search/Results/Rows/ResultContextMenu.lua")
+    local s = assert(src:find('elseif d.kind == "action" and d.label then', 1, true))
+    local body = src:sub(s, s + 600)
+    H.assertTrue(body:find("ns.Extensions.Run(d.onClick)\n                        if d.closes and Handlers.FinishResultSelection then Handlers:FinishResultSelection() end", 1, true) ~= nil,
+        "after the action, the bar steps aside when the row says closes")
+    H.assertTrue(Read("API/README.md"):find("`closes = true`", 1, true) ~= nil, "documented")
+end
+
 function tests.aDecoratorNeedsItsExtension()
     local _, _, API = Env()
     local ok = pcall(API.RegisterRowDecorator, { id = "nobody", text = function() end })

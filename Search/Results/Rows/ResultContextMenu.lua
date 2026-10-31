@@ -173,9 +173,14 @@ function Rows:ResultMenuModel(row)
                 out[#out + 1] = { text = d.label, tooltip = d.tooltip, icon = on and MENU_CHECK or nil, picked = on,
                     onClick = function() ns.Extensions.Run(d.set, not on) end }
             elseif d.kind == "action" and d.label then
-                -- Grayed out with its reason: a line not voiced yet.
+                -- Grayed out with its reason: a line not voiced yet. One that
+                -- opens another window (closes) steps the bar aside after, as
+                -- a chosen result does; one that stays in the bar leaves it.
                 out[#out + 1] = { text = d.label, tooltip = d.tooltip, disabled = d.disabled == true or nil,
-                    onClick = function() ns.Extensions.Run(d.onClick) end }
+                    onClick = function()
+                        ns.Extensions.Run(d.onClick)
+                        if d.closes and Handlers.FinishResultSelection then Handlers:FinishResultSelection() end
+                    end }
             elseif d.kind == "menu" and d.label and depth < 3 then
                 local sub = MenuRowsOf(d.rows, depth + 1)
                 if #sub > 0 then out[#out + 1] = { text = d.label, tooltip = d.tooltip, submenu = sub } end
