@@ -383,6 +383,28 @@ function tests.lootNames_takeNoAbbreviation()
         Database:ScoreName("cruel barb", "curel barb", 10, { "curel", "barb" }), "a typo is still forgiven")
 end
 
+-- The kind of an item ("cloth" as its armor type) ranks under a name that
+-- holds the word: the bag's Silk Cloth sat past 250 cloth drops at "cloth"
+-- (the Era audit, 2026-11-01).
+local silkCloth = { name = "Silk Cloth", nameLower = "silk cloth", category = "Bag", keywordsLower = { "trade goods" } }
+local devoutRobe = {
+    name = "Devout Robe", nameLower = "devout robe", category = "Loot", lootEntry = true,
+    lootSlotKw = { "cloth", "chest" },
+}
+
+function tests.searchUI_anItemsKindRanksUnderANameHoldingTheWord()
+    local slotWord = Database.IsLootSlotSearchWord
+    Database.IsLootSlotSearchWord = function(_, w) return w == "cloth" or w == "chest" end
+    withEntries({ devoutRobe, silkCloth }, function()
+        Database:ResetSearchCache()
+        local r = Database:SearchUI("cloth")
+        H.assertEq(scoreOf(r, silkCloth), 120, "the word in the name")
+        H.assertEq(scoreOf(r, devoutRobe), 115, "the kind, under it")
+        H.assertTrue(r[1].data == silkCloth, "the bag's cloth first")
+    end)
+    Database.IsLootSlotSearchWord = slotWord
+end
+
 function tests.searchUI_lootNameScoresAsAnyRowsName()
     withEntries({ lootBarb }, function()
         Database:ResetSearchCache()

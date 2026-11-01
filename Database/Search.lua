@@ -1431,13 +1431,15 @@ local function LootScore(data, nameLower, queryWords, lootStatActive)
             end
 
             -- An exact slot or stat keyword is the user naming the kind:
-            -- above fuzzy noise (~85), whatever its length. Prefix
-            -- acceptance stays in sync with IsLootSlotSearchWord (Main.lua).
+            -- above fuzzy noise (~85), whatever its length, under a name
+            -- holding the word (120: "cloth" is the bag's Silk Cloth before
+            -- every cloth drop). Prefix acceptance stays in sync with
+            -- IsLootSlotSearchWord (Main.lua).
             if data.lootSlotKw then
                 for ki = 1, #data.lootSlotKw do
                     local kw = data.lootSlotKw[ki]
                     if kw == qw then
-                        bestWord = mmax(bestWord, 140)
+                        bestWord = mmax(bestWord, 115)
                     elseif sfind(kw, qw, 1, true) == 1 then
                         bestWord = mmax(bestWord, 70)
                     end
@@ -1448,7 +1450,7 @@ local function LootScore(data, nameLower, queryWords, lootStatActive)
                 for ki = 1, #data.lootStatKw do
                     local kw = data.lootStatKw[ki]
                     if kw == qw then
-                        bestWord = mmax(bestWord, 140)
+                        bestWord = mmax(bestWord, 115)
                     elseif sfind(kw, qw, 1, true) == 1 then
                         bestWord = mmax(bestWord, 70)
                     end
