@@ -237,30 +237,45 @@ end
 
 -- Every dispatch runs sliced; a new one cancels the run in flight.
 -- It yields in SearchUI, the index and the item and creature scans.
-local sliceHandle
+local sliceHandle, sliceCo, runEnded
 local pendingSliceText, pendingSliceForce, pendingSliceRowsOnly
 local function RunPendingSearch()
+    sliceCo = coroutine.running()
     runRowsOnly = pendingSliceRowsOnly
     Search:OnSearchTextChangedNow(pendingSliceText, pendingSliceForce)
+end
+
+local function CancelSearchRun()
+    if not sliceHandle then return end
+    sliceHandle:Cancel()
+    sliceHandle = nil
+    if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
 end
 
 -- A run that stops early may sit between index reads, which holds the
 -- index build until the next search.
 local function SearchRunEnded(ok, err)
+    runEnded = true
+    sliceHandle = nil
     if ok then return end
     if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
     Utils.ErrorHandler(err)
 end
 
 function Search:OnSearchTextChanged(text, force, rowsOnly)
-    if sliceHandle then
-        sliceHandle:Cancel()
-        if ns.SearchIndex then ns.SearchIndex:ReadCanceled() end
-    end
+    CancelSearchRun()
     -- Anything but a rows-only rerun may have changed what the map pass reads.
     if not rowsOnly then MapPassStale() end
     pendingSliceText, pendingSliceForce, pendingSliceRowsOnly = text, force, rowsOnly
-    sliceHandle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6, "search")
+    -- A run that fits its first slice ends before the handle comes back.
+    runEnded = false
+    local handle = Utils.RunSliced(RunPendingSearch, SearchRunEnded, 6, "search")
+    if not runEnded then sliceHandle = handle end
+end
+
+-- A sliced run is paused between slices (dev probes wait for it).
+function Search:IsSearchRunning()
+    return sliceHandle ~= nil
 end
 
 local topBuf = {}   -- the top-15 selection's scratch
@@ -293,6 +308,9 @@ function Search:OnSearchTextChangedNow(text, force)
     -- that ancestor secure row buttons -- protected operations. Any stray
     -- programmatic call in combat is a silent no-op.
     if InCombatLockdown() then return end
+    -- A direct call refills the shared results list; a run paused between
+    -- slices would resume into holes (the score sort's nil data).
+    if sliceHandle and coroutine.running() ~= sliceCo then CancelSearchRun() end
     -- Only a dispatched rows-only rerun is one; a direct call never is.
     local rowsOnly = runRowsOnly
     runRowsOnly = false
