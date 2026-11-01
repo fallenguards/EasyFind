@@ -56,6 +56,26 @@ local function Oracle(blob, ql, Score)
         end
         pos = le + 1
     end
+    -- Several words: every name each word starts a word of, in any order.
+    local words = {}
+    for w in ql:gmatch("%S+") do words[#words + 1] = (w:gsub("%W", "%%%0")) end
+    if #words >= 2 then
+        local ls = 1
+        while ls <= #blob do
+            local le = blob:find("\n", ls, true) or (#blob + 1)
+            local name = blob:sub(ls, le - 1):match("^([^\t]+)")
+            local all = name ~= nil
+            for i = 1, #words do
+                if all and not (name:find("^" .. words[i]) or name:find("[^%w']" .. words[i])) then all = false end
+            end
+            if all and not seen[ls] then
+                seen[ls] = true
+                local sc = Score(name, ql, #ql)
+                if sc > 0 then rows[#rows + 1] = { score = sc, name = name } end
+            end
+            ls = le + 1
+        end
+    end
     table.sort(rows, function(a, b)
         if a.score ~= b.score then return a.score > b.score end
         if #a.name ~= #b.name then return #a.name < #b.name end
@@ -135,6 +155,19 @@ function tests.synthetic_typedMatchesPasted()
             AssertMatchesOracle(ItemSearch, Score, blob, word:sub(1, k), "typed ", Plain)
         end
     end
+end
+
+-- Words in any order ("rot cloak") reach a name the whole string does not:
+-- each starts a word of the name (the Era audit's "cloth linen", 2026-11-01).
+function tests.synthetic_wordsInAnyOrderReachAName()
+    local ItemSearch, Score, blob, Plain = NewCatalog(SynthBlob())
+    for _, q in ipairs({ "rot cloak", "fire cloak", "book black", "axe thelsamar", "cloak dark", "of cloak", "cloak ro" }) do
+        AssertMatchesOracle(ItemSearch, Score, blob, q, "flipped ", Plain)
+    end
+    local got = ItemSearch:Search("rot cloak", Score) or {}
+    H.assertEq(got[1] and got[1].data.nameLower, "cloak of rot")
+    H.assertEq(got[1] and got[1].score, Plain("cloak of rot", "rot cloak", 9), "the shared name scorer's tier")
+    H.assertNil(ItemSearch:Search("ro cl", Score), "a longest word under three letters runs no pass")
 end
 
 -- A name led by punctuation starts at its first word for a stopword query.

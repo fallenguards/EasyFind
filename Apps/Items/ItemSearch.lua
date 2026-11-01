@@ -14,7 +14,7 @@ ns.ItemSearch = ItemSearch
 
 local Utils = ns.Utils
 local sfind, ssub = Utils.sfind, Utils.ssub
-local sbyte = string.byte
+local sbyte, sgmatch = string.byte, string.gmatch
 local slower = Utils.slower or string.lower
 local pairs = Utils.pairs or pairs
 local tonumber = tonumber
@@ -366,6 +366,70 @@ local function Placed()
     return kept >= KEEP and keep[KEEP].score > NOT_PREFIX_MAX
 end
 
+-- Several words in any order ("cloth linen"): the longest word's starts,
+-- a name kept where every other word starts a word of it too, scored by
+-- the shared name scorer. Capped per keystroke: the longest word's starts
+-- visited, and the names scored.
+local WORD_HITS, WORD_SCORED = 4000, 256
+local wordBuf = {}
+
+-- Searched in the name itself: a find over the blob runs on to the word's
+-- next use anywhere in it.
+local function StartsWordOf(name, w)
+    local p = 1
+    while true do
+        local s = sfind(name, w, p, true)
+        if not s then return false end
+        if s == 1 or not WORD_BYTE[sbyte(name, s - 1)] then return true end
+        p = s + 1
+    end
+end
+
+local function WordsScore(nameLower, q, qLen)
+    return ns.Database:ScoreName(nameLower, q, qLen, wordBuf)
+end
+
+local function WordPass(ql, qLen)
+    local n, longest = 0, 1
+    for w in sgmatch(ql, "%S+") do
+        n = n + 1
+        wordBuf[n] = w
+        if #w > #wordBuf[longest] then longest = n end
+    end
+    for k = #wordBuf, n + 1, -1 do wordBuf[k] = nil end
+    if n < 2 or #wordBuf[longest] < MIN_QUERY then return end
+    local w = wordBuf[longest]
+    local pos, visited, scored = 1, 0, 0
+    while visited < WORD_HITS and scored < WORD_SCORED do
+        local s = sfind(blob, w, pos, true)
+        if not s then break end
+        visited = visited + 1
+        local prev = s > 1 and sbyte(blob, s - 1) or 10
+        if prev == 10 or not WORD_BYTE[prev] then
+            local rStart, rEnd
+            if prev == 10 then rStart, rEnd = s, LineEnd(s) else rStart, rEnd = RecordAt(s) end
+            local t1 = sfind(blob, "\t", rStart, true)
+            local name = ssub(blob, rStart, t1 and t1 - 1 or rEnd)
+            local all = true
+            for i = 1, n do
+                if i ~= longest and not StartsWordOf(name, wordBuf[i]) then
+                    all = false
+                    break
+                end
+            end
+            if all then
+                scored = scored + 1
+                Record(rStart, rEnd, ql, qLen, WordsScore)
+            end
+            -- Past this name: its word met again is the same name.
+            pos = rEnd + 2
+        else
+            pos = s + 1
+        end
+        if visited % 64 == 0 then SliceCheckpoint() end
+    end
+end
+
 function ItemSearch:Search(query, scoreName)
     if not query or #query < MIN_QUERY then return nil end
     if not EnsureBlob() then return nil end
@@ -444,6 +508,8 @@ function ItemSearch:Search(query, scoreName)
             if k % 64 == 0 then SliceCheckpoint() end
         end
     end
+    -- 4. Several words in any order, while the whole string has not placed.
+    if not Placed() and sfind(ql, " ", 1, true) then WordPass(ql, qLen) end
     for k = #midBuf, mn + 1, -1 do midBuf[k] = nil end
     for k = #hits, hn + 1, -1 do hits[k] = nil end
     curRecs.n = hn
