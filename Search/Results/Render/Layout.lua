@@ -67,7 +67,12 @@ function Render.ApplyFlatResultAnchoring(resultRow, entry, state)
     elseif resultRow.decorText and resultRow.decorText:IsShown() then
         rightAnchor, rightOffset = resultRow.decorText, -4
     elseif mainIconOnRight and resultRow.icon:IsShown() then
-        rightAnchor, rightOffset = resultRow.icon, -4
+        -- A stack's count (x10) sits between the text and the icon.
+        if resultRow.amountText and resultRow.amountText:IsShown() then
+            rightAnchor, rightOffset = resultRow.amountText, -4
+        else
+            rightAnchor, rightOffset = resultRow.icon, -4
+        end
     elseif resultRow.settingSliderGroup and resultRow.settingSliderGroup:IsShown() then
         rightAnchor, rightOffset = resultRow.settingSliderGroup, -4
     elseif resultRow.settingDropdownGroup and resultRow.settingDropdownGroup:IsShown() then

@@ -138,6 +138,24 @@ function tests.aFlatTalentsBarSitsBeforeItsIcon()
     H.assertEq(row.repBar.points[1][3], "LEFT")
 end
 
+-- A stack's count (x10) sits between the text and the icon: the name and
+-- the subtext stop before it, or the subtext ran under the count.
+function tests.aStacksCountBoundsTheTextBeforeTheIcon()
+    local Render = loadFlatAnchoring()
+    local row = stubRow()
+    row.pathSubtext = row.text
+    function row.repBar:IsShown() return false end
+    function row.icon:IsShown() return true end
+    row.amountText = { IsShown = function() return true end }
+    local entry = { isFlat = true, data = { spellID = 31687, category = "Talent" } }
+    Render.ApplyFlatResultAnchoring(row, entry, { stackHalfGap = 0, stackGap = 0, indPx = 10 })
+    H.assertEq(row.text.points[2][2], row.amountText, "the text ends before the count")
+    H.assertEq(row.text.points[2][3], "LEFT")
+    row.amountText.IsShown = function() return false end
+    Render.ApplyFlatResultAnchoring(row, entry, { stackHalfGap = 0, stackGap = 0, indPx = 10 })
+    H.assertEq(row.text.points[2][2], row.icon, "no count: the icon bounds it")
+end
+
 function tests.skillRowHidesItsIconTalentKeepsIt()
     local Render, hidden = loadRender()
     local skillRow, talentRow = stubRow(), stubRow()
