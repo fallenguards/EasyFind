@@ -138,6 +138,12 @@ function tests.optionsBecomeInlineControlsThroughTheirOwnGetAndSet()
                          get = function() return state.pick end, set = function(_, v) state.pick = v end },
                 run = { type = "execute", name = "Run", func = function() state.ran = state.ran + 1 end },
                 text = { type = "input", name = "Text", get = function() return "" end, set = function() end },
+                zone = { type = "select", name = "Zone", get = function() return "z1" end, set = function() end,
+                         values = function()
+                             local v = {}
+                             for i = 1, 30 do v["z" .. i] = "Zone " .. i end
+                             return v
+                         end },
             } },
         },
     })
@@ -146,6 +152,13 @@ function tests.optionsBecomeInlineControlsThroughTheirOwnGetAndSet()
     for _, e in ipairs(ns.Database.uiSearchData) do
         if e.addon == "Hello" then rows[e.name] = e end
     end
+    local function hasKeyword(row, word)
+        for _, k in ipairs(row.keywords) do if k == word then return true end end
+        return false
+    end
+    H.assertTrue(hasKeyword(rows["Pick"], "ex"), "a dropdown's choices are keywords")
+    H.assertEq(#rows["Zone"].settingOptions, 30, "a long list still opens as a dropdown")
+    H.assertFalse(hasKeyword(rows["Zone"], "zone 17"), "a list of every zone is no keyword set")
     H.assertEq(rows["On"].settingType, "checkbox")
     H.assertEq(rows["On"].settingTooltip, "Turns it on", "its desc as the tooltip")
     H.assertEq(reg[rows["On"].settingVariable].get(), false, "read through the handler method")

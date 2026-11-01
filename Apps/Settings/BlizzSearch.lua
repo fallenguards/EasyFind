@@ -589,8 +589,11 @@ local function AddKeyword(kw, text)
     end
 end
 
+-- A dropdown's choices are keywords; a list of every zone or item is not
+-- (a maintenance dropdown led "zone stormwind").
+local OPTION_LABELS_MAX = 24
 local function AddOptionLabelKeywords(kw, options)
-    if type(options) ~= "table" then return end
+    if type(options) ~= "table" or #options > OPTION_LABELS_MAX then return end
     for i = 1, #options do
         local opt = options[i]
         if type(opt) == "table" then
