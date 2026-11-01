@@ -24,10 +24,11 @@ local flatCombined = Results._flatCombined
 local SCRATCH = Results._SCRATCH
 local SearchEngine = ns.SearchEngine
 
+-- Items the player does not have (loot, the catalog) after everything
+-- else, places included: places behind own rows put 250 fishing spots
+-- over the Fishing Trainer at "fishing" (the Era audit, 2026-11-01).
 local function KindRank(d)
-    if d.catalogItem then return 3 end
-    if d.category == "Loot" then return 2 end
-    if d.mapRank or d.mapSearchResult then return 1 end
+    if d.catalogItem or d.category == "Loot" then return 1 end
     return 0
 end
 

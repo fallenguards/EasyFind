@@ -74,14 +74,15 @@ function tests.itemRows_keepTheCatalogCopyOut()
     H.assertTrue(src:find("ITEM_ROW_CATEGORY = {[^}]*Profession") == nil, "a recipe is not the item it makes")
 end
 
--- Equal scores sort by kind before the shorter name: what the player owns
--- or can do, then places, then loot, then the catalog ("scar" put fourteen
--- Scarlet Monastery drops above the dungeon, the Era audit 2026-11-01).
+-- Equal scores sort by kind before the shorter name: items the player
+-- does not have (loot, the catalog) after everything else ("scar" put
+-- fourteen Scarlet Monastery drops above the dungeon, the Era audit
+-- 2026-11-01). Places rank with own rows: behind them, 250 fishing spots
+-- sat over the Fishing Trainer at "fishing".
 function tests.equalScores_sortByKindBeforeTheShorterName()
     local kind = assert(src:find("local function KindRank(d)", 1, true), "the kind rank")
-    H.assertTrue(src:find("if d.catalogItem then return 3 end", kind, true) ~= nil, "the catalog last")
-    H.assertTrue(src:find('if d.category == "Loot" then return 2 end', kind, true) ~= nil, "loot before it")
-    H.assertTrue(src:find("if d.mapRank or d.mapSearchResult then return 1 end", kind, true) ~= nil, "places before loot")
+    H.assertTrue(src:find('if d.catalogItem or d.category == "Loot" then return 1 end', kind, true) ~= nil, "loot and catalog last")
+    H.assertTrue(src:find("d.mapRank or d.mapSearchResult then return", kind, true) == nil, "places are no kind of their own")
     local cmp = assert(src:find("local function FlatNameLess(ra, rb)", 1, true))
     local byKind = assert(src:find("local ka, kb = KindRank(ra.data), KindRank(rb.data)", cmp, true), "kinds compared")
     local byName = assert(src:find('local na, nb = ra.data.name or "", rb.data.name or ""', cmp, true))
