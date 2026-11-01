@@ -142,8 +142,16 @@ function Render.ApplyGPSButton(resultRow, entry, state)
         edge, edgePoint, x = resultRow, "RIGHT", -5
     end
     btn:SetPoint("RIGHT", edge, edgePoint, x, 0)
-    resultRow.text:SetPoint("RIGHT", edge, edgePoint, x - size - 4, 0)
-    if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", edge, edgePoint, x - size - 4, 0) end
+    -- A decorator's price left of the button (it had the row's edge and
+    -- sat under the button and the Alt hint), the name short of both.
+    local decor, decorW = resultRow.decorText, 0
+    if decor and decor:IsShown() then
+        decor:ClearAllPoints()
+        decor:SetPoint("RIGHT", edge, edgePoint, x - size - 6, 0)
+        decorW = decor:GetStringWidth() + 6
+    end
+    resultRow.text:SetPoint("RIGHT", edge, edgePoint, x - size - 4 - decorW, 0)
+    if resultRow.pathSubtext:IsShown() then resultRow.pathSubtext:SetPoint("RIGHT", edge, edgePoint, x - size - 4 - decorW, 0) end
 end
 
 function Render.ApplyPinnedResultPrefix(resultRow, entry)

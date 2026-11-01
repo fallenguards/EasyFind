@@ -203,6 +203,15 @@ function tests.theRowsPaintAndAskIt()
     end
     H.assertTrue(Read("Search/Results/Render/Core.lua"):find("Render.DecorateRow(resultRow, entry, st)", 1, true) ~= nil)
     H.assertTrue(Read("Search/Results/Render/Layout.lua"):find("resultRow.decorText:IsShown()", 1, true) ~= nil, "the name ends at it")
+    -- The price had the row's right edge: it sat under the GPS button and
+    -- under the Alt hint (Era, 2026-11-01).
+    local layout = Read("Search/Results/Render/Layout.lua")
+    local gps = assert(layout:find("function Render.ApplyGPSButton", 1, true))
+    H.assertTrue(layout:find('decor:SetPoint("RIGHT", edge, edgePoint, x - size - 6, 0)', gps, true) ~= nil, "left of the GPS button")
+    H.assertTrue(layout:find("x - size - 4 - decorW", gps, true) ~= nil, "the name short of the price")
+    local shortcuts = Read("Search/Results/Shortcuts.lua")
+    H.assertTrue(shortcuts:find("ReplaceRightPointToShortcut(row, row.decorText)", 1, true) ~= nil, "shifted left of the Alt hint")
+    H.assertTrue(shortcuts:find("RestoreRightPointFromShortcut(row, row.decorText, -8)", 1, true) ~= nil)
     H.assertTrue(Read("Search/Results/Rows/ResultContextMenu.lua"):find("DecoratorMenuRows(pinData", 1, true) ~= nil)
     H.assertTrue(Read("Shared/Utils.lua"):find("extra.decoratorRows", 1, true) ~= nil, "the menu lays them out")
     H.assertTrue(Read("Search/Results/Rows/Tooltips.lua"):find("DecorateTooltip(", 1, true) ~= nil)
