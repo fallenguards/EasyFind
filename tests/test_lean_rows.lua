@@ -66,15 +66,21 @@ function tests.lazyFieldIsBuiltOnceAndKept()
 end
 
 function tests.macroRowsBuildTheirListAndSlotSteps()
-    local macros = { { "Heal", 11, "/cast Flash Heal" }, [121] = { "Mount", 12, "/cast Swift" } }
+    -- The macro window saves a blank name as a space (slots 2 and 3).
+    local macros = { { "Heal", 11, "/cast Flash Heal" }, { " ", 13, "#showtooltip\n  /cast Moonfire  \n/say hi" }, { " ", 14, "" },
+                     [121] = { "Mount", 12, "/cast Swift" } }
     local env = newEnv({
         Database = {}, MAX_ACCOUNT_MACROS = 120, MACROS = "Macros", CHARACTER = "Character", GENERAL = "General",
-        GetNumMacros = function() return 1, 1 end,
+        GetNumMacros = function() return 3, 1 end,
         GetMacroInfo = function(i) local m = macros[i]; return m[1], m[2], m[3] end,
     })
     assert(load(slice(MAIN, "-- Macro rows: the path per account", "\nCorpora.ABILITY_MT"), "=Main.lua macros", "t", env))()
     H.assertTrue(env.Database:PopulateDynamicMacros())
-    local account, char = env.uiSearchData[1], env.uiSearchData[2]
+    H.assertEq(#env.uiSearchData, 3, "a blank macro with no body is no row")
+    local account, unnamed, char = env.uiSearchData[1], env.uiSearchData[2], env.uiSearchData[3]
+    H.assertEq(unnamed.name, "/cast Moonfire", "an unnamed macro is named by its first command")
+    H.assertEq(unnamed.nameLower, "/cast moonfire")
+    H.assertEq(unnamed.macroIndex, 2)
     H.assertEq(account.category, "Macro")
     H.assertEq(account.buttonFrame, "MainMenuMicroButton")
     H.assertEq(account.path[2], "General")

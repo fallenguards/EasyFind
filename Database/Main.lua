@@ -4714,9 +4714,19 @@ function Database:PopulateDynamicMacros()
     local numGlobal, numPerChar = GetNumMacros()
     local MAX_ACCOUNT = MAX_ACCOUNT_MACROS or 120
 
+    -- The macro window saves a blank name as a space: its first command
+    -- names the row (a blank row sorted first as the shortest name).
+    local function MacroBodyTitle(body)
+        for line in (body or ""):gmatch("[^\n]+") do
+            local text = line:match("^%s*(.-)%s*$")
+            if text ~= "" and text:sub(1, 1) ~= "#" then return text end
+        end
+    end
+
     local function injectMacro(macroIdx, isCharSpecific)
         local name, iconTexture, body = GetMacroInfo(macroIdx)
-        if not name or name == "" then return end
+        if name and not name:find("%S") then name = MacroBodyTitle(body) end
+        if not name then return end
         local nameLower = slower(name)
         local kw = { "macro", nameLower }
         -- Index macro body words so "/castsequence Hearthstone" is reachable by "hearthstone".
