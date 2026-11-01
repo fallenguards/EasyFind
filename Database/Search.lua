@@ -697,7 +697,9 @@ local function QueryAsksFor(queryWords, askWords)
 end
 Database.QueryAsksFor = QueryAsksFor
 
-function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
+-- plain: a name nobody abbreviates (a loot item's), so initials and
+-- vowel-stripped forms do not match it; typos still do.
+function Database:ScoreName(nameLower, query, queryLen, optQueryWords, plain)
     if ssub(query, queryLen, queryLen) == " " then
         query = query:match("^(.-)%s+$") or query
         queryLen = #query
@@ -741,7 +743,7 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
     local nameHasQueryInitial = qInitBit == 0
         or band(WordInitMask(nameLower), qInitBit) ~= 0
 
-    if nameHasQueryInitial and score < 130 then
+    if nameHasQueryInitial and score < 130 and not plain then
         local initScore = Database:ScoreInitials(nameLower, query)
         if initScore > score then score = initScore end
     end
@@ -761,7 +763,7 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
     end
 
     -- Vowel-stripped abbreviations: "qtr" -> quartermaster, "windrnr" -> windrunner.
-    if nameHasQueryInitial and score < 50 and queryLen >= ABBREV_MIN_LEN and not sfind(query, " ", 1, true) then
+    if nameHasQueryInitial and score < 50 and queryLen >= ABBREV_MIN_LEN and not plain and not sfind(query, " ", 1, true) then
         local nameWords = GetWords(nameLower)
         for wi = 1, #nameWords do
             local word = nameWords[wi]
@@ -1737,10 +1739,10 @@ function Database:SearchUI(query, skipCategories)
                 -- The name as any row's name; the loot scorer's boss, slot
                 -- and stat knowledge on top (a loot band of 115 sat every
                 -- prefix under other rows' word starts).
-                score = mmax(Database:ScoreName(nameLower, query, queryLen, queryWords),
+                score = mmax(Database:ScoreName(nameLower, query, queryLen, queryWords, true),
                     LootScore(data, nameLower, queryWords, lootStatActive))
                 if sq then
-                    score = mmax(score, Database:ScoreName(nameLower, sq.query, sq.len, sq.words) - 1,
+                    score = mmax(score, Database:ScoreName(nameLower, sq.query, sq.len, sq.words, true) - 1,
                         LootScore(data, nameLower, sq.words, lootStatActive) - 1)
                 end
             elseif cat == "Boss" and not bossQueryWord and not instanceQueryWord then

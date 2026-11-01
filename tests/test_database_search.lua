@@ -373,6 +373,16 @@ local function scoreOf(results, entry)
     return nil
 end
 
+-- Nobody abbreviates a loot item's name: "hs" is Hearthstone, not the
+-- initials of Hibernal Sash (eight such rows sat above it, 2026-11-01).
+function tests.lootNames_takeNoAbbreviation()
+    H.assertEq(Database:ScoreName("hibernal sash", "hs", 2, { "hs" }), 135, "initials, for a row that may be abbreviated")
+    H.assertEq(Database:ScoreName("hibernal sash", "hs", 2, { "hs" }, true), 0, "none for a plain name")
+    H.assertEq(Database:ScoreName("windrunner", "windrnr", 7, { "windrnr" }, true), 0, "no vowel-stripped form either")
+    H.assertEq(Database:ScoreName("cruel barb", "curel barb", 10, { "curel", "barb" }, true),
+        Database:ScoreName("cruel barb", "curel barb", 10, { "curel", "barb" }), "a typo is still forgiven")
+end
+
 function tests.searchUI_lootNameScoresAsAnyRowsName()
     withEntries({ lootBarb }, function()
         Database:ResetSearchCache()
