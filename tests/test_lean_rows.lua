@@ -80,6 +80,7 @@ function tests.macroRowsBuildTheirListAndSlotSteps()
     local account, unnamed, char = env.uiSearchData[1], env.uiSearchData[2], env.uiSearchData[3]
     H.assertEq(unnamed.name, "/cast Moonfire", "an unnamed macro is named by its first command")
     H.assertEq(unnamed.nameLower, "/cast moonfire")
+    H.assertTrue(unnamed.plainKeywords, "body words are plain keywords, no abbreviation tier")
     H.assertEq(unnamed.macroIndex, 2)
     H.assertEq(account.category, "Macro")
     H.assertEq(account.buttonFrame, "MainMenuMicroButton")

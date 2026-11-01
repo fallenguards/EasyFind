@@ -902,7 +902,9 @@ local function StrongMultiWordNameScore(nameLower, queryWords)
     return total / numQueryWords
 end
 
-function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
+-- plain: the keywords are a body's own words (a macro's), never an
+-- abbreviation, so a short one typed exactly earns no more than a long one.
+function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords, plain)
     if not keywordsLower then return 0 end
 
     if ssub(query, queryLen, queryLen) == " " then
@@ -942,7 +944,7 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
                 -- A long exact keyword sits above any typo-tolerant name
                 -- match (85): a word the row literally answers to beats a
                 -- name one letter off ("brackenhide" over the "black" rows).
-                kwScore = queryLen <= 3 and SHORT_KEYWORD_SCORE or 100
+                kwScore = (queryLen <= 3 and not plain) and SHORT_KEYWORD_SCORE or 100
             elseif sfind(kw, query, 1, true) == 1 then
                 -- A prefix of five or more letters is the same evidence the
                 -- typo path needs before it fires at all, so it outranks a
@@ -1360,7 +1362,7 @@ end
 -- the memo. Entries owning their table score directly.
 local function KeywordScore(data, kws, q, qLen, words, memo)
     if rawget(data, "keywordsLower") ~= nil or rawget(data, "keywords") ~= nil then
-        return Database:ScoreKeywords(kws, q, qLen, words)
+        return Database:ScoreKeywords(kws, q, qLen, words, data.plainKeywords)
     end
     local s = memo[kws]
     if s == nil then

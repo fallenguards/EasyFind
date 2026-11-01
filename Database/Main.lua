@@ -4747,6 +4747,7 @@ function Database:PopulateDynamicMacros()
             name = name,
             nameLower = nameLower,
             keywords = kw,
+            plainKeywords = true,
             icon = iconTexture,
             macroIndex = macroIdx,
             macroBody = body,

@@ -41,6 +41,15 @@ function tests.tagKeywords_neverMatchByTypo()
     H.assertEq(Database:ScoreKeywords(tags, "auto potion", 11, { "auto", "potion" }), 0, "two words: the tag typo counts for nothing")
 end
 
+-- A macro's body words answer to the row plainly: a short one typed
+-- exactly ("imp", the Era audit's "impact" hunt 2026-11-01) is no
+-- abbreviation, so a name starting with it still wins.
+function tests.bodyWords_takeNoShortKeywordTier()
+    local body = { "macro", "health funnel", "imp" }
+    H.assertEq(Database:ScoreKeywords(body, "imp", 3, { "imp" }, true), 100, "a plain keyword")
+    H.assertEq(Database:ScoreKeywords(body, "imp", 3, { "imp" }), 600, "a curated one keeps the tier")
+end
+
 -- An abbreviation drops letters, so it is short: a six-letter query is a
 -- word, not an abbreviation of a longer one ("potion" of "promotion").
 function tests.abbreviations_areShort()
