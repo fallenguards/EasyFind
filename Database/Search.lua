@@ -42,6 +42,7 @@ end
 
 local BOSS_QUERY_WORDS = ns.BOSS_QUERY_WORDS
 local STAT_QUERY_WORDS = ns.STAT_QUERY_WORDS
+local Steer = ns.SearchSteer
 
 -- Word lists per string, bounded by the dataset's names and keywords (a
 -- FIFO thrashed). Names scored once and dropped (the item catalog) go
@@ -563,7 +564,7 @@ end
 -- ungated results; keep it green when touching any scorer above.
 local GATE = {
     masks = {}, allows = {}, firstBits = {}, count = 0,
-    sawNil = false, gatedN = 0, skipStatistic = false, fillPending = false,
+    sawNil = false, gatedN = 0, scoped = false, fillPending = false,
 }
 
 -- Shared with PackedCorpus, which walks original-case decoded names; the
@@ -640,9 +641,9 @@ local function GateSkipsEntry(data)
         return false
     end
     if not gm then return false end
-    local masks, allows, firstBits, count, skipStat =
-        GATE.masks, GATE.allows, GATE.firstBits, GATE.count, GATE.skipStatistic
-    if skipStat and data.category == "Statistic" then return false end
+    local masks, allows, firstBits, count, scoped =
+        GATE.masks, GATE.allows, GATE.firstBits, GATE.count, GATE.scoped
+    if scoped and scoped[data.category] then return false end
     for w = 1, count do
         local missing = band(masks[w], bnot(gm))
         if missing ~= 0 then
@@ -1288,7 +1289,8 @@ local resultsBuf = {}
 -- with unique tables just pay one hash lookup. Wiped per query.
 local sharedKwScores = {}
 local resultsQueryWords = {}
-local statisticScopedQueryWords = {}
+-- The query cut per steered category (Steer.Scope), reused per query.
+local steerHolder = {}
 local resultEntryPool = {}
 Database._resultEntryPool = resultEntryPool
 
@@ -1299,7 +1301,7 @@ function Database:TrimSearchMemory()
     resultsBuf, sharedKwScores, resultEntryPool = {}, {}, {}
     Database._resultEntryPool = resultEntryPool
     wipe(resultsQueryWords)
-    wipe(statisticScopedQueryWords)
+    steerHolder = {}
     wordCache, nameMaskCache, wordInitCache = {}, {}, {}
     Database._wordCache = wordCache
     DropCandidates()
@@ -1338,6 +1340,123 @@ function Database:SetCategoryMinLen(map)
     -- the threshold, not just its scoring).
     self.categoryMinLenActive = map
     self:ResetSearchCache()
+end
+
+-- Keyword tables inherited from an __index prototype (rawget nil:
+-- housing's 1768 entries share ONE table) score once per query through
+-- the memo. Entries owning their table score directly.
+local function KeywordScore(data, kws, q, qLen, words, memo)
+    if rawget(data, "keywordsLower") ~= nil or rawget(data, "keywords") ~= nil then
+        return Database:ScoreKeywords(kws, q, qLen, words)
+    end
+    local s = memo[kws]
+    if s == nil then
+        s = Database:ScoreKeywords(kws, q, qLen, words)
+        memo[kws] = s
+    end
+    return s
+end
+
+-- A row's other names: its fields as sets of words; a snippet's trigger
+-- keyword, scored with the name tiers so typing it exactly ranks the
+-- snippet like an exact name hit, not a keyword alias; a dungeon
+-- teleport's dungeon name and its English one (its nicknames, "bran",
+-- "kara", are plain keywords).
+local function OtherNameScores(data, score, q, qLen, words)
+    if #words >= 2 then
+        score = mmax(score, Database:ScoreEntryFields(data, words))
+    end
+    local snippetKw = data.snippetKeywordLower
+    if snippetKw then
+        score = mmax(score, Database:ScoreName(snippetKw, q, qLen, words))
+    end
+    local tpName = data.teleportNameLower
+    if tpName then
+        score = mmax(score, Database:ScoreName(tpName, q, qLen, words))
+        local tpEn = data.teleportNameEnLower
+        if tpEn and tpEn ~= tpName then
+            score = mmax(score, Database:ScoreName(tpEn, q, qLen, words))
+        end
+    end
+    return score
+end
+
+-- Each query word scores against name + slot + stats + source kws; best
+-- match wins; an unmatched word eliminates the item. Stopword query words
+-- are SKIPPED (no credit, no elimination): "maw of the greatworm" must not
+-- die on "of"/"the", and a bare "the" must not sum a word-match on every
+-- "The X" loot name.
+local function LootScore(data, nameLower, queryWords, lootStatActive)
+    local totalScore = 0
+    local nameWords = GetWords(nameLower)
+    for qi = 1, #queryWords do
+        local qw = queryWords[qi]
+        if not STOPWORDS[qw] then
+            local qwLen = #qw
+            -- "stockades" is "stockade": a plural typed, or a plural kept.
+            local qwStem = qwLen > 3 and ssub(qw, qwLen, qwLen) == "s" and ssub(qw, 1, qwLen - 1) or nil
+            local qwPlural = qw .. "s"
+            local bestWord = 0
+            -- An armor type or a class: the item's own kind answers.
+            local gearScore = Database.LootWordScore and Database.LootWordScore(data, qw)
+            if gearScore then bestWord = gearScore end
+
+            -- Name match must outrank lootSourceKw (boss name) below,
+            -- else loot named for the query gets buried under same-
+            -- boss loot that only matched via the encounter name.
+            for ni = 1, #nameWords do
+                local nw = nameWords[ni]
+                if nw == qw then
+                    bestWord = mmax(bestWord, qi == 1 and 130 or 120)
+                elseif ssub(nw, 1, qwLen) == qw then
+                    bestWord = mmax(bestWord, qi == 1 and 115 or 105)
+                end
+            end
+
+            -- An exact slot or stat keyword is the user naming the kind:
+            -- above fuzzy noise (~85), whatever its length. Prefix
+            -- acceptance stays in sync with IsLootSlotSearchWord (Main.lua).
+            if data.lootSlotKw then
+                for ki = 1, #data.lootSlotKw do
+                    local kw = data.lootSlotKw[ki]
+                    if kw == qw then
+                        bestWord = mmax(bestWord, 140)
+                    elseif sfind(kw, qw, 1, true) == 1 then
+                        bestWord = mmax(bestWord, 70)
+                    end
+                end
+            end
+
+            if lootStatActive and data.lootStatKw then
+                for ki = 1, #data.lootStatKw do
+                    local kw = data.lootStatKw[ki]
+                    if kw == qw then
+                        bestWord = mmax(bestWord, 140)
+                    elseif sfind(kw, qw, 1, true) == 1 then
+                        bestWord = mmax(bestWord, 70)
+                    end
+                end
+            end
+
+            -- Prefix on boss/dungeon name must beat 1-edit fuzzy (85)
+            -- on unrelated names, so "nexu" -> Nexus-Point Xenas gear
+            -- doesn't rank below misspellings of other entries.
+            if data.lootSourceKw then
+                for ki = 1, #data.lootSourceKw do
+                    local kw = data.lootSourceKw[ki]
+                    if kw == qw or kw == qwStem or kw == qwPlural then
+                        bestWord = mmax(bestWord, 110)
+                    elseif sfind(kw, qw, 1, true) == 1 then
+                        bestWord = mmax(bestWord, 100)
+                    end
+                end
+            end
+
+            if bestWord == 0 then return 0 end
+            totalScore = totalScore + bestWord
+        end
+    end
+    return totalScore
 end
 
 function Database:SearchUI(query, skipCategories)
@@ -1427,26 +1546,19 @@ function Database:SearchUI(query, skipCategories)
         and (lootGearContext or lootStatWordCount >= 2
             or Database._disableLootStatContext == true)
 
-    local statisticScopedQuery
-    local statisticScopedQueryLen = 0
-    if statQueryWord and #queryWords >= 2 then
-        wipe(statisticScopedQueryWords)
-        for qi = 1, #queryWords do
-            local qw = queryWords[qi]
-            if not STAT_QUERY_WORDS[qw] then
-                statisticScopedQueryWords[#statisticScopedQueryWords + 1] = qw
-            end
-        end
-        if #statisticScopedQueryWords > 0 then
-            statisticScopedQuery = tconcat(statisticScopedQueryWords, " ")
-            statisticScopedQueryLen = #statisticScopedQuery
+    -- A word naming a kind of row ("zone stormwind", "stat gold") scopes
+    -- the others to that category: its rows score the cut query too.
+    local scopedByCat = Steer.Scope(steerHolder, query, queryWords) and steerHolder.byCategory or nil
+    if scopedByCat then
+        for _, rec in pairs(scopedByCat) do
+            if rec.kwMemo then wipe(rec.kwMemo) else rec.kwMemo = {} end
         end
     end
 
     GATE.count = 0
     GATE.sawNil = false
     GATE.gatedN = 0
-    GATE.skipStatistic = statisticScopedQuery ~= nil
+    GATE.scoped = scopedByCat
     if not Database._disableSearchGate then
         for qi = 1, #queryWords do
             local qw = queryWords[qi]
@@ -1514,17 +1626,17 @@ function Database:SearchUI(query, skipCategories)
         searchSet = uiSearchData
         -- Fresh scans generate candidates from the q-gram index instead of
         -- scoring the whole dataset; the scorers verify only candidates and
-        -- results stay identical (statistic-scoped queries rewrite the
-        -- query per entry and must bypass; _disableSearchGate bypasses so
-        -- the bench A/B proves identity against the true full scan).
-        if not statisticScopedQuery and not Database._disableSearchGate
-           and ns.SearchIndex then
+        -- results stay identical (_disableSearchGate bypasses so the bench
+        -- A/B proves identity against the true full scan).
+        if not Database._disableSearchGate and ns.SearchIndex then
             -- One plain word: the rows that can only score a mid-word substring
             -- come last, and the scan stops before them once it cannot use them.
             local split = #queryWords == 1 and queryWords[1] == query and not queryNorm
                 and not sfind(query, "[^%w]")
                 and not lootStatActive and not bossQueryWord and not achQueryWord and not statQueryWord
-            local cand, _, restFrom = ns.SearchIndex:Candidates(queryWords, split)
+            -- A steered row holds the cut query's words, not the steering word.
+            local cutWords = scopedByCat and #steerHolder.rest > 0 and steerHolder.rest or nil
+            local cand, _, restFrom = ns.SearchIndex:Candidates(queryWords, split, cutWords, scopedByCat)
             if cand then
                 searchSet = cand
                 restAt = restFrom
@@ -1596,6 +1708,7 @@ function Database:SearchUI(query, skipCategories)
            and (not categoryMinLen or queryLen >= (categoryMinLen[cat] or 0))
            and (not gateActive or not GateSkipsEntry(data)) then
             local nameLower = data.nameLower
+            local sq = scopedByCat and scopedByCat[cat]
             local score
             if stopwordRest and i >= restAt then
                 -- No word of a rest row starts with the stop word, so the
@@ -1606,97 +1719,8 @@ function Database:SearchUI(query, skipCategories)
                 if lootStatActive and not data._statsEnriched then
                     Database:EnrichLootStats(data)
                 end
-                -- Each query word scores against name + slot + stats + source
-                -- kws; best match wins; an unmatched word eliminates the item.
-                -- Stopword query words are SKIPPED (no credit, no elimination):
-                -- "maw of the greatworm" must not die on "of"/"the", and a bare
-                -- "the" must not sum a word-match on every "The X" loot name.
-                local totalScore = 0
-
-                local nameWords = GetWords(nameLower)
-                for qi = 1, #queryWords do
-                    local qw = queryWords[qi]
-                    if not STOPWORDS[qw] then
-                    local qwLen = #qw
-                    -- "stockades" is "stockade": a plural typed, or a plural kept.
-                    local qwStem = qwLen > 3 and ssub(qw, qwLen, qwLen) == "s" and ssub(qw, 1, qwLen - 1) or nil
-                    local qwPlural = qw .. "s"
-                    local bestWord = 0
-                    -- An armor type or a class: the item's own kind answers.
-                    local gearScore = Database.LootWordScore and Database.LootWordScore(data, qw)
-                    if gearScore then bestWord = gearScore end
-
-                    -- Name match must outrank lootSourceKw (boss name) below,
-                    -- else loot named for the query gets buried under same-
-                    -- boss loot that only matched via the encounter name.
-                    for ni = 1, #nameWords do
-                        local nw = nameWords[ni]
-                        if nw == qw then
-                            bestWord = mmax(bestWord, qi == 1 and 130 or 120)
-                        elseif ssub(nw, 1, qwLen) == qw then
-                            bestWord = mmax(bestWord, qi == 1 and 115 or 105)
-                        end
-                    end
-
-                    -- Prefix acceptance here must stay in sync with the
-                    -- gear-context prefix rule in IsLootSlotSearchWord (Main.lua).
-                    if data.lootSlotKw then
-                        for ki = 1, #data.lootSlotKw do
-                            local kw = data.lootSlotKw[ki]
-                            if kw == qw then
-                                -- Exact slot/stat keyword match is a strong signal
-                                -- (the user typed the exact slot/stat). It must
-                                -- outrank fuzzy noise (~85), or a plain "legs"
-                                -- query buries real legs loot under 1-edit matches
-                                -- on unrelated entries. Length is irrelevant to an
-                                -- exact match, so drop the old 4+char penalty (80).
-                                bestWord = mmax(bestWord, 140)
-                            elseif sfind(kw, qw, 1, true) == 1 then
-                                bestWord = mmax(bestWord, 70)
-                            end
-                        end
-                    end
-
-                    if lootStatActive and data.lootStatKw then
-                        for ki = 1, #data.lootStatKw do
-                            local kw = data.lootStatKw[ki]
-                            if kw == qw then
-                                -- Exact slot/stat keyword match is a strong signal
-                                -- (the user typed the exact slot/stat). It must
-                                -- outrank fuzzy noise (~85), or a plain "legs"
-                                -- query buries real legs loot under 1-edit matches
-                                -- on unrelated entries. Length is irrelevant to an
-                                -- exact match, so drop the old 4+char penalty (80).
-                                bestWord = mmax(bestWord, 140)
-                            elseif sfind(kw, qw, 1, true) == 1 then
-                                bestWord = mmax(bestWord, 70)
-                            end
-                        end
-                    end
-
-                    -- Prefix on boss/dungeon name must beat 1-edit fuzzy (85)
-                    -- on unrelated names, so "nexu" -> Nexus-Point Xenas gear
-                    -- doesn't rank below misspellings of other entries.
-                    if data.lootSourceKw then
-                        for ki = 1, #data.lootSourceKw do
-                            local kw = data.lootSourceKw[ki]
-                            if kw == qw or kw == qwStem or kw == qwPlural then
-                                bestWord = mmax(bestWord, 110)
-                            elseif sfind(kw, qw, 1, true) == 1 then
-                                bestWord = mmax(bestWord, 100)
-                            end
-                        end
-                    end
-
-                    if bestWord == 0 then
-                        totalScore = 0
-                        break
-                    end
-                    totalScore = totalScore + bestWord
-                    end
-                end
-
-                score = totalScore
+                score = LootScore(data, nameLower, queryWords, lootStatActive)
+                if sq then score = mmax(score, LootScore(data, nameLower, sq.words, lootStatActive)) end
             elseif cat == "Boss" and not bossQueryWord and not instanceQueryWord then
                 score = Database:ScoreName(nameLower, query, queryLen, queryWords)
             else
@@ -1719,77 +1743,27 @@ function Database:SearchUI(query, skipCategories)
                         score = 0
                     end
                 else
-                    local entryQuery = query
-                    local entryQueryLen = queryLen
-                    local entryQueryWords = queryWords
-                    if cat == "Statistic" and statisticScopedQuery then
-                        entryQuery = statisticScopedQuery
-                        entryQueryLen = statisticScopedQueryLen
-                        entryQueryWords = statisticScopedQueryWords
-                    end
                     -- MAX, not SUM. Many entries duplicate their name into
                     -- keywordsLower; a sum double-counts the same fuzzy hit.
                     local kws = data.keywordsLower or data.keywords
-                    local kwScore = 0
-                    if kws then
-                        -- Keyword tables inherited from an __index prototype
-                        -- (rawget nil: housing's 1768 entries share ONE table)
-                        -- score once per query via the memo. Entries owning
-                        -- their table score directly -- no memo overhead.
-                        if entryQuery == query
-                            and rawget(data, "keywordsLower") == nil
-                            and rawget(data, "keywords") == nil then
-                            kwScore = sharedKwScores[kws]
-                            if kwScore == nil then
-                                kwScore = Database:ScoreKeywords(kws,
-                                    entryQuery, entryQueryLen, entryQueryWords)
-                                sharedKwScores[kws] = kwScore
-                            end
-                        else
-                            kwScore = Database:ScoreKeywords(kws,
-                                entryQuery, entryQueryLen, entryQueryWords)
-                        end
-                    end
-                    score = mmax(
-                        Database:ScoreName(nameLower, entryQuery, entryQueryLen, entryQueryWords),
-                        kwScore
-                    )
-                    if queryNorm and score < 100 and entryQuery == query then
+                    local kwScore = kws and KeywordScore(data, kws, query, queryLen, queryWords, sharedKwScores) or 0
+                    score = mmax(Database:ScoreName(nameLower, query, queryLen, queryWords), kwScore)
+                    if queryNorm and score < 100 then
                         -- Mapped onto 30..99, under every raw tier: a row named
                         -- exactly "guild" must not jump over "Guild & Communities"
                         -- the moment the "&" is typed, and the weakest cut match
                         -- still clears the 30-point floor below. Among the rows
                         -- only the cut form reaches, their own order holds.
                         local alt = mmax(
-                            Database:ScoreName(nameLower, queryNorm, queryNormLen, entryQueryWords),
-                            kws and Database:ScoreKeywords(kws, queryNorm, queryNormLen, entryQueryWords) or 0)
+                            Database:ScoreName(nameLower, queryNorm, queryNormLen, queryWords),
+                            kws and Database:ScoreKeywords(kws, queryNorm, queryNormLen, queryWords) or 0)
                         if alt > 0 then score = mmax(score, 30 + mmin(alt, 1000) * 0.069) end
                     end
-                    if #entryQueryWords >= 2 then
-                        score = mmax(score, Database:ScoreEntryFields(data, entryQueryWords))
-                    end
-                    -- A snippet's trigger keyword is its second name: scored
-                    -- with the name tiers so typing it exactly ranks the
-                    -- snippet like an exact name hit, not a keyword alias.
-                    local snippetKw = data.snippetKeywordLower
-                    if snippetKw then
-                        local kwNameScore = Database:ScoreName(snippetKw,
-                            entryQuery, entryQueryLen, entryQueryWords)
-                        if kwNameScore > score then score = kwNameScore end
-                    end
-                    -- A dungeon teleport's dungeon name is its second name
-                    -- too; its nicknames ("bran", "kara") are plain keywords.
-                    local tpName = data.teleportNameLower
-                    if tpName then
-                        local tpScore = Database:ScoreName(tpName,
-                            entryQuery, entryQueryLen, entryQueryWords)
-                        local tpEn = data.teleportNameEnLower
-                        if tpEn and tpEn ~= tpName then
-                            local enScore = Database:ScoreName(tpEn,
-                                entryQuery, entryQueryLen, entryQueryWords)
-                            if enScore > tpScore then tpScore = enScore end
-                        end
-                        if tpScore > score then score = tpScore end
+                    score = OtherNameScores(data, score, query, queryLen, queryWords)
+                    if sq then
+                        local cutScore = mmax(Database:ScoreName(nameLower, sq.query, sq.len, sq.words),
+                            kws and KeywordScore(data, kws, sq.query, sq.len, sq.words, sq.kwMemo) or 0)
+                        score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words))
                     end
                 end
             end

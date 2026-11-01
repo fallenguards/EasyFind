@@ -300,6 +300,9 @@ function MapSearch:SearchZones(query)
     if ns.Database and ns.Database.NormalizeSearchQuery then
         query = ns.Database:NormalizeSearchQuery(query)
     end
+    -- "zone stormwind": the zones answer to the rest of it.
+    local Steer = ns.SearchSteer
+    query = Steer and Steer.Strip(query, "@map") or query
     local isGlobal = MapSearch:IsGlobalSearchActive()
     local zones
     local candidates

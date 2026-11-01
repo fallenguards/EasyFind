@@ -146,13 +146,14 @@ local function GetPOIMask(entry)
     return mask
 end
 
--- Query mask, cached for the current query string (per-keystroke caller).
-local lastQueryMaskFor, lastQueryMask
+-- Query mask, cached for the current query string and the one before it
+-- (a steered pass alternates the query and its cut, POI by POI).
+local lastQueryMaskFor, lastQueryMask, prevQueryMaskFor, prevQueryMask
 local function QueryLetterMask(query)
-    if query ~= lastQueryMaskFor then
-        lastQueryMaskFor = query
-        lastQueryMask = LetterMask(query)
-    end
+    if query == lastQueryMaskFor then return lastQueryMask end
+    if query == prevQueryMaskFor then return prevQueryMask end
+    prevQueryMaskFor, prevQueryMask = lastQueryMaskFor, lastQueryMask
+    lastQueryMaskFor, lastQueryMask = query, LetterMask(query)
     return lastQueryMask
 end
 

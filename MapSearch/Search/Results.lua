@@ -510,15 +510,18 @@ local function AddScoredPOI(results, seen, duplicates, poi, key, score)
 end
 
 -- The bar's search runs sliced: these walks yield there between slices.
-local function AppendNameMatches(results, seen, duplicates, candidates, query)
+local function AppendNameMatches(results, seen, duplicates, candidates, query, scoped)
     for i, poi in ipairs(candidates) do
         if i % 64 == 0 then Utils.SliceCheckpoint() end
+        -- A steered row ("dungeon deadmines") scores the cut query too.
+        local rec = scoped and (scoped[poi.category] or scoped["@map"])
         -- Letter-mask gate BEFORE any scoring call: the map corpus'
         -- version of the UI index's candidate pruning. For a typical
         -- non-map query ("glad mount") this skips nearly every POI with
         -- one band(), which was the main bar's per-keystroke map cost.
-        if (poi.isZone and poi.score) or POICouldMatch(poi, query) then
+        if (poi.isZone and poi.score) or POICouldMatch(poi, rec and rec.query or query) then
             local score = ScorePOIForQuery(poi, query)
+            if rec then score = mmax(score, ScorePOIForQuery(poi, rec.query)) end
             if score >= 50 then
                 AddScoredPOI(results, seen, duplicates, poi, GetPOIDuplicateKey(poi), score)
             end
@@ -612,6 +615,7 @@ end
 -- way but kept out of the cache (zones and creatures, a set of their own
 -- per query). cacheKey: local_, global_ or ui_ (nil: by the search mode;
 -- false: none). Also the matched category.
+local mapSteer = {}
 function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
     query = slower(query)
     if ns.Database and ns.Database.NormalizeSearchQuery then
@@ -626,12 +630,17 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
 
     local matchedCategory = self:GetCategoryMatch(query)
     local relatedCategories = matchedCategory and self:GetRelatedCategories(matchedCategory) or nil
+    -- A steering word's rows ("zone stormwind") take the cut query; the
+    -- scope opens as the word completes, so nothing narrows from "zon".
+    local Steer = ns.SearchSteer
+    local scoped = Steer and Steer.Scope(mapSteer, query) and mapSteer.byCategory or nil
 
     if cacheKey == nil then cacheKey = Search.isGlobalSearch and "global_" or "local_" end
     local cache = cacheKey and searchPoisCache[cacheKey]
     local hit, candidates, narrowed
     if cache then
         hit, candidates, narrowed = ResolveSearchCache(cache, query, matchedCategory, pois)
+        if narrowed and scoped then candidates, narrowed = pois, false end
     else
         candidates = pois
     end
@@ -644,7 +653,7 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
         end
     else
         if narrowed then ClearCachedCandidateScores(candidates) end
-        AppendNameMatches(results, seen, duplicates, candidates, query)
+        AppendNameMatches(results, seen, duplicates, candidates, query, scoped)
         AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
         AttachDuplicateSets(results, duplicates)
         if cache then
@@ -654,7 +663,7 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
         end
     end
     if fresh and #fresh > 0 then
-        AppendNameMatches(results, seen, duplicates, fresh, query)
+        AppendNameMatches(results, seen, duplicates, fresh, query, scoped)
         AppendCategoryMatches(results, seen, duplicates, fresh, matchedCategory, relatedCategories)
         AttachDuplicateSets(results, duplicates)
         AttachProviderSpots(results)

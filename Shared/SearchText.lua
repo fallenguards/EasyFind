@@ -281,5 +281,124 @@ if ns then
     ns.STAT_QUERY_WORDS = {
         stat = true, stats = true, statistic = true, statistics = true,
     }
+
+    -- Steering words: a query word naming a kind of row ("zone stormwind",
+    -- "spell frostbolt") scopes the other words to that category, the way
+    -- a launcher matches a word against a command's extension name. Each
+    -- source registers its own: the provider trigger words (Search/Engine),
+    -- the quick-filter aliases (Search/Filters/QuickFilter), the map
+    -- categories' keywords (MapSearch/Categories); "@map" steers every map
+    -- row. byCategory[category][word] = true.
+    local byCategory, categoriesOf = {}, {}
+    local Steer = { byCategory = byCategory }
+    ns.SearchSteer = Steer
+    local NEVER = { of = true, to = true, ["in"] = true, on = true, at = true, by = true,
+        ["or"] = true, an = true, the = true, ["and"] = true, ["for"] = true }
+    local tconcat = table.concat
+    local tokens = {}
+
+    function Steer.Add(category, word)
+        word = sslower(word)
+        if #word < 2 or NEVER[word] or sfind(word, " ", 1, true) then return end
+        local set = byCategory[category]
+        if not set then
+            set = {}
+            byCategory[category] = set
+        end
+        if set[word] then return end
+        set[word] = true
+        local cats = categoriesOf[word]
+        if not cats then
+            cats = {}
+            categoriesOf[word] = cats
+        end
+        cats[#cats + 1] = category
+    end
+
+    local function Without(query, set)
+        local n, dropped = 0, false
+        for token in query:gmatch("%S+") do
+            if set[token:match("^%p*(.-)%p*$")] then
+                dropped = true
+            else
+                n = n + 1
+                tokens[n] = token
+            end
+        end
+        if not dropped or n == 0 then return nil end
+        return tconcat(tokens, " ", 1, n)
+    end
+
+    -- The query without the words steering `category`; nil when none do.
+    function Steer.Strip(query, category)
+        local set = byCategory[category]
+        return set and Without(query, set) or nil
+    end
+
+    -- Every category one of the query's words steers, each with the query
+    -- cut to the other words: holder.byCategory[category] = { query, len,
+    -- words }, holder.rest the words steering nothing. The holder's tables
+    -- are reused query after query. True when any category is steered.
+    function Steer.Scope(holder, query, queryWords)
+        local out, pool, rest = holder.byCategory, holder.pool, holder.rest
+        if not out then
+            out, pool, rest = {}, {}, {}
+            holder.byCategory, holder.pool, holder.rest = out, pool, rest
+        end
+        for cat in pairs(out) do out[cat] = nil end
+        if not queryWords then
+            queryWords = holder.tokens or {}
+            holder.tokens = queryWords
+            local n = 0
+            for token in query:gmatch("%S+") do
+                n = n + 1
+                queryWords[n] = token:match("^%p*(.-)%p*$")
+            end
+            for i = #queryWords, n + 1, -1 do queryWords[i] = nil end
+        end
+        local used, restN, any = 0, 0, false
+        for i = 1, #queryWords do
+            local w = queryWords[i]
+            local cats = categoriesOf[w]
+            if cats then
+                for c = 1, #cats do
+                    local cat = cats[c]
+                    if not out[cat] then
+                        local scoped = Without(query, byCategory[cat])
+                        if scoped then
+                            used = used + 1
+                            local rec = pool[used]
+                            if not rec then
+                                rec = { words = {} }
+                                pool[used] = rec
+                            end
+                            rec.query, rec.len = scoped, #scoped
+                            local set, words, wn = byCategory[cat], rec.words, 0
+                            for k = 1, #queryWords do
+                                if not set[queryWords[k]] then
+                                    wn = wn + 1
+                                    words[wn] = queryWords[k]
+                                end
+                            end
+                            for k = #words, wn + 1, -1 do words[k] = nil end
+                            out[cat] = rec
+                            any = true
+                        end
+                    end
+                end
+            else
+                restN = restN + 1
+                rest[restN] = w
+            end
+        end
+        for i = #rest, restN + 1, -1 do rest[i] = nil end
+        return any
+    end
+
+    for w in pairs(ns.BOSS_QUERY_WORDS) do Steer.Add("Boss", w) end
+    for w in pairs(ns.STAT_QUERY_WORDS) do
+        Steer.Add("Statistic", w)
+        Steer.Add("Statistics", w)
+    end
 end
 return SearchText

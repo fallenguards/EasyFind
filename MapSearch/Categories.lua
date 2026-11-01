@@ -144,6 +144,21 @@ Data.CATEGORIES = {
     lorewalker = { keywords = {"lorewalker", "cho", "lore walker", "pandaria lore", "flashback", "replay cinematic"}, parent = "service" },
 }
 
+-- A category's one-word keywords steer a search to its rows ("dungeon
+-- deadmines"), its parent's too; a steering word is never a phrase.
+do
+    local Steer = ns.SearchSteer
+    if Steer then
+        for key, def in pairs(Data.CATEGORIES) do
+            for i = 1, #def.keywords do Steer.Add(key, def.keywords[i]) end
+            local parent = def.parent and Data.CATEGORIES[def.parent]
+            if parent then
+                for i = 1, #parent.keywords do Steer.Add(key, parent.keywords[i]) end
+            end
+        end
+    end
+end
+
 Data.GLOBAL_SEARCH_CATEGORIES = {
     dungeon = true,
     raid = true,

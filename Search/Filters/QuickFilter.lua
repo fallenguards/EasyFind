@@ -90,6 +90,7 @@ for i = #Filters.quickFilterOptions, 1, -1 do
     end
 end
 
+local MAP_STEER = { "@map" }
 local function PrepareQuickFilter(def, i)
     def.order = i
     def.token = "@" .. def.canonical
@@ -116,6 +117,18 @@ local function PrepareQuickFilter(def, i)
     if def.aliases then
         for ai = 1, #def.aliases do
             Filters.quickFilterByAlias[slower(def.aliases[ai])] = def
+        end
+    end
+    -- An alias of three letters or more steers a search to the filter's
+    -- rows without the @ ("rep darnassus"); @map's steer every map row.
+    local Steer = ns.SearchSteer
+    local cats = def.categories or (def.key == "map" and MAP_STEER)
+    if Steer and cats and def.aliases then
+        for ai = 1, #def.aliases do
+            local alias = def.aliases[ai]
+            if #alias >= 3 then
+                for ci = 1, #cats do Steer.Add(cats[ci], alias) end
+            end
         end
     end
 end

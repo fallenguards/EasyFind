@@ -80,7 +80,7 @@ local PROVIDERS = {
     -- Loaded on demand like the rest: only the first-focus warm chains
     -- loaded it before, and on a fresh profile those run for a long
     -- time, so turning the filter on showed nothing (3.1.2 zip test).
-    { key = "professions", words = { "profession", "professions", "crafting", "tradeskill", "trade" }, loadOnLowResults = true, loadWhenEnabled = true },
+    { key = "professions", words = { "profession", "professions", "recipe", "recipes", "crafting", "tradeskill", "trade" }, loadOnLowResults = true, loadWhenEnabled = true },
 }
 
 local pendingDynamic = {}
@@ -106,10 +106,22 @@ if ns.Caps and ns.Caps.mounts == false then
     end
 end
 
+-- A provider's trigger words steer a search to its rows ("spell frostbolt").
+local function SteerToProvider(spec)
+    local Steer, CategoryMap = ns.SearchSteer, ns.CategoryMap
+    local cats = spec.words and Steer and CategoryMap and CategoryMap.CategoriesOf
+        and CategoryMap.CategoriesOf(spec.key)
+    if not cats then return end
+    for i = 1, #spec.words do
+        for c = 1, #cats do Steer.Add(cats[c], spec.words[i]) end
+    end
+end
+
 for i = 1, #PROVIDERS do
     if not PROVIDERS[i].lookup then
         PROVIDERS[i].lookup = makeLookup(PROVIDERS[i].words)
     end
+    SteerToProvider(PROVIDERS[i])
 end
 
 -- An extension's trigger words (EasyFind.API.RegisterSearchProvider).
@@ -119,6 +131,7 @@ function Engine:AddProvider(spec)
     end
     spec.lookup = spec.lookup or makeLookup(spec.words or {})
     PROVIDERS[#PROVIDERS + 1] = spec
+    SteerToProvider(spec)
 end
 
 local function cleanWord(word)

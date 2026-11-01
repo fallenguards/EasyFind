@@ -117,6 +117,12 @@ for i = 1, #ENTRIES do
     ProviderEntry[ENTRIES[i].providerKey or ENTRIES[i].key] = ENTRIES[i]
 end
 
+-- Every category name a provider's entries carry.
+function CategoryMap.CategoriesOf(providerKey)
+    local e = ProviderEntry[providerKey]
+    return e and e.categories
+end
+
 -- An extension's category, added when it registers (EasyFind.API).
 function CategoryMap.Add(e)
     local key = e.providerKey or e.key

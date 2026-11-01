@@ -1341,9 +1341,38 @@ end
 -- Entries past the watermark the index has not seen come last, unfiltered.
 -- With split (one query word), the rows that can score no more than a mid-word
 -- name substring come after everything else, from the third return on, so the
--- scan can stop before them once its kept rows all score higher.
+-- scan can stop before them once its kept rows all score higher. cutWords
+-- and steered: a steering word's cut of the query and the categories it
+-- steers (Database/Search.lua); their rows need the cut words only.
 local restBuf = {}
-function SearchIndex:Candidates(queryWords, split)
+local cutSet = {}
+-- The entries holding every usable word, into `into`; how many were usable.
+local function Holding(words, multi, split, into)
+    wipe(into)
+    local first, usable = true, 0
+    for qi = 1, #words do
+        local qw = words[qi]
+        if #qw >= 2 then
+            usable = usable + 1
+            CollectWord(qw, multi, split)
+            if first then
+                first = false
+                for e in pairs(wordSet) do
+                    into[e] = true
+                end
+            else
+                for e in pairs(into) do
+                    if not wordSet[e] then
+                        into[e] = nil
+                    end
+                end
+            end
+        end
+    end
+    return usable
+end
+
+function SearchIndex:Candidates(queryWords, split, cutWords, steered)
     -- A synchronous caller that failed between its reads never cleared it.
     reading = false
     lastQueryAt = GetTime()
@@ -1352,29 +1381,14 @@ function SearchIndex:Candidates(queryWords, split)
     if builtCount == 0 then return nil end
     local tailFrom, readSerial = builtCount, nextSerial
     reading = true
-    wipe(resultSet)
-    local first = true
-    local usable = 0
     -- Two or more words run ScoreEntryFields, which takes looser abbreviations.
     local multi = #queryWords >= 2
     split = split and not multi
-    for qi = 1, #queryWords do
-        local qw = queryWords[qi]
-        if #qw >= 2 then
-            usable = usable + 1
-            CollectWord(qw, multi, split)
-            if first then
-                first = false
-                for e in pairs(wordSet) do
-                    resultSet[e] = true
-                end
-            else
-                for e in pairs(resultSet) do
-                    if not wordSet[e] then
-                        resultSet[e] = nil
-                    end
-                end
-            end
+    local usable = Holding(queryWords, multi, split, resultSet)
+    if cutWords and Holding(cutWords, true, false, cutSet) > 0 then
+        for sid in pairs(cutSet) do
+            local data = slotEntry[sid]
+            if data and steered[data.category] then resultSet[sid] = true end
         end
     end
     reading = false
