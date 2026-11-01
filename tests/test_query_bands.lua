@@ -39,6 +39,11 @@ function tests.launcherWord_sitsBetweenPrefixAndExactName()
         "the name band needs the name's or a word's start, never a substring")
 end
 
+function tests.catalogScan_takesTheCutQueryUnderAnItemSteer()
+    H.assertTrue(src:find('ns.ItemSearch:Search(Steer and Steer.Strip(text, "Item") or text, ScoreCatalogName)', 1, true) ~= nil,
+        '"item linen cloth" scans the catalog for "linen cloth"')
+end
+
 function tests.itemRows_keepTheCatalogCopyOut()
     H.assertTrue(src:find("ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = true", 1, true) ~= nil,
         "a held, banked or dropped item marks its catalog twin")

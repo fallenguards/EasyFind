@@ -14,6 +14,7 @@ local GetTime = GetTime
 local slower = SearchText.Normalize
 local tinsert = Utils.tinsert
 local wipe = wipe
+local Steer = ns.SearchSteer
 
 local IsUIItemPinned = UIPins.IsPinned
 local collapsedNodes = Results._collapsedNodes
@@ -949,7 +950,8 @@ function Search:OnSearchTextChangedNow(text, force)
             or (not quickFilter and (not filters
                  or not ns.CategoryMap.IsProviderFilterOff(filters, "catalog")))) then
         Mark("rows")
-        local itemHits = ns.ItemSearch:Search(text, ScoreCatalogName)
+        -- "item linen cloth": the catalog scans the cut query.
+        local itemHits = ns.ItemSearch:Search(Steer and Steer.Strip(text, "Item") or text, ScoreCatalogName)
         Mark("catalog")
         if itemHits then
             for ii = 1, #itemHits do
