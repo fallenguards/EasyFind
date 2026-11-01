@@ -24,11 +24,13 @@ local flatCombined = Results._flatCombined
 local SCRATCH = Results._SCRATCH
 local SearchEngine = ns.SearchEngine
 
--- Items the player does not have (loot, the catalog) after everything
--- else, places included: places behind own rows put 250 fishing spots
--- over the Fishing Trainer at "fishing" (the Era audit, 2026-11-01).
+-- What is out in the world and not the player's (creatures, loot, the
+-- catalog) after everything else, places included: places behind own
+-- rows put 250 fishing spots over the Fishing Trainer at "fishing", and
+-- creatures beside them put Nefaru over Nefarian at "nef" (the Era
+-- audit, 2026-11-01).
 local function KindRank(d)
-    if d.catalogItem or d.category == "Loot" then return 1 end
+    if d.catalogItem or d.category == "Loot" or d.category == "npc" then return 1 end
     return 0
 end
 

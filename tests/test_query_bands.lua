@@ -81,7 +81,8 @@ end
 -- sat over the Fishing Trainer at "fishing".
 function tests.equalScores_sortByKindBeforeTheShorterName()
     local kind = assert(src:find("local function KindRank(d)", 1, true), "the kind rank")
-    H.assertTrue(src:find('if d.catalogItem or d.category == "Loot" then return 1 end', kind, true) ~= nil, "loot and catalog last")
+    H.assertTrue(src:find('if d.catalogItem or d.category == "Loot" or d.category == "npc" then return 1 end', kind, true) ~= nil,
+        "creatures, loot and the catalog last")
     H.assertTrue(src:find("d.mapRank or d.mapSearchResult then return", kind, true) == nil, "places are no kind of their own")
     local cmp = assert(src:find("local function FlatNameLess(ra, rb)", 1, true))
     local byKind = assert(src:find("local ka, kb = KindRank(ra.data), KindRank(rb.data)", cmp, true), "kinds compared")
