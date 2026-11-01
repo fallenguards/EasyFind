@@ -1734,8 +1734,15 @@ function Database:SearchUI(query, skipCategories)
                 if lootStatActive and not data._statsEnriched then
                     Database:EnrichLootStats(data)
                 end
-                score = LootScore(data, nameLower, queryWords, lootStatActive)
-                if sq then score = mmax(score, LootScore(data, nameLower, sq.words, lootStatActive) - 1) end
+                -- The name as any row's name; the loot scorer's boss, slot
+                -- and stat knowledge on top (a loot band of 115 sat every
+                -- prefix under other rows' word starts).
+                score = mmax(Database:ScoreName(nameLower, query, queryLen, queryWords),
+                    LootScore(data, nameLower, queryWords, lootStatActive))
+                if sq then
+                    score = mmax(score, Database:ScoreName(nameLower, sq.query, sq.len, sq.words) - 1,
+                        LootScore(data, nameLower, sq.words, lootStatActive) - 1)
+                end
             elseif cat == "Boss" and not bossQueryWord and not instanceQueryWord then
                 score = Database:ScoreName(nameLower, query, queryLen, queryWords)
             else

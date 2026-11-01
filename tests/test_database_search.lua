@@ -359,6 +359,33 @@ local bracketed = {
     category = "Adventure Guide", keywordsLower = { "journal" },
 }
 
+-- A loot row's name scores as any row's name: its own band (115 for a
+-- prefix) sat Cruel Barb under every word start of other rows at "cru"
+-- (the Era audit, 2026-11-01). The loot scorer's boss knowledge stays.
+local lootBarb = {
+    name = "Cruel Barb", nameLower = "cruel barb", category = "Loot", lootEntry = true,
+    lootSourceKw = { "edwin", "vancleef", "deadmines" },
+}
+local function scoreOf(results, entry)
+    for i = 1, #results do
+        if results[i].data == entry then return results[i].score end
+    end
+    return nil
+end
+
+function tests.searchUI_lootNameScoresAsAnyRowsName()
+    withEntries({ lootBarb }, function()
+        Database:ResetSearchCache()
+        H.assertEq(scoreOf(Database:SearchUI("cru"), lootBarb), 500, "a prefix of the name")
+        Database:ResetSearchCache()
+        H.assertEq(scoreOf(Database:SearchUI("cruel barb"), lootBarb), 1000, "the name itself")
+        Database:ResetSearchCache()
+        H.assertEq(scoreOf(Database:SearchUI("vancleef"), lootBarb), 110, "the boss it drops from, the loot scorer's")
+        Database:ResetSearchCache()
+        H.assertTrue((scoreOf(Database:SearchUI("curel barb"), lootBarb) or 0) > 0, "a typo in the name, forgiven as any row's")
+    end)
+end
+
 function tests.searchUI_lootRowSurvivesPunctuationInQuery()
     withEntries({ lootPattern }, function()
         for _, q in ipairs({ "pattern", "pattern:", "pattern: s", "pattern: sunfire" }) do
