@@ -274,7 +274,9 @@ function Database.LootWordScore(data, word)
     if not kind then return nil end
     local itemID = data.itemID
     local _, _, _, _, _, classID, subclassID = GetItemInfoInstant(itemID)
-    if kind.armor then return (classID == 4 and subclassID == kind.armor) and 140 or 0 end
+    -- An item's kind, under a name holding the word (120): the bag's Silk
+    -- Cloth before every cloth drop at "cloth".
+    if kind.armor then return (classID == 4 and subclassID == kind.armor) and 115 or 0 end
     local mask = ns.STATIC_LOOT_CLASSES and ns.STATIC_LOOT_CLASSES[itemID]
     if mask then return bband(mask, kind.bit) ~= 0 and 110 or 0 end
     local specs = data._cachedSpecs

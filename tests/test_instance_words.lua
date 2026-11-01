@@ -62,7 +62,7 @@ end
 function tests.gearWords_armorTypeAndClass_onTheOldRules()
     local D, items = Load({ era = true })
     items[1], items[2], items[3], items[4] = { 4, 1 }, { 4, 2 }, { 2, 1 }, { 4, 0 }
-    H.assertEq(D.LootWordScore({ itemID = 1 }, "cloth"), 140)
+    H.assertEq(D.LootWordScore({ itemID = 1 }, "cloth"), 115, "an item's kind, under a name holding the word")
     H.assertEq(D.LootWordScore({ itemID = 2 }, "cloth"), 0)
     H.assertEq(D.LootWordScore({ itemID = 2 }, "rogue"), 110)
     H.assertEq(D.LootWordScore({ itemID = 2 }, "schurkin"), 110)
@@ -94,7 +94,7 @@ function tests.gearWords_aCloakIsEveryones()
     local D, items = Load({ era = true })
     items[11] = { 4, 1, "INVTYPE_CLOAK" }
     H.assertEq(D.LootWordScore({ itemID = 11 }, "rogue"), 110)
-    H.assertEq(D.LootWordScore({ itemID = 11 }, "cloth"), 140)
+    H.assertEq(D.LootWordScore({ itemID = 11 }, "cloth"), 115)
 end
 
 -- Shipped loot by the filter menu's class: a TBC mage searching Illidan
