@@ -290,7 +290,9 @@ if ns then
     -- categories' keywords (MapSearch/Categories); "@map" steers every map
     -- row. byCategory[category][word] = true.
     local byCategory, categoriesOf = {}, {}
-    local Steer = { byCategory = byCategory }
+    -- categoriesOf[word]: the categories a word steers; a scorer reads it
+    -- to tell a tag thousands of rows carry from a row's own word.
+    local Steer = { byCategory = byCategory, categoriesOf = categoriesOf }
     ns.SearchSteer = Steer
     local NEVER = { of = true, to = true, ["in"] = true, on = true, at = true, by = true,
         ["or"] = true, an = true, the = true, ["and"] = true, ["for"] = true }

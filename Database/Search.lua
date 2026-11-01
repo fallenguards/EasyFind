@@ -43,6 +43,8 @@ end
 local BOSS_QUERY_WORDS = ns.BOSS_QUERY_WORDS
 local STAT_QUERY_WORDS = ns.STAT_QUERY_WORDS
 local Steer = ns.SearchSteer
+-- The words that name a kind of row: tags thousands of rows carry.
+local tagWords = Steer and Steer.categoriesOf
 
 -- Word lists per string, bounded by the dataset's names and keywords (a
 -- FIFO thrashed). Names scored once and dropped (the item catalog) go
@@ -324,6 +326,9 @@ end
 -- incremental-recall boundaries -- must agree on these, or the gate silently
 -- prunes results the scorers would match and narrowing misses them.
 local FUZZY_EDIT1_LEN, FUZZY_EDIT2_LEN, ABBREV_MIN_LEN = 5, 8, 3
+-- An abbreviation drops letters, so it is short: six letters are a word
+-- ("potion" is no abbreviation of "promotion" or "position").
+local ABBREV_MAX_LEN = 5
 
 function Database:ScoreFuzzy(text, query, queryLen)
     -- Dev seam (bench FUZZY A/B): no misspelling tolerance when set.
@@ -766,7 +771,7 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
                     score = mmax(score, 55)
                     break
                 end
-            elseif queryLen <= 8 and wordLen > queryLen and queryLen / wordLen >= 0.6 then
+            elseif queryLen <= ABBREV_MAX_LEN and wordLen > queryLen and queryLen / wordLen >= 0.6 then
                 if Database:IsSubsequence(word, query, queryLen) then
                     score = mmax(score, 60)
                     break
@@ -815,7 +820,7 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords)
                                     ws = 40
                                 end
                             end
-                            if ws == 0 and qwLen <= 8 and nwLen > qwLen and qwLen / nwLen >= 0.6 then
+                            if ws == 0 and qwLen <= ABBREV_MAX_LEN and nwLen > qwLen and qwLen / nwLen >= 0.6 then
                                 if Database:IsSubsequence(nw, qw, qwLen) then
                                     ws = 45
                                 end
@@ -946,18 +951,22 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
             elseif Database:FindAtWordBoundary(kw, query) then
                 kwScore = 55
             end
-            if kwScore < 60 and queryLen >= 3 then
+            -- A tag thousands of rows carry ("option", "setting") matches
+            -- only as typed: one typo away ("potion") it listed every
+            -- setting in the game.
+            local tag = tagWords and tagWords[kw]
+            if kwScore < 60 and queryLen >= 3 and not tag then
                 local initScore = Database:ScoreInitials(kw, query)
                 if initScore > 0 then
                     local penalty = queryLen == 3 and 70 or 20
                     kwScore = mmax(kwScore, initScore - penalty)
                 end
             end
-            if kwScore < 40 and queryLen >= FUZZY_EDIT1_LEN then
+            if kwScore < 40 and queryLen >= FUZZY_EDIT1_LEN and not tag then
                 local kf = Database:ScoreFuzzy(kw, query, queryLen)
                 if kf > 0 then kwScore = mmax(kwScore, kf) end
             end
-            if kwScore < 50 and queryLen >= 3 then
+            if kwScore < 50 and queryLen >= 3 and not tag then
                 local kwWords = GetWords(kw)
                 for kwi = 1, #kwWords do
                     local kwWord = kwWords[kwi]
@@ -967,7 +976,7 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
                             kwScore = mmax(kwScore, 60)
                             break
                         end
-                    elseif queryLen <= 8 and kwWordLen > queryLen and queryLen / kwWordLen >= 0.6 then
+                    elseif queryLen <= ABBREV_MAX_LEN and kwWordLen > queryLen and queryLen / kwWordLen >= 0.6 then
                         if Database:IsSubsequence(kwWord, query, queryLen) then
                             kwScore = mmax(kwScore, 55)
                             break
@@ -1002,14 +1011,15 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
                 elseif Database:FindAtWordBoundary(kw, queryWord) then
                     kwScore = 55
                 end
-                if kwScore < 60 and queryWordLen >= 3 then
+                local tag = tagWords and tagWords[kw]
+                if kwScore < 60 and queryWordLen >= 3 and not tag then
                     local initScore = Database:ScoreInitials(kw, queryWord)
                     if initScore > 0 then
                         local penalty = queryWordLen == 3 and 70 or 20
                         kwScore = mmax(kwScore, initScore - penalty)
                     end
                 end
-                if kwScore < 40 and queryWordLen >= FUZZY_EDIT1_LEN then
+                if kwScore < 40 and queryWordLen >= FUZZY_EDIT1_LEN and not tag then
                     local kf = Database:ScoreFuzzy(kw, queryWord, queryWordLen)
                     if kf > 0 then kwScore = mmax(kwScore, kf) end
                 end

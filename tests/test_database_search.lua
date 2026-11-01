@@ -28,6 +28,28 @@ function tests.keywordTiers_beatTypoNameMatches()
     H.assertEq(Database:ScoreFuzzy("black rat", "brack", 5), 85, "typo name match")
 end
 
+-- A tag thousands of rows carry matches only as typed: "potion" is one
+-- swapped pair from "option" and listed every setting in the game once the
+-- list had no cap (2026-11-01).
+function tests.tagKeywords_neverMatchByTypo()
+    ns.SearchSteer.Add("Game Settings", "option")
+    local tags = { "setting", "option", "config", "auto loot" }
+    H.assertEq(Database:ScoreKeywords(tags, "potion", 6, { "potion" }), 0, "no typo match on a tag")
+    H.assertEq(Database:ScoreKeywords(tags, "option", 6, { "option" }), 100, "typed, it matches")
+    H.assertEq(Database:ScoreKeywords(tags, "opti", 4, { "opti" }), 70, "its prefix matches")
+    H.assertEq(Database:ScoreKeywords({ "potoin" }, "potion", 6, { "potion" }), 85, "a row's own word still does")
+    H.assertEq(Database:ScoreKeywords(tags, "auto potion", 11, { "auto", "potion" }), 0, "two words: the tag typo counts for nothing")
+end
+
+-- An abbreviation drops letters, so it is short: a six-letter query is a
+-- word, not an abbreviation of a longer one ("potion" of "promotion").
+function tests.abbreviations_areShort()
+    H.assertEq(Database:ScoreKeywords({ "promotion" }, "potion", 6, { "potion" }), 0, "keyword")
+    H.assertEq(Database:ScoreName("position", "potion", 6, { "potion" }), 0, "name")
+    H.assertTrue(Database:ScoreName("potion", "ption", 5, { "ption" }) > 0, "a five-letter skeleton still does")
+    H.assertTrue(Database:ScoreKeywords({ "shadow" }, "shdw", 4, { "shdw" }) > 0, "a four-letter one too")
+end
+
 -- "ah" is the Auction House's own abbreviation: above Ahn'Qiraj, which
 -- merely starts with it, under a row named "ah" (2026-10-31).
 function tests.shortExactKeyword_aboveANamePrefix()
