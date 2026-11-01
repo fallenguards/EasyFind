@@ -209,6 +209,10 @@ local EXACT_MATCH_SCORE = 1000
 -- word-sum paths (ScoreEntryFields reaches 210 on two words, loot sums
 -- higher) must not demote it between keystrokes.
 local NAME_PREFIX_SCORE = 500
+-- A keyword of three letters or fewer typed whole ("ah", "rep", "inn") is
+-- an abbreviation the row answers to: above a name that merely starts
+-- with those letters, under a whole name.
+local SHORT_KEYWORD_SCORE = 600
 
 -- Strongest way a bare stopword query extends into a LONGER word of `text`:
 -- 3 = prefix of the first word ("the" -> "Theramore Isle"), 2 = prefix of a
@@ -930,11 +934,10 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords)
             if Database._disableSearchGate or KeywordCouldMatch(kw, query, queryLen) then
             local kwScore = 0
             if kw == query then
-                -- Short abbreviations (2-3 chars) get boosted above initials.
-                -- Longer exact keywords sit above any typo-tolerant name
+                -- A long exact keyword sits above any typo-tolerant name
                 -- match (85): a word the row literally answers to beats a
                 -- name one letter off ("brackenhide" over the "black" rows).
-                kwScore = queryLen <= 3 and 140 or 100
+                kwScore = queryLen <= 3 and SHORT_KEYWORD_SCORE or 100
             elseif sfind(kw, query, 1, true) == 1 then
                 -- A prefix of five or more letters is the same evidence the
                 -- typo path needs before it fires at all, so it outranks a
