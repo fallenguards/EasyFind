@@ -532,7 +532,7 @@ end
 
 function Filters:GetSelectedQuickFilterSuggestion()
     if Search:GetSelectedIndex() > 0 then
-        local row = Search:GetResultButtons()[Search:GetSelectedIndex()]
+        local row = ns.Results:RowFrame(Search:GetSelectedIndex())
         local def = row and row:IsShown() and row.data and row.data.quickFilterDef
         if def then return def end
     end

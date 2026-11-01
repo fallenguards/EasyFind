@@ -597,7 +597,7 @@ function Rows.InstallTooltips(resultRow)
         end
         if Handlers:IsActionHintRow(self) then
             Handlers:ClearActionHint()
-            local selRow = Search:GetSelectedIndex() > 0 and Search:GetResultButtons()[Search:GetSelectedIndex()] or nil
+            local selRow = Search:GetSelectedIndex() > 0 and ns.Results:RowFrame(Search:GetSelectedIndex()) or nil
             if selRow and selRow ~= self and not Search:GetToggleFocused() then
                 Handlers:ApplyActionHint(selRow)
             end

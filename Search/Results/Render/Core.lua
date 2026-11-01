@@ -20,9 +20,13 @@ local ApplySecureResultAttributes = SecureAttributes.Apply
 local RestoreResultShortcutGutter = Shortcuts.RestoreResultShortcutGutter
 local ApplyResultShortcutGutter = Shortcuts.ApplyResultShortcutGutter
 local MAX_BUTTON_POOL = Render.MAX_BUTTON_POOL
-local MAX_SEARCH_RESULT_ROWS = Render.MAX_SEARCH_RESULT_ROWS
 local MAX_DEPTH = Render.MAX_DEPTH
+local Window = Render.Window
+local HideUnusedResultRow = Render.HideUnusedResultRow
+local mceil = math.ceil
+local InCombatLockdown = InCombatLockdown
 local PIN_SEP_HEIGHT = 9  -- 4px gap + 1px line + 4px gap
+local PIN_GAP = 4
 local deferredRepRefreshPending = false
 -- Bumped per render: the rows past the viewport land a frame later.
 local renderGen = 0
@@ -204,41 +208,32 @@ function Render:ApplyResultsFrameLayout(resultsFrame, totalContentHeight,
     resultsFrame:Show()
 end
 
--- One result row laid out at st.yOffset, which it advances; st carries
--- the render's settings (ShowHierarchicalResults fills it).
+-- A row's height before it is laid out: flat rows stack a name and a
+-- subtext, a divider (a date line in the clipboard history) is one line,
+-- a calculator card is sized to itself. The measure after layout agrees
+-- except for a setting's Apply extension.
+local function EstimateRowHeight(entry, st)
+    local h = (entry.isFlat and not entry.isSectionHeader) and st.unit or st.rowH
+    local data = entry.data
+    if data and data.calculatorResult and not entry.isPathNode then
+        local calcRowH = mfloor(56 * st.fontScale + 0.5)
+        if calcRowH < 50 then calcRowH = 50 end
+        if h < calcRowH then h = calcRowH end
+    end
+    return h
+end
+
+-- One result row laid out at st.tops[i]; st carries the render's settings
+-- (ShowHierarchicalResults fills it). Returns the height it took.
 local function LayoutRow(owner, resultRow, i, st)
     PartStart(st.belowView)
     local entry = st.visible[i]
     local data = entry.data
     local depth = entry.depth or 0
+    st.yOffset = st.tops[i]
 
-    -- Pin separator gap: add once at the transition row
-    if st.hasResultsAfterPins and i == st.lastPinIndex + 1 then
-        st.pinEndYOffset = st.yOffset
-        st.yOffset = st.yOffset + PIN_SEP_HEIGHT
-    end
-
-    -- Small gap between pinned items (not after pin header)
-    if entry.isPinned and i > 1 and st.visible[i - 1] and not st.visible[i - 1].isPinHeader then
-        st.yOffset = st.yOffset + 4
-    end
-
-    -- Reposition for theme row height. Flat-list entries are taller
-    -- to fit the name + path subtext stack with breathing room above
-    -- the name and below the path so neither bleeds into the rep bar.
     local padL = st.theme.resultsPadLeft or 10
-    -- A section divider (a date line in the clipboard history) has
-    -- no text stack: the single-line height, not the flat two-line
-    -- one, or it opens a gap under whatever sits above it.
-    local entryRowH = (entry.isFlat and not entry.isSectionHeader) and (st.rowH + st.flatExtraH) or st.rowH
-    if data and data.calculatorResult and not entry.isPathNode then
-        -- Sized to fit the math card itself; the old 86 was sized
-        -- for card + launcher action bar combined, which is now a
-        -- separate row.
-        local calcRowH = mfloor(56 * st.fontScale + 0.5)
-        if calcRowH < 50 then calcRowH = 50 end
-        if entryRowH < calcRowH then entryRowH = calcRowH end
-    end
+    local entryRowH = EstimateRowHeight(entry, st)
     local rowContentTop = st.yOffset
     resultRow:SetSize(st.resultsFrame:GetWidth() - padL * 2 - st.scrollInset, entryRowH)
     resultRow:ClearAllPoints()
@@ -409,6 +404,227 @@ local function LayoutRow(owner, resultRow, i, st)
     st.yOffset = st.yOffset + actualH
     resultRow:Show()
     Part("gutter")
+    return actualH
+end
+
+-- The entries shown, hierarchical[from..to] appended to visible[n+1..]:
+-- a collapsed node's children stay out. Returns the new count.
+local function CollapseInto(visible, n, hierarchical, from, to)
+    local skipBelowDepth, skipPins = nil, false
+    for hi = from, to do
+        local entry = hierarchical[hi]
+        local d = entry.depth or 0
+        if skipBelowDepth and d <= skipBelowDepth then skipBelowDepth = nil end
+        if not (skipPins and entry.isPinned) and not skipBelowDepth then
+            if skipPins and not entry.isPinned then skipPins = false end
+            n = n + 1
+            visible[n] = entry
+            if entry.isPathNode and collapsedNodes[entry.name .. "_" .. d] then
+                skipBelowDepth = d
+            end
+        end
+    end
+    return n
+end
+
+-- A nested row with no later sibling draws an elbow, not a tee.
+local function MarkLastChildren(visible, isLastChild, from, to, n)
+    for i = from, to do
+        local d = visible[i].depth or 0
+        if d > 0 then
+            local foundSibling = false
+            for j = i + 1, n do
+                local dj = visible[j].depth or 0
+                if dj < d then break end
+                if dj == d then foundSibling = true; break end
+            end
+            isLastChild[i] = not foundSibling
+        end
+    end
+end
+
+-- The frame pool is the rows near the view: a row takes the lowest free
+-- frame (made when none is), a row leaving the window gives its back.
+local function TakeFrame()
+    local buttons = Search:GetResultButtons()
+    for k = 1, MAX_BUTTON_POOL do
+        local f = buttons[k] or Results:EnsureResultButton(k)
+        if not f.rowIndex then return f end
+    end
+end
+
+local function PlaceRow(owner, i, st)
+    local row = st.frameOf[i]
+    if not row then
+        row = TakeFrame()
+        st.frameOf[i] = row
+        row.rowIndex = i
+    end
+    local entry = st.visible[i]
+    -- A row past the first paint learns whether it is pinned as it is laid out.
+    if entry.isPinned == nil then
+        local d = entry.data
+        entry.isPinned = (d and not d.noPin and ns.UIPins.IsPinned(d)) and true or false
+    end
+    local h = LayoutRow(owner, row, i, st)
+    if h ~= st.heights[i] then
+        st.heights[i] = h
+        st.dirty = true
+    end
+end
+
+local function ReleaseFrame(st, f)
+    st.frameOf[f.rowIndex] = nil
+    f.rowIndex = nil
+    HideUnusedResultRow(f)
+end
+
+-- The scroll child's height and the thumb follow the geometry.
+local function SetContentHeight(st)
+    local resultsFrame = st.resultsFrame
+    resultsFrame.scrollChild:SetHeight(st.contentH)
+    local bar = resultsFrame.scrollBar
+    if bar then
+        local hasScroll = st.contentH > st.maxVisibleHeight
+        bar:SetShown(hasScroll)
+        if hasScroll then bar:UpdateThumb(st.contentH, st.maxVisibleHeight) end
+    end
+    if resultsFrame.pinSeparator and st.hasResultsAfterPins then
+        local y = -st.pinEndYOffset - 4
+        resultsFrame.pinSeparator:ClearAllPoints()
+        resultsFrame.pinSeparator:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, y)
+        resultsFrame.pinSeparator:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, y)
+    end
+end
+
+-- A measured height differed from its estimate: the rows below move.
+local function Reflow(st)
+    st.dirty = false
+    st.contentH, st.pinEndYOffset = Window.Tops(st.tops, st.heights, st.visible, st.n,
+        st.lastPinIndex, st.hasResultsAfterPins, PIN_GAP, PIN_SEP_HEIGHT)
+    local padL = st.theme.resultsPadLeft or 10
+    local buttons = Search:GetResultButtons()
+    for k = 1, #buttons do
+        local f = buttons[k]
+        local i = f.rowIndex
+        if i and f._efContentTop ~= st.tops[i] then
+            local top = st.tops[i]
+            f:ClearAllPoints()
+            f:SetPoint("TOPLEFT", st.resultsFrame.scrollChild, "TOPLEFT", padL, -top)
+            f._efContentTop, f._efContentBottom = top, top + st.heights[i]
+        end
+    end
+    SetContentHeight(st)
+end
+
+-- The rows near the view hold frames: the view plus a screen below and
+-- half above. Runs on every scroll bucket and after a list grows.
+function Render:UpdateWindow(force)
+    local st = SCRATCH.renderState
+    local n = st.n
+    if not n or n < 1 or st.gen ~= renderGen or InCombatLockdown() then return end
+    local resultsFrame = st.resultsFrame
+    if not (resultsFrame and resultsFrame:IsShown()) then return end
+    local sf = resultsFrame.scrollFrame
+    local viewH = sf:GetHeight() or 0
+    if viewH <= 0 then viewH = st.maxVisibleHeight end
+    local first, last = Window.Range(st.tops, st.heights, n, sf:GetVerticalScroll() or 0, viewH, st.first)
+    local a, b = Window.Bounds(first, last, n, mceil(viewH / st.unit))
+    st.first = first
+    if not force and a == st.a and b == st.b then return end
+    local sel = Search:GetSelectedIndex()
+    local buttons = Search:GetResultButtons()
+    for k = 1, #buttons do
+        local f = buttons[k]
+        local i = f.rowIndex
+        if i and (i < a or i > b) and i ~= sel and not f._efContextMenuHeld then ReleaseFrame(st, f) end
+    end
+    for i = a, b do
+        if not st.frameOf[i] then PlaceRow(self, i, st) end
+    end
+    st.a, st.b = a, b
+    if st.dirty then Reflow(st) end
+end
+
+-- hierarchical[from..] arrived after the first paint (the rows past the
+-- head of the list): they join the geometry, the scroll range and, where
+-- the view reaches them, the window.
+function Render:ExtendResults(hierarchical, from)
+    local st = SCRATCH.renderState
+    local n = st.n
+    if not n or n < 1 or st.gen ~= renderGen or Results._cachedHierarchical ~= hierarchical
+       or #hierarchical < from or InCombatLockdown() then return end
+    local resultsFrame = st.resultsFrame
+    if not (resultsFrame and resultsFrame:IsShown()) then return end
+    local visible = st.visible
+    local n2 = CollapseInto(visible, n, hierarchical, from, #hierarchical)
+    if n2 == n then return end
+    for i = n + 1, n2 do st.heights[i] = EstimateRowHeight(visible[i], st) end
+    MarkLastChildren(visible, st.isLastChild, n + 1, n2, n2)
+    st.n, st.count = n2, n2
+    local sig = self._lastRenderSig
+    if sig and sig.n == from - 1 then
+        for hi = from, #hierarchical do
+            local e = hierarchical[hi]
+            local stride = (hi - 1) * 3
+            sig[stride + 1] = e.data
+            sig[stride + 2] = e.depth or 0
+            sig[stride + 3] = e.isPinned and 1 or 0
+        end
+        sig.n = #hierarchical
+    end
+    st.contentH, st.pinEndYOffset = Window.Tops(st.tops, st.heights, visible, n2,
+        st.lastPinIndex, st.hasResultsAfterPins, PIN_GAP, PIN_SEP_HEIGHT)
+    st.finish(true)
+    self:UpdateWindow(true)
+    Render.DrawPendingFaces(resultsFrame.scrollFrame)
+end
+
+-- The list by row index: its count, an entry, the frame a row holds (nil
+-- past the window), the rows holding frames.
+function Results:RowCount()
+    return SCRATCH.renderState.n or 0
+end
+
+function Results:RowEntry(i)
+    local st = SCRATCH.renderState
+    return st.n and st.visible[i] or nil
+end
+
+function Results:RowFrame(i)
+    local st = SCRATCH.renderState
+    return st.n and st.frameOf[i] or nil
+end
+
+function Results:LaidOutRows()
+    local st = SCRATCH.renderState
+    if not st.n or st.n < 1 then return 1, 0 end
+    return st.a, st.b
+end
+
+-- The view moves to row i and the row gets its frame.
+function Results:ScrollRowIntoView(i)
+    local st = SCRATCH.renderState
+    if not st.n or i < 1 or i > st.n or not st.resultsFrame then return end
+    local sf = st.resultsFrame.scrollFrame
+    local top, bottom = st.tops[i], st.tops[i] + st.heights[i]
+    local visH = sf:GetHeight() or 0
+    local cur = sf:GetVerticalScroll() or 0
+    if top < cur then
+        sf:SetVerticalScroll(top)
+    elseif bottom > cur + visH then
+        sf:SetVerticalScroll(bottom - visH)
+    end
+    Render:UpdateWindow()
+end
+
+-- The list closed: no row holds a frame.
+function Results:ResetWindow()
+    local st = SCRATCH.renderState
+    st.n, st.a, st.b = 0, 0, -1
+    if st.frameOf then wipe(st.frameOf) end
+    local buttons = Search:GetResultButtons()
+    for k = 1, #buttons do buttons[k].rowIndex = nil end
 end
 
 function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
@@ -435,6 +651,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     local unearned = Tooltips:GetUnearnedTooltip()
     if unearned then unearned:Hide() end
 
+    Render.rendering = nil
     Results._cachedHierarchical = hierarchical
 
     -- Render-skip: if the input list is identical (same length, same
@@ -587,49 +804,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     wipe(SCRATCH.visible)
     wipe(SCRATCH.currencyInfoCache)
     local visible = SCRATCH.visible
-    local visibleN = 0
-    local skipBelowDepth = nil
-    local skipPins = false
-
-    for hi = 1, #hierarchical do
-        local entry = hierarchical[hi]
-        local d = entry.depth or 0
-
-        if skipBelowDepth then
-            if d <= skipBelowDepth then
-                skipBelowDepth = nil
-            end
-        end
-
-        if not (skipPins and entry.isPinned) and not skipBelowDepth then
-            if skipPins and not entry.isPinned then
-                skipPins = false
-            end
-            visibleN = visibleN + 1
-            visible[visibleN] = entry
-
-            if entry.isPathNode then
-                local key = entry.name .. "_" .. d
-                if collapsedNodes[key] then
-                    skipBelowDepth = d
-                end
-            end
-        end
-    end
-
-    local pinSlots = 0
-    for vi = 1, visibleN do
-        local entry = visible[vi]
-        if entry.isPinHeader or entry.isPinned then
-            pinSlots = pinSlots + 1
-        end
-    end
-
-    local count = mmin(visibleN, MAX_BUTTON_POOL)
-    local bypassSearchRowCap = self:IsQuickFilterSuggestionsActive()
-    if not bypassSearchRowCap and pinSlots < visibleN then
-        count = mmin(count, pinSlots + MAX_SEARCH_RESULT_ROWS)
-    end
+    local visibleN = CollapseInto(visible, 0, hierarchical, 1, #hierarchical)
 
     -- Viewport height from the user's row count (rows scale with the theme
     -- row height and font size).
@@ -663,30 +838,13 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
 
     wipe(SCRATCH.isLastChild)
     local isLastChild = SCRATCH.isLastChild
-    for i = 1, count do
-        local d = visible[i].depth or 0
-        if d > 0 then
-            local foundSibling = false
-            for j = i + 1, count do
-                local dj = visible[j].depth or 0
-                if dj < d then break end
-                if dj == d then foundSibling = true; break end
-            end
-            isLastChild[i] = not foundSibling
-        end
-    end
+    MarkLastChildren(visible, isLastChild, 1, visibleN, visibleN)
 
-    -- Determine pin separator placement
     local lastPinIndex = 0
-    local hasResultsAfterPins = false
-    for i = 1, count do
-        if visible[i].isPinHeader or visible[i].isPinned then
-            lastPinIndex = i
-        end
+    for i = 1, visibleN do
+        if visible[i].isPinHeader or visible[i].isPinned then lastPinIndex = i end
     end
-    if lastPinIndex > 0 and lastPinIndex < count then
-        hasResultsAfterPins = true
-    end
+    local hasResultsAfterPins = lastPinIndex > 0 and lastPinIndex < visibleN
 
     local showShortcutHints = Render.ShouldShowShortcutHints()
     local renderState = SCRATCH.renderState
@@ -699,7 +857,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     renderState.indPx = indPx
     renderState.rowIconSize = rowIconSize
     renderState.visible = visible
-    renderState.count = count
+    renderState.count = visibleN
     renderState.isLastChild = isLastChild
     renderState.hasSideBySideRepBar = false
     local st = renderState
@@ -708,35 +866,42 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     st.showShortcutHints, st.flatExtraH = showShortcutHints, flatExtraH
     st.scrollInset, st.resultsFrame = scrollInset, resultsFrame
     st.anyRepSideBySide = false
-    -- Rows past the viewport wait a frame: all fifteen in the keystroke's
-    -- frame were 20-25 ms of item rows. The viewport fills first, so
-    -- nothing on screen waits; the rows that wait are hidden meanwhile.
-    local split = count
-    Part("setup")
-    for i = 1, count do
-        LayoutRow(self, Results:EnsureResultButton(i), i, st)
-        if i < count and st.yOffset > maxVisibleHeight + rowH then
-            split = i
-            break
-        end
-    end
-    PartStart(false)
+    st.n, st.gen, st.unit = visibleN, renderGen, rowH + flatExtraH
+    st.maxVisibleHeight, st.padT, st.padB = maxVisibleHeight, padT, padB
+    st.tops, st.heights, st.frameOf = SCRATCH.rowTops, SCRATCH.rowHeights, SCRATCH.frameOfRow
+    wipe(st.tops)
+    wipe(st.heights)
+    wipe(st.frameOf)
+    for i = 1, visibleN do st.heights[i] = EstimateRowHeight(visible[i], st) end
+    st.contentH, st.pinEndYOffset = Window.Tops(st.tops, st.heights, visible, visibleN,
+        lastPinIndex, hasResultsAfterPins, PIN_GAP, PIN_SEP_HEIGHT)
+    -- The rows in view take frames in the keystroke's frame; the rest wait
+    -- a frame (all fifteen at once were 20-25 ms of item rows), and past
+    -- the window hold none. A re-render keeps the view where it was.
     local buttons = Search:GetResultButtons()
-    for i = split + 1, MAX_BUTTON_POOL do
-        local resultRow = buttons[i]
-        if resultRow then
-            if i <= count then resultRow:Hide() else Render.HideUnusedResultRow(resultRow) end
-        end
+    for k = 1, #buttons do buttons[k].rowIndex = nil end
+    local scrollTop = preserveScroll and (resultsFrame.scrollFrame:GetVerticalScroll() or 0) or 0
+    local first, last = Window.Range(st.tops, st.heights, visibleN, scrollTop, maxVisibleHeight + rowH, 1)
+    st.first, st.a, st.b = first, first, last
+    Render.rendering = true
+    Part("setup")
+    for i = first, last do PlaceRow(self, i, st) end
+    if st.dirty then Reflow(st) end
+    PartStart(false)
+    for k = 1, #buttons do
+        local resultRow = buttons[k]
+        if not resultRow.rowIndex then resultRow:Hide() end
     end
 
     -- Separators, the frame's height and scroll range, shortcuts: after the
     -- viewport's rows, and again once the rows that waited are in.
     local function finish(preserve)
         if resultsFrame.pinSeparator then
-            if hasResultsAfterPins then
+            if st.hasResultsAfterPins then
+                local y = -st.pinEndYOffset - 4
                 resultsFrame.pinSeparator:ClearAllPoints()
-                resultsFrame.pinSeparator:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, -st.pinEndYOffset - 4)
-                resultsFrame.pinSeparator:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, -st.pinEndYOffset - 4)
+                resultsFrame.pinSeparator:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", 10, y)
+                resultsFrame.pinSeparator:SetPoint("TOPRIGHT", resultsFrame.scrollChild, "TOPRIGHT", -10, y)
                 resultsFrame.pinSeparator:Show()
             else
                 resultsFrame.pinSeparator:Hide()
@@ -745,10 +910,11 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         if resultsFrame.categorySeps then
             for si = 1, #resultsFrame.categorySeps do resultsFrame.categorySeps[si]:Hide() end
         end
-        Render:ApplyResultsFrameLayout(resultsFrame, st.yOffset, maxVisibleHeight,
-            padT, padB, scrollInset, preserve)
+        Render:ApplyResultsFrameLayout(resultsFrame, st.contentH, st.maxVisibleHeight,
+            st.padT, st.padB, st.scrollInset, preserve)
         self:UpdateVisibleResultShortcuts()
     end
+    st.finish = finish
 
     -- If any bar row is in side-by-side mode, schedule one deferred re-render so
     -- IsTruncated() can reflect the layout we just set (it reads the previous frame's state).
@@ -774,16 +940,15 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         end
     end
     finish(preserveScroll)
+    Render.rendering = nil
 
-    if split < count then
+    if first > 1 or last < visibleN then
         local gen = renderGen
         ns.Utils.SafeAfter(0, function()
             if gen ~= renderGen or InCombatLockdown() or not resultsFrame:IsShown() then return end
             -- Below the view: a creature's face waits until its row scrolls in.
             st.belowView = true
-            for i = split + 1, count do
-                LayoutRow(self, Results:EnsureResultButton(i), i, st)
-            end
+            Render:UpdateWindow(true)
             st.belowView = nil
             PartStart(true)
             finish(true)

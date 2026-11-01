@@ -613,10 +613,7 @@ function Rows.InstallInteractions(resultRow, index)
                 self._selectClickAt, self._selectClickData = now, d
                 ns.ResultSecureAttributes.Clear(self)
                 self._clickSelected, self._selectPress = true, true
-                local buttons = Search:GetResultButtons()
-                for i = 1, #buttons do
-                    if buttons[i] == self then Search:SetSelectedIndex(i) break end
-                end
+                Search:SetSelectedIndex(self.rowIndex or 0)
                 Search:SetToggleFocused(false)
                 Results:UpdateSelectionHighlight()
                 return

@@ -127,8 +127,7 @@ function RowActions.TargetRow()
     local hover = Results and Results._hoverRow
     if hover and hover:IsShown() and hover:IsMouseOver() and hover.data then return hover end
     local index = Search and Search.GetSelectedIndex and Search:GetSelectedIndex() or 0
-    local buttons = index > 0 and Search:GetResultButtons()
-    local row = buttons and buttons[index]
+    local row = index > 0 and ns.Results:RowFrame(index)
     return row and row:IsShown() and row.data and row or nil
 end
 

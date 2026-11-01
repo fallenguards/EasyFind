@@ -12,7 +12,6 @@ local SCRATCH = Results._SCRATCH
 Render.GOLD_COLOR = ns.GOLD_COLOR
 Render.REP_BAR_WIDTH = 100
 Render.MAX_BUTTON_POOL = 100
-Render.MAX_SEARCH_RESULT_ROWS = 15
 Render.BOSS_PORTRAIT_TEXCOORD = Icons:GetBossPortraitTexCoord()
 Render.INDENT_COLORS = {
     {0.40, 0.85, 1.00, 0.80},

@@ -13,6 +13,7 @@ local InCombatLockdown = InCombatLockdown
 local GetTime = GetTime
 local slower = SearchText.Normalize
 local tinsert = Utils.tinsert
+local tsort = table.sort
 local wipe = wipe
 local Steer = ns.SearchSteer
 
@@ -302,6 +303,101 @@ local function ScoreCatalogName(nameLower, ql, qLen)
     return ns.Database:ScoreTransientName(nameLower, ql, qLen)
 end
 
+-- One flat entry per row, a divider where its group label changes (the
+-- clipboard history's Today and Yesterday, @map's This Zone). pinned nil:
+-- a row past the head learns it when laid out.
+-- The entry tables past a list's end wait here for the next list: a
+-- long tail trimmed to the next head would be garbage every keystroke.
+local flatSpare = {}
+local function FlatEntry(n)
+    local e = flatEntries[n]
+    if not e then
+        local m = #flatSpare
+        if m > 0 then
+            e = flatSpare[m]
+            flatSpare[m] = nil
+        else
+            e = {}
+        end
+        flatEntries[n] = e
+    end
+    return e
+end
+
+local function TrimFlatEntries(n)
+    for i = #flatEntries, n + 1, -1 do
+        flatSpare[#flatSpare + 1] = flatEntries[i]
+        flatEntries[i] = nil
+    end
+end
+
+local function AppendFlat(d, n, lastGroup, mapSplit, pinned)
+    local group = d.clipGroup or (mapSplit and d.sectionLabel)
+    if group and group ~= lastGroup then
+        lastGroup = group
+        n = n + 1
+        local h = FlatEntry(n)
+        h.name = group
+        h.depth = 0
+        h.isPathNode = false
+        h.isSectionHeader = true
+        h.isMatch = false
+        h.isFlat = true
+        h.flatCatKey = nil
+        h.isPinned = false
+        h.data = nil
+    end
+    -- A divider-only entry (the clipboard list's empty state) is its
+    -- divider and nothing else: no row to select or click.
+    if not d.clipDividerOnly then
+        n = n + 1
+        local e = FlatEntry(n)
+        e.name = d.name
+        e.depth = 0
+        e.isPathNode = false
+        e.isSectionHeader = false
+        e.isMatch = true
+        e.isFlat = true
+        e.flatCatKey = nil
+        e.isPinned = pinned
+        e.data = d
+    end
+    return n, lastGroup
+end
+
+-- The rows the head left out, sorted and listed under it a frame after
+-- the paint: a yield in a sliced run, this frame's next update otherwise.
+-- A search begun since drops them.
+local searchGen, tailGen, tailLastGroup, tailMapSplit = 0, 0, nil, nil
+local tailFrame = CreateFrame("Frame")
+tailFrame:Hide()
+
+local function AppendTail()
+    local tail = SCRATCH.tail
+    if tailGen ~= searchGen or #tail == 0 then return end
+    local t0 = WorkClock()
+    -- An inconsistent triple in the comparator (a map row between plain
+    -- ones) leaves the tail in score order rather than failing the search.
+    pcall(tsort, tail, FlatNameLess)
+    local blacklist = ns.Blacklist and ns.Blacklist:HasAny() and ns.Blacklist
+    local from = #flatEntries + 1
+    local n, lastGroup = #flatEntries, tailLastGroup
+    for i = 1, #tail do
+        local d = tail[i].data
+        if d and not (d.catalogItem and ns.ItemSearch and not ns.ItemSearch:IsResolvable(d.itemID))
+           and not (blacklist and blacklist:Contains(d)) then
+            n, lastGroup = AppendFlat(d, n, lastGroup, tailMapSplit, nil)
+        end
+    end
+    wipe(tail)
+    timings.tail = WorkClock() - t0
+    ns.ResultRender:ExtendResults(flatEntries, from)
+end
+Utils.SafeOnUpdate(tailFrame, function(self)
+    self:Hide()
+    AppendTail()
+end)
+
 function Search:OnSearchTextChangedNow(text, force)
     -- The search UI is dormant in combat (the bar hides at combat start
     -- and cannot reopen), and rendering results would resize/show frames
@@ -314,6 +410,8 @@ function Search:OnSearchTextChangedNow(text, force)
     -- Only a dispatched rows-only rerun is one; a direct call never is.
     local rowsOnly = runRowsOnly
     runRowsOnly = false
+    searchGen = searchGen + 1
+    wipe(SCRATCH.tail)
     wipe(timings)
     timings.text = text
     markAt = WorkClock()
@@ -1023,9 +1121,13 @@ function Search:OnSearchTextChangedNow(text, force)
     -- source has joined by now (map rows, catalog items, launchers): rows
     -- blacklisted or unresolvable on this client are skipped as they would
     -- enter, freeing their slot, so those checks run on few rows.
-    local TOP_N = 15
+    -- @map: the map tab's This Zone and Across the World parts, one list.
+    local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone
+    local TOP_N = mapSplit and #combined or 15
     local kept = 0
     local blacklist = ns.Blacklist and ns.Blacklist:HasAny() and ns.Blacklist
+    -- The rows the head leaves out wait in the tail, sorted a frame later.
+    local tail = SCRATCH.tail
     for ri = 1, #combined do
         local entry = combined[ri]
         local d = entry.data
@@ -1033,6 +1135,7 @@ function Search:OnSearchTextChangedNow(text, force)
             if not (d and d.catalogItem and ns.ItemSearch
                     and not ns.ItemSearch:IsResolvable(d.itemID))
                and not (blacklist and blacklist:Contains(d)) then
+                local displaced = kept == TOP_N and topBuf[kept] or nil
                 local at = kept < TOP_N and kept + 1 or kept
                 while at > 1 and FlatNameLess(entry, topBuf[at - 1]) do
                     topBuf[at] = topBuf[at - 1]
@@ -1040,73 +1143,34 @@ function Search:OnSearchTextChangedNow(text, force)
                 end
                 topBuf[at] = entry
                 if kept < TOP_N then kept = kept + 1 end
+                if displaced then tail[#tail + 1] = displaced end
             end
+        else
+            tail[#tail + 1] = entry
         end
     end
     for ri = 1, kept do combined[ri] = topBuf[ri] end
     for ri = #combined, kept + 1, -1 do combined[ri] = nil end
     wipe(topBuf)
 
-    -- @map: the map tab's This Zone and Across the World parts.
-    local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone
     if mapSplit then ns.MapSearch:SplitUIRowsByZone(combined) end
 
-    local n = 0
-    local lastGroup
+    local n, lastGroup = 0, nil
     for ri = 1, #combined do
         local d = combined[ri] and combined[ri].data
         if d then
-            -- Rows that carry a group label (clipboard history's Today,
-            -- Yesterday, ...; @map's This Zone) get a section divider where
-            -- the label changes: a header row, not a result, drawn by
-            -- ResultHeader and skipped by selection like the pin header.
-            local group = d.clipGroup or (mapSplit and d.sectionLabel)
-            if group and group ~= lastGroup then
-                lastGroup = group
-                n = n + 1
-                local h = flatEntries[n]
-                if not h then
-                    h = {}
-                    flatEntries[n] = h
-                end
-                h.name = group
-                h.depth = 0
-                h.isPathNode = false
-                h.isSectionHeader = true
-                h.isMatch = false
-                h.isFlat = true
-                h.flatCatKey = nil
-                h.isPinned = false
-                h.data = nil
-            end
-            -- A divider-only entry (the clipboard list's empty state) is
-            -- its divider and nothing else: no row to select or click.
-            if not d.clipDividerOnly then
-                n = n + 1
-                local e = flatEntries[n]
-                if not e then
-                    e = {}
-                    flatEntries[n] = e
-                end
-                e.name = d.name
-                e.depth = 0
-                e.isPathNode = false
-                e.isSectionHeader = false
-                e.isMatch = true
-                e.isFlat = true
-                e.flatCatKey = nil
-                e.isPinned = (not d.noPin and IsUIItemPinned(d)) and true or false
-                e.data = d
-            end
+            n, lastGroup = AppendFlat(d, n, lastGroup, mapSplit, (not d.noPin and IsUIItemPinned(d)) and true or false)
         end
     end
-    for i = n + 1, #flatEntries do
-        flatEntries[i] = nil
-    end
+    TrimFlatEntries(n)
 
     FloatPinnedFirst(flatEntries, n)
     Mark("combine")
 
     self:ShowHierarchicalResults(flatEntries)
     Mark("render")
+    if #tail > 0 then
+        tailGen, tailLastGroup, tailMapSplit = searchGen, lastGroup, mapSplit
+        if Utils.SliceYield() then AppendTail() else tailFrame:Show() end
+    end
 end

@@ -190,6 +190,9 @@ function Results:CreateResultsFrame()
         local bucket = mfloor((offset or 0) / 12)
         if bucket ~= lastShortcutBucket then
             lastShortcutBucket = bucket
+            -- The rows the view reaches take frames; a render sets the
+            -- scroll itself and lays its own rows.
+            if not Render.rendering then Render:UpdateWindow() end
             Shortcuts:UpdateVisibleResultShortcuts()
             Render.DrawPendingFaces(scrollFrame)
         end

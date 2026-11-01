@@ -338,6 +338,7 @@ function Results:HideResults()
             end
         end
     end
+    self:ResetWindow()
     Search:SetSelectedIndex(0)
     Search:SetToggleFocused(false)
     self:UpdateSelectionHighlight(true, History:IsPreservingNavRepeat())
@@ -408,24 +409,17 @@ end
 function Results:SelectFirstResult()
     -- Only select if results are visible and there's actual data
     local shownResults = ResultsFrame()
-    local first = Search:GetResultButtons()[1]
-    if shownResults and shownResults:IsShown() and first and first:IsShown() and first.data then
+    local first = shownResults and shownResults:IsShown() and self:RowEntry(1)
+    if first and first.data then
         if Rows:ActivateSettingResult(first.data) then return end
         self:SelectResult(first.data)
     end
 end
 
 function Results:CountVisibleResults()
-    local count = 0
-    for i = 1, MAX_BUTTON_POOL do
-        local row = Search:GetResultButtons()[i]
-        if row and row:IsShown() then
-            count = i
-        else
-            break
-        end
-    end
-    return count
+    local frame = ResultsFrame()
+    if not (frame and frame:IsShown()) then return 0 end
+    return self:RowCount()
 end
 
 function Results:MoveSelection(delta, skipRefocus, keepRepeat)
@@ -457,10 +451,9 @@ function Results:MoveSelection(delta, skipRefocus, keepRepeat)
     -- Section dividers are not results: step past one in the direction of
     -- travel. Past the last row the selection stays where it was; past
     -- the first it goes to the search box (0) as usual.
-    local buttons = Search:GetResultButtons()
     local step = delta > 0 and 1 or -1
     while newIndex >= 1 and newIndex <= visibleCount
-          and buttons[newIndex] and buttons[newIndex].isSectionHeader do
+          and self:RowEntry(newIndex) and self:RowEntry(newIndex).isSectionHeader do
         newIndex = newIndex + step
     end
     if newIndex < 0 then newIndex = 0 end
@@ -478,9 +471,8 @@ function Results:JumpToStart()
     local visibleCount = self:CountVisibleResults()
     if visibleCount > 0 then
         -- Past a leading section divider to the first real row.
-        local buttons = Search:GetResultButtons()
         local first = 1
-        while first < visibleCount and buttons[first] and buttons[first].isSectionHeader do
+        while first < visibleCount and self:RowEntry(first) and self:RowEntry(first).isSectionHeader do
             first = first + 1
         end
         Search:SetSelectedIndex(first)
@@ -516,8 +508,8 @@ function Results:JumpToNextSection(direction)
 
     local uiSectionStart = 0
     for i = 1, visibleCount do
-        local row = Search:GetResultButtons()[i]
-        if row and not row.isPinHeader and not row.isPinned then
+        local e = self:RowEntry(i)
+        if e and not e.isPinHeader and not e.isPinned then
             uiSectionStart = i
             break
         end
@@ -527,8 +519,8 @@ function Results:JumpToNextSection(direction)
     -- Boundaries: first non-pinned row (Search search) + any isSectionHeader row.
     local idx = startIdx + direction
     while idx >= 1 and idx <= visibleCount do
-        local row = Search:GetResultButtons()[idx]
-        if row and (row.isSectionHeader or idx == uiSectionStart) then
+        local e = self:RowEntry(idx)
+        if e and (e.isSectionHeader or idx == uiSectionStart) then
             Search:SetSelectedIndex(idx)
             Search:SetToggleFocused(false)
             self:UpdateSelectionHighlight()
@@ -543,7 +535,11 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
     -- a "Select to ..." hint so the user knows what Enter / left-click
     -- will do, without cluttering every row. Restored to the canonical
     -- subtext (recomputed via GetFlatSubtext) when selection moves.
-    local newSelRow = Search:GetSelectedIndex() > 0 and Search:GetResultButtons()[Search:GetSelectedIndex()] or nil
+    -- The selected row scrolls into view first: past the window it has no
+    -- frame until it does.
+    local sel = Search:GetSelectedIndex()
+    if sel > 0 then self:ScrollRowIntoView(sel) end
+    local newSelRow = sel > 0 and self:RowFrame(sel) or nil
     if newSelRow and not Search:GetToggleFocused() then
         if not Handlers:GetActionHint(newSelRow.data) then Handlers:ClearActionHint() end
         Handlers:ApplyActionHint(newSelRow)
@@ -556,17 +552,14 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
         if not resultRow then break end
         local isHeaderRow = resultRow.headerTab and resultRow.headerTab:IsShown()
         if resultRow.LockHighlight then
-            if i == Search:GetSelectedIndex() and not isHeaderRow then
+            if resultRow == newSelRow and not isHeaderRow then
                 Results:SetRowHighlightLocked(resultRow, true)
             elseif not resultRow._efContextMenuHeld then
                 Results:SetRowHighlightLocked(resultRow, false)
             end
         end
     end
-    if Search:GetSelectedIndex() > 0 then
-        if Search:GetResultButtons()[Search:GetSelectedIndex()] then
-            Utils.ScrollToButton(ResultsFrame().scrollFrame, Search:GetResultButtons()[Search:GetSelectedIndex()])
-        end
+    if sel > 0 then
         if Search:GetSearchFrame().editBox:HasFocus() then
             Search:GetSearchFrame().editBox:ClearFocus()
         end
@@ -605,7 +598,7 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
     -- so this insecure path only ever writes while the dropdown is shown.
     local bindOwner = Results._navBindOwner
     if bindOwner and bindOwner:IsShown() and not InCombatLockdown() then
-        local selRow = Search:GetSelectedIndex() > 0 and Search:GetResultButtons()[Search:GetSelectedIndex()]
+        local selRow = newSelRow
         local rd = selRow and selRow.data
         local secureRow = rd and Icons:IsSecureActionResult(rd)
         local btnName = secureRow and selRow:GetName() or nil

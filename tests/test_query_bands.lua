@@ -39,6 +39,20 @@ function tests.launcherWord_sitsBetweenPrefixAndExactName()
         "the name band needs the name's or a word's start, never a substring")
 end
 
+-- Every result is listed: the head of fifteen paints in the keystroke's
+-- frame as before, the rest sort and join a frame later, below the fold.
+function tests.theRowsPastTheHead_joinAFrameLater()
+    H.assertTrue(src:find("local TOP_N = mapSplit and #combined or 15", 1, true) ~= nil,
+        "the head is fifteen rows, or the whole @map list")
+    H.assertTrue(src:find("if displaced then tail[#tail + 1] = displaced end", 1, true) ~= nil,
+        "a row pushed out of the head joins the tail")
+    H.assertTrue(src:find("pcall(tsort, tail, FlatNameLess)", 1, true) ~= nil, "the tail sorts by the same order")
+    H.assertTrue(src:find("if Utils.SliceYield() then AppendTail() else tailFrame:Show() end", 1, true) ~= nil,
+        "the tail waits for the next slice or the next frame")
+    H.assertTrue(src:find("ns.ResultRender:ExtendResults(flatEntries, from)", 1, true) ~= nil,
+        "the list grows in place")
+end
+
 function tests.catalogScan_takesTheCutQueryUnderAnItemSteer()
     H.assertTrue(src:find('ns.ItemSearch:Search(Steer and Steer.Strip(text, "Item") or text, ScoreCatalogName)', 1, true) ~= nil,
         '"item linen cloth" scans the catalog for "linen cloth"')

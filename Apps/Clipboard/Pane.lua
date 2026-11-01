@@ -398,8 +398,7 @@ local function Selected()
     if not KeyboardNav() then return nil end
     local sel = Search.GetSelectedIndex and Search:GetSelectedIndex() or 0
     if sel > 0 then
-        local buttons = Search:GetResultButtons()
-        local row = buttons and buttons[sel]
+        local row = ns.Results:RowFrame(sel)
         if row and row:IsShown() and row.data and row.data.clipID then return row.data.clipID end
     end
     return nil

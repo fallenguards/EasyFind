@@ -22,6 +22,12 @@ local SCRATCH = {
     currencyInfoCache = {},
     renderState = {},
     launchers = {},
+    -- The rendered list's geometry and the frames its rows hold.
+    rowTops = {},
+    rowHeights = {},
+    frameOfRow = {},
+    -- The candidates past the head of a search, listed a frame later.
+    tail = {},
 }
 
 Results._cachedHierarchical = nil

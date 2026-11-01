@@ -257,14 +257,14 @@ function Shortcuts:UpdateVisibleResultShortcuts()
     local assigned = 0
     wipe(desiredShortcuts)
     local desiredSig = ""
-    local buttons = Search:GetResultButtons()
     local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()
     local muted = theme and theme.mutedGlyph
 
-    for i = 1, MAX_BUTTON_POOL do
-        local row = buttons[i]
-        if not row then break end
-        if IsShortcutEligibleRow(row) then
+    -- The rows holding frames, in list order (the pool's order is not).
+    local a, b = ns.Results:LaidOutRows()
+    for i = a, b do
+        local row = ns.Results:RowFrame(i)
+        if row and IsShortcutEligibleRow(row) then
             local rowTop = row._efContentTop or 0
             local rowBottom = row._efContentBottom or (rowTop + (row:GetHeight() or 0))
             if rowBottom > scrollTop + 0.5 and rowTop < scrollBottom - 0.5 then
@@ -382,7 +382,7 @@ function Shortcuts:ActivateVisibleResultShortcut(shortcutIndex)
                 end
                 return "binding"
             end
-            Search:SetSelectedIndex(i)
+            Search:SetSelectedIndex(row.rowIndex or i)
             Search:SetToggleFocused(false)
             self:UpdateSelectionHighlight(true)
             if row.data and row.data.quickFilterDef then

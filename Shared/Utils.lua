@@ -802,6 +802,18 @@ function Utils.SliceCheckpoint()
     paused[co] = (paused[co] or 0) + dpstop() - now
 end
 
+-- A forced pause in a sliced run: the rest of the work lands in the next
+-- slice. False outside one, where nothing waits.
+function Utils.SliceYield()
+    if not sliceDeadline or not coroutine.running() then return false end
+    local now = dpstop()
+    coroutine.yield()
+    local paused = Utils.slicePaused
+    local co = coroutine.running()
+    paused[co] = (paused[co] or 0) + dpstop() - now
+    return true
+end
+
 function Utils.SlicePausedMs()
     local co = coroutine.running()
     return co and Utils.slicePaused[co] or 0

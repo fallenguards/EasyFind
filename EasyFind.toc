@@ -158,6 +158,7 @@ Search/Results/Tooltips.lua
 Search/Results/BagActions.lua
 Search/Results/ActionHints.lua
 Search/Results/Render/Shared.lua
+Search/Results/Render/Window.lua
 Search/Results/Render/Tree.lua
 Search/Results/Render/Text.lua
 Search/Results/Render/Widgets.lua
