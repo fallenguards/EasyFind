@@ -215,6 +215,12 @@ function tests.launcherRows_byNameOrWords()
     H.assertEq(ids("places"), "a", "a word")
     H.assertEq(ids("bo"), "", "under 3 letters")
     H.assertEq(ids("calc"), "", "hidden from search")
+    -- The retail audit: "ice" listed Auctionator first, inside "prices".
+    API.RegisterExtension({ id = "c", name = "Auctionator", icon = 1, keywords = { "prices", "auction house" } })
+    H.assertEq(ids("auc"), "c", "the name's start")
+    H.assertEq(ids("house"), "c", "a word's start")
+    H.assertEq(ids("tor"), "", "inside the name")
+    H.assertEq(ids("ice"), "", "inside a word")
 end
 
 function tests.badge_reachesTheIcon()

@@ -104,15 +104,22 @@ end
 
 -- Typing an extension's name or one of its words (3 letters or more)
 -- offers its launcher row.
+-- The text starts the name or one of its words: "tor" inside Auctionator
+-- and "ice" inside "prices" launch nothing.
+local function StartsWord(hay, q)
+    return hay:sub(1, #q) == q or sfind(hay, " " .. q, 1, true) ~= nil
+end
+Extensions.StartsWord = StartsWord
+
 function Extensions.LauncherMatches(text, out)
     if not text or #text < 3 then return out end
     local q = slower(text)
     for _, id in ipairs(Extensions.order) do
         local def = Extensions.byID[id]
         if not def.hideFromSearch and Extensions.Available(def) then
-            local hit = def.name and sfind(slower(def.name), q, 1, true)
+            local hit = def.name and StartsWord(slower(def.name), q)
             for i = 1, def.keywords and #def.keywords or 0 do
-                hit = hit or sfind(slower(def.keywords[i]), q, 1, true)
+                hit = hit or StartsWord(slower(def.keywords[i]), q)
             end
             if hit then out[#out + 1] = Extensions.Entry(id) end
         end

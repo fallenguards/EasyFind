@@ -13,7 +13,6 @@ local InCombatLockdown = InCombatLockdown
 local GetTime = GetTime
 local slower = SearchText.Normalize
 local tinsert = Utils.tinsert
-local sfind = Utils.sfind
 local wipe = wipe
 
 local IsUIItemPinned = UIPins.IsPinned
@@ -970,7 +969,7 @@ function Search:OnSearchTextChangedNow(text, force)
         local lowerText = slower(text)
         for li = 1, #launchers do
             local launcher = launchers[li]
-            local byName = launcher.nameLower and sfind(launcher.nameLower, lowerText, 1, true) ~= nil
+            local byName = launcher.nameLower and ns.Extensions.StartsWord(launcher.nameLower, lowerText)
             combined[#combined + 1] = { data = launcher, score = byName and LAUNCHER_NAME_SCORE or LAUNCHER_WORD_SCORE }
         end
     end

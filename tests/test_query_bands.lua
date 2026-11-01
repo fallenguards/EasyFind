@@ -35,6 +35,8 @@ function tests.launcherWord_sitsBetweenPrefixAndExactName()
     H.assertTrue(src:find("score = byName and LAUNCHER_NAME_SCORE or LAUNCHER_WORD_SCORE", 1, true) ~= nil,
         "the launcher row takes one of the two bands")
     H.assertTrue(src:find("score = 2e6", 1, true) == nil, "no bare launcher band left")
+    H.assertTrue(src:find("ns.Extensions.StartsWord(launcher.nameLower, lowerText)", 1, true) ~= nil,
+        "the name band needs the name's or a word's start, never a substring")
 end
 
 function tests.itemRows_keepTheCatalogCopyOut()
