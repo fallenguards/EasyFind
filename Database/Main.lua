@@ -7877,6 +7877,15 @@ function Database:BuildUIDatabase()
                         { gameMenuText = _G["GAMEMENU_OPTIONS"] or _G["OPTIONS"] or "Options" },
                     },
                 },
+                -- The macro window has no micro button of its own.
+                {
+                    name = _G["MACROS"] or "Macros",
+                    keywords = {"macros", "macro", "macro window", "new macro", "create macro", "edit macro"},
+                    steps = {
+                        { buttonFrame = "MainMenuMicroButton" },
+                        { gameMenuText = _G["MACROS"] or "Macros" },
+                    },
+                },
             },
         },
         {

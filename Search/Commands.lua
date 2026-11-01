@@ -14,7 +14,7 @@ local IsUIItemPinned = ns.UIPins.IsPinned
 -- Chat-parser commands (not in SlashCmdList) that EasyFind can bind. Exposed
 -- so the shortkey importer can warn when an imported bind targets one of these
 -- session-disrupting commands (reload / logout / quit family).
-ns.SYSTEM_COMMANDS = { "/reload", "/logout", "/camp", "/quit", "/exit" }
+ns.SYSTEM_COMMANDS = { "/reload", "/logout", "/camp", "/quit", "/exit", "/macro" }
 
 local function GetSearchFrame()
     return Search:GetSearchFrame()

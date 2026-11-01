@@ -218,5 +218,13 @@ function tests.commandRowsReadTheirConstantsFromTheProto()
     H.assertTrue(again[2].keywords == rows[2].keywords, "a command's keywords are built once")
 end
 
+-- The macro window has no micro button: it is a Game Menu row (the retail
+-- audit found nothing for "macros" but an addon's panel).
+function tests.gameMenu_listsTheMacroWindow()
+    local menu = slice(MAIN, 'name = _G["MAINMENU_BUTTON"]', 'name = _G["HELP_BUTTON"]')
+    H.assertTrue(menu:find('{ gameMenuText = _G["MACROS"] or "Macros" }', 1, true) ~= nil, "a Macros row under the Game Menu")
+    H.assertTrue(menu:find('"macro window"', 1, true) ~= nil, "found by its words")
+end
+
 local pass, fail, failures = H.runSuite("LeanRows", tests)
 return { pass = pass, fail = fail, failures = failures }
