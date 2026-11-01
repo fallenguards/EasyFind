@@ -430,6 +430,53 @@ local function WordPass(ql, qLen)
     end
 end
 
+-- A typo in the first word, when nothing matched and the word is long
+-- enough for the fuzzy tier: the names starting with its first four
+-- letters (five from seven), or with them after one adjacent swap inside
+-- ("lnien", "balck", "ocntrol"), scored by the shared name scorer (one
+-- edit, a swap counted as one). Each run capped.
+local TYPO_MIN, TYPO_RUN = 5, 200
+local typoBuf = {}
+
+local function TypoScore(nameLower, q, qLen)
+    return ns.Database:ScoreName(nameLower, q, qLen, wordBuf)
+end
+
+local function TypoPass(ql, qLen)
+    local n = 0
+    for w in sgmatch(ql, "%S+") do
+        n = n + 1
+        wordBuf[n] = w
+    end
+    for k = #wordBuf, n + 1, -1 do wordBuf[k] = nil end
+    local first = wordBuf[1]
+    if not first or #first < TYPO_MIN then return end
+    local P = #first >= 7 and 5 or 4
+    typoBuf[1] = ssub(first, 1, P)
+    for i = 1, P do
+        -- The last swap brings the next letter in: cut back to the prefix.
+        local swapped = ssub(first, 1, i - 1) .. ssub(first, i + 1, i + 1) .. ssub(first, i, i) .. ssub(first, i + 2, P)
+        typoBuf[i + 1] = ssub(swapped, 1, P)
+    end
+    for i = 1, P + 1 do
+        local p = typoBuf[i]
+        local fresh = true
+        for j = 1, i - 1 do
+            if typoBuf[j] == p then fresh = false end
+        end
+        if fresh then
+            local L, m = FirstLineFrom(p, P), 0
+            while L and ssub(blob, L, L + P - 1) == p and m < TYPO_RUN do
+                local e = LineEnd(L)
+                Record(L, e, ql, qLen, TypoScore)
+                L = e + 2 <= blobLen and e + 2 or nil
+                m = m + 1
+                if m % 64 == 0 then SliceCheckpoint() end
+            end
+        end
+    end
+end
+
 function ItemSearch:Search(query, scoreName)
     if not query or #query < MIN_QUERY then return nil end
     if not EnsureBlob() then return nil end
@@ -510,6 +557,8 @@ function ItemSearch:Search(query, scoreName)
     end
     -- 4. Several words in any order, while the whole string has not placed.
     if not Placed() and sfind(ql, " ", 1, true) then WordPass(ql, qLen) end
+    -- 5. A typo in the first word, when nothing matched at all.
+    if kept == 0 and qLen >= TYPO_MIN then TypoPass(ql, qLen) end
     for k = #midBuf, mn + 1, -1 do midBuf[k] = nil end
     for k = #hits, hn + 1, -1 do hits[k] = nil end
     curRecs.n = hn

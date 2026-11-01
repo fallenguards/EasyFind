@@ -170,6 +170,28 @@ function tests.synthetic_wordsInAnyOrderReachAName()
     H.assertNil(ItemSearch:Search("ro cl", Score), "a longest word under three letters runs no pass")
 end
 
+-- A typo in the first word's first letters ("lcoak", "colak", "claok")
+-- still finds the name when nothing else matched: the runs of its first
+-- four letters and of their adjacent swaps, scored by the shared fuzzy
+-- tier (the Era audit's lnien, balck, curel, 2026-11-01).
+function tests.synthetic_aTypoInTheFirstWordStillFindsTheName()
+    local ItemSearch, Score, _, Plain = NewCatalog(SynthBlob())
+    for _, q in ipairs({ "lcoak", "colak", "claok" }) do
+        local got = ItemSearch:Search(q, Score) or {}
+        local names = {}
+        for i = 1, #got do names[i] = got[i].data.nameLower .. "=" .. got[i].score end
+        H.assertEq(table.concat(names, "|"), "cloak=85|cloak of rot=85|cloak of fire=85", q)
+        H.assertEq(got[1].score, Plain("cloak", q, #q), q .. ": the shared scorer's typo tier")
+    end
+    -- A swap right at the prefix's end ("thelasmar": letters five and six).
+    local axe = ItemSearch:Search("thelasmar", Score) or {}
+    H.assertEq(axe[1] and axe[1].data.nameLower, "thelsamar axe")
+    H.assertEq(#axe, 1, "the quoted relic starts with a quote, outside the run")
+    H.assertNil(ItemSearch:Search("lcoa", Score), "under five letters no typo is forgiven")
+    local lucky = ItemSearch:Search("lucky", Score) or {}
+    H.assertEq(lucky[1] and lucky[1].data.nameLower, "(lucky) charm", "a query that matches runs no typo pass")
+end
+
 -- A name led by punctuation starts at its first word for a stopword query.
 function tests.synthetic_quotedNameCountsAsANameStart()
     local ItemSearch, Score = NewCatalog(SynthBlob())
