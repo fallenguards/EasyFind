@@ -24,6 +24,13 @@ local flatCombined = Results._flatCombined
 local SCRATCH = Results._SCRATCH
 local SearchEngine = ns.SearchEngine
 
+local function KindRank(d)
+    if d.catalogItem then return 3 end
+    if d.category == "Loot" then return 2 end
+    if d.mapRank or d.mapSearchResult then return 1 end
+    return 0
+end
+
 local function FlatNameLess(ra, rb)
     local sa, sb = ra.score or 0, rb.score or 0
     if sa ~= sb then return sa > sb end
@@ -35,6 +42,10 @@ local function FlatNameLess(ra, rb)
     -- Map rows keep the map search's order among equal scores: nearest first.
     local ma, mb = ra.data.mapRank, rb.data.mapRank
     if ma and mb and ma ~= mb then return ma < mb end
+    -- Then by kind: what the player owns or can do, places, loot, the
+    -- catalog ("scar": the Scarlet Monastery before its drops).
+    local ka, kb = KindRank(ra.data), KindRank(rb.data)
+    if ka ~= kb then return ka < kb end
     local na, nb = ra.data.name or "", rb.data.name or ""
     if #na ~= #nb then return #na < #nb end
     if na ~= nb then return na < nb end
