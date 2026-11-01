@@ -1016,7 +1016,7 @@ function Search:OnSearchTextChangedNow(text, force)
         if r.isAlias or not IsPromoted(promoted, d) then
             combined[#combined + 1] = r
             local itemID = d and d.itemID
-            if itemID and ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = true end
+            if itemID and ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = r end
         end
     end
     if mapResults then
@@ -1053,9 +1053,14 @@ function Search:OnSearchTextChangedNow(text, force)
         Mark("catalog")
         if itemHits then
             for ii = 1, #itemHits do
-                local hitData = itemHits[ii].data
-                if not (hitData and hitData.itemID and seenCatalogItems[hitData.itemID]) then
-                    combined[#combined + 1] = itemHits[ii]
+                local hit = itemHits[ii]
+                local hitData = hit.data
+                local twin = hitData and hitData.itemID and seenCatalogItems[hitData.itemID]
+                if not twin then
+                    combined[#combined + 1] = hit
+                elseif twin ~= true and (twin.score or 0) < hit.score then
+                    -- The row standing for the item ranks as the catalog would.
+                    twin.score = hit.score
                 end
             end
         end

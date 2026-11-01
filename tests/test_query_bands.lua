@@ -59,8 +59,12 @@ function tests.catalogScan_takesTheCutQueryUnderAnItemSteer()
 end
 
 function tests.itemRows_keepTheCatalogCopyOut()
-    H.assertTrue(src:find("ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = true", 1, true) ~= nil,
-        "a held, banked or dropped item marks its catalog twin")
+    H.assertTrue(src:find("ITEM_ROW_CATEGORY[d.category] then seenCatalogItems[itemID] = r", 1, true) ~= nil,
+        "a held, banked or dropped item marks its catalog twin with its own row")
+    -- The row standing for the item ranks as the catalog would: a Loot row's
+    -- band (115) sank Cruel Barb from 2 to 55 at "cru" (the Era audit, 2026-11-01).
+    H.assertTrue(src:find("elseif twin ~= true and (twin.score or 0) < hit.score then", 1, true) ~= nil)
+    H.assertTrue(src:find("twin.score = hit.score", 1, true) ~= nil)
     for _, cat in ipairs({ "Bag", "Bank", "Warband", "Loot" }) do
         H.assertTrue(src:find("ITEM_ROW_CATEGORY = {[^}]*" .. cat .. " = true") ~= nil, cat .. " is an item row")
     end
