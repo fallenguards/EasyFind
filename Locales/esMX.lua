@@ -295,16 +295,18 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffChat y GPS ahora son extensiones|r\n" ..
-    "    |cff999999-|r Addons propios en CurseForge, para que EasyFind sea más ligero para los demás; si los usabas, instálalos y tus ajustes se conservan\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffProfesiones desde la búsqueda|r\n" ..
-    "    |cff999999-|r Pesca, Sondear y Hoguera se lanzan desde sus filas\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffPestaña del mapa|r\n" ..
-    "    |cff999999-|r Su menú de filtros es el del propio juego; las filas de una extensión (misiones) tienen su interruptor en Mostrar; un resultado se marca solo en su propio mapa, y una fila agrupada solo con sus lugares en el mapa que ves\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
-    "    |cff999999-|r Esc deja la ventana abierta salvo que su nuevo ajuste diga lo contrario; en la nota de una lista de compras, Ctrl+clic en un objeto en la casa de subastas lo busca\n" ..
+    "    |cff999999-|r Una nota se abre en su propia ventana junto a la lista, tantas como quieras; una línea con casilla en cualquier nota es una línea de lista que el juego puede marcar por ti, y el tipo de lista de tareas aparte desaparece; una nota puede abrirse con la casa de subastas, el vendedor o el banco\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTodos los resultados listados|r\n" ..
+    "    |cff999999-|r La lista ya no se detiene en 15 filas: las primeras 15 aparecen al momento y el resto se suma debajo al desplazarte\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBúsqueda|r\n" ..
+    "    |cff999999-|r Una palabra que nombra un tipo de fila acota el resto (zona ventormenta, hechizo descarga de escarcha, objeto tela de lino); un nombre escrito con las palabras cambiadas se encuentra igual; primero lo que tienes, luego los lugares, luego el botín y el catálogo entre coincidencias iguales; la abreviatura de una instancia la lista primero y después a sus jefes\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era y TBC Anniversary|r\n" ..
+    "    |cff999999-|r Núcleo de Magma, Guarida de Alanegra y las Ruinas de Ahn'Qiraj con sus jefes y su botín; cada fila de jefe lleva su rostro\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMacros y lugares|r\n" ..
+    "    |cff999999-|r Una fila Macros y /macro abren la ventana de macros; los lugares del mapa se encuentran desde cualquier sitio; un maestro de armas lista sus armas\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Las criaturas con el mismo nombre son filas separadas, una zona copiada en otro mundo ya no bloquea una ruta, una lista desplazada ya no se escapa cuando su dueño la mueve, y clic derecho en la chincheta final del GPS en cualquier mapa termina la ruta\n"
+    "    |cff999999-|r Un clic simple en un enlace de chat de EasyFind funciona en los clientes clásicos, potion ya no lista todos los ajustes, el precio de una fila no se superpone a sus botones, y las ventanas de notas ya no se dibujan unas sobre otras\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

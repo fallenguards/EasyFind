@@ -297,16 +297,18 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffChat und GPS sind jetzt Erweiterungen|r\n" ..
-    "    |cff999999-|r Eigene Addons auf CurseForge, damit EasyFind für alle anderen leichter wird; wenn du sie genutzt hast, installiere sie, und deine Einstellungen bleiben erhalten\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBerufe aus der Suche|r\n" ..
-    "    |cff999999-|r Angeln, Vermessen und Kochfeuer werden aus ihren Zeilen gewirkt\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffKarten-Tab|r\n" ..
-    "    |cff999999-|r Sein Filtermenü ist das des Spiels; die Zeilen einer Erweiterung (Quests) bekommen einen Anzeigen-Schalter; ein Ergebnis wird nur auf seiner eigenen Karte markiert, eine zusammengefasste Zeile nur mit ihren Orten auf der gezeigten Karte\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotizen|r\n" ..
-    "    |cff999999-|r Esc lässt das Fenster offen, sofern die neue Einstellung nichts anderes sagt; in der Notiz einer Einkaufsliste sucht Strg+Klick auf einen Gegenstand ihn im Auktionshaus\n" ..
+    "    |cff999999-|r Eine Notiz öffnet sich in einem eigenen Fenster neben der Liste, so viele du willst; eine Kontrollkästchen-Zeile in jeder Notiz ist eine Listenzeile, die das Spiel für dich abhaken kann, und die getrennte Checklisten-Art ist weg; eine Notiz kann sich mit dem Auktionshaus, dem Händler oder der Bank öffnen\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffJedes Ergebnis gelistet|r\n" ..
+    "    |cff999999-|r Die Liste endet nicht mehr bei 15 Zeilen: die ersten 15 erscheinen sofort, der Rest folgt darunter beim Scrollen\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSuche|r\n" ..
+    "    |cff999999-|r Ein Wort, das eine Art von Zeile benennt, grenzt den Rest ein (zone sturmwind, zauber frostblitz, item leinenstoff); ein Name mit vertauschten Wörtern wird trotzdem gefunden; erst was du besitzt, dann Orte, dann Beute und Katalog bei gleichen Treffern; das Kürzel einer Instanz listet sie zuerst, dann ihre Bosse\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era und TBC Anniversary|r\n" ..
+    "    |cff999999-|r Geschmolzener Kern, Pechschwingenhort und die Ruinen von Ahn'Qiraj mit ihren Bossen und ihrer Beute; jede Bosszeile trägt ihr Gesicht\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMakros und Orte|r\n" ..
+    "    |cff999999-|r Eine Makros-Zeile und /macro öffnen das Makrofenster; Kartenorte werden von überall gefunden; ein Waffenmeister listet seine Waffen\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Gleichnamige Kreaturen sind getrennte Zeilen, eine in eine andere Welt kopierte Zone blockiert keine Route mehr, eine gescrollte Liste läuft nicht mehr davon, nachdem ihr Besitzer sie bewegt hat, und ein Rechtsklick auf die Zielnadel des GPS beendet die Route auf jeder Karte\n"
+    "    |cff999999-|r Ein einfacher Klick auf einen EasyFind-Chatlink funktioniert auf den Classic-Clients, potion listet nicht mehr jede Einstellung, der Preis einer Zeile bleibt frei von ihren Schaltflächen, und Notizfenster zeichnen nicht mehr durcheinander\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

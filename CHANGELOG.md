@@ -4,10 +4,33 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [4.1.0] - 2026-11-01
+
+### Added
+- **Notes windows**: a note opens in its own window beside the list, and the list stays; open as many as you like, one per note that opens by itself; Open in a new window sits on a note's row menu; the window you press comes to the top, a new one steps off the one under it, and Home on a note's window brings the list up
+- **Checkbox lines are the list**: one kind of note. A checkbox line in any note is a list line: tick it by hand, or the game ticks it for an item count, a quest, a reputation, gold, a level, a skill, a lockout or a cooldown; a ticked line reads struck and green, a counted line wears its count with an X to drop it, and an item's link or a count typed in the words makes the line that item. The note's menu holds what a line can track, who keeps the ticks, when they clear, the board and the next auction search. Old checklist notes become text with their ticks kept; the separate checklist kind is gone
+- **Notes and the game's windows**: a window (Auction House, Merchant, Bank) is a tag; "Open the window when" on a note opens the notes window with it, "Only the next time" for one visit, and "Close it when this ends" keeps or drops the window after; the notes menus stay open while you work in them
+- **Shopping lists**: the catalog's names show under the line you type, Tab or a click takes the pick with the count typed; Enter carries a line's bullet, box or number on, and Enter on an empty mark ends the list
+- **Every result listed**: the list no longer stops at 15 rows; the first 15 paint at once and the rest join below as you scroll
+- **Steering words**: a word naming a kind of row narrows the rest to it: "zone stormwind", "spell frostbolt", "rep darnassus", "item linen cloth", "recipe" for a profession
+- **Instances on Classic Era and TBC Anniversary**: Molten Core, Blackwing Lair and the Ruins of Ahn'Qiraj with their bosses and loot
+- **Macros**: a Macros row and the /macro command open the macro window on every client; a macro with no name is named by its first command
+- **Commands**: rl, reloadui and reload ui find /reload
+- **Map places**: found from anywhere, with This zone only per category; a weapon master's weapons are in its words and under its name
+- **Extensions API 1.5**: row decorators, an extension's mark on rows another provider owns (a price at the row's right, menu rows, tooltip lines, a part under the subtext); a menu action that opens a window closes the bar; a decorator may stand in for the Adventure Guide on a client without one; a provider's create row wears the green plus
+
+### Changed
+- **Search ranking**: a name typed with its words in another order is that name; a loot item's name ranks like any row's name, and a held or dropped item ranks as the catalog's copy would; among equal matches what you own and the places come first, then loot and the catalog, and creatures with them; an instance's shorthand lists the instance first, then its bosses, then its loot; a short abbreviation typed whole ("ah", "rep", "inn") sits above a name that merely starts with it; a row holding every query word in its name comes before one met by a keyword; same-name rows keep a fixed order: talents, what you hold, the game's own, the catalog, recipes, addons, extensions
+- **Catalog**: a query's words reach a name in any order ("cloth linen"), and a typo in the first word still finds the name
+- **Extensions**: an extension launches on the start of its name or a word, not on letters inside it
 
 ### Fixed
 - **Boss rows on Classic Era, TBC Anniversary and WoW Forever**: each boss wears its face at the row's right; the rows were blank where the client's journal gives no picture
+- **Search**: "potion" no longer lists every setting in the game; a macro's words take no abbreviation; "hs" lists Hearthstone above h-s loot; "cloth" lists the bag's Silk Cloth above the cloth drops; "fishing tr" keeps Fishing Trainer over the catch Training Sword; "fishing" keeps the Fishing Trainer over 250 fishing spots; a settings row with hundreds of choices no longer leads unrelated queries
+- **Rows**: a stack's count bounds the name and subtext before the icon; a row's price keeps clear of the GPS button and the Alt hint; the Menu Bar glyph fills its box like the other category icons; an extension's flyout labels keep the theme's text color
+- **Notes**: windows no longer draw through each other; the list's rows reach the bottom and the resize grip sits in the corner
+- **Map**: an extension's cluster pins keep their glyph; Show me how leaves the menus of spots and creatures that have no window to lead to
+- **Chat links**: a plain click on an EasyFind link works on Classic Era, TBC Anniversary and Mists Classic; before, only Shift+click did
 
 ---
 

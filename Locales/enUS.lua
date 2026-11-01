@@ -328,16 +328,18 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffChat and GPS are extensions now|r\n" ..
-    "    |cff999999-|r Addons of their own on CurseForge, so EasyFind is lighter for everyone else; if you used them, install them and your settings carry over\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffProfessions from search|r\n" ..
-    "    |cff999999-|r Fishing, Survey and Cooking Fire cast from their rows\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMap tab|r\n" ..
-    "    |cff999999-|r Its filter menu is the game's own; an extension's rows (quests) get a Show switch; a result pins on its own map only, and a folded row only its spots on the map you view\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
-    "    |cff999999-|r Esc leaves the window open unless its new setting says close; in a shopping list's note, Ctrl+click an item at the auction house to search it\n" ..
+    "    |cff999999-|r A note opens in its own window beside the list, as many as you like; a checkbox line in any note is a list line the game can tick for you, and the separate checklist kind is gone; a note can open with the auction house, merchant or bank\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEvery result listed|r\n" ..
+    "    |cff999999-|r The list no longer stops at 15 rows: the first 15 paint at once and the rest join below as you scroll\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSearch|r\n" ..
+    "    |cff999999-|r A word naming a kind of row narrows the rest (zone stormwind, spell frostbolt, item linen cloth); a name typed with its words swapped still finds it; what you own, then places, then loot and the catalog among equal matches; an instance's shorthand lists it first, then its bosses\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
+    "    |cff999999-|r Molten Core, Blackwing Lair and the Ruins of Ahn'Qiraj with their bosses and loot; every boss row wears its face\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMacros and places|r\n" ..
+    "    |cff999999-|r A Macros row and /macro open the macro window; map places are found from anywhere; a weapon master lists its weapons\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Same-named creatures are separate rows, a zone copied into another world no longer blocks a route, a scrolled list no longer runs away after its owner moves it, and right-clicking the GPS's end pin on any map ends the route\n"
+    "    |cff999999-|r A plain click on an EasyFind chat link works on the classic clients, potion no longer lists every setting, a row's price keeps clear of its buttons, and notes windows no longer draw through each other\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

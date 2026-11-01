@@ -295,16 +295,18 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffChat e GPS ora sono estensioni|r\n" ..
-    "    |cff999999-|r Addon a sé su CurseForge, così EasyFind è più leggero per tutti gli altri; se li usavi, installali e le tue impostazioni restano\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffProfessioni dalla ricerca|r\n" ..
-    "    |cff999999-|r Pesca, Sondaggio e Fuoco da campo si lanciano dalle loro righe\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffScheda mappa|r\n" ..
-    "    |cff999999-|r Il suo menu dei filtri è quello del gioco; le righe di un'estensione (missioni) hanno il loro interruttore in Mostra; un risultato viene segnato solo sulla propria mappa, e una riga raggruppata solo con i suoi punti sulla mappa che guardi\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNote|r\n" ..
-    "    |cff999999-|r Esc lascia la finestra aperta a meno che la nuova impostazione non dica di chiudere; nella nota di una lista della spesa, Ctrl+clic su un oggetto alla casa d'aste lo cerca\n" ..
+    "    |cff999999-|r Una nota si apre in una finestra propria accanto all'elenco, quante ne vuoi; una riga con casella in qualsiasi nota è una riga di lista che il gioco può spuntare per te, e il tipo lista di controllo separato sparisce; una nota può aprirsi con la casa d'aste, il mercante o la banca\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffOgni risultato elencato|r\n" ..
+    "    |cff999999-|r L'elenco non si ferma più a 15 righe: le prime 15 compaiono subito e il resto si aggiunge sotto mentre scorri\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRicerca|r\n" ..
+    "    |cff999999-|r Una parola che nomina un tipo di riga restringe il resto (zona roccavento, incantesimo dardo di gelo, oggetto stoffa di lino); un nome scritto con le parole invertite si trova lo stesso; prima ciò che possiedi, poi i luoghi, poi il bottino e il catalogo a parità di corrispondenza; la sigla di un'istanza la elenca per prima, poi i suoi boss\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
+    "    |cff999999-|r Nucleo Ardente, Rifugio dell'Ala Nera e le Rovine di Ahn'Qiraj con i loro boss e il loro bottino; ogni riga di boss porta il suo volto\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMacro e luoghi|r\n" ..
+    "    |cff999999-|r Una riga Macro e /macro aprono la finestra delle macro; i luoghi della mappa si trovano da ovunque; un maestro d'armi elenca le sue armi\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Le creature con lo stesso nome sono righe separate, una zona copiata in un altro mondo non blocca più un percorso, una lista scorsa non scappa più quando chi la possiede la sposta, e il clic destro sullo spillo finale del GPS su qualsiasi mappa termina il percorso\n"
+    "    |cff999999-|r Un clic semplice su un link di chat di EasyFind funziona sui client classic, potion non elenca più ogni impostazione, il prezzo di una riga resta libero dai suoi pulsanti, e le finestre delle note non si disegnano più una attraverso l'altra\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

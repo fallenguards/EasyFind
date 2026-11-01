@@ -295,16 +295,18 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffChat et GPS sont désormais des extensions|r\n" ..
-    "    |cff999999-|r Des addons à part entière sur CurseForge, pour qu'EasyFind soit plus léger pour les autres ; si vous les utilisiez, installez-les et vos réglages sont conservés\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLes métiers depuis la recherche|r\n" ..
-    "    |cff999999-|r Pêche, Prospection et Feu de camp se lancent depuis leurs lignes\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffOnglet de la carte|r\n" ..
-    "    |cff999999-|r Son menu de filtres est celui du jeu ; les lignes d'une extension (quêtes) ont leur interrupteur dans Afficher ; un résultat n'est épinglé que sur sa propre carte, et une ligne regroupée seulement avec ses emplacements sur la carte affichée\n" ..
     "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
-    "    |cff999999-|r Échap laisse la fenêtre ouverte sauf si son nouveau réglage dit de fermer ; dans la note d'une liste d'achats, Ctrl+clic sur un objet à l'hôtel des ventes le recherche\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffCorrections|r\n" ..
-    "    |cff999999-|r Les créatures de même nom sont des lignes séparées, une zone copiée dans un autre monde ne bloque plus un itinéraire, une liste défilée ne s'emballe plus quand son propriétaire la déplace, et un clic droit sur l'épingle d'arrivée du GPS sur n'importe quelle carte termine l'itinéraire\n"
+    "    |cff999999-|r Une note s'ouvre dans sa propre fenêtre à côté de la liste, autant que vous voulez ; une ligne à case dans n'importe quelle note est une ligne de liste que le jeu peut cocher pour vous, et le type liste de tâches séparé disparaît ; une note peut s'ouvrir avec l'hôtel des ventes, le marchand ou la banque\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTous les résultats listés|r\n" ..
+    "    |cff999999-|r La liste ne s'arrête plus à 15 lignes : les 15 premières s'affichent aussitôt et le reste se joint dessous en défilant\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRecherche|r\n" ..
+    "    |cff999999-|r Un mot nommant un type de ligne restreint le reste (zone hurlevent, sort éclair de givre, objet étoffe de lin) ; un nom tapé avec ses mots inversés est trouvé quand même ; ce que vous possédez, puis les lieux, puis le butin et le catalogue à correspondance égale ; l'abréviation d'une instance la liste d'abord, puis ses boss\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffClassic Era et TBC Anniversary|r\n" ..
+    "    |cff999999-|r Cœur du Magma, Repaire de l'Aile noire et les Ruines d'Ahn'Qiraj avec leurs boss et leur butin ; chaque ligne de boss porte son visage\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMacros et lieux|r\n" ..
+    "    |cff999999-|r Une ligne Macros et /macro ouvrent la fenêtre des macros ; les lieux de la carte se trouvent de partout ; un maître d'armes liste ses armes\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
+    "    |cff999999-|r Un simple clic sur un lien de chat EasyFind fonctionne sur les clients classiques, potion ne liste plus tous les réglages, le prix d'une ligne reste à l'écart de ses boutons, et les fenêtres de notes ne se dessinent plus l'une à travers l'autre\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"
