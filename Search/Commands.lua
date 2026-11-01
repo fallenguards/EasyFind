@@ -15,6 +15,8 @@ local IsUIItemPinned = ns.UIPins.IsPinned
 -- so the shortkey importer can warn when an imported bind targets one of these
 -- session-disrupting commands (reload / logout / quit family).
 ns.SYSTEM_COMMANDS = { "/reload", "/logout", "/camp", "/quit", "/exit", "/macro" }
+-- What players type for a system command besides its name.
+local SYSTEM_KEYWORDS = { ["/reload"] = { "reload", "rl", "reloadui", "reload ui" } }
 
 local function GetSearchFrame()
     return Search:GetSearchFrame()
@@ -185,6 +187,7 @@ local function CollectNativeCommandDefs()
                 display = slash,
                 lower = slower((slash:gsub("^/", ""))),
                 slashCommand = slash,
+                keywords = SYSTEM_KEYWORDS[slash],
             }
         end
     end

@@ -217,6 +217,9 @@ function tests.commandRowsReadTheirConstantsFromTheProto()
     H.assertEq(rows[3].searchCommandDesc, "/logout")
     local again = env.Commands:BuildCommandSearchData()
     H.assertTrue(again[2].keywords == rows[2].keywords, "a command's keywords are built once")
+    -- /reload answers to what players type for it (the Era audit's "rl" miss).
+    H.assertTrue(src:find('["/reload"] = { "reload", "rl", "reloadui", "reload ui" }', 1, true) ~= nil)
+    H.assertTrue(src:find("keywords = SYSTEM_KEYWORDS[slash],", 1, true) ~= nil)
 end
 
 -- The macro window has no micro button: it is a Game Menu row (the retail
