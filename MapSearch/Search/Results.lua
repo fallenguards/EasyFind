@@ -521,7 +521,7 @@ local function AppendNameMatches(results, seen, duplicates, candidates, query, s
         -- one band(), which was the main bar's per-keystroke map cost.
         if (poi.isZone and poi.score) or POICouldMatch(poi, rec and rec.query or query) then
             local score = ScorePOIForQuery(poi, query)
-            if rec then score = mmax(score, ScorePOIForQuery(poi, rec.query)) end
+            if rec then score = mmax(score, ScorePOIForQuery(poi, rec.query) - 1) end
             if score >= 50 then
                 AddScoredPOI(results, seen, duplicates, poi, GetPOIDuplicateKey(poi), score)
             end

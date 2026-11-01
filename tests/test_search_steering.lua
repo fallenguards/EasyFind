@@ -141,7 +141,7 @@ function tests.searchUI_aSteeringWordScopesTheRest()
         local r = Database:SearchUI("spell frostbolt")
         local rank, score = RankOf(r, frostbolt)
         H.assertEq(rank, 1, "the ability named by the rest of the query leads")
-        H.assertEq(score, 1000, "scored as if 'frostbolt' were typed alone")
+        H.assertEq(score, 999, "scored as if 'frostbolt' were typed alone, one under a whole-query match")
         H.assertNil(RankOf(r, scroll), "an item needs the word 'spell' itself")
 
         local _, held = RankOf(Database:SearchUI("spell reflection"), reflection)
@@ -154,6 +154,29 @@ function tests.searchUI_aSteeringWordScopesTheRest()
         r = Database:SearchUI("spell")
         H.assertNil(RankOf(r, frostbolt), "a bare steering word is a plain query")
         H.assertEq(RankOf(r, reflection), 1)
+    end)
+end
+
+-- A steered row matched only once the query is cut has weaker evidence
+-- than a row the whole query matches: "fishing tr" keeps Fishing Trainer
+-- over the catch Training Sword (the Era audit, 2026-11-01).
+function tests.searchUI_aSteeredMatchSitsOneUnderTheWholeQuerys()
+    local env, ns = Fresh()
+    ns.Database.uiSearchData = {}
+    ns.Database.IsLootStatSearchWord = function() return false end
+    ns.Database.IsLootSlotSearchWord = function() return false end
+    local Database = H.loadModule("Database/Search.lua", env, ns)
+    ns.SearchSteer.Add("fishing", "fishing")
+    local sword = { name = "Training Sword", nameLower = "training sword", category = "fishing", keywordsLower = {} }
+    local trainer = { name = "Fishing Trainer", nameLower = "fishing trainer", category = "npc", keywordsLower = {} }
+    WithRows(Database, { sword, trainer }, function()
+        local r = Database:SearchUI("fishing tr")
+        local rank, score = RankOf(r, trainer)
+        H.assertEq(rank, 1, "the whole query's prefix leads")
+        H.assertEq(score, 500)
+        local swordRank, swordScore = RankOf(r, sword)
+        H.assertEq(swordRank, 2, "the catch the cut query reaches follows")
+        H.assertEq(swordScore, 499)
     end)
 end
 

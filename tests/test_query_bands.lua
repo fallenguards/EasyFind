@@ -54,8 +54,11 @@ function tests.theRowsPastTheHead_joinAFrameLater()
 end
 
 function tests.catalogScan_takesTheCutQueryUnderAnItemSteer()
-    H.assertTrue(src:find('ns.ItemSearch:Search(Steer and Steer.Strip(text, "Item") or text, ScoreCatalogName)', 1, true) ~= nil,
+    H.assertTrue(src:find('local cut = Steer and Steer.Strip(text, "Item")', 1, true) ~= nil
+        and src:find("ns.ItemSearch:Search(cut or text, ScoreCatalogName)", 1, true) ~= nil,
         '"item linen cloth" scans the catalog for "linen cloth"')
+    -- A cut match is weaker evidence than the whole query's: one under it.
+    H.assertTrue(src:find("if cut then hit.score = hit.score - 1 end", 1, true) ~= nil)
 end
 
 function tests.itemRows_keepTheCatalogCopyOut()

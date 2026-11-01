@@ -1735,7 +1735,7 @@ function Database:SearchUI(query, skipCategories)
                     Database:EnrichLootStats(data)
                 end
                 score = LootScore(data, nameLower, queryWords, lootStatActive)
-                if sq then score = mmax(score, LootScore(data, nameLower, sq.words, lootStatActive)) end
+                if sq then score = mmax(score, LootScore(data, nameLower, sq.words, lootStatActive) - 1) end
             elseif cat == "Boss" and not bossQueryWord and not instanceQueryWord then
                 score = Database:ScoreName(nameLower, query, queryLen, queryWords)
             else
@@ -1776,9 +1776,11 @@ function Database:SearchUI(query, skipCategories)
                     end
                     score = OtherNameScores(data, score, query, queryLen, queryWords)
                     if sq then
+                        -- One under the same match of the whole query: "fishing
+                        -- tr" keeps Fishing Trainer over the catch Training Sword.
                         local cutScore = mmax(Database:ScoreName(nameLower, sq.query, sq.len, sq.words),
                             kws and KeywordScore(data, kws, sq.query, sq.len, sq.words, sq.kwMemo) or 0)
-                        score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words))
+                        score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words) - 1)
                     end
                 end
             end

@@ -1048,13 +1048,16 @@ function Search:OnSearchTextChangedNow(text, force)
             or (not quickFilter and (not filters
                  or not ns.CategoryMap.IsProviderFilterOff(filters, "catalog")))) then
         Mark("rows")
-        -- "item linen cloth": the catalog scans the cut query.
-        local itemHits = ns.ItemSearch:Search(Steer and Steer.Strip(text, "Item") or text, ScoreCatalogName)
+        -- "item linen cloth": the catalog scans the cut query, a match
+        -- of it one under the same match of the whole query.
+        local cut = Steer and Steer.Strip(text, "Item")
+        local itemHits = ns.ItemSearch:Search(cut or text, ScoreCatalogName)
         Mark("catalog")
         if itemHits then
             for ii = 1, #itemHits do
                 local hit = itemHits[ii]
                 local hitData = hit.data
+                if cut then hit.score = hit.score - 1 end
                 local twin = hitData and hitData.itemID and seenCatalogItems[hitData.itemID]
                 if not twin then
                     combined[#combined + 1] = hit
