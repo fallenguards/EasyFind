@@ -4989,7 +4989,9 @@ local function GetBossInstanceMT(tier, isRaid, instID, instName, entrance)
     if cached then return cached end
 
     local instLower = slower(instName or "")
-    local kw = { instLower, "boss", "bosses" }
+    -- The instance's name is scored as a name (Search.lua), its
+    -- abbreviations as keywords; the index reads instanceNameLower.
+    local kw = { "boss", "bosses" }
     local abbrs = Database.InstanceAbbrs(instLower)
     if abbrs then
         for ai = 1, #abbrs do kw[#kw + 1] = abbrs[ai] end
@@ -5165,10 +5167,11 @@ Corpora.BOSS_COMPUTED = {
     end,
     keywords = function(stub)
         -- Own memoized copy: scoring iterates the list per candidate, so
-        -- the reused build buffer cannot be handed out.
+        -- the reused build buffer cannot be handed out. The instance's
+        -- name leads the index's list only: scoring takes it as a name.
         local kws = Corpora.BossRowKeywords(stub)
         local copy = {}
-        for i = 1, #kws do copy[i] = kws[i] end
+        for i = type(stub.instanceName) == "string" and 2 or 1, #kws do copy[#copy + 1] = kws[i] end
         return copy
     end,
     keywordsLower = function(stub) return stub.keywords end,

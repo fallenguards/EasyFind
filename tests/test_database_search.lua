@@ -580,5 +580,39 @@ function tests.searchUI_aNameInAnotherOrder_beatsTheLootOfWhatItNames()
     end)
 end
 
+-- "brd" tied the dungeon and its bosses at the short keyword's 600 and the
+-- shorter names won; "blakcrock depths" scored the bosses' keyword sum
+-- (140) over the dungeon's typo-forgiven name: twenty bosses over
+-- Blackrock Depths both ways. A boss's instance name is scored as a name.
+function tests.searchUI_aBossesInstance_sitsOneUnderTheInstance()
+    local dungeon = { name = "Blackrock Depths", nameLower = "blackrock depths", category = "dungeon", keywordsLower = { "brd" } }
+    local boss = { name = "Magmus", nameLower = "magmus", category = "Boss",
+        instanceNameLower = "blackrock depths", keywordsLower = { "boss", "bosses", "brd" } }
+    local ironfoe = { name = "Ironfoe", nameLower = "ironfoe", category = "Loot", lootEntry = true,
+        lootSourceKw = { "blackrock", "depths", "brd" } }
+    local was = Database.IsInstanceSearchWord
+    Database.IsInstanceSearchWord = function(_, w) return w == "brd" or w == "blackrock" or w == "depths" end
+    withEntries({ boss, ironfoe, dungeon }, function()
+        local res = Database:SearchUI("brd")
+        H.assertEq(scoreOf(res, dungeon), 600)
+        H.assertEq(scoreOf(res, boss), 599)
+        H.assertEq(res[1].data, dungeon)
+        Database:ResetSearchCache()
+        res = Database:SearchUI("blakcrock depths")
+        H.assertEq(scoreOf(res, boss), Database:ScoreName("blackrock depths", "blakcrock depths", 16) - 1)
+        H.assertEq(res[1].data, dungeon)
+        H.assertEq(res[2].data, boss)
+        Database:ResetSearchCache()
+        res = Database:SearchUI("blackrock depths")
+        H.assertEq(scoreOf(res, boss), 99, "the instance's name typed: a keyword's height, under every name holding it")
+        H.assertEq(res[2].data, ironfoe, "its loot before its bosses")
+        H.assertEq(res[3].data, boss)
+        Database:ResetSearchCache()
+        res = Database:SearchUI("magmus")
+        H.assertEq(scoreOf(res, boss), 1000, "its own name is its own")
+    end)
+    Database.IsInstanceSearchWord = was
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }

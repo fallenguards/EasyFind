@@ -490,6 +490,14 @@ local function IndexEntry(data)
             end
         end
     end
+    -- A boss answers to its instance's name (Search.lua scores it as a
+    -- name); a corpus stub's keyword list already leads with it.
+    local inst = not pc and data.instanceNameLower
+    if inst then
+        m = maskOf(inst, m)
+        IndexText(e, inst, true)
+        if sfind(inst, "[\128-\255]") then special[sid] = true end
+    end
     -- Corpus stubs never carry these (PackedCorpus specs hold none).
     if not pc and (rawget(data, "snippetKeywordLower") or rawget(data, "teleportNameLower")
                    or rawget(data, "scoreBonus")) then
@@ -1200,7 +1208,8 @@ local function HoldsText(sid, w)
         local kw = kws[k]
         if kw and sfind(kw, w, 1, true) then return true end
     end
-    return false
+    local inst = data.instanceNameLower
+    return inst ~= nil and sfind(inst, w, 1, true) ~= nil
 end
 
 -- Class A: entries holding w's two rarest bigrams, kept only when they hold

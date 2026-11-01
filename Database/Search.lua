@@ -1779,6 +1779,21 @@ function Database:SearchUI(query, skipCategories)
                     -- keywordsLower; a sum double-counts the same fuzzy hit.
                     local kws = data.keywordsLower or data.keywords
                     local kwScore = kws and KeywordScore(data, kws, query, queryLen, queryWords, sharedKwScores) or 0
+                    -- A boss answers to its instance: the abbreviations as
+                    -- keywords, the name through the name scorer's typo
+                    -- average at a keyword's height (100: the name typed
+                    -- whole lists the dungeon, Gnomeregan Exiles, then its
+                    -- bosses), each one under the instance's own row ("brd":
+                    -- Blackrock Depths, then Magmus; the tie, and a typo in
+                    -- the name through the keyword sum, put twenty bosses
+                    -- first, Era 2026-11-01).
+                    if cat == "Boss" then
+                        if kwScore > 0 then kwScore = kwScore - 1 end
+                        local inst = data.instanceNameLower
+                        if inst then
+                            kwScore = mmax(kwScore, mmin(Database:ScoreName(inst, query, queryLen, queryWords), 100) - 1)
+                        end
+                    end
                     score = mmax(Database:ScoreName(nameLower, query, queryLen, queryWords), kwScore)
                     if queryNorm and score < 100 then
                         -- Mapped onto 30..99, under every raw tier: a row named
@@ -1795,8 +1810,9 @@ function Database:SearchUI(query, skipCategories)
                     if sq then
                         -- One under the same match of the whole query: "fishing
                         -- tr" keeps Fishing Trainer over the catch Training Sword.
-                        local cutScore = mmax(Database:ScoreName(nameLower, sq.query, sq.len, sq.words),
-                            kws and KeywordScore(data, kws, sq.query, sq.len, sq.words, sq.kwMemo) or 0)
+                        local cutKw = kws and KeywordScore(data, kws, sq.query, sq.len, sq.words, sq.kwMemo) or 0
+                        if cat == "Boss" and cutKw > 0 then cutKw = cutKw - 1 end
+                        local cutScore = mmax(Database:ScoreName(nameLower, sq.query, sq.len, sq.words), cutKw)
                         score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words) - 1)
                     end
                 end

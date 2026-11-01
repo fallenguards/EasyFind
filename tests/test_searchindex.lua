@@ -38,6 +38,10 @@ addEntry("plinth swap target")
 addEntry("quokka revival victim")
 local lootEntry = { name = "loot thing", nameLower = "loot thing", lootEntry = true }
 corpus[#corpus + 1] = lootEntry
+-- A boss carries its instance's name apart from its keywords (scored as a name).
+local bossEntry = { name = "Magmus", nameLower = "magmus", category = "Boss",
+    instanceNameLower = "blackrock depths", keywordsLower = { "brd" } }
+corpus[#corpus + 1] = bossEntry
 
 ns.Database = { uiSearchData = corpus }
 H.loadModule("Database/SearchIndex.lua", env, ns)
@@ -64,6 +68,13 @@ function tests.candidates_supersetOfSubstringMatches()
             end
         end
     end
+end
+
+function tests.candidates_aBossThroughItsInstancesName()
+    for _, w in ipairs({ "blackrock", "depths", "black", "brd" }) do
+        H.assertTrue(candidateSet({ w })[bossEntry], "a candidate for '" .. w .. "'")
+    end
+    H.assertTrue(candidateSet({ "blackrock", "depths" })[bossEntry])
 end
 
 function tests.candidates_lootAlwaysIncluded()
