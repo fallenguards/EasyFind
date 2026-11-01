@@ -557,5 +557,28 @@ function tests.sameName_ownThenGameThenCatalogThenAddons()
     ns.Extensions = nil
 end
 
+-- The whole name typed with its words in another order is that name:
+-- "depths blackrock" listed 140 Blackrock Depths drops (the loot scorer's
+-- 220) over the dungeon (210), the Era audit 2026-11-01.
+function tests.scoreName_theWholeNameInAnotherOrder_sitsUnderAPrefixOnly()
+    H.assertEq(Database:ScoreName("blackrock depths", "depths blackrock", 16), 495)
+    H.assertEq(Database:ScoreName("silk cloth", "cloth silk", 10), 495)
+    H.assertTrue(Database:ScoreName("minor healing potion", "potion minor", 11) <= 110, "a longer name holds the words, no more")
+    H.assertTrue(Database:ScoreName("blackrock depths", "depth blackrock", 15) <= 110, "a prefix of a word is not the word")
+    H.assertEq(Database:ScoreName("blackrock depths", "blackrock dep", 13), 500, "a prefix of the name stays above")
+end
+
+function tests.searchUI_aNameInAnotherOrder_beatsTheLootOfWhatItNames()
+    local dungeon = { name = "Blackrock Depths", nameLower = "blackrock depths", category = "dungeon", keywordsLower = { "brd" } }
+    local ironfoe = { name = "Ironfoe", nameLower = "ironfoe", category = "Loot", lootEntry = true,
+        lootSourceKw = { "blackrock", "depths", "brd" } }
+    withEntries({ ironfoe, dungeon }, function()
+        local res = Database:SearchUI("depths blackrock")
+        H.assertEq(scoreOf(res, dungeon), 495)
+        H.assertEq(scoreOf(res, ironfoe), 220, "the loot scorer's two source words")
+        H.assertEq(res[1].data, dungeon)
+    end)
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }

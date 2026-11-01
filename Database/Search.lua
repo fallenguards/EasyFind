@@ -211,6 +211,11 @@ local EXACT_MATCH_SCORE = 1000
 -- word-sum paths (ScoreEntryFields reaches 210 on two words, loot sums
 -- higher) must not demote it between keystrokes.
 local NAME_PREFIX_SCORE = 500
+-- The whole name typed with its words in another order ("depths
+-- blackrock"): under a prefix, above every sum of word hits (the loot of
+-- Blackrock Depths at 220 sat 140 rows over the dungeon's 210, the Era
+-- audit 2026-11-01).
+local NAME_REORDERED_SCORE = 495
 -- A keyword of three letters or fewer typed whole ("ah", "rep", "inn") is
 -- an abbreviation the row answers to: above a name that merely starts
 -- with those letters, under a whole name.
@@ -850,6 +855,7 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords, plain)
             if allMatched then
                 local avgScore = totalWordScore / #queryWords
                 local wordScore = mmin(110, avgScore)
+                if avgScore == 100 and #nameWords == #queryWords then wordScore = NAME_REORDERED_SCORE end
                 if wordScore > score then score = wordScore end
             end
         end
