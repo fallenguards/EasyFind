@@ -893,6 +893,15 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         iconSet = true
     end
 
+    -- BaseRowText cleared the icon's points and, with a category glyph at
+    -- the left, left them for the branch that owns the icon; the generic
+    -- branches above own an extension row's, which sits at the right. It
+    -- was textured and shown with no rectangle (retail, 2026-11-02).
+    if iconSet and data and resultRow.icon:IsShown() and resultRow.icon:GetNumPoints() == 0
+       and Icons.IsRightSideIconData(data) then
+        resultRow.icon:SetPoint("RIGHT", resultRow, "RIGHT", -5, 0)
+    end
+
     -- Portrait menu items: use the player portrait as the icon
     if not iconSet and data and data.steps then
         for _, step in ipairs(data.steps) do

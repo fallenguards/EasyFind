@@ -121,6 +121,9 @@ local function IsRightSideIconData(d)
         or IsMenuBarSpecificIconData(d)
         or d.specificIcon or d.specificIconFrame
         or d.mapSearchResult
+        -- An extension's row: its own icon at the right, its extension's
+        -- glyph at the left (EasyFind.API, a row's icon).
+        or ((d.icon or d.iconAtlas) and ns.Extensions and ns.Extensions.ProviderOf(d) ~= nil)
 end
 
 local function SetButtonFrameIcon(resultRow, frameName, iconSize)
