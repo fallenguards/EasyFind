@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -290,6 +290,9 @@ Your mark on rows another provider owns (MINOR 4): a price at the right of EasyF
 | `subtext` | function `(row)` | A part appended to the row's subtext. |
 | `select` | function `(row, link, gesture)` | MINOR 5. On a client without the Adventure Guide (Classic Era, TBC Anniversary, Mists Classic, WoW Forever), a boss row's gestures and a loot row's journal gesture (Alt by default, the row's "source" gesture) ask the first decorator taking the row, `gesture` being `"click"`, `"alt"` or `"ctrl"` (Shift stays EasyFind's link). Return `true` when you handled it; anything else falls through to EasyFind's own action for that gesture (the boss's loot listed, directions to the instance), so a decorator answers the gestures it wants and leaves the rest. Never asked where the client has the Adventure Guide. |
 | `hint` | function `(row)` | MINOR 5. With `select`: the words for the row's hint while you take it. A word is the click's (`"DungeonJournal"`); a table `{ click, alt, ctrl }` names each gesture's, and EasyFind's own word stands for any you leave out, so a boss row reads "Click: DungeonJournal | Alt: Loot" from `{ click = "DungeonJournal" }`. EasyFind writes the gesture before the word. |
+| `aliases` | string list | MINOR 6. An `@scope` over EasyFind's rows you take: `@att linen` searches them, `@att` alone lists them. The scope's key is your `id` (`ShowScope(id)` opens it); an id a provider's scope already holds keeps the provider's. Its pill reads `label`, else your extension's name. The rows stay EasyFind's, with your subtext, tooltip lines and menu entries. |
+| `browse` | function `(row)` | MINOR 6. With `aliases`: whether the row is in the scope's list while nothing is typed (on this map, not yet collected). Without it, every row you take. |
+| `candidates` | function | MINOR 6. The rows you take, named by field before `applies` is asked: a table of row fields to sets of their values, `{ itemID = { [13335] = true }, speciesID = { [1234] = true } }`. A row carrying none of the values is never yours; one that does is yours, or is asked `applies` when you have one. Asked once, and again after `RefreshRowDecorations`. Fields rows carry: `itemID` (Item, Loot, Bag, Bank, Warband), `mountID` and `spellID` (Mount), `speciesID` (Pet), `toyItemID` (Toy), `appearanceItemID` (Appearance), `heirloomItemID` (Heirloom), `titleID` (Title), `achievementID` (Achievement), `professionRecipeID` (Profession), `housingRecordID` (Housing), `npcID` (a creature). Give it when your `applies` is a lookup in your own data: the scope's list walks every loaded row. |
 | `keep`, `sortKey` | function `(row)` | Held for the filter flyout (a toggle dropping rows, a sort choice); registered now, acted on in a later MINOR. |
 
 `link` is the bag item's link, the loot row's, else `"item:ID"`; nil on a row without an item. `UnregisterRowDecorator(id, slot)` takes it back; `RefreshRowDecorations()` repaints the shown rows (new prices after a scan). The map tab's own rows have the game's menu, not this one.
@@ -320,6 +323,15 @@ Your rows changed: they are rebuilt now, and an open search shows them.
 | `OpenSearch(text)` | Shows the search bar focused, with `text` searched when given. |
 | `ShowScope(key, text)` | Shows the search bar on that `@scope`'s list. |
 | `ShowPlaces(key, row)` | Opens the world map on the map tab searched for the row, its `places` pinned on the viewed map, else the nearest one's map (MINOR 3). `key` is the provider's, `row` the copy `select` got. Returns true when shown. |
+
+### What EasyFind lists
+
+An extension acts on EasyFind's rows and never adds a second row for the same thing: a pin or note EasyFind already lists marks EasyFind's row through a decorator, and only the rest become rows of yours. These say which is which (MINOR 6); both are index lookups, so thousands of asks at a load are fine.
+
+| Function | |
+| --- | --- |
+| `HasRow(name, mapID)` | EasyFind's own row for a name on a map: the creature's id when the loaded creature catalog (the GPS extension's) has a creature so named with a spot on the map or the zone holding it, `true` for a recorded place or service row or a shipped instance entrance there, else `false`. Any case. |
+| `HasCreature(npcID)` | Whether the loaded creature catalog has the creature. |
 
 ## Linked checklists
 

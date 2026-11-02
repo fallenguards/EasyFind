@@ -569,14 +569,22 @@ function Search:OnSearchTextChangedNow(text, force)
         wipe(results)
         local data = ns.Database.uiSearchData
         local ProviderOf = ns.Extensions and ns.Extensions.ProviderOf
+        local decorator = quickFilter.decorator
         for i = 1, #data do
             local d = data[i]
             if self:QuickFilterAllowsData(d, quickFilter) then
                 -- A provider's browse says which of its rows an empty scope
                 -- lists (the quest log, not every quest); every row without it.
-                local provider = ProviderOf and ProviderOf(d)
-                local browse = provider and provider.browse
-                if not browse or browse(d) then
+                -- A decorator's scope asks the decorator's browse instead.
+                local listed
+                if decorator then
+                    listed = ns.Extensions.DecoratorBrowses(decorator, d)
+                else
+                    local provider = ProviderOf and ProviderOf(d)
+                    local browse = provider and provider.browse
+                    listed = not browse or browse(d)
+                end
+                if listed then
                     results[#results + 1] = { data = d, score = 0 }
                 end
             end

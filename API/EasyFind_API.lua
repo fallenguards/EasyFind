@@ -103,6 +103,9 @@
 ---@field subtext? fun(row: EasyFindRow): string|nil A part after the row's subtext.
 ---@field select? fun(row: EasyFindRow, link: string|nil, gesture: string): boolean A boss or loot row's gesture ("click", "alt", "ctrl") where the client has no Adventure Guide; true when you handled it (MINOR 5).
 ---@field hint? fun(row: EasyFindRow): string|EasyFindHint|nil The gestures' words while select takes the row: the click's, or { click, alt, ctrl } (MINOR 5).
+---@field aliases? string[] An @scope over the rows you take: @ and one of these searches or lists them; its key is id (MINOR 6).
+---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every taken row without it (MINOR 6).
+---@field candidates? fun(): table<string, table<any, true>> The rows you take by field, { itemID = { [13335] = true } }, before applies is asked (MINOR 6).
 ---@field keep? fun(row: EasyFindRow): boolean Held for the filter flyout.
 ---@field sortKey? fun(row: EasyFindRow): string|number Held for the filter flyout.
 
@@ -177,7 +180,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 4,
+    MINOR = 6,
 }
 local API = EasyFind.API
 
@@ -237,6 +240,12 @@ function API.OpenSearch(text) end
 ---@param text string?
 ---@return boolean
 function API.ShowScope(key, text) end
+---EasyFind's own row for a name on a map (MINOR 6): the creature's id when the loaded catalog has one so named with a spot on the map or its zone, true for a place or service row there, else false. Any case.
+---@return integer|boolean
+function API.HasRow(name, mapID) end
+---Whether the loaded creature catalog has the creature (MINOR 6).
+---@return boolean
+function API.HasCreature(npcID) end
 
 -- ==== actions and events ======================================================
 

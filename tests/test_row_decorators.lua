@@ -242,5 +242,133 @@ function tests.tooltipDecorator_opensABareRowsTooltip()
     H.assertTrue(src:find("d.npcID = r.npcID", 1, true) ~= nil, "a creature row in the bar carries its creature id")
 end
 
+-- A decorator's @scope (MINOR 6): its aliases make one quick filter keyed
+-- by its id, a later registration of the id takes the scope over, and a
+-- token already held leaves it without one.
+function tests.aliasesMakeAScope_laterRegistrationTakesItOver()
+    local _, ns, API = Env()
+    local added = {}
+    ns.Filters.AddQuickFilter = function(_, def)
+        added[#added + 1] = def
+        return def.canonical ~= "items"
+    end
+    API.RegisterRowDecorator({ id = "spoken", aliases = { "sp", "spoken" }, applies = function(row) return row.questId ~= nil end })
+    H.assertEq(#added, 1)
+    local scope = added[1]
+    H.assertEq(scope.key, "spoken")
+    H.assertEq(scope.canonical, "spoken")
+    H.assertEq(scope.label, "Spoken", "the extension's name without a label")
+    H.assertEq(scope.aliases[1], "sp")
+    H.assertEq(scope.decorator, ns.Extensions.Decorators.list[1])
+    H.assertEq(ns.Extensions.Decorators.scopes.spoken, scope)
+    local again = { id = "spoken", label = "Voices", aliases = { "sp" }, applies = function() return true end }
+    API.RegisterRowDecorator(again)
+    H.assertEq(#added, 1, "one scope per id")
+    H.assertEq(scope.decorator, again, "the scope follows the latest registration")
+    H.assertTrue(ns.Extensions.DecoratorTakes(scope.decorator, { itemID = 1 }))
+    API.RegisterExtension({ id = "items", name = "Items", icon = "i" })
+    API.RegisterRowDecorator({ id = "items", aliases = { "it" }, applies = function() return true end })
+    H.assertNil(ns.Extensions.Decorators.scopes.items, "a token a built-in holds: no scope")
+end
+
+-- An extension whose surface is its decorator's scope (RegisterExtension
+-- scope = the decorator's id, no open): its tile puts the scope's pill in
+-- the bar through ShowScope, reads as open while the pill is up, and
+-- closes with it.
+function tests.aDecoratorScopeLaunchesFromTheExtension()
+    local env, ns, API = Env()
+    ns.Filters.quickFilterOptions = {}
+    ns.Filters.AddQuickFilter = function(_, def)
+        local list = ns.Filters.quickFilterOptions
+        list[#list + 1] = def
+        return true
+    end
+    local applied, current, shown = nil, nil, false
+    ns.Filters.ApplyQuickFilter = function(_, def, text)
+        applied, current, shown = def, def, true
+        return true
+    end
+    ns.Filters.GetQuickFilter = function() return current end
+    ns.Filters.ClearQuickFilter = function() current = nil end
+    ns.Search.Show = function() end
+    ns.Search.GetSearchFrame = function() return { IsShown = function() return true end } end
+    ns.Search.GetResultsFrame = function() return { IsShown = function() return shown end } end
+    ns.Results.HideResults = function() shown = false end
+    API.RegisterExtension({ id = "att", name = "All The Things", icon = 1, scope = "att" })
+    API.RegisterRowDecorator({ id = "att", aliases = { "att" }, applies = function(row) return row.itemID ~= nil end })
+    H.assertFalse(API.IsExtensionOpen("att"))
+    H.assertTrue(API.OpenExtension("att"))
+    env._clock:advance(0)
+    H.assertTrue(applied ~= nil, "the tile applied a quick filter")
+    H.assertEq(applied.key, "att")
+    H.assertEq(applied.label, "All The Things", "the pill reads the extension's name")
+    H.assertEq(applied.decorator, ns.Extensions.Decorators.list[1])
+    H.assertTrue(API.IsExtensionOpen("att"), "open while its pill is up")
+    H.assertEq(ns.Extensions.ScopeShowing(), "att")
+    API.CloseExtension("att")
+    H.assertFalse(API.IsExtensionOpen("att"))
+end
+
+-- candidates (MINOR 6) name the rows by field before applies is asked: a
+-- row outside them is never the decorator's, one inside is, or is asked
+-- applies; a refresh asks candidates again.
+function tests.candidatesNameTheRows_appliesRefines_refreshAsksAgain()
+    local _, ns, API = Env()
+    local asked, appliesAsked = 0, {}
+    local named = { itemID = { [7] = true }, speciesID = { [40] = true } }
+    API.RegisterRowDecorator({ id = "prices", candidates = function() asked = asked + 1 return named end })
+    local E = ns.Extensions
+    local prices = E.Decorators.list[1]
+    H.assertTrue(E.DecoratorTakes(prices, { itemID = 7, category = "Loot" }), "named by its item")
+    H.assertTrue(E.DecoratorTakes(prices, { speciesID = 40 }), "or its species")
+    H.assertFalse(E.DecoratorTakes(prices, { itemID = 8, category = "Bag" }), "an item not named")
+    H.assertFalse(E.DecoratorTakes(prices, { questId = 7 }), "a field not named")
+    H.assertEq(asked, 1, "asked once for all the rows")
+    named = { itemID = { [9] = true } }
+    H.assertFalse(E.DecoratorTakes(prices, { itemID = 9 }), "the first answer stands until a refresh")
+    API.RefreshRowDecorations()
+    H.assertTrue(E.DecoratorTakes(prices, { itemID = 9 }))
+    H.assertEq(asked, 2)
+    API.RegisterRowDecorator({ id = "spoken", candidates = function() return named end,
+        applies = function(row) appliesAsked[#appliesAsked + 1] = row.itemID return row.itemID == 9 end })
+    local spoken = E.Decorators.list[2]
+    H.assertTrue(E.DecoratorTakes(spoken, { itemID = 9 }))
+    H.assertFalse(E.DecoratorTakes(spoken, { itemID = 7 }), "outside the candidates")
+    H.assertEq(#appliesAsked, 1, "applies asked only inside them")
+end
+
+-- browse (MINOR 6) says what the scope lists while nothing is typed; every
+-- taken row without it.
+function tests.browseSaysWhatTheScopeLists()
+    local _, ns, API = Env()
+    API.RegisterRowDecorator({ id = "spoken", aliases = { "sp" }, applies = function() return true end,
+        browse = function(row) return row.itemID == 7 end })
+    API.RegisterRowDecorator({ id = "prices", applies = function() return true end })
+    local E = ns.Extensions
+    H.assertTrue(E.DecoratorBrowses(E.Decorators.list[1], { itemID = 7 }))
+    H.assertFalse(E.DecoratorBrowses(E.Decorators.list[1], { itemID = 8 }))
+    H.assertTrue(E.DecoratorBrowses(E.Decorators.list[2], { itemID = 8 }), "no browse: every row")
+end
+
+-- The scope's paths ask the decorator: the quick filter admits the rows it
+-- takes, the empty scope lists what its browse says, a taken token is told.
+function tests.theScopePathsAskIt()
+    local function Read(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a")
+        f:close()
+        return src
+    end
+    local filters = Read("Search/Filters/QuickFilter.lua")
+    H.assertTrue(filters:find("if def.decorator then return ns.Extensions.DecoratorTakes(def.decorator, data) end", 1, true) ~= nil)
+    H.assertTrue(filters:find("if Filters.quickFilterByAlias[slower(def.canonical)] then return false end", 1, true) ~= nil)
+    H.assertTrue(Read("Search/Query.lua"):find("listed = ns.Extensions.DecoratorBrowses(decorator, d)", 1, true) ~= nil)
+    local readme = Read("API/README.md")
+    H.assertTrue(readme:find("| `aliases` | string list | MINOR 6.", 1, true) ~= nil, "documented")
+    H.assertTrue(readme:find("| `browse` | function `(row)` | MINOR 6.", 1, true) ~= nil)
+    H.assertTrue(readme:find("| `candidates` | function | MINOR 6.", 1, true) ~= nil)
+    H.assertTrue(Read("API/EasyFind_API.lua"):find("---@field candidates? fun(): table<string, table<any, true>>", 1, true) ~= nil, "annotated")
+end
+
 local pass, fail, failures = H.runSuite("RowDecorators", tests)
 return { pass = pass, fail = fail, failures = failures }

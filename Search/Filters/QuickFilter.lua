@@ -134,12 +134,14 @@ local function PrepareQuickFilter(def, i)
 end
 for i = 1, #Filters.quickFilterOptions do PrepareQuickFilter(Filters.quickFilterOptions[i], i) end
 
--- An extension's @scope (EasyFind.API.RegisterSearchProvider).
+-- An extension's @scope (EasyFind.API RegisterSearchProvider, or a row
+-- decorator's: def.decorator); false when its canonical token is taken.
 function Filters:AddQuickFilter(def)
-    if Filters.quickFilterByAlias[slower(def.canonical)] then return end
+    if Filters.quickFilterByAlias[slower(def.canonical)] then return false end
     local list = Filters.quickFilterOptions
     list[#list + 1] = def
     PrepareQuickFilter(def, #list)
+    return true
 end
 
 Filters.quickFilterSuggestionBuf = {}
@@ -283,6 +285,8 @@ function Filters:QuickFilterAllowsData(data, quickFilter)
        and not ns.Database:MountPassesSearchFilters(data) then
         return false
     end
+    -- A row decorator's scope: EasyFind's rows it takes.
+    if def.decorator then return ns.Extensions.DecoratorTakes(def.decorator, data) end
 
     if def.key == "mounts" then return data.mountID and true or false end
     if def.key == "toys" then return data.toyItemID and true or false end

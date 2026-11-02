@@ -3,11 +3,13 @@ local _, ns = ...
 local Utils = ns.Utils
 local L = ns.L
 local slower, sfind = Utils.slower, Utils.sfind
+local GetMapInfo = C_Map and C_Map.GetMapInfo
+local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 5 }
+local API = { VERSION = 1, MINOR = 6 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -675,12 +677,15 @@ end
 -- EasyFind's own word standing for any left out), keep and sortKey (held
 -- for the filter flyout). The link: the bag item's, the loot row's, else
 -- "item:ID"; nil on a row without an item.
-local Decorators = { list = {}, bySlot = {}, generation = 0 }
+-- scopes: a decorator's @scope by its id (MINOR 6); candidates: per
+-- decorator what its candidates() named, asked again after a refresh.
+local Decorators = { list = {}, bySlot = {}, generation = 0, scopes = {}, candidates = {} }
 Extensions.Decorators = Decorators
 local DECORATOR_FIELDS = {
     id = "string", extension = "string", slot = "string", label = "string", categories = "table",
     applies = "function", text = "function", tooltip = "function", menu = "function", subtext = "function",
     select = "function", hint = "function", keep = "function", sortKey = "function", submenu = "boolean",
+    aliases = "table", browse = "function", candidates = "function",
 }
 
 function API.UnregisterRowDecorator(id, slot)
@@ -700,9 +705,11 @@ function API.UnregisterRowDecorator(id, slot)
     Decorators.generation = Decorators.generation + 1
 end
 
--- Shown rows paint again (a scan brought new prices).
+-- Shown rows paint again (a scan brought new prices); the decorators'
+-- candidates are asked again.
 function API.RefreshRowDecorations()
     Decorators.generation = Decorators.generation + 1
+    wipe(Decorators.candidates)
     if ns.Results and ns.Results.RefreshShownResults then ns.Results:RefreshShownResults(true) end
 end
 
@@ -726,11 +733,50 @@ function API.RegisterRowDecorator(def)
     API.UnregisterRowDecorator(def.id, def.slot)
     Decorators.list[#Decorators.list + 1] = def
     if def.slot and not Decorators.bySlot[def.slot] then Decorators.bySlot[def.slot] = def end
+    -- Its @scope (MINOR 6): EasyFind's rows it takes, searched or listed.
+    -- Registered once per id; a later registration takes the scope over.
+    if def.aliases then
+        local scope = Decorators.scopes[def.id]
+        if scope then
+            scope.decorator = def
+        else
+            scope = { key = def.id, canonical = def.id, label = def.label or owner.name, aliases = def.aliases, decorator = def }
+            if ns.Filters:AddQuickFilter(scope) then Decorators.scopes[def.id] = scope end
+        end
+    end
     API.RefreshRowDecorations()
     return true
 end
 
+-- What the decorator's candidates() named, by row field (MINOR 6): the
+-- rows outside it are never its; false for a decorator without one.
+local function Candidates(def)
+    local set = Decorators.candidates[def]
+    if set == nil then
+        set = false
+        if def.candidates then
+            local ok, got = Run(def.candidates)
+            if ok and type(got) == "table" then set = got end
+        end
+        Decorators.candidates[def] = set
+    end
+    return set
+end
+
 local function DecoratorTakes(def, row)
+    local candidates = Candidates(def)
+    if candidates then
+        local named = false
+        for field, ids in pairs(candidates) do
+            local value = row[field]
+            if value ~= nil and type(ids) == "table" and ids[value] then
+                named = true
+                break
+            end
+        end
+        if not named then return false end
+        if not def.applies then return true end
+    end
     if def.applies then
         local ok, yes = Run(def.applies, row)
         return ok and yes == true
@@ -739,6 +785,14 @@ local function DecoratorTakes(def, row)
     return not def.categorySet or def.categorySet[row.category] == true
 end
 Extensions.DecoratorTakes = DecoratorTakes
+
+-- Whether a row the decorator takes is in its scope's list while nothing
+-- is typed: its browse's word; every row without one.
+function Extensions.DecoratorBrowses(def, row)
+    if not def.browse then return true end
+    local ok, yes = Run(def.browse, row)
+    return ok and yes == true
+end
 
 function Extensions.DecoratorLink(row)
     if row.bagItemLink then return row.bagItemLink end
@@ -896,6 +950,71 @@ function API.OpenSearch(text)
         end)
     end
     return true
+end
+
+-- ==== public: what EasyFind lists ==============================================
+
+-- The map and, under a dungeon, building or orphan map, the zones up to
+-- the one holding it; one scratch set.
+local mapAndZone = {}
+local function MapAndZone(mapID)
+    wipe(mapAndZone)
+    mapAndZone[mapID] = true
+    local info = GetMapInfo and GetMapInfo(mapID)
+    for _ = 1, 6 do
+        if not (info and info.mapType and info.mapType > ZONE_TYPE and info.parentMapID) then break end
+        info = GetMapInfo(info.parentMapID)
+        if info then mapAndZone[info.mapID] = true end
+    end
+    return mapAndZone
+end
+
+-- The maps each recorded place and shipped entrance is on, by its
+-- lowercase name; built on the first ask.
+local placeMaps
+local function PlaceMaps()
+    if placeMaps then return placeMaps end
+    placeMaps = {}
+    local function Add(name, mapID)
+        if type(name) ~= "string" or not mapID then return end
+        local low = slower(name)
+        local maps = placeMaps[low]
+        if not maps then
+            maps = {}
+            placeMaps[low] = maps
+        end
+        maps[mapID] = true
+    end
+    for mapID, list in pairs(ns.STATIC_LOCATIONS or {}) do
+        for i = 1, #list do Add(list[i].name, mapID) end
+    end
+    local MapSearch = ns.MapSearch
+    local entrances = MapSearch and MapSearch.GetGlobalInstanceCache and MapSearch:GetGlobalInstanceCache()
+    for i = 1, entrances and #entrances or 0 do Add(entrances[i].name, entrances[i].entranceMapID) end
+    return placeMaps
+end
+
+-- EasyFind's own row for a name on a map (MINOR 6): the creature's id when
+-- the loaded catalog has one so named with a spot on the map or its zone,
+-- true for a place or service row there, else false. Any case.
+function API.HasRow(name, mapID)
+    if type(name) ~= "string" or name == "" or type(mapID) ~= "number" then return false end
+    local maps = MapAndZone(mapID)
+    local npcs = ns.GPSNpcs
+    local npcID = npcs and npcs.NamedOn and npcs.NamedOn(name, maps)
+    if npcID then return npcID end
+    local on = PlaceMaps()[slower(name)]
+    if not on then return false end
+    for m in pairs(maps) do
+        if on[m] then return true end
+    end
+    return false
+end
+
+-- Whether the loaded creature catalog has the creature (MINOR 6).
+function API.HasCreature(npcID)
+    local npcs = ns.GPSNpcs
+    return type(npcID) == "number" and npcs ~= nil and npcs.HasID ~= nil and npcs.HasID(npcID) == true
 end
 
 -- ==== public: theme and look ===================================================
