@@ -4,6 +4,25 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [4.2.0] - 2026-11-02
+
+### Added
+- **Hidden extensions**: a tile's right-click menu in the extensions menu offers Hide; the tile leaves the menu while the extension keeps its search row and key; the menu's settings page lists every extension under Shown in the menu, the settings search finds "<name> in the menu", and Reset to default shows them all again
+- **Extensions menu**: tiles run down a column, with Rows per column (4 to 12) in place of Columns; an Icon size setting beside Label size; the menu stays open while its settings are changed
+- **Row tooltips**: a place or creature's tooltip shows its spot, how far it is and how many spots fold into the row; a boss's tooltip says how many items it drops where the journal has no page for it
+- **Extensions API 1.6**: a row decorator may carry a scope word of its own (@name searches the rows it marks, @name alone lists them) and name its rows by field before it is asked; HasRow and HasCreature tell an extension which creatures and places EasyFind already lists, so it marks those rows instead of doubling them; creature rows carry their ids; a decorator's tooltip can open a bare row
+
+### Changed
+- **Equipped-item compare**: a row's tooltip shows the equipped item's compare only while Shift is held, as Classic does; item tooltips elsewhere in the game are untouched
+
+### Fixed
+- **Results scrolling**: the list no longer jumps back to the top while you read down it (a provider landing or an item's data arriving repainted it from the top); a wheel glide that aimed past the list's end no longer stalls, which left rows with no tooltip and the catalog's names unfilled
+- **Row tooltips**: a gear row's tooltip kept its lines but lost its place beside the list from the second hover on; it no longer shrinks a step at every re-hover after a right-click; Shift brings a hidden compare back
+- **Result menus**: a row's menu no longer closes under the pointer on the way to one of its flyouts, and a click outside a menu closes the menu only, never the search bar
+- **Extension rows**: an extension row's own icon (a quest, a pin, a fishing spot) draws at the row's right again
+
+---
+
 ## [4.1.0] - 2026-11-01
 
 ### Added

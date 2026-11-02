@@ -295,18 +295,14 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNote|r\n" ..
-    "    |cff999999-|r Una nota si apre in una finestra propria accanto all'elenco, quante ne vuoi; una riga con casella in qualsiasi nota è una riga di lista che il gioco può spuntare per te, e il tipo lista di controllo separato sparisce; una nota può aprirsi con la casa d'aste, il mercante o la banca\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffOgni risultato elencato|r\n" ..
-    "    |cff999999-|r L'elenco non si ferma più a 15 righe: le prime 15 compaiono subito e il resto si aggiunge sotto mentre scorri\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffRicerca|r\n" ..
-    "    |cff999999-|r Una parola che nomina un tipo di riga restringe il resto (zona roccavento, incantesimo dardo di gelo, oggetto stoffa di lino); un nome scritto con le parole invertite si trova lo stesso; prima ciò che possiedi, poi i luoghi, poi il bottino e il catalogo a parità di corrispondenza; la sigla di un'istanza la elenca per prima, poi i suoi boss\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
-    "    |cff999999-|r Nucleo Ardente, Rifugio dell'Ala Nera e le Rovine di Ahn'Qiraj con i loro boss e il loro bottino; ogni riga di boss porta il suo volto\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMacro e luoghi|r\n" ..
-    "    |cff999999-|r Una riga Macro e /macro aprono la finestra delle macro; i luoghi della mappa si trovano da ovunque; un maestro d'armi elenca le sue armi\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMenu delle estensioni|r\n" ..
+    "    |cff999999-|r Nascondi un'estensione dal menu del tasto destro della sua casella e recuperala dalla pagina impostazioni del menu; le caselle scendono per colonne con Righe per colonna; un'impostazione per la dimensione delle icone; il menu resta aperto mentre ne cambi le impostazioni\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTooltip|r\n" ..
+    "    |cff999999-|r Il confronto con l'oggetto equipaggiato compare solo tenendo premuto Maiusc, come in Classic; il tooltip di un luogo o di una creatura mostra il punto e la distanza, quello di un boss quanti oggetti lascia\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEstensioni|r\n" ..
+    "    |cff999999-|r Un'estensione può marcare le creature e i luoghi che EasyFind già elenca invece di duplicarli, e avere una parola di ambito propria (@nome)\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Un clic semplice su un link di chat di EasyFind funziona sui client classic, potion non elenca più ogni impostazione, il prezzo di una riga resta libero dai suoi pulsanti, e le finestre delle note non si disegnano più una attraverso l'altra\n"
+    "    |cff999999-|r L'elenco non salta più in cima mentre lo leggi, le righe conservano il tooltip dopo uno scorrimento, il tooltip di un pezzo d'equipaggiamento mantiene posto e dimensione accanto all'elenco, e il menu di una riga non si chiude più sulla via del suo sottomenu\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

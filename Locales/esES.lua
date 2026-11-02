@@ -295,18 +295,14 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
-    "    |cff999999-|r Una nota se abre en su propia ventana junto a la lista, tantas como quieras; una línea con casilla en cualquier nota es una línea de lista que el juego puede marcar por ti, y el tipo de lista de tareas aparte desaparece; una nota puede abrirse con la casa de subastas, el vendedor o el banco\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTodos los resultados listados|r\n" ..
-    "    |cff999999-|r La lista ya no se detiene en 15 filas: las primeras 15 aparecen al momento y el resto se suma debajo al desplazarte\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBúsqueda|r\n" ..
-    "    |cff999999-|r Una palabra que nombra un tipo de fila acota el resto (zona ventormenta, hechizo descarga de escarcha, objeto tela de lino); un nombre escrito con las palabras cambiadas se encuentra igual; primero lo que tienes, luego los lugares, luego el botín y el catálogo entre coincidencias iguales; la abreviatura de una instancia la lista primero y después a sus jefes\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era y TBC Anniversary|r\n" ..
-    "    |cff999999-|r Núcleo de Magma, Guarida de Alanegra y las Ruinas de Ahn'Qiraj con sus jefes y su botín; cada fila de jefe lleva su rostro\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMacros y lugares|r\n" ..
-    "    |cff999999-|r Una fila Macros y /macro abren la ventana de macros; los lugares del mapa se encuentran desde cualquier sitio; un maestro de armas lista sus armas\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMenú de extensiones|r\n" ..
+    "    |cff999999-|r Oculta una extensión desde el menú de clic derecho de su casilla y recupérala desde la página de ajustes del menú; las casillas bajan por columnas con Filas por columna; un ajuste de tamaño de icono; el menú sigue abierto mientras cambias sus ajustes\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDescripciones|r\n" ..
+    "    |cff999999-|r La comparación con el objeto equipado solo aparece mientras mantienes Mayús, como en Classic; la descripción de un lugar o criatura muestra su punto y a qué distancia está, la de un jefe cuántos objetos deja caer\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffExtensiones|r\n" ..
+    "    |cff999999-|r Una extensión puede marcar las criaturas y lugares que EasyFind ya lista en vez de duplicarlos, y llevar una palabra de ámbito propia (@nombre)\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Un clic simple en un enlace de chat de EasyFind funciona en los clientes clásicos, potion ya no lista todos los ajustes, el precio de una fila no se superpone a sus botones, y las ventanas de notas ya no se dibujan unas sobre otras\n"
+    "    |cff999999-|r La lista ya no salta arriba mientras la lees, las filas conservan su descripción tras desplazarte, la descripción de una pieza de equipo mantiene su sitio y tamaño junto a la lista, y el menú de una fila ya no se cierra de camino a su submenú\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

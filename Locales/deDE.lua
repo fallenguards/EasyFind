@@ -297,18 +297,14 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotizen|r\n" ..
-    "    |cff999999-|r Eine Notiz öffnet sich in einem eigenen Fenster neben der Liste, so viele du willst; eine Kontrollkästchen-Zeile in jeder Notiz ist eine Listenzeile, die das Spiel für dich abhaken kann, und die getrennte Checklisten-Art ist weg; eine Notiz kann sich mit dem Auktionshaus, dem Händler oder der Bank öffnen\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffJedes Ergebnis gelistet|r\n" ..
-    "    |cff999999-|r Die Liste endet nicht mehr bei 15 Zeilen: die ersten 15 erscheinen sofort, der Rest folgt darunter beim Scrollen\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSuche|r\n" ..
-    "    |cff999999-|r Ein Wort, das eine Art von Zeile benennt, grenzt den Rest ein (zone sturmwind, zauber frostblitz, item leinenstoff); ein Name mit vertauschten Wörtern wird trotzdem gefunden; erst was du besitzt, dann Orte, dann Beute und Katalog bei gleichen Treffern; das Kürzel einer Instanz listet sie zuerst, dann ihre Bosse\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era und TBC Anniversary|r\n" ..
-    "    |cff999999-|r Geschmolzener Kern, Pechschwingenhort und die Ruinen von Ahn'Qiraj mit ihren Bossen und ihrer Beute; jede Bosszeile trägt ihr Gesicht\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMakros und Orte|r\n" ..
-    "    |cff999999-|r Eine Makros-Zeile und /macro öffnen das Makrofenster; Kartenorte werden von überall gefunden; ein Waffenmeister listet seine Waffen\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffErweiterungsmenü|r\n" ..
+    "    |cff999999-|r Eine Erweiterung lässt sich über das Rechtsklickmenü ihrer Kachel ausblenden und über die Einstellungsseite des Menüs zurückholen; Kacheln laufen spaltenweise mit Zeilen pro Spalte; eine Einstellung für die Symbolgröße; das Menü bleibt offen, während seine Einstellungen geändert werden\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTooltips|r\n" ..
+    "    |cff999999-|r Der Vergleich mit dem angelegten Gegenstand erscheint nur bei gehaltener Umschalttaste, wie in Classic; der Tooltip eines Ortes oder einer Kreatur zeigt die Stelle und die Entfernung, der eines Bosses, wie viele Gegenstände er fallen lässt\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffErweiterungen|r\n" ..
+    "    |cff999999-|r Eine Erweiterung kann Kreaturen und Orte markieren, die EasyFind schon listet, statt sie zu verdoppeln, und ein eigenes Bereichswort tragen (@name)\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Ein einfacher Klick auf einen EasyFind-Chatlink funktioniert auf den Classic-Clients, potion listet nicht mehr jede Einstellung, der Preis einer Zeile bleibt frei von ihren Schaltflächen, und Notizfenster zeichnen nicht mehr durcheinander\n"
+    "    |cff999999-|r Die Liste springt beim Lesen nicht mehr nach oben, Zeilen behalten ihre Tooltips nach dem Scrollen, der Tooltip eines Ausrüstungsteils behält Platz und Größe neben der Liste, und das Menü einer Zeile schließt sich nicht mehr auf dem Weg zu seinem Untermenü\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

@@ -328,18 +328,14 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotes|r\n" ..
-    "    |cff999999-|r A note opens in its own window beside the list, as many as you like; a checkbox line in any note is a list line the game can tick for you, and the separate checklist kind is gone; a note can open with the auction house, merchant or bank\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEvery result listed|r\n" ..
-    "    |cff999999-|r The list no longer stops at 15 rows: the first 15 paint at once and the rest join below as you scroll\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSearch|r\n" ..
-    "    |cff999999-|r A word naming a kind of row narrows the rest (zone stormwind, spell frostbolt, item linen cloth); a name typed with its words swapped still finds it; what you own, then places, then loot and the catalog among equal matches; an instance's shorthand lists it first, then its bosses\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era and TBC Anniversary|r\n" ..
-    "    |cff999999-|r Molten Core, Blackwing Lair and the Ruins of Ahn'Qiraj with their bosses and loot; every boss row wears its face\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMacros and places|r\n" ..
-    "    |cff999999-|r A Macros row and /macro open the macro window; map places are found from anywhere; a weapon master lists its weapons\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffExtensions menu|r\n" ..
+    "    |cff999999-|r Hide an extension from a tile's right-click menu, back from the menu's settings page; tiles run down columns with Rows per column; an Icon size setting; the menu stays open while its settings change\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTooltips|r\n" ..
+    "    |cff999999-|r The equipped item's compare shows only while Shift is held, as in Classic; a place or creature's tooltip shows its spot and how far it is, a boss's how many items it drops\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffExtensions|r\n" ..
+    "    |cff999999-|r An extension can mark the creatures and places EasyFind already lists instead of doubling them, and carry a scope word of its own (@name)\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r A plain click on an EasyFind chat link works on the classic clients, potion no longer lists every setting, a row's price keeps clear of its buttons, and notes windows no longer draw through each other\n"
+    "    |cff999999-|r The list no longer jumps to the top while you read down it, rows keep their tooltips after a scroll, a gear tooltip keeps its place and size beside the list, and a row's menu no longer closes on the way to its flyout\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

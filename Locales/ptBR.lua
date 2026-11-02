@@ -295,18 +295,14 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotas|r\n" ..
-    "    |cff999999-|r Uma nota abre em sua própria janela ao lado da lista, quantas você quiser; uma linha com caixa em qualquer nota é uma linha de lista que o jogo pode marcar por você, e o tipo lista de tarefas separado se foi; uma nota pode abrir com a casa de leilões, o vendedor ou o banco\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTodos os resultados listados|r\n" ..
-    "    |cff999999-|r A lista não para mais em 15 linhas: as 15 primeiras aparecem na hora e o resto se junta abaixo ao rolar\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBusca|r\n" ..
-    "    |cff999999-|r Uma palavra que nomeia um tipo de linha restringe o resto (zona ventobravo, feitiço seta de gelo, item tecido de linho); um nome digitado com as palavras trocadas ainda é encontrado; primeiro o que você tem, depois lugares, depois saque e catálogo entre resultados iguais; a sigla de uma instância a lista primeiro, depois seus chefes\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffClassic Era e TBC Anniversary|r\n" ..
-    "    |cff999999-|r Núcleo Derretido, Covil da Asa Negra e as Ruínas de Ahn'Qiraj com seus chefes e saque; cada linha de chefe traz seu rosto\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffMacros e lugares|r\n" ..
-    "    |cff999999-|r Uma linha Macros e /macro abrem a janela de macros; lugares do mapa são encontrados de qualquer lugar; um mestre de armas lista suas armas\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffMenu de extensões|r\n" ..
+    "    |cff999999-|r Oculte uma extensão pelo menu do clique direito do seu bloco e traga-a de volta pela página de configurações do menu; os blocos descem em colunas com Linhas por coluna; uma configuração de tamanho de ícone; o menu fica aberto enquanto você muda suas configurações\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDicas|r\n" ..
+    "    |cff999999-|r A comparação com o item equipado só aparece com Shift pressionado, como no Classic; a dica de um lugar ou criatura mostra o ponto e a distância, a de um chefe quantos itens ele deixa\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffExtensões|r\n" ..
+    "    |cff999999-|r Uma extensão pode marcar as criaturas e lugares que o EasyFind já lista em vez de duplicá-los, e ter uma palavra de escopo própria (@nome)\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Um clique simples em um link de chat do EasyFind funciona nos clientes clássicos, potion não lista mais todas as configurações, o preço de uma linha fica longe de seus botões, e janelas de notas não se desenham mais uma através da outra\n"
+    "    |cff999999-|r A lista não pula mais para o topo enquanto você a lê, as linhas mantêm suas dicas após rolar, a dica de uma peça de equipamento mantém lugar e tamanho ao lado da lista, e o menu de uma linha não fecha mais a caminho do seu submenu\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"
