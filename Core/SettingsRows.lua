@@ -667,6 +667,19 @@ local function ExtensionsRows()
             row.page = { id = "menu", name = L["OPT_EXT_MENU_PAGE"] }
             rows[#rows + 1] = row
         end
+        -- Shown in the menu: a switch per extension, as the page has.
+        local apps = ns.BuildApplicationEntries and ns.BuildApplicationEntries() or {}
+        table.sort(apps, function(a, b) return (a.name or "") < (b.name or "") end)
+        for _, app in ipairs(apps) do
+            local id = ns.ApplicationEntryID and ns.ApplicationEntryID(app)
+            if id and AppsMenu.IsHidden then
+                local row = Check(sformat(L["OPT_EXT_SHOW_FMT"], app.name or id), L["OPT_EXT_SHOWN_HINT"],
+                    function() return not AppsMenu:IsHidden(id) end,
+                    function(on) AppsMenu:SetHidden(id, not on) end)
+                row.page = { id = "menu", name = L["OPT_EXT_MENU_PAGE"] }
+                rows[#rows + 1] = row
+            end
+        end
     end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then
         local trigger = ns.Snippets and ns.Snippets.TriggerChar and ns.Snippets.TriggerChar() or "\\"

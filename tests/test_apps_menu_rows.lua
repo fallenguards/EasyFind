@@ -100,5 +100,66 @@ function tests.theIconSizeIsASettingBesideTheLabelSize()
     end
 end
 
+-- The tile list cut from the file, over given settings and extensions.
+local function Items(settings, apps)
+    local src = Read("Search/AppsMenu.lua")
+    local s = assert(src:find("local function GroupByID(s, id)", 1, true))
+    local e = assert(src:find("AppsMenu.MenuItems = MenuItems", s, true))
+    local env = { ipairs = ipairs, pairs = pairs, table = table, math = math, string = string, next = next,
+        Settings = function() return settings end, AppsMenu = {},
+        ns = { BuildApplicationEntries = function() return apps end, ApplicationEntryID = function(app) return app.id end } }
+    return assert(load(src:sub(s, e - 1) .. "\nreturn MenuItems", "=AppsMenu MenuItems", "t", env))()
+end
+
+local function Ids(items)
+    local out = {}
+    for _, it in ipairs(items) do out[#out + 1] = it.id end
+    return table.concat(out, ",")
+end
+
+-- A hidden extension (the tile's menu, the settings page; 2026-11-02)
+-- leaves the grid, alone or inside a group, and a group with nothing
+-- left to show goes with it; its search row and key stay.
+function tests.hiddenExtensionsLeaveTheGrid_groupsToo()
+    local apps = { { id = "calc", name = "Calculator" }, { id = "notes", name = "Notes" }, { id = "gps", name = "GPS" } }
+    local settings = { groups = { { id = "g1", name = "Tools", apps = { "calc", "notes" } } }, hidden = { notes = true } }
+    local MenuItems = Items(settings, apps)
+    H.assertEq(Ids(MenuItems()), "gps,group:g1")
+    H.assertEq(Ids(MenuItems("g1")), "calc", "the hidden one is gone from its group")
+    settings.hidden.calc = true
+    H.assertEq(Ids(MenuItems()), "gps", "a group with nothing left to show goes too")
+    settings.order = { "group:g1", "gps", "notes" }
+    H.assertEq(Ids(MenuItems()), "gps", "the saved order lists them, the grid does not")
+    settings.hidden = nil
+    H.assertEq(Ids(MenuItems()), "group:g1,gps", "all back, the grouped one inside its group")
+    H.assertEq(Ids(MenuItems("g1")), "calc,notes")
+end
+
+function tests.hideIsOfferedOnTheTile_andTheSettingsPageShowsThemAgain()
+    local menu = Read("Search/AppsMenu.lua")
+    H.assertTrue(menu:find("function AppsMenu:SetHidden(id, on)", 1, true) ~= nil)
+    H.assertTrue(menu:find("ns.ExtensionButtons:ShowAppMenu(row, item.app, true)", 1, true) ~= nil,
+        "the tile's menu asks for the Hide entry")
+    H.assertTrue(menu:find("local app = not AppsMenu:IsHidden(id) and ns.FindApplicationEntry(id)", 1, true) ~= nil,
+        "a group's stack leaves a hidden one out")
+    local buttons = Read("Search/ExtensionButtons.lua")
+    H.assertTrue(buttons:find("if inMenu and appID and ns.AppsMenu and ns.AppsMenu.SetHidden then", 1, true) ~= nil,
+        "only a tile offers Hide, never a button on the screen")
+    H.assertTrue(buttons:find('label = L["EXTMENU_HIDE"], tooltip = L["EXTMENU_HIDE_TT"]', 1, true) ~= nil)
+    local panel = Read("Apps/Options/OptionsPanel.lua")
+    H.assertTrue(panel:find('shownTitle:SetText(L["OPT_EXT_SHOWN"])', 1, true) ~= nil, "the page lists them")
+    H.assertTrue(panel:find("AppsMenu:SetHidden(id, not self:GetChecked())", 1, true) ~= nil, "a switch off hides")
+    H.assertTrue(panel:find("s.rows, s.labels, s.labelSize, s.iconSize, s.order, s.hidden = nil, nil, nil, nil, nil, nil", 1, true) ~= nil,
+        "reset shows them all again")
+    H.assertTrue(Read("Core/SettingsRows.lua"):find('Check(sformat(L["OPT_EXT_SHOW_FMT"], app.name or id), L["OPT_EXT_SHOWN_HINT"]', 1, true) ~= nil,
+        "a row per extension in the settings search")
+    for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
+        local src = Read("Locales/" .. loc .. ".lua")
+        for _, key in ipairs({ "OPT_EXT_SHOWN", "OPT_EXT_SHOWN_HINT", "OPT_EXT_SHOW_FMT", "EXTMENU_HIDE", "EXTMENU_HIDE_TT" }) do
+            H.assertTrue(src:find('L["' .. key .. '"]', 1, true) ~= nil, loc .. " has " .. key)
+        end
+    end
+end
+
 local pass, fail, failures = H.runSuite("AppsMenuRows", tests)
 return { pass = pass, fail = fail, failures = failures }

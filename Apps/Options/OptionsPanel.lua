@@ -4978,6 +4978,51 @@ local function BuildExtensionsMenuPage(ctx, page)
     sortBtn:SetPoint("TOPLEFT", iconRow, "BOTTOMLEFT", 8, -10)
     sortBtn:SetScript("OnClick", function() S().order = nil Changed() end)
     Utils.AttachDelayedTooltip(sortBtn, "ANCHOR_TOP", function() return L["OPT_EXT_SORT_NAME_TT"] end)
+
+    -- Shown in the menu: a switch per extension, two columns by name; one
+    -- switched off leaves the tiles and keeps its search row and key.
+    local shownTitle = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontNormal)
+    shownTitle:SetPoint("TOPLEFT", sortBtn, "BOTTOMLEFT", -8, -16)
+    shownTitle:SetText(L["OPT_EXT_SHOWN"])
+    local shownHint = page:CreateFontString(nil, "OVERLAY", OPT_FONTS.GameFontHighlightSmall)
+    shownHint:SetPoint("TOPLEFT", shownTitle, "BOTTOMLEFT", 0, -4)
+    shownHint:SetPoint("RIGHT", page, "RIGHT", -10, 0)
+    shownHint:SetJustifyH("LEFT")
+    shownHint:SetText(L["OPT_EXT_SHOWN_HINT"])
+    local colW = math.floor(ctx.SELECTOR_ROW_W / 2)
+    local boxes = {}
+    local function ShownBox(id, name)
+        local box = boxes[id]
+        if box then return box end
+        box = ctx.CreateCheckbox(page, nil, name, nil, true, colW)
+        box:SetScript("OnClick", function(self)
+            if self.RefreshVisual then self:RefreshVisual() end
+            AppsMenu:SetHidden(id, not self:GetChecked())
+        end)
+        boxes[id] = box
+        return box
+    end
+    local function RefreshShown()
+        local apps = ns.BuildApplicationEntries and ns.BuildApplicationEntries() or {}
+        table.sort(apps, function(a, b) return (a.name or "") < (b.name or "") end)
+        for _, box in pairs(boxes) do box:Hide() end
+        local n = 0
+        for _, app in ipairs(apps) do
+            local id = ns.ApplicationEntryID(app)
+            if id then
+                local box = ShownBox(id, app.name or id)
+                box:ClearAllPoints()
+                box:SetPoint("TOPLEFT", shownHint, "BOTTOMLEFT", -8 + (n % 2) * colW, -(6 + math.floor(n / 2) * 22))
+                box:SetChecked(not AppsMenu:IsHidden(id))
+                if box.RefreshVisual then box:RefreshVisual() end
+                box:Show()
+                n = n + 1
+            end
+        end
+    end
+    RefreshShown()
+    page:HookScript("OnShow", RefreshShown)
+    AppsMenu.hiddenChanged = function() if page:IsVisible() then RefreshShown() end end
 end
 
 local function ExtensionPageDefs()
@@ -4986,8 +5031,9 @@ local function ExtensionPageDefs()
         defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage,
             reset = function()
                 local s = ns.AppsMenu.Settings()
-                s.rows, s.labels, s.labelSize, s.iconSize, s.order = nil, nil, nil, nil, nil
+                s.rows, s.labels, s.labelSize, s.iconSize, s.order, s.hidden = nil, nil, nil, nil, nil, nil
                 if ns.AppsMenu.Rebuild then ns.AppsMenu:Rebuild() end
+                if ns.AppsMenu.hiddenChanged then ns.AppsMenu.hiddenChanged() end
             end }
     end
     if not (ns.IsCompanionLoadable and not ns.IsCompanionLoadable("EasyFind_Snippets")) then

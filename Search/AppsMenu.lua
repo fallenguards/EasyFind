@@ -352,6 +352,26 @@ local function Settings()
 end
 AppsMenu.Settings = Settings
 
+-- A hidden extension leaves the menu's tiles (the tile's menu, the
+-- settings page); its search row and key stay.
+function AppsMenu:IsHidden(id)
+    local hidden = Settings().hidden
+    return hidden ~= nil and hidden[id] == true
+end
+
+function AppsMenu:SetHidden(id, on)
+    local s = Settings()
+    if on then
+        s.hidden = s.hidden or {}
+        s.hidden[id] = true
+    elseif s.hidden then
+        s.hidden[id] = nil
+        if next(s.hidden) == nil then s.hidden = nil end
+    end
+    self:Rebuild()
+    if self.hiddenChanged then self.hiddenChanged() end
+end
+
 -- The icon's pixels beside a label and in a stacked or bare tile, at the
 -- icon size setting.
 local function IconPx(s)
@@ -372,14 +392,16 @@ end
 local function ByName(a, b) return (a.name or "") < (b.name or "") end
 
 -- The tiles in their order: the saved order first (apps and groups), the
--- rest by name; inside a group, its apps in the group's order.
+-- rest by name; inside a group, its apps in the group's order. Hidden
+-- extensions are left out, and a group with none left to show.
 local function MenuItems(groupID)
     local s = Settings()
+    local hidden = s.hidden or {}
     local apps = ns.BuildApplicationEntries and ns.BuildApplicationEntries() or {}
     local byID = {}
     for _, app in ipairs(apps) do
         local id = ns.ApplicationEntryID(app)
-        if id then byID[id] = app end
+        if id and not hidden[id] then byID[id] = app end
     end
     local items = {}
     if groupID then
@@ -389,6 +411,12 @@ local function MenuItems(groupID)
         end
         return items, g
     end
+    local function Shows(g)
+        for _, id in ipairs(g.apps) do
+            if byID[id] then return true end
+        end
+        return false
+    end
     local grouped, placed = {}, {}
     for _, g in ipairs(s.groups or {}) do
         for _, id in ipairs(g.apps) do grouped[id] = true end
@@ -397,7 +425,7 @@ local function MenuItems(groupID)
         local gid = id:match("^group:(.+)$")
         local g = gid and GroupByID(s, gid)
         if g and not placed[id] then
-            items[#items + 1] = { group = g, id = id, name = g.name }
+            if Shows(g) then items[#items + 1] = { group = g, id = id, name = g.name } end
             placed[id] = true
         elseif not gid and byID[id] and not grouped[id] and not placed[id] then
             items[#items + 1] = { app = byID[id], id = id, name = byID[id].name }
@@ -406,7 +434,9 @@ local function MenuItems(groupID)
     end
     local rest = {}
     for _, g in ipairs(s.groups or {}) do
-        if not placed["group:" .. g.id] then rest[#rest + 1] = { group = g, id = "group:" .. g.id, name = g.name } end
+        if not placed["group:" .. g.id] and Shows(g) then
+            rest[#rest + 1] = { group = g, id = "group:" .. g.id, name = g.name }
+        end
     end
     for id, app in pairs(byID) do
         if not grouped[id] and not placed[id] then rest[#rest + 1] = { app = app, id = id, name = app.name or "" } end
@@ -581,7 +611,7 @@ local function PaintTile(row, item, dropdown)
         row.icon:Hide()
         local shown = 0
         for _, id in ipairs(item.group.apps) do
-            local app = ns.FindApplicationEntry(id)
+            local app = not AppsMenu:IsHidden(id) and ns.FindApplicationEntry(id)
             if app and shown < 4 then
                 shown = shown + 1
                 local mini = row.minis[shown]
@@ -924,7 +954,7 @@ end
 function AppsMenu:ShowTileMenu(row)
     local dropdown, item = self.dropdown, row.item
     if item.app then
-        if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(row, item.app) end
+        if ns.ExtensionButtons then ns.ExtensionButtons:ShowAppMenu(row, item.app, true) end
         return
     end
     local g = item.group

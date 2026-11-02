@@ -1050,7 +1050,7 @@ local function AddAppRows(defs, appID)
     if #defs > before then defs[#defs + 1] = { kind = "separator" } end
 end
 
-function ExtensionButtons:ShowAppMenu(anchor, app)
+function ExtensionButtons:ShowAppMenu(anchor, app, inMenu)
     local defs = {}
     AddAppRows(defs, ns.ApplicationEntryID and ns.ApplicationEntryID(app))
     local row = ShortkeyRow(app)
@@ -1075,6 +1075,13 @@ function ExtensionButtons:ShowAppMenu(anchor, app)
                 local scale = UIParent:GetEffectiveScale()
                 ExtensionButtons:CreateButtonAt(appID, x / scale, y / scale)
             end,
+        }
+    end
+    -- A tile in the menu: hidden from it; back from the menu's settings page.
+    if inMenu and appID and ns.AppsMenu and ns.AppsMenu.SetHidden then
+        defs[#defs + 1] = {
+            kind = "action", label = L["EXTMENU_HIDE"], tooltip = L["EXTMENU_HIDE_TT"],
+            onClick = function() ns.AppsMenu:SetHidden(appID, true) end,
         }
     end
     if #defs == 0 then return end
