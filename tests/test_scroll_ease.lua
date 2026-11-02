@@ -98,5 +98,32 @@ function tests.theNextNotchStartsWhereTheViewIs()
     H.assertEq(list.at, 810, "one notch above where it was put, not four above the old aim")
 end
 
+-- An aim past the range as it stands (the list shrank under a glide) ends
+-- where the list ends, and the bar stops counting the list as mid-scroll:
+-- an ease that never arrived held every row's tooltip and the catalog's
+-- name refresh for good (retail, 2026-11-02).
+function tests.anAimPastTheRangeEndsWhereTheListEnds()
+    local list = List(1000, 500)
+    local bar, wheel, Frames = Build(list)
+    wheel(list, -5)
+    Frames(2)
+    list.range = 600
+    Frames(60)
+    H.assertEq(list.at, 600, "at the end of the shorter list")
+    H.assertNil(bar._scrollTarget, "the ease is over")
+end
+
+-- A frame whose engine rounds an offset back (a step under a pixel) cannot
+-- move: the ease ends where it stands instead of pushing every frame.
+function tests.aStepTheFrameRoundsAwayEndsTheEase()
+    local list = List(1000, 500)
+    list.SetVerticalScroll = function(self, v) self.at = math.floor(math.max(0, math.min(self.range, v))) end
+    local bar, wheel, Frames = Build(list)
+    wheel(list, -1)
+    Frames(120)
+    H.assertNil(bar._scrollTarget, "the ease is over")
+    H.assertTrue(list.at >= 587 and list.at <= 590, "within a pixel of the aim, got " .. tostring(list.at))
+end
+
 local pass, fail, failures = H.runSuite("ScrollEase", tests)
 return { pass = pass, fail = fail, failures = failures }

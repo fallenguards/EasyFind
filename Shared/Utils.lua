@@ -8152,13 +8152,20 @@ function Utils.CreateMinimalScrollBar(scrollFrame, parent, opts)
         end
 
         if LiveTarget() then
+            -- The aim within the range as it stands now (the list may have
+            -- shrunk under it); an ease that cannot move the frame (an
+            -- offset the engine rounds back) is over where it stands. An
+            -- ease that never arrived held the list "mid-scroll" for good:
+            -- no row tooltip, no catalog name refresh (retail, 2026-11-02).
             local cur = scrollFrame:GetVerticalScroll()
-            local diff = self._scrollTarget - cur
+            local target = mmax(0, mmin(scrollFrame:GetVerticalScrollRange(), self._scrollTarget))
+            local diff = target - cur
             if mabs(diff) < SCROLL_EPS then
-                scrollFrame:SetVerticalScroll(self._scrollTarget)
+                scrollFrame:SetVerticalScroll(target)
                 self._scrollTarget = nil
             else
                 scrollFrame:SetVerticalScroll(cur + diff * SCROLL_LERP)
+                if scrollFrame:GetVerticalScroll() == cur then self._scrollTarget = nil end
             end
             self._easeAt = scrollFrame:GetVerticalScroll()
             self:NudgeVisible()
