@@ -8542,6 +8542,19 @@ function Utils.IsCursorMenuMouseOver()
     return false
 end
 
+-- True while any cursor menu is up. A press outside one closes that menu
+-- (its own closer) and nothing under it: the bar and the list stayed only
+-- while the pointer was ON the menu, so the click that dismissed a result's
+-- menu took the whole search with it (retail, 2026-11-02).
+function Utils.IsCursorMenuShown()
+    for _, pool in pairs(cursorMenuPool) do
+        for i = 1, #pool do
+            if pool[i]:IsShown() then return true end
+        end
+    end
+    return false
+end
+
 local SUBMENU_GLOBAL = "EasyFindCursorSubmenu"
 
 -- True if the mouse is over any menu in this cascade: the root plus every open
@@ -8556,7 +8569,19 @@ local function CursorMenuChainHasMouse(menu)
         if node:IsShown() and CursorMenuHasMouse(node) then return true end
         node = node._openSubmenu
     end
-    return false
+    -- The flyout a swap just closed counts as inside for the leave delay:
+    -- a pointer heading for it crossed a neighbouring row, whose narrower
+    -- flyout replaced it, and the cascade closed under the player 0.45 s
+    -- later (retail, 2026-11-02, /efd clickwatch).
+    local f = root._closedFlyout
+    if not f then return false end
+    if GetTime() - f.at > (root.outsideDelay or 0.3) then
+        root._closedFlyout = nil
+        return false
+    end
+    local x, y = GetCursorPosition()
+    x, y = x / f.scale, y / f.scale
+    return x >= f.left and x <= f.right and y >= f.bottom and y <= f.top
 end
 
 local function CursorMenuCloseSubmenu(menu)
@@ -8571,6 +8596,16 @@ local function CursorMenuCloseSubmenu(menu)
     -- A pending sibling-brush close dies with this flyout: the pooled frame
     -- comes back as the next row's flyout, which it would close.
     menu._subCloseToken = (menu._subCloseToken or 0) + 1
+    -- Its rectangle stays "inside" for the leave delay (CursorMenuChainHasMouse).
+    if child and child:IsShown() then
+        local left, bottom, width, height = child:GetRect()
+        if left then
+            local root = menu
+            while root._parentMenu do root = root._parentMenu end
+            root._closedFlyout = { left = left, right = left + width, bottom = bottom, top = bottom + height,
+                                   scale = child:GetEffectiveScale() or 1, at = GetTime() }
+        end
+    end
     if child then child:Hide() end
 end
 
@@ -8976,6 +9011,7 @@ local function CursorMenuOnHide(self)
     self._outsideSince = nil
     self._hasEntered = false
     self._mouseYields = nil
+    self._closedFlyout = nil
     self._lastCursorX, self._lastCursorY = nil, nil
     CursorMenuSetKeyboardIndex(self, nil)
     MenuCopy.Release(self)

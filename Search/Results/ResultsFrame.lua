@@ -132,6 +132,8 @@ function Results:CreateResultsFrame()
         -- the Send-link channel submenu) count as inside: those submenus are
         -- separate pooled frames, not children of the pin popup.
         if Utils.IsCursorMenuMouseOver() then return end
+        -- A press outside while a menu is up is the menu's to close, not the list's.
+        if Utils.IsCursorMenuShown() then return end
         -- Every floating EasyFind window (pin popup, calculator, StaticPopup
         -- slots, ...) lives in the shared click-guard registry.
         if Utils.IsClickGuardMouseOver() then return end

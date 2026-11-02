@@ -21,8 +21,11 @@ local function Load()
     function flyout:Hide() self.shown = false end
     function flyout:IsShown() return self.shown end
     function flyout:Raise() end
+    function flyout:GetRect() return 100, 100, 80, 40 end
+    function flyout:GetEffectiveScale() return 1 end
     local env = setmetatable({
         SUBMENU_GLOBAL = "EasyFindCursorSubmenu",
+        GetTime = function() return 0 end,
         CursorMenuHasMouse = function() return false end,
         Utils = {
             SafeAfter = function(_, fn) timers[#timers + 1] = fn end,

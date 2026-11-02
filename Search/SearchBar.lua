@@ -2085,6 +2085,8 @@ function Search:CreateSearchFrame()
         -- Send-link channel submenu) count as inside. Those submenus are
         -- separate pooled frames on UIParent, not children of the pin popup.
         if Utils.IsCursorMenuMouseOver() then return end
+        -- A press outside while a menu is up is the menu's to close, not the bar's.
+        if Utils.IsCursorMenuShown() then return end
         if activeKeybindBtn then return end
         -- The filter dropdown and every popup it spawns; IsMouseInFilterChain
         -- owns that union via dropdown.guardFrames.
