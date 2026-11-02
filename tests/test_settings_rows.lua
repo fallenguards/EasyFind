@@ -47,8 +47,9 @@ local function Setup()
         ExportIncluded = function() return true end, SetExportIncluded = function() end,
         Pick = function() end,
     }
-    local menu = { columns = 1, labels = "right", labelSize = 1 }
+    local menu = { rows = 6, labels = "right", labelSize = 1 }
     ns.AppsMenu = { Settings = function() return menu end, LABEL_POSITIONS = { "right", "below", "above", "left", "hidden" },
+        ROWS_CHOICES = { 4, 6, 8, 10, 12 }, ROWS_DEFAULT = 6,
         LABEL_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } } }
     H.loadModule("Search/Results/Gestures.lua", env, ns)
     ns.ExtensionPages = {

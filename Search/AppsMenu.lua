@@ -324,27 +324,36 @@ function AppsMenu:SetGlyphColor(r, g, b, a)
     end
 end
 
--- The menu's settings: columns, where a label sits and its size, the
--- order dragged into place and the groups. Kept with the profile.
+-- The menu's settings: the rows a column holds before the next one
+-- starts, where a label sits and its size, the order dragged into place
+-- and the groups. Kept with the profile.
 local LABEL_POSITIONS = { "right", "below", "above", "left", "hidden" }
 AppsMenu.LABEL_POSITIONS = LABEL_POSITIONS
 AppsMenu.LABEL_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
+AppsMenu.ROWS_CHOICES = { 4, 6, 8, 10, 12 }
+AppsMenu.ROWS_DEFAULT = 6
 local TILE_ICON = 20      -- the icon of a stacked or bare tile
 local GAP = 4             -- between tiles
 local GROUP_HOLD = 0.45   -- seconds a dragged tile rests on another before they group
 local BuildRows
 local function Settings()
     local db = EasyFind and EasyFind.db
-    if not db then return { columns = 1, labels = "right", labelSize = 1 } end
+    if not db then return { rows = AppsMenu.ROWS_DEFAULT, labels = "right", labelSize = 1 } end
     local s = db.appsMenu
     if not s then s = {} db.appsMenu = s end
-    s.columns = s.columns or 1
+    s.rows = s.rows or AppsMenu.ROWS_DEFAULT
+    s.columns = nil   -- a column count once chosen here; the rows a column holds rule now
     s.labels = s.labels or "right"
     s.labelSize = s.labelSize or 1
     s.font = nil   -- the label font once chosen here; the global font rules now
     return s
 end
 AppsMenu.Settings = Settings
+
+-- Tile i's column and the row within it: down the first column, then the next.
+local function Cell(i, rows)
+    return math.floor((i - 1) / rows) + 1, (i - 1) % rows
+end
 
 local function GroupByID(s, id)
     for _, g in ipairs(s.groups or {}) do if g.id == id then return g end end
@@ -624,13 +633,15 @@ local function TileWidth(row, labels)
     return math.min(188, ICON + 8 + w + 10)
 end
 
--- The grid: each column as wide as its widest tile, every row as tall as
+-- The grid: tiles run down a column for the rows setting, then the next
+-- column; each column as wide as its widest tile, every row as tall as
 -- the labels setting makes a tile. Returns the column widths, the tile
--- height and the column count.
+-- height, the column count and the rows a column holds.
 local colWidths = {}
 local function TileMetrics(dropdown, n)
     local s = Settings()
-    local cols = math.max(1, math.min(4, s.columns))
+    local rows = math.max(1, s.rows)
+    local cols = math.max(1, math.ceil(n / rows))
     local fontH = 12
     wipe(colWidths)
     -- One column keeps its old floor so a short list does not shrink to a sliver.
@@ -639,7 +650,7 @@ local function TileMetrics(dropdown, n)
     for c = 1, cols do colWidths[c] = floor end
     for i = 1, n do
         local row = dropdown.rows[i]
-        local c = (i - 1) % cols + 1
+        local c = Cell(i, rows)
         colWidths[c] = math.max(colWidths[c], TileWidth(row, s.labels))
         fontH = row.label:GetStringHeight() or fontH
     end
@@ -647,7 +658,7 @@ local function TileMetrics(dropdown, n)
     if s.labels == "below" or s.labels == "above" then h = TILE_ICON + 4 + fontH + 10
     elseif s.labels == "hidden" then h = 32
     else h = math.max(ROW_H, math.ceil(fontH) + 10) end
-    return colWidths, h, cols
+    return colWidths, h, cols, rows
 end
 
 function BuildRows(dropdown, groupID)
@@ -668,11 +679,10 @@ function BuildRows(dropdown, groupID)
     -- Wash mode and tint follow the active theme; re-run per build so rows
     -- created this open (or a theme swapped since last open) paint right.
     Utils.RefreshMenuRowHighlights(dropdown, dropdown.rows)
-    local widths, h, cols = TileMetrics(dropdown, #items)
-    local used = math.min(cols, #items)
+    local widths, h, cols, rows = TileMetrics(dropdown, #items)
     for i = 1, #items do
         local row = dropdown.rows[i]
-        local r, c = math.floor((i - 1) / cols), (i - 1) % cols + 1
+        local c, r = Cell(i, rows)
         local x = PAD
         for k = 1, c - 1 do x = x + widths[k] + GAP end
         row.index = i
@@ -680,9 +690,9 @@ function BuildRows(dropdown, groupID)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", dropdown, "TOPLEFT", x, -PAD - r * (h + GAP))
     end
-    local lines = math.ceil(#items / cols)
-    local menuW = PAD * 2 + (used - 1) * GAP
-    for k = 1, used do menuW = menuW + widths[k] end
+    local lines = math.max(1, math.min(rows, #items))
+    local menuW = PAD * 2 + (cols - 1) * GAP
+    for k = 1, cols do menuW = menuW + widths[k] end
     dropdown:SetSize(menuW, PAD * 2 + lines * h + (lines - 1) * GAP)
     return #items
 end
@@ -776,8 +786,8 @@ local function DropTarget(dropdown, x, y, from)
     local candidate = joins and math.abs(x - (l + w / 2)) < w * 0.3 and math.abs(y - (b + h / 2)) < h * 0.3
         and best or nil
     if best.item.back then return candidate, nil end
-    local after
-    if Settings().columns > 1 then after = x > l + w / 2 else after = y < b + h / 2 end
+    -- The order runs down each column: below a tile's middle is after it.
+    local after = y < b + h / 2
     return candidate, after and best.index + 1 or best.index
 end
 
@@ -889,15 +899,9 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
         self.line:SetShown(beside ~= nil)
         if beside then
             self.line:ClearAllPoints()
-            if Settings().columns > 1 then
-                self.line:SetSize(2, beside:GetHeight())
-                if at then self.line:SetPoint("RIGHT", at, "LEFT", -1, 0)
-                else self.line:SetPoint("LEFT", last, "RIGHT", 1, 0) end
-            else
-                self.line:SetSize(beside:GetWidth(), 2)
-                if at then self.line:SetPoint("BOTTOM", at, "TOP", 0, 1)
-                else self.line:SetPoint("TOP", last, "BOTTOM", 0, -1) end
-            end
+            self.line:SetSize(beside:GetWidth(), 2)
+            if at then self.line:SetPoint("BOTTOM", at, "TOP", 0, 1)
+            else self.line:SetPoint("TOP", last, "BOTTOM", 0, -1) end
         end
         if not IsMouseButtonDown("LeftButton") then EndArrangeDrag(dropdown) end
     end)

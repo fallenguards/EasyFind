@@ -4948,11 +4948,11 @@ local function BuildExtensionsMenuPage(ctx, page)
     hint:SetText(L["OPT_EXT_MENU_HINT"])
     local function S() return AppsMenu.Settings() end
     local function Changed() if AppsMenu.Rebuild then AppsMenu:Rebuild() end end
-    local columns = {}
-    for i = 1, 4 do columns[i] = { label = tostring(i), value = i } end
-    local columnsRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_COLUMNS"], columns,
-        function() return S().columns end, function(v) S().columns = v Changed() end,
-        "EasyFindExtMenuColumns", 1)
+    local rowsPer = {}
+    for i, n in ipairs(AppsMenu.ROWS_CHOICES) do rowsPer[i] = { label = tostring(n), value = n } end
+    local columnsRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_ROWS"], rowsPer,
+        function() return S().rows end, function(v) S().rows = v Changed() end,
+        "EasyFindExtMenuRows", AppsMenu.ROWS_DEFAULT)
     columnsRow:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", -8, -10)
     local labels = {}
     for _, pos in ipairs(AppsMenu.LABEL_POSITIONS) do
@@ -4980,7 +4980,7 @@ local function ExtensionPageDefs()
         defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage,
             reset = function()
                 local s = ns.AppsMenu.Settings()
-                s.columns, s.labels, s.labelSize, s.order = nil, nil, nil, nil
+                s.rows, s.labels, s.labelSize, s.order = nil, nil, nil, nil
                 if ns.AppsMenu.Rebuild then ns.AppsMenu:Rebuild() end
             end }
     end

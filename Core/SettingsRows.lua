@@ -643,15 +643,15 @@ local function ExtensionsRows()
     if AppsMenu then
         local function S() return AppsMenu.Settings() end
         local function Rebuilt() if AppsMenu.Rebuild then AppsMenu:Rebuild() end end
-        local columns, labels, sizes = {}, {}, {}
-        for i = 1, 4 do columns[i] = { label = tostring(i), value = i } end
+        local rowsPer, labels, sizes = {}, {}, {}
+        for i, n in ipairs(AppsMenu.ROWS_CHOICES) do rowsPer[i] = { label = tostring(n), value = n } end
         for _, pos in ipairs(AppsMenu.LABEL_POSITIONS) do
             labels[#labels + 1] = { label = L["OPT_EXT_LABEL_" .. pos:upper()], value = pos }
         end
         for _, size in ipairs(AppsMenu.LABEL_SIZES) do sizes[#sizes + 1] = { label = L[size[1]], value = size[2] } end
         for _, row in ipairs({
-            Choice(L["OPT_EXT_COLUMNS"], nil, columns, function() return S().columns end,
-                function(v) S().columns = v Rebuilt() end),
+            Choice(L["OPT_EXT_ROWS"], nil, rowsPer, function() return S().rows end,
+                function(v) S().rows = v Rebuilt() end),
             Choice(L["OPT_EXT_LABELS"], nil, labels, function() return S().labels end,
                 function(v) S().labels = v Rebuilt() end),
             Choice(L["OPT_EXT_LABEL_SIZE"], nil, sizes, function() return S().labelSize end,
