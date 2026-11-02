@@ -59,6 +59,18 @@ function tests.sixRowsToStart_andTheSettingOffersOthers()
     end
 end
 
+-- The menu closed on the click that changed one of its settings
+-- (2026-11-02): a click on the options window or a quick settings menu
+-- leaves it open, so the change is seen, as the results window stays.
+function tests.theMenuStaysWhileItsSettingsAreChanged()
+    local src = Read("Search/AppsMenu.lua")
+    local s = assert(src:find('if event ~= "GLOBAL_MOUSE_DOWN" then return end', 1, true))
+    local e = assert(src:find("self:Hide()", s, true))
+    local closer = src:sub(s, e)
+    H.assertTrue(closer:find("surface:IsOptionsSurfaceMouseOver()", 1, true) ~= nil, "the options surface keeps it")
+    H.assertTrue(closer:find("Utils.IsCursorMenuMouseOver()", 1, true) ~= nil, "a cursor menu keeps it")
+end
+
 function tests.rowsPerColumnIsTranslatedEverywhere()
     for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
         local src = Read("Locales/" .. loc .. ".lua")

@@ -993,11 +993,15 @@ function AppsMenu:Create(searchFrame, filterBtn)
     dropdown:HookScript("OnHide", function(self)
         self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
     end)
+    -- A click on the settings (the options window, a quick settings menu)
+    -- leaves it open: its own settings are adjusted with it in view.
     dropdown:SetScript("OnEvent", function(self, event)
         if event ~= "GLOBAL_MOUSE_DOWN" then return end
-        if not (Utils.IsFrameVisiblyMouseOver(self) or Utils.IsFrameVisiblyMouseOver(btn)) then
-            self:Hide()
-        end
+        if Utils.IsFrameVisiblyMouseOver(self) or Utils.IsFrameVisiblyMouseOver(btn) then return end
+        local surface = ns.OptionsSurface
+        if surface and surface:IsOptionsSurfaceMouseOver() then return end
+        if Utils.IsCursorMenuMouseOver() then return end
+        self:Hide()
     end)
 
     -- Keyboard nav, armed only when the menu is OPENED from the keyboard
