@@ -76,7 +76,7 @@ function tests.rowsPerColumnIsTranslatedEverywhere()
         local src = Read("Locales/" .. loc .. ".lua")
         H.assertTrue(src:find('L["OPT_EXT_ROWS"]', 1, true) ~= nil, loc .. " has the string")
         H.assertTrue(src:find('L["OPT_EXT_ICON_SIZE"]', 1, true) ~= nil, loc .. " names the icon size")
-        H.assertNil(src:find('L["OPT_EXT_COLUMNS"]', 1, true), loc .. " keeps no dead one")
+        H.assertNil(src:find(("L[%q]"):format("OPT_EXT_COLUMNS"), 1, true), loc .. " keeps no dead one")
     end
 end
 
@@ -156,7 +156,7 @@ function tests.hideIsOfferedOnTheTile_andTheSettingsPageShowsThemAgain()
     for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
         local src = Read("Locales/" .. loc .. ".lua")
         for _, key in ipairs({ "OPT_EXT_SHOWN", "OPT_EXT_SHOWN_HINT", "OPT_EXT_SHOW_FMT", "EXTMENU_HIDE", "EXTMENU_HIDE_TT" }) do
-            H.assertTrue(src:find('L["' .. key .. '"]', 1, true) ~= nil, loc .. " has " .. key)
+            H.assertTrue(src:find(("L[%q]"):format(key), 1, true) ~= nil, loc .. " has " .. key)
         end
     end
 end

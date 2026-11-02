@@ -95,7 +95,7 @@ function tests.theRowHover_opensThem()
     for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
         local src = Read("Locales/" .. loc .. ".lua")
         for _, key in ipairs({ "TT_PLACE_AT_FMT", "TT_PLACE_AWAY_FMT", "TT_PLACE_SPOTS_FMT", "TT_BOSS_DROPS_FMT" }) do
-            H.assertTrue(src:find('L["' .. key .. '"]', 1, true) ~= nil, loc .. " has " .. key)
+            H.assertTrue(src:find(("L[%q]"):format(key), 1, true) ~= nil, loc .. " has " .. key)
         end
     end
 end
