@@ -999,6 +999,11 @@ L["NPC_ROLE_FLIGHT"]                   = "Flight masters"
 -- A vendor's subtext in the search bar: its kind, its zone, the item.
 L["NPC_SUBTEXT_SELLS_FMT"]             = "%s: %s; sells %s"
 L["NPC_SUBTEXT_TEACHES_FMT"]           = "%s; teaches %s"
+-- A place row's tooltip: the zone and spot, the distance, the spot count; a boss's drops.
+L["TT_PLACE_AT_FMT"]                   = "%s at %s"
+L["TT_PLACE_AWAY_FMT"]                 = "%s away"
+L["TT_PLACE_SPOTS_FMT"]                = "%d spots, the nearest shown"
+L["TT_BOSS_DROPS_FMT"]                 = "Drops %d items"
 L["MAP_FOUND_BY_SELLS_FMT"]            = "Found by what it sells: %s"
 L["FILTER_GAME_OPTIONS"]                = "Game Options"
 L["FILTER_ADDON_OPTIONS"]               = "AddOn Options"

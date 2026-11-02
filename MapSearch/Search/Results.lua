@@ -732,6 +732,7 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
     d.icon = r.icon or GetCategoryIcon(cat)
     d.displayID = r.displayID
     d.npcID = r.npcID
+    d.spotCount = r.allInstances and #r.allInstances or nil
     d.mapSearchResult = true
     d.mapID = r.mapID or r.zoneMapID or r.entranceMapID or searchMapID
     d.zoneName = r.zoneName or r.pathPrefix

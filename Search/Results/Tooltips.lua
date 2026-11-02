@@ -3,6 +3,7 @@ local _, ns = ...
 local Search = ns.Search
 local Tooltips = ns.ResultTooltips
 local L = ns.L
+local sformat, mfloor = string.format, math.floor
 
 local CreateFrame = CreateFrame
 local BattlePetTooltip = BattlePetTooltip
@@ -338,8 +339,45 @@ function Tooltips:SetClassicTalent(tooltip, data)
     return true
 end
 
+-- A place or creature row (the map search's): the spot, how far, how many
+-- spots fold into the row. Its own line (kind and zone) is not repeated;
+-- an extension's lines (what it casts) follow.
+function Tooltips:SetMapRowTooltip(tooltip, data)
+    tooltip:SetText(data.name or "", 1, 1, 1)
+    local x, y = data.x, data.y
+    if x and y then
+        local spot = sformat("%.1f, %.1f", x * 100, y * 100)
+        tooltip:AddLine(data.zoneName and sformat(L["TT_PLACE_AT_FMT"], data.zoneName, spot) or spot, 1, 0.82, 0)
+    end
+    local near = data.mapNear
+    if near and near < math.huge then
+        tooltip:AddLine(sformat(L["TT_PLACE_AWAY_FMT"], sformat(L["GPS_UNIT_YD"], mfloor(near ^ 0.5 + 0.5))), 0.8, 0.8, 0.8)
+    end
+    if data.spotCount and data.spotCount > 1 then
+        tooltip:AddLine(sformat(L["TT_PLACE_SPOTS_FMT"], data.spotCount), 0.8, 0.8, 0.8)
+    end
+    return true
+end
+
+-- A boss row: the Adventure Guide's own tooltip where the journal holds
+-- the bosses; where our table stands in for it, what the boss drops.
+function Tooltips:SetBossTooltip(tooltip, data)
+    local caps = ns.Caps
+    if data.encounterID and caps and caps.journal and not caps.instanceTable then
+        tooltip:SetHyperlink(sformat("journal:1:%d:%d", data.encounterID, data.difficultyID or 14))
+        return true
+    end
+    tooltip:SetText(data.name or "", 1, 1, 1)
+    if data.lootCount and data.lootCount > 0 then
+        tooltip:AddLine(sformat(L["TT_BOSS_DROPS_FMT"], data.lootCount), 1, 0.82, 0)
+    end
+    return true
+end
+
 function Tooltips:SetGameTooltipForResult(tooltip, data)
     if not (tooltip and data) then return false end
+    if data.category == "Boss" then return self:SetBossTooltip(tooltip, data) end
+    if data.mapSearchResult then return self:SetMapRowTooltip(tooltip, data) end
     -- An extension's row: its own tooltip (a link's hover too).
     local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)
     if provider and provider.tooltip then

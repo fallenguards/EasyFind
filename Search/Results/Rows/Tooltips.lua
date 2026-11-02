@@ -409,6 +409,9 @@ function Rows.InstallTooltips(resultRow)
             if ns.MapSearch and ns.MapSearch.PreviewUIResult then
                 ns.MapSearch:PreviewUIResult(self.data)
             end
+            AnchorRowTooltip(GameTooltip, self)
+            Tooltips:SetMapRowTooltip(GameTooltip, self.data)
+            GameTooltip:Show()
         elseif self.data and self.icon and self.icon:IsShown() then
             -- Per-flyout tooltip suppression. Collections covers the
             -- mount / toy / pet / outfit / heirloom / appearance set
@@ -435,8 +438,13 @@ function Rows.InstallTooltips(resultRow)
             end
             -- Bags "Hide tooltips" suppresses every bag item, gear or not.
             if ht and ht.bags and self.data.category == "Bag" then return end
+            -- Boss tooltip: the journal's, or what our table says it drops.
+            if self.data.category == "Boss" then
+                AnchorRowTooltip(GameTooltip, self)
+                Tooltips:SetBossTooltip(GameTooltip, self.data)
+                GameTooltip:Show()
             -- Mount tooltip (show on icon hover)
-            if self.icon.mountID and self.icon.spellID then
+            elseif self.icon.mountID and self.icon.spellID then
                 AnchorRowTooltip(GameTooltip, self)
                 GameTooltip:SetMountBySpellID(self.icon.spellID)
                 GameTooltip:Show()

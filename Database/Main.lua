@@ -5077,8 +5077,10 @@ function Corpora.PopulateStaticBosses(database)
             -- The journal's creature call answers nothing on Classic Era: the
             -- face comes with the table (its creature's display id, d).
             local icon, displayID = BossFace(getCreatureInfo, boss.enc)
-            uiSearchData[#uiSearchData + 1] = BuildBossEntry(1, isRaid, boss.inst, instName,
+            local entry = BuildBossEntry(1, isRaid, boss.inst, instName,
                 Corpora.StaticBossName(boss), boss.enc, icon, e, displayID or boss.d)
+            entry.lootCount = boss.items and #boss.items or nil
+            uiSearchData[#uiSearchData + 1] = entry
         end
     end
     if database.ResetSearchCache then database:ResetSearchCache() end
