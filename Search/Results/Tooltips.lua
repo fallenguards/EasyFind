@@ -9,6 +9,7 @@ local CreateFrame = CreateFrame
 local BattlePetTooltip = BattlePetTooltip
 local GameTooltip = GameTooltip
 local UIParent = UIParent
+local IsModifiedClick = IsModifiedClick
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 
 local unearnedTooltip
@@ -26,8 +27,11 @@ local function ApplySearchTooltipScale(tooltip)
             end
         end)
     end
+    -- Set every time, scale 1 included: a tooltip re-owned while up (the
+    -- client no longer hides it on ANCHOR_PRESERVE) still wears the last
+    -- showing's fit-shrunk scale, and a fit from that shrank it again at
+    -- every re-hover (retail, 2026-11-02).
     local s = (EasyFind.db and EasyFind.db.uiSearchScale) or 1.0
-    if s == 1.0 then return end
     if not tooltip._efBaseScale then
         tooltip._efBaseScale = tooltip:GetScale() or 1.0
     end
@@ -197,10 +201,21 @@ end
 local function HookCompareTooltip(compare, tooltip)
     if not compare or compare._efEdgeHooked then return end
     compare._efEdgeHooked = true
-    compare:HookScript("OnShow", function()
-        if tooltip._efEdgeBaseScale then
-            ReassertCompareAnchors()
+    -- Beside a row's tooltip the equipped item's compare shows only while
+    -- the compare key (Shift) is held, as Classic shows it: the client's
+    -- always-compare option doubled the width of every gear row's tooltip.
+    -- A compare hidden here is held: the manager counts it shown and never
+    -- shows it again for the key, so the tooltip's OnUpdate shows and
+    -- hides the held ones with the key itself.
+    compare:HookScript("OnShow", function(self)
+        if not tooltip._efEdgeBaseScale then return end
+        if not IsModifiedClick("COMPAREITEMS") then
+            tooltip._efCompareHeld = tooltip._efCompareHeld or {}
+            tooltip._efCompareHeld[self] = true
+            self:Hide()
+            return
         end
+        ReassertCompareAnchors()
     end)
     compare:HookScript("OnHide", function(self)
         if self._efBaseScale then
@@ -239,6 +254,18 @@ function Tooltips:AnchorRowTooltip(tooltip, ownerFrame)
         tooltip:HookScript("OnHide", function(self)
             self._efEdgePanel = nil
             self._efEdgeBaseScale = nil
+            self._efCompareHeld = nil
+        end)
+        -- The held compares follow the compare key while the row's tooltip
+        -- is up (the key's edge reaches no event while the bar's box has
+        -- focus).
+        tooltip:HookScript("OnUpdate", function(self)
+            local held = self._efCompareHeld
+            if not (held and self._efEdgePanel) then return end
+            local want = IsModifiedClick("COMPAREITEMS")
+            for compare in pairs(held) do
+                if want ~= compare:IsShown() then compare:SetShown(want) end
+            end
         end)
         HookCompareTooltip(_G["ShoppingTooltip1"], tooltip)
         HookCompareTooltip(_G["ShoppingTooltip2"], tooltip)
