@@ -1233,6 +1233,7 @@ L["THEME_STUDIO_START_FROM"]            = "기본 테마에서 시작"
 L["THEME_STUDIO_YOURS"]                 = "내 테마"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "이름표 크기"
+L["OPT_EXT_ICON_SIZE"]                  = "아이콘 크기"
 L["APP_DESC_CALCULATOR"]                = "검색창이나 전용 창에서 계산과 골드 합산을 합니다."
 L["APP_DESC_ICONS"]                     = "게임의 모든 아이콘을 이름으로 검색합니다."
 L["APP_DESC_SNIPPETS"]                  = "자주 입력하는 문구를 어느 대화창에서나 키워드로 펼칩니다."

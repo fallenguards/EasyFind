@@ -643,12 +643,13 @@ local function ExtensionsRows()
     if AppsMenu then
         local function S() return AppsMenu.Settings() end
         local function Rebuilt() if AppsMenu.Rebuild then AppsMenu:Rebuild() end end
-        local rowsPer, labels, sizes = {}, {}, {}
+        local rowsPer, labels, sizes, iconSizes = {}, {}, {}, {}
         for i, n in ipairs(AppsMenu.ROWS_CHOICES) do rowsPer[i] = { label = tostring(n), value = n } end
         for _, pos in ipairs(AppsMenu.LABEL_POSITIONS) do
             labels[#labels + 1] = { label = L["OPT_EXT_LABEL_" .. pos:upper()], value = pos }
         end
         for _, size in ipairs(AppsMenu.LABEL_SIZES) do sizes[#sizes + 1] = { label = L[size[1]], value = size[2] } end
+        for _, size in ipairs(AppsMenu.ICON_SIZES) do iconSizes[#iconSizes + 1] = { label = L[size[1]], value = size[2] } end
         for _, row in ipairs({
             Choice(L["OPT_EXT_ROWS"], nil, rowsPer, function() return S().rows end,
                 function(v) S().rows = v Rebuilt() end),
@@ -656,6 +657,8 @@ local function ExtensionsRows()
                 function(v) S().labels = v Rebuilt() end),
             Choice(L["OPT_EXT_LABEL_SIZE"], nil, sizes, function() return S().labelSize end,
                 function(v) S().labelSize = v Rebuilt() end),
+            Choice(L["OPT_EXT_ICON_SIZE"], nil, iconSizes, function() return S().iconSize end,
+                function(v) S().iconSize = v Rebuilt() end),
             Button(L["OPT_EXT_SORT_NAME"], L["OPT_EXT_SORT_NAME_TT"], function()
                 S().order = nil
                 Rebuilt()

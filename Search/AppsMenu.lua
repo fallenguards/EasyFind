@@ -330,6 +330,7 @@ end
 local LABEL_POSITIONS = { "right", "below", "above", "left", "hidden" }
 AppsMenu.LABEL_POSITIONS = LABEL_POSITIONS
 AppsMenu.LABEL_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.15 }, { "OPT_FONT_XL", 1.3 } }
+AppsMenu.ICON_SIZES = { { "OPT_FONT_SMALL", 0.85 }, { "OPT_FONT_MED", 1 }, { "OPT_FONT_LARGE", 1.25 }, { "OPT_FONT_XL", 1.5 } }
 AppsMenu.ROWS_CHOICES = { 4, 6, 8, 10, 12 }
 AppsMenu.ROWS_DEFAULT = 6
 local TILE_ICON = 20      -- the icon of a stacked or bare tile
@@ -338,17 +339,25 @@ local GROUP_HOLD = 0.45   -- seconds a dragged tile rests on another before they
 local BuildRows
 local function Settings()
     local db = EasyFind and EasyFind.db
-    if not db then return { rows = AppsMenu.ROWS_DEFAULT, labels = "right", labelSize = 1 } end
+    if not db then return { rows = AppsMenu.ROWS_DEFAULT, labels = "right", labelSize = 1, iconSize = 1 } end
     local s = db.appsMenu
     if not s then s = {} db.appsMenu = s end
     s.rows = s.rows or AppsMenu.ROWS_DEFAULT
     s.columns = nil   -- a column count once chosen here; the rows a column holds rule now
     s.labels = s.labels or "right"
     s.labelSize = s.labelSize or 1
+    s.iconSize = s.iconSize or 1
     s.font = nil   -- the label font once chosen here; the global font rules now
     return s
 end
 AppsMenu.Settings = Settings
+
+-- The icon's pixels beside a label and in a stacked or bare tile, at the
+-- icon size setting.
+local function IconPx(s)
+    local k = s.iconSize or 1
+    return ICON * k, TILE_ICON * k
+end
 
 -- Tile i's column and the row within it: down the first column, then the next.
 local function Cell(i, rows)
@@ -514,11 +523,12 @@ end
 -- A tile's icon and label where the labels setting puts them.
 local function PlaceTile(row, labels)
     local icon, label = row.icon, row.label
+    local iconPx, tilePx = IconPx(Settings())
     icon:ClearAllPoints()
     label:ClearAllPoints()
     label:SetShown(labels ~= "hidden")
     if labels == "below" or labels == "above" then
-        icon:SetSize(TILE_ICON, TILE_ICON)
+        icon:SetSize(tilePx, tilePx)
         label:SetJustifyH("CENTER")
         label:SetPoint("LEFT", row, "LEFT", 3, 0)
         label:SetPoint("RIGHT", row, "RIGHT", -3, 0)
@@ -530,16 +540,16 @@ local function PlaceTile(row, labels)
             icon:SetPoint("TOP", label, "BOTTOM", 0, -4)
         end
     elseif labels == "hidden" then
-        icon:SetSize(TILE_ICON, TILE_ICON)
+        icon:SetSize(tilePx, tilePx)
         icon:SetPoint("CENTER", row, "CENTER", 0, 0)
     elseif labels == "left" then
-        icon:SetSize(ICON, ICON)
+        icon:SetSize(iconPx, iconPx)
         icon:SetPoint("RIGHT", row, "RIGHT", -2, 0)
         label:SetJustifyH("RIGHT")
         label:SetPoint("RIGHT", icon, "LEFT", -8, 0)
         label:SetPoint("LEFT", row, "LEFT", 4, 0)
     else
-        icon:SetSize(ICON, ICON)
+        icon:SetSize(iconPx, iconPx)
         icon:SetPoint("LEFT", row, "LEFT", 2, 0)
         label:SetJustifyH("LEFT")
         label:SetPoint("LEFT", icon, "RIGHT", 8, 0)
@@ -627,10 +637,11 @@ end
 
 -- A tile's own width: its label and badge beside or under the icon.
 local function TileWidth(row, labels)
-    if labels == "hidden" then return 32 end
+    local iconPx, tilePx = IconPx(Settings())
+    if labels == "hidden" then return tilePx + 12 end
     local w = (row.label:GetStringWidth() or 0) + (row.expTag and row.expTag:IsShown() and row.expTag:GetWidth() + 1 or 0)
-    if labels == "below" or labels == "above" then return math.min(140, math.max(TILE_ICON, w) + 12) end
-    return math.min(188, ICON + 8 + w + 10)
+    if labels == "below" or labels == "above" then return math.min(140, math.max(tilePx, w) + 12) end
+    return math.min(188 + iconPx - ICON, iconPx + 8 + w + 10)
 end
 
 -- The grid: tiles run down a column for the rows setting, then the next
@@ -654,10 +665,11 @@ local function TileMetrics(dropdown, n)
         colWidths[c] = math.max(colWidths[c], TileWidth(row, s.labels))
         fontH = row.label:GetStringHeight() or fontH
     end
+    local iconPx, tilePx = IconPx(s)
     local h
-    if s.labels == "below" or s.labels == "above" then h = TILE_ICON + 4 + fontH + 10
-    elseif s.labels == "hidden" then h = 32
-    else h = math.max(ROW_H, math.ceil(fontH) + 10) end
+    if s.labels == "below" or s.labels == "above" then h = tilePx + 4 + fontH + 10
+    elseif s.labels == "hidden" then h = tilePx + 12
+    else h = math.max(ROW_H, iconPx + 8, math.ceil(fontH) + 10) end
     return colWidths, h, cols, rows
 end
 
@@ -846,7 +858,7 @@ function AppsMenu:BeginArrangeDrag(dropdown, row)
     if not ghost then
         ghost = CreateFrame("Frame", nil, dropdown)
         ghost:SetFrameLevel(dropdown:GetFrameLevel() + 20)
-        ghost:SetSize(TILE_ICON, TILE_ICON)
+        ghost:SetSize(select(2, IconPx(Settings())), select(2, IconPx(Settings())))
         ghost.icon = ghost:CreateTexture(nil, "OVERLAY")
         ghost.icon:SetAllPoints()
         ghost.line = dropdown:CreateTexture(nil, "OVERLAY")

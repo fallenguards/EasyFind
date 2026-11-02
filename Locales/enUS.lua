@@ -1445,6 +1445,7 @@ L["NOTES_CAPTURE_FROM_FMT"]             = "From %s"
 L["NOTES_CAPTURE_MAIL_TITLE"]           = "Mail"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "Label size"
+L["OPT_EXT_ICON_SIZE"]                  = "Icon size"
 L["APP_DESC_CALCULATOR"]                = "Sums and gold math, typed into the bar or in its own window."
 L["APP_DESC_ICONS"]                     = "Every game icon, searchable by name."
 L["APP_DESC_SNIPPETS"]                  = "Text you type often, expanded from a keyword in any chat box."

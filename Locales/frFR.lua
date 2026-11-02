@@ -1232,6 +1232,7 @@ L["THEME_STUDIO_START_FROM"]            = "Partir d'un thème fourni"
 L["THEME_STUDIO_YOURS"]                 = "Vos thèmes"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "Taille des étiquettes"
+L["OPT_EXT_ICON_SIZE"]                  = "Taille des icônes"
 L["APP_DESC_CALCULATOR"]                = "Calculs et sommes en or, tapés dans la barre ou dans leur propre fenêtre."
 L["APP_DESC_ICONS"]                     = "Toutes les icônes du jeu, cherchables par nom."
 L["APP_DESC_SNIPPETS"]                  = "Le texte que vous tapez souvent, développé depuis un mot-clé dans n'importe quelle discussion."

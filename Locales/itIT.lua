@@ -1233,6 +1233,7 @@ L["THEME_STUDIO_START_FROM"]            = "Parti da un tema incluso"
 L["THEME_STUDIO_YOURS"]                 = "I tuoi temi"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "Dimensione delle etichette"
+L["OPT_EXT_ICON_SIZE"]                  = "Dimensione delle icone"
 L["APP_DESC_CALCULATOR"]                = "Conti e somme d'oro, scritti nella barra o nella sua finestra."
 L["APP_DESC_ICONS"]                     = "Tutte le icone del gioco, cercabili per nome."
 L["APP_DESC_SNIPPETS"]                  = "Il testo che scrivi spesso, espanso da una parola chiave in qualsiasi chat."

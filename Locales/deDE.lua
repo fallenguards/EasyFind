@@ -1235,6 +1235,7 @@ L["THEME_STUDIO_START_FROM"]            = "Mit einem mitgelieferten Design begin
 L["THEME_STUDIO_YOURS"]                 = "Deine Designs"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "Größe der Beschriftung"
+L["OPT_EXT_ICON_SIZE"]                  = "Symbolgröße"
 L["APP_DESC_CALCULATOR"]                = "Rechnungen und Goldbeträge, in die Leiste getippt oder im eigenen Fenster."
 L["APP_DESC_ICONS"]                     = "Jedes Spielsymbol, nach Namen durchsuchbar."
 L["APP_DESC_SNIPPETS"]                  = "Text, den du oft tippst, per Schlüsselwort in jedem Chatfeld erweitert."

@@ -4968,8 +4968,14 @@ local function BuildExtensionsMenuPage(ctx, page)
         function() return S().labelSize end, function(v) S().labelSize = v Changed() end,
         "EasyFindExtMenuLabelSize", 1)
     sizeRow:SetPoint("TOPLEFT", labelsRow, "BOTTOMLEFT", 0, -4)
+    local iconSizes = {}
+    for _, size in ipairs(AppsMenu.ICON_SIZES) do iconSizes[#iconSizes + 1] = { label = L[size[1]], value = size[2] } end
+    local iconRow = ctx.CreateFlyoutPresetRow(page, L["OPT_EXT_ICON_SIZE"], iconSizes,
+        function() return S().iconSize end, function(v) S().iconSize = v Changed() end,
+        "EasyFindExtMenuIconSize", 1)
+    iconRow:SetPoint("TOPLEFT", sizeRow, "BOTTOMLEFT", 0, -4)
     local sortBtn = CreateModernButton(page, L["OPT_EXT_SORT_NAME"], 120, 22)
-    sortBtn:SetPoint("TOPLEFT", sizeRow, "BOTTOMLEFT", 8, -10)
+    sortBtn:SetPoint("TOPLEFT", iconRow, "BOTTOMLEFT", 8, -10)
     sortBtn:SetScript("OnClick", function() S().order = nil Changed() end)
     Utils.AttachDelayedTooltip(sortBtn, "ANCHOR_TOP", function() return L["OPT_EXT_SORT_NAME_TT"] end)
 end
@@ -4980,7 +4986,7 @@ local function ExtensionPageDefs()
         defs[#defs + 1] = { id = "menu", name = L["OPT_EXT_MENU_PAGE"], core = true, build = BuildExtensionsMenuPage,
             reset = function()
                 local s = ns.AppsMenu.Settings()
-                s.rows, s.labels, s.labelSize, s.order = nil, nil, nil, nil
+                s.rows, s.labels, s.labelSize, s.iconSize, s.order = nil, nil, nil, nil, nil
                 if ns.AppsMenu.Rebuild then ns.AppsMenu:Rebuild() end
             end }
     end

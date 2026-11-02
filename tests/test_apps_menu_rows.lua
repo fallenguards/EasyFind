@@ -75,7 +75,28 @@ function tests.rowsPerColumnIsTranslatedEverywhere()
     for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
         local src = Read("Locales/" .. loc .. ".lua")
         H.assertTrue(src:find('L["OPT_EXT_ROWS"]', 1, true) ~= nil, loc .. " has the string")
+        H.assertTrue(src:find('L["OPT_EXT_ICON_SIZE"]', 1, true) ~= nil, loc .. " names the icon size")
         H.assertNil(src:find('L["OPT_EXT_COLUMNS"]', 1, true), loc .. " keeps no dead one")
+    end
+end
+
+-- The icons' size is a setting of its own beside the labels' (2026-11-02):
+-- every tile's icon, the tiles' width and height and the drag ghost
+-- follow it.
+function tests.theIconSizeIsASettingBesideTheLabelSize()
+    local src = Read("Search/AppsMenu.lua")
+    H.assertTrue(src:find("AppsMenu.ICON_SIZES = {", 1, true) ~= nil)
+    H.assertTrue(src:find("s.iconSize = s.iconSize or 1", 1, true) ~= nil, "the default when unset")
+    H.assertTrue(src:find("local iconPx, tilePx = IconPx(Settings())\n    icon:ClearAllPoints()", 1, true) ~= nil,
+        "each tile's icon at the setting")
+    H.assertNil(src:find("icon:SetSize(ICON, ICON)\n        icon:SetPoint", 1, true), "no tile at the bare size")
+    H.assertNil(src:find("icon:SetSize(TILE_ICON, TILE_ICON)", 1, true))
+    H.assertTrue(src:find("h = math.max(ROW_H, iconPx + 8, math.ceil(fontH) + 10)", 1, true) ~= nil,
+        "a row as tall as a big icon")
+    for _, path in ipairs({ "Core/SettingsRows.lua", "Apps/Options/OptionsPanel.lua" }) do
+        local page = Read(path)
+        H.assertTrue(page:find('L["OPT_EXT_ICON_SIZE"]', 1, true) ~= nil, path .. " offers it")
+        H.assertTrue(page:find("AppsMenu.ICON_SIZES", 1, true) ~= nil, path .. " from the menu's own choices")
     end
 end
 

@@ -1233,6 +1233,7 @@ L["THEME_STUDIO_START_FROM"]            = "從內建主題開始"
 L["THEME_STUDIO_YOURS"]                 = "你的主題"
 
 L["OPT_EXT_LABEL_SIZE"]                 = "標籤大小"
+L["OPT_EXT_ICON_SIZE"]                  = "圖示大小"
 L["APP_DESC_CALCULATOR"]                = "在搜尋列或獨立視窗中計算算式與金幣。"
 L["APP_DESC_ICONS"]                     = "遊戲中的所有圖示，可依名稱搜尋。"
 L["APP_DESC_SNIPPETS"]                  = "常用文字，在任何聊天框中由關鍵字展開。"

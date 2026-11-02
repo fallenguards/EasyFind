@@ -29,6 +29,7 @@ return {
     { "Extensions", "The menu", "Rows per column", "choice" },
     { "Extensions", "The menu", "Labels", "choice" },
     { "Extensions", "The menu", "Label size", "choice" },
+    { "Extensions", "The menu", "Icon size", "choice" },
     { "Extensions", "Snippets", "Expand \\keyword in chat", "check" },
     { "Extensions", "Notes", "Window scale", "slider" },
     { "Extensions", "Notes", "Window opacity", "slider" },
