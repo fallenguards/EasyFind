@@ -211,7 +211,14 @@ local function HookCompareTooltip(compare, tooltip)
 end
 
 function Tooltips:AnchorRowTooltip(tooltip, ownerFrame)
-    tooltip:SetOwner(ownerFrame, "ANCHOR_NONE")
+    -- ANCHOR_PRESERVE, not ANCHOR_NONE: the client's comparison manager
+    -- slides a tooltip whose compare frames do not fit beside it with
+    -- SetAnchorType(anchorType, slide, 0), and on ANCHOR_NONE that drops
+    -- the points set here, so the tooltip was up with no rectangle from
+    -- the second gear hover on (retail, 2026-11-02, /efd iconwatch). It
+    -- leaves ANCHOR_PRESERVE alone; FitEdgeTooltip keeps the compares on
+    -- the screen by scale.
+    tooltip:SetOwner(ownerFrame, "ANCHOR_PRESERVE")
     ApplySearchTooltipScale(tooltip)
     if not self:PlaceAtPanelEdge(tooltip, ownerFrame) then
         -- Fallback when the panel isn't measurable.
