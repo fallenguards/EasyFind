@@ -386,27 +386,39 @@ local searchGen, tailGen, tailLastGroup, tailMapSplit = 0, 0, nil, nil
 local tailFrame = CreateFrame("Frame")
 tailFrame:Hide()
 
-local function AppendTail()
+-- The tail's rows, sorted, onto the flat list after its n rows: the new
+-- count and group. An inconsistent triple in the comparator (a map row
+-- between plain ones) leaves the tail in score order rather than failing
+-- the search.
+local function AppendTailRows(n, lastGroup, mapSplit)
     local tail = SCRATCH.tail
-    if tailGen ~= searchGen or #tail == 0 then return end
-    local t0 = WorkClock()
-    -- An inconsistent triple in the comparator (a map row between plain
-    -- ones) leaves the tail in score order rather than failing the search.
     pcall(tsort, tail, FlatNameLess)
     local blacklist = ns.Blacklist and ns.Blacklist:HasAny() and ns.Blacklist
-    local from = #flatEntries + 1
-    local n, lastGroup = #flatEntries, tailLastGroup
     for i = 1, #tail do
         local d = tail[i].data
         if d and not (d.catalogItem and ns.ItemSearch and not ns.ItemSearch:IsResolvable(d.itemID))
            and not (blacklist and blacklist:Contains(d)) then
-            n, lastGroup = AppendFlat(d, n, lastGroup, tailMapSplit, nil)
+            n, lastGroup = AppendFlat(d, n, lastGroup, mapSplit, nil)
         end
     end
     wipe(tail)
+    return n, lastGroup
+end
+
+local function AppendTail()
+    local tail = SCRATCH.tail
+    if tailGen ~= searchGen or #tail == 0 then return end
+    local t0 = WorkClock()
+    local from = #flatEntries + 1
+    AppendTailRows(#flatEntries, tailLastGroup, tailMapSplit)
     timings.tail = WorkClock() - t0
     ns.ResultRender:ExtendResults(flatEntries, from)
 end
+
+-- The text and scope of the last list painted: a run of the same ones is
+-- a repaint (a provider landed, an item's data arrived, a row's state
+-- changed), never a new search.
+local lastPaintText, lastPaintFilter
 Utils.SafeOnUpdate(tailFrame, function(self)
     self:Hide()
     AppendTail()
@@ -1153,6 +1165,12 @@ function Search:OnSearchTextChangedNow(text, force)
     -- enter, freeing their slot, so those checks run on few rows.
     -- @map: the map tab's This Zone and Across the World parts, one list.
     local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone
+    -- A repaint of the same query lays the whole list at once and keeps
+    -- the view where it was: a head of fifteen under a view scrolled past
+    -- them threw the view back up at every arrival (2026-11-02).
+    local resultsFrame = Search:GetResultsFrame()
+    local repaint = text == lastPaintText and quickFilter == lastPaintFilter
+        and resultsFrame ~= nil and resultsFrame:IsShown()
     local TOP_N = mapSplit and #combined or 15
     local kept = 0
     local blacklist = ns.Blacklist and ns.Blacklist:HasAny() and ns.Blacklist
@@ -1192,12 +1210,14 @@ function Search:OnSearchTextChangedNow(text, force)
             n, lastGroup = AppendFlat(d, n, lastGroup, mapSplit, (not d.noPin and IsUIItemPinned(d)) and true or false)
         end
     end
+    if repaint and #tail > 0 then n, lastGroup = AppendTailRows(n, lastGroup, mapSplit) end
     TrimFlatEntries(n)
 
     FloatPinnedFirst(flatEntries, n)
     Mark("combine")
 
-    self:ShowHierarchicalResults(flatEntries)
+    self:ShowHierarchicalResults(flatEntries, repaint)
+    lastPaintText, lastPaintFilter = text, quickFilter
     Mark("render")
     if #tail > 0 then
         tailGen, tailLastGroup, tailMapSplit = searchGen, lastGroup, mapSplit
