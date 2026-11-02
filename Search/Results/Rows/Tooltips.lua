@@ -559,10 +559,22 @@ function Rows.InstallTooltips(resultRow)
             end
         end
     end)
-    -- Decorators' lines under the row's tooltip (RegisterRowDecorator tooltip).
+    -- Decorators' lines under the row's tooltip (RegisterRowDecorator
+    -- tooltip). A row with no tooltip of its own (a creature) opens one,
+    -- titled with its name, when a decorator has lines for it.
     resultRow:HookScript("OnEnter", function(self)
-        if not (self.data and GameTooltip:IsShown() and GameTooltip:GetOwner() == self) then return end
-        if ns.Extensions.DecorateTooltip(self.data, GameTooltip) then GameTooltip:Show() end
+        if not self.data then return end
+        local own = GameTooltip:IsShown() and GameTooltip:GetOwner() == self
+        if not own then
+            if not ns.Extensions.HasTooltipDecorator(self.data) then return end
+            AnchorRowTooltip(GameTooltip, self)
+            GameTooltip:SetText(self.data.name or "", 1, 1, 1)
+        end
+        if ns.Extensions.DecorateTooltip(self.data, GameTooltip) then
+            GameTooltip:Show()
+        elseif not own then
+            GameTooltip:Hide()
+        end
     end)
 
     resultRow:SetScript("OnLeave", function(self)

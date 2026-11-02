@@ -785,6 +785,16 @@ function Extensions.DecorateTooltip(row, tooltip)
     return any
 end
 
+-- Whether a decorator would write tooltip lines for the row: a row core
+-- gives no tooltip of its own (a creature) opens one for them.
+function Extensions.HasTooltipDecorator(row)
+    for i = 1, #Decorators.list do
+        local d = Decorators.list[i]
+        if d.tooltip and DecoratorTakes(d, row) then return true end
+    end
+    return false
+end
+
 -- The first decorator taking the row whose select handled the gesture
 -- ("click", "alt" or "ctrl"): true then.
 function Extensions.DecoratorSelect(row, gesture)

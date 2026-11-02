@@ -218,5 +218,29 @@ function tests.theRowsPaintAndAskIt()
     H.assertTrue(Read("API/README.md"):find("### RegisterRowDecorator(def)", 1, true) ~= nil, "documented")
 end
 
+-- A row core gives no tooltip (a creature) still shows a decorator's lines:
+-- the hover asks first and opens one titled with the row's name.
+function tests.tooltipDecorator_opensABareRowsTooltip()
+    local _, ns, API = Env()
+    API.RegisterRowDecorator({ id = "spoken", applies = function(row) return row.npcID ~= nil end,
+        tooltip = function(row, link, tip) tip.lines[#tip.lines + 1] = "casts " .. row.npcID end })
+    local E = ns.Extensions
+    H.assertTrue(E.HasTooltipDecorator({ npcID = 1548 }))
+    H.assertFalse(E.HasTooltipDecorator({ itemID = 7 }), "no decorator takes it")
+    local tip = { lines = {} }
+    H.assertTrue(E.DecorateTooltip({ npcID = 1548 }, tip))
+    H.assertEq(tip.lines[1], "casts 1548")
+    local f = assert(io.open(H.ADDON_ROOT .. "/Search/Results/Rows/Tooltips.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("if not ns.Extensions.HasTooltipDecorator(self.data) then return end", 1, true) ~= nil,
+        "a bare row opens its tooltip only for a decorator with lines")
+    H.assertTrue(src:find('GameTooltip:SetText(self.data.name or "", 1, 1, 1)', 1, true) ~= nil, "titled with the row's name")
+    f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/Search/Results.lua", "rb"))
+    src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("d.npcID = r.npcID", 1, true) ~= nil, "a creature row in the bar carries its creature id")
+end
+
 local pass, fail, failures = H.runSuite("RowDecorators", tests)
 return { pass = pass, fail = fail, failures = failures }
