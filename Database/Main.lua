@@ -2927,8 +2927,10 @@ function Database:PopulateDynamicOutfits()
 end
 
 -- An extension's rows replace its category's (EasyFind.API providers);
--- none yet (its addon not loaded) leaves the category empty.
-function Database:ReplaceCategoryEntries(category, entries)
+-- none yet (its addon not loaded) leaves the category empty. scopedName:
+-- some row's name is searched only under the provider's @scope.
+function Database:ReplaceCategoryEntries(category, entries, scopedName)
+    self.nameScopedCategories[category] = scopedName or nil
     RemoveEntriesByCategory(category)
     if not entries then return false end
     for i = 1, #entries do

@@ -88,6 +88,7 @@
 ---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint This row's own hint.
 ---@field mapID? number The map it is on, for the map search's list of that map.
 ---@field createRow? boolean The row makes a new thing: it wears the green plus badge (MINOR 4).
+---@field scopedName? boolean Its name is searched only under the provider's @scope; elsewhere only its keywords find it (MINOR 7).
 
 ---@class EasyFindRowDecorator
 ---@field id string The extension of that id lends its icon.
@@ -180,7 +181,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 6,
+    MINOR = 7,
 }
 local API = EasyFind.API
 

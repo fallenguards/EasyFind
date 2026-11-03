@@ -1090,12 +1090,12 @@ local function ScoreFieldWords(words, queryWord, queryWordLen)
 end
 
 local keywordWordListsScratch = {}
-function Database:ScoreEntryFields(data, queryWords)
+function Database:ScoreEntryFields(data, queryWords, nameLower)
     if not queryWords or #queryWords < 2 then return 0 end
     local total = 0
     local matched = 0
     local nameMatches = 0
-    local nameWords = GetWords(data.nameLower or "")
+    local nameWords = GetWords(nameLower or data.nameLower or "")
     -- Fall back to keywords when keywordsLower is omitted (most providers
     -- skip the duplicate field when the keyword list is already lowercase).
     local keywordsLower = data.keywordsLower or data.keywords
@@ -1163,6 +1163,9 @@ end
 -- Scratch for building skipKey from CategoryMap.SkipKeyOrder without a
 -- per-search table allocation. Reused each search; tconcat reads buf[1..n].
 local skipKeyBuf = {}
+-- Categories holding scopedName rows (ReplaceCategoryEntries marks them).
+Database.nameScopedCategories = Database.nameScopedCategories or {}
+local nameOpenBuf = {}
 
 -- Query result cache. Incremental narrowing only speeds a GROWING query, so a
 -- backspace (or retype) of an earlier query otherwise re-scans the whole
@@ -1385,9 +1388,9 @@ end
 -- snippet like an exact name hit, not a keyword alias; a dungeon
 -- teleport's dungeon name and its English one (its nicknames, "bran",
 -- "kara", are plain keywords).
-local function OtherNameScores(data, score, q, qLen, words)
+local function OtherNameScores(data, score, q, qLen, words, nameLower)
     if #words >= 2 then
-        score = mmax(score, Database:ScoreEntryFields(data, words))
+        score = mmax(score, Database:ScoreEntryFields(data, words, nameLower))
     end
     local snippetKw = data.snippetKeywordLower
     if snippetKw then
@@ -1484,7 +1487,7 @@ local function LootScore(data, nameLower, queryWords, lootStatActive)
     return totalScore
 end
 
-function Database:SearchUI(query, skipCategories)
+function Database:SearchUI(query, skipCategories, nameScope)
     if not query or query == "" or #query < 2 then
         DropCandidates()
         wipe(resultsBuf)
@@ -1630,6 +1633,16 @@ function Database:SearchUI(query, skipCategories)
         if n > 0 then skipKey = tconcat(skipKeyBuf, ",", 1, n) end
     end
 
+    -- A provider's scopedName rows answer by name only under its @scope
+    -- (nameScope: the scope's categories); elsewhere by keywords alone.
+    local nameShut = next(self.nameScopedCategories) and self.nameScopedCategories or nil
+    local nameOpen = nameOpenBuf
+    wipe(nameOpen)
+    if nameShut then
+        for i = 1, nameScope and #nameScope or 0 do nameOpen[nameScope[i]] = true end
+        skipKey = skipKey .. "\2" .. (nameScope and tconcat(nameScope, ",") or "")
+    end
+
     -- "\1" separates query from skipKey so ("x", skip "Mount") can never
     -- collide with ("xMount", no skips).
     local cacheKey = query .. "\1" .. skipKey
@@ -1733,6 +1746,7 @@ function Database:SearchUI(query, skipCategories)
            and (not categoryMinLen or queryLen >= (categoryMinLen[cat] or 0))
            and (not gateActive or not GateSkipsEntry(data)) then
             local nameLower = data.nameLower
+            if nameShut and nameShut[cat] and not nameOpen[cat] and data.scopedName then nameLower = "" end
             local sq = scopedByCat and scopedByCat[cat]
             local score
             if stopwordRest and i >= restAt then
@@ -1806,14 +1820,14 @@ function Database:SearchUI(query, skipCategories)
                             kws and Database:ScoreKeywords(kws, queryNorm, queryNormLen, queryWords) or 0)
                         if alt > 0 then score = mmax(score, 30 + mmin(alt, 1000) * 0.069) end
                     end
-                    score = OtherNameScores(data, score, query, queryLen, queryWords)
+                    score = OtherNameScores(data, score, query, queryLen, queryWords, nameLower)
                     if sq then
                         -- One under the same match of the whole query: "fishing
                         -- tr" keeps Fishing Trainer over the catch Training Sword.
                         local cutKw = kws and KeywordScore(data, kws, sq.query, sq.len, sq.words, sq.kwMemo) or 0
                         if cat == "Boss" and cutKw > 0 then cutKw = cutKw - 1 end
                         local cutScore = mmax(Database:ScoreName(nameLower, sq.query, sq.len, sq.words), cutKw)
-                        score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words) - 1)
+                        score = mmax(score, OtherNameScores(data, cutScore, sq.query, sq.len, sq.words, nameLower) - 1)
                     end
                 end
             end

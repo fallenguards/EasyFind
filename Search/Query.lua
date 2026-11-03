@@ -602,7 +602,7 @@ function Search:OnSearchTextChangedNow(text, force)
             end
         end
     else
-        results = ns.Database:SearchUI(text, skipCategories)
+        results = ns.Database:SearchUI(text, skipCategories, quickFilter and quickFilter.categories)
         -- Achievement rows come from Blizzard's search string API, which
         -- answers through ACHIEVEMENT_SEARCH_UPDATED about a frame later
         -- (12-15 ms measured). Ask before the paint decision so a pending
@@ -637,7 +637,7 @@ function Search:OnSearchTextChangedNow(text, force)
         end, #results)
         syncPhase = false
         if syncChanged then
-            results = ns.Database:SearchUI(text, skipCategories)
+            results = ns.Database:SearchUI(text, skipCategories, quickFilter and quickFilter.categories)
             timings.searchedAgain = true
         end
         Mark("providers")

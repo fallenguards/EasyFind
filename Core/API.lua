@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 6 }
+local API = { VERSION = 1, MINOR = 7 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -473,6 +473,7 @@ local function Populate(key, database)
     end
     -- Search matches the lowercased name and words: filled in when a row
     -- does not carry them.
+    local scopedName = false
     for i = 1, rows and #rows or 0 do
         local row = rows[i]
         row.category = p.category
@@ -482,8 +483,9 @@ local function Populate(key, database)
             for k = 1, #row.keywords do low[k] = slower(tostring(row.keywords[k])) end
             row.keywordsLower = low
         end
+        if row.scopedName then scopedName = true end
     end
-    return database:ReplaceCategoryEntries(p.category, rows)
+    return database:ReplaceCategoryEntries(p.category, rows, scopedName)
 end
 
 -- An option row on an EasyFind.db switch that is on unless set false.
@@ -525,7 +527,9 @@ end
 -- rows), options (its filter row's toggles: { label, tooltip, get, set },
 -- { header = text }, { separator = true }, or one-of-several radio rows
 -- { choice = { { label, value, tooltip }, ... }, get, set }), rows() -> list of
--- { name, icon, iconDimmed (drawn gray), ... }, select(row), tooltip(row, tooltip) -> true when
+-- { name, icon, iconDimmed (drawn gray), scopedName (its name is searched
+-- only under this provider's @scope, its keywords everywhere; MINOR 7),
+-- ... }, select(row), tooltip(row, tooltip) -> true when
 -- it filled it, leave(row), loadOnSearch (true or a function: load its
 -- extension's addon for search), hint (what a row's gestures do, under its name on hover: a
 -- sentence, { click, alt, ctrl, shift }, or a function of the row giving

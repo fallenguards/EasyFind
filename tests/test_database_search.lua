@@ -614,5 +614,43 @@ function tests.searchUI_aBossesInstance_sitsOneUnderTheInstance()
     Database.IsInstanceSearchWord = was
 end
 
+-- A provider row with scopedName answers by name only under its
+-- provider's @scope, by keywords everywhere (API MINOR 7: a TSM group's
+-- item row doubled EasyFind's own Linen Cloth row, 2026-11-02).
+function tests.scopedName_matchesByNameOnlyUnderItsScope()
+    local item = { name = "Linen Cloth", nameLower = "linen cloth", category = "TSM", scopedName = true,
+        keywordsLower = { "blacksmithing", "bs mats" } }
+    local group = { name = "BS Mats", nameLower = "bs mats", category = "TSM" }
+    local own = { name = "Linen Cloth", nameLower = "linen cloth", category = "Item" }
+    Database.nameScopedCategories.TSM = true
+    withEntries({ item, group, own }, function()
+        H.assertFalse(findsEntry(Database:SearchUI("linen cloth"), item), "outside its scope: not by name")
+        H.assertTrue(findsEntry(Database:SearchUI("linen cloth"), own), "EasyFind's own row stays")
+        H.assertTrue(findsEntry(Database:SearchUI("linen cloth", nil, { "TSM" }), item), "under its scope: by name")
+        H.assertFalse(findsEntry(Database:SearchUI("linen cloth"), item), "the scoped search's set is not reused")
+        H.assertTrue(findsEntry(Database:SearchUI("bs mats"), item), "by its keywords anywhere")
+        H.assertTrue(findsEntry(Database:SearchUI("bs mats"), group), "a row without the field keeps its name")
+        H.assertFalse(findsEntry(Database:SearchUI("linen blacksmithing"), item), "its name words count for nothing")
+        H.assertTrue(findsEntry(Database:SearchUI("linen blacksmithing", nil, { "TSM" }), item), "under its scope they do")
+    end)
+    Database.nameScopedCategories.TSM = nil
+end
+
+-- The scope reaches the scan, and a provider's rows mark their category.
+function tests.scopedName_isWiredFromTheScopeAndTheProvider()
+    local function Read(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a")
+        f:close()
+        return src
+    end
+    local query = Read("Search/Query.lua")
+    local _, calls = query:gsub("ns%.Database:SearchUI%(text, skipCategories, quickFilter and quickFilter%.categories%)", "")
+    local _, all = query:gsub("ns%.Database:SearchUI%(", "")
+    H.assertEq(calls, all, "every search call passes the scope")
+    H.assertTrue(Read("Core/API.lua"):find("return database:ReplaceCategoryEntries(p.category, rows, scopedName)", 1, true) ~= nil)
+    H.assertTrue(Read("Database/Main.lua"):find("self.nameScopedCategories[category] = scopedName or nil", 1, true) ~= nil)
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }
