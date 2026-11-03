@@ -7513,14 +7513,16 @@ function UI:HideEasyNotesPalette()
     self:UpdateEasyNotesDeleteButton()
 end
 
--- A card under the Classic frame: Era's thin edge in the search ring's tan
--- on the window's own ground, a light gray inside it under the mouse or
--- picked (the gray card read modern on the marble, 2026-11-02).
+-- A card under the Classic or Forever frame: a thin edge on the window's
+-- own ground, Era's in the search ring's tan or Forever's bronze, and a
+-- fill inside it only under the mouse or picked: fill, else Classic's
+-- light gray (the gray card read modern on the marble, 2026-11-02; the
+-- filled Forever card read heavy, 2026-11-03). skin nil: no edge.
 UI.CLASSIC_CARD = { over = { 0.38, 0.38, 0.39, 0.92 }, picked = { 0.45, 0.45, 0.46, 0.92 },
     tree = { 0, 0, 0, 0.55 }, clear = { 0, 0, 0, 0 } }
-function UI.PaintNotesClassicCard(row, on, over, selected)
+function UI.PaintNotesCardEdge(row, skin, over, selected, fill)
     local edge = row._efEdge
-    if not on then
+    if skin ~= "classic" and skin ~= "forever" then
         if edge then edge:Hide() end
         return
     end
@@ -7532,13 +7534,19 @@ function UI.PaintNotesClassicCard(row, on, over, selected)
                            edgeSize = thin.edgeSize, insets = thin.insets })
         row._efEdge = edge
     end
-    local p = ns.ACTIVE_UI_PALETTE
-    local s = p and p.separator or { 0.58, 0.55, 0.46 }
-    edge:SetBackdropBorderColor(s[1] * 1.1, s[2] * 1.1, s[3] * 1.1, 1)
+    if skin == "forever" then
+        local b = ns.FOREVER_BRONZE
+        edge:SetBackdropBorderColor(b[1], b[2], b[3], b[4])
+    else
+        local p = ns.ACTIVE_UI_PALETTE
+        local s = p and p.separator or { 0.58, 0.55, 0.46 }
+        edge:SetBackdropBorderColor(s[1] * 1.1, s[2] * 1.1, s[3] * 1.1, 1)
+    end
     -- Over a talent tree the words keep the dark card that reads on its art.
     local fills = UI.CLASSIC_CARD
-    local c = (selected and fills.picked) or (over and fills.over) or (ns.ClassicTreeShown() and fills.tree) or fills.clear
-    edge:SetBackdropColor(c[1], c[2], c[3], c[4])
+    local lit = (selected or over) and (fill or (selected and fills.picked) or fills.over)
+    local c = lit or (ns.ClassicTreeShown() and fills.tree) or fills.clear
+    edge:SetBackdropColor(c[1], c[2], c[3], c[4] or 1)
     -- Under the card's words, which are the row's own.
     edge:SetFrameLevel(math.max(0, row:GetFrameLevel() - 1))
     edge:Show()
@@ -7549,9 +7557,9 @@ local function PaintPaletteRow(row)
     local over = row:IsMouseOver() and true or false
     local sel = UI._notes.paletteSelection
     local selected = sel and sel[row.noteID] and true or false
-    local classic = row._efWindow ~= nil and row._efWindow._efSkin == "classic"
-    UI.PaintNotesClassicCard(row, classic, over, selected)
-    if classic then
+    local skin = row._efWindow ~= nil and row._efWindow._efSkin or nil
+    if skin == "classic" then
+        UI.PaintNotesCardEdge(row, skin, over, selected)
         if ns.SetRoundedRectFill then ns.SetRoundedRectFill(row, 0, 0, 0, 0, true) end
     elseif ns.SetRoundedRectFill then
         -- Rows sit at the same fill as the header buttons (BTN_FILL_NORMAL), a
@@ -7579,7 +7587,14 @@ local function PaintPaletteRow(row)
         else
             c = look.BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
         end
-        ns.SetRoundedRectFill(row, c[1], c[2], c[3], c[4] or 1, true)
+        if skin == "forever" then
+            -- The bronze edge; these fills only under the mouse or picked.
+            UI.PaintNotesCardEdge(row, skin, over, selected, c)
+            ns.SetRoundedRectFill(row, 0, 0, 0, 0, true)
+        else
+            UI.PaintNotesCardEdge(row, nil)
+            ns.SetRoundedRectFill(row, c[1], c[2], c[3], c[4] or 1, true)
+        end
     end
     -- The second line and the time in the theme's text color, a step
     -- down: the dim gray read badly on the row fills.

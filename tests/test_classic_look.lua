@@ -114,11 +114,13 @@ end
 
 -- Note cards under the Classic frame: Era's thin edge on the window's own
 -- ground, light gray inside it under the mouse or picked (mock A,
--- 2026-11-02); the gray card read modern on the marble.
-function tests.notesCardsWearTheThinEdgeUnderClassic()
+-- 2026-11-02); the gray card read modern on the marble. Under the Forever
+-- frame the same edge in its bronze, the theme's fill only under the mouse
+-- or picked (the filled card read heavy, 2026-11-03).
+function tests.notesCardsWearTheThinEdgeUnderClassicAndForever()
     local src = Read("Apps/Notes/Notes.lua"):gsub("\r\n", "\n")
     local s = assert(src:find("\nUI.CLASSIC_CARD = {", 1, true))
-    local _, e = assert(src:find("\nend\n", assert(src:find("function UI.PaintNotesClassicCard", s, true)), true))
+    local _, e = assert(src:find("\nend\n", assert(src:find("function UI.PaintNotesCardEdge", s, true)), true))
     local made
     local function NewEdge()
         local edge = { shown = false }
@@ -134,29 +136,44 @@ function tests.notesCardsWearTheThinEdgeUnderClassic()
     end
     local tree = false
     local ns = { CLASSIC_THIN = { edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16, insets = { left = 4 } },
+                 FOREVER_BRONZE = { 0.78, 0.55, 0.30, 0.95 },
                  ACTIVE_UI_PALETTE = { separator = { 0.5, 0.4, 0.3, 0.35 } }, ClassicTreeShown = function() return tree end }
     local UI = {}
     local env = setmetatable({ UI = UI, ns = ns, CreateFrame = function() return NewEdge() end }, { __index = _G })
-    assert(load(src:sub(s, e), "=PaintNotesClassicCard", "t", env))()
+    assert(load(src:sub(s, e), "=PaintNotesCardEdge", "t", env))()
     local row = { GetFrameLevel = function() return 7 end }
-    UI.PaintNotesClassicCard(row, true, false, false)
+    UI.PaintNotesCardEdge(row, "classic", false, false)
     H.assertEq(made.backdrop.edgeFile, ns.CLASSIC_THIN.edgeFile, "the thin Era edge")
     H.assertEq(made.backdrop.insets, ns.CLASSIC_THIN.insets, "its fill inside the line")
     H.assertTrue(math.abs(made.border[1] - 0.55) < 1e-9 and math.abs(made.border[3] - 0.33) < 1e-9, "the search ring's tan")
     H.assertEq(made.fill[4], 0, "no fill: the window's ground shows")
     H.assertEq(made.level, 6, "under the card's words")
-    UI.PaintNotesClassicCard(row, true, true, false)
+    UI.PaintNotesCardEdge(row, "classic", true, false)
     H.assertTrue(made.fill[1] > 0.3 and made.fill[4] > 0.9, "light gray under the mouse")
-    UI.PaintNotesClassicCard(row, true, false, true)
+    UI.PaintNotesCardEdge(row, "classic", false, true)
     H.assertTrue(made.fill[1] > 0.4, "lighter when picked")
     tree = true
-    UI.PaintNotesClassicCard(row, true, false, false)
+    UI.PaintNotesCardEdge(row, "classic", false, false)
     H.assertEq(made.fill[1], 0, "over a tree the dark card keeps the words readable")
     H.assertTrue(made.fill[4] > 0.5)
-    UI.PaintNotesClassicCard(row, false)
-    H.assertFalse(made.shown, "off the Classic frame: no edge")
+    tree = false
+    local hover = { 0.6, 0.45, 0.25, 1 }
+    UI.PaintNotesCardEdge(row, "forever", false, false, hover)
+    H.assertEq(made.border[1], 0.78, "Forever's bronze")
+    H.assertEq(made.fill[4], 0, "at rest no fill under Forever either")
+    UI.PaintNotesCardEdge(row, "forever", true, false, hover)
+    H.assertEq(made.fill[1], 0.6, "the theme's own fill under the mouse")
+    UI.PaintNotesCardEdge(row, "forever", false, true, hover)
+    H.assertEq(made.fill[1], 0.6, "and picked")
+    UI.PaintNotesCardEdge(row, nil)
+    H.assertFalse(made.shown, "off those frames: no edge")
     local paint = src:sub((assert(src:find("local function PaintPaletteRow(row)", 1, true))))
-    H.assertTrue(paint:find('row._efWindow._efSkin == "classic"', 1, true) ~= nil, "by the card's own window's frame")
+    H.assertTrue(paint:find("local skin = row._efWindow ~= nil and row._efWindow._efSkin or nil", 1, true) ~= nil,
+        "by the card's own window's frame")
+    H.assertTrue(paint:find("UI.PaintNotesCardEdge(row, skin, over, selected, c)", 1, true) ~= nil,
+        "Forever keeps its fills for hover and picked")
+    H.assertTrue(Read("Apps/Notes/Lines.lua"):find('local edged = skin == "classic" or skin == "forever"', 1, true) ~= nil,
+        "the shopping offer card too")
 end
 
 local pass, fail, failures = H.runSuite("ClassicLook", tests)

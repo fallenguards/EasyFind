@@ -968,14 +968,15 @@ local function PlaceTotal(row, editor, note, y, lineH)
     row:Show()
 end
 
--- Its ground as the note cards wear it: Era's thin edge under the Classic
--- frame, the card fill elsewhere.
+-- Its ground as the note cards wear it: the thin edge under the Classic
+-- and Forever frames, the card fill elsewhere.
 local function PaintOffer(row)
     local frame = Frame()
-    local classic = frame ~= nil and frame._efSkin == "classic"
-    NotesUI.PaintNotesClassicCard(row, classic, false, false)
+    local skin = frame ~= nil and frame._efSkin or nil
+    local edged = skin == "classic" or skin == "forever"
+    NotesUI.PaintNotesCardEdge(row, skin, false, false)
     if not ns.SetRoundedRectFill then return end
-    if classic then
+    if edged then
         ns.SetRoundedRectFill(row, 0, 0, 0, 0, true)
     else
         local c = ns.ThemeSetOf(row).BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
