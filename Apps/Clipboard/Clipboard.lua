@@ -502,7 +502,9 @@ function Clipboard:BuildSearchData()
         local name = self:IsKindShown(entry.kind) and RowName(entry) or nil
         if name and name ~= "" then
             local icon = IconFor(entry)
-            local keywords = { "clipboard", "clip", "history" }
+            -- Found by what it says and who sent it: "clip" or "history"
+            -- typed in the bar is the launcher's, not every entry's.
+            local keywords = {}
             local body = Utils.StripMarkup and Utils.StripMarkup(entry.text) or entry.text
             if body and body ~= "" then
                 keywords[#keywords + 1] = slower(Store.CutBytes(body, 300))
@@ -538,11 +540,12 @@ function Clipboard:BuildSearchData()
     -- list on screen with a line that says so. A filter toggle must never
     -- close the list it filters.
     if #entries == 0 and #list > 0 then
+        -- Listed only while the history is browsed: no words find it.
         entries[1] = {
             name = L["CLIP_EMPTY_TYPES"],
-            nameLower = slower(L["CLIP_EMPTY_TYPES"]),
+            nameLower = "",
             category = "Clipboard",
-            keywordsLower = { "clipboard" },
+            keywordsLower = {},
             clipGroup = L["CLIP_EMPTY_TYPES"],
             clipDividerOnly = true,
             noPin = true,

@@ -346,7 +346,8 @@ local function TrimFlatEntries(n)
 end
 
 local function AppendFlat(d, n, lastGroup, mapSplit, pinned)
-    local group = d.clipGroup or (mapSplit and d.sectionLabel)
+    -- The history's date groups head its own list only, never plain results.
+    local group = (SCRATCH.clipGroups and d.clipGroup) or (mapSplit and d.sectionLabel)
     if group and group ~= lastGroup then
         lastGroup = group
         n = n + 1
@@ -557,16 +558,6 @@ function Search:OnSearchTextChangedNow(text, force)
                 explicitStatistics, explicitBosses) then
             skipCategories = SCRATCH.skipCategories
         end
-    end
-    -- Clipboard history rows are a list to browse under @clipboard, never
-    -- a search hit: outside that pill the category is always skipped (a
-    -- search for "clipboard" finds the launcher row instead).
-    if not (quickFilter and quickFilter.key == "clipboard") then
-        if not skipCategories then
-            wipe(SCRATCH.skipCategories)
-            skipCategories = SCRATCH.skipCategories
-        end
-        skipCategories["Clipboard"] = true
     end
     local results
     if calculatorData or calculatorLauncher then
@@ -1165,6 +1156,7 @@ function Search:OnSearchTextChangedNow(text, force)
     -- enter, freeing their slot, so those checks run on few rows.
     -- @map: the map tab's This Zone and Across the World parts, one list.
     local mapSplit = quickFilter and quickFilter.key == "map" and ns.MapSearch and ns.MapSearch.SplitUIRowsByZone
+    SCRATCH.clipGroups = quickFilter ~= nil and quickFilter.key == "clipboard"
     -- A repaint of the same query lays the whole list at once and keeps
     -- the view where it was: a head of fifteen under a view scrolled past
     -- them threw the view back up at every arrival (2026-11-02).
