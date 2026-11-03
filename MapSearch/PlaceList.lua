@@ -18,6 +18,7 @@ local GOLD_COLOR = ns.GOLD_COLOR
 local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
 local GetMapChildrenInfo = C_Map and C_Map.GetMapChildrenInfo
+local GetMapInfo = C_Map and C_Map.GetMapInfo
 
 local GetTopAncestor = MapUtils.GetTopAncestor
 local GetZoneUnderAncestor = MapUtils.GetZoneUnderAncestor
@@ -809,6 +810,12 @@ function List:Render(args)
         if pathText ~= "" then
             local last = pathText:match("[^>]+$")
             if last then pathText = last:gsub("^%s+", ""):gsub("%s+$", "") end
+        end
+        -- A spot under no header names its map (Auction House  Undercity).
+        if pathText == "" and not groupName and not data.isZone and GetMapInfo then
+            local id = data.mapID or data.zoneMapID
+            local info = id and GetMapInfo(id)
+            if info and info.name and info.name ~= data.name then pathText = info.name end
         end
         -- A vendor found by what it sells says so in the path's place.
         if data.matchNote then pathText = data.matchNote end

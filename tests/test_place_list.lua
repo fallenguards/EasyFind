@@ -27,7 +27,7 @@ local function Frame()
     end })
 end
 
-local function Load()
+local function Load(cMap)
     local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/PlaceList.lua", "rb"))
     local src = f:read("*a")
     f:close()
@@ -47,7 +47,7 @@ local function Load()
     }
     local env = setmetatable({
         CreateFrame = function() return Frame() end,
-        GameTooltip = Frame(), C_Map = {}, Enum = { UIMapType = {} },
+        GameTooltip = Frame(), C_Map = cMap or {}, Enum = { UIMapType = {} },
         EasyFind = { db = {} },
         wipe = function(t) for k in pairs(t) do t[k] = nil end return t end,
         Game15Font_Shadow = Frame(), GameFontNormal = Frame(), GameFontNormalSmall = Frame(),
@@ -99,6 +99,24 @@ function tests.aQueryDrawsItsFirstPageAndShowMoreAddsTheNext()
     places, more = Shown(list)
     H.assertEq(places, 60, "all of them")
     H.assertNil(more, "nothing left to show")
+end
+
+-- A spot listed under no header says where it is (the GPS's stop fields
+-- showed Auction House and Ahanu bare beside zones with continents).
+function tests.aSpotUnderNoHeaderNamesItsMap()
+    local names = { [1458] = "Undercity", [1456] = "Thunder Bluff" }
+    local PlaceList = Load({ GetMapInfo = function(id) return names[id] and { name = names[id] } end })
+    local list = NewList(PlaceList)
+    list:Render({ query = "ah", globalEntries = PlaceList.FlatEntries({
+        { name = "Auction House", mapID = 1458 },
+        { name = "Ahanu", mapID = 1456, catalog = true },
+        { name = "Arathi Highlands", mapID = 1417, isZone = true, zoneMapID = 1417, pathPrefix = "Eastern Kingdoms" },
+        { name = "Undercity", mapID = 1458 },
+    }) })
+    H.assertEq(list.rows[1].text.text, "Auction House  |cff808080Undercity|r")
+    H.assertEq(list.rows[2].text.text, "Ahanu  |cff808080Thunder Bluff|r")
+    H.assertEq(list.rows[3].text.text, "Arathi Highlands  |cff808080Eastern Kingdoms|r", "a zone keeps its continent")
+    H.assertEq(list.rows[4].text.text, "Undercity", "never its own name twice")
 end
 
 function tests.aNewQueryStartsAtTheFirstPage()
