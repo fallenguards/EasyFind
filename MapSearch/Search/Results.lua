@@ -509,19 +509,80 @@ local function AddScoredPOI(results, seen, duplicates, poi, key, score)
     tinsert(results, poi)
 end
 
+-- A place named beside other words ("mailbox durotar", "ek decor", "org
+-- repair"): the rows on its maps, the maps inside them too, score the
+-- other words as well (MINOR 7). Nil when no word or every word names
+-- one; kept for the last query.
+local placeFor, placeScope = nil, nil
+local mapsInside = {}
+local function AddPlaceMaps(set, mapID)
+    set[mapID] = true
+    local inside = mapsInside[mapID]
+    if not inside then
+        inside = {}
+        for _, child in ipairs(C_Map.GetMapChildrenInfo(mapID, nil, true) or {}) do inside[#inside + 1] = child.mapID end
+        mapsInside[mapID] = inside
+    end
+    for i = 1, #inside do set[inside[i]] = true end
+end
+
+local function NameHasWord(nameLower, word)
+    for w in nameLower:gmatch("%S+") do
+        if w == word then return true end
+    end
+    return false
+end
+
+local function PlaceScope(query)
+    if placeFor == query then return placeScope end
+    placeFor, placeScope = query, nil
+    if not (MapSearch.ZonesNamed and query:find(" ", 1, true)) then return nil end
+    local words, isPlace, maps = {}, {}, nil
+    for w in query:gmatch("%S+") do words[#words + 1] = w end
+    for i = 1, #words do
+        local zones = not isPlace[i] and MapSearch:ZonesNamed(words[i])
+        for z = 1, zones and #zones or 0 do
+            local zone = zones[z]
+            isPlace[i] = true
+            maps = maps or {}
+            AddPlaceMaps(maps, zone.mapID)
+            -- The rest of its name typed too (eastern kingdoms).
+            for j = 1, #words do
+                if not isPlace[j] and NameHasWord(zone.nameLower or "", words[j]) then isPlace[j] = true end
+            end
+        end
+    end
+    local rest = {}
+    for i = 1, #words do
+        if not isPlace[i] then rest[#rest + 1] = words[i] end
+    end
+    if not maps or #rest == 0 then return nil end
+    placeScope = { query = table.concat(rest, " "), maps = maps }
+    return placeScope
+end
+
+local function InPlace(poi, place)
+    if poi.isZone then return false end
+    local m = poi.entranceMapID or poi.zoneMapID or poi.mapID
+    return m ~= nil and place.maps[m] == true
+end
+
 -- The bar's search runs sliced: these walks yield there between slices.
-local function AppendNameMatches(results, seen, duplicates, candidates, query, scoped)
+local function AppendNameMatches(results, seen, duplicates, candidates, query, scoped, place)
     for i, poi in ipairs(candidates) do
         if i % 64 == 0 then Utils.SliceCheckpoint() end
         -- A steered row ("dungeon deadmines") scores the cut query too.
         local rec = scoped and (scoped[poi.category] or scoped["@map"])
+        local here = place and InPlace(poi, place)
         -- Letter-mask gate BEFORE any scoring call: the map corpus'
         -- version of the UI index's candidate pruning. For a typical
         -- non-map query ("glad mount") this skips nearly every POI with
         -- one band(), which was the main bar's per-keystroke map cost.
-        if (poi.isZone and poi.score) or POICouldMatch(poi, rec and rec.query or query) then
+        if (poi.isZone and poi.score) or POICouldMatch(poi, rec and rec.query or query)
+           or (here and POICouldMatch(poi, place.query)) then
             local score = ScorePOIForQuery(poi, query)
             if rec then score = mmax(score, ScorePOIForQuery(poi, rec.query) - 1) end
+            if here then score = mmax(score, ScorePOIForQuery(poi, place.query) - 1) end
             if score >= 50 then
                 AddScoredPOI(results, seen, duplicates, poi, GetPOIDuplicateKey(poi), score)
             end
@@ -539,17 +600,18 @@ local function GetCategoryMatchScore(poi, matchedCategory, relatedCategories)
     return 0
 end
 
-local function AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
+-- place: only the rows in it, one above the same match elsewhere.
+local function AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories, place)
     if not matchedCategory then return end
 
     for i, poi in ipairs(pois) do
         if i % 64 == 0 then Utils.SliceCheckpoint() end
-        if poi.category then
+        if poi.category and not (place and not InPlace(poi, place)) then
             local key = GetPOIDuplicateKey(poi)
             if not seen[key] then
                 local score = GetCategoryMatchScore(poi, matchedCategory, relatedCategories)
                 if score > 0 then
-                    AddScoredPOI(results, seen, duplicates, poi, key, score)
+                    AddScoredPOI(results, seen, duplicates, poi, key, place and score + 1 or score)
                 end
             end
         end
@@ -634,13 +696,16 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
     -- scope opens as the word completes, so nothing narrows from "zon".
     local Steer = ns.SearchSteer
     local scoped = Steer and Steer.Scope(mapSteer, query) and mapSteer.byCategory or nil
+    local place = PlaceScope(query)
+    local placeCategory = place and self:GetCategoryMatch(place.query)
+    local placeRelated = placeCategory and self:GetRelatedCategories(placeCategory) or nil
 
     if cacheKey == nil then cacheKey = Search.isGlobalSearch and "global_" or "local_" end
     local cache = cacheKey and searchPoisCache[cacheKey]
     local hit, candidates, narrowed
     if cache then
         hit, candidates, narrowed = ResolveSearchCache(cache, query, matchedCategory, pois)
-        if narrowed and scoped then candidates, narrowed = pois, false end
+        if narrowed and (scoped or place) then candidates, narrowed = pois, false end
     else
         candidates = pois
     end
@@ -653,7 +718,8 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
         end
     else
         if narrowed then ClearCachedCandidateScores(candidates) end
-        AppendNameMatches(results, seen, duplicates, candidates, query, scoped)
+        AppendNameMatches(results, seen, duplicates, candidates, query, scoped, place)
+        AppendCategoryMatches(results, seen, duplicates, pois, placeCategory, placeRelated, place)
         AppendCategoryMatches(results, seen, duplicates, pois, matchedCategory, relatedCategories)
         AttachDuplicateSets(results, duplicates)
         if cache then
@@ -663,7 +729,8 @@ function MapSearch:SearchPOIs(pois, query, fresh, cacheKey)
         end
     end
     if fresh and #fresh > 0 then
-        AppendNameMatches(results, seen, duplicates, fresh, query, scoped)
+        AppendNameMatches(results, seen, duplicates, fresh, query, scoped, place)
+        AppendCategoryMatches(results, seen, duplicates, fresh, placeCategory, placeRelated, place)
         AppendCategoryMatches(results, seen, duplicates, fresh, matchedCategory, relatedCategories)
         AttachDuplicateSets(results, duplicates)
         AttachProviderSpots(results)
