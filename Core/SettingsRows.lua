@@ -328,6 +328,12 @@ local function GeneralRows()
                 db.showMinimapButton = on and true or false
                 EasyFind:UpdateMinimapButton()
             end),
+        Check(L["OPT_HIDE_EXT_TIPS"], nil,
+            function() return db.hideExtensionTips == true end,
+            function(on)
+                db.hideExtensionTips = on or nil
+                if ns.MapTab and ns.MapTab.RefreshExtensionTip then ns.MapTab.RefreshExtensionTip() end
+            end),
         Choice(L["OPT_UI_THEME"], nil,
             Labeled(ns.UI_THEME_ORDER or { "Midnight" }, function(name)
                 return name == defaultTheme and DefaultTag(name) or name

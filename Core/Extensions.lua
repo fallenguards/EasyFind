@@ -99,6 +99,29 @@ function ns.ShowExtensionPage(slug)
     end
 end
 
+-- An extension of ours the player lacks, recommended where it would help
+-- (2026-11-02): its words in the link blue, a click on them its page's
+-- address to copy. Nil when the player has it or hides recommendations.
+function ns.ExtensionTipLink(addon, label)
+    local db = EasyFind.db
+    if (db and db.hideExtensionTips) or C_AddOns.DoesAddOnExist(addon) then return nil end
+    for _, e in ipairs(FIRST_PARTY) do
+        if e.addon == addon and e.slug then
+            local c = ns.LINK_COLOR or { 0.44, 0.84, 1.0 }
+            local function Hex(v) return math.floor(v * 255 + 0.5) end
+            return string.format("|cff%02x%02x%02x|H%s%s|h%s|h|r", Hex(c[1]), Hex(c[2]), Hex(c[3]), PAGE_LINK, e.slug, label)
+        end
+    end
+end
+
+-- A click on such a link in a window of ours: true when it was one.
+function ns.ExtensionTipClick(link)
+    local slug = type(link) == "string" and link:sub(1, #PAGE_LINK) == PAGE_LINK and link:sub(#PAGE_LINK + 1)
+    if not slug or slug == "" then return false end
+    ns.ShowExtensionPage(slug)
+    return true
+end
+
 -- The [Extensions] link: every page in one menu, a click on one its
 -- address; a check marks one already installed.
 function ns.ShowExtensionPages()

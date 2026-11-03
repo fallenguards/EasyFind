@@ -1631,7 +1631,13 @@ function MapTab.ScaleChrome(p)
     if p.emptyMsg then ScaleFont(p.emptyMsg, "GameFontHighlight", s) end
     if p.recentLabel then ScaleFont(p.recentLabel, "GameFontHighlightSmall", s) end
     if p.expandLabel then ScaleFont(p.expandLabel, "GameFontHighlightSmall", s) end
+    if p.extTip then ScaleFont(p.extTip.text, "GameFontHighlightSmall", s) end
     if p.LayoutChecks then p.LayoutChecks() end
+end
+
+-- The extension recommendation shown or gone, as the setting says.
+function MapTab.RefreshExtensionTip()
+    if panel and panel.LayoutChecks then panel.LayoutChecks() end
 end
 
 -- The text size choices, one ticked.
@@ -2482,8 +2488,26 @@ local function CreatePanel(qmf)
     end)
     expandCheck:SetScript("OnLeave", GameTooltip_Hide)
     p.expandCheck = expandCheck
-    -- The checks share the bottom line where both fit, else stack; the list
-    -- ends above them.
+    -- Without the GPS extension, a line over the checks recommends it; a
+    -- click on its name gives the page's address (2026-11-02).
+    local tip = CreateFrame("Frame", nil, p)
+    tip:Hide()
+    tip:SetHyperlinksEnabled(true)
+    tip.text = tip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    tip.text:SetPoint("TOPLEFT", tip, "TOPLEFT", 0, 0)
+    tip.text:SetPoint("TOPRIGHT", tip, "TOPRIGHT", 0, 0)
+    tip.text:SetJustifyH("LEFT")
+    tip.text:SetWordWrap(true)
+    tip:SetScript("OnHyperlinkClick", function(_, link) ns.ExtensionTipClick(link) end)
+    tip:SetScript("OnHyperlinkEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["EXT_PAGE_TT"], 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    tip:SetScript("OnHyperlinkLeave", GameTooltip_Hide)
+    p.extTip = tip
+    -- The checks share the bottom line where both fit, else stack; the
+    -- recommendation over them; the list ends above it all.
     function p.LayoutChecks()
         local need = 64 + recentLabel:GetUnboundedStringWidth() + expandLabel:GetUnboundedStringWidth()
         local stacked = need > p:GetWidth()
@@ -2493,7 +2517,19 @@ local function CreatePanel(qmf)
         else
             expandCheck:SetPoint("LEFT", recentLabel, "RIGHT", 12, -1)
         end
-        p.footH = stacked and 50 or 28
+        local foot = stacked and 50 or 28
+        local link = ns.ExtensionTipLink and ns.ExtensionTipLink("EasyFind_GPS", L["MAP_GPS_TIP_LINK"])
+        tip:SetShown(link ~= nil)
+        if link then
+            tip.text:SetText(L["MAP_GPS_TIP_FMT"]:format(link))
+            tip:ClearAllPoints()
+            tip:SetPoint("BOTTOMLEFT", p, "BOTTOMLEFT", 8, foot)
+            tip:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", -8, foot)
+            local h = tip.text:GetStringHeight() or 12
+            tip:SetHeight(h)
+            foot = foot + h + 6
+        end
+        p.footH = foot
         if panel == p then UpdatePageBar() end
     end
     p:HookScript("OnSizeChanged", p.LayoutChecks)

@@ -148,5 +148,39 @@ function tests.mainWiresIt()
     H.assertTrue(main:find("link == EXTENSIONS_LINK then\n            ns.ShowExtensionPages()", 1, true) ~= nil)
 end
 
+-- An extension recommended where it would help (2026-11-02): its words a
+-- link in the link blue, a click on them the page's address; nothing for
+-- a player who has it or hid recommendations ("Hide extension
+-- recommendations", General settings).
+function tests.aRecommendationLinksThePage_untilHiddenOrInstalled()
+    local ns, db, _, dialogs = Load()
+    local link = ns.ExtensionTipLink("EasyFind_GPS", "EasyFind's GPS extension")
+    H.assertTrue(link ~= nil and link:find("|Heasyfind:page:easyfind-gps-navigation-extension|hEasyFind's GPS extension|h", 1, true) ~= nil,
+        "the words, linked: " .. tostring(link))
+    H.assertTrue(link:find("^|cff%x%x%x%x%x%x") ~= nil, "in the link blue, no brackets")
+    H.assertTrue(ns.ExtensionTipClick("easyfind:page:easyfind-gps-navigation-extension"))
+    H.assertTrue(dialogs[1] and dialogs[1].editBoxDefault:find("easyfind-gps-navigation-extension", 1, true) ~= nil,
+        "the page's address to copy")
+    H.assertFalse(ns.ExtensionTipClick("item:6948"), "another link is not ours")
+    db.hideExtensionTips = true
+    H.assertNil(ns.ExtensionTipLink("EasyFind_GPS", "x"), "hidden by the setting")
+    local had = Load({ EasyFind_GPS = true })
+    H.assertNil(had.ExtensionTipLink("EasyFind_GPS", "x"), "the player has it")
+end
+
+-- The map tab's line over its footer checks, and the setting in both the
+-- options window and the search bar's settings rows.
+function tests.theMapTabRecommendsGPS_andTheSettingHidesIt()
+    local map = Read("MapSearch/MapTab.lua")
+    H.assertTrue(map:find('ns.ExtensionTipLink("EasyFind_GPS", L["MAP_GPS_TIP_LINK"])', 1, true) ~= nil, "the GPS recommendation")
+    H.assertTrue(map:find('local tip = CreateFrame("Frame", nil, p)\n    tip:Hide()', 1, true) ~= nil, "hidden until laid out")
+    H.assertTrue(map:find('tip:SetScript("OnHyperlinkClick", function(_, link) ns.ExtensionTipClick(link) end)', 1, true) ~= nil)
+    H.assertTrue(map:find("foot = foot + h + 6", 1, true) ~= nil, "the list ends above it")
+    local opts, rows = Read("Apps/Options/OptionsPanel.lua"), Read("Core/SettingsRows.lua")
+    H.assertTrue(opts:find('CreateCheckbox(sec3, "HideExtTips", L["OPT_HIDE_EXT_TIPS"])', 1, true) ~= nil, "in General")
+    H.assertTrue(opts:find("optionsFrame.extTipsCheckbox:SetChecked(EasyFind.db.hideExtensionTips == true)", 1, true) ~= nil, "kept in step")
+    H.assertTrue(rows:find('Check(L["OPT_HIDE_EXT_TIPS"], nil,', 1, true) ~= nil, "found from the search bar")
+end
+
 local pass, fail, failures = H.runSuite("ExtensionNotice", tests)
 return { pass = pass, fail = fail, failures = failures }

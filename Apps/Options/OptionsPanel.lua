@@ -199,6 +199,7 @@ local function SyncOptionControls()
     if optionsFrame.UpdateFocusBindEnabled then optionsFrame.UpdateFocusBindEnabled() end
     if optionsFrame.minimapBtnCheckbox then optionsFrame.minimapBtnCheckbox:SetChecked(EasyFind.db.showMinimapButton ~= false) end
     if optionsFrame.updateNotifyCheckbox then optionsFrame.updateNotifyCheckbox:SetChecked(EasyFind.db.updateNotify ~= false) end
+    if optionsFrame.extTipsCheckbox then optionsFrame.extTipsCheckbox:SetChecked(EasyFind.db.hideExtensionTips == true) end
     if optionsFrame.rareTrackCheckbox then optionsFrame.rareTrackCheckbox:SetChecked(EasyFind.db.alwaysShowRares or false) end
 
     if optionsFrame.mapTabShowRecentCheckbox then optionsFrame.mapTabShowRecentCheckbox:SetChecked(EasyFind.db.mapTabShowRecent ~= false) end
@@ -1569,8 +1570,16 @@ local function BuildGeneralBindsTab(ctx)
     end)
     optionsFrame.minimapBtnCheckbox = minimapBtnCheckbox
 
+    local extTipsCheckbox = CreateCheckbox(sec3, "HideExtTips", L["OPT_HIDE_EXT_TIPS"])
+    extTipsCheckbox:SetPoint("TOPLEFT", minimapBtnCheckbox, "BOTTOMLEFT", 0, -2)
+    extTipsCheckbox:SetChecked(EasyFind.db.hideExtensionTips == true)
+    extTipsCheckbox:SetScript("OnClick", function(self)
+        EasyFind.db.hideExtensionTips = self:GetChecked() or nil
+        if ns.MapTab and ns.MapTab.RefreshExtensionTip then ns.MapTab.RefreshExtensionTip() end
+    end)
+    optionsFrame.extTipsCheckbox = extTipsCheckbox
 
-    local themeRow, themeLabel = CreateSelectorRow(minimapBtnCheckbox, L["OPT_UI_THEME"])
+    local themeRow, themeLabel = CreateSelectorRow(extTipsCheckbox, L["OPT_UI_THEME"])
     local themeChoices = ns.UI_THEME_ORDER or { "Midnight" }
     local themeBtnFrame, themeBtnText = CreateFlyoutSelector(
         themeRow, "EasyFindTheme", SELECTOR_BTN_W, themeLabel,

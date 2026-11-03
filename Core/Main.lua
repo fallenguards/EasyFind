@@ -54,6 +54,7 @@ local DB_DEFAULTS = {
     lockPosition = false,
     tutorialDone = false,
     updateNotify = true,
+    hideExtensionTips = false,
     snippets = {},
     snippetChatExpansion = true,
     -- Quicklists: named lists of results on a key (the companion reads these).
