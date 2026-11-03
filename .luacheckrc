@@ -140,7 +140,7 @@ read_globals = {
     -- Clients differ: Caps.lua probes these and every one may be nil.
     "C_GameRules", "C_Housing", "GetTalentInfo", "GetNumTalentTabs", "C_DelvesUI", "C_PerksProgram", "C_EditMode", "C_WarbandScene",
     "C_ChatInfo", "C_CurrencyInfo", "C_EquipmentSet", "C_Item",
-    "C_EncounterJournal", "C_GossipInfo", "C_Heirloom", "C_HousingCatalog", "C_HousingDecor", "C_LFGList", "C_MajorFactions", "C_Map",
+    "C_EncounterJournal", "C_GossipInfo", "C_Heirloom", "C_HousingCatalog", "C_HousingDecor", "C_LFGList", "C_MajorFactions", "C_Map", "C_PlayerInteractionManager",
     "C_Minimap", "C_MountJournal", "C_Navigation", "C_PetJournal",
     "C_Reputation", "C_SuperTrack", "C_TaxiMap", "C_Texture", "C_Timer",
     "C_ToyBox", "C_Traits", "C_TransmogCollection", "C_TransmogOutfitInfo",

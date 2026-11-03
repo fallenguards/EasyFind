@@ -1280,9 +1280,14 @@ end
 
 -- The note's lines as an extension hears them, in order.
 function notesNS.LinkLines(note)
+    local CK = notesNS.Checklist
     local lines = {}
     for i, line in ipairs(note.list.lines) do
-        lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text }
+        -- An item's name: the client's, else as typed (a typed name the
+        -- catalog knew, the client not yet: Hearthstone left a list, 2026-11-03).
+        local name = line.item and (C_Item.GetItemNameByID(line.item) or CK.LineWords(note, line))
+        lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text,
+                     name = name }
     end
     return lines
 end
@@ -1293,6 +1298,14 @@ function notesNS.ListKeeper()
     for id, link in pairs(ns.ChecklistLinks or {}) do
         if link.items and link.adopt then return id, link end
     end
+end
+
+-- What a shopping list adds, for its tooltips: names, counts, the add
+-- line, and the Auctionator list where its extension is in.
+function UI.ShoppingListTip()
+    local tip = L["NOTES_SHOP_OFFER_TT"]
+    if notesNS.ListKeeper() then tip = tip .. "\n" .. L["NOTES_SHOP_OFFER_AH_TT"] end
+    return tip
 end
 
 -- The note a shopping list, or a checklist again (2026-11-02). On, the
@@ -4474,19 +4487,17 @@ function UI:ShowNotesTipDelayed(region, anchor, text)
     Utils.SafeAfter(delay, function()
         if region._tipToken ~= token then return end
         if not (region:IsShown() and region:IsMouseOver()) then return end
-        if ns.ShowThemedTooltip then
-            ns.ShowThemedTooltip(region, text, anchor or "ANCHOR_TOP")
-        elseif GameTooltip then
-            GameTooltip:SetOwner(region, anchor or "ANCHOR_TOP")
-            GameTooltip:SetText(text)
-            GameTooltip:Show()
-        end
+        GameTooltip:SetOwner(region, anchor or "ANCHOR_TOP")
+        -- Wrapped: a sentence or two reads as a block, never one line across
+        -- the screen (2026-11-03).
+        local c = NORMAL_FONT_COLOR
+        GameTooltip:SetText(text, c and c.r or 1, c and c.g or 0.82, c and c.b or 0, 1, true)
+        GameTooltip:Show()
     end)
 end
 
 function UI:HideNotesTip(region)
     if region then region._tipToken = (region._tipToken or 0) + 1 end
-    if ns.HideThemedTooltip then ns.HideThemedTooltip() end
     if GameTooltip then GameTooltip:Hide() end
 end
 
@@ -4740,22 +4751,35 @@ function UI:EnsureEasyNotesFrame()
     StyleAccentButton(frame.newButton, "+", BTN_W, BTN_H)
     frame.newButton:SetPoint("LEFT", frame.header, "LEFT", 11, 0)
     frame.newButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- A click is a new note; a right-click starts any kind of list at once
+    -- (2026-11-03).
     frame.newButton:SetScript("OnClick", function(self, button)
-        if button == "RightButton" then
-            local rows = {
-                { text = L["NOTES_NEW"], onClick = function() notesNS.OpenNewNote(CreateNote("")) end },
-                { text = L["CHECK_NEW"], onClick = notesNS.NewChecklist },
-            }
-            -- An extension's own lists (a shopping list), in its icon.
-            local Extensions = ns.Extensions
-            for _, target in ipairs(Extensions and Extensions.AddTargets or {}) do
-                local owner = target.new and Extensions.Get(target.extension)
-                if owner then rows[#rows + 1] = { text = target.newLabel, icon = owner.icon, onClick = target.new } end
-            end
-            Utils.ShowCursorMenu("EasyNotesNewMenu", rows, { toggleOwner = self })
-            return
+        if button ~= "RightButton" then return notesNS.OpenNewNote(CreateNote("")) end
+        local function Start(prefix, name, shop)
+            local note = CreateNote(prefix)
+            note.scope = "account"
+            note.name = name
+            if notesNS.Checklist then notesNS.Checklist.Reconcile(note) end
+            if shop then notesNS.SetShopping(note, true) end
+            notesNS.OpenNewNote(note)
         end
-        notesNS.OpenNewNote(CreateNote(""))
+        local rows = {
+            { text = L["NOTES_NEW"], onClick = function() notesNS.OpenNewNote(CreateNote("")) end },
+            { text = L["NOTES_FMT_CHECKLIST"], onClick = notesNS.NewChecklist },
+            { text = L["NOTES_FMT_SHOPPING"], tooltip = UI.ShoppingListTip(),
+              onClick = function() Start(CHECK_EMPTY_PREFIX, L["NOTES_FMT_SHOPPING"], true) end },
+            { text = L["NOTES_FMT_BULLETS"], onClick = function() Start(BULLET_PREFIX) end },
+            { text = L["NOTES_FMT_NUMBERED"], onClick = function() Start("1. ") end },
+        }
+        -- Other extensions' own lists, in their icon; the one that keeps
+        -- shopping lists is the Shopping list row already.
+        local Extensions = ns.Extensions
+        local keeper = notesNS.ListKeeper and notesNS.ListKeeper()
+        for _, target in ipairs(Extensions and Extensions.AddTargets or {}) do
+            local owner = target.new and target.extension ~= keeper and Extensions.Get(target.extension)
+            if owner then rows[#rows + 1] = { text = target.newLabel, icon = owner.icon, onClick = target.new } end
+        end
+        Utils.ShowCursorMenu("EasyNotesNewMenu", rows, { toggleOwner = self })
     end)
     frame.newButton:SetScript("OnEnter", function(self)
         if ns.SetRoundedRectFill and not UI.PaintClassicButton(self, true) and not UI.PaintLightButton(self, true) then local c = ns.ThemeSetOf(self).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(self, c[1]+(1-c[1])*0.18, c[2]+(1-c[2])*0.18, c[3]+(1-c[3])*0.18, 1, true) end
@@ -5308,7 +5332,8 @@ function UI:EnsureEasyNotesFrame()
 
     frame.formatButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.formatButton, "T", BTN_W, BTN_H)
-    frame.formatButton:SetPoint("LEFT", frame.footer, "LEFT", 11, 2)
+    -- In the corner, the header buttons' gap from the edges (2026-11-03).
+    frame.formatButton:SetPoint("BOTTOMLEFT", frame.footer, "BOTTOMLEFT", 5, 5)
     frame.formatButton:SetFrameLevel(frame.footer:GetFrameLevel() + 20)
     frame.formatButton.text:SetTextColor(0.78, 0.78, 0.82, 1)
     frame.formatButton:SetScript("OnClick", function() UI:ToggleEasyNotesToolbar() end)
@@ -5348,7 +5373,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.findButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.findButton, "", BTN_W, BTN_H)
-    frame.findButton:SetPoint("LEFT", frame.footer, "LEFT", 33, 2)
+    frame.findButton:SetPoint("LEFT", frame.formatButton, "RIGHT", 4, 0)
     if frame.findButton.text then frame.findButton.text:Hide() end
     do
         local t = frame.findButton:CreateTexture(nil, "OVERLAY")
@@ -5889,7 +5914,6 @@ function UI:ToggleEasyNotesToolbar()
         if frame.formatButton and frame.formatButton.text then
             frame.formatButton.text:SetText(on and "x" or "T")
         end
-        if frame.charCounter then frame.charCounter:SetShown(not on) end
     end)
     NormalizeDB().toolbarShown = on
 end
@@ -7408,7 +7432,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
     UI:LayoutEasyNotesChrome(frame._efSkin ~= nil)
     if frame.footer then frame.footer:SetShown(shown) end
     if frame.charCounter then
-        frame.charCounter:SetShown(shown and not UI._notes.toolbarShown)
+        frame.charCounter:SetShown(shown)
     end
     if frame.formatButton and frame.formatButton.text then
         frame.formatButton.text:SetText(UI._notes.toolbarShown and "x" or "T")
@@ -8274,7 +8298,7 @@ function UI:ToggleEasyNotesChecklistMenu(opt)
     self:ShowEasyNotesMenu("EasyNotesChecklistMenu", {
         { text = L["NOTES_FMT_CHECKLIST"], icon = (CK.Is(note) and not shopping) and MENU_CHECK_TEX or nil,
           onClick = function() UI:PickEasyNotesListKind(false) end },
-        { text = L["NOTES_FMT_SHOPPING"], icon = shopping and MENU_CHECK_TEX or nil,
+        { text = L["NOTES_FMT_SHOPPING"], icon = shopping and MENU_CHECK_TEX or nil, tooltip = UI.ShoppingListTip(),
           onClick = function() UI:PickEasyNotesListKind(true) end },
     }, { anchorFrame = opt, point = "TOP", relativePoint = "BOTTOM", offsetX = 0, offsetY = -8 })
 end
@@ -8296,6 +8320,9 @@ function UI:PickEasyNotesListKind(shop)
         return
     end
     if mark ~= CHECK_EMPTY_PREFIX and mark ~= CHECK_FILLED_PREFIX then self:ApplyEasyNotesFormat(box, nil, nil, cursor) end
+    -- The box just typed is stored first: the kind change reloads the
+    -- editor from the note, and an empty note lost it (2026-11-03).
+    UpdateBody(note.id, editor:GetText() or "")
     notesNS.SetShopping(note, shop)
 end
 

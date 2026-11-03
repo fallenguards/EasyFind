@@ -187,12 +187,14 @@ function CK.ReadContent(line, content, items, settle)
             if k ~= "text" then new[k] = line[k] end
         end
     elseif fromLink and fromLink.item then
-        new = { item = fromLink.item, link = count and "item" or nil, target = count }
+        -- A count is a shopping list's, ticked from the bags; a checklist
+        -- (a reminder, a list for someone) keeps it as words (2026-11-03).
+        new = { item = fromLink.item, link = (items and count) and "item" or nil, target = items and count or nil }
     elseif fromLink then
         new = fromLink
     else
         if line.item and slower(words) == slower(ItemName(line.item)) then
-            new = { item = line.item, link = count and "item" or nil, target = count }
+            new = { item = line.item, link = (items and count) and "item" or nil, target = items and count or nil }
         elseif items and settle then
             -- A name ending in a number ("Net-o-Matic 5000") is the item.
             local whole = CK.ItemByName(content)
@@ -610,14 +612,27 @@ end
 function CK.LineState(note, line)
     local c = Ctx(note)
     local link = line.link and LINKS[line.link]
+    -- An item's count ticks only in a shopping list; elsewhere the hand does.
+    local items = CK.ItemsList(note)
+    if line.link == "item" and not items then link = nil end
     if not link then
-        return CK.Ticked(note, line, c.char), line.target and sformat(L["CHECK_COUNT_FMT"], line.target), nil
+        return CK.Ticked(note, line, c.char), (items and line.target) and sformat(L["CHECK_COUNT_FMT"], line.target) or nil, nil
     end
     local done, progress, detail, have, need = link.State(line, c)
     local seen = note.list.seen
     seen[c.char] = seen[c.char] or {}
     seen[c.char][line.id] = { d = done and true or nil, p = progress, t = time() }
     return done, progress, detail, have, need
+end
+
+-- How many of a line's item are left to buy: its count less what is had,
+-- one for a line with no count, none once it is done; nil for no item.
+function CK.ItemsLeft(note, line)
+    if not line.item then return nil end
+    local done, _, _, have, need = CK.LineState(note, line)
+    if done then return 0 end
+    if need and have then return mmax(0, need - have) end
+    return 1
 end
 
 function CK.LineName(line)
@@ -761,12 +776,28 @@ function CK.ItemsList(note)
     return link ~= nil and link.items == true
 end
 
--- A checklist with an item on it: it offers to become a shopping list,
--- until the player says no for that note (list.shopDeclined).
+-- A checklist with an item on it, linked or typed by name ("linen cloth"
+-- stays words in a checklist): it offers to become a shopping list, until
+-- the player says no for that note (list.shopDeclined). A name's answer is
+-- kept: the catalog lookup is too slow for every repaint (2026-11-03).
+local namedItems, namedCount = {}, 0
 function CK.OffersShopping(note)
     if not CK.Is(note) or CK.ItemsList(note) or note.list.shopDeclined then return false end
+    -- "Never show again" on the offer, or off in Notes' settings.
+    local db = EasyFind and EasyFind.db
+    if db and db.notesShopOffer == false then return false end
     for _, line in ipairs(note.list.lines) do
         if line.item then return true end
+        local words = line.text and CK.SplitCount(line.text)
+        if words and #words >= 3 then
+            local id = namedItems[words]
+            if id == nil then
+                if namedCount >= 500 then namedItems, namedCount = {}, 0 end
+                id = CK.ItemByName(words) or false
+                namedItems[words], namedCount = id, namedCount + 1
+            end
+            if id then return true end
+        end
     end
     return false
 end
@@ -805,6 +836,20 @@ function CK.ItemByName(name)
     local hits = search:Search(want, function(n, ql, qLen) return db:ScoreName(n, ql, qLen) end)
     for i = 1, hits and #hits or 0 do
         if hits[i].data.nameLower == want then return hits[i].data.itemID end
+    end
+end
+
+-- A line's words as typed in the body, its count off and a link as its
+-- name in brackets: what an item is called before the client has its name.
+function CK.LineWords(note, line)
+    for _, d in ipairs(note.decorations or {}) do
+        if d.kind == "line" and d.id == line.id then
+            local body = note.body or ""
+            local stop = sfind(body, "\n", d.startByte, true)
+            local words = CK.SplitCount(CK.Unfold(body:sub(d.startByte + #CK.EMPTY, (stop or #body + 1) - 1)))
+            words = smatch(words, "|h%[(.-)%]|h") or words
+            return words ~= "" and words or nil
+        end
     end
 end
 

@@ -86,6 +86,7 @@ end
 function tests.itemLine_countsBagsBankAndOtherCharacters()
     local CK, w = Load()
     local note = NewNote(CK, "account")
+    note.list.shopping = true
     local line = CK.AppendLine(note, { link = "item", item = 13468, target = 10 })
     w.bags[13468], w.bank[13468] = 4, 2
     w.stored[13468] = { ["Alt-Realm"] = { bags = 3, bank = 0 }, ["Tester-Realm"] = { bags = 4, bank = 2 } }
@@ -100,6 +101,7 @@ end
 function tests.itemLine_perCharacterListCountsOnlyThisCharacter()
     local CK, w = Load()
     local note = NewNote(CK, "character")
+    note.list.shopping = true
     local line = CK.AppendLine(note, { link = "item", item = 1, target = 5 })
     w.bags[1] = 2
     w.stored[1] = { ["Alt-Realm"] = { bags = 9, bank = 0 } }
@@ -148,6 +150,7 @@ end
 function tests.board_listsEveryCharacterThatReadTheList()
     local CK, w = Load()
     local note = NewNote(CK, "character")
+    note.list.shopping = true
     local line = CK.AppendLine(note, { link = "item", item = 1, target = 1 })
     w.bags[1] = 1
     CK.LineState(note, line)
@@ -262,14 +265,21 @@ function tests.readContent_linksCountsAndNames()
     CK.Reconcile(note)
     local lines = note.list.lines
     H.assertEq(lines[1].item, 5)
-    H.assertEq(lines[1].link, "item", "a count after a link: counted toward it")
-    H.assertEq(lines[1].target, 20)
+    -- A checklist (a reminder, a list for someone) keeps a count as words,
+    -- ticked by hand (2026-11-03).
+    H.assertNil(lines[1].link, "a checklist's count stays words")
+    H.assertNil(lines[1].target)
     H.assertNil(lines[1].text)
     H.assertEq(lines[2].text, "Repair 2", "plain words stay as typed, number and all")
     H.assertNil(lines[2].target)
     H.assertEq(lines[3].link, "quest")
     H.assertEq(lines[3].quest, 4321)
     H.assertNil(lines[4].link, "a spell's link is words; a cooldown is tracked on purpose")
+    -- A shopping list counts toward it.
+    note.list.shopping = true
+    CK.Reconcile(note)
+    H.assertEq(lines[1].link, "item", "a count after a link: counted toward it")
+    H.assertEq(lines[1].target, 20)
     -- The link's count changed in the words.
     note.body = note.body:gsub("x20", "x7")
     CK.Reconcile(note)
@@ -375,6 +385,7 @@ end
 function tests.linked_entriesComeInByRef()
     local CK = Load()
     local note = NewNote(CK, "account")
+    note.list.shopping = true
     local changed = CK.SyncLinked(note, {
         { ref = "\"Linen Cloth\";;;;;;;;;;;;;;20", line = { link = "item", item = 2589, target = 20 } },
         { ref = "Dust", line = { text = "Dust" } },
@@ -447,6 +458,7 @@ end
 function tests.reconcile_givesAMarkWithoutAnIdANewOne()
     local CK = Load()
     local note = NewNote(CK)
+    note.list.shopping = true
     note.body = CK.EMPTY .. LINK5 .. " x3\n" .. CK.EMPTY .. "Repair"
     CK.Reconcile(note)
     H.assertEq(IDs(note), "1 2")
@@ -478,6 +490,24 @@ function tests.notesCopiesOfDecorationsKeepEveryField()
     H.assertEq(copy[2].r, 1)
     H.assertTrue(copy[1] ~= from[1], "its own tables")
     H.assertTrue(src:find("Fmt.CopyDecorations(state.decos, decos)", 1, true) ~= nil, "undo and redo restore whole marks")
+end
+
+-- What a line is called as typed, for an item the client cannot name yet
+-- (Hearthstone, known to the catalog only, left the Auctionator list,
+-- 2026-11-03): the words, a link's bracketed name, never its count.
+function tests.lineWords_asTyped_aLinksName_noCount()
+    local CK = Load()
+    local note = NewNote(CK)
+    note.body = CK.EMPTY .. "Hearthstone\n" .. CK.EMPTY .. LINK5 .. " x2\n" .. CK.EMPTY
+    CK.Reconcile(note)
+    local lines = note.list.lines
+    H.assertEq(#lines, 3)
+    H.assertEq(CK.LineWords(note, lines[1]), "Hearthstone")
+    H.assertEq(CK.LineWords(note, lines[2]), "Thing", "a link's name")
+    H.assertNil(CK.LineWords(note, lines[3]), "an empty line has none")
+    local src = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb")):read("*a")
+    H.assertTrue(src:find("local name = line.item and (C_Item.GetItemNameByID(line.item) or CK.LineWords(note, line))", 1, true) ~= nil,
+        "an extension hears the name: the client's, else as typed")
 end
 
 local pass, fail, failures = H.runSuite("Checklists", tests)

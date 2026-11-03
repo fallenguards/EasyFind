@@ -18,16 +18,36 @@ local function BuildNotesSettings(page, kit)
     local anchor = kit.Title(page, L["APP_NOTES"], L["NOTES_OPT_HINT"])
     local options = { { "notesHereFilter", "NOTES_OPT_HERE" }, { "notesTooltips", "NOTES_OPT_TOOLTIPS" },
                       { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" },
-                      { "notesClickHint", "NOTES_OPT_CLICK_HINT" } }
+                      { "notesClickHint", "NOTES_OPT_CLICK_HINT" }, { "notesShopOffer", "NOTES_OPT_SHOP_OFFER" },
+                      { "notesPriceLines", "NOTES_OPT_PRICE_LINES" }, { "notesPriceTotal", "NOTES_OPT_PRICE_TOTAL" } }
+    local function Changed()
+        if API.HasAction("notes", "refresh") then API.CallAction("notes", "refresh") end
+        if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged() end
+    end
     for i, o in ipairs(options) do
         local key = o[1]
         local box = kit.Checkbox(page, L[o[2]], function() return EasyFind.db[key] ~= false end,
             function(on)
                 EasyFind.db[key] = on
-                if API.HasAction("notes", "refresh") then API.CallAction("notes", "refresh") end
+                Changed()
             end, L[o[2] .. "_TT"])
         box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
         anchor = box
+    end
+    -- Shopping list prices from: what the extensions offer, else the first with one.
+    local offered = ns.PriceChoices and ns.PriceChoices() or {}
+    if #offered > 0 then
+        local any = ns.PRICE_ANY
+        local choices = { { value = any, label = L["NOTES_PRICES_ANY"] } }
+        for _, c in ipairs(offered) do choices[#choices + 1] = c end
+        local row = kit.Choice(page, L["NOTES_OPT_PRICE_SOURCE"], choices,
+            function() return EasyFind.db.notesPriceSource or any end,
+            function(v)
+                if v == any then EasyFind.db.notesPriceSource = nil else EasyFind.db.notesPriceSource = v end
+                Changed()
+            end, nil, any)
+        row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
+        anchor = row
     end
     local open = kit.Button(page, L["NOTES_OPT_OPEN"], 140, 22)
     open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
@@ -57,6 +77,11 @@ API.RegisterSearchProvider({
         ns.Extensions.DbOption("notesChatNames", L["NOTES_OPT_CHAT_NAMES"], L["NOTES_OPT_CHAT_NAMES_TT"]),
         ns.Extensions.DbOption("notesPlayerMenu", L["NOTES_OPT_PLAYER_MENU"], L["NOTES_OPT_PLAYER_MENU_TT"]),
         ns.Extensions.DbOption("notesClickHint", L["NOTES_OPT_CLICK_HINT"], L["NOTES_OPT_CLICK_HINT_TT"]),
+        ns.Extensions.DbOption("notesShopOffer", L["NOTES_OPT_SHOP_OFFER"], L["NOTES_OPT_SHOP_OFFER_TT"]),
+        ns.Extensions.DbOption("notesPriceLines", L["NOTES_OPT_PRICE_LINES"], L["NOTES_OPT_PRICE_LINES_TT"],
+            function() if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged() end end),
+        ns.Extensions.DbOption("notesPriceTotal", L["NOTES_OPT_PRICE_TOTAL"], L["NOTES_OPT_PRICE_TOTAL_TT"],
+            function() if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged() end end),
         ns.Extensions.DbOption("notesSurfaceHere", L["NOTES_OPT_SURFACE"], L["NOTES_OPT_SURFACE_TT"]),
     },
 })

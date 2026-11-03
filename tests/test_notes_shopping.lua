@@ -51,11 +51,13 @@ local function Load()
     local fenv = setmetatable({
         notesNS = notesNS, ns = ns, L = { NOTES_SHOP_OFF_ASK = "%s|%s", NOTES_SHOP_OFF_ACCEPT = "Delete list" },
         Utils = { sformat = string.format }, NoteTitle = function(n) return n.name end, time = os.time,
+        -- The client names no item yet: the names come from the words.
+        C_Item = { GetItemNameByID = function() return nil end },
         tremove = table.remove, geterrorhandler = function() return print end,
         tContains = function(t, v) for _, x in ipairs(t) do if x == v then return true end end return false end,
     }, { __index = _G })
     assert(load(chunk, "=SetShopping", "t", fenv))()
-    return notesNS, CK, ns, dialog
+    return notesNS, CK, ns, dialog, env
 end
 
 local function Checklist(CK)
@@ -98,6 +100,8 @@ function tests.on_theKeeperMakesAListOfIt_filedUnderItsCategory()
     H.assertEq(#log.adopt[3], 2, "with its lines")
     H.assertEq(log.adopt[3][1].item, 1181)
     H.assertEq(log.adopt[3][1].target, 3)
+    H.assertEq(log.adopt[3][1].name, "Scroll of Spirit", "named as typed while the client has no name")
+    H.assertNil(log.adopt[3][2].name, "a line of words has no item name")
     H.assertTrue(log.adopt[3][1].id ~= nil, "each line with its id, for the refs")
     H.assertDeepEq(note.list.source, { ext = "auctionator", key = "raid consumes" }, "the note follows that list")
     H.assertDeepEq(note.categories, { "Raids", "ShoppingLists" }, "its own category kept, the list's added")
@@ -174,23 +178,32 @@ function tests.theChecklistChoice_kindAndLine()
     H.assertTrue(menu:find('L["NOTES_FMT_CHECKLIST"]', 1, true) and menu:find('L["NOTES_FMT_SHOPPING"]', 1, true), "both kinds by name")
     H.assertTrue(menu:find("self:ShowEasyNotesMenu(", 1, true) ~= nil, "the shared menu, Esc and outside clicks with it")
     local BOX = "\226\150\161 "
-    local applied, shopped, text, isShop = {}, {}, "", false
+    local applied, shopped, text, isShop, order = {}, {}, "", false, {}
     local editor = { GetText = function() return text end, GetCursorPosition = function() return #text end }
     local UI = { _notes = { frame = { editor = editor } } }
-    function UI:ApplyEasyNotesFormat(action) applied[#applied + 1] = action.mode end
+    function UI:ApplyEasyNotesFormat(action)
+        applied[#applied + 1] = action.mode
+        text = BOX .. text
+    end
     local env = setmetatable({
         UI = UI, CHECK_EMPTY_PREFIX = BOX, CHECK_FILLED_PREFIX = "\226\150\163 ",
         GetSelectedNote = function() return {} end,
         FindLineStartByte = function(t, pos) local nl = t:sub(1, pos):find("\n[^\n]*$") return nl and nl + 1 or 1 end,
         MatchLinePrefix = function(t, at) return t:sub(at, at + #BOX - 1) == BOX and #BOX or 0 end,
+        UpdateBody = function(_, body) order[#order + 1] = "saved:" .. body end,
         notesNS = { Checklist = { ItemsList = function() return isShop end },
-                    SetShopping = function(_, on) shopped[#shopped + 1] = on end },
+                    SetShopping = function(_, on) shopped[#shopped + 1] = on order[#order + 1] = "kind" end },
     }, { __index = _G })
     assert(load(Extract(src, "function UI:PickEasyNotesListKind(shop)"), "=Pick", "t", env))()
     text = "plain words"
     UI:PickEasyNotesListKind(true)
     H.assertEq(#applied, 1, "a line with no box gets one")
     H.assertEq(shopped[1], true, "and the note is a shopping list")
+    -- The kind change reloads the editor from the note: an empty note
+    -- lost the box just typed (2026-11-03).
+    text, order = "", {}
+    UI:PickEasyNotesListKind(true)
+    H.assertEq(table.concat(order, " "), "saved:" .. BOX .. " kind", "the box stored before the kind changes")
     applied, shopped, isShop, text = {}, {}, true, BOX .. "Linen Cloth"
     UI:PickEasyNotesListKind(true)
     H.assertEq(#applied, 1, "the kind it is: the line's box flips")
@@ -199,6 +212,71 @@ function tests.theChecklistChoice_kindAndLine()
     UI:PickEasyNotesListKind(false)
     H.assertEq(#applied, 0, "the line keeps its box")
     H.assertEq(shopped[1], false, "a checklist again (asked there)")
+end
+
+-- Names typed in a checklist stay words there, so the offer looks them up
+-- ("linen cloth", "copper ore" brought none, 2026-11-03); "Never show
+-- again" (notesShopOffer false) ends it for every note.
+function tests.typedItemNamesBringTheOffer_untilNeverAgain()
+    local _, CK, _, _, env = Load()
+    local ids = { ["linen cloth"] = 2589, ["copper ore"] = 2770 }
+    local lookups = 0
+    local note = { id = 4, body = "", decorations = {} }
+    CK.Init(note)
+    note.body = CK.EMPTY .. "call the guild\n" .. CK.EMPTY .. "linen cloth x20"
+    CK.Reconcile(note)
+    H.assertNil(note.list.lines[2].item, "a typed name stays words in a checklist")
+    CK.ItemByName = function(name) lookups = lookups + 1 return ids[name:lower()] end
+    H.assertTrue(CK.OffersShopping(note), "a typed item name brings the offer")
+    local before = lookups
+    CK.OffersShopping(note)
+    H.assertEq(lookups, before, "each name looked up once, not at every repaint")
+    env.EasyFind.db = env.EasyFind.db or {}
+    env.EasyFind.db.notesShopOffer = false
+    H.assertFalse(CK.OffersShopping(note), "never again, on any note")
+end
+
+-- The offer's box and its X in the corner; Notes' settings turn it back on.
+function tests.theOffer_neverBox_andTheSettingBack()
+    local lines = Read("Apps/Notes/Lines.lua")
+    H.assertTrue(lines:find('row.never = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")', 1, true) ~= nil, "the box")
+    H.assertTrue(lines:find('row.never.text:SetText(L["NOTES_SHOP_NEVER"])', 1, true) ~= nil)
+    H.assertTrue(lines:find('row.x:SetPoint("TOPRIGHT", row, "TOPRIGHT", -5, -5)', 1, true) ~= nil, "the X in the top right")
+    H.assertTrue(lines:find("if row.never:GetChecked() and EasyFind and EasyFind.db then EasyFind.db.notesShopOffer = false end", 1, true) ~= nil,
+        "the box ticked, the X or Convert ends the offer everywhere")
+    local ext = Read("Core/Extensions.lua")
+    H.assertTrue(ext:find('{ "notesShopOffer", "NOTES_OPT_SHOP_OFFER" }', 1, true) ~= nil, "in Notes' settings page")
+    H.assertTrue(ext:find('DbOption("notesShopOffer", L["NOTES_OPT_SHOP_OFFER"], L["NOTES_OPT_SHOP_OFFER_TT"])', 1, true) ~= nil,
+        "and the search bar's options")
+end
+
+-- Notes' tooltips wrap: the offer's two sentences ran across the screen
+-- on one line (2026-11-03).
+function tests.notesTooltipsWrap()
+    local src = Read("Apps/Notes/Notes.lua")
+    local s = assert(src:find("function UI:ShowNotesTipDelayed(region, anchor, text)", 1, true))
+    local body = src:sub(s, (src:find("\nend\n", s, true)))
+    H.assertTrue(body:find("GameTooltip:SetText(text, c and c.r or 1, c and c.g or 0.82, c and c.b or 0, 1, true)", 1, true) ~= nil,
+        "wrapped")
+    H.assertNil(body:find("ShowThemedTooltip", 1, true), "no call to a helper that does not exist")
+end
+
+-- The + button: a click a new note, a right-click any kind of list at
+-- once; the extension that keeps shopping lists is that row, not a second.
+-- The footer's T sits in the corner and the character count stays with
+-- the toolbar on (2026-11-03).
+function tests.theNewMenu_everyKind_andTheFooter()
+    local src = Read("Apps/Notes/Notes.lua")
+    local s = assert(src:find('frame.newButton:SetScript("OnClick", function(self, button)', 1, true))
+    local body = src:sub(s, s + 2200)
+    for _, key in ipairs({ "NOTES_NEW", "NOTES_FMT_CHECKLIST", "NOTES_FMT_SHOPPING", "NOTES_FMT_BULLETS", "NOTES_FMT_NUMBERED" }) do
+        H.assertTrue(body:find(("L[%q]"):format(key), 1, true) ~= nil, key)
+    end
+    H.assertTrue(body:find("Start(CHECK_EMPTY_PREFIX, L[\"NOTES_FMT_SHOPPING\"], true)", 1, true) ~= nil, "a shopping list at once")
+    H.assertTrue(body:find("target.extension ~= keeper", 1, true) ~= nil, "no second shopping list row")
+    H.assertTrue(src:find('frame.formatButton:SetPoint("BOTTOMLEFT", frame.footer, "BOTTOMLEFT", 5, 5)', 1, true) ~= nil, "T in the corner")
+    H.assertTrue(src:find("frame.charCounter:SetShown(shown)\n", 1, true) ~= nil, "the count stays with the toolbar on")
+    H.assertNil(src:find("charCounter:SetShown(not on)", 1, true))
 end
 
 local pass, fail, failures = H.runSuite("NotesShopping", tests)

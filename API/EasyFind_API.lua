@@ -270,7 +270,7 @@ function API.Fire(id, event, ...) end
 ---@field line { item: integer?, link: string?, target: number?, text: string? }
 
 ---@class EasyFindChecklistLinks
----@field changed fun(noteID: integer, key: string, lines: table[])? the player's edits, every line in order
+---@field changed fun(noteID: integer, key: string, lines: table[])? the player's edits, every line in order: { id, ref, item, link, target, text, name }, name an item line's (the client's, or as typed while the client has none; MINOR 7)
 ---@field shown fun(noteID: integer, key: string)? the note opened in Notes: sync it now
 ---@field category { key: string, label: string }? a note category of your own, your notes filed under it
 ---@field items boolean? names typed in your notes are items, each with a count, and the editor suggests them
@@ -291,6 +291,22 @@ function API.SyncChecklist(noteID, entries) end
 ---@param refs table<integer, string> lineID -> ref
 function API.SetChecklistRefs(noteID, refs) end
 function API.OpenNote(noteID) end
+
+-- ==== prices and auction searches ==============================================
+
+---@class EasyFindPriceSource
+---@field sources { key: string, label: string }[]|fun(): { key: string, label: string }[] the kinds of price you offer, your main one first (used when the player picked none)
+---@field price fun(key: string, itemID: integer, link: string?): integer?, string? one item's price in copper (nil for none) and a note for its tooltip ("Seen today")
+---@field label string? the name the player picks it by; your extension's name by default
+
+---Prices for Notes' shopping lists: a line's price is what is left to buy, the total their sum (MINOR 7).
+---@param def EasyFindPriceSource
+function API.RegisterPriceSource(id, def) end
+---Your prices changed (a scan finished): the lists show them again (MINOR 7).
+function API.RefreshPrices(id) end
+---fn(link, name): the player asked to search an item at an open auction house; search it your way and return true when you did. Asked before the house's own search box (MINOR 7).
+---@param fn fun(link: string?, name: string): boolean?
+function API.RegisterAuctionSearch(id, fn) end
 
 -- ==== settings ================================================================
 

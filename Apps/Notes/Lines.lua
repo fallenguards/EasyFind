@@ -190,35 +190,62 @@ local function Layer(editor)
     return layer
 end
 
--- The house: retail's frame, or the classic one.
 local function AuctionOpen()
-    local ah = _G["AuctionHouseFrame"] or _G["AuctionFrame"]
-    return ah ~= nil and ah:IsShown()
+    return notesNS.Context.WindowOpen("auctionhouse")
+end
+
+-- Shown and not shrunk away: TSM keeps retail's house shown at scale 0.001.
+local function InSight(frame)
+    return frame ~= nil and frame:IsShown() and frame:GetScale() > 0.01
 end
 
 -- The line searched at the auction house: by the extension its list is
 -- linked to when that searches (the list's own term), else the item's
--- name in the house's own bar (retail's, or the classic browse box).
+-- name in the house's own bar (retail's, or the classic browse box), else
+-- its link where linked items go.
 local function SearchAH(note, line)
     if notesNS.LinkedSearch and notesNS.LinkedSearch(note, line) then
         S().lastSearched = line.id
         return
     end
     local name = line.item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(line.item)
-    if not name then return end
+    -- A name typed in a checklist stays words: they are the search.
+    if not name and line.text and not line.link then name = (CK.SplitCount(line.text)) end
+    -- An item the client has no name for yet goes by the words typed for it.
+    if not name and line.item then name = CK.LineWords(note, line) end
+    if not name or name == "" then return end
+    -- An extension's own search, where its window is the one up (TSM's
+    -- auction window hides the house's own box; API.RegisterAuctionSearch).
+    local link = line.item and C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(line.item))
+    for _, fn in pairs(ns.AuctionSearches or {}) do
+        local ok, took = xpcall(fn, geterrorhandler(), link, name)
+        if ok and took == true then
+            S().lastSearched = line.id
+            return
+        end
+    end
     local ah, classic = _G["AuctionHouseFrame"], _G["AuctionFrame"]
-    local bar = ah and ah:IsShown() and ah.SearchBar
+    local bar = InSight(ah) and ah.SearchBar
     if bar and bar.SetSearchText and bar.StartSearch then
         bar:SetSearchText(name)
         bar:StartSearch()
-    elseif classic and classic:IsShown() and _G["BrowseName"] and _G["AuctionFrameBrowse_Search"] then
+    elseif InSight(classic) and _G["BrowseName"] and _G["AuctionFrameBrowse_Search"] then
+        -- On the Browse tab, where the box is: on another (Bids, an addon's)
+        -- the search ran out of sight (2026-11-03).
+        local browse, tab = _G["AuctionFrameBrowse"], _G["AuctionFrameTab1"]
+        if browse and not browse:IsShown() and tab and _G["AuctionFrameTab_OnClick"] then _G["AuctionFrameTab_OnClick"](tab) end
         _G["BrowseName"]:SetText(name)
         _G["AuctionFrameBrowse_Search"]()
+    elseif link and _G["ChatEdit_InsertLink"] and not (ChatFrameUtil and ChatFrameUtil.GetActiveWindow()) then
+        -- Another addon's auction window over the house's (TSM's): the item
+        -- goes where a linked item goes, never into an open chat box.
+        _G["ChatEdit_InsertLink"](link)
     else
         return
     end
     S().lastSearched = line.id
 end
+Lines.SearchAH = SearchAH
 
 -- The next item line still short of its target, after the last searched.
 local function SearchNext(note)
@@ -349,11 +376,13 @@ local function LineMenu(tail)
     local note, line = Note(), tail.line
     if not (note and line) then return end
     local rows = {}
-    if AuctionOpen() and (line.link == "item" or (note.list.source and (line.text or "") ~= "")) then
+    if AuctionOpen() and (line.item or line.link == "item" or (note.list.source and (line.text or "") ~= "")) then
         rows[#rows + 1] = { text = L["CHECK_SEARCH_AH"], onClick = function() SearchAH(note, line) end }
     end
     local counts = line.link or (line.item and "item")
-    if TARGET_ASK[counts] then
+    -- A checklist's items are ticked by hand: no count to set.
+    if counts == "item" and not CK.ItemsList(note) then counts = nil end
+    if counts and TARGET_ASK[counts] then
         rows[#rows + 1] = { text = L["CHECK_SET_TARGET"], onClick = function()
             local cur = counts == "gold" and mfloor((line.target or 0) / 10000) or line.target
             Ask(L[TARGET_ASK[counts]], cur, function(n)
@@ -424,6 +453,125 @@ local function EditCount(tail)
     box:HighlightText()
 end
 
+-- Prices on a shopping list (2026-11-03): from the source the player
+-- picked (EasyFind.db.notesPriceSource "id:key"), else each item's first
+-- extension with a price, at its main kind; one item's price kept a
+-- minute, a line's the price of what is left to buy, the total their sum.
+local prices = { cache = {} }
+local function MoneyText(copper)
+    local fn = C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString or GetCoinTextureString
+    return fn and copper and copper > 0 and fn(copper) or nil
+end
+Lines.MoneyText = MoneyText
+
+-- Every source on offer; firsts: each extension's main kind.
+local function Choices()
+    if not prices.choices then
+        local list = ns.PriceChoices and ns.PriceChoices() or {}
+        local firsts, seen = {}, {}
+        for _, c in ipairs(list) do
+            if not seen[c.id] then
+                seen[c.id] = true
+                firsts[#firsts + 1] = c
+            end
+        end
+        prices.choices, prices.firsts = list, firsts
+    end
+    return prices.choices
+end
+
+-- The player's pick; nil for the first with a price.
+local function PickedPrice()
+    local want = EasyFind.db and EasyFind.db.notesPriceSource
+    for _, c in ipairs(Choices()) do
+        if c.value == want then return c end
+    end
+end
+
+local function SourcePrice(c, itemID)
+    local k, now = c.value .. ":" .. itemID, GetTime()
+    local hit = prices.cache[k]
+    if not (hit and now - hit.at < 60) then
+        local link = C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(itemID))
+        local ok, copper, note = xpcall(ns.PriceSources[c.id].price, geterrorhandler(), c.key, itemID, link)
+        hit = { at = now, copper = ok and type(copper) == "number" and copper > 0 and copper or false, note = ok and note or nil }
+        prices.cache[k] = hit
+    end
+    return hit
+end
+
+-- One item's price in copper, its note ("Seen today") and the source.
+local function UnitPrice(itemID)
+    if not itemID then return nil end
+    local c = PickedPrice()
+    if c then
+        local hit = SourcePrice(c, itemID)
+        if hit.copper then return hit.copper, hit.note, c end
+        return nil
+    end
+    Choices()
+    for _, first in ipairs(prices.firsts) do
+        local hit = SourcePrice(first, itemID)
+        if hit.copper then return hit.copper, hit.note, first end
+    end
+end
+
+local function PriceSwitch(key)
+    local db = EasyFind and EasyFind.db
+    return not (db and db[key] == false)
+end
+
+-- The sources the total came from: the pick, else the extensions used.
+local function TotalSource(used)
+    local picked = PickedPrice()
+    if picked then return picked.label end
+    local names = {}
+    for _, first in ipairs(prices.firsts or {}) do
+        if used[first.id] then names[#names + 1] = first.name end
+    end
+    return table.concat(names, ", ")
+end
+
+-- A source added, a scan done or a setting changed: every list again.
+function Lines.PricesChanged()
+    prices.choices, prices.cache = nil, {}
+    W.Each(function() NotesUI:QueueEasyNotesOverlayUpdate() end)
+end
+notesNS.PricesChanged = Lines.PricesChanged
+
+-- The total's menu: where prices come from, and what shows.
+function Lines.PriceMenu(anchor)
+    if not ns.ShowTogglePopup then return end
+    local db = EasyFind.db
+    local defs = { { kind = "title", label = L["NOTES_PRICES_FROM"] } }
+    local function Radio(label, value)
+        return { kind = "radio", label = label, value = value,
+            get = function()
+                local c = PickedPrice()
+                return c and c.value or ns.PRICE_ANY
+            end,
+            set = function(v)
+                if v == ns.PRICE_ANY then db.notesPriceSource = nil else db.notesPriceSource = v end
+                Lines.PricesChanged()
+            end }
+    end
+    defs[#defs + 1] = Radio(L["NOTES_PRICES_ANY"], ns.PRICE_ANY)
+    for _, c in ipairs(Choices()) do defs[#defs + 1] = Radio(c.label, c.value) end
+    local function Switch(key, label)
+        return { kind = "check", label = label, get = function() return PriceSwitch(key) end,
+            set = function(on)
+                if on then db[key] = nil else db[key] = false end
+                Lines.PricesChanged()
+            end }
+    end
+    defs[#defs + 1] = { kind = "separator" }
+    defs[#defs + 1] = { kind = "title", label = _G["SHOW"] or "Show" }
+    defs[#defs + 1] = Switch("notesPriceLines", L["NOTES_PRICES_LINES"])
+    defs[#defs + 1] = Switch("notesPriceTotal", _G["TOTAL"] or "Total")
+    local frame = Frame()
+    ns.ShowTogglePopup("EasyNotesPriceMenu", anchor, defs, { scale = frame and frame:GetScale() or 1 })
+end
+
 local function Tail(layer, i)
     local s = S()
     local tail = s.tails[i]
@@ -445,10 +593,16 @@ local function Tail(layer, i)
     tail.icon = tail:CreateTexture(nil, "ARTWORK")
     tail.icon:SetSize(14, 14)
     tail.icon:SetPoint("RIGHT", tail.text, "LEFT", -3, 0)
+    tail.price = tail:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ns.RegisterAddonFont(tail.price)
+    tail.price:SetJustifyH("RIGHT")
+    tail.price:SetWordWrap(false)
     tail:SetScript("OnEnter", function(self)
         self.x:Show()
         local line = self.line
         local tip = line and line.detail
+        -- One's price, how many are left, where it came from.
+        if self.priceTip then tip = tip and (self.priceTip .. "\n" .. tip) or self.priceTip end
         if line and line.link then tip = tip and (tip .. "\n" .. L["CHECK_AUTO_TT"]) or L["CHECK_AUTO_TT"] end
         if line and CK.HasCount(line) then tip = tip and (tip .. "\n" .. L["CHECK_COUNT_TT"]) or L["CHECK_COUNT_TT"] end
         if tip then NotesUI:ShowNotesTipDelayed(self, "ANCHOR_LEFT", tip) end
@@ -584,6 +738,7 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
     local folding = text == (note.body or "") and not (ui.curSelection or ui.inputBusy or ui.applyingFormat
         or editor._notesDragging or (IsShiftKeyDown and IsShiftKeyDown()))
     local byStart, edits, meter, caretAt, editorW, boxW = {}, {}, nil, nil, 0, 0
+    local shopping, showPrices = CK.ItemsList(note), PriceSwitch("notesPriceLines")
     if folding then
         for _, f in ipairs(CK.BodyLines(text)) do byStart[f.start] = f end
         meter = Meter(layer, editor)
@@ -606,7 +761,19 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
                 tail.text:SetText(progress or "")
                 local c = isDone and done or open
                 tail.text:SetTextColor(c[1], c[2], c[3], 1)
+                -- What is left to buy, at the picked price, a shopping list's.
+                local left = shopping and CK.ItemsLeft(note, line)
+                local unit, pnote, src
+                if left and left > 0 then unit, pnote, src = UnitPrice(line.item) end
+                tail.priceTip = unit and (sformat(L["NOTES_PRICE_EACH_FMT"], MoneyText(unit), left)
+                    .. "\n|cff999999" .. src.label .. (pnote and (", " .. pnote) or "") .. "|r") or nil
+                local cost = unit and showPrices and MoneyText(unit * left)
+                tail.price:SetText(cost or "")
+                tail.price:SetShown(cost ~= nil)
+                tail.price:ClearAllPoints()
+                tail.price:SetPoint("RIGHT", icon and tail.icon or tail.text, "LEFT", -4, 0)
                 local w = 16 + (progress and progress ~= "" and (tail.text:GetStringWidth() + 2) or 0) + (icon and 18 or 0)
+                    + (cost and tail.price:GetStringWidth() + 4 or 0)
                 tail:SetSize(mmax(22, w), lineH)
                 tail.lineY, tail.lineH = lineYs[p.line] or 0, lineH
                 tail:ClearAllPoints()
@@ -634,6 +801,12 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
                         local foldable, baked = FoldColor(note, f.contentStart, f.lineEnd, words)
                         -- The color goes in front of the link: a count typed first ("2 [x]") stays open.
                         if baked and raw:sub(1, #words) ~= words then foldable = false end
+                        -- A count the list does not keep (a checklist's) stays in sight after the name.
+                        local typed = ""
+                        if count and not CK.HasCount(line) then
+                            if raw:sub(1, #words) ~= words then foldable = false end
+                            typed, count = raw:sub(#words + 1), nil
+                        end
                         if foldable then
                             if baked then
                                 local link = words
@@ -641,8 +814,8 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
                                 raw = words .. raw:sub(#link + 1)
                             end
                             local label, color = Label(words)
-                            local cut = Fit(meter, label, room)
-                            if count or cut ~= label then want = CK.Fold(raw, cut, color) end
+                            local cut = Fit(meter, label, room - Width(meter, typed))
+                            if count or cut ~= label then want = CK.Fold(raw, cut .. typed, color) end
                         end
                     end
                     if want ~= content then
@@ -685,36 +858,47 @@ local function OfferRow(layer)
     end
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(14, 14)
-    row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.icon:SetPoint("TOPLEFT", row, "TOPLEFT", 8, -8)
     row.icon:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\tag")
+    -- "Never show again", as the box says, else no for this note alone.
+    row.never = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.never:SetSize(18, 18)
+    row.never:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 4, 3)
+    row.never.text = row.never:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.never.text:SetPoint("LEFT", row.never, "RIGHT", 2, 1)
+    row.never.text:SetText(L["NOTES_SHOP_NEVER"])
+    row.never:SetHitRectInsets(0, -(math.ceil(row.never.text:GetStringWidth()) + 4), 0, 0)
+    local function Settle(note)
+        if row.never:GetChecked() and EasyFind and EasyFind.db then EasyFind.db.notesShopOffer = false end
+        row.never:SetChecked(false)
+        Repaint(note)
+    end
     row.x = ns.CreateCloseX(row, 10)
-    row.x:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.x:SetPoint("TOPRIGHT", row, "TOPRIGHT", -5, -5)
     row.x:SetScript("OnClick", function()
         local note = Note()
         if not note then return end
         note.list.shopDeclined = true
-        Repaint(note)
+        Settle(note)
     end)
     row.convert = ns.CreateModernButton(row, L["NOTES_SHOP_CONVERT"], 60, 18)
     row.convert:SetWidth(math.ceil(row.convert._label:GetStringWidth()) + 20)
-    row.convert:SetPoint("RIGHT", row.x, "LEFT", -6, 0)
+    row.convert:SetPoint("TOPRIGHT", row, "TOPRIGHT", -22, -6)
     row.convert:SetScript("OnClick", function()
         local note = Note()
-        if note then notesNS.SetShopping(note, true) end
+        if not note then return end
+        notesNS.SetShopping(note, true)
+        Settle(note)
     end)
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.label:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 6, 1)
     row.label:SetPoint("RIGHT", row.convert, "LEFT", -6, 0)
     row.label:SetJustifyH("LEFT")
     row.label:SetWordWrap(true)
     if row.label.SetMaxLines then row.label:SetMaxLines(2) end
     row.label:SetText(L["NOTES_SHOP_OFFER"])
     -- What a shopping list adds, the Auctionator list where its extension is in.
-    local function Tip(self)
-        local tip = L["NOTES_SHOP_OFFER_TT"]
-        if notesNS.ListKeeper and notesNS.ListKeeper() then tip = tip .. "\n" .. L["NOTES_SHOP_OFFER_AH_TT"] end
-        NotesUI:ShowNotesTipDelayed(self, "ANCHOR_TOP", tip)
-    end
+    local function Tip(self) NotesUI:ShowNotesTipDelayed(self, "ANCHOR_TOP", NotesUI.ShoppingListTip()) end
     local function Untip(self) NotesUI:HideNotesTip(self) end
     row:SetScript("OnEnter", Tip)
     row:SetScript("OnLeave", Untip)
@@ -722,6 +906,66 @@ local function OfferRow(layer)
     row.convert:HookScript("OnLeave", Untip)
     s.offerRow = row
     return row
+end
+
+-- The list's total under its add line: the header's divider over it
+-- across the whole list, "Total" and the source, the sum of what is left
+-- to buy; a click opens where prices come from and what shows.
+local function TotalRow(layer)
+    local s = S()
+    if s.totalRow then return s.totalRow end
+    local row = CreateFrame("Button", nil, layer)
+    row:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
+    row:GetHighlightTexture():SetAlpha(0.2)
+    row.rule = row:CreateTexture(nil, "ARTWORK")
+    row.rule:SetColorTexture(0.18, 0.18, 0.20, 0.7)
+    row.rule:SetHeight(1)
+    row.rule:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.rule:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.label:SetText(_G["TOTAL"] or "Total")
+    row.money = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.money:SetJustifyH("RIGHT")
+    row.money:SetWordWrap(false)
+    row.source = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.source:SetJustifyH("LEFT")
+    row.source:SetWordWrap(false)
+    row:SetScript("OnClick", function(self) Lines.PriceMenu(self) end)
+    s.totalRow = row
+    return row
+end
+
+local function PlaceTotal(row, editor, note, y, lineH)
+    local sum, used = 0, {}
+    for _, line in ipairs(note.list.lines) do
+        local left = CK.ItemsLeft(note, line)
+        if left and left > 0 then
+            local unit, _, src = UnitPrice(line.item)
+            if unit then
+                sum = sum + unit * left
+                used[src.id] = true
+            end
+        end
+    end
+    local path, size, flags = editor:GetFont()
+    if path then
+        row.label:SetFont(path, size, flags or "")
+        row.money:SetFont(path, size, flags or "")
+    end
+    row.source:SetText(TotalSource(used))
+    row.money:SetText(MoneyText(sum) or "")
+    row.label:ClearAllPoints()
+    row.label:SetPoint("LEFT", row, "LEFT", Width(Meter(row:GetParent(), editor), CK.EMPTY), -2)
+    row.money:ClearAllPoints()
+    row.money:SetPoint("RIGHT", row, "RIGHT", -14, -2)
+    row.source:ClearAllPoints()
+    row.source:SetPoint("LEFT", row.label, "RIGHT", 6, 0)
+    row.source:SetPoint("RIGHT", row.money, "LEFT", -6, 0)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", editor, "TOPLEFT", 0, -y)
+    row:SetPoint("RIGHT", editor, "RIGHT", 0, 0)
+    row:SetHeight(lineH + 6)
+    row:Show()
 end
 
 -- Its ground as the note cards wear it: Era's thin edge under the Classic
@@ -754,9 +998,15 @@ function Lines.PlaceAddRow(editor, text, positions, lineYs, lineH, advance)
     local offerH = 0
     if offer then
         PaintOffer(offerRow)
-        offerH = mmax(26, (offerRow.label:GetStringHeight() or 0) + 12)
+        -- Another note's offer starts with the box clear.
+        if s.offerNote ~= note.id then
+            s.offerNote = note.id
+            offerRow.never:SetChecked(false)
+        end
+        offerH = mmax(18, offerRow.label:GetStringHeight() or 0) + 14 + 20
     end
-    local room = (on and lineH) or (offer and offerH + 6) or 0
+    local total = on and PriceSwitch("notesPriceTotal") and #Choices() > 0
+    local room = (on and lineH + (total and lineH + 10 or 0)) or (offer and offerH + 6) or 0
     if s.addRoom ~= room and editor.SetTextInsets then
         s.addRoom = room
         editor:SetTextInsets(0, 0, 0, room)
@@ -780,11 +1030,13 @@ function Lines.PlaceAddRow(editor, text, positions, lineYs, lineH, advance)
         offerRow:Show()
     end
     local row = s.addRow
+    if s.totalRow and not total then s.totalRow:Hide() end
     if not on then
         if row then row:Hide() end
         return
     end
     layer = Layer(editor)
+    if total then PlaceTotal(TotalRow(layer), editor, note, y + lineH + 4, lineH) end
     if not row then
         row = CreateFrame("Button", nil, layer)
         row:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
@@ -893,9 +1145,7 @@ end
 -- a search, and a scroll past 14.
 function Lines.TrackRows(note)
     local find, cap = L["SEARCH_PLACEHOLDER"], 14
-    return {
-        { text = L["CHECK_LINK_ITEM"], submenu = Empty(BagItemRows(note)), tooltip = L["CHECK_SHIFT_CLICK_TT"],
-          submenuSearch = find, submenuMaxRows = cap },
+    local rows = {
         { text = L["CHECK_LINK_QUEST"], submenu = Empty(QuestRows(note)), submenuSearch = find, submenuMaxRows = cap },
         { text = L["CHECK_LINK_REP"], submenu = Empty(FactionRows(note)), submenuSearch = find, submenuMaxRows = cap },
         { text = L["CHECK_LINK_GOLD"], onClick = function()
@@ -913,6 +1163,12 @@ function Lines.TrackRows(note)
             end)
         end },
     }
+    -- An item's count, ticked from the bags, is a shopping list's alone.
+    if CK.ItemsList(note) then
+        table.insert(rows, 1, { text = L["CHECK_LINK_ITEM"], submenu = Empty(BagItemRows(note)), tooltip = L["CHECK_SHIFT_CLICK_TT"],
+            submenuSearch = find, submenuMaxRows = cap })
+    end
+    return rows
 end
 
 -- The ticks' settings
@@ -1310,6 +1566,16 @@ function Lines.HookEditor(frame)
     end)
     -- A click or drag held the folds back; its release lets them through.
     editor:HookScript("OnMouseUp", function() NotesUI:QueueEasyNotesOverlayUpdate() end)
+    -- Ctrl+click on a line's words searches its item at an open auction
+    -- house, as on its icon; it did nothing there (2026-11-03).
+    editor:HookScript("OnMouseUp", function(self, button)
+        if button ~= "LeftButton" or not IsControlKeyDown() or not AuctionOpen() then return end
+        Utils.SafeAfter(0, W.Bound(function()
+            local note = Note()
+            local line = note and CK.LineAt(note, CaretLineStart(self, self:GetText() or ""))
+            if line and (line.item or (line.text and not line.link)) then SearchAH(note, line) end
+        end))
+    end)
     editor:HookScript("OnEditFocusLost", function()
         -- A press on a name takes the focus first: the pick still lands.
         Utils.SafeAfter(0, W.Bound(function()

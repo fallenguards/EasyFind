@@ -8,6 +8,7 @@ local H = require("Harness")
 local NIL_DEFAULT_SETTINGS = {
     "appearanceItemClass", "appearanceItemSlot", "appearanceItemSourceFilters", "heirloomFilter", "lootFilter",
     "npcFilters", "appsMenu", "chatFindMessages", "classicArt", "clipboardMaxDays", "clipboardMaxEntries",
+    "notesShopOffer", "notesPriceSource", "notesPriceLines", "notesPriceTotal",
     "optionsPosition", "themeStudioHoverPreview",
     "gpsArrowPos", "gpsArrowText", "gpsAutoLearn", "gpsBeaconStyle", "gpsCog", "gpsDockSlot", "gpsDocked", "gpsHideDone",
     "gpsLaunchWindow", "gpsLineColors", "gpsLineWidth", "gpsMapClick", "gpsNeverDock", "gpsPopout",

@@ -83,6 +83,17 @@ local WINDOWS = {
 local windowOpen = {}
 local onChange
 
+-- Notes loads on demand, maybe at an open house: the client's interaction.
+local PIM = C_PlayerInteractionManager
+if PIM and PIM.IsInteractingWithNpcOfType and Enum.PlayerInteractionType
+   and PIM.IsInteractingWithNpcOfType(Enum.PlayerInteractionType.Auctioneer) then
+    windowOpen.auctionhouse = true
+end
+
+-- Open by the client's events, not a frame: another addon's window can
+-- stand in for the client's (TSM keeps the classic AuctionFrame hidden).
+function Ctx.WindowOpen(id) return windowOpen[id] == true end
+
 -- A player unit's key and the name it shows, or nil.
 function Ctx.UnitPlayer(unit)
     if not (unit and UnitExists and UnitExists(unit) and UnitIsPlayer and UnitIsPlayer(unit)) then return nil end

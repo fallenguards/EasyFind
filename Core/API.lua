@@ -1158,7 +1158,8 @@ end
 -- the extension's ref for its entry. Entries: { ref, line = { item, link,
 -- target, text } } in the list's order. handlers.changed(noteID, key,
 -- lines) hears the player's edits (lines: { id, ref, item, link, target,
--- text } in order); handlers.shown(noteID, key) asks for the list when the
+-- text, name } in order; name: an item line's, the client's or as typed);
+-- handlers.shown(noteID, key) asks for the list when the
 -- note is opened in Notes. handlers.category = { key, label, window }: a
 -- note category of the extension's own that its notes are filed under;
 -- window names the client window its notes belong to ("auctionhouse"),
@@ -1198,6 +1199,61 @@ end
 
 function API.OpenNote(noteID)
     if ns.RequestNotes() and ns.Notes.OpenNote then ns.Notes.OpenNote(noteID) end
+end
+
+-- ==== public: prices and auction searches =======================================
+
+-- Item prices for Notes' shopping lists (MINOR 7): a line's price is what
+-- is left to buy, the list's total their sum. def.sources: { { key,
+-- label } } or a function giving them, the kinds of price the extension
+-- offers, its main one first (one for Auctionator; TSM's market value, ...).
+-- def.price(key, itemID, link): one item's price in copper, nil for none,
+-- and an optional note for its tooltip ("Seen 2 days ago"). def.label:
+-- the name the player picks it by, the extension's own by default.
+ns.PriceSources = ns.PriceSources or {}
+function API.RegisterPriceSource(id, def)
+    CheckName("RegisterPriceSource", "id", id)
+    if type(def) ~= "table" or type(def.price) ~= "function" then Fail("RegisterPriceSource", "def.price must be a function") end
+    ns.PriceSources[id] = def
+    API.RefreshPrices(id)
+end
+
+-- Every price the player can pick, in the extensions' order by id: value
+-- "id:key", the label its source's name, with the kind when it has several.
+-- PRICE_ANY: no pick, each item's first extension with a price.
+ns.PRICE_ANY = "any"
+function ns.PriceChoices()
+    local ids, out = {}, {}
+    for id in pairs(ns.PriceSources) do ids[#ids + 1] = id end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        local def = ns.PriceSources[id]
+        local list = def.sources
+        if type(list) == "function" then list = Results(xpcall(list, Report)) end
+        local own = Extensions.byID[id]
+        local name = def.label or (own and own.name) or id
+        for _, s in ipairs(type(list) == "table" and list or {}) do
+            out[#out + 1] = { value = id .. ":" .. tostring(s.key), id = id, key = s.key, name = name,
+                              label = #list > 1 and (name .. ": " .. tostring(s.label)) or name }
+        end
+    end
+    return out
+end
+
+-- The extension's prices changed (a scan finished): the lists show them.
+function API.RefreshPrices(id)
+    if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged(id) end
+end
+
+-- fn(link, name): the player asked to search an item at an open auction
+-- house (Ctrl+click on a list line); true when the extension searched it
+-- its own way, as its window shows. Asked before the house's own search
+-- box (MINOR 7).
+ns.AuctionSearches = ns.AuctionSearches or {}
+function API.RegisterAuctionSearch(id, fn)
+    CheckName("RegisterAuctionSearch", "id", id)
+    if type(fn) ~= "function" then Fail("RegisterAuctionSearch", "fn must be a function") end
+    ns.AuctionSearches[id] = fn
 end
 
 -- ==== public: settings ========================================================

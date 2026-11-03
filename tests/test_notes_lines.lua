@@ -73,7 +73,7 @@ local function Load(body)
         t.made[kind][#t.made[kind] + 1] = f
         return f
     end
-    local notesNS = { Context = {} }
+    local notesNS = { Context = { WindowOpen = function() return false end } }
     assert(loadfile(H.ADDON_ROOT .. "/Apps/Notes/Checklist.lua", "t", env))("EasyFind_Notes", notesNS)
     local CK = notesNS.Checklist
     local note = { id = 1, body = body or "", decorations = {} }
@@ -170,6 +170,7 @@ end
 
 function tests.tails_oneALine_theCountOnACountedOne()
     local Lines, note, CK, t = Load()
+    note.list.shopping = true
     CK.AppendLine(note, { text = "Repair" })
     CK.AppendLine(note, { link = "item", item = 7, target = 2 })
     Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0, 14 }, 14)
@@ -202,9 +203,13 @@ function tests.aFold_keepsTheLineWhole()
     H.assertEq(whole.body:sub(whole.decorations[1].startByte, whole.decorations[1].endByte - 1), "bold", "moved along")
     H.assertTrue(note.body ~= whole.body, "the note itself untouched")
     local line = {}
-    CK.ReadContent(line, folded, false)
+    CK.ReadContent(line, folded, true)
     H.assertEq(line.item, 12345)
     H.assertEq(line.target, 2, "a folded line reads as the words it holds")
+    local plain = {}
+    CK.ReadContent(plain, folded, false)
+    H.assertEq(plain.item, 12345)
+    H.assertNil(plain.target, "a checklist keeps the count as words")
 end
 
 -- A line with an icon or a count, the caret elsewhere, reads its name cut
@@ -213,6 +218,7 @@ end
 function tests.aCountedLine_foldsAwayFromTheCaret_opensUnderIt()
     local Lines, note, CK, t = Load()
     local raw = "|cffa335ee|Hitem:12345::|h[Testament of Divine Steel]|h|r x2"
+    note.list.shopping = true
     note.body = CK.EMPTY .. raw
     CK.Reconcile(note)
     local original = note.body
@@ -336,12 +342,41 @@ function tests.aShiftClickedLink_atTheCaret_orAsALine()
     H.assertTrue(Lines ~= nil)
 end
 
+-- In a checklist a count is words: a folded line keeps it in sight after
+-- the cut name, and its box is ticked by hand (2026-11-03).
+function tests.aChecklistsFold_keepsTheTypedCountInSight()
+    local Lines, note, CK, t = Load()
+    local raw = "|cffa335ee|Hitem:12345::|h[Testament of Divine Steel]|h|r x2"
+    note.body = CK.EMPTY .. raw
+    CK.Reconcile(note)
+    H.assertNil(note.list.lines[1].target, "no count kept")
+    local caret = 0
+    t.editor._text, t.editor._focus = note.body, false
+    t.editor.GetWidth = function() return 200 end
+    t.editor.GetCursorPosition = function() return caret end
+    t.editor.SetCursorPosition = function(_, p) caret = p end
+    local meter = Stub()
+    meter.GetStringWidth = function(self) return #(self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        :gsub("|H.-|h(.-)|h", "%1") * 6 end
+    Lines.States[t.W.main] = { tails = {}, cells = {}, heads = {}, rows = {}, meter = meter }
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    local label = note.body:match("|Heasyfind:fold:[^|]*|h(.-)|h")
+    H.assertTrue(label ~= nil and label:find("...] x2", 1, true) ~= nil, "the cut name, then the count: " .. tostring(label))
+    H.assertEq(CK.Unfold(note.body), CK.EMPTY .. raw, "the line kept whole")
+    local done, progress = CK.LineState(note, note.list.lines[1])
+    H.assertFalse(done)
+    H.assertNil(progress, "no count to tick toward")
+end
+
 function tests.theMenu_trackFirst_theTicksSettingsWithLines()
     local Lines, note, CK = Load()
     local rows = Lines.MenuRows(note, Stub())
     H.assertEq(#rows, 1, "no lines yet: what a line can track")
     H.assertEq(rows[1].text, "CHECK_TRACK")
-    H.assertEq(#rows[1].submenu, 8, "an item count, a quest, a reputation, gold, a level, a skill, a lockout, a cooldown")
+    H.assertEq(#rows[1].submenu, 7, "a quest, a reputation, gold, a level, a skill, a lockout, a cooldown")
+    note.list.shopping = true
+    H.assertEq(#Lines.MenuRows(note, Stub())[1].submenu, 8, "a shopping list tracks an item count too, first")
+    note.list.shopping = nil
     CK.AppendLine(note, { text = "A" })
     rows = Lines.MenuRows(note, Stub())
     H.assertEq(#rows, 6)

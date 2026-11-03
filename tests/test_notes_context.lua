@@ -15,7 +15,9 @@ local function Load(opts)
     opts = opts or {}
     local env = H.newEnv()
     env._G = env
-    env.Enum = { UIMapType = { Cosmic = 0, World = 1, Continent = 2, Zone = 3, Dungeon = 4, Micro = 5 } }
+    env.Enum = { UIMapType = { Cosmic = 0, World = 1, Continent = 2, Zone = 3, Dungeon = 4, Micro = 5 },
+                 PlayerInteractionType = { Auctioneer = 21 } }
+    env.C_PlayerInteractionManager = { IsInteractingWithNpcOfType = function(t) return opts.auctioneer == true and t == 21 end }
     env.C_Map = {
         GetBestMapForUnit = function() return opts.map or 1436 end,
         GetMapInfo = function(m) return MAPS[m] end,
@@ -86,6 +88,19 @@ end
 local function has(set, key) return set[key] == true end
 
 local tests = {}
+
+-- The house is open by the client's events, not a frame: TSM's window keeps
+-- the classic AuctionFrame hidden (2026-11-03); loaded at the house, the
+-- client's interaction says so.
+function tests.theHouse_openByItsEvents_orTheInteractionAtLoad()
+    local Ctx, _, fire = Load()
+    H.assertFalse(Ctx.WindowOpen("auctionhouse"))
+    fire("AUCTION_HOUSE_SHOW")
+    H.assertTrue(Ctx.WindowOpen("auctionhouse"), "no frame shown, the event says open")
+    fire("AUCTION_HOUSE_CLOSED")
+    H.assertFalse(Ctx.WindowOpen("auctionhouse"))
+    H.assertTrue(Load({ auctioneer = true }).WindowOpen("auctionhouse"), "Notes loaded at an open house")
+end
 
 function tests.zones_matchFromInsideTheirSubMaps()
     local Ctx = Load()
