@@ -107,6 +107,7 @@ local FIRST_PARTY = {
     { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
     -- slug easyfind-all-the-things-extension once CurseForge approves its project
     { addon = "EasyFind_ATT", project = "EasyFind: ALL THE THINGS Extension" },
+    { addon = "EasyFind_HandyNotes", project = "EasyFind: HandyNotes Extension", slug = "easyfind-handynotes-extension" },
     { addon = "EasyFind_Notes", project = "EasyFind: Notes Extension", slug = "easyfind-notes-extension",
       name = L["APP_NOTES"], bundled = { "4.0.0", "5.0.0" } },
 }

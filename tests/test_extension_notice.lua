@@ -155,7 +155,7 @@ function tests.theExtensionsLinkListsEveryPage()
     local ns, _, _, dialogs, menus = Load({ EasyFind_GPS = true })
     ns.ShowExtensionPages()
     local rows = menus[1].rows
-    H.assertEq(#rows, 5, "every page with a slug")
+    H.assertEq(#rows, 6, "every page with a slug")
     H.assertEq(rows[2].text, "EasyFind: GPS Navigation Extension")
     H.assertTrue(rows[2].icon ~= nil, "installed: checked")
     H.assertNil(rows[3].icon)
