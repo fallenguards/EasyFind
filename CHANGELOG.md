@@ -4,6 +4,32 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [4.3.0] - 2026-11-03
+
+### Added
+- **Shopping lists**: any note becomes a shopping list from its list menu: the names you type are items with counts that tick themselves once your bags hold them, and an "Add item" line under the list starts the next one; a checklist with items on it offers to become one (with Never show again), and with the Auctionator extension the list is an Auctionator shopping list too
+- **Prices on shopping lists**: with the Auctionator extension each line shows what is left to buy at its price, its tooltip the price of one and where it came from, and a total sits under the list; a click on the total picks where prices come from and whether lines and the total show them; with no source picked, each item takes the first that prices it
+- **Auction house searches**: Ctrl+click a shopping list line's words with the auction house open to search it, in Auctionator's or TradeSkillMaster's window when one is showing
+- **Search by place**: a zone or continent typed beside other words keeps them to it ("bank undercity")
+- **Update notices**: a newer EasyFind or extension seen in your guild or group is said once a session in chat
+- **GPS recommendation**: the map tab tells players without the GPS extension that it can lead them to the places it finds; "Hide extension recommendations" in General settings takes such lines away
+- **Extensions API 1.7**: an extension's search provider and row decorator share one scope word; a decorator can name the rows it marks by name and map and give EasyFind's own rows words to be found by; an extension's row on a map answers to its zone, the zones over it and its continent; a row's name can keep to its extension's scope; extensions can offer shopping list prices and auction house searches
+
+### Changed
+- **Notes lists**: a line with an icon or a count folds to fit its row, its count hidden until you type in the line; a checklist keeps counts as words you tick by hand; right-click on the + button starts any kind of list
+- **Notes under the Classic and Forever themes**: the formatting toolbar is the window's bottom row and the wide margins are gone; window frames are half as heavy; note cards wear a thin edge and fill only under the mouse or when picked; under Classic the buttons glow under the mouse and push in while a style is on
+- **Notes**: a click outside a note lets go of its text, as Escape does
+- **Classic Era item catalog**: Season of Discovery's items are gone from it ("hand of rag" lists Sulfuras once)
+
+### Fixed
+- **Clipboard**: a plain search finds your clipboard history again, not only under @clipboard
+- **Long menus**: a toggle menu (the shopping list price menu) stops at the menu height and scrolls
+- **Notes**: an empty note made a shopping list keeps the box you type into; Up and Down pick a list's names again and Enter takes the pick; undo keeps a list line's place; a list style follows the line the caret is on and the checklist style no longer ticks the line; line styles no longer flash as you type; a linked list waits while you type in its note
+- **Result rows**: an extension's part of a row's subtext no longer goes after a hover
+- **Classic theme**: no seam of the world shows between a window's metal and its stone
+
+---
+
 ## [4.2.0] - 2026-11-02
 
 ### Added

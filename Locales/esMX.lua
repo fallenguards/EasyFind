@@ -295,14 +295,12 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffMenú de extensiones|r\n" ..
-    "    |cff999999-|r Oculta una extensión desde el menú de clic derecho de su casilla y recupérala desde la página de ajustes del menú; las casillas bajan por columnas con Filas por columna; un ajuste de tamaño de ícono; el menú sigue abierto mientras cambias sus ajustes\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDescripciones|r\n" ..
-    "    |cff999999-|r La comparación con el objeto equipado solo aparece mientras mantienes Shift, como en Classic; la descripción de un lugar o criatura muestra su punto y a qué distancia está, la de un jefe cuántos objetos deja caer\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffExtensiones|r\n" ..
-    "    |cff999999-|r Una extensión puede marcar las criaturas y lugares que EasyFind ya lista en vez de duplicarlos, y llevar una palabra de ámbito propia (@nombre)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffListas de compras|r\n" ..
+    "    |cff999999-|r Convierte cualquier nota en una lista de compras desde su menú de lista: los nombres que escribes se vuelven objetos que se marcan solos cuando tus bolsas los tienen, con una línea \"Añadir objeto\" debajo de la lista. Con la extensión de Auctionator cada línea muestra lo que falta por comprar con su precio, y la lista su total\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBuscar por lugar|r\n" ..
+    "    |cff999999-|r Una zona o un continente escrito junto a otras palabras limita esas palabras a ese lugar\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r La lista ya no salta arriba mientras la lees, las filas conservan su descripción tras desplazarte, la descripción de una pieza de equipo mantiene su sitio y tamaño junto a la lista, y el menú de una fila ya no se cierra de camino a su submenú\n"
+    "    |cff999999-|r Una búsqueda normal vuelve a encontrar tu historial del portapapeles, los menús largos se desplazan en lugar de recorrer la pantalla, y el catálogo de objetos de Classic Era ya no muestra los objetos de Temporada de descubrimiento\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

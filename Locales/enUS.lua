@@ -328,14 +328,12 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffExtensions menu|r\n" ..
-    "    |cff999999-|r Hide an extension from a tile's right-click menu, back from the menu's settings page; tiles run down columns with Rows per column; an Icon size setting; the menu stays open while its settings change\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTooltips|r\n" ..
-    "    |cff999999-|r The equipped item's compare shows only while Shift is held, as in Classic; a place or creature's tooltip shows its spot and how far it is, a boss's how many items it drops\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffExtensions|r\n" ..
-    "    |cff999999-|r An extension can mark the creatures and places EasyFind already lists instead of doubling them, and carry a scope word of its own (@name)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffShopping lists|r\n" ..
+    "    |cff999999-|r Make any note a shopping list from its list menu: names you type become items that tick themselves once your bags hold them, with an Add item line under the list. With the Auctionator extension each line shows what is left to buy at its price, and the list its total\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSearch by place|r\n" ..
+    "    |cff999999-|r A zone or continent typed beside other words keeps them to it: \"bank undercity\" lists the Undercity bank\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r The list no longer jumps to the top while you read down it, rows keep their tooltips after a scroll, a gear tooltip keeps its place and size beside the list, and a row's menu no longer closes on the way to its flyout\n"
+    "    |cff999999-|r A plain search finds your clipboard history again, long menus scroll instead of running down the screen, and the Classic Era item catalog no longer lists Season of Discovery's items\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

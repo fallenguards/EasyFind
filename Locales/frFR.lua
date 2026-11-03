@@ -295,14 +295,12 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffMenu des extensions|r\n" ..
-    "    |cff999999-|r Masquez une extension depuis le menu clic droit de sa tuile, et retrouvez-la depuis la page de réglages du menu ; les tuiles descendent en colonnes avec Lignes par colonne ; un réglage de taille d'icône ; le menu reste ouvert pendant que vous changez ses réglages\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffInfobulles|r\n" ..
-    "    |cff999999-|r La comparaison avec l'objet équipé n'apparaît que Maj enfoncée, comme en Classic ; l'infobulle d'un lieu ou d'une créature montre son point et sa distance, celle d'un boss combien d'objets il laisse\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffExtensions|r\n" ..
-    "    |cff999999-|r Une extension peut marquer les créatures et lieux qu'EasyFind liste déjà au lieu de les doubler, et porter un mot de portée à elle (@nom)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffListes de courses|r\n" ..
+    "    |cff999999-|r Faites de n'importe quelle note une liste de courses depuis son menu de liste : les noms que vous tapez deviennent des objets qui se cochent tout seuls dès que vos sacs les contiennent, avec une ligne « Ajouter un objet » sous la liste. Avec l'extension Auctionator, chaque ligne montre ce qu'il reste à acheter à son prix, et la liste son total\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRecherche par lieu|r\n" ..
+    "    |cff999999-|r Une zone ou un continent tapé à côté d'autres mots limite ces mots à ce lieu\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r La liste ne remonte plus en haut pendant la lecture, les lignes gardent leur infobulle après un défilement, l'infobulle d'une pièce d'équipement garde sa place et sa taille à côté de la liste, et le menu d'une ligne ne se ferme plus en chemin vers son sous-menu\n"
+    "    |cff999999-|r Une recherche simple retrouve votre historique du presse-papiers, les longs menus défilent au lieu de descendre tout l'écran, et le catalogue d'objets de Classic Era ne liste plus les objets de la Saison de la Découverte\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

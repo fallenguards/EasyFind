@@ -297,14 +297,12 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffErweiterungsmenü|r\n" ..
-    "    |cff999999-|r Eine Erweiterung lässt sich über das Rechtsklickmenü ihrer Kachel ausblenden und über die Einstellungsseite des Menüs zurückholen; Kacheln laufen spaltenweise mit Zeilen pro Spalte; eine Einstellung für die Symbolgröße; das Menü bleibt offen, während seine Einstellungen geändert werden\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTooltips|r\n" ..
-    "    |cff999999-|r Der Vergleich mit dem angelegten Gegenstand erscheint nur bei gehaltener Umschalttaste, wie in Classic; der Tooltip eines Ortes oder einer Kreatur zeigt die Stelle und die Entfernung, der eines Bosses, wie viele Gegenstände er fallen lässt\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffErweiterungen|r\n" ..
-    "    |cff999999-|r Eine Erweiterung kann Kreaturen und Orte markieren, die EasyFind schon listet, statt sie zu verdoppeln, und ein eigenes Bereichswort tragen (@name)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEinkaufslisten|r\n" ..
+    "    |cff999999-|r Mach jede Notiz über ihr Listenmenü zur Einkaufsliste: Eingetippte Namen werden zu Gegenständen, die sich selbst abhaken, sobald deine Taschen sie enthalten, mit einer Zeile „Gegenstand hinzufügen“ unter der Liste. Mit der Auctionator-Erweiterung zeigt jede Zeile, was noch zu kaufen ist, mit seinem Preis, und die Liste ihre Summe\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSuche nach Ort|r\n" ..
+    "    |cff999999-|r Eine Zone oder ein Kontinent neben anderen Wörtern beschränkt die Suche nach diesen Wörtern auf diesen Ort\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Die Liste springt beim Lesen nicht mehr nach oben, Zeilen behalten ihre Tooltips nach dem Scrollen, der Tooltip eines Ausrüstungsteils behält Platz und Größe neben der Liste, und das Menü einer Zeile schließt sich nicht mehr auf dem Weg zu seinem Untermenü\n"
+    "    |cff999999-|r Eine normale Suche findet deinen Zwischenablage-Verlauf wieder, lange Menüs scrollen, statt über den Bildschirm zu laufen, und der Gegenstandskatalog von Classic Era listet keine Gegenstände aus Saison der Entdeckungen mehr\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

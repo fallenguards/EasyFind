@@ -295,14 +295,12 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffMenu de extensões|r\n" ..
-    "    |cff999999-|r Oculte uma extensão pelo menu do clique direito do seu bloco e traga-a de volta pela página de configurações do menu; os blocos descem em colunas com Linhas por coluna; uma configuração de tamanho de ícone; o menu fica aberto enquanto você muda suas configurações\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDicas|r\n" ..
-    "    |cff999999-|r A comparação com o item equipado só aparece com Shift pressionado, como no Classic; a dica de um lugar ou criatura mostra o ponto e a distância, a de um chefe quantos itens ele deixa\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffExtensões|r\n" ..
-    "    |cff999999-|r Uma extensão pode marcar as criaturas e lugares que o EasyFind já lista em vez de duplicá-los, e ter uma palavra de escopo própria (@nome)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffListas de compras|r\n" ..
+    "    |cff999999-|r Transforme qualquer nota em uma lista de compras pelo menu de lista: os nomes que você digita viram itens que se marcam sozinhos quando suas bolsas os têm, com uma linha \"Adicionar item\" abaixo da lista. Com a extensão do Auctionator, cada linha mostra o que falta comprar pelo seu preço, e a lista o total\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBusca por lugar|r\n" ..
+    "    |cff999999-|r Uma zona ou um continente digitado ao lado de outras palavras limita essas palavras a esse lugar\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r A lista não pula mais para o topo enquanto você a lê, as linhas mantêm suas dicas após rolar, a dica de uma peça de equipamento mantém lugar e tamanho ao lado da lista, e o menu de uma linha não fecha mais a caminho do seu submenu\n"
+    "    |cff999999-|r Uma busca comum volta a encontrar seu histórico da área de transferência, menus longos rolam em vez de descer pela tela toda, e o catálogo de itens do Classic Era não lista mais os itens da Temporada da Descoberta\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

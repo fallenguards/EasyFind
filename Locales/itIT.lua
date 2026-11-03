@@ -295,14 +295,12 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffMenu delle estensioni|r\n" ..
-    "    |cff999999-|r Nascondi un'estensione dal menu del tasto destro della sua casella e recuperala dalla pagina impostazioni del menu; le caselle scendono per colonne con Righe per colonna; un'impostazione per la dimensione delle icone; il menu resta aperto mentre ne cambi le impostazioni\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTooltip|r\n" ..
-    "    |cff999999-|r Il confronto con l'oggetto equipaggiato compare solo tenendo premuto Maiusc, come in Classic; il tooltip di un luogo o di una creatura mostra il punto e la distanza, quello di un boss quanti oggetti lascia\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEstensioni|r\n" ..
-    "    |cff999999-|r Un'estensione può marcare le creature e i luoghi che EasyFind già elenca invece di duplicarli, e avere una parola di ambito propria (@nome)\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffListe della spesa|r\n" ..
+    "    |cff999999-|r Trasforma qualsiasi nota in una lista della spesa dal suo menu delle liste: i nomi che scrivi diventano oggetti che si spuntano da soli quando le tue borse li contengono, con una riga \"Aggiungi oggetto\" sotto la lista. Con l'estensione di Auctionator ogni riga mostra quanto resta da comprare al suo prezzo, e la lista il totale\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRicerca per luogo|r\n" ..
+    "    |cff999999-|r Una zona o un continente scritto accanto ad altre parole limita quelle parole a quel luogo\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r L'elenco non salta più in cima mentre lo leggi, le righe conservano il tooltip dopo uno scorrimento, il tooltip di un pezzo d'equipaggiamento mantiene posto e dimensione accanto all'elenco, e il menu di una riga non si chiude più sulla via del suo sottomenu\n"
+    "    |cff999999-|r Una ricerca normale ritrova la tua cronologia degli appunti, i menu lunghi scorrono invece di scendere per tutto lo schermo, e il catalogo degli oggetti di Classic Era non elenca più gli oggetti della Stagione della Scoperta\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

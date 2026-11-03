@@ -647,7 +647,7 @@ local SUGGESTED_KEYBINDS = {
 -- with the game, so SetItemRef returns and the post-hook below sees the click.
 -- The release the What's New popup describes: bumped, and the body
 -- rewritten, with every release.
-local WHATSNEW_CONTENT_VERSION = "4.2.0"
+local WHATSNEW_CONTENT_VERSION = "4.3.0"
 
 local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"
