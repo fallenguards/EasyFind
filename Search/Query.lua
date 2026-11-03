@@ -580,7 +580,7 @@ function Search:OnSearchTextChangedNow(text, force)
                 -- lists (the quest log, not every quest); every row without it.
                 -- A decorator's scope asks the decorator's browse instead.
                 local listed
-                if decorator then
+                if decorator and not (quickFilter.joined and quickFilter.categoryLookup[d.category]) then
                     listed = ns.Extensions.DecoratorBrowses(decorator, d)
                 else
                     local provider = ProviderOf and ProviderOf(d)
@@ -684,10 +684,11 @@ function Search:OnSearchTextChangedNow(text, force)
         return key and SCRATCH.aliasSeenKeys[key] or false
     end
     -- The map pass first: a category boost below reads its rows instead
-    -- of running a pass of its own.
+    -- of running a pass of its own. A decorator's scope keeps the map
+    -- rows it takes (creatures, places).
     local mapResults
     if not calculatorData and not calculatorLauncher and ns.MapSearch and ns.MapSearch.SearchForUI
-       and ((quickFilter and quickFilter.key == "map")
+       and ((quickFilter and (quickFilter.key == "map" or quickFilter.decorator))
             or (not quickFilter and filters and filters.map ~= false)) then
         mapResults = MapPass(text, rowsOnly)
     end
@@ -1052,10 +1053,12 @@ function Search:OnSearchTextChangedNow(text, force)
         -- anything of that category left here is by definition elsewhere.
         local boostedMapRows = SCRATCH.mapBoostSeen
         local anyBoosted = next(boostedMapRows) ~= nil
+        local decorated = quickFilter and quickFilter.decorator and quickFilter
         for ri = 1, #mapResults do
             local r = mapResults[ri]
             if not (r.data and ((anyBoosted and boostedMapRows[MapRowKey(r.data)])
-                    or (suppressMapCategory and r.data.category == suppressMapCategory))) then
+                    or (suppressMapCategory and r.data.category == suppressMapCategory)
+                    or (decorated and not self:QuickFilterAllowsData(r.data, decorated)))) then
                 combined[#combined + 1] = r
             end
         end

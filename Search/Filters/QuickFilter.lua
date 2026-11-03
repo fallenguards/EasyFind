@@ -144,6 +144,29 @@ function Filters:AddQuickFilter(def)
     return true
 end
 
+-- One extension's provider and decorator of one id share a scope: the
+-- provider's categories and the rows the decorator takes (MINOR 7).
+-- aliases: the provider's, when the decorator's scope came first.
+function Filters:JoinQuickFilter(def, categories, aliases)
+    def.joined = true
+    def.categories = def.categories or categories
+    for ai = 1, aliases and #aliases or 0 do
+        local low = slower(aliases[ai])
+        if not Filters.quickFilterByAlias[low] then
+            Filters.quickFilterByAlias[low] = def
+            def.aliases = def.aliases or {}
+            def.aliases[#def.aliases + 1] = aliases[ai]
+        end
+    end
+    local Steer = ns.SearchSteer
+    for ci = 1, #categories do
+        def.categoryLookup[categories[ci]] = true
+        for ai = 1, Steer and def.aliases and #def.aliases or 0 do
+            if #def.aliases[ai] >= 3 then Steer.Add(categories[ci], def.aliases[ai]) end
+        end
+    end
+end
+
 Filters.quickFilterSuggestionBuf = {}
 Filters.quickFilterSuggestionEntries = {}
 Filters.quickFilterSuggestionData = {}
@@ -278,15 +301,20 @@ function Filters:QuickFilterAllowsData(data, quickFilter)
     if not data or data.calculatorResult or data.calculatorLauncher or data.searchCommand then return false end
 
     if def.key == "map" then return data.mapSearchResult and true or false end
-    if data.mapSearchResult then return false end
+    if data.mapSearchResult then
+        return def.decorator ~= nil and ns.Extensions.DecoratorTakes(def.decorator, data)
+    end
     if EasyFind.db.hideAchievementHeaders and data.category == "Achievement Category" then return false end
     if EasyFind.db.hideGuildAchievements and self:IsGuildAchievementData(data) then return false end
     if data.mountID and ns.Database and ns.Database.MountPassesSearchFilters
        and not ns.Database:MountPassesSearchFilters(data) then
         return false
     end
-    -- A row decorator's scope: EasyFind's rows it takes.
-    if def.decorator then return ns.Extensions.DecoratorTakes(def.decorator, data) end
+    -- A row decorator's scope: EasyFind's rows it takes; joined, its
+    -- provider's rows too.
+    if def.decorator and not (def.joined and def.categoryLookup[data.category]) then
+        return ns.Extensions.DecoratorTakes(def.decorator, data)
+    end
 
     if def.key == "mounts" then return data.mountID and true or false end
     if def.key == "toys" then return data.toyItemID and true or false end

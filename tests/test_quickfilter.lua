@@ -161,5 +161,32 @@ function tests.apply_keepsForeignTokenAndPlainText()
     H.assertEq(applyAndCaptureQuery(def, "@m sword"), "@m sword")
 end
 
+-- A decorator's scope admits the rows it takes, map rows too (creatures,
+-- places); joined to its extension's provider, that provider's rows as
+-- well; every other scope still refuses map rows (MINOR 7).
+function tests.decoratorScope_mapRowsItTakes_joinedProviderRows()
+    env.EasyFind.db = env.EasyFind.db or {}
+    ns.Extensions = ns.Extensions or {}
+    local was = ns.Extensions.DecoratorTakes
+    ns.Extensions.DecoratorTakes = function(_, row) return row.npcID == 7 end
+    local scope = { key = "hntest", canonical = "hntest", aliases = { "hntpins" }, decorator = {} }
+    H.assertTrue(Filters:AddQuickFilter(scope))
+    local function Allows(row, def) return Filters:QuickFilterAllowsData(row, def or scope) end
+    H.assertTrue(Allows({ mapSearchResult = true, npcID = 7 }), "a map row it takes")
+    H.assertFalse(Allows({ mapSearchResult = true, npcID = 8 }))
+    H.assertFalse(Allows({ category = "HN Pin", name = "x" }), "the provider's rows wait for the join")
+    Filters:JoinQuickFilter(scope, { "HN Pin" })
+    H.assertTrue(scope.joined)
+    H.assertTrue(Allows({ category = "HN Pin", name = "x" }), "joined: the provider's rows")
+    H.assertTrue(Allows({ mapSearchResult = true, npcID = 7 }))
+    H.assertFalse(Allows({ mapSearchResult = true, npcID = 9 }))
+    H.assertFalse(Allows({ mapSearchResult = true, npcID = 7 }, Filters:ResolveQuickFilterToken("mounts")),
+        "another scope refuses map rows")
+    if ns.SearchSteer then
+        H.assertTrue(ns.SearchSteer.byCategory["HN Pin"].hntpins, "its aliases steer to the provider's rows")
+    end
+    ns.Extensions.DecoratorTakes = was
+end
+
 local pass, fail, failures = H.runSuite("QuickFilter", tests)
 return { pass = pass, fail = fail, failures = failures }

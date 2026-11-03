@@ -99,10 +99,14 @@ local function PreparePOI(entry)
         end
         entry.teachesText = table.concat(names, ", ")
     end
-    if entry.keywords and not entry.kwLower then
+    local own, given = entry.keywords, entry.decoratorWords
+    if (own or given) and not entry.kwLower then
         local kwLower = {}
-        for i = 1, #entry.keywords do
-            kwLower[i] = slower(entry.keywords[i])
+        for i = 1, own and #own or 0 do
+            kwLower[i] = slower(own[i])
+        end
+        for i = 1, given and #given or 0 do
+            kwLower[#kwLower + 1] = given[i]
         end
         entry.kwLower = kwLower
     end
@@ -110,6 +114,27 @@ local function PreparePOI(entry)
         GetNameNorm(entry)
     end
     return entry
+end
+
+-- The words decorators give the POI's row (MINOR 7), by its creature or
+-- its name on its map: among its words, taken again when they change.
+local Extensions = ns.Extensions
+local Decorators = Extensions and Extensions.Decorators
+local function TakeDecoratorWords(entry)
+    local generation = Decorators and Decorators.generation
+    if not generation or entry.wordsGeneration == generation then return end
+    entry.wordsGeneration = generation
+    local words
+    if entry.npcID then
+        words = Extensions.NpcWords(entry.npcID)
+    else
+        local mapID = entry.mapID or entry.zoneMapID or entry.entranceMapID
+        words = mapID and Extensions.PlaceWords(GetNameLower(entry), mapID) or nil
+    end
+    if words ~= entry.decoratorWords then
+        entry.decoratorWords = words
+        entry.kwLower, entry.searchMask = nil, nil
+    end
 end
 
 -- Letter bitmask (a-z) of a string; the map corpus' equivalent of the UI
@@ -133,10 +158,11 @@ end
 
 -- Combined mask over the POI's searchable text, built once per entry.
 local function GetPOIMask(entry)
+    TakeDecoratorWords(entry)
     local mask = entry.searchMask
     if mask then return mask end
     mask = LetterMask(GetNameLower(entry))
-    if entry.keywords then
+    if entry.keywords or entry.decoratorWords then
         if not entry.kwLower then PreparePOI(entry) end
         for i = 1, #entry.kwLower do
             mask = bor(mask, LetterMask(entry.kwLower[i]))

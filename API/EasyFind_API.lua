@@ -86,7 +86,7 @@
 ---@field keywords? string[] More words that find it.
 ---@field searchCommandDesc? string Its subtext.
 ---@field hint? string|EasyFindHint|fun(row: EasyFindRow): string|EasyFindHint This row's own hint.
----@field mapID? number The map it is on, for the map search's list of that map.
+---@field mapID? number The map it is on, for the map search's list of that map; it answers to that place's words too (MINOR 7).
 ---@field createRow? boolean The row makes a new thing: it wears the green plus badge (MINOR 4).
 ---@field scopedName? boolean Its name is searched only under the provider's @scope; elsewhere only its keywords find it (MINOR 7).
 
@@ -104,9 +104,10 @@
 ---@field subtext? fun(row: EasyFindRow): string|nil A part after the row's subtext.
 ---@field select? fun(row: EasyFindRow, link: string|nil, gesture: string): boolean A boss or loot row's gesture ("click", "alt", "ctrl") where the client has no Adventure Guide; true when you handled it (MINOR 5).
 ---@field hint? fun(row: EasyFindRow): string|EasyFindHint|nil The gestures' words while select takes the row: the click's, or { click, alt, ctrl } (MINOR 5).
----@field aliases? string[] An @scope over the rows you take: @ and one of these searches or lists them; its key is id (MINOR 6).
+---@field aliases? string[] An @scope over the rows you take: @ and one of these searches or lists them; its key is id (MINOR 6), shared with your own provider of that key (MINOR 7).
 ---@field browse? fun(row: EasyFindRow): boolean Whether the row is in the scope's list while nothing is typed; every taken row without it (MINOR 6).
----@field candidates? fun(): table<string, table<any, true>> The rows you take by field, { itemID = { [13335] = true } }, before applies is asked (MINOR 6).
+---@field candidates? fun(): table<string, table<any, true>> The rows you take by field, { itemID = { [13335] = true } }, before applies is asked (MINOR 6); name = { [lowercase name] = { [mapID] = true } } (MINOR 7).
+---@field words? fun(): { npc: table<integer, string[]>?, name: table<string, string[]>? } Words the rows you take are found by: by creature id, or "name@mapID" matched in its zone (MINOR 7).
 ---@field keep? fun(row: EasyFindRow): boolean Held for the filter flyout.
 ---@field sortKey? fun(row: EasyFindRow): string|number Held for the filter flyout.
 

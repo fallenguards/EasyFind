@@ -337,6 +337,125 @@ function tests.candidatesNameTheRows_appliesRefines_refreshAsksAgain()
     H.assertEq(#appliesAsked, 1, "applies asked only inside them")
 end
 
+-- One extension with a provider and a decorator of one id (MINOR 7): one
+-- scope lists both, whichever registers first; another extension's
+-- provider keeps its scope to itself.
+function tests.aProviderAndItsDecorator_shareOneScope()
+    local function Run(providerFirst, providerOwner, decoratorAliases)
+        local _, ns, API = Env()
+        local held, joined = {}, {}
+        ns.Filters.AddQuickFilter = function(_, def)
+            if held[def.canonical] then return false end
+            held[def.canonical] = def
+            return true
+        end
+        ns.Filters.JoinQuickFilter = function(_, def, cats, aliases)
+            joined[#joined + 1] = { def = def, cats = cats, aliases = aliases }
+        end
+        API.RegisterExtension({ id = "hn", name = "Pins", icon = 1 })
+        API.RegisterExtension({ id = "other", name = "Other", icon = 1 })
+        local function Provider()
+            API.RegisterSearchProvider({ key = "hn", label = "Pins", category = "Pin", extension = providerOwner, aliases = { "pins" } })
+        end
+        local function Decorator()
+            API.RegisterRowDecorator({ id = "hn", aliases = decoratorAliases, applies = function() return true end })
+        end
+        if providerFirst then Provider() Decorator() else Decorator() Provider() end
+        return ns, held.hn, joined
+    end
+    for _, first in ipairs({ true, false }) do
+        for _, aliases in ipairs({ { "hn" }, false }) do
+            local ns, scope, joined = Run(first, "hn", aliases or nil)
+            local how = (first and "provider first" or "decorator first") .. (aliases and "" or ", no aliases")
+            H.assertEq(#joined, 1, "joined once: " .. how)
+            H.assertEq(joined[1].def, scope)
+            H.assertEq(joined[1].cats[1], "Pin", "the provider's category: " .. how)
+            H.assertEq(scope.decorator, ns.Extensions.Decorators.list[1])
+            H.assertEq(ns.Extensions.Decorators.scopes.hn, scope)
+        end
+    end
+    local _, _, late = Run(false, "hn", { "hn" })
+    H.assertEq(late[1].aliases[1], "pins", "the decorator's scope came first: the provider's aliases join it")
+    local ns, scope, joined = Run(true, "other", { "hn" })
+    H.assertEq(#joined, 0, "another extension's provider: no join")
+    H.assertNil(scope.decorator)
+    H.assertNil(ns.Extensions.Decorators.scopes.hn)
+end
+
+-- candidates' name key (MINOR 7): a lowercase name to the maps its pins
+-- are on; a row so named on one of them, or with one in the same zone.
+function tests.candidatesByName_onTheNamesMapsOrTheirZone()
+    local env = H.newEnv()
+    env.EasyFind = {}
+    local maps = { [1] = { mapID = 1, mapType = 3 }, [100] = { mapID = 100, mapType = 6, parentMapID = 1 },
+                   [2] = { mapID = 2, mapType = 3 } }
+    env.C_Map = { GetMapInfo = function(id) return maps[id] end }
+    local ns = H.newNs(env)
+    local API = env.EasyFind.API
+    API.RegisterExtension({ id = "hn", name = "Pins", icon = 1 })
+    API.RegisterRowDecorator({ id = "hn", candidates = function()
+        return { npcID = { [5] = true }, name = { ["Faruza"] = { [100] = true } } }
+    end })
+    local E = ns.Extensions
+    local hn = E.Decorators.list[1]
+    H.assertTrue(E.DecoratorTakes(hn, { name = "Faruza", nameLower = "faruza", mapID = 100 }), "on the pin's map")
+    H.assertTrue(E.DecoratorTakes(hn, { name = "Faruza", mapID = 1 }), "the pin's building walks up to its zone")
+    H.assertFalse(E.DecoratorTakes(hn, { name = "Faruza", mapID = 2 }), "another zone")
+    H.assertFalse(E.DecoratorTakes(hn, { name = "Someone", mapID = 1 }), "another name")
+    H.assertFalse(E.DecoratorTakes(hn, { name = "Faruza" }), "a row on no map")
+    H.assertTrue(E.DecoratorTakes(hn, { npcID = 5 }), "the other fields still name rows")
+end
+
+-- words (MINOR 7): the words decorators give EasyFind's rows they mark, by
+-- creature or by a name on a map (matched in its zone), so a search finds
+-- those rows by them ("decor durotar"); asked again after a refresh.
+function tests.wordsGiveMarkedRowsWords_byCreatureOrNameInItsZone()
+    local env = H.newEnv()
+    env.EasyFind = {}
+    local maps = { [1] = { mapID = 1, mapType = 3 }, [100] = { mapID = 100, mapType = 6, parentMapID = 1 },
+                   [2] = { mapID = 2, mapType = 3 } }
+    env.C_Map = { GetMapInfo = function(id) return maps[id] end }
+    local ns = H.newNs(env)
+    local API = env.EasyFind.API
+    local asked, words = 0, { npc = { [5] = { "Decor", "Vendor" } }, name = { ["Faruza@100"] = { "decor" } } }
+    API.RegisterExtension({ id = "hn", name = "Pins", icon = 1 })
+    API.RegisterRowDecorator({ id = "hn", words = function() asked = asked + 1 return words end })
+    local E = ns.Extensions
+    H.assertEq(table.concat(E.NpcWords(5), ","), "decor,vendor", "a creature's, lowercased")
+    H.assertNil(E.NpcWords(6))
+    local set = E.NpcsWithWord("dec", {})
+    H.assertTrue(set[5], "a creature by a word holding the typed one")
+    H.assertNil(next(E.NpcsWithWord("stable", {})))
+    H.assertEq(E.PlaceWords("faruza", 100)[1], "decor", "a name on its map")
+    H.assertEq(E.PlaceWords("faruza", 1)[1], "decor", "or on a map in the same zone")
+    H.assertNil(E.PlaceWords("faruza", 2), "another zone")
+    H.assertNil(E.PlaceWords("someone", 1))
+    H.assertEq(asked, 1, "asked once")
+    words = { npc = { [6] = { "stable" } } }
+    H.assertEq(E.NpcWords(5)[1], "decor", "the first answer stands until a refresh")
+    API.RefreshRowDecorations()
+    H.assertNil(E.NpcWords(5))
+    H.assertEq(E.NpcWords(6)[1], "stable")
+    H.assertEq(asked, 2)
+end
+
+-- The map search reads them: a POI's row takes its decorators' words among
+-- its own, again when the decorators change.
+function tests.mapRowsTakeTheWords()
+    local function Read(path)
+        local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+        local src = f:read("*a")
+        f:close()
+        return src
+    end
+    local core = Read("MapSearch/Search/Core.lua")
+    H.assertTrue(core:find("local function GetPOIMask(entry)\n    TakeDecoratorWords(entry)", 1, true) ~= nil
+        or core:find("local function GetPOIMask(entry)\r\n    TakeDecoratorWords(entry)", 1, true) ~= nil, "the gate takes them first")
+    H.assertTrue(core:find("kwLower[#kwLower + 1] = given[i]", 1, true) ~= nil, "among the row's words")
+    H.assertTrue(Read("MapSearch/Search/Results.lua"):find("if poi.keywords or poi.decoratorWords then", 1, true) ~= nil,
+        "scored with them")
+end
+
 -- browse (MINOR 6) says what the scope lists while nothing is typed; every
 -- taken row without it.
 function tests.browseSaysWhatTheScopeLists()
@@ -360,9 +479,13 @@ function tests.theScopePathsAskIt()
         return src
     end
     local filters = Read("Search/Filters/QuickFilter.lua")
-    H.assertTrue(filters:find("if def.decorator then return ns.Extensions.DecoratorTakes(def.decorator, data) end", 1, true) ~= nil)
+    H.assertTrue(filters:find("return ns.Extensions.DecoratorTakes(def.decorator, data)", 1, true) ~= nil)
     H.assertTrue(filters:find("if Filters.quickFilterByAlias[slower(def.canonical)] then return false end", 1, true) ~= nil)
-    H.assertTrue(Read("Search/Query.lua"):find("listed = ns.Extensions.DecoratorBrowses(decorator, d)", 1, true) ~= nil)
+    local query = Read("Search/Query.lua")
+    H.assertTrue(query:find("listed = ns.Extensions.DecoratorBrowses(decorator, d)", 1, true) ~= nil)
+    H.assertTrue(query:find('(quickFilter.key == "map" or quickFilter.decorator)', 1, true) ~= nil, "the map pass runs under it")
+    H.assertTrue(query:find("or (decorated and not self:QuickFilterAllowsData(r.data, decorated))", 1, true) ~= nil,
+        "keeping the map rows it takes")
     local readme = Read("API/README.md")
     H.assertTrue(readme:find("| `aliases` | string list | MINOR 6.", 1, true) ~= nil, "documented")
     H.assertTrue(readme:find("| `browse` | function `(row)` | MINOR 6.", 1, true) ~= nil)

@@ -282,6 +282,53 @@ function MapUtils.ExpandZoneAbbrev(token)
     return token and ZONE_ABBREVIATIONS[token] or nil
 end
 
+-- A place as the words it answers to (MINOR 7): the map's name and the
+-- maps over it up to the continent, the short names typed for any of
+-- them (org, kali) and the continent's initials (ek); kept per map.
+local abbrevsOf, zoneWords = nil, {}
+function MapUtils.ZoneWords(mapID)
+    local words = zoneWords[mapID]
+    if words then return words end
+    if not abbrevsOf then
+        abbrevsOf = {}
+        for abbrev, target in pairs(ZONE_ABBREVIATIONS) do
+            abbrevsOf[target] = abbrevsOf[target] or {}
+            local list = abbrevsOf[target]
+            list[#list + 1] = abbrev
+        end
+    end
+    words = {}
+    local seen = {}
+    local function Add(word)
+        if not seen[word] then
+            seen[word] = true
+            words[#words + 1] = word
+        end
+    end
+    local current = mapID
+    for _ = 1, 20 do
+        local info = GetMapInfo and GetMapInfo(current)
+        if not (info and info.mapType and info.mapType > Enum.UIMapType.World) then break end
+        local continent = info.mapType == Enum.UIMapType.Continent
+        if info.name and info.name ~= "" then
+            local name = slower(info.name)
+            Add(name)
+            for _, abbrev in ipairs(abbrevsOf[name] or {}) do Add(abbrev) end
+            local initials = continent and {}
+            for word in name:gmatch("%S+") do
+                local letter = initials and word:match("^%a")
+                if letter then initials[#initials + 1] = letter else initials = nil end
+            end
+            if initials and #initials >= 2 then Add(table.concat(initials)) end
+        end
+        if continent then break end
+        current = MapUtils.GetParentMapID(current, info)
+        if not current or current == 0 then break end
+    end
+    zoneWords[mapID] = words
+    return words
+end
+
 -- A top-level root map (Cosmic, or a World-tier map like Azeroth) that should
 -- never show in a displayed breadcrumb. Matched by mapType, not by name, so the
 -- stripping works on every locale.

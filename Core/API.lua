@@ -456,6 +456,9 @@ function Extensions.ProviderOf(data) return data and data.category and Providers
 
 -- A provider's rows into the search data. Its extension's addon loads
 -- first when it asks to be (loadOnSearch) and has not yet.
+-- Rows given their place's words: their own words and the merged list.
+local placedRows = setmetatable({}, { __mode = "k" })
+
 local function Populate(key, database)
     local p = Providers.byKey[key]
     if not p.rows and p.extension then
@@ -482,6 +485,19 @@ local function Populate(key, database)
             local low = {}
             for k = 1, #row.keywords do low[k] = slower(tostring(row.keywords[k])) end
             row.keywordsLower = low
+        end
+        -- A row on a map answers to its place too (MINOR 7): "decor durotar".
+        -- A row handed over again keeps its own words, placed once.
+        local place = type(row.mapID) == "number" and ns.MapUtils and ns.MapUtils.ZoneWords(row.mapID)
+        if place and #place > 0 then
+            local was = placedRows[row]
+            local own = row.keywordsLower
+            if was and was.low == own then own = was.own end
+            local low = {}
+            for k = 1, own and #own or 0 do low[k] = own[k] end
+            for k = 1, #place do low[#low + 1] = place[k] end
+            row.keywordsLower = low
+            placedRows[row] = { own = own, low = low }
         end
         if row.scopedName then scopedName = true end
     end
@@ -594,7 +610,17 @@ function API.RegisterSearchProvider(def)
         ns.SearchEngine:AddProvider({ key = key, words = p.words or {}, loadOnLowResults = p.lowResults })
         JoinFilterRow(owner, p)
         if p.aliases then
-            ns.Filters:AddQuickFilter({ key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases })
+            local scope = { key = key, canonical = key, label = p.label, categories = { category }, aliases = p.aliases,
+                            extension = owner.id }
+            if ns.Filters:AddQuickFilter(scope) then
+                p.scope = scope
+            else
+                local held = Extensions.Decorators.scopes[key]
+                if held and held.extension == owner.id then p.scope = held end
+            end
+            -- Its own extension's decorator of this key: one scope lists both.
+            local d = p.scope and Extensions.DecoratorOf(key, owner.id)
+            if d then Extensions.JoinScope(p.scope, d, { category }, p.aliases) end
         end
     end
     p.glyph = { tex = p.icon, coords = p.iconCoords, chromeTint = true }
@@ -661,6 +687,21 @@ function API.RegisterAddTarget(def)
     return true
 end
 
+-- The map and, under a dungeon, building or orphan map, the zones up to
+-- the one holding it; one scratch set.
+local mapAndZone = {}
+local function MapAndZone(mapID)
+    wipe(mapAndZone)
+    mapAndZone[mapID] = true
+    local info = GetMapInfo and GetMapInfo(mapID)
+    for _ = 1, 6 do
+        if not (info and info.mapType and info.mapType > ZONE_TYPE and info.parentMapID) then break end
+        info = GetMapInfo(info.parentMapID)
+        if info then mapAndZone[info.mapID] = true end
+    end
+    return mapAndZone
+end
+
 -- ==== row decorators ==========================================================
 
 -- An extension's mark on rows another provider owns: a price at an item
@@ -689,8 +730,81 @@ local DECORATOR_FIELDS = {
     id = "string", extension = "string", slot = "string", label = "string", categories = "table",
     applies = "function", text = "function", tooltip = "function", menu = "function", subtext = "function",
     select = "function", hint = "function", keep = "function", sortKey = "function", submenu = "boolean",
-    aliases = "table", browse = "function", candidates = "function",
+    aliases = "table", browse = "function", candidates = "function", words = "function",
 }
+
+-- words() (MINOR 7): the words decorators give EasyFind's rows they mark,
+-- so a search finds those rows by them ("decor"): { npc = { [npcID] = {
+-- words } }, name = { ["faruza@1"] = { words } } }, a name on a map matched
+-- in its zone as HasRow does. Asked once a generation.
+local function AddWords(index, got)
+    for npcID, list in pairs(type(got.npc) == "table" and got.npc or {}) do
+        if type(npcID) == "number" and type(list) == "table" then
+            index.npc[npcID] = index.npc[npcID] or {}
+            local into = index.npc[npcID]
+            for _, w in ipairs(list) do
+                local low = slower(tostring(w))
+                into[#into + 1] = low
+                index.byWord[low] = index.byWord[low] or {}
+                index.byWord[low][npcID] = true
+            end
+        end
+    end
+    for key, list in pairs(type(got.name) == "table" and got.name or {}) do
+        local name, mapID = string.match(type(key) == "string" and key or "", "^%s*(.-)%s*@(%d+)$")
+        if name and name ~= "" and type(list) == "table" then
+            local zones, words = {}, {}
+            for m in pairs(MapAndZone(tonumber(mapID))) do zones[m] = true end
+            for _, w in ipairs(list) do words[#words + 1] = slower(tostring(w)) end
+            local low = slower(name)
+            index.place[low] = index.place[low] or {}
+            local entries = index.place[low]
+            entries[#entries + 1] = { zones = zones, words = words }
+        end
+    end
+end
+
+local function WordsIndex()
+    local index = Decorators.words
+    if index and index.generation == Decorators.generation then return index end
+    index = { generation = Decorators.generation, npc = {}, place = {}, byWord = {} }
+    Decorators.words = index
+    for _, d in ipairs(Decorators.list) do
+        if d.words then
+            local ok, got = Run(d.words)
+            if ok and type(got) == "table" then AddWords(index, got) end
+        end
+    end
+    return index
+end
+
+-- The words decorators give a creature's row, or nil.
+function Extensions.NpcWords(npcID)
+    return WordsIndex().npc[npcID]
+end
+
+-- The creatures holding a decorator word with word in it, into a set.
+function Extensions.NpcsWithWord(word, into)
+    for w, ids in pairs(WordsIndex().byWord) do
+        if sfind(w, word, 1, true) then
+            for npcID in pairs(ids) do into[npcID] = true end
+        end
+    end
+    return into
+end
+
+-- The words decorators give a place's row: its name on its map, or on a
+-- map in the same zone; nil for none.
+function Extensions.PlaceWords(nameLower, mapID)
+    local entries = WordsIndex().place[nameLower]
+    if not (entries and mapID) then return nil end
+    for m in pairs(MapAndZone(mapID)) do
+        for i = 1, #entries do
+            if entries[i].zones[m] then return entries[i].words end
+        end
+    end
+    return nil
+end
 
 function API.UnregisterRowDecorator(id, slot)
     local list = Decorators.list
@@ -707,6 +821,21 @@ function API.UnregisterRowDecorator(id, slot)
         end
     end
     Decorators.generation = Decorators.generation + 1
+end
+
+-- The latest decorator of this id an extension registered.
+function Extensions.DecoratorOf(id, extension)
+    local list = Decorators.list
+    for i = #list, 1, -1 do
+        if list[i].id == id and list[i].extension == extension then return list[i] end
+    end
+end
+
+-- A provider's scope its own extension's decorator of the key shares.
+function Extensions.JoinScope(scope, def, categories, aliases)
+    ns.Filters:JoinQuickFilter(scope, categories, aliases)
+    scope.decorator = def
+    Decorators.scopes[def.id] = scope
 end
 
 -- Shown rows paint again (a scan brought new prices); the decorators'
@@ -739,17 +868,39 @@ function API.RegisterRowDecorator(def)
     if def.slot and not Decorators.bySlot[def.slot] then Decorators.bySlot[def.slot] = def end
     -- Its @scope (MINOR 6): EasyFind's rows it takes, searched or listed.
     -- Registered once per id; a later registration takes the scope over.
-    if def.aliases then
+    -- Its own extension's provider of that key shares the provider's (MINOR 7).
+    local p = Providers.byKey[def.id]
+    if p and p.scope and p.scope.extension == owner.id then
+        Extensions.JoinScope(p.scope, def, { p.category })
+    elseif def.aliases then
         local scope = Decorators.scopes[def.id]
         if scope then
             scope.decorator = def
         else
-            scope = { key = def.id, canonical = def.id, label = def.label or owner.name, aliases = def.aliases, decorator = def }
+            scope = { key = def.id, canonical = def.id, label = def.label or owner.name, aliases = def.aliases,
+                      decorator = def, extension = owner.id }
             if ns.Filters:AddQuickFilter(scope) then Decorators.scopes[def.id] = scope end
         end
     end
     API.RefreshRowDecorations()
     return true
+end
+
+-- candidates' name key (MINOR 7): each name's maps with the zones over them.
+local function ZonesOfNames(byName)
+    local out = {}
+    for name, maps in pairs(byName) do
+        if type(name) == "string" and type(maps) == "table" then
+            local zones = {}
+            for mapID in pairs(maps) do
+                if type(mapID) == "number" then
+                    for m in pairs(MapAndZone(mapID)) do zones[m] = true end
+                end
+            end
+            out[slower(name)] = zones
+        end
+    end
+    return out
 end
 
 -- What the decorator's candidates() named, by row field (MINOR 6): the
@@ -760,11 +911,26 @@ local function Candidates(def)
         set = false
         if def.candidates then
             local ok, got = Run(def.candidates)
-            if ok and type(got) == "table" then set = got end
+            if ok and type(got) == "table" then
+                set = {}
+                for field, ids in pairs(got) do set[field] = ids end
+                if type(got.name) == "table" then set.name = ZonesOfNames(got.name) end
+            end
         end
         Decorators.candidates[def] = set
     end
     return set
+end
+
+-- A row so named on one of the name's maps, either walked up to its zone.
+local function NamedHere(zonesByName, row)
+    local zones = type(row.name) == "string" and zonesByName[row.nameLower or slower(row.name)]
+    local mapID = zones and (row.mapID or row.coordMapID)
+    if not mapID then return false end
+    for m in pairs(MapAndZone(mapID)) do
+        if zones[m] then return true end
+    end
+    return false
 end
 
 local function DecoratorTakes(def, row)
@@ -772,11 +938,13 @@ local function DecoratorTakes(def, row)
     if candidates then
         local named = false
         for field, ids in pairs(candidates) do
-            local value = row[field]
-            if value ~= nil and type(ids) == "table" and ids[value] then
-                named = true
-                break
+            if field == "name" then
+                named = NamedHere(ids, row)
+            else
+                local value = row[field]
+                named = value ~= nil and type(ids) == "table" and ids[value] and true or false
             end
+            if named then break end
         end
         if not named then return false end
         if not def.applies then return true end
@@ -957,21 +1125,6 @@ function API.OpenSearch(text)
 end
 
 -- ==== public: what EasyFind lists ==============================================
-
--- The map and, under a dungeon, building or orphan map, the zones up to
--- the one holding it; one scratch set.
-local mapAndZone = {}
-local function MapAndZone(mapID)
-    wipe(mapAndZone)
-    mapAndZone[mapID] = true
-    local info = GetMapInfo and GetMapInfo(mapID)
-    for _ = 1, 6 do
-        if not (info and info.mapType and info.mapType > ZONE_TYPE and info.parentMapID) then break end
-        info = GetMapInfo(info.parentMapID)
-        if info then mapAndZone[info.mapID] = true end
-    end
-    return mapAndZone
-end
 
 -- The maps each recorded place and shipped entrance is on, by its
 -- lowercase name; built on the first ask.

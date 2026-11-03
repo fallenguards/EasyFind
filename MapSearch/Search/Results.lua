@@ -484,7 +484,7 @@ local function ScorePOIForQuery(poi, query)
     if poi.isZone and poi.score then return poi.score end
 
     local score = ns.Database:ScoreName(GetNameLower(poi), query, #query)
-    if poi.keywords then
+    if poi.keywords or poi.decoratorWords then
         if not poi.kwLower then PreparePOI(poi) end
         score = mmax(score, ns.Database:ScoreKeywords(poi.kwLower, query, #query))
     end
