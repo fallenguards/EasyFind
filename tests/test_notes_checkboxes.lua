@@ -391,5 +391,58 @@ function tests.caretInView_scrollsTheLineIn()
     H.assertEq(scroll.at, 5, "a line above the view scrolls down to it")
 end
 
+-- A list style is the caret line's own mark: the list menu showed nothing
+-- picked on a checklist typed or opened before (Era, 2026-11-02).
+function tests.listStyle_isTheCaretLinesMark()
+    local src = Source():gsub("\r\n", "\n")
+    local chunk = table.concat({
+        Extract(src, "local function MatchLinePrefix(text, byteOffset)"),
+        Extract(src, "local function FindLineStartByte(text, pos)"),
+        Extract(src, "function UI:RefreshFormatButtonStates()"),
+    }, "\n")
+    local editor = { text = "", cursor = 0 }
+    function editor:GetText() return self.text end
+    function editor:GetCursorPosition() return self.cursor end
+    local UI = { _notes = { activeModes = {} }, RefreshAllEasyNotesToolbarButtons = function() end }
+    local env = setmetatable({
+        UI = UI, BULLET_PREFIX = "\226\128\162 ", CHECK_EMPTY_PREFIX = BOX, CHECK_FILLED_PREFIX = TICKED,
+        Fmt = { ActiveFormatEditor = function() return editor end, ActiveFormatDoc = function() return { decorations = {} } end },
+        NormalizeDB = function() return { richText2 = true } end,
+        IsRangeFullyCovered = function() return false end,
+        iterUtf8 = function(s) return s:gmatch("[%z\1-\127\194-\244][\128-\191]*") end,
+    }, { __index = _G })
+    assert(load(chunk, "=RefreshFormatButtonStates", "t", env))()
+    local modes = UI._notes.activeModes
+    editor.text = "words\n" .. BOX .. "[Linen Cloth]\n" .. TICKED .. "done\n1. one"
+    editor.cursor = #("words\n" .. BOX .. "[Linen")
+    UI:RefreshFormatButtonStates()
+    H.assertTrue(modes.check and modes.lists, "the caret on a box line: the checklist is picked")
+    H.assertNil(modes.list)
+    editor.cursor = #("words\n" .. BOX .. "[Linen Cloth]\n" .. TICKED .. "do")
+    UI:RefreshFormatButtonStates()
+    H.assertTrue(modes.check, "a ticked box is a checklist line too")
+    editor.cursor = #editor.text
+    UI:RefreshFormatButtonStates()
+    H.assertTrue(modes.numlist and not modes.check, "a numbered line")
+    editor.cursor = 2
+    UI:RefreshFormatButtonStates()
+    H.assertNil(modes.check)
+    H.assertNil(modes.lists, "plain words: no list style")
+end
+
+-- The checklist style on a box line takes the box off, ticked or not; it
+-- never ticks the line (it crossed off a line, 2026-11-02). The list menu
+-- under the window keeps the editor's caret, so it acts on the caret's line.
+function tests.checklistStyle_takesTheBoxOff_neverTicks()
+    local src = Source():gsub("\r\n", "\n")
+    H.assertNil(src:find("toggleCheck", 1, true), "no style path ticks a box")
+    local apply = Extract(src, "function UI:ApplyEasyNotesFormat(action, capturedLo, capturedHi, capturedCursor)")
+    H.assertNil(apply:find("ToggleEasyNotesCheckbox", 1, true))
+    H.assertTrue(apply:find('(action.mode == "check" and mark == CHECK_FILLED_PREFIX)', 1, true) ~= nil, "a ticked box comes off too")
+    H.assertTrue(apply:find("Fmt.Unfold(text:sub(lineStart + old, lineEnd))", 1, true) ~= nil, "its words open whole")
+    H.assertTrue(src:find("Over(frame.listMenuFlyout) or Over(frame.fontSizeFlyout)", 1, true) ~= nil,
+        "a press on the list menu keeps the editor's caret")
+end
+
 local pass, fail, failures = H.runSuite("NotesCheckboxes", tests)
 return { pass = pass, fail = fail, failures = failures }

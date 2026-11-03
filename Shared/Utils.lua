@@ -7594,9 +7594,12 @@ end
 -- An edit box of ours drops its focus on a click anywhere but on it:
 -- the client keeps the focus through clicks elsewhere (the GPS and map
 -- tab boxes on Era, 2026-10-28). Watched only while the box has focus.
-function Utils.ReleaseFocusOnOutsideClick(box)
+-- keep(): a press it counts as inside (the box's window, its toolbar, its
+-- menus) leaves the focus where it is.
+function Utils.ReleaseFocusOnOutsideClick(box, keep)
     if not box or box._efReleasesFocus then return end
     box._efReleasesFocus = true
+    box._efFocusKeep = keep
     local watcher = Utils._focusWatcher
     if not watcher then
         watcher = CreateFrame("Frame")
@@ -7604,7 +7607,8 @@ function Utils.ReleaseFocusOnOutsideClick(box)
         watcher:SetScript("OnEvent", function(self)
             local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
             if not (focus and focus._efReleasesFocus) then return end
-            if not focus:IsMouseOver() then focus:ClearFocus() end
+            if focus:IsMouseOver() or (focus._efFocusKeep and focus._efFocusKeep()) then return end
+            focus:ClearFocus()
         end)
     end
     box:HookScript("OnEditFocusGained", function() watcher:RegisterEvent("GLOBAL_MOUSE_DOWN") end)

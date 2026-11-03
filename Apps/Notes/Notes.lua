@@ -328,7 +328,7 @@ local FORMAT_ACTIONS = {
     -- menu hands straight to ApplyEasyNotesFormat.
     { key = "lists", tip = L["NOTES_FMT_LISTS"], mode = "lists", isListMenu = true, listMenu = {
         { key = "list",      tip = L["NOTES_FMT_BULLETS"], mode = "list",    linePrefix = BULLET_PREFIX },
-        { key = "checklist", tip = L["NOTES_FMT_CHECKLIST"],     mode = "check",   linePrefix = CHECK_EMPTY_PREFIX, toggleCheck = true },
+        { key = "checklist", tip = L["NOTES_FMT_CHECKLIST"],     mode = "check",   linePrefix = CHECK_EMPTY_PREFIX },
         { key = "numlist",   tip = L["NOTES_FMT_NUMBERED"], mode = "numlist", numbered = true },
     } },
 }
@@ -625,7 +625,8 @@ end
 -- always did. A window's scripts, timers and callbacks run as that window;
 -- between them the last window used stands.
 do
-    local W = { list = {}, shared = { toolbarShown = false, snippetFocus = false }, KEYS = {} }
+    -- heldSync: a linked list's copy waiting while its note is typed in (SyncLinked).
+    local W = { list = {}, shared = { toolbarShown = false, snippetFocus = false }, KEYS = {}, heldSync = {} }
     notesNS.Windows = W
     for k in ("frame selectedID paletteShown paletteRows paletteSelection paletteSelAnchor contextChips contextMatches"
         .. " loadingNote applyingFormat inputBusy activeModes curSelection selAnchor lastSelection lastEditorText lastCursor"
@@ -825,6 +826,17 @@ function notesNS.AllNotes() return NotesStore() end
 -- live in container tables (Fmt = format host, Builders = one-shot UI
 -- builders) so each group costs one local.
 local Fmt = {}
+notesNS.Fmt = Fmt
+-- A list's folded lines open (Checklist.lua CK.Fold): what leaves the
+-- editor reads the words and counts whole.
+function Fmt.Unfold(text)
+    local CK = notesNS.Checklist
+    return CK and CK.Unfold(text) or text
+end
+function Fmt.Unfolded(note)
+    local CK = notesNS.Checklist
+    return CK and CK.Unfolded(note) or note
+end
 local Builders = {}
 
 -- An item's quality color as a |c code, once the client knows the item.
@@ -922,7 +934,7 @@ local function PlainSearchText(note)
     if cached and cached.body == body then
         plain = cached.plain
     else
-        plain = slower(StripColorEscapes(MapSelection(body, GlyphPlain)))
+        plain = slower(StripColorEscapes(MapSelection(Fmt.Unfold(body), GlyphPlain)))
         plainBodyCache[note] = { body = body, plain = plain }
     end
     return plain
@@ -1265,12 +1277,26 @@ function notesNS.LinkedNote(ext, key, title, create)
     return note.id
 end
 
--- The extension's list into its note; what shows it drawn again.
+-- The extension's list into its note; what shows it drawn again. While
+-- the player types in the note its copy waits, the latest kept; a push of
+-- the note's lines in between drops it (LinkedChanged), its echo comes.
 function notesNS.SyncLinked(id, entries)
     local idx = FindNoteIndex(id)
     local note = idx and NotesStore()[idx]
     local CK = notesNS.Checklist
     if not (note and CK and note.list) then return false end
+    if notesNS.Lines and notesNS.Lines.Holding(note) then
+        local first = notesNS.Windows.heldSync[id] == nil
+        notesNS.Windows.heldSync[id] = entries
+        if first then
+            Utils.SafeAfter(1, function()
+                local held = notesNS.Windows.heldSync[id]
+                notesNS.Windows.heldSync[id] = nil
+                if held then notesNS.SyncLinked(id, held) end
+            end)
+        end
+        return true
+    end
     if CK.SyncLinked(note, entries) then
         if notesNS.RefreshReader then notesNS.RefreshReader(id) end
         if notesNS.Lines then notesNS.Lines.Reload(note) end
@@ -1297,6 +1323,7 @@ function notesNS.LinkedChanged(note)
     for i, line in ipairs(note.list.lines) do
         lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text }
     end
+    notesNS.Windows.heldSync[note.id] = nil
     xpcall(link.changed, geterrorhandler(), note.id, src.key, lines)
 end
 
@@ -1398,6 +1425,7 @@ local function DecorationAt(decorations, kind, bytePos)
 end
 
 local function NoteToMarkdown(note)
+    note = Fmt.Unfolded(note)
     local body = note.body or ""
     local decorations = note.decorations or {}
     local out, pending = {}, {}
@@ -1451,7 +1479,7 @@ end
 function notesNS.CopyAsText(id)
     local note = NoteByID(id)
     if not note then return end
-    Utils.CopyToClipboard(StripColorEscapes(MapSelection(note.body or "", GlyphPlain)))
+    Utils.CopyToClipboard(StripColorEscapes(MapSelection(Fmt.Unfold(note.body or ""), GlyphPlain)))
 end
 
 function notesNS.CopyAsMarkdown(id)
@@ -1704,7 +1732,7 @@ local function ReaderShow(note)
     f.noteID = note.id
     f.title:SetText(Fmt.ShownTitle(note))
     UI:ApplyEasyNotesCustomFont(f.body, NormalizeDB().fontSize)
-    f.body:SetText(note.body or "")
+    f.body:SetText(Fmt.Unfold(note.body or ""))
     local r, g, b = ns.TooltipTextColor()
     f.title:SetTextColor(r, g, b, 1)
     f.body:SetTextColor(r, g, b, 1)
@@ -2773,7 +2801,22 @@ local function GetMeasureMeter(editor)
     return meter
 end
 
+-- The last byte of the escape code at i: a link's |H data |h, its closing
+-- |h, a color's |cAARRGGBB, or |r. nil for anything drawn ("||" a pipe).
+function Fmt.LinkCodeEnd(text, i)
+    local nb = text:byte(i + 1)
+    if nb == 72 then
+        local h = text:find("|h", i + 2, true)
+        return h and h + 1 or nil
+    elseif nb == 104 or nb == 114 then
+        return i + 1
+    elseif nb == 99 and text:sub(i + 2, i + 9):match("^%x%x%x%x%x%x%x%x$") then
+        return i + 9
+    end
+end
+
 local function LayoutCharacters(text, editor, wrapWidth)
+    local LinkCodeEnd = Fmt.LinkCodeEnd
     local meter = GetMeasureMeter(editor)
     local positions = {}
     local lineIdx = 1
@@ -2798,6 +2841,16 @@ local function LayoutCharacters(text, editor, wrapWidth)
             local pl = MatchLinePrefix(text, lineStartByte)
             prefixCutoff = lineStartByte + pl - 1
             i = i + 1
+        elseif b == 124 and LinkCodeEnd(text, i) then
+            -- A link or color code draws nothing: one entry, never measured
+            -- part-open (a fold's long hidden data read as text broke every
+            -- line under it, 2026-11-02, /efd suite fold).
+            local codeEnd = LinkCodeEnd(text, i)
+            positions[#positions + 1] = {
+                byteStart = i, byteEnd = codeEnd, line = lineIdx,
+                x = prevCumX, width = 0, glyph = "", isPrefix = codeEnd <= prefixCutoff,
+            }
+            i = codeEnd + 1
         else
             local size = GlyphSize(b)
             local glyph = text:sub(i, i + size - 1)
@@ -3296,12 +3349,13 @@ do
                 box:SetPoint("CENTER", editor, "TOPLEFT", cx, -((p.line - 1) * advance + lineH / 2))
                 ns.PaintRingedWell(box, ring, fill)
                 box.tick:SetSize(side * 1.3, side * 1.3)
-                -- A note's tick is its list's; a line the game ticks sits dimmer.
-                local ticked, line
-                if notesNS.Lines then ticked, line = notesNS.Lines.TickedAt(editor, p.byteStart) end
+                -- A note's tick is its list's. A line the game ticks (a count
+                -- reached) draws like any box: dimmed it read as disabled.
+                local ticked
+                if notesNS.Lines then ticked = notesNS.Lines.TickedAt(editor, p.byteStart) end
                 if ticked == nil then ticked = p.glyph == TICKED_GLYPH end
                 box.tick:SetShown(ticked)
-                box:SetAlpha(line and line.link and 0.7 or 1)
+                box:SetAlpha(1)
                 box:Show()
             end
         end
@@ -4846,7 +4900,6 @@ function UI:EnsureEasyNotesFrame()
     -- child still handles direct text clicks; the scroll frame catches the rest.
     frame.editorScroll:EnableMouse(true)
 
-    -- keeps focus: the note's text; its toolbar buttons act on the caret
     frame.editor = CreateFrame("EditBox", nil, frame.editorScroll)
     frame.editor:SetMultiLine(true)
     frame.editor:SetAutoFocus(false)
@@ -4868,13 +4921,6 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.editor:SetScript("OnTextChanged", function(self)
         if UI._notes.loadingNote then return end
-        -- Hide bold overlays the instant text changes: their positions are now
-        -- stale (chars shifted) until the deferred overlay update recomputes them.
-        -- This is what prevents the smeared multi-copy flash while typing/editing.
-        local runPool = UI._notes.runOverlays
-        if runPool then
-            for i = 1, #runPool do runPool[i]:Hide() end
-        end
         local id = UI._notes.selectedID
         if not id then return end
         local newText = self:GetText() or ""
@@ -4927,13 +4973,10 @@ function UI:EnsureEasyNotesFrame()
         UpdateBody(id, newText)
         UI:UpdateEasyNotesCharCounter()
         UI:RefreshEasyNotesHeaderOnly()
-        -- With a typing colour (or line style) active, the styled copy must
-        -- appear in the SAME frame as the typed character; the queued overlay
-        -- tick is a frame late, which flashed each new char in the default
-        -- text colour first.
-        if UI._notes.typingColor or modes.underline or modes.strike then
-            UI:UpdateEasyNotesDecorationOverlay()
-        end
+        -- The styles redrawn in the same frame as the key: hidden until the
+        -- queued pass, or left a frame where the text had moved, a done line's
+        -- green and strike flashed at every key (2026-11-03).
+        UI:UpdateEasyNotesDecorationOverlay()
         UI:QueueEasyNotesOverlayUpdate()
         UI:QueueEasyNotesDragHandleRefresh()
         UI:RefreshEasyNotesHeaderNav()
@@ -4955,6 +4998,15 @@ function UI:EnsureEasyNotesFrame()
         Fmt.SetSnippetFocus(false)
         -- A note opens with the caret at 0, before a first-line box.
         Fmt.KeepCaretPastBox(self, self:GetCursorPosition() or 0)
+    end)
+    -- A press outside the note's window lets go of the text, as Escape does;
+    -- the window, its toolbar and its menus keep the caret for the buttons
+    -- (the list and size flyouts hang under the window: a press there let
+    -- go, the lines refolded and the list style hit another line).
+    local function Over(f) return f and f:IsVisible() and f:IsMouseOver() end
+    Utils.ReleaseFocusOnOutsideClick(frame.editor, function()
+        return frame:IsMouseOver() or Over(frame.toolbar) or Over(frame.listMenuFlyout) or Over(frame.fontSizeFlyout)
+            or Utils.IsCursorMenuMouseOver()
     end)
     -- Undo history capture: appended hooks run even when the main handler
     -- early-returns, so HistoryRecord carries its own loadingNote guard.
@@ -5007,6 +5059,11 @@ function UI:EnsureEasyNotesFrame()
     end)
     frame.editor:SetScript("OnKeyDown", function(self, key)
         local kup = tostring(key or ""):upper()
+        -- A list's names under the line: Up and Down pick, Enter takes the
+        -- pick and goes on to the next line as it would.
+        local lines = notesNS.Lines
+        if (kup == "UP" or kup == "DOWN") and lines and lines.StepPick(self, kup) then return end
+        if kup == "ENTER" and lines then lines.TakePick() end
         if kup == "LEFT" or kup == "RIGHT" or kup == "UP" or kup == "DOWN"
             or kup == "HOME" or kup == "END" or kup == "PAGEUP" or kup == "PAGEDOWN" then
             UI:NotesShiftNav(IsShiftKeyDown and IsShiftKeyDown(), self:GetCursorPosition() or 0)
@@ -5068,6 +5125,8 @@ function UI:EnsureEasyNotesFrame()
     frame.editor:HookScript("OnMouseDown", function(self, button)
         if button == "LeftButton" then
             self._efBoxDown = Fmt.BoxUnderMouse(self)
+            -- A press on the words (not a box) is a click into the line.
+            if not self._efBoxDown then self._efBoxLine = nil end
             UI:NotesBeginDrag(IsShiftKeyDown and IsShiftKeyDown())
         end
     end)
@@ -5106,6 +5165,8 @@ function UI:EnsureEasyNotesFrame()
         local lineStart = self._efBoxDown
         self._efBoxDown = nil
         if lineStart and lineStart == Fmt.BoxUnderMouse(self) then
+            -- Ticked, not clicked into: a folded line stays folded (Lines.PlaceTails).
+            self._efBoxLine = lineStart
             local txt = self:GetText() or ""
             local newTxt = UI:ToggleEasyNotesCheckbox(txt, lineStart)
             if newTxt ~= txt then
@@ -5646,7 +5707,7 @@ function UI:UpdateEasyNotesCharCounter()
     local frame = UI._notes.frame
     if not frame then return end
     local note = GetSelectedNote()
-    frame.charCounter:SetText(Utils.sformat(L["NOTES_CHARS"], CharCount(note and note.body or "")))
+    frame.charCounter:SetText(Utils.sformat(L["NOTES_CHARS"], CharCount(Fmt.Unfold(note and note.body or ""))))
 end
 
 function UI:RefreshEasyNotes()
@@ -5684,8 +5745,10 @@ function UI:RefreshEasyNotes()
         local wantText = frame.editor:HasFocus() and (note.body or "")
             or UI:MarkdownToDisplay(note.body or "")
         if frame.editor:GetText() ~= wantText then
+            -- A note being typed in keeps its caret; one coming up starts at the top.
+            local caret = frame.editor:HasFocus() and frame.editor:GetCursorPosition() or 0
             frame.editor:SetText(wantText)
-            frame.editor:SetCursorPosition(0)
+            frame.editor:SetCursorPosition(math.min(caret, #wantText))
         end
         frame.title:SetText(Fmt.ShownTitle(note))
         -- Only the more-options button shows here; delete/find/auto-resize are
@@ -6030,6 +6093,10 @@ function UI:RefreshAllEasyNotesToolbarButtons()
             self:RefreshEasyNotesToolbarButton(frame.toolbarButtons[i])
         end
     end
+    local flyout = frame and frame.listMenuFlyout
+    if flyout and flyout:IsShown() then
+        for _, opt in ipairs(flyout.rows) do self:PaintEasyNotesListButton(opt) end
+    end
     local host = UI._notes.snippetHost
     if host and host.toolbarButtons then
         for i = 1, #host.toolbarButtons do
@@ -6116,6 +6183,13 @@ function UI:RefreshFormatButtonStates()
             end
         end
     end
+    -- A list style is the caret line's own mark, however it got there.
+    local ls = FindLineStartByte(text, lo and (lo - 1) or editor:GetCursorPosition() or 0)
+    local mark = text:sub(ls, ls + MatchLinePrefix(text, ls) - 1)
+    modes.list = mark == BULLET_PREFIX or nil
+    modes.check = (mark == CHECK_EMPTY_PREFIX or mark == CHECK_FILLED_PREFIX) or nil
+    modes.numlist = mark:find("^%d+%. $") and true or nil
+    modes.lists = (modes.list or modes.check or modes.numlist) or nil
     self:RefreshAllEasyNotesToolbarButtons()
 end
 
@@ -6191,28 +6265,20 @@ function UI:ApplyEasyNotesFormat(action, capturedLo, capturedHi, capturedCursor)
         local before = text:sub(1, cursor)
         local newlineIdx = before:find("\n[^\n]*$")
         local lineStart = newlineIdx and (newlineIdx + 1) or 1
-        if action.toggleCheck then
-            local rest = text:sub(lineStart)
-            local prefix = rest:sub(1, #CHECK_EMPTY_PREFIX)
-            if prefix == CHECK_EMPTY_PREFIX or prefix == CHECK_FILLED_PREFIX then
-                text = UI:ToggleEasyNotesCheckbox(text, lineStart)
-                editor:SetText(text)
-                editor:SetCursorPosition(cursor)
-                editor:SetFocus()
-                UI:QueueEasyNotesOverlayUpdate()
-                return
-            end
-        end
-        local active = UI._notes.activeModes[action.mode]
-        local rest = text:sub(lineStart)
-        if active and rest:sub(1, #action.linePrefix) == action.linePrefix then
-            text = text:sub(1, lineStart - 1) .. rest:sub(#action.linePrefix + 1)
+        -- The line's own mark is the style's state: the same style comes off
+        -- (a box ticked or not, never ticked from here), another gives way.
+        local old = MatchLinePrefix(text, lineStart)
+        local mark = text:sub(lineStart, lineStart + old - 1)
+        if mark == action.linePrefix or (action.mode == "check" and mark == CHECK_FILLED_PREFIX) then
+            local nl = text:find("\n", lineStart, true)
+            local lineEnd = nl and nl - 1 or #text
+            local words = Fmt.Unfold(text:sub(lineStart + old, lineEnd))
+            text = text:sub(1, lineStart - 1) .. words .. text:sub(lineEnd + 1)
             editor:SetText(text)
-            editor:SetCursorPosition(math.max(lineStart - 1, cursor - #action.linePrefix))
+            editor:SetCursorPosition(mmin(mmax(lineStart - 1, cursor - old), lineStart - 1 + #words))
             UI._notes.activeModes[action.mode] = nil
         else
             -- One list mark a line: a number or the other mark gives way.
-            local old = MatchLinePrefix(text, lineStart)
             text = text:sub(1, lineStart - 1) .. action.linePrefix .. text:sub(lineStart + old)
             editor:SetText(text)
             editor:SetCursorPosition(mmax(lineStart - 1, cursor - old) + #action.linePrefix)
@@ -7629,7 +7695,7 @@ function UI:ShowEasyNotesRowMenu(row)
             local idx = FindNoteIndex(row.noteID)
             local note = idx and NotesStore()[idx] or nil
             if not note then return end
-            EasyFind.API.CallAction("chat", "compose", strtrim(StripColorEscapes(MapSelection(note.body or "", GlyphPlain))))
+            EasyFind.API.CallAction("chat", "compose", strtrim(StripColorEscapes(MapSelection(Fmt.Unfold(note.body or ""), GlyphPlain))))
         end }
     end
     -- The note as an EasyFind link: a click on it elsewhere takes the note.
@@ -9077,7 +9143,7 @@ function UI:RefreshEasyNotesPalette()
         end
         -- strip SMP styling + color codes: the row font can't render them
         local preview = (notesNS.Checklist and notesNS.Checklist.IsList(note)) and notesNS.Checklist.Preview(note)
-            or StripColorEscapes(MapSelection((note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
+            or StripColorEscapes(MapSelection(Fmt.Unfold(note.body or ""):gsub("\n+", " "), GlyphPlain)):sub(1, 80)
         row.subtitle:SetText(Fmt.BoxIcons(preview))
         row.timeText:SetText(FormatRelTime(note.updated))
         row:ClearAllPoints()
@@ -9135,17 +9201,19 @@ end
 -- SetDocument) resets it. Typing coalesces into bursts; format applies and
 -- decoration edits always cut a snapshot. Ctrl+Z undoes, Ctrl+Y or
 -- Ctrl+Shift+Z redoes.
-function Fmt.HistorySnapshot(editor, doc)
-    local decos = {}
-    local src = doc and doc.decorations
-    if src then
-        for i = 1, #src do
-            local d = src[i]
-            decos[i] = { kind = d.kind, startByte = d.startByte, endByte = d.endByte,
-                r = d.r, g = d.g, b = d.b }
-        end
+-- Every field: a list line's mark carries its id, its ticks keyed by it.
+function Fmt.CopyDecorations(src, into)
+    for i = 1, #src do
+        local c = {}
+        for k, v in pairs(src[i]) do c[k] = v end
+        into[i] = c
     end
-    return { body = editor:GetText() or "", decos = decos,
+    return into
+end
+
+function Fmt.HistorySnapshot(editor, doc)
+    local src = doc and doc.decorations
+    return { body = editor:GetText() or "", decos = src and Fmt.CopyDecorations(src, {}) or {},
         cursor = editor:GetCursorPosition() or 0 }
 end
 
@@ -9154,7 +9222,7 @@ function Fmt.HistorySameState(a, b)
     for i = 1, #a.decos do
         local x, y = a.decos[i], b.decos[i]
         if x.kind ~= y.kind or x.startByte ~= y.startByte or x.endByte ~= y.endByte
-           or x.r ~= y.r or x.g ~= y.g or x.b ~= y.b then
+           or x.r ~= y.r or x.g ~= y.g or x.b ~= y.b or x.id ~= y.id then
             return false
         end
     end
@@ -9204,11 +9272,7 @@ function Fmt.HistoryApply(state)
     doc.decorations = doc.decorations or {}
     local decos = doc.decorations
     for i = #decos, 1, -1 do decos[i] = nil end
-    for i = 1, #state.decos do
-        local d = state.decos[i]
-        decos[i] = { kind = d.kind, startByte = d.startByte, endByte = d.endByte,
-            r = d.r, g = d.g, b = d.b }
-    end
+    Fmt.CopyDecorations(state.decos, decos)
     doc.body = state.body
     if Fmt.SnippetHostActive() then
         UI._notes.snippetHost._lastText = state.body
@@ -9578,7 +9642,6 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
     scroll:EnableMouseWheel(true)
     scroll:EnableMouse(true)
 
-    -- keeps focus: a snippet's text; its toolbar buttons act on the caret
     local editor = CreateFrame("EditBox", nil, scroll)
     editor:SetMultiLine(true)
     editor:SetAutoFocus(false)
@@ -9659,6 +9722,10 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
         end
     end)
     editor:SetScript("OnEditFocusGained", function() Fmt.SetSnippetFocus(true) end)
+    -- Outside the snippet's dialog the text lets go; its toolbar keeps the caret.
+    Utils.ReleaseFocusOnOutsideClick(editor, function()
+        return parent:IsMouseOver() or container:IsMouseOver() or Utils.IsCursorMenuMouseOver()
+    end)
     editor:SetScript("OnCursorChanged", function(self, _, y, _, cursorH)
         if not UI._notes.applyingFormat then
             UI:NotesRecomputeSelection(self:GetCursorPosition())
@@ -9808,13 +9875,7 @@ function notesNS.AttachSnippetBodyEditor(parent, opts)
     function host:SetDocument(doc)
         doc = doc or {}
         local copy = { body = doc.body or "", decorations = {} }
-        if type(doc.decorations) == "table" then
-            for i = 1, #doc.decorations do
-                local d = doc.decorations[i]
-                copy.decorations[i] = { kind = d.kind, startByte = d.startByte,
-                    endByte = d.endByte, r = d.r, g = d.g, b = d.b }
-            end
-        end
+        if type(doc.decorations) == "table" then Fmt.CopyDecorations(doc.decorations, copy.decorations) end
         self.doc = copy
         self._lastText = copy.body
         UI._notes.applyingFormat = true

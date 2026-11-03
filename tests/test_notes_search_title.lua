@@ -41,6 +41,7 @@ local function LoadPlainText()
         StripColorEscapes = function(t) return t end,
         MapSelection = function(t) return t end,
         GlyphPlain = {},
+        Fmt = { Unfold = function(t) return t end },
         notesNS = { Checklist = {
             Is = function(n) return n.kind == "checklist" end,
             LineName = function(line) return line.text end,

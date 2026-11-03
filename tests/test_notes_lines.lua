@@ -185,6 +185,115 @@ function tests.tails_oneALine_theCountOnACountedOne()
     H.assertFalse(tails[1]._shown)
 end
 
+-- A folded line: the words and count in the link's data, any "|" or "~"
+-- in them kept; the note read whole for what leaves the editor, its
+-- decorations moved along.
+function tests.aFold_keepsTheLineWhole()
+    local _, note, CK = Load()
+    local raw = "|cffa335ee|Hitem:12345::|h[Testament ~ Steel]|h|r x2"
+    local folded = CK.Fold(raw, "[Testament...]", "|cffa335ee")
+    H.assertNil(folded:gsub("|H.-|h", ""):find("x2", 1, true), "the count is not drawn")
+    H.assertEq(CK.Unfold(folded), raw)
+    H.assertEq(CK.Unfold("a " .. CK.Fold("b x1", "b") .. " c"), "a b x1 c", "a plain one, no color")
+    note.body = CK.EMPTY .. folded .. "\nbold"
+    note.decorations = { { kind = "bold", startByte = #CK.EMPTY + #folded + 2, endByte = #CK.EMPTY + #folded + 6 } }
+    local whole = CK.Unfolded(note)
+    H.assertEq(whole.body, CK.EMPTY .. raw .. "\nbold")
+    H.assertEq(whole.body:sub(whole.decorations[1].startByte, whole.decorations[1].endByte - 1), "bold", "moved along")
+    H.assertTrue(note.body ~= whole.body, "the note itself untouched")
+    local line = {}
+    CK.ReadContent(line, folded, false)
+    H.assertEq(line.item, 12345)
+    H.assertEq(line.target, 2, "a folded line reads as the words it holds")
+end
+
+-- A line with an icon or a count, the caret elsewhere, reads its name cut
+-- with "..." and no count (no wrapping, 2026-11-02); the caret on it
+-- opens it at its end.
+function tests.aCountedLine_foldsAwayFromTheCaret_opensUnderIt()
+    local Lines, note, CK, t = Load()
+    local raw = "|cffa335ee|Hitem:12345::|h[Testament of Divine Steel]|h|r x2"
+    note.body = CK.EMPTY .. raw
+    CK.Reconcile(note)
+    local original = note.body
+    local caret = #note.body
+    t.editor._text, t.editor._focus = note.body, false
+    t.editor.GetWidth = function() return 200 end
+    t.editor.GetCursorPosition = function() return caret end
+    t.editor.SetCursorPosition = function(_, p) caret = p end
+    local meter = Stub()
+    meter.GetStringWidth = function(self) return #(self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        :gsub("|H.-|h(.-)|h", "%1") * 6 end
+    Lines.States[t.W.main] = { tails = {}, cells = {}, heads = {}, rows = {}, meter = meter }
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    local label = note.body:match("|h(%[.-%])|h")
+    H.assertTrue(label ~= nil and label:find("...]", 1, true) ~= nil, "cut with ..., got " .. tostring(label))
+    H.assertTrue(#label * 6 <= 200 - 36 - #CK.EMPTY * 6 - 6, "short of the tail")
+    H.assertNil(note.body:gsub("|H.-|h", ""):find("x2", 1, true), "no count drawn")
+    H.assertEq(CK.Unfold(note.body), original, "the line kept whole")
+    H.assertEq(t.editor._text, note.body, "the editor shows it")
+    H.assertEq(note.list.lines[1].target, 2)
+    t.editor._focus = true
+    caret = #note.body
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    H.assertEq(note.body, original, "the caret's line open to be typed")
+    H.assertEq(caret, #original, "the caret at its end")
+end
+
+-- A note's first load moves its colors into decorations: an item link's
+-- color goes into its fold as the link's own code; a bold line stays open
+-- (a fold would drop the bold).
+function tests.aFold_takesTheLinksColor_aStyledLineStaysOpen()
+    local Lines, note, CK, t = Load()
+    local link = "|Hitem:12345::|h[Testament]|h"
+    note.body = CK.EMPTY .. link .. " x2\n" .. CK.EMPTY .. "Bread x3"
+    CK.Reconcile(note)
+    local a = #CK.EMPTY + 1
+    note.decorations[#note.decorations + 1] = { kind = "color", startByte = a, endByte = a + #link, r = 0xa3 / 255, g = 0x35 / 255, b = 0xee / 255 }
+    local b = note.body:find("Bread", 1, true)
+    note.decorations[#note.decorations + 1] = { kind = "bold", startByte = b, endByte = b + 5 }
+    note.list.lines[2].target, note.list.lines[2].text = 3, "Bread"
+    t.ns.ChecklistLinks = { Shop = { items = true } }
+    note.list.source = { ext = "Shop", key = "k" }
+    t.editor._text, t.editor._focus = note.body, false
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0, 14 }, 14)
+    local one, two = note.body:match("^(.-)\n(.*)$")
+    H.assertEq(CK.Unfold(one), CK.EMPTY .. "|cffa335ee" .. link .. "|r x2", "the color in front of the link, the count kept")
+    H.assertTrue(one:find("|Heasyfind:fold:", 1, true) ~= nil, "folded")
+    H.assertEq(two, CK.EMPTY .. "Bread x3", "the bold line stays as typed")
+    for _, d in ipairs(note.decorations) do
+        H.assertTrue(d.kind ~= "color", "the color decoration went into the fold")
+    end
+end
+
+-- Ticking a folded line's box put the caret on it and opened it (2026-11-02):
+-- a box ticked keeps its line folded until a key or a click on the words.
+function tests.aTickedBox_keepsItsLineFolded_aKeyOpensIt()
+    local Lines, note, CK, t = Load()
+    note.body = CK.EMPTY .. "|cffa335ee|Hitem:12345::|h[Testament]|h|r x2"
+    CK.Reconcile(note)
+    local original = note.body
+    local caret = #note.body
+    t.editor._text, t.editor._focus = note.body, true
+    t.editor.GetCursorPosition = function() return caret end
+    t.editor.SetCursorPosition = function(_, p) caret = p end
+    t.UI:EnsureEasyNotesFrame()
+    t.editor._efBoxLine = 1
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    H.assertTrue(note.body:find("|Heasyfind:fold:", 1, true) ~= nil, "ticked, the caret on it: still folded")
+    t.editor._scripts.OnKeyDown(t.editor, "A")
+    H.assertNil(t.editor._efBoxLine, "a key lets the line open")
+    caret = #note.body
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    H.assertEq(note.body, original, "open to be typed")
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("if not self._efBoxDown then self._efBoxLine = nil end", 1, true) ~= nil, "a press on the words")
+    H.assertTrue(src:find("self._efBoxLine = lineStart", 1, true) ~= nil, "a box pressed and let go")
+    H.assertNil(src:find("line.link and 0.7", 1, true), "a box the game ticks is not dimmed")
+end
+
 function tests.theX_dropsTheLine_theMarksAfterItMove()
     local Lines, note, CK, t = Load()
     note.body = CK.EMPTY .. "A\n" .. CK.EMPTY .. "B\n" .. CK.EMPTY .. "C"
@@ -292,6 +401,58 @@ function tests.aListOfItems_suggestsNames_tabTakesThePick()
     H.assertFalse(panel._shown)
     t.editor._scripts.OnTextChanged(t.editor, false)
     H.assertFalse(panel._shown, "words set by the code show no names")
+end
+
+-- Up and Down move the pick round the names, the caret where it was typed;
+-- Enter takes the pick (the old checklist box did both; the 4.1.0 merge
+-- kept Tab and the click alone, 2026-11-02).
+function tests.aListOfItems_upAndDownPick_enterTakes()
+    local Lines, note, CK, t = Load()
+    note.list.source = { ext = "Shop", key = "k" }
+    t.ns.ChecklistLinks = { Shop = { items = true } }
+    t.ns.StyleMenuPanel = function() end
+    t.ns.Utils.InstallMenuRowHighlight = function(row) row.SetMenuHighlightFocused = function(self, on) self._picked = on end end
+    t.ns.Database = { ScoreName = function() return 100 end }
+    t.ns.ItemSearch = { Search = function() return {
+        { data = { itemID = 2589, nameLower = "linen cloth", name = "linen cloth" } },
+        { data = { itemID = 2996, nameLower = "bolt of linen cloth", name = "bolt of linen cloth" } },
+        { data = { itemID = 2580, nameLower = "linen bag", name = "linen bag" } } } end }
+    note.body = CK.EMPTY .. "lin x2"
+    CK.Reconcile(note)
+    local caret = #note.body
+    t.editor._text, t.editor._focus = note.body, true
+    t.editor.GetCursorPosition = function() return caret end
+    t.editor.SetCursorPosition = function(_, p) caret = p end
+    t.UI:EnsureEasyNotesFrame()
+    Lines.PlaceTails(t.editor, Positions(CK, note.body), { 0 }, 14)
+    t.editor._scripts.OnTextChanged(t.editor, true)
+    for _, timer in ipairs(t.timers) do timer.fn() end
+    local panel = Lines.States[t.W.main].suggest
+    H.assertEq(panel.count, 3)
+    H.assertEq(panel.pick, 1)
+    H.assertTrue(Lines.StepPick(t.editor, "DOWN"))
+    H.assertEq(panel.pick, 2, "Down: the next name")
+    H.assertTrue(panel.rows[2]._picked and not panel.rows[1]._picked)
+    local typedAt = caret
+    caret = 0
+    t.editor._scripts.OnCursorChanged(t.editor)
+    H.assertEq(caret, typedAt, "the editor's own caret move is put back")
+    Lines.StepPick(t.editor, "UP")
+    Lines.StepPick(t.editor, "UP")
+    H.assertEq(panel.pick, 3, "Up past the first: round to the last")
+    H.assertTrue(Lines.TakePick())
+    H.assertEq(t.editor._text, CK.EMPTY .. "Item2580 x2", "Enter's take: the picked name, the count kept")
+    H.assertFalse(panel._shown)
+    H.assertFalse(Lines.StepPick(t.editor, "DOWN"), "no names: Down is the editor's again")
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
+    local src = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+    local s = assert(src:find('frame.editor:SetScript("OnKeyDown", function(self, key)', 1, true))
+    local body = src:sub(s, assert(src:find("\n    end)\n", s, true)))
+    local step = body:find('lines.StepPick(self, kup) then return end', 1, true)
+    local take = body:find('if kup == "ENTER" and lines then lines.TakePick() end', 1, true)
+    H.assertTrue(step and step < body:find("UI:NotesShiftNav", 1, true), "the pick moves before the caret is tracked")
+    H.assertTrue(take and take < body:find("Fmt.HandleEditorEnterKey(self)", 1, true), "Enter takes before the next line")
 end
 
 local pass, fail, failures = H.runSuite("NotesLines", tests)

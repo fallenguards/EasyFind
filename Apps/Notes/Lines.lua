@@ -65,15 +65,25 @@ local function Repaint(note)
 end
 
 -- The player changed the note's lines: a linked one's extension hears of
--- it, a beat after the last change.
-local told = {}
+-- it a beat after the last change, with the lines as they then stand.
+local told, edited = {}, {}
+local HOLD = 1
 local function Told(note)
-    if not (note.list and note.list.source) or told[note.id] then return end
-    told[note.id] = true
+    if not (note.list and note.list.source) then return end
+    local token = (told[note.id] or 0) + 1
+    told[note.id] = token
     Utils.SafeAfter(0.5, function()
+        if told[note.id] ~= token then return end
         told[note.id] = nil
         if notesNS.LinkedChanged then notesNS.LinkedChanged(note) end
     end)
+end
+
+-- Typed in a moment ago, or its change still to go out: a linked list's
+-- copy waits (an older copy came back mid-typing and took the caret to
+-- the top, Era 2026-11-02, /efd notecaret).
+function Lines.Holding(note)
+    return told[note.id] ~= nil or (edited[note.id] ~= nil and GetTime() - edited[note.id] < HOLD)
 end
 
 -- The body changed under the lines: they follow at once; the words settle
@@ -81,6 +91,7 @@ end
 local settling = {}
 function Lines.BodyChanged(note)
     if not note then return end
+    edited[note.id] = GetTime()
     local changed = CK.Reconcile(note)
     if changed then Told(note) end
     if CK.ItemsList(note) and not settling[note.id] then
@@ -463,6 +474,98 @@ local function Tail(layer, i)
     return tail
 end
 
+-- Folding: a line with an icon or a count reads its words cut to fit with
+-- "..." and its count hidden (the tail shows it), never wrapped under the
+-- tail; the line the caret is on opens to be typed (2026-11-02). The words
+-- stay in the body, in the folded link's data (CK.Fold).
+local ELLIPSIS, FOLD_GAP = "...", 6
+
+local function Meter(layer, editor)
+    local s = S()
+    if not s.meter then
+        s.meter = layer:CreateFontString(nil, "OVERLAY")
+        s.meter:Hide()
+    end
+    local path, size, flags = editor:GetFont()
+    if path then s.meter:SetFont(path, size, flags or "") end
+    return s.meter
+end
+
+local function Width(meter, text)
+    meter:SetText(text)
+    return meter:GetStringWidth() or 0
+end
+
+-- An item link's bracketed name in its color, else the words as drawn.
+local function Label(words)
+    local color, name = smatch(words, "^(|c%x%x%x%x%x%x%x%x)|H[^|]*|h(%[.-%])|h|r$")
+    if name then return name, color end
+    return (words:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|H.-|h(.-)|h", "%1")), nil
+end
+
+-- The label cut to room, "..." inside a bracketed name's brackets.
+local function Fit(meter, label, room)
+    if Width(meter, label) <= room then return label end
+    local open, close, inner = "", "", label
+    if label:sub(1, 1) == "[" and label:sub(-1) == "]" then open, close, inner = "[", "]", label:sub(2, -2) end
+    local starts = {}
+    for i = 1, #inner do
+        local b = inner:byte(i)
+        if b < 128 or b >= 192 then starts[#starts + 1] = i end
+    end
+    local function Cut(n) return inner:sub(1, (starts[n + 1] or (#inner + 1)) - 1) end
+    local lo, hi = 0, #starts - 1
+    while lo < hi do
+        local mid = math.ceil((lo + hi) / 2)
+        if Width(meter, open .. Cut(mid) .. ELLIPSIS .. close) <= room then lo = mid else hi = mid - 1 end
+    end
+    return open .. Cut(lo) .. ELLIPSIS .. close
+end
+
+-- Styles inside a line's words: an item link's color (a note's colors
+-- moved into decorations) goes into the fold as the link's own code; any
+-- other style keeps the line open, since a fold drops it.
+local function FoldColor(note, s, e, words)
+    local color
+    for _, d in ipairs(note.decorations or {}) do
+        if d.kind ~= "line" and d.startByte <= e and d.endByte > s then
+            if d.kind ~= "color" or not smatch(words, "^|H[^|]*|h%[.-%]|h$") then return false end
+            color = color or sformat("|cff%02x%02x%02x", mfloor((d.r or 1) * 255 + 0.5),
+                mfloor((d.g or 1) * 255 + 0.5), mfloor((d.b or 1) * 255 + 0.5))
+        end
+    end
+    return true, color
+end
+
+-- The start of the caret's line while the editor has the keyboard.
+local function CaretLineStart(editor, text)
+    if not editor:HasFocus() then return nil end
+    local nl = text:sub(1, editor:GetCursorPosition() or 0):match(".*()\n")
+    return nl and nl + 1 or 1
+end
+
+-- The folds and openings into the body and the editor at once; the caret
+-- stays put, at the end of a line it opened.
+local function ApplyFolds(editor, note, edits)
+    local caret = editor:GetCursorPosition() or 0
+    local shift, place = 0, nil
+    for _, ed in ipairs(edits) do
+        if ed.onCaret then
+            place = ed.s - 1 + (caret > ed.s - 1 and #ed.repl or 0)
+        elseif ed.e <= caret then
+            shift = shift + #ed.repl - (ed.e - ed.s + 1)
+        end
+    end
+    for i = #edits, 1, -1 do CK.ReplaceRange(note, edits[i].s, edits[i].e, edits[i].repl) end
+    local ui = NotesUI._notes
+    ui.loadingNote = true
+    editor:SetText(note.body)
+    editor:SetCursorPosition((place or caret) + shift)
+    ui.loadingNote = nil
+    ui.lastEditorText = note.body
+    NotesUI:QueueEasyNotesOverlayUpdate()
+end
+
 -- A tail on every box line's first row: its count and icon when it has
 -- them, the X under the cursor. positions nil: none.
 function Lines.PlaceTails(editor, positions, lineYs, lineH)
@@ -476,6 +579,17 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
     local layer = Layer(editor)
     local done, open = DoneColor(), OpenColor()
     local used = 0
+    -- Not while text is selected or dragged: a fold rewrites the text.
+    local text, ui = editor:GetText() or "", NotesUI._notes
+    local folding = text == (note.body or "") and not (ui.curSelection or ui.inputBusy or ui.applyingFormat
+        or editor._notesDragging or (IsShiftKeyDown and IsShiftKeyDown()))
+    local byStart, edits, meter, caretAt, editorW, boxW = {}, {}, nil, nil, 0, 0
+    if folding then
+        for _, f in ipairs(CK.BodyLines(text)) do byStart[f.start] = f end
+        meter = Meter(layer, editor)
+        caretAt = CaretLineStart(editor, text)
+        editorW, boxW = editor:GetWidth() or 0, Width(meter, CK.EMPTY)
+    end
     for k = 1, #positions do
         local p = positions[k]
         if p.isPrefix and (p.glyph == BOX_GLYPH or p.glyph == TICKED_GLYPH) then
@@ -498,10 +612,48 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
                 tail:ClearAllPoints()
                 tail:SetPoint("TOPRIGHT", editor, "TOPRIGHT", 0, -tail.lineY)
                 tail:Show()
+                tail:SetAlpha(1)
+                tail:EnableMouse(true)
+                local f = byStart[p.byteStart]
+                if f and (icon or (progress and progress ~= "")) then
+                    local room = editorW - mmax(22, w) - boxW - FOLD_GAP
+                    local content = text:sub(f.contentStart, f.lineEnd)
+                    local raw = CK.Unfold(content)
+                    -- A box ticked puts the caret on its line; it opens on a key or a click on its words.
+                    local onCaret = p.byteStart == caretAt and editor._efBoxLine ~= p.byteStart
+                    local want = raw
+                    if onCaret then
+                        -- Open to be typed: words past the tail's room put the tail
+                        -- out of sight (it stays placed: the names hang under it).
+                        if Width(meter, raw) > room then
+                            tail:SetAlpha(0)
+                            tail:EnableMouse(false)
+                        end
+                    else
+                        local words, count = CK.SplitCount(raw)
+                        local foldable, baked = FoldColor(note, f.contentStart, f.lineEnd, words)
+                        -- The color goes in front of the link: a count typed first ("2 [x]") stays open.
+                        if baked and raw:sub(1, #words) ~= words then foldable = false end
+                        if foldable then
+                            if baked then
+                                local link = words
+                                words = baked .. link .. "|r"
+                                raw = words .. raw:sub(#link + 1)
+                            end
+                            local label, color = Label(words)
+                            local cut = Fit(meter, label, room)
+                            if count or cut ~= label then want = CK.Fold(raw, cut, color) end
+                        end
+                    end
+                    if want ~= content then
+                        edits[#edits + 1] = { s = f.contentStart, e = f.lineEnd, repl = want, onCaret = onCaret }
+                    end
+                end
             end
         end
     end
     for i = used + 1, #s.tails do s.tails[i]:Hide() end
+    if #edits > 0 then ApplyFolds(editor, note, edits) end
 end
 
 -- Tracking: lines the game ticks
@@ -881,6 +1033,19 @@ function Lines.SetPick(i)
     for k, row in ipairs(panel.rows) do row:SetMenuHighlightFocused(k == i) end
 end
 
+-- Up and Down move the pick while the names show, round the ends; the
+-- caret stays where it was typed (the old checklist box did this, lost
+-- in the 4.1.0 merge). The editor moves its caret after the key: the
+-- cursor hook puts it back.
+function Lines.StepPick(editor, key)
+    local panel = S().suggest
+    if not (panel and panel:IsShown() and (panel.count or 0) > 0) then return false end
+    Lines.SetPick(((panel.pick or 0) + (key == "DOWN" and 1 or -1) - 1) % panel.count + 1)
+    editor._efHoldCaret = editor:GetCursorPosition()
+    Utils.SafeAfter(0, function() editor._efHoldCaret = nil end)
+    return true
+end
+
 -- The box line the caret is on, its words, and the editor's text.
 local function CaretLine(editor)
     local text = editor:GetText() or ""
@@ -965,7 +1130,29 @@ function Lines.HookEditor(frame)
     editor:HookScript("OnTextChanged", function(_, userInput)
         if userInput then Utils.SafeAfter(0, W.Bound(Lines.Suggest)) else Lines.HideSuggest() end
     end)
+    -- A key after a box was ticked: typing into its line, which opens.
+    editor:HookScript("OnKeyDown", function(self)
+        if self._efBoxLine then
+            self._efBoxLine = nil
+            NotesUI:QueueEasyNotesOverlayUpdate()
+        end
+    end)
     editor:HookScript("OnTabPressed", function() Lines.TakePick() end)
+    editor:HookScript("OnCursorChanged", function(self)
+        local hold = self._efHoldCaret
+        if hold then
+            self._efHoldCaret = nil
+            if self:GetCursorPosition() ~= hold then self:SetCursorPosition(hold) end
+        end
+        -- The caret on another line: that one opens, the one left folds.
+        local at = CaretLineStart(self, self:GetText() or "")
+        if at ~= self._efFoldLine then
+            self._efFoldLine = at
+            NotesUI:QueueEasyNotesOverlayUpdate()
+        end
+    end)
+    -- A click or drag held the folds back; its release lets them through.
+    editor:HookScript("OnMouseUp", function() NotesUI:QueueEasyNotesOverlayUpdate() end)
     editor:HookScript("OnEditFocusLost", function()
         -- A press on a name takes the focus first: the pick still lands.
         Utils.SafeAfter(0, W.Bound(function()

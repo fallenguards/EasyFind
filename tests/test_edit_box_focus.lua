@@ -34,7 +34,7 @@ function tests.everyEditBox_releasesFocusOrSaysWhyNot()
                         local esc = var and var:gsub("%p", "%%%0")
                         local released, lateScript
                         for j = i + 1, #lines do
-                            if esc and lines[j]:find("ReleaseFocusOnOutsideClick%(" .. esc .. "%)") then released = j end
+                            if esc and lines[j]:find("ReleaseFocusOnOutsideClick%(" .. esc .. "[,%)]") then released = j end
                             if esc and lines[j]:find(esc .. ':SetScript%("OnEditFocus') then lateScript = j end
                         end
                         if not released then

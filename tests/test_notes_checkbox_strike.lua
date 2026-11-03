@@ -36,5 +36,19 @@ function tests.theStrikeStandsDown_onCheckboxLinesOnly()
     H.assertFalse(Fmt.TouchesCheckbox(text, nil, 1, 10), "a selection in prose alone")
 end
 
+-- A key redraws the styles in its own frame: the overlays hidden until the
+-- queued pass made a done line's green and strike flash at every key
+-- (2026-11-03).
+function tests.aKeyRedrawsTheStylesInItsOwnFrame()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
+    local src = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+    local s = assert(src:find('frame.editor:SetScript("OnTextChanged", function(self)', 1, true))
+    local body = src:sub(s, select(2, src:find("\n    end%)\n", s)))
+    H.assertNil(body:find("runPool[i]:Hide()", 1, true), "no overlay hidden on a key")
+    H.assertTrue(body:find("UI:UpdateEasyNotesDecorationOverlay()\n        UI:QueueEasyNotesOverlayUpdate()", 1, true) ~= nil,
+        "redrawn at once, then the queued pass")
+end
+
 local pass, fail, failures = H.runSuite("NotesCheckboxStrike", tests)
 return { pass = pass, fail = fail, failures = failures }

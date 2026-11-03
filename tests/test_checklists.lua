@@ -440,5 +440,45 @@ function tests.migrate_theOldKindAndTickedBoxes()
     H.assertEq(#ticked.decorations, 2, "the tick's strike went; two line marks stand")
 end
 
+-- Undo brought a list's line marks back without their ids (Era, 2026-11-02):
+-- every line read as one with no id, and each repaint threw "table index is
+-- nil" writing its seen state. A mark with no id takes a new one; a line
+-- with none is dropped for the line its mark now names.
+function tests.reconcile_givesAMarkWithoutAnIdANewOne()
+    local CK = Load()
+    local note = NewNote(CK)
+    note.body = CK.EMPTY .. LINK5 .. " x3\n" .. CK.EMPTY .. "Repair"
+    CK.Reconcile(note)
+    H.assertEq(IDs(note), "1 2")
+    for _, d in ipairs(note.decorations) do d.id = nil end
+    note.list.lines[1].id = nil
+    H.assertNil(CK.LineAt(note, 1), "a mark with no id names no line")
+    H.assertTrue(CK.Reconcile(note), "the marks were mended")
+    H.assertEq(Marks(note), "3@1 4@" .. (#CK.EMPTY + #LINK5 + #" x3\n" + 1), "new ids, in order")
+    H.assertEq(IDs(note), "3 4")
+    local line = CK.LineAt(note, 1)
+    H.assertEq(line.item, 5, "the line reads its words again")
+    H.assertEq(line.target, 3)
+    CK.LineState(note, line)
+end
+
+-- A copy of a note's decorations keeps every field, a line mark's id with it.
+function tests.notesCopiesOfDecorationsKeepEveryField()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
+    local src = f:read("*a"):gsub("\r\n", "\n")
+    f:close()
+    H.assertNil(src:find("{ kind = d.kind, startByte = d.startByte", 1, true), "a copy that names its fields drops the id")
+    local s = assert(src:find("function Fmt.CopyDecorations(src, into)", 1, true))
+    local e = select(2, assert(src:find("\nend\n", s, true)))
+    local Fmt = {}
+    assert(load(src:sub(s, e), "=CopyDecorations", "t", setmetatable({ Fmt = Fmt }, { __index = _G })))()
+    local from = { { kind = "line", id = 7, startByte = 1, endByte = 4 }, { kind = "color", startByte = 5, endByte = 9, r = 1, g = 0, b = 0 } }
+    local copy = Fmt.CopyDecorations(from, {})
+    H.assertEq(copy[1].id, 7)
+    H.assertEq(copy[2].r, 1)
+    H.assertTrue(copy[1] ~= from[1], "its own tables")
+    H.assertTrue(src:find("Fmt.CopyDecorations(state.decos, decos)", 1, true) ~= nil, "undo and redo restore whole marks")
+end
+
 local pass, fail, failures = H.runSuite("Checklists", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -24,6 +24,88 @@ local function Plain(v)
     return v ~= nil and not (issecretvalue and issecretvalue(v))
 end
 
+-- A folded line: its words and count in a link's hidden data (no "|" in
+-- it), the label shown cut to fit; the edit box draws the label alone.
+-- Lines.lua folds a list line the caret is not on and opens the one it is.
+-- EasyFind's own link type (registered, ResultLinks), not a row link.
+local FOLD = "|Heasyfind:fold:"
+local UNESCAPE = { t = "~", p = "|" }
+
+local function FoldAt(text, from)
+    local at = sfind(text, FOLD, from, true)
+    if not at then return nil end
+    local dataEnd = sfind(text, "|h", at + #FOLD, true)
+    local labelEnd = dataEnd and sfind(text, "|h", dataEnd + 2, true)
+    if not labelEnd then return nil end
+    local s, e = at, labelEnd + 1
+    if at > 10 and smatch(text:sub(at - 10, at - 1), "^|c%x%x%x%x%x%x%x%x$") and text:sub(e + 1, e + 2) == "|r" then
+        s, e = at - 10, e + 2
+    end
+    return s, e, (text:sub(at + #FOLD, dataEnd - 1):gsub("~([tp])", UNESCAPE))
+end
+
+function CK.Fold(raw, label, color)
+    local link = FOLD .. raw:gsub("~", "~t"):gsub("|", "~p") .. "|h" .. label .. "|h"
+    return color and (color .. link .. "|r") or link
+end
+
+-- The text with every folded line open.
+function CK.Unfold(text)
+    if not (text and sfind(text, FOLD, 1, true)) then return text end
+    local out, pos = {}, 1
+    while true do
+        local s, e, raw = FoldAt(text, pos)
+        if not s then break end
+        out[#out + 1] = text:sub(pos, s - 1)
+        out[#out + 1] = raw
+        pos = e + 1
+    end
+    out[#out + 1] = text:sub(pos)
+    return table.concat(out)
+end
+
+-- note.body's bytes s..e become repl: decorations past them move along,
+-- any but a line's inside them go. The change in length.
+function CK.ReplaceRange(note, s, e, repl)
+    local body = note.body or ""
+    local delta = #repl - (e - s + 1)
+    note.body = body:sub(1, s - 1) .. repl .. body:sub(e + 1)
+    local decos = note.decorations or {}
+    for i = #decos, 1, -1 do
+        local d = decos[i]
+        if d.kind ~= "line" and d.startByte >= s and d.startByte <= e + 1 then
+            tremove(decos, i)
+        else
+            if d.startByte > e then d.startByte = d.startByte + delta end
+            if d.endByte > e + 1 then d.endByte = d.endByte + delta end
+        end
+    end
+    return delta
+end
+
+-- The note as it reads with every folded line open, for what leaves the
+-- editor (a copy, markdown, a share code); the note itself when none is.
+function CK.Unfolded(note)
+    local body = note and note.body
+    if not (body and sfind(body, FOLD, 1, true)) then return note end
+    local copy = { body = body, decorations = {} }
+    for k, v in pairs(note) do if copy[k] == nil then copy[k] = v end end
+    for i, d in ipairs(note.decorations or {}) do
+        local c = {}
+        for k, v in pairs(d) do c[k] = v end
+        copy.decorations[i] = c
+    end
+    local spans, pos = {}, 1
+    while true do
+        local s, e, raw = FoldAt(body, pos)
+        if not s then break end
+        spans[#spans + 1] = { s, e, raw }
+        pos = e + 1
+    end
+    for i = #spans, 1, -1 do CK.ReplaceRange(copy, spans[i][1], spans[i][2], spans[i][3]) end
+    return copy
+end
+
 local function CharName(key)
     return smatch(key or "", "^([^%-]+)") or key or "?"
 end
@@ -94,6 +176,7 @@ end
 -- in a list of items. True when a field changed.
 local READ = { "text", "item", "link", "target", "quest", "spell" }
 function CK.ReadContent(line, content, items, settle)
+    content = CK.Unfold(content)
     local words, count = CK.SplitCount(content)
     local new
     local fromLink = CK.LineFromLink(words)
@@ -143,7 +226,9 @@ function CK.Reconcile(note, settle)
         if d.kind == "line" then idAt[d.startByte] = d end
     end
     local byId = {}
-    for _, line in ipairs(list.lines) do byId[line.id] = line end
+    for _, line in ipairs(list.lines) do
+        if line.id then byId[line.id] = line end
+    end
     local items = CK.ItemsList(note)
     local out, kept, changed = {}, {}, false
     for _, f in ipairs(found) do
@@ -151,9 +236,13 @@ function CK.Reconcile(note, settle)
         if not d then
             note.decorations = note.decorations or {}
             decos = note.decorations
-            d = { kind = "line", id = list.nextLine, startByte = f.start, endByte = f.start + #CK.EMPTY - 1 }
-            list.nextLine = list.nextLine + 1
+            d = { kind = "line", startByte = f.start, endByte = f.start + #CK.EMPTY - 1 }
             decos[#decos + 1] = d
+        end
+        -- A mark an undo brought back without its id (2026-11-02) takes a new one.
+        if not d.id then
+            d.id = list.nextLine
+            list.nextLine = list.nextLine + 1
             changed = true
         end
         kept[d] = true
@@ -183,6 +272,7 @@ function CK.LineAt(note, startByte)
     for i = 1, #decos do
         local d = decos[i]
         if d.kind == "line" and d.startByte == startByte then
+            if not d.id then return nil end
             for _, line in ipairs(list.lines) do
                 if line.id == d.id then return line end
             end
