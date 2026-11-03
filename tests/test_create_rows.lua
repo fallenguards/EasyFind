@@ -23,7 +23,7 @@ function tests.theBadgeHangsOnCreateRowAlone()
 end
 
 function tests.theApiOffersIt()
-    H.assertTrue(Read("Core/API.lua"):find("MINOR = 7", 1, true) ~= nil)
+    H.assertTrue(tonumber(Read("Core/API.lua"):match("MINOR = (%d+)")) >= 4, "createRow came with MINOR 4")
     H.assertTrue(Read("API/README.md"):find("`createRow`", 1, true) ~= nil, "documented for extensions")
 end
 

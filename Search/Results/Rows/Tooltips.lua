@@ -13,9 +13,11 @@ local sformat = Utils.sformat
 local mfloor = Utils.mfloor
 
 local C_Timer = C_Timer
+local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
 local UIParent = UIParent
 local GetCursorPosition = GetCursorPosition
+local IsControlKeyDown, IsShiftKeyDown, IsAltKeyDown = IsControlKeyDown, IsShiftKeyDown, IsAltKeyDown
 
 local function AnchorRowTooltip(tooltip, ownerFrame)
     return Tooltips:AnchorRowTooltip(tooltip, ownerFrame)
@@ -25,37 +27,48 @@ local function GetUnearnedTooltip()
     return Tooltips:GetUnearnedTooltip()
 end
 
+-- A decorator drawing by the held keys (modifiers): its row's tooltip is
+-- drawn again as Ctrl, Shift or Alt goes down or up. Polled while it
+-- shows: a focused box (the bar, an armed Ctrl+C) swallows the event.
+local function HeldKeys()
+    return (IsControlKeyDown() and 1 or 0) + (IsShiftKeyDown() and 2 or 0) + (IsAltKeyDown() and 4 or 0)
+end
+local keyWatch = CreateFrame("Frame")
+keyWatch:Hide()
+keyWatch:SetScript("OnUpdate", function(self, elapsed)
+    self.wait = (self.wait or 0) - elapsed
+    if self.wait > 0 then return end
+    self.wait = 0.03
+    local row = self.row
+    if not (row and GameTooltip:IsShown() and GameTooltip:IsOwned(row)) then
+        self.row = nil
+        self:Hide()
+        return
+    end
+    local keys = HeldKeys()
+    if keys ~= self.keys then
+        self.keys = keys
+        row:_efRedrawTooltip()
+    end
+end)
+
+local function WatchHeldKeys(row)
+    keyWatch.row, keyWatch.keys, keyWatch.wait = row, HeldKeys(), 0
+    keyWatch:Show()
+end
+
+-- The hovered row's tooltip drawn again (API.RedrawRowTooltip).
+function Rows.RedrawHoveredTooltip()
+    local row = Results._hoverRow
+    if row and row._efRedrawTooltip and GameTooltip:IsShown() and GameTooltip:IsOwned(row) then
+        row:_efRedrawTooltip()
+    end
+end
+
 function Rows.InstallTooltips(resultRow)
-    -- Tooltip for unearned currencies, mounts, and toys.
-    -- This SetScript is the row's canonical OnEnter owner (it replaces any
-    -- earlier hooks), so the light-theme hover wash rides here too.
-    resultRow:SetScript("OnEnter", function(self)
-        -- A row's menu is open: the rows under the cursor's way to its
-        -- items (the gap to a flyout) stay as they are.
-        local held = Results._contextHeldRow
-        if held and held ~= self and held._efContextMenuHeld then return end
-        -- Single-owner hover wash. WoW's built-in highlight (used before the
-        -- themed wash) can never leave two rows lit; the manual wash can when
-        -- a hovered row is hidden/recycled by a re-render and its OnLeave
-        -- never fires. Clearing the prior hovered row here restores that
-        -- one-row-at-a-time guarantee regardless of missed OnLeaves.
-        local prevHover = Results._hoverRow
-        if prevHover and prevHover ~= self then
-            prevHover._efHlHover = nil
-            Results:UpdateRowWash(prevHover)
-        end
-        Results._hoverRow = self
-        self._efHlHover = true
-        Results:UpdateRowWash(self)
-        if ns.RowCopy then ns.RowCopy:OnRowHover(self) end
-        -- Mid-scroll, rows slide under a STATIONARY cursor and fire this
-        -- for every row that passes -- the single largest cost of a scroll
-        -- spam (Perfy flamegraph). The wash above still tracks; tooltips
-        -- and hints wait for a hover the user actually meant, i.e. the
-        -- first enter after the scroll settles.
-        if Results.IsResultsScrollBusy and Results:IsResultsScrollBusy() then return end
-        -- Hover-based action hint (mirrors keyboard selection hint).
-        Handlers:ApplyActionHint(self)
+    -- The row's own tooltip. again: drawn anew for a held key, the map
+    -- preview left as it is.
+    local function ShowTooltip(self, again)
         -- An extension's own rows (EasyFind.API.RegisterSearchProvider):
         -- its tooltip(row, tooltip) fills the tooltip, or says none. A
         -- surface of ours already showing the tooltip inside itself (the
@@ -406,7 +419,7 @@ function Rows.InstallTooltips(resultRow)
             end
         elseif self.data and self.data.mapSearchResult then
             -- Map result: preview pin on world map if it happens to be open
-            if ns.MapSearch and ns.MapSearch.PreviewUIResult then
+            if not again and ns.MapSearch and ns.MapSearch.PreviewUIResult then
                 ns.MapSearch:PreviewUIResult(self.data)
             end
             AnchorRowTooltip(GameTooltip, self)
@@ -566,11 +579,11 @@ function Rows.InstallTooltips(resultRow)
                 GameTooltip:Show()
             end
         end
-    end)
+    end
     -- Decorators' lines under the row's tooltip (RegisterRowDecorator
     -- tooltip). A row with no tooltip of its own (a creature) opens one,
     -- titled with its name, when a decorator has lines for it.
-    resultRow:HookScript("OnEnter", function(self)
+    local function Decorate(self)
         if not self.data then return end
         local own = GameTooltip:IsShown() and GameTooltip:GetOwner() == self
         if not own then
@@ -578,12 +591,54 @@ function Rows.InstallTooltips(resultRow)
             AnchorRowTooltip(GameTooltip, self)
             GameTooltip:SetText(self.data.name or "", 1, 1, 1)
         end
-        if ns.Extensions.DecorateTooltip(self.data, GameTooltip) then
+        local any, byKeys = ns.Extensions.DecorateTooltip(self.data, GameTooltip)
+        if any then
             GameTooltip:Show()
+            if byKeys then WatchHeldKeys(self) end
         elseif not own then
             GameTooltip:Hide()
         end
+    end
+
+    -- Tooltip for unearned currencies, mounts, and toys.
+    -- This SetScript is the row's canonical OnEnter owner (it replaces any
+    -- earlier hooks), so the light-theme hover wash rides here too.
+    resultRow:SetScript("OnEnter", function(self)
+        -- A row's menu is open: the rows under the cursor's way to its
+        -- items (the gap to a flyout) stay as they are.
+        local held = Results._contextHeldRow
+        if held and held ~= self and held._efContextMenuHeld then return end
+        -- Single-owner hover wash. WoW's built-in highlight (used before the
+        -- themed wash) can never leave two rows lit; the manual wash can when
+        -- a hovered row is hidden/recycled by a re-render and its OnLeave
+        -- never fires. Clearing the prior hovered row here restores that
+        -- one-row-at-a-time guarantee regardless of missed OnLeaves.
+        local prevHover = Results._hoverRow
+        if prevHover and prevHover ~= self then
+            prevHover._efHlHover = nil
+            Results:UpdateRowWash(prevHover)
+        end
+        Results._hoverRow = self
+        self._efHlHover = true
+        Results:UpdateRowWash(self)
+        if ns.RowCopy then ns.RowCopy:OnRowHover(self) end
+        -- Mid-scroll, rows slide under a STATIONARY cursor and fire this
+        -- for every row that passes -- the single largest cost of a scroll
+        -- spam (Perfy flamegraph). The wash above still tracks; tooltips
+        -- and hints wait for a hover the user actually meant, i.e. the
+        -- first enter after the scroll settles.
+        if Results.IsResultsScrollBusy and Results:IsResultsScrollBusy() then return end
+        -- Hover-based action hint (mirrors keyboard selection hint).
+        Handlers:ApplyActionHint(self)
+        ShowTooltip(self)
     end)
+    resultRow:HookScript("OnEnter", Decorate)
+    -- Hidden first: a row with no tooltip of its own is opened bare again.
+    resultRow._efRedrawTooltip = function(self)
+        GameTooltip:Hide()
+        ShowTooltip(self, true)
+        Decorate(self)
+    end
 
     resultRow:SetScript("OnLeave", function(self)
         self._efHlHover = nil

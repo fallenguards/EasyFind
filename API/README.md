@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -287,6 +287,7 @@ Your mark on rows another provider owns (MINOR 4): a price at the right of EasyF
 | `categories` | string list | With no `applies`: the item rows' `category` names you take (`"Bag"`, `"Loot"`). |
 | `text` | function `(row, link)` | At paint, for shown rows: a string, or copper EasyFind formats as coins, or nil for nothing. A second value is a state word EasyFind paints from the theme: `"good"`, `"warn"`, or `"dim"` (the default). Never a color code. Asked once per row until the rows rebuild or you call `RefreshRowDecorations`. |
 | `tooltip` | function `(row, link, tooltip)` | Your lines under the row's own tooltip (`AddLine`, `AddDoubleLine`). |
+| `modifiers` | boolean | MINOR 8. `true`: your `tooltip` reads the held keys (`IsControlKeyDown()`), so the row's tooltip is drawn again as Ctrl, Shift or Alt goes down or up while it shows. The row's clicks and Ctrl+C stay as they are. |
 | `menu` | function `(row, link)` | Rows for the row's right-click menu in the tile menu's shape (`{ kind = "action", label, onClick, tooltip, disabled, closes }`, `check`, `separator`, `menu`). They land in the menu itself, each wearing your icon; `disabled = true` grays one out, its `tooltip` saying why; `closes = true` on an action that opens another window steps the search bar aside after it (MINOR 5). |
 | `submenu` | boolean | `true`: your menu rows fold under one row named `label`, as they do by themselves past four. |
 | `subtext` | function `(row)` | A part appended to the row's subtext. |
@@ -298,7 +299,7 @@ Your mark on rows another provider owns (MINOR 4): a price at the right of EasyF
 | `words` | function | MINOR 7. Words EasyFind's rows you take are found by, given when the search builds: `{ npc = { [npcID] = { "decor", "vendor" } }, name = { ["faruza@1"] = { "decor" } } }`, a creature by its id, a place or service row by its lowercase name and a map, matched in that map's zone as `HasRow` matches. "decor durotar" then lists the decor vendors EasyFind has in Durotar. Asked once, and again after `RefreshRowDecorations`. |
 | `keep`, `sortKey` | function `(row)` | Held for the filter flyout (a toggle dropping rows, a sort choice); registered now, acted on in a later MINOR. |
 
-`link` is the bag item's link, the loot row's, else `"item:ID"`; nil on a row without an item. `UnregisterRowDecorator(id, slot)` takes it back; `RefreshRowDecorations()` repaints the shown rows (new prices after a scan). The map tab's own rows have the game's menu, not this one.
+`link` is the bag item's link, the loot row's, else `"item:ID"`; nil on a row without an item. `UnregisterRowDecorator(id, slot)` takes it back; `RefreshRowDecorations()` repaints the shown rows (new prices after a scan); `RedrawRowTooltip()` draws the hovered row's tooltip again, for lines that changed while it shows (a spell's text that arrived; MINOR 8). The map tab's own rows have the game's menu, not this one.
 
 ```lua
 API.RegisterRowDecorator({

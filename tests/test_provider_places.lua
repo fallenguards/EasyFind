@@ -131,7 +131,7 @@ function tests.theApiOffersIt()
     local src = Read("Core/API.lua")
     H.assertTrue(src:find("places = \"function\"", 1, true) ~= nil, "places passes the provider check")
     H.assertTrue(src:find("function API.ShowPlaces(key, row)", 1, true) ~= nil)
-    H.assertTrue(src:find("MINOR = 7", 1, true) ~= nil)
+    H.assertTrue(tonumber(src:match("MINOR = (%d+)")) >= 3, "places came with MINOR 3")
 end
 
 local pass, fail, failures = H.runSuite("ProviderPlaces", tests)

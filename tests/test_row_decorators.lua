@@ -242,6 +242,86 @@ function tests.tooltipDecorator_opensABareRowsTooltip()
     H.assertTrue(src:find("d.npcID = r.npcID", 1, true) ~= nil, "a creature row in the bar carries its creature id")
 end
 
+-- A row hovered with the real Rows/Tooltips.lua over a recording tooltip:
+-- the held keys read through `keys`, the key watch is its one frame.
+local function HoverEnv(modifiers)
+    local env, ns, API = Env()
+    local keys = { ctrl = false }
+    env.IsControlKeyDown = function() return keys.ctrl end
+    local frames = {}
+    env.CreateFrame = function()
+        local f = H.newFrame()
+        frames[#frames + 1] = f
+        return f
+    end
+    local tip = { lines = {}, shown = false }
+    function tip:SetOwner(owner) self.owner, self.lines = owner, {} end
+    function tip:SetText(text) self.lines = { text } end
+    function tip:AddLine(text) self.lines[#self.lines + 1] = text end
+    function tip:Show() self.shown = true end
+    function tip:Hide() self.shown, self.owner = false, nil end
+    function tip:IsShown() return self.shown end
+    function tip:GetOwner() return self.owner end
+    function tip:IsOwned(f) return self.owner == f end
+    env.GameTooltip = tip
+    ns.ResultTooltips.AnchorRowTooltip = function(_, t, owner) t:SetOwner(owner) end
+    ns.Results.UpdateRowWash = function() end
+    ns.ResultHandlers.ApplyActionHint = function() end
+    H.loadModule("Search/Results/Rows/Tooltips.lua", env, ns)
+    local draws = 0
+    API.RegisterRowDecorator({ id = "spoken", modifiers = modifiers,
+        applies = function(row) return row.npcID ~= nil end,
+        tooltip = function(_, _, t)
+            draws = draws + 1
+            t:AddLine(keys.ctrl and "every ability" or "the short list")
+        end })
+    local row = H.newFrame()
+    ns.ResultRows.InstallTooltips(row)
+    row.data = { npcID = 1548, name = "Rot Hide Mystic" }
+    row._handlers.OnEnter(row)
+    return {
+        API = API, tip = tip, keys = keys, row = row, watch = frames[1],
+        draws = function() return draws end,
+        tick = function() frames[1]._handlers.OnUpdate(frames[1], 0.1) end,
+    }
+end
+
+-- A decorator drawing by the held keys (MINOR 8): its row's tooltip is drawn
+-- again on a Ctrl edge, once per edge and with nothing doubled; the watch
+-- stops with the tooltip; RedrawRowTooltip draws the hovered row again.
+function tests.modifiersDecorator_redrawsTheTooltipOnAKeyEdge()
+    local h = HoverEnv(true)
+    H.assertDeepEq(h.tip.lines, { "Rot Hide Mystic", "the short list" })
+    H.assertTrue(h.watch:IsShown(), "the keys are watched while it shows")
+    h.tick()
+    H.assertEq(h.draws(), 1, "no key moved, nothing drawn")
+    h.keys.ctrl = true
+    h.tick()
+    H.assertDeepEq(h.tip.lines, { "Rot Hide Mystic", "every ability" }, "drawn again for Ctrl, nothing doubled")
+    h.tick()
+    H.assertEq(h.draws(), 2, "once per edge")
+    h.keys.ctrl = false
+    h.API.RedrawRowTooltip()
+    H.assertDeepEq(h.tip.lines, { "Rot Hide Mystic", "the short list" }, "RedrawRowTooltip draws the hovered row")
+    h.tip:Hide()
+    h.tick()
+    H.assertFalse(h.watch:IsShown(), "the watch stops with the tooltip")
+end
+
+-- Without the flag nothing is watched; the map preview is not run again
+-- by a redraw (again), and a row's clicks are not the tooltip's business.
+function tests.noModifiers_noWatch_redrawLeavesThePreview()
+    local h = HoverEnv(nil)
+    H.assertDeepEq(h.tip.lines, { "Rot Hide Mystic", "the short list" })
+    H.assertFalse(h.watch:IsShown(), "a decorator not drawing by the keys starts no watch")
+    local f = assert(io.open(H.ADDON_ROOT .. "/Search/Results/Rows/Tooltips.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertTrue(src:find("if not again and ns.MapSearch and ns.MapSearch.PreviewUIResult then", 1, true) ~= nil,
+        "a redraw leaves the map preview alone")
+    H.assertTrue(src:find("OnClick", 1, true) == nil, "the tooltip file sets no click script")
+end
+
 -- A decorator's @scope (MINOR 6): its aliases make one quick filter keyed
 -- by its id, a later registration of the id takes the scope over, and a
 -- token already held leaves it without one.

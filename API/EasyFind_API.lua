@@ -99,6 +99,7 @@
 ---@field categories? string[] With no applies: the item rows' category names you take.
 ---@field text? fun(row: EasyFindRow, link: string|nil): string|number|nil, string|nil A string or copper, and "good", "dim" or "warn".
 ---@field tooltip? fun(row: EasyFindRow, link: string|nil, tooltip: table) Lines under the row's tooltip.
+---@field modifiers? boolean Your tooltip reads the held keys: the row's tooltip is drawn again as Ctrl, Shift or Alt goes down or up (MINOR 8).
 ---@field menu? fun(row: EasyFindRow, link: string|nil): table Rows for the row's menu, in the tile menu's shape.
 ---@field submenu? boolean Your menu rows under one row named label.
 ---@field subtext? fun(row: EasyFindRow): string|nil A part after the row's subtext.
@@ -229,6 +230,8 @@ function API.RegisterRowDecorator(def) end
 function API.UnregisterRowDecorator(id, slot) end
 ---Shown rows paint their decorations again (new prices after a scan).
 function API.RefreshRowDecorations() end
+---The hovered row's tooltip drawn again: your lines changed while it shows, a spell's text arrived (MINOR 8).
+function API.RedrawRowTooltip() end
 ---Its rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key) end
 ---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.

@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 7 }
+local API = { VERSION = 1, MINOR = 8 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -731,6 +731,7 @@ local DECORATOR_FIELDS = {
     applies = "function", text = "function", tooltip = "function", menu = "function", subtext = "function",
     select = "function", hint = "function", keep = "function", sortKey = "function", submenu = "boolean",
     aliases = "table", browse = "function", candidates = "function", words = "function",
+    modifiers = "boolean",
 }
 
 -- words() (MINOR 7): the words decorators give EasyFind's rows they mark,
@@ -844,6 +845,12 @@ function API.RefreshRowDecorations()
     Decorators.generation = Decorators.generation + 1
     wipe(Decorators.candidates)
     if ns.Results and ns.Results.RefreshShownResults then ns.Results:RefreshShownResults(true) end
+end
+
+-- The hovered row's tooltip drawn again (MINOR 8): a decorator's lines
+-- changed while it shows (a spell's text arrived).
+function API.RedrawRowTooltip()
+    if ns.ResultRows and ns.ResultRows.RedrawHoveredTooltip then ns.ResultRows.RedrawHoveredTooltip() end
 end
 
 function API.RegisterRowDecorator(def)
@@ -998,17 +1005,19 @@ function Extensions.DecoratorSubtext(row)
     return out
 end
 
--- The decorators' lines under the row's tooltip; true when one wrote.
+-- The decorators' lines under the row's tooltip; true when one wrote, and
+-- second true when one of them draws by the held keys (modifiers).
 function Extensions.DecorateTooltip(row, tooltip)
-    local any = false
+    local any, byKeys = false, false
     for i = 1, #Decorators.list do
         local d = Decorators.list[i]
         if d.tooltip and DecoratorTakes(d, row) then
             Run(d.tooltip, row, Extensions.DecoratorLink(row), tooltip)
             any = true
+            byKeys = byKeys or d.modifiers == true
         end
     end
-    return any
+    return any, byKeys
 end
 
 -- Whether a decorator would write tooltip lines for the row: a row core
