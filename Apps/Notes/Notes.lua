@@ -1241,28 +1241,29 @@ end
 
 -- Checklists an extension keeps in step with a list of its own
 -- (EasyFind.API.LinkedChecklist, Core/API.lua): found by list.source.
+-- The category's window as the note's tag ("Auction House"), given once:
+-- a tag the player took off stays off.
+function notesNS.TagLinkedWindow(note, window)
+    local label = window and notesNS.Context.WindowLabel(window)
+    if not label or note.list.windowTagged then return end
+    note.list.windowTagged = true
+    note.appliesIn = note.appliesIn or {}
+    for _, e in ipairs(note.appliesIn) do
+        if e.type == "uistate" and e.id == window then return end
+    end
+    note.appliesIn[#note.appliesIn + 1] = { type = "uistate", id = window, name = label }
+end
+
 function notesNS.LinkedNote(ext, key, title, create)
     local link = ns.ChecklistLinks and ns.ChecklistLinks[ext]
     local cat = link and link.category and link.category.key
     local window = link and link.category and link.category.window
-    -- The category's window as the note's tag ("Auction House"), given
-    -- once: a tag the player took off stays off.
-    local function TagLinkedWindow(note)
-        local label = window and notesNS.Context.WindowLabel(window)
-        if not label or note.list.windowTagged then return end
-        note.list.windowTagged = true
-        note.appliesIn = note.appliesIn or {}
-        for _, e in ipairs(note.appliesIn) do
-            if e.type == "uistate" and e.id == window then return end
-        end
-        note.appliesIn[#note.appliesIn + 1] = { type = "uistate", id = window, name = label }
-    end
     for _, note in ipairs(NotesStore()) do
         local src = note.list and note.list.source
         if src and src.ext == ext and src.key == key then
             -- One made before its extension named a category takes it.
             if cat and not note.categories then note.categories, note.category = { cat }, cat end
-            TagLinkedWindow(note)
+            notesNS.TagLinkedWindow(note, window)
             return note.id
         end
     end
@@ -1273,8 +1274,95 @@ function notesNS.LinkedNote(ext, key, title, create)
     note.scope = "account"
     if cat then note.categories, note.category = { cat }, cat end
     CK.Init(note).source = { ext = ext, key = key }
-    TagLinkedWindow(note)
+    notesNS.TagLinkedWindow(note, window)
     return note.id
+end
+
+-- The note's lines as an extension hears them, in order.
+function notesNS.LinkLines(note)
+    local lines = {}
+    for i, line in ipairs(note.list.lines) do
+        lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text }
+    end
+    return lines
+end
+
+-- The extension that makes lists of items from the player's notes
+-- (handlers.adopt), and its handlers.
+function notesNS.ListKeeper()
+    for id, link in pairs(ns.ChecklistLinks or {}) do
+        if link.items and link.adopt then return id, link end
+    end
+end
+
+-- The note a shopping list, or a checklist again (2026-11-02). On, the
+-- extension that keeps lists of items makes one of it and the note follows
+-- that list, filed under its category. Off, that list is deleted there
+-- (handlers.drop), asked first; a list an extension made for itself and
+-- cannot let go (no drop) stays one.
+function notesNS.SetShopping(note, on)
+    local CK = notesNS.Checklist
+    if not (note and CK) then return end
+    local list = CK.Init(note)
+    local src = list.source
+    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    local function Done()
+        note.updated = time()
+        CK.Reconcile(note, true)
+        if notesNS.Lines then notesNS.Lines.Reload(note) end
+        notesNS.Refresh()
+    end
+    if on then
+        if CK.ItemsList(note) then return end
+        list.shopping = true
+        local id, keeper = notesNS.ListKeeper()
+        if keeper and not src then
+            CK.Reconcile(note, true)
+            local ok, key = xpcall(keeper.adopt, geterrorhandler(), note.id, NoteTitle(note), notesNS.LinkLines(note))
+            if ok and type(key) == "string" and key ~= "" then
+                list.source = { ext = id, key = key }
+                local cat = keeper.category
+                if cat and cat.key then
+                    note.categories = note.categories or {}
+                    if not tContains(note.categories, cat.key) then note.categories[#note.categories + 1] = cat.key end
+                    note.category = note.category or cat.key
+                end
+                notesNS.TagLinkedWindow(note, cat and cat.window)
+            end
+        end
+        Done()
+        return
+    end
+    if not CK.ItemsList(note) or (link and not link.drop) then return end
+    local function Off()
+        if link then xpcall(link.drop, geterrorhandler(), note.id, src.key) end
+        list.shopping, list.source = nil, nil
+        for _, line in ipairs(list.lines) do line.ref = nil end
+        local cat = link and link.category
+        if cat and cat.key and note.categories then
+            for i = #note.categories, 1, -1 do
+                if note.categories[i] == cat.key then tremove(note.categories, i) end
+            end
+            if note.category == cat.key then note.category = note.categories[1] end
+            if #note.categories == 0 then note.categories = nil end
+        end
+        if cat and cat.window and list.windowTagged then
+            for i = #(note.appliesIn or {}), 1, -1 do
+                local e = note.appliesIn[i]
+                if e.type == "uistate" and e.id == cat.window then tremove(note.appliesIn, i) end
+            end
+        end
+        list.windowTagged = nil
+        Done()
+    end
+    if not link then return Off() end
+    local def = ns.Extensions and ns.Extensions.byID and ns.Extensions.byID[src.ext]
+    ns.ShowThemedDialog({
+        text = Utils.sformat(L["NOTES_SHOP_OFF_ASK"], def and def.name or src.ext, src.key),
+        messageColor = ns.GOLD_COLOR,
+        acceptText = L["NOTES_SHOP_OFF_ACCEPT"],
+        onAccept = Off,
+    })
 end
 
 -- The extension's list into its note; what shows it drawn again. While
@@ -1319,12 +1407,8 @@ function notesNS.LinkedChanged(note)
     local src = note.list and note.list.source
     local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
     if not (link and link.changed) then return end
-    local lines = {}
-    for i, line in ipairs(note.list.lines) do
-        lines[i] = { id = line.id, ref = line.ref, item = line.item, link = line.link, target = line.target, text = line.text }
-    end
     notesNS.Windows.heldSync[note.id] = nil
-    xpcall(link.changed, geterrorhandler(), note.id, src.key, lines)
+    xpcall(link.changed, geterrorhandler(), note.id, src.key, notesNS.LinkLines(note))
 end
 
 function notesNS.LinkedShown(note)
@@ -3592,11 +3676,15 @@ end
 function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
     local text = editor:GetText() or ""
     local boxed = text:find(CHECK_EMPTY_PREFIX, 1, true) or text:find(CHECK_FILLED_PREFIX, 1, true)
-    if (not decos or #decos == 0) and not boxed then
+    local shopping = notesNS.Lines and notesNS.Lines.Shopping(editor)
+    if (not decos or #decos == 0) and not boxed and not shopping then
         for i = 1, #texPool do texPool[i]:Hide() end
         for i = 1, #runPool do runPool[i]:Hide() end
         Fmt.PlaceCheckboxes(editor, nil)
-        if notesNS.Lines then notesNS.Lines.PlaceTails(editor, nil) end
+        if notesNS.Lines then
+            notesNS.Lines.PlaceTails(editor, nil)
+            notesNS.Lines.PlaceAddRow(editor, text, nil)
+        end
         return
     end
     decos = decos or {}
@@ -3614,7 +3702,10 @@ function Fmt.UpdateDecorationOverlayFor(editor, decos, texPool, runPool)
     local positions = LayoutCharacters(text, editor, wrapWidth)
     local lineYs, _, advance = MeasureLineYMap(text, editor, positions)
     Fmt.PlaceCheckboxes(editor, boxed and positions or nil, advance, oneLineH)
-    if notesNS.Lines then notesNS.Lines.PlaceTails(editor, boxed and positions or nil, lineYs, oneLineH) end
+    if notesNS.Lines then
+        notesNS.Lines.PlaceTails(editor, boxed and positions or nil, lineYs, oneLineH)
+        notesNS.Lines.PlaceAddRow(editor, text, positions, lineYs, oneLineH, advance)
+    end
     local strikeY = math.floor(oneLineH * 0.50 + 0.5)
     local underlineY = math.floor(oneLineH * 0.92 + 0.5)
     local usedRuns = 0
@@ -5932,7 +6023,9 @@ function UI:BuildEasyNotesListMenu(frame, btn, items)
             UI:PaintEasyNotesListButton(self)
             UI:HideNotesTip(self)
         end)
-        opt:SetScript("OnClick", function()
+        opt:SetScript("OnClick", function(self)
+            -- The checklist entry opens the choice of a checklist or a shopping list.
+            if item.key == "checklist" then return UI:ToggleEasyNotesChecklistMenu(self) end
             local cs = UI._notes.curSelection
             local cursor = frame.editor and frame.editor:GetCursorPosition() or UI._notes.lastCursor
             UI:ApplyEasyNotesFormat(item, cs and cs.lo, cs and cs.hi, cursor)
@@ -8162,6 +8255,40 @@ function UI:ShowEasyNotesMenu(name, rows, opts)
         opts.stayOpen = worked
     end
     return Utils.ShowCursorMenu(name, rows, opts)
+end
+
+-- The list menu's checklist entry: a plain checklist or a shopping list,
+-- the note's kind checked (2026-11-02).
+function UI:ToggleEasyNotesChecklistMenu(opt)
+    local note, CK = GetSelectedNote(), notesNS.Checklist
+    if not (note and CK) then return end
+    local shopping = CK.ItemsList(note)
+    self:ShowEasyNotesMenu("EasyNotesChecklistMenu", {
+        { text = L["NOTES_FMT_CHECKLIST"], icon = (CK.Is(note) and not shopping) and MENU_CHECK_TEX or nil,
+          onClick = function() UI:PickEasyNotesListKind(false) end },
+        { text = L["NOTES_FMT_SHOPPING"], icon = shopping and MENU_CHECK_TEX or nil,
+          onClick = function() UI:PickEasyNotesListKind(true) end },
+    }, { anchorFrame = opt, point = "TOP", relativePoint = "BOTTOM", offsetX = 0, offsetY = -8 })
+end
+
+-- The pick: the note becomes that kind and the caret's line a list line;
+-- the kind it already is flips the line's box, as the style always did.
+function UI:PickEasyNotesListKind(shop)
+    local frame, note, CK = UI._notes.frame, GetSelectedNote(), notesNS.Checklist
+    if frame and frame.listMenuFlyout then frame.listMenuFlyout:Hide() end
+    local editor = frame and frame.editor
+    if not (editor and note and CK) then return end
+    local text = editor:GetText() or ""
+    local cursor = editor:GetCursorPosition() or #text
+    local ls = FindLineStartByte(text, cursor)
+    local mark = text:sub(ls, ls + MatchLinePrefix(text, ls) - 1)
+    local box = { mode = "check", linePrefix = CHECK_EMPTY_PREFIX }
+    if shop == CK.ItemsList(note) then
+        self:ApplyEasyNotesFormat(box, nil, nil, cursor)
+        return
+    end
+    if mark ~= CHECK_EMPTY_PREFIX and mark ~= CHECK_FILLED_PREFIX then self:ApplyEasyNotesFormat(box, nil, nil, cursor) end
+    notesNS.SetShopping(note, shop)
 end
 
 -- Categories are stored by their English key and shown in the client's language.

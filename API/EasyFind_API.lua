@@ -275,6 +275,8 @@ function API.Fire(id, event, ...) end
 ---@field category { key: string, label: string }? a note category of your own, your notes filed under it
 ---@field items boolean? names typed in your notes are items, each with a count, and the editor suggests them
 ---@field search fun(noteID: integer, key: string, line: table): boolean? the player asked for the line's auction search (Search AH on its menu, Ctrl+click on it): search it your way and return true; else the house's own bar takes the item's name (MINOR 3)
+---@field adopt fun(noteID: integer, title: string, lines: table[]): string? the player made a note of theirs a shopping list (with items): make a list of yours from its lines and return its key, the note following it from then on; nil for none (MINOR 7)
+---@field drop fun(noteID: integer, key: string)? the player made that shopping list a checklist again, asked first: delete your list (MINOR 7)
 
 ---Hears a linked checklist's edits and openings for this extension.
 ---@param handlers EasyFindChecklistLinks

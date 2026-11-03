@@ -1167,6 +1167,11 @@ end
 -- handlers.search(noteID, key, line): the player asked for the line's
 -- auction search (Search AH on its menu, Ctrl+click on it); true when the
 -- extension searched it, else the house's own bar takes the item's name.
+-- handlers.adopt(noteID, title, lines): the player made a note of theirs a
+-- shopping list; make a list of yours from its lines and return its key
+-- (the note follows it from then on), nil for none. handlers.drop(noteID,
+-- key): the player made it a checklist again, asked first; delete your
+-- list (MINOR 7).
 ns.ChecklistLinks = ns.ChecklistLinks or {}
 ns.NoteCategories = ns.NoteCategories or {}
 function API.LinkChecklists(id, handlers)

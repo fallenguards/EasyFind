@@ -751,11 +751,24 @@ function CK.LineFromLink(link)
 end
 
 -- A list of items (a shopping list): a name typed in it is looked up, and
--- keeps a count written with it.
+-- keeps a count written with it. The player made it one (list.shopping),
+-- or an extension keeps it as a list of items.
 function CK.ItemsList(note)
-    local src = note and type(note.list) == "table" and note.list.source
-    local link = src and ns.ChecklistLinks and ns.ChecklistLinks[src.ext]
+    local list = note and type(note.list) == "table" and note.list
+    if not list then return false end
+    if list.shopping then return true end
+    local link = list.source and ns.ChecklistLinks and ns.ChecklistLinks[list.source.ext]
     return link ~= nil and link.items == true
+end
+
+-- A checklist with an item on it: it offers to become a shopping list,
+-- until the player says no for that note (list.shopDeclined).
+function CK.OffersShopping(note)
+    if not CK.Is(note) or CK.ItemsList(note) or note.list.shopDeclined then return false end
+    for _, line in ipairs(note.list.lines) do
+        if line.item then return true end
+    end
+    return false
 end
 
 -- A count written with the words: "Linen Cloak x20", "x 20", "*20", "* 20",

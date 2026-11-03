@@ -656,6 +656,152 @@ function Lines.PlaceTails(editor, positions, lineYs, lineH)
     if #edits > 0 then ApplyFolds(editor, note, edits) end
 end
 
+-- The editor is on a shopping list.
+function Lines.Shopping(editor)
+    if not Editing(editor) then return false end
+    local note = Note()
+    return note ~= nil and CK.ItemsList(note)
+end
+
+-- A new line at the list's end, the caret on it to type a name.
+local function AddItemLine(editor)
+    local text = editor:GetText() or ""
+    editor:SetFocus()
+    editor:SetCursorPosition(#text)
+    if text:match("[^\n]*$") ~= CK.EMPTY then editor:Insert((text == "" and "" or "\n") .. CK.EMPTY) end
+end
+
+-- The offer under a checklist with items on it: make it a shopping list,
+-- or no for this note (prompt A, 2026-11-02).
+local function OfferRow(layer)
+    local s = S()
+    if s.offerRow then return s.offerRow end
+    local row = CreateFrame("Frame", nil, layer)
+    row:EnableMouse(true)
+    if ns.CreateRoundedRectBorder then
+        ns.CreateRoundedRectBorder(row)
+        ns.SetRoundedRectBarHeight(row, 10)
+        ns.SetRoundedRectBorderEdgeShown(row, false)
+    end
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(14, 14)
+    row.icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.icon:SetTexture("Interface\\AddOns\\EasyFind_Notes\\Images\\tag")
+    row.x = ns.CreateCloseX(row, 10)
+    row.x:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    row.x:SetScript("OnClick", function()
+        local note = Note()
+        if not note then return end
+        note.list.shopDeclined = true
+        Repaint(note)
+    end)
+    row.convert = ns.CreateModernButton(row, L["NOTES_SHOP_CONVERT"], 60, 18)
+    row.convert:SetWidth(math.ceil(row.convert._label:GetStringWidth()) + 20)
+    row.convert:SetPoint("RIGHT", row.x, "LEFT", -6, 0)
+    row.convert:SetScript("OnClick", function()
+        local note = Note()
+        if note then notesNS.SetShopping(note, true) end
+    end)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.label:SetPoint("RIGHT", row.convert, "LEFT", -6, 0)
+    row.label:SetJustifyH("LEFT")
+    row.label:SetWordWrap(true)
+    if row.label.SetMaxLines then row.label:SetMaxLines(2) end
+    row.label:SetText(L["NOTES_SHOP_OFFER"])
+    s.offerRow = row
+    return row
+end
+
+-- Its ground as the note cards wear it: Era's thin edge under the Classic
+-- frame, the card fill elsewhere.
+local function PaintOffer(row)
+    local frame = Frame()
+    local classic = frame ~= nil and frame._efSkin == "classic"
+    NotesUI.PaintNotesClassicCard(row, classic, false, false)
+    if not ns.SetRoundedRectFill then return end
+    if classic then
+        ns.SetRoundedRectFill(row, 0, 0, 0, 0, true)
+    else
+        local c = ns.ThemeSetOf(row).BTN_FILL_NORMAL or { 0.16, 0.19, 0.25 }
+        ns.SetRoundedRectFill(row, c[1], c[2], c[3], 1, true)
+    end
+end
+
+-- The add line under a shopping list's last line, as the old list view
+-- had it: a "+" in the box column, "Add item", a click starts a line; on a
+-- checklist with items, the offer to make it one in its place. The editor
+-- keeps room under its text for either. positions nil: none.
+function Lines.PlaceAddRow(editor, text, positions, lineYs, lineH, advance)
+    if not Editing(editor) then return end
+    local s = S()
+    local note = Note()
+    local on = positions ~= nil and Lines.Shopping(editor)
+    local offer = positions ~= nil and not on and note ~= nil and CK.OffersShopping(note)
+    local layer = offer and Layer(editor)
+    local offerRow = offer and OfferRow(layer) or s.offerRow
+    local offerH = 0
+    if offer then
+        PaintOffer(offerRow)
+        offerH = mmax(26, (offerRow.label:GetStringHeight() or 0) + 12)
+    end
+    local room = (on and lineH) or (offer and offerH + 6) or 0
+    if s.addRoom ~= room and editor.SetTextInsets then
+        s.addRoom = room
+        editor:SetTextInsets(0, 0, 0, room)
+    end
+    if offerRow and not offer then offerRow:Hide() end
+    local step = advance or lineH
+    local y = 0
+    if text ~= "" and positions then
+        local last = 1
+        for k = 1, #positions do
+            if positions[k].line > last then last = positions[k].line end
+        end
+        y = (lineYs[last] or 0) + step
+        if text:sub(-1) == "\n" then y = y + step end
+    end
+    if offer then
+        offerRow:ClearAllPoints()
+        offerRow:SetPoint("TOPLEFT", editor, "TOPLEFT", 0, -(y + 4))
+        offerRow:SetPoint("RIGHT", editor, "RIGHT", 0, 0)
+        offerRow:SetHeight(offerH)
+        offerRow:Show()
+    end
+    local row = s.addRow
+    if not on then
+        if row then row:Hide() end
+        return
+    end
+    layer = Layer(editor)
+    if not row then
+        row = CreateFrame("Button", nil, layer)
+        row:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
+        row:GetHighlightTexture():SetAlpha(0.2)
+        row.plus = row:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+        row.plus:SetText("+")
+        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+        row.label:SetText(L["CHECK_ADD_ITEM"])
+        row:SetScript("OnClick", function() AddItemLine(editor) end)
+        s.addRow = row
+    end
+    local meter = Meter(layer, editor)
+    local path, size, flags = editor:GetFont()
+    if path then
+        row.plus:SetFont(path, size, flags or "")
+        row.label:SetFont(path, size, flags or "")
+    end
+    row.plus:ClearAllPoints()
+    row.plus:SetPoint("CENTER", row, "LEFT", Width(meter, "\226\150\161") / 2, 0)
+    row.label:ClearAllPoints()
+    row.label:SetPoint("LEFT", row, "LEFT", Width(meter, CK.EMPTY), 0)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", editor, "TOPLEFT", 0, -y)
+    row:SetPoint("RIGHT", editor, "RIGHT", 0, 0)
+    row:SetHeight(lineH)
+    row:Show()
+end
+
 -- Tracking: lines the game ticks
 
 local function QuestRows(note)

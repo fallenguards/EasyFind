@@ -50,8 +50,8 @@ local function Linked()
         },
         ns = { ChecklistLinks = { auctionator = { category = { key = "ShoppingLists", window = "auctionhouse" } } } },
     }
-    local fns = Chunk("Apps/Notes/Notes.lua", "function notesNS.LinkedNote(ext, key, title, create)",
-        "-- The extension's list into its note", "notesNS", env)
+    local fns = Chunk("Apps/Notes/Notes.lua", "function notesNS.TagLinkedWindow(note, window)",
+        "-- The note's lines as an extension hears them", "notesNS", env)
     return fns, store
 end
 
