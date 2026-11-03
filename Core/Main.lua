@@ -12,6 +12,9 @@ local ErrorHandler = Utils.ErrorHandler
 EasyFind = {}
 ns.EasyFind = EasyFind
 EasyFind._ns = ns
+-- This release, bumped with the tocs: a load-on-demand companion read in
+-- from newer files than the session began with meets another and stops.
+ns.BUILD = "4.3.0"
 
 local eventFrame = CreateFrame("Frame")
 ns.eventFrame = eventFrame

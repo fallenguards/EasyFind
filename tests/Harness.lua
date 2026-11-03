@@ -427,6 +427,11 @@ function Harness.newNs(env)
     ns.TEXT_PRIMARY = { 1.00, 0.97, 0.86 }
     -- Search/Results/Theme.lua's, which loads before any extension.
     ns.AddThemeSurface = function() end
+    -- Core/Main.lua's release stamp: the toc's, so a companion loads as a
+    -- release built with it does (tests/test_companion_build.lua holds them equal).
+    local toc = assert(io.open(resolvePath("EasyFind.toc"), "rb"))
+    ns.BUILD = toc:read("*a"):match("## Version:%s*([%d%.]+)")
+    toc:close()
     -- The icon paths, as Shared/Utils.lua sets them: an extension needs one.
     local f = assert(io.open(resolvePath("Shared/Utils.lua"), "rb"))
     for name, path in f:read("*a"):gmatch('\nns%.([%u_]+_ICON_TEX)%s*=%s*"([^"]+)"') do

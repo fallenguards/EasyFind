@@ -3,6 +3,7 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not (ns and ns.Caps and ns.Caps.tbc) then return end
+if select(2, ...).stale then return end
 
 ns.ITEM_SEARCH_BLOB = [[
 "brew of the month" club membership form	37571	1	254	1	12	0

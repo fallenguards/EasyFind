@@ -8,7 +8,7 @@
 -- closes what it opened.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not (ns and ns.ShowMe) then return end
+if not (ns and ns.ShowMe) or select(2, ...).stale then return end
 
 local ShowMe = ns.ShowMe
 local L = ns.L

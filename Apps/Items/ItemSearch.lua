@@ -2,7 +2,7 @@
 -- via ns.RequestItemCatalog(), never at login.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- Catalog item search over the packed item blob (Data.lua, Data_Forever.lua):
 -- one string, one line per item in byte order, tab-separated fields. Only

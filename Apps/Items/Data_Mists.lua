@@ -3,6 +3,7 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not (ns and ns.Caps and ns.Caps.mists) then return end
+if select(2, ...).stale then return end
 
 ns.ITEM_SEARCH_BLOB = [[
 !art template cloth belt	52990	2	254	1	4	0

@@ -3,6 +3,7 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not (ns and ns.Caps and ns.Caps.era) then return end
+if select(2, ...).stale then return end
 
 ns.ITEM_SEARCH_BLOB = [[
 "mage-eye" blunderbuss	3041	2	254	31	2	0

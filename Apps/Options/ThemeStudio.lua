@@ -1,7 +1,7 @@
 -- EasyFind_Options companion: the core's namespace, not this addon's own.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- Theme Studio: a standalone three-pane window. Left: every installed theme
 -- (builtin and custom) to start from. Middle: a page per window that can be

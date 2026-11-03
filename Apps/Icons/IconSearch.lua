@@ -2,7 +2,7 @@
 -- icon-search use via ns.RequestIconSearch(), never at login.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- Icon search data layer (GitHub #22): scans the packed icon blob IN
 -- PLACE (the ItemSearch model). The blob stays resident as ONE string;

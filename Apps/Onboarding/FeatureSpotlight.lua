@@ -2,7 +2,7 @@
 -- contract.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- Feature spotlight engine: a persistent click-through nudge for a newly
 -- shipped feature (the coach-mark pattern). A spotlight names an ordered

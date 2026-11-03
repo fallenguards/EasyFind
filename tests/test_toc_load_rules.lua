@@ -9,6 +9,9 @@ local H = require("Harness")
 local PRELUDE = {
     "^%s*$", "^%-%-", "^local EasyFind = EasyFind%s*$", "^local ns = EasyFind and EasyFind%._ns%s*$",
     "^local _, ns = %.%.%.%s*$", "^if not ns then return end%s*$",
+    -- A companion's release stamp and its files' stop (tests/test_companion_build.lua).
+    '^if ns%.BUILD ~= "[%d%.]+" then select%(2, %.%.%.%)%.stale = true return end%s*$',
+    "^if not ns or select%(2, %.%.%.%)%.stale then return end%s*$", "^if select%(2, %.%.%.%)%.stale then return end%s*$",
 }
 
 local function IsPrelude(line)

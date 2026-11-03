@@ -2,7 +2,7 @@
 -- icon-search use via ns.RequestIconSearch(), never at login.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- A search bar inside the game's own macro icon picker (GitHub #22): the
 -- @icons grid covers finding an icon first, this covers the player already

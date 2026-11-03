@@ -3,6 +3,7 @@
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not (ns and ns.Caps and ns.Caps.forever) then return end
+if select(2, ...).stale then return end
 
 ns.ITEM_SEARCH_BLOB = [[
 "gold"	252264	1	0	1	15	0

@@ -2,7 +2,7 @@
 -- icon-search use via ns.RequestIconSearch(), never at login.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 -- The @icons grid (GitHub #22): the results dropdown becomes a fixed grid of
 -- icon cells, macro-picker style, filtered live by whatever follows @icons.

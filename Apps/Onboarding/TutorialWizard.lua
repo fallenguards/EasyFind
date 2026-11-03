@@ -3,7 +3,7 @@
 -- spotlight) and by /ef setup; steady-state sessions never parse it.
 local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
-if not ns then return end
+if not ns or select(2, ...).stale then return end
 
 local Wizard = {}
 ns.Wizard = Wizard
