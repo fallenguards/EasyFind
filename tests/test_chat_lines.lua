@@ -39,6 +39,9 @@ local ALLOWED = {
     ["Core/Main.lua|TUTORIAL_CHAT_OFFER"] = { 1, "release" },
     ["Core/Main.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
     ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
+    -- A newer EasyFind or extension heard from a guild or group member, once a session.
+    ["Core/VersionCheck.lua|UPDATE_CHAT_CORE"] = { 1, "alert" },
+    ["Core/VersionCheck.lua|UPDATE_CHAT_EXT"] = { 1, "alert" },
     ["Core/Main.lua|%s|cFF00FF00EasyFind:|r %s"] = { 1, "helper" },
     ["Database/Dynamic.lua|ERR_SEARCH_DATA_FAILED"] = { 1, "error" },
     ["Database/Main.lua|ERR_DATABASE_INIT_FAILED"] = { 1, "error" },
