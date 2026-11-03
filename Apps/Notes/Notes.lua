@@ -2457,11 +2457,14 @@ function UI.PaintLightButton(btn, hovered)
 end
 
 -- Under the Classic skin the window's buttons are the 1.x red panel
--- buttons EasyFind's own are; true while they wear it.
-function UI.PaintClassicButton(btn, hovered)
+-- buttons EasyFind's own are, glowing under the mouse and pushed in while
+-- engaged (a style on, a toggle on); a fill there sits under the art and
+-- showed nothing (2026-11-03). True while they wear it.
+function UI.PaintClassicButton(btn, hovered, pressed)
     if ns.ClassicLook and ns.ClassicLook() and ns.PaintRedButton then
         ns.SetRoundedRectBorderShown(btn, false)
-        ns.PaintRedButton(btn, hovered and ns.BTN_FILL_HOVER or ns.BTN_FILL_NORMAL)
+        ns.PaintRedButton(btn, (pressed and ns.BTN_FILL_PRESSED) or (hovered and ns.BTN_FILL_HOVER) or ns.BTN_FILL_NORMAL)
+        if pressed and btn._efRed then btn._efRed.hl:SetShown(hovered and true or false) end
         return true
     end
     if btn._efRedOn and ns.DropRedButton then ns.DropRedButton(btn) end
@@ -2516,6 +2519,7 @@ if ns.RegisterThemeCallback then
         notesNS.Windows.Each(function()
             local frame = UI._notes.frame
             if frame.showsFold then UI.PaintEasyNotesFoldGlyph(frame.showsFold.glyph, false) end
+            UI:RefreshEasyNotesAutoResizeButton()
         end)
         if UI.PaintNotesSearch then UI.PaintNotesSearch() end
         -- The list's cards take the new theme (dark over a Classic tree).
@@ -5330,7 +5334,8 @@ function UI:EnsureEasyNotesFrame()
         b.tip = L["NOTES_AUTO_RESIZE"]
         b:SetScript("OnClick", function() UI:ToggleEasyNotesAutoResize() end)
         b:SetScript("OnEnter", function(self)
-            if ns.SetRoundedRectFill and not NormalizeDB().autoResize then
+            local on = NormalizeDB().autoResize
+            if not UI.PaintClassicButton(self, true, on) and ns.SetRoundedRectFill and not on then
                 ns.SetRoundedRectFill(self, 0.18, 0.18, 0.20, 1, true)
             end
             UI:ShowNotesTipDelayed(self, "ANCHOR_TOP", self.tip)
@@ -5452,10 +5457,10 @@ function UI:EnsureEasyNotesFrame()
         fsBtn.tip = L["NOTES_FONT_SIZE"]
         if ns.SetRoundedRectFill then ns.SetRoundedRectFill(fsBtn, 0, 0, 0, 0, true) end
         fsBtn:SetScript("OnEnter", function(self)
-            if ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0.20, 0.20, 0.22, 1, true) end
+            if not UI.PaintClassicButton(self, true) and ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0.20, 0.20, 0.22, 1, true) end
         end)
         fsBtn:SetScript("OnLeave", function(self)
-            if ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0, 0, 0, 0, true) end
+            if not UI.PaintClassicButton(self, false) and ns.SetRoundedRectFill then ns.SetRoundedRectFill(self, 0, 0, 0, 0, true) end
         end)
         fsBtn:SetScript("OnClick", function() UI:ToggleEasyNotesFontFlyout() end)
         frame.fontSizeButton = fsBtn
@@ -5892,6 +5897,7 @@ end
 function UI:RefreshEasyNotesAutoResizeButton()
     local frame = UI._notes.frame
     if not (frame and frame.autoResizeButton and ns.SetRoundedRectFill) then return end
+    if UI.PaintClassicButton(frame.autoResizeButton, frame.autoResizeButton:IsMouseOver(), NormalizeDB().autoResize) then return end
     if NormalizeDB().autoResize then
         local c = ns.ThemeSetOf(frame).NAV_SELECTED_FILL or {0.20,0.30,0.45}; ns.SetRoundedRectFill(frame.autoResizeButton, c[1], c[2], c[3], 1, true)
     else
@@ -6134,7 +6140,9 @@ function UI:RefreshEasyNotesToolbarButton(btn)
     -- control accent and resting ink its dark text, or neither shows.
     local look = ns.ThemeSetOf(btn)
     local light = look.palette and look.palette.light
-    if ns.SetRoundedRectFill then
+    -- Classic: the red art glows or pushes in; the ink below follows.
+    local classic = UI.PaintClassicButton(btn, btn._hover, active)
+    if not classic and ns.SetRoundedRectFill then
         if active then
             local c = light and look.CONTROL_ACCENT
             if c then ns.SetRoundedRectFill(btn, c[1], c[2], c[3], 1, true)

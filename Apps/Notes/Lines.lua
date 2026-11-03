@@ -709,6 +709,17 @@ local function OfferRow(layer)
     row.label:SetWordWrap(true)
     if row.label.SetMaxLines then row.label:SetMaxLines(2) end
     row.label:SetText(L["NOTES_SHOP_OFFER"])
+    -- What a shopping list adds, the Auctionator list where its extension is in.
+    local function Tip(self)
+        local tip = L["NOTES_SHOP_OFFER_TT"]
+        if notesNS.ListKeeper and notesNS.ListKeeper() then tip = tip .. "\n" .. L["NOTES_SHOP_OFFER_AH_TT"] end
+        NotesUI:ShowNotesTipDelayed(self, "ANCHOR_TOP", tip)
+    end
+    local function Untip(self) NotesUI:HideNotesTip(self) end
+    row:SetScript("OnEnter", Tip)
+    row:SetScript("OnLeave", Untip)
+    row.convert:HookScript("OnEnter", Tip)
+    row.convert:HookScript("OnLeave", Untip)
     s.offerRow = row
     return row
 end

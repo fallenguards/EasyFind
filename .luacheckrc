@@ -104,7 +104,7 @@ read_globals = {
     "INVSLOT_MAINHAND", "INVSLOT_OFFHAND", "INVSLOT_RANGED",
 
     -- Frames and UI objects
-    "UIParent", "GameTooltip", "WorldMapFrame", "WorldFrame", "Minimap", "MinimapCluster",
+    "UIParent", "GameTooltip", "NORMAL_FONT_COLOR", "WorldMapFrame", "WorldFrame", "Minimap", "MinimapCluster",
     "CharacterFrame", "PaperDollFrame", "AchievementFrame",
     "CharacterStatsPane", "PaperDollTitlesPane", "PaperDollEquipmentManagerPane",
     "CurrencyFrame",
