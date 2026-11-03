@@ -102,6 +102,8 @@ local FIRST_PARTY = {
     { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension", split = true },
     { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension" },
     { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
+    -- slug easyfind-all-the-things-extension once CurseForge approves its project
+    { addon = "EasyFind_ATT", project = "EasyFind: ALL THE THINGS Extension" },
 }
 ns.FirstPartyExtensions = FIRST_PARTY
 
