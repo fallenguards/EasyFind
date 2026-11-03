@@ -99,20 +99,6 @@ function tests.whatKeepCountsAsInsideKeepsTheFocus()
     box.hooks.OnEditFocusLost()
 end
 
--- Both note editors release, the window, the toolbar and the flyouts
--- hanging under it counted inside.
-function tests.theNoteEditorsReleaseOutsideTheirWindow()
-    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Notes/Notes.lua", "rb"))
-    local src = f:read("*a"):gsub("\r\n", "\n")
-    f:close()
-    H.assertTrue(src:find("Utils.ReleaseFocusOnOutsideClick(frame.editor, function()\n        return frame:IsMouseOver()"
-        .. " or Over(frame.toolbar) or Over(frame.listMenuFlyout) or Over(frame.fontSizeFlyout)", 1, true) ~= nil,
-        "the note's text")
-    H.assertTrue(src:find("Utils.ReleaseFocusOnOutsideClick(editor, function()\n        return parent:IsMouseOver()", 1, true) ~= nil,
-        "a snippet's text")
-    H.assertNil(src:find("-- keeps focus: the note's text", 1, true))
-end
-
 -- The GPS extension's boxes: its own repo's test.
 function tests.theMapTabsSearchBoxReleases()
     local f = assert(io.open(H.ADDON_ROOT .. "/MapSearch/MapTab.lua", "rb"))

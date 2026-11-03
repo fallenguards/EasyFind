@@ -7,7 +7,7 @@
 local H = require("Harness")
 
 -- Not panels: chips, filled as their kind.
-local KNOWN = { ["Apps/Notes/Notes.lua ov"] = "the +N chip after the context chips" }
+local KNOWN = {}
 
 local function scan(text)
     local lines = {}

@@ -12,12 +12,6 @@ local H = require("Harness")
 
 local ALLOWED = {
     ["Apps/Guide/Highlight.lua|MSG_GUIDE_TARGET_LOCKED"] = { 1, "refusal" },
-    ["Apps/Notes/Notes.lua|NOTES_LINK_ASKING_FMT"] = { 1, "alert" },
-    ["Apps/Notes/Notes.lua|NOTES_LINK_NO_ANSWER_FMT"] = { 1, "alert" },
-    ["Apps/Notes/Notes.lua|NOTES_NOTHING_TO_UNDO"] = { 1, "refusal" },
-    ["Apps/Notes/Notes.lua|NOTES_READER_EMPTY"] = { 1, "refusal" },
-    ["Apps/Notes/Reminders.lua|NOTES_REMINDER_FMT"] = { 1, "alert" },
-    ["Apps/Notes/Notes.lua|SHORTKEY_IMPORT_BAD"] = { 3, "refusal" },
     ["Apps/Options/OptionsPanel.lua|IMPORT_OVER_CAP_FMT"] = { 1, "refusal" },
     ["Apps/Options/OptionsPanel.lua|IMPORT_PREVIEW_EMPTY"] = { 1, "refusal" },
     ["Apps/Options/OptionsPanel.lua|PROFILE_EXPORT_EMPTY"] = { 1, "refusal" },
@@ -38,7 +32,8 @@ local ALLOWED = {
     ["Core/Main.lua|ERR_OPTIONS_REGISTER_FAILED"] = { 1, "error" },
     ["Core/Main.lua|TUTORIAL_CHAT_OFFER"] = { 1, "release" },
     ["Core/Main.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
-    ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
+    -- The upgrade notice; and Notes asked for with none installed, once a session.
+    ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 2, "release" },
     -- A newer EasyFind or extension heard from a guild or group member, once a session.
     ["Core/VersionCheck.lua|UPDATE_CHAT_CORE"] = { 1, "alert" },
     ["Core/VersionCheck.lua|UPDATE_CHAT_EXT"] = { 1, "alert" },

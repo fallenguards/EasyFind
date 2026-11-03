@@ -265,6 +265,14 @@ end
 -- loads shortly after login, so they reach tooltips and their places.
 function ns.RequestNotes()
     if ns.Notes then return true end
+    -- None installed, or only the copy an older EasyFind came with.
+    if ns.ExtensionInstalled and not ns.ExtensionInstalled("EasyFind_Notes") then
+        if not companionWarned.EasyFind_Notes then
+            companionWarned.EasyFind_Notes = true
+            ns.TellExtensionGone("EasyFind_Notes")
+        end
+        return false
+    end
     LoadCompanion("EasyFind_Notes")
     if ns.Notes then return true end
     WarnCompanion("EasyFind_Notes", "NOTES_MODULE_DISABLED")
@@ -366,6 +374,7 @@ end
 local COMPANION_CAP = { EasyFind_Items = "itemCatalog", EasyFind_Icons = "iconSearch" }
 function ns.IsCompanionLoadable(name)
     if COMPANION_CAP[name] and ns.Caps[COMPANION_CAP[name]] == false then return false end
+    if ns.OldExtensionCopy and ns.OldExtensionCopy(name) then return false end
     if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(name) then return true end
     if not (C_AddOns and C_AddOns.GetAddOnEnableState) then return true end
     local ok, state = pcall(C_AddOns.GetAddOnEnableState, name)

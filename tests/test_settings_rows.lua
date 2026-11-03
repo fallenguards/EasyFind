@@ -69,15 +69,7 @@ local function ExtensionRows(env, ns)
         EasyFind = env.EasyFind }, { __index = env })
     local clip = assert(load(slice(source("Apps/Clipboard/Clipboard.lua"), "local SOURCES = {",
         "\nlocal function BuildSettings") .. "\nreturn SettingRows", "=Clipboard rows", "t", clipEnv))()
-    local notesNS = {}
-    local notesEnv = setmetatable({ L = L, Utils = Utils, ns = ns, notesNS = notesNS, UI = {},
-        NormalizeDB = function() return {} end,
-        Ctx = { KindList = function() return { { label = "Quests", types = { "quest" } } } end },
-        UI_SCALE_MIN = 0.65, UI_SCALE_MAX = 1.5, UI_SCALE_DEFAULT = 0.9, UI_SCALE_STEP = 0.05,
-        OPACITY_MIN = 0.4, OPACITY_DEFAULT = 1, OPACITY_STEP = 0.05 }, { __index = env })
-    assert(load(slice(source("Apps/Notes/Notes.lua"), "local function NotesBorderChoices()",
-        "\n-- The extension's settings page") .. "\nreturn nil", "=Notes rows", "t", notesEnv))()
-    return { { "notes", "Notes", notesNS.SettingRows }, { "clipboard", "Clipboard History", clip } }
+    return { { "clipboard", "Clipboard History", clip } }
 end
 
 local function LabelMatches(label, name)
@@ -107,8 +99,8 @@ function tests.theWindowsRowsAllStay()
     local baseline = dofile(H.ADDON_ROOT .. "/tests/fixtures/options_rows_baseline.lua")
     local used, missing = {}, {}
     for _, b in ipairs(baseline) do
-        -- Chat's and GPS's rows are their own repos' to test.
-        if b[2] ~= "Chat" and b[2] ~= "GPS" then
+        -- Chat's, GPS's and Notes' rows are their own repos' to test.
+        if b[2] ~= "Chat" and b[2] ~= "GPS" and b[2] ~= "Notes" then
             local found
             for i, row in ipairs(rows) do
                 if not used[i] and row.path[1] == b[1] and (row.path[2] or "") == b[2]
@@ -149,7 +141,7 @@ function tests.everyWindowControlIsARow()
     for key in src:gmatch("Options:AddAction%(\"([%a]+)\"") do
         if not actions[key] then missing[#missing + 1] = "AddAction " .. key end
     end
-    for _, path in ipairs({ "Apps/Notes/Notes.lua", "Apps/Clipboard/Clipboard.lua" }) do
+    for _, path in ipairs({ "Apps/Clipboard/Clipboard.lua" }) do
         for call, key in source(path):gmatch("kit%.([%a]+)%(page, L%[\"([%u%d_]+)\"%]") do
             if call ~= "Title" and not Declares(rows, L[key]) then missing[#missing + 1] = path .. " " .. key end
         end

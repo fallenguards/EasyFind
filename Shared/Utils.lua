@@ -10450,7 +10450,8 @@ end
 function ns.BuildAddNoteRows(link, name)
     if not link then return nil end
     local Notes = ns.Notes
-    if not (Notes and Notes.CreateNote) and C_AddOns and C_AddOns.LoadAddOn then
+    if not (Notes and Notes.CreateNote) and C_AddOns and C_AddOns.LoadAddOn
+       and ns.IsCompanionLoadable and ns.IsCompanionLoadable("EasyFind_Notes") then
         pcall(C_AddOns.LoadAddOn, "EasyFind_Notes")
         Notes = ns.Notes
     end

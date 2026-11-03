@@ -7,7 +7,6 @@ local H = require("Harness")
 
 local KNOWN = {
     ["Apps/Calc/Popup.lua frame"] = true,
-    ["Apps/Notes/Notes.lua frame.palette"] = true,
     ["Shared/Utils.lua self"] = true,
 }
 

@@ -91,28 +91,59 @@ ns.AddThemeSurface("notes", L["APP_NOTES"], { addon = "EasyFind_Notes" })
 
 -- EasyFind's own extensions on CurseForge: the upgrade notice below names
 -- them, a click on one gives its page's address. A page waits for its
--- project's slug; split: came inside EasyFind until SPLIT_VERSION.
+-- project's slug; bundled = { first, split }: it came inside EasyFind
+-- from the first version until the split one, name its short name.
 local PAGE = "https://www.curseforge.com/wow/addons/"
 local PAGE_LINK = "easyfind:page:"
 local EXTENSIONS_LINK = "easyfind:extensions"
 local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
-local SPLIT_VERSION = "4.0.2"
+local FIRST_EXTENSIONS = "4.0.0"
 local FIRST_PARTY = {
-    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = "easyfind-chat-extension", split = true },
-    { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension", split = true },
+    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = "easyfind-chat-extension",
+      name = L["APP_CHAT"], bundled = { "4.0.0", "4.0.2" } },
+    { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension",
+      name = L["APP_GPS"], bundled = { "4.0.0", "4.0.2" } },
     { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension" },
     { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
     -- slug easyfind-all-the-things-extension once CurseForge approves its project
     { addon = "EasyFind_ATT", project = "EasyFind: ALL THE THINGS Extension" },
+    { addon = "EasyFind_Notes", project = "EasyFind: Notes Extension", slug = "easyfind-notes-extension",
+      name = L["APP_NOTES"], bundled = { "4.0.0", "5.0.0" } },
 }
 ns.FirstPartyExtensions = FIRST_PARTY
 
-local function Links(pick)
-    local list = {}
+-- The copy an older EasyFind came with (its Version in the bundled range),
+-- which a hand-extracted update leaves in place: never loaded or counted.
+local function OldCopy(addon)
+    if not C_AddOns.DoesAddOnExist(addon) then return false end
     for _, e in ipairs(FIRST_PARTY) do
-        if e.slug and pick(e) then list[#list + 1] = ns.BlueChatLink(PAGE_LINK .. e.slug, e.project) end
+        local b = e.bundled
+        if e.addon == addon and b then
+            local v = C_AddOns.GetAddOnMetadata(addon, "Version")
+            return v ~= nil and ns.CompareVersion(v, b[1]) >= 0 and ns.CompareVersion(v, b[2]) < 0
+        end
     end
-    return list
+    return false
+end
+ns.OldExtensionCopy = OldCopy
+
+local function Installed(addon) return C_AddOns.DoesAddOnExist(addon) and not OldCopy(addon) end
+ns.ExtensionInstalled = Installed
+
+-- The extensions a player upgrading from that version had inside EasyFind.
+local function Went(from)
+    local out = {}
+    for _, e in ipairs(FIRST_PARTY) do
+        local b = e.bundled
+        if b and ns.CompareVersion(from, b[1]) >= 0 and ns.CompareVersion(from, b[2]) < 0 then out[#out + 1] = e end
+    end
+    return out
+end
+
+-- "a", "a and b", "a, b and c".
+local function Join(list)
+    if #list < 2 then return list[1] or "" end
+    return L["EXT_AND_FMT"]:format(table.concat(list, ", ", 1, #list - 1), list[#list])
 end
 
 -- A page link clicked in chat: the address to copy (no browser from here).
@@ -131,7 +162,7 @@ end
 -- address to copy. Nil when the player has it or hides recommendations.
 function ns.ExtensionTipLink(addon, label)
     local db = EasyFind.db
-    if (db and db.hideExtensionTips) or C_AddOns.DoesAddOnExist(addon) then return nil end
+    if (db and db.hideExtensionTips) or Installed(addon) then return nil end
     for _, e in ipairs(FIRST_PARTY) do
         if e.addon == addon and e.slug then
             local c = ns.LINK_COLOR or { 0.44, 0.84, 1.0 }
@@ -155,7 +186,7 @@ function ns.ShowExtensionPages()
     local rows = {}
     for _, e in ipairs(FIRST_PARTY) do
         if e.slug then
-            local have = C_AddOns.DoesAddOnExist(e.addon)
+            local have = Installed(e.addon)
             rows[#rows + 1] = { text = e.project, icon = have and MENU_CHECK or nil,
                 tooltip = have and L["EXT_INSTALLED"] or L["EXT_PAGE_TT"],
                 onClick = function() ns.ShowExtensionPage(e.slug) end }
@@ -164,12 +195,13 @@ function ns.ShowExtensionPages()
     ns.Utils.ShowCursorMenu("EasyFindExtensionPagesMenu", rows, { iconSide = "left" })
 end
 
--- A player upgrading from before the split is told once, in chat: from
--- 4.0.0 or 4.0.1, where Chat and GPS went, then the [Extensions] link;
--- from earlier, the link alone. Noted at the upgrade, told at the next
--- login out of combat.
+-- A player upgrading past a split is told once, in chat: which of the
+-- extensions they had went (Chat and GPS after 4.0.1, Notes after 4.3.0),
+-- a link to each not installed, then the [Extensions] link; from before
+-- 4.0.0, the link alone. Noted at the upgrade, told at the next login out
+-- of combat.
 function ns.NoteUpgrade(from)
-    if ns.CompareVersion(from, SPLIT_VERSION) < 0 then EasyFind.db.extensionsNoticeFrom = from end
+    if ns.CompareVersion(from, FIRST_EXTENSIONS) < 0 or #Went(from) > 0 then EasyFind.db.extensionsNoticeFrom = from end
 end
 
 -- installed(addon): the game's answer; a preview passes its own.
@@ -178,24 +210,39 @@ local function TellExtensions(installed)
     local from = db and db.extensionsNoticeFrom
     if not from or InCombatLockdown() then return end
     db.extensionsNoticeFrom = nil
-    installed = installed or C_AddOns.DoesAddOnExist
+    installed = installed or Installed
     local pages = ns.BlueChatLink(EXTENSIONS_LINK, L["FILTER_EXTENSIONS"])
+    local went = Went(from)
     local msg
-    if ns.CompareVersion(from, "4.0.0") < 0 then
+    if ns.CompareVersion(from, FIRST_EXTENSIONS) < 0 or #went == 0 then
         msg = L["EXT_NEW_FMT"]:format(ns.version, pages)
     else
-        local missing = Links(function(e) return e.split and not installed(e.addon) end)
-        msg = L["EXT_SPLIT_FMT"]:format(ns.version)
-        if #missing == 2 then
-            msg = msg .. " " .. L["EXT_SPLIT_GET_FMT"]:format(L["EXT_AND_FMT"]:format(missing[1], missing[2]))
-        elseif #missing == 1 then
-            msg = msg .. " " .. L["EXT_SPLIT_GET_FMT"]:format(missing[1])
+        local names, missing = {}, {}
+        for _, e in ipairs(went) do
+            names[#names + 1] = e.name
+            if e.slug and not installed(e.addon) then missing[#missing + 1] = ns.BlueChatLink(PAGE_LINK .. e.slug, e.project) end
+        end
+        msg = L[#went == 1 and "EXT_WENT_ONE_FMT" or "EXT_WENT_MANY_FMT"]:format(ns.version, Join(names))
+        if #missing > 0 then
+            msg = msg .. " " .. L[#missing == 1 and "EXT_GET_ONE_FMT" or "EXT_SPLIT_GET_FMT"]:format(Join(missing))
         end
         msg = msg .. " " .. L["EXT_OTHERS_FMT"]:format(pages)
     end
     print(ns.CHAT_LOGO .. msg)
 end
 ns.TellExtensions = TellExtensions
+
+-- Asked for an extension that went, none installed: where to get it.
+function ns.TellExtensionGone(addon)
+    for _, e in ipairs(FIRST_PARTY) do
+        if e.addon == addon and e.name then
+            local msg = L["EXT_WENT_ONE_FMT"]:format(ns.version, e.name)
+            if e.slug then msg = msg .. " " .. L["EXT_GET_ONE_FMT"]:format(ns.BlueChatLink(PAGE_LINK .. e.slug, e.project)) end
+            print(ns.CHAT_LOGO .. msg)
+            return
+        end
+    end
+end
 
 local noticeWatch = CreateFrame("Frame")
 noticeWatch:Hide()

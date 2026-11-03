@@ -6,8 +6,6 @@
 local H = require("Harness")
 
 local COMPANIONS = {
-    -- Loads on demand: its tile stands in core first.
-    { toc = "Apps/Notes/EasyFind_Notes.toc", field = "Notes", core = { "Core/Extensions.lua" } },
     { toc = "Apps/Clipboard/EasyFind_Clipboard.toc", field = "Clipboard" },
     { toc = "Apps/Quicklists/EasyFind_Quicklists.toc", field = "Quicklists" },
 }
