@@ -30,6 +30,7 @@ local PAD = 6
 local SEP_H = 9
 local TITLE_H = 18
 local CHECK_SIZE = 16
+local BAR_ROOM = 8
 
 local popups = {}
 
@@ -41,6 +42,15 @@ local function EnsurePopup(name)
     popup:SetFrameLevel(9500)
     popup:EnableMouse(true)
     ns.StyleMenuPanel(popup)
+    -- Past Utils.MENU_MAX_ROWS rows tall the popup stops growing and its
+    -- rows scroll (the price sources ran 30 rows, 2026-11-03).
+    popup.scroll = CreateFrame("ScrollFrame", nil, popup)
+    popup.scroll:SetPoint("TOPLEFT", popup, "TOPLEFT", 0, -PAD)
+    popup.scroll:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", 0, PAD)
+    popup.body = CreateFrame("Frame", nil, popup.scroll)
+    popup.body:SetSize(1, 1)
+    popup.scroll:SetScrollChild(popup.body)
+    popup.bar = Utils.CreateMinimalScrollBar(popup.scroll, popup)
     popup.checkRows, popup.plainRows, popup.seps, popup.titles = {}, {}, {}, {}
     popup.live = {}
     -- Unconstrained measuring string: rows size the popup to the widest
@@ -140,7 +150,7 @@ local function RowLeft(popup, row)
 end
 
 local function MakeCheckRow(popup)
-    local row = CreateFrame("CheckButton", nil, popup)
+    local row = CreateFrame("CheckButton", nil, popup.body)
     row:SetHeight(ROW_H)
     Utils.SetCheckboxTextures(row, CHECK_SIZE)
     row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -169,7 +179,7 @@ local function MakeCheckRow(popup)
 end
 
 local function MakePlainRow(popup)
-    local row = CreateFrame("Button", nil, popup)
+    local row = CreateFrame("Button", nil, popup.body)
     row:SetHeight(ROW_H)
     row.bullet = row:CreateTexture(nil, "ARTWORK")
     row.bullet:SetAtlas("common-dropdown-tickradial")
@@ -263,21 +273,29 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
         end
     end
     local width = math.max(opts.width or 0, math.ceil(PAD * 2 + 4 + CHECK_SIZE + 6 + widest + 10))
-    local y = -PAD
+    local contentH = 0
+    for _, def in ipairs(defs) do
+        contentH = contentH + (def.kind == "separator" and SEP_H or def.kind == "title" and TITLE_H or ROW_H)
+    end
+    local viewH = math.min(contentH, Utils.MENU_MAX_ROWS * ROW_H)
+    local scrolls = contentH > viewH
+    if scrolls then width = width + BAR_ROOM end
+    local body, right = popup.body, scrolls and -(PAD + BAR_ROOM) or -PAD
+    local y, pickedY = 0, nil
     local nCheck, nPlain, nSep, nTitle = 0, 0, 0, 0
     for _, def in ipairs(defs) do
         if def.kind == "separator" then
             nSep = nSep + 1
             local sep = popup.seps[nSep]
             if not sep then
-                sep = popup:CreateTexture(nil, "ARTWORK")
+                sep = body:CreateTexture(nil, "ARTWORK")
                 sep:SetHeight(1)
                 sep:SetColorTexture(1, 1, 1, 0.12)
                 popup.seps[nSep] = sep
             end
             sep:ClearAllPoints()
-            sep:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD + 2, y - SEP_H / 2)
-            sep:SetPoint("RIGHT", popup, "RIGHT", -PAD - 2, 0)
+            sep:SetPoint("TOPLEFT", body, "TOPLEFT", PAD + 2, y - SEP_H / 2)
+            sep:SetPoint("RIGHT", body, "RIGHT", right - 2, 0)
             sep:Show()
             y = y - SEP_H
         elseif def.kind == "title" then
@@ -285,7 +303,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
             nTitle = nTitle + 1
             local fs = popup.titles[nTitle]
             if not fs then
-                fs = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+                fs = body:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
                 fs:SetJustifyH("LEFT")
                 ns.ShadeText(fs)
                 fs._efOwnColor = true
@@ -294,7 +312,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
             fs:SetText(def.label or "")
             if ns.TooltipTextColor then fs:SetTextColor(ns.TooltipTextColor()) end
             fs:ClearAllPoints()
-            fs:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD + 8, y - 3)
+            fs:SetPoint("TOPLEFT", body, "TOPLEFT", PAD + 8, y - 3)
             fs:Show()
             y = y - TITLE_H
         else
@@ -335,6 +353,7 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
                 if def.kind == "radio" then
                     row.bullet:Show()
                     row.tick:SetShown(def.get and def.get() == def.value)
+                    if row.tick:IsShown() and not pickedY then pickedY = -y end
                     row.label:SetPoint("LEFT", row.bullet, "RIGHT", 6, 0)
                 else
                     row.bullet:Hide()
@@ -346,14 +365,15 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
             popup.MenuFont(row.label)
             row.label:SetText(def.label or "")
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD, y)
-            row:SetPoint("RIGHT", popup, "RIGHT", -PAD, 0)
+            row:SetPoint("TOPLEFT", body, "TOPLEFT", PAD, y)
+            row:SetPoint("RIGHT", body, "RIGHT", right, 0)
             row:Show()
             live[#live + 1] = row
             y = y - ROW_H
         end
     end
-    popup:SetSize(width, -y + PAD)
+    popup:SetSize(width, viewH + PAD * 2)
+    body:SetSize(width, contentH)
     popup:SetScale(opts.scale or 1)
     Utils.RefreshMenuRowHighlights(popup, live)
     Utils.OpenFlyoutBeside(popup, anchor, 4)
@@ -363,5 +383,17 @@ function ns.ShowTogglePopup(name, anchor, defs, opts)
     -- panel's refill on show repaints only after a theme change.
     if ns.RetintMenuText then ns.RetintMenuText(popup) end
     popup:Show()
+    -- Opened on the picked choice when it lies past the fold.
+    local scroll = 0
+    if scrolls and pickedY and pickedY + ROW_H > viewH then
+        scroll = math.min(contentH - viewH, pickedY - (viewH - ROW_H) / 2)
+    end
+    popup.scroll:SetVerticalScroll(scroll)
+    popup.bar:SetShown(scrolls)
+    -- Shown at the open so a long popup reads as one that scrolls.
+    if scrolls then
+        popup.bar:UpdateThumb(contentH, viewH)
+        popup.bar:NudgeVisible()
+    end
     return popup
 end
