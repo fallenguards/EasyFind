@@ -2571,37 +2571,26 @@ function Builders.MoreButton(parent)
     return b
 end
 
--- The formatting toolbar: an extension of the window, exactly like the
--- search results window under the search bar. It overlaps the window bottom
--- (no gap), shares the themed fill, squares its top to butt flush, and a
--- line marks the seam.
+-- The formatting toolbar: the window's bottom row, inside its border the
+-- whole width, a line across above it (it hung under the window, narrower
+-- than the theme's frame and off its art, 2026-11-02). LayoutEasyNotesChrome
+-- places it and lifts the footer and the text over it.
 function Builders.Toolbar(window)
     local bar = CreateFrame("Frame", nil, window)
-    bar:SetPoint("TOPLEFT", window, "BOTTOMLEFT", 0, 2)
-    bar:SetPoint("TOPRIGHT", window, "BOTTOMRIGHT", 0, 2)
     bar:SetHeight(TOOLBAR_H)
     bar:SetFrameLevel(window:GetFrameLevel() + 10)
-    if ns.CreateRoundedRectBorder then
-        ns.CreateRoundedRectBorder(bar)
-        ns.SetRoundedRectBarHeight(bar, 12)
-        ns.SetRoundedRectBorderEdgeShown(bar, false)
-    end
-    if ns.ApplyThemeFill then ns.ApplyThemeFill(bar) end
-    if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(bar) end
-    bar.divider = bar:CreateTexture(nil, "OVERLAY")
-    bar.divider:SetColorTexture(0.30, 0.30, 0.33, 0.6)
+    bar.divider = bar:CreateTexture(nil, "ARTWORK")
+    bar.divider:SetColorTexture(0.18, 0.18, 0.20, 0.7)
     bar.divider:SetHeight(1)
-    bar.divider:SetPoint("TOPLEFT", bar, "TOPLEFT", 8, -2)
-    bar.divider:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -8, -2)
-    if ns.RegisterThemeCallback then
-        ns.RegisterThemeCallback(function()
-            if ns.ApplyThemeFill then
-                ns.ApplyThemeFill(bar)
-                if ns.SetRoundedRectSquareTop then ns.SetRoundedRectSquareTop(bar) end
-            end
-        end)
-    end
+    bar.divider:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+    bar.divider:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
     return bar
+end
+
+-- The toolbar's row in a window showing a note, while it is on: the
+-- window is that much taller than the size saved for it.
+function Fmt.ToolbarRoom()
+    return (UI._notes.toolbarShown and not UI._notes.paletteShown) and TOOLBAR_H or 0
 end
 
 -- A format button's look: its letter in the note font, or the list icon,
@@ -4654,7 +4643,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.newButton = CreateFrame("Button", nil, frame.header)
     StyleAccentButton(frame.newButton, "+", BTN_W, BTN_H)
-    frame.newButton:SetPoint("LEFT", frame.header, "LEFT", 8, 0)
+    frame.newButton:SetPoint("LEFT", frame.header, "LEFT", 11, 0)
     frame.newButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     frame.newButton:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
@@ -4689,13 +4678,13 @@ function UI:EnsureEasyNotesFrame()
     frame.paletteButton = Builders.HomeButton(frame.header)
     -- Home button: shares the New button's left slot (only one shows per
     -- view). On a note's window it brings up the list; the note stays.
-    frame.paletteButton:SetPoint("LEFT", frame.header, "LEFT", 8, 0)
+    frame.paletteButton:SetPoint("LEFT", frame.header, "LEFT", 11, 0)
     frame.paletteButton:SetScript("OnClick", function()
         if W.active ~= W.main then UI:OpenEasyNotes() else UI:ToggleEasyNotesPalette() end
     end)
 
     frame.close = Builders.CloseButton(frame.header)
-    frame.close:SetPoint("RIGHT", frame.header, "RIGHT", -8, 0)
+    frame.close:SetPoint("RIGHT", frame.header, "RIGHT", -11, 0)
     frame.close:SetScript("OnClick", function() UI:CloseEasyNotes() end)
 
     frame.deleteButton = CreateFrame("Button", nil, frame.header)
@@ -4818,8 +4807,8 @@ function UI:EnsureEasyNotesFrame()
     frame.headerDivider = frame:CreateTexture(nil, "ARTWORK")
     frame.headerDivider:SetColorTexture(0.18, 0.18, 0.20, 0.7)
     frame.headerDivider:SetHeight(1)
-    frame.headerDivider:SetPoint("TOPLEFT", frame.header, "BOTTOMLEFT", 12, 0)
-    frame.headerDivider:SetPoint("TOPRIGHT", frame.header, "BOTTOMRIGHT", -12, 0)
+    frame.headerDivider:SetPoint("TOPLEFT", frame.header, "BOTTOMLEFT", 11, 0)
+    frame.headerDivider:SetPoint("TOPRIGHT", frame.header, "BOTTOMRIGHT", -11, 0)
 
     -- The tags row under the divider while the note has any; its fold keeps
     -- the text in place and waits under the X until the row is wanted again.
@@ -4891,8 +4880,8 @@ function UI:EnsureEasyNotesFrame()
     frame.showsFold:Hide()
 
     frame.editorScroll = CreateFrame("ScrollFrame", nil, frame)
-    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -HEADER_H - EDITOR_TOP)
-    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, FOOTER_H + 4)
+    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 11, -HEADER_H - EDITOR_TOP)
+    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -11, FOOTER_H + 4)
     frame.editorScroll:EnableMouseWheel(true)
     -- Without this the OnMouseDown click-to-focus never fires: the editbox child
     -- only catches clicks that land on an actual glyph, so clicking the empty
@@ -5224,7 +5213,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.formatButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.formatButton, "T", BTN_W, BTN_H)
-    frame.formatButton:SetPoint("LEFT", frame.footer, "LEFT", 8, 2)
+    frame.formatButton:SetPoint("LEFT", frame.footer, "LEFT", 11, 2)
     frame.formatButton:SetFrameLevel(frame.footer:GetFrameLevel() + 20)
     frame.formatButton.text:SetTextColor(0.78, 0.78, 0.82, 1)
     frame.formatButton:SetScript("OnClick", function() UI:ToggleEasyNotesToolbar() end)
@@ -5263,7 +5252,7 @@ function UI:EnsureEasyNotesFrame()
 
     frame.findButton = CreateFrame("Button", nil, frame.footer)
     StyleSubtleButton(frame.findButton, "", BTN_W, BTN_H)
-    frame.findButton:SetPoint("LEFT", frame.footer, "LEFT", 30, 2)
+    frame.findButton:SetPoint("LEFT", frame.footer, "LEFT", 33, 2)
     if frame.findButton.text then frame.findButton.text:Hide() end
     do
         local t = frame.findButton:CreateTexture(nil, "OVERLAY")
@@ -5418,11 +5407,14 @@ function UI:EnsureEasyNotesFrame()
     end
     UI:LayoutEasyNotesToolbar()
     frame.toolbar:SetShown(db.toolbarShown == true)
-    UI:UpdateEasyNotesToolbarSeam()
     UI._notes.toolbarShown = db.toolbarShown == true
+    -- The look laid the window out before the toolbar was made.
+    UI:LayoutEasyNotesChrome(frame._efSkin ~= nil)
 
     frame.resizeGrip = CreateFrame("Button", nil, frame)
     frame.resizeGrip:SetSize(16, 16)
+    -- Over the toolbar, which is the window's bottom row while it shows.
+    frame.resizeGrip:SetFrameLevel(frame:GetFrameLevel() + 20)
     frame.resizeGrip:SetShown(not NormalizeDB().locked)
     frame.resizeGrip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
     frame.resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
@@ -5454,7 +5446,7 @@ function UI:EnsureEasyNotesFrame()
                 local dims = UI._notes.paletteShown and EasyNotesDB.window or EasyNotesDB.editorWindow
                 local pad = UI._notes.chromePad or 0
                 dims.w = math.floor(frame:GetWidth() - 2 * pad + 0.5)
-                dims.h = math.floor(frame:GetHeight() - 2 * pad + 0.5)
+                dims.h = math.floor(frame:GetHeight() - 2 * pad - Fmt.ToolbarRoom() + 0.5)
                 if not grip:IsMouseOver() then grip:SetAlpha(0) end
                 return
             end
@@ -5463,7 +5455,7 @@ function UI:EnsureEasyNotesFrame()
             mx, my = mx / s, my / s
             local pad = UI._notes.chromePad or 0
             local nw = mmax(MIN_WIDTH + 2 * pad, grip._startW + (mx - grip._startCX))
-            local nh = mmax(MIN_HEIGHT + 2 * pad, grip._startH + (grip._startCY - my))
+            local nh = mmax(MIN_HEIGHT + 2 * pad + Fmt.ToolbarRoom(), grip._startH + (grip._startCY - my))
             frame:SetSize(nw, nh)
         end)
     end)
@@ -5781,34 +5773,29 @@ function UI:SelectEasyNote(id)
     self:RefreshEasyNotes()
 end
 
--- While the toolbar is expanded, square the note window's bottom corners so it
--- and the toolbar (whose top is already squared) form one continuous edge;
--- restore the rounded corners when it collapses.
-function UI:UpdateEasyNotesToolbarSeam()
-    local frame = UI._notes.frame
-    if not frame then return end
-    if frame.toolbar and frame.toolbar:IsShown() then
-        if ns.SetRoundedRectSquareBottom then ns.SetRoundedRectSquareBottom(frame) end
-    elseif ns.RestoreRoundedRectCorners then
-        ns.RestoreRoundedRectCorners(frame)
-    end
-end
-
+-- Each note window open: the toolbar row joins or leaves it, the window
+-- growing or shrinking by the row from its top so its border goes round
+-- the whole (the row took the note's own room, 2026-11-02).
 function UI:ToggleEasyNotesToolbar()
     UI._notes.toolbarShown = not UI._notes.toolbarShown
-    local frame = UI._notes.frame
-    if frame then
-        frame.toolbar:SetShown(UI._notes.toolbarShown)
-        self:UpdateEasyNotesToolbarSeam()
-        -- the toolbar covers the footer, so swap T <-> x and hide the counter
+    local on = UI._notes.toolbarShown
+    notesNS.Windows.Each(function()
+        local frame = UI._notes.frame
+        if not (frame and frame:IsShown() and frame.toolbar) then return end
+        local view = not UI._notes.paletteShown
+        frame.toolbar:SetShown(on and view)
+        if view then
+            if UI._notes.PinTopLeftAnchor then UI._notes.PinTopLeftAnchor() end
+            frame:SetHeight((frame:GetHeight() or 0) + (on and TOOLBAR_H or -TOOLBAR_H))
+        end
+        UI:LayoutEasyNotesChrome(frame._efSkin ~= nil)
+        UI:UpdateEasyNotesAutoResize()
         if frame.formatButton and frame.formatButton.text then
-            frame.formatButton.text:SetText(UI._notes.toolbarShown and "x" or "T")
+            frame.formatButton.text:SetText(on and "x" or "T")
         end
-        if frame.charCounter then
-            frame.charCounter:SetShown(not UI._notes.toolbarShown)
-        end
-    end
-    NormalizeDB().toolbarShown = UI._notes.toolbarShown
+        if frame.charCounter then frame.charCounter:SetShown(not on) end
+    end)
+    NormalizeDB().toolbarShown = on
 end
 
 function UI:RefreshEasyNotesAutoResizeButton()
@@ -5834,14 +5821,14 @@ function UI:UpdateEasyNotesAutoResize()
     if not NormalizeDB().autoResize or UI._notes.paletteShown then return end
     if frame.resizeGrip and frame.resizeGrip._resizing then return end
     local contentH = frame.editor:GetHeight() or 0
-    -- The formatting toolbar sits below the window, so it no longer adds to the
-    -- window's own height.
+    -- The formatting toolbar is the window's bottom row while it shows.
     local pad = UI._notes.chromePad or 0
     local chrome = HEADER_H + 14 + FOOTER_H + 4 + (UI._notes.attachHasContent and ATTACH_H + 2 or 0) + 2 * pad
-    local needed = mmax(MIN_HEIGHT + 2 * pad, contentH + chrome)
+        + Fmt.ToolbarRoom()
+    local needed = mmax(MIN_HEIGHT + 2 * pad + Fmt.ToolbarRoom(), contentH + chrome)
     if math.abs(needed - (frame:GetHeight() or 0)) > 0.5 then
         frame:SetHeight(needed)
-        EasyNotesDB.editorWindow.h = math.floor(needed - 2 * pad + 0.5)
+        EasyNotesDB.editorWindow.h = math.floor(needed - 2 * pad - Fmt.ToolbarRoom() + 0.5)
         EasyNotesDB.editorWindow.w = math.floor(frame:GetWidth() - 2 * pad + 0.5)
     end
 end
@@ -6934,10 +6921,10 @@ function UI:UpdateEasyNotesEditorTop()
     if not (frame and frame.editorScroll) then return end
     local pad = UI._notes.chromePad or 0
     local top = HEADER_H + EDITOR_TOP + (UI._notes.attachHasContent and ATTACH_H + 2 or 0) + pad
-    local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0) + pad
+    local bottom = FOOTER_H + 4 + (UI._notes.findBarShown and FIND_BAR_H or 0) + pad + Fmt.ToolbarRoom()
     frame.editorScroll:ClearAllPoints()
-    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 16 + pad, -top)
-    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16 - pad, bottom)
+    frame.editorScroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 11 + pad, -top)
+    frame.editorScroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -11 - pad, bottom)
     UI:QueueEasyNotesDragHandleRefresh()
 end
 
@@ -7317,7 +7304,7 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if not frame then return end
     if frame.editorScroll then frame.editorScroll:SetShown(shown) end
     if frame.toolbar then frame.toolbar:SetShown(shown and UI._notes.toolbarShown == true) end
-    UI:UpdateEasyNotesToolbarSeam()
+    UI:LayoutEasyNotesChrome(frame._efSkin ~= nil)
     if frame.footer then frame.footer:SetShown(shown) end
     if frame.charCounter then
         frame.charCounter:SetShown(shown and not UI._notes.toolbarShown)
@@ -7363,11 +7350,12 @@ function UI:SetEasyNotesEditorViewShown(shown)
     if notesNS.Lines then notesNS.Lines.ViewShown(shown) end
 end
 
-local function ApplyEasyNotesWindowSize(frame, dims)
+-- extra: the toolbar's row on a note's window, over the saved size.
+local function ApplyEasyNotesWindowSize(frame, dims, extra)
     if not (frame and dims) then return end
     local pad = UI._notes.chromePad or 0
     frame:SetSize(mmax(MIN_WIDTH, dims.w or DEFAULT_WIDTH) + 2 * pad,
-                  mmax(MIN_HEIGHT, dims.h or DEFAULT_HEIGHT) + 2 * pad)
+                  mmax(MIN_HEIGHT, dims.h or DEFAULT_HEIGHT) + 2 * pad + (extra or 0))
 end
 
 function UI:ShowEasyNotesPalette()
@@ -7393,7 +7381,7 @@ function UI:HideEasyNotesPalette()
     if frame and frame.palette then
         frame.palette:Hide()
         frame.paletteSearch:ClearFocus()
-        ApplyEasyNotesWindowSize(frame, NormalizeDB().editorWindow)
+        ApplyEasyNotesWindowSize(frame, NormalizeDB().editorWindow, Fmt.ToolbarRoom())
         self:SetEasyNotesEditorViewShown(true)
         self:UpdateEasyNotesAutoResize()
     end
@@ -10005,12 +9993,12 @@ function UI:ApplyEasyNotesWindowLook()
     self:LayoutEasyNotesChrome(dressed)
 end
 
--- The frame art's inner lip reaches into the window: dressed, the
--- contents step in by the chrome pad and the window grows by it, so the
--- note keeps its room (the toolbar and buttons sat on the iron,
--- 2026-10-27); without the art they sit flush as before. The saved sizes
--- are the contents' own, the pad added on top.
-local CHROME_PAD = 10
+-- The theme's frame art hangs wholly outside the window (Forever's band
+-- and Classic's metal end at its edge), so the contents keep their own
+-- margins: the 10 pad added for a toolbar that hung on the bottom metal
+-- doubled them once the toolbar moved inside (2026-11-02). The pad stays
+-- a setting of the layout; the saved sizes are the contents' own.
+local CHROME_PAD = 0
 function UI:LayoutEasyNotesChrome(dressed)
     local frame = UI._notes.frame
     local pad = dressed and CHROME_PAD or 0
@@ -10019,17 +10007,20 @@ function UI:LayoutEasyNotesChrome(dressed)
     if pad ~= was then
         frame:SetSize((frame:GetWidth() or MIN_WIDTH) + 2 * (pad - was), (frame:GetHeight() or MIN_HEIGHT) + 2 * (pad - was))
     end
-    if frame.SetResizeBounds then frame:SetResizeBounds(MIN_WIDTH + 2 * pad, MIN_HEIGHT + 2 * pad) end
+    if frame.SetResizeBounds then frame:SetResizeBounds(MIN_WIDTH + 2 * pad, MIN_HEIGHT + 2 * pad + Fmt.ToolbarRoom()) end
     local function At(piece, p1, x1, y1, p2, x2, y2)
         if not piece then return end
         piece:ClearAllPoints()
         piece:SetPoint(p1, frame, p1, x1, y1)
         piece:SetPoint(p2, frame, p2, x2, y2)
     end
+    local room = Fmt.ToolbarRoom()
     At(frame.header, "TOPLEFT", pad, -pad, "TOPRIGHT", -pad, -pad)
-    At(frame.footer, "BOTTOMLEFT", pad, pad, "BOTTOMRIGHT", -pad, pad)
-    At(frame.palette, "TOPLEFT", 12 + pad, -HEADER_H - 4 - pad, "BOTTOMRIGHT", -12 - pad, 4 + pad)
-    At(frame.findBar, "BOTTOMLEFT", 12 + pad, FOOTER_H + 2 + pad, "BOTTOMRIGHT", -12 - pad, FOOTER_H + 2 + pad)
+    At(frame.toolbar, "BOTTOMLEFT", pad, pad, "BOTTOMRIGHT", -pad, pad)
+    At(frame.footer, "BOTTOMLEFT", pad, pad + room, "BOTTOMRIGHT", -pad, pad + room)
+    -- One margin, 11: the buttons, the search box and rows (10 in the list), the text.
+    At(frame.palette, "TOPLEFT", 1 + pad, -HEADER_H - 4 - pad, "BOTTOMRIGHT", -1 - pad, 4 + pad)
+    At(frame.findBar, "BOTTOMLEFT", 11 + pad, FOOTER_H + 2 + pad + room, "BOTTOMRIGHT", -11 - pad, FOOTER_H + 2 + pad + room)
     -- The grip in the corner the eye sees: on the art's inner lip.
     if frame.resizeGrip then
         local lip = math.floor(pad / 2)

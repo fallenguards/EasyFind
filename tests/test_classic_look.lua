@@ -44,9 +44,13 @@ function tests.squareCornersUnderATree()
     H.assertTrue(utils:find("frame%._efUnderTree = nil%s+for _, t in pairs%(frame%.combinedBorder%.fill%) do t:SetAlpha%(frame%._efBgAlpha or 1%) end%s+ns%.SetRoundedRectBarHeight%(frame, frame%.cbBarHeight%)") ~= nil, "round again off it")
 end
 
-function tests.notesStepsInFromTheIronFrame()
+-- The frame art hangs outside the window, so the contents keep their own
+-- margins under it: a 10 pad on top of them read as huge margins on the
+-- Forever and Classic themes (2026-11-02). The formatting toolbar is the
+-- window's bottom row, the footer over it while it shows.
+function tests.notesKeepTheirMarginsInsideTheFrameArt()
     local src = Read("Apps/Notes/Notes.lua"):gsub("\r\n", "\n")
-    local s = assert(src:find("\nlocal CHROME_PAD = 10\nfunction UI:LayoutEasyNotesChrome(dressed)", 1, true))
+    local s = assert(src:find("\nlocal CHROME_PAD = 0\nfunction UI:LayoutEasyNotesChrome(dressed)", 1, true))
     local _, e = assert(src:find("\nend\n", s + 30, true))
     local calls, sized = {}, nil
     local function Piece(name)
@@ -55,26 +59,57 @@ function tests.notesStepsInFromTheIronFrame()
     end
     local frame = { header = Piece("header"), footer = Piece("footer"), palette = Piece("palette"),
                     findBar = Piece("findBar"), resizeGrip = Piece("grip"), headerPanel = Piece("panel"),
+                    toolbar = Piece("toolbar"),
                     GetWidth = function() return 300 end, GetHeight = function() return 200 end,
                     SetSize = function(_, w, h) sized = { w, h } end, SetResizeBounds = function() end }
     local UI = { _notes = { frame = frame }, UpdateEasyNotesEditorTop = function() end }
+    local room = 28
     local env = setmetatable({ UI = UI, ns = { CLASSIC_WINDOW_OUTSET = 12 }, MIN_WIDTH = 220, MIN_HEIGHT = 140,
-                               HEADER_H = 30, FOOTER_H = 20 }, { __index = _G })
+                               HEADER_H = 30, FOOTER_H = 20, Fmt = { ToolbarRoom = function() return room end } },
+                             { __index = _G })
     assert(load(src:sub(s, e), "=LayoutEasyNotesChrome", "t", env))()
     UI:LayoutEasyNotesChrome(true)
-    H.assertEq(sized[1], 320); H.assertEq(sized[2], 220)
-    H.assertEq(UI._notes.chromePad, 10)
+    H.assertNil(sized, "the window keeps its size under the art")
+    H.assertEq(UI._notes.chromePad, 0)
     local joined = table.concat(calls, " ")
-    H.assertTrue(joined:find("header:TOPLEFT:10,-10", 1, true) ~= nil, "the header steps in")
-    H.assertTrue(joined:find("footer:BOTTOMRIGHT:-10,10", 1, true) ~= nil, "the footer too")
-    H.assertTrue(joined:find("palette:TOPLEFT:22,-44", 1, true) ~= nil, "the list keeps its own inset plus the pad")
-    H.assertTrue(joined:find("palette:BOTTOMRIGHT:-22,14", 1, true) ~= nil, "its rows reach near the bottom")
-    H.assertTrue(joined:find("grip:BOTTOMRIGHT:-7,7", 1, true) ~= nil, "the grip sits on the art's inner lip")
+    H.assertTrue(joined:find("header:TOPLEFT:0,0", 1, true) ~= nil, "the header at its own place")
+    H.assertTrue(joined:find("toolbar:BOTTOMLEFT:0,0", 1, true) ~= nil, "the toolbar the whole bottom row")
+    H.assertTrue(joined:find("toolbar:BOTTOMRIGHT:0,0", 1, true) ~= nil)
+    H.assertTrue(joined:find("footer:BOTTOMLEFT:0,28", 1, true) ~= nil, "the footer over the toolbar")
     H.assertTrue(joined:find("panel:TOPRIGHT:-11,0", 1, true) ~= nil, "the side panel clears the metal hung outside")
-    sized, calls = nil, {}
+    calls, room = {}, 0
     UI:LayoutEasyNotesChrome(false)
-    H.assertEq(sized[1], 280, "shrunk back by the pad"); H.assertEq(sized[2], 180)
-    H.assertTrue(table.concat(calls, " "):find("header:TOPLEFT:0,0", 1, true) ~= nil, "flush without the art")
+    H.assertTrue(table.concat(calls, " "):find("footer:BOTTOMLEFT:0,0", 1, true) ~= nil, "no toolbar: the footer at the bottom")
+end
+
+-- The toolbar's row joins the window: 10 tall plus a 2 row is 12, the top
+-- held, the border round the whole; off again it is 10 (2026-11-02).
+function tests.notesToolbarGrowsTheWindowByItsRow()
+    local src = Read("Apps/Notes/Notes.lua"):gsub("\r\n", "\n")
+    local s = assert(src:find("\nfunction UI:ToggleEasyNotesToolbar()", 1, true))
+    local _, e = assert(src:find("\nend\n", s + 30, true))
+    local log = {}
+    local frame = { h = 200, toolbar = { SetShown = function(_, v) log[#log + 1] = "shown:" .. tostring(v) end },
+                    IsShown = function() return true end,
+                    GetHeight = function(self) return self.h end,
+                    SetHeight = function(self, h) log[#log + 1] = "height"; self.h = h end }
+    local UI = { _notes = { frame = frame, toolbarShown = false, paletteShown = false,
+                            PinTopLeftAnchor = function() log[#log + 1] = "pin" end },
+                 LayoutEasyNotesChrome = function() end, UpdateEasyNotesAutoResize = function() end }
+    local db = {}
+    local env = setmetatable({ UI = UI, TOOLBAR_H = 28, NormalizeDB = function() return db end,
+                               notesNS = { Windows = { Each = function(fn) fn() end } } }, { __index = _G })
+    assert(load(src:sub(s, e), "=ToggleEasyNotesToolbar", "t", env))()
+    UI:ToggleEasyNotesToolbar()
+    H.assertEq(frame.h, 228, "the row added under the note")
+    H.assertEq(table.concat(log, " "), "shown:true pin height", "pinned by its top before it grows")
+    H.assertEq(db.toolbarShown, true)
+    UI:ToggleEasyNotesToolbar()
+    H.assertEq(frame.h, 200, "back to the note's own height")
+    UI._notes.paletteShown, log = true, {}
+    UI:ToggleEasyNotesToolbar()
+    H.assertEq(frame.h, 200, "the notes list has no toolbar row")
+    H.assertEq(table.concat(log, " "), "shown:false")
 end
 
 local pass, fail, failures = H.runSuite("ClassicLook", tests)
