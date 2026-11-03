@@ -112,5 +112,52 @@ function tests.notesToolbarGrowsTheWindowByItsRow()
     H.assertEq(table.concat(log, " "), "shown:false")
 end
 
+-- Note cards under the Classic frame: Era's thin edge on the window's own
+-- ground, light gray inside it under the mouse or picked (mock A,
+-- 2026-11-02); the gray card read modern on the marble.
+function tests.notesCardsWearTheThinEdgeUnderClassic()
+    local src = Read("Apps/Notes/Notes.lua"):gsub("\r\n", "\n")
+    local s = assert(src:find("\nUI.CLASSIC_CARD = {", 1, true))
+    local _, e = assert(src:find("\nend\n", assert(src:find("function UI.PaintNotesClassicCard", s, true)), true))
+    local made
+    local function NewEdge()
+        local edge = { shown = false }
+        function edge:SetAllPoints() end
+        function edge:SetBackdrop(b) self.backdrop = b end
+        function edge:SetBackdropBorderColor(r, g, b, a) self.border = { r, g, b, a } end
+        function edge:SetBackdropColor(r, g, b, a) self.fill = { r, g, b, a } end
+        function edge:SetFrameLevel(l) self.level = l end
+        function edge:Show() self.shown = true end
+        function edge:Hide() self.shown = false end
+        made = edge
+        return edge
+    end
+    local tree = false
+    local ns = { CLASSIC_THIN = { edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16, insets = { left = 4 } },
+                 ACTIVE_UI_PALETTE = { separator = { 0.5, 0.4, 0.3, 0.35 } }, ClassicTreeShown = function() return tree end }
+    local UI = {}
+    local env = setmetatable({ UI = UI, ns = ns, CreateFrame = function() return NewEdge() end }, { __index = _G })
+    assert(load(src:sub(s, e), "=PaintNotesClassicCard", "t", env))()
+    local row = { GetFrameLevel = function() return 7 end }
+    UI.PaintNotesClassicCard(row, true, false, false)
+    H.assertEq(made.backdrop.edgeFile, ns.CLASSIC_THIN.edgeFile, "the thin Era edge")
+    H.assertEq(made.backdrop.insets, ns.CLASSIC_THIN.insets, "its fill inside the line")
+    H.assertTrue(math.abs(made.border[1] - 0.55) < 1e-9 and math.abs(made.border[3] - 0.33) < 1e-9, "the search ring's tan")
+    H.assertEq(made.fill[4], 0, "no fill: the window's ground shows")
+    H.assertEq(made.level, 6, "under the card's words")
+    UI.PaintNotesClassicCard(row, true, true, false)
+    H.assertTrue(made.fill[1] > 0.3 and made.fill[4] > 0.9, "light gray under the mouse")
+    UI.PaintNotesClassicCard(row, true, false, true)
+    H.assertTrue(made.fill[1] > 0.4, "lighter when picked")
+    tree = true
+    UI.PaintNotesClassicCard(row, true, false, false)
+    H.assertEq(made.fill[1], 0, "over a tree the dark card keeps the words readable")
+    H.assertTrue(made.fill[4] > 0.5)
+    UI.PaintNotesClassicCard(row, false)
+    H.assertFalse(made.shown, "off the Classic frame: no edge")
+    local paint = src:sub((assert(src:find("local function PaintPaletteRow(row)", 1, true))))
+    H.assertTrue(paint:find('row._efWindow._efSkin == "classic"', 1, true) ~= nil, "by the card's own window's frame")
+end
+
 local pass, fail, failures = H.runSuite("ClassicLook", tests)
 return { pass = pass, fail = fail, failures = failures }

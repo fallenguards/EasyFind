@@ -7388,12 +7388,47 @@ function UI:HideEasyNotesPalette()
     self:UpdateEasyNotesDeleteButton()
 end
 
+-- A card under the Classic frame: Era's thin edge in the search ring's tan
+-- on the window's own ground, a light gray inside it under the mouse or
+-- picked (the gray card read modern on the marble, 2026-11-02).
+UI.CLASSIC_CARD = { over = { 0.38, 0.38, 0.39, 0.92 }, picked = { 0.45, 0.45, 0.46, 0.92 },
+    tree = { 0, 0, 0, 0.55 }, clear = { 0, 0, 0, 0 } }
+function UI.PaintNotesClassicCard(row, on, over, selected)
+    local edge = row._efEdge
+    if not on then
+        if edge then edge:Hide() end
+        return
+    end
+    if not edge then
+        local thin = ns.CLASSIC_THIN
+        edge = CreateFrame("Frame", nil, row, "BackdropTemplate")
+        edge:SetAllPoints(row)
+        edge:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = thin.edgeFile,
+                           edgeSize = thin.edgeSize, insets = thin.insets })
+        row._efEdge = edge
+    end
+    local p = ns.ACTIVE_UI_PALETTE
+    local s = p and p.separator or { 0.58, 0.55, 0.46 }
+    edge:SetBackdropBorderColor(s[1] * 1.1, s[2] * 1.1, s[3] * 1.1, 1)
+    -- Over a talent tree the words keep the dark card that reads on its art.
+    local fills = UI.CLASSIC_CARD
+    local c = (selected and fills.picked) or (over and fills.over) or (ns.ClassicTreeShown() and fills.tree) or fills.clear
+    edge:SetBackdropColor(c[1], c[2], c[3], c[4])
+    -- Under the card's words, which are the row's own.
+    edge:SetFrameLevel(math.max(0, row:GetFrameLevel() - 1))
+    edge:Show()
+end
+
 local function PaintPaletteRow(row)
     if not row.noteID then return end
     local over = row:IsMouseOver() and true or false
     local sel = UI._notes.paletteSelection
     local selected = sel and sel[row.noteID] and true or false
-    if ns.SetRoundedRectFill then
+    local classic = row._efWindow ~= nil and row._efWindow._efSkin == "classic"
+    UI.PaintNotesClassicCard(row, classic, over, selected)
+    if classic then
+        if ns.SetRoundedRectFill then ns.SetRoundedRectFill(row, 0, 0, 0, 0, true) end
+    elseif ns.SetRoundedRectFill then
         -- Rows sit at the same fill as the header buttons (BTN_FILL_NORMAL), a
         -- step lighter on hover, and the theme control accent when selected, so
         -- the list reads as one surface with the buttons instead of black slabs.
@@ -7509,6 +7544,7 @@ function UI:EnsureEasyNotesPaletteRow(index)
     local row = rows[index]
     if row then return row end
     row = CreateFrame("Button", nil, frame.paletteListChild)
+    row._efWindow = frame
     rows[index] = row
     if ns.CreateRoundedRectBorder then
         ns.CreateRoundedRectBorder(row)
@@ -9991,6 +10027,8 @@ function UI:ApplyEasyNotesWindowLook()
     if ns.SetRoundedRectRingShown then ns.SetRoundedRectRingShown(frame, on and not dressed) end
     if ns.SetRoundedRectBarHeight then ns.SetRoundedRectBarHeight(frame, dressed and 2 or 14) end
     self:LayoutEasyNotesChrome(dressed)
+    -- The cards wear the Classic frame's edge with it.
+    if UI._notes.paletteRows then self:RepaintEasyNotesPaletteRows() end
 end
 
 -- The theme's frame art hangs wholly outside the window (Forever's band
