@@ -2474,7 +2474,7 @@ function Search:RefreshResults()
         self:UpdateSelectionHighlight()
     end
     -- Re-apply the hover action hint. Re-render rewrote pathSubtext
-    -- back to GetFlatSubtext, so the row the cursor is still over
+    -- back to GetShownSubtext, so the row the cursor is still over
     -- would otherwise revert to the unhovered subtext after a click.
     for i = 1, #resultButtons do
         local row = resultButtons[i]

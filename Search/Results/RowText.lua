@@ -241,3 +241,11 @@ function Text:GetFlatSubtext(data)
     end
     return data.category or ""
 end
+
+-- The subtext a row shows: the flat one, then a decorator's part.
+function Text:GetShownSubtext(data)
+    local subtext = self:GetFlatSubtext(data)
+    local part = data and ns.Extensions and ns.Extensions.DecoratorSubtext and ns.Extensions.DecoratorSubtext(data)
+    if not part then return subtext end
+    return subtext ~= "" and (subtext .. ", " .. part) or part
+end

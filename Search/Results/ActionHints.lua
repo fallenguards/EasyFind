@@ -155,7 +155,7 @@ function Handlers:ClearActionHint()
     -- Pinned while its context menu is open (mirrors the row highlight).
     if actionHintRow and actionHintRow._efContextMenuHeld then return end
     if actionHintRow and actionHintRow.pathSubtext then
-        actionHintRow.pathSubtext:SetText(Text:GetFlatSubtext(actionHintRow.data))
+        actionHintRow.pathSubtext:SetText(Text:GetShownSubtext(actionHintRow.data))
         -- Restore the THEMED subtext color; a hardcoded gray here left
         -- once-hinted rows desynced from every non-default theme.
         local theme = ns.Results and ns.Results.GetActiveTheme and ns.Results:GetActiveTheme()

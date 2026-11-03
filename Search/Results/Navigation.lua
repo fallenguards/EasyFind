@@ -534,7 +534,7 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
     -- Action-hint overlay: replaces the selected row's pathSubtext with
     -- a "Select to ..." hint so the user knows what Enter / left-click
     -- will do, without cluttering every row. Restored to the canonical
-    -- subtext (recomputed via GetFlatSubtext) when selection moves.
+    -- subtext (recomputed via GetShownSubtext) when selection moves.
     -- The selected row scrolls into view first: past the window it has no
     -- frame until it does.
     local sel = Search:GetSelectedIndex()
