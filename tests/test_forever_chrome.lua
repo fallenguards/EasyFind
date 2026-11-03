@@ -166,11 +166,11 @@ function tests.fill_runsUnderTheMetal()
     local f = surface(true)
     ns.ApplyThemeFill(f)
     local pts = f._efForever.fill.points
-    H.assertEq(pts[1][4], -2, "2 units out: under the band")
-    H.assertEq(pts[2][4], 2)
+    H.assertEq(pts[1][4], -1, "1 unit out: under the band")
+    H.assertEq(pts[2][4], 1)
     local tl = f._efForever.pieces.tl
-    H.assertEq(tl.points[1][4], -8.5, "the band outside the window")
-    H.assertEq(tl.points[1][4] + 17 * 0.5, 0, "its inner edge on the window's edge: rows run to it clear of the metal")
+    H.assertEq(tl.points[1][4], -4.25, "the band outside the window, half the spellbook's weight")
+    H.assertEq(tl.points[1][4] + 17 * 0.25, 0, "its inner edge on the window's edge: rows run to it clear of the metal")
 end
 
 -- The filter menu is zoomed 1.5x; its band is drawn at the bar's size.
@@ -182,8 +182,8 @@ function tests.fill_isThePageAtItsOwnSizeCropped()
     local f = surface(true, 200, 54)
     ns.ApplyThemeFill(f)
     local c = f._efForever.fill.coords
-    H.assertTrue(near(c[1], 0.3) and near(c[2], 0.3 + 0.3 * 204 / 307), "204 of its 307 across: " .. tostring(c[2]))
-    H.assertTrue(near(c[3], 0) and near(c[4], 58 / 510), "58 of its 510 down: " .. tostring(c[4]))
+    H.assertTrue(near(c[1], 0.3) and near(c[2], 0.3 + 0.3 * 202 / 307), "202 of its 307 across: " .. tostring(c[2]))
+    H.assertTrue(near(c[3], 0) and near(c[4], 56 / 510), "56 of its 510 down: " .. tostring(c[4]))
 end
 
 function tests.fill_takesThePagesSharpArt()
@@ -193,8 +193,8 @@ function tests.fill_takesThePagesSharpArt()
     ns.ApplyThemeFill(f)
     local c = f._efForever.fill.coords
     H.assertEq(f._efForever.fill.tex, FILL_2X.file, "the 2x file")
-    H.assertTrue(near(c[2], 0.4 + 0.3 * 204 / 307), "the same 307 units across, its pixels twice as fine: " .. tostring(c[2]))
-    H.assertTrue(near(c[4], 58 / 510))
+    H.assertTrue(near(c[2], 0.4 + 0.3 * 202 / 307), "the same 307 units across, its pixels twice as fine: " .. tostring(c[2]))
+    H.assertTrue(near(c[4], 56 / 510))
 end
 
 function tests.zoomedMenu_wearsTheBandAtTheSpellbookSize()
@@ -204,8 +204,8 @@ function tests.zoomedMenu_wearsTheBandAtTheSpellbookSize()
     f.effScale = 1.5
     ns.ApplyThemeFill(f)
     local tl = f._efForever.pieces.tl
-    H.assertTrue(near(tl.w, 30 * 0.5 / 1.5), "corner width in the menu's own units: " .. tostring(tl.w))
-    H.assertTrue(near(tl.points[1][4], -17 * 0.5 / 1.5))
+    H.assertTrue(near(tl.w, 30 * 0.25 / 1.5), "corner width in the menu's own units: " .. tostring(tl.w))
+    H.assertTrue(near(tl.points[1][4], -17 * 0.25 / 1.5))
 end
 
 function tests.fill_isFittedToWidthAndCroppedFromTop()
@@ -215,9 +215,9 @@ function tests.fill_isFittedToWidthAndCroppedFromTop()
     ns.ApplyThemeFill(f)
     local c = f._efForever.fill.coords
     H.assertTrue(near(c[1], 0.3) and near(c[2], 0.6), "full width of the atlas")
-    -- The fill reaches 2 under the band each side: 314 x 58, the atlas
-    -- fitted to 314 across.
-    H.assertTrue(near(c[3], 0) and near(c[4], 58 / (314 * 510 / 307)), "the top slice: " .. tostring(c[4]))
+    -- The fill reaches 1 under the band each side: 312 x 56, the atlas
+    -- fitted to 312 across.
+    H.assertTrue(near(c[3], 0) and near(c[4], 56 / (312 * 510 / 307)), "the top slice: " .. tostring(c[4]))
 end
 
 -- Option on: the filter menu, which asks for no rounded ring, still wears
@@ -403,7 +403,7 @@ function tests.classicWindow_wearsTheFullFrameOutside()
     H.assertEq(f._efSkin, "classic")
     local back = f._efClassicBack
     H.assertTrue(back and back.shown, "on a frame under it")
-    H.assertEq(back.backdrop, ns.CLASSIC_DIALOG, "the full-weight frame")
+    H.assertEq(back.backdrop, ns.CLASSIC_WINDOW, "the window's frame, the stone under half its metal")
     local tl, br = back.points[#back.points - 1], back.points[#back.points]
     H.assertTrue(tl[4] == -ns.CLASSIC_WINDOW_OUTSET and tl[5] == ns.CLASSIC_WINDOW_OUTSET, "outside by its metal")
     H.assertTrue(br[4] == ns.CLASSIC_WINDOW_OUTSET and br[5] == -ns.CLASSIC_WINDOW_OUTSET)

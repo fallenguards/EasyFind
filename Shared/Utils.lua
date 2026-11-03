@@ -1949,10 +1949,11 @@ ns.CLASSIC_BACKDROP = {            -- bar, results, menus
 -- that far outside the frame, rows and scroll bars run to the frame's edge
 -- clear of it.
 ns.CLASSIC_OUTSET = 6
--- A window's full-weight frame (_efClassicStyle "window"): the dialog
--- border at its own size, its metal ending 12 in, hung that far outside so
--- the window's contents keep their places.
-ns.CLASSIC_WINDOW_OUTSET = 12
+-- A window's frame (_efClassicStyle "window"): the dialog border at the
+-- bar's weight, its metal ending 6 in, hung that far outside so the
+-- window's contents keep their places (at its own size, 12, it read fat,
+-- 2026-11-02).
+ns.CLASSIC_WINDOW_OUTSET = 6
 -- Panes inside a window: the thin tooltip edge, so no metal nests in metal.
 ns.CLASSIC_THIN = {
     bgFile = CLASSIC_DIALOG_BG,
@@ -1965,6 +1966,15 @@ ns.CLASSIC_DIALOG = {              -- windows
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tile = true, tileSize = 256, edgeSize = 32,
     insets = { left = 11, right = 12, top = 12, bottom = 11 },
+}
+-- A window's: the stone runs halfway under the metal and the metal over it,
+-- so no light shows between them (insets at the metal's inner edge left a
+-- seam of the world).
+ns.CLASSIC_WINDOW = {
+    bgFile = CLASSIC_DIALOG_BG,
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 256, edgeSize = 16,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 },
 }
 ns.CLASSIC_HEADER = "Interface\\DialogFrame\\UI-DialogBox-Header"
 -- The window border option: on, the Classic and Forever themes wear their
@@ -2749,6 +2759,7 @@ local FOREVER = {
     px = { cornerW = 30, topH = 17, bottomH = 24, sideW = 17, edgeLen = 256,
            outLeft = 17, outRight = 17, outTop = 17, outBottom = 24, fillIn = -4 },
     unit = 0.5,        -- UI units per art pixel: the spellbook's own size
+    band = 0.5,        -- the band's share of it: half the spellbook's weight (it read fat, 2026-11-02)
     level = 12,        -- the border sits over rows and bar content
     dividerInset = -1.5,  -- the divider runs under the band's inner edge
 }
@@ -2793,6 +2804,8 @@ do
 
     local function PlaceForever(frame, f, u)
         local px, p = FOREVER.px, f.pieces
+        local unit = u
+        u = u * FOREVER.band
         p.tl:SetSize(px.cornerW * u, px.topH * u)
         p.tl:SetPoint("TOPLEFT", frame, "TOPLEFT", -px.outLeft * u, px.outTop * u)
         p.tr:SetSize(px.cornerW * u, px.topH * u)
@@ -2807,7 +2820,7 @@ do
         local inset = px.fillIn * u
         f.fill:SetPoint("TOPLEFT", frame, "TOPLEFT", inset, -inset)
         f.fill:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -inset, inset)
-        f.u = u
+        f.u = unit
     end
 
     LayoutForever = function(frame)
@@ -2816,14 +2829,15 @@ do
         local u, px = ForeverUnit(frame), FOREVER.px
         if f.u ~= u then PlaceForever(frame, f, u) end
         local fw, fh = frame:GetWidth() or 0, frame:GetHeight() or 0
-        local inset = px.fillIn * u
+        local b = u * FOREVER.band
+        local inset = px.fillIn * b
         local w, h = fw - 2 * inset, fh - 2 * inset
         if w <= 0 or h <= 0 then return end
         f.border:SetFrameLevel(frame:GetFrameLevel() + FOREVER.level)
         -- Edges tile at the art's own length.
-        local tile = px.edgeLen * u
-        local across = mmax(fw + (px.outLeft + px.outRight - 2 * px.cornerW) * u, 1) / tile
-        local down = mmax(fh + (px.outTop + px.outBottom - px.topH - px.bottomH) * u, 1) / tile
+        local tile = px.edgeLen * b
+        local across = mmax(fw + (px.outLeft + px.outRight - 2 * px.cornerW) * b, 1) / tile
+        local down = mmax(fh + (px.outTop + px.outBottom - px.topH - px.bottomH) * b, 1) / tile
         local p = f.pieces
         p.top:SetTexCoord(0, across, p.top._efV0, p.top._efV1)
         p.bottom:SetTexCoord(0, across, p.bottom._efV0, p.bottom._efV1)
@@ -3101,8 +3115,8 @@ do
             if host.OnBackdropSizeChanged then host:HookScript("OnSizeChanged", host.OnBackdropSizeChanged) end
         end
         if not host.SetBackdrop then return false end
-        local backdrop = ((want == "dialog" or want == "window") and ns.CLASSIC_DIALOG) or (want == "thin" and ns.CLASSIC_THIN)
-            or ns.CLASSIC_BACKDROP
+        local backdrop = (want == "window" and ns.CLASSIC_WINDOW) or (want == "dialog" and ns.CLASSIC_DIALOG)
+            or (want == "thin" and ns.CLASSIC_THIN) or ns.CLASSIC_BACKDROP
         if frame._efClassicChrome ~= want or frame._efClassicHost ~= host then
             if host ~= frame and frame.SetBackdrop then frame:SetBackdrop(nil) end
             host:SetBackdrop(backdrop)
@@ -3113,7 +3127,9 @@ do
         host:SetBackdropColor(1, 1, 1, (ns.OverTree(frame) or ns.ShowsTree(frame)) and 0 or alpha)
         host:SetBackdropBorderColor(1, 1, 1, 1)
         if want ~= "thin" then
-            DressTree(frame, backdrop.insets.left - (host ~= frame and frame._efClassicOutset or 0), alpha)
+            -- Hung outside, the tree sits behind the metal as the stone does.
+            local behind = host ~= frame and math.max(0, host:GetFrameLevel() - 1) or nil
+            DressTree(frame, backdrop.insets.left - (host ~= frame and frame._efClassicOutset or 0), alpha, behind)
         elseif frame._efTree then
             frame._efTree.clip:Hide()
         end
@@ -3187,7 +3203,7 @@ do
                 f.fill:SetAlpha(frame._efBgAlpha or 1)
                 LayoutForever(frame)
                 ShowForeverPieces(frame)
-                local u, px = f.u or FOREVER.unit, FOREVER.px
+                local u, px = (f.u or FOREVER.unit) * FOREVER.band, FOREVER.px
                 ReachBand(frame, px.outLeft * u, px.outRight * u, px.outTop * u, px.outBottom * u)
             elseif frame._efClassicBack and frame._efClassicBack:IsShown() then
                 local o = frame._efClassicOutset or ns.CLASSIC_OUTSET
@@ -3245,7 +3261,7 @@ function ns.IsMouseOverWithBand(frame)
     if back and back:IsShown() and back:IsMouseOver() then return true end
     if not frame._efForeverOn then return false end
     local f, px = frame._efForever, FOREVER.px
-    local u = f and f.u or FOREVER.unit
+    local u = (f and f.u or FOREVER.unit) * FOREVER.band
     local l, r, t, b = frame:GetLeft(), frame:GetRight(), frame:GetTop(), frame:GetBottom()
     local scale = frame:GetEffectiveScale()
     if not (l and r and t and b and scale and scale > 0) then return false end
