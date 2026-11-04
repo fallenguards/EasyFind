@@ -24,8 +24,16 @@ local ENTRIES = {
     { key = "reputations",     categories = { "Reputation" } },
     { key = "achievements",    categories = { "Achievement Category", "Achievement",
                                               "Achievements", "Guild Achievements" } },
-    { key = "statistics",      categories = { "Statistic", "Statistics" },
+    -- characterInfo is the umbrella over the game's statistics and what
+    -- EasyFind records of each character (Search/Characters.lua).
+    { key = "characterInfo",   categories = {} },
+    { key = "statistics",      parent = "characterInfo", categories = { "Statistic", "Statistics" },
                                explicitFlag = "statistics" },
+    { key = "charRows",        parent = "characterInfo", categories = { "Character" } },
+    { key = "charPlayed",      parent = "characterInfo", categories = { "Character Played" } },
+    { key = "charSeen",        parent = "characterInfo", categories = { "Character Seen" } },
+    { key = "charGold",        parent = "characterInfo", categories = { "Character Gold" } },
+    { key = "charLevel",       parent = "characterInfo", categories = { "Character Level" } },
     { key = "bosses",          categories = { "Boss" }, explicitFlag = "bosses" },
     -- items is the umbrella gate; its children carry the real categories.
     { key = "items",           categories = {} },

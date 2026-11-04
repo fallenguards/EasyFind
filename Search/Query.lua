@@ -492,6 +492,11 @@ function Search:OnSearchTextChangedNow(text, force)
         if ns.Quicklists then ns.Quicklists:ShowView(quickFilter.quicklistID, text) end
         return
     end
+    -- @alts, a character's page, a character's item grid.
+    if quickFilter and quickFilter.charView then
+        if ns.Characters then ns.Characters:ShowView(quickFilter, text) end
+        return
+    end
     if (not text or text == "") and not quickFilter then
         if ns.Database and ns.Database.CancelDynamicWarmup then
             ns.Database:CancelDynamicWarmup()
@@ -998,6 +1003,41 @@ function Search:OnSearchTextChangedNow(text, force)
         end
         for i = fi + 1, #filtered do filtered[i] = nil end
         results = filtered
+    end
+
+    -- A character's fact (Search/Characters.lua) shows for its own word
+    -- ("gold", "played"), never for the name alone: the name finds the
+    -- character's own row.
+    local anyFact = false
+    for ri = 1, #results do
+        local d = results[ri].data
+        if d and d.factWords then
+            anyFact = true
+            break
+        end
+    end
+    if anyFact then
+        local asked = SCRATCH.factAsked
+        wipe(asked)
+        for _, word in ipairs(SearchText.NormalizeAndTokenize(text)) do asked[word] = true end
+        wipe(SCRATCH.factResults)
+        local kept, fi = SCRATCH.factResults, 0
+        for ri = 1, #results do
+            local r = results[ri]
+            local words = r.data and r.data.factWords
+            local show = not words
+            for wi = 1, words and #words or 0 do
+                if asked[words[wi]] then
+                    show = true
+                    break
+                end
+            end
+            if show then
+                fi = fi + 1
+                kept[fi] = r
+            end
+        end
+        results = kept
     end
 
     -- Currency filter mode: kept in DB so it can drive bidirectional

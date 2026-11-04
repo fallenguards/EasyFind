@@ -17,7 +17,7 @@ local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 -- Row action keys run its entries without the menu (RowActions.lua).
 function Rows:ResultMenuModel(row)
     if not row or not row.data then return nil end
-    if row.data.calculatorResult or row.data.quickFilterDef then return nil end
+    if row.data.calculatorResult or row.data.quickFilterDef or row.data.noMenu then return nil end
 
     local pinData = row.data
     local isPinned = IsUIItemPinned(pinData)

@@ -21,6 +21,9 @@ local Utils = ns.Utils
 local L = ns.L
 
 local sfind, slower = Utils.sfind, Utils.slower
+-- A tag's letters: a character's name may carry any script.
+local TAG = "[%w_%-:\128-\255]"
+Filters.TAG_CHARS = TAG
 local tsort = Utils.tsort
 local tremove = Utils.tremove
 local mmax = Utils.mmax
@@ -43,6 +46,9 @@ Filters.quickFilterOptions = {
     -- The warband bank is a separate place from a character's own bank, so it
     -- gets its own token rather than being folded into @bank.
     { key = "warband",        canonical = "warband",         label = ns.WarbandBankLabel and ns.WarbandBankLabel() or "Warband Bank", categories = { "Warband" }, aliases = { "wb", "warband", "warbank" } },
+    -- The account's characters (Search/Characters.lua); each one's own tag
+    -- comes from there.
+    { key = "alts",           canonical = "alts",            label = L["FILTER_CHARACTERS"], aliases = { "alt", "alts", "char", "chars", "character", "characters" }, charView = "list" },
     { key = "bosses",         canonical = "bosses",          label = _G["RAID_BOSSES"] or "Bosses",          categories = { "Boss" }, aliases = { "bo", "boss", "bosses", "encounter", "encounters" } },
     { key = "macros",         canonical = "macros",          label = _G["MACROS"] or "Macros",          categories = { "Macro" }, aliases = { "ma", "macro", "macros" } },
     { key = "commands",       canonical = "commands",        label = L["FILTER_COMMANDS"],        categories = { "Command" }, aliases = { "cmd", "cmds", "command", "commands", "slash" } },
@@ -177,7 +183,7 @@ Filters.quickFilterSuggestionData = {}
 ---@param token string?
 ---@return integer?
 function Filters:QuickFilterMatchRank(def, token)
-    token = slower(token or "")
+    token = def.fold and def.fold(token or "") or slower(token or "")
     if token == "" then
         if def.nestedParent then return nil end
         return 100 + (def.order or 0)
@@ -207,6 +213,10 @@ function Filters:ResolveQuickFilterToken(token)
     token = slower(token:gsub("^@", ""):gsub("_", "-"))
     local direct = Filters.quickFilterByAlias[token]
     if direct then return direct end
+    -- A character's exact name beats a fixed tag it only starts.
+    local Characters = ns.Characters
+    local character = Characters and Characters:ResolveToken(token, true)
+    if character then return character end
 
     local found, matches = nil, 0
     for i = 1, #Filters.quickFilterOptions do
@@ -226,8 +236,10 @@ function Filters:ResolveQuickFilterToken(token)
             if matches > 1 then return nil end
         end
     end
-    -- No fixed filter: a quicklist's name typed as a tag opens that list.
-    if not found and ns.Quicklists and ns.Quicklists.ResolveToken then return ns.Quicklists:ResolveToken(token) end
+    -- No fixed filter: a quicklist's name typed as a tag opens that list,
+    -- else the one character the tag starts.
+    if not found and ns.Quicklists and ns.Quicklists.ResolveToken then found = ns.Quicklists:ResolveToken(token) end
+    if not found and Characters then found = Characters:ResolveToken(token, false) end
     return found
 end
 
@@ -416,7 +428,13 @@ function Filters:CreateQuickFilterPill(frame, editBox, iconHolder, filterBtn)
     pill.clearX = clearX
 
     pill:SetScript("OnClick", function()
-        Filters:ClearQuickFilter(true)
+        -- A page inside another steps back to it, as Backspace does.
+        local parent = Filters._quickFilter and Filters._quickFilter.parentDef
+        if parent then
+            Filters:ApplyQuickFilter(parent, "")
+        else
+            Filters:ClearQuickFilter(true)
+        end
         if editBox then
             editBox.blockFocus = nil
             editBox:SetFocus()
@@ -425,9 +443,10 @@ function Filters:CreateQuickFilterPill(frame, editBox, iconHolder, filterBtn)
     pill:SetScript("OnEnter", function(self)
         Filters:PaintQuickFilterPill(self, true)
         if self.clearX then self.clearX:Show() end
+        local nested = Filters._quickFilter and Filters._quickFilter.parentDef
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:SetText(L["QUICK_FILTER"])
-        GameTooltip:AddLine(L["QUICK_FILTER_TT"], 1, 1, 1, true)
+        GameTooltip:AddLine(nested and L["QUICK_FILTER_BACK_TT"] or L["QUICK_FILTER_TT"], 1, 1, 1, true)
         GameTooltip:Show()
     end)
     pill:SetScript("OnLeave", function(self)
@@ -444,6 +463,12 @@ function Filters:CreateQuickFilterPill(frame, editBox, iconHolder, filterBtn)
     frame.quickFilterFilterBtn = filterBtn
 end
 
+-- A page's whole path: "@alts @Thrall @items"; a filter's own token alone.
+function Filters:PillText(def)
+    if not def.parentDef then return def.token end
+    return self:PillText(def.parentDef) .. " " .. def.token
+end
+
 function Filters:UpdateQuickFilterPill()
     local frame = Search:GetSearchFrame()
     if not frame or not frame.quickFilterEditBox then return end
@@ -455,7 +480,7 @@ function Filters:UpdateQuickFilterPill()
 
     editBox:ClearAllPoints()
     if active and pill then
-        pill.text:SetText(active.token)
+        pill.text:SetText(Filters:PillText(active))
         -- Hug the token: left pad + text + right pad, nothing else. No X
         -- reserve (it overlays) and no arbitrary minimum -- a flat 52 left
         -- short tokens like "@gen" swimming in dead space on both sides.
@@ -484,8 +509,7 @@ function Filters:GetQuickFilterSuggestionEntries(token)
     wipe(suggestions)
     local n = 0
     token = (token or ""):gsub("_", "-")
-    for i = 1, #Filters.quickFilterOptions do
-        local def = Filters.quickFilterOptions[i]
+    local function Consider(def)
         local rank = self:QuickFilterMatchRank(def, token)
         if rank then
             n = n + 1
@@ -494,6 +518,11 @@ function Filters:GetQuickFilterSuggestionEntries(token)
             item.rank = rank
             suggestions[n] = item
         end
+    end
+    for i = 1, #Filters.quickFilterOptions do Consider(Filters.quickFilterOptions[i]) end
+    -- The characters join once a letter is typed (nestedParent).
+    if ns.Characters then
+        for _, def in ipairs(ns.Characters:Defs()) do Consider(def) end
     end
     for i = n + 1, #suggestions do suggestions[i] = nil end
     if n == 0 then return nil end
@@ -515,6 +544,7 @@ function Filters:GetQuickFilterSuggestionEntries(token)
         data.noPin = true
         data.quickFilterDef = def
         data.quickFilterAliasText = self:GetQuickFilterAliasText(def)
+        data.glyph = def.glyph
 
         local entry = entries[i]
         if not entry then
@@ -545,7 +575,7 @@ function Filters:UpdateQuickFilterSuggestions(editBox)
 
     local cursor = editBox:GetCursorPosition() or #(editBox:GetText() or "")
     local typed = (editBox:GetText() or ""):sub(1, cursor)
-    local token = typed:match("^%s*@([%w_%-:]*)$")
+    local token = typed:match("^%s*@(" .. TAG .. "*)$")
     if not token then
         self:HideQuickFilterSuggestions()
         return false
@@ -606,11 +636,12 @@ function Filters:ApplyQuickFilter(def, remainingText)
     -- stripped at the gate instead of every caller sanitizing its own
     -- composition. Tokens of a DIFFERENT def are left alone.
     while true do
-        local token, rest = remainingText:match("^%s*@([%w_%-:]+)%s*(.*)$")
+        local token, rest = remainingText:match("^%s*@(" .. TAG .. "+)%s*(.*)$")
         if not token or self:ResolveQuickFilterToken(token) ~= def then break end
         remainingText = rest
     end
     Filters._quickFilter = def
+    if def.charView and ns.Characters then ns.Characters:OnApply(def) end
     self:HideQuickFilterSuggestions()
     self:UpdateQuickFilterPill()
 
@@ -645,9 +676,9 @@ function Filters:TryAcceptQuickFilterToken(editBox, includeWhitespace)
     local before = text:sub(1, cursor)
     local token, after
     if includeWhitespace then
-        token, after = before:match("^%s*@([%w_%-:]+)%s+(.*)$")
+        token, after = before:match("^%s*@(" .. TAG .. "+)%s+(.*)$")
     else
-        token = before:match("^%s*@([%w_%-:]+)$")
+        token = before:match("^%s*@(" .. TAG .. "+)$")
     end
     if not token then return false end
 
@@ -691,6 +722,27 @@ local function IsCompleteToken(def, token)
     return true
 end
 
+-- A page's tag (@alts, a character) is whole when no longer tag starts
+-- with it ("@bob" waits while Bobby is there); a character's own
+-- name-realm form does not count.
+local function NoLongerTag(def, token)
+    local Characters = ns.Characters
+    local folded = def.fold and def.fold(token) or slower(token)
+    local function Longer(word)
+        return word ~= nil and #word > #folded and sfind(word, folded, 1, true) == 1
+    end
+    for _, other in ipairs(Filters.quickFilterOptions) do
+        if Longer(slower(other.canonical)) then return false end
+        for _, alias in ipairs(other.aliases or {}) do
+            if Longer(slower(alias)) then return false end
+        end
+    end
+    for _, other in ipairs(Characters and Characters:Defs() or {}) do
+        if Longer(other.canonical) or (other ~= def and Longer(other.aliases[1])) then return false end
+    end
+    return true
+end
+
 function Filters:HandleQuickFilterTextChanged(editBox)
     if self:TryAcceptQuickFilterToken(editBox, true) then return true end
     -- @icons opens on the bare token, no trailing space needed: whenever a
@@ -700,10 +752,14 @@ function Filters:HandleQuickFilterTextChanged(editBox)
     -- continued query means.)
     if not Filters._quickFilter and editBox then
         local text = editBox:GetText() or ""
-        local bareToken = text:match("^%s*@([%w_%-:]+)%s*$")
+        local bareToken = text:match("^%s*@(" .. TAG .. "+)%s*$")
         if bareToken then
             local def = self:ResolveQuickFilterToken(bareToken)
             if def and def.key == "icons" and IsCompleteToken(def, bareToken) then
+                return self:ApplyQuickFilter(def, "")
+            end
+            -- A page (@alts, a character's) is a view too.
+            if def and def.charView and NoLongerTag(def, bareToken) then
                 return self:ApplyQuickFilter(def, "")
             end
         end
@@ -737,7 +793,7 @@ function Filters:HandleQuickFilterSuggestionBackspace(editBox)
     if cursor <= 0 then return false end
 
     local before = text:sub(1, cursor)
-    if not before:match("^%s*@[%w_%-:]*$") then return false end
+    if not before:match("^%s*@" .. TAG .. "*$") then return false end
 
     local newBefore = before:sub(1, -2)
     local newText = newBefore .. text:sub(cursor + 1)
@@ -767,6 +823,10 @@ end
 function Filters:HandleQuickFilterKeyDown(editBox, key)
     if key == "BACKSPACE" and Filters._quickFilter and editBox
        and (editBox:GetText() or "") == "" then
+        -- A page inside another (a character's grid, a character) steps
+        -- back to it.
+        local parent = Filters._quickFilter.parentDef
+        if parent then return self:ApplyQuickFilter(parent, "") end
         return self:ClearQuickFilter(true)
     end
     if key == "BACKSPACE" and self:HandleQuickFilterSuggestionBackspace(editBox) then

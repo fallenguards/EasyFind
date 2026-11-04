@@ -244,6 +244,8 @@ local REP_FACTION_ICONS = {
 
 function Icons:GetFlatCategoryIcon(data)
     if not data then return nil end
+    -- A row that brings its own (the character pages).
+    if data.glyph then return data.glyph end
     if data.calculatorResult then return FLAT_CATEGORY_ICONS.calculator end
     -- App launcher rows wear the apps-button waffle as their general glyph;
     -- the app's own glyph renders on the row's right via GetAppGlyphIcon.

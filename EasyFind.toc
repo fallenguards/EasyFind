@@ -43,6 +43,7 @@ Core/API.lua
 Core/SettingsRows.lua
 Database/TeleportData.lua
 Database/Main.lua
+Database/Characters.lua
 Database/InstanceWords.lua
 Database/SearchIndex.lua
 Database/Search.lua
@@ -179,6 +180,8 @@ Search/Results/Rows/Tooltips.lua
 Search/Results/Rows/ResultButton.lua
 Search/Results/Navigation.lua
 Search/Results/Grids.lua
+Search/Results/ItemGrid.lua
+Search/Characters.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua
 MapSearch/Zones/Highlight.lua

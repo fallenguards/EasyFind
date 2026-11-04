@@ -70,23 +70,34 @@ local UI_FILTER_OPTIONS = {
               { dbKey = "hideGuildAchievements", label = L["FILTER_HIDE_GUILD_ACHIEVEMENTS"] },
           },
       } },
-    -- Statistics show a live value, or "--" when the character has none. Most
-    -- are unrecorded on any given character, so a name search buries the few
-    -- with data under a wall of "--". Defaults to All: this is a reference list
-    -- people look things up in, and silently hiding rows from it is worse than
-    -- a long list.
-    { key = "statistics",  label = _G["STATISTICS"] or "Statistics",  iconTex = ns.STAT_CATEGORY_ICON_TEX,
-      iconCoords = ns.STAT_CATEGORY_ICON_COORDS,
-      flyoutRadio = {
-          dbKey = "statisticFilterMode",
-          options = {
-              { value = "all",        label = _G["ALL"] or "All" },
-              { value = "recorded",   label = L["FILTER_STAT_RECORDED"] },
-              { value = "unrecorded", label = L["FILTER_STAT_UNRECORDED"] },
-          },
-          -- Filtered at query time (Search/Query.lua), so the results just
-          -- need re-running; no provider repopulate.
-          onChange = function() Filters:RerunActiveSearch() end,
+    -- Character info: the game's statistics (the old key: its saved switch
+    -- and off default stand) and what EasyFind records of each character.
+    { key = "characterInfo", label = _G["CHARACTER_BUTTON"] or L["FILTER_CHARACTER_INFO"],
+      iconTex = ns.STAT_CATEGORY_ICON_TEX, iconCoords = ns.STAT_CATEGORY_ICON_COORDS,
+      flyoutSubFilters = {
+          { key = "statistics", label = _G["STATISTICS"] or "Statistics", iconTex = ns.STAT_CATEGORY_ICON_TEX,
+            iconCoords = ns.STAT_CATEGORY_ICON_COORDS, hasOptions = true,
+            -- All by default: most statistics read "--" on any one character,
+            -- but this is a reference list and hiding rows is worse.
+            checkboxOptions = { {
+                choice = {
+                    { value = "all",        label = _G["ALL"] or "All" },
+                    { value = "recorded",   label = L["FILTER_STAT_RECORDED"] },
+                    { value = "unrecorded", label = L["FILTER_STAT_UNRECORDED"] },
+                },
+                get = function() return EasyFind.db.statisticFilterMode or "all" end,
+                -- Filtered at query time (Search/Query.lua), so the results
+                -- just need re-running; no provider repopulate.
+                set = function(value)
+                    EasyFind.db.statisticFilterMode = value
+                    Filters:RerunActiveSearch()
+                end,
+            } } },
+          { key = "charPlayed", label = L["CHAR_PLAYED"], iconTex = "Interface\\Icons\\INV_Misc_PocketWatch_01" },
+          { key = "charSeen",   label = L["CHAR_LAST_PLAYED"], iconTex = "Interface\\Icons\\INV_Misc_Book_09" },
+          { key = "charGold",   label = _G["MONEY"] or "Money", iconTex = "Interface\\Icons\\INV_Misc_Coin_01" },
+          { key = "charLevel",  label = _G["LEVEL"] or "Level", iconTex = ns.STAT_CATEGORY_ICON_TEX,
+            iconCoords = ns.STAT_CATEGORY_ICON_COORDS },
       } },
     -- Items: the full game item catalog is the default ("everything else").
     -- Bags and Bank are owned-item overlays nested under it -- turning Items

@@ -99,6 +99,9 @@ local function PlainCoinText(amount)
     return text
 end
 
+-- The character pages (Search/Characters.lua) show and copy gold the same way.
+Answers.CoinText, Answers.PlainCoinText = CoinText, PlainCoinText
+
 local function GoldText(FormatCoin)
     local money = GetMoney and GetMoney()
     if not money then return nil end

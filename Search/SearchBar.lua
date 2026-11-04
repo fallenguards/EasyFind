@@ -950,7 +950,7 @@ function Search:CreateSearchFrame()
         end,
         backspaceAutocompleteTarget = function(_, typed)
             if not Filters:IsQuickFilterSuggestionsActive() or not typed then return nil end
-            if not typed:match("^%s*@[%w_%-:]*$") then return nil end
+            if not typed:match("^%s*@" .. Filters.TAG_CHARS .. "*$") then return nil end
             local text = typed:sub(1, -2)
             return text, #text
         end,
@@ -969,7 +969,7 @@ function Search:CreateSearchFrame()
         onAccepted = function(text)
             if text and text ~= "" then
                 local box = searchFrame and searchFrame.editBox
-                if box and text:match("^%s*@[%w_%-:]+$") and Filters:UpdateQuickFilterSuggestions(box) then
+                if box and text:match("^%s*@" .. Filters.TAG_CHARS .. "+$") and Filters:UpdateQuickFilterSuggestions(box) then
                     return
                 end
                 Search:OnSearchTextChanged(text, true)

@@ -18,6 +18,9 @@ local SCRATCH = {
     calculatorResults = {},
     filteredResults = {},
     quickFilterResults = {},
+    -- The words typed, for a character's fact rows, and the rows kept.
+    factAsked = {},
+    factResults = {},
     skipCategories = {},
     currencyInfoCache = {},
     renderState = {},

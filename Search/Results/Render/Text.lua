@@ -112,6 +112,9 @@ function Render.BaseRowText(resultRow, entry, state)
                     resultRow.flatCatIcon:SetTexture(134400)
                     resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
                 end
+            elseif catIconDef.portrait then
+                SetPortraitTexture(resultRow.flatCatIcon, catIconDef.portrait)
+                resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)
             elseif catIconDef.atlas then
                 resultRow.flatCatIcon:SetAtlas(catIconDef.atlas)
                 resultRow.flatCatIcon:SetTexCoord(0, 1, 0, 1)

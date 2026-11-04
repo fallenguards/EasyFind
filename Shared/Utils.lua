@@ -2385,6 +2385,7 @@ end
 function ns.StoredCategoryLabel(category)
     if category == "Warband" then return ns.WarbandBankLabel() end
     if category == "Bank" then return _G["BANK"] or "Bank" end
+    if category == "Gear" then return _G["CURRENTLY_EQUIPPED"] or "Equipped" end
     return _G["BAGSLOT"] or "Bags"
 end
 

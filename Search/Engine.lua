@@ -56,6 +56,11 @@ local PROVIDERS = {
     { key = "reputations", words = { "rep", "reps", "reputation", "reputations", "faction" }, loadOnLowResults = true },
     { key = "achievements", words = { "ach", "achievement", "achievements" }, loadOnLowResults = true },
     { key = "statistics", lookup = STATISTICS_WORDS, loadWhenEnabled = true },
+    { key = "charRows", words = { "alt", "alts", "character", "characters" }, loadWhenEnabled = true },
+    { key = "charPlayed", words = { "played", "playtime" }, loadWhenEnabled = true },
+    { key = "charSeen", words = { "last", "seen", "online" }, loadWhenEnabled = true },
+    { key = "charGold", words = { "gold", "money" }, loadWhenEnabled = true },
+    { key = "charLevel", words = { "level", "lvl" }, loadWhenEnabled = true },
     { key = "mounts", words = { "mount", "mounts" }, loadOnLowResults = true },
     { key = "toys", words = { "toy", "toys" }, loadOnLowResults = true },
     -- loadWhenEnabled: decor is searched by arbitrary item names ("cozy

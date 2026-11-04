@@ -69,6 +69,8 @@ local function RemoveEntriesByCategory(category)
     -- Ref-keyed index: NoteRemoved (above, per dropped entry) already
     -- retired the removed entries from candidacy; no rebuild needed here.
 end
+-- For providers in other files (Search/Characters.lua).
+Database.RemoveEntriesByCategory = RemoveEntriesByCategory
 
 local function RemoveEntriesWithField(field)
     local before = #uiSearchData
