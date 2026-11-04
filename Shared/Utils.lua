@@ -10663,7 +10663,7 @@ function ns.RegisterAddonFont(fs, weight, sizeOverride, flags)
     -- Font-preview rows each render in their OWN font on purpose; they must
     -- never be driven by the current global choice, or selecting a font would
     -- overwrite (and blank) the other choices' preview text.
-    if fs._efFontPreview then return end
+    if fs._efFontPreview or fs._efOwnFont then return end
     if not fs._addonFontBaseline then
         local p, sz, fl = fs:GetFont()
         fs._addonFontBaseline = { path = p, size = sz, flags = fl }

@@ -2638,9 +2638,22 @@ function Search:ResetPositionAndSize()
     self:RefreshResults()
 end
 
+-- The box draws what is typed with a text of its own: the addon font pass
+-- held it at the font's base size while the box grew. Sized with the box and
+-- kept out of that pass.
+local function SizeTypedText(editBox)
+    for _, region in ipairs({ editBox:GetRegions() }) do
+        if region:GetObjectType() == "FontString" and region ~= editBox.placeholder then
+            region._efOwnFont = true
+            Search:ScaleFont(region, ns.SEARCHBAR_FONT)
+        end
+    end
+end
+
 function Search:UpdateFontSize()
     if not searchFrame then return end
 
+    SizeTypedText(searchFrame.editBox)
     if ns.RegisterAddonFontsIn then ns.RegisterAddonFontsIn(searchFrame) end
 
     Search:ScaleFont(searchFrame.editBox, ns.SEARCHBAR_FONT)
