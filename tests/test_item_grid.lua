@@ -17,11 +17,15 @@ local function Widget()
         if k == "LockHighlight" then return function(self) self._locked = true end end
         if k == "UnlockHighlight" then return function(self) self._locked = false end end
         if k == "GetWidth" then return function() return 400 end end
+        if k == "GetFrameLevel" then return function() return 5 end end
         if k == "GetStringWidth" then return function() return 40 end end
         if k == "GetVerticalScroll" then return function() return 0 end end
         if k == "IsMouseOver" or k == "HasFocus" then return function() return false end end
         if k == "CreateFontString" or k == "CreateTexture" then return function() return Widget() end end
         if k == "GetFontString" then return function(self) self._fs = self._fs or Widget() return self._fs end end
+        if k == "SetAttribute" then return function(self, a, v) self._attr = self._attr or {}; self._attr[a] = v end end
+        if k == "GetAttribute" then return function(self, a) return self._attr and self._attr[a] end end
+        if k == "SetScript" then return function(self, n, fn) self._scripts = self._scripts or {}; self._scripts[n] = fn end end
         -- Methods are capitalized; a plain field is unset.
         if k:find("^%u") then return function() end end
         return nil
@@ -35,6 +39,10 @@ end
 local function Grid(sections)
     local env = H.newEnv()
     local ns = H.newNs(env)
+    env.combat, env.shift = false, false
+    env.InCombatLockdown = function() return env.combat end
+    env.IsShiftKeyDown = function() return env.shift end
+    env.IsControlKeyDown = function() return false end
     env.CreateFrame = function() return Widget() end
     env.GameTooltip = Widget()
     env.EasyFind.db.uiResultsRows = 4
@@ -71,7 +79,7 @@ local function Grid(sections)
     H.loadModule("Search/Results/Grids.lua", env, ns)
     made = {}
     H.loadModule("Search/Results/ItemGrid.lua", env, ns)
-    return ns
+    return ns, env
 end
 
 local function Sections()
@@ -150,6 +158,55 @@ function tests.hiding_leavesNoGridShown()
     ns.Results:ShowItemGrid({ charKey = "Jaina-Realm", gridKind = "items" }, "")
     ns.Results:HideGrids(true)
     H.assertFalse(ns.Results:IsGridShown())
+end
+
+-- A cell of the logged-in character's bags uses its item as a bag row
+-- does: the secure pad over the hovered cell carries it (2026-11-04).
+local function CellButton(name)
+    for _, w in ipairs(made) do
+        if w.cell and w.cell.name == name and w._shown then return w end
+    end
+end
+
+local function Pad()
+    for _, w in ipairs(made) do
+        if w._attr and w._attr.useOnKeyDown then return w end
+    end
+end
+
+function tests.ownBagCells_useTheirItem_throughTheSecurePad()
+    local sections = {
+        { header = "Thrall", charKey = "Thrall-Realm", cells = { Cell("Mana Potion", "bags", 2), Cell("Silk Cloth", "bank", 3) } },
+        { header = "Jaina", charKey = "Jaina-Realm", cells = { Cell("Bank Voucher", "bags", 1) } },
+    }
+    local ns, env = Grid(sections)
+    ns.CurrentCharacterKey = function() return "Thrall-Realm" end
+    ns.ResultHandlers = { GetBagItemActionKind = function(_, d) return d.itemID == 3 and "show" or "use" end }
+    ns.Results:ShowItemGrid({ gridKind = "bags" }, "")
+    local potion = CellButton("Mana Potion")
+    potion._scripts.OnEnter(potion)
+    local pad = Pad()
+    H.assertNotNil(pad, "a secure pad")
+    H.assertTrue(pad._shown, "over the potion")
+    H.assertEq(pad._attr.type, "item")
+    H.assertEq(pad._attr.item, "Mana Potion", "the bag row's own secure use")
+    env.shift = true
+    pad._scripts.PreClick(pad, "LeftButton", true)
+    H.assertNil(pad._attr.type, "Shift links, never uses")
+    env.shift = false
+    pad._scripts.PreClick(pad, "LeftButton", true)
+    H.assertEq(pad._attr.type, "item", "the next plain click uses again")
+    pad._scripts.OnLeave(pad)
+    H.assertFalse(pad._shown)
+    local voucher = CellButton("Bank Voucher")
+    voucher._scripts.OnEnter(voucher)
+    H.assertFalse(pad._shown, "another character's bags: nothing to use")
+    local cloth = CellButton("Silk Cloth")
+    cloth._scripts.OnEnter(cloth)
+    H.assertFalse(pad._shown, "the bank: not in reach")
+    env.combat = true
+    potion._scripts.OnEnter(potion)
+    H.assertFalse(pad._shown, "a secure frame moves only out of combat")
 end
 
 local pass, fail, failures = H.runSuite("ItemGrid", tests)

@@ -19,6 +19,7 @@ local wipe = wipe
 local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
 local IsShiftKeyDown, IsControlKeyDown = IsShiftKeyDown, IsControlKeyDown
+local InCombatLockdown = InCombatLockdown
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 local IsDressableItem = (C_Item and C_Item.IsDressableItemByID) or IsDressableItem
 
@@ -33,7 +34,8 @@ local gridCols, gridRows, rowH = 0, 0, 1
 -- The grid's lines: a header ({ header }) or a run of cells ({ first, count })
 -- into flat, the shown items in order.
 local lines, lineN = {}, 0
-local flat, flatHeader = {}, {}
+-- flatOwner: the character a shown item belongs to, where sections say.
+local flat, flatHeader, flatOwner = {}, {}, {}
 local navFlat, navOfFlat, lineOfFlat = {}, {}, {}
 local itemCount, totalCount = 0, 0
 local rowOffset = 0
@@ -112,7 +114,7 @@ local function Build(sections, query)
     shownPlace = place
     local filtering = place ~= nil or #words > 0
     lineN = 0
-    wipe(flat); wipe(flatHeader); wipe(navFlat); wipe(navOfFlat); wipe(lineOfFlat)
+    wipe(flat); wipe(flatHeader); wipe(flatOwner); wipe(navFlat); wipe(navOfFlat); wipe(lineOfFlat)
     itemCount, totalCount = 0, 0
     for _, section in ipairs(sections) do
         local start = #flat + 1
@@ -123,6 +125,7 @@ local function Build(sections, query)
                 local f = #flat + 1
                 flat[f] = cell
                 flatHeader[f] = section.header
+                flatOwner[f] = section.charKey
                 itemCount = itemCount + 1
                 navFlat[#navFlat + 1] = f
                 navOfFlat[f] = #navFlat
@@ -243,9 +246,92 @@ local function OnCellEnter(btn)
     if ns.RowCopy then ns.RowCopy:OnRowHover(btn) end
 end
 
+local usePad
+
 local function OnCellLeave(btn)
+    -- The pad laid over this cell: still the same cell under the mouse.
+    if usePad and usePad.btn == btn and usePad:IsShown() and usePad:IsMouseOver() then return end
     if GameTooltip:IsOwned(btn) then GameTooltip:Hide() end
     if ns.RowCopy then ns.RowCopy:OnRowHover(nil) end
+end
+
+-- ==== the use pad ===========================================================
+
+-- A cell of the logged-in character's bags whose item a bag row would use,
+-- equip or open.
+local function UsableCell(btn)
+    local cell = btn.cell
+    if not (cell and cell.place == "bags" and cell.name) then return false end
+    local owner = shownDef and shownDef.charKey or flatOwner[btn.flatIndex]
+    if not owner or owner ~= ns.CurrentCharacterKey() then return false end
+    local Handlers = ns.ResultHandlers
+    local kind = Handlers and Handlers.GetBagItemActionKind
+        and Handlers:GetBagItemActionKind({ itemID = cell.itemID, category = "Bag" })
+    return kind ~= nil and kind ~= "show"
+end
+
+local function HidePad()
+    if not (usePad and usePad:IsShown()) or InCombatLockdown() then return end
+    usePad:Hide()
+    usePad:ClearAllPoints()
+    usePad.btn = nil
+end
+
+-- One secure button laid over the hovered usable cell, armed as a bag row is
+-- (type "item": the game refuses UseContainerItem to addons), so a click
+-- there uses the item. Moved and armed only out of combat; the cells stay
+-- plain buttons, so the grid scrolls and filters in a fight.
+local function ArmPad(btn)
+    if InCombatLockdown() then return end
+    if not usePad then
+        -- starts shown: hidden at the end of its setup
+        usePad = CreateFrame("Button", "EasyFindItemGridUse", UIParent, "SecureActionButtonTemplate")
+        usePad:RegisterForClicks("LeftButtonDown", "LeftButtonUp", "RightButtonUp")
+        usePad:SetAttribute("useOnKeyDown", true)
+        usePad:SetScript("PreClick", function(self, button, down)
+            if button ~= "LeftButton" or not down or InCombatLockdown() then return end
+            -- Shift links and Ctrl tries on, as on any cell: no use then.
+            self:SetAttribute("type", not (IsShiftKeyDown() or IsControlKeyDown()) and "item" or nil)
+        end)
+        usePad:SetScript("PostClick", function(self, button, down)
+            local cellBtn = self.btn
+            if not cellBtn then return end
+            if button == "RightButton" or (not down and (IsShiftKeyDown() or IsControlKeyDown())) then
+                OnCellClick(cellBtn, button)
+            elseif down and not (IsShiftKeyDown() or IsControlKeyDown()) then
+                -- Used: the bags change, and the grid with them.
+                Utils.SafeAfter(0.3, function()
+                    if shownDef then
+                        Data.Invalidate()
+                        Results:ShowItemGrid(shownDef, shownQuery)
+                    end
+                end)
+            end
+        end)
+        usePad:SetScript("OnEnter", function(self) if self.btn then OnCellEnter(self.btn) end end)
+        usePad:SetScript("OnLeave", function(self)
+            local cellBtn = self.btn
+            HidePad()
+            if cellBtn then OnCellLeave(cellBtn) end
+        end)
+        local combat = CreateFrame("Frame")
+        combat:SetScript("OnEvent", HidePad)
+        combat:RegisterEvent("PLAYER_REGEN_DISABLED")
+        usePad:Hide()
+    end
+    usePad:ClearAllPoints()
+    usePad:SetAllPoints(btn)
+    usePad:SetFrameStrata(btn:GetFrameStrata())
+    usePad:SetFrameLevel(btn:GetFrameLevel() + 2)
+    usePad:SetAttribute("type", "item")
+    usePad:SetAttribute("item", btn.cell.name)
+    usePad.btn = btn
+    usePad:Show()
+end
+
+local function OnCellHover(btn)
+    OnCellEnter(btn)
+    if UsableCell(btn) then ArmPad(btn) else HidePad() end
 end
 
 if ns.RowCopy and ns.RowCopy.RegisterHoverScanner then
@@ -285,6 +371,8 @@ local function HeaderColor(fs)
 end
 
 function Repaint()
+    -- The cells may show other items now.
+    HidePad()
     page:ClearAllPoints()
     page:SetPoint("TOPLEFT", host, "TOPLEFT", 0, -rowOffset * rowH)
     local focusFlat = navIndex > 0 and navFlat[navIndex] or nil
@@ -401,7 +489,9 @@ local function NewCell(parent)
     btn.countText:SetPoint("BOTTOMRIGHT", -1, 1)
     btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     btn:SetScript("OnClick", OnCellClick)
-    btn:SetScript("OnEnter", OnCellEnter)
+    btn:SetScript("OnEnter", OnCellHover)
+    -- The bar or the grid closing: the pad never stays where nothing shows.
+    btn:SetScript("OnHide", function(self) if usePad and usePad.btn == self then HidePad() end end)
     btn:SetScript("OnLeave", OnCellLeave)
     return btn
 end
@@ -496,6 +586,7 @@ end
 
 function Grid.Hide()
     if not (host and host:IsShown()) then return end
+    HidePad()
     host:Hide()
     host.countText:Hide()
     host.hintText:Hide()
@@ -506,7 +597,7 @@ end
 
 function Grid.ReleaseMemory()
     lines, lineN = {}, 0
-    flat, flatHeader, navFlat, navOfFlat, lineOfFlat = {}, {}, {}, {}, {}
+    flat, flatHeader, flatOwner, navFlat, navOfFlat, lineOfFlat = {}, {}, {}, {}, {}, {}
 end
 
 function Grid.IsNavActive()
