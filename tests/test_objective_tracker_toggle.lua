@@ -111,6 +111,18 @@ function tests.everyHideLands_inTheFrameOfTheClick()
     end
 end
 
+-- World quest zones show the tracker over and over while moving: hidden a
+-- frame later, each show drew once and the hidden tracker flickered
+-- (retail, 2026-11-04).
+function tests.theGameShowingItAgain_isHiddenInThatSameFrame()
+    local env, EasyFind = LoadToggle(true)
+    EasyFind:ToggleObjectiveTracker()
+    for _ = 1, 3 do
+        env.ObjectiveTrackerFrame:Show()
+        H.assertFalse(env.ObjectiveTrackerFrame:IsShown(), "never drawn")
+    end
+end
+
 function tests.theRowReadsTheToggle_notAFrameAnotherTrackerHides()
     local blizz = Read("Apps/Settings/BlizzSearch.lua")
     local s = assert(blizz:find("EASYFIND_TOGGLEOBJECTIVETRACKER = {", 1, true))

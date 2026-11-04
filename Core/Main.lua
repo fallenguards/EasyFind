@@ -1847,13 +1847,15 @@ end
 ApplyTracker = function()
     if EasyFind.db.objectiveTrackerHidden then HideTracker() else ShowTracker() end
 end
+-- In the frame it shows: a frame later each show drew once, and in world
+-- quest zones the hidden tracker flickered while moving.
 local function RehideTracker()
-    if EasyFind.db.objectiveTrackerHidden then ns.Utils.SafeAfter(0, HideTracker) end
+    if EasyFind.db.objectiveTrackerHidden then HideTracker() end
 end
 local function WatchTracker()
     -- Quest changes and edit mode show the tracker again: a child of ours
     -- under it hears each show, one under the edit mode manager its close.
-    -- Watched, never hooked.
+    -- Watched, never hooked; the hide was ours either way.
     local t = TrackerFrame()
     if t and not trackerHideWatch then
         trackerHideWatch = CreateFrame("Frame", nil, t)
