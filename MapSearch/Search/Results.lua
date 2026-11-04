@@ -381,14 +381,46 @@ local function WorldSpot(poi)
     return s.ci, s.wx, s.wy
 end
 
+-- The capitals each faction holds: the other's services there are behind
+-- its guards. By the client's own map ids.
+local CLASSIC_CAPITALS = {
+    [1453] = "Alliance", [1455] = "Alliance", [1457] = "Alliance", [1947] = "Alliance",
+    [1454] = "Horde", [1456] = "Horde", [1458] = "Horde", [1954] = "Horde",
+}
+local CAPITALS = {
+    [84] = "Alliance", [87] = "Alliance", [89] = "Alliance", [103] = "Alliance",
+    [85] = "Horde", [88] = "Horde", [90] = "Horde", [110] = "Horde", [998] = "Horde",
+}
+local UnitFactionGroup = UnitFactionGroup
+local playerFaction, capitals
+
+-- A spot in the other faction's capital.
+local function Hostile(poi)
+    if playerFaction ~= "Alliance" and playerFaction ~= "Horde" then return false end
+    if not capitals then
+        local Caps = ns.Caps
+        capitals = (Caps and (Caps.era or Caps.tbc or Caps.forever)) and CLASSIC_CAPITALS or CAPITALS
+    end
+    local f = capitals[poi.coordMapID or poi.entranceMapID or poi.mapID]
+    return f ~= nil and f ~= playerFaction
+end
+
+-- A folded place's nearest spot of the player's faction or none; the
+-- nearest in an enemy capital only when it has no other.
 local function Nearest(poi, pci, px, py)
-    local d = FAR
+    local d, enemy, usable = FAR, FAR, false
     local list = poi.allInstances
     for i = 1, list and #list or 1 do
-        local ci, wx, wy = WorldSpot(list and list[i] or poi)
-        if ci == pci then d = mmin(d, (wx - px) ^ 2 + (wy - py) ^ 2) end
+        local spot = list and list[i] or poi
+        local hostile = Hostile(spot)
+        usable = usable or not hostile
+        local ci, wx, wy = WorldSpot(spot)
+        if ci == pci then
+            local e = (wx - px) ^ 2 + (wy - py) ^ 2
+            if hostile then enemy = mmin(enemy, e) else d = mmin(d, e) end
+        end
     end
-    return d
+    return usable and d or enemy
 end
 
 local playerCI, playerX, playerY
@@ -400,6 +432,7 @@ local function TakeDistances(results)
     local px, py
     if ok and pci and wp then px, py = wp:GetXY() else pci = nil end
     playerCI, playerX, playerY = pci, px, py
+    playerFaction = UnitFactionGroup and UnitFactionGroup("player")
     for i = 1, #results do
         local r = results[i]
         nearOf[r] = (pci and not r.isZone) and Nearest(r, pci, px, py) or FAR
@@ -407,18 +440,20 @@ local function TakeDistances(results)
 end
 
 -- The nearest of a folded place's spots stands for the row (its zone, its
--- spot): the first found is whichever zone the table listed first.
+-- spot), one outside an enemy capital before any in one; with none on the
+-- player's continent, whichever zone the table listed first.
 local function NearestInstance(r)
     local list = r.isStatic and r.allInstances
-    if not (list and playerCI) then return r end
-    local best, bd = r, FAR
+    if not list then return r end
+    local best, bd, bh = r, FAR, Hostile(r)
     for i = 1, #list do
         local poi = list[i]
-        local ci, wx, wy = WorldSpot(poi)
-        if ci == playerCI then
-            local d = (wx - playerX) ^ 2 + (wy - playerY) ^ 2
-            if d < bd then best, bd = poi, d end
+        local hostile, d = Hostile(poi), FAR
+        if playerCI then
+            local ci, wx, wy = WorldSpot(poi)
+            if ci == playerCI then d = (wx - playerX) ^ 2 + (wy - playerY) ^ 2 end
         end
+        if (bh and not hostile) or (hostile == bh and d < bd) then best, bd, bh = poi, d, hostile end
     end
     return best
 end
@@ -1005,6 +1040,44 @@ local function CategoryCovered(matched, category)
     return false
 end
 
+-- A kind's rows away from the player's zone, best first: the player's
+-- faction's or neutral ones on this continent nearest first, then those
+-- elsewhere as the pass ranked them, then those in enemy capitals.
+local awayRows, awayRank, awayNear, awayAt, awaySpot = {}, {}, {}, {}, {}
+local function AwayLess(a, b)
+    local ra, rb = awayRank[a], awayRank[b]
+    if ra ~= rb then return ra < rb end
+    local da, db = awayNear[a], awayNear[b]
+    if da ~= db then return da < db end
+    return awayAt[a] < awayAt[b]
+end
+
+local function KeepAway(row, spot, near, at)
+    awayRows[#awayRows + 1] = row
+    awaySpot[row], awayNear[row], awayAt[row] = spot, near, at
+    awayRank[row] = Hostile(spot) and 2 or (near < FAR and 0 or 1)
+end
+
+local function WipeAway()
+    wipe(awayRows)
+    wipe(awayRank)
+    wipe(awayNear)
+    wipe(awayAt)
+    wipe(awaySpot)
+end
+
+-- The n-th category row from a scored row's spot, near yards from it.
+local function CategoryRow(n, spot, near, mapID, text)
+    local d = reuseUICategoryData[n]
+    if not d then
+        d = {}
+        reuseUICategoryData[n] = d
+    end
+    FillUIRow(d, spot, mapID, text, false)
+    d.nearYards = near < FAR and near ^ 0.5 or nil
+    return d
+end
+
 -- text: the keystroke's query; its own map pass (SearchForUI) already
 -- scored the category's rows when its query matched the category, so
 -- those are read instead of running a pass of their own.
@@ -1018,28 +1091,32 @@ function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, local
         local stash, mapID = reuseUIScored, Search.uiScoredMapID
         local playerMapID = GetBestMapForUnit("player")
         wipe(reuseUICategoryRows)
+        WipeAway()
         local out, n = reuseUICategoryRows, 0
-        -- The current zone's rows first, then the rest as the pass ranked them.
-        for pass = 1, localOnly and 1 or 2 do
-            for i = 1, #stash do
-                if n >= maxN then break end
-                local r = stash[i]
-                if r.category == category and (not filters or MapSearch.PassesFilter(r, filters)) then
-                    local here = playerMapID ~= nil
-                        and (r.mapID or r.zoneMapID or r.entranceMapID or mapID) == playerMapID
-                    if here == (pass == 1) then
+        -- The current zone's rows first, as the pass ranked them; each
+        -- folded place by its nearest spot, as the pass's own rows show it.
+        for i = 1, #stash do
+            local r = stash[i]
+            if r.category == category and (not filters or MapSearch.PassesFilter(r, filters)) then
+                local spot, near = NearestInstance(r), nearOf[r] or FAR
+                if playerMapID ~= nil and (spot.mapID or spot.zoneMapID or spot.entranceMapID or mapID) == playerMapID then
+                    if n < maxN then
                         n = n + 1
-                        local d = reuseUICategoryData[n]
-                        if not d then
-                            d = {}
-                            reuseUICategoryData[n] = d
-                        end
-                        FillUIRow(d, r, mapID, text, true)
-                        out[n] = d
+                        out[n] = CategoryRow(n, spot, near, mapID, text)
                     end
+                elseif not localOnly then
+                    KeepAway(r, spot, near, i)
                 end
             end
         end
+        tsort(awayRows, AwayLess)
+        for i = 1, #awayRows do
+            if n >= maxN then break end
+            local r = awayRows[i]
+            n = n + 1
+            out[n] = CategoryRow(n, awaySpot[r], awayNear[r], mapID, text)
+        end
+        WipeAway()
         return n > 0 and out or nil
     end
     local catDef = ns.MapSearchData and ns.MapSearchData.CATEGORIES
@@ -1053,36 +1130,33 @@ function MapSearch:GetCategoryResultsForUI(category, maxN, respectFilters, local
     end
     if not rows then return nil end
     -- Categories fed by the global instance cache (delves, dungeons, raids)
-    -- match the canonical keyword identically world-wide, so score order
-    -- degrades to name length / alphabetical. Partition current-zone rows to
-    -- the front (stable within each half) so "your zone's first" holds for
-    -- every category, not just the ones whose sources are local-only.
-    -- Zone equality is by the row's mapID; parent/child zone nesting is not
-    -- walked -- a subzone row and its parent zone count as different maps.
+    -- match the canonical keyword identically world-wide: the current
+    -- zone's rows first (by the row's mapID; a subzone and its parent zone
+    -- count as different maps), then the rest as above.
     local playerMapID = GetBestMapForUnit("player")
-    local out, away
+    wipe(reuseUICategoryRows)
+    WipeAway()
+    local out, n = reuseUICategoryRows, 0
     for i = 1, #rows do
         local d = rows[i].data
         if d and d.category == category then
             if playerMapID and d.mapID == playerMapID then
-                out = out or {}
-                out[#out + 1] = d
+                n = n + 1
+                out[n] = d
             elseif not localOnly then
-                away = away or {}
-                away[#away + 1] = d
+                KeepAway(d, d, d.mapNear or FAR, i)
             end
         end
     end
-    if away then
-        out = out or {}
-        for i = 1, #away do
-            if #out >= (maxN or 3) then break end
-            out[#out + 1] = away[i]
-        end
+    tsort(awayRows, AwayLess)
+    for i = 1, #awayRows do
+        if n >= maxN then break end
+        n = n + 1
+        out[n] = awayRows[i]
     end
-    if not out then return nil end
-    for i = #out, (maxN or 3) + 1, -1 do out[i] = nil end
-    return out
+    WipeAway()
+    for i = n, maxN + 1, -1 do out[i] = nil end
+    return n > 0 and out or nil
 end
 
 -- A query's place rows as the search bar ranks them (Search/Query.lua): the
