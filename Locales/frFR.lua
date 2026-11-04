@@ -295,12 +295,13 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffListes de courses|r\n" ..
-    "    |cff999999-|r Faites de n'importe quelle note une liste de courses depuis son menu de liste : les noms que vous tapez deviennent des objets qui se cochent tout seuls dès que vos sacs les contiennent, avec une ligne « Ajouter un objet » sous la liste. Avec l'extension Auctionator, chaque ligne montre ce qu'il reste à acheter à son prix, et la liste son total\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffRecherche par lieu|r\n" ..
-    "    |cff999999-|r Une zone ou un continent tapé à côté d'autres mots limite ces mots à ce lieu\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotes devient une extension|r\n" ..
+    "    |cff999999-|r Notes est désormais l'extension EasyFind: Notes Extension sur CurseForge : installez-la pour continuer à utiliser Notes, et toutes vos notes, listes de contrôle et listes de courses sont là\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffVos personnages|r\n" ..
+    "    |cff999999-|r Tapez @alts pour les objets, l'or, le temps de jeu et les métiers de tous vos personnages, ou @ et le nom d'un personnage pour les siens, sacs et banque tels qu'ils sont rangés\n" ..
+    "    |cff999999-|r Infos du personnage dans le menu des filtres ajoute à vos recherches le temps de jeu, l'or et le niveau de chaque personnage\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Une recherche simple retrouve votre historique du presse-papiers, les longs menus défilent au lieu de descendre tout l'écran, et le catalogue d'objets de Classic Era ne liste plus les objets de la Saison de la Découverte\n"
+    "    |cff999999-|r La recherche dans la banque fonctionne sur Classic Era, TBC Anniversary et Mists Classic, une recherche d'un type de lieu (« ah ») montre d'abord le plus proche et en dernier les villes de l'autre faction, une mise à jour faite jeu ouvert ne casse plus la fenêtre des options, et les lieux sans en-tête de zone indiquent leur zone\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

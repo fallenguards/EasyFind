@@ -295,12 +295,13 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffListe della spesa|r\n" ..
-    "    |cff999999-|r Trasforma qualsiasi nota in una lista della spesa dal suo menu delle liste: i nomi che scrivi diventano oggetti che si spuntano da soli quando le tue borse li contengono, con una riga \"Aggiungi oggetto\" sotto la lista. Con l'estensione di Auctionator ogni riga mostra quanto resta da comprare al suo prezzo, e la lista il totale\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffRicerca per luogo|r\n" ..
-    "    |cff999999-|r Una zona o un continente scritto accanto ad altre parole limita quelle parole a quel luogo\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNote ora è un'estensione|r\n" ..
+    "    |cff999999-|r Note ora arriva come EasyFind: Notes Extension su CurseForge: installala per continuare a usare Note, e ogni nota, checklist e lista della spesa che avevi è lì\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffI tuoi personaggi|r\n" ..
+    "    |cff999999-|r Scrivi @alts per oggetti, oro, tempo di gioco e professioni di tutti i personaggi, oppure @ e il nome di un personaggio per i suoi, con borse e banca come sono disposte\n" ..
+    "    |cff999999-|r Info personaggio nel menu dei filtri aggiunge alle ricerche il tempo di gioco, l'oro e il livello di ogni personaggio\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Una ricerca normale ritrova la tua cronologia degli appunti, i menu lunghi scorrono invece di scendere per tutto lo schermo, e il catalogo degli oggetti di Classic Era non elenca più gli oggetti della Stagione della Scoperta\n"
+    "    |cff999999-|r La ricerca in banca funziona su Classic Era, TBC Anniversary e Mists Classic, una ricerca di un tipo di luogo (\"ah\") mostra prima il più vicino e per ultime le città dell'altra fazione, un aggiornamento fatto a gioco aperto non rompe più la finestra delle opzioni, e i luoghi senza intestazione di zona indicano la loro zona\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

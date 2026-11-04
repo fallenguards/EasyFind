@@ -326,12 +326,13 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffShopping lists|r\n" ..
-    "    |cff999999-|r Make any note a shopping list from its list menu: names you type become items that tick themselves once your bags hold them, with an Add item line under the list. With the Auctionator extension each line shows what is left to buy at its price, and the list its total\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSearch by place|r\n" ..
-    "    |cff999999-|r A zone or continent typed beside other words keeps them to it: \"bank undercity\" lists the Undercity bank\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotes is an extension now|r\n" ..
+    "    |cff999999-|r Notes now comes as the EasyFind: Notes Extension on CurseForge: install it to keep using Notes, and every note, checklist and shopping list you had is there\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffYour characters|r\n" ..
+    "    |cff999999-|r Type @alts for every character's items, gold, time played and professions, or @ and a character's name for theirs, with bags and bank as they sit\n" ..
+    "    |cff999999-|r Character info in the filter menu adds each character's time played, gold and level to your searches\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r A plain search finds your clipboard history again, long menus scroll instead of running down the screen, and the Classic Era item catalog no longer lists Season of Discovery's items\n"
+    "    |cff999999-|r Bank search works on Classic Era, TBC Anniversary and Mists Classic, a search for a kind of place (\"ah\") lists the nearest first and the other faction's cities last, an update made while the game was open no longer breaks the settings window, and places with no zone heading name their zone\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

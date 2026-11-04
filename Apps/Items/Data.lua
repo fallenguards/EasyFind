@@ -5,7 +5,7 @@ local ns = EasyFind and EasyFind._ns
 if not ns then return end
 -- This companion's release: read in after an update made while the game
 -- ran, it meets another release's core and stops (the funnel says so).
-if ns.BUILD ~= "4.3.0" then select(2, ...).stale = true return end
+if ns.BUILD ~= "5.0.0" then select(2, ...).stale = true return end
 -- WoW Forever loads its own catalog (Data_Forever.lua).
 if ns.Caps and ns.Caps.forever then return end
 -- Lines in byte order: ItemSearch finds a name start by binary search.

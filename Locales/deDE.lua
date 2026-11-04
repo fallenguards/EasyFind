@@ -297,12 +297,13 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffEinkaufslisten|r\n" ..
-    "    |cff999999-|r Mach jede Notiz über ihr Listenmenü zur Einkaufsliste: Eingetippte Namen werden zu Gegenständen, die sich selbst abhaken, sobald deine Taschen sie enthalten, mit einer Zeile „Gegenstand hinzufügen“ unter der Liste. Mit der Auctionator-Erweiterung zeigt jede Zeile, was noch zu kaufen ist, mit seinem Preis, und die Liste ihre Summe\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSuche nach Ort|r\n" ..
-    "    |cff999999-|r Eine Zone oder ein Kontinent neben anderen Wörtern beschränkt die Suche nach diesen Wörtern auf diesen Ort\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotizen sind jetzt eine Erweiterung|r\n" ..
+    "    |cff999999-|r Notizen gibt es jetzt als EasyFind: Notes Extension auf CurseForge: Installiere sie, um Notizen weiter zu nutzen, und jede Notiz, Checkliste und Einkaufsliste, die du hattest, ist wieder da\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDeine Charaktere|r\n" ..
+    "    |cff999999-|r Tippe @alts für Gegenstände, Gold, Spielzeit und Berufe aller Charaktere, oder @ und den Namen eines Charakters für seine, mit Taschen und Bank so, wie sie liegen\n" ..
+    "    |cff999999-|r Charakterinfo im Filtermenü bringt Spielzeit, Gold und Stufe jedes Charakters in deine Suche\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Eine normale Suche findet deinen Zwischenablage-Verlauf wieder, lange Menüs scrollen, statt über den Bildschirm zu laufen, und der Gegenstandskatalog von Classic Era listet keine Gegenstände aus Saison der Entdeckungen mehr\n"
+    "    |cff999999-|r Die Banksuche funktioniert in Classic Era, TBC Anniversary und Mists Classic, eine Suche nach einer Art von Ort („ah“) zeigt den nächstgelegenen zuerst und die Städte der anderen Fraktion zuletzt, ein Update bei laufendem Spiel stört das Einstellungsfenster nicht mehr, und Orte ohne Zonenüberschrift nennen ihre Zone\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

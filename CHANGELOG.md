@@ -4,6 +4,27 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.0.0] - 2026-11-04
+
+### Changed
+- **Notes is an extension now**: Notes comes as the EasyFind: Notes Extension on CurseForge; install it to keep using Notes, and every note, checklist, shopping list and setting you had is there. EasyFind says so once in chat with a link to its page, and until it is installed, /notes and the Notes menus say where to get it. A copy of Notes an older EasyFind came with, left behind by an update unpacked by hand, is no longer loaded
+
+### Added
+- **Your characters**: type `@alts` for every character's items, gold, time played and professions, with a page listing your characters and one with their professions; type `@` and a character's name for that character: its bags and bank in the order they sit, its gear, gold, level and where you left it, and words typed after it find its items. On a page, `@items` or `@gear` opens them as a grid, the bar's pill shows the way back, and Backspace steps up
+- **Character info in the filter menu**: the game's statistics now sit under Character info beside each character's time played, last played, gold and level; search `gold`, `played` or `level` (alone or with a character's name) to see them, and a character's name alone finds that character
+- **HandyNotes extension**: listed with EasyFind's other extensions, its page one click from the Extensions menu
+- **Extensions API 1.8**: a row decorator's tooltip is drawn again as Ctrl, Shift or Alt goes down or up
+
+### Fixed
+- **Bank search on Classic Era, TBC Anniversary and Mists Classic**: the bank is recorded when you open it, so `@bank` and the Bank filter find what is in it
+- **Icon Search**: rows from the list before it no longer show over the grid
+- **@ words**: one still being typed is no longer searched as plain text when results arrive
+- **Searches for a kind of place**: "ah" and other kinds list the nearest first on your continent and the other faction's cities last, with no farther copy of the same row above it (a Horde character in Tirisfal Glades got Ironforge's auction house first)
+- **Updates while the game runs**: the settings window and the other parts that load later no longer throw errors after EasyFind was updated with the game open; a chat line says what to do instead
+- **Place rows**: a place listed under no zone heading names its zone ("Auction House  Undercity")
+
+---
+
 ## [4.3.0] - 2026-11-03
 
 ### Added

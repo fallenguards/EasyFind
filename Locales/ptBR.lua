@@ -295,12 +295,13 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffListas de compras|r\n" ..
-    "    |cff999999-|r Transforme qualquer nota em uma lista de compras pelo menu de lista: os nomes que você digita viram itens que se marcam sozinhos quando suas bolsas os têm, com uma linha \"Adicionar item\" abaixo da lista. Com a extensão do Auctionator, cada linha mostra o que falta comprar pelo seu preço, e a lista o total\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBusca por lugar|r\n" ..
-    "    |cff999999-|r Uma zona ou um continente digitado ao lado de outras palavras limita essas palavras a esse lugar\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotas agora é uma extensão|r\n" ..
+    "    |cff999999-|r Notas agora vem como EasyFind: Notes Extension no CurseForge: instale para continuar usando Notas, e todas as suas notas, checklists e listas de compras estão lá\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSeus personagens|r\n" ..
+    "    |cff999999-|r Digite @alts para ver itens, ouro, tempo jogado e profissões de todos os personagens, ou @ e o nome de um personagem para ver os dele, com bolsas e banco como estão\n" ..
+    "    |cff999999-|r Informações do personagem no menu de filtros adiciona às buscas o tempo jogado, o ouro e o nível de cada personagem\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Uma busca comum volta a encontrar seu histórico da área de transferência, menus longos rolam em vez de descer pela tela toda, e o catálogo de itens do Classic Era não lista mais os itens da Temporada da Descoberta\n"
+    "    |cff999999-|r A busca no banco funciona no Classic Era, TBC Anniversary e Mists Classic, uma busca por um tipo de lugar (\"ah\") mostra primeiro o mais próximo e por último as cidades da outra facção, uma atualização feita com o jogo aberto não quebra mais a janela de opções, e lugares sem cabeçalho de zona mostram sua zona\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

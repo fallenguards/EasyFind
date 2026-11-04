@@ -295,12 +295,13 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffListas de la compra|r\n" ..
-    "    |cff999999-|r Convierte cualquier nota en una lista de la compra desde su menú de lista: los nombres que escribes se vuelven objetos que se marcan solos cuando tus bolsas los tienen, con una línea «Añadir objeto» bajo la lista. Con la extensión de Auctionator cada línea muestra lo que falta por comprar con su precio, y la lista su total\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffBuscar por lugar|r\n" ..
-    "    |cff999999-|r Una zona o un continente escrito junto a otras palabras limita esas palabras a ese lugar\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNotas es ahora una extensión|r\n" ..
+    "    |cff999999-|r Notas llega ahora como EasyFind: Notes Extension en CurseForge: instálala para seguir usando Notas, y todas tus notas, listas de verificación y listas de la compra siguen ahí\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffTus personajes|r\n" ..
+    "    |cff999999-|r Escribe @alts para ver los objetos, el oro, el tiempo jugado y las profesiones de todos tus personajes, o @ y el nombre de un personaje para ver los suyos, con bolsas y banco tal como están\n" ..
+    "    |cff999999-|r Información del personaje en el menú de filtros añade a tus búsquedas el tiempo jugado, el oro y el nivel de cada personaje\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Una búsqueda normal vuelve a encontrar tu historial del portapapeles, los menús largos se desplazan en vez de recorrer la pantalla, y el catálogo de objetos de Classic Era ya no muestra los objetos de Temporada de descubrimiento\n"
+    "    |cff999999-|r La búsqueda en el banco funciona en Classic Era, TBC Anniversary y Mists Classic, una búsqueda de un tipo de lugar («ah») muestra primero el más cercano y al final las ciudades de la otra facción, una actualización con el juego abierto ya no rompe la ventana de opciones, y los lugares sin encabezado de zona muestran su zona\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"
