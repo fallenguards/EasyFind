@@ -94,6 +94,30 @@ function tests.fastFallbackNamesRequireLiveBacking()
         "explicitly supported SettingsPanel proxy rows should still emit")
 end
 
+-- Era registers no View Distance: its row wrote nothing and its slider
+-- snapped back (SoD, 2026-11-04). Once the registry is read, a quality row
+-- is listed only where the client has the setting.
+function tests.qualityRowsTheClientLacks_goOnceTheRegistryIsRead()
+    local cat = makeCategory("Graphics", 1)
+    local init = { data = { setting = makeLiveSetting("Render Scale", "PROXY_RESOLUTION_RENDER_SCALE", "number") } }
+    local ns = loadOptionsSearch({
+        settings = {
+            PROXY_ENVIRONMENT_DETAIL = makeLiveSetting("Environment Detail", "PROXY_ENVIRONMENT_DETAIL", "number"),
+        },
+        settingsPanel = {
+            GetAllCategories = function() return { cat } end,
+            GetLayout = function(_, category)
+                if category ~= cat then return nil end
+                return { GetInitializers = function() return { init } end }
+            end,
+        },
+    })
+    ns.BlizzOptionsSearch:EnsurePopulated()
+    local entries = ns.Database.uiSearchData
+    H.assertNil(findByVariable(entries, "PROXY_VIEW_DISTANCE"), "no View Distance where the client has none")
+    H.assertNotNil(findByVariable(entries, "PROXY_ENVIRONMENT_DETAIL"), "the quality rows it has stay")
+end
+
 function tests.fastFallbackNamesAllowLiveCVars()
     local ns = loadOptionsSearch({
         cvars = {

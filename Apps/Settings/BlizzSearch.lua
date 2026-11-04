@@ -1797,11 +1797,11 @@ local function IsLiveCVar(variable)
     return ok and value ~= nil
 end
 
-local function IsCuratedFallbackSupported(variable)
-    -- These are SettingsPanel proxy rows backed by BaseQualityControls
-    -- containers, not raw CVars. They are validated by the explicit
-    -- supported-proxy catalog above rather than GetCVar.
-    if BASE_QUALITY_SETTINGS[variable] then return true end
+local function IsCuratedFallbackSupported(variable, registryReady)
+    -- The quality section's proxy settings, not CVars: listed until the
+    -- registry is read, then only where the client registers them (Era has
+    -- no View Distance; its row wrote nothing and snapped back).
+    if BASE_QUALITY_SETTINGS[variable] then return not registryReady end
     return IsLiveCVar(variable)
 end
 
@@ -1851,7 +1851,7 @@ local function CollectCuratedGameEntries(resolveCategoryIDs, useApiNames)
         -- pick up the localized name automatically.
         local apiName = useApiNames ~= false and GetSettingDisplayName(var, nil) or nil
         local fallbackName = SETTING_NAME_FALLBACK[var]
-        local fallbackSupported = fallbackName and (apiName or IsCuratedFallbackSupported(var))
+        local fallbackSupported = fallbackName and (apiName or IsCuratedFallbackSupported(var, registryReady))
         local name = apiName or (fallbackSupported and fallbackName)
         if name and name ~= "" then
         if nameSuffix and nameSuffix ~= "" and name:sub(-#nameSuffix) ~= nameSuffix then
