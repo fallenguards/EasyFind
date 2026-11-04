@@ -456,6 +456,14 @@ function Search:OnSearchTextChangedNow(text, force)
             text = guardBox.GetTypedText() or text
         end
     end
+    -- An @tag still being typed shows the tag suggestions, never a search
+    -- of its letters: a provider landing mid-tag ran "@alts" as text and
+    -- its rows replaced them.
+    if text and not Search:GetQuickFilter() and Search:IsQuickFilterSuggestionsActive()
+       and text:match("^%s*@" .. Filters.TAG_CHARS .. "*$") then
+        Search:UpdateQuickFilterSuggestions()
+        return
+    end
     -- Suppress re-renders while SelectResult is clearing text/focus
     if Search:IsSelectingResult() then return end
     -- A pending OnTextChanged timer can fire after focus has shifted
