@@ -176,6 +176,10 @@ function Render.GetResultPendingApply(data)
     if not pending and data.sliderVariable and data.sliderVariable ~= data.settingVariable then
         pending = ns.BlizzOptionsSearch:HasPendingChange(data.sliderVariable)
     end
+    -- A dropdown beside a checkbox stages its own variable.
+    if not pending and data.dropdownVariable and data.dropdownVariable ~= data.settingVariable then
+        pending = ns.BlizzOptionsSearch:HasPendingChange(data.dropdownVariable)
+    end
     return pending
 end
 

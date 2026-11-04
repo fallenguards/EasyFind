@@ -88,6 +88,7 @@ read_globals = {
     "SetPortraitTexture", "ShowUIPanel", "HideUIPanel", "ToggleWorldMap", "ToggleDropDownMenu",
     "InterfaceOptions_AddCategory", "InCombatLockdown",
     "IsShiftKeyDown", "IsMouseButtonDown", "IsAltKeyDown", "IsControlKeyDown", "IsModifiedClick",
+    "RestartGx", "UpdateWindow",
     "IsInGroup", "IsInInstance", "IsIndoors", "UnitIsGroupLeader",
     "IsInRaid", "IsInGuild", "UnitExists", "UnitIsPlayer", "SendChatMessage",
     "ChatEdit_GetActiveWindow", "ChatEdit_InsertLink", "ChatEdit_ChooseBoxForSend",

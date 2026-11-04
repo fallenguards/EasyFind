@@ -554,28 +554,27 @@ function Rows.CreateSettingWidgets(resultRow)
     applyBtn:SetSize(58, 18)
     applyBtn:SetText(_G["APPLY"] or "Apply")
     applyBtn:SetPoint("LEFT", applyExt, "CENTER", 2, -2)
-    local function bothVars(d)
-        if not d then return nil, nil end
+    -- The row's variables: its own, a slider's and a dropdown's beside a
+    -- checkbox, each staging separately.
+    local function rowVars(d)
+        if not d then return nil end
         local primary = d.settingVariable
-        local secondary
-        if d.sliderVariable and d.sliderVariable ~= primary then
-            secondary = d.sliderVariable
-        end
-        return primary, secondary
+        local slider = d.sliderVariable ~= primary and d.sliderVariable or nil
+        local dropdown = d.dropdownVariable ~= primary and d.dropdownVariable or nil
+        return primary, slider, dropdown
     end
     applyBtn:SetScript("OnClick", function()
         if not ns.BlizzOptionsSearch or not ns.BlizzOptionsSearch.ApplyVariable then return end
-        local primary, secondary = bothVars(resultRow.data)
-        if primary then ns.BlizzOptionsSearch:ApplyVariable(primary) end
-        if secondary then ns.BlizzOptionsSearch:ApplyVariable(secondary) end
+        ns.BlizzOptionsSearch:ApplyVariable(rowVars(resultRow.data))
         Search:RefreshResults()
         RefocusSearchEditBox()
     end)
     resetBtn:SetScript("OnClick", function()
         if not ns.BlizzOptionsSearch or not ns.BlizzOptionsSearch.RevertVariable then return end
-        local primary, secondary = bothVars(resultRow.data)
+        local primary, slider, dropdown = rowVars(resultRow.data)
         if primary then ns.BlizzOptionsSearch:RevertVariable(primary) end
-        if secondary then ns.BlizzOptionsSearch:RevertVariable(secondary) end
+        if slider then ns.BlizzOptionsSearch:RevertVariable(slider) end
+        if dropdown then ns.BlizzOptionsSearch:RevertVariable(dropdown) end
         Search:RefreshResults()
         RefocusSearchEditBox()
     end)

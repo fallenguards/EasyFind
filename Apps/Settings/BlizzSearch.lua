@@ -876,6 +876,21 @@ function BlizzOptionsSearch:GetPendingApplyCount()
     return PendingCount()
 end
 
+-- Apply's bookkeeping: the rows' redraw and what runs after a commit.
+local Apply = {}
+
+-- The rows draw the Apply strip from the staged value: a stage or a clear
+-- redraws them once, next frame, whatever wrote it (a slider's step arrows
+-- redrew nothing). Not mid-drag: the slider's release redraws.
+function Apply.Redraw()
+    if Apply.redrawQueued or IsMouseButtonDown("LeftButton") then return end
+    Apply.redrawQueued = true
+    SafeAfter(0, function()
+        Apply.redrawQueued = nil
+        if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
+    end)
+end
+
 function BlizzOptionsSearch:NotePendingApply(variable)
     if not variable or not Settings or not Settings.GetSetting then return end
     local sok, settObj = pcall(Settings.GetSetting, variable)
@@ -885,27 +900,50 @@ function BlizzOptionsSearch:NotePendingApply(variable)
         local hok, has = pcall(settObj.HasCommitFlag, settObj, Settings.CommitFlag.Apply)
         hasApply = hok and has
     end
+    local was = pendingApplySettings[settObj] ~= nil
     if hasApply and settObj.pendingValue ~= nil then
         pendingApplySettings[settObj] = settObj
-    elseif pendingApplySettings[settObj] then
+    elseif was then
         pendingApplySettings[settObj] = nil
     end
+    if was ~= (pendingApplySettings[settObj] ~= nil) then Apply.Redraw() end
+end
+
+-- What the game's own Apply runs after its writes (SettingsPanel
+-- FinalizeCommit): display mode, window size and monitor take effect only
+-- through UpdateWindow, the GxRestart settings only through RestartGx.
+function Apply.NoteFlags(settObj)
+    local flags = Settings.CommitFlag
+    if not (flags and settObj.HasCommitFlag) then return end
+    if flags.GxRestart and settObj:HasCommitFlag(flags.GxRestart) then Apply.gx = true end
+    if flags.UpdateWindow and settObj:HasCommitFlag(flags.UpdateWindow) then Apply.window = true end
+end
+function Apply.Finalize()
+    if Apply.gx and RestartGx then RestartGx() end
+    if Apply.window and UpdateWindow then UpdateWindow() end
+    Apply.gx, Apply.window = nil, nil
+end
+
+function Apply.ByOrder(a, b)
+    return (a.GetCommitOrder and a:GetCommitOrder() or 0) < (b.GetCommitOrder and b:GetCommitOrder() or 0)
 end
 
 function BlizzOptionsSearch:ApplyPendingChanges()
     if not next(pendingApplySettings) then return end
-    -- Route every pending setting through ApplyVariable (the proven
-    -- path). Snapshot the variable list first so wiping the table
-    -- mid-iteration doesn't break the loop.
-    local vars = {}
-    for setting in pairs(pendingApplySettings) do
+    -- In the game's commit order (window size after display mode); the
+    -- list is copied first, each commit clearing its own entry.
+    local settings = {}
+    for setting in pairs(pendingApplySettings) do settings[#settings + 1] = setting end
+    table.sort(settings, Apply.ByOrder)
+    for i = 1, #settings do
+        local setting = settings[i]
         if setting.GetVariable then
             local ok, v = pcall(setting.GetVariable, setting)
-            if ok and v then vars[#vars + 1] = v end
+            if ok and v then Apply.Commit(v) end
         end
     end
-    for i = 1, #vars do self:ApplyVariable(vars[i]) end
     wipe(pendingApplySettings)
+    Apply.Finalize()
 end
 
 function BlizzOptionsSearch:RevertPendingChanges()
@@ -961,11 +999,12 @@ local function CommitStagedDependents(parentVar)
         if ok and depObj and depObj.pendingValue ~= nil and depObj.SetValue then
             pcall(depObj.SetValue, depObj, depObj.pendingValue, true)
             pendingApplySettings[depObj] = nil
+            Apply.NoteFlags(depObj)
         end
     end
 end
 
-function BlizzOptionsSearch:ApplyVariable(variable)
+function Apply.Commit(variable)
     if not variable or not Settings or not Settings.GetSetting then return end
     local sok, settObj = pcall(Settings.GetSetting, variable)
     if not sok or not settObj or settObj.pendingValue == nil then return end
@@ -980,8 +1019,15 @@ function BlizzOptionsSearch:ApplyVariable(variable)
     if settObj.SetValue then
         pcall(settObj.SetValue, settObj, pending, true)
     end
+    Apply.NoteFlags(settObj)
     CommitStagedDependents(variable)
     pendingApplySettings[settObj] = nil
+end
+
+-- A row's Apply: each variable it stages, then what the game runs after.
+function BlizzOptionsSearch:ApplyVariable(...)
+    for i = 1, select("#", ...) do Apply.Commit((select(i, ...))) end
+    Apply.Finalize()
 end
 
 -- Mirror Blizzard's GAME_SETTINGS_CONFIRM_DISCARD popup.
