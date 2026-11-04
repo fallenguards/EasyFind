@@ -450,7 +450,7 @@ function tests.anAtWordOnAPage_opensThePageUnderIt()
     ns.Filters:ApplyQuickFilter(alts, "")
     ns.Characters:ShowView(alts, "@")
     H.assertEq(shown[1].name, "Items", "a bare @ lists what is under @alts")
-    H.assertEq(#shown, 7, "Items, Characters, Professions, four characters")
+    H.assertEq(#shown, 8, "Items, Characters, Professions, Money, four characters")
     ns.Characters:ShowView(alts, "@ite")
     H.assertEq(#shown, 1)
     H.assertEq(shown[1].data.searchCommandDesc, "@items")
@@ -464,6 +464,27 @@ function tests.anAtWordOnAPage_opensThePageUnderIt()
     H.assertEq(ns.Filters:PillText(ns.Filters:GetQuickFilter()), "@alts @Bôb @gear")
     ns.Characters:ShowView(alts, "@jaina")
     H.assertEq(#shown, 2, "two Jainas: both listed, neither opened")
+end
+
+-- The money row opens every character's gold, the richest first (2026-11-04).
+function tests.altsMoney_opensEachCharactersGold()
+    local _, ns, shown = Pages(TwoJainas())
+    local alts = ns.Filters:ResolveQuickFilterToken("alts")
+    ns.Characters:ShowView(alts, "")
+    local money = shown[4].data
+    H.assertEq(money.copyText, "175c", "Ctrl+C still copies the total")
+    local page = money.quickFilterDef
+    H.assertNotNil(page, "the row opens a page")
+    H.assertEq(page.parentDef, alts)
+    ns.Characters:ShowView(page, "")
+    local rows = {}
+    for i, e in ipairs(shown) do rows[i] = e.name .. " " .. e.data.searchCommandDesc end
+    H.assertEq(table.concat(rows, ", "), "Thrall 100c, Jaina 50c, Bôb 25c", "richest first, none without gold on record")
+    H.assertEq(shown[1].data.copyText, "100c")
+    H.assertEq(ns.Filters:PillText(page), "@alts @money")
+    ns.Filters:ApplyQuickFilter(alts, "")
+    ns.Characters:ShowView(alts, "@money")
+    H.assertEq(ns.Filters:GetQuickFilter(), page, "typed on @alts too")
 end
 
 function tests.aPagesTag_opensOnTheWholeWord_unlessALongerOneStartsSo()

@@ -27,6 +27,7 @@ local GLYPH = {
     profession = { tex = "Interface\\Icons\\INV_Misc_Note_01" },
     portrait = { portrait = "player" },
 }
+GLYPH.money = GLYPH.gold
 -- An item row's category by where it is.
 local PLACE_CATEGORY = { bags = "Bag", bank = "Bank", warband = "Warband", gear = "Gear" }
 local ITEM_KEYWORDS = {}
@@ -170,19 +171,22 @@ end
 local pageDefs = {}
 
 -- A page under another: Items or Gear of one character (charDef) or Items
--- of every one (nil) in the grid, and @alts' Characters and Professions.
+-- of every one (nil) in the grid, and @alts' Characters, Professions and
+-- Money.
 -- words: what the page answers to typed as an @ word on the page above.
 local PAGE_KIND = {
     items = { view = "grid", token = "@items", words = { "items", "item" } },
     gear = { view = "grid", token = "@gear", words = { "gear", "equipped" } },
     chars = { view = "chars", token = "@characters", words = { "characters", "chars" } },
     profs = { view = "profs", token = "@professions", words = { "professions", "profs" } },
+    money = { view = "money", token = "@money", words = { "money", "gold" } },
 }
 local PAGE_TITLE = {
     items = function() return _G["ITEMS"] or "Items" end,
     gear = function() return L["CHAR_GEAR"] end,
     chars = function() return L["FILTER_CHARACTERS"] end,
     profs = function() return _G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"] end,
+    money = function() return _G["MONEY"] or "Money" end,
 }
 
 local function PageDef(charDef, kind)
@@ -279,7 +283,8 @@ local function AltsPage(list)
         out[#out + 1] = Row(_G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"], tconcat(profNames, ", "), GLYPH.profession,
             { quickFilterDef = PageDef(nil, "profs") })
     end
-    out[#out + 1] = CopyRow(_G["MONEY"] or "Money", Coins(money), GLYPH.gold, PlainCoins(money))
+    out[#out + 1] = Row(_G["MONEY"] or "Money", Coins(money), GLYPH.gold,
+        { quickFilterDef = PageDef(nil, "money"), copyText = PlainCoins(money) })
     if known > 0 then
         local text = Duration(played)
         if known < #list then text = sformat(L["CHAR_PLAYED_SOME_FMT"], text, known, #list) end
@@ -303,6 +308,21 @@ local function ProfessionsPage(list)
     for _, entry in ipairs(list) do
         local line = ProfessionsLine(entry.profs)
         if line then out[#out + 1] = CharacterRow(entry, line) end
+    end
+    return out
+end
+
+-- Each character's gold, the richest first; one with none on record is left out.
+local function MoneyLess(a, b) return a.money > b.money end
+local function MoneyPage(list)
+    local rich = {}
+    for _, entry in ipairs(list) do
+        if entry.money then rich[#rich + 1] = entry end
+    end
+    tsort(rich, MoneyLess)
+    local out = {}
+    for _, entry in ipairs(rich) do
+        out[#out + 1] = CharacterRow(entry, Coins(entry.money), { copyText = PlainCoins(entry.money) })
     end
     return out
 end
@@ -492,6 +512,8 @@ local function PageRows(def)
         page.rows = CharactersPage(list)
     elseif def.charView == "profs" then
         page.rows = ProfessionsPage(list)
+    elseif def.charView == "money" then
+        page.rows = MoneyPage(list)
     else
         local entry = Data.Get(def.charKey)
         page.rows = entry and CharacterPage(def, entry) or {}
@@ -504,7 +526,8 @@ end
 local function SubPages(def)
     local out = {}
     if def.charView == "list" then
-        out[1], out[2], out[3] = PageDef(nil, "items"), PageDef(nil, "chars"), PageDef(nil, "profs")
+        out[1], out[2], out[3], out[4] = PageDef(nil, "items"), PageDef(nil, "chars"), PageDef(nil, "profs"),
+            PageDef(nil, "money")
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     elseif def.charView == "char" then
         out[1], out[2] = PageDef(def, "items"), PageDef(def, "gear")
