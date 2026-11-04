@@ -590,7 +590,9 @@ ns.STATIC_LOCATIONS = {
     [1458] = { -- Undercity
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.4777, y = 0.7334, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
         { name = POIName("Auction House"), category = "auctionhouse", x = 0.6442, y = 0.5241, keywords = {"auction", "ah"} },
-        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6621, y = 0.4299, keywords = {"auction", "ah"} },
+        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6439, y = 0.3581, keywords = {"auction", "ah"} },
+        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6047, y = 0.4645, keywords = {"auction", "ah"} },
+        { name = POIName("Auction House"), category = "auctionhouse", x = 0.7142, y = 0.4669, keywords = {"auction", "ah"} },
         { name = POIName("Bank"), category = "bank", x = 0.6597, y = 0.4408, keywords = {"bank", "vault", "storage"} },
         { name = POIName("Battlemaster"), category = "battlemasters", x = 0.5418, y = 0.9607, keywords = {"pvp", "battlemaster", "battleground", "bg", "warsong gulch", "alterac valley", "eye of the storm", "arathi basin"} },
         { name = POIName("Blacksmithing Trainer"), category = "prof_blacksmithing", x = 0.6126, y = 0.3063, keywords = {"profession", "trainer", "blacksmithing", "bs"} },
