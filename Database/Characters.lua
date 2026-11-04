@@ -404,12 +404,17 @@ local function AddRecordSections(record, place, out)
         local names = layout.names
         local section = { header = names and names[id] or Data.PlaceLabel(place), place = place, cells = {} }
         -- Stored.Layout's "3*20,,1": a slot is its row in the record, times
-        -- its count; an empty one shows nothing.
+        -- its count; an empty one shows nothing. Each cell keeps where it
+        -- sits (container id, slot), for the bag slot's own tooltip.
+        local slot = 0
         for entry in ((layout.slots[id] or "") .. ","):gmatch("([^,]*),") do
+            slot = slot + 1
             local index, count = entry:match("^(%d+)%*?(%d*)$")
             local row = index and rows[tonumber(index)]
             if row and row.itemID then
-                section.cells[#section.cells + 1] = Cell(row.itemID, tonumber(count) or 1, row, place)
+                local cell = Cell(row.itemID, tonumber(count) or 1, row, place)
+                cell.bag, cell.slot = id, slot
+                section.cells[#section.cells + 1] = cell
             end
         end
         if #section.cells > 0 then out[#out + 1] = section end

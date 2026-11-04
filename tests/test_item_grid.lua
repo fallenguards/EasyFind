@@ -26,6 +26,11 @@ local function Widget()
         if k == "SetAttribute" then return function(self, a, v) self._attr = self._attr or {}; self._attr[a] = v end end
         if k == "GetAttribute" then return function(self, a) return self._attr and self._attr[a] end end
         if k == "SetScript" then return function(self, n, fn) self._scripts = self._scripts or {}; self._scripts[n] = fn end end
+        if k == "SetCooldown" then return function(self, start, duration) self._cd = { start, duration } end end
+        if k == "Clear" then return function(self) self._cd = nil end end
+        if k == "SetBagItem" then return function(self, bag, slot) self._bagItem = bag .. "/" .. slot end end
+        if k == "SetItemByID" then return function(self, id) self._bagItem, self._itemID = nil, id end end
+        if k == "SetHyperlink" then return function(self) self._bagItem = nil end end
         -- Methods are capitalized; a plain field is unset.
         if k:find("^%u") then return function() end end
         return nil
@@ -43,6 +48,13 @@ local function Grid(sections)
     env.InCombatLockdown = function() return env.combat end
     env.IsShiftKeyDown = function() return env.shift end
     env.IsControlKeyDown = function() return false end
+    env.UnitName = function() return "Thrall" end
+    env.GetRealmName = function() return "Realm" end
+    -- The Hearthstone (6948) cools down; its bag holds it at 0/1.
+    env.C_Container = {
+        GetItemCooldown = function(id) if id == 6948 then return 100, 900, 1 end return 0, 0, 1 end,
+        GetContainerItemID = function(bag, slot) if bag == 0 and slot == 1 then return 6948 end end,
+    }
     env.CreateFrame = function() return Widget() end
     env.GameTooltip = Widget()
     env.EasyFind.db.uiResultsRows = 4
@@ -207,6 +219,35 @@ function tests.ownBagCells_useTheirItem_throughTheSecurePad()
     env.combat = true
     potion._scripts.OnEnter(potion)
     H.assertFalse(pad._shown, "a secure frame moves only out of combat")
+end
+
+-- The logged-in character's items show what their bag buttons do: the
+-- cooldown on the cell, the bag slot's own tooltip (cooldown remaining,
+-- charges); another character's show the item (2026-11-04).
+function tests.ownItems_showTheirCooldown_andTheBagSlotsTooltip()
+    local hearth = Cell("Hearthstone", "bags", 6948)
+    hearth.bag, hearth.slot = 0, 1
+    local altHearth = Cell("Hearthstone", "bags", 6948)
+    altHearth.bag, altHearth.slot = 0, 1
+    local sections = {
+        { header = "Thrall", charKey = "Thrall-Realm", cells = { hearth } },
+        { header = "Jaina", charKey = "Jaina-Realm", cells = { altHearth } },
+    }
+    local ns, env = Grid(sections)
+    ns.CurrentCharacterKey = function() return "Thrall-Realm" end
+    ns.Results:ShowItemGrid({ gridKind = "bags" }, "")
+    local own, alt
+    for _, w in ipairs(made) do
+        if w.cell == hearth and w._shown then own = w end
+        if w.cell == altHearth and w._shown then alt = w end
+    end
+    H.assertNotNil(own.cooldown, "a cooldown on the cell")
+    H.assertEq(own.cooldown._cd and own.cooldown._cd[2], 900, "the item's own cooldown")
+    H.assertNil(alt.cooldown._cd, "not another character's: theirs is not known")
+    own._scripts.OnEnter(own)
+    H.assertEq(env.GameTooltip._bagItem, "0/1", "the bag slot's tooltip")
+    alt._scripts.OnEnter(alt)
+    H.assertNil(env.GameTooltip._bagItem, "the item's, for another character")
 end
 
 local pass, fail, failures = H.runSuite("ItemGrid", tests)

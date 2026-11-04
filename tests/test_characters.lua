@@ -138,6 +138,11 @@ function tests.sections_eachBagsItemsInTheOrderTheySit_noEmptySlots()
     H.assertEq(sections[2].cells[1].name, "Silk Cloth", "slot 1 before slot 3")
     H.assertEq(sections[2].cells[2].count, 3)
     H.assertEq(sections[2].cells[2].place, "bags")
+    -- Where each sits, for the game's own bag tooltip and cooldown.
+    H.assertEq(sections[1].cells[1].bag, 0)
+    H.assertEq(sections[1].cells[1].slot, 1)
+    H.assertEq(sections[2].cells[1].bag, 1)
+    H.assertEq(sections[2].cells[2].slot, 3)
 end
 
 function tests.sections_aRecordFromBeforeSlots_listsItsItemsOnce()

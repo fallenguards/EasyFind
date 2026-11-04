@@ -20,6 +20,9 @@ local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
 local IsShiftKeyDown, IsControlKeyDown = IsShiftKeyDown, IsControlKeyDown
 local InCombatLockdown = InCombatLockdown
+local GetItemCooldown = (C_Item and C_Item.GetItemCooldown) or (C_Container and C_Container.GetItemCooldown)
+    or GetItemCooldown
+local GetContainerItemID = C_Container and C_Container.GetContainerItemID
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 local IsDressableItem = (C_Item and C_Item.IsDressableItemByID) or IsDressableItem
 
@@ -41,6 +44,8 @@ local itemCount, totalCount = 0, 0
 local rowOffset = 0
 local navIndex = 0
 local shownDef, shownQuery, shownPlace
+-- The logged-in character's key, read as the grid shows.
+local ownKey
 local menuCell
 local words, skip = {}, {}
 
@@ -168,11 +173,23 @@ local function TryOn(cell)
     if link and DressUpItemLink then DressUpItemLink(link) end
 end
 
+-- A shown item of the logged-in character's: its bag button's state (the
+-- cooldown, the slot's tooltip) is the game's to give.
+local function IsOwn(btn)
+    local owner = shownDef and shownDef.charKey or flatOwner[btn.flatIndex]
+    return owner ~= nil and owner == ownKey
+end
+
 local function CellTooltip(btn)
     local cell = btn.cell
     if not cell then return end
     GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-    if cell.link and GameTooltip.SetHyperlink then
+    -- The bag slot itself, while it still holds the item: cooldown left,
+    -- charges, what the bag's own tooltip says.
+    if cell.place == "bags" and cell.bag and IsOwn(btn) and GameTooltip.SetBagItem
+       and GetContainerItemID and GetContainerItemID(cell.bag, cell.slot) == cell.itemID then
+        GameTooltip:SetBagItem(cell.bag, cell.slot)
+    elseif cell.link and GameTooltip.SetHyperlink then
         GameTooltip:SetHyperlink(cell.link)
     elseif GameTooltip.SetItemByID then
         GameTooltip:SetItemByID(cell.itemID)
@@ -262,8 +279,7 @@ end
 local function UsableCell(btn)
     local cell = btn.cell
     if not (cell and cell.place == "bags" and cell.name) then return false end
-    local owner = shownDef and shownDef.charKey or flatOwner[btn.flatIndex]
-    if not owner or owner ~= ns.CurrentCharacterKey() then return false end
+    if not IsOwn(btn) then return false end
     local Handlers = ns.ResultHandlers
     local kind = Handlers and Handlers.GetBagItemActionKind
         and Handlers:GetBagItemActionKind({ itemID = cell.itemID, category = "Bag" })
@@ -346,6 +362,19 @@ if ns.RowCopy and ns.RowCopy.RegisterHoverScanner then
     end)
 end
 
+-- The item's cooldown on the logged-in character's cells, as on its bag
+-- button; another character's is not known.
+local function PaintCooldown(btn)
+    local cell = btn.cell
+    local start, duration, enable
+    if cell and GetItemCooldown and IsOwn(btn) then start, duration, enable = GetItemCooldown(cell.itemID) end
+    if start and duration and duration > 0 and enable ~= 0 and enable ~= false then
+        btn.cooldown:SetCooldown(start, duration)
+    else
+        btn.cooldown:Clear()
+    end
+end
+
 local function PaintCell(btn, cell, f)
     btn.flatIndex = f
     btn.cell = cell
@@ -360,6 +389,7 @@ local function PaintCell(btn, cell, f)
         btn.glow:Hide()
     end
     btn._efCopyText = cell.name
+    PaintCooldown(btn)
     btn:Show()
     if btn:IsMouseOver() and GameTooltip:IsOwned(btn) then CellTooltip(btn) end
 end
@@ -471,6 +501,13 @@ local function EnsureHost(resultsFrame)
             Repaint()
         end
     end)
+    host:SetScript("OnEvent", function()
+        for _, slot in ipairs(slots) do
+            for _, btn in ipairs(slot.cells) do
+                if btn.cell and btn:IsShown() then PaintCooldown(btn) end
+            end
+        end
+    end)
     slots = {}
     return host
 end
@@ -485,6 +522,9 @@ local function NewCell(parent)
     btn.glow:SetBlendMode("ADD")
     btn.glow:SetPoint("CENTER")
     btn.glow:Hide()
+    -- starts shown: a cooldown frame draws only while one runs
+    btn.cooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
+    btn.cooldown:SetAllPoints()
     btn.countText = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
     btn.countText:SetPoint("BOTTOMRIGHT", -1, 1)
     btn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
@@ -549,6 +589,7 @@ function Results:ShowItemGrid(def, query)
 
     if not same then navIndex = 0 end
     shownDef, shownQuery = def, query
+    ownKey = ns.CurrentCharacterKey()
     Build(Data.Sections(def.charKey, def.gridKind), query)
     EnsureSlots(cellSize)
 
@@ -559,6 +600,7 @@ function Results:ShowItemGrid(def, query)
     host:SetPoint("TOPLEFT", resultsFrame.scrollChild, "TOPLEFT", SIDE_PAD, 0)
     host:SetSize(width, virtualH)
     host:Show()
+    host:RegisterEvent("BAG_UPDATE_COOLDOWN")
     host.countText:Show()
 
     local stripH = padB + TEXT_STRIP_EXTRA
@@ -587,6 +629,7 @@ end
 function Grid.Hide()
     if not (host and host:IsShown()) then return end
     HidePad()
+    host:UnregisterEvent("BAG_UPDATE_COOLDOWN")
     host:Hide()
     host.countText:Hide()
     host.hintText:Hide()
