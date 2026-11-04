@@ -4,6 +4,29 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.1.0] - 2026-11-04
+
+### Added
+- **Every character's gold**: on `@alts`, Money opens a page with each character's gold, the richest first; `@money` typed there opens it too
+- **Use items from the grid**: a click on one of your current character's items in the item grid uses, equips or opens it, as its row in the search does; Shift links it, Ctrl tries it on, right-click opens its menu
+- **Keep these settings?**: applying display mode, window size, monitor or UI scale from the search bar asks whether to keep them, as the game's own Apply does, and puts the old ones back unless you keep them
+- **WoW Forever**: a welcome at login with a link to report bugs, until its own "Hide this message in future?" link or the switch in General & binds turns it off
+- **Extensions API 1.9**: an extension's own quest tracker can hide and show with Toggle Objective Tracker
+
+### Changed
+- **@bags and @bank**: open the item grid, your current character's bags (or bank) first and every other character's below, the warband bank after the banks; words typed after them narrow the grid
+- **Item grid**: your current character's items show their cooldown, and a bag item's tooltip is the bag's own, with cooldown remaining and charges
+- **Gold math**: the calculator shows gold, silver and copper coins instead of g, s and c; a copy keeps the letters
+
+### Fixed
+- **Graphics settings from the search bar**: Apply now switches display mode and window size and restarts graphics where the game's own Apply does, so those changes take effect; Reset and Apply show as soon as a setting changes, the slider arrows included
+- **Classic Era and Season of Discovery graphics**: View Distance, Depth Effects, Compute Effects and Outline Mode are no longer listed there; those clients have no such settings, and their sliders snapped back
+- **Toggle Objective Tracker**: no longer sticks on after one round trip, a hidden tracker no longer flickers in world quest zones, and showing it again no longer brings back an empty quest watch on Classic Era
+- **Font Size**: the text typed in the search bar grows and shrinks with it
+- **Undercity**: the auction house is found at its auctioneers, not at the bank
+
+---
+
 ## [5.0.0] - 2026-11-04
 
 ### Changed

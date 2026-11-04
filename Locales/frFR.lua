@@ -299,13 +299,14 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotes devient une extension|r\n" ..
-    "    |cff999999-|r Notes est désormais l'extension EasyFind: Notes Extension sur CurseForge : installez-la pour continuer à utiliser Notes, et toutes vos notes, listes de contrôle et listes de courses sont là\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffVos personnages|r\n" ..
-    "    |cff999999-|r Tapez @alts pour les objets, l'or, le temps de jeu et les métiers de tous vos personnages, ou @ et le nom d'un personnage pour les siens, sacs et banque tels qu'ils sont rangés\n" ..
-    "    |cff999999-|r Infos du personnage dans le menu des filtres ajoute à vos recherches le temps de jeu, l'or et le niveau de chaque personnage\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff@bags et @bank|r\n" ..
+    "    |cff999999-|r Les sacs ou la banque de tous vos personnages en grille, votre personnage actuel d'abord ; cliquez sur ses objets pour les utiliser, temps de recharge affichés\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffL'or de tous vos personnages|r\n" ..
+    "    |cff999999-|r Sur @alts, la ligne Argent montre l'or de chaque personnage, le plus riche d'abord\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffOptions graphiques depuis la barre de recherche|r\n" ..
+    "    |cff999999-|r Appliquer change désormais le mode d'affichage et la taille de la fenêtre, et demande s'il faut les garder, comme le jeu\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r La recherche dans la banque fonctionne sur Classic Era, TBC Anniversary et Mists Classic, une recherche d'un type de lieu (« ah ») montre d'abord le plus proche et en dernier les villes de l'autre faction, une mise à jour faite jeu ouvert ne casse plus la fenêtre des options, et les lieux sans en-tête de zone indiquent leur zone\n"
+    "    |cff999999-|r Masquer le suivi des objectifs ne reste plus bloqué et ne clignote plus, la taille de police agrandit aussi le texte saisi, et Classic Era n'affiche plus les options graphiques qu'il n'a pas\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

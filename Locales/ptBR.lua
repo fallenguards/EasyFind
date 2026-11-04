@@ -299,13 +299,14 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotas agora é uma extensão|r\n" ..
-    "    |cff999999-|r Notas agora vem como EasyFind: Notes Extension no CurseForge: instale para continuar usando Notas, e todas as suas notas, checklists e listas de compras estão lá\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffSeus personagens|r\n" ..
-    "    |cff999999-|r Digite @alts para ver itens, ouro, tempo jogado e profissões de todos os personagens, ou @ e o nome de um personagem para ver os dele, com bolsas e banco como estão\n" ..
-    "    |cff999999-|r Informações do personagem no menu de filtros adiciona às buscas o tempo jogado, o ouro e o nível de cada personagem\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff@bags e @bank|r\n" ..
+    "    |cff999999-|r As bolsas ou o banco de todos os personagens em uma grade, o personagem atual primeiro; clique nos itens dele para usá-los, com a recarga à mostra\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffO ouro de todos os personagens|r\n" ..
+    "    |cff999999-|r Em @alts, a linha de dinheiro mostra o ouro de cada personagem, o mais rico primeiro\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffOpções gráficas pela barra de busca|r\n" ..
+    "    |cff999999-|r Aplicar agora muda o modo de exibição e o tamanho da janela, e pergunta se deve mantê-los, como o jogo faz\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r A busca no banco funciona no Classic Era, TBC Anniversary e Mists Classic, uma busca por um tipo de lugar (\"ah\") mostra primeiro o mais próximo e por último as cidades da outra facção, uma atualização feita com o jogo aberto não quebra mais a janela de opções, e lugares sem cabeçalho de zona mostram sua zona\n"
+    "    |cff999999-|r Ocultar o rastreador de objetivos não trava mais nem pisca, o tamanho da fonte também aumenta o texto digitado, e o Classic Era não mostra mais opções gráficas que não tem\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

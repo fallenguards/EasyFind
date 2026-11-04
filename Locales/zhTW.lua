@@ -299,13 +299,14 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff筆記現在是擴充功能|r\n" ..
-    "    |cff999999-|r 筆記現在以 EasyFind: Notes Extension 的形式在 CurseForge 上提供：安裝它即可繼續使用筆記，你原有的所有筆記、核對清單和購物清單都在\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff你的角色|r\n" ..
-    "    |cff999999-|r 輸入 @alts 檢視所有角色的物品、金幣、遊戲時間和專業技能，或輸入 @ 加角色名稱檢視該角色的，背包與銀行依原樣排列\n" ..
-    "    |cff999999-|r 篩選選單中的角色資訊會將每個角色的遊戲時間、金幣與等級加入搜尋\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff@bags 與 @bank|r\n" ..
+    "    |cff999999-|r 以網格顯示所有角色的背包或銀行，目前角色在最前；點擊其物品即可使用，並顯示冷卻時間\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff所有角色的金幣|r\n" ..
+    "    |cff999999-|r 在 @alts 中，金錢一列可展開每個角色的金幣，最富有的排在最前\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff搜尋列中的圖形設定|r\n" ..
+    "    |cff999999-|r 套用現在會切換顯示模式與視窗大小，並像遊戲一樣詢問是否保留\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 銀行搜尋現可用於 Classic Era、TBC Anniversary 與 Mists Classic；搜尋某類地點（「ah」）時最近的排在最前，另一陣營的城市排在最後；遊戲執行時更新不再導致設定視窗出錯；沒有區域標題的地點會顯示所在區域\n"
+    "    |cff999999-|r 隱藏任務追蹤不再卡住或閃爍，字型大小也會放大輸入的文字，Classic Era 不再列出它沒有的圖形設定\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

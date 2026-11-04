@@ -299,13 +299,14 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotas ahora es una extensión|r\n" ..
-    "    |cff999999-|r Notas ahora llega como EasyFind: Notes Extension en CurseForge: instálala para seguir usando Notas, y todas tus notas, listas de verificación y listas de compras siguen ahí\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffTus personajes|r\n" ..
-    "    |cff999999-|r Escribe @alts para ver los objetos, el oro, el tiempo jugado y las profesiones de todos tus personajes, o @ y el nombre de un personaje para ver los suyos, con bolsas y banco tal como están\n" ..
-    "    |cff999999-|r Información del personaje en el menú de filtros agrega a tus búsquedas el tiempo jugado, el oro y el nivel de cada personaje\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff@bags y @bank|r\n" ..
+    "    |cff999999-|r Las bolsas o el banco de todos tus personajes en una cuadrícula, primero tu personaje actual; haz clic en sus objetos para usarlos, con su tiempo de reutilización\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEl oro de todos tus personajes|r\n" ..
+    "    |cff999999-|r En @alts, la fila de dinero muestra el oro de cada personaje, el más rico primero\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffOpciones gráficas desde la barra de búsqueda|r\n" ..
+    "    |cff999999-|r Aplicar ahora cambia el modo de pantalla y el tamaño de la ventana, y pregunta si quieres conservarlos, como lo hace el juego\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r La búsqueda en el banco funciona en Classic Era, TBC Anniversary y Mists Classic, una búsqueda de un tipo de lugar (\"ah\") muestra primero el más cercano y al final las ciudades de la otra facción, una actualización con el juego abierto ya no rompe la ventana de configuración, y los lugares sin encabezado de zona muestran su zona\n"
+    "    |cff999999-|r Ocultar el rastreador de objetivos ya no se queda atorado ni parpadea, el tamaño de fuente también agranda el texto que escribes, y Classic Era ya no muestra opciones gráficas que no tiene\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

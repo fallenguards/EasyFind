@@ -330,13 +330,14 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNotes is an extension now|r\n" ..
-    "    |cff999999-|r Notes now comes as the EasyFind: Notes Extension on CurseForge: install it to keep using Notes, and every note, checklist and shopping list you had is there\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffYour characters|r\n" ..
-    "    |cff999999-|r Type @alts for every character's items, gold, time played and professions, or @ and a character's name for theirs, with bags and bank as they sit\n" ..
-    "    |cff999999-|r Character info in the filter menu adds each character's time played, gold and level to your searches\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff@bags and @bank|r\n" ..
+    "    |cff999999-|r Every character's bags or bank as a grid, your current character first; click its items to use them, cooldowns showing\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEvery character's gold|r\n" ..
+    "    |cff999999-|r On @alts, Money opens each character's gold, the richest first\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffGraphics settings from the search bar|r\n" ..
+    "    |cff999999-|r Apply now switches display mode and window size, and asks to keep them as the game does\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Bank search works on Classic Era, TBC Anniversary and Mists Classic, a search for a kind of place (\"ah\") lists the nearest first and the other faction's cities last, an update made while the game was open no longer breaks the settings window, and places with no zone heading name their zone\n"
+    "    |cff999999-|r Toggle Objective Tracker no longer sticks on or flickers, Font Size grows the text you type, and Classic Era no longer lists graphics settings it lacks\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels
