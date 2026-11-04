@@ -165,6 +165,11 @@ read_globals = {
     "GetMoney", "GetCoinTextureString", "GetAverageItemLevel",
     "COPPER_PER_SILVER", "COPPER_PER_GOLD",
     "GetInventoryItemDurability", "C_MythicPlus", "C_ChallengeMode",
+    -- The character pages (Database/Characters.lua, Search/Characters.lua).
+    "GetInventoryItemLink", "GetSpellTexture", "RequestTimePlayed", "GetFramesRegisteredForEvent",
+    "CLASS_ICON_TCOORDS", "IsDressableItem",
+    -- The classic clients' bank: its main slots and the bank bag slots.
+    "BANK_CONTAINER", "NUM_BANKBAGSLOTS", "GetBagName",
     "UnitFullName", "GetNormalizedRealmName", "GetUnitName", "CopyTable",
     "GetProfessions", "GetProfessionInfo", "C_TradeSkillUI", "EnumerateFrames",
     "IsPlayerSpell",

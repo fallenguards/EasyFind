@@ -5660,6 +5660,7 @@ end
 -- rather than ~17 file-scope locals: a Lua chunk caps at 200 locals and this
 -- file was already close, so each loose helper here is a real cost.
 local Stored = {}
+ns.Stored = Stored
 
 function Stored.ItemIcon(itemID)
     if not itemID then return nil end
@@ -5676,6 +5677,37 @@ Stored.STORED_ITEM_ROW_SPEC = {
     { "itemID" }, { "count" }, { "tab" }, { "slot" },
     { "name" }, { "icon" }, { "quality" },
 }
+
+-- A container's name for a grid header: the bag's own item, or the bank.
+function Stored.ContainerName(bagID)
+    if BANK_CONTAINER and bagID == BANK_CONTAINER then return _G["BANK"] or "Bank" end
+    local getName = (C_Container and C_Container.GetBagName) or GetBagName
+    return getName and getName(bagID) or nil
+end
+
+-- Every container's slots, sizes and names, so the item grid shows bags
+-- and bank as they look opened. One string per container, a slot a few
+-- bytes: "3*20,,1" is the record's third row twenty times, an empty slot,
+-- then its first row once (no byte a saved file escapes).
+function Stored.Layout(slots, sizes, names)
+    local boxes = {}
+    for i = 1, #slots do
+        local s = slots[i]
+        local box = boxes[s.tab] or {}
+        boxes[s.tab] = box
+        box[s.slot] = (s.count or 1) > 1 and (s.row .. "*" .. s.count) or tostring(s.row)
+    end
+    local packed = {}
+    for tab, box in pairs(boxes) do
+        local last = 0
+        for slot in pairs(box) do
+            if slot > last then last = slot end
+        end
+        for slot = 1, last do box[slot] = box[slot] or "" end
+        packed[tab] = Utils.tconcat(box, ",", 1, last)
+    end
+    return { slots = packed, sizes = sizes, names = names }
+end
 
 Stored.BAG_STORED_KEYWORDS = { "bag", "item", "inventory" }
 Stored.BANK_STORED_KEYWORDS = { "bank", "storage", "vault" }
@@ -5857,10 +5889,12 @@ function Stored.WalkPlayerBags()
 
     local itemMap = {}
     local order = {}
+    local sizes = {}
     local slotsSeen = 0
     for bag = 0, ns.MaxCarriedBagIndex() do
         local slots = getNumSlots(bag) or 0
         slotsSeen = slotsSeen + slots
+        if slots > 0 then sizes[bag] = slots end
         for slot = 1, slots do
             local raw = getItemInfo(bag, slot)
             if raw then
@@ -5881,12 +5915,12 @@ function Stored.WalkPlayerBags()
                         order[#order + 1] = itemID
                     end
                     entry.totalCount = entry.totalCount + (count or 1)
-                    entry.locations[#entry.locations + 1] = { bag = bag, slot = slot }
+                    entry.locations[#entry.locations + 1] = { bag = bag, slot = slot, count = count or 1 }
                 end
             end
         end
     end
-    return itemMap, order, slotsSeen
+    return itemMap, order, slotsSeen, sizes
 end
 
 -- Spec switching and saved talent loadouts as Talents-category rows: typing
@@ -6053,7 +6087,7 @@ function Database:PopulateDynamicBags()
     local getEquipLoc = Utils.GetItemEquipLoc
     local getQuality = C_Item and C_Item.GetItemQualityByID
 
-    local itemMap, order = Stored.WalkPlayerBags()
+    local itemMap, order, _, sizes = Stored.WalkPlayerBags()
     if not itemMap then return false end
 
     RemoveEntriesByCategory("Bag")
@@ -6104,7 +6138,7 @@ function Database:PopulateDynamicBags()
 
     -- This character's bags were just read live; record them so the OTHER
     -- characters can be searched from anywhere, then fold those in.
-    self:PersistBagContents(itemMap, order)
+    self:PersistBagContents(itemMap, order, sizes)
     Stored.AppendOtherCharacterBagRows(itemMap)
     return true
 end
@@ -6163,10 +6197,10 @@ end
 -- the caller already did rather than re-reading every container. An empty
 -- result is still persisted: unlike the bank, empty bags are a real state, and
 -- refusing to store it would leave a stale list forever.
-function Database:PersistBagContents(itemMap, order)
+function Database:PersistBagContents(itemMap, order, sizes)
     if not itemMap or not order then
         local slotsSeen
-        itemMap, order, slotsSeen = Stored.WalkPlayerBags()
+        itemMap, order, slotsSeen, sizes = Stored.WalkPlayerBags()
         -- Zero SLOTS (not zero items) means the containers have not reported
         -- yet, which happens on the login-time record. Writing that would
         -- replace a good snapshot with an empty one and quietly lose the
@@ -6178,11 +6212,14 @@ function Database:PersistBagContents(itemMap, order)
     if not store or type(order) ~= "table" then return false end
 
     local getQuality = C_Item and C_Item.GetItemQualityByID
-    local rows = {}
+    local rows, slots = {}, {}
     for i = 1, #order do
         local itemID = order[i]
         local info = itemMap[itemID]
         local first = info.locations and info.locations[1]
+        for _, loc in ipairs(info.locations) do
+            slots[#slots + 1] = { tab = loc.bag, slot = loc.slot, row = i, count = loc.count or 1 }
+        end
         -- Already resolved when the search provider did the walk; resolved here
         -- when the logout snapshot did it instead.
         local quality = info.quality
@@ -6198,19 +6235,20 @@ function Database:PersistBagContents(itemMap, order)
         }
     end
 
-    store.chars[CharKey()] =
-        Stored.StoredCharRecord(Utils.PackRows(rows, Stored.STORED_ITEM_ROW_SPEC))
+    local record = Stored.StoredCharRecord(Utils.PackRows(rows, Stored.STORED_ITEM_ROW_SPEC))
+    local names = {}
+    for bag in pairs(sizes) do names[bag] = Stored.ContainerName(bag) end
+    record.layout = Stored.Layout(slots, sizes, names)
+    store.chars[CharKey()] = record
     return true
 end
 
--- The bank is tab-based: there is no single bank container, and the
--- classic-era constants (BANK_CONTAINER, NUM_BANKBAGSLOTS) no longer exist,
--- so anything built on them scans nothing. C_Bank reports which tabs are
--- purchased for each bank type, which is what the walk needs -- and, more
--- importantly, WHICH TYPE each tab is. Character tabs hold one character's
--- items; account tabs are shared by the whole warband, so storing those
--- per character would report one warband stack as though every alt owned
--- its own copy.
+-- Retail and Forever bank in tabs: C_Bank reports which are purchased for
+-- each bank type, and WHICH TYPE each tab is. Character tabs hold one
+-- character's items; account tabs are shared by the whole warband, so
+-- storing those per character would report one warband stack as though
+-- every alt owned its own copy. The classic clients have no tabs: their
+-- bank is BANK_CONTAINER plus the bank bag slots (GetCharacterBankTabs).
 function Stored.CollectBankTabs(bankType, out)
     if not (C_Bank and C_Bank.FetchPurchasedBankTabData and bankType) then return out end
     local ok, tabs = pcall(C_Bank.FetchPurchasedBankTabData, bankType)
@@ -6225,7 +6263,16 @@ function Stored.CollectBankTabs(bankType, out)
 end
 
 function Stored.GetCharacterBankTabs()
-    return Stored.CollectBankTabs(Enum and Enum.BankType and Enum.BankType.Character, {})
+    if C_Bank and C_Bank.FetchPurchasedBankTabData then
+        return Stored.CollectBankTabs(Enum and Enum.BankType and Enum.BankType.Character, {})
+    end
+    if not BANK_CONTAINER then return {} end
+    local tabs = { { id = BANK_CONTAINER, name = Stored.ContainerName(BANK_CONTAINER) } }
+    local first = (NUM_BAG_SLOTS or 4) + 1
+    for bag = first, first + (NUM_BANKBAGSLOTS or 0) - 1 do
+        tabs[#tabs + 1] = { id = bag, name = Stored.ContainerName(bag) }
+    end
+    return tabs
 end
 
 function Stored.GetAccountBankTabs()
@@ -6243,12 +6290,14 @@ function Stored.WalkBankTabs(tabs)
     if not (getNumSlots and getItemInfo) then return nil, nil, 0 end
 
     local itemMap, order, tabNames = {}, {}, {}
+    local slotRows, sizes, rowOf = {}, {}, {}
     local slotsSeen = 0
     for t = 1, #tabs do
         local tabID = tabs[t].id
         tabNames[tabID] = tabs[t].name
         local slots = getNumSlots(tabID) or 0
         slotsSeen = slotsSeen + slots
+        if slots > 0 then sizes[tabID] = slots end
         for slot = 1, slots do
             local info = getItemInfo(tabID, slot)
             local itemID = type(info) == "table" and info.itemID or nil
@@ -6270,12 +6319,14 @@ function Stored.WalkBankTabs(tabs)
                     }
                     itemMap[itemID] = row
                     order[#order + 1] = row
+                    rowOf[itemID] = #order
                 end
                 row.count = row.count + (info.stackCount or 1)
+                slotRows[#slotRows + 1] = { tab = tabID, slot = slot, row = rowOf[itemID], count = info.stackCount or 1 }
             end
         end
     end
-    return order, tabNames, slotsSeen
+    return order, tabNames, slotsSeen, Stored.Layout(slotRows, sizes, tabNames)
 end
 
 function Stored.BankCacheStore()
@@ -6344,19 +6395,21 @@ function Database:ScanBankContents()
 
     local scanned = false
 
-    local charRows, charTabs, charSlots = Stored.WalkBankTabs(Stored.GetCharacterBankTabs())
+    local charRows, charTabs, charSlots, charLayout = Stored.WalkBankTabs(Stored.GetCharacterBankTabs())
     if charSlots > 0 then
-        store.chars[CharKey()] =
-            Stored.StoredCharRecord(Utils.PackRows(charRows, Stored.STORED_ITEM_ROW_SPEC), charTabs)
+        local record = Stored.StoredCharRecord(Utils.PackRows(charRows, Stored.STORED_ITEM_ROW_SPEC), charTabs)
+        record.layout = charLayout
+        store.chars[CharKey()] = record
         scanned = true
     end
 
-    local acctRows, acctTabs, acctSlots = Stored.WalkBankTabs(Stored.GetAccountBankTabs())
+    local acctRows, acctTabs, acctSlots, acctLayout = Stored.WalkBankTabs(Stored.GetAccountBankTabs())
     if acctSlots > 0 then
         store.account = {
             scannedAt = time and time() or 0,
             tabs = acctTabs,
             packed = Utils.PackRows(acctRows, Stored.STORED_ITEM_ROW_SPEC),
+            layout = acctLayout,
         }
         scanned = true
     end
