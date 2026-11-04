@@ -97,7 +97,7 @@ read_globals = {
     "SELECTED_CHAT_FRAME", "COMBATLOG", "CombatLogClearEntries",
     "ChatFrame_OpenChat", "DEFAULT_CHAT_FRAME",
     "UnitFactionGroup", "IsSpellKnown", "PlayerHasToy", "IsFlyableArea", "IsAdvancedFlyableArea", "geterrorhandler", "IsPlayerMoving", "IsFalling", "UnitPosition",
-    "StaticPopup_Show", "GameTooltip_Hide", "GameTooltip_SetTitle", "GameTooltip_AddNormalLine", "PlaySound", "ReloadUI",
+    "StaticPopup_Show", "StaticPopup_Hide", "GameTooltip_Hide", "GameTooltip_SetTitle", "GameTooltip_AddNormalLine", "PlaySound", "ReloadUI",
     "GetSpellInfo", "GetItemInfo", "UseToyByItemID", "GetItemClassInfo", "CreateAtlasMarkup",
     "GetSpellLink", "GetAchievementLink",
     "GetMacroSpell", "GetMacroItem",
@@ -223,6 +223,7 @@ read_globals = {
     "FACTION_ALLIANCE", "FACTION_HORDE",
     "SETTINGS_CONFIRM_DISCARD", "SETTINGS_UNAPPLIED_EXIT",
     "SETTINGS_UNAPPLIED_APPLY_AND_EXIT", "SETTINGS_UNAPPLIED_CANCEL",
+    "SETTINGS_CONFIRM_TIMEOUT_BUTTON", "SETTINGS_CANCEL_TIMEOUT_BUTTON", "SETTINGS_TIMED_CONFIRMATION",
 
     -- Currency filter enums
     "CURRENCY_FILTER_TYPE_TRANSFERABLE", "CURRENCY_FILTER_TYPE_CHARACTER",

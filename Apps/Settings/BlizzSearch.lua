@@ -876,8 +876,9 @@ function BlizzOptionsSearch:GetPendingApplyCount()
     return PendingCount()
 end
 
--- Apply's bookkeeping: the rows' redraw and what runs after a commit.
-local Apply = {}
+-- Apply's bookkeeping: the rows' redraw, what runs after a commit, and the
+-- settings waiting on "keep these settings?" (setting, value before).
+local Apply = { revertable = {}, KEEP = "EASYFIND_SETTINGS_TIMED_CONFIRMATION", KEEP_SECONDS = 8 }
 
 -- The rows draw the Apply strip from the staged value: a stage or a clear
 -- redraws them once, next frame, whatever wrote it (a slider's step arrows
@@ -922,6 +923,56 @@ function Apply.Finalize()
     if Apply.gx and RestartGx then RestartGx() end
     if Apply.window and UpdateWindow then UpdateWindow() end
     Apply.gx, Apply.window = nil, nil
+    if #Apply.revertable > 0 then Apply.AskToKeep() end
+end
+
+-- The game's "keep these settings?" (its Revertable settings: display mode,
+-- window size, monitor, UI scale): unless kept in 8 s, the old values return.
+function Apply.AskToKeep()
+    if Apply.timer then Apply.timer:Cancel() end
+    StaticPopup_Hide(Apply.KEEP)
+    StaticPopup_Show(Apply.KEEP, nil, nil, Apply.KEEP_SECONDS)
+    local Results = ns.Results
+    if Results and Results.LiftPopupStrata and Results.FindPopupSlot then
+        Results:LiftPopupStrata(Results:FindPopupSlot(Apply.KEEP))
+    end
+    Apply.timer = C_Timer.NewTimer(Apply.KEEP_SECONDS, function()
+        Apply.RevertKept()
+        StaticPopup_Hide(Apply.KEEP)
+    end)
+end
+
+function Apply.Keep()
+    if Apply.timer then Apply.timer:Cancel() end
+    Apply.timer = nil
+    wipe(Apply.revertable)
+end
+
+function Apply.RevertKept()
+    if Apply.timer then Apply.timer:Cancel() end
+    Apply.timer = nil
+    local list = Apply.revertable
+    Apply.revertable = {}
+    for i = 1, #list do
+        local setting, before = list[i][1], list[i][2]
+        pcall(setting.SetValue, setting, before, true)
+        Apply.NoteFlags(setting)
+    end
+    Apply.Finalize()
+    if ns.Search and ns.Search.RefreshResults then ns.Search:RefreshResults() end
+end
+
+-- The value a Revertable setting had before this commit; the first one
+-- stands while its question is open.
+function Apply.NoteRevertable(settObj)
+    local flags = Settings.CommitFlag
+    if not (flags and flags.Revertable and settObj.GetValueDerived and settObj:HasCommitFlag(flags.Revertable)) then
+        return
+    end
+    for i = 1, #Apply.revertable do
+        if Apply.revertable[i][1] == settObj then return end
+    end
+    Apply.revertable[#Apply.revertable + 1] = { settObj, settObj:GetValueDerived() }
 end
 
 function Apply.ByOrder(a, b)
@@ -1016,6 +1067,7 @@ function Apply.Commit(variable)
     -- here: driving Blizzard's shared commit pipeline from addon (insecure) code
     -- taints it, silently no-ops the write, and poisons Blizzard's own Apply button
     -- until /reload. Apply through the setting object directly instead.
+    Apply.NoteRevertable(settObj)
     if settObj.SetValue then
         pcall(settObj.SetValue, settObj, pending, true)
     end
@@ -1034,6 +1086,29 @@ end
 -- DO NOT write `StaticPopupDialogs = StaticPopupDialogs or {}`: any
 -- assignment to that global slot taints it (even preserving identity)
 -- and the taint propagates into ShowUIPanel / UIParentPanelManager.
+-- The game's own keep-settings dialog (Blizzard_Dialogs.lua
+-- GAME_SETTINGS_TIMED_CONFIRMATION), over EasyFind's list: the game's
+-- buttons reach only its settings panel.
+if StaticPopupDialogs and not StaticPopupDialogs[Apply.KEEP] then
+    StaticPopupDialogs[Apply.KEEP] = {
+        text = "",
+        button1 = SETTINGS_CONFIRM_TIMEOUT_BUTTON,
+        button2 = SETTINGS_CANCEL_TIMEOUT_BUTTON,
+        OnAccept = function() Apply.Keep() end,
+        OnCancel = function() Apply.RevertKept() end,
+        OnShow = function(dialog, duration) dialog.duration = duration end,
+        OnHide = function(dialog) dialog.duration = nil end,
+        OnUpdate = function(dialog, elapsed)
+            dialog.duration = dialog.duration - elapsed
+            local time = math.max(dialog.duration + 1, 1)
+            dialog:SetText(SETTINGS_TIMED_CONFIRMATION:format(time))
+            dialog:Resize(Apply.KEEP)
+        end,
+        whileDead = 1,
+        fullScreenCover = true,
+    }
+end
+
 if StaticPopupDialogs and not StaticPopupDialogs["EASYFIND_UNAPPLIED_SETTINGS"] then
     StaticPopupDialogs["EASYFIND_UNAPPLIED_SETTINGS"] = {
         text = SETTINGS_CONFIRM_DISCARD or ns.L["POPUP_UNAPPLIED_SETTINGS"],

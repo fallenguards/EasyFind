@@ -4,7 +4,9 @@
 -- game's own Apply does after its writes (SettingsPanel FinalizeCommit):
 -- UpdateWindow for display mode, window size and monitor, RestartGx for the
 -- GxRestart settings. Era, 2026-11-04: the strip came only after searching
--- again, and display mode stayed as it was after Apply.
+-- again, and display mode stayed as it was after Apply. A Revertable setting
+-- then asks "keep these settings?" in the game's own dialog, reverted when
+-- not kept within 8 s (Blizzard_Dialogs.lua GAME_SETTINGS_TIMED_CONFIRMATION).
 local H = require("Harness")
 
 local function Read(rel)
@@ -21,6 +23,7 @@ local Flag = { Apply = 1, GxRestart = 2, UpdateWindow = 4, Revertable = 8 }
 local function Setting(variable, value, flags)
     local s = { variable = variable, value = value, flags = flags }
     function s:GetVariable() return self.variable end
+    function s:GetValueDerived() return self.value end
     function s:HasCommitFlag(f) return self.flags & f ~= 0 end
     function s:GetValue()
         if self.pendingValue ~= nil then return self.pendingValue end
@@ -58,6 +61,21 @@ local function Load()
     env.UpdateWindow = function() calls.window = calls.window + 1 end
     env.mouseDown = false
     env.IsMouseButtonDown = function() return env.mouseDown end
+    -- The client's dialogs and timers, recorded.
+    env.StaticPopupDialogs = {}
+    env.SETTINGS_CONFIRM_TIMEOUT_BUTTON, env.SETTINGS_CANCEL_TIMEOUT_BUTTON = "Keep Settings", "Revert"
+    env.SETTINGS_TIMED_CONFIRMATION = "Keep these settings? Reverting in %d seconds."
+    local popup = {}
+    env.StaticPopup_Show = function(which, _, _, data) popup.shown, popup.data = which, data end
+    env.StaticPopup_Hide = function(which) if popup.shown == which then popup.shown = nil end end
+    env.C_Timer = env.C_Timer or {}
+    env.C_Timer.NewTimer = function(seconds, fn)
+        local t = { seconds = seconds, fn = fn }
+        function t:Cancel() self.cancelled = true end
+        popup.timer = t
+        return t
+    end
+    calls.popup = popup
     local ns = H.newNs(env)
     local timers = {}
     ns.Utils.SafeAfter = function(_, fn) timers[#timers + 1] = fn end
@@ -150,6 +168,53 @@ function tests.aDropdownBesideACheckbox_showsAndAppliesItsOwnStrip()
     Blizz:ApplyVariable(row.settingVariable, row.dropdownVariable)
     H.assertEq(settings.PROXY_MSAA_MODE.value, 4, "applied")
     H.assertEq(calls.gx, 1)
+end
+
+local KEEP = "EASYFIND_SETTINGS_TIMED_CONFIRMATION"
+
+function tests.displayMode_asksToKeepIt_inTheGamesOwnDialog()
+    local Blizz, _, calls, Stage, _, env = Load()
+    Stage("PROXY_DISPLAY_MODE", true)
+    Blizz:ApplyVariable("PROXY_DISPLAY_MODE")
+    H.assertEq(calls.popup.shown, KEEP, "asked")
+    H.assertEq(calls.popup.data, 8, "for the game's 8 seconds")
+    H.assertEq(calls.popup.timer.seconds, 8)
+    local dialog = env.StaticPopupDialogs[KEEP]
+    H.assertEq(dialog.button1, env.SETTINGS_CONFIRM_TIMEOUT_BUTTON, "the game's Keep button")
+    H.assertEq(dialog.button2, env.SETTINGS_CANCEL_TIMEOUT_BUTTON, "and its Revert")
+    H.assertTrue(dialog.whileDead and dialog.fullScreenCover, "shown as the game's is")
+end
+
+function tests.notKeptInTime_putsTheOldModeBack()
+    local Blizz, settings, calls, Stage = Load()
+    Stage("PROXY_DISPLAY_MODE", true)
+    Blizz:ApplyVariable("PROXY_DISPLAY_MODE")
+    calls.popup.timer.fn()
+    H.assertEq(settings.PROXY_DISPLAY_MODE.value, false, "reverted")
+    H.assertEq(calls.window, 2, "and the window follows it back")
+    H.assertNil(calls.popup.shown, "the dialog goes")
+end
+
+function tests.keepAndRevert_buttons()
+    local Blizz, settings, calls, Stage, _, env = Load()
+    local dialog
+    Stage("PROXY_DISPLAY_MODE", true)
+    Blizz:ApplyVariable("PROXY_DISPLAY_MODE")
+    dialog = env.StaticPopupDialogs[KEEP]
+    dialog.OnAccept()
+    H.assertTrue(calls.popup.timer.cancelled, "kept: no revert later")
+    H.assertEq(settings.PROXY_DISPLAY_MODE.value, true)
+    Stage("PROXY_DISPLAY_MODE", false)
+    Blizz:ApplyVariable("PROXY_DISPLAY_MODE")
+    dialog.OnCancel()
+    H.assertEq(settings.PROXY_DISPLAY_MODE.value, true, "Revert puts back what was kept")
+end
+
+function tests.aSettingTheGameDoesNotAskAbout_isNotAsked()
+    local Blizz, _, calls, Stage = Load()
+    Stage("PROXY_VSYNC", true)
+    Blizz:ApplyVariable("PROXY_VSYNC")
+    H.assertNil(calls.popup.shown)
 end
 
 local pass, fail, failures = H.runSuite("SettingsApply", tests)
