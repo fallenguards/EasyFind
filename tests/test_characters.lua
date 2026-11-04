@@ -171,6 +171,37 @@ function tests.everyCharacter_aHeaderEach_itemsOnly_thenTheWarband()
     H.assertEq(last.cells[1].count, 5)
 end
 
+-- @bags and @bank (2026-11-04): each character's own place as a section,
+-- the logged-in one first, the warband bank after the banks.
+function tests.bagsAndBank_aSectionPerCharacter_theLoggedInOneFirst()
+    local db = { bagCacheVer = BAG_VER, bagCache = { chars = {} }, bankCacheVer = BANK_VER, bankCache = { chars = {} },
+                 charProfileCacheVer = 1, charProfileCache = {
+                     ["Jaina-Realm"] = { name = "Jaina", realm = "Realm", class = "MAGE", seenAt = 50 } } }
+    local _, ns = World({ db = db })
+    local linen = { { itemID = 10, count = 1, name = "Linen Cloth" } }
+    local wool = { { itemID = 40, count = 5, name = "Wool Cloth" } }
+    local silk = { { itemID = 70, count = 2, name = "Silk Cloth" } }
+    db.bagCache.chars["Jaina-Realm"] = BagRecord(ns, "Jaina", linen,
+        { { tab = 0, slot = 1, itemID = 10, count = 1 } }, { [0] = 16 }, { [0] = "Backpack" })
+    db.bagCache.chars["Thrall-Realm"] = BagRecord(ns, "Thrall", silk,
+        { { tab = 0, slot = 2, itemID = 70, count = 2 } }, { [0] = 16 }, { [0] = "Backpack" })
+    db.bagCache.chars["Thrall-Realm"].class = "WARRIOR"
+    db.bankCache.chars["Jaina-Realm"] = BagRecord(ns, "Jaina", wool,
+        { { tab = -1, slot = 1, itemID = 40, count = 5 } }, { [-1] = 28 }, { [-1] = "Bank" })
+    db.bankCache.account = { packed = Pack(ns, wool),
+        layout = Layout(ns, wool, { { tab = 12, slot = 1, itemID = 40, count = 5 } }, { [12] = 98 }, { [12] = "Tab 1" }) }
+    local bags = ns.CharacterData.Sections(nil, "bags")
+    H.assertEq(#bags, 2)
+    H.assertEq(bags[1].header, "Thrall", "the logged-in character first")
+    H.assertEq(bags[1].cells[1].name, "Silk Cloth")
+    H.assertEq(bags[2].header, "Jaina")
+    H.assertEq(#bags[2].cells, 1, "bags only: Jaina's bank stays out")
+    local bank = ns.CharacterData.Sections(nil, "bank")
+    H.assertEq(bank[1].header, "Jaina", "Thrall has no bank on record")
+    H.assertEq(bank[1].cells[1].name, "Wool Cloth")
+    H.assertEq(bank[#bank].place, "warband", "the warband bank after the banks")
+end
+
 function tests.gear_inSlotOrder_fromTheLinks()
     local gear = { [1] = "|cff0070dd|Hitem:111::|h[Helm]|h|r", [5] = "|cffa335ee|Hitem:555::|h[Chest]|h|r" }
     local _, ns = World({ gear = gear })
@@ -485,6 +516,19 @@ function tests.altsMoney_opensEachCharactersGold()
     ns.Filters:ApplyQuickFilter(alts, "")
     ns.Characters:ShowView(alts, "@money")
     H.assertEq(ns.Filters:GetQuickFilter(), page, "typed on @alts too")
+end
+
+function tests.bagsAndBank_openTheItemGrid()
+    local _, ns = Pages(TwoJainas())
+    local opened
+    ns.Results.ShowItemGrid = function(_, def) opened = def end
+    for _, word in ipairs({ "bags", "bank" }) do
+        local def = ns.Filters:ResolveQuickFilterToken(word)
+        H.assertEq(def.gridKind, word)
+        ns.Characters:ShowView(def, "")
+        H.assertEq(opened, def, "@" .. word .. " is a grid")
+        H.assertNil(def.charKey, "every character's")
+    end
 end
 
 function tests.aPagesTag_opensOnTheWholeWord_unlessALongerOneStartsSo()

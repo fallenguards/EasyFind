@@ -41,8 +41,9 @@ Filters.quickFilterOptions = {
     { key = "items",          canonical = "items",           label = _G["ITEMS"] or "Items",          categories = { "Item", "Bag", "Bank", "Warband" }, aliases = { "i", "item", "items" } },
     { key = "catalog",        canonical = "gen",             label = L["FILTER_GENERAL_CATALOG"],      categories = { "Item" }, aliases = { "cat", "catalog", "general" }, companion = "EasyFind_Items" },
     { key = "icons",          canonical = "icons",           label = L["FILTER_ICONS"],       categories = { "Icon" }, aliases = { "ic", "icon", "icons", "texture", "textures" }, companion = "EasyFind_Icons" },
-    { key = "bags",           canonical = "bags",            label = _G["HUD_EDIT_MODE_BAGS_LABEL"] or "Bags",            categories = { "Bag" }, aliases = { "b", "bag", "bags" } },
-    { key = "bank",           canonical = "bank",            label = _G["BANK"] or "Bank",            categories = { "Bank" }, aliases = { "bank", "banked" } },
+    -- @bags and @bank: every character's, in the item grid (Search/Characters.lua).
+    { key = "bags",           canonical = "bags",            label = _G["HUD_EDIT_MODE_BAGS_LABEL"] or "Bags",            categories = { "Bag" }, aliases = { "b", "bag", "bags" }, charView = "grid", gridKind = "bags" },
+    { key = "bank",           canonical = "bank",            label = _G["BANK"] or "Bank",            categories = { "Bank" }, aliases = { "bank", "banked" }, charView = "grid", gridKind = "bank" },
     -- The warband bank is a separate place from a character's own bank, so it
     -- gets its own token rather than being folded into @bank.
     { key = "warband",        canonical = "warband",         label = ns.WarbandBankLabel and ns.WarbandBankLabel() or "Warband Bank", categories = { "Warband" }, aliases = { "wb", "warband", "warbank" } },

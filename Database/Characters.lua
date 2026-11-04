@@ -436,8 +436,17 @@ local function GearSection(key)
     return section
 end
 
+-- Sections folded into one under a header.
+local function Merged(sections, section)
+    for _, s in ipairs(sections) do
+        for _, cell in ipairs(s.cells) do section.cells[#section.cells + 1] = cell end
+    end
+    return #section.cells > 0 and section or nil
+end
+
 -- What the item grid shows for one character (key) or every character
--- (nil): "items" is bags then bank, "gear" what they wear.
+-- (nil): "items" is bags then bank, "gear" what they wear; "bags" and
+-- "bank" (@bags, @bank) every character's own, a section each.
 local function BuildSections(key, kind)
     local out = {}
     if kind == "gear" then
@@ -456,23 +465,16 @@ local function BuildSections(key, kind)
     end
     for _, entry in ipairs(Data.List()) do
         local own = {}
-        AddRecordSections(bags[entry.key], "bags", own)
-        AddRecordSections(banks[entry.key], "bank", own)
-        local section = { header = entry.name, class = entry.class, charKey = entry.key, cells = {} }
-        for _, s in ipairs(own) do
-            for _, cell in ipairs(s.cells) do section.cells[#section.cells + 1] = cell end
-        end
-        if #section.cells > 0 then out[#out + 1] = section end
+        if kind ~= "bank" then AddRecordSections(bags[entry.key], "bags", own) end
+        if kind ~= "bags" then AddRecordSections(banks[entry.key], "bank", own) end
+        out[#out + 1] = Merged(own, { header = entry.name, class = entry.class, charKey = entry.key, cells = {} })
     end
+    if kind == "bags" then return out end
     local db = DB()
     local account = db and type(db.bankCache) == "table" and db.bankCacheVer == ns.BANK_CACHE_VER and db.bankCache.account
     local warband = {}
     AddRecordSections(account, "warband", warband)
-    local section = { header = Data.PlaceLabel("warband"), place = "warband", cells = {} }
-    for _, s in ipairs(warband) do
-        for _, cell in ipairs(s.cells) do section.cells[#section.cells + 1] = cell end
-    end
-    if #section.cells > 0 then out[#out + 1] = section end
+    out[#out + 1] = Merged(warband, { header = Data.PlaceLabel("warband"), place = "warband", cells = {} })
     return out
 end
 
