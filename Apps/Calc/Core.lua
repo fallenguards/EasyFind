@@ -591,16 +591,25 @@ end
 -- rounds: money is integral. The unit letters come from the client's own
 -- localized denomination symbols; input parsing stays on the English
 -- g/s/c keys, per the store-English-display-localized convention.
-function Calculator._calculator.FormatMoney(value)
+-- The game's coin icons at the text's height, by unit rank (copper 1).
+local COIN_ICONS = {
+    "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
+    "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
+    "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
+}
+
+-- icons: the coin icons in place of the letters, for what is shown; a
+-- copy keeps the letters.
+function Calculator._calculator.FormatMoney(value, icons)
     local c = Calculator._calculator
     local sign = value < 0 and "-" or ""
     local copper = c.Round(math.abs(value))
     local gold = math.floor(copper / 10000)
     local silver = math.floor((copper % 10000) / 100)
     local copperPart = copper % 100
-    local gSym = _G["GOLD_AMOUNT_SYMBOL"] or "g"
-    local sSym = _G["SILVER_AMOUNT_SYMBOL"] or "s"
-    local cSym = _G["COPPER_AMOUNT_SYMBOL"] or "c"
+    local gSym = icons and COIN_ICONS[3] or _G["GOLD_AMOUNT_SYMBOL"] or "g"
+    local sSym = icons and COIN_ICONS[2] or _G["SILVER_AMOUNT_SYMBOL"] or "s"
+    local cSym = icons and COIN_ICONS[1] or _G["COPPER_AMOUNT_SYMBOL"] or "c"
     local parts = {}
     if gold > 0 then
         -- Thousands grouping like the game's own money strings, with the
@@ -628,6 +637,16 @@ function Calculator:EvaluateCalculatorExpression(raw)
     if not ok or not c.IsFinite(value) then return nil end
 
     local result = tokens.money and c.FormatMoney(value) or c.Format(value)
+    -- Shown with coin icons: the typed amounts too ("10g" reads 10 and a
+    -- gold coin).
+    local resultShown, expressionShown
+    if tokens.money then
+        resultShown = c.FormatMoney(value, true)
+        expressionShown = expression:gsub("(%d)(%a+)", function(digit, run)
+            local unit = MONEY_WORD_UNITS[slower(run)]
+            if unit then return digit .. COIN_ICONS[unit[2]] end
+        end)
+    end
     return {
         name = expression,
         nameLower = slower(expression),
@@ -641,6 +660,8 @@ function Calculator:EvaluateCalculatorExpression(raw)
         calculatorResult = result,
         calculatorValue = value,
         calculatorMoney = tokens.money or nil,
+        calculatorResultShown = resultShown,
+        calculatorExpressionShown = expressionShown,
     }
 end
 

@@ -112,13 +112,13 @@ function Calculator:RefreshCalculatorPopup()
         end
     end
     if submitted and data then
-        frame.resultText:SetText(data.calculatorResult)
+        frame.resultText:SetText(data.calculatorResultShown or data.calculatorResult)
         if frame.expressionText then frame.expressionText:Hide() end
         frame.resultText:SetTextColor(Utils.RGB(GOLD_COLOR, 1))
         if frame.hintText then frame.hintText:Hide() end
         self:SetCalculatorRoundedFill(frame.resultCard, 0.19, 0.16, 0.10, 0.98, 0.76, 0.56, 0.22, 0.90)
     elseif data then
-        frame.resultText:SetText(data.calculatorResult)
+        frame.resultText:SetText(data.calculatorResultShown or data.calculatorResult)
         if frame.expressionText then frame.expressionText:Hide() end
         frame.resultText:SetTextColor(0.86, 0.86, 0.88, 1)
         if frame.hintText then frame.hintText:Hide() end

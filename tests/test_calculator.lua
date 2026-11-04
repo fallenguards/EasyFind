@@ -89,5 +89,41 @@ function tests.money_unitRunBoundary()
     H.assertNil(ns.Calculator:EvaluateCalculatorExpression("4gs + 1"))
 end
 
+-- Money shows the game's coin icons, not the letters (2026-11-04); a copy
+-- keeps the letters, which paste anywhere.
+local GOLD = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t"
+local SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t"
+local COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t"
+
+function tests.money_showsCoinIcons_copiesLetters()
+    local data = ns.Calculator:EvaluateCalculatorExpression("10g 34s*5")
+    H.assertEq(data.calculatorResult, "51g 70s", "what a copy takes")
+    H.assertEq(data.calculatorResultShown, "51" .. GOLD .. " 70" .. SILVER)
+    H.assertEq(data.calculatorExpressionShown, "10" .. GOLD .. " 34" .. SILVER .. "*5")
+    data = ns.Calculator:EvaluateCalculatorExpression("4gold / 5 + 3c")
+    H.assertEq(data.calculatorExpressionShown, "4" .. GOLD .. " / 5 + 3" .. COPPER, "word units too")
+end
+
+function tests.plainMath_hasNoCoinText()
+    local data = ns.Calculator:EvaluateCalculatorExpression("2 + 3")
+    H.assertNil(data.calculatorResultShown)
+    H.assertNil(data.calculatorExpressionShown)
+end
+
+function tests.theCardAndTheWindow_drawTheCoins()
+    local function Read(rel)
+        local fh = assert(io.open(H.ADDON_ROOT .. "/" .. rel, "rb"))
+        local text = fh:read("*a")
+        fh:close()
+        return text
+    end
+    local card = Read("Search/Results/Render/Widgets.lua")
+    H.assertTrue(card:find("data.calculatorResultShown or data.calculatorResult", 1, true) ~= nil, "the card's result")
+    H.assertTrue(card:find("data.calculatorExpressionShown or", 1, true) ~= nil, "the card's expression")
+    local popup = Read("Apps/Calc/Popup.lua")
+    local _, shown = popup:gsub("resultText:SetText%(data%.calculatorResultShown or data%.calculatorResult%)", "")
+    H.assertEq(shown, 2, "the full calculator's result")
+end
+
 local pass, fail, failures = H.runSuite("Calculator", tests)
 return { pass = pass, fail = fail, failures = failures }
