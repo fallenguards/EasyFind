@@ -178,6 +178,7 @@ Search/Results/RowActions.lua
 Search/Results/Rows/Tooltips.lua
 Search/Results/Rows/ResultButton.lua
 Search/Results/Navigation.lua
+Search/Results/Grids.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua
 MapSearch/Zones/Highlight.lua

@@ -272,10 +272,7 @@ function Results:HideResults()
     Search:StopActiveKeybindCapture()
     self:ClearCalculatorCopyHighlight()
     self:ReleaseCalculatorCopyBox()
-    if self.HideIconGrid then
-        self:HideIconGrid()
-        self:ReleaseIconGridMemory()
-    end
+    self:HideGrids(true)
     -- Don't kill an active nav-repeat ticker from inside HideResults.
     -- History:IsPreservingNavRepeat covers the synchronous
     -- NavigateSearchHistory window. The IsAltNavRepeatKey check covers the
@@ -430,8 +427,8 @@ function Results:MoveSelection(delta, skipRefocus, keepRepeat)
     if not ResultsFrame() or not ResultsFrame():IsShown() then return false end
     -- The icon grid owns the panel: every vertical-motion caller (DOWN/UP,
     -- Alt+J/K, PageUp/Down, held repeats) becomes a row move on the grid.
-    if self.IsIconGridShown and self:IsIconGridShown() then
-        return self:MoveIconGridFocus(0, delta)
+    if self:IsGridShown() then
+        return self:MoveGridFocus(0, delta)
     end
     local visibleCount = self:CountVisibleResults()
     if visibleCount == 0 then return false end
@@ -465,8 +462,8 @@ function Results:MoveSelection(delta, skipRefocus, keepRepeat)
 end
 
 function Results:JumpToStart()
-    if self.IsIconGridNavActive and self:IsIconGridNavActive() then
-        return self:JumpIconGridFocus(false)
+    if self:IsGridNavActive() then
+        return self:JumpGridFocus(false)
     end
     local visibleCount = self:CountVisibleResults()
     if visibleCount > 0 then
@@ -482,8 +479,8 @@ function Results:JumpToStart()
 end
 
 function Results:JumpToEnd()
-    if self.IsIconGridNavActive and self:IsIconGridNavActive() then
-        return self:JumpIconGridFocus(true)
+    if self:IsGridNavActive() then
+        return self:JumpGridFocus(true)
     end
     local visibleCount = self:CountVisibleResults()
     if visibleCount > 0 then
@@ -495,8 +492,8 @@ end
 
 function Results:JumpToNextSection(direction)
     -- No sections on the icon grid; the closest jump is a page.
-    if self.IsIconGridNavActive and self:IsIconGridNavActive() then
-        return self:MoveIconGridFocus(0, direction * 5)
+    if self:IsGridNavActive() then
+        return self:MoveGridFocus(0, direction * 5)
     end
     local visibleCount = self:CountVisibleResults()
     if visibleCount == 0 then return end
@@ -673,8 +670,8 @@ end
 
 function Results:ActivateSelected(source)
     -- Enter on the grid's focused cell = the left-click action (the cell menu).
-    if self.IsIconGridNavActive and self:IsIconGridNavActive() then
-        if self:ActivateIconGridFocus() then return end
+    if self:IsGridNavActive() then
+        if self:ActivateGridFocus() then return end
     end
     if Search:GetSelectedIndex() > 0 and Search:GetSelectedIndex() <= MAX_BUTTON_POOL then
         local resultRow = Search:GetResultButtons()[Search:GetSelectedIndex()]

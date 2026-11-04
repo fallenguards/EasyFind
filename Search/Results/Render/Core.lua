@@ -32,6 +32,13 @@ local deferredRepRefreshPending = false
 local renderGen = 0
 local repDeferredJustRan = false
 
+-- A grid took the panel: the list's later pass and its scroll window place
+-- no more rows over it, and the next list renders in full.
+function Render:RetireRows()
+    renderGen = renderGen + 1
+    self._lastRenderSig = nil
+end
+
 -- Each render step's ms over the rows, for the lag probe (it reads and
 -- wipes): rows in view, and the rows laid out a frame later.
 local parts = { now = {}, later = {} }
@@ -636,11 +643,11 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if not resultsFrame then return end
     PartStart(false)
 
-    -- Leaving the @icons grid: it hid the row pool, so the render-skip
-    -- signature must be busted or an "identical" list would early-return
-    -- with every row still hidden under a now-hidden grid.
-    if Results.IsIconGridShown and Results:IsIconGridShown() then
-        Results:HideIconGrid()
+    -- Leaving a grid: it hid the row pool, so the render-skip signature
+    -- must be busted or an "identical" list would early-return with every
+    -- row still hidden under a now-hidden grid.
+    if Results:IsGridShown() then
+        Results:HideGrids()
         self._lastRenderSig = nil
     end
 

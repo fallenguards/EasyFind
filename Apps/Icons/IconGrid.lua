@@ -365,19 +365,7 @@ function Results:ShowIconGrid(query)
 
     -- Previous row render stays painted otherwise (the grid host is
     -- transparent; the container's backdrop is the shared background).
-    local buttons = Search:GetResultButtons()
-    if buttons then
-        for i = 1, #buttons do
-            if buttons[i] then buttons[i]:Hide() end
-        end
-    end
-    if resultsFrame.pinSeparator then resultsFrame.pinSeparator:Hide() end
-    if resultsFrame.categorySeps then
-        for si = 1, #resultsFrame.categorySeps do
-            resultsFrame.categorySeps[si]:Hide()
-        end
-    end
-    Search:ClearResultShortcutBindings()
+    Results:ClearRowsForGrid(resultsFrame)
 
     -- Same paddings the row renderer computes, so the grid sits exactly
     -- where rows would.
@@ -437,7 +425,10 @@ function Results:ShowIconGrid(query)
     Repaint()
 end
 
-function Results:HideIconGrid()
+-- The grid's handlers for the panel's grid layer (Search/Results/Grids.lua).
+local Grid = {}
+
+function Grid.Hide()
     if host and host:IsShown() then
         host:Hide()
         host.countText:Hide()
@@ -448,13 +439,13 @@ function Results:HideIconGrid()
     end
 end
 
-function Results:IsIconGridShown()
+function Grid.IsShown()
     return host and host:IsShown() or false
 end
 
 -- Release the 33k-entry filter array when the grid is dismissed for a
 -- while; rebuilt on the next @icons use.
-function Results:ReleaseIconGridMemory()
+function Grid.ReleaseMemory()
     -- Fresh table, not wipe(): a 33k-entry pass leaves capacity behind.
     filtered = {}
     filteredN = 0
@@ -464,7 +455,7 @@ end
 
 -- ==== Keyboard navigation (the bar's nav system routes here) ============
 
-function Results:IsIconGridNavActive()
+function Grid.IsNavActive()
     return navIndex > 0 and host ~= nil and host:IsShown()
 end
 
@@ -482,7 +473,7 @@ local function GridNavShow()
     Repaint()
 end
 
-function Results:ExitIconGridNav(refocus)
+function Grid.ExitNav(refocus)
     if navIndex == 0 then return end
     navIndex = 0
     if host and host:IsShown() then Repaint() end
@@ -499,7 +490,7 @@ end
 -- dCol/dRow move the focus; entering (nav off) lands on the first visible
 -- cell. Moving up past the top row exits back to the editbox, mirroring
 -- the row list's boundary behavior. Returns true when focus moved.
-function Results:MoveIconGridFocus(dCol, dRow)
+function Grid.MoveFocus(dCol, dRow)
     if filteredN == 0 then return false end
     if navIndex == 0 then
         -- Set BEFORE ClearFocus: the editbox focus-lost handler treats an
@@ -514,7 +505,7 @@ function Results:MoveIconGridFocus(dCol, dRow)
     end
     local target = navIndex + dCol + dRow * gridCols
     if dRow < 0 and target < 1 then
-        self:ExitIconGridNav(true)
+        Grid.ExitNav(true)
         return true
     end
     if target < 1 then target = 1 end
@@ -525,7 +516,7 @@ function Results:MoveIconGridFocus(dCol, dRow)
     return true
 end
 
-function Results:JumpIconGridFocus(toEnd)
+function Grid.JumpFocus(toEnd)
     if filteredN == 0 then return end
     navIndex = toEnd and filteredN or 1
     GridNavShow()
@@ -539,21 +530,21 @@ local function FocusedCell()
 end
 
 -- Enter on the focused cell = the click: its menu.
-function Results:ActivateIconGridFocus()
-    return self:OpenIconGridFocusMenu()
+function Grid.ActivateFocus()
+    return Grid.OpenFocusMenu()
 end
 
 -- Ctrl+C with the keyboard on the focused cell: arm the copy for it (the
 -- chord that follows is the native copy), same as a selected result row.
-function Results:ArmIconGridFocusCopy()
-    if not self:IsIconGridNavActive() then return false end
+function Grid.ArmFocusCopy()
+    if not Grid.IsNavActive() then return false end
     local cellBtn = FocusedCell()
     if not (cellBtn and ns.RowCopy) then return false end
     return ns.RowCopy:ArmFor(cellBtn)
 end
 
-function Results:OpenIconGridFocusMenu()
-    if not self:IsIconGridNavActive() then return false end
+function Grid.OpenFocusMenu()
+    if not Grid.IsNavActive() then return false end
     local cellBtn = FocusedCell()
     if not cellBtn then return false end
     ShowCellMenu(cellBtn, true)
@@ -584,3 +575,5 @@ end
 -- The extension's tile stands in core (Core/Extensions.lua) before this
 -- loads; its surface is the @icons grid in the results.
 EasyFind.API.RegisterExtension({ id = "icons", scope = "icons" })
+
+ns.RegisterResultGrid(Grid)

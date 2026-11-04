@@ -689,7 +689,7 @@ function Search:CreateSearchFrame()
         -- is handled by resultsFrame's GLOBAL_MOUSE_DOWN handler. Grid
         -- nav is the same yank (its focus index is set before ClearFocus).
         if selectedIndex > 0 then return end
-        if Results.IsIconGridNavActive and Results:IsIconGridNavActive() then return end
+        if Results:IsGridNavActive() then return end
         -- Click on a guard frame (results, dropdown, popups) keeps
         -- the results visible. Anywhere else (including empty world)
         -- hides them in one click instead of needing a second click
@@ -868,9 +868,9 @@ function Search:CreateSearchFrame()
 
         -- Enter with the icon grid open: focus the first visible cell,
         -- the grid's equivalent of "focus the first result".
-        if Results.IsIconGridShown and Results:IsIconGridShown()
-           and not (Results.IsIconGridNavActive and Results:IsIconGridNavActive()) then
-            Results:MoveIconGridFocus(0, 1)
+        if Results:IsGridShown()
+           and not (Results:IsGridNavActive()) then
+            Results:MoveGridFocus(0, 1)
             return
         end
         -- Enter on the search bar: focus the first result. Prefer the
@@ -1126,8 +1126,8 @@ function Search:CreateSearchFrame()
     local function MoveDown1() Results:MoveSelection(1) end
     local function MoveDown5() Results:MoveSelection(5) end
     local function MoveUp5() Results:MoveSelection(-5) end
-    local function GridFocusLeft() Results:MoveIconGridFocus(-1, 0) end
-    local function GridFocusRight() Results:MoveIconGridFocus(1, 0) end
+    local function GridFocusLeft() Results:MoveGridFocus(-1, 0) end
+    local function GridFocusRight() Results:MoveGridFocus(1, 0) end
     -- Results-above mode: UP from the editbox should land on the LAST row
     -- (visually closest to the search bar), then step up from there as the
     -- key continues to be held. Asymmetric with the below-mode case, which
@@ -1138,7 +1138,7 @@ function Search:CreateSearchFrame()
         -- selectedIndex stays 0: keep stepping instead of re-jumping to
         -- the end on every held tick.
         if selectedIndex == 0
-           and not (Results.IsIconGridNavActive and Results:IsIconGridNavActive()) then
+           and not (Results:IsGridNavActive()) then
             Results:JumpToEnd()
         else
             Results:MoveSelection(-1, true, true)
@@ -1159,7 +1159,7 @@ function Search:CreateSearchFrame()
         -- RELEASE must not snap focus back to the editbox mid-navigation
         -- (that refocus was why every key after the first Down landed in
         -- the editbox: UP walked history, LEFT/RIGHT moved the caret).
-        if Results.IsIconGridNavActive and Results:IsIconGridNavActive() then return end
+        if Results:IsGridNavActive() then return end
         if not searchFrame or not searchFrame:IsShown() then return end
         if not editBox then return end
         -- Restore the original MaxLetters that the alt-nav lock saved
@@ -1216,7 +1216,7 @@ function Search:CreateSearchFrame()
         -- Grid nav keeps selectedIndex at 0 (it has its own focus index);
         -- without this check UP inside the grid fell through to history.
         if selectedIndex > 0
-           or (Results.IsIconGridNavActive and Results:IsIconGridNavActive()) then
+           or (Results:IsGridNavActive()) then
             return Results:MoveSelection(-1, true, true)
         end
         RefocusEditBoxForHistoryNav()
@@ -1325,8 +1325,8 @@ function Search:CreateSearchFrame()
                 -- the toolbar ring: the ring's focus is invisible next to
                 -- a full-panel grid, so this read as Tab doing nothing.
                 -- A second Tab on the focused cell opens its context menu.
-                if Results.IsIconGridShown and Results:IsIconGridShown()
-                   and Results.MoveIconGridFocus and Results:MoveIconGridFocus(0, 0) then
+                if Results:IsGridShown()
+                   and Results:MoveGridFocus(0, 0) then
                     return
                 end
                 self._menuUnfocus = true
@@ -1564,7 +1564,7 @@ function Search:CreateSearchFrame()
                 ns.RowCopy:ArmFor(resultButtons[selectedIndex], IsShiftKeyDown())
                 return
             end
-            if Results.ArmIconGridFocusCopy and Results:ArmIconGridFocusCopy() then
+            if Results:ArmGridFocusCopy() then
                 return
             end
         end
@@ -1589,15 +1589,15 @@ function Search:CreateSearchFrame()
         elseif alt and key == "L" then
             -- On the grid, H/L are horizontal moves (vim left/right);
             -- everywhere else they cycle focus like Tab/Shift+Tab.
-            if Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
-                Results:MoveIconGridFocus(1, 0)
+            if Results:IsGridNavActive() then
+                Results:MoveGridFocus(1, 0)
             else
                 CycleFocus(false)
             end
             return
         elseif alt and key == "H" then
-            if Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
-                Results:MoveIconGridFocus(-1, 0)
+            if Results:IsGridNavActive() then
+                Results:MoveGridFocus(-1, 0)
             else
                 CycleFocus(true)
             end
@@ -1605,7 +1605,7 @@ function Search:CreateSearchFrame()
         end
 
         if (key == "LEFT" or key == "RIGHT")
-           and Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
+           and Results:IsGridNavActive() then
             StartKeyRepeat(key, key == "LEFT" and GridFocusLeft or GridFocusRight)
             return
         end
@@ -1712,8 +1712,8 @@ function Search:CreateSearchFrame()
             end
             -- Tab on the grid's focused cell = its context menu, exactly
             -- like Tab on a focused result row.
-            if not shift and Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
-                if Results:OpenIconGridFocusMenu() then
+            if not shift and Results:IsGridNavActive() then
+                if Results:OpenGridFocusMenu() then
                     if searchFrame.StopKeyRepeat then searchFrame.StopKeyRepeat() end
                     return
                 end
@@ -1749,8 +1749,8 @@ function Search:CreateSearchFrame()
                 toggleFocused = false
                 Results:UpdateSelectionHighlight(true)
             end
-            if Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
-                Results:ExitIconGridNav(false)
+            if Results:IsGridNavActive() then
+                Results:ExitGridNav(false)
             end
             Utils.SafeCallMethod(navFrame, "EnableKeyboard", false)
             if searchFrame.StopKeyRepeat then searchFrame.StopKeyRepeat() end
@@ -1759,7 +1759,7 @@ function Search:CreateSearchFrame()
             -- If no selection and editbox isn't focused, let the key propagate
             -- to the game (e.g. WASD movement) instead of typing into the bar.
             if selectedIndex == 0 and not searchFrame.editBox:HasFocus()
-               and not (Results.IsIconGridNavActive and Results:IsIconGridNavActive()) then
+               and not (Results:IsGridNavActive()) then
                 Utils.SafeCallMethod(navFrame, "SetPropagateKeyboardInput", true)
                 return
             end
@@ -1840,7 +1840,7 @@ function Search:CreateSearchFrame()
             or key == "ESCAPE" then
             consume = true
         elseif (key == "LEFT" or key == "RIGHT")
-            and Results.IsIconGridNavActive and Results:IsIconGridNavActive() then
+            and Results:IsGridNavActive() then
             -- Horizontal moves only exist on the icon grid; everywhere else
             -- LEFT stays a game key (turning).
             consume = true
@@ -1852,7 +1852,7 @@ function Search:CreateSearchFrame()
             consume = true
         elseif key == "C" and IsControlKeyDown() and ns.RowCopy
             and ((selectedIndex > 0 and ns.RowCopy:CanCopy(resultButtons[selectedIndex], IsShiftKeyDown()))
-                or (Results.IsIconGridNavActive and Results:IsIconGridNavActive())) then
+                or (Results:IsGridNavActive())) then
             consume = true
         elseif IsAltKeyDown() and (key == "J" or key == "K" or key == "L" or key == "H") then
             consume = true
