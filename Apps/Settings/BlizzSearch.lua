@@ -2074,10 +2074,11 @@ local TOGGLE_BINDING_STATE = {
             end
         end,
     },
+    -- The toggle's own state: another addon's tracker keeps Era's quest
+    -- watch hidden either way.
     EASYFIND_TOGGLEOBJECTIVETRACKER = {
         get = function()
-            local tracker = _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
-            return tracker and tracker:IsShown()
+            return not (EasyFind and EasyFind.db and EasyFind.db.objectiveTrackerHidden)
         end,
         run = function()
             if EasyFind and EasyFind.ToggleObjectiveTracker then

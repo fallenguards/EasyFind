@@ -1796,18 +1796,61 @@ local function TrackerFrame()
     -- happened there, 2026-10-28).
     return _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
 end
-local trackerHideWatch, trackerEditModeWatch
+-- Trackers extensions register (API.RegisterTrackerPiece): frame -> its
+-- owner's show function, or true.
+local trackerPieces, pieceWatches = {}, {}
+-- What the toggle hid, shown again by the next one: a frame its owner keeps
+-- hidden (Era's quest watch under another tracker) stays so.
+local trackerStash = {}
+local trackerHideWatch, trackerEditModeWatch, trackerCombatWatch
+local ApplyTracker
+-- A tracker holding quest item buttons (secure) moves only out of combat.
+local function Locked(frame)
+    return InCombatLockdown() and frame:IsProtected()
+end
+local function AfterCombat()
+    if not trackerCombatWatch then
+        trackerCombatWatch = CreateFrame("Frame")
+        trackerCombatWatch:SetScript("OnEvent", function(self)
+            self:UnregisterAllEvents()
+            ApplyTracker()
+        end)
+    end
+    trackerCombatWatch:RegisterEvent("PLAYER_REGEN_ENABLED")
+end
+local function Stash(frame)
+    if not frame:IsShown() then return end
+    if Locked(frame) then return AfterCombat() end
+    frame:Hide()
+    trackerStash[frame] = true
+end
 local function HideTracker()
     local manager = _G["EditModeManagerFrame"]
     if manager and manager:IsShown() then return end
     local t = TrackerFrame()
-    if t and t:IsShown() then t:Hide() end
+    if t then Stash(t) end
+    for frame in pairs(trackerPieces) do Stash(frame) end
     EasyFind.API.Fire("easyfind", "trackerChanged")
+end
+local function ShowTracker()
+    for frame in pairs(trackerStash) do
+        if Locked(frame) then
+            AfterCombat()
+        else
+            trackerStash[frame] = nil
+            local show = trackerPieces[frame]
+            if type(show) == "function" then xpcall(show, ns.Utils.ErrorHandler) else frame:Show() end
+        end
+    end
+    EasyFind.API.Fire("easyfind", "trackerChanged")
+end
+ApplyTracker = function()
+    if EasyFind.db.objectiveTrackerHidden then HideTracker() else ShowTracker() end
 end
 local function RehideTracker()
     if EasyFind.db.objectiveTrackerHidden then ns.Utils.SafeAfter(0, HideTracker) end
 end
-local function KeepTrackerHidden()
+local function WatchTracker()
     -- Quest changes and edit mode show the tracker again: a child of ours
     -- under it hears each show, one under the edit mode manager its close.
     -- Watched, never hooked.
@@ -1816,29 +1859,48 @@ local function KeepTrackerHidden()
         trackerHideWatch = CreateFrame("Frame", nil, t)
         trackerHideWatch:SetScript("OnShow", RehideTracker)
     end
+    -- An extension's tracker shown by its owner's update: hidden in that
+    -- same frame, so it never flashes.
+    for frame in pairs(trackerPieces) do
+        if not pieceWatches[frame] then
+            pieceWatches[frame] = CreateFrame("Frame", nil, frame)
+            pieceWatches[frame]:SetScript("OnShow", function()
+                if EasyFind.db.objectiveTrackerHidden then Stash(frame) end
+            end)
+        end
+    end
     local manager = _G["EditModeManagerFrame"]
     if manager and not trackerEditModeWatch then
         trackerEditModeWatch = CreateFrame("Frame", nil, manager.Border or manager)
         trackerEditModeWatch:SetScript("OnHide", RehideTracker)
     end
-    ns.Utils.SafeAfter(0, HideTracker)
 end
 
 function EasyFind:RestoreObjectiveTrackerHidden()
-    if EasyFind.db.objectiveTrackerHidden then KeepTrackerHidden() end
+    if not EasyFind.db.objectiveTrackerHidden then return end
+    WatchTracker()
+    ns.Utils.SafeAfter(0, HideTracker)
+end
+
+function ns.AddTrackerPiece(frame, show)
+    trackerPieces[frame] = show or true
+    if EasyFind.db and EasyFind.db.objectiveTrackerHidden then
+        WatchTracker()
+        HideTracker()
+    end
 end
 
 function EasyFind:ToggleObjectiveTracker()
-    local t = TrackerFrame()
-    if not t then return end
+    if not TrackerFrame() then return end
     if EasyFind.db.objectiveTrackerHidden then
         EasyFind.db.objectiveTrackerHidden = nil
-        t:Show()
-        EasyFind.API.Fire("easyfind", "trackerChanged")
+        ShowTracker()
         return
     end
     EasyFind.db.objectiveTrackerHidden = true
-    KeepTrackerHidden()
+    WatchTracker()
+    -- Now, not a frame later: the row draws its check mark again in this one.
+    HideTracker()
 end
 
 function EasyFind:OpenOptions()

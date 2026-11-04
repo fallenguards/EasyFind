@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 8 }
+local API = { VERSION = 1, MINOR = 9 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -1434,6 +1434,15 @@ function API.RegisterChatPiece(frame)
     ns.chatPieces = ns.chatPieces or {}
     ns.chatPieces[frame] = true
     if EasyFind.db and EasyFind.db.chatFramesHidden then EasyFind:RestoreChatFramesHidden() end
+end
+
+-- A quest tracker standing in for the game's: hidden and shown with it by
+-- the "Toggle Objective Tracker" entry (MINOR 9); show brings it back the
+-- owner's way.
+function API.RegisterTrackerPiece(frame, show)
+    if type(frame) ~= "table" or not frame.Hide then Fail("RegisterTrackerPiece", "expects a frame") end
+    if show ~= nil and type(show) ~= "function" then Fail("RegisterTrackerPiece", "show must be a function") end
+    ns.AddTrackerPiece(frame, show)
 end
 
 function API.IsSettingsOpen(id)

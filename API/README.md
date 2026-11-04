@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -483,6 +483,10 @@ A row with a `control` is changed where it stands, as the game's own settings ar
 ## Beside the chat
 
 A button or opener you place beside the game's chat goes with it when the user hides the chat through EasyFind's "Toggle Chat Frame" entry: `RegisterChatPiece(frame)` hides and shows it along with the chat frames, and hides it right away when the chat is already hidden.
+
+## In place of the quest tracker
+
+A quest tracker of yours that stands in for the game's goes with it when the user hides the tracker through EasyFind's "Toggle Objective Tracker" entry: `RegisterTrackerPiece(frame, show)` hides it while the tracker is hidden, again in the same frame each time you show it, and only out of combat while it holds quest item buttons. The next toggle shows it again through `show()` when you give one, so your own rules (hidden in instances, nothing tracked) still decide; else through `frame:Show()` (MINOR 9).
 
 ## Looking like EasyFind
 

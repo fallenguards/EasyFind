@@ -90,8 +90,12 @@ local function load()
     env.EasyFind._ns = ns
     env.EasyFind.ToggleChatFrames = function() env.ChatFrame1:SetShown(not env.ChatFrame1:IsShown()) end
     env.ObjectiveTrackerFrame = Frame(true)
+    -- Its check mark reads the toggle's setting (Core/Main.lua).
+    env.EasyFind.db = env.EasyFind.db or {}
     env.EasyFind.ToggleObjectiveTracker = function()
-        env.ObjectiveTrackerFrame:SetShown(not env.ObjectiveTrackerFrame:IsShown())
+        local db = env.EasyFind.db
+        if db.objectiveTrackerHidden then db.objectiveTrackerHidden = nil else db.objectiveTrackerHidden = true end
+        env.ObjectiveTrackerFrame:SetShown(not db.objectiveTrackerHidden)
     end
     H.loadModule("Search/Openers.lua", env, ns)
     H.loadModule("Apps/Settings/BlizzSearch.lua", env, ns)

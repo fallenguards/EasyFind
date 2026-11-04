@@ -334,6 +334,15 @@ function API.RefreshSettingsIndex(addon) end
 ---@param frame Frame
 function API.RegisterChatPiece(frame) end
 
+-- ==== quest tracker ===========================================================
+
+-- A quest tracker of yours that stands in for the game's: hidden and shown
+-- with it by "Toggle Objective Tracker" (MINOR 9). show, when given, brings
+-- it back your way instead of frame:Show().
+---@param frame Frame
+---@param show? fun()
+function API.RegisterTrackerPiece(frame, show) end
+
 -- ==== theme and look ==========================================================
 
 ---@param role EasyFindThemeRole
