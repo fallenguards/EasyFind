@@ -58,6 +58,7 @@ local DB_DEFAULTS = {
     tutorialDone = false,
     updateNotify = true,
     hideExtensionTips = false,
+    showForeverWelcome = true,
     snippets = {},
     snippetChatExpansion = true,
     -- Quicklists: named lists of results on a key (the companion reads these).
@@ -661,6 +662,8 @@ local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"
 local PAGE_LINK_PREFIX = "easyfind:page:"
 local EXTENSIONS_LINK = "easyfind:extensions"
+local BUG_REPORT_LINK = "easyfind:bugreport"
+local FOREVER_WELCOME_OFF_LINK = "easyfind:foreverwelcomeoff"
 local whatsNewHookInstalled = false
 
 local function InstallWhatsNewHyperlinkHook()
@@ -685,6 +688,13 @@ local function InstallWhatsNewHyperlinkHook()
             ns.ShowExtensionPage(link:sub(#PAGE_LINK_PREFIX + 1))
         elseif link == EXTENSIONS_LINK then
             ns.ShowExtensionPages()
+        elseif link == BUG_REPORT_LINK then
+            OpenBugReport()
+        elseif link == FOREVER_WELCOME_OFF_LINK then
+            ns.ShowThemedDialog({
+                text = L["FOREVER_WELCOME_HIDE_ASK"], acceptText = _G["HIDE"] or "Hide",
+                onAccept = function() EasyFind.db.showForeverWelcome = false end,
+            })
         end
     end)
 end
@@ -703,6 +713,17 @@ ns.BlueChatLink = BlueChatLink
 -- login is worse than none. One line, one link; nothing else changes.
 function ns.OfferTutorialInChat()
     print(ns.CHAT_LOGO .. sformat(L["TUTORIAL_CHAT_OFFER"], BlueChatLink(TUTORIAL_LINK_PREFIX, L["WHATSNEW_CHAT_HERE"])))
+end
+
+-- WoW Forever is a new client: at every login, a word on its bugs and a
+-- link to the bug report form, until the player hides it (its own link, or
+-- Options > General).
+local function WelcomeForever()
+    if not (ns.Caps and ns.Caps.forever) or EasyFind.db.showForeverWelcome == false then return end
+    Utils.SafeAfter(2.5, function()
+        print(ns.CHAT_LOGO .. sformat(L["FOREVER_WELCOME"], BlueChatLink(BUG_REPORT_LINK, L["WHATSNEW_CHAT_HERE"]))
+            .. " " .. BlueChatLink(FOREVER_WELCOME_OFF_LINK, L["FOREVER_WELCOME_HIDE"]))
+    end)
 end
 
 -- Whether the wizard may open on its own on this client.
@@ -1343,6 +1364,7 @@ local function OnPlayerLogin()
         end
         EasyFind.db.lastSeenVersion = currentVersion
     end
+    WelcomeForever()
 
     EasyFindDB.accountKeybinds = EasyFindDB.accountKeybinds or {}
     -- One-time import of binds made through the retired native Bindings.xml:

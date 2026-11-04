@@ -31,6 +31,8 @@ local ALLOWED = {
     ["Core/Main.lua|ERR_MODULE_INIT_FAILED"] = { 1, "error" },
     ["Core/Main.lua|ERR_OPTIONS_REGISTER_FAILED"] = { 1, "error" },
     ["Core/Main.lua|TUTORIAL_CHAT_OFFER"] = { 1, "release" },
+    -- WoW Forever is a new client: once per account, where to report its bugs.
+    ["Core/Main.lua|FOREVER_WELCOME"] = { 1, "release" },
     ["Core/Main.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
     -- The upgrade notice; and Notes asked for with none installed, once a session.
     ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 2, "release" },

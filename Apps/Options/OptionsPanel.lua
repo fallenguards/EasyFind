@@ -203,6 +203,9 @@ local function SyncOptionControls()
     if optionsFrame.minimapBtnCheckbox then optionsFrame.minimapBtnCheckbox:SetChecked(EasyFind.db.showMinimapButton ~= false) end
     if optionsFrame.updateNotifyCheckbox then optionsFrame.updateNotifyCheckbox:SetChecked(EasyFind.db.updateNotify ~= false) end
     if optionsFrame.extTipsCheckbox then optionsFrame.extTipsCheckbox:SetChecked(EasyFind.db.hideExtensionTips == true) end
+    if optionsFrame.foreverWelcomeCheckbox then
+        optionsFrame.foreverWelcomeCheckbox:SetChecked(EasyFind.db.showForeverWelcome ~= false)
+    end
     if optionsFrame.rareTrackCheckbox then optionsFrame.rareTrackCheckbox:SetChecked(EasyFind.db.alwaysShowRares or false) end
 
     if optionsFrame.mapTabShowRecentCheckbox then optionsFrame.mapTabShowRecentCheckbox:SetChecked(EasyFind.db.mapTabShowRecent ~= false) end
@@ -1582,7 +1585,20 @@ local function BuildGeneralBindsTab(ctx)
     end)
     optionsFrame.extTipsCheckbox = extTipsCheckbox
 
-    local themeRow, themeLabel = CreateSelectorRow(extTipsCheckbox, L["OPT_UI_THEME"])
+    -- WoW Forever's login welcome; no such line elsewhere.
+    local lastGeneralCheckbox = extTipsCheckbox
+    if ns.Caps and ns.Caps.forever then
+        local foreverWelcomeCheckbox = CreateCheckbox(sec3, "ForeverWelcome", L["OPT_FOREVER_WELCOME"])
+        foreverWelcomeCheckbox:SetPoint("TOPLEFT", extTipsCheckbox, "BOTTOMLEFT", 0, -2)
+        foreverWelcomeCheckbox:SetChecked(EasyFind.db.showForeverWelcome ~= false)
+        foreverWelcomeCheckbox:SetScript("OnClick", function(self)
+            EasyFind.db.showForeverWelcome = self:GetChecked() and true or false
+        end)
+        optionsFrame.foreverWelcomeCheckbox = foreverWelcomeCheckbox
+        lastGeneralCheckbox = foreverWelcomeCheckbox
+    end
+
+    local themeRow, themeLabel = CreateSelectorRow(lastGeneralCheckbox, L["OPT_UI_THEME"])
     local themeChoices = ns.UI_THEME_ORDER or { "Midnight" }
     local themeBtnFrame, themeBtnText = CreateFlyoutSelector(
         themeRow, "EasyFindTheme", SELECTOR_BTN_W, themeLabel,

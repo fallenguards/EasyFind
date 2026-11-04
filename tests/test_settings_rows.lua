@@ -78,9 +78,11 @@ local function LabelMatches(label, name)
     return cut ~= nil and cut ~= "" and name:sub(1, #cut) == cut
 end
 
-local function DeclaredRows()
+-- forever: the rows as WoW Forever lists them too (its welcome switch).
+local function DeclaredRows(forever)
     local env, ns = Setup()
     for _, ext in ipairs(ExtensionRows(env, ns)) do ns.SettingsRows.AddExtension(ext[1], ext[2], ext[3]) end
+    if forever then ns.Caps = setmetatable({ forever = true }, { __index = ns.Caps or {} }) end
     return ns.SettingsRows.Rows(), env, ns
 end
 
@@ -118,7 +120,7 @@ end
 -- Every labeled control in the window and every action button it
 -- registers has a row; a control added without one fails here.
 function tests.everyWindowControlIsARow()
-    local rows, _, ns = DeclaredRows()
+    local rows, _, ns = DeclaredRows(true)
     local L = ns.L
     local src = source("Apps/Options/OptionsPanel.lua")
     local missing = {}
