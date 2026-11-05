@@ -43,6 +43,7 @@ local function newBox()
     function box:HookScript(name, fn) self.hooks[name] = fn end
     function box:IsMouseOver() return self.over end
     function box:ClearFocus() self.cleared = self.cleared + 1 end
+    function box:IsForbidden() return false end
     return box
 end
 

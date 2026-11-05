@@ -741,7 +741,7 @@ function Calculator:CopyCalculatorResult(result, source)
 
     local box = self:EnsureCalculatorCopyBox()
     if not Calculator._calculator.copyFocused then
-        local cur = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        local cur = Utils.KeyboardFocus()
         if cur and cur ~= box then
             Calculator._calculator.prevFocus = cur
         end

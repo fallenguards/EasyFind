@@ -2066,15 +2066,9 @@ function Search:CreateSearchFrame()
             if mmBtn and frame == mmBtn then return true end
             return (launchers and launchers[frame]) and true or false
         end
-        if GetMouseFoci then
-            local foci = GetMouseFoci()
-            if foci then
-                for i = 1, #foci do
-                    if IsLauncherTarget(foci[i]) then return end
-                end
-            end
-        elseif GetMouseFocus and IsLauncherTarget(GetMouseFocus()) then
-            return
+        local foci = Utils.MouseFoci()
+        for i = 1, #foci do
+            if IsLauncherTarget(foci[i]) then return end
         end
         if self:IsMouseOver() then return end
         -- The band outside the bar counts as the bar (a drag starts there).

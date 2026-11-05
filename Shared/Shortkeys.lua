@@ -816,7 +816,7 @@ function Shortkeys:AttachComboCapture(btn, get, onCombo, onClear, excludeListID)
         end
         if self.capturing then Stop() return end
         -- Keys go to the button, not a box being typed in.
-        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        local focus = Utils.KeyboardFocus()
         if focus then focus:ClearFocus() end
         self.capturing = true
         self:SetText(L["OPT_KB_PRESS_KEY"])

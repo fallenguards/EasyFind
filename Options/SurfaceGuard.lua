@@ -5,25 +5,7 @@ local Utils = ns.Utils
 
 local function HasMouseFocus(frame)
     if not frame or not frame:IsShown() then return false end
-    if GetMouseFoci then
-        local foci = GetMouseFoci()
-        if foci then
-            for i = 1, #foci do
-                local focus = foci[i]
-                while focus do
-                    if focus == frame then return true end
-                    focus = focus.GetParent and focus:GetParent()
-                end
-            end
-        end
-    elseif GetMouseFocus then
-        local focus = GetMouseFocus()
-        while focus do
-            if focus == frame then return true end
-            focus = focus.GetParent and focus:GetParent()
-        end
-    end
-    return false
+    return Utils.MouseFocusOwnedBy(frame)
 end
 
 local function IsInside(frame)

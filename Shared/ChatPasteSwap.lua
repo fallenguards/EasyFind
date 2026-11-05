@@ -36,7 +36,7 @@ loginFrame:SetScript("OnEvent", function(self)
     -- A ticker, not a per-frame script: the poll is ten times a second.
     local lastFocus
     C_Timer.NewTicker(0.1, function()
-        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        local focus = Utils.KeyboardFocus()
         if focus == lastFocus then return end
         lastFocus = focus
         if not focus or focus._efCopyWatch or focus._efPasteSwap then return end

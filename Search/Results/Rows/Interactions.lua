@@ -181,9 +181,8 @@ end
 
 -- Was the click over empty world (free space), not any interactive UI frame?
 local function ClickedFreeSpace()
-    if not GetMouseFoci then return true end
-    local foci = GetMouseFoci()
-    if not foci or #foci == 0 then return true end
+    local foci = Utils.MouseFoci()
+    if #foci == 0 then return true end
     for i = 1, #foci do
         if foci[i] ~= WorldFrame then return false end
     end
@@ -526,21 +525,14 @@ function Rows.InstallInteractions(resultRow, index)
         end
         local cursorType = GetCursorInfo and GetCursorInfo()
         if cursorType then
-            local foci
-            if GetMouseFoci then
-                foci = GetMouseFoci()
-            elseif GetMouseFocus then
-                foci = { GetMouseFocus() }
-            end
-            if foci then
-                for i = 1, #foci do
-                    local f = foci[i]
-                    local slot = f and (f.action or (f.GetAttribute and f:GetAttribute("action")))
-                    if slot then
-                        if PlaceAction then PlaceAction(slot) end
-                        ClearCursor()
-                        return
-                    end
+            local foci = Utils.MouseFoci()
+            for i = 1, #foci do
+                local f = foci[i]
+                local slot = f.action or (f.GetAttribute and f:GetAttribute("action"))
+                if slot then
+                    if PlaceAction then PlaceAction(slot) end
+                    ClearCursor()
+                    return
                 end
             end
         end

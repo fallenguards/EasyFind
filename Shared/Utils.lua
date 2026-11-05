@@ -6181,7 +6181,7 @@ function Utils.ArmClipboardBox(text, link, newClient, icon)
     eb._efCopyIcon = icon
     local outgoing = client
     if not outgoing then
-        local current = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        local current = Utils.KeyboardFocus()
         prevFocus = (current and current ~= eb) and current or nil
         -- Tell the frame we borrow from that focus comes straight back:
         -- the search bar reads this to keep its text, autocomplete
@@ -7559,6 +7559,22 @@ function Utils.IsFrameOrChildMouseOver(frame)
     return false
 end
 
+-- A forbidden frame (Forever's Communities add box) refuses every
+-- method from addon code: these leave such frames out.
+function Utils.KeyboardFocus()
+    local focus = GetCurrentKeyBoardFocus()
+    if focus and not focus:IsForbidden() then return focus end
+    return nil
+end
+
+function Utils.MouseFoci()
+    local foci = GetMouseFoci and GetMouseFoci() or { GetMouseFocus and GetMouseFocus() }
+    for i = #foci, 1, -1 do
+        if foci[i]:IsForbidden() then table.remove(foci, i) end
+    end
+    return foci
+end
+
 -- True when the mouse is on the minimap button or one of the broker
 -- launchers (see brokerLauncherButtons in Core/Main.lua). Those toggle
 -- on mouse-UP, so an outside-click closer must leave them alone or the
@@ -7566,17 +7582,12 @@ end
 function Utils.IsMouseOnLauncherButton()
     local mmBtn = _G["EasyFindMinimapButton"]
     local launchers = ns.brokerLauncherButtons
-    local function Hit(f)
-        return f ~= nil and (f == mmBtn or (launchers ~= nil and launchers[f] == true))
+    local foci = Utils.MouseFoci()
+    for i = 1, #foci do
+        local f = foci[i]
+        if f == mmBtn or (launchers ~= nil and launchers[f] == true) then return true end
     end
-    if GetMouseFoci then
-        local foci = GetMouseFoci()
-        for i = 1, (foci and #foci or 0) do
-            if Hit(foci[i]) then return true end
-        end
-        return false
-    end
-    return (GetMouseFocus ~= nil and Hit(GetMouseFocus())) or false
+    return false
 end
 
 function Utils.IsFrameVisiblyMouseOver(frame)
@@ -7622,7 +7633,7 @@ function Utils.ReleaseFocusOnOutsideClick(box, keep)
         watcher = CreateFrame("Frame")
         Utils._focusWatcher = watcher
         watcher:SetScript("OnEvent", function(self)
-            local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+            local focus = Utils.KeyboardFocus()
             if not (focus and focus._efReleasesFocus) then return end
             if focus:IsMouseOver() or (focus._efFocusKeep and focus._efFocusKeep()) then return end
             focus:ClearFocus()
@@ -7630,7 +7641,7 @@ function Utils.ReleaseFocusOnOutsideClick(box, keep)
     end
     box:HookScript("OnEditFocusGained", function() watcher:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
     box:HookScript("OnEditFocusLost", function()
-        local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+        local focus = Utils.KeyboardFocus()
         if not (focus and focus._efReleasesFocus) then watcher:UnregisterEvent("GLOBAL_MOUSE_DOWN") end
     end)
 end
@@ -8514,25 +8525,18 @@ end
 -- Ground truth for "is the cursor on this menu": the focus stack that actually
 -- receives clicks, walked up so a row (a descendant) counts as the menu. More
 -- reliable than IsMouseOver rectangle math for a just-shown flyout.
-local function MouseFocusOwnedBy(target)
-    local foci = GetMouseFoci and GetMouseFoci()
-    if foci then
-        for i = 1, #foci do
-            local f = foci[i]
-            while f do
-                if f == target then return true end
-                f = f.GetParent and f:GetParent()
-            end
-        end
-    elseif GetMouseFocus then
-        local f = GetMouseFocus()
-        while f do
+function Utils.MouseFocusOwnedBy(target)
+    local foci = Utils.MouseFoci()
+    for i = 1, #foci do
+        local f = foci[i]
+        while f and not f:IsForbidden() do
             if f == target then return true end
-            f = f.GetParent and f:GetParent()
+            f = f:GetParent()
         end
     end
     return false
 end
+local MouseFocusOwnedBy = Utils.MouseFocusOwnedBy
 
 local function CursorMenuHasMouse(self)
     if ns.IsMouseOverWithBand(self) then return true end
