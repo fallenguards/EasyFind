@@ -564,9 +564,9 @@ local function GetTooltipForVariable(variable, displayName)
         return cached ~= false and cached or nil
     end
 
-    if Settings and Settings.GetSetting then
-        local sok, settObj = pcall(Settings.GetSetting, variable)
-        if sok and settObj and settObj.GetTooltip then
+    do
+        local settObj = Utils.FindSetting(variable)
+        if settObj and settObj.GetTooltip then
             local tok, t = pcall(settObj.GetTooltip, settObj)
             if tok and type(t) == "string" and t ~= "" then
                 settingTooltips[variable] = t
@@ -893,9 +893,8 @@ function Apply.Redraw()
 end
 
 function BlizzOptionsSearch:NotePendingApply(variable)
-    if not variable or not Settings or not Settings.GetSetting then return end
-    local sok, settObj = pcall(Settings.GetSetting, variable)
-    if not sok or not settObj then return end
+    local settObj = Utils.FindSetting(variable)
+    if not settObj then return end
     local hasApply
     if settObj.HasCommitFlag and Settings.CommitFlag and Settings.CommitFlag.Apply then
         local hok, has = pcall(settObj.HasCommitFlag, settObj, Settings.CommitFlag.Apply)
@@ -1006,9 +1005,8 @@ function BlizzOptionsSearch:RevertPendingChanges()
 end
 
 function BlizzOptionsSearch:HasPendingChange(variable)
-    if not variable or not Settings or not Settings.GetSetting then return false end
-    local sok, settObj = pcall(Settings.GetSetting, variable)
-    if not sok or not settObj then return false end
+    local settObj = Utils.FindSetting(variable)
+    if not settObj then return false end
     -- pendingValue is non-nil exactly while an Apply-flagged setting is staged.
     -- Do NOT also test GetValue()==pendingValue: GetValue() returns the staged
     -- value for these settings, so that test was always true and hid the row --
@@ -1043,11 +1041,10 @@ local PROXY_DEPENDENTS = {
 
 local function CommitStagedDependents(parentVar)
     local deps = PROXY_DEPENDENTS[parentVar]
-    if not deps or not Settings or not Settings.GetSetting then return end
+    if not deps then return end
     for i = 1, #deps do
-        local depVar = deps[i]
-        local ok, depObj = pcall(Settings.GetSetting, depVar)
-        if ok and depObj and depObj.pendingValue ~= nil and depObj.SetValue then
+        local depObj = Utils.FindSetting(deps[i])
+        if depObj and depObj.pendingValue ~= nil and depObj.SetValue then
             pcall(depObj.SetValue, depObj, depObj.pendingValue, true)
             pendingApplySettings[depObj] = nil
             Apply.NoteFlags(depObj)
@@ -1056,9 +1053,8 @@ local function CommitStagedDependents(parentVar)
 end
 
 function Apply.Commit(variable)
-    if not variable or not Settings or not Settings.GetSetting then return end
-    local sok, settObj = pcall(Settings.GetSetting, variable)
-    if not sok or not settObj or settObj.pendingValue == nil then return end
+    local settObj = Utils.FindSetting(variable)
+    if not settObj or settObj.pendingValue == nil then return end
     local pending = settObj.pendingValue
     local depsFn = PROXY_DEPENDENT_DEFAULTS[variable]
     if depsFn then pcall(depsFn, pending) end
@@ -1141,15 +1137,14 @@ if StaticPopupDialogs and not StaticPopupDialogs["EASYFIND_UNAPPLIED_SETTINGS"] 
 end
 
 function BlizzOptionsSearch:RevertVariable(variable)
-    if not variable or not Settings or not Settings.GetSetting then return end
-    local sok, settObj = pcall(Settings.GetSetting, variable)
-    if not sok or not settObj or settObj.pendingValue == nil then return end
+    local settObj = Utils.FindSetting(variable)
+    if not settObj or settObj.pendingValue == nil then return end
     if settObj.Revert then pcall(settObj.Revert, settObj) end
     pendingApplySettings[settObj] = nil
     local deps = PROXY_DEPENDENTS[variable]
     if deps then
         for i = 1, #deps do
-            local _, depObj = pcall(Settings.GetSetting, deps[i])
+            local depObj = Utils.FindSetting(deps[i])
             if depObj and depObj.pendingValue ~= nil and depObj.Revert then
                 pcall(depObj.Revert, depObj)
                 pendingApplySettings[depObj] = nil
@@ -1858,13 +1853,7 @@ local SETTING_NAME_FALLBACK = {
     PROXY_RAID_PROJECTED_TEXTURES = "Projected Textures",
 }
 
-local function GetRegisteredSetting(variable)
-    if Settings and Settings.GetSetting then
-        local ok, setting = pcall(Settings.GetSetting, variable)
-        if ok and setting then return setting end
-    end
-    return nil
-end
+local function GetRegisteredSetting(variable) return Utils.FindSetting(variable) end
 
 local function IsLiveCVar(variable)
     if not (variable and GetCVar) then return false end
@@ -2101,7 +2090,7 @@ end
 -- writes the CVar (Settings.SetValue raises on an unknown variable).
 local function CVarToggler(cvar)
     return function()
-        local setting = Settings and Settings.GetSetting and Settings.GetSetting(cvar)
+        local setting = Utils.FindSetting(cvar)
         if setting then
             setting:SetValue(not setting:GetValue())
         elseif SetCVar and GetCVar then

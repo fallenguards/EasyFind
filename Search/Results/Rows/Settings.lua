@@ -29,9 +29,9 @@ local function ReadSettingVariable(variable)
         if ok then return value end
         return nil
     end
-    if Settings and Settings.GetSetting then
-        local sok, settObj = pcall(Settings.GetSetting, variable)
-        if sok and settObj and settObj.GetValue then
+    do
+        local settObj = ns.Utils.FindSetting(variable)
+        if settObj and settObj.GetValue then
             local vok, value = pcall(settObj.GetValue, settObj)
             if vok then return value end
         end
@@ -50,9 +50,9 @@ local function WriteSettingVariable(variable, value)
     -- the Settings panel doesn't know about, so a successful SetValue here
     -- means the write actually went somewhere. Settings.SetValue (static)
     -- is a silent no-op for unregistered variables, so we skip it.
-    if Settings and Settings.GetSetting then
-        local sok, settObj = pcall(Settings.GetSetting, variable)
-        if sok and settObj and settObj.SetValue then
+    do
+        local settObj = ns.Utils.FindSetting(variable)
+        if settObj and settObj.SetValue then
             -- Coerce to the setting's declared variable type before
             -- writing. Type mismatches (e.g. passing "1" to a number
             -- setting) make Setting:SetValue silently no-op, which

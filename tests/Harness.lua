@@ -281,7 +281,7 @@ end
 -- (CreateFont, Bindings, frame pools). Tests use a stub that mirrors the
 -- pure-Lua portion of the Utils API. Add to this stub when a tested module
 -- needs a missing field.
-local function buildUtilsStub(clock)
+local function buildUtilsStub(clock, env)
     local Utils = {}
     Utils.pairs = pairs Utils.ipairs = ipairs Utils.type = type
     Utils.select = select Utils.unpack = tunpack Utils.next = next
@@ -374,6 +374,27 @@ local function buildUtilsStub(clock)
         return cm, im
     end
 
+    -- Mirror of the real Utils.FindSetting (Shared/Utils.lua) without its
+    -- two-second map: the test's own registry, read at each call.
+    Utils.FindSetting = function(variable)
+        if variable == nil or not env then return nil end
+        local all = env.SettingsPanel and env.SettingsPanel.settings
+        if type(all) ~= "table" then
+            local settings = env.Settings
+            if not (settings and settings.GetSetting) then return nil end
+            local ok, setting = pcall(settings.GetSetting, variable)
+            return ok and setting or nil
+        end
+        for setting in pairs(all) do
+            local getter = type(setting) == "table" and setting.GetVariable
+            if getter then
+                local ok, name = pcall(getter, setting)
+                if ok and name == variable then return setting end
+            end
+        end
+        return nil
+    end
+
     Utils.SafeOnUpdate = function(frame, handler)
         frame:SetScript("OnUpdate", handler)
     end
@@ -418,7 +439,7 @@ function Harness.newNs(env)
     end
     -- Utils is special: built once with the env's clock so SafeAfter ties
     -- into the deterministic clock for tests.
-    ns.Utils = buildUtilsStub(env and env._clock or Clock.new())
+    ns.Utils = buildUtilsStub(env and env._clock or Clock.new(), env)
     -- Localization table: mirror Shared/Localization.lua's ultimate fallback
     -- (return the key itself) so modules that read L[...] at load time work.
     ns.L = setmetatable({}, { __index = function(_, k) return k end })

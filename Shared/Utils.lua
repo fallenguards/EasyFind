@@ -972,6 +972,39 @@ function Utils.SecureCall(fn, ...)
     return true
 end
 
+-- Settings.GetSetting scans every registered setting per call (SettingsPanel
+-- GetSetting); with many addons our walks and rows ran past the script time limit.
+-- In a block: the file is at Lua's 200-local limit.
+do
+local settingByVariable, settingMapAt = {}, nil
+local SETTING_MAP_SECONDS = 2
+
+-- The registered setting for a variable from one pass over the registry,
+-- refilled when two seconds old; nil when none.
+function Utils.FindSetting(variable)
+    if variable == nil then return nil end
+    local all = SettingsPanel and SettingsPanel.settings
+    if type(all) ~= "table" then
+        if not (Settings and Settings.GetSetting) then return nil end
+        local ok, setting = pcall(Settings.GetSetting, variable)
+        return ok and setting or nil
+    end
+    local now = GetTime and GetTime()
+    if not (settingMapAt and now and now - settingMapAt < SETTING_MAP_SECONDS) then
+        wipe(settingByVariable)
+        for setting in pairs(all) do
+            local getter = type(setting) == "table" and setting.GetVariable
+            if getter then
+                local ok, name = pcall(getter, setting)
+                if ok and name ~= nil then settingByVariable[name] = setting end
+            end
+        end
+        settingMapAt = now
+    end
+    return settingByVariable[variable]
+end
+end
+
 -- Rows of one kind: what every row has stays in proto, and each lazy
 -- field (steps, a subtext) is built from the row on first read and kept.
 -- A row holds only its own fields (a macro row 1309 to 534 bytes).
