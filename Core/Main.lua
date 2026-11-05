@@ -14,7 +14,7 @@ ns.EasyFind = EasyFind
 EasyFind._ns = ns
 -- This release, bumped with the tocs: a load-on-demand companion read in
 -- from newer files than the session began with meets another and stops.
-ns.BUILD = "5.1.1"
+ns.BUILD = "5.2.0"
 
 local eventFrame = CreateFrame("Frame")
 ns.eventFrame = eventFrame
@@ -656,7 +656,7 @@ local SUGGESTED_KEYBINDS = {
 -- with the game, so SetItemRef returns and the post-hook below sees the click.
 -- The release the What's New popup describes: bumped, and the body
 -- rewritten, with every release.
-local WHATSNEW_CONTENT_VERSION = "5.1.1"
+local WHATSNEW_CONTENT_VERSION = "5.2.0"
 
 local WHATSNEW_LINK_PREFIX = "easyfind:whatsnew:"
 local TUTORIAL_LINK_PREFIX = "easyfind:tutorial"

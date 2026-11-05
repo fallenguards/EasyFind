@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r No Classic Era, TBC Anniversary e WoW Forever: para cada espaço de equipamento, os saques de masmorras e raides melhores do que o que você usa e que você já pode equipar\n" ..
+    "    |cff999999-|r Cada saque mostra o chefe e a masmorra; em @alts, cada personagem tem sua própria página Melhorias\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Mostrar as barras de ação 2 a 8 pela barra de busca não bloqueia mais o Modo de Edição\n" ..
-    "    |cff999999-|r No WoW Forever, clicar na caixa de convite das Comunidades não gera mais um erro\n"
+    "    |cff999999-|r Buscar nas configurações não gera mais um erro quando há muitos addons instalados\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

@@ -4,6 +4,17 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.2.0] - 2026-11-05
+
+### Added
+- **@upgrades** (Classic Era, TBC Anniversary, WoW Forever): for each gear slot, what you wear and the dungeon and raid drops that beat it and that you can equip at your level: armor of the type your class wears by then, weapons it uses, stats that suit it. Dungeon drops come first, then raid drops, the next step up first; each names its boss and dungeon, and with the GPS extension a click gives directions to the entrance. Words typed after it narrow the list to a dungeon, a boss or a slot
+- **Upgrades for every character**: each character's page on `@alts` has its own Upgrades, from the gear that character last wore
+
+### Fixed
+- **Searching settings with many addons installed**: no longer stops with a "script ran too long" error
+
+---
+
 ## [5.1.1] - 2026-11-05
 
 ### Fixed

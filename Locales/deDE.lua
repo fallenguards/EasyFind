@@ -301,9 +301,11 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r In Classic Era, TBC Anniversary und WoW Forever: für jeden Ausrüstungsplatz die Dungeon- und Schlachtzugsbeute, die deine Ausrüstung übertrifft und die du jetzt anlegen kannst\n" ..
+    "    |cff999999-|r Jede Beute nennt ihren Boss und Dungeon; unter @alts hat jeder Charakter seine eigene Seite Verbesserungen\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Aktionsleiste 2 bis 8 aus der Suchleiste einzublenden blockiert den Bearbeitungsmodus nicht mehr\n" ..
-    "    |cff999999-|r In WoW Forever löst ein Klick in das Einladungsfeld der Communitys keinen Fehler mehr aus\n"
+    "    |cff999999-|r Die Einstellungssuche löst keinen Fehler mehr aus, wenn viele Addons installiert sind\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

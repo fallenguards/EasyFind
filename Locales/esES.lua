@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r En Classic Era, TBC Anniversary y WoW Forever: para cada ranura de equipo, el botín de mazmorras y bandas que supera lo que llevas y que puedes equiparte ya\n" ..
+    "    |cff999999-|r Cada botín indica su jefe y su mazmorra; en @alts, cada personaje tiene su propia página Mejoras\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Mostrar las barras de acción 2 a 8 desde la barra de búsqueda ya no bloquea el modo de edición\n" ..
-    "    |cff999999-|r En WoW Forever, hacer clic en el cuadro de invitación de Comunidades ya no provoca un error\n"
+    "    |cff999999-|r Buscar en la configuración ya no produce un error cuando hay muchos addons instalados\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

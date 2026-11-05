@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "마이크로 메뉴에 달라붙습�
 L["SHOWME_SAY_TOGGLE"]                  = "클릭하면 열리고 다시 클릭하면 닫힙니다"
 L["SHOWME_SAY_REMOVE"]                  = "여기로 드래그하면 제거됩니다"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r Classic Era, TBC Anniversary, WoW Forever에서: 장비 칸마다 지금 착용한 것보다 좋고 바로 착용할 수 있는 던전 및 공격대 전리품\n" ..
+    "    |cff999999-|r 전리품마다 우두머리와 던전을 표시합니다. @alts에서는 캐릭터마다 업그레이드 페이지가 있습니다\n" ..
     "|cffFFD100\226\128\162|r |cffffffff수정|r\n" ..
-    "    |cff999999-|r 검색창에서 행동 단축바 2~8을 표시해도 더 이상 편집 모드가 막히지 않습니다\n" ..
-    "    |cff999999-|r WoW Forever에서 커뮤니티 초대 입력란을 클릭해도 더 이상 오류가 나지 않습니다\n"
+    "    |cff999999-|r 애드온이 많이 설치되어 있어도 설정 검색에서 더 이상 오류가 발생하지 않습니다\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "별칭 추가"

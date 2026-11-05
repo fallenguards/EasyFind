@@ -330,9 +330,11 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r On Classic Era, TBC Anniversary and WoW Forever: for each gear slot, the dungeon and raid drops that beat what you wear and that you can equip now\n" ..
+    "    |cff999999-|r Each drop names its boss and dungeon; on @alts, every character has its own Upgrades page\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Showing Action Bar 2 to 8 from the search bar no longer leaves Edit Mode blocked\n" ..
-    "    |cff999999-|r On WoW Forever, clicking in the Communities invite box no longer raises an error\n"
+    "    |cff999999-|r Searching settings no longer raises an error when many addons are installed\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

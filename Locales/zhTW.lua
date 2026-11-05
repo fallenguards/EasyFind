@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r 在 Classic Era、TBC Anniversary 和 WoW Forever 中：每個裝備欄位列出比你身上更好、現在就能穿上的地城與團隊副本掉落\n" ..
+    "    |cff999999-|r 每件掉落都註明首領與副本；在 @alts 中，每個角色都有自己的裝備提升頁面\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 從搜尋列顯示快捷列 2 到 8 不再導致編輯模式被鎖定\n" ..
-    "    |cff999999-|r 在 WoW Forever 中，點擊社群邀請框不再出錯\n"
+    "    |cff999999-|r 安裝了大量插件時，搜尋設定不再出錯\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r Su Classic Era, TBC Anniversary e WoW Forever: per ogni spazio dell'equipaggiamento, il bottino di spedizioni e incursioni migliore di ciò che indossi e che puoi equipaggiare subito\n" ..
+    "    |cff999999-|r Ogni bottino indica il suo boss e la sua spedizione; in @alts ogni personaggio ha la sua pagina Miglioramenti\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Mostrare le barre delle azioni da 2 a 8 dalla barra di ricerca non blocca più la modalità modifica\n" ..
-    "    |cff999999-|r Su WoW Forever, fare clic nel campo di invito delle Comunità non causa più un errore\n"
+    "    |cff999999-|r La ricerca nelle impostazioni non genera più un errore quando sono installati molti addon\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

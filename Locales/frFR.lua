@@ -299,9 +299,11 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
+    "    |cff999999-|r Sur Classic Era, TBC Anniversary et WoW Forever : pour chaque emplacement d'équipement, le butin de donjons et de raids meilleur que ce que vous portez et que vous pouvez équiper dès maintenant\n" ..
+    "    |cff999999-|r Chaque butin indique son boss et son donjon ; dans @alts, chaque personnage a sa propre page Améliorations\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Afficher les barres d'action 2 à 8 depuis la barre de recherche ne bloque plus le mode Édition\n" ..
-    "    |cff999999-|r Sur WoW Forever, cliquer dans le champ d'invitation des Communautés ne provoque plus d'erreur\n"
+    "    |cff999999-|r La recherche dans les paramètres ne provoque plus d'erreur quand de nombreux addons sont installés\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"
