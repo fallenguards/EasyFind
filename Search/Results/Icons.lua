@@ -409,7 +409,8 @@ function Icons:IsSecureActionResult(data)
         or (data.mountID and Icons:IsMountSummonable(data))
         or data.macroIndex or data.slashCommand
         or (data.itemID and data.category == "Bag"
-            and Handlers:GetBagItemActionKind(data) ~= "show"))
+            and Handlers:GetBagItemActionKind(data) ~= "show")
+        or (data.settingVariable and ns.ResultRows.IsBarToggle(data.settingVariable)))
         or (ns.SecureOpeners and (ns.SecureOpeners.OpenKeyForData(data) or ns.SecureOpeners.ReplacementMacro(data))) or false
 end
 

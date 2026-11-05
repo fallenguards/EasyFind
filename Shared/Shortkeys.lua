@@ -254,6 +254,7 @@ local function OnShortkeyButtonPreClick(self, _, down)
     local data = ShortkeyButtonData(self)
     if data and ns.ResultSecureAttributes then
         ns.ResultSecureAttributes.ApplyAtClick(self, data)
+        ns.ResultSecureAttributes.FlipBarAtPress(data)
     end
 end
 

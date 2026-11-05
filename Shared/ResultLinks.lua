@@ -497,7 +497,10 @@ local function PadPreClick(self, mouseButton, down)
     SA.ApplyAtClick(self, d)
     self._efShowWhereItLives = d.macroIndex
         or (not d.professionAbility and IsControlKeyDown and IsControlKeyDown()) or nil
-    if not self._efShowWhereItLives then return end
+    if not self._efShowWhereItLives then
+        self._efBarFlipped = SA.FlipBarAtPress(d) ~= nil or nil
+        return
+    end
     if ns.SecureOpeners and ns.SecureOpeners.OpenKeyForData(d) then return end
     if d.spellID and d.category == "Ability"
        and ns.ResultIcons and not ns.ResultIcons:IsSpellbookOnlyAbility(d) then
@@ -528,6 +531,11 @@ local function PadPostClick(self, mouseButton, down)
         return
     end
     PadHide()
+    -- An action bar row toggled on the press; there is nothing to open.
+    if self._efBarFlipped then
+        self._efBarFlipped = nil
+        return
+    end
     local Handlers = ns.ResultHandlers
     if not (Handlers and Handlers.SelectResult) then return end
     if self._efShowWhereItLives then Handlers._openInPlace = true end

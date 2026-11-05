@@ -92,7 +92,10 @@ function SecureAttributes.Apply(resultRow, data)
     local openKey = data and SecureOpeners and SecureOpeners.OpenKeyForData(data)
 
     local newType, newKey, newVal
-    if data and data.toyItemID and not data.isToyboxOnly then
+    if data and data.settingVariable and ns.ResultRows.IsBarToggle(data.settingVariable) then
+        -- The press flips the bar (FlipBarAtPress); this redraws it.
+        newType, newKey, newVal = "macro", "macrotext", ns.ResultRows.BarRedrawMacro()
+    elseif data and data.toyItemID and not data.isToyboxOnly then
         -- Unusable toys (faction-restricted etc.) skip the secure
         -- use type so PostClick can route them to the ToyBox instead
         -- of silently no-op'ing on click.
@@ -226,6 +229,15 @@ function SecureAttributes.ApplyAtClick(resultRow, data)
         SecureOpeners.EnsureLoaded(SecureOpeners.OpenKeyForData(data))
     end
     SecureAttributes.Apply(resultRow, data)
+end
+
+-- An action bar row's press, called once its secure macro will fire: the
+-- bar's new state, nil for any other row.
+function SecureAttributes.FlipBarAtPress(data)
+    if InCombatLockdown() or not (data and data.settingVariable) then return nil end
+    local Rows = ns.ResultRows
+    if not Rows.IsBarToggle(data.settingVariable) then return nil end
+    return Rows.FlipBarToggle(data.settingVariable)
 end
 
 -- The ONLY sanctioned way to disarm a button's secure action.

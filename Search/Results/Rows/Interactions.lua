@@ -643,12 +643,19 @@ function Rows.InstallInteractions(resultRow, index)
 
         local suppressSecureClick = d and (
             (sourceModifierHeld and (d.macroIndex or d.mountID or d.toyItemID
-                or d.outfitID or (d.itemID and d.category == "Bag")))
+                or d.outfitID or (d.itemID and d.category == "Bag")
+                or (d.settingVariable and Rows.IsBarToggle(d.settingVariable))))
             or (d.mountID and (ctrlHeld or not Icons:IsMountSummonable(d)))
             or (ctrlHeld and bagItemKind == "equip")
         )
         if suppressSecureClick then
             ns.ResultSecureAttributes.Clear(self)
+            return
+        end
+
+        local barState = ns.ResultSecureAttributes.FlipBarAtPress(d)
+        if barState ~= nil then
+            self._barFlipped, self._barState = true, barState
             return
         end
 
@@ -749,6 +756,11 @@ function Rows.InstallInteractions(resultRow, index)
         -- Inline editors (slider drag, kb1/kb2 capture, dropdown
         -- paddles) sit on top of the row and consume their own clicks,
         -- so reaching this handler means the user clicked the label.
+        if self._barFlipped then
+            self._barFlipped = nil
+            Results:ShowBarToggle(self.data.settingVariable, self._barState)
+            return
+        end
         if Rows:ActivateSettingResult(self.data, Handlers:IsSourceModifierHeld(self.data)) then return end
 
         if self.isPinHeader then

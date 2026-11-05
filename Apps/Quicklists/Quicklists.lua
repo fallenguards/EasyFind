@@ -201,9 +201,12 @@ end
 
 -- A castable row fires from the button's own release edge; panel openers
 -- and every other row run from PostClick in the release's hardware event.
+-- An action bar row opens Settings: its bar flips on a press, and a hold
+-- fires on the release.
 local function Arm(b, data)
     local secure = ns.ResultIcons:IsSecureActionResult(data)
         and not (ns.SecureOpeners and ns.SecureOpeners.OpenKeyForData(data))
+        and not (data.settingVariable and ns.ResultRows.IsBarToggle(data.settingVariable))
     if not secure then
         Disarm(b)
         return

@@ -4,6 +4,18 @@ local Search = ns.Search
 local Results = ns.Results
 local Rows = ns.ResultRows
 
+local sformat, unpack = ns.Utils.sformat, ns.Utils.unpack
+local GetActionBarToggles, SetActionBarToggles = GetActionBarToggles, SetActionBarToggles
+local GetActionBarPage = C_ActionBar and C_ActionBar.GetActionBarPage
+
+-- Bars 2 to 8 in GetActionBarToggles order. Never written through the
+-- setter: it runs Edit Mode's bar layout in our name (Rows.FlipBarToggle).
+local BAR_TOGGLE_INDEX = {
+    PROXY_SHOW_ACTIONBAR_2 = 1, PROXY_SHOW_ACTIONBAR_3 = 2, PROXY_SHOW_ACTIONBAR_4 = 3,
+    PROXY_SHOW_ACTIONBAR_5 = 4, PROXY_SHOW_ACTIONBAR_6 = 5, PROXY_SHOW_ACTIONBAR_7 = 6,
+    PROXY_SHOW_ACTIONBAR_8 = 7,
+}
+
 -- Settings of addon windows (API.RegisterSettingsIndex controls): read and
 -- written through their own functions under a made-up variable name, so
 -- every settings row widget serves them unchanged.
@@ -31,6 +43,7 @@ local function ReadSettingVariable(variable)
 end
 
 local function WriteSettingVariable(variable, value)
+    if BAR_TOGGLE_INDEX[variable] then return false end
     local custom = customSettings[variable]
     if custom then return (pcall(custom.set, value)) end
     -- Prefer the per-setting object: GetSetting returns nil for variables
@@ -119,6 +132,17 @@ local function RefreshResultsKeepFocus()
     end
 end
 
+-- The value just set, shown at once (some GetValue lags a frame); expires
+-- so an outside change still shows.
+local function ShowSettingState(results, var, isOn)
+    if isOn == nil then return end
+    local token = { var = var, isOn = isOn }
+    results._settingOptimistic = token
+    ns.Utils.SafeAfter(0.6, function()
+        if results._settingOptimistic == token then results._settingOptimistic = nil end
+    end)
+end
+
 -- Toggle a boolean setting in place (clicked from a result row).
 -- Tries the Settings API first (handles non-CVar settings like action
 -- bar visibility), falls back to GetCVar/SetCVar.
@@ -140,16 +164,34 @@ function Results:ToggleSettingCheckbox(data)
         Rows:WriteSettingVariable(var, curVal == 1 and 0 or 1)
         newOn = curVal == 0
     end
-    -- Render the value we just wrote right away: some settings' GetValue lags
-    -- a frame behind SetValue, which made the row look unchanged until a second
-    -- click. Expires so an external change to the same setting still surfaces.
-    if newOn ~= nil then
-        local token = { var = var, isOn = newOn }
-        self._settingOptimistic = token
-        ns.Utils.SafeAfter(0.6, function()
-            if self._settingOptimistic == token then self._settingOptimistic = nil end
-        end)
-    end
+    ShowSettingState(self, var, newOn)
+    RefreshResultsKeepFocus()
+end
+
+function Rows.IsBarToggle(variable)
+    return BAR_TOGGLE_INDEX[variable] ~= nil
+end
+
+-- The row's secure macro: a page change and back, so the game redraws the
+-- bars in its own call; off in combat, where the press flips nothing.
+function Rows.BarRedrawMacro()
+    local page = GetActionBarPage()
+    return sformat("/changeactionbar [nocombat] %d\n/changeactionbar [nocombat] %d", page == 1 and 2 or 1, page)
+end
+
+-- The press: the bar flipped in the game's mask; returns its new state.
+function Rows.FlipBarToggle(variable)
+    local index = BAR_TOGGLE_INDEX[variable]
+    local toggles = { GetActionBarToggles() }
+    if not index or index > #toggles then return nil end
+    toggles[index] = not toggles[index]
+    SetActionBarToggles(unpack(toggles))
+    return toggles[index]
+end
+
+-- After the secure redraw: the row shows the state it just set.
+function Results:ShowBarToggle(variable, isOn)
+    ShowSettingState(self, variable, isOn)
     RefreshResultsKeepFocus()
 end
 
@@ -176,7 +218,7 @@ local function ActivateSettingResult(data, openMenuHeld)
     if not data.settingVariable then return false end
     local stype = data.settingType
     if (stype == "checkbox" or stype == "checkboxSlider" or stype == "checkboxDropdown")
-       and not openMenuHeld then
+       and not openMenuHeld and not BAR_TOGGLE_INDEX[data.settingVariable] then
         -- Plain click toggles inline. Alt+click falls through to open
         -- the in-game Settings panel for the same variable. For the
         -- composite types, the cb variable lives at data.settingVariable
@@ -184,10 +226,8 @@ local function ActivateSettingResult(data, openMenuHeld)
         Results:ToggleSettingCheckbox(data)
         return true
     end
-    -- Slider / keybind / dropdown / unknown: let the caller fall through
-    -- to the normal SelectResult path. SelectResult clears the search
-    -- bar and dismisses results before dispatching to HandleStep, which
-    -- gives navigation clicks the same behavior as every other row.
+    -- Sliders, keybinds, dropdowns and bar rows with no secure click (a
+    -- code-driven Enter) open Settings there through SelectResult.
     return false
 end
 
