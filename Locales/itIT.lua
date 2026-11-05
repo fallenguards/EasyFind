@@ -299,14 +299,9 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags e @bank|r\n" ..
-    "    |cff999999-|r Le borse o la banca di tutti i personaggi in una griglia, prima il personaggio attuale; clicca i suoi oggetti per usarli, con il tempo di recupero\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffL'oro di tutti i personaggi|r\n" ..
-    "    |cff999999-|r Su @alts, la riga del denaro mostra l'oro di ogni personaggio, il più ricco per primo\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffOpzioni grafiche dalla barra di ricerca|r\n" ..
-    "    |cff999999-|r Applica ora cambia la modalità schermo e la dimensione della finestra, e chiede se tenerle, come fa il gioco\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Nascondere il tracciamento obiettivi non resta più bloccato né lampeggia, la dimensione carattere ingrandisce anche il testo digitato, e Classic Era non mostra più opzioni grafiche che non ha\n"
+    "    |cff999999-|r Mostrare le barre delle azioni da 2 a 8 dalla barra di ricerca non blocca più la modalità modifica\n" ..
+    "    |cff999999-|r Su WoW Forever, fare clic nel campo di invito delle Comunità non causa più un errore\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

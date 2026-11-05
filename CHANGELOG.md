@@ -4,6 +4,14 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.1.1] - 2026-11-05
+
+### Fixed
+- **Show Action Bar 2 to 8 from the search bar**: toggling a bar there no longer leaves Edit Mode blocked for the rest of the session
+- **Communities on Forever**: clicking in the invite box no longer raises an error
+
+---
+
 ## [5.1.0] - 2026-11-04
 
 ### Added

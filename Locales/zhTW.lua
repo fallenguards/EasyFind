@@ -299,14 +299,9 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags 與 @bank|r\n" ..
-    "    |cff999999-|r 以網格顯示所有角色的背包或銀行，目前角色在最前；點擊其物品即可使用，並顯示冷卻時間\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff所有角色的金幣|r\n" ..
-    "    |cff999999-|r 在 @alts 中，金錢一列可展開每個角色的金幣，最富有的排在最前\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff搜尋列中的圖形設定|r\n" ..
-    "    |cff999999-|r 套用現在會切換顯示模式與視窗大小，並像遊戲一樣詢問是否保留\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 隱藏任務追蹤不再卡住或閃爍，字型大小也會放大輸入的文字，Classic Era 不再列出它沒有的圖形設定\n"
+    "    |cff999999-|r 從搜尋列顯示快捷列 2 到 8 不再導致編輯模式被鎖定\n" ..
+    "    |cff999999-|r 在 WoW Forever 中，點擊社群邀請框不再出錯\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

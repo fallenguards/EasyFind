@@ -301,14 +301,9 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags und @bank|r\n" ..
-    "    |cff999999-|r Taschen oder Bank aller Charaktere als Raster, dein aktueller Charakter zuerst; klicke seine Gegenstände an, um sie zu benutzen, mit Abklingzeit\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDas Gold aller Charaktere|r\n" ..
-    "    |cff999999-|r Auf @alts zeigt die Geld-Zeile das Gold jedes Charakters, den reichsten zuerst\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffGrafikeinstellungen aus der Suchleiste|r\n" ..
-    "    |cff999999-|r Übernehmen wechselt jetzt Anzeigemodus und Fenstergröße und fragt wie das Spiel, ob sie bleiben sollen\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Das Ausblenden der Zielverfolgung bleibt nicht mehr hängen und flackert nicht, die Schriftgröße vergrößert auch den getippten Text, und Classic Era zeigt keine Grafikeinstellungen mehr, die es nicht hat\n"
+    "    |cff999999-|r Aktionsleiste 2 bis 8 aus der Suchleiste einzublenden blockiert den Bearbeitungsmodus nicht mehr\n" ..
+    "    |cff999999-|r In WoW Forever löst ein Klick in das Einladungsfeld der Communitys keinen Fehler mehr aus\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

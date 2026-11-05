@@ -8597,7 +8597,7 @@ local function CursorMenuChainHasMouse(menu)
     -- The flyout a swap just closed counts as inside for the leave delay:
     -- a pointer heading for it crossed a neighbouring row, whose narrower
     -- flyout replaced it, and the cascade closed under the player 0.45 s
-    -- later (retail, 2026-11-02, /efd clickwatch).
+    -- later (retail, measured).
     local f = root._closedFlyout
     if not f then return false end
     if GetTime() - f.at > (root.outsideDelay or 0.3) then

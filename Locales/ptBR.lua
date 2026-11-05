@@ -299,14 +299,9 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags e @bank|r\n" ..
-    "    |cff999999-|r As bolsas ou o banco de todos os personagens em uma grade, o personagem atual primeiro; clique nos itens dele para usá-los, com a recarga à mostra\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffO ouro de todos os personagens|r\n" ..
-    "    |cff999999-|r Em @alts, a linha de dinheiro mostra o ouro de cada personagem, o mais rico primeiro\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffOpções gráficas pela barra de busca|r\n" ..
-    "    |cff999999-|r Aplicar agora muda o modo de exibição e o tamanho da janela, e pergunta se deve mantê-los, como o jogo faz\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Ocultar o rastreador de objetivos não trava mais nem pisca, o tamanho da fonte também aumenta o texto digitado, e o Classic Era não mostra mais opções gráficas que não tem\n"
+    "    |cff999999-|r Mostrar as barras de ação 2 a 8 pela barra de busca não bloqueia mais o Modo de Edição\n" ..
+    "    |cff999999-|r No WoW Forever, clicar na caixa de convite das Comunidades não gera mais um erro\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

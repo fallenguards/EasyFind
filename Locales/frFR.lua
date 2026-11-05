@@ -299,14 +299,9 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags et @bank|r\n" ..
-    "    |cff999999-|r Les sacs ou la banque de tous vos personnages en grille, votre personnage actuel d'abord ; cliquez sur ses objets pour les utiliser, temps de recharge affichés\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffL'or de tous vos personnages|r\n" ..
-    "    |cff999999-|r Sur @alts, la ligne Argent montre l'or de chaque personnage, le plus riche d'abord\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffOptions graphiques depuis la barre de recherche|r\n" ..
-    "    |cff999999-|r Appliquer change désormais le mode d'affichage et la taille de la fenêtre, et demande s'il faut les garder, comme le jeu\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Masquer le suivi des objectifs ne reste plus bloqué et ne clignote plus, la taille de police agrandit aussi le texte saisi, et Classic Era n'affiche plus les options graphiques qu'il n'a pas\n"
+    "    |cff999999-|r Afficher les barres d'action 2 à 8 depuis la barre de recherche ne bloque plus le mode Édition\n" ..
+    "    |cff999999-|r Sur WoW Forever, cliquer dans le champ d'invitation des Communautés ne provoque plus d'erreur\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

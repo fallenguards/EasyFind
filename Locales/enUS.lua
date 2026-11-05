@@ -330,14 +330,9 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@bags and @bank|r\n" ..
-    "    |cff999999-|r Every character's bags or bank as a grid, your current character first; click its items to use them, cooldowns showing\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEvery character's gold|r\n" ..
-    "    |cff999999-|r On @alts, Money opens each character's gold, the richest first\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffGraphics settings from the search bar|r\n" ..
-    "    |cff999999-|r Apply now switches display mode and window size, and asks to keep them as the game does\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Toggle Objective Tracker no longer sticks on or flickers, Font Size grows the text you type, and Classic Era no longer lists graphics settings it lacks\n"
+    "    |cff999999-|r Showing Action Bar 2 to 8 from the search bar no longer leaves Edit Mode blocked\n" ..
+    "    |cff999999-|r On WoW Forever, clicking in the Communities invite box no longer raises an error\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels
