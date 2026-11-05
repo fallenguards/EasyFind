@@ -26,8 +26,10 @@ local GLYPH = {
     level = { tex = ns.STAT_CATEGORY_ICON_TEX, coords = ns.STAT_CATEGORY_ICON_COORDS },
     profession = { tex = "Interface\\Icons\\INV_Misc_Note_01" },
     portrait = { portrait = "player" },
+    upgrades = { tex = "Interface\\Icons\\Spell_ChargePositive" },
 }
 GLYPH.money = GLYPH.gold
+local HAS_UPGRADES = ns.Caps and ns.Caps.Has and ns.Caps.Has("upgrades")
 -- An item row's category by where it is.
 local PLACE_CATEGORY = { bags = "Bag", bank = "Bank", warband = "Warband", gear = "Gear" }
 local ITEM_KEYWORDS = {}
@@ -180,6 +182,7 @@ local PAGE_KIND = {
     chars = { view = "chars", token = "@characters", words = { "characters", "chars" } },
     profs = { view = "profs", token = "@professions", words = { "professions", "profs" } },
     money = { view = "money", token = "@money", words = { "money", "gold" } },
+    upgrades = { view = "upgrades", token = "@upgrades", words = { "upgrades", "upgrade" } },
 }
 local PAGE_TITLE = {
     items = function() return _G["ITEMS"] or "Items" end,
@@ -187,6 +190,7 @@ local PAGE_TITLE = {
     chars = function() return L["FILTER_CHARACTERS"] end,
     profs = function() return _G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"] end,
     money = function() return _G["MONEY"] or "Money" end,
+    upgrades = function() return L["FILTER_UPGRADES"] end,
 }
 
 local function PageDef(charDef, kind)
@@ -338,6 +342,10 @@ local function CharacterPage(def, entry)
     out[#out + 1] = Row(_G["ITEMS"] or "Items", ItemsLine(entry.key), GLYPH.items, { quickFilterDef = PageDef(def, "items") })
     local gearLine = entry.ilvl and sformat("%s %d", _G["STAT_AVERAGE_ITEM_LEVEL"] or "Item Level", entry.ilvl) or nil
     out[#out + 1] = Row(L["CHAR_GEAR"], gearLine, GLYPH.gear, { quickFilterDef = PageDef(def, "gear") })
+    if HAS_UPGRADES then
+        out[#out + 1] = Row(L["FILTER_UPGRADES"], L["CHAR_UPGRADES_LINE"], GLYPH.upgrades,
+            { quickFilterDef = PageDef(def, "upgrades") })
+    end
     local profs = ProfessionsLine(entry.profs, true)
     if profs then
         out[#out + 1] = CopyRow(_G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"], profs, GLYPH.profession, profs)
@@ -499,6 +507,16 @@ local function SetEntry(n, data)
     local e = entries[n] or {}
     entries[n] = e
     e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = data.name, 0, false, true, false, true, data
+    e.isSectionHeader = false
+    return e
+end
+
+-- A divider with a label (a slot on @upgrades).
+local function SetHeader(n, name)
+    local e = entries[n] or {}
+    entries[n] = e
+    e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = name, 0, false, false, false, true, nil
+    e.isSectionHeader = true
     return e
 end
 
@@ -514,6 +532,9 @@ local function PageRows(def)
         page.rows = ProfessionsPage(list)
     elseif def.charView == "money" then
         page.rows = MoneyPage(list)
+    elseif def.charView == "upgrades" then
+        -- @upgrades alone: the character played now.
+        page.rows = ns.Upgrades.Rows(Data.Get(def.charKey or ns.CurrentCharacterKey()))
     else
         local entry = Data.Get(def.charKey)
         page.rows = entry and CharacterPage(def, entry) or {}
@@ -531,6 +552,7 @@ local function SubPages(def)
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     elseif def.charView == "char" then
         out[1], out[2] = PageDef(def, "items"), PageDef(def, "gear")
+        if HAS_UPGRADES then out[3] = PageDef(def, "upgrades") end
     else
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     end
@@ -591,6 +613,20 @@ function Characters:ShowView(def, text)
     end
     Data.Words(text or "", words)
     local n = 0
+    if def.charView == "upgrades" then
+        for _, data in ipairs(ns.Upgrades.Visible(PageRows(def), words, Data.MatchesAll)) do
+            n = n + 1
+            if data.upgradeHeader then SetHeader(n, data.name) else SetEntry(n, data) end
+        end
+        if n == 0 then
+            n = 1
+            SetEntry(1, { name = _G["BROWSE_NO_RESULTS"] or L["CHAR_NO_MATCH"], category = "Character", noPin = true,
+                          noLearn = true, noMenu = true, lookupRow = true })
+        end
+        for i = n + 1, #entries do entries[i] = nil end
+        Results:ShowHierarchicalResults(entries)
+        return
+    end
     for _, data in ipairs(PageRows(def)) do
         if (#words == 0 and not data.typedOnly) or (#words > 0 and Data.MatchesAll(data.folded, words)) then
             n = n + 1
@@ -617,3 +653,6 @@ end
 
 -- The @alts suggestion row wears the logged-in character's portrait.
 AltsDef()
+for _, def in ipairs(ns.Filters.quickFilterOptions) do
+    if def.key == "upgrades" then def.glyph = GLYPH.upgrades end
+end

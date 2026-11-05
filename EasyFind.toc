@@ -63,6 +63,7 @@ Database/Loot_Forever_ptBR.lua [AllowLoadGameType camelot] [AllowLoadTextLocale 
 Database/Loot_Forever_ruRU.lua [AllowLoadGameType camelot] [AllowLoadTextLocale ruRU]
 Database/Loot_Forever_zhCN.lua [AllowLoadGameType camelot] [AllowLoadTextLocale zhCN]
 Database/Loot_Forever_zhTW.lua [AllowLoadGameType camelot] [AllowLoadTextLocale zhTW]
+Database/LootGear_Forever.lua [AllowLoadGameType camelot]
 Database/Loot_Era.lua [AllowLoadGameType vanilla]
 Database/Loot_Era_deDE.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale deDE]
 Database/Loot_Era_esES.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale esES]
@@ -73,6 +74,7 @@ Database/Loot_Era_ptBR.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale ptBR
 Database/Loot_Era_ruRU.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale ruRU]
 Database/Loot_Era_zhCN.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale zhCN]
 Database/Loot_Era_zhTW.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale zhTW]
+Database/LootGear_Era.lua [AllowLoadGameType vanilla]
 Database/Loot_TBC.lua [AllowLoadGameType tbc]
 Database/Loot_TBC_deDE.lua [AllowLoadGameType tbc] [AllowLoadTextLocale deDE]
 Database/Loot_TBC_esES.lua [AllowLoadGameType tbc] [AllowLoadTextLocale esES]
@@ -83,6 +85,7 @@ Database/Loot_TBC_ptBR.lua [AllowLoadGameType tbc] [AllowLoadTextLocale ptBR]
 Database/Loot_TBC_ruRU.lua [AllowLoadGameType tbc] [AllowLoadTextLocale ruRU]
 Database/Loot_TBC_zhCN.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhCN]
 Database/Loot_TBC_zhTW.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhTW]
+Database/LootGear_TBC.lua [AllowLoadGameType tbc]
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua [AllowLoadGameType standard]
 Database/StaticLocations_Forever.lua [AllowLoadGameType camelot]
@@ -182,6 +185,7 @@ Search/Results/Navigation.lua
 Search/Results/Grids.lua
 Search/Results/ItemGrid.lua
 Search/Characters.lua
+Search/Upgrades.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua
 MapSearch/Zones/Highlight.lua

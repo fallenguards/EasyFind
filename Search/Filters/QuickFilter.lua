@@ -50,6 +50,8 @@ Filters.quickFilterOptions = {
     -- The account's characters (Search/Characters.lua); each one's own tag
     -- comes from there.
     { key = "alts",           canonical = "alts",            label = L["FILTER_CHARACTERS"], aliases = { "alt", "alts", "char", "chars", "character", "characters" }, charView = "list" },
+    -- The character played now: drops that beat its gear (Search/Upgrades.lua).
+    { key = "upgrades",       canonical = "upgrades",        label = L["FILTER_UPGRADES"], aliases = { "upgrade", "upgrades" }, charView = "upgrades" },
     { key = "bosses",         canonical = "bosses",          label = _G["RAID_BOSSES"] or "Bosses",          categories = { "Boss" }, aliases = { "bo", "boss", "bosses", "encounter", "encounters" } },
     { key = "macros",         canonical = "macros",          label = _G["MACROS"] or "Macros",          categories = { "Macro" }, aliases = { "ma", "macro", "macros" } },
     { key = "commands",       canonical = "commands",        label = L["FILTER_COMMANDS"],        categories = { "Command" }, aliases = { "cmd", "cmds", "command", "commands", "slash" } },

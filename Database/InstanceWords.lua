@@ -260,6 +260,15 @@ end
 local CLASS_TOKEN = {}
 for token, id in pairs(CLASS_ID) do CLASS_TOKEN[id] = token end
 
+-- The class wears or wields items of this item class and subclass (@upgrades).
+function Database.ClassUsesSubclass(token, classID, subclassID)
+    local list
+    if classID == 4 then list = ARMOR_CLASSES[subclassID]
+    elseif classID == 2 then list = WEAPON_CLASSES[subclassID] end
+    return not list or Has(list, token)
+end
+Database.CLASS_ID = CLASS_ID
+
 -- Shipped loot by class (no journal to ask): the filter menu's class.
 function Database.LootForClass(itemID, classID)
     local token = CLASS_TOKEN[classID]

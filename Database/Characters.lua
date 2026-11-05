@@ -114,6 +114,26 @@ local function ReadGear()
     return out
 end
 
+local GetDetailedItemLevelInfo = (C_Item and C_Item.GetDetailedItemLevelInfo) or GetDetailedItemLevelInfo
+
+-- An item's level by its link, nil while the client has not cached it.
+function Data.ItemLevel(link)
+    if not link then return nil end
+    local level = GetDetailedItemLevelInfo and GetDetailedItemLevelInfo(link)
+    if not level and GetItemInfo then level = select(4, GetItemInfo(link)) end
+    return level
+end
+
+-- Each worn item's level, kept for @upgrades: an alt's items may not be
+-- cached when its page opens.
+local function ReadGearLevels(gear, old)
+    local out = {}
+    for slot, link in pairs(gear) do
+        out[slot] = Data.ItemLevel(link) or (old and old[slot])
+    end
+    return out
+end
+
 local function AddProfession(out, index)
     if not index then return end
     local name, icon, rank, maxRank = GetProfessionInfo(index)
@@ -170,7 +190,15 @@ function Data.Snapshot()
         local _, equipped = GetAverageItemLevel()
         if equipped and equipped > 0 then p.ilvl = equipped end
     end
+    local oldGear, oldLevels = p.gear, p.gearLevel
     p.gear = ReadGear()
+    -- A level read before only stands for the same item in that slot.
+    if oldGear and oldLevels then
+        for slot in pairs(oldLevels) do
+            if oldGear[slot] ~= p.gear[slot] then oldLevels[slot] = nil end
+        end
+    end
+    p.gearLevel = ReadGearLevels(p.gear, oldLevels)
     p.profs = ReadProfessions(p.profs)
     -- Played time only moves while logged in: on from the last reading,
     -- never across the time offline.
@@ -331,6 +359,7 @@ local function BuildList()
         if p then
             entry.level, entry.money, entry.zone, entry.subZone = p.level, p.money, p.zone, p.subZone
             entry.seenAt, entry.ilvl, entry.played, entry.profs = p.seenAt, p.ilvl, p.played, p.profs
+            entry.gear, entry.gearLevel = p.gear, p.gearLevel
         end
         entry.money = entry.money or LedgerMoney(entry.name, entry.realm)
         entry.seenAt = entry.seenAt or entry.savedAt

@@ -121,6 +121,9 @@ Caps.journalTabs = Caps.journal and not classic
 -- Loot and bosses from the journal, or from the table shipped for WoW
 -- Forever, Classic Era and TBC Anniversary (Database/Loot_*.lua).
 Caps.loot = Caps.journal or Caps.forever or Caps.era or Caps.tbc
+-- @upgrades reads the shipped drops (Database/LootGear_*.lua); the
+-- journal's dungeons scale to the player, so a drop's level says nothing.
+Caps.upgrades = (Caps.forever or Caps.era or Caps.tbc) and not Caps.journal
 -- Instance entrances from the table shipped for the client (Database/
 -- Instances_*.lua), not the journal. Forever's table loads on every client.
 Caps.instanceTable = (Caps.forever or Caps.era or Caps.tbc) and true or false
@@ -407,7 +410,7 @@ local NEEDS = {
     transmogSets = "transmog", appearanceItems = "transmog", mounts = "mounts",
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
     reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
-    collections = "collectionsUI", titles = "titles", skills = "skills",
+    collections = "collectionsUI", titles = "titles", skills = "skills", upgrades = "upgrades",
 }
 Caps.NEEDS = NEEDS
 

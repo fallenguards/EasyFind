@@ -64,6 +64,7 @@ local function World(opts)
     env.GetRealZoneText = function() return "Orgrimmar" end
     env.GetSubZoneText = function() return "" end
     env.GetInventoryItemLink = function(_, slot) return (opts.gear or {})[slot] end
+    env.GetDetailedItemLevelInfo = function(link) return (opts.itemLevels or {})[link] end
     env.EasyFindDB = opts.db or {}
     env.EasyFind.db = env.EasyFindDB
     ns.Stored = {}
@@ -230,6 +231,27 @@ function tests.snapshot_recordsTheCharacter()
     H.assertTrue(p.isCurrent)
 end
 
+-- Each worn item's level, for @upgrades: kept while the same item stays
+-- in its slot and the client has it uncached, dropped once it changes.
+function tests.snapshot_keepsEachWornItemsLevel()
+    local gear, levels = { [1] = "helm-a", [5] = "chest-b" }, { ["helm-a"] = 30 }
+    local _, ns = World({ gear = gear, itemLevels = levels })
+    local Data = ns.CharacterData
+    Data.Snapshot()
+    local p = Data.Get("Thrall-Realm")
+    H.assertEq(p.gear[1], "helm-a", "the list entry carries the gear")
+    H.assertEq(p.gearLevel[1], 30)
+    H.assertNil(p.gearLevel[5], "not cached yet")
+    levels["chest-b"], levels["helm-a"] = 40, nil
+    Data.Snapshot()
+    p = Data.Get("Thrall-Realm")
+    H.assertEq(p.gearLevel[5], 40)
+    H.assertEq(p.gearLevel[1], 30, "the same helm, uncached now: its level kept")
+    gear[1] = "helm-c"
+    Data.Snapshot()
+    H.assertNil(Data.Get("Thrall-Realm").gearLevel[1], "another helm: the old level goes")
+end
+
 function tests.playedTime_countsOnWhileOnline_neverOffline()
     local env, ns = World()
     local Data = ns.CharacterData
@@ -369,8 +391,9 @@ end
 
 -- ==== tags and pages ========================================================
 
-local function Pages(db)
+local function Pages(db, caps)
     local env, ns = World({ db = db })
+    ns.Caps = caps
     ns.Filters.GetUIBucket = function() return nil end
     ns.Search.GetSelectedIndex = function() return 0 end
     ns.Search.GetSearchFrame = function() return nil end
@@ -391,7 +414,7 @@ local function Pages(db)
     local shown = {}
     ns.Results.ShowHierarchicalResults = function(_, entries)
         for i = #shown, 1, -1 do shown[i] = nil end
-        for i, e in ipairs(entries) do shown[i] = { name = e.name, data = e.data } end
+        for i, e in ipairs(entries) do shown[i] = { name = e.name, data = e.data, isSectionHeader = e.isSectionHeader } end
     end
     env.SecondsToTime = function(s) return s .. "s" end
     H.loadModule("Search/Characters.lua", env, ns)
@@ -576,6 +599,51 @@ function tests.characterPage_itsRows_andItsItemsFound()
     H.assertEq(item.name, "Major Mana Potion")
     H.assertEq(item.storedCount, 4, "both stacks, one row")
     H.assertEq(item.storedHolders[1].tabName, "Backpack")
+end
+
+-- @upgrades (Search/Upgrades.lua) where the client ships its drops: a
+-- row on each character's page, its own page under it, and @upgrades
+-- for the character played now; each slot a divider over its drops.
+function tests.upgrades_aPageUnderEachCharacter_andForTheOnePlayedNow()
+    local env, ns, shown = Pages(TwoJainas(), { Has = function() return true end })
+    ns.L.FILTER_UPGRADES = "Upgrades"
+    H.loadModule("Search/Upgrades.lua", env, ns)
+    local asked
+    ns.Upgrades.Rows = function(entry)
+        asked = entry and entry.key
+        return { { name = "Head: empty", upgradeHeader = true, folded = "head" },
+                 { name = "Helm", category = "Loot", itemID = 1, folded = "helm" } }
+    end
+    local jaina = ns.Filters:ResolveQuickFilterToken("jaina-realm")
+    ns.Characters:OnApply(jaina)
+    ns.Characters:ShowView(jaina, "")
+    local page = shown[3].data.quickFilterDef
+    H.assertEq(shown[3].name, "Upgrades", "after Items and Gear")
+    H.assertEq(page.charView, "upgrades")
+    H.assertEq(ns.Filters:PillText(page), "@alts @Jaina-Realm @upgrades")
+    ns.Characters:ShowView(page, "")
+    H.assertEq(asked, "Jaina-Realm", "her own gear")
+    H.assertTrue(shown[1].isSectionHeader, "the slot a divider")
+    H.assertEq(shown[1].name, "Head: empty")
+    H.assertEq(shown[2].name, "Helm")
+    H.assertTrue(not shown[2].isSectionHeader, "a reused entry forgets it was a divider")
+    local top = ns.Filters:ResolveQuickFilterToken("upgrades")
+    H.assertEq(top.charView, "upgrades")
+    ns.Characters:OnApply(top)
+    ns.Characters:ShowView(top, "")
+    H.assertEq(asked, "Thrall-Realm", "@upgrades alone: the character played now")
+    ns.Characters:ShowView(top, "nothing")
+    H.assertEq(#shown, 1, "words finding nothing: one line")
+    H.assertEq(shown[1].name, ns.L["CHAR_NO_MATCH"], "saying so")
+end
+
+function tests.upgrades_noRowOrTagWhereTheClientShipsNoDrops()
+    local _, ns, shown = Pages(TwoJainas(), { Has = function(key) return key ~= "upgrades" end })
+    H.assertNil(ns.Filters:ResolveQuickFilterToken("upgrades"), "pruned from the tags")
+    local jaina = ns.Filters:ResolveQuickFilterToken("jaina-realm")
+    ns.Characters:OnApply(jaina)
+    ns.Characters:ShowView(jaina, "")
+    H.assertEq(shown[3].data.searchCommandDesc, "Tailoring 300/300", "no Upgrades row")
 end
 
 function tests.characterInfo_aRowPerCharacterForEachFact()

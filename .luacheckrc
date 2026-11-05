@@ -153,7 +153,7 @@ read_globals = {
     "AchievementFrameCategories_SelectElementData",
     "UnitPopup_ShowMenu", "BattlePetToolTip_ShowLink", "BattlePetTooltip",
     "GetUnitSpeed", "GetItemCooldown", "EJ_GetInstanceInfo", "UnitName",
-    "GetItemInfoInstant", "GetItemStats", "GetSpecialization", "GetSpecializationInfo",
+    "GetItemInfoInstant", "GetItemStats", "GetDetailedItemLevelInfo", "GetSpecialization", "GetSpecializationInfo",
     "C_SpecializationInfo", "SetSpecialization",
     "GetNumSpecializations",
     "GetNumTitles", "GetTitleName", "IsTitleKnown", "GetCurrentTitle", "SetCurrentTitle",

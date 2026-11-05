@@ -783,7 +783,12 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         resultRow.amountText:Hide()
         resultRow.iconCooldown:Hide()
         if data.lootSourceName then
-            Render.SetUnclippedText(resultRow.text, data.name .. "  |cff888888" .. data.lootSourceName .. "|r")
+            local name = data.nameHex and (data.nameHex .. data.name .. "|r") or data.name
+            -- @upgrades: the drop's item level and what it gains.
+            if data.upgradeLevel then
+                name = name .. "  |cff40c040" .. data.upgradeLevel .. " (+" .. data.upgradeGain .. ")|r"
+            end
+            Render.SetUnclippedText(resultRow.text, name .. "  |cff888888" .. data.lootSourceName .. "|r")
         end
         local indentPixels = depth * indPx + 4
         resultRow.text:ClearAllPoints()
