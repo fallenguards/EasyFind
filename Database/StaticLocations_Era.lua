@@ -447,7 +447,7 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.4295, y = 0.7437, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warlock Trainer"), category = "classtrainer_warlock", x = 0.2574, y = 0.7822, keywords = {"trainer", "class", "warlock"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.7846, y = 0.4636, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.5713, y = 0.5771, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "polearms", "polearm", "spear", "swords", "sword", "1h sword", "2h sword", "2h swords", "staves", "staff", "staffs", "daggers", "dagger", "crossbows", "crossbow", "xbow"}, teaches = {200, 201, 202, 227, 1180, 5011} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.5713, y = 0.5771, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "polearms", "polearm", "spear", "swords", "sword", "1h sword", "2h sword", "2h swords", "staves", "staff", "staffs", "daggers", "dagger", "crossbows", "crossbow", "xbow"}, teaches = {200, 201, 202, 227, 1180, 5011}, npcName = "Woo Ping" },
     },
     [1454] = { -- Orgrimmar
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.5631, y = 0.3297, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
@@ -478,7 +478,8 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.6329, y = 0.4958, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warlock Trainer"), category = "classtrainer_warlock", x = 0.4836, y = 0.4610, keywords = {"trainer", "class", "warlock"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.8019, y = 0.3110, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.8162, y = 0.1959, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "axes", "axe", "1h axe", "2h axe", "2h axes", "staves", "staff", "staffs", "bows", "bow", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {196, 197, 227, 264, 1180, 2567, 15590} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.8153, y = 0.1963, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "axes", "axe", "1h axe", "2h axe", "2h axes", "staves", "staff", "staffs", "bows", "bow", "thrown", "throwing", "throwing weapons"}, teaches = {196, 197, 227, 264, 2567}, npcName = "Hanashi" },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.8170, y = 0.1955, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "axes", "axe", "1h axe", "2h axe", "2h axes", "bows", "bow", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {196, 197, 264, 1180, 2567, 15590}, npcName = "Sayoc" },
     },
     [1455] = { -- Ironforge
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.6648, y = 0.5569, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
@@ -511,7 +512,8 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.4348, y = 0.2861, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warlock Trainer"), category = "classtrainer_warlock", x = 0.5051, y = 0.0657, keywords = {"trainer", "class", "warlock"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.6774, y = 0.8974, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.6170, y = 0.8957, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "axes", "axe", "1h axe", "2h axe", "2h axes", "maces", "mace", "1h mace", "2h mace", "2h maces", "guns", "gun", "rifle", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "crossbows", "crossbow", "xbow", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {196, 197, 198, 199, 266, 1180, 2567, 5011, 15590} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.6223, y = 0.8962, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "crossbows", "crossbow", "xbow"}, teaches = {1180, 2567, 5011}, npcName = "Bixi Wobblebonk" },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.6117, y = 0.8952, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "axes", "axe", "1h axe", "2h axe", "2h axes", "maces", "mace", "1h mace", "2h mace", "2h maces", "guns", "gun", "rifle", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {196, 197, 198, 199, 266, 15590}, npcName = "Buliwyf Stonehand" },
     },
     [1456] = { -- Thunder Bluff
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.4665, y = 0.3380, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
@@ -539,7 +541,7 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Stable Master"), category = "stablemaster", x = 0.4509, y = 0.6023, keywords = {"stable", "pet"} },
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.4439, y = 0.4485, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.5727, y = 0.8746, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.4093, y = 0.6273, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "maces", "mace", "1h mace", "2h mace", "2h maces", "staves", "staff", "staffs", "guns", "gun", "rifle"}, teaches = {198, 199, 227, 266} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.4093, y = 0.6273, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "maces", "mace", "1h mace", "2h mace", "2h maces", "staves", "staff", "staffs", "guns", "gun", "rifle"}, teaches = {198, 199, 227, 266}, npcName = "Ansekhwa" },
     },
     [1457] = { -- Darnassus
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.5555, y = 0.2366, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
@@ -565,13 +567,13 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Stable Master"), category = "stablemaster", x = 0.3927, y = 0.1005, keywords = {"stable", "pet"} },
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.6348, y = 0.2180, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.5981, y = 0.3749, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.5756, y = 0.4673, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "staves", "staff", "staffs", "bows", "bow", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {227, 264, 1180, 2567, 15590} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.5756, y = 0.4673, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "staves", "staff", "staffs", "bows", "bow", "daggers", "dagger", "thrown", "throwing", "throwing weapons", "fist weapons", "fist weapon", "fist", "fists"}, teaches = {227, 264, 1180, 2567, 15590}, npcName = "Ilyenia Moonfire" },
     },
     [1458] = { -- Undercity
         { name = POIName("Alchemy Trainer"), category = "prof_alchemy", x = 0.4844, y = 0.7400, keywords = {"profession", "trainer", "alchemy", "potion", "flask"} },
-        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6442, y = 0.5241, keywords = {"auction", "ah"} },
-        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6439, y = 0.3581, keywords = {"auction", "ah"} },
         { name = POIName("Auction House"), category = "auctionhouse", x = 0.6047, y = 0.4645, keywords = {"auction", "ah"} },
+        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6439, y = 0.3581, keywords = {"auction", "ah"} },
+        { name = POIName("Auction House"), category = "auctionhouse", x = 0.6442, y = 0.5241, keywords = {"auction", "ah"} },
         { name = POIName("Auction House"), category = "auctionhouse", x = 0.7142, y = 0.4669, keywords = {"auction", "ah"} },
         { name = POIName("Bank"), category = "bank", x = 0.6597, y = 0.4408, keywords = {"bank", "vault", "storage"} },
         { name = POIName("Battlemaster"), category = "battlemasters", x = 0.5418, y = 0.9607, keywords = {"pvp", "battlemaster", "battleground", "bg", "warsong gulch", "alterac valley", "arathi basin"} },
@@ -596,7 +598,7 @@ ns.STATIC_LOCATIONS = {
         { name = POIName("Tailoring Trainer"), category = "prof_tailoring", x = 0.8665, y = 0.2208, keywords = {"profession", "trainer", "tailoring", "cloth"} },
         { name = POIName("Warlock Trainer"), category = "classtrainer_warlock", x = 0.8718, y = 0.1568, keywords = {"trainer", "class", "warlock"} },
         { name = POIName("Warrior Trainer"), category = "classtrainer_warrior", x = 0.4755, y = 0.1616, keywords = {"trainer", "class", "warrior"} },
-        { name = POIName("Weapon Master"), category = "trainer", x = 0.5731, y = 0.3277, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "polearms", "polearm", "spear", "swords", "sword", "1h sword", "2h sword", "2h swords", "daggers", "dagger", "crossbows", "crossbow", "xbow"}, teaches = {200, 201, 202, 1180, 5011} },
+        { name = POIName("Weapon Master"), category = "trainer", x = 0.5731, y = 0.3277, keywords = {"weapon", "weapons", "weapon master", "weapon skill", "trainer", "polearms", "polearm", "spear", "swords", "sword", "1h sword", "2h sword", "2h swords", "daggers", "dagger", "crossbows", "crossbow", "xbow"}, teaches = {200, 201, 202, 1180, 5011}, npcName = "Archibald" },
     },
 }
 

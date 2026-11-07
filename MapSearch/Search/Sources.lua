@@ -331,6 +331,8 @@ local function AppendSearchCandidate(out, existingNames, zoneNames, entry, markE
     out[#out + 1] = entry
     if markExisting and existingNames then
         existingNames[nameLower] = true
+        -- A place that is one creature stands for the catalog's row of it.
+        if entry.npcNameLower then existingNames[entry.npcNameLower] = true end
     end
     return true
 end

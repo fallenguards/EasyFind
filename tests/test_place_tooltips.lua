@@ -15,6 +15,7 @@ end
 local ENGLISH = {
     GPS_UNIT_YD = "%d yd", TT_PLACE_AT_FMT = "%s at %s", TT_PLACE_AWAY_FMT = "%s away",
     TT_PLACE_SPOTS_FMT = "%d spots, the nearest shown", TT_BOSS_DROPS_FMT = "Drops %d items",
+    TT_TEACHES_FMT = "Teaches %s",
 }
 
 local function Load(caps)
@@ -57,6 +58,18 @@ function tests.aPlaceRow_leavesOutWhatItLacks()
     H.assertEq(#tip.lines, 2, "no distance off the continent, one spot unsaid")
 end
 
+-- The row's own line is cut short ("teaches One-Handed Axes, Two-Handed A...")
+-- and on hover gives way to its click hint: the tooltip says it whole.
+function tests.aWeaponMaster_saysWhatItTeaches()
+    local T = Load({})
+    local tip = Tip()
+    T:SetMapRowTooltip(tip, { name = "Weapon Master", zoneName = "Orgrimmar", x = 0.816, y = 0.196,
+        teachesText = "One-Handed Axes, Two-Handed Axes, Fist Weapons" })
+    H.assertEq(tip.lines[2], "Orgrimmar at 81.6, 19.6")
+    H.assertEq(tip.lines[3], "Teaches One-Handed Axes, Two-Handed Axes, Fist Weapons")
+    H.assertEq(#tip.lines, 3)
+end
+
 function tests.aBossRow_onTheClassicClients_saysWhatItDrops()
     local T = Load({ journal = false, instanceTable = true })
     local tip = Tip()
@@ -94,7 +107,7 @@ function tests.theRowHover_opensThem()
         "a static boss carries its loot count")
     for _, loc in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
         local src = Read("Locales/" .. loc .. ".lua")
-        for _, key in ipairs({ "TT_PLACE_AT_FMT", "TT_PLACE_AWAY_FMT", "TT_PLACE_SPOTS_FMT", "TT_BOSS_DROPS_FMT" }) do
+        for _, key in ipairs({ "TT_PLACE_AT_FMT", "TT_PLACE_AWAY_FMT", "TT_PLACE_SPOTS_FMT", "TT_BOSS_DROPS_FMT", "TT_TEACHES_FMT" }) do
             H.assertTrue(src:find(("L[%q]"):format(key), 1, true) ~= nil, loc .. " has " .. key)
         end
     end

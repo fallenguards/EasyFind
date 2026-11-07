@@ -265,6 +265,20 @@ function MapSearch:SubzonePOI(i)
     return poi
 end
 
+-- A place that is one creature (a weapon master): "Weapon Master Hanashi",
+-- the creature named as the client does and wearing its face when the GPS
+-- catalog has it; its row stands in for the catalog's.
+local sformat = string.format
+local function TitledCreature(entry, loc)
+    local Npcs = ns.GPSNpcs
+    local creature = Npcs and Npcs.ByName and Npcs.ByName(loc.npcName)
+    local name = creature and creature.name or loc.npcName
+    entry.name = sformat(L["POI_TITLED_FMT"], loc.name, name)
+    entry.npcNameLower = slower(name)
+    entry.npcID = creature and creature.npcID or nil
+    entry.displayID = creature and creature.displayID or nil
+end
+
 function MapSearch:GetStaticLocations(mapID)
     mapID = mapID or (WorldMapFrame and WorldMapFrame.GetMapID and WorldMapFrame:GetMapID())
     if not mapID then return emptyStaticLocations end
@@ -289,6 +303,7 @@ function MapSearch:GetStaticLocations(mapID)
                 keywords = loc.keywords,
                 teaches = loc.teaches,
             }
+            if loc.npcName then TitledCreature(entry, loc) end
             tinsert(results, PreparePOI(entry))
         end
     end
@@ -313,11 +328,13 @@ function MapSearch:GetWorldStaticLocations()
         local info = GetMapInfo(mapID)
         local zoneName = info and info.name or nil
         for _, loc in ipairs(locations) do
-            local entry = PreparePOI({
+            local entry = {
                 name = loc.name, category = loc.category, icon = loc.icon, isStatic = true,
                 mapID = mapID, coordMapID = mapID, x = loc.x, y = loc.y,
                 keywords = loc.keywords, teaches = loc.teaches, zoneName = zoneName,
-            })
+            }
+            if loc.npcName then TitledCreature(entry, loc) end
+            PreparePOI(entry)
             entry.scopeBucket = MapSearch.GetFilterBucket(entry)
             entry.scopeSub = MapSearch.GetSubBucket(entry, entry.scopeBucket)
             tinsert(results, entry)

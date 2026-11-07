@@ -373,15 +373,19 @@ function Tooltips:SetClassicTalent(tooltip, data)
     return true
 end
 
--- A place or creature row (the map search's): the spot, how far, how many
--- spots fold into the row. Its own line (kind and zone) is not repeated;
--- an extension's lines (what it casts) follow.
+-- A place or creature row (the map search's): the spot, what a trainer
+-- teaches (the row's line is cut short and gives way to its hint on
+-- hover), how far, how many spots fold into the row. An extension's lines
+-- (what it casts) follow.
 function Tooltips:SetMapRowTooltip(tooltip, data)
     tooltip:SetText(data.name or "", 1, 1, 1)
     local x, y = data.x, data.y
     if x and y then
         local spot = sformat("%.1f, %.1f", x * 100, y * 100)
         tooltip:AddLine(data.zoneName and sformat(L["TT_PLACE_AT_FMT"], data.zoneName, spot) or spot, 1, 0.82, 0)
+    end
+    if data.teachesText and data.teachesText ~= "" then
+        tooltip:AddLine(sformat(L["TT_TEACHES_FMT"], data.teachesText), 1, 1, 1, true)
     end
     local near = data.mapNear
     if near and near < math.huge then

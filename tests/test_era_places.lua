@@ -68,9 +68,37 @@ function tests.weaponMastersTeachTheirWeapons()
     H.assertNotNil(stormwind, "Stormwind's weapon master")
     H.assertTrue(Has(stormwind.keywords, "sword") and Has(stormwind.keywords, "swords"), "swords in Stormwind")
     H.assertTrue(Has(stormwind.keywords, "dagger"), "daggers in Stormwind")
-    local ironforge = Find(ns.STATIC_LOCATIONS[1455], "Weapon Master")
-    H.assertNotNil(ironforge, "Ironforge's weapon master")
-    H.assertTrue(Has(ironforge.keywords, "mace") and Has(ironforge.keywords, "gun"), "maces and guns in Ironforge")
+    local maces = false
+    for _, loc in ipairs(ns.STATIC_LOCATIONS[1455]) do
+        if loc.name == "Weapon Master" and Has(loc.keywords, "mace") and Has(loc.keywords, "gun") then maces = true end
+    end
+    H.assertTrue(maces, "maces and guns in Ironforge")
+end
+
+-- One row per master, each with its own weapons and its name: Orgrimmar's
+-- two stand together, only Sayoc teaches fist weapons (2026-11-07: "fist
+-- weapon trainer" listed one "Weapon Master" row for both).
+function tests.eachWeaponMaster_isItsOwnRow()
+    local ns = Load({ classic = true, era = true })
+    local function Has(list, id)
+        for _, v in ipairs(list or {}) do if v == id then return true end end
+        return false
+    end
+    local byName = {}
+    for _, places in pairs(ns.STATIC_LOCATIONS) do
+        for _, loc in ipairs(places) do
+            if loc.name == "Weapon Master" then
+                H.assertTrue(type(loc.npcName) == "string" and loc.npcName ~= "", "every master named")
+                H.assertNil(byName[loc.npcName], loc.npcName .. " listed once")
+                byName[loc.npcName] = loc
+            end
+        end
+    end
+    H.assertNotNil(byName.Hanashi, "Hanashi")
+    H.assertNotNil(byName.Sayoc, "Sayoc")
+    H.assertFalse(Has(byName.Hanashi.teaches, 15590), "Hanashi teaches no fist weapons")
+    H.assertTrue(Has(byName.Sayoc.teaches, 15590), "Sayoc does")
+    H.assertTrue(byName.Hanashi.x ~= byName.Sayoc.x or byName.Hanashi.y ~= byName.Sayoc.y, "each at its own spot")
 end
 
 function tests.theTocLoadsIt()
