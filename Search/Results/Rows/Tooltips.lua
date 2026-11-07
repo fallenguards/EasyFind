@@ -480,17 +480,17 @@ function Rows.InstallTooltips(resultRow)
                         end
                     end
                 end)
-            -- Pet tooltip (use BattlePetToolTip via the link, since GameTooltip
-            -- only renders battle pet links as raw escape codes)
+            -- Forever's battle pet tooltip lacks the Owned line its show
+            -- writes; its own journal shows the companion tooltip instead.
             elseif self.icon.petID then
                 local link = C_PetJournal and C_PetJournal.GetBattlePetLink
                     and C_PetJournal.GetBattlePetLink(self.icon.petID)
-                if link and BattlePetToolTip_ShowLink then
+                if link and BattlePetToolTip_ShowLink and BattlePetTooltip and BattlePetTooltip.Owned then
                     AnchorRowTooltip(GameTooltip, self)
                     BattlePetToolTip_ShowLink(link)
-                elseif link then
+                elseif GameTooltip.SetCompanionPet then
                     AnchorRowTooltip(GameTooltip, self)
-                    GameTooltip:SetHyperlink(link)
+                    GameTooltip:SetCompanionPet(self.icon.petID)
                     GameTooltip:Show()
                 end
             elseif self.icon.outfitID then
