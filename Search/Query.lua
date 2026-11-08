@@ -416,6 +416,23 @@ local function AppendTail()
     ns.ResultRender:ExtendResults(flatEntries, from)
 end
 
+-- With the General Catalog off and few or no item rows found: a row that
+-- turns it on and searches again. New saves have it on; older ones keep
+-- their filters (2026-11-07).
+local ITEM_CATEGORIES = { Item = true, Bag = true, Bank = true, Warband = true }
+local catalogOffRow
+local function CatalogOffRow()
+    if not catalogOffRow then
+        catalogOffRow = {
+            name = ns.L["CATALOG_OFF_ROW"], category = "Item", searchCommandDesc = ns.L["CATALOG_OFF_ROW_SUB"],
+            glyph = { tex = ns.ITEMS_CATEGORY_ICON_TEX, coords = ns.ITEMS_CATEGORY_ICON_COORDS,
+                      aspect = ns.ITEMS_CATEGORY_ICON_ASPECT },
+            noPin = true, noLearn = true, noMenu = true, turnOnFilter = "catalog",
+        }
+    end
+    return catalogOffRow
+end
+
 -- The text and scope of the last list painted: a run of the same ones is
 -- a repaint (a provider landed, an item's data arrived, a row's state
 -- changed), never a new search.
@@ -1195,6 +1212,17 @@ function Search:OnSearchTextChangedNow(text, force)
                 end
             end
         end
+    end
+
+    -- The catalog off and under three item rows: the offer to turn it on, last.
+    if not quickFilter and not calculatorData and not calculatorLauncher and #text >= 3
+       and ns.Caps.itemCatalog and filters and ns.CategoryMap.IsProviderFilterOff(filters, "catalog") then
+        local itemRows = 0
+        for ri = 1, #combined do
+            local d = combined[ri].data
+            if d and ITEM_CATEGORIES[d.category] then itemRows = itemRows + 1 end
+        end
+        if itemRows < 3 then combined[#combined + 1] = { score = 1, data = CatalogOffRow() } end
     end
 
     Mark("joins")

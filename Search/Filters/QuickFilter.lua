@@ -595,6 +595,18 @@ function Filters:UpdateQuickFilterSuggestions(editBox)
     return true
 end
 
+-- A result row's offer ("Turn on the full item catalog"): the filter and
+-- those over it on, every open menu resynced, the typed search run again.
+function Filters:TurnOnFilter(key)
+    local filters = EasyFind.db.uiSearchFilters
+    while key do
+        filters[key] = true
+        key = ns.CategoryMap.ParentOf(key)
+    end
+    if Filters.ResyncShownOptionPopups then Filters.ResyncShownOptionPopups() end
+    self:RerunActiveSearch()
+end
+
 function Filters:GetSelectedQuickFilterSuggestion()
     if Search:GetSelectedIndex() > 0 then
         local row = ns.Results:RowFrame(Search:GetSelectedIndex())

@@ -165,6 +165,13 @@ function CategoryMap.IsProviderFilterOff(filters, providerKey)
     return EntryOff(filters, e)
 end
 
+-- The filter over a provider's (items over catalog); nil at the top.
+function CategoryMap.ParentOf(providerKey)
+    local e = ProviderEntry[providerKey]
+    if e then return e.parent end
+    return INTERMEDIATE_PARENT[providerKey]
+end
+
 -- Fills `out` with the category names whose filters (or ancestors) are
 -- unchecked; returns true when anything was skipped. Explicit query intent
 -- (statistics/bosses trigger words) suppresses the matching entry's skip.
