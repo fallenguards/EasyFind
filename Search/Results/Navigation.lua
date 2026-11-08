@@ -320,6 +320,9 @@ function Results:HideResults()
     end
     Results._cachedHierarchical = nil
     self._lastRenderSig = nil
+    -- The rows are secure buttons, protected in a fight like the frame:
+    -- their Hide waits for its end too (the chat composer opened in a
+    -- fight, 2026-11-07).
     for i = 1, #Search:GetResultButtons() do
         local row = Search:GetResultButtons()[i]
         if row then
@@ -328,13 +331,14 @@ function Results:HideResults()
             row._efShortcutBindingReady = nil
             row._efContentTop = nil
             row._efContentBottom = nil
-            row:Hide()
-            if row.shortcutGroup then row.shortcutGroup:Hide() end
+            Utils.SafeCallMethod(row, "Hide")
+            if row.shortcutGroup then Utils.SafeCallMethod(row.shortcutGroup, "Hide") end
             if row.icon then
                 Icons.ClearRowIconLeafIDs(row.icon)
             end
         end
     end
+    self.hideAfterCombat = InCombatLockdown() or nil
     self:ResetWindow()
     Search:SetSelectedIndex(0)
     Search:SetToggleFocused(false)

@@ -368,6 +368,8 @@ function Search:RegisterCombatEvents()
         elseif event == "PLAYER_REGEN_ENABLED" then
             inCombat = false
             combatToggledOff = false
+            -- Results hidden in the fight: their secure rows hide now.
+            if Results.hideAfterCombat then Results:HideResults() end
             if searchFrame.combatShield then searchFrame.combatShield:Hide() end
             ApplyAlwaysBarAlpha()
             -- autoHide stays hidden after combat; reopens via bind.
