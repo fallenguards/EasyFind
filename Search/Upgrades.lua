@@ -85,6 +85,12 @@ local EMPTY = {}
 -- A drop whose row names no required level: the usual gap below its level.
 local REQ_GAP = 5
 
+-- An extension's judge of the character played now (Core/API.lua), or nil.
+local function JudgeOf(entry)
+    local judge = entry.isCurrent and ns.Extensions and ns.Extensions.Judge
+    return judge and judge.def and judge.Rate or nil
+end
+
 -- A shipped drop's facts: item level, required level, kinds of stats,
 -- inventory type, item class and subclass, quality.
 local function Gear(itemID)
@@ -163,6 +169,9 @@ end
 
 local function DropLess(a, b)
     if a.raid ~= b.raid then return not a.raid end
+    -- Judged drops first, the biggest gain leading.
+    if a.judged ~= b.judged then return a.judged end
+    if a.judged and (a.gain or 0) ~= (b.gain or 0) then return (a.gain or 0) > (b.gain or 0) end
     if a.ilvl ~= b.ilvl then
         -- Dungeons: the best this level reaches; raids: the next step up first.
         if a.raid then return a.ilvl < b.ilvl end
@@ -227,6 +236,7 @@ function Upgrades.Rows(entry)
         end
     end
     local insts = InstanceNames()
+    local rate = JudgeOf(entry)
     local bySlot = {}
     for i = 1, #SLOTS do bySlot[i] = {} end
     local seen = {}
@@ -238,23 +248,30 @@ function Upgrades.Rows(entry)
             for _, itemID in ipairs(list or {}) do
                 local ilvl, req, kinds, inv, cls, sub, quality = Gear(itemID)
                 if ilvl and req == 0 then req = ilvl - REQ_GAP end
-                if ilvl and ilvl >= MIN_ITEM_LEVEL and req <= entry.level and not wornIDs[itemID]
-                   and Suits(entry.class, kinds) then
-                    for i, def in ipairs(SLOTS) do
-                        local key = i .. ":" .. itemID
-                        if def.inv[inv] and not seen[key] then
-                            local base = worn[def.slots[1]]
-                            local weakest = base and base.level or 0
-                            if def.slots[2] then
-                                local other = worn[def.slots[2]]
-                                weakest = (base and other) and math.min(base.level, other.level) or 0
-                            end
-                            if ilvl > weakest and Fits(entry, def, base, inv, cls, sub, itemID, worn[16]) then
-                                seen[key] = true
-                                local list2 = bySlot[i]
-                                list2[#list2 + 1] = { itemID = itemID, ilvl = ilvl, req = req, gain = ilvl - weakest,
-                                    quality = quality, boss = boss, heroic = pass == 2, name = ItemName(itemID),
-                                    raid = inst and inst.raid or false, inst = inst }
+                if ilvl and ilvl >= MIN_ITEM_LEVEL and req <= entry.level and not wornIDs[itemID] then
+                    -- The judge's word where there is one; unrated, EasyFind's own comparison.
+                    local verdict = rate and rate(itemID, "item:" .. itemID)
+                    local judged = verdict ~= nil and verdict ~= false
+                    if verdict ~= false and (judged or Suits(entry.class, kinds)) then
+                        for i, def in ipairs(SLOTS) do
+                            local key = i .. ":" .. itemID
+                            if def.inv[inv] and not seen[key] then
+                                local base = worn[def.slots[1]]
+                                local weakest = base and base.level or 0
+                                if def.slots[2] then
+                                    local other = worn[def.slots[2]]
+                                    weakest = (base and other) and math.min(base.level, other.level) or 0
+                                end
+                                local beats = judged or ilvl > weakest
+                                if beats and Fits(entry, def, base, inv, cls, sub, itemID, worn[16]) then
+                                    seen[key] = true
+                                    local gain = ilvl - weakest
+                                    if judged then gain = type(verdict) == "number" and verdict or nil end
+                                    local list2 = bySlot[i]
+                                    list2[#list2 + 1] = { itemID = itemID, ilvl = ilvl, req = req, gain = gain,
+                                        judged = judged, quality = quality, boss = boss, heroic = pass == 2,
+                                        name = ItemName(itemID), raid = inst and inst.raid or false, inst = inst }
+                                end
                             end
                         end
                     end
@@ -285,6 +302,7 @@ function Upgrades.Rows(entry)
                     lootSourceName = bossName, lootInstanceName = instName,
                     lootSourceType = d.raid and "Raid" or "Dungeon",
                     upgradeLevel = d.ilvl, upgradeGain = d.gain, upgradeSlot = i, upgradeRaid = d.raid,
+                    upgradeJudged = d.judged or nil,
                     folded = Fold(d.name .. " " .. bossName .. " " .. instName .. " " .. label),
                 }
             end
@@ -292,6 +310,12 @@ function Upgrades.Rows(entry)
     end
     if #out == 0 then return Line(sformat(L["UPGRADES_NONE_FMT"], entry.level)) end
     return out
+end
+
+-- The judge's verdicts changed: the page is built again when shown.
+function Upgrades.Changed()
+    if ns.Characters and ns.Characters.ForgetPages then ns.Characters:ForgetPages() end
+    if ns.Search and ns.Search.RefreshActiveSearch then ns.Search:RefreshActiveSearch(true) end
 end
 
 -- The rows shown for words (folded, as Data.Words makes them): each slot's

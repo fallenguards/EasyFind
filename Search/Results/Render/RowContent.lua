@@ -784,9 +784,11 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
         resultRow.iconCooldown:Hide()
         if data.lootSourceName then
             local name = data.nameHex and (data.nameHex .. data.name .. "|r") or data.name
-            -- @upgrades: the drop's item level and what it gains.
+            -- @upgrades: the drop's item level and what it gains (a judge's percent).
             if data.upgradeLevel then
-                name = name .. "  |cff40c040" .. data.upgradeLevel .. " (+" .. data.upgradeGain .. ")|r"
+                local gain = data.upgradeGain
+                    and (" (+" .. data.upgradeGain .. (data.upgradeJudged and "%" or "") .. ")") or ""
+                name = name .. "  |cff40c040" .. data.upgradeLevel .. gain .. "|r"
             end
             Render.SetUnclippedText(resultRow.text, name .. "  |cff888888" .. data.lootSourceName .. "|r")
         end

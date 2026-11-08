@@ -542,6 +542,11 @@ local function PageRows(def)
     return page.rows
 end
 
+-- The pages built again when shown next (@upgrades judged anew).
+function Characters:ForgetPages()
+    page.def, page.list, page.rows = nil, nil, nil
+end
+
 -- The pages under a page, each by the words it answers to as an @ word
 -- typed there ("@items" on @alts).
 local function SubPages(def)

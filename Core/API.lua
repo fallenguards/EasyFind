@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 9 }
+local API = { VERSION = 1, MINOR = 10 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -851,6 +851,47 @@ end
 -- changed while it shows (a spell's text arrived).
 function API.RedrawRowTooltip()
     if ns.ResultRows and ns.ResultRows.RedrawHoveredTooltip then ns.ResultRows.RedrawHoveredTooltip() end
+end
+
+-- ==== upgrade judge ===========================================================
+
+-- An extension's verdict on @upgrades for the character played now
+-- (MINOR 10): a percent, true (an upgrade, no number), false, or nil.
+local Judge = { def = nil }
+Extensions.Judge = Judge
+
+-- The @upgrades page built again when shown (verdicts landed, gear changed).
+function API.RefreshUpgrades()
+    if ns.Upgrades and ns.Upgrades.Changed then ns.Upgrades.Changed() end
+end
+
+function API.RegisterUpgradeJudge(def)
+    if type(def) ~= "table" then Fail("RegisterUpgradeJudge", "expects a table") end
+    if type(def.rate) ~= "function" then Fail("RegisterUpgradeJudge", "rate must be a function") end
+    local owner = Extensions.Get(def.extension or def.id)
+    if not owner then
+        Fail("RegisterUpgradeJudge", "extension '" .. tostring(def.extension or def.id) .. "' must be registered first")
+    end
+    def.extension = owner.id
+    Judge.def = def
+    API.RefreshUpgrades()
+    return true
+end
+
+function API.UnregisterUpgradeJudge(extension)
+    if not (Judge.def and Judge.def.extension == extension) then return end
+    Judge.def = nil
+    API.RefreshUpgrades()
+end
+
+-- The judge's word on a drop; nil with no judge, unrated, or a failed rate.
+function Judge.Rate(itemID, link)
+    local def = Judge.def
+    if not def then return nil end
+    local ok, verdict = Run(def.rate, itemID, link)
+    if not ok or verdict == nil then return nil end
+    if verdict == false or verdict == true then return verdict end
+    return type(verdict) == "number" and verdict or nil
 end
 
 function API.RegisterRowDecorator(def)

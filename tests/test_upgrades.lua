@@ -269,5 +269,43 @@ function tests.onlyTheClientsWithShippedDrops()
     H.assertTrue(caps:find('upgrades = "upgrades"', 1, true) ~= nil, "the filter is pruned elsewhere")
 end
 
+-- An extension's judge (Pawn's scales) decides and ranks the drops of the
+-- character played now; a drop it has not rated takes EasyFind's own
+-- comparison, and other characters' pages keep it throughout.
+function tests.aJudge_decidesAndRanks_theCharacterPlayedNow()
+    local items = {
+        [1] = { name = "A", ilvl = 30, req = 30, inv = INV.chest, sub = 3 },
+        [2] = { name = "B", ilvl = 45, req = 30, inv = INV.chest, sub = 3 },
+        [3] = { name = "C", ilvl = 42, req = 30, inv = INV.chest, sub = 3 },
+        [4] = { name = "D", ilvl = 44, req = 30, inv = INV.chest, sub = 3 },
+    }
+    local verdicts = { [1] = 12, [2] = false, [4] = true }
+    local asked = {}
+    local function Judged(current)
+        local ns, entry, env = World({ items = items, level = 35, worn = { [5] = { id = 100, level = 40 } } })
+        entry.isCurrent = current
+        env.GetInventoryItemLink = nil
+        ns.Extensions = { Judge = { def = {}, Rate = function(itemID)
+            asked[#asked + 1] = itemID
+            return verdicts[itemID]
+        end } }
+        return ns, entry
+    end
+    local ns, entry = Judged(true)
+    local rows = ns.Upgrades.Rows(entry)
+    H.assertEq(Names(rows), "A,D,C", "judged drops first by gain, then EasyFind's own")
+    local byName = {}
+    for _, r in ipairs(rows) do if not r.upgradeHeader then byName[r.name] = r end end
+    H.assertEq(byName.A.upgradeGain, 12, "the percent is the judge's")
+    H.assertTrue(byName.A.upgradeJudged)
+    H.assertNil(byName.D.upgradeGain, "an upgrade with no number")
+    H.assertNil(byName.C.upgradeJudged, "unrated: EasyFind's own comparison")
+    H.assertEq(byName.C.upgradeGain, 2)
+    asked = {}
+    ns, entry = Judged(false)
+    H.assertEq(Names(ns.Upgrades.Rows(entry)), "B,D,C", "another character: EasyFind's own comparison")
+    H.assertEq(#asked, 0, "the judge is not asked")
+end
+
 local pass, fail, failures = H.runSuite("Upgrades", tests)
 return { pass = pass, fail = fail, failures = failures }

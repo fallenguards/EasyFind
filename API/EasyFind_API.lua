@@ -183,7 +183,7 @@ EasyFind.API = {
     ---Rises only for a change that breaks an extension.
     VERSION = 1,
     ---Rises when something is added.
-    MINOR = 7,
+    MINOR = 10,
 }
 local API = EasyFind.API
 
@@ -234,6 +234,14 @@ function API.RefreshRowDecorations() end
 function API.RedrawRowTooltip() end
 ---Its rows changed: rebuilt now, and an open search shows them.
 function API.RefreshSearchProvider(key) end
+---Your verdict on @upgrades for the character played now (MINOR 10): rate(itemID, link) answers the percent the drop beats the worn piece by, true for an upgrade with no number, false for no upgrade, nil for not rated (EasyFind's own comparison stands). One judge at a time; the last registered judges.
+---@param def { extension: string, rate: fun(itemID: integer, link: string): number|boolean|nil }
+---@return boolean
+function API.RegisterUpgradeJudge(def) end
+---Takes the extension's judge back (MINOR 10).
+function API.UnregisterUpgradeJudge(extension) end
+---Your verdicts changed (a drop rated, the gear changed): @upgrades is built again when shown (MINOR 10).
+function API.RefreshUpgrades() end
 ---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.
 ---@return boolean
 function API.ShowPlaces(key, row) end
