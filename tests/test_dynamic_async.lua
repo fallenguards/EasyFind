@@ -267,5 +267,17 @@ function tests.canceledPopulate_leavesNoRecordBehind()
     H.assertNil(Database.populateMarks.Statistic, "consumed on the cancel path")
 end
 
+function tests.stale_isResidentRowsWhoseSourceChanged_syncOnly()
+    local _, _, Database = setupDatabase()
+    H.assertFalse(Database:IsDynamicProviderStale("abilities"), "never loaded: nothing to re-read")
+    Database:EnsureDynamicProviderLoaded("abilities", function() end)
+    H.assertFalse(Database:IsDynamicProviderStale("abilities"), "loaded and current")
+    Database:MarkDynamicCategoryDirty("abilities")
+    H.assertTrue(Database:IsDynamicProviderStale("abilities"), "rows resident, their source changed")
+    Database:MarkDynamicProviderLoaded("loot")
+    Database:MarkDynamicCategoryDirty("loot")
+    H.assertFalse(Database:IsDynamicProviderStale("loot"), "a heavy walk waits for its own request")
+end
+
 local pass, fail, failures = H.runSuite("Database/Dynamic", tests)
 return { pass = pass, fail = fail, failures = failures }

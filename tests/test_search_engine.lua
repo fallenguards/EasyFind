@@ -7,10 +7,13 @@ local Engine = H.loadModule("Search/Engine.lua", env, ns)
 
 local tests = {}
 
-local function withProviderCapture(loaded)
+local function withProviderCapture(loaded, stale)
     local requested = {}
     ns.Database.IsDynamicProviderLoaded = function(_, key)
         return loaded and loaded[key] or false
+    end
+    ns.Database.IsDynamicProviderStale = function(_, key)
+        return stale and stale[key] or false
     end
     ns.Database.RequestDynamicProviderLoaded = function(_, key, onDone)
         requested[#requested + 1] = key
@@ -39,6 +42,27 @@ function tests.richGenericResultsDoNotPreloadLowResultProviders()
 
     H.assertEq(#requested, 0,
         "generic queries with enough results should not fan out provider loads")
+end
+
+function tests.staleResidentProviderIsReReadByAnyQuery()
+    -- A spell learned after the first search: the ability rows stayed as
+    -- read before it until a query carried "spell" or found under four rows.
+    local requested = withProviderCapture(nil, { abilities = true })
+    local ctx = Engine:BuildContext("disenchant", nil, { abilities = true })
+
+    Engine:RequestProviders(ctx, function() end, 4)
+
+    H.assertEq(requested[1], "abilities", "a stale provider is re-read whatever the result count")
+    H.assertEq(#requested, 1, "only the stale one")
+end
+
+function tests.staleProviderWithItsFilterOffStaysOut()
+    local requested = withProviderCapture(nil, { abilities = true })
+    local ctx = Engine:BuildContext("disenchant", nil, { abilities = false })
+
+    Engine:RequestProviders(ctx, function() end, 4)
+
+    H.assertEq(#requested, 0, "its filter off: no re-read")
 end
 
 function tests.explicitAbilityWordRequestsAbilitiesRegardlessOfResultCount()

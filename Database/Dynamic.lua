@@ -412,6 +412,13 @@ function Database:IsDynamicProviderLoaded(key)
     return provider and provider.loaded and not provider.dirty or false
 end
 
+-- Rows resident, their source changed since (a spell learned): the next
+-- query re-reads a sync provider; a heavy walk waits for its own request.
+function Database:IsDynamicProviderStale(key)
+    local provider = dynamicProviderByKey[key]
+    return provider and provider.loaded and provider.dirty and not provider.asyncFn or false
+end
+
 -- True while a populate for this key ran within the last windowSec. The
 -- event-driven dirty-markers use this to ignore the events our own
 -- populates echo (journal filter pushes, header expands): without it, any

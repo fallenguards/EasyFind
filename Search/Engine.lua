@@ -337,6 +337,7 @@ function Engine:RequestProviders(ctx, onChanged, resultCount)
             local shouldRequest = explicit
                 or (spec.loadWhenEnabled and ctx.filters and ctx.filters[key] == true)
                 or self:ShouldLoadForLowResults(ctx, spec, resultCount)
+                or (Database and Database.IsDynamicProviderStale and Database:IsDynamicProviderStale(key))
             if spec.heavyQuery and Database and Database.QueryNeedsHeavySearchData then
                 shouldRequest = shouldRequest or Database:QueryNeedsHeavySearchData(ctx.text)
             end
