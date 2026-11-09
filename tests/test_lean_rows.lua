@@ -220,6 +220,11 @@ function tests.commandRowsReadTheirConstantsFromTheProto()
     -- /reload answers to what players type for it (the Era audit's "rl" miss).
     H.assertTrue(src:find('["/reload"] = { "reload", "rl", "reloadui", "reload ui" }', 1, true) ~= nil)
     H.assertTrue(src:find("keywords = SYSTEM_KEYWORDS[slash],", 1, true) ~= nil)
+    -- An emote is a secure macro: PerformEmote is restricted, and DoEmote
+    -- from addon code was ADDON_ACTION_BLOCKED on Forever (2026-11-09).
+    H.assertTrue(src:find("subLabel = EMOTE_SUBLABEL,\n                slashCommand = slower(cmd),", 1, true) ~= nil,
+        "an emote def carries slashCommand")
+    H.assertNil(src:find("DoEmote(", 1, true), "no DoEmote call")
 end
 
 -- The macro window has no micro button: it is a Game Menu row (the retail

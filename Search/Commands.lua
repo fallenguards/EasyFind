@@ -211,12 +211,13 @@ local function CollectNativeCommandDefs()
         local tok = _G["EMOTE" .. i .. "_TOKEN"]
         if type(cmd) == "string" and cmd:sub(1, 1) == "/" and tok and not seen[slower(cmd)] then
             seen[slower(cmd)] = true
-            local t = tok
+            -- PerformEmote is restricted: DoEmote from addon code is
+            -- blocked, so an emote runs as a secure macro like /logout.
             defs[#defs + 1] = {
                 display = slower(cmd),
                 lower = slower((cmd:gsub("^/", ""))),
                 subLabel = EMOTE_SUBLABEL,
-                run = function() if DoEmote then DoEmote(t) end end,
+                slashCommand = slower(cmd),
             }
         end
     end
@@ -308,8 +309,8 @@ function Commands:GetSearchBarCommandSuggestionEntries(text)
                 data.category = "Command"
                 data.path = SLASH_COMMANDS_PATH
                 data.icon = COMMANDS_ICON
-                -- Secure system commands (/logout, /quit, ...) run via the
-                -- macrotext path; the rest via the insecure nativeRun callback.
+                -- System commands and emotes run via the macrotext path;
+                -- the rest via the insecure nativeRun callback.
                 if def.slashCommand then
                     data.slashCommand = def.slashCommand
                 else
