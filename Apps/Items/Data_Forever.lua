@@ -88,7 +88,7 @@ a lesson in destruction	276897	3	0	38	4	0
 a letter from the keeper of the rolls	22723	1	0	1	12	0
 a letter to grelin whitebeard	2188	1	0	1	12	0
 a letter to yvette	2839	1	0	4	12	0
-a little somethin'	281282	1	0	46	0	0
+a little somethin'	281282	1	0	47	0	0
 a luddite's guide to caring for your demonic pet	215824	1	0	25	5	0
 a mangled journal	11116	2	0	48	15	0
 a mind of metal	220352	1	0	50	5	0
@@ -126,16 +126,16 @@ a winter veil gift	286210	1	0	1	15	0
 a wooden leg	9356	0	0	1	15	0
 a'sharahm, the roiling tempest	254779	2	0	12	2	0
 abandoned belongings	266433	1	0	1	12	0
-abandoned boots	274720	2	0	58	4	0
+abandoned boots	274720	2	0	57	4	0
 abandoned experiment	241037	4	254	98	4	0
-abandoned ferocity	271801	3	0	43	2	0
+abandoned ferocity	271801	3	0	42	2	0
 abandoned leggings	286986	3	0	31	4	0
 abandoned snapjaw egg	208682	1	0	1	15	0
 abandoned supplies	275958	1	0	1	12	0
 abandoned training weapon	277653	1	0	1	12	0
 abandoned wedding band	228186	3	254	63	4	0
 abercrombie's crate	1349	1	0	1	12	0
-abigail's hope	276332	2	0	60	2	0
+abigail's hope	276332	2	0	57	2	0
 abjurer's bands	9937	2	0	48	4	0
 abjurer's boots	9936	2	0	49	4	0
 abjurer's cloak	9938	2	0	48	4	0
@@ -266,6 +266,7 @@ adventurer's legguards	10262	2	0	64	4	0
 adventurer's lost boots	260167	2	0	52	4	0
 adventurer's pith helmet	9420	3	0	37	4	0
 adventurer's shoulders	10263	2	0	63	4	0
+adventurer's tent	288185	1	0	1	15	0
 adventurer's tunic	10264	2	0	65	4	0
 advertising license application	270887	3	0	1	15	0
 advertising license application	270888	3	0	1	15	0
@@ -564,6 +565,7 @@ angelista's touch	233524	4	254	76	4	0
 angerclaw grizzly hide	20018	1	0	1	12	0
 angerforge's battle axe	11816	3	254	56	2	0
 angerforge's battle axe	227948	3	254	56	2	0
+angler's mantle	244229	1	-3	1	4	0
 anguish of the dream	221374	3	254	35	4	0
 animal skin belt	5936	1	0	8	4	0
 animated chain necklace	18723	3	0	62	4	0
@@ -706,7 +708,6 @@ arcane shard	20085	1	0	1	15	0
 arcane staff	9514	2	0	10	2	0
 arcane star	15931	2	0	61	4	0
 arcane wine	260631	1	0	15	0	0
-arcane-infused net	254380	1	0	1	12	0
 arcanic systems manual	209847	1	0	25	5	0
 arcanist belt	16802	4	254	66	4	0
 arcanist belt	226555	4	254	66	4	0
@@ -1282,6 +1283,7 @@ barkmail vest	10656	1	0	5	4	0
 barkshell tunic	5316	2	0	25	4	0
 barkskin baubles	274417	3	0	58	4	0
 barkskin purification tonic	268677	1	0	60	12	0
+barkskin purification tonic	274373	1	0	55	12	0
 barkskin satchel	262801	2	0	60	1	0
 barkskin scepter	275293	2	0	58	2	0
 barkwoven belt	260179	2	0	52	4	0
@@ -1919,7 +1921,7 @@ blade of reckoning	12061	2	0	60	2	0
 blade of senseless slaughter	284101	3	0	62	2	0
 blade of silverlaine	273637	3	0	26	2	0
 blade of the basilisk	8223	3	0	39	2	0
-blade of the magram clan	271796	2	0	43	2	0
+blade of the magram clan	271796	2	0	38	2	0
 blade of the new moon	18372	3	254	62	2	0
 blade of the pit	231912	4	254	65	2	0
 blade of the titans	13043	3	0	49	2	0
@@ -2405,7 +2407,8 @@ bloody parchment	273659	1	0	1	12	0
 bloody tuft of fur	269739	0	0	1	15	0
 blooming heart	286405	1	0	1	0	0
 bloomsprout headpiece	17767	3	0	51	4	0
-bludgeon of betrayed virtues	271802	3	0	43	2	0
+blossoming ancient	98550	3	0	1	15	0
+bludgeon of betrayed virtues	271802	3	0	42	2	0
 bludgeon of the grinning dog	10627	3	0	47	2	0
 bludgeoning cudgel	1823	0	0	22	2	0
 bludstone hammer	13028	3	0	61	2	0
@@ -2416,6 +2419,7 @@ blue dragonscale helm	252604	4	0	61	4	0
 blue dragonscale leggings	20295	3	0	60	4	0
 blue dragonscale shoulders	15049	3	0	59	4	0
 blue dye	6260	1	0	10	7	0
+blue firework	288336	1	0	20	0	0
 blue firework	9312	1	0	20	0	0
 blue glittering axe	7942	2	0	44	2	0
 blue hakkari bijou	19708	3	0	61	12	0
@@ -2448,7 +2452,7 @@ blue suede gloves	252546	2	0	53	4	0
 blue suede hat	252482	2	0	61	4	0
 blue suede pants	252478	2	0	56	4	0
 blue suede shoes	252467	2	0	52	4	0
-blue suede shoulder	252554	2	0	57	4	0
+blue suede shoulders	252554	2	0	57	4	0
 blue voodoo feather	20607	1	0	1	15	0
 blue-feathered amulet	12524	1	0	1	12	0
 blue-feathered necklace	12558	1	0	52	12	0
@@ -2484,7 +2488,7 @@ blueprint: toxin study	273105	2	0	25	9	0
 blueprint: trapper's workbench	273109	2	0	60	9	0
 bluffwatcher's card	22144	1	0	1	15	0
 blump family fishing pole	12225	1	0	10	2	0
-blunderflame bone bow	275439	2	0	59	2	0
+blunderflame bone bow	275439	2	0	57	2	0
 blunt claymore	1811	0	0	17	2	0
 blunting mace	4021	0	0	46	2	0
 blurred axe	4824	2	0	27	2	0
@@ -2501,7 +2505,7 @@ bog boots	7095	1	0	9	4	0
 bog pickers	282655	2	0	27	4	0
 bogling root	5206	1	0	12	0	0
 boiled clams	5525	1	0	10	0	0
-bold dirk	250616	2	0	59	2	0
+bold dirk	250616	2	0	57	2	0
 bold yellow shirt	3426	1	0	30	4	0
 bolder'ok loincloth	275023	3	0	44	4	0
 bolt charged bramble	7272	1	0	1	12	0
@@ -2811,7 +2815,6 @@ bracers of wrath	231031	4	254	76	4	0
 bracers of wrath	232247	4	254	76	4	0
 bracesteel belt	15588	2	0	35	4	0
 brackclaw	2235	2	0	21	2	0
-bracket	276088	1	0	60	12	0
 brackwater boots	3302	2	0	15	4	0
 brackwater bracers	3303	1	0	12	4	0
 brackwater cloak	4680	1	0	13	4	0
@@ -3003,7 +3006,7 @@ bristlebark britches	14574	2	0	26	4	0
 bristlebark buckler	15894	2	0	25	4	0
 bristlebark cape	14571	2	0	21	4	0
 bristlebark gloves	14572	2	0	24	4	0
-bristlecone cloak	275833	2	0	58	4	0
+bristlecone cloak	275833	2	0	57	4	0
 bristlepelt vest	274942	2	0	40	4	0
 bristly whisker	1686	0	0	1	15	0
 brittle dragon bone	4459	0	0	1	15	0
@@ -3536,7 +3539,7 @@ centaur hoofwarmers	274490	2	0	40	4	0
 centaur longbow	5748	2	254	16	2	0
 centaur raider's axe	284321	2	0	11	2	0
 centaur skull basher	286741	1	0	9	2	0
-centaur spear	271794	2	0	43	2	0
+centaur spear	271794	2	0	38	2	0
 centaur war chain	285339	3	0	19	4	0
 centipaar insect parts	8587	1	0	1	12	0
 centurion legplates	10740	2	0	53	4	0
@@ -3681,7 +3684,7 @@ charged scorpid bracers	252593	2	0	56	4	0
 charged scorpid gauntlets	252596	2	0	56	4	0
 charged scorpid helm	252581	2	0	53	4	0
 charged scorpid leggings	252600	2	0	59	4	0
-charged scorpid shoulder	252583	2	0	55	4	0
+charged scorpid shoulders	252583	2	0	55	4	0
 charged scorpid vest	252598	2	0	57	4	0
 charged soulstone	1199	1	0	8	0	0
 charged stone	251723	1	0	1	15	0
@@ -3908,7 +3911,7 @@ claw of celebras	17738	3	0	52	2	0
 claw of chromaggus	19347	4	254	77	2	0
 claw of chromaggus	230794	4	254	77	2	0
 claw of chromaggus	232557	4	254	77	2	0
-claw of shalla'kal	276338	2	0	60	2	0
+claw of shalla'kal	276338	2	0	57	2	0
 claw of the black drake	19365	4	254	75	2	0
 claw of the black drake	230276	4	254	75	2	0
 claw of the black drake	232561	4	254	75	2	0
@@ -4011,6 +4014,7 @@ cloak of the shrouded mists	288921	4	0	30	4	0
 cloak of the tidemistress	276737	3	0	52	4	0
 cloak of the unseen path	21403	4	0	67	4	0
 cloak of the unseen path	233420	4	254	76	4	0
+cloak of the veiled paws	244352	1	-3	1	4	0
 cloak of unending life	21409	4	0	67	4	0
 cloak of unending life	233418	4	254	76	4	0
 cloak of untold secrets	21627	4	254	77	4	0
@@ -4736,7 +4740,7 @@ creeping vine helm	21669	4	0	76	4	0
 creeping vine helm	233578	4	254	78	4	0
 creepy censor sensors	236871	3	0	80	4	0
 creepy dalaran relic	216950	1	0	1	12	0
-cremation longbow	275441	2	0	59	2	0
+cremation longbow	275441	2	0	57	2	0
 crescent axe	2522	1	0	35	2	0
 crescent edge	15235	2	0	48	2	0
 crescent key	18249	1	0	1	13	0
@@ -4767,6 +4771,7 @@ crimson dawnwoven bag	239148	4	0	1	1	0
 crimson felt hat	18727	3	0	59	4	0
 crimson hammersmith's apron	13351	1	0	1	12	0
 crimson lotus	6986	0	0	40	15	0
+crimson rooster	286727	4	0	60	15	0
 crimson shocker	17077	4	254	63	2	0
 crimson shocker	228262	4	254	66	2	0
 crimson shocker	288914	4	0	30	2	0
@@ -4821,7 +4826,7 @@ crossbow of imminent doom	21459	4	254	72	2	0
 crossbow of imminent doom	234104	4	254	77	2	0
 crossbow of imminent doom	234993	4	254	77	2	0
 crossroads' supply crates	12708	1	0	1	12	0
-crowfeather tunic	275832	2	0	58	4	0
+crowfeather tunic	275832	2	0	57	4	0
 crown jewels of eldre'thalas	285953	1	0	1	12	0
 crown of caer darrow	13986	3	254	63	4	0
 crown of destruction	18817	4	254	76	4	0
@@ -5020,7 +5025,7 @@ cured leather pants	237	1	0	22	4	0
 cured light hide	4231	1	0	10	7	0
 cured medium hide	4233	1	0	20	7	0
 cured rugged hide	15407	1	0	50	7	0
-cured staghide leggings	276339	2	0	60	4	0
+cured staghide leggings	276339	2	0	57	4	0
 cured thick hide	8172	1	0	40	7	0
 curio-adorned necklace	279850	3	0	44	4	0
 curiosity cowl	223164	3	254	20	4	0
@@ -5176,7 +5181,6 @@ dark iron signet	270119	2	0	54	4	0
 dark iron sunderer	11607	3	0	57	2	0
 dark keeper key	11197	1	0	1	13	0
 dark leather belt	4249	2	0	25	4	0
-dark leather boots	2315	2	0	20	4	0
 dark leather boots	252425	3	0	15	4	0
 dark leather cloak	2316	2	0	22	4	0
 dark leather gloves	4248	2	0	26	4	0
@@ -5929,7 +5933,7 @@ desecrated wristguards	236247	4	254	60	15	0
 desecration	227857	3	254	63	2	0
 desert bloom gloves	20717	3	0	63	4	0
 desert choker	12043	2	0	47	4	0
-desert crawler's claw	271799	2	0	43	2	0
+desert crawler's claw	271799	2	0	38	2	0
 desert debris	278191	1	0	60	12	0
 desert ring	12013	2	0	49	4	0
 desert shoulders	15457	2	0	28	4	0
@@ -5941,7 +5945,7 @@ desertwalker cane	12471	3	0	47	4	0
 desertwalker cane	223533	3	254	47	4	0
 desolate band	271809	2	0	43	4	0
 desperado cape	2241	2	0	23	4	0
-desperate barrier	271798	2	0	43	4	0
+desperate barrier	271798	2	0	38	4	0
 destiny	647	4	254	57	2	0
 destroyed red scepter shard	21141	0	0	1	12	0
 detailed parchment	6496	1	0	1	12	0
@@ -6115,12 +6119,12 @@ dokebi leggings	14585	2	0	32	4	0
 dokebi mantle	14587	2	0	32	4	0
 dolanaar delivery	7627	1	0	1	0	0
 domesticated attack chicken	215461	3	254	40	4	0
-don julio's band	19325	4	0	65	4	0
+don julio's band	19325	4	0	60	4	0
 don mauricio's band of domination	22433	3	254	63	4	0
 don mauricio's band of domination	228046	3	254	63	4	0
 don rigoberto's lost hat	21615	4	0	81	4	0
 don rigoberto's lost hat	233624	4	254	81	4	0
-don rodrigo's band	21563	4	0	65	4	0
+don rodrigo's band	21563	4	0	60	4	0
 doom weed	13702	1	0	1	12	0
 doom's edge	19362	4	254	70	2	0
 doom's edge	230845	4	254	74	2	0
@@ -7599,9 +7603,11 @@ enriched thorium breastplate	250595	3	0	62	4	0
 enriched thorium helm	250597	3	0	63	4	0
 enriched thorium leggings	250596	3	0	63	4	0
 ensemble: al'aketh zealot's garb	271765	1	0	1	0	0
+ensemble: gilded blademaster's armor	287647	3	0	1	0	0
 ensemble: shen'dorei magister's garb	271731	1	0	1	0	0
 ensemble: shen'dorei peacekeeper's garb	271744	1	0	1	0	0
 ensemble: shen'dorei skyseer's garb	271755	1	0	1	0	0
+ensemble: stillwater fisher attire	244231	1	-3	1	0	0
 ensemble: veteran adventurer's outdoor wear	279182	1	0	1	0	0
 ensign cloak	3070	1	0	5	4	0
 ensorcelled parchment	3706	1	0	30	12	0
@@ -7976,7 +7982,6 @@ feathered bracers	4194	1	0	27	4	0
 feathered breastplate	8349	3	0	50	4	0
 feathered cape	5971	2	0	28	4	0
 feathered charm necklace	249698	1	0	1	12	0
-feathered cuffs	277222	2	0	45	4	0
 feathered headdress	3011	2	0	38	4	0
 feathered leggings	277225	2	0	45	4	0
 feathermoon headdress	13113	3	0	63	4	0
@@ -8212,7 +8217,7 @@ fetish of the sand reaver	233589	4	254	79	4	0
 fey dragon scale	5583	1	0	1	12	0
 feyscale cloak	6632	3	0	21	4	0
 field accounts of horde razings	277196	1	0	15	12	0
-field agent beverage	275671	2	0	58	4	0
+field agent beverage	275671	2	0	59	4	0
 field guide	213563	1	0	1	15	0
 field guide	279969	1	0	28	0	0
 field marshal's chain armor	231563	4	0	74	4	0
@@ -8411,7 +8416,7 @@ finely woven cloak	1270	2	0	15	4	0
 finely-enchanted battlehammer	227880	3	254	60	2	0
 fingerbone bracers	1351	2	0	28	4	0
 fingerbreaker stamp	276743	3	0	53	4	0
-fingerless gloves	6202	1	0	13	4	0
+fingerless gloves	6202	2	0	13	4	0
 fingers of arcane accuracy	213320	3	254	45	4	0
 finscale soles	281285	2	0	11	4	0
 fire goggles	10500	2	0	41	4	0
@@ -8826,7 +8831,7 @@ forged steel bars	6534	1	0	1	12	0
 forger's quill	262896	1	0	1	15	0
 forgotten ashes	247684	1	0	1	12	0
 forgotten loa idol	277135	1	0	10	12	0
-forgotten trompers	274719	2	0	58	4	0
+forgotten trompers	274719	2	0	57	4	0
 forgotten wraps	9433	3	0	46	4	0
 forked mudrock tongue	5883	1	0	1	12	0
 forked tongue	6444	0	0	1	15	0
@@ -9072,7 +9077,7 @@ four of wilds	221275	3	0	1	15	0
 fourth mosh'aru tablet	12412	1	0	1	12	0
 fourth relic fragment	12899	1	0	1	12	0
 fox-catching net	267429	1	0	60	12	0
-foxtail ward	275633	1	0	58	0	0
+foxtail ward	275633	1	0	57	0	0
 fractured canine	3299	0	0	1	15	0
 fractured elemental bracer	5448	0	0	1	15	0
 fractured elemental shard	11266	1	0	1	12	0
@@ -9613,7 +9618,7 @@ ghost-o-plasm	15849	1	0	1	12	0
 ghostfang's steps	286751	2	0	12	4	0
 ghostloom leggings	14545	3	254	62	4	0
 ghostloom leggings	228040	3	254	62	4	0
-ghostly bracers	3323	1	0	10	4	0
+ghostly bracers	3323	2	0	10	4	0
 ghostly mantle	3324	2	0	27	4	0
 ghostmaw's fang	271828	1	0	1	12	0
 ghostshard talisman	217296	3	254	35	4	0
@@ -9706,6 +9711,15 @@ gift of gob	228189	3	0	1	13	0
 gift of the elven magi	13360	3	254	63	2	0
 gift of the elven magi	228541	3	254	63	2	0
 gigantic war axe	15270	2	0	46	2	0
+gilded blademaster's banner	287626	3	0	1	4	0
+gilded blademaster's belt	287622	3	0	1	4	0
+gilded blademaster's boots	287624	3	0	1	4	0
+gilded blademaster's chestpiece	287621	3	0	1	4	0
+gilded blademaster's collar	287627	3	0	1	4	0
+gilded blademaster's gloves	287625	3	0	1	4	0
+gilded blademaster's greatsword	287648	3	0	1	2	0
+gilded blademaster's legguards	287623	3	0	1	4	0
+gilded blademaster's shoulders	287628	3	0	1	4	0
 gilded cord	254037	3	0	45	4	0
 gilded gauntlets	13244	3	254	60	4	0
 gilded gauntlets	228577	3	254	60	4	0
@@ -9715,6 +9729,7 @@ gilded plate belt	277240	2	0	45	4	0
 gilded sandals	254107	3	0	55	4	0
 gilded slippers	254001	3	0	35	4	0
 gilded waistcord	254081	3	0	52	4	0
+gill'el	229368	3	0	1	15	0
 gill's gills	286646	3	0	40	4	0
 gillsbane	209420	2	254	22	2	0
 gimashi's findings	258774	1	0	1	12	0
@@ -9781,7 +9796,7 @@ glaive of obsidian fury	227833	4	254	70	2	0
 glaive thrower muffler	275700	2	0	58	2	0
 glass shooter	9456	3	0	35	2	0
 gleaming claymore	15248	2	0	20	2	0
-gleaming crescent necklace	279274	1	0	25	12	0
+gleaming crescent necklace	279274	1	0	1	12	0
 gleaming throwing axe	15326	1	0	40	2	0
 glimmer	279392	3	0	30	2	0
 glimmerchain trousers	281316	2	0	51	4	0
@@ -10303,6 +10318,7 @@ gray bear tongue	3476	1	0	1	12	0
 gray dye	4340	1	0	25	7	0
 gray fur booties	3321	1	0	9	4	0
 gray kodo	15277	3	0	40	15	0
+gray leather boots	2315	2	0	20	4	0
 gray ram	5864	3	0	40	15	0
 gray sack of gems	17964	2	0	1	15	0
 gray woolen robe	2585	2	0	21	4	0
@@ -10369,7 +10385,7 @@ greatfather's winter ale	17402	1	0	35	0	0
 greatflank flayer	281587	3	0	60	2	0
 greathelm of the nightmare	220511	3	254	55	4	0
 greatstaff of fealty	241011	4	0	96	2	0
-greatstaff of the necrokhans	271803	3	0	43	2	0
+greatstaff of the necrokhans	271803	3	0	42	2	0
 greatsword of great pasts	272179	2	0	43	2	0
 greaves of glory	273947	4	0	61	4	0
 greaves of mourning	275438	2	0	58	4	0
@@ -10390,6 +10406,7 @@ green dragonscale leggings	15046	3	0	54	4	0
 green dragonskin cloak	20579	4	254	71	4	0
 green dragonskin cloak	234151	4	254	75	4	0
 green dye	2605	1	0	15	7	0
+green firework	288337	1	0	20	0	0
 green firework	9313	1	0	20	0	0
 green garden tea	17405	1	0	35	15	0
 green hakkari bijou	19711	3	0	61	12	0
@@ -10629,7 +10646,7 @@ grotslab gloves	11918	2	0	55	4	0
 ground scorpok assay	8412	1	0	1	0	0
 groundshaker's bindings	282556	2	0	47	4	0
 grove scoundrel's boots	271673	1	0	1	4	0
-grove scoundrel's pants	271674	1	0	1	4	0
+grove scoundrel's pants	271674	0	0	1	4	0
 grove scoundrel's shirt	271675	1	0	1	4	0
 grovekeeper boots	273895	4	0	61	4	0
 grovekeeper gauntlets	273897	4	0	61	4	0
@@ -10875,7 +10892,7 @@ hand of righteousness	7721	3	0	44	2	0
 hand of shazzrah	17332	1	0	1	12	0
 hand of sulfuron	17330	1	0	1	12	0
 hand of the zealous	276397	3	0	60	2	0
-hand-hewn buckler	276334	2	0	60	4	0
+hand-hewn buckler	276334	2	0	57	4	0
 handbook of backstab ix	21300	3	0	60	9	0
 handbook of commanding shout	216746	2	0	25	0	0
 handbook of deadly poison v	21302	3	0	60	9	0
@@ -11884,7 +11901,7 @@ hyjal berries	249796	1	0	55	0	0
 hyjal nectar	18300	1	0	65	0	0
 hyjal owl egg	269920	1	0	60	12	0
 hyjal owl feather	253341	1	0	60	12	0
-hyjal postal satchel	260307	1	0	60	1	0
+hyjal postal satchel	260307	1	0	58	1	0
 hyjal silphium	274979	1	0	1	12	0
 hyjal summit trash weapon	274560	0	0	60	2	0
 hyjal venison cut	251641	1	0	1	12	0
@@ -11929,7 +11946,7 @@ ice guard	22636	3	0	60	15	0
 ice thistle e'ko	12435	1	0	1	12	0
 ice threaded arrow	19316	2	0	54	6	0
 ice threaded bullet	19317	2	0	54	6	0
-ice-covered bracers	763	1	0	12	4	0
+ice-covered bracers	763	2	0	12	4	0
 icebane bracers	22671	4	0	80	4	0
 icebane bracers	236696	4	254	80	4	0
 icebane breastplate	22669	4	0	80	4	0
@@ -12142,7 +12159,7 @@ incinerator's boots	277218	2	0	28	4	0
 incomplete banner of provocation	21983	1	0	1	12	0
 incomplete staff of order	230984	4	254	79	15	0
 indari's offering	252674	1	0	1	12	0
-index esoteria	254584	2	0	1	12	0
+index esoteria	254584	1	0	1	12	0
 indoctrinated choker	279859	2	0	46	4	0
 indomitable armguards	14682	2	0	59	4	0
 indomitable belt	14684	2	0	60	4	0
@@ -12428,8 +12445,8 @@ ironaya's bracers	9409	3	0	42	4	0
 ironback signet	284041	2	0	53	4	0
 ironband's progress report	2637	1	0	1	12	0
 ironbark shield	20502	3	0	52	4	0
-ironbark staff	20069	4	0	65	2	0
-ironbark staff	20220	4	0	65	2	0
+ironbark staff	20069	4	0	60	2	0
+ironbark staff	20220	4	0	60	2	0
 ironbound locked chest	13875	1	0	45	15	0
 irondeep supplies	17522	1	0	1	12	0
 ironfeather	15420	1	0	50	7	0
@@ -13396,7 +13413,6 @@ lean wolf steak	12209	1	0	25	0	0
 lean worg flank	278159	1	0	1	12	0
 leather chef's belt	9682	2	0	44	4	0
 leather tourniquet	255721	1	0	36	7	0
-leather-bound flask	274373	1	0	55	12	0
 leather-reinforced runecloth bag	227844	3	0	60	1	0
 leatherworking certification	271626	2	0	1	15	0
 leatherworking sign	270882	2	0	1	15	0
@@ -13592,7 +13608,7 @@ legplates of wrath	232250	4	254	76	4	0
 legs of heroism	226876	3	254	66	4	0
 legs of the five thunders	227036	3	254	66	4	0
 lei of lilies	1315	4	254	51	4	0
-lei of the lifegiver	19312	4	0	65	4	0
+lei of the lifegiver	19312	4	0	60	4	0
 leogan	240920	4	254	96	2	0
 leonid's charm	242311	3	254	80	4	0
 leopard's head	268559	1	0	7	12	0
@@ -13753,7 +13769,7 @@ libram: seal of wrath	1536	1	0	30	9	0
 library scrip	3898	1	0	1	12	0
 library walkers	274294	2	0	39	4	0
 lich's index finger	273125	2	0	60	15	0
-lichbane	275347	2	0	58	4	0
+lichbane	275347	2	0	59	4	0
 lieutenant commander's chain greathelm	227086	3	0	71	4	0
 lieutenant commander's chain helm	227066	3	0	71	4	0
 lieutenant commander's chain helm	23306	3	0	71	4	0
@@ -13952,7 +13968,7 @@ lion-stamped gloves	1359	1	0	8	4	0
 lionfur armor	17922	2	0	12	4	0
 lionheart helm	12640	4	0	61	4	0
 list of components	236002	1	0	1	12	0
-lithe boots	6201	1	0	12	4	0
+lithe boots	6201	2	0	12	4	0
 lithic icon	206383	2	0	5	4	0
 living action potion	20008	1	0	57	0	0
 living breastplate	15059	3	0	60	4	0
@@ -14120,7 +14136,7 @@ lost researcher's hood	279931	3	0	62	4	0
 lost shipping crate	276067	1	0	1	12	0
 lost supplies	6172	1	0	30	12	0
 lost thunderbrew recipe	11312	1	0	1	12	0
-lost veteran's sabatons	274718	2	0	58	4	0
+lost veteran's sabatons	274718	2	0	57	4	0
 lost worshipper's harness	220672	3	254	55	4	0
 lost worshipper's leggings	220673	3	254	55	4	0
 lost worshipper's treads	220675	3	254	55	4	0
@@ -14789,14 +14805,14 @@ mender's leather bracers	252543	3	0	50	4	0
 mender's leather gauntlets	252551	3	0	55	4	0
 mender's leather gloves	252530	3	0	40	4	0
 mender's leather shoes	252533	3	0	45	4	0
-mender's leather shoulder	252538	3	0	47	4	0
+mender's leather shoulders	252538	3	0	47	4	0
 mender's leather waistguard	252477	3	0	55	4	0
 mender's mail belt	252591	3	0	55	4	0
 mender's mail boots	252565	3	0	45	4	0
 mender's mail bracers	252573	3	0	50	4	0
 mender's mail gauntlets	252587	3	0	55	4	0
 mender's mail sabatons	252579	3	0	52	4	0
-mender's mail shoulder	252569	3	0	47	4	0
+mender's mail shoulders	252569	3	0	47	4	0
 mender's potion	250946	1	0	5	0	0
 mendicant's slippers	20631	4	254	71	4	0
 mendicant's slippers	234168	4	254	75	4	0
@@ -14852,6 +14868,7 @@ message from the supreme magister	281330	1	0	35	12	0
 message in a bottle	274974	2	0	1	15	0
 message in a bottle	6307	1	0	1	15	0
 messenger's ring	219024	2	254	20	4	0
+metal bracket	276088	1	0	60	12	0
 metal buckler	17189	1	0	34	4	0
 metal stave	3784	0	0	37	2	0
 metallic fragments	9592	1	0	1	12	0
@@ -14925,7 +14942,7 @@ mind-numbing poison ii	6951	1	0	38	0	0
 mind-numbing poison iii	9186	1	0	52	0	0
 mindbender loop	5009	2	0	36	4	0
 mindburst medallion	11196	2	0	57	4	0
-mindfang	20214	4	0	65	2	0
+mindfang	20214	4	0	60	2	0
 mindseye circle	10634	3	254	46	4	0
 mindslicer	270069	2	0	41	2	0
 mindsurge robe	18532	3	0	62	4	0
@@ -15239,7 +15256,7 @@ mummies: a guide to the unsavory undead	215820	1	0	25	5	0
 municipal proclamation	13363	0	0	1	15	0
 muradin bronzebeard's silver coin	286263	0	0	1	15	0
 murgut's totem	16976	1	0	1	12	0
-murkborn girdle	275434	2	0	58	4	0
+murkborn girdle	275434	2	0	59	4	0
 murkwater gauntlets	10631	3	254	46	4	0
 murky air sapta	220351	1	0	1	12	0
 murky earth sapta	221349	1	0	1	12	0
@@ -15740,7 +15757,6 @@ nightwind belt	4828	2	0	27	4	0
 nihilist epiphany	221481	2	0	50	0	0
 nimar's tribal headdress	2622	2	0	39	4	0
 nimble buckler	18303	2	254	58	4	0
-nimble gloves	277215	2	0	45	4	0
 nimble leather gloves	7285	2	0	24	4	0
 nimble links	235879	4	0	84	4	0
 nimble triprunner dungarees	216676	3	254	45	4	0
@@ -15813,11 +15829,11 @@ noth's frigid heart	23029	4	254	83	4	0
 noth's frigid heart	236275	4	254	83	4	0
 novice arcanist's sash	253885	3	0	15	4	0
 novice ardent's sash	253887	3	0	15	4	0
-novice's pants	265360	1	0	1	4	0
+novice's pants	265360	0	0	1	4	0
 novice's pants	6124	0	0	1	4	0
 novice's practice wand	247789	1	0	6	2	0
 novice's quarterstaff	257282	1	0	5	2	0
-novice's robe	265359	1	0	1	4	0
+novice's robe	265359	0	0	1	4	0
 novice's robe	6123	0	0	1	4	0
 novice's robe	6139	0	0	1	4	0
 noxious crystal	271902	1	0	1	12	0
@@ -16423,7 +16439,7 @@ pattern: blue suede gloves	252866	2	0	53	9	0
 pattern: blue suede hat	252890	2	0	60	9	0
 pattern: blue suede pants	252878	2	0	56	9	0
 pattern: blue suede shoes	252859	2	0	52	9	0
-pattern: blue suede shoulder	252881	2	0	57	9	0
+pattern: blue suede shoulders	252881	2	0	57	9	0
 pattern: bolt of qiraji silk	234445	2	254	60	9	0
 pattern: boots of conviction	273995	4	0	1	9	0
 pattern: boots of darkness	7093	2	254	28	9	0
@@ -16464,7 +16480,7 @@ pattern: charged scorpid bracers	252927	2	0	56	9	0
 pattern: charged scorpid gauntlets	252930	2	0	56	9	0
 pattern: charged scorpid helm	252915	2	0	53	9	0
 pattern: charged scorpid leggings	252934	2	0	59	9	0
-pattern: charged scorpid shoulder	252917	2	0	55	9	0
+pattern: charged scorpid shoulders	252917	2	0	55	9	0
 pattern: charged scorpid vest	252932	2	0	57	9	0
 pattern: chimeric boots	15737	2	0	55	9	0
 pattern: chimeric gloves	15729	1	0	53	9	0
@@ -16792,7 +16808,7 @@ pattern: manaflare gloves	273973	4	0	1	9	0
 pattern: manaflare mantle	273974	4	0	1	9	0
 pattern: manaflare pants	273972	4	0	1	9	0
 pattern: mantle of conviction	273990	4	0	1	9	0
-pattern: mantle of the timbermaw	19218	1	0	64	9	0
+pattern: mantle of the timbermaw	19218	3	0	64	9	0
 pattern: mastercrafted shifting cloak	228276	4	0	62	9	0
 pattern: masterwork volcanic breastplate	227906	2	0	57	9	0
 pattern: masterwork volcanic leggings	227908	2	0	54	9	0
@@ -16803,14 +16819,14 @@ pattern: mender's leather bracers	252857	3	0	50	9	0
 pattern: mender's leather gauntlets	252871	3	0	55	9	0
 pattern: mender's leather gloves	252842	3	0	40	9	0
 pattern: mender's leather shoes	252847	3	0	45	9	0
-pattern: mender's leather shoulder	252852	3	0	47	9	0
+pattern: mender's leather shoulders	252852	3	0	47	9	0
 pattern: mender's leather waistguard	252876	3	0	55	9	0
 pattern: mender's mail belt	252925	3	0	55	9	0
 pattern: mender's mail boots	252899	3	0	45	9	0
 pattern: mender's mail bracers	252907	3	0	50	9	0
 pattern: mender's mail gauntlets	252921	3	0	55	9	0
 pattern: mender's mail sabatons	252913	3	0	52	9	0
-pattern: mender's mail shoulder	252903	3	0	47	9	0
+pattern: mender's mail shoulders	252903	3	0	47	9	0
 pattern: might of the timbermaw	19326	1	0	58	9	0
 pattern: molten belt	19333	1	0	70	9	0
 pattern: molten helm	17023	1	0	60	9	0
@@ -16887,7 +16903,7 @@ pattern: prowler's leather bracers	252853	3	0	50	9	0
 pattern: prowler's leather gauntlets	252867	3	0	55	9	0
 pattern: prowler's leather gloves	252836	3	0	40	9	0
 pattern: prowler's leather shoes	252843	3	0	45	9	0
-pattern: prowler's leather shoulder	252848	3	0	47	9	0
+pattern: prowler's leather shoulders	252848	3	0	47	9	0
 pattern: prowler's leather waistguard	252872	3	0	55	9	0
 pattern: qiraji silk cape	234249	3	254	60	9	0
 pattern: qiraji silk cloak	234250	3	254	60	9	0
@@ -16931,7 +16947,7 @@ pattern: rugged leather pants	7288	2	0	11	9	0
 pattern: runecloth bag	14468	1	0	52	9	0
 pattern: runecloth boots	14488	1	0	56	9	0
 pattern: runecloth cloak	14472	1	0	53	9	0
-pattern: runecloth cuffs	254124	2	0	59	9	0
+pattern: runecloth cuffs	254124	2	0	57	9	0
 pattern: runecloth gloves	14481	1	0	55	9	0
 pattern: runecloth headband	14498	2	0	59	9	0
 pattern: runecloth pants	14491	2	0	57	9	0
@@ -17016,7 +17032,7 @@ pattern: skirmisher's mail boots	252898	3	0	45	9	0
 pattern: skirmisher's mail bracers	252906	3	0	50	9	0
 pattern: skirmisher's mail gauntlets	252920	3	0	55	9	0
 pattern: skirmisher's mail sabatons	252912	3	0	52	9	0
-pattern: skirmisher's mail shoulder	252902	3	0	47	9	0
+pattern: skirmisher's mail shoulders	252902	3	0	47	9	0
 pattern: skulker's leather belt	252827	3	0	35	9	0
 pattern: skulker's leather boots	252861	3	0	52	9	0
 pattern: skulker's leather bracers	252854	3	0	50	9	0
@@ -17031,14 +17047,14 @@ pattern: skycaller's leather bracers	252856	3	0	50	9	0
 pattern: skycaller's leather gauntlets	252870	3	0	55	9	0
 pattern: skycaller's leather gloves	252841	3	0	40	9	0
 pattern: skycaller's leather shoes	252846	3	0	45	9	0
-pattern: skycaller's leather shoulder	252851	3	0	47	9	0
+pattern: skycaller's leather shoulders	252851	3	0	47	9	0
 pattern: skycaller's leather waistguard	252875	3	0	55	9	0
 pattern: skycaller's mail belt	252923	3	0	55	9	0
 pattern: skycaller's mail boots	252897	3	0	45	9	0
 pattern: skycaller's mail bracers	252905	3	0	50	9	0
 pattern: skycaller's mail gauntlets	252919	3	0	55	9	0
 pattern: skycaller's mail sabatons	252911	3	0	52	9	0
-pattern: skycaller's mail shoulder	252901	3	0	47	9	0
+pattern: skycaller's mail shoulders	252901	3	0	47	9	0
 pattern: slimeslayer's adaptive cord	251737	3	0	1	9	0
 pattern: slimeslayer's adaptive cuffs	251736	3	0	1	9	0
 pattern: slimeslayer's adaptive robes	251735	3	0	1	9	0
@@ -17073,7 +17089,7 @@ pattern: stalker's mail boots	252896	3	0	45	9	0
 pattern: stalker's mail bracers	252904	3	0	50	9	0
 pattern: stalker's mail gauntlets	252918	3	0	55	9	0
 pattern: stalker's mail sabatons	252910	3	0	52	9	0
-pattern: stalker's mail shoulder	252900	3	0	47	9	0
+pattern: stalker's mail shoulders	252900	3	0	47	9	0
 pattern: star belt	4356	2	0	40	9	0
 pattern: storm gauntlets	12703	3	0	59	9	0
 pattern: stormcloth boots	10324	2	254	50	9	0
@@ -17109,7 +17125,7 @@ pattern: supple scorpid bracers	252916	2	0	55	9	0
 pattern: supple scorpid helm	252931	2	0	57	9	0
 pattern: supple scorpid leggings	252914	2	0	53	9	0
 pattern: supple scorpid sabatons	252935	2	0	60	9	0
-pattern: supple scorpid shoulder	252926	2	0	56	9	0
+pattern: supple scorpid shoulders	252926	2	0	56	9	0
 pattern: supple scorpid vest	252933	2	0	59	9	0
 pattern: swarmtender's cord	275584	3	0	1	9	0
 pattern: swarmtender's footpads	275585	3	0	1	9	0
@@ -17187,7 +17203,7 @@ pattern: warden's leather bracers	252855	3	0	50	9	0
 pattern: warden's leather gauntlets	252869	3	0	55	9	0
 pattern: warden's leather gloves	252839	3	0	40	9	0
 pattern: warden's leather shoes	252845	3	0	45	9	0
-pattern: warden's leather shoulder	252850	3	0	47	9	0
+pattern: warden's leather shoulders	252850	3	0	47	9	0
 pattern: warden's leather waistguard	252874	3	0	55	9	0
 pattern: white bandit mask	10301	2	0	43	9	0
 pattern: white leather jerkin	2407	2	0	13	9	0
@@ -17199,7 +17215,7 @@ pattern: wicked leather bracers	15728	2	0	53	9	0
 pattern: wicked leather gauntlets	15725	1	0	52	9	0
 pattern: wicked leather headband	15744	2	0	56	9	0
 pattern: wicked leather pants	15757	2	0	58	9	0
-pattern: wicked leather shoulder	252884	2	0	59	9	0
+pattern: wicked leather shoulders	252884	2	0	59	9	0
 pattern: wild leather armor kit	279307	4	0	1	9	0
 pattern: wild leather boots	8406	2	0	49	9	0
 pattern: wild leather cloak	8408	2	0	50	9	0
@@ -17297,7 +17313,7 @@ peerless shoulders	15432	2	0	58	4	0
 pellet gun	238501	1	0	1	12	0
 pellet rifle	8182	1	0	7	2	0
 pelt collecting for beginners	247846	1	0	1	0	0
-pelt pants	281295	2	0	31	4	0
+pelt pants	281295	2	0	29	4	0
 penance spaulders	11963	2	0	53	4	0
 pendant of celerity	22340	3	254	63	4	0
 pendant of celerity	228684	3	254	63	4	0
@@ -17426,6 +17442,7 @@ pine salve	206175	1	0	1	12	0
 pink dye	10290	1	0	50	7	0
 pink mageweave shirt	10055	1	0	47	4	0
 pink murloc egg	22114	1	0	20	15	0
+pinky	275818	4	-3	1	15	0
 pinto bridle	2414	3	0	40	15	0
 pioneer belt	6517	1	0	10	4	0
 pioneer boots	6518	1	0	11	4	0
@@ -17489,6 +17506,7 @@ plagueland termites	15043	1	0	1	12	0
 plaguelands bleeding heart	242018	1	0	1	12	0
 plaguerot sprig	10766	3	0	42	2	0
 plagues deck	221280	4	0	1	15	0
+plain handwraps	277215	2	0	58	4	0
 plain letter	8383	1	0	1	15	0
 plain ol' paletusk	274976	1	0	35	0	0
 plain robe	2612	1	0	8	4	0
@@ -17554,7 +17572,7 @@ plans: bloodsoul breastplate	19776	1	0	65	9	0
 plans: bloodsoul gauntlets	19778	1	0	65	9	0
 plans: bloodsoul shoulders	19777	1	0	65	9	0
 plans: blue glittering axe	7992	2	0	44	9	0
-plans: bold dirk	251468	3	0	59	9	0
+plans: bold dirk	251468	3	0	57	9	0
 plans: brass knuckles	251454	2	0	21	9	0
 plans: breastplate of salvation	251453	4	0	60	9	0
 plans: bronze dory	251455	2	0	25	9	0
@@ -18880,7 +18898,7 @@ prowler's leather bracers	252539	3	0	50	4	0
 prowler's leather gauntlets	252547	3	0	55	4	0
 prowler's leather gloves	252524	3	0	40	4	0
 prowler's leather shoes	252465	3	0	45	4	0
-prowler's leather shoulder	252534	3	0	47	4	0
+prowler's leather shoulders	252534	3	0	47	4	0
 prowler's leather waistguard	252473	3	0	55	4	0
 proxy of nozdormu	20403	2	0	60	15	0
 pruning knife	5605	1	0	10	2	0
@@ -18896,7 +18914,7 @@ pulsating hydra heart	5183	3	0	22	4	0
 pulsing blue shard	3911	1	0	1	12	0
 pumice chunk	229056	0	0	1	15	0
 pumpkin bag	20400	2	0	1	1	0
-punchy's punchers	275669	2	0	58	4	0
+punchy's punchers	275669	2	0	59	4	0
 punctured dew gland	8429	0	0	1	15	0
 punctured voodoo doll	19813	2	0	1	12	0
 punctured voodoo doll	19814	2	0	1	12	0
@@ -19228,7 +19246,7 @@ rattlecage buckler	14528	3	0	62	4	0
 rattlecage buckler	228037	3	254	62	4	0
 rattlecage skull	6281	1	0	1	12	0
 rattlechain helm	235870	4	0	84	4	0
-ratty old belt	6147	1	0	12	4	0
+ratty old belt	6147	2	0	12	4	0
 ravagane	240919	4	254	96	2	0
 ravaged fishing pole	285094	1	0	30	2	0
 ravaged leather leggings	282009	2	0	53	4	0
@@ -19354,7 +19372,6 @@ recipe: curiously tasty omelet	3682	1	0	25	9	0
 recipe: darkclaw bisque	232437	1	0	55	9	0
 recipe: dig rat stew	5487	1	0	20	9	0
 recipe: dirge's kickin' chimaerok chops	21025	4	0	60	9	0
-recipe: disorienting smog potion	250996	1	0	1	9	0
 recipe: distilled firewater	236754	2	0	12	9	0
 recipe: dragonbreath chili	12239	1	0	40	9	0
 recipe: dragonfire potion	250997	1	0	1	9	0
@@ -19439,6 +19456,7 @@ recipe: greater frenzy potion	250985	2	0	1	9	0
 recipe: greater frost protection potion	13495	2	0	58	9	0
 recipe: greater holy protection potion	13500	2	0	58	9	0
 recipe: greater mageblood elixir	250377	1	0	1	9	0
+recipe: greater mender's potion	250991	1	0	1	9	0
 recipe: greater nature protection potion	13496	2	0	58	9	0
 recipe: greater shadow protection potion	13499	2	0	58	9	0
 recipe: greater spellblasting potion	250979	2	0	1	9	0
@@ -19616,6 +19634,7 @@ red dragonscale leggings	252603	4	0	61	4	0
 red dragonscale protector	19348	4	254	74	4	0
 red dragonscale protector	230248	4	254	74	4	0
 red dye	2604	1	0	10	7	0
+red firework	288338	1	0	20	0	0
 red firework	9318	1	0	20	0	0
 red fireworks rocket	5740	1	0	20	0	0
 red ground squirrel whistle	280795	1	0	30	15	0
@@ -19654,6 +19673,7 @@ red silk bandana	915	1	0	1	12	0
 red skeletal horse	13331	3	0	40	15	0
 red skeletal warhorse	18248	4	0	40	15	0
 red sparkler	8624	1	0	10	4	0
+red streaks firework	288339	1	0	20	0	0
 red streaks firework	9314	1	0	20	0	0
 red swashbuckler's shirt	6796	1	0	35	4	0
 red traditional hanbok	13899	1	0	20	4	0
@@ -19868,7 +19888,7 @@ renferrel's findings	3468	1	0	1	12	0
 repair bot	279949	1	0	28	0	0
 repairman's cape	217005	3	254	40	4	0
 repairman's cape	9605	2	0	32	4	0
-replica crescent necklace	281290	2	0	29	4	0
+replica crescent necklace	281290	2	0	26	4	0
 replica dartol's rod of transformation	276242	1	0	1	15	0
 replica ironforge air rifle	281060	3	0	1	15	0
 report on the defias brotherhood	2956	1	0	1	12	0
@@ -20212,7 +20232,6 @@ roasted boar meat	2681	1	0	10	0	0
 roasted kodo meat	5474	1	0	10	0	0
 roasted quail	287963	1	0	55	0	0
 roasted quail	8952	1	0	55	0	0
-roasted zephyrseed pie	257127	1	0	1	12	0
 robbie's hat	266884	1	0	1	12	0
 robe of apprenticeship	2614	1	0	17	4	0
 robe of combustion	18450	2	254	60	4	0
@@ -20293,7 +20312,7 @@ rock pulverizer	4983	2	0	42	2	0
 rock sentinel slicer	274430	3	0	44	2	0
 rock stalker fang	20377	1	0	1	12	0
 rocket car parts	5798	1	0	1	12	0
-rocket pilot gloves	275715	2	0	58	4	0
+rocket pilot gloves	275715	2	0	57	4	0
 rockfist	11743	2	254	55	2	0
 rockfury bracers	21186	4	0	62	4	0
 rockfury bracers	234760	4	254	75	4	0
@@ -20343,7 +20362,7 @@ rot blossom	1598	1	0	1	12	0
 rot hide ichor	3236	1	0	1	12	0
 rot totem	210253	2	0	15	0	0
 rot-covered harpoon	268341	1	0	1	12	0
-rot-covered harpoon	274963	3	0	42	2	0
+rot-covered harpoon	274963	2	0	42	2	0
 rot-fused greaves	285101	2	0	45	4	0
 rotflesh mushroom	268664	1	0	1	12	0
 rotgrip mantle	17732	3	0	53	4	0
@@ -20405,7 +20424,7 @@ royal dagger	281297	2	0	25	2	0
 royal dangui	13898	1	0	50	4	0
 royal decorated armor	11820	3	0	58	4	0
 royal diplomatic scepter	9457	3	0	35	2	0
-royal frostmane girdle	2546	1	0	13	4	0
+royal frostmane girdle	2546	2	0	13	4	0
 royal gloves	9910	2	0	44	4	0
 royal gown	9913	2	0	48	4	0
 royal headband	9915	2	0	45	4	0
@@ -20462,6 +20481,7 @@ rugged mail gloves	3458	2	0	18	4	0
 rugged mail vest	3273	1	0	5	4	0
 rugged mantle of the timbermaw	227808	4	0	65	4	0
 rugged spaulders	5254	3	0	22	4	0
+rugged totemic backpack	287620	3	0	1	4	0
 rugged trapper's boots	129	1	0	1	4	0
 rugged trapper's pants	147	0	0	1	4	0
 rugged trapper's shirt	148	1	0	1	4	0
@@ -20717,7 +20737,7 @@ runecloth bandage	14529	1	0	52	0	0
 runecloth belt	13856	2	0	51	4	0
 runecloth boots	13864	2	0	56	4	0
 runecloth cloak	13860	2	0	53	4	0
-runecloth cuffs	254123	2	0	59	4	0
+runecloth cuffs	254123	2	0	57	4	0
 runecloth gloves	13863	2	0	55	4	0
 runecloth headband	13866	2	0	59	4	0
 runecloth pants	13865	2	0	57	4	0
@@ -20803,7 +20823,7 @@ rusty cutlass	270001	2	0	15	2	0
 rusty dagger	280402	1	0	2	2	0
 rusty gadget	257215	1	0	1	12	0
 rusty hatchet	1416	0	0	9	2	0
-rusty propeller blade	275729	2	0	58	2	0
+rusty propeller blade	275729	2	0	57	2	0
 rusty thieves' tools	7872	1	0	15	7	0
 rusty warhammer	1514	0	0	14	2	0
 ruthless shiv	7758	3	0	39	2	0
@@ -20883,7 +20903,7 @@ saf-t emergency ripper: everlook	260820	2	0	60	4	0
 saf-t jumbo dynamite	260798	1	0	35	0	0
 saf-t nitro boosts	260828	2	0	60	4	0
 saf-t tabs	260784	1	0	5	7	0
-saf-t teleport	260830	2	0	60	4	0
+saf-t teleport	260830	2	0	60	0	0
 saf-t tube	260813	1	0	55	7	0
 saf-t ultra precision scope	279272	3	0	65	0	0
 safe box key	227930	1	0	1	15	0
@@ -20904,7 +20924,7 @@ sage's tea	249870	1	0	55	0	0
 sageblade	22383	4	0	64	2	0
 sageblade of the archmagus	227850	4	254	70	2	0
 sagebrush girdle	17778	2	0	49	4	0
-sageclaw	20070	4	0	65	2	0
+sageclaw	20070	4	0	60	2	0
 sagefish delight	21217	1	0	55	0	0
 sailing tunic	281324	2	0	17	4	0
 sair's copper coin	286318	0	0	1	15	0
@@ -21032,6 +21052,7 @@ sash of the burning heart	11807	3	0	58	4	0
 sash of the five thunders	227010	3	0	65	4	0
 sash of the grand hunt	22207	3	0	60	4	0
 sash of the grand hunt	227987	3	254	63	4	0
+sash of the tipsy sage	244228	1	-3	1	4	0
 sash of the windreaver	18676	3	254	61	4	0
 sash of whispered secrets	18809	4	254	71	4	0
 sash of whispered secrets	228282	4	254	71	4	0
@@ -21105,7 +21126,7 @@ saw blade	266897	1	0	1	12	0
 sawbones shirt	14617	1	0	1	4	0
 sawtooth snapper claw	6168	1	0	1	12	0
 sawyer family ledger	276099	1	0	60	12	0
-sawyer family seal	276333	2	0	60	4	0
+sawyer family seal	276333	2	0	57	4	0
 sayge's fortune #1	19229	1	0	1	15	0
 sayge's fortune #10	19245	1	0	1	15	0
 sayge's fortune #11	19246	1	0	1	15	0
@@ -21252,7 +21273,7 @@ scarlet tower shield	241086	1	0	5	4	0
 scarlet uniform belt	239302	1	0	1	12	0
 scarlet wristguards	10333	3	0	36	4	0
 scavenged goods	11127	1	0	1	12	0
-scavenged magram armament	271800	3	0	43	2	0
+scavenged magram armament	271800	3	0	42	2	0
 scavenger paw	3265	1	0	1	12	0
 scavenger tunic	11851	1	0	5	4	0
 scavenger's ring	271808	2	0	43	4	0
@@ -21551,7 +21572,7 @@ scouting spaulders	6588	1	0	23	4	0
 scouting trousers	6587	2	0	24	4	0
 scouting tunic	6584	2	0	25	4	0
 scoutmaster's eye	268581	1	0	1	12	0
-scoutmaster's eyepatch	276105	3	0	43	4	0
+scoutmaster's eyepatch	276105	2	0	43	4	0
 scrap metal	4630	1	0	1	12	0
 scrap of horde heraldry	274949	1	0	1	12	0
 scrap of paper	5949	1	0	1	12	0
@@ -21737,7 +21758,6 @@ seal of the ranger	246722	1	0	1	12	0
 seal of the sacrificed	221459	4	254	50	4	0
 seal of the warden	246725	1	0	1	12	0
 seal of the warrior	246721	1	0	1	12	0
-seal of true sight	253400	1	0	1	12	0
 seal of wrynn	2933	3	0	31	4	0
 sealed apprentice crate	248765	1	0	1	15	0
 sealed apprentice crate	248770	2	0	1	15	0
@@ -21768,7 +21788,6 @@ sealed journeyman crate	248766	1	0	1	15	0
 sealed journeyman crate	248771	2	0	1	15	0
 sealed journeyman crate	248776	3	0	1	15	0
 sealed journeyman's writ	262888	3	0	1	0	0
-sealed letter	253399	1	0	1	12	0
 sealed letter	282065	1	0	1	12	0
 sealed letter to ag'tor	10643	1	0	1	12	0
 sealed letter to archmage malin	4533	1	0	1	12	0
@@ -22175,7 +22194,7 @@ shaky's payment	3922	1	0	1	12	0
 shal'ma's shawl	286746	2	0	11	4	0
 shalehusk boots	11787	3	0	58	4	0
 shaleskin cape	12066	2	0	58	4	0
-shallow bindings	275390	2	0	58	4	0
+shallow bindings	275390	2	0	59	4	0
 shaman voodoo charm	8363	1	0	1	12	0
 shamanic wristguards	280069	3	0	61	4	0
 shapeshifter's helm	270117	3	0	54	4	0
@@ -22240,8 +22259,6 @@ sheepshear mantle	13115	3	0	45	4	0
 shell launcher shotgun	13146	3	0	58	2	0
 shell plate barrier	209424	3	0	30	4	0
 shellfish	13545	1	0	1	12	0
-shen'dar ledgers	257029	1	0	1	12	0
-shen'dar village offering coffer	252673	1	0	1	12	0
 shen'dorei magister's belt	271722	1	0	1	4	0
 shen'dorei magister's boots	271723	1	0	1	4	0
 shen'dorei magister's cloak	271724	1	0	1	4	0
@@ -22621,7 +22638,7 @@ silver shafted arrow	22200	1	0	1	15	0
 silver skeleton key	15869	2	0	20	0	0
 silver slaughter coin	228325	3	254	50	12	0
 silver spade	4128	2	0	41	2	0
-silver star	3463	2	0	37	2	0
+silver star	3463	2	0	35	2	0
 silver totem of aquementas	11522	1	0	1	4	0
 silver-lined belt	13011	3	0	27	4	0
 silver-lined bracers	3224	2	0	12	4	0
@@ -22754,7 +22771,7 @@ skirmisher's mail boots	252564	3	0	45	4	0
 skirmisher's mail bracers	252572	3	0	50	4	0
 skirmisher's mail gauntlets	252586	3	0	55	4	0
 skirmisher's mail sabatons	252578	3	0	52	4	0
-skirmisher's mail shoulder	252568	3	0	47	4	0
+skirmisher's mail shoulders	252568	3	0	47	4	0
 skittering blood	3254	1	0	1	12	0
 skonk's list	283389	1	0	1	12	0
 skorn's hammer	4971	2	0	12	2	0
@@ -22816,14 +22833,14 @@ skycaller's leather bracers	252542	3	0	50	4	0
 skycaller's leather gauntlets	252550	3	0	55	4	0
 skycaller's leather gloves	252529	3	0	40	4	0
 skycaller's leather shoes	252532	3	0	45	4	0
-skycaller's leather shoulder	252537	3	0	47	4	0
+skycaller's leather shoulders	252537	3	0	47	4	0
 skycaller's leather waistguard	252476	3	0	55	4	0
 skycaller's mail belt	252589	3	0	55	4	0
 skycaller's mail boots	252563	3	0	45	4	0
 skycaller's mail bracers	252571	3	0	50	4	0
 skycaller's mail gauntlets	252585	3	0	55	4	0
 skycaller's mail sabatons	252577	3	0	52	4	0
-skycaller's mail shoulder	252567	3	0	47	4	0
+skycaller's mail shoulders	252567	3	0	47	4	0
 skychain belt	257272	1	0	5	4	0
 skyfury helm	20134	4	254	62	4	0
 skylord plume	19025	1	0	1	12	0
@@ -23483,7 +23500,7 @@ soulkeeper	1607	3	0	54	2	0
 soulrender	20675	3	254	62	2	0
 soulseeker	22799	4	254	89	2	0
 soulseeker	236346	4	254	89	2	0
-soulsplatter mace	271804	3	0	43	2	0
+soulsplatter mace	271804	3	0	42	2	0
 soulstaff	249393	3	0	30	2	0
 soulstealer mantle	13374	3	254	60	4	0
 soulstealer mantle	228520	3	254	60	4	0
@@ -23557,6 +23574,7 @@ spectral magister's commission	272180	2	0	43	2	0
 spectral necklace	12047	2	0	30	4	0
 spectral signet	235884	4	0	84	4	0
 spectral spirits	260629	1	0	1	0	0
+spectral wolf pack	286756	4	0	60	15	0
 speedsteel rapier	13034	3	0	41	2	0
 speedstone	233990	4	254	80	4	0
 speedy racer goggles	9653	2	0	50	4	0
@@ -23786,7 +23804,7 @@ staff of prehistoria	7733	1	0	1	12	0
 staff of protection	12252	2	0	39	2	0
 staff of rampant growth	20581	4	254	71	2	0
 staff of rampant growth	234153	4	254	75	2	0
-staff of revelations	271797	2	0	43	2	0
+staff of revelations	271797	2	0	38	2	0
 staff of rime	229972	4	254	79	2	0
 staff of soran'ruk	15109	3	0	25	2	0
 staff of the blessed seer	2271	3	0	25	2	0
@@ -23822,7 +23840,7 @@ stalker's mail boots	252562	3	0	45	4	0
 stalker's mail bracers	252570	3	0	50	4	0
 stalker's mail gauntlets	252584	3	0	55	4	0
 stalker's mail sabatons	252576	3	0	52	4	0
-stalker's mail shoulder	252566	3	0	47	4	0
+stalker's mail shoulders	252566	3	0	47	4	0
 stalking pants	4831	2	0	26	4	0
 stalvan's reaper	934	3	0	37	2	0
 stalwart cloak	272415	3	0	65	4	0
@@ -24206,7 +24224,7 @@ stormwind gift collection	22131	1	0	1	15	0
 stormwind guard leggings	6084	2	0	13	4	0
 stormwind guard shield	7188	2	254	24	4	0
 stormwind guard's card	22143	1	0	1	15	0
-stormwind intelligence seal	275685	2	0	58	4	0
+stormwind intelligence seal	275685	2	0	59	4	0
 stormwind library card	277648	1	0	10	15	0
 stormwind medallion	12585	1	0	65	15	0
 stormwind nougat	20492	1	0	1	12	0
@@ -24242,6 +24260,7 @@ stratholme courier's pouch	13223	1	0	1	12	0
 stratholme holy water	13180	1	0	1	12	0
 stratholme militia shoulderguard	18742	3	254	60	4	0
 stratholme shadow jar	226472	1	0	1	15	0
+strawhat of frosted currents	244230	1	-3	1	4	0
 strength of mugamba	19574	2	0	60	4	0
 strength of mugamba	19575	3	0	60	4	0
 strength of mugamba	19576	3	0	68	4	0
@@ -24441,7 +24460,7 @@ supple scorpid bracers	252582	2	0	55	4	0
 supple scorpid helm	252597	2	0	57	4	0
 supple scorpid leggings	252580	2	0	53	4	0
 supple scorpid sabatons	252601	2	0	61	4	0
-supple scorpid shoulder	252592	2	0	56	4	0
+supple scorpid shoulders	252592	2	0	56	4	0
 supple scorpid vest	252599	2	0	59	4	0
 supplies for sven	1922	1	0	1	12	0
 supply bag	217014	2	0	40	0	0
@@ -24692,7 +24711,6 @@ tainted tablet	282346	1	0	1	12	0
 tainted vitriol	11513	1	0	1	12	0
 talbar mantle	10657	2	0	26	4	0
 tale of i'lalai in zandali	270313	1	0	1	15	0
-taleen's offering	252675	1	0	1	12	0
 talisman of arathor	20071	3	0	63	4	0
 talisman of arathor	21117	3	0	53	4	0
 talisman of arathor	21118	3	0	43	4	0
@@ -24806,7 +24824,7 @@ tattered note	212748	2	0	30	15	0
 tattered note	272319	2	0	30	12	0
 tattered note	274463	1	0	30	12	0
 tattered parchment	6493	1	0	1	12	0
-tattered sandals	274721	2	0	58	4	0
+tattered sandals	274721	2	0	57	4	0
 tattered spellbook	280042	1	0	1	12	0
 tattered ursera feather	251925	0	0	1	15	0
 taurajo headband	279391	1	0	23	4	0
@@ -24917,7 +24935,7 @@ testament of horn of lordaeron	231625	2	0	60	0	0
 testament of martyrdom	226398	2	0	10	0	0
 testament of the exorcist	226400	2	0	10	0	0
 thaddius' lightning bolts	191660	3	0	1	0	0
-thaelemaches' talisman	276337	2	0	60	4	0
+thaelemaches' talisman	276337	2	0	59	4	0
 thal'kituun, the unseen guest	240839	4	254	92	2	0
 thallium choker	12020	2	0	36	4	0
 thallium hoop	11986	2	0	39	4	0
@@ -25013,7 +25031,7 @@ the horde's hellscream	20010	1	0	1	12	0
 the hum gun	253258	1	0	60	12	0
 the hungering cold	23577	4	254	89	2	0
 the hungering cold	236341	4	254	89	2	0
-the immovable object	19321	4	0	65	4	0
+the immovable object	19321	4	0	60	4	0
 the jackhammer	9423	3	0	45	2	0
 the jaw breaker	22322	3	254	61	2	0
 the jaw breaker	228600	3	254	61	2	0
@@ -25028,7 +25046,7 @@ the light and how to swing it	18359	3	0	60	12	0
 the light and how to swing it	228690	3	254	60	15	0
 the liminal and the arcane	220347	1	0	50	5	0
 the lion horn of stormwind	14557	4	254	63	4	0
-the lobotomizer	19324	4	0	65	2	0
+the lobotomizer	19324	4	0	60	2	0
 the lost kris of zedd	21802	3	254	68	2	0
 the lost kris of zedd	234122	4	254	75	2	0
 the lost kris of zedd	234998	4	254	75	2	0
@@ -25093,7 +25111,7 @@ the thunderwood poker	22377	3	0	65	2	0
 the thunderwood poker	234797	4	254	70	2	0
 the traitor's heart	18719	1	0	1	12	0
 the twin blades of azzinoth	18582	6	0	100	2	0
-the unstoppable force	19323	4	0	65	2	0
+the unstoppable force	19323	4	0	60	2	0
 the untamed blade	19334	4	254	73	2	0
 the untamed blade	230242	4	254	73	2	0
 the untamed blade	232566	4	254	73	2	0
@@ -25109,20 +25127,20 @@ thekal's grasp	230925	4	254	68	2	0
 thekal's grasp	231875	4	254	68	2	0
 thelsamar axe	3154	2	0	18	2	0
 thendal apprentice's boots	271659	1	0	1	4	0
-thendal apprentice's pants	271658	1	0	1	4	0
+thendal apprentice's pants	271658	0	0	1	4	0
 thendal apprentice's shirt	271655	1	0	1	4	0
 thendal grove gift voucher	251900	1	0	1	12	0
 thendal novice's boots	271661	1	0	1	4	0
-thendal novice's pants	271662	1	0	1	4	0
+thendal novice's pants	271662	0	0	1	4	0
 thendal novice's shirt	271663	1	0	1	4	0
 thendal ranger's belt	257263	1	0	5	4	0
 thendal ranger's gloves	257264	1	0	5	4	0
 thendal ranger's shoes	257257	1	0	5	4	0
 thendal survivalist's boots	271665	1	0	1	4	0
-thendal survivalist's pants	271666	1	0	1	4	0
+thendal survivalist's pants	271666	0	0	1	4	0
 thendal survivalist's shirt	271668	1	0	1	4	0
 thendal warrior's boots	271671	1	0	1	4	0
-thendal warrior's pants	271672	1	0	1	4	0
+thendal warrior's pants	271672	0	0	1	4	0
 thendal warrior's shirt	271669	1	0	1	4	0
 thendal watcher's belt	285274	2	0	10	4	0
 thendal watcher's boots	285269	2	0	10	4	0
@@ -25158,7 +25176,7 @@ theramore spaulders	271959	4	0	65	4	0
 theramore standard care package	285169	1	0	1	0	0
 therazane's link	19380	4	254	83	4	0
 therazane's link	230806	4	254	83	4	0
-therazane's touch	19315	4	0	65	4	0
+therazane's touch	19315	4	0	60	4	0
 thermaplugg medal of honor	274068	3	0	34	4	0
 thermaplugg's central core	9458	3	0	36	4	0
 thermaplugg's custom blaster	213356	4	254	45	2	0
@@ -25324,7 +25342,7 @@ threshadon claw	2669	1	0	1	12	0
 threshadon fang	5516	0	0	16	2	0
 threshadon tooth	2668	1	0	1	12	0
 thresher eye	5412	1	0	1	12	0
-thrice-damned effigy	271805	3	0	43	4	0
+thrice-damned effigy	271805	3	0	42	4	0
 thrice-stitched flesh	286744	2	0	13	4	0
 thrill's boots, legs, and shoulders set	227373	4	0	55	15	0
 thrill's gloves and belt set	227348	4	0	55	15	0
@@ -25467,7 +25485,7 @@ tomb weed	286204	1	0	1	12	0
 tombstone breastplate	13944	3	254	62	4	0
 tombstone breastplate	228025	3	254	62	4	0
 tome of arcane brilliance	18600	3	0	56	9	0
-tome of arcane domination	19308	4	0	65	4	0
+tome of arcane domination	19308	4	0	60	4	0
 tome of arcane intellect iii	3102	1	0	28	9	0
 tome of arcane missiles viii	21280	3	0	60	9	0
 tome of blizzard ii	3100	1	0	28	9	0
@@ -25481,7 +25499,7 @@ tome of divinity	6775	1	0	12	12	0
 tome of divinity	6916	1	0	12	12	0
 tome of enchanted flare	237041	2	0	60	9	0
 tome of expanded intellect	216740	2	0	25	0	0
-tome of fiery arcana	19311	4	0	65	4	0
+tome of fiery arcana	19311	4	0	60	4	0
 tome of fireball xii	21279	3	0	60	9	0
 tome of frost nova iii	3101	1	0	40	9	0
 tome of frost ward v	22890	3	0	60	9	0
@@ -25498,7 +25516,7 @@ tome of polymorph: pig	4142	3	0	60	9	0
 tome of polymorph: turtle	22739	3	0	60	9	0
 tome of righteousness	6777	1	0	20	12	0
 tome of sacrifice	18602	3	0	60	4	0
-tome of shadow force	19309	4	0	65	4	0
+tome of shadow force	19309	4	0	60	4	0
 tome of shadow warding	211458	3	254	33	4	0
 tome of slow	3098	1	0	28	9	0
 tome of the cabal	6999	1	0	1	12	0
@@ -25506,7 +25524,7 @@ tome of the darkspear prophecy	272087	3	0	63	4	0
 tome of the darkspear prophecy	272088	3	0	53	4	0
 tome of the darkspear prophecy	272089	3	0	43	4	0
 tome of the darkspear prophecy	272090	3	0	33	4	0
-tome of the ice lord	19310	4	0	65	4	0
+tome of the ice lord	19310	4	0	60	4	0
 tome of the lost	22253	3	254	63	4	0
 tome of tranquilizing shot	16665	2	0	60	9	0
 tome of tremayne family blacksmithing techniques	280943	1	0	15	15	0
@@ -25706,7 +25724,7 @@ tranquil orb	4125	2	0	46	4	0
 tranquil ring	2917	2	0	34	4	0
 tranquil wristguards	279256	4	0	65	4	0
 tranquility	227881	3	254	63	2	0
-transformative cocoon	276895	2	0	31	4	0
+transformative cocoon	276895	2	0	30	4	0
 translated letter	1656	1	0	1	12	0
 translated letter from the embalmer	3248	1	0	1	12	0
 translated tale of i'lalai	270312	1	0	1	15	0
@@ -26175,7 +26193,7 @@ untested basilisk sample	9437	1	0	1	12	0
 untested hyena sample	9439	1	0	1	12	0
 untested scorpid sample	9442	1	0	1	12	0
 untranslated journal	7886	1	0	1	12	0
-unusual flask	227924	2	0	60	15	0
+unusual flask	227924	1	0	60	15	0
 unusual herb seeds	268417	2	0	36	7	0
 unusual ooze vial	269774	1	0	60	12	0
 unyielding battle signet	282026	2	0	58	4	0
@@ -26308,6 +26326,7 @@ verdant footpads	13954	3	0	62	4	0
 verdant keeper's aim	17753	3	0	53	2	0
 verdant leaves	247892	1	0	60	12	0
 verdant note	9581	1	0	1	12	0
+verdant sea turtle	286724	4	0	60	15	0
 verdant sigil	9580	1	0	1	12	0
 verek's collar	11755	3	0	56	4	0
 verek's leash	22242	3	0	56	4	0
@@ -26587,7 +26606,7 @@ wanderer's armor	10105	2	0	60	4	0
 wanderer's belt	10109	2	0	54	4	0
 wanderer's boots	10106	2	0	56	4	0
 wanderer's bracers	10107	2	0	54	4	0
-wanderer's broadsword	271795	2	0	43	2	0
+wanderer's broadsword	271795	2	0	38	2	0
 wanderer's cloak	10108	2	0	53	4	0
 wanderer's gloves	10110	2	0	55	4	0
 wanderer's hat	10111	2	0	57	4	0
@@ -26611,6 +26630,7 @@ war paint shield	14729	2	0	20	4	0
 war paint shoulder pads	14728	1	0	22	4	0
 war paint waistband	14725	2	0	17	4	0
 war paint wrap	276064	1	0	60	12	0
+war painted cuffs	277222	2	0	58	4	0
 war rider bracers	4745	2	0	40	4	0
 war staff	2535	1	0	45	2	0
 war torn bands	15482	1	0	11	4	0
@@ -26664,7 +26684,7 @@ warden's leather bracers	252541	3	0	50	4	0
 warden's leather gauntlets	252549	3	0	55	4	0
 warden's leather gloves	252527	3	0	40	4	0
 warden's leather shoes	252466	3	0	45	4	0
-warden's leather shoulder	252536	3	0	47	4	0
+warden's leather shoulders	252536	3	0	47	4	0
 warden's leather waistguard	252475	3	0	55	4	0
 warden's mantle	14603	2	0	41	4	0
 warden's signet of brilliance	275982	4	0	65	4	0
@@ -27116,7 +27136,7 @@ well-worn pitchfork	281661	2	0	38	2	0
 welldrip gloves	15401	2	0	14	4	0
 wendigo blood	208140	1	0	1	15	0
 wendigo collar	2899	2	0	15	4	0
-wendigo fur cloak	3008	1	0	11	4	0
+wendigo fur cloak	3008	2	0	11	4	0
 wendigo mane	2671	1	0	1	12	0
 westfall deed	1972	1	0	8	12	0
 westfall stew	733	1	0	15	0	0
@@ -27220,7 +27240,7 @@ wicked leather bracers	15084	2	0	53	4	0
 wicked leather gauntlets	15083	2	0	52	4	0
 wicked leather headband	15086	2	0	56	4	0
 wicked leather pants	15087	2	0	58	4	0
-wicked leather shoulder	252556	2	0	59	4	0
+wicked leather shoulders	252556	2	0	59	4	0
 wicked lich's finger	281263	2	0	29	2	0
 wicked mithril blade	7943	2	0	45	2	0
 wicked ritualist's kris	273832	1	0	57	2	0
@@ -27425,7 +27445,7 @@ wise gauntlets	276723	2	0	18	4	0
 wise man's belt	4786	2	0	20	4	0
 wisepaw totem	274420	3	0	58	2	0
 wisesight wand	286750	2	0	12	2	0
-wispy cloak	3322	1	0	9	4	0
+wispy cloak	3322	2	0	10	4	0
 witch doctor's cane	9482	3	0	47	2	0
 witch doctor's hex stick	221484	4	254	55	13	0
 witch doctor's stick of mojo	220579	4	254	55	2	0
@@ -27514,7 +27534,7 @@ woodworker's axe	263972	1	0	1	12	0
 woodworking gloves	1945	2	0	18	4	0
 wool bandage	3530	1	0	1	0	0
 wool cloth	2592	1	0	15	7	0
-wool-stitched waistband	275827	2	0	58	4	0
+wool-stitched waistband	275827	2	0	56	4	0
 woolen bag	287971	1	0	15	1	0
 woolen bag	4240	1	0	15	1	0
 woolen boots	2583	2	0	19	4	0
@@ -27697,6 +27717,7 @@ yellow power crystal	11188	1	0	1	12	0
 yellow punch card	9280	1	0	1	12	0
 yellow qiraji resonating crystal	21324	3	0	60	15	0
 yellow rocket cluster	21578	1	0	1	15	0
+yellow rose firework	288340	1	0	20	0	0
 yellow rose firework	9315	1	0	20	0	0
 yellow sack of gems	17965	2	0	1	15	0
 yelmak's potion	277566	1	0	60	12	0
