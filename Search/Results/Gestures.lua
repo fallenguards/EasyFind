@@ -53,6 +53,8 @@ local V = {
     pinOnMap     = L["HINT_PIN_ON_MAP"],
     clickDrag    = L["HINT_CLICK_DRAG"],
     sendLink     = L["CTX_SEND_LINK"],
+    sources      = L["HINT_SOURCES"],
+    bosses       = _G["RAID_BOSSES"] or "Bosses",
 }
 Gestures.V = V
 
@@ -85,9 +87,16 @@ local KINDS = {
         A("drag", "drag", "shift") } },
     { key = "bag", actions = { A("action", "use", "click", "primary"), A("bags", "bags", "alt", "source"),
         A("dressroom", "dressroom", "ctrl", "preview"), A("drag", "drag", "shift") } },
-    { key = "catalog", actions = { A("sendLink", "sendLink", "click", "primary"), A("dressroom", "dressroom", "ctrl", "preview") } },
-    { key = "loot", actions = { A("sendLink", "sendLink", "click", "primary"), A("encounter", "encounter", "alt", "source"),
-        A("dressroom", "dressroom", "ctrl", "preview") } },
+    -- An item: where it comes from on a click; Shift sends its link, the
+    -- game's own gesture for one.
+    { key = "catalog", actions = { A("sources", "sources", "click", "primary"), A("dressroom", "dressroom", "ctrl", "preview"),
+        A("sendLink", "sendLink", "shift") } },
+    { key = "loot", actions = { A("sources", "sources", "click", "primary"), A("encounter", "encounter", "alt", "source"),
+        A("dressroom", "dressroom", "ctrl", "preview"), A("sendLink", "sendLink", "shift") } },
+    -- A dungeon or raid: the GPS goes (the map without it), Ctrl lists
+    -- its bosses, Shift opens the map.
+    { key = "instance", actions = { A("gps", "gps", "click", "primary"), A("bosses", "bosses", "ctrl"),
+        A("openMap", "openMap", "shift", "source") } },
     { key = "title", actions = { A("apply", "applyTitle", "click", "primary"), A("achievements", "achievements", "alt", "source") } },
     { key = "settingToggle", actions = { A("toggle", "toggle", "click", "primary"), A("settings", "settings", "alt", "source") } },
     { key = "settingPress", actions = { A("run", "run", "click", "primary"), A("settings", "settings", "alt", "source") } },
@@ -142,6 +151,7 @@ function Gestures.KindOf(data)
     end
     if data.settingType == "keybind" and data.bindingAction then return "settingToggle" end
     if data.settingPress then return "settingPress" end
+    if data.isDungeonEntrance and data.category ~= "delve" then return "instance" end
     return nil
 end
 
@@ -175,6 +185,16 @@ function Gestures.Available(data, kind, action)
     if kind == "settingToggle" and action == "toggle" and data.settingType == "keybind" then
         return ns.BlizzOptionsSearch and ns.BlizzOptionsSearch:IsPerformableBinding(data.bindingAction) or false
     end
+    if kind == "instance" then
+        local api = EasyFind and EasyFind.API
+        if action == "gps" then
+            return api ~= nil and api.HasAction("gps", "navigate") and api.CallAction("gps", "canNavigate", data) == true
+        end
+        if action == "bosses" then
+            return ns.ItemSources ~= nil and ns.ItemSources.InstanceHasBosses(data.name)
+        end
+    end
+    if action == "sources" then return ns.ItemSources ~= nil and ns.ItemSources.Available(data) end
     return true
 end
 
@@ -283,7 +303,7 @@ function Gestures.Choices(kind)
     local list = {}
     for a = 1, #kind.actions do
         local action = kind.actions[a]
-        if action.default ~= "shift" then
+        if action.key ~= "drag" then
             list[#list + 1] = { value = action.key, label = V[action.word] }
         end
     end

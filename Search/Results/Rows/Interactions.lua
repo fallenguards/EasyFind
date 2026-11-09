@@ -578,7 +578,9 @@ function Rows.InstallInteractions(resultRow, index)
         -- skip-navigation flag here (not waiting for OnUpdate) is what
         -- prevents PostClick from closing the window before OnUpdate
         -- has had a chance to detect movement and pick up the action.
-        if d and IsShiftKeyDown() and CanPickupRowAction(d) and not ns.ResultGestures.ShiftChosen(d) then
+        -- A lookup row's Shift picks up on the release (OnMouseUp), by its gesture.
+        if d and IsShiftKeyDown() and CanPickupRowAction(d) and not ns.ResultGestures.ShiftChosen(d)
+           and not Handlers:IsLookupRow(d) then
             ns.ResultSecureAttributes.Clear(self)
             self._pickedUp = true
             return

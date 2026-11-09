@@ -165,6 +165,7 @@ function SettingsRows.ResultKindLabels()
         heirloom = _G["HEIRLOOMS"] or "Heirlooms", outfit = L["FILTER_OUTFITS"], transmogSet = L["FILTER_APPEARANCE_SETS"],
         ability = _G["ABILITIES"] or "Abilities", macro = _G["MACROS"] or "Macros", bag = _G["BAGSLOT"] or "Bags",
         catalog = _G["ITEMS"] or "Items", loot = _G["LOOT"] or "Loot", title = _G["PAPERDOLL_SIDEBAR_TITLES"] or "Titles",
+        instance = _G["DUNGEONS"] or "Dungeons",
         settingToggle = L["OPT_RESULT_KIND_TOGGLES"], settingPress = L["OPT_RESULT_KIND_BUTTONS"],
         quickKeybind = L["OPT_RESULT_KIND_KEYBINDS"],
     }

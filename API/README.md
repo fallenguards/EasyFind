@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`; MINOR 11 `RegisterItemSources`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -323,6 +323,10 @@ Your rows changed: they are rebuilt now, and an open search shows them.
 ### RegisterUpgradeJudge(def)
 
 MINOR 10. Your verdict on `@upgrades` for the character played now, where EasyFind compares each dungeon and raid drop with what the character wears. `def.extension` names you; `def.rate(itemID, link)` answers a number (the percent the drop beats the worn piece by, shown on the row), `true` (an upgrade with no number, nothing worn there), `false` (no upgrade: the drop is left out) or nil (not rated: EasyFind's own comparison stands for that drop). Judged drops lead each slot, the biggest gain first; EasyFind still keeps to the armor the class wears and the weapons it uses. Other characters' pages keep EasyFind's comparison. One judge at a time: the last registered judges. `UnregisterUpgradeJudge(extension)` takes it back; `RefreshUpgrades()` has the page built again when your verdicts change (a drop rated, the gear changed).
+
+### RegisterItemSources(id, fn)
+
+MINOR 11. Where an item comes from, as your extension knows it. A click on an item row opens the item's sources page: who sells it (the GPS extension's vendors, nearest first), which bosses drop it, and your rows under a heading of your extension's name. `fn(itemID, name)` returns rows in the shape of a search provider's (the quests that reward the item, the recipes that make it), or nothing. Typing on the page narrows every section by name.
 
 ### The search bar
 

@@ -360,12 +360,15 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
-    -- Catalog item. A mouse click or drag picks the item up onto the cursor to
-    -- send its link (see Rows/Interactions); this path handles Ctrl (try it on
-    -- in the dressing room) and keyboard Enter, which has no cursor pickup and
-    -- so is a no-op lookup. Shift (chat link) is handled upstream in PreClick.
-    -- Never navigates -- catalog rows are a lookup and keep the results open.
+    -- Catalog item. A click opens where it comes from; the gesture set to
+    -- send its link (Shift) picks it onto the cursor in Rows/Interactions.
+    -- This path handles Ctrl (try it on in the dressing room) and keyboard
+    -- Enter. Never navigates: catalog rows keep the results open.
     if data.catalogItem then
+        if ns.ResultGestures.Does(data, "sources") and ns.ItemSources then
+            ns.ItemSources:Show(data)
+            return
+        end
         if Handlers:IsSourceCtrlHeld(data) then
             local link = C_Item and C_Item.GetItemInfo and select(2, C_Item.GetItemInfo(data.itemID))
             if link and DressUpItemLink then DressUpItemLink(link) end
@@ -381,6 +384,10 @@ function Handlers:SelectResult(data, forceGuide)
     -- hides the row on the PRESS and the release never reaches it. Loot keeps
     -- falling through on Alt, which opens the Encounter Journal below.
     if Handlers:IsLookupRow(data) and not Handlers:IsSourceModifierHeld(data) then
+        if ns.ResultGestures.Does(data, "sources") and ns.ItemSources then
+            ns.ItemSources:Show(data)
+            return
+        end
         if Handlers:IsSourceCtrlHeld(data) and data.itemID then
             local link = C_Item and C_Item.GetItemInfo
                 and select(2, C_Item.GetItemInfo(data.itemID))
@@ -502,6 +509,11 @@ function Handlers:SelectResult(data, forceGuide)
     -- click already ran the command; nothing else for SelectResult to do.
     if data.slashCommand then return end
 
+    -- A boss's Shift lists its gear, on every client.
+    if data.category == "Boss" and data.encounterID and ns.ResultGestures.Held() == "shift" then
+        EasyFind.API.ShowScope("loot", data.name)
+        return
+    end
     -- A boss on a client with no journal: an extension's journal takes
     -- the gesture it wants (RegisterRowDecorator select), the rest list
     -- the boss's loot.
@@ -797,6 +809,20 @@ function Handlers:SelectResult(data, forceGuide)
             end
         end
         return
+    end
+
+    -- A dungeon or raid: the GPS, its bosses, or the map, by gesture.
+    if ns.ResultGestures.KindOf(data) == "instance" then
+        local action = ns.ResultGestures.ActionFor(data, ns.ResultGestures.Held())
+        if action == "gps" then
+            EasyFind.API.CallAction("gps", "navigate", data, { popout = true })
+            return
+        end
+        if action == "bosses" then
+            EasyFind.API.ShowScope("bosses", data.name)
+            return
+        end
+        if action == "none" then return end
     end
 
     if data.mapSearchResult then

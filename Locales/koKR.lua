@@ -832,6 +832,10 @@ L["HINT_EQUIP_GEAR_SET"]                = "장비 세트 착용"
 L["HINT_OPEN_MAP"]                      = "지도 열기"
 L["HINT_PIN_ON_MAP"]                    = "지도에 표식"
 L["HINT_CLICK_DRAG"]                    = "클릭/드래그"
+L["HINT_SOURCES"]                       = "출처"
+L["SOURCES_SOLD_BY"]                    = "판매처"
+L["SOURCES_DROPPED_BY"]                 = "드롭"
+L["SOURCES_NONE"]                       = "%s의 출처를 알 수 없습니다"
 
 -- =============================================================================
 -- POI names (Database/StaticLocations.lua)

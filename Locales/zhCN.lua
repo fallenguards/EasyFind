@@ -832,6 +832,10 @@ L["HINT_EQUIP_GEAR_SET"]                = "装备套装"
 L["HINT_OPEN_MAP"]                      = "打开地图"
 L["HINT_PIN_ON_MAP"]                    = "在地图标记"
 L["HINT_CLICK_DRAG"]                    = "点击/拖动"
+L["HINT_SOURCES"]                       = "来源"
+L["SOURCES_SOLD_BY"]                    = "出售者"
+L["SOURCES_DROPPED_BY"]                 = "掉落自"
+L["SOURCES_NONE"]                       = "未知 %s 的来源"
 
 -- =============================================================================
 -- POI names (Database/StaticLocations.lua)

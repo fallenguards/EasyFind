@@ -23,7 +23,7 @@ local function Load(db)
     ns.ResultHandlers = { GetBagItemActionKind = function(_, d) return d.bagKind or "use" end }
     ns.ResultShortcuts = {}
     H.loadModule("Search/Results/Gestures.lua", env, ns)
-    return ns.ResultGestures, env
+    return ns.ResultGestures, env, ns
 end
 
 local tests = {}
@@ -87,6 +87,54 @@ function tests.shiftStaysTheDragWhereAKindHasOne()
     H.assertEq(G.ActionFor(press, "shift"), "settings", "a kind with no drag takes the Shift choice")
     H.assertEq(G.ShiftChosen(press), "settings")
     H.assertEq(G.Hint(press), "HINT_CLICK: HINT_RUN | Alt: Settings | Shift: Settings")
+end
+
+-- An item's click shows where it comes from; Shift sends its link.
+function tests.anItemOpensItsSourcesAndShiftSendsItsLink()
+    local G, _, ns = Load()
+    ns.ItemSources = { Available = function(d) return d.itemID ~= nil end }
+    local item = { catalogItem = true, itemID = 2589, name = "Linen Cloth" }
+    H.assertEq(G.ActionFor(item, "click"), "sources")
+    H.assertEq(G.ActionFor(item, "shift"), "sendLink")
+    H.assertEq(G.ActionFor(item, "ctrl"), "dressroom")
+    H.assertTrue(G.ShiftFixed("catalog"), "Shift stays the link")
+    held.shift = true
+    H.assertTrue(G.Does(item, "sendLink"))
+    held.shift = nil
+    H.assertTrue(G.Does(item, "sources"))
+    H.assertEq(G.Hint(item), "HINT_CLICK: HINT_SOURCES | Ctrl: Dressing Room | Shift: CTX_SEND_LINK")
+    local drop = { itemID = 2589, category = "Loot", name = "Linen Cloth" }
+    H.assertEq(G.ActionFor(drop, "click"), "sources")
+    H.assertEq(G.ActionFor(drop, "alt"), "encounter")
+    H.assertEq(G.ActionFor(drop, "shift"), "sendLink")
+    ns.ItemSources = nil
+    H.assertNil(G.ActionFor(item, "click"), "no sources page: the click does nothing yet")
+    local choices = {}
+    for _, c in ipairs(G.Choices(G.Kind("catalog"))) do choices[c.value] = true end
+    H.assertTrue(choices.sendLink, "the link stays a choice for the other keys")
+    H.assertNil(choices.drag)
+end
+
+-- A dungeon row: the GPS goes, Ctrl lists its bosses, Shift opens the map;
+-- without the GPS the click opens the map.
+function tests.aDungeonGoesByGPSOrOpensTheMap()
+    local G, env, ns = Load()
+    local dungeon = { isDungeonEntrance = true, category = "dungeon", name = "Ruins of Lordaeron", mapID = 1420, x = 0.6, y = 0.7 }
+    H.assertEq(G.KindOf(dungeon), "instance")
+    H.assertNil(G.KindOf({ isDungeonEntrance = true, category = "delve", name = "A delve" }), "a delve stays a map row")
+    H.assertEq(G.ActionFor(dungeon, "click"), "openMap", "no GPS: the map")
+    H.assertNil(G.ActionFor(dungeon, "ctrl"), "no bosses known for it")
+    H.assertEq(G.ActionFor(dungeon, "shift"), "openMap")
+    env.EasyFind.API = {
+        HasAction = function(id, name) return id == "gps" and name == "navigate" end,
+        CallAction = function(id, name) return id == "gps" and name == "canNavigate" end,
+    }
+    ns.ItemSources = { InstanceHasBosses = function(name) return name == "Ruins of Lordaeron" end }
+    H.assertEq(G.ActionFor(dungeon, "click"), "gps")
+    H.assertEq(G.ActionFor(dungeon, "ctrl"), "bosses")
+    H.assertNil(G.ActionFor({ isDungeonEntrance = true, category = "raid", name = "Onyxia's Lair" }, "ctrl"),
+        "a raid with no bosses known offers none")
+    H.assertEq(G.Hint(dungeon), "HINT_CLICK: APP_GPS | Ctrl: Bosses | Shift: HINT_OPEN_MAP")
 end
 
 function tests.setWritesOnlyWhatDiffersFromTheDefault()

@@ -477,5 +477,24 @@ function tests.upgradeJudge_answersForItsExtension_andRefreshesThePage()
     H.assertEq(refreshed, 2)
 end
 
+-- Through the real API, as an extension calls it: the first version read a
+-- name check defined further down the file and called nil (luacheck caught
+-- it at the 5.3.0 push, 2026-11-09).
+function tests.itemSources_registerThroughTheRealAPI()
+    local _, ns, API = fresh()
+    local got = {}
+    ns.ItemSources = { Register = function(id, label, fn) got[#got + 1] = { id = id, label = label, fn = fn } end }
+    raises(function() API.RegisterItemSources("", function() end) end, "id must be a string")
+    raises(function() API.RegisterItemSources("questie", "rows") end, "fn must be a function")
+    raises(function() API.RegisterItemSources("questie", function() end) end, "registered first")
+    API.RegisterExtension({ id = "questie", name = "Questie", icon = 1 })
+    local fn = function() return {} end
+    H.assertTrue(API.RegisterItemSources("questie", fn))
+    H.assertEq(#got, 1)
+    H.assertEq(got[1].id, "questie")
+    H.assertEq(got[1].label, "Questie")
+    H.assertTrue(got[1].fn == fn)
+end
+
 local pass, fail, failures = H.runSuite("ExtensionsAPI", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -186,6 +186,7 @@ Search/Results/Grids.lua
 Search/Results/ItemGrid.lua
 Search/Characters.lua
 Search/Upgrades.lua
+Search/ItemSources.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua
 MapSearch/Zones/Highlight.lua

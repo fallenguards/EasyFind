@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 10 }
+local API = { VERSION = 1, MINOR = 11 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -892,6 +892,21 @@ function Judge.Rate(itemID, link)
     if not ok or verdict == nil then return nil end
     if verdict == false or verdict == true then return verdict end
     return type(verdict) == "number" and verdict or nil
+end
+
+-- ==== item sources ============================================================
+
+-- Where an item comes from, as an extension knows it (MINOR 11): its rows
+-- under a heading of its name on the item's sources page (a click on an
+-- item row). fn(itemID, name) returns rows, or nothing.
+function API.RegisterItemSources(id, fn)
+    if type(id) ~= "string" or id == "" then Fail("RegisterItemSources", "id must be a string") end
+    if type(fn) ~= "function" then Fail("RegisterItemSources", "fn must be a function") end
+    local owner = Extensions.Get(id)
+    if not owner then Fail("RegisterItemSources", "extension '" .. tostring(id) .. "' must be registered first") end
+    if not ns.ItemSources then return false end
+    ns.ItemSources.Register(owner.id, owner.name, fn)
+    return true
 end
 
 function API.RegisterRowDecorator(def)

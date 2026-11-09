@@ -832,6 +832,10 @@ L["HINT_EQUIP_GEAR_SET"]                = "Equipar conjunto"
 L["HINT_OPEN_MAP"]                      = "Abrir mapa"
 L["HINT_PIN_ON_MAP"]                    = "Fixar no mapa"
 L["HINT_CLICK_DRAG"]                    = "Clicar/arrastar"
+L["HINT_SOURCES"]                       = "Fontes"
+L["SOURCES_SOLD_BY"]                    = "Vendido por"
+L["SOURCES_DROPPED_BY"]                 = "Saqueado de"
+L["SOURCES_NONE"]                       = "Nenhuma fonte conhecida para %s"
 
 -- =============================================================================
 -- POI names (Database/StaticLocations.lua)

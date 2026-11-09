@@ -240,6 +240,11 @@ function API.RefreshSearchProvider(key) end
 function API.RegisterUpgradeJudge(def) end
 ---Takes the extension's judge back (MINOR 10).
 function API.UnregisterUpgradeJudge(extension) end
+---Where an item comes from, as your extension knows it (MINOR 11): fn(itemID, name) returns rows (quests that reward it, who sells it), listed under your extension's name on the item's sources page, which a click on an item row opens.
+---@param id string Your extension's id.
+---@param fn fun(itemID: integer, name: string): EasyFindRow[]|nil
+---@return boolean
+function API.RegisterItemSources(id, fn) end
 ---Your verdicts changed (a drop rated, the gear changed): @upgrades is built again when shown (MINOR 10).
 function API.RefreshUpgrades() end
 ---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.

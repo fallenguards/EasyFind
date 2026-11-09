@@ -522,6 +522,11 @@ function Search:OnSearchTextChangedNow(text, force)
         if ns.Characters then ns.Characters:ShowView(quickFilter, text) end
         return
     end
+    -- An item's sources page (Search/ItemSources.lua).
+    if quickFilter and quickFilter.sourcesItem then
+        if ns.ItemSources then ns.ItemSources:ShowView(quickFilter, text) end
+        return
+    end
     if (not text or text == "") and not quickFilter then
         if ns.Database and ns.Database.CancelDynamicWarmup then
             ns.Database:CancelDynamicWarmup()

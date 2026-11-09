@@ -48,7 +48,7 @@ local HINTS = {
     gearSet          = Hint(V.click, V.equipGearSet),
     openMap          = Hint(V.click, V.openMap),
     pinOnMap         = Hint(V.click, V.pinOnMap),
-    encounter        = Hint(V.click, V.encounter),
+    encounter        = Hint(V.click, V.encounter, "Shift", V.loot),
     bossLoot         = Hint(V.click, V.loot),
     settings         = Hint(V.click, V.settings),
 }
@@ -99,7 +99,7 @@ function Handlers:GetActionHint(data)
         if not words then return HINTS.bossLoot end
         local s = Hint(V.click, words.click or V.loot, "Alt", words.alt or V.loot)
         if words.ctrl then s = s .. " | Ctrl: " .. words.ctrl end
-        return s
+        return s .. " | Shift: " .. V.loot
     end
     if data.settingVariable or data.bindingAction then return HINTS.settings end
     return nil
