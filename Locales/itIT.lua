@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r Su Classic Era, TBC Anniversary e WoW Forever: per ogni spazio dell'equipaggiamento, il bottino di spedizioni e incursioni migliore di ciò che indossi e che puoi equipaggiare subito\n" ..
-    "    |cff999999-|r Ogni bottino indica il suo boss e la sua spedizione; in @alts ogni personaggio ha la sua pagina Miglioramenti\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLe creature in EasyFind stesso|r\n" ..
+    "    |cff999999-|r Ogni creatura per nome, titolo o per ciò che vende, su ogni client, senza estensioni; Ricerca sulla mappa > PNG le filtra\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLe fonti di un oggetto|r\n" ..
+    "    |cff999999-|r Clicca una riga oggetto: chi lo vende, il più vicino per primo, e quali boss lo lasciano cadere; le estensioni aggiungono sezioni proprie\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLe righe delle spedizioni portano oltre|r\n" ..
+    "    |cff999999-|r Clicca una spedizione per il percorso con l'estensione GPS, Ctrl per i suoi boss, Maiusc per la mappa; le spedizioni proprie di WoW Forever mostrano boss e bottino\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffIl percorso con un clic destro|r\n" ..
+    "    |cff999999-|r Con l'estensione GPS: su un'icona della mappa o un'area di missione, o sul ritratto di una creatura o di un membro del gruppo, che viene poi seguito\n" ..
+    "    |cff999999-|r Tab su una riga si ferma prima sul suo pulsante GPS, e Invio avvia il percorso\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r La ricerca nelle impostazioni non genera più un errore quando sono installati molti addon\n"
+    "    |cff999999-|r Aprire la mappa dopo un percorso o una ricerca sulla mappa non genera più errori, e digitare il nome di una spedizione elenca i suoi boss\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

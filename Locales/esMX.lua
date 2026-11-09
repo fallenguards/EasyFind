@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r En Classic Era, TBC Anniversary y WoW Forever: para cada espacio de equipo, el botín de calabozos y bandas que supera lo que llevas y que puedes equiparte ya\n" ..
-    "    |cff999999-|r Cada botín indica su jefe y su calabozo; en @alts, cada personaje tiene su propia página Mejoras\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCriaturas en el propio EasyFind|r\n" ..
+    "    |cff999999-|r Cada criatura por nombre, título o lo que vende, en todos los clientes, sin extensión; Búsqueda en el mapa > PNJ las filtra\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLas fuentes de un objeto|r\n" ..
+    "    |cff999999-|r Haz clic en una fila de objeto: quién lo vende, el más cercano primero, y qué jefes lo sueltan; las extensiones agregan sus propias secciones\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLas filas de calabozo llevan más lejos|r\n" ..
+    "    |cff999999-|r Haz clic en un calabozo para el camino con la extensión GPS, Ctrl para sus jefes, Mayús para el mapa; los calabozos propios de WoW Forever muestran sus jefes y su botín\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEl camino con un clic derecho|r\n" ..
+    "    |cff999999-|r Con la extensión GPS: en un ícono del mapa o una zona de misión, o en el retrato de una criatura o de un miembro del grupo, al que luego se sigue\n" ..
+    "    |cff999999-|r Tab en una fila se detiene primero en su botón GPS, y Enter inicia la ruta\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Buscar en la configuración ya no produce un error cuando hay muchos addons instalados\n"
+    "    |cff999999-|r Abrir el mapa tras una ruta o una búsqueda en el mapa ya no produce errores, y escribir el nombre de un calabozo lista sus jefes\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

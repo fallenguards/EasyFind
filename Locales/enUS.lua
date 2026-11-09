@@ -331,11 +331,17 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r On Classic Era, TBC Anniversary and WoW Forever: for each gear slot, the dungeon and raid drops that beat what you wear and that you can equip now\n" ..
-    "    |cff999999-|r Each drop names its boss and dungeon; on @alts, every character has its own Upgrades page\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCreatures in EasyFind itself|r\n" ..
+    "    |cff999999-|r Every creature by name, title or what it sells, on every client, no extension needed; Map Search > NPCs filters them\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffAn item's sources|r\n" ..
+    "    |cff999999-|r Click an item row: who sells it, nearest first, and which bosses drop it; extensions add sections of their own\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDungeon rows lead on|r\n" ..
+    "    |cff999999-|r Click a dungeon for directions with the GPS extension, Ctrl for its bosses, Shift for the map; WoW Forever's own dungeons list their bosses and drops\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffDirections from a right-click|r\n" ..
+    "    |cff999999-|r With the GPS extension: on a map pin or quest area, or on the portrait of a creature or a group member, who is then followed\n" ..
+    "    |cff999999-|r Tab on a row stops on its GPS button, and Enter starts the route\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Searching settings no longer raises an error when many addons are installed\n"
+    "    |cff999999-|r Opening the map after a route or a map search no longer raises errors, and typing a dungeon's name lists its bosses\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

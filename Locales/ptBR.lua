@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r No Classic Era, TBC Anniversary e WoW Forever: para cada espaço de equipamento, os saques de masmorras e raides melhores do que o que você usa e que você já pode equipar\n" ..
-    "    |cff999999-|r Cada saque mostra o chefe e a masmorra; em @alts, cada personagem tem sua própria página Melhorias\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffCriaturas no próprio EasyFind|r\n" ..
+    "    |cff999999-|r Toda criatura por nome, título ou pelo que vende, em todos os clientes, sem extensão; Busca no mapa > NPCs as filtra\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffAs fontes de um item|r\n" ..
+    "    |cff999999-|r Clique em uma linha de item: quem o vende, o mais próximo primeiro, e quais chefes o deixam cair; as extensões acrescentam suas próprias seções\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLinhas de masmorra levam adiante|r\n" ..
+    "    |cff999999-|r Clique em uma masmorra para o caminho com a extensão GPS, Ctrl para seus chefes, Shift para o mapa; as masmorras próprias do WoW Forever mostram seus chefes e saques\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffO caminho com o clique direito|r\n" ..
+    "    |cff999999-|r Com a extensão GPS: em um ícone do mapa ou área de missão, ou no retrato de uma criatura ou de um membro do grupo, que passa a ser seguido\n" ..
+    "    |cff999999-|r Tab em uma linha para primeiro no botão GPS dela, e Enter inicia a rota\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Buscar nas configurações não gera mais um erro quando há muitos addons instalados\n"
+    "    |cff999999-|r Abrir o mapa depois de uma rota ou de uma busca no mapa não gera mais erros, e digitar o nome de uma masmorra lista seus chefes\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

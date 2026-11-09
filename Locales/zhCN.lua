@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型菜单"
 L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r 在 Classic Era、TBC Anniversary 和 WoW Forever 中：每个装备栏位列出比你身上更好、现在就能穿上的地下城和团队副本掉落\n" ..
-    "    |cff999999-|r 每件掉落都注明首领和副本；在 @alts 中，每个角色都有自己的装备提升页面\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEasyFind 自带生物|r\n" ..
+    "    |cff999999-|r 在所有客户端按名称、头衔或所售物品查找任何生物，无需扩展；地图搜索 > NPC 可筛选\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff物品的来源|r\n" ..
+    "    |cff999999-|r 点击物品行：谁出售（最近的在前）、哪些首领掉落；扩展会加入自己的分区\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff副本行可继续操作|r\n" ..
+    "    |cff999999-|r 点击副本用 GPS 扩展导航，Ctrl 查看首领，Shift 打开地图；WoW Forever 自有副本也列出首领和掉落\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff右键导航|r\n" ..
+    "    |cff999999-|r 配合 GPS 扩展：右键地图图标、任务区域，或生物、队友的头像即可导航；队友会被持续跟随\n" ..
+    "    |cff999999-|r 在行上按 Tab 先停在 GPS 按钮，Enter 开始导航\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修复|r\n" ..
-    "    |cff999999-|r 安装了大量插件时，搜索设置不再报错\n"
+    "    |cff999999-|r 导航或地图搜索后打开地图不再报错，输入副本名称可列出其首领\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"

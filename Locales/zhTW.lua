@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r 在 Classic Era、TBC Anniversary 和 WoW Forever 中：每個裝備欄位列出比你身上更好、現在就能穿上的地城與團隊副本掉落\n" ..
-    "    |cff999999-|r 每件掉落都註明首領與副本；在 @alts 中，每個角色都有自己的裝備提升頁面\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffEasyFind 自帶生物|r\n" ..
+    "    |cff999999-|r 在所有客戶端按名稱、頭銜或所售物品尋找任何生物，無需擴充；地圖搜尋 > NPC 可篩選\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff物品的來源|r\n" ..
+    "    |cff999999-|r 點擊物品列：誰出售（最近的在前）、哪些首領掉落；擴充會加入自己的分區\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff地城列可繼續操作|r\n" ..
+    "    |cff999999-|r 點擊地城用 GPS 擴充導航，Ctrl 查看首領，Shift 開啟地圖；WoW Forever 自有地城也列出首領與掉落\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff右鍵導航|r\n" ..
+    "    |cff999999-|r 搭配 GPS 擴充：右鍵地圖圖示、任務區域，或生物、隊友的頭像即可導航；隊友會被持續跟隨\n" ..
+    "    |cff999999-|r 在列上按 Tab 先停在 GPS 按鈕，Enter 開始導航\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 安裝了大量插件時，搜尋設定不再出錯\n"
+    "    |cff999999-|r 導航或地圖搜尋後開啟地圖不再出錯，輸入地城名稱可列出其首領\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

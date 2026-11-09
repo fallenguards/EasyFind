@@ -300,11 +300,17 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff@upgrades|r\n" ..
-    "    |cff999999-|r Sur Classic Era, TBC Anniversary et WoW Forever : pour chaque emplacement d'équipement, le butin de donjons et de raids meilleur que ce que vous portez et que vous pouvez équiper dès maintenant\n" ..
-    "    |cff999999-|r Chaque butin indique son boss et son donjon ; dans @alts, chaque personnage a sa propre page Améliorations\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLes créatures dans EasyFind même|r\n" ..
+    "    |cff999999-|r Chaque créature par son nom, son titre ou ce qu'elle vend, sur tous les clients, sans extension ; Recherche sur la carte > PNJ les filtre\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLes sources d'un objet|r\n" ..
+    "    |cff999999-|r Cliquez sur une ligne d'objet : qui le vend, le plus proche d'abord, et quels boss le laissent tomber ; les extensions ajoutent leurs propres sections\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffLes lignes de donjon mènent plus loin|r\n" ..
+    "    |cff999999-|r Cliquez sur un donjon pour l'itinéraire avec l'extension GPS, Ctrl pour ses boss, Maj pour la carte ; les donjons propres à WoW Forever affichent leurs boss et leur butin\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffL'itinéraire d'un clic droit|r\n" ..
+    "    |cff999999-|r Avec l'extension GPS : sur une icône de la carte ou une zone de quête, ou sur le portrait d'une créature ou d'un membre du groupe, qui est alors suivi\n" ..
+    "    |cff999999-|r Tab s'arrête d'abord sur le bouton GPS d'une ligne, et Entrée lance l'itinéraire\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r La recherche dans les paramètres ne provoque plus d'erreur quand de nombreux addons sont installés\n"
+    "    |cff999999-|r Ouvrir la carte après un itinéraire ou une recherche sur la carte ne provoque plus d'erreur, et taper le nom d'un donjon liste ses boss\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

@@ -4,6 +4,40 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.3.0] - 2026-11-11
+
+### Added
+- **Creatures in EasyFind itself**: every creature by name, title or what it sells, on every client, with no extension needed. Map Search > NPCs and its options (friendly or hostile, role, type) are EasyFind's own; the GPS extension keeps the directions
+- **An item's sources**: click an item row for a page of who sells it, nearest first, and which bosses drop it; extensions add sections of their own, such as the quests that reward it. Typing on the page narrows every section
+- **Dungeon rows lead on**: click a dungeon or raid row for directions with the GPS extension, Ctrl for its bosses, Shift to open the map; Shift on a boss row lists its loot where the client has no Adventure Guide
+- **WoW Forever's own dungeons**: Ruins of Lordaeron, City of Dalaran, Excavation Site: Wetlands and the Hall of Thanes list their bosses and drops in @bosses, @loot and @upgrades
+- **Weapon masters**: each master is a row of its own, at its own spot, with the weapons it teaches in the tooltip
+- **Full item catalog by default**: new saves start with every category on; with the catalog off and few items found, a row at the list's end turns it on and runs the search again
+- **Extensions API 1.10 and 1.11**: an extension may judge @upgrades and add an item's sources
+- **Tab to the GPS button**: on a row with a GPS button, Tab stops on the button first and Enter starts the route; Tab again opens the row's menu as before
+- **Outdated extensions say so**: an extension too old for this EasyFind gets a chat line each session with a link to its page. A GPS older than 1.6.0 still carries its own copy of the creature list; EasyFind keeps using its own until GPS is updated
+
+### Changed
+- **Creature rows are on by default**, in the search bar and on the map tab; Map Search > NPCs turns them off
+- **Pinned rows act as the row**: a pinned quest or extension row keeps its GPS button, tooltip and hint
+- **Emote commands** run the way a macro runs them
+- **Profession trainers**: "tailoring trainer" finds the craftsmen who teach it on Classic and WoW Forever, and "trainer" lists every trainer, not only class trainers
+- **The map tab's tutorial** ends on the GPS extension; its rares slides show on retail alone
+- **The tutorial's Extensions page** has a card for every extension, those on CurseForge first with their download links, the ones you have marked installed
+
+### Fixed
+- **Opening the world map** after a GPS route or a map search no longer raises errors, in or out of a fight, and the waypoint pin's Shift-click shares again; a turn of the map asked for in a fight comes as the fight ends
+- **Map tabs with ClassicUI Forever's map**: the tabs sit beside the quest pane again, not at the map's foot
+- **Typing a dungeon's name** under @bosses, or Ctrl on its row, lists its bosses on every client
+- **WoW Forever menus**: a menu's edge no longer shows through the menu opened from it
+- **WoW Forever items**: the catalog keeps items the client had marked stale, and leaves out deprecated, test and unused rows in every spelling the game's tables use
+- **A spell learned mid-session** appears in results on the next search
+- **Closing the results in a fight** no longer raises an error; the rows hide as the fight ends
+- **Pet rows on WoW Forever** show the companion tooltip the journal shows
+- **The Quests tab beside the map on WoW Forever**: after going back to the quest log through it, the map opens on the quest log next time, not on EasyFind's tab
+
+---
+
 ## [5.2.0] - 2026-11-05
 
 ### Added
