@@ -18,7 +18,6 @@ ns.ITEM_SEARCH_BLOB = [[
 18 pound salmon	13902	1	254	55	15	0
 19 pound catfish	6310	1	254	15	15	0
 19 pound lobster	13911	1	254	55	15	0
-20-slot bag	1977	1	254	1	1	0
 21 pound lobster	13912	1	254	55	15	0
 22 pound catfish	6311	1	254	15	15	0
 22 pound lobster	13913	1	254	55	15	0
@@ -39,131 +38,16 @@ ns.ITEM_SEARCH_BLOB = [[
 52 pound redgill	13887	1	254	45	15	0
 53 pound grouper	13878	1	254	45	15	0
 59 pound grouper	13879	1	254	45	15	0
-63 green frost belt	20351	2	254	63	4	0
-63 green frost bindings	20352	2	254	63	4	0
 63 green frost boots	20353	2	254	63	4	0
-63 green frost crown	20354	2	254	63	4	0
-63 green frost gloves	20355	2	254	63	4	0
-63 green frost leggings	20356	2	254	63	4	0
-63 green frost mantle	20357	2	254	63	4	0
-63 green frost neck	20358	2	254	63	4	0
-63 green frost ring	20359	2	254	63	4	0
-63 green frost robes	20360	2	254	63	4	0
-63 green frost shroud	20361	2	254	63	4	0
-63 green frost staff	20362	2	254	63	2	0
-63 green frost wand	20363	2	254	63	2	0
-63 green rogue belt	20311	2	254	63	4	0
-63 green rogue boots	20312	2	254	63	4	0
-63 green rogue bow	20313	2	254	63	2	0
-63 green rogue bracers	20314	2	254	63	4	0
-63 green rogue cap	20315	2	254	63	4	0
-63 green rogue cloak	20316	2	254	63	4	0
-63 green rogue dagger	20317	2	254	63	2	0
-63 green rogue gloves	20318	2	254	63	4	0
-63 green rogue neck	20319	2	254	63	4	0
-63 green rogue pants	20320	2	254	63	4	0
-63 green rogue ring	20321	2	254	63	4	0
-63 green rogue spaulders	20322	2	254	63	4	0
-63 green rogue tunic	20323	2	254	63	4	0
-63 green warrior axe	20280	2	254	63	2	0
-63 green warrior bracelets	20281	2	254	63	4	0
-63 green warrior breastplate	20282	2	254	63	4	0
-63 green warrior cloak	20283	2	254	63	4	0
-63 green warrior gauntlets	20284	2	254	63	4	0
-63 green warrior gun	20285	2	254	63	2	0
-63 green warrior helm	20286	2	254	63	4	0
-63 green warrior legplates	20287	2	254	63	4	0
-63 green warrior neck	20288	2	254	63	4	0
-63 green warrior pauldrons	20289	2	254	63	4	0
-63 green warrior ring	20290	2	254	63	4	0
-63 green warrior sabatons	20291	2	254	63	4	0
-63 green warrior waistband	20292	2	254	63	4	0
 68 pound grouper	13880	1	254	45	15	0
 7 pound lobster	13907	1	254	55	15	0
 70 pound mightfish	13914	1	254	55	15	0
 85 pound mightfish	13915	1	254	55	15	0
 9 pound lobster	13908	1	254	55	15	0
-90 epic frost belt	20324	4	254	90	4	0
-90 epic frost bindings	20325	4	254	90	4	0
 90 epic frost boots	20326	4	254	90	4	0
-90 epic frost crown	20327	4	254	90	4	0
-90 epic frost gloves	20328	4	254	90	4	0
-90 epic frost leggings	20329	4	254	90	4	0
-90 epic frost mantle	20330	4	254	90	4	0
-90 epic frost neck	20332	4	254	90	4	0
-90 epic frost ring	20333	4	254	90	4	0
-90 epic frost robes	20331	4	254	90	4	0
-90 epic frost shroud	20336	4	254	90	4	0
-90 epic frost staff	20334	4	254	90	2	0
-90 epic frost wand	20335	4	254	90	2	0
-90 epic rogue belt	20267	4	254	90	4	0
-90 epic rogue boots	20268	4	254	90	4	0
-90 epic rogue bow	20278	4	254	90	2	0
-90 epic rogue bracers	20269	4	254	90	4	0
-90 epic rogue cap	20270	4	254	90	4	0
-90 epic rogue cloak	20276	4	254	90	4	0
-90 epic rogue dagger	20279	4	254	90	2	0
-90 epic rogue gloves	20271	4	254	90	4	0
-90 epic rogue neck	20275	4	254	90	4	0
-90 epic rogue pants	20272	4	254	90	4	0
-90 epic rogue ring	20277	4	254	90	4	0
-90 epic rogue spaulders	20273	4	254	90	4	0
-90 epic rogue tunic	20274	4	254	90	4	0
-90 epic warrior axe	20149	4	254	90	2	0
-90 epic warrior bracelets	20135	4	254	90	4	0
-90 epic warrior breastplate	20136	4	254	90	4	0
-90 epic warrior cloak	20145	4	254	90	4	0
-90 epic warrior gauntlets	20137	4	254	90	4	0
-90 epic warrior gun	20146	4	254	90	2	0
-90 epic warrior helm	20138	4	254	90	4	0
-90 epic warrior legplates	20139	4	254	90	4	0
-90 epic warrior neck	20143	4	254	90	4	0
-90 epic warrior pauldrons	20140	4	254	90	4	0
-90 epic warrior ring	20144	4	254	90	4	0
-90 epic warrior sabatons	20141	4	254	90	4	0
-90 epic warrior waistband	20142	4	254	90	4	0
-90 green frost belt	20338	2	254	90	4	0
-90 green frost bindings	20339	2	254	90	4	0
 90 green frost boots	20340	2	254	90	4	0
-90 green frost crown	20341	2	254	90	4	0
-90 green frost gloves	20342	2	254	90	4	0
-90 green frost leggings	20343	2	254	90	4	0
-90 green frost mantle	20344	2	254	90	4	0
-90 green frost neck	20345	2	254	90	4	0
-90 green frost ring	20346	2	254	90	4	0
-90 green frost robes	20347	2	254	90	4	0
-90 green frost shroud	20348	2	254	90	4	0
-90 green frost staff	20349	2	254	90	2	0
-90 green frost wand	20350	2	254	90	2	0
-90 green rogue belt	20297	2	254	90	4	0
-90 green rogue boots	20298	2	254	90	4	0
-90 green rogue bow	20299	2	254	90	2	0
-90 green rogue bracers	20300	2	254	90	4	0
-90 green rogue cap	20301	2	254	90	4	0
-90 green rogue cloak	20302	2	254	90	4	0
-90 green rogue dagger	20303	2	254	90	2	0
-90 green rogue gloves	20304	2	254	90	4	0
-90 green rogue neck	20305	2	254	90	4	0
-90 green rogue pants	20306	2	254	90	4	0
-90 green rogue ring	20307	2	254	90	4	0
-90 green rogue spaulders	20308	2	254	90	4	0
-90 green rogue tunic	20309	2	254	90	4	0
-90 green warrior axe	20238	2	254	90	2	0
-90 green warrior bracelets	20239	2	254	90	4	0
-90 green warrior breastplate	20240	2	254	90	4	0
-90 green warrior cloak	20241	2	254	90	4	0
-90 green warrior gauntlets	20242	2	254	90	4	0
-90 green warrior gun	20245	2	254	90	2	0
-90 green warrior helm	20246	2	254	90	4	0
-90 green warrior legplates	20247	2	254	90	4	0
-90 green warrior neck	20248	2	254	90	4	0
-90 green warrior pauldrons	20249	2	254	90	4	0
-90 green warrior ring	20250	2	254	90	4	0
-90 green warrior sabatons	20251	2	254	90	4	0
-90 green warrior waistband	20252	2	254	90	4	0
 92 pound mightfish	13916	1	254	55	15	0
 99-year-old port	5334	1	254	1	12	0
-<unused> glyphic rune	9572	1	254	1	12	0
 a bloodstained envelope	22930	1	254	1	12	0
 a bloodstained envelope	22970	1	254	45	12	0
 a bloodstained journal page	939	1	254	1	12	0
@@ -284,7 +168,6 @@ acidic slime	6456	0	254	1	15	0
 acidic venom sac	5959	1	254	1	12	0
 acidic walkers	9454	3	254	32	4	0
 acidproof cloak	3582	2	254	18	4	0
-acolyte staff	2487	1	254	4	2	0
 acolyte's pants	1396	0	254	1	4	0
 acolyte's robe	57	0	254	1	4	0
 acolyte's robe	6129	0	254	1	4	0
@@ -293,7 +176,6 @@ acolyte's shirt	6097	1	254	1	4	0
 acolyte's shoes	59	1	254	1	4	0
 acrobatic staff	3185	2	254	34	2	0
 acumen robes	17775	2	254	47	4	0
-adept short staff	2503	1	254	8	2	0
 adept's cloak	3833	1	254	8	4	0
 adept's gloves	4768	2	254	15	4	0
 admiral proudmoore's orders	4883	1	254	1	12	0
@@ -336,7 +218,6 @@ aged gorilla sinew	3862	1	254	1	12	0
 aged kodo hide	6249	1	254	1	12	0
 agent of nozdormu	20402	2	254	60	15	0
 agile boots	4788	2	254	20	4	0
-agmond's belt pouch	4981	1	254	35	1	0
 ahanu's leather goods	16283	1	254	1	12	0
 ahn'qiraj war effort supplies	21509	1	254	10	15	0
 ahn'qiraj war effort supplies	21510	1	254	20	15	0
@@ -360,7 +241,6 @@ alanna's embrace	13314	4	254	62	4	0
 alaric's head	3316	1	254	1	12	0
 alaric's remains	3318	1	254	1	12	0
 albino crocscale boots	17728	3	254	53	4	0
-alchemist's wand	5235	1	254	7	2	0
 alchemists' stone	13503	4	254	60	7	0
 alcor's sunrazor	14555	4	254	63	2	0
 alex's ring of audacity	12947	6	254	60	4	0
@@ -474,7 +354,6 @@ animist's leggings	19877	3	254	71	4	0
 animist's spaulders	19928	3	254	68	4	0
 ankh	17030	1	254	30	5	0
 ankh of life	1713	3	254	45	4	0
-ankh of resurrection	3438	1	254	8	0	0
 annals of darrowshire	12900	1	254	1	12	0
 annealed blade	9392	3	254	40	2	0
 annihilator	12798	3	254	63	2	0
@@ -578,7 +457,6 @@ arcanum of focus	18330	2	254	50	12	0
 arcanum of protection	18331	2	254	50	12	0
 arcanum of rapidity	18329	2	254	50	12	0
 arced war axe	3191	2	254	26	2	0
-archaedic shard	9417	3	254	47	4	0
 archaedic stone	11118	3	254	47	4	0
 archaeologist's quarry boots	11908	2	254	55	4	0
 archaic defender	9385	3	254	36	2	0
@@ -802,7 +680,6 @@ band of vigor	18302	2	254	58	4	0
 banded armor	9836	2	254	33	4	0
 banded boots	10409	2	254	32	4	0
 banded bracers	9837	2	254	30	4	0
-banded buckler	1193	1	254	17	4	0
 banded buckler	17187	1	254	14	4	0
 banded cloak	9838	2	254	29	4	0
 banded gauntlets	9839	2	254	31	4	0
@@ -1159,9 +1036,6 @@ black metal greatsword	2014	2	254	29	2	0
 black metal shortsword	886	2	254	26	2	0
 black metal war axe	2015	2	254	28	2	0
 black moro'gai gem	18157	2	254	1	12	0
-black night elf breastplate	3522	1	254	1	4	0
-black night elf gloves	3526	1	254	1	4	0
-black night elf helm	3529	1	254	1	4	0
 black ogre kickers	1678	3	254	37	4	0
 black pearl	7971	2	254	40	7	0
 black pearl ring	6332	3	254	22	4	0
@@ -1239,7 +1113,6 @@ blackwater tunic	4138	2	254	45	4	0
 blackwood fruit sample	12341	1	254	1	12	0
 blackwood grain sample	12342	1	254	1	12	0
 blackwood nut sample	12343	1	254	1	12	0
-blackwood recurve bow	4763	2	254	9	2	0
 blackwood's thigh	23156	3	254	62	4	0
 blade of cunning	7298	2	254	13	2	0
 blade of eternal darkness	17780	4	254	54	2	0
@@ -1255,7 +1128,6 @@ blade of vaulted secrets	21413	4	254	70	2	0
 bladebane armguards	14550	4	254	49	4	0
 blademaster leggings	12963	3	254	63	4	0
 blanchard's stout	13046	3	254	50	2	0
-bland bow of steadiness	20368	3	254	60	2	0
 bland dagger	24071	3	254	69	2	0
 blank parchment	10648	1	254	40	7	0
 blasted boar lung	8392	1	254	1	12	0
@@ -1280,11 +1152,9 @@ blessed qiraji acolyte staff	21273	4	254	79	2	0
 blessed qiraji augur staff	21275	4	254	79	2	0
 blessed qiraji bulwark	21269	4	254	79	4	0
 blessed qiraji musket	21272	4	254	79	2	0
-blessed qiraji naturalist staff unused	21276	4	254	80	2	0
 blessed qiraji pugio	21244	4	254	79	2	0
 blessed qiraji war axe	21242	4	254	79	2	0
 blessed qiraji war hammer	21268	4	254	79	2	0
-blessed relic	2921	1	254	15	4	0
 blessed sunfruit	13810	1	254	55	0	0
 blessed sunfruit juice	13813	1	254	55	0	0
 blessed wizard oil	23123	2	254	55	7	0
@@ -1298,10 +1168,8 @@ blinkstrike armguards	15860	2	254	60	4	0
 blisterbane wrap	12552	3	254	55	4	0
 blitzcleaver	15862	2	254	54	2	0
 blizzard stationery	18154	1	254	0	0	0
-bloated albacore	6646	1	254	15	0	0
 bloated catfish	6647	1	254	25	0	0
 bloated firefin	21163	1	254	25	0	0
-bloated mackerel	6644	1	254	5	0	0
 bloated mightfish	21243	1	254	45	0	0
 bloated mud snapper	6645	1	254	15	0	0
 bloated oily blackmouth	21162	1	254	15	0	0
@@ -1346,13 +1214,9 @@ blood guard's silk footwraps	16485	3	254	63	4	0
 blood guard's silk gloves	16487	3	254	63	4	0
 blood guard's silk handwraps	22870	3	254	66	4	0
 blood guard's silk walkers	22860	3	254	66	4	0
-blood of anacondra	5402	1	254	1	12	0
-blood of cobrahn	5400	1	254	1	12	0
 blood of heroes	12938	1	254	60	12	0
 blood of innocents	13523	1	254	1	12	0
 blood of morphaz	20025	1	254	1	12	0
-blood of pythas	5401	1	254	1	12	0
-blood of serpentis	5403	1	254	1	12	0
 blood of the black dragon champion	16663	1	254	1	12	0
 blood of the martyr	17045	3	254	61	4	0
 blood of the mountain	11382	2	254	50	7	0
@@ -1400,7 +1264,6 @@ bloodforged sabatons	14951	2	254	47	4	0
 bloodforged shield	14954	2	254	51	4	0
 bloodforged shoulder pads	14955	2	254	47	4	0
 bloodfury ripper's remains	16190	1	254	1	12	0
-bloodhoof hand axe	4965	1	254	10	2	0
 bloodkelp	22094	1	254	1	12	0
 bloodkelp elixir of dodging	22192	1	254	60	0	0
 bloodkelp elixir of resistance	22193	1	254	60	0	0
@@ -1623,10 +1486,7 @@ boneslasher	10573	3	254	37	2	0
 bonesnapper	13027	3	254	53	2	0
 bonespike shoulder	12588	3	254	63	4	0
 book from sven's farm	2161	1	254	1	12	0
-book of abolish magic	4223	1	254	36	9	0
-book of abolish poison	8760	1	254	26	9	0
 book of aquor	11169	1	254	1	12	0
-book of cure poison	1332	1	254	14	9	0
 book of deathstones: failsafe phylactery	191611	4	0	60	12	0
 book of deathstones: fungal spore cluster	191609	3	0	60	12	0
 book of deathstones: mask of death	191550	1	0	60	12	0
@@ -1640,98 +1500,15 @@ book of deathstones: rune of teleportation ii	191612	4	0	60	12	0
 book of deathstones: skeletal artifact	191607	3	0	60	12	0
 book of deathstones: skeletal hitching post	191614	4	0	60	12	0
 book of deathstones: thaddius' lightning bolts	191664	3	0	60	12	0
-book of entangling roots	1339	1	254	8	9	0
-book of entangling roots ii	5147	1	254	18	9	0
-book of entangling roots iii	4225	1	254	28	9	0
-book of entangling roots iv	8900	1	254	38	9	0
-book of entangling roots v	8773	1	254	48	9	0
-book of entangling roots vi	8795	1	254	58	9	0
-book of faerie fire	1328	1	254	18	9	0
-book of faerie fire ii	8764	1	254	30	9	0
-book of faerie fire iii	8779	1	254	42	9	0
-book of faerie fire iv	8790	1	254	54	9	0
 book of ferocious bite v	24101	3	254	60	9	0
-book of healing touch	8745	1	254	8	9	0
-book of healing touch ii	5145	1	254	8	9	0
-book of healing touch iii	5150	1	254	14	9	0
-book of healing touch iv	5152	1	254	20	9	0
-book of healing touch ix	8783	1	254	50	9	0
-book of healing touch v	5160	1	254	26	9	0
-book of healing touch vi	4230	1	254	32	9	0
-book of healing touch vii	8774	1	254	38	9	0
-book of healing touch viii	8901	1	254	44	9	0
-book of healing touch x	8794	1	254	56	9	0
 book of healing touch xi	21294	3	254	60	9	0
 book of incantations	18261	1	254	1	12	0
-book of mark of the wild	8743	1	254	1	9	0
-book of mark of the wild ii	5155	1	254	10	9	0
-book of mark of the wild iii	5163	1	254	20	9	0
-book of mark of the wild iv	5153	1	254	30	9	0
-book of mark of the wild v	8902	1	254	40	9	0
-book of mark of the wild vi	8776	1	254	50	9	0
-book of mark of the wild vii	8799	1	254	60	9	0
-book of moonfire	1341	1	254	4	9	0
-book of moonfire ii	1886	1	254	10	9	0
-book of moonfire iii	1882	1	254	16	9	0
 book of moonfire iv	4228	1	254	22	9	0
-book of moonfire ix	8777	1	254	52	9	0
-book of moonfire v	8763	1	254	28	9	0
-book of moonfire vi	8770	1	254	34	9	0
-book of moonfire vii	8903	1	254	40	9	0
-book of moonfire viii	8904	1	254	46	9	0
-book of moonfire x	8796	1	254	58	9	0
-book of regrowth	5141	1	254	12	9	0
-book of regrowth ii	8756	1	254	18	9	0
-book of regrowth iii	8759	1	254	24	9	0
-book of regrowth iv	8765	1	254	30	9	0
-book of regrowth ix	8800	1	254	60	9	0
-book of regrowth v	8772	1	254	36	9	0
-book of regrowth vi	8905	1	254	42	9	0
-book of regrowth vii	8781	1	254	48	9	0
-book of regrowth viii	8791	1	254	54	9	0
-book of rejuvenation	5730	1	254	4	9	0
-book of rejuvenation ii	1334	1	254	10	9	0
-book of rejuvenation iii	1877	1	254	16	9	0
-book of rejuvenation iv	3088	1	254	22	9	0
-book of rejuvenation ix	8785	1	254	52	9	0
-book of rejuvenation v	8762	1	254	28	9	0
-book of rejuvenation vi	8771	1	254	34	9	0
-book of rejuvenation vii	8778	1	254	40	9	0
-book of rejuvenation viii	8906	1	254	46	9	0
-book of rejuvenation x	8797	1	254	58	9	0
 book of rejuvenation xi	21296	3	254	60	9	0
-book of remove curse	8758	1	254	22	9	0
 book of romantic poems	22298	1	254	1	0	0
-book of soothe animal	8787	1	254	22	9	0
-book of soothe animal ii	8788	1	254	38	9	0
-book of soothe animal iii	8789	1	254	54	9	0
-book of starfire	8757	1	254	20	9	0
-book of starfire ii	8761	1	254	26	9	0
-book of starfire iii	8768	1	254	34	9	0
-book of starfire iv	8907	1	254	42	9	0
-book of starfire v	8780	1	254	50	9	0
-book of starfire vi	8798	1	254	58	9	0
 book of starfire vii	21295	3	254	60	9	0
 book of the ancients	15803	1	254	1	12	0
 book of the dead	13353	4	254	63	4	0
-book of thorns	5139	1	254	6	9	0
-book of thorns ii	5148	1	254	14	9	0
-book of thorns iii	5154	1	254	24	9	0
-book of thorns iv	8769	1	254	34	9	0
-book of thorns v	8782	1	254	44	9	0
-book of thorns vi	8792	1	254	54	9	0
-book of tranquility	5158	1	254	30	9	0
-book of tranquility ii	8775	1	254	40	9	0
-book of tranquility iii	8786	1	254	50	9	0
-book of tranquility iv	8801	1	254	60	9	0
-book of wrath	8744	1	254	6	9	0
-book of wrath ii	5142	1	254	6	9	0
-book of wrath iii	5149	1	254	14	9	0
-book of wrath iv	5151	1	254	22	9	0
-book of wrath v	5156	1	254	30	9	0
-book of wrath vi	4226	1	254	38	9	0
-book of wrath vii	8784	1	254	46	9	0
-book of wrath viii	8793	1	254	54	9	0
 book: gift of the wild	17682	3	254	50	9	0
 book: gift of the wild ii	17683	3	254	60	9	0
 book: stresses of iron	2795	1	254	1	12	0
@@ -1774,7 +1551,6 @@ bottle of disease	5440	1	254	1	12	0
 bottle of moonshine	1942	1	254	1	12	0
 bottle of zombie juice	1451	1	254	1	12	0
 bottled alterac spring water	19318	1	254	55	0	0
-bottled spirits	1119	1	254	25	0	0
 bottled winterspring water	19300	1	254	45	0	0
 bottom half of advanced armorsmithing: volume i	18779	3	254	60	12	0
 bottom half of advanced armorsmithing: volume ii	18781	3	254	60	12	0
@@ -1848,7 +1624,6 @@ branch of cenarius	5461	1	254	1	12	0
 branchclaw gauntlets	17770	2	254	47	4	0
 branded leather bracers	19508	2	254	41	4	0
 branding rod	5356	2	254	27	2	0
-brann bronzebeard's lost letter	20460	1	254	60	4	0
 brann bronzebeard's lost letter	20461	1	254	60	15	0
 brann's trusty pick	20723	2	254	62	2	0
 brantwood sash	15707	2	254	58	4	0
@@ -1942,7 +1717,6 @@ brilliant scale	6826	0	254	1	15	0
 brilliant smallfish	6290	1	254	5	0	0
 brilliant sword of zealotry	22228	1	254	1	12	0
 brilliant wizard oil	20749	1	254	55	7	0
-brimstone	1402	1	254	12	0	0
 brimstone belt	4785	2	254	24	4	0
 brimstone staff	22800	4	254	83	2	0
 brindlethorn tunic	12104	2	254	60	4	0
@@ -2126,7 +1900,6 @@ burnt leather bracers	3200	1	254	8	4	0
 burnt leather breeches	2962	2	254	10	4	0
 burnt leather gloves	2964	1	254	10	4	0
 burnt leather vest	2961	2	254	11	4	0
-burnt out torch	3675	0	254	1	15	0
 burrower bracers	21611	4	254	81	4	0
 burrowing shovel	6205	2	254	15	2	0
 burst of knowledge	11832	3	254	58	4	0
@@ -2348,9 +2121,7 @@ ceremonial tomahawk	3443	1	254	10	2	0
 cerise drape	15804	2	254	56	4	0
 certificate of thievery	7907	1	254	16	15	0
 cerulean ring	11985	2	254	35	4	0
-cerulean ring	7426	2	254	30	4	0
 cerulean talisman	12019	2	254	32	4	0
-cerulean talisman	7427	2	254	31	4	0
 chained essence of eranikus	10455	2	254	60	4	0
 chainlink towel	9648	2	254	48	4	0
 chainmail armor	847	1	254	17	4	0
@@ -2414,7 +2185,6 @@ charged lightning rod	11860	2	254	46	2	0
 charged rift gem	7249	1	254	1	12	0
 charged scale	5125	0	254	1	15	0
 charged scale of onyxia	17968	3	254	60	7	0
-charged soulstone	1199	1	254	8	0	0
 charger's armor	15479	2	254	11	4	0
 charger's belt	15472	1	254	9	4	0
 charger's bindings	15474	1	254	8	4	0
@@ -2427,7 +2197,6 @@ charger's redeemed soul	18799	1	254	1	12	0
 charger's shield	15478	1	254	8	4	0
 charging buckler	4937	1	254	9	4	0
 charm of the shifting sands	21504	4	254	70	4	0
-charm pouch (dnd)	12442	1	254	1	4	0
 charred horn	6839	1	254	1	12	0
 charred leather tunic	19127	2	254	50	4	0
 charred razormane wand	5092	1	254	23	2	0
@@ -2647,141 +2416,10 @@ cobalt legguards	17006	2	254	27	4	0
 cobalt ring	11984	2	254	29	4	0
 cobrahn's grasp	6460	3	254	24	4	0
 cockroach	10393	1	254	30	15	0
-codex of abolish disease	8976	1	254	32	9	0
-codex of cure disease	8960	1	254	14	9	0
 codex of defense	18357	3	254	60	15	0
-codex of dispel magic	1095	1	254	18	9	0
-codex of dispel magic ii	4282	1	254	36	9	0
-codex of divine escape	4274	1	254	36	9	0
-codex of dominate	1109	1	254	30	9	0
-codex of fade	8955	1	254	8	9	0
-codex of fade ii	8965	1	254	20	9	0
-codex of fade iii	8975	1	254	30	9	0
-codex of fade iv	8989	1	254	40	9	0
-codex of fade v	9007	1	254	50	9	0
-codex of fade vi	9029	1	254	60	9	0
-codex of flash heal	8964	1	254	20	9	0
-codex of flash heal ii	8969	1	254	26	9	0
-codex of flash heal iii	8978	1	254	32	9	0
-codex of flash heal iv	8983	1	254	38	9	0
-codex of flash heal v	8999	1	254	44	9	0
-codex of flash heal vi	9010	1	254	50	9	0
-codex of flash heal vii	9022	1	254	56	9	0
-codex of greater heal	3118	1	254	40	9	0
-codex of greater heal ii	9001	1	254	46	9	0
-codex of greater heal iii	9013	1	254	52	9	0
-codex of greater heal iv	9025	1	254	58	9	0
 codex of greater heal v	21284	3	254	60	9	0
-codex of heal	4273	1	254	16	9	0
-codex of heal ii	4268	1	254	22	9	0
-codex of heal iii	4270	1	254	28	9	0
-codex of heal iv	1648	1	254	34	9	0
-codex of holy protection	4272	1	254	30	9	0
-codex of holy protection ii	8987	1	254	40	9	0
-codex of holy protection iii	9017	1	254	54	9	0
-codex of holy smite ii	1091	1	254	6	9	0
-codex of holy smite iii	1100	1	254	14	9	0
-codex of holy smite iv	3120	1	254	22	9	0
-codex of holy smite v	4271	1	254	30	9	0
-codex of holy smite vi	4284	1	254	38	9	0
-codex of holy smite vii	9003	1	254	46	9	0
-codex of holy smite viii	9016	1	254	54	9	0
-codex of holy word: fortitude	8954	1	254	1	9	0
-codex of holy word: fortitude ii	1112	1	254	12	9	0
-codex of holy word: fortitude iii	3123	1	254	24	9	0
-codex of holy word: fortitude iv	4285	1	254	36	9	0
-codex of holy word: fortitude v	9004	1	254	48	9	0
-codex of holy word: fortitude vi	9034	1	254	60	9	0
-codex of holy word: shield	3113	1	254	6	9	0
-codex of holy word: shield ii	3116	1	254	12	9	0
-codex of holy word: shield iii	3122	1	254	18	9	0
-codex of holy word: shield iv	4280	1	254	24	9	0
-codex of holy word: shield ix	9018	1	254	54	9	0
-codex of holy word: shield v	3119	1	254	30	9	0
-codex of holy word: shield vi	1651	1	254	36	9	0
-codex of holy word: shield vii	8995	1	254	42	9	0
-codex of holy word: shield viii	9006	1	254	48	9	0
-codex of holy word: shield x	9035	1	254	60	9	0
-codex of inner fire	1086	1	254	12	9	0
-codex of inner fire ii	4266	1	254	20	9	0
-codex of inner fire iii	3124	1	254	30	9	0
-codex of inner fire iv	8991	1	254	40	9	0
-codex of inner fire v	9009	1	254	50	9	0
-codex of inner fire vi	9033	1	254	60	9	0
-codex of lesser heal ii	1092	1	254	4	9	0
-codex of lesser heal iii	1102	1	254	10	9	0
-codex of levitate	3121	1	254	34	9	0
-codex of mana burn	8968	1	254	24	9	0
-codex of mana burn ii	8977	1	254	32	9	0
-codex of mana burn iii	8988	1	254	40	9	0
-codex of mana burn iv	9005	1	254	48	9	0
-codex of mana burn v	9021	1	254	56	9	0
-codex of mind blast	8958	1	254	10	9	0
-codex of mind blast ii	8962	1	254	16	9	0
-codex of mind blast iii	8967	1	254	22	9	0
-codex of mind blast iv	8972	1	254	28	9	0
-codex of mind blast ix	9027	1	254	58	9	0
-codex of mind blast v	8980	1	254	34	9	0
-codex of mind blast vi	8990	1	254	40	9	0
-codex of mind blast vii	9002	1	254	46	9	0
-codex of mind blast viii	9015	1	254	52	9	0
-codex of mind control	8974	1	254	30	9	0
-codex of mind control ii	8997	1	254	44	9	0
-codex of mind control iii	9024	1	254	58	9	0
-codex of mind rot	4275	1	254	38	9	0
-codex of mind soothe	8963	1	254	20	9	0
-codex of mind soothe ii	8981	1	254	36	9	0
-codex of mind soothe iii	9014	1	254	52	9	0
-codex of mind vision	1085	1	254	22	9	0
-codex of mind vision ii	8998	1	254	44	9	0
-codex of nullify disease	1089	1	254	14	9	0
-codex of nullify disease ii	4287	1	254	32	9	0
-codex of prayer of healing	4269	1	254	30	9	0
-codex of prayer of healing ii	4286	1	254	40	9	0
-codex of prayer of healing iii	9008	1	254	50	9	0
-codex of prayer of healing iv	9032	1	254	60	9	0
 codex of prayer of healing v	21287	3	254	60	9	0
-codex of psychic scream	8961	1	254	14	9	0
-codex of psychic scream ii	8971	1	254	28	9	0
-codex of psychic scream iii	8992	1	254	42	9	0
-codex of psychic scream iv	9020	1	254	56	9	0
-codex of remove curse	1093	1	254	22	9	0
-codex of remove curse ii	4288	1	254	38	9	0
-codex of renew	1084	1	254	8	9	0
-codex of renew ii	1088	1	254	14	9	0
-codex of renew iii	1108	1	254	20	9	0
-codex of renew iv	3115	1	254	26	9	0
-codex of renew ix	9019	1	254	56	9	0
-codex of renew v	1101	1	254	32	9	0
-codex of renew vi	1105	1	254	38	9	0
-codex of renew vii	9000	1	254	44	9	0
-codex of renew viii	9012	1	254	50	9	0
 codex of renew x	21285	3	254	60	9	0
-codex of resurrection	1090	1	254	10	9	0
-codex of resurrection ii	1657	1	254	26	9	0
-codex of resurrection iii	8996	1	254	42	9	0
-codex of resurrection iv	9026	1	254	58	9	0
-codex of shackle undead	8966	1	254	20	9	0
-codex of shackle undead ii	8986	1	254	40	9	0
-codex of shackle undead iii	9031	1	254	60	9	0
-codex of shadow protection	4281	1	254	30	9	0
-codex of shadow protection ii	8993	1	254	42	9	0
-codex of shadow protection iii	9023	1	254	56	9	0
-codex of shadow word: befuddle	3114	1	254	24	9	0
-codex of shadow word: befuddle ii	4277	1	254	36	9	0
-codex of shadow word: fumble	4267	1	254	20	9	0
-codex of shadow word: fumble ii	4276	1	254	32	9	0
-codex of shadow word: pain	1087	1	254	4	9	0
-codex of shadow word: pain ii	1096	1	254	10	9	0
-codex of shadow word: pain iii	1641	1	254	18	9	0
-codex of shadow word: pain iv	1658	1	254	26	9	0
-codex of shadow word: pain v	4279	1	254	34	9	0
-codex of shadow word: pain vi	8994	1	254	42	9	0
-codex of shadow word: pain vii	9011	1	254	50	9	0
-codex of shadow word: pain viii	9028	1	254	58	9	0
-codex of sleep	1111	1	254	6	9	0
-codex of sleep ii	1676	1	254	20	9	0
-codex of sleep iii	4283	1	254	40	9	0
 codex: prayer of fortitude	17413	3	254	48	9	0
 codex: prayer of fortitude ii	17414	3	254	60	9	0
 codex: prayer of shadow protection	22393	3	254	60	9	0
@@ -2893,7 +2531,6 @@ conqueror's legguards	21332	4	254	81	4	0
 conqueror's medallion	12059	3	254	58	4	0
 conqueror's spaulders	21330	4	254	78	4	0
 consecrated letter	9570	1	254	1	12	0
-consecrated relic parchment	3790	1	254	35	4	0
 consecrated rune	9563	1	254	1	12	0
 consecrated sharpening stone	23122	2	254	55	7	0
 consecrated wand	5244	2	254	30	2	0
@@ -2924,7 +2561,6 @@ copper shortsword	2847	1	254	9	2	0
 copper tube	4361	1	254	10	7	0
 coppercloth gloves	4767	2	254	15	4	0
 coral band	11994	2	254	25	4	0
-coral band	5000	2	254	26	4	0
 coral claymore	3188	2	254	15	2	0
 cord bracers	5590	1	254	11	4	0
 cord of elements	16673	3	254	58	4	0
@@ -3323,7 +2959,6 @@ dark iron helm	19148	4	254	66	4	0
 dark iron leather	5108	1	254	32	4	0
 dark iron leggings	17013	4	254	60	4	0
 dark iron mail	11606	2	254	56	4	0
-dark iron ore	11099	1	254	55	7	0
 dark iron ore	11370	1	254	50	7	0
 dark iron pillow	18943	1	254	1	12	0
 dark iron plate	11604	3	254	59	4	0
@@ -3433,7 +3068,6 @@ davil's libram	12954	1	254	1	12	0
 dawn treaders	19052	3	254	58	4	0
 dawn's edge	12774	3	254	55	2	0
 dawn's gambit	12368	1	254	1	12	0
-dawn's glow	4033	1	254	50	4	0
 dawnbringer shoulders	12625	3	254	58	4	0
 dawnrider's chestpiece	9663	2	254	45	4	0
 dawnspire cord	12466	3	254	53	4	0
@@ -3507,8 +3141,6 @@ deathmist wraps	22077	4	254	55	4	0
 deathstalker report	3252	1	254	1	12	0
 deathstalker shortsword	3455	1	254	11	2	0
 deathweed	5173	1	254	30	7	0
-debug samophlange manual cover	11613	1	254	1	12	0
-debug samophlange manual page	11616	1	254	1	0	0
 decapitating sword	3740	2	254	24	2	0
 deckhand's shirt	5107	1	254	14	4	0
 decoded tablet transcription	20405	1	254	0	0	0
@@ -3658,7 +3290,6 @@ demon forged breastplate	12628	3	254	57	4	0
 demon guard	10366	2	254	63	4	0
 demon hide sack	10959	2	254	55	1	0
 demon howl wristguards	18394	3	254	62	4	0
-demon hunter blindfold	3536	1	254	1	4	0
 demon kissed sack	12849	2	254	61	12	0
 demon pick	14523	1	254	1	12	0
 demon scarred cloak	4854	1	254	11	4	0
@@ -3682,16 +3313,10 @@ dense shortbow	11305	2	254	35	2	0
 dense stone	12365	1	254	45	7	0
 dense triangle mace	3203	3	254	28	2	0
 dense weightstone	12643	1	254	45	7	0
-dented buckler	1166	1	254	5	4	0
 dented buckler	17183	1	254	3	4	0
 dented crate	6351	1	254	15	15	0
 dentrium power stone	8009	1	254	1	12	0
 denwatcher's shoulders	18494	3	254	60	4	0
-deprecate snare kit	4095	1	254	40	5	0
-depricated razor arrow	3031	1	254	35	6	0
-depricated sharp arrow	2514	1	254	8	6	0
-depricated whipwood arrow	3029	1	254	20	6	0
-deptecated white stallion summoning (mount)	901	1	254	1	15	0
 deputy chain coat	1275	2	254	25	4	0
 dereks radish bag	13330	1	254	1	1	0
 dervish belt	6600	2	254	27	4	0
@@ -3768,7 +3393,6 @@ dezian queenfish	19806	2	254	45	15	0
 diablo stone	13584	1	254	20	15	0
 diabolic mantle	18757	3	254	62	4	0
 diabolic skiver	9475	3	254	49	2	0
-diabolist's blade	10049	2	254	25	2	0
 diamond flask	20130	3	254	52	4	0
 diamond hammer	2194	3	254	25	2	0
 diamond runestone	4845	1	254	1	12	0
@@ -4035,19 +3659,6 @@ dull heater shield	1201	1	254	10	4	0
 dull iron key	3467	1	254	1	13	0
 dull kodo tooth	4779	0	254	1	15	0
 dunestalker's boots	20715	3	254	63	4	0
-durability belt	14390	1	254	1	4	0
-durability boots	14384	1	254	1	4	0
-durability bow	14394	1	254	1	2	0
-durability bracers	14383	1	254	1	4	0
-durability chestpiece	14382	1	254	1	4	0
-durability cloak	14385	1	254	1	4	0
-durability gloves	14387	1	254	1	4	0
-durability hat	14386	1	254	1	4	0
-durability leggings	14388	1	254	1	4	0
-durability shield	14393	1	254	1	4	0
-durability shoulderpads	14389	3	254	1	4	0
-durability staff	14392	1	254	1	2	0
-durability sword	14391	1	254	1	2	0
 durable belt	10404	2	254	30	4	0
 durable boots	9820	2	254	31	4	0
 durable bracers	9821	2	254	30	4	0
@@ -4156,7 +3767,6 @@ earthshatter wristguards	22471	4	254	88	4	0
 earthslag shoulders	11632	3	254	52	4	0
 earthstrike	21180	4	254	66	4	0
 earthweave cloak	21187	3	254	62	4	0
-easter dress	7809	1	254	30	4	0
 eater of the dead	10805	2	254	54	2	0
 eau de mixilpixil	8432	1	254	1	0	0
 ebon hand	19170	4	254	70	2	0
@@ -4299,7 +3909,6 @@ elixir of suffering	3495	1	254	1	12	0
 elixir of superior defense	13445	1	254	53	0	0
 elixir of the mongoose	13452	1	254	56	0	0
 elixir of the sages	13447	1	254	54	0	0
-elixir of tongues (nyi)	2460	1	254	15	0	0
 elixir of water breathing	5996	1	254	18	0	0
 elixir of water walking	8827	1	254	34	0	0
 elixir of wisdom	3383	1	254	20	0	0
@@ -4423,7 +4032,6 @@ empty greater bloodstone	5229	1	254	38	0	0
 empty hip flask	5431	0	254	1	15	0
 empty leaden collection phial	9283	1	254	1	12	0
 empty mana gem	5223	1	254	28	0	0
-empty mana jewel	5227	1	254	37	0	0
 empty minor bloodstone	5406	1	254	1	0	0
 empty pure sample jar	11953	1	254	1	0	0
 empty red waterskin	7768	1	254	0	12	0
@@ -4629,9 +4237,7 @@ expert first aid - under wraps	16084	1	254	30	9	0
 expert fishing - the bass and you	16083	1	254	30	9	0
 expert goldminer's helmet	9375	3	254	38	4	0
 exploding shot	3465	2	254	36	6	0
-explorer's knapsack	10683	1	254	55	1	0
 explorer's knapsack	11324	1	254	45	1	0
-explorer's knapsack	16057	1	254	35	1	0
 explorer's league lodestar	9627	2	254	42	4	0
 explorer's vest	7229	2	254	13	4	0
 explorers' league commendation	7746	2	254	41	4	0
@@ -4736,7 +4342,6 @@ feathered bracers	4194	1	254	27	4	0
 feathered breastplate	8349	3	254	50	4	0
 feathered cape	5971	2	254	26	4	0
 feathered headdress	3011	2	254	36	4	0
-feathered mantle	4196	3	254	30	4	0
 feathermoon headdress	13113	3	254	63	4	0
 featherskin cape	10843	3	254	54	4	0
 feathery wing	11417	0	254	1	15	0
@@ -5161,7 +4766,6 @@ force of the hippogryph	9684	2	254	51	2	0
 force of will	11810	3	254	60	4	0
 force reactive disk	18168	4	254	65	4	0
 forcestone buckler	17508	2	254	41	4	0
-forcestone buckler	7748	2	254	45	4	0
 fordring's seal	16058	3	254	63	4	0
 foreboding plans	3718	1	254	1	12	0
 foreman belt	3217	2	254	15	4	0
@@ -5222,7 +4826,6 @@ formula: enchant boots - greater agility	16245	2	254	59	9	0
 formula: enchant boots - greater stamina	16215	2	254	52	9	0
 formula: enchant boots - lesser spirit	11167	2	254	38	9	0
 formula: enchant boots - minor agility	6377	2	254	25	9	0
-formula: enchant boots - minor stamina	6376	2	254	25	9	0
 formula: enchant boots - spirit	16220	2	254	55	9	0
 formula: enchant bracer - deflection	11223	2	254	47	9	0
 formula: enchant bracer - greater intellect	16214	2	254	51	9	0
@@ -5291,15 +4894,11 @@ formula: enchant weapon - strength	19444	1	254	58	9	0
 formula: enchant weapon - superior striking	16250	2	254	60	9	0
 formula: enchant weapon - unholy	16248	2	254	59	9	0
 formula: enchant weapon - winter's might	17725	2	254	38	9	0
-formula: imbue chest - minor spirit	6222	2	254	12	9	0
-formula: imbue chest - spirit	6343	2	254	14	9	0
-formula: imbue cloak - protection	6345	2	254	18	9	0
 formula: lesser mana oil	20754	1	254	50	9	0
 formula: lesser wizard oil	20753	1	254	40	9	0
 formula: minor mana oil	20752	1	254	30	9	0
 formula: minor wizard oil	20758	1	254	15	9	0
 formula: powerful anti-venom	19442	1	254	58	9	0
-formula: powerful smelling salts	8547	2	254	50	9	0
 formula: runed arcanite rod	16243	1	254	58	9	0
 formula: smoking heart of the mountain	11813	2	254	53	9	0
 formula: wizard oil	20755	1	254	55	9	0
@@ -5381,7 +4980,6 @@ frost ram	13329	4	254	60	15	0
 frost runed headdress	19105	3	254	63	4	0
 frost shock and you	18363	3	254	60	15	0
 frost tiger blade	3854	2	254	40	2	0
-frost vial	5024	1	254	15	5	0
 frostbit staff	2067	1	254	10	2	0
 frostbite	19103	3	254	65	2	0
 frostbite girdle	14502	3	254	62	4	0
@@ -5448,7 +5046,6 @@ frozen rune	22682	3	254	80	7	0
 frozen steel vambraces	19112	3	254	63	4	0
 fuel regulator blueprints	5852	1	254	1	12	0
 full leaden collection phial	9284	1	254	1	12	0
-full moonshine	1072	1	254	25	0	0
 funeral cuffs	12626	3	254	59	4	0
 funeral pyre vestment	12542	3	254	51	4	0
 fungal spore cluster	191280	3	0	1	0	0
@@ -5569,7 +5166,6 @@ gemstone of bloodaxe	12337	2	254	1	12	0
 gemstone of smolderthorn	12335	2	254	1	12	0
 gemstone of spirestone	12336	2	254	1	12	0
 general drakkisath's command	12780	1	254	1	12	0
-general's ceremonial plate	12970	3	254	63	4	0
 general's chain girdle	16572	4	254	65	4	0
 general's chain gloves	16571	4	254	71	4	0
 general's chain legguards	16567	4	254	71	4	0
@@ -5630,7 +5226,6 @@ geomancer's spaulders	14223	2	254	38	4	0
 geomancer's trousers	14224	2	254	39	4	0
 geomancer's wraps	14225	2	254	41	4	0
 gerenzo's mechanical arm	5736	1	254	1	12	0
-ggggfg	6244	1	254	0	0	0
 ghamoo-ra's bind	6908	2	254	25	4	0
 ghastly trousers	15449	2	254	18	4	0
 ghost dye	9210	1	254	49	7	0
@@ -5666,7 +5261,6 @@ ghoulfang	1387	2	254	19	2	0
 giant clam meat	4655	1	254	35	7	0
 giant clam scorcho	6038	1	254	35	0	0
 giant club	15226	2	254	37	2	0
-giant club	16792	2	254	37	2	0
 giant crocolisk skin	3348	1	254	1	12	0
 giant egg	12207	1	254	45	7	0
 giant mace	1197	1	254	15	2	0
@@ -6062,9 +5656,6 @@ gray bear tongue	3476	1	254	1	12	0
 gray dye	4340	1	254	25	7	0
 gray fur booties	3321	1	254	9	4	0
 gray kodo	15277	3	254	40	15	0
-gray leather d02 boots	3542	1	254	1	4	0
-gray leather d02 bracers	3546	1	254	1	4	0
-gray leather d02 breastplate	3538	1	254	1	4	0
 gray ram	5864	3	254	40	15	0
 gray sack of gems	17964	2	254	1	15	0
 gray woolen robe	2585	2	254	21	4	0
@@ -6225,74 +5816,22 @@ grimgore noose	13403	3	254	59	4	0
 grimlok's charge	9416	3	254	47	2	0
 grimlok's tribal vestments	9415	3	254	47	4	0
 grimm's premium tobacco	13172	1	254	1	12	0
-grimoire of blood boil	1228	1	254	6	9	0
-grimoire of blood boil ii	3140	1	254	18	9	0
-grimoire of blood boil iii	4220	1	254	30	9	0
 grimoire of blood pact (rank 1)	16321	1	254	4	9	0
 grimoire of blood pact (rank 2)	16322	1	254	14	9	0
 grimoire of blood pact (rank 3)	16323	1	254	26	9	0
 grimoire of blood pact (rank 4)	16324	1	254	38	9	0
 grimoire of blood pact (rank 5)	16325	1	254	50	9	0
-grimoire of burning spirit	3143	1	254	6	9	0
-grimoire of burning spirit ii	3144	1	254	16	9	0
-grimoire of burning spirit iii	3146	1	254	28	9	0
-grimoire of burning spirit iv	4219	1	254	40	9	0
 grimoire of consume shadows (rank 1)	16357	1	254	18	9	0
 grimoire of consume shadows (rank 2)	16358	1	254	26	9	0
 grimoire of consume shadows (rank 3)	16359	1	254	34	9	0
 grimoire of consume shadows (rank 4)	16360	1	254	42	9	0
 grimoire of consume shadows (rank 5)	16361	1	254	50	9	0
 grimoire of consume shadows (rank 6)	16362	1	254	58	9	0
-grimoire of corruption	9192	1	254	4	9	0
-grimoire of corruption ii	9201	1	254	16	9	0
-grimoire of corruption iii	9216	1	254	28	9	0
-grimoire of corruption iv	9231	1	254	40	9	0
 grimoire of corruption vii	21283	3	254	60	9	0
-grimoire of create bloodstone	4218	1	254	26	9	0
-grimoire of create bloodstone ii	9207	1	254	24	9	0
-grimoire of create bloodstone iii	9228	1	254	36	9	0
-grimoire of create greater bloodstone	5726	1	254	38	9	0
-grimoire of create lesser bloodstone	4210	1	254	14	9	0
-grimoire of create soulstone	1229	1	254	18	9	0
-grimoire of create spellstone	5721	1	254	34	9	0
-grimoire of cripple	1681	1	254	16	9	0
-grimoire of curse of agony	9194	1	254	8	9	0
-grimoire of curse of agony ii	9205	1	254	20	9	0
-grimoire of curse of agony iii	9221	1	254	32	9	0
-grimoire of curse of archimonde	4207	1	254	30	9	0
-grimoire of curse of mannoroth	3134	1	254	4	9	0
-grimoire of curse of mannoroth ii	5720	1	254	20	9	0
-grimoire of curse of mannoroth iii	4212	1	254	32	9	0
-grimoire of curse of recklessness	9199	1	254	12	9	0
-grimoire of curse of recklessness ii	9211	1	254	26	9	0
-grimoire of curse of recklessness iii	9230	1	254	40	9	0
-grimoire of curse of sargeras	3142	1	254	10	9	0
-grimoire of curse of sargeras ii	4206	1	254	24	9	0
-grimoire of curse of sargeras iii	5723	1	254	36	9	0
-grimoire of curse of the elements	9222	1	254	32	9	0
-grimoire of curse of tongues	5724	1	254	22	9	0
-grimoire of curse of weakness	9191	1	254	4	9	0
-grimoire of curse of weakness ii	9200	1	254	14	9	0
-grimoire of curse of weakness iii	9209	1	254	24	9	0
-grimoire of curse of weakness iv	9223	1	254	34	9	0
-grimoire of demon armor	1244	1	254	22	9	0
-grimoire of demon armor ii	3139	1	254	34	9	0
-grimoire of demon breath	1246	1	254	16	9	0
-grimoire of demon skin ii	1232	1	254	10	9	0
-grimoire of detect invisibility	4221	1	254	40	9	0
-grimoire of detect lesser invisibility	1250	1	254	26	9	0
 grimoire of devour magic (rank 2)	16381	1	254	38	9	0
 grimoire of devour magic (rank 3)	16382	1	254	46	9	0
 grimoire of devour magic (rank 4)	16383	1	254	54	9	0
 grimoire of doom	4213	2	254	60	9	0
-grimoire of drain soul	9195	1	254	10	9	0
-grimoire of drain soul ii	9208	1	254	24	9	0
-grimoire of drain soul iii	9227	1	254	36	9	0
-grimoire of enslave demon	9218	1	254	30	9	0
-grimoire of eye of kilrogg	4201	1	254	28	9	0
-grimoire of fear	1238	1	254	8	9	0
-grimoire of fear ii	4202	1	254	24	9	0
-grimoire of fear iii	5729	1	254	40	9	0
 grimoire of fire shield (rank 1)	16326	1	254	14	9	0
 grimoire of fire shield (rank 2)	16327	1	254	24	9	0
 grimoire of fire shield (rank 3)	16328	1	254	34	9	0
@@ -6304,16 +5843,6 @@ grimoire of firebolt (rank 4)	16317	1	254	28	9	0
 grimoire of firebolt (rank 5)	16318	1	254	38	9	0
 grimoire of firebolt (rank 6)	16319	1	254	48	9	0
 grimoire of firebolt (rank 7)	16320	1	254	58	9	0
-grimoire of health funnel	9198	1	254	12	9	0
-grimoire of health funnel ii	9204	1	254	20	9	0
-grimoire of health funnel iii	9215	1	254	28	9	0
-grimoire of health funnel iv	9226	1	254	36	9	0
-grimoire of hellfire	9219	1	254	30	9	0
-grimoire of holy ward	4216	1	254	40	9	0
-grimoire of immolate	9190	1	254	1	9	0
-grimoire of immolate ii	1245	1	254	10	9	0
-grimoire of immolate iii	4200	1	254	22	9	0
-grimoire of immolate iv	4205	1	254	34	9	0
 grimoire of immolate viii	21282	3	254	60	9	0
 grimoire of inferno	9214	2	254	50	9	0
 grimoire of lash of pain (rank 2)	16368	1	254	28	9	0
@@ -6322,23 +5851,8 @@ grimoire of lash of pain (rank 4)	16372	1	254	44	9	0
 grimoire of lash of pain (rank 5)	16373	1	254	52	9	0
 grimoire of lash of pain (rank 6)	16374	1	254	60	9	0
 grimoire of lesser invisibility	16380	1	254	32	9	0
-grimoire of life drain	3141	1	254	14	9	0
-grimoire of life drain ii	5719	1	254	22	9	0
-grimoire of life drain iii	4214	1	254	30	9	0
-grimoire of life drain iv	9229	1	254	36	9	0
-grimoire of life tap	9193	1	254	6	9	0
-grimoire of life tap ii	9202	1	254	18	9	0
-grimoire of life tap iii	9217	1	254	30	9	0
-grimoire of mana funnel	5727	1	254	40	9	0
-grimoire of mind bomb	4208	1	254	32	9	0
 grimoire of paranoia	16390	1	254	42	9	0
-grimoire of pestilence	4211	1	254	14	9	0
-grimoire of pestilence ii	4203	1	254	26	9	0
-grimoire of pestilence iii	5725	1	254	38	9	0
 grimoire of phase shift	16331	1	254	12	9	0
-grimoire of rain of fire	4215	1	254	20	9	0
-grimoire of rain of fire ii	5728	1	254	40	9	0
-grimoire of ritual of summoning	9203	1	254	20	9	0
 grimoire of sacrifice (rank 1)	16351	1	254	16	9	0
 grimoire of sacrifice (rank 2)	16352	1	254	24	9	0
 grimoire of sacrifice (rank 3)	16353	1	254	32	9	0
@@ -6346,25 +5860,12 @@ grimoire of sacrifice (rank 4)	16354	1	254	40	9	0
 grimoire of sacrifice (rank 5)	16355	1	254	48	9	0
 grimoire of sacrifice (rank 6)	16356	1	254	56	9	0
 grimoire of seduction	16379	1	254	26	9	0
-grimoire of sense demons	1224	1	254	24	9	0
-grimoire of shadow bolt ii	1231	1	254	6	9	0
-grimoire of shadow bolt iii	1243	1	254	12	9	0
-grimoire of shadow bolt iv	3138	1	254	20	9	0
-grimoire of shadow bolt v	9212	1	254	28	9	0
-grimoire of shadow bolt vi	9225	1	254	36	9	0
 grimoire of shadow bolt x	21281	3	254	60	9	0
-grimoire of shadow ward	4209	1	254	30	9	0
 grimoire of shadow ward iv	22891	3	254	60	9	0
-grimoire of siphon mana	1239	1	254	26	9	0
-grimoire of siphon mana ii	5722	1	254	36	9	0
 grimoire of soothing kiss (rank 1)	16375	1	254	22	9	0
 grimoire of soothing kiss (rank 2)	16376	1	254	34	9	0
 grimoire of soothing kiss (rank 3)	16377	1	254	46	9	0
 grimoire of soothing kiss (rank 4)	16378	1	254	58	9	0
-grimoire of soul funnel	4198	1	254	12	9	0
-grimoire of soul funnel ii	4199	1	254	20	9	0
-grimoire of soul funnel iii	4204	1	254	28	9	0
-grimoire of soul funnel iv	4217	1	254	36	9	0
 grimoire of spell lock (rank 1)	16388	1	254	36	9	0
 grimoire of spell lock (rank 2)	16389	1	254	52	9	0
 grimoire of suffering (rank 1)	16363	1	254	24	9	0
@@ -6511,7 +6012,6 @@ hallow's end medallion	20462	1	254	1	12	0
 hallow's end pumpkin treat	20557	1	254	1	0	0
 hallowed brazier	22014	1	254	1	12	0
 hallowed letter	9548	1	254	1	12	0
-hallowed relic charm	4031	1	254	45	4	0
 hallowed rune	9556	1	254	1	12	0
 hallowed scroll	9569	1	254	1	0	0
 hallowed sigil	9557	1	254	1	12	0
@@ -6570,7 +6070,6 @@ handguards of savagery	22343	3	254	63	4	0
 handguards of transcendence	16920	4	254	76	4	0
 handguards of undead slaying	23082	3	254	63	4	0
 handmade leather bag	11845	1	254	1	1	0
-handmade leather bag	4930	1	254	5	1	0
 handmade woodcraft	21960	1	254	1	0	0
 hands of darkness	7047	2	254	29	4	0
 hands of power	13253	3	254	60	4	0
@@ -7112,8 +6611,6 @@ holy candle	17028	1	254	48	5	0
 holy diadem	2623	2	254	41	4	0
 holy mightstone	20620	1	254	50	15	0
 holy protection potion	6051	1	254	20	0	0
-holy relic shard	3006	1	254	25	4	0
-holy relic water	4030	1	254	45	4	0
 holy shroud	2721	3	254	32	4	0
 holy spring water	737	1	254	1	12	0
 holy war sword	15221	2	254	65	2	0
@@ -7410,7 +6907,6 @@ infantry gauntlets	6510	1	254	11	4	0
 infantry leggings	6337	2	254	12	4	0
 infantry shield	7108	2	254	11	4	0
 infantry tunic	6336	2	254	13	4	0
-inferior tomahawk	2482	1	254	3	2	0
 infernal headcage	18546	4	254	69	4	0
 infernal orb	7291	1	254	1	12	0
 infernal stone	5565	1	254	55	5	0
@@ -7617,7 +7113,6 @@ ishamuhale's fang	5101	1	254	1	12	0
 ivar's head	3621	1	254	1	12	0
 iverron's antidote	10642	1	254	1	12	0
 ivory band	11995	2	254	28	4	0
-ivory band	7497	2	254	40	4	0
 ivory boar tusk	3403	0	254	1	15	0
 ivory scarab	20865	2	254	1	12	0
 ivory wand	15279	2	254	51	2	0
@@ -7906,11 +7401,9 @@ knight-captain's leather chestpiece	23298	3	254	68	4	0
 knight-captain's leather legguards	16419	3	254	63	4	0
 knight-captain's leather legguards	23299	3	254	68	4	0
 knight-captain's plate chestguard	16430	3	254	63	4	0
-knight-captain's plate girdle	16407	3	254	60	4	0
 knight-captain's plate hauberk	23300	3	254	68	4	0
 knight-captain's plate leggings	16431	3	254	63	4	0
 knight-captain's plate leggings	23301	3	254	68	4	0
-knight-captain's plate wristguards	16404	3	254	60	4	0
 knight-captain's satin cord	17597	3	254	60	4	0
 knight-captain's satin cuffs	17595	3	254	60	4	0
 knight-captain's satin leggings	17599	3	254	63	4	0
@@ -7969,7 +7462,6 @@ knowledge: defias disguise	5126	1	254	13	9	0
 knowledge: south seas pirate disguise	5127	1	254	13	9	0
 knowledge: stonesplinter disguise	5131	1	254	13	9	0
 knowledge: syndicate disguise	5132	1	254	22	9	0
-knucklebone pouch (dnd)	12443	1	254	1	4	0
 kobold excavation pick	778	1	254	7	2	0
 kobold mining mallet	1389	1	254	7	2	0
 kobold mining shovel	1195	1	254	6	2	0
@@ -7994,7 +7486,6 @@ kovic's trading satchel	10479	2	254	50	15	0
 kovork's rattle	5256	2	254	35	2	0
 krakle's thermometer	12472	1	254	1	12	0
 krastinov's bag of horrors	13725	1	254	1	12	0
-krastinov's bag of horrors unused	13543	1	254	1	12	0
 kraul guano	5801	1	254	1	12	0
 kravel's crate	14542	1	254	1	0	0
 kravel's parts	5800	1	254	1	12	0
@@ -8014,7 +7505,6 @@ krom stoutarm's treasure	8027	1	254	1	12	0
 kromcrush's chestplate	18503	3	254	62	4	0
 kron's amulet	4891	1	254	1	12	0
 kroshius' infernal core	18625	1	254	1	12	0
-kum'isha's junk	10595	2	254	1	15	0
 kum'isha's junk	12122	2	254	50	15	0
 kurinnaxx's venom sac	22217	1	254	1	12	0
 kurzen's head	3615	1	254	1	12	0
@@ -8093,7 +7583,6 @@ large green sack	5575	1	254	25	1	0
 large hoof	5871	0	254	1	15	0
 large knapsack	1725	1	254	35	1	0
 large metal shield	2445	1	254	22	4	0
-large moneybag	6754	1	254	15	1	0
 large obsidian shard	22203	1	254	1	7	0
 large ogre chain armor	914	2	254	30	4	0
 large opal	12799	2	254	55	7	0
@@ -8114,7 +7603,6 @@ large scorpid claw	19934	0	254	1	15	0
 large seaforium charge	4398	1	254	40	7	0
 large slimy bone	3670	0	254	1	15	0
 large soran'ruk fragment	6915	1	254	1	12	0
-large stone mace	2486	1	254	3	2	0
 large stone slab	4627	1	254	1	12	0
 large trophy paw	4584	0	254	1	15	0
 large venom sac	1288	1	254	1	7	0
@@ -8222,13 +7710,10 @@ legionnaire's leather leggings	16508	3	254	63	4	0
 legionnaire's leather legguards	22880	3	254	68	4	0
 legionnaire's leggings	4816	2	254	24	4	0
 legionnaire's mail chestpiece	16522	3	254	63	4	0
-legionnaire's mail cinch	16520	3	254	60	4	0
 legionnaire's mail hauberk	22876	3	254	68	4	0
 legionnaire's mail leggings	16523	3	254	63	4	0
 legionnaire's mail legguards	22887	3	254	68	4	0
 legionnaire's plate armor	16513	3	254	63	4	0
-legionnaire's plate bracers	16512	3	254	60	4	0
-legionnaire's plate cinch	16511	3	254	60	4	0
 legionnaire's plate hauberk	22872	3	254	68	4	0
 legionnaire's plate leggings	22873	3	254	68	4	0
 legionnaire's plate legguards	16515	3	254	63	4	0
@@ -8329,76 +7814,7 @@ libram of truth	22400	3	254	57	4	0
 libram of voracity	11737	2	254	50	9	0
 libram: blessing of might vii	21289	3	254	60	9	0
 libram: blessing of wisdom vi	21288	3	254	60	9	0
-libram: cleanse	1139	1	254	30	9	0
-libram: crusader strike	8912	1	254	10	9	0
-libram: crusader strike ii	8914	1	254	22	9	0
-libram: crusader strike iii	8920	1	254	34	9	0
-libram: crusader strike iv	8931	1	254	46	9	0
-libram: crusader strike v	8944	1	254	58	9	0
-libram: divine favor	1138	1	254	4	9	0
-libram: divine favor ii	1136	1	254	18	9	0
-libram: divine shield	1144	1	254	34	9	0
-libram: divine shield ii	5683	1	254	50	9	0
-libram: exorcism	5672	1	254	20	9	0
-libram: exorcism ii	5673	1	254	28	9	0
-libram: exorcism iii	5674	1	254	36	9	0
-libram: exorcism iv	8929	1	254	44	9	0
-libram: exorcism v	8939	1	254	52	9	0
-libram: exorcism vi	8947	1	254	60	9	0
-libram: fist of justice	8911	1	254	10	9	0
-libram: fist of justice ii	8916	1	254	26	9	0
-libram: fist of justice iii	8921	1	254	40	9	0
-libram: fist of justice iv	8940	1	254	54	9	0
-libram: holy light ii	1141	1	254	6	9	0
-libram: holy light iii	1151	1	254	14	9	0
-libram: holy light iv	1534	1	254	22	9	0
 libram: holy light ix	21290	3	254	60	9	0
-libram: holy light v	4164	1	254	30	9	0
-libram: holy light vi	4165	1	254	38	9	0
-libram: holy light vii	8933	1	254	46	9	0
-libram: holy light viii	8941	1	254	54	9	0
-libram: holy strike ii	8909	1	254	8	9	0
-libram: holy strike iii	8913	1	254	16	9	0
-libram: holy strike iv	8915	1	254	24	9	0
-libram: holy strike v	8919	1	254	32	9	0
-libram: holy strike vi	8922	1	254	40	9	0
-libram: holy strike vii	8934	1	254	48	9	0
-libram: holy strike viii	8943	1	254	56	9	0
-libram: judgement	4167	1	254	40	9	0
-libram: judgement ii	8935	1	254	50	9	0
-libram: judgement iii	8945	1	254	60	9	0
-libram: lay on hands	8910	1	254	10	9	0
-libram: lay on hands ii	8917	1	254	30	9	0
-libram: lay on hands iii	8937	1	254	50	9	0
-libram: purify	1150	1	254	6	9	0
-libram: redemption	5685	1	254	40	9	0
-libram: resurrection	1146	1	254	12	9	0
-libram: seal of fury	6133	1	254	14	9	0
-libram: seal of might	5658	1	254	8	9	0
-libram: seal of might ii	1149	1	254	20	9	0
-libram: seal of might iii	5671	1	254	32	9	0
-libram: seal of protection	4166	1	254	8	9	0
-libram: seal of protection ii	5680	1	254	20	9	0
-libram: seal of protection iii	8918	1	254	30	9	0
-libram: seal of righteousness	5660	1	254	16	9	0
-libram: seal of righteousness ii	5661	1	254	26	9	0
-libram: seal of righteousness iii	5662	1	254	36	9	0
-libram: seal of righteousness iv	8930	1	254	46	9	0
-libram: seal of righteousness v	8942	1	254	56	9	0
-libram: seal of sacrifice	5678	1	254	36	9	0
-libram: seal of salvation	5684	1	254	22	9	0
-libram: seal of wisdom	6132	1	254	12	9	0
-libram: seal of wisdom ii	5667	1	254	24	9	0
-libram: seal of wisdom iii	5679	1	254	36	9	0
-libram: seal of wrath	1536	1	254	30	9	0
-libram: seal of wrath ii	5666	1	254	40	9	0
-libram: seal of wrath iii	8936	1	254	50	9	0
-libram: seal of wrath iv	5670	1	254	60	9	0
-libram: sense undead	5676	1	254	20	9	0
-libram: turn undead	5677	1	254	24	9	0
-libram: turn undead ii	5682	1	254	38	9	0
-libram: turn undead iii	8938	1	254	52	9	0
-librarian's satchel	3762	1	254	35	1	0
 library scrip	3898	1	254	1	12	0
 lieutenant commander's chain helm	23306	3	254	71	4	0
 lieutenant commander's chain helmet	16428	3	254	63	4	0
@@ -8453,7 +7869,6 @@ light chain gloves	2403	1	254	10	4	0
 light chain leggings	2400	1	254	10	4	0
 light crossbow	15807	1	254	8	2	0
 light feather	17056	1	254	1	15	0
-light hammer	2500	1	254	7	2	0
 light hide	783	1	254	10	7	0
 light hunting bow	2780	0	254	19	2	0
 light hunting rifle	12448	1	254	5	2	0
@@ -8684,7 +8099,6 @@ lunar cloak	14251	2	254	40	4	0
 lunar coronet	14252	2	254	45	4	0
 lunar festival fireworks pack	21640	1	254	1	15	0
 lunar festival invitation	21711	1	254	55	0	0
-lunar festival invitation debug	21739	1	254	55	0	0
 lunar fungus	15851	1	254	1	12	0
 lunar handwraps	14253	2	254	43	4	0
 lunar leggings	14257	2	254	45	4	0
@@ -8738,7 +8152,6 @@ maggran's reserve letter	16189	1	254	1	12	0
 magic beans	15688	1	254	1	12	0
 magic candle	1399	1	254	8	0	0
 magic dust	2091	1	254	20	0	0
-magic knucklebone (dnd)	12440	1	254	1	0	0
 magic resistance potion	9036	1	254	42	0	0
 magical book binding	21112	1	254	1	12	0
 magical ledger	20949	1	254	1	12	0
@@ -8854,13 +8267,10 @@ manual of engineering disciplines	10789	1	254	0	12	0
 manual of eviscerate ix	24102	3	254	60	9	0
 manual of heroic strike ix	21297	3	254	60	9	0
 manual of revenge vi	21299	3	254	60	9	0
-manual of taunt	6621	1	254	10	9	0
 manual: crystal infused bandage	23689	1	254	60	9	0
 manual: heavy silk bandage	16112	1	254	36	9	0
 manual: mageweave bandage	16113	1	254	42	9	0
-manual: path of the berserker	6897	1	254	30	9	0
 manual: strong anti-venom	6454	2	254	26	9	0
-manual: the path of defense	6619	1	254	10	9	0
 maple seed	17034	1	254	20	5	0
 mar alom's grip	12547	3	254	56	4	0
 mar'li's eye	19930	3	254	68	4	0
@@ -8970,9 +8380,7 @@ master dragonslayer's orb	19366	4	254	83	4	0
 master dragonslayer's ring	19384	4	254	83	4	0
 master engineer's goggles	16008	2	254	58	4	0
 master hunter's bow	17686	2	254	43	2	0
-master hunter's bow	4110	2	254	45	2	0
 master hunter's rifle	17687	2	254	43	2	0
-master hunter's rifle	4111	2	254	45	2	0
 master ryson's all seeing eye	17354	1	254	1	12	0
 master sergeant's insignia	18442	3	254	35	4	0
 master sergeant's insignia	18443	3	254	63	4	0
@@ -9012,7 +8420,6 @@ maury's clubbed foot	3924	1	254	1	12	0
 maury's key	3930	1	254	1	13	0
 maury's loot	3929	1	254	1	12	0
 maybell's love letter	1208	1	254	1	12	0
-mazzranache's head	4966	1	254	4	12	0
 meadow ring	12006	2	254	22	4	0
 meat cleaver	1827	0	254	27	2	0
 meaty bat wing	12223	1	254	5	7	0
@@ -9083,7 +8490,6 @@ mesh pants	3957	0	254	67	4	0
 message for elissa starbreeze	5353	1	254	1	12	0
 message in a bottle	6307	1	254	0	15	0
 metal buckler	17189	1	254	34	4	0
-metal buckler	2443	1	254	37	4	0
 metal stave	3784	0	254	37	2	0
 metallic fragments	9592	1	254	1	12	0
 metalworking gloves	1944	2	254	18	4	0
@@ -9645,37 +9051,17 @@ oily blackmouth	6358	1	254	15	5	0
 okra	732	1	254	9	7	0
 ol' sooty's head	2713	1	254	1	12	0
 olaf's all purpose shield	9404	3	254	42	4	0
-oldacolyte's belt	58	1	254	1	4	0
-oldblackfathom magic relic	5331	1	254	1	15	0
-oldbrawler's belt	141	1	254	1	4	0
-oldceremonial club	4704	1	254	1	2	0
-oldceremonial club	5410	1	254	1	2	0
-olddwarven initiate's belt	90	1	254	1	4	0
-olddwarven initiate's boots	92	1	254	1	4	0
-olddwarven initiate's pants	91	0	254	1	4	0
-olddwarven initiate's shirt	93	1	254	1	4	0
-oldfootpad's belt	46	1	254	1	4	0
-oldinitiate's belt	50	1	254	1	4	0
-oldmonster - chest, plate silver	3242	0	254	1	4	0
-oldmonster - feet, plate silver	3244	0	254	1	4	0
-oldmonster - hands, plate silver	3245	0	254	1	4	0
-oldmonster - legs, plate silver	3243	0	254	1	4	0
-oldmonster - mace, standard basic offhand	3044	0	254	1	2	0
-oldmonster - shoulder, plate silver	3246	0	254	1	4	0
-oldmonster - waist, plate silver	3247	0	254	1	4	0
-oldneophyte's belt	137	1	254	1	4	0
-oldnoboru's cudgel	6090	1	254	1	12	0
-oldnovice's belt	54	1	254	1	4	0
-oldplague vials	5438	1	254	1	12	0
-oldprimitive leather belt	152	1	254	1	4	0
-oldrecruit's belt	41	1	254	1	4	0
-oldrugged trapper's belt	146	1	254	1	4	0
-oldsquire's belt	42	1	254	1	4	0
-oldthick trapper's shirt	89	1	254	1	4	0
-oldthug belt	122	1	254	1	4	0
-oldthunderhorn cleansing totem	4760	1	254	1	4	0
-oldwildmane cleansing totem	4762	1	254	1	4	0
-oldwinterhoof cleansing totem	4750	1	254	1	4	0
+old blanchy's blanket	2165	1	254	10	4	0
+old blanchy's feed pouch	1537	1	254	1	1	0
+old blunderbuss	2508	1	254	2	2	0
+old greatsword	1513	0	254	14	2	0
+old leather belt	2173	1	254	5	4	0
+old moneybag	4957	1	254	5	1	0
+old skull	6297	0	254	1	15	0
+old teamster's skull	6301	0	254	1	15	0
+old wagonwheel	6455	0	254	1	15	0
+old whistle of the ivory raptor	8589	1	254	40	15	0
+old whistle of the obsidian raptor	8590	1	254	40	15	0
 olmann sewar	4116	2	254	41	2	0
 omarion's handbook	22719	1	254	60	15	0
 omega orb	7749	2	254	41	4	0
@@ -9685,12 +9071,10 @@ omokk's head	12534	1	254	1	12	0
 onin's report	7715	1	254	1	12	0
 onslaught girdle	19137	4	254	78	4	0
 onyx choker	12032	2	254	48	4	0
-onyx choker	7548	2	254	46	4	0
 onyx claymore	3417	3	254	26	2	0
 onyx embedded leggings	21530	4	254	77	4	0
 onyx idol	20867	3	254	61	12	0
 onyx ring	12001	2	254	50	4	0
-onyx ring	7547	2	254	46	4	0
 onyx shredder plate	5755	2	254	35	4	0
 onyxia blood talisman	18406	4	254	74	4	0
 onyxia hide backpack	17966	2	254	55	1	0
@@ -9757,11 +9141,9 @@ ornamental mace	1815	0	254	17	2	0
 ornate adamantium breastplate	15413	3	254	63	4	0
 ornate blunderbuss	2509	1	254	9	2	0
 ornate bracers	10126	2	254	54	4	0
-ornate bracers	16664	2	254	54	4	0
 ornate breastplate	10118	2	254	58	4	0
 ornate bronze lockbox	4632	2	254	20	15	0
 ornate buckler	17190	1	254	47	4	0
-ornate buckler	2444	1	254	50	4	0
 ornate circlet	10123	2	254	57	4	0
 ornate cloak	10120	2	254	53	4	0
 ornate gauntlets	10121	2	254	56	4	0
@@ -10026,7 +9408,6 @@ pattern: deviate scale cloak	6474	1	254	18	9	0
 pattern: deviate scale gloves	6475	1	254	21	9	0
 pattern: devilsaur gauntlets	15758	1	254	58	9	0
 pattern: devilsaur leggings	15772	3	254	60	9	0
-pattern: double-stitched leather gloves old	4295	1	254	25	9	0
 pattern: dreamscale breastplate	20382	1	254	68	9	0
 pattern: dusky boots	7452	3	254	40	9	0
 pattern: dusky leather leggings	7449	2	254	33	9	0
@@ -10305,7 +9686,6 @@ pendant of the sea lion	15885	1	254	1	12	0
 pendant of the shifting sands	21506	4	254	70	4	0
 pendulum of doom	9425	3	254	44	2	0
 penelope's rose	15805	3	254	61	4	0
-peon sword	2481	1	254	4	2	0
 percussion shotgun	15323	2	254	50	2	0
 perdition's blade	18816	4	254	77	2	0
 perenolde tiara	3684	1	254	1	12	0
@@ -10400,7 +9780,6 @@ pitchfork	1485	0	254	25	2	0
 pitchfork of madness	19963	3	254	68	2	0
 pitchwood wand	5238	1	254	45	2	0
 pitted defias shortsword	2057	1	254	4	2	0
-plague-infested quilboar mane	10650	1	254	0	12	0
 plaguebat fur gloves	18744	3	254	58	4	0
 plaguebloom	13466	1	254	57	7	0
 plagued flesh sample	13174	1	254	1	12	0
@@ -10638,7 +10017,6 @@ pointed axe	5344	2	254	14	2	0
 pointy crocolisk tooth	770	0	254	1	15	0
 poison-tipped bone spear	1726	3	254	36	2	0
 poisoned spider fang	3931	0	254	1	15	0
-poisonous mushroom	5823	1	254	15	0	0
 polar bear collar	22781	1	254	1	15	0
 polar bracers	22663	4	254	80	4	0
 polar gauntlets	7606	2	254	22	4	0
@@ -10892,63 +10270,6 @@ pyrestone orb	10709	2	254	55	4	0
 pyrewood shackle	3218	1	254	1	12	0
 pyric caduceus	11748	3	254	53	2	0
 pysan's old greatsword	1975	3	254	28	2	0
-qaenchant 2h weapon +25 agility	18599	1	254	1	0	0
-qaenchant 2h weapon +9 damage	17887	1	254	1	0	0
-qaenchant boots +5 spirit	17895	1	254	1	0	0
-qaenchant boots +7 agility	17894	1	254	1	0	0
-qaenchant boots +7 stamina	17896	1	254	1	0	0
-qaenchant boots +8% speed	22587	1	254	1	0	0
-qaenchant bracer +24 healing	22037	1	254	1	0	0
-qaenchant bracer +4 mana\5	22036	1	254	1	0	0
-qaenchant bracer +7 intellect	17830	1	254	1	0	0
-qaenchant bracer +9 spirit	17829	1	254	1	0	0
-qaenchant bracer +9 stamina	17828	1	254	1	0	0
-qaenchant bracer +9 strength	17827	1	254	1	0	0
-qaenchant chest +100 health	17882	1	254	1	0	0
-qaenchant chest +100 mana	17883	1	254	1	0	0
-qaenchant chest +4 stats	22028	1	254	1	0	0
-qaenchant cloak +1% dodge	22043	1	254	1	0	0
-qaenchant cloak +10 shadow resistance	22588	1	254	1	0	0
-qaenchant cloak +15 fire resistance	22039	1	254	1	0	0
-qaenchant cloak +15 nature resistance	22040	1	254	1	0	0
-qaenchant cloak +3 agility	22584	1	254	1	0	0
-qaenchant cloak +5 resistances	17884	1	254	1	0	0
-qaenchant cloak +70 armor	17885	1	254	1	0	0
-qaenchant cloak +8 stealth	22041	1	254	1	0	0
-qaenchant cloak -2% threat	22042	1	254	1	0	0
-qaenchant fiery weapon	23725	1	254	45	0	0
-qaenchant gloves +1% haste	17899	1	254	1	0	0
-qaenchant gloves +15 agility	22033	1	254	1	0	0
-qaenchant gloves +2% threat	22034	1	254	1	0	0
-qaenchant gloves +20 fire damage	22030	1	254	1	0	0
-qaenchant gloves +20 frost damage	22029	1	254	1	0	0
-qaenchant gloves +20 shadow damage	22031	1	254	1	0	0
-qaenchant gloves +30 healing	22032	1	254	1	0	0
-qaenchant gloves +5 fishing	23727	1	254	45	0	0
-qaenchant gloves +5 herbalism	22586	1	254	1	0	0
-qaenchant gloves +5 mining	22585	1	254	1	0	0
-qaenchant gloves +5 skinning	22035	1	254	1	0	0
-qaenchant gloves +7 agility	17898	1	254	1	0	0
-qaenchant gloves +7 strength	17897	1	254	1	0	0
-qaenchant gloves riding skill	23728	1	254	45	0	0
-qaenchant shield +2% block chance	22038	1	254	1	0	0
-qaenchant shield +7 stamina	17891	1	254	1	0	0
-qaenchant shield +8 frost resistance	17892	1	254	1	0	0
-qaenchant shield +9 spirit	17893	1	254	1	0	0
-qaenchant weapon +15 agility	22020	1	254	1	0	0
-qaenchant weapon +15 strength	22022	1	254	1	0	0
-qaenchant weapon +20 spirit	22023	1	254	1	0	0
-qaenchant weapon +22 intellect	22021	1	254	1	0	0
-qaenchant weapon +5 damage	17888	1	254	1	0	0
-qaenchant weapon crusader	18666	1	254	1	0	0
-qaenchant weapon healing power	18669	1	254	1	0	0
-qaenchant weapon icy chill	18667	1	254	1	0	0
-qaenchant weapon lifestealing	22025	1	254	1	0	0
-qaenchant weapon spell power	18668	1	254	1	0	0
-qaenchant weapon unholy	22024	1	254	1	0	0
-qaenchhelp cloak +7 fire resistance	16104	1	254	1	0	0
-qatest +1000 spell dmg ring	24358	4	254	6	4	0
-qatest darkmoon faire tickets	23271	1	254	55	15	0
 qiraji bindings of command	20928	4	254	1	12	0
 qiraji bindings of dominance	20932	4	254	1	12	0
 qiraji blessed jewel	20936	4	254	1	12	0
@@ -10979,7 +10300,6 @@ quickdraw quiver	8217	2	254	45	11	0
 quicksand waders	21489	3	254	73	4	0
 quicksilver pendant	12026	2	254	59	4	0
 quicksilver ring	11991	2	254	59	4	0
-quicksilver ring	5008	2	254	36	4	0
 quilboar tomahawk	5255	2	254	15	2	0
 quillfire bow	15295	2	254	55	2	0
 quillshooter	10567	3	254	38	2	0
@@ -11001,7 +10321,6 @@ radiant breastplate	12415	2	254	54	4	0
 radiant circlet	12417	2	254	59	4	0
 radiant gloves	12418	2	254	57	4	0
 radiant leggings	12420	2	254	61	4	0
-radiant relic hammer	4032	1	254	50	4	0
 radiant silver bracers	4545	2	254	40	4	0
 radish kimchi	21033	1	254	55	0	0
 rag doll	5433	0	254	1	15	0
@@ -11033,7 +10352,6 @@ raging berserker's helm	7719	3	254	42	4	0
 ragnaros core	17982	3	254	65	4	0
 raid consumables	189426	1	254	1	15	0
 raider shortsword	15210	2	254	16	2	0
-raider shortsword	2496	1	254	8	2	0
 raider's belt	9788	2	254	18	4	0
 raider's boots	9784	2	254	19	4	0
 raider's bracers	9785	2	254	17	4	0
@@ -11087,7 +10405,6 @@ raptor hide belt	4456	2	254	33	4	0
 raptor hide harness	4455	2	254	33	4	0
 raptor hunter tunic	4119	2	254	43	4	0
 raptor punch	5342	1	254	18	0	0
-raptor skin pouch	1623	1	254	35	1	0
 raptor talon amulet	4526	1	254	1	12	0
 raptor's end	3493	2	254	30	2	0
 raptorbane armor	3566	2	254	29	4	0
@@ -11446,7 +10763,6 @@ reinforced linen cape	2580	1	254	12	4	0
 reinforced locked chest	13918	1	254	55	15	0
 reinforced steel lockbox	4638	2	254	45	15	0
 reinforced targe	17192	1	254	24	4	0
-reinforced targe	2442	1	254	27	4	0
 reinforced woolen shoulders	4315	1	254	24	4	0
 reins of the bengal tiger	8630	1	254	40	15	0
 reins of the black war tiger	18242	4	254	40	15	0
@@ -11473,15 +10789,7 @@ relentless scythe	13163	3	254	62	2	0
 relic blade	5627	2	254	20	2	0
 relic bundle	15209	1	254	1	12	0
 relic coffer key	11078	1	254	1	13	0
-relic horn of justice	3002	1	254	30	4	0
 relic hunter belt	11936	2	254	20	4	0
-relic of righteousness	2923	1	254	25	4	0
-relic of the ancients	2919	1	254	30	4	0
-relic of the dead	3004	1	254	15	4	0
-relic of the eye	3003	1	254	10	4	0
-relic of the light	3791	1	254	40	4	0
-relic of truth	3005	1	254	20	4	0
-relic stone of piety	3789	1	254	35	4	0
 reliquary of purity	18539	1	254	1	12	0
 reliquary of purity	22201	1	254	1	12	0
 remaining drops of purest water	7811	1	254	1	12	0
@@ -11656,7 +10964,6 @@ ring of the unliving	20624	4	254	72	4	0
 ring of unspoken names	21417	4	254	65	4	0
 ring of zoram	5445	1	254	1	12	0
 ringed buckler	17188	1	254	19	4	0
-ringed buckler	2441	1	254	22	4	0
 ringed helm	3392	2	254	30	4	0
 ringo's blizzard boots	19438	4	254	71	4	0
 ringtail girdle	15587	2	254	35	4	0
@@ -11793,7 +11100,6 @@ rotting wood	20613	1	254	1	15	0
 rough arrow	2512	1	254	5	6	0
 rough blasting powder	4357	1	254	5	7	0
 rough boomstick	4362	2	254	10	2	0
-rough broad axe	2483	1	254	3	2	0
 rough bronze boots	6350	1	254	18	4	0
 rough bronze bracers	2867	2	254	23	4	0
 rough bronze cuirass	2866	1	254	23	4	0
@@ -11819,7 +11125,6 @@ rough wooden staff	1515	0	254	12	2	0
 rough-hewn kodo leggings	4970	1	254	9	4	0
 roughshod pike	12533	1	254	1	0	0
 round buckler	17185	1	254	8	4	0
-round buckler	2377	1	254	10	4	0
 royal amice	9912	2	254	45	4	0
 royal bands	9909	2	254	43	4	0
 royal blouse	9905	2	254	48	4	0
@@ -11875,16 +11180,12 @@ rugged trapper's boots	129	1	254	1	4	0
 rugged trapper's pants	147	0	254	1	4	0
 rugged trapper's shirt	148	1	254	1	4	0
 rugwood mantle	16739	2	254	48	4	0
-ruined bat hide	3259	1	254	1	15	0
-ruined boar pelt	2890	1	254	1	15	0
-ruined cat pelt	4756	1	254	1	15	0
 ruined dragonhide	3175	0	254	1	15	0
 ruined jumper cables	6715	1	254	33	7	0
 ruined jumper cables xl	18636	1	254	53	7	0
 ruined leather scraps	2934	1	254	5	7	0
 ruined pelt	4865	0	254	1	15	0
 ruined tome	15696	1	254	1	12	0
-ruined wolf pelt	2887	1	254	1	15	0
 rumbleshot's ammo	13850	1	254	1	12	0
 rumsey rum	17048	1	254	1	0	0
 rumsey rum black label	21151	1	254	1	0	0
@@ -11984,7 +11285,6 @@ rusted chain bracers	2390	1	254	5	4	0
 rusted chain gloves	2391	1	254	5	4	0
 rusted chain leggings	2388	1	254	5	4	0
 rusted chain vest	2386	1	254	5	4	0
-rusted claymore	2497	1	254	9	2	0
 rusted engineering parts	6457	0	254	1	15	0
 rusted iron key	3704	1	254	1	13	0
 rustic belt	2172	1	254	5	4	0
@@ -12021,7 +11321,6 @@ sacred frostsaber meat	12733	1	254	1	12	0
 sacred highborne writings	13313	1	254	1	12	0
 sacred mallet	9241	1	254	1	12	0
 sacred protector	16998	3	254	62	4	0
-sacred relic	2920	1	254	10	4	0
 sacrificial gauntlets	22714	3	254	68	4	0
 sacrificial kris	3187	2	254	44	2	0
 sacrificial robes	2566	2	254	27	4	0
@@ -12039,7 +11338,6 @@ sage's sash	6611	2	254	29	4	0
 sage's stave	15934	2	254	32	4	0
 sageblade	22383	4	254	64	2	0
 sagebrush girdle	17778	2	254	47	4	0
-sagebrush spaulders	17769	2	254	47	4	0
 sageclaw	20070	4	254	65	2	0
 sagefish delight	21217	1	254	40	0	0
 salamander scale pants	18875	4	254	64	4	0
@@ -12276,7 +11574,6 @@ schematic: gnomish universal remote	7560	1	254	25	9	0
 schematic: goblin jumper cables	7561	1	254	33	9	0
 schematic: goblin jumper cables xl	18653	2	254	53	9	0
 schematic: goblin land mine	4416	2	254	39	9	0
-schematic: goblin rocket boots	7192	2	254	26	9	0
 schematic: green firework	18648	1	254	30	9	0
 schematic: green rocket cluster	21731	2	254	45	9	0
 schematic: gyrofreeze ice reflector	18652	1	254	52	9	0
@@ -12381,7 +11678,6 @@ scouting trousers	6587	2	254	24	4	0
 scouting tunic	6584	2	254	25	4	0
 scrap metal	4630	1	254	1	12	0
 scrap of paper	5949	1	254	1	12	0
-scratched claymore	2128	1	254	4	2	0
 scratching stick	5375	0	254	1	15	0
 scrawled parchment	6494	1	254	1	12	0
 screecher belt	16987	2	254	27	4	0
@@ -12430,7 +11726,6 @@ scroll: create signet of beckoning	20535	1	254	1	15	0
 scrolls of blinding light	19343	4	254	76	4	0
 scrying scope	17224	2	254	1	12	0
 scrying scope	17364	2	254	1	12	0
-scuffed dagger	2502	1	254	7	2	0
 scum covered bag	20767	1	254	40	15	0
 scythe axe	5749	2	254	23	2	0
 scythe of the unseen path	21401	4	254	70	2	0
@@ -12993,7 +12288,6 @@ simple linen pants	10045	1	254	7	4	0
 simple memorandum	9544	1	254	1	12	0
 simple note	9547	1	254	1	12	0
 simple parchment	12635	1	254	1	12	0
-simple parchment	6497	1	254	1	12	0
 simple robe	9748	2	254	15	4	0
 simple rune	9543	1	254	1	12	0
 simple scroll	9546	1	254	1	0	0
@@ -13141,7 +12435,6 @@ small green dagger	4302	1	254	10	2	0
 small green pouch	5572	1	254	5	1	0
 small green rocket	21559	1	254	1	0	0
 small hand blade	816	2	254	11	2	0
-small knife	2484	1	254	4	2	0
 small leather ammo pouch	7279	1	254	5	11	0
 small leather collar	4813	0	254	1	15	0
 small locked chest	6354	1	254	20	15	0
@@ -13162,22 +12455,18 @@ small scorpid claw	19937	0	254	1	15	0
 small scroll	17008	1	254	28	15	0
 small seaforium charge	4367	1	254	20	7	0
 small shield	17184	1	254	3	4	0
-small shield	2133	1	254	5	4	0
 small shot pouch	5441	1	254	5	11	0
 small silk pack	4245	1	254	25	1	0
 small soul pouch	22243	2	254	20	1	0
 small spider leg	5465	1	254	5	7	0
 small stone shard	4626	1	254	1	12	0
-small targe	1167	1	254	10	4	0
 small targe	17186	1	254	8	4	0
 small throwing knife	2947	1	254	3	2	0
-small tomahawk	2498	1	254	8	2	0
 small venom sac	1475	1	254	1	7	0
 small white rocket	21561	1	254	1	0	0
 small wooden hammer	2055	1	254	4	2	0
 small yellow rocket	21562	1	254	1	0	0
 smashing star	15228	2	254	53	2	0
-smelling salts	1176	1	254	8	0	0
 smelting pants	5199	2	254	21	4	0
 smite's mighty hammer	7230	3	254	23	2	0
 smite's reaver	5196	2	254	22	2	0
@@ -13323,7 +12612,6 @@ sorcerous dagger	18878	4	254	65	2	0
 soul ashes of the banished	22229	1	254	1	12	0
 soul breaker	13408	3	254	57	2	0
 soul corrupter's necklace	19876	4	254	68	4	0
-soul crystal relic	3788	1	254	40	4	0
 soul dust	11083	1	254	25	7	0
 soul gem	20475	1	254	1	15	0
 soul gem	3912	1	254	1	12	0
@@ -13455,7 +12743,6 @@ spirit of silverpine charts	4488	1	254	1	12	0
 spirit of silverpine log	4490	1	254	1	12	0
 spirit of the faerie dragon	9686	2	254	51	2	0
 spirit of zanza	20079	2	254	65	0	0
-spirit relic	2922	1	254	20	4	0
 spiritchaser staff	1613	2	254	44	2	0
 spiritshroud leggings	12965	3	254	63	4	0
 spitfire bracers	20481	3	254	62	4	0
@@ -13463,7 +12750,6 @@ spitfire breastplate	20479	3	254	62	4	0
 spitfire gauntlets	20480	3	254	62	4	0
 splinter of atiesh	22726	5	254	60	15	0
 splinter of nordrassil	18659	4	254	71	12	0
-splintered board	2485	1	254	3	2	0
 splintered log	9590	1	254	1	12	0
 splintered tusk	7098	0	254	1	15	0
 splintering battle axe	4020	0	254	49	2	0
@@ -13621,12 +12907,6 @@ stone club	3787	0	254	40	2	0
 stone gnoll hammer	781	1	254	9	2	0
 stone guard's herald	15199	1	254	40	4	0
 stone hammer	15260	2	254	38	2	0
-stone of backus	6724	6	254	1	4	0
-stone of brownell	6728	6	254	1	4	0
-stone of goodman	6708	6	254	1	4	0
-stone of kurtz	6711	6	254	1	4	0
-stone of lapidis	6707	6	254	1	4	0
-stone of pierce	6698	6	254	1	4	0
 stone of relu	5233	1	254	1	12	0
 stone of the earth	11786	3	254	56	2	0
 stone of the tides	4034	1	254	1	12	0
@@ -13941,7 +13221,6 @@ swift white steed	18778	4	254	60	15	0
 swift yellow mechanostrider	18774	4	254	60	15	0
 swift zulian tiger	19902	4	254	60	15	0
 swiftdart battleboots	13284	3	254	58	4	0
-swiftfeather token	1400	1	254	12	0	0
 swiftfoot treads	15861	2	254	60	4	0
 swiftness of zanza	20081	2	254	65	0	0
 swiftness potion	2459	1	254	15	0	0
@@ -13991,214 +13270,21 @@ tabar	1196	1	254	14	2	0
 tabard of flame	23705	4	254	1	4	0
 tabard of frost	23709	1	254	1	4	0
 tabard of mastery	191481	4	254	1	4	0
-tabard of stormwind	11364	1	254	1	4	0
 tabard of the argent dawn	22999	1	254	60	4	0
 tabard of the scarlet crusade	23192	1	254	1	4	0
 tabetha's instructions	7516	1	254	0	0	0
-tablet of agitating totem	1032	1	254	8	9	0
-tablet of agitating totem ii	5702	1	254	18	9	0
-tablet of agitating totem iii	4171	1	254	28	9	0
-tablet of agitating totem iv	4181	1	254	38	9	0
-tablet of astral recall	4170	1	254	30	9	0
 tablet of beth'amara	10538	1	254	1	12	0
-tablet of call spirit	1035	1	254	10	9	0
-tablet of call spirit ii	1603	1	254	40	9	0
-tablet of chain heal	9183	1	254	40	9	0
-tablet of chain heal ii	9133	1	254	46	9	0
-tablet of chain heal iii	9157	1	254	54	9	0
-tablet of chain lightning	4189	1	254	32	9	0
-tablet of chain lightning ii	9102	1	254	40	9	0
-tablet of chain lightning iii	9140	1	254	48	9	0
-tablet of chain lightning iv	9167	1	254	56	9	0
-tablet of cure disease	9062	1	254	22	9	0
-tablet of disease cleansing totem	9096	1	254	38	9	0
-tablet of earth shock	9039	1	254	4	9	0
-tablet of earth shock ii	9044	1	254	8	9	0
-tablet of earth shock iii	9051	1	254	14	9	0
-tablet of earth shock iv	9069	1	254	24	9	0
-tablet of earth shock v	9095	1	254	36	9	0
-tablet of earth shock vi	9142	1	254	48	9	0
-tablet of earth shock vii	9177	1	254	60	9	0
-tablet of earthbind totem	9041	1	254	6	9	0
-tablet of ensnaring totem	4168	1	254	16	9	0
-tablet of ensnaring totem ii	5714	1	254	34	9	0
-tablet of ethereal form	5708	1	254	24	9	0
-tablet of ethereal form ii	4180	1	254	34	9	0
-tablet of far sight	5707	1	254	26	9	0
-tablet of fire nova totem	9049	1	254	12	9	0
-tablet of fire nova totem ii	9065	1	254	22	9	0
-tablet of fire nova totem iii	9085	1	254	32	9	0
-tablet of fire nova totem iv	9128	1	254	42	9	0
-tablet of fire nova totem v	9152	1	254	52	9	0
-tablet of fire resistance	4186	1	254	32	9	0
-tablet of fire resistance totem	9075	1	254	18	9	0
-tablet of fire resistance totem ii	9127	1	254	42	9	0
-tablet of fire resistance totem iii	9170	1	254	58	9	0
-tablet of flame shock	9047	1	254	10	9	0
-tablet of flame shock ii	9054	1	254	18	9	0
-tablet of flame shock iii	9074	1	254	28	9	0
-tablet of flame shock iv	9184	1	254	40	9	0
-tablet of flame shock v	9151	1	254	52	9	0
 tablet of flame shock vi	23320	3	254	60	9	0
-tablet of flametongue totem	9072	1	254	26	9	0
-tablet of flametongue totem ii	9126	1	254	42	9	0
-tablet of flametongue totem iii	9165	1	254	56	9	0
-tablet of flametongue weapon	9059	1	254	10	9	0
-tablet of flametongue weapon ii	9064	1	254	22	9	0
-tablet of flametongue weapon iii	9094	1	254	36	9	0
-tablet of flametongue weapon iv	9148	1	254	50	9	0
-tablet of frost resistance totem	9066	1	254	24	9	0
-tablet of frost resistance totem ii	9185	1	254	38	9	0
-tablet of frost resistance totem iii	9158	1	254	54	9	0
-tablet of frost shock	9058	1	254	20	9	0
-tablet of frost shock ii	9089	1	254	34	9	0
-tablet of frost shock iii	9135	1	254	46	9	0
-tablet of frost shock iv	9174	1	254	58	9	0
-tablet of frostbrand weapon	9057	1	254	20	9	0
-tablet of frostbrand weapon ii	9090	1	254	34	9	0
-tablet of frostbrand weapon iii	9139	1	254	48	9	0
-tablet of ghost wolf	5699	1	254	12	9	0
-tablet of ghost wolf ii	5711	1	254	30	9	0
-tablet of grace of air totem	9125	1	254	42	9	0
-tablet of grace of air totem ii	9164	1	254	56	9	0
 tablet of grace of air totem iii	21293	3	254	60	9	0
-tablet of grounding totem	9078	1	254	30	9	0
-tablet of group astral recall	4185	1	254	40	9	0
-tablet of healing stream totem ii	9081	1	254	30	9	0
-tablet of healing stream totem iii	9103	1	254	40	9	0
-tablet of healing stream totem iv	9147	1	254	50	9	0
-tablet of healing stream totem v	9181	1	254	60	9	0
-tablet of healing totem	5697	1	254	6	9	0
-tablet of healing totem ii	5700	1	254	12	9	0
-tablet of healing totem iii	5705	1	254	20	9	0
-tablet of healing totem iv	5710	1	254	28	9	0
-tablet of healing totem v	4183	1	254	36	9	0
-tablet of healing wave ii	9040	1	254	6	9	0
-tablet of healing wave iii	9050	1	254	12	9	0
-tablet of healing wave iv	9056	1	254	18	9	0
-tablet of healing wave ix	9168	1	254	56	9	0
-tablet of healing wave v	9070	1	254	24	9	0
-tablet of healing wave vi	9086	1	254	32	9	0
-tablet of healing wave vii	9105	1	254	40	9	0
-tablet of healing wave viii	9143	1	254	48	9	0
 tablet of healing wave x	21291	3	254	60	9	0
-tablet of invisibility totem	4188	1	254	40	9	0
 tablet of jin'yael	10539	1	254	1	12	0
 tablet of kurniya	11126	1	254	1	12	0
-tablet of lightning bolt ii	1037	1	254	10	9	0
-tablet of lightning bolt iii	1058	1	254	18	9	0
-tablet of lightning bolt iv	3129	1	254	26	9	0
-tablet of lightning bolt v	4178	1	254	34	9	0
-tablet of lightning bolt vi	9123	1	254	42	9	0
-tablet of lightning bolt vii	9145	1	254	50	9	0
-tablet of lightning bolt viii	9169	1	254	58	9	0
-tablet of lightning shield	5698	1	254	8	9	0
-tablet of lightning shield ii	1048	1	254	16	9	0
-tablet of lightning shield iii	1591	1	254	24	9	0
-tablet of lightning shield iv	4175	1	254	32	9	0
-tablet of lightning shield v	9100	1	254	40	9	0
-tablet of lightning shield vi	9137	1	254	48	9	0
-tablet of lightning shield vii	9162	1	254	56	9	0
-tablet of lightning shock	9079	1	254	30	9	0
-tablet of lightning shock ii	9124	1	254	42	9	0
-tablet of lightning shock iii	9159	1	254	54	9	0
-tablet of lightning storm	1597	1	254	20	9	0
-tablet of lightning storm ii	1619	1	254	30	9	0
-tablet of lightning storm iii	5715	1	254	40	9	0
-tablet of magma totem	9076	1	254	18	9	0
-tablet of magma totem ii	9097	1	254	38	9	0
-tablet of magma totem iii	9138	1	254	48	9	0
-tablet of magma totem iv	9171	1	254	58	9	0
-tablet of mana font totem	9071	1	254	26	9	0
-tablet of mana font totem ii	9093	1	254	36	9	0
-tablet of mana font totem iii	9136	1	254	46	9	0
-tablet of mana font totem iv	9166	1	254	56	9	0
-tablet of mana totem	3133	1	254	30	9	0
 tablet of markri	10540	1	254	1	12	0
-tablet of molten blast	1031	1	254	6	9	0
-tablet of molten blast ii	1053	1	254	14	9	0
-tablet of molten blast iii	1588	1	254	22	9	0
-tablet of molten blast iv	3132	1	254	30	9	0
-tablet of molten blast v	4184	1	254	38	9	0
-tablet of molten blast vi	9132	1	254	46	9	0
-tablet of molten blast vii	9156	1	254	54	9	0
-tablet of nature resistance	4177	1	254	32	9	0
-tablet of nature resistance totem	9080	1	254	30	9	0
-tablet of nature resistance totem ii	9130	1	254	44	9	0
-tablet of nature resistance totem iii	9178	1	254	60	9	0
-tablet of nullify disease	1036	1	254	16	9	0
-tablet of nullify disease ii	1063	1	254	26	9	0
-tablet of nullify poison	1033	1	254	18	9	0
-tablet of nullify poison ii	1061	1	254	26	9	0
-tablet of poison cleansing totem	9063	1	254	22	9	0
-tablet of purge	1049	1	254	12	9	0
-tablet of purge ii	9087	1	254	32	9	0
-tablet of rebirth	9048	1	254	12	9	0
-tablet of restoration ii	1038	1	254	8	9	0
-tablet of restoration iii	1057	1	254	16	9	0
-tablet of restoration iv	3130	1	254	24	9	0
-tablet of restoration v	4179	1	254	32	9	0
-tablet of restoration vi	5716	1	254	40	9	0
-tablet of rockbiter weapon	9037	1	254	1	9	0
-tablet of rockbiter weapon ii	9053	1	254	16	9	0
-tablet of rockbiter weapon iii	9082	1	254	30	9	0
-tablet of rockbiter weapon iv	9129	1	254	44	9	0
-tablet of rockbiter weapon v	9175	1	254	58	9	0
 tablet of ryun'eh	4631	1	254	1	12	0
 tablet of sael'hai	10541	1	254	1	12	0
-tablet of searing totem ii	9188	1	254	20	9	0
-tablet of searing totem iii	9083	1	254	30	9	0
-tablet of searing totem iv	9104	1	254	40	9	0
-tablet of searing totem v	9146	1	254	50	9	0
-tablet of searing totem vi	9182	1	254	60	9	0
-tablet of sentry totem	5701	1	254	14	9	0
-tablet of sentry totem	9092	1	254	34	9	0
-tablet of serpent totem	1029	1	254	4	9	0
-tablet of serpent totem ii	3125	1	254	10	9	0
-tablet of serpent totem iii	5706	1	254	20	9	0
-tablet of serpent totem iv	5712	1	254	30	9	0
-tablet of serpent totem v	4187	1	254	40	9	0
-tablet of shock	5696	1	254	4	9	0
-tablet of shock ii	3126	1	254	12	9	0
-tablet of shock iii	3127	1	254	20	9	0
-tablet of shock iv	4173	1	254	28	9	0
-tablet of shock v	4174	1	254	36	9	0
-tablet of spirit armor ii	1052	1	254	14	9	0
-tablet of spirit armor iii	1589	1	254	28	9	0
-tablet of stoneclaw totem	9043	1	254	8	9	0
-tablet of stoneclaw totem ii	9055	1	254	18	9	0
-tablet of stoneclaw totem iii	9077	1	254	18	9	0
-tablet of stoneclaw totem iv	9099	1	254	38	9	0
-tablet of stoneclaw totem v	9141	1	254	48	9	0
-tablet of stoneclaw totem vi	9176	1	254	58	9	0
-tablet of stoneskin totem ii	9052	1	254	14	9	0
-tablet of stoneskin totem iii	9068	1	254	24	9	0
-tablet of stoneskin totem iv	9091	1	254	34	9	0
-tablet of stoneskin totem v	9131	1	254	44	9	0
-tablet of stoneskin totem vi	9161	1	254	54	9	0
-tablet of strength of earth totem	9046	1	254	10	9	0
-tablet of strength of earth totem ii	9067	1	254	24	9	0
-tablet of strength of earth totem iii	9098	1	254	38	9	0
-tablet of strength of earth totem iv	9150	1	254	52	9	0
 tablet of strength of earth totem v	21292	3	254	60	9	0
-tablet of thunderbolt	5713	1	254	32	9	0
-tablet of thunderclap	5703	1	254	20	9	0
-tablet of thunderclap ii	4172	1	254	36	9	0
-tablet of undying strength	1034	1	254	22	9	0
-tablet of undying strength ii	4176	1	254	36	9	0
-tablet of unyielding will	1030	1	254	10	9	0
-tablet of unyielding will ii	4169	1	254	24	9	0
-tablet of unyielding will iii	4182	1	254	38	9	0
 tablet of verga	6535	1	254	1	12	0
-tablet of water breathing	5704	1	254	20	9	0
-tablet of water walking	5709	1	254	28	9	0
 tablet of will	5824	1	254	1	12	0
-tablet of windfury totem	9084	1	254	32	9	0
-tablet of windfury totem ii	9134	1	254	46	9	0
-tablet of windfury totem iii	9180	1	254	60	9	0
-tablet of windfury weapon	9073	1	254	26	9	0
-tablet of windfury weapon ii	9101	1	254	40	9	0
-tablet of windfury weapon iii	9160	1	254	54	9	0
 tablet shard	4094	1	254	1	12	0
 tablet transcript	11470	1	254	1	12	0
 tactical assignment	20809	1	254	1	15	0
@@ -14230,7 +13316,6 @@ talisman of arathor	21117	3	254	53	4	0
 talisman of arathor	21118	3	254	43	4	0
 talisman of arathor	21119	3	254	33	4	0
 talisman of ascendance	22678	4	254	60	4	0
-talisman of binding fragment	17783	5	254	80	4	0
 talisman of binding shard	17782	5	254	80	4	0
 talisman of corruption	12355	1	254	1	12	0
 talisman of ephemeral power	18820	4	254	66	4	0
@@ -14342,7 +13427,6 @@ tender wolf steak	18045	1	254	45	0	0
 ternary mantle	21694	4	254	75	4	0
 teronis' journal	5505	1	254	1	12	0
 testament of hope	13315	2	254	61	4	0
-testboots - puffed mail green	13214	0	254	1	4	0
 thaddius' lightning bolts	191660	3	0	1	0	0
 thallium choker	12020	2	254	36	4	0
 thallium hoop	11986	2	254	39	4	0
@@ -14465,7 +13549,6 @@ the ziggler	8006	3	254	39	2	0
 thekal's grasp	19896	4	254	65	2	0
 thelsamar axe	3154	2	254	18	2	0
 theradric crystal carving	17684	1	254	1	12	0
-theramore guard medallion unused	5896	1	254	1	12	0
 theramore medal	5078	1	254	1	12	0
 therazane's link	19380	4	254	83	4	0
 therazane's touch	19315	4	254	65	4	0
@@ -14522,7 +13605,6 @@ thick yeti hide	8973	1	254	1	12	0
 thick-shelled clam	5524	1	254	20	15	0
 thicket hammer	5595	1	254	11	2	0
 thief's blade	5192	2	254	22	2	0
-thieven' kit	7868	1	254	16	15	0
 thieves' tools	5060	1	254	15	7	0
 thin black claw	5135	0	254	1	15	0
 thin cloth armor	2121	1	254	5	4	0
@@ -14597,7 +13679,6 @@ threshadon claw	2669	1	254	1	12	0
 threshadon fang	5516	0	254	16	2	0
 threshadon tooth	2668	1	254	1	12	0
 thresher eye	5412	1	254	1	12	0
-throwing tomahawk	4959	1	254	7	2	0
 thug boots	121	1	254	1	4	0
 thug boots	6138	1	254	1	4	0
 thug pants	120	0	254	1	4	0
@@ -14681,184 +13762,35 @@ tok'kar's murloc shanker	9680	2	254	43	2	0
 token of thievery	7871	1	254	1	12	0
 tomahawk	2490	1	254	9	2	0
 tomb dust	5529	0	254	30	5	0
-tomb rot	2929	1	254	12	7	0
 tombstone breastplate	13944	3	254	62	4	0
-tome of amplify magic	8807	1	254	18	9	0
-tome of amplify magic ii	8821	1	254	30	9	0
-tome of amplify magic iii	8855	1	254	42	9	0
-tome of amplify magic iv	8882	1	254	54	9	0
 tome of arcane brilliance	18600	3	254	56	9	0
 tome of arcane domination	19308	4	254	65	4	0
-tome of arcane explosion	8804	1	254	14	9	0
-tome of arcane explosion ii	8812	1	254	22	9	0
-tome of arcane explosion iii	8822	1	254	30	9	0
-tome of arcane explosion iv	8898	1	254	38	9	0
-tome of arcane explosion v	8837	1	254	46	9	0
-tome of arcane explosion vi	8880	1	254	54	9	0
-tome of arcane intellect	8802	1	254	1	9	0
-tome of arcane intellect ii	3091	1	254	14	9	0
-tome of arcane intellect iii	3102	1	254	28	9	0
-tome of arcane intellect iv	8852	1	254	42	9	0
-tome of arcane intellect v	8883	1	254	56	9	0
-tome of arcane missiles	4159	1	254	8	9	0
-tome of arcane missiles ii	1559	1	254	16	9	0
-tome of arcane missiles iii	4153	1	254	24	9	0
-tome of arcane missiles iv	8826	1	254	32	9	0
-tome of arcane missiles v	8849	1	254	40	9	0
-tome of arcane missiles vi	8862	1	254	48	9	0
-tome of arcane missiles vii	8885	1	254	56	9	0
 tome of arcane missiles viii	21280	3	254	60	9	0
-tome of blink	5647	1	254	22	9	0
-tome of blink ii	4162	1	254	38	9	0
-tome of blizzard	5649	1	254	20	9	0
-tome of blizzard ii	3100	1	254	28	9	0
-tome of blizzard iii	8832	1	254	36	9	0
-tome of blizzard iv	8857	1	254	44	9	0
-tome of blizzard v	8872	1	254	52	9	0
-tome of blizzard vi	8895	1	254	60	9	0
-tome of chains of ice	975	1	254	10	9	0
-tome of chains of ice ii	1004	1	254	30	9	0
-tome of cone of cold	8815	1	254	26	9	0
-tome of cone of cold ii	8829	1	254	34	9	0
-tome of cone of cold iii	8854	1	254	42	9	0
-tome of cone of cold iv	8866	1	254	50	9	0
-tome of cone of cold v	8888	1	254	58	9	0
-tome of conjure food	4141	1	254	6	9	0
-tome of conjure food ii	4143	1	254	12	9	0
-tome of conjure food iii	4147	1	254	22	9	0
-tome of conjure food iv	4152	1	254	32	9	0
-tome of conjure food v	8853	1	254	42	9	0
-tome of conjure food vi	8871	1	254	52	9	0
 tome of conjure food vii	22897	3	254	60	9	0
-tome of conjure mana gem	4145	1	254	28	9	0
-tome of conjure mana gem ii	8840	1	254	38	9	0
-tome of conjure mana gem iii	8861	1	254	48	9	0
-tome of conjure mana gem iv	8889	1	254	58	9	0
-tome of conjure water	5644	1	254	4	9	0
-tome of conjure water ii	3097	1	254	10	9	0
-tome of conjure water iii	5650	1	254	20	9	0
-tome of conjure water iv	4150	1	254	30	9	0
-tome of conjure water v	8850	1	254	40	9	0
-tome of conjure water vi	8868	1	254	50	9	0
-tome of conjure water vii	8892	1	254	60	9	0
-tome of counterspell	4148	1	254	24	9	0
-tome of dampen magic	4157	1	254	12	9	0
-tome of dampen magic ii	8813	1	254	24	9	0
-tome of dampen magic iii	8834	1	254	36	9	0
-tome of dampen magic iv	8863	1	254	48	9	0
-tome of dampen magic v	8894	1	254	60	9	0
-tome of detect magic	8805	1	254	16	9	0
 tome of devouring shadows	19989	3	254	52	4	0
 tome of divine right	22319	3	254	61	4	0
 tome of divinity	6775	1	254	12	12	0
 tome of divinity	6916	1	254	12	12	0
-tome of feather fall	3096	1	254	12	9	0
 tome of fiery arcana	19311	4	254	65	4	0
-tome of fire blast	968	1	254	6	9	0
-tome of fire blast ii	3094	1	254	14	9	0
-tome of fire blast iii	3095	1	254	22	9	0
-tome of fire blast iv	8823	1	254	30	9	0
-tome of fire blast v	8841	1	254	38	9	0
-tome of fire blast vi	8859	1	254	46	9	0
-tome of fire blast vii	8878	1	254	54	9	0
-tome of fire ward	1574	1	254	20	9	0
-tome of fire ward ii	8820	1	254	30	9	0
-tome of fire ward iii	8843	1	254	40	9	0
-tome of fire ward iv	8869	1	254	50	9	0
-tome of fire ward v	8897	1	254	60	9	0
-tome of fireball	8803	1	254	6	9	0
-tome of fireball ii	973	1	254	12	9	0
-tome of fireball iii	992	1	254	12	9	0
-tome of fireball iv	4161	1	254	18	9	0
-tome of fireball ix	8860	1	254	48	9	0
-tome of fireball v	8814	1	254	24	9	0
-tome of fireball vi	8824	1	254	30	9	0
-tome of fireball vii	8835	1	254	36	9	0
-tome of fireball viii	8851	1	254	42	9	0
-tome of fireball x	8877	1	254	54	9	0
-tome of fireball xi	8890	1	254	60	9	0
 tome of fireball xii	21279	3	254	60	9	0
-tome of flamestrike	3089	1	254	16	9	0
-tome of flamestrike ii	3093	1	254	24	9	0
-tome of flamestrike iii	3092	1	254	32	9	0
-tome of flamestrike iv	8848	1	254	40	9	0
-tome of flamestrike v	8864	1	254	48	9	0
-tome of flamestrike vi	8886	1	254	56	9	0
-tome of frost armor ii	974	1	254	10	9	0
-tome of frost armor iii	5648	1	254	20	9	0
-tome of frost nova	989	1	254	10	9	0
-tome of frost nova ii	1571	1	254	26	9	0
-tome of frost nova iii	3101	1	254	40	9	0
-tome of frost nova iv	8879	1	254	54	9	0
-tome of frost shield	966	1	254	8	9	0
-tome of frost shield ii	980	1	254	20	9	0
-tome of frost shield iii	4149	1	254	34	9	0
-tome of frost ward	967	1	254	22	9	0
-tome of frost ward ii	8876	1	254	32	9	0
-tome of frost ward iii	8825	1	254	42	9	0
-tome of frost ward iv	8875	1	254	52	9	0
 tome of frost ward v	22890	3	254	60	9	0
-tome of frostbolt	3090	1	254	4	9	0
-tome of frostbolt ii	986	1	254	8	9	0
-tome of frostbolt iii	1554	1	254	14	9	0
-tome of frostbolt iv	4151	1	254	20	9	0
-tome of frostbolt ix	8867	1	254	50	9	0
-tome of frostbolt v	8816	1	254	26	9	0
-tome of frostbolt vi	8828	1	254	32	9	0
-tome of frostbolt vii	8842	1	254	38	9	0
-tome of frostbolt viii	8856	1	254	44	9	0
-tome of frostbolt x	8884	1	254	56	9	0
 tome of frostbolt xi	21214	3	254	60	9	0
-tome of greater invisibility	8870	1	254	50	9	0
-tome of ice armor	994	1	254	30	9	0
-tome of ice armor ii	3099	1	254	40	9	0
-tome of ice armor iii	8865	1	254	50	9	0
-tome of ice armor iv	8891	1	254	60	9	0
-tome of invisibility	4160	1	254	38	9	0
 tome of justice	6778	1	254	30	12	0
-tome of khadgar's unlocking	985	1	254	18	9	0
-tome of khadgar's unlocking ii	1567	1	254	30	9	0
-tome of khadgar's unlocking iii	4158	1	254	42	9	0
-tome of khadgar's unlocking iv	8881	1	254	54	9	0
 tome of knowledge	13385	3	254	61	4	0
 tome of lesser invisibility	1002	1	254	26	9	0
 tome of mal'cin vorail	13153	1	254	1	0	0
-tome of mana shield	8808	1	254	20	9	0
-tome of mana shield ii	8818	1	254	28	9	0
-tome of mana shield iii	8833	1	254	36	9	0
-tome of mana shield iv	8858	1	254	44	9	0
-tome of mana shield v	8873	1	254	52	9	0
-tome of mana shield vi	8896	1	254	60	9	0
 tome of nobility	6779	1	254	40	12	0
 tome of polymorph: cow	4144	3	254	60	9	0
 tome of polymorph: pig	4142	3	254	60	9	0
-tome of polymorph: sheep	4146	1	254	40	9	0
 tome of polymorph: turtle	22739	3	254	60	9	0
-tome of remove curse	976	1	254	18	9	0
-tome of remove lesser curse	8806	1	254	18	9	0
 tome of righteousness	6777	1	254	20	12	0
 tome of sacrifice	18602	3	254	60	4	0
-tome of scorch	8811	1	254	22	9	0
-tome of scorch ii	8819	1	254	28	9	0
-tome of scorch iii	8830	1	254	34	9	0
-tome of scorch iv	8899	1	254	40	9	0
-tome of scorch v	8847	1	254	46	9	0
-tome of scorch vi	8874	1	254	52	9	0
-tome of scorch vii	8887	1	254	58	9	0
 tome of shadow force	19309	4	254	65	4	0
-tome of sleep	8809	1	254	8	9	0
-tome of sleep ii	8810	1	254	20	9	0
-tome of sleep iii	8844	1	254	40	9	0
-tome of sleep iv	8893	1	254	60	9	0
-tome of slow	3098	1	254	28	9	0
-tome of slow ii	4154	1	254	40	9	0
 tome of the cabal	6999	1	254	1	12	0
 tome of the ice lord	19310	4	254	65	4	0
 tome of the lost	22253	3	254	63	4	0
 tome of tranquilizing shot	16665	2	254	60	9	0
 tome of valor	6776	1	254	20	12	0
-tome of water elemental	1568	1	254	30	9	0
-tome of water elemental ii	4155	1	254	40	9	0
 tomes of alterac	3660	1	254	1	12	0
 tooth of eranikus	10837	3	254	56	2	0
 tooth of gnarr	13141	3	254	63	4	0
@@ -14871,14 +13803,12 @@ top piece of lord valthalak's amulet	22047	1	254	1	12	0
 topaz ring	11975	2	254	49	4	0
 tor'gan's orb	4528	1	254	1	12	0
 torch of austen	13004	3	254	58	2	0
-torch of flame	2808	1	254	29	2	0
 torch of holy flame	7344	2	254	33	4	0
 torch of retribution	10515	1	254	1	4	0
 torch of the dormant flame	6653	1	254	1	12	0
 torch of the eternal flame	6654	1	254	1	12	0
 torchlight wand	5240	2	254	21	2	0
 tork wrench	11855	2	254	19	4	0
-torment vine	2932	1	254	40	7	0
 torn bear pelt	11407	1	254	1	15	0
 torn fin eye	3510	1	254	1	12	0
 torn furry ear	5136	0	254	1	15	0
@@ -14952,9 +13882,7 @@ translated letter from the embalmer	3248	1	254	1	12	0
 traphook jerkin	15825	2	254	59	4	0
 trapper's boots	6127	1	254	1	4	0
 trapper's pants	6126	0	254	1	4	0
-trapper's pants	6131	0	254	1	4	0
 trapper's shirt	127	1	254	1	4	0
-trapper's shirt	6130	1	254	1	4	0
 traveler's backpack	4500	2	254	55	1	0
 traveler's belt	8293	2	254	56	4	0
 traveler's boots	8294	2	254	57	4	0
@@ -15131,7 +14059,6 @@ two of portals	19278	3	254	1	15	0
 two of warlords	19259	3	254	1	15	0
 two-handed sword	2489	1	254	7	2	0
 typhoon	18542	4	254	68	2	0
-tyrande's staff	14083	1	254	4	2	0
 tyranis' pendant	6767	1	254	1	12	0
 tyrant's armguards	14834	2	254	43	4	0
 tyrant's belt	14838	2	254	43	4	0
@@ -15180,7 +14107,6 @@ undercity mint	20491	1	254	1	12	0
 undercity pledge collection	22300	1	254	1	0	0
 undercity reservist's cap	20643	2	254	47	4	0
 undermine clam chowder	16766	1	254	45	0	0
-underwater mushroom cap	8543	1	254	35	0	0
 underworld band	1980	4	254	43	4	0
 unearthed bands	9428	3	254	35	4	0
 unfinished skeleton key	14645	1	254	1	12	0
@@ -15191,7 +14117,6 @@ unforged seal of ascension	12323	1	254	1	12	0
 unhatched jubling egg	19462	1	254	35	15	0
 unhatched sprite darter egg	11102	1	254	1	12	0
 unidentified ore	5733	1	254	1	12	0
-unknown reward	1217	1	254	1	12	0
 unlit poor torch	6183	1	254	10	0	0
 unlit torch	190307	1	254	1	12	0
 unloaded zapper	11319	1	254	1	12	0
@@ -15298,9 +14223,7 @@ verek's leash	22242	3	254	56	4	0
 verigan's fist	6953	3	254	31	2	0
 verimonde's last resort	22688	3	254	66	2	0
 vermilion band	11992	2	254	63	4	0
-vermilion band	7466	2	254	37	4	0
 vermilion necklace	12027	2	254	63	4	0
-vermilion necklace	7467	2	254	35	4	0
 vermillion idol	20872	3	254	61	12	0
 verna's westfall stew recipe	2832	1	254	1	12	0
 verner's note	1283	1	254	1	12	0
@@ -15363,7 +14286,6 @@ violet scale armor	6502	2	254	22	4	0
 violet tragan	8526	1	254	1	12	0
 vipore's beacon	17506	1	254	1	12	0
 viridian band	11982	2	254	23	4	0
-viridian band	6589	2	254	26	4	0
 virtuous belt	22078	3	254	65	4	0
 virtuous bracers	22079	3	254	65	4	0
 virtuous crown	22080	4	254	60	4	0
@@ -15511,7 +14433,6 @@ warleader's greaves	14865	2	254	60	4	0
 warleader's leggings	14867	2	254	62	4	0
 warleader's shield	15991	2	254	63	4	0
 warleader's shoulders	14868	2	254	61	4	0
-warlock orb 35	6899	0	254	35	4	0
 warlord goretooth's command	12563	1	254	1	12	0
 warlord's axe	15238	2	254	58	2	0
 warlord's chain chestpiece	16565	4	254	74	4	0
@@ -15567,7 +14488,6 @@ warped leather vest	1509	0	254	11	4	0
 warpwood binding	18393	3	254	61	4	0
 warrior's boots	2967	1	254	10	4	0
 warrior's bracers	3214	1	254	9	4	0
-warrior's buckler	3648	1	254	9	4	0
 warrior's cloak	4658	1	254	8	4	0
 warrior's embrace	10845	3	254	54	4	0
 warrior's girdle	4659	1	254	8	4	0
@@ -15634,7 +14554,6 @@ water of the seers	4823	1	254	1	12	0
 water pitcher	4755	1	254	1	12	0
 water sapta	6637	1	254	1	0	0
 water totem	5177	1	254	20	5	0
-watered-down beer	5265	1	254	1	0	0
 waterlogged crate	6352	1	254	25	15	0
 waterlogged envelope	4433	1	254	25	12	0
 waterspout boots	18322	3	254	58	4	0
@@ -15661,7 +14580,6 @@ webwood egg	5167	1	254	1	12	0
 webwood ichor	10640	1	254	1	12	0
 webwood spider silk	3412	1	254	1	12	0
 webwood venom sac	5166	1	254	1	12	0
-wedding dress	6837	1	254	1	4	0
 weegli's barrel	8493	1	254	1	0	0
 weighted cloak	20693	2	254	60	4	0
 weighted sap	1926	2	254	15	2	0
@@ -15712,7 +14630,6 @@ white linen shirt	2576	1	254	7	4	0
 white mechanostrider mod a	13326	4	254	60	15	0
 white moro'gai gem	18159	2	254	1	12	0
 white murloc egg	22780	1	254	1	15	0
-white night elf breastplate	3527	1	254	1	4	0
 white punch card	9279	1	254	1	12	0
 white ram	5873	3	254	40	15	0
 white ravasaur claw	11477	1	254	1	12	0
@@ -15799,7 +14716,6 @@ wiley's note	1327	1	254	1	12	0
 will of arlokk	19909	4	254	65	2	0
 will of the martyr	17044	3	254	61	4	0
 will of the mountain giant	10652	2	254	51	2	0
-will of the mountain giant	9685	2	254	51	2	0
 willey's back scratcher	22404	3	254	61	2	0
 willey's portable howitzer	13380	3	254	61	2	0
 william's shipment	957	1	254	1	12	0
@@ -15859,7 +14775,6 @@ winter kimchi	22324	1	254	55	0	0
 winter squid	13755	1	254	45	0	0
 winter veil candy	21240	1	254	55	0	0
 winter veil cookie	21254	1	254	55	0	0
-winter veil cookie unused	21238	1	254	55	0	0
 winter veil disguise kit	17712	1	254	1	15	0
 winter veil eggnog	21241	1	254	55	0	0
 winter veil loaf	21236	1	254	55	0	0
@@ -15900,7 +14815,6 @@ wizardweave leggings	14132	2	254	55	4	0
 wizardweave robe	14128	2	254	60	4	0
 wizardweave turban	14130	2	254	61	4	0
 wizbang's gunnysack	2082	1	254	5	1	0
-wizbang's gunnysack	5603	1	254	15	1	0
 wizbang's special brew	11846	1	254	15	0	0
 woestave	20082	3	254	52	2	0
 wolf bracers	4794	2	254	25	4	0
@@ -15936,7 +14850,6 @@ wooden mallet	2493	1	254	9	2	0
 wooden maul	1820	0	254	22	2	0
 wooden shield	2215	0	254	11	4	0
 wooden stock	4399	1	254	10	7	0
-wooden warhammer	2501	1	254	9	2	0
 woodland robes	11189	1	254	5	4	0
 woodland shield	5395	1	254	5	4	0
 woodland tunic	4907	1	254	5	4	0

@@ -82,16 +82,6 @@ ns.ITEM_SEARCH_BLOB = [[
 "little princess" costume	103789	2	0	1	15	0
 "mage-eye" blunderbuss	3041	2	254	31	2	0
 "magic" mushroom	69994	1	254	1	12	0
-"monster - dagger offhand, icecrown citadel"	49735	0	254	1	2	0
-"monster - dagger, blood elf a01 gold"	24324	0	254	1	2	0
-"monster - dagger, broad/flat blade fiery"	56153	0	254	1	2	0
-"monster - dagger, broad/flat blade"	5281	0	254	1	2	0
-"monster - dagger, fang hook curve dark"	19924	0	254	1	2	0
-"monster - dagger, fang hook curve"	5282	0	254	1	2	0
-"monster - dagger, ornate spikey base red"	19980	0	254	1	2	0
-"monster - dagger, ornate spikey base"	5283	0	254	1	2	0
-"monster - fist, zul'aman (main)"	53889	4	254	132	2	0
-"monster - fist, zul'aman (offhand)"	53890	4	254	132	2	0
 "monster, grimtotem alliance weapon (fist left)"	56065	1	254	1	2	0
 "monster, grimtotem alliance weapon (fist right)"	56066	1	254	1	2	0
 "new" and "improved" infrared heat focals	92475	1	0	1	12	0
@@ -390,9 +380,6 @@ ns.ITEM_SEARCH_BLOB = [[
 90 green warrior waistband	20252	2	254	90	4	0
 92 pound mightfish	13916	1	254	55	15	0
 99-year-old port	5334	1	254	1	12	0
-<unused> glyphic rune	9572	1	254	1	12	0
-[dnd] horde guild banner - handheld	67604	1	254	1	2	0
-[dnd] lil' deathwing placeholder	67417	3	254	20	15	0
 [txt]rexxar's misha summoner	31767	1	254	1	12	0
 a bloodstained envelope	22930	1	254	1	12	0
 a bloodstained envelope	22970	1	254	45	12	0
@@ -2515,7 +2502,6 @@ art template cloth belt  - robe_common_b_03 - green	58402	2	254	1	4	0
 art template cloth belt  - robe_common_b_03 - purple	58412	2	254	1	4	0
 art template cloth belt  - robe_common_b_03 - red	58421	2	254	1	4	0
 art template cloth belt  - robe_common_c_01 - blue	67558	2	254	1	4	0
-art template cloth belt  - robe_common_c_01 - blue - unused	62753	2	254	1	4	0
 art template cloth belt  - robe_common_c_01 - brown	67567	2	254	1	4	0
 art template cloth belt  - robe_common_c_01 - purple	67576	2	254	1	4	0
 art template cloth belt  - robe_common_c_01 - red	67585	2	254	1	4	0
@@ -2699,7 +2685,6 @@ art template cloth boot  - robe_common_b_03 - green	58403	2	254	1	4	0
 art template cloth boot  - robe_common_b_03 - purple	58413	2	254	1	4	0
 art template cloth boot  - robe_common_b_03 - red	58422	2	254	1	4	0
 art template cloth boot  - robe_common_c_01 - blue	67555	2	254	1	4	0
-art template cloth boot  - robe_common_c_01 - blue - unused	62754	2	254	1	4	0
 art template cloth boot  - robe_common_c_01 - brown	67564	2	254	1	4	0
 art template cloth boot  - robe_common_c_01 - purple	67573	2	254	1	4	0
 art template cloth boot  - robe_common_c_01 - red	67582	2	254	1	4	0
@@ -2899,7 +2884,6 @@ art template cloth chest  - robe_common_b_03 - green	58404	2	254	1	4	0
 art template cloth chest  - robe_common_b_03 - purple	58414	2	254	1	4	0
 art template cloth chest  - robe_common_b_03 - red	58423	2	254	1	4	0
 art template cloth chest  - robe_common_c_01 - blue	67554	2	254	1	4	0
-art template cloth chest  - robe_common_c_01 - blue - unused	62755	2	254	1	4	0
 art template cloth chest  - robe_common_c_01 - brown	67563	2	254	1	4	0
 art template cloth chest  - robe_common_c_01 - purple	67572	2	254	1	4	0
 art template cloth chest  - robe_common_c_01 - red	67581	2	254	1	4	0
@@ -3161,7 +3145,6 @@ art template cloth hand  - robe_common_b_03 - green	58405	2	254	1	4	0
 art template cloth hand  - robe_common_b_03 - purple	58415	2	254	1	4	0
 art template cloth hand  - robe_common_b_03 - red	58424	2	254	1	4	0
 art template cloth hand  - robe_common_c_01 - blue	67551	2	254	1	4	0
-art template cloth hand  - robe_common_c_01 - blue - unused	62756	2	254	1	4	0
 art template cloth hand  - robe_common_c_01 - brown	67560	2	254	1	4	0
 art template cloth hand  - robe_common_c_01 - purple	67569	2	254	1	4	0
 art template cloth hand  - robe_common_c_01 - red	67578	2	254	1	4	0
@@ -3341,7 +3324,6 @@ art template cloth head  - robe_common_b_03 - green	58406	2	254	1	4	0
 art template cloth head  - robe_common_b_03 - purple	58416	2	254	1	4	0
 art template cloth head  - robe_common_b_03 - red	58425	2	254	1	4	0
 art template cloth head  - robe_common_c_01 - blue	67557	2	254	1	4	0
-art template cloth head  - robe_common_c_01 - blue - unused	62757	2	254	1	4	0
 art template cloth head  - robe_common_c_01 - brown	67566	2	254	1	4	0
 art template cloth head  - robe_common_c_01 - purple	67575	2	254	1	4	0
 art template cloth head  - robe_common_c_01 - red	67584	2	254	1	4	0
@@ -3533,7 +3515,6 @@ art template cloth legs  - robe_common_b_03 - green	58407	2	254	1	4	0
 art template cloth legs  - robe_common_b_03 - purple	58417	2	254	1	4	0
 art template cloth legs  - robe_common_b_03 - red	58426	2	254	1	4	0
 art template cloth legs  - robe_common_c_01 - blue	67556	2	254	1	4	0
-art template cloth legs  - robe_common_c_01 - blue - unused	62761	2	254	1	4	0
 art template cloth legs  - robe_common_c_01 - brown	67565	2	254	1	4	0
 art template cloth legs  - robe_common_c_01 - purple	67574	2	254	1	4	0
 art template cloth legs  - robe_common_c_01 - red	67583	2	254	1	4	0
@@ -3736,7 +3717,6 @@ art template cloth robe  - robe_common_b_03 - green	58408	2	254	1	4	0
 art template cloth robe  - robe_common_b_03 - purple	58418	2	254	1	4	0
 art template cloth robe  - robe_common_b_03 - red	58427	2	254	1	4	0
 art template cloth robe  - robe_common_c_01 - blue	67553	2	254	1	4	0
-art template cloth robe  - robe_common_c_01 - blue - unused	62758	2	254	1	4	0
 art template cloth robe  - robe_common_c_01 - brown	67562	2	254	1	4	0
 art template cloth robe  - robe_common_c_01 - purple	67571	2	254	1	4	0
 art template cloth robe  - robe_common_c_01 - red	67580	2	254	1	4	0
@@ -3924,7 +3904,6 @@ art template cloth shoulder  - robe_common_b_03 - green	58409	2	254	1	4	0
 art template cloth shoulder  - robe_common_b_03 - purple	58419	2	254	1	4	0
 art template cloth shoulder  - robe_common_b_03 - red	58428	2	254	1	4	0
 art template cloth shoulder  - robe_common_c_01 - blue	67552	2	254	1	4	0
-art template cloth shoulder  - robe_common_c_01 - blue - unused	62759	2	254	1	4	0
 art template cloth shoulder  - robe_common_c_01 - brown	67561	2	254	1	4	0
 art template cloth shoulder  - robe_common_c_01 - purple	67570	2	254	1	4	0
 art template cloth shoulder  - robe_common_c_01 - red	67579	2	254	1	4	0
@@ -4108,7 +4087,6 @@ art template cloth wrist  - robe_common_b_03 - green	58410	2	254	1	4	0
 art template cloth wrist  - robe_common_b_03 - purple	58420	2	254	1	4	0
 art template cloth wrist  - robe_common_b_03 - red	58429	2	254	1	4	0
 art template cloth wrist  - robe_common_c_01 - blue	67550	2	254	1	4	0
-art template cloth wrist  - robe_common_c_01 - blue - unused	62760	2	254	1	4	0
 art template cloth wrist  - robe_common_c_01 - brown	67559	2	254	1	4	0
 art template cloth wrist  - robe_common_c_01 - purple	67568	2	254	1	4	0
 art template cloth wrist  - robe_common_c_01 - red	67577	2	254	1	4	0
@@ -10859,7 +10837,6 @@ blessed qiraji acolyte staff	21273	4	254	79	2	0
 blessed qiraji augur staff	21275	4	254	79	2	0
 blessed qiraji bulwark	21269	4	254	79	4	0
 blessed qiraji musket	21272	4	254	79	2	0
-blessed qiraji naturalist staff unused	21276	4	254	80	2	0
 blessed qiraji pugio	21244	4	254	79	2	0
 blessed qiraji war axe	21242	4	254	79	2	0
 blessed qiraji war hammer	21268	4	254	79	2	0
@@ -15722,7 +15699,6 @@ charm of ten songs	84071	2	0	437	4	0
 charm of the muse	56110	3	254	333	4	0
 charm of the muse	56437	3	254	346	4	0
 charm of the shifting sands	21504	4	254	70	4	0
-charm pouch (dnd)	12442	1	254	1	4	0
 charmbinder grips	69797	4	254	353	4	0
 charmed amani jewel	34256	4	254	70	3	0
 charmed ancient bone bow	42946	7	254	1	2	0
@@ -17563,7 +17539,6 @@ competitor's tabard	36941	3	254	1	4	0
 completed star chart	23990	1	254	1	12	0
 complicated samophlange	89740	0	0	85	15	0
 complimentary beer token	5264	1	254	1	12	0
-complimentary brewfest sampler debug	33288	1	254	5	15	0
 composite crossbow	36627	2	254	130	2	0
 composite harpyspine staff	38143	2	254	146	2	0
 composite ore	36727	1	254	1	12	0
@@ -18397,7 +18372,6 @@ crafted dreadful gladiator's badge of victory	93606	3	0	458	4	0
 crafted dreadful gladiator's band of accuracy	93448	3	0	458	4	0
 crafted dreadful gladiator's band of cruelty	93447	3	0	458	4	0
 crafted dreadful gladiator's band of meditation	93449	3	0	458	4	0
-crafted dreadful gladiator's barrier - unused	93441	4	0	457	4	0
 crafted dreadful gladiator's baton of light	93602	3	0	457	2	0
 crafted dreadful gladiator's battle staff	93443	3	0	457	2	0
 crafted dreadful gladiator's belt of cruelty	93472	3	0	458	4	0
@@ -18809,7 +18783,6 @@ craftsman's writ - wicked leather belt	22607	1	254	60	12	0
 craftsman's writ - wicked leather headband	22605	1	254	60	12	0
 crafty bomb	50422	1	254	80	7	0
 crafty lava coral	71841	4	254	85	3	0
-crafty potion placeholder	40677	1	254	80	0	0
 crafty sardonyx	88933	4	0	90	3	0
 crafty tiger opal	76527	2	0	87	3	0
 crafty vermilion onyx	76659	3	0	90	3	0
@@ -21033,11 +21006,6 @@ deathwhisper raiment	50649	4	254	277	4	0
 deathwing brood cloak	31942	3	254	115	4	0
 deathwing scale fragment	62323	1	254	81	7	0
 debt collector's gloves	54296	1	254	3	4	0
-debug - headless horseman - create fire node	32965	1	254	1	0	0
-debug - headless horseman - extinguish fire	32967	1	254	1	0	0
-debug - headless horseman - start fire	32966	1	254	1	0	0
-debug samophlange manual cover	11613	1	254	1	12	0
-debug samophlange manual page	11616	1	254	1	0	0
 decahedral dwarven dice	36863	1	254	1	0	0
 decalcified elven spear	59200	2	254	28	2	0
 decapitating sword	3740	2	254	24	2	0
@@ -21610,10 +21578,6 @@ depleted-kyparium rocket	87250	3	0	60	15	0
 deposer's leggings	87337	3	0	430	4	0
 depraved linked belt	40275	4	254	213	4	0
 deprecate snare kit	4095	1	254	40	15	0
-depricated razor arrow	3031	1	254	35	6	0
-depricated sharp arrow	2514	1	254	8	6	0
-depricated whipwood arrow	3029	1	254	20	6	0
-deptecated white stallion summoning (mount)	901	1	254	1	15	0
 deputy chain coat	1275	2	254	25	4	0
 deputy pa'trolla badge	43555	4	254	200	4	0
 der'izu belt	24878	2	254	108	4	0
@@ -22718,7 +22682,6 @@ direbrew's bloodied shanker	71331	4	254	365	2	0
 direbrew's bloody shanker	230763	4	254	225	2	0
 direbrew's bloody shanker	256035	4	254	271	2	0
 direbrew's bloody shanker	49120	4	254	200	2	0
-direbrew's bottle do not use	37596	1	254	1	2	0
 direbrew's dire brew	38280	1	254	1	12	0
 direbrew's dire brew	38281	1	254	1	12	0
 direbrew's remote	37863	3	254	1	0	0
@@ -23937,7 +23900,6 @@ dual-bladed pauldrons	50022	4	254	264	4	0
 dual-bladed pauldrons	50673	4	254	277	4	0
 dual-plagued brain	40482	1	254	1	0	0
 duarn's net	56184	1	254	1	12	0
-duarn's net unused	56180	1	254	1	12	0
 duarn's rope	56178	1	254	1	0	0
 dubious handaxe	80873	3	0	410	2	0
 dubious handaxe	81063	3	0	463	2	0
@@ -24871,7 +24833,6 @@ elixir of the naga	58089	1	254	85	0	0
 elixir of the rapids	76078	1	0	90	0	0
 elixir of the sages	13447	1	254	54	0	0
 elixir of the searching eye	22830	1	254	65	0	0
-elixir of tongues (nyi)	2460	1	254	15	15	0
 elixir of wandering spirits	104111	1	0	90	0	0
 elixir of water breathing	5996	1	254	18	0	0
 elixir of water walking	8827	1	254	50	0	0
@@ -28505,7 +28466,6 @@ flax bracers	6060	1	254	5	4	0
 flax gloves	3275	1	254	5	4	0
 flax vest	3270	1	254	5	4	0
 flayed demon skin (old2)	6766	1	254	25	12	0
-flayed demon skin [depricated]	20310	1	254	25	12	0
 flayed doomguard belt	19134	4	254	68	4	0
 flayer's black belt	49806	4	254	219	4	0
 flayer-crush boots	61467	2	254	289	4	0
@@ -32929,7 +32889,6 @@ goblin male mask visual	69044	1	254	1	4	0
 goblin masher	57242	1	254	8	2	0
 goblin military rifle, melee version	49672	1	254	1	2	0
 goblin miner's helm	53274	3	254	35	4	0
-goblin mini hotrod (nyi)	60855	1	254	81	7	0
 goblin mining helmet	10542	2	254	41	4	0
 goblin mortar	10577	2	254	41	4	0
 goblin mortar shell	49062	1	254	1	12	0
@@ -37038,7 +36997,6 @@ heavy parchment	39501	0	254	60	7	0
 heavy parchment	6491	1	254	1	12	0
 heavy pavise	2448	1	254	37	4	0
 heavy quiver	7371	2	254	35	1	0
-heavy quiver (visual dnd)	58881	2	254	35	11	0
 heavy recurve bow	3027	1	254	25	2	0
 heavy runecloth bandage	14530	1	254	58	0	0
 heavy runed cloak	4798	2	254	25	4	0
@@ -41527,7 +41485,6 @@ knowledge: stonesplinter disguise	5131	1	254	13	9	0
 knowledge: syndicate disguise	5132	1	254	22	9	0
 knuckle down	56887	2	254	48	2	0
 knuckle of victory	39865	2	254	158	2	0
-knucklebone pouch (dnd)	12443	1	254	1	4	0
 knucklerot's head	22894	1	254	1	12	0
 ko'gun, hammer of the firelord	71355	4	254	384	2	0
 ko'gun, hammer of the firelord	71615	4	254	397	2	0
@@ -41725,7 +41682,6 @@ krasari prowler belt	98610	4	0	553	4	0
 krasari prowler britches	98601	4	0	553	4	0
 krastinov's bag of horrors	13725	1	254	1	12	0
 krastinov's bag of horrors	88566	3	0	1	15	0
-krastinov's bag of horrors unused	13543	1	254	1	12	0
 krasus' compendium	28471	1	254	1	12	0
 krasus' compendium - chapter 1	28472	1	254	1	12	0
 krasus' compendium - chapter 2	28473	1	254	1	12	0
@@ -44428,7 +44384,6 @@ lunar eclipse robes	47601	4	254	245	4	0
 lunar eclipse robes	47602	4	254	245	4	0
 lunar festival fireworks pack	21640	1	254	1	15	0
 lunar festival invitation	21711	1	254	55	0	0
-lunar festival invitation debug	21739	1	254	55	0	0
 lunar fungus	15851	1	254	1	12	0
 lunar halo	55848	3	254	316	4	0
 lunar halo	56374	3	254	346	4	0
@@ -44626,7 +44581,6 @@ magic broom	37011	3	254	1	15	0
 magic candle	1399	1	254	8	0	0
 magic dust	2091	1	254	20	0	0
 magic eater	43572	1	254	80	7	0
-magic knucklebone (dnd)	12440	1	254	1	0	0
 magic lamp	67275	3	254	1	15	0
 magic rooster egg	198631	4	254	40	15	0
 magic rooster egg	265787	4	254	40	15	0
@@ -46898,7 +46852,6 @@ meteorite whetstone	37390	3	254	200	4	0
 metok's bubble bock	37491	1	254	5	0	0
 metok's bubble bock	37901	1	254	5	0	0
 metro's slimming legs	31442	2	254	105	4	0
-metro-gnome relationship ray (nyi)	60856	3	254	81	4	0
 metzen's letters and notes	21314	1	254	1	15	0
 mezhen's writings	34090	1	254	1	12	0
 mezhen's writings	34091	1	254	1	12	0
@@ -48403,7 +48356,6 @@ naga male mask visual	69012	1	254	1	4	0
 naga scale	7072	1	254	25	7	0
 naga scale boots	24447	1	254	10	4	0
 naga scale bracers	52629	2	254	12	4	0
-naga treasure map - questgiver (ph)	30427	1	254	70	15	0
 nagahide leggings	31246	3	254	88	4	0
 nagahide pants	31244	3	254	88	4	0
 nagascale legguards	31243	3	254	88	4	0
@@ -49643,13 +49595,6 @@ obsidium executioner	55052	3	254	316	2	0
 obsidium meteorite	69807	1	254	1	12	0
 obsidium ore	53038	1	254	81	7	0
 obsidium skeleton key	55053	2	254	85	0	0
-obsolete	39214	3	254	70	4	0
-obsolete - lk arena 5 hunter 1h axe - obsolete	42239	4	254	239	2	0
-obsolete - lk arena 6 hunter 1h axe - obsolete	42240	4	254	252	2	0
-obsoleteidol of the beast	25667	0	254	79	15	0
-obsoletesigil of pestilential touch	40832	0	254	150	15	0
-obsoletesigil of the glorious mistake	40839	0	254	150	15	0
-obsoletesigil of the remembered fallen - do not use	39715	0	254	213	15	0
 ocean sapphire	52191	3	254	84	3	0
 ocean trident	36599	2	254	130	2	0
 ocean's breeze	18399	3	254	63	4	0
@@ -49765,37 +49710,43 @@ olakin's legs	43527	1	254	1	12	0
 olakin's right arm	43529	1	254	1	12	0
 olakin's torch	43524	1	254	1	12	0
 olakin's torso	43526	1	254	1	12	0
-oldacolyte's belt	58	1	254	1	4	0
-oldblackfathom magic relic	5331	1	254	1	15	0
-oldbrawler's belt	141	1	254	1	4	0
-oldceremonial club	4704	1	254	1	2	0
-oldceremonial club	5410	1	254	1	2	0
-olddwarven initiate's belt	90	1	254	1	4	0
-olddwarven initiate's boots	92	1	254	1	4	0
-olddwarven initiate's pants	91	0	254	1	4	0
-olddwarven initiate's shirt	93	1	254	1	4	0
-oldfootpad's belt	46	1	254	1	4	0
-oldinitiate's belt	50	1	254	1	4	0
-oldmonster - chest, plate silver	3242	0	254	1	4	0
-oldmonster - feet, plate silver	3244	0	254	1	4	0
-oldmonster - hands, plate silver	3245	0	254	1	4	0
-oldmonster - legs, plate silver	3243	0	254	1	4	0
-oldmonster - mace, standard basic offhand	3044	0	254	1	2	0
-oldmonster - shoulder, plate silver	3246	0	254	1	4	0
-oldmonster - waist, plate silver	3247	0	254	1	4	0
-oldneophyte's belt	137	1	254	1	4	0
-oldnoboru's cudgel	6090	1	254	1	12	0
-oldnovice's belt	54	1	254	1	4	0
-oldplague vials	5438	1	254	1	12	0
-oldprimitive leather belt	152	1	254	1	4	0
-oldrecruit's belt	41	1	254	1	4	0
-oldrugged trapper's belt	146	1	254	1	4	0
-oldsquire's belt	42	1	254	1	4	0
-oldthick trapper's shirt	89	1	254	1	4	0
-oldthug belt	122	1	254	1	4	0
-oldthunderhorn cleansing totem	4760	1	254	1	4	0
-oldwildmane cleansing totem	4762	1	254	1	4	0
-oldwinterhoof cleansing totem	4750	1	254	1	4	0
+old "pirate" map	67400	0	254	1	15	0
+old blanchy's blanket	2165	1	254	10	4	0
+old blanchy's feed pouch	1537	1	254	1	1	0
+old blunderbuss	2508	1	254	2	2	0
+old boot	45199	0	254	1	15	0
+old crafty	34486	2	254	20	15	0
+old currycomb	56163	0	254	1	15	0
+old dark iron ore	11099	1	254	55	7	0
+old dwarven hammer	58993	2	254	12	2	0
+old elekk prod	26049	2	254	11	2	0
+old friend's gloves	63475	3	254	346	4	0
+old gods' blessing	53495	4	254	251	4	0
+old greatsword	1513	0	254	14	2	0
+old guard's greataxe	59100	2	254	23	2	0
+old guard's hammer	59102	2	254	23	2	0
+old hillpaw's prize chicken	80223	1	0	1	12	0
+old ironjaw	34484	2	254	20	15	0
+old journal page	49760	1	254	1	12	0
+old leather belt	2173	1	254	5	4	0
+old man thistle's almanac	86421	1	0	1	12	0
+old man thistle's treasure	86428	3	0	1	15	0
+old man's legwarmers	60903	2	254	22	4	0
+old map	86404	1	0	1	12	0
+old moneybag	4957	1	254	5	1	0
+old set cloth 2	54332	2	254	41	4	0
+old sheepskin	86465	1	0	1	12	0
+old skull	6297	0	254	1	15	0
+old smoothbore	49608	1	254	6	2	0
+old spellstrike hood	24265	4	254	105	4	0
+old spices	44114	1	254	1	0	0
+old teamster's skull	6301	0	254	1	15	0
+old tooth	36674	2	254	150	2	0
+old wagonwheel	6455	0	254	1	15	0
+old whistle of the ivory raptor	8589	1	254	30	15	0
+old whistle of the obsidian raptor	8590	1	254	30	15	0
+old whitebark's pendant	23228	1	254	1	12	0
+old whitebark's pendant	28209	1	254	1	12	0
 olemba root	25863	1	254	1	12	0
 olemba seed	25745	1	254	1	12	0
 olivia's graceful gaze	105811	4	0	559	4	0
@@ -52630,18 +52581,6 @@ pitchwood wand	5238	1	254	45	2	0
 pitiless pauldrons	61086	2	254	25	4	0
 pitted defias shortsword	2057	1	254	4	2	0
 pitted gold band	23717	1	254	1	4	0
-placeholder	94889	0	0	1	15	0
-placeholder 1h axe	72038	1	0	1	2	0
-placeholder 1h mace	72023	1	0	1	2	0
-placeholder 1h sword	72032	1	0	1	2	0
-placeholder 2h sword	72041	1	0	1	2	0
-placeholder crossbow	72022	1	0	2	2	0
-placeholder dagger 1	72036	1	0	1	2	0
-placeholder dagger 2	72037	1	0	1	2	0
-placeholder offhand 1	72034	1	0	1	4	0
-placeholder offhand 2	72024	1	0	1	4	0
-placeholder shield 1	72039	1	0	1	4	0
-placeholder staff	72040	1	0	1	2	0
 placid lightmace	36685	2	254	138	2	0
 plague band	34658	2	254	60	4	0
 plague cauldron lid	62170	2	254	36	4	0
@@ -54958,119 +54897,6 @@ pyrium-laced crystalline vial	65892	1	254	85	7	0
 pyroblast cinnamon ball	37582	1	254	1	0	0
 pysan's old greatsword	1975	3	254	35	2	0
 pythas' vest	66003	3	254	21	4	0
-qa enchantable bracers	89710	1	0	600	4	0
-qaenchant 2h weapon +25 agility	18599	1	254	1	0	0
-qaenchant 2h weapon +35 agility	29846	1	254	1	0	0
-qaenchant 2h weapon +70 attack power	29847	1	254	1	0	0
-qaenchant 2h weapon +9 damage	17887	1	254	1	0	0
-qaenchant boots +12 agility	29856	1	254	1	0	0
-qaenchant boots +12 stamina	29857	1	254	1	0	0
-qaenchant boots +4 health & mana\5	30199	1	254	1	0	0
-qaenchant boots +5 snare resist & +10 hit rating	29854	1	254	1	0	0
-qaenchant boots +5 spirit	17895	1	254	1	0	0
-qaenchant boots +6 agility & +8% speed	29853	1	254	1	0	0
-qaenchant boots +7 agility	17894	1	254	1	0	0
-qaenchant boots +7 stamina	17896	1	254	1	0	0
-qaenchant boots +8% speed	22587	1	254	1	0	0
-qaenchant boots +9 stamina & +8% speed	29852	1	254	1	0	0
-qaenchant bracer +12 defense	31846	1	254	1	0	0
-qaenchant bracer +12 intellect	31842	1	254	1	0	0
-qaenchant bracer +12 stamina	31847	1	254	1	0	0
-qaenchant bracer +12 strength	31849	1	254	1	0	0
-qaenchant bracer +15 spell damage	31845	1	254	1	0	0
-qaenchant bracer +24 attack power	31843	1	254	1	0	0
-qaenchant bracer +24 healing	22037	1	254	1	0	0
-qaenchant bracer +30 healing	31844	1	254	1	0	0
-qaenchant bracer +4 mana\5	22036	1	254	1	0	0
-qaenchant bracer +6 mana\5 sec	30877	1	254	1	0	0
-qaenchant bracer +7 intellect	17830	1	254	1	0	0
-qaenchant bracer +9 spirit	17829	1	254	1	0	0
-qaenchant bracer +9 stamina	17828	1	254	1	0	0
-qaenchant bracer +9 strength	17827	1	254	1	0	0
-qaenchant chest +100 health	17882	1	254	1	0	0
-qaenchant chest +15 resilience	29869	1	254	1	0	0
-qaenchant chest +15 spirit	29871	1	254	1	0	0
-qaenchant chest +150 health	29874	1	254	1	0	0
-qaenchant chest +150 mana	29873	1	254	1	0	0
-qaenchant chest +4 stats	22028	1	254	1	0	0
-qaenchant chest +6 mana\5	29870	1	254	1	0	0
-qaenchant chest +6 stats	29872	1	254	1	0	0
-qaenchant cloak +1% dodge	22043	1	254	1	0	0
-qaenchant cloak +10 shadow resistance	22588	1	254	1	0	0
-qaenchant cloak +12 agility	29860	1	254	1	0	0
-qaenchant cloak +15 arcane resistance	29859	1	254	1	0	0
-qaenchant cloak +15 fire resistance	22039	1	254	1	0	0
-qaenchant cloak +15 nature resistance	22040	1	254	1	0	0
-qaenchant cloak +15 shadow resistance	29858	1	254	1	0	0
-qaenchant cloak +20 spell penetration	29861	1	254	1	0	0
-qaenchant cloak +3 agility	22584	1	254	1	0	0
-qaenchant cloak +5 resistances	17884	1	254	1	0	0
-qaenchant cloak +7 resistances	30198	1	254	1	0	0
-qaenchant cloak +70 armor	17885	1	254	1	0	0
-qaenchant cloak +8 stealth	22041	1	254	1	0	0
-qaenchant cloak -2% threat	22042	1	254	1	0	0
-qaenchant fiery weapon	23725	1	254	45	0	0
-qaenchant gloves +1% haste	17899	1	254	1	0	0
-qaenchant gloves +10 spell crit rating	29866	1	254	1	0	0
-qaenchant gloves +15 agility	22033	1	254	1	0	0
-qaenchant gloves +15 spell hit rating	29864	1	254	1	0	0
-qaenchant gloves +15 strength	29867	1	254	1	0	0
-qaenchant gloves +2% threat	22034	1	254	1	0	0
-qaenchant gloves +20 fire damage	22030	1	254	1	0	0
-qaenchant gloves +20 frost damage	22029	1	254	1	0	0
-qaenchant gloves +20 shadow damage	22031	1	254	1	0	0
-qaenchant gloves +20 spell damage	29863	1	254	1	0	0
-qaenchant gloves +26 attack power	29868	1	254	1	0	0
-qaenchant gloves +30 healing	22032	1	254	1	0	0
-qaenchant gloves +35 healing	29862	1	254	1	0	0
-qaenchant gloves +5 fishing	23727	1	254	45	0	0
-qaenchant gloves +5 herbalism	22586	1	254	1	0	0
-qaenchant gloves +5 mining	22585	1	254	1	0	0
-qaenchant gloves +5 skinning	22035	1	254	1	0	0
-qaenchant gloves +7 agility	17898	1	254	1	0	0
-qaenchant gloves +7 strength	17897	1	254	1	0	0
-qaenchant gloves riding skill	23728	1	254	45	0	0
-qaenchant ring +12 spell damage	30193	1	254	1	0	0
-qaenchant ring +2 weapon damage	30191	1	254	1	0	0
-qaenchant ring +20 healing	30195	1	254	1	0	0
-qaenchant ring +4 stats	30197	1	254	1	0	0
-qaenchant shield +12 intellect	29850	1	254	1	0	0
-qaenchant shield +15 block value	29851	1	254	1	0	0
-qaenchant shield +18 stamina	29849	1	254	1	0	0
-qaenchant shield +2% block chance	22038	1	254	1	0	0
-qaenchant shield +5 resistances	29848	1	254	1	0	0
-qaenchant shield +7 stamina	17891	1	254	1	0	0
-qaenchant shield +8 frost resistance	17892	1	254	1	0	0
-qaenchant shield +9 spirit	17893	1	254	1	0	0
-qaenchant weapon +15 strength	22022	1	254	1	0	0
-qaenchant weapon +20 spirit	22023	1	254	1	0	0
-qaenchant weapon +20 strength	29845	1	254	1	0	0
-qaenchant weapon +22 intellect	22021	1	254	1	0	0
-qaenchant weapon +30 intellect	29843	1	254	1	0	0
-qaenchant weapon +40 spell damage	29842	1	254	1	0	0
-qaenchant weapon +5 damage	17888	1	254	1	0	0
-qaenchant weapon +7 damage	29844	1	254	1	0	0
-qaenchant weapon +81 healing	29837	1	254	1	0	0
-qaenchant weapon battlemaster	29838	1	254	1	0	0
-qaenchant weapon executioner	33315	1	254	1	0	0
-qaenchant weapon healing power	18669	1	254	1	0	0
-qaenchant weapon icy chill	18667	1	254	1	0	0
-qaenchant weapon lifestealing	22025	1	254	1	0	0
-qaenchant weapon mongoose	29839	1	254	1	0	0
-qaenchant weapon soulfrost	29840	1	254	1	0	0
-qaenchant weapon spell power	18668	1	254	1	0	0
-qaenchant weapon spellsurge	32952	1	254	1	0	0
-qaenchant weapon sunfire	29841	1	254	1	0	0
-qaenchant weapon unholy	22024	1	254	1	0	0
-qaenchhelp cloak +7 fire resistance	16104	1	254	1	0	0
-qatest +1000 spell dmg ring	24358	4	254	6	4	0
-qatest +150 dodge ring	31851	3	254	1	4	0
-qatest +1500 spell dmg ring	45024	4	254	6	4	0
-qatest +400 spell dmg ring	28816	3	254	1	4	0
-qatest +500 dodge ring	31850	3	254	1	4	0
-qatest darkmoon faire tickets	23271	1	254	55	15	0
-qatest raid buffs lvl 60	12789	1	254	1	15	0
-qatest raid buffs lvl 70	30711	1	254	1	15	0
 qebnet greaves	65796	2	254	312	4	0
 qian-le, courage of niuzao	102245	5	0	600	4	0
 qian-ying, fortitude of niuzao	102250	5	0	600	4	0
@@ -55207,8 +55033,6 @@ quel'thalas registry	15847	1	254	1	12	0
 quelling bracers	62212	2	254	40	4	0
 quenched illidari-bane blade	30876	1	254	1	12	0
 quest giver's pauldrons	65693	2	254	20	4	0
-quest reward placeholder	64678	0	254	1	15	0
-quest reward placeholder - blue	64679	0	254	1	15	0
 quester's scroll of enchant chest - powerful stats	49130	1	254	1	0	0
 questioning axe	61493	2	254	289	2	0
 quet'zal's crackling cord	94970	4	0	522	4	0
@@ -57294,7 +57118,6 @@ remote detonator (blue)	5693	1	254	1	12	0
 remote detonator (red)	5692	1	254	1	12	0
 remote mail terminal	23840	1	254	67	7	0
 remtravel thinking cap	53572	2	254	52	4	0
-rename  forestwalker spear unused	101067	2	0	483	2	0
 renataki's charm of beasts	19953	4	254	65	4	0
 renataki's charm of trickery	19954	4	254	65	4	0
 renataki's soul charm	94512	4	0	522	4	0
@@ -61267,7 +61090,6 @@ savage gladiator's wyrmhide spaulders	41278	3	254	200	4	0
 savage guard	22635	3	254	60	15	0
 savage handwraps	61558	2	254	33	4	0
 savage leather	52976	1	254	81	7	0
-savage leather (unused)	56478	1	254	80	7	0
 savage leather scraps	52977	1	254	78	7	0
 savage leggings	24439	2	254	11	4	0
 savage mail boots	12616	2	254	63	4	0
@@ -71094,7 +70916,6 @@ theradric crystal carving	17684	1	254	1	12	0
 theralion's mirror	59519	4	254	359	4	0
 theralion's mirror	65105	4	254	372	4	0
 theramore arcanist's hat	90017	4	0	384	4	0
-theramore guard medallion unused	5896	1	254	1	12	0
 theramore medal	5078	1	254	1	12	0
 theramore merit badge	49850	1	254	1	12	0
 theramore tabard	89196	3	0	1	4	0
@@ -75119,7 +74940,6 @@ unkempt pants	21006	0	254	2	4	0
 unkempt robe	21007	0	254	4	4	0
 unkempt shoes	21008	0	254	4	4	0
 unknown archaeologist's hammer	35664	3	254	163	2	0
-unknown reward	1217	1	254	1	12	0
 unlit challenger's torch	75008	1	0	1	12	0
 unlit poor torch	6183	1	254	10	0	0
 unlit torch	190307	1	254	1	12	0
@@ -75208,13 +75028,6 @@ untested basilisk sample	9437	1	254	1	12	0
 untested hyena sample	9439	1	254	1	12	0
 untested scorpid sample	9442	1	254	1	12	0
 untranslated journal	7886	1	254	1	12	0
-unused	100295	4	0	511	2	0
-unused	100296	4	0	511	2	0
-unused	100484	4	0	511	2	0
-unused	100485	4	0	511	2	0
-unused	100531	4	0	511	2	0
-unused	100544	4	0	511	2	0
-unused	276074	4	0	90	15	0
 unusual compass	45984	1	254	80	15	0
 unusual flower bud	49815	1	254	1	12	0
 unusual staff	36546	2	254	142	2	0
@@ -77566,7 +77379,6 @@ war mace of unrequited love	37169	4	254	200	2	0
 war master's pauldrons	65981	3	254	59	4	0
 war maul	2533	1	254	45	2	0
 war of the satyr	67413	1	254	1	0	0
-war paint (shirt) not good for the ladies (nyi)	53869	1	254	1	4	0
 war paint anklewraps	14722	2	254	17	4	0
 war paint bindings	14723	2	254	17	4	0
 war paint chestpiece	14730	2	254	23	4	0
@@ -79831,7 +79643,6 @@ winter squid	13755	1	254	35	0	0
 winter stationery	34171	1	254	1	15	0
 winter veil candy	21240	1	254	55	0	0
 winter veil cookie	21254	1	254	55	0	0
-winter veil cookie unused	21238	1	254	55	0	0
 winter veil disguise kit	17712	1	254	1	15	0
 winter veil egg nog	17198	1	254	1	0	0
 winter veil eggnog	21241	1	254	55	0	0
@@ -81331,8 +81142,4 @@ zweihander	2529	1	254	46	2	0
 zx-5103 mechanical suit	41178	1	254	85	7	0
 zykes' belt	53308	2	254	31	4	0
 zzunusedlieutenant general's mount	16344	1	254	60	15	0
-zzzold arcanum of reputation template - ph	44124	0	254	80	12	0
-zzzolddaily quest faction token	43949	3	254	80	10	0
-zzzoldgreater inscription of template - ph	44126	4	254	80	12	0
-zzzoldlesser inscription of template - ph	44125	3	254	80	12	0
 ]]
