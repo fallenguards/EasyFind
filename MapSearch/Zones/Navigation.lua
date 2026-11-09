@@ -43,7 +43,7 @@ function MapSearch:HighlightZoneOnMap(targetMapID, zoneName)
     local targetParentMapID = GetMapParentID(targetMapID, targetInfo)
     if not targetParentMapID then
         DebugPrint("No parent, going directly to zone")
-        WorldMapFrame:SetMapID(targetMapID)
+        MapSearch.TurnMap(targetMapID)
         return
     end
 
@@ -167,7 +167,7 @@ function MapSearch:HighlightZoneOnMap(targetMapID, zoneName)
 
     if not dcaMapID then
         DebugPrint("ERROR: No common ancestor, falling back to direct nav")
-        WorldMapFrame:SetMapID(targetParentMapID)
+        MapSearch.TurnMap(targetParentMapID)
         ScheduleHighlight(targetMapID)
         return
     end

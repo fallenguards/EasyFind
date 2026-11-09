@@ -250,6 +250,10 @@ function API.RefreshUpgrades() end
 ---A provider row's spots on the map tab: the map searched for the row, its spots pinned on the viewed map, else the nearest one's map opened (MINOR 3). key: the provider's; row: the copy select got. True when shown.
 ---@return boolean
 function API.ShowPlaces(key, row) end
+---Opens the world map on a map, or turns the open map to it, the way the game's own open does (MINOR 11). Turn the map only through this: an addon's SetMapID marks the map as the addon's for the session, and the game refuses its own actions on every later open. In a fight the game refuses the open: false, and the turn happens as the fight ends if the map is still up.
+---@param mapID number
+---@return boolean
+function API.OpenMap(mapID) end
 ---Shows the search bar focused, with text searched when given.
 ---@param text string?
 ---@return boolean

@@ -70,10 +70,10 @@ function MapSearch:HighlightBreadcrumbForNavigation(dcaMapID, finalTargetMapID, 
             self:ShowBreadcrumbHighlight(buttonToHighlight, finalTargetMapID)
         else
             DebugPrint("No breadcrumb at all, navigating directly to DCA")
-            -- Set pending BEFORE SetMapID: SetMapID fires OnMapChanged sync.
+            -- Set pending BEFORE the turn: it fires OnMapChanged sync.
             self.pendingZoneHighlight = finalTargetMapID
-            DebugPrint("Set pendingZoneHighlight BEFORE SetMapID:", finalTargetMapID)
-            WorldMapFrame:SetMapID(dcaMapID)
+            DebugPrint("Set pendingZoneHighlight BEFORE the turn:", finalTargetMapID)
+            MapSearch.TurnMap(dcaMapID)
         end
     end
 end

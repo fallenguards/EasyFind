@@ -51,6 +51,34 @@ local efPlacedWaypoint = false
 -- dropping (or replacing with) their own default waypoint.
 local efSettingWaypoint = false
 
+-- The client's own open where it has one: a bare SetMapID from addon code
+-- taints every later open of the map (reading emote, pins' passthrough).
+-- In a fight the client refuses the open and a bare turn trips the pins'
+-- passthrough, so the turn waits for the fight's end while the map is up.
+local OpenWorldMap = C_Map.OpenWorldMap
+local turnAfterFight
+local fightWatch = CreateFrame("Frame")
+function MapSearch.TurnMap(mapID)
+    if not (mapID and WorldMapFrame) then return false end
+    if InCombatLockdown() then
+        turnAfterFight = mapID
+        fightWatch:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return false
+    end
+    if OpenWorldMap then
+        OpenWorldMap(mapID)
+    else
+        WorldMapFrame:SetMapID(mapID)
+    end
+    return true
+end
+fightWatch:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    local mapID = turnAfterFight
+    turnAfterFight = nil
+    if mapID and WorldMapFrame:IsShown() then MapSearch.TurnMap(mapID) end
+end)
+
 -- Our waypoint and super-track changes wait out an open world map: one made
 -- under it rebuilds the game's pin in our name, and Shift-click is refused.
 local WAYPOINT_WAIT_ORDER = { "place", "quest", "vignette", "track" }
@@ -636,7 +664,7 @@ function MapSearch:NavigateToEntrance(name, x, y, icon, category, targetMapID, d
     if IsOrphanZone(targetMapID) or directMode then
         self:ClearZoneHighlight()
         self.pendingWaypoint = {x = x, y = y, icon = icon, category = category, mapID = targetMapID, name = name}
-        WorldMapFrame:SetMapID(targetMapID)
+        MapSearch.TurnMap(targetMapID)
         if directMode then PlaceTrackedWaypoint(targetMapID, x, y) end
     else
         self.pendingWaypoint = {x = x, y = y, icon = icon, category = category, mapID = targetMapID, name = name}
@@ -679,7 +707,7 @@ function MapSearch:SelectResult(data, directOverride)
         if data.isZoneParent and data.zoneMapID then
             DebugPrint("[EasyFind] SelectResult -> ZONE PARENT branch, navigating to", data.zoneMapID)
             self:ClearZoneHighlight()
-            WorldMapFrame:SetMapID(data.zoneMapID)
+            MapSearch.TurnMap(data.zoneMapID)
             return
         end
 
@@ -722,7 +750,7 @@ function MapSearch:SelectResult(data, directOverride)
             if IsOrphanZone(data.zoneMapID) then
                 DebugPrint("[EasyFind] SelectResult -> ORPHAN ZONE, snapping directly to", data.zoneMapID)
                 self:ClearZoneHighlight()
-                WorldMapFrame:SetMapID(data.zoneMapID)
+                MapSearch.TurnMap(data.zoneMapID)
             elseif directMode then
                 -- Direct (Fast) mode: every zone click zooms straight into the
                 -- zone's own map. Skipping NavigateToEntrance keeps behavior
@@ -731,7 +759,7 @@ function MapSearch:SelectResult(data, directOverride)
                 -- and require a second click on the pin to actually enter.
                 DebugPrint("[EasyFind] SelectResult -> ZONE DIRECT branch, zoneMapID=", data.zoneMapID)
                 self:ClearZoneHighlight()
-                WorldMapFrame:SetMapID(data.zoneMapID)
+                MapSearch.TurnMap(data.zoneMapID)
             elseif data.entranceX and data.entranceY and data.entranceMapID then
                 DebugPrint("[EasyFind] SelectResult -> ZONE+ENTRANCE branch, entranceMapID=", data.entranceMapID)
                 self:NavigateToEntrance(data.name, data.entranceX, data.entranceY, data.entranceIcon, data.entranceCategory, data.entranceMapID, directMode)
@@ -765,7 +793,7 @@ function MapSearch:SelectResult(data, directOverride)
                 mapID = spotMapID, name = data.name, displayID = spot.displayID }
             if directMode or IsOrphanZone(spotMapID) then
                 self:ClearZoneHighlight()
-                WorldMapFrame:SetMapID(spotMapID)
+                MapSearch.TurnMap(spotMapID)
             else
                 self:HighlightZoneOnMap(spotMapID, data.name)
             end

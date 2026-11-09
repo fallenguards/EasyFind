@@ -313,7 +313,7 @@ function MapSearch:HighlightZone(mapID)
                 left, right, top, bottom = minX, maxX, minY, maxY
                 DebugPrint("HighlightZone: found via blind scan", minX, maxX, minY, maxY)
             else
-                WorldMapFrame:SetMapID(mapID)
+                MapSearch.TurnMap(mapID)
                 return
             end
         end
@@ -464,7 +464,7 @@ function MapSearch:HighlightZone(mapID)
                 self:Hide()
                 local ms = ns.MapSearch
                 if ms then ms.pendingZoneHighlight = nil end
-                WorldMapFrame:SetMapID(self.targetMapID)
+                MapSearch.TurnMap(self.targetMapID)
             end)
             overlay:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_CURSOR")

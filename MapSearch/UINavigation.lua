@@ -39,11 +39,11 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
             -- so breadcrumb/teaching mode kicks in (HighlightBreadcrumb...).
             self:SelectResult(data, false)
         elseif data.entranceMapID and data.entranceX and data.entranceY then
-            WorldMapFrame:SetMapID(data.entranceMapID)
+            MapSearch.TurnMap(data.entranceMapID)
             self:ShowWaypointAt(data.entranceX, data.entranceY,
                 data.entranceIcon or data.icon, data.entranceCategory or data.category)
         elseif data.zoneMapID then
-            WorldMapFrame:SetMapID(data.zoneMapID)
+            MapSearch.TurnMap(data.zoneMapID)
         end
     else
         -- Local POI: open the world map at the POI's zone and show the
@@ -64,7 +64,7 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
                 ToggleWorldMap()
             end
             if WorldMapFrame and WorldMapFrame:GetMapID() ~= data.mapID then
-                WorldMapFrame:SetMapID(data.mapID)
+                MapSearch.TurnMap(data.mapID)
             end
             self:ShowWaypointAt(x, y, data.icon, data.category, nil, data.displayID)
             if not forceGuide and EasyFind.db.localMapDirectOpen then

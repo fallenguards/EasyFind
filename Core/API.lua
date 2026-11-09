@@ -647,6 +647,14 @@ function API.ShowPlaces(key, row)
     return ns.MapSearch:ShowProviderPlaces(p, row)
 end
 
+-- The world map opened on a map, or turned to it, the way the game's own
+-- open does (MINOR 11): an addon's SetMapID marks the map as the addon's
+-- for the session. False in a fight: the turn comes as the fight ends.
+function API.OpenMap(mapID)
+    if not (ns.MapSearch and ns.MapSearch.TurnMap) then return false end
+    return ns.MapSearch.TurnMap(mapID)
+end
+
 -- ==== add targets =============================================================
 
 -- An entry in a result's right-click Add flyout, beside Note and Quicklist.
