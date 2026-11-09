@@ -407,8 +407,8 @@ function Filters:BuildAppearanceOptionsPopup(StylePopup, CHECK_SIZE, dropdownGua
         StylePopup, CHECK_SIZE, dropdownGuardFrames, branchPopups)
     local setsPopup, syncSets = Filters:BuildAppearanceSetOptionsPopup(
         StylePopup, CHECK_SIZE, dropdownGuardFrames, branchPopups)
-    itemsPopup:SetFrameLevel(chooser:GetFrameLevel() + 10)
-    setsPopup:SetFrameLevel(chooser:GetFrameLevel() + 10)
+    itemsPopup:SetFrameLevel(chooser:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
+    setsPopup:SetFrameLevel(chooser:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
     if dropdownGuardFrames then
         dropdownGuardFrames[#dropdownGuardFrames + 1] = itemsPopup
         dropdownGuardFrames[#dropdownGuardFrames + 1] = setsPopup

@@ -2059,6 +2059,7 @@ function ns.StyleMenuPanel(frame)
     end
     frame._efForeverSurface = true
     frame._efClassicSurface = true
+    frame._efBandLevel = Utils.MENU_LEVEL_STEP - 1
     -- Registry (weak keys) so a theme flip can restyle menus that are
     -- OPEN at that moment; their OnShow refill never refires for them.
     ns._menuPanels = ns._menuPanels or setmetatable({}, { __mode = "k" })
@@ -2867,7 +2868,7 @@ do
         local inset = px.fillIn * b
         local w, h = fw - 2 * inset, fh - 2 * inset
         if w <= 0 or h <= 0 then return end
-        f.border:SetFrameLevel(frame:GetFrameLevel() + FOREVER.level)
+        f.border:SetFrameLevel(frame:GetFrameLevel() + (frame._efBandLevel or FOREVER.level))
         -- Edges tile at the art's own length.
         local tile = px.edgeLen * b
         local across = mmax(fw + (px.outLeft + px.outRight - 2 * px.cornerW) * b, 1) / tile
@@ -7733,6 +7734,9 @@ end
 -- Menus keep this far inside the screen's edge: their border art draws
 -- outside the frame, and a frame flush with the edge lost it.
 Utils.MENU_EDGE = 8
+-- A menu over a menu sits this far above it; a menu panel's Forever band
+-- stays one under, so a parent's border never crosses its child's body.
+Utils.MENU_LEVEL_STEP = 10
 
 function Utils.ClampMenu(popup, s)
     if not popup.SetClampedToScreen then return end

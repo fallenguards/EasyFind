@@ -493,7 +493,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, appBranchPopups = Search:BuildAppearanceOptionsPopup(
                         StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._appearanceSetOptionsPopup = optionsPopup
                     RegisterSubBranchPopup(optionsPopup)
@@ -517,7 +517,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, sourcePopup = Search:BuildMountOptionsPopup(
                         StylePopup, CHECK_SIZE)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._mountOptionsPopup = optionsPopup
                     popup._mountSourcePopup = sourcePopup
@@ -543,7 +543,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, sourcePopup = Search:BuildHeirloomOptionsPopup(
                         StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._heirloomOptionsPopup = optionsPopup
                     popup._heirloomSourcePopup = sourcePopup
@@ -573,7 +573,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions = Filters:BuildCheckboxOptionsPopup(
                         sub, StylePopup, CHECK_SIZE)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup["_" .. sub.key .. "OptionsPopup"] = optionsPopup
                     RegisterSubBranchPopup(optionsPopup)
@@ -596,7 +596,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, branchPopups =
                         build(Filters, StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup["_" .. sub.key .. "OptionsPopup"] = optionsPopup
                     for bpi = 1, #branchPopups do
@@ -624,7 +624,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, sourcePopup, expansionPopup =
                         Search:BuildToyOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._toyOptionsPopup = optionsPopup
                     popup._toySourcePopup = sourcePopup
@@ -653,7 +653,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, flyouts =
                         Filters:BuildNpcOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._npcOptionsPopup = optionsPopup
                     RegisterSubBranchPopup(optionsPopup)
@@ -678,7 +678,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, sourcePopup, typePopup =
                         Search:BuildPetOptionsPopup(StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._petOptionsPopup = optionsPopup
                     popup._petSourcePopup = sourcePopup
@@ -708,7 +708,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     local optionsPopup, syncOptions, qualityPopup = Search:BuildCatalogOptionsPopup(
                         StylePopup, CHECK_SIZE, dropdownGuardFrames)
                     optionsPopup._efSync = syncOptions
-                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    optionsPopup:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     optionsPopup._owningRow = subRow
                     popup._catalogOptionsPopup = optionsPopup
                     popup._catalogQualityPopup = qualityPopup
@@ -744,7 +744,7 @@ function Filters:CreateUIFilterDropdown(toggleBtn, anchorFrame, searchEditBox)
                     StylePopup(nested)
                     nested:EnableMouse(true)
                     nested:Hide()
-                    nested:SetFrameLevel(popup:GetFrameLevel() + 10)
+                    nested:SetFrameLevel(popup:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
                     nested._owningRow = subRow
                     dropdownGuardFrames[#dropdownGuardFrames + 1] = nested
                     dropdown.flyoutPopups[#dropdown.flyoutPopups + 1] = nested
