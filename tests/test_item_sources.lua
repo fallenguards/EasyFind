@@ -9,14 +9,9 @@ local function fresh(opts)
     local shown, applied = nil, nil
     -- The stand-in API after newNs: with EasyFind set first, the harness loads the real one over it.
     local ns = H.newNs(env)
-    env.EasyFind = {
-        API = {
-            HasAction = function(id, name) return id == "gps" and name == "sellers" and opts.sellers ~= nil end,
-            CallAction = function(id, name, itemName)
-                if id == "gps" and name == "sellers" then return opts.sellers(itemName) end
-            end,
-        },
-    }
+    env.EasyFind = { API = {} }
+    -- The creature catalog's vendors of an item (MapSearch/Npcs.lua).
+    ns.Npcs = opts.sellers and { Sellers = function(_, itemName) return opts.sellers(itemName) end } or nil
     ns.Extensions = { Run = function(fn, ...) return pcall(fn, ...) end }
     ns.Filters = { ApplyQuickFilter = function(_, def, text) applied = { def = def, text = text } end }
     ns.Results = { ShowHierarchicalResults = function(_, entries)

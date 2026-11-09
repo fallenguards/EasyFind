@@ -83,9 +83,8 @@ end
 
 local function Sections(item)
     local out = {}
-    local API = EasyFind.API
-    if API.HasAction("gps", "sellers") then
-        local rows = API.CallAction("gps", "sellers", item.name)
+    if ns.Npcs and ns.Npcs.Sellers then
+        local rows = ns.Npcs.Sellers({}, item.name)
         if type(rows) == "table" and #rows > 0 then out[#out + 1] = { label = L["SOURCES_SOLD_BY"], rows = rows } end
     end
     local bosses = {}

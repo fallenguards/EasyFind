@@ -270,7 +270,7 @@ end
 -- catalog has it; its row stands in for the catalog's.
 local sformat = string.format
 local function TitledCreature(entry, loc)
-    local Npcs = ns.GPSNpcs
+    local Npcs = ns.Npcs
     local creature = Npcs and Npcs.ByName and Npcs.ByName(loc.npcName)
     local name = creature and creature.name or loc.npcName
     entry.name = sformat(L["POI_TITLED_FMT"], loc.name, name)

@@ -94,7 +94,7 @@ local function ReconstructMapData(key)
         end
     end
     -- A creature: its name, portrait and zone from the creature catalog.
-    local creature = category == "npc" and ns.GPSNpcs and ns.GPSNpcs.ByName and ns.GPSNpcs.ByName(name)
+    local creature = category == "npc" and ns.Npcs and ns.Npcs.ByName and ns.Npcs.ByName(name)
     local zoneInfo = creature and mapID and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
     return {
         name = (creature and creature.name) or properName or name,
@@ -352,7 +352,7 @@ end
 -- one) takes it from the creature catalog by name, once.
 local function FillCreature(entry)
     if not (entry and entry.category == "npc" and not entry.displayID) then return entry end
-    local npcs = ns.GPSNpcs
+    local npcs = ns.Npcs
     local hit = npcs and npcs.ByName and npcs.ByName(entry.nameLower or entry.name)
     if hit then
         entry.name = hit.name

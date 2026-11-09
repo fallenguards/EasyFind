@@ -23,7 +23,7 @@ local function Env()
     }
     ns.MapSearch = { GetGlobalInstanceCache = function() return { { name = "The Deadmines", entranceMapID = 1431 } } end }
     local asked = {}
-    ns.GPSNpcs = {
+    ns.Npcs = {
         NamedOn = function(name, maps)
             asked[#asked + 1] = name
             if name == "Hogger" and maps[1429] then return 448 end
@@ -62,7 +62,7 @@ function tests.hasCreatureAsksTheCatalog_placesAnswerWithoutOne()
     H.assertTrue(API.HasCreature(448))
     H.assertFalse(API.HasCreature(449))
     H.assertFalse(API.HasCreature("448"))
-    ns.GPSNpcs = nil
+    ns.Npcs = nil
     H.assertFalse(API.HasCreature(448), "no catalog loaded")
     H.assertEq(API.HasRow("Hogger", 1429), false, "and no creature row")
     H.assertEq(API.HasRow("Innkeeper", 1429), true, "the places still answer")

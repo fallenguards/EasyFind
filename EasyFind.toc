@@ -2,7 +2,7 @@
 ## Title: EasyFind
 ## Notes: Search and locate UI elements and map locations with ease
 ## Author: justawower
-## Version: 5.2.0
+## Version: 5.3.0
 ## X-Curse-Project-ID: 1454793
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
@@ -86,6 +86,50 @@ Database/Loot_TBC_ruRU.lua [AllowLoadGameType tbc] [AllowLoadTextLocale ruRU]
 Database/Loot_TBC_zhCN.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhCN]
 Database/Loot_TBC_zhTW.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhTW]
 Database/LootGear_TBC.lua [AllowLoadGameType tbc]
+Database/Npcs_Forever.lua [AllowLoadGameType camelot]
+Database/Npcs_Forever_deDE.lua [AllowLoadGameType camelot] [AllowLoadTextLocale deDE]
+Database/Npcs_Forever_esES.lua [AllowLoadGameType camelot] [AllowLoadTextLocale esES]
+Database/Npcs_Forever_esMX.lua [AllowLoadGameType camelot] [AllowLoadTextLocale esMX]
+Database/Npcs_Forever_frFR.lua [AllowLoadGameType camelot] [AllowLoadTextLocale frFR]
+Database/Npcs_Forever_itIT.lua [AllowLoadGameType camelot] [AllowLoadTextLocale itIT]
+Database/Npcs_Forever_koKR.lua [AllowLoadGameType camelot] [AllowLoadTextLocale koKR]
+Database/Npcs_Forever_ptBR.lua [AllowLoadGameType camelot] [AllowLoadTextLocale ptBR]
+Database/Npcs_Forever_ruRU.lua [AllowLoadGameType camelot] [AllowLoadTextLocale ruRU]
+Database/Npcs_Forever_zhCN.lua [AllowLoadGameType camelot] [AllowLoadTextLocale zhCN]
+Database/Npcs_Forever_zhTW.lua [AllowLoadGameType camelot] [AllowLoadTextLocale zhTW]
+Database/Npcs_Era.lua [AllowLoadGameType vanilla]
+Database/Npcs_Era_deDE.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale deDE]
+Database/Npcs_Era_esES.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale esES]
+Database/Npcs_Era_esMX.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale esMX]
+Database/Npcs_Era_frFR.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale frFR]
+Database/Npcs_Era_itIT.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale itIT]
+Database/Npcs_Era_koKR.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale koKR]
+Database/Npcs_Era_ptBR.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale ptBR]
+Database/Npcs_Era_ruRU.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale ruRU]
+Database/Npcs_Era_zhCN.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale zhCN]
+Database/Npcs_Era_zhTW.lua [AllowLoadGameType vanilla] [AllowLoadTextLocale zhTW]
+Database/Npcs_TBC.lua [AllowLoadGameType tbc]
+Database/Npcs_TBC_deDE.lua [AllowLoadGameType tbc] [AllowLoadTextLocale deDE]
+Database/Npcs_TBC_esES.lua [AllowLoadGameType tbc] [AllowLoadTextLocale esES]
+Database/Npcs_TBC_esMX.lua [AllowLoadGameType tbc] [AllowLoadTextLocale esMX]
+Database/Npcs_TBC_frFR.lua [AllowLoadGameType tbc] [AllowLoadTextLocale frFR]
+Database/Npcs_TBC_itIT.lua [AllowLoadGameType tbc] [AllowLoadTextLocale itIT]
+Database/Npcs_TBC_koKR.lua [AllowLoadGameType tbc] [AllowLoadTextLocale koKR]
+Database/Npcs_TBC_ptBR.lua [AllowLoadGameType tbc] [AllowLoadTextLocale ptBR]
+Database/Npcs_TBC_ruRU.lua [AllowLoadGameType tbc] [AllowLoadTextLocale ruRU]
+Database/Npcs_TBC_zhCN.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhCN]
+Database/Npcs_TBC_zhTW.lua [AllowLoadGameType tbc] [AllowLoadTextLocale zhTW]
+Database/Npcs_Retail.lua [AllowLoadGameType standard]
+Database/Npcs_Retail_deDE.lua [AllowLoadGameType standard] [AllowLoadTextLocale deDE]
+Database/Npcs_Retail_esES.lua [AllowLoadGameType standard] [AllowLoadTextLocale esES]
+Database/Npcs_Retail_esMX.lua [AllowLoadGameType standard] [AllowLoadTextLocale esMX]
+Database/Npcs_Retail_frFR.lua [AllowLoadGameType standard] [AllowLoadTextLocale frFR]
+Database/Npcs_Retail_itIT.lua [AllowLoadGameType standard] [AllowLoadTextLocale itIT]
+Database/Npcs_Retail_koKR.lua [AllowLoadGameType standard] [AllowLoadTextLocale koKR]
+Database/Npcs_Retail_ptBR.lua [AllowLoadGameType standard] [AllowLoadTextLocale ptBR]
+Database/Npcs_Retail_ruRU.lua [AllowLoadGameType standard] [AllowLoadTextLocale ruRU]
+Database/Npcs_Retail_zhCN.lua [AllowLoadGameType standard] [AllowLoadTextLocale zhCN]
+Database/Npcs_Retail_zhTW.lua [AllowLoadGameType standard] [AllowLoadTextLocale zhTW]
 Database/StaticLocations.lua
 Database/StaticLocations_Retail.lua [AllowLoadGameType standard]
 Database/StaticLocations_Forever.lua [AllowLoadGameType camelot]
@@ -201,6 +245,7 @@ MapSearch/Search/Core.lua
 MapSearch/Search/Sources.lua
 MapSearch/Search/Scanners.lua
 MapSearch/Search/Results.lua
+MapSearch/Npcs.lua
 MapSearch/Zones/Catalog.lua
 MapSearch/PlaceList.lua
 MapSearch/MapTab.lua

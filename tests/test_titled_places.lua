@@ -34,7 +34,7 @@ local function loadStatics(npcs)
     env.tinsert = table.insert
     env.ipairs, env.pairs = ipairs, pairs
     env.L = { POI_TITLED_FMT = "%s %s" }
-    env.ns = { GPSNpcs = npcs }
+    env.ns = { Npcs = npcs }
     env.STATIC_LOCATIONS = ROWS
     env.staticLocationCache = {}
     env.emptyStaticLocations = {}

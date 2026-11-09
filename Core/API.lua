@@ -1230,7 +1230,7 @@ end
 function API.HasRow(name, mapID)
     if type(name) ~= "string" or name == "" or type(mapID) ~= "number" then return false end
     local maps = MapAndZone(mapID)
-    local npcs = ns.GPSNpcs
+    local npcs = ns.Npcs
     local npcID = npcs and npcs.NamedOn and npcs.NamedOn(name, maps)
     if npcID then return npcID end
     local on = PlaceMaps()[slower(name)]
@@ -1243,7 +1243,7 @@ end
 
 -- Whether the loaded creature catalog has the creature (MINOR 6).
 function API.HasCreature(npcID)
-    local npcs = ns.GPSNpcs
+    local npcs = ns.Npcs
     return type(npcID) == "number" and npcs ~= nil and npcs.HasID ~= nil and npcs.HasID(npcID) == true
 end
 

@@ -74,6 +74,17 @@ function tests.flightPathsTurnedOnSurviveTheFold()
     H.assertEq(db.dbVersion, version)
 end
 
+-- Creatures became EasyFind's own in 5.3.0: the NPCs filter, off while they
+-- were the GPS extension's, turns on once in every store, the profile slots too.
+function tests.creatureRowsTurnOnOnceAtTwentyEight()
+    local db = Load({ dbVersion = 27, mapFilters = { npcs = false, rares = false }, uiMapFilters = { npcs = false },
+        profiles = { Alt = { settings = { uiMapFilters = { npcs = false } } } } })
+    H.assertEq(db.mapFilters.npcs, true, "the map tab's creatures on")
+    H.assertEq(db.mapFilters.rares, false, "another filter the player turned off stays off")
+    H.assertEq(db.uiMapFilters.npcs, true, "the search bar's creatures on")
+    H.assertTrue(db.profiles.Alt.settings.uiMapFilters.npcs ~= false, "the slot forgets the old default")
+end
+
 function tests.profileSlotsGetTheStepsTheyMissed()
     local db = Load({ dbVersion = 21, profiles = { Alt = { settings = { mapPinHighlight = false } } } })
     local settings = db.profiles.Alt.settings
