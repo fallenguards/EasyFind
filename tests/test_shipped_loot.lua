@@ -96,5 +96,19 @@ function tests.eraHasNoHeroicLoot()
     for _, boss in ipairs(all) do H.assertNil(boss.heroic, boss.boss) end
 end
 
+-- Forever's own dungeons are in no world database: their bosses stand
+-- with the drops recorded in game, or none yet; a test instance's do not.
+function tests.foreversOwnDungeonsListTheirBosses()
+    local byName, all = LoadLoot("Loot_Forever.lua", { forever = true })
+    for _, name in ipairs({ "Rath'mael", "Viktor the Vile", "Shade of the Archmage", "Relic Guardian", "Faldrim Anvilmar" }) do
+        local boss = assert(byName[name], name)
+        H.assertTrue(type(boss.items) == "table", name .. " has a drops table")
+    end
+    H.assertEq(byName["Rath'mael"].inst, 2999)
+    H.assertNil(byName["Rahuz"], "a test dungeon's boss stays out")
+    H.assertTrue(#byName["Edwin VanCleef"].items > 0, "a boss the databases know keeps its drops")
+    H.assertTrue(#all >= 290, "every boss of every placed instance: " .. #all)
+end
+
 local pass, fail, failures = H.runSuite("ShippedLoot", tests)
 return { pass = pass, fail = fail, failures = failures }
