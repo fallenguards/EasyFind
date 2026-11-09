@@ -266,13 +266,16 @@ function Aliases:RegisterKeyResolver(prefix, resolver)
     keyResolvers[prefix] = resolver
 end
 
+-- The search's own row under a key, or nil: never a copy rebuilt from it.
+function Aliases:LiveEntryByKey(key)
+    local data = key and ns.Database and ns.Database.uiSearchData
+    return data and EntryKeyIndex(data)[key] or nil
+end
+
 function Aliases:FindEntryByKey(key)
     if not key then return nil end
-    local data = ns.Database and ns.Database.uiSearchData
-    if data then
-        local hit = EntryKeyIndex(data)[key]
-        if hit then return hit end
-    end
+    local hit = self:LiveEntryByKey(key)
+    if hit then return hit end
     -- Aliases keep a snapshot (it preserves the proper-case name and icon for
     -- display); honour it first so aliased map rows render exactly as captured.
     if EasyFind and EasyFind.db and EasyFind.db.aliases then

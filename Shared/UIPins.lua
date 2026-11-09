@@ -5,7 +5,7 @@ ns.UIPins = UIPins
 
 local Utils = ns.Utils
 local ipairs, pairs, type = Utils.ipairs, Utils.pairs, Utils.type
-local tconcat, tinsert, tremove = Utils.tconcat, Utils.tinsert, Utils.tremove
+local tconcat, tinsert, tremove, ssub = Utils.tconcat, Utils.tinsert, Utils.tremove, Utils.ssub
 
 local charKey
 
@@ -116,6 +116,17 @@ local function CleanForStorage(data)
             clean[key] = copy
         end
     end
+    -- An extension's row keeps its own plain fields: its click and place read them.
+    local Extensions = ns.Extensions
+    if Extensions and Extensions.ProviderOf and Extensions.ProviderOf(data) then
+        for key, value in pairs(data) do
+            local kind = type(value)
+            if clean[key] == nil and (kind == "string" or kind == "number" or kind == "boolean")
+                and not (type(key) == "string" and ssub(key, 1, 1) == "_") then
+                clean[key] = value
+            end
+        end
+    end
     return clean
 end
 -- Shortkeys stores the same snapshot with each bind so a shortkey's action
@@ -195,6 +206,21 @@ function UIPins.Pin(data)
         end
     end
     tinsert(list, clean)
+end
+
+-- A pin as the search's own row when the search data holds it, the stored
+-- copy refreshed from it once; else the stored copy. A pinned row acts as
+-- the row does.
+local refreshedFrom = setmetatable({}, { __mode = "k" })
+function UIPins.LiveRow(pin)
+    local Aliases = ns.Aliases
+    local live = Aliases and Aliases.LiveEntryByKey and Aliases:LiveEntryByKey(Aliases:GetEntryKey(pin))
+    if not live then return pin end
+    if not refreshedFrom[live] then
+        refreshedFrom[live] = true
+        UIPins.Pin(live)
+    end
+    return live
 end
 
 function UIPins.Unpin(data)

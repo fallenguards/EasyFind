@@ -388,13 +388,14 @@ function Results:ShowPinnedItems()
                 e = {}
                 entries[n] = e
             end
-            e.name = pin.name
+            local data = UIPins.LiveRow(pin)
+            e.name = data.name
             e.depth = 0
             e.isPathNode = false
             e.isMatch = true
             e.isPinned = true
             e.isFlat = true
-            e.data = pin
+            e.data = data
         end
     end
     if n == 0 then
