@@ -652,5 +652,30 @@ function tests.scopedName_isWiredFromTheScopeAndTheProvider()
     H.assertTrue(Read("Database/Main.lua"):find("self.nameScopedCategories[category] = scopedName or nil", 1, true) ~= nil)
 end
 
+-- The letter gate runs before any scoring and read a boss row's name and
+-- keywords alone; the instance's name is scored as a name, so "ruins of
+-- lordaeron" never reached Witherfang once the masks were filled (the
+-- @bosses scope painted nothing on Forever, 2026-11-09). Fresh rows carry
+-- no mask, so the gate is primed here as the game primes it.
+function tests.searchUI_gatePrimed_anInstanceNameStillReachesItsBosses()
+    local boss = { name = "Witherfang", nameLower = "witherfang", category = "Boss",
+        instanceNameLower = "ruins of lordaeron", keywordsLower = { "boss", "bosses" } }
+    local other = { name = "Magmus", nameLower = "magmus", category = "Boss",
+        instanceNameLower = "blackrock depths", keywordsLower = { "boss", "bosses", "brd" } }
+    local was = Database.IsInstanceSearchWord
+    Database.IsInstanceSearchWord = function(_, w) return w == "ruins" or w == "lordaeron" end
+    withEntries({ boss, other }, function()
+        Database:PrimeSearchGate()
+        H.assertTrue(boss._efGateMask ~= nil and boss._efGateMask ~= 0, "the mask is filled")
+        local res = Database:SearchUI("ruins of lordaeron")
+        H.assertEq(scoreOf(res, boss), 99, "the instance's name typed lists its boss")
+        H.assertFalse(findsEntry(res, other), "another instance's boss stays out")
+        Database:ResetSearchCache()
+        res = Database:SearchUI("lordaeron")
+        H.assertTrue(findsEntry(res, boss), "one word of the instance's name")
+    end)
+    Database.IsInstanceSearchWord = was
+end
+
 local pass, fail, failures = H.runSuite("Database/Search", tests)
 return { pass = pass, fail = fail, failures = failures }

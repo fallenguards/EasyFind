@@ -593,6 +593,14 @@ local function FillEntryGateMask(e)
     end
     local cm, im = 0, 0
     if e.nameLower then cm, im = AccumulateGateMasks(e.nameLower, cm, im) end
+    -- Every other name the scorers read (a boss's instance, a teleport's
+    -- dungeon, a snippet's keyword) opens the gate too: the instance name
+    -- alone kept Ruins of Lordaeron's bosses out (2026-11-09).
+    local inst = e.instanceNameLower or (e.instanceName and slower(e.instanceName))
+    if inst then cm, im = AccumulateGateMasks(inst, cm, im) end
+    if e.teleportNameLower then cm, im = AccumulateGateMasks(e.teleportNameLower, cm, im) end
+    if e.teleportNameEnLower then cm, im = AccumulateGateMasks(e.teleportNameEnLower, cm, im) end
+    if e.snippetKeywordLower then cm, im = AccumulateGateMasks(e.snippetKeywordLower, cm, im) end
     local kws = e.keywordsLower or e.keywords
     if kws then
         for k = 1, #kws do
