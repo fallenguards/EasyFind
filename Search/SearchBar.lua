@@ -104,6 +104,45 @@ function Search:GetToggleFocused()
     return toggleFocused
 end
 
+-- Tab on a row with a GPS button stops on the button first (Enter starts
+-- the route), then opens the row's menu. The focus belongs to the row it
+-- was taken on: selection moved or the button gone, it is dropped.
+function Search:GPSKeyFocusRow()
+    local row = self._gpsKeyRow
+    if not row then return nil end
+    if resultButtons[selectedIndex] ~= row or not (row.gpsBtn and row.gpsBtn:IsShown()) then
+        self:SetGPSKeyFocus(nil)
+        return nil
+    end
+    return row
+end
+
+-- Marked as the mouse marks it (its own hover look and tooltip) with the
+-- game's button glow over it.
+function Search:SetGPSKeyFocus(row)
+    local old = self._gpsKeyRow
+    if old == row then return end
+    self._gpsKeyRow = row
+    local oldBtn = old and old.gpsBtn
+    if oldBtn then
+        if oldBtn._efKeyGlow then oldBtn._efKeyGlow:Hide() end
+        local leave = oldBtn:GetScript("OnLeave")
+        if leave and not oldBtn:IsMouseOver() then leave(oldBtn) end
+    end
+    local btn = row and row.gpsBtn
+    if not btn then return end
+    if not btn._efKeyGlow then
+        local glow = btn:CreateTexture(nil, "OVERLAY")
+        glow:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+        glow:SetBlendMode("ADD")
+        glow:SetAllPoints()
+        btn._efKeyGlow = glow
+    end
+    btn._efKeyGlow:Show()
+    local enter = btn:GetScript("OnEnter")
+    if enter then enter(btn) end
+end
+
 function Search:GetContainerFrame()
     return containerFrame
 end
@@ -1722,17 +1761,32 @@ function Search:CreateSearchFrame()
             end
             if not shift and selectedIndex > 0 and not toggleFocused then
                 local row = resultButtons[selectedIndex]
+                -- The row's GPS button first, then its menu.
+                if row and row.gpsBtn and row.gpsBtn:IsShown() and not Search:GPSKeyFocusRow() then
+                    Search:SetGPSKeyFocus(row)
+                    if searchFrame.StopKeyRepeat then searchFrame.StopKeyRepeat() end
+                    return
+                end
+                Search:SetGPSKeyFocus(nil)
                 if row and Rows.ShowResultContextMenu and Rows:ShowResultContextMenu(row, true) then
                     if searchFrame.StopKeyRepeat then searchFrame.StopKeyRepeat() end
                     return
                 end
             end
+            if shift and Search:GPSKeyFocusRow() then
+                Search:SetGPSKeyFocus(nil)
+                return
+            end
             CycleFocus(shift)
         elseif key == "ENTER" then
+            local gpsRow = Search:GPSKeyFocusRow()
             if toolbarFocus > 0 then
                 local controls = GetToolbarControls()
                 local target = controls[toolbarFocus]
                 if target then target:Click() end
+            elseif gpsRow then
+                Search:SetGPSKeyFocus(nil)
+                gpsRow.gpsBtn:Click()
             else
                 Results:ActivateSelected("key")
             end
@@ -1746,6 +1800,7 @@ function Search:CreateSearchFrame()
             if toolbarFocus > 0 then
                 ClearToolbarFocus()
             end
+            Search:SetGPSKeyFocus(nil)
             if selectedIndex > 0 or toggleFocused then
                 selectedIndex = 0
                 toggleFocused = false
@@ -1827,7 +1882,8 @@ function Search:CreateSearchFrame()
         if key == "ENTER" and selectedIndex > 0 and not InCombatLockdown() then
             local selRow = resultButtons[selectedIndex]
             local rd = selRow and selRow.data
-            if rd and Icons:IsSecureActionResult(rd) then
+            -- The GPS button focused: Enter is the button's, not the row's.
+            if rd and Icons:IsSecureActionResult(rd) and not Search:GPSKeyFocusRow() then
                 Utils.SafeCallMethod(self, "SetPropagateKeyboardInput", true)
                 return
             end

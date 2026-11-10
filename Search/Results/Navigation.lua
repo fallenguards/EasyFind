@@ -542,6 +542,8 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
     local sel = Search:GetSelectedIndex()
     if sel > 0 then self:ScrollRowIntoView(sel) end
     local newSelRow = sel > 0 and self:RowFrame(sel) or nil
+    -- A GPS button focused by Tab goes with its row's selection.
+    if Search.GPSKeyFocusRow then Search:GPSKeyFocusRow() end
     if newSelRow and not Search:GetToggleFocused() then
         if not Handlers:GetActionHint(newSelRow.data) then Handlers:ClearActionHint() end
         Handlers:ApplyActionHint(newSelRow)
