@@ -733,6 +733,7 @@ L["NPC_WORDS_AMMO"]                    = "munitions flèches balles réapprovisi
 L["NPC_WORDS_REAGENTS"]                = "composants réapprovisionner"
 L["NPC_WORDS_FLIGHT"]                  = "vol maître de vol"
 L["NPC_WORDS_CLASS_TRAINER"]           = "maître de classe"
+L["NPC_WORDS_TRAINER"]                 = "maître entraîneur"
 L["NPC_WORDS_INN"]                     = "auberge aubergiste"
 L["NPC_WORDS_BANK"]                    = "banque banquier"
 L["NPC_WORDS_AUCTION"]                 = "enchères commissaire-priseur"

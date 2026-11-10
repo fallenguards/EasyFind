@@ -47,7 +47,23 @@ local SERVICES = {
     { bits = 64, en = "auction auctioneer", key = "NPC_WORDS_AUCTION" },
     { bits = 128, en = "stable", key = "NPC_WORDS_STABLE" },
     { bits = 4096, en = "class trainer", key = "NPC_WORDS_CLASS_TRAINER" },
+    { bits = 4, en = "trainer trainers", key = "NPC_WORDS_TRAINER" },
 }
+-- A profession as typed finds its trainers by the craftsman their titles
+-- name (Artisan Tailor, as the classic clients title them).
+local CRAFTSMEN = {
+    alchemy = "alchemist", blacksmithing = "blacksmith", enchanting = "enchanter", engineering = "engineer",
+    herbalism = "herbalist", inscription = "scribe", jewelcrafting = "jewelcrafter",
+    leatherworking = "leatherworker", mining = "miner", skinning = "skinner", tailoring = "tailor",
+    cooking = "cook", fishing = "fisherman",
+}
+local function Craftsman(word)
+    if #word < 4 then return nil end
+    for craft, title in pairs(CRAFTSMEN) do
+        if sfind(craft, word, 1, true) == 1 then return title end
+    end
+    return nil
+end
 -- A trainer titled with a class's name (Hunter Trainer): no catalog role,
 -- its title marked as shipped (classTitle, dev/tools/npc_plain.py).
 local CLASS_TRAINER = 4096
@@ -67,7 +83,7 @@ local N = {
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {}, classTitle = {},
     spotCi = {}, spotWx = {}, spotWy = {}, planes = {}, mapNames = {},
     pois = setmetatable({}, { __mode = "v" }),
-    hits = {}, top = {}, score = {}, words = {}, wordBits = {}, spot = {}, near = {}, retailEntrance = {},
+    hits = {}, top = {}, score = {}, words = {}, wordBits = {}, wordCraft = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {}, scan = {}, len = {},
     titleAt = "", titleCreatures = "", roleIds = {},
     -- Per query word whether it names a service or title (wordRole) or a
@@ -864,7 +880,9 @@ local function Score(i)
             if allService and band(roles, wordBits[w]) == 0 then return 0 end
             local p, blob, lines = hitLow[w][i], low, at
             if not p and enLow then p, blob, lines = hitEn[w][i], enLow, enAt end
+            local craft = N.wordCraft[w]
             if not p and not (tlow and sfind(tlow, word, 1, true)) and not (tAlt and sfind(tAlt, word, 1, true))
+                and not (craft and ((tlow and sfind(tlow, craft, 1, true)) or (tAlt and sfind(tAlt, craft, 1, true))))
                 and band(roles, wordBits[w]) == 0 and not Worded(i, word) then
                 return 0
             end
@@ -927,6 +945,18 @@ local function Row(i, k)
         local roles = Roles(i)
         for _, s in ipairs(ServiceWords()) do
             if band(roles, s.bits) ~= 0 then keywords[#keywords + 1] = s.word end
+        end
+        -- A craftsman's title answers to its profession too, as the map
+        -- search scores every word ("tailoring trainer": Expert Tailor).
+        local low = N.titleLowEnglish[t] or N.titleLow[t]
+        if low then
+            for craft, title in pairs(CRAFTSMEN) do
+                local p = sfind(low, title, 1, true)
+                if p and (p == 1 or not sfind(ssub(low, p - 1, p - 1), "%a")) then
+                    keywords[#keywords + 1] = craft
+                    break
+                end
+            end
         end
         local display = Rec.display(i)
         poi = { name = Name(i), category = "npc", isStatic = true, npcID = Rec.id(i), catalog = true,
@@ -1314,6 +1344,7 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
             end
         end
         wordBits[w] = bits
+        N.wordCraft[w] = Craftsman(words[w])
         if bits ~= 0 then service = true else allService = false end
         -- A word an extension gives creatures ("decor") names a kind of
         -- creature, as a title word does, never a place.
@@ -1385,10 +1416,12 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
             MarkLines(sqLow, sqAt, N.n, longest, Mark)
             if sqEnLow then MarkLines(sqEnLow, sqEnAt, N.n, longest, Mark) end
         end
-        local titleHit, anyTitle = N.titleHit, false
+        local titleHit, anyTitle, craft = N.titleHit, false, N.wordCraft[lw]
         for t = 1, #N.titleLow do
             local hit = sfind(N.titleLow[t], longest, 1, true)
                 or (N.titleLowEnglish[t] and sfind(N.titleLowEnglish[t], longest, 1, true))
+                or (craft and (sfind(N.titleLow[t], craft, 1, true)
+                    or (N.titleLowEnglish[t] and sfind(N.titleLowEnglish[t], craft, 1, true))))
             titleHit[t] = hit and true or nil
             if hit then anyTitle = true end
         end

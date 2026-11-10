@@ -823,6 +823,39 @@ function tests.classTrainersByTheirTitle()
     H.assertEq(find(append, "cooking trainer")[1].name, "Bob")
 end
 
+-- The classic clients title a profession's trainers by the craftsman
+-- (Artisan Tailor): "tailoring trainer" finds them, its supplies vendor
+-- is no trainer, and "trainer" is every trainer (Forever Undercity found
+-- none, 2026-11-10).
+function tests.aProfessionsTrainers_byTheCraftsmanTheirTitlesName()
+    local trainer, vendor = 7 + 4 * 256, 7 + 2 * 256
+    local append = fresh(nil, { { 1, 0, trainer, 0, 1, { 1429, xy(0.3, 0.4), 1 } },
+                                { 2, 0, trainer, 0, 2, { 1429, xy(0.5, 0.5), 1 } },
+                                { 3, 0, vendor, 0, 3, { 1429, xy(0.31, 0.41), 1 } },
+                                { 4, 0, trainer, 0, 4, { 1429, xy(0.6, 0.6), 1 } } },
+                         "Josef\nAnna\nMillie\nJennea", nil, nil,
+                         "Artisan Tailor\nJourneyman Tailor\nTailoring Supplies\nMage Trainer")
+    local function names(query)
+        local out = {}
+        for _, r in ipairs(find(append, query)) do out[#out + 1] = r.name end
+        table.sort(out)
+        return table.concat(out, ",")
+    end
+    H.assertEq(names("tailoring trainer"), "Anna,Josef")
+    H.assertEq(names("tailoring"), "Anna,Josef,Millie", "the profession: its trainers and its supplies")
+    H.assertEq(names("trainer"), "Anna,Jennea,Josef")
+    H.assertEq(names("class trainer"), "Jennea")
+    -- The map search's own scoring then wants every word on the row: an
+    -- Expert Tailor's row answers to "tailoring" (Forever found 13 such
+    -- trainers and showed none, 2026-11-11).
+    for _, r in ipairs(find(append, "tailoring trainer")) do
+        local text = string.lower(r.name .. " " .. table.concat(r.keywords or {}, " "))
+        for word in ("tailoring trainer"):gmatch("%S+") do
+            H.assertTrue(text:find("%f[%a]" .. word) ~= nil, r.name .. " lacks " .. word .. ": " .. text)
+        end
+    end
+end
+
 -- Every shipped catalog file is in the form read where it ships
 -- (dev/tools/npc_plain.py): no base64 part a first query would unpack.
 function tests.shippedCatalog_readInPlace()

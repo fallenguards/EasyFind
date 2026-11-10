@@ -733,6 +733,7 @@ L["NPC_WORDS_AMMO"]                    = "боеприпасы стрелы пу
 L["NPC_WORDS_REAGENTS"]                = "реагенты пополнить"
 L["NPC_WORDS_FLIGHT"]                  = "полёт распорядитель полётов"
 L["NPC_WORDS_CLASS_TRAINER"]           = "учитель класса"
+L["NPC_WORDS_TRAINER"]                 = "учитель наставник"
 L["NPC_WORDS_INN"]                     = "таверна хозяин таверны"
 L["NPC_WORDS_BANK"]                    = "банк банкир"
 L["NPC_WORDS_AUCTION"]                 = "аукцион аукционист"
