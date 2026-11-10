@@ -1969,7 +1969,12 @@ local function CreateBackTab(qmf)
     hoverGlow:SetPoint("CENTER", bg, "CENTER", 0, 0)
 
     tab:SetScript("OnMouseUp", function(_, button)
-        if button == "LeftButton" then HideOurPanel(true) RefreshSelectGlows() end
+        if button ~= "LeftButton" then return end
+        -- The player's way back to the quest log: the map's next open
+        -- keeps it, as a click on one of the game's own tabs does.
+        lastSelectedWasOurs = false
+        HideOurPanel(true)
+        RefreshSelectGlows()
     end)
     tab:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
