@@ -81,7 +81,7 @@ end)
 
 -- Our waypoint and super-track changes wait out an open world map: one made
 -- under it rebuilds the game's pin in our name, and Shift-click is refused.
-local WAYPOINT_WAIT_ORDER = { "place", "quest", "vignette", "track" }
+local WAYPOINT_WAIT_ORDER = { "clear", "place", "quest", "vignette", "track" }
 local waypointWaits = {}
 function MapSearch.WaypointChange(kind, fn)
     if WorldMapFrame and WorldMapFrame:IsShown() then
@@ -1192,6 +1192,16 @@ function MapSearch:ClearRouteEnd()
     self:ClearAll()
 end
 
+-- The route-end pin alone, mid-route (a game icon on the end is its mark):
+-- the route's waypoint and its tracking stay.
+function MapSearch:HideRouteEnd()
+    if not routeEndPinned then return end
+    routeEndPinned = false
+    activePinState = nil
+    self:ClearHighlight()
+    self:RefreshAllClearButtons()
+end
+
 function MapSearch:RefreshAllClearButtons()
     local frames = {
         _G["EasyFindSearchFrame"],
@@ -1213,8 +1223,8 @@ function MapSearch:ClearAll()
     if efPlacedWaypoint then
         efPlacedWaypoint = false
         TrackWaypoint(false)
-        if WAYPOINTS and HasUserWaypoint() then
-            ClearUserWaypoint()
+        if WAYPOINTS then
+            MapSearch.WaypointChange("clear", function() if HasUserWaypoint() then ClearUserWaypoint() end end)
         end
     end
     -- Notify the UI search bar to refresh its clear-button state.

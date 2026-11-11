@@ -45,6 +45,18 @@ function tests.mapOpen_changesWaitForItToClose_inOrder_latestOfEach()
     H.assertEq(#log, 3, "each once")
 end
 
+-- A clear and a placement both waiting: the clear first, so the new pin stays.
+function tests.aWaitingClear_runsBeforeAWaitingPlacement()
+    local MS, map, run = Load()
+    map.shown = true
+    local log = {}
+    MS.WaypointChange("place", function() log[#log + 1] = "place" end)
+    MS.WaypointChange("clear", function() log[#log + 1] = "clear" end)
+    map.shown = false
+    run()
+    H.assertEq(table.concat(log, ", "), "clear, place")
+end
+
 function tests.aDroppedPlacement_neverLands()
     local MS, map, run = Load()
     map.shown = true
@@ -58,7 +70,9 @@ end
 
 -- Every call that changes the game's waypoint or super-track goes through
 -- the waits; the one inside them is the only bare call.
-local CALLS = { "SetUserWaypoint%(", "SetSuperTracked%w*%(", "ClearAllSuperTrackedVignettes%(" }
+-- ClearUserWaypoint fires the same update inside the call: a clear under the
+-- open map refused the waypoint pin's share too (Forever, 2026-11-10).
+local CALLS = { "SetUserWaypoint%(", "ClearUserWaypoint%(", "SetSuperTracked%w*%(", "ClearAllSuperTrackedVignettes%(" }
 local ALLOWED = { ["MapSearch/Navigation.lua:        SetUserWaypoint(point)"] = true }
 
 function tests.noBareWaypointChangesOutsideTheWaits()
