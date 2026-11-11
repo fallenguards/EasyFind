@@ -107,11 +107,14 @@ local N = {
     decoratorWords = true,
 }
 ns.Npcs = N
+-- The catalog as EasyFind loaded it: GPS before 1.6.0 shipped its own and
+-- writes it over ns.NPC_DATA as it loads.
+N.data = ns.NPC_DATA
 
 -- The lowercase texts and the English titles beside the client's own,
 -- made at load: one string.lower costs less than reading a shipped copy.
 do
-    local data = ns.NPC_DATA
+    local data = N.data
     if data and data.names and data.titleName then
         data.namesLow = slower(data.names)
         data.goodsNamesLow = data.goodsNames and slower(data.goodsNames)
@@ -170,7 +173,7 @@ N.LineStarts = LineStarts
 -- them ready (a query before then makes them itself, once).
 do
     local function Warm()
-        local data = ns.NPC_DATA
+        local data = N.data
         if not data or N.n then return end
         local Utils = ns.Utils
         local run = Utils and Utils.RunSliced or function(fn) fn() end
@@ -187,6 +190,8 @@ do
     f:RegisterEvent("PLAYER_LOGIN")
     f:SetScript("OnEvent", function(self)
         self:UnregisterAllEvents()
+        -- GPS before 1.6.0 wrote its own rows over these as it loaded.
+        MapSearch.AppendNpcRows, MapSearch.NpcKindQuery = N.Append, N.KindQuery
         if ns.Utils and ns.Utils.SafeAfter then ns.Utils.SafeAfter(3, Warm) else Warm() end
     end)
 end
@@ -298,7 +303,7 @@ end
 -- The catalog's parts where they ship (dev/tools/npc_plain.py); N.n is set
 -- only once all are in.
 local function Bind()
-    local data = ns.NPC_DATA
+    local data = N.data
     local rec, at = data and data.rec, data and (data.nameAt or LineStarts(data.names))
     if not (rec and at and data.spots and data.kinds and data.titleIdx and data.names and data.namesLow
             and data.titleAt and data.titleCreatures and data.titleName and data.titleLow) then
@@ -338,7 +343,7 @@ N.Load = Load
 -- N.goodsN only once all are in.
 local function LoadGoods()
     if N.goodsN then return N.goodsN > 0 end
-    local data = ns.NPC_DATA
+    local data = N.data
     if not (data and data.goodsTypes and Load()) then N.goodsN = 0 return false end
     local types, text = data.goodsTypes, data.goodsNames
     local at = data.goodsNameAt or LineStarts(text)
@@ -1537,7 +1542,7 @@ end
 -- names, and the expansions this catalog holds (-1: unknown), in order.
 function N.FilterChoices()
     if not Load() then return nil end
-    local data, types = ns.NPC_DATA, {}
+    local data, types = N.data, {}
     local names = data.types or {}
     for _, id in ipairs(data.kindTypes or {}) do
         if names[id] then types[#types + 1] = { id = id, name = names[id] } end
@@ -1573,7 +1578,7 @@ end
 -- which its hostile creatures stop being one. { [continent] = { [cell] =
 -- level } }, or nil without the catalog's danger map.
 function N.Threats(faction)
-    local data = ns.NPC_DATA
+    local data = N.data
     if not (data and data.danger) then return nil end
     local horde = faction == "Horde"
     if N.threats and N.threatsHorde == horde then return N.threats end
@@ -1601,7 +1606,7 @@ end
 -- = true } }, or nil without the catalog's guard map. Drawn and warned
 -- of, never walked around.
 function N.Guards(faction)
-    local data = ns.NPC_DATA
+    local data = N.data
     if not (data and data.guards) then return nil end
     local bit = faction == "Horde" and 2 or 1
     if N.guardCells and N.guardBit == bit then return N.guardCells end

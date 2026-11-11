@@ -1214,6 +1214,7 @@ L["EXT_NEW_FMT"]                        = "EasyFind %s tiene %s: addons propios 
 L["EXT_PAGE_COPY"]                      = "Copia la dirección de abajo (Ctrl+C) y ábrela en tu navegador."
 L["EXT_PAGE_TT"]                        = "Clic para la dirección de la página."
 L["EXT_INSTALLED"]                      = "Instalada"
+L["EXT_OUTDATED_FMT"]                   = "%s %s está desactualizada para esta versión de EasyFind. Por favor, actualízala para evitar conflictos."
 L["EXT_CARD_CHAT"]                      = "Mensajería para susurros, amigos, grupos y canales."
 L["EXT_CARD_GPS"]                       = "El camino a todo lo que EasyFind encuentra, desde donde estás."
 L["EXT_CARD_QUESTIE"]                   = "Las misiones de Questie en la búsqueda, con el camino a cada paso."

@@ -190,6 +190,9 @@ local function fresh(localNames, creatures, names, goods, noLoad, titles, localT
     if goods then addGoods(ns.NPC_DATA, goods, #creatures) end
     env.EasyFind.db = {}
     ns.L.NPC_SELLS = "Sells %s"
+    local made, Make = {}, env.CreateFrame
+    env.CreateFrame = function(...) local f = Make(...) made[#made + 1] = f return f end
+    env.made = made
     H.loadModule("MapSearch/Npcs.lua", env, ns)
     if not noLoad then ns.Npcs.Load(); ns.Npcs.LoadGoods() end
     return ns.MapSearch.AppendNpcRows, ns.Npcs, env
@@ -923,6 +926,29 @@ function tests.namedOnAndHasID_forExtensionsAsking()
     H.assertEq(T.NamedOn("smith", { [1426] = true }), 11, "the second of a name")
     H.assertEq(T.NamedOn("smith", { [1433] = true }), 12, "and the third")
     H.assertNil(T.NamedOn("smith", { [1436] = true }))
+end
+
+-- GPS before 1.6.0 shipped its own catalog and, loading after EasyFind,
+-- wrote its data over ns.NPC_DATA and its rows over EasyFind's hooks:
+-- EasyFind reads its own copy and takes its hooks back at login.
+function tests.anOlderGPSWritingOverTheCatalog_leavesEasyFindsRows()
+    local append, N, env = fresh()
+    local ns = env.EasyFind._ns
+    local theirs = function() return {} end
+    ns.NPC_DATA = { names = "\nSomeone Else\n" }
+    ns.MapSearch.AppendNpcRows, ns.MapSearch.NpcKindQuery = theirs, theirs
+    local fired = 0
+    for _, f in ipairs(env.made) do
+        local OnEvent = f:GetScript("OnEvent")
+        if OnEvent then
+            f.UnregisterAllEvents = function() end
+            OnEvent(f, "PLAYER_LOGIN")
+            fired = fired + 1
+        end
+    end
+    H.assertTrue(fired > 0, "the login frame")
+    H.assertTrue(ns.MapSearch.AppendNpcRows == append and ns.MapSearch.NpcKindQuery == N.KindQuery, "the hooks back")
+    H.assertTrue(named(find(append, "hogger"), "Hogger") ~= nil, "found in EasyFind's own catalog")
 end
 
 local pass, fail, failures = H.runSuite("Npcs", tests)

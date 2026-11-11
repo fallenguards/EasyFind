@@ -36,6 +36,8 @@ local ALLOWED = {
     ["Core/Main.lua|ns.CHAT_LOGO .. msg"] = { 1, "release" },
     -- The upgrade notice; and Notes asked for with none installed, once a session.
     ["Core/Extensions.lua|ns.CHAT_LOGO .. msg"] = { 2, "release" },
+    -- An extension of ours too old for this EasyFind, a line a session until updated.
+    ["Core/Extensions.lua|EXT_OUTDATED_FMT"] = { 1, "alert" },
     -- A newer EasyFind or extension heard from a guild or group member, once a session.
     ["Core/VersionCheck.lua|UPDATE_CHAT_CORE"] = { 1, "alert" },
     ["Core/VersionCheck.lua|UPDATE_CHAT_EXT"] = { 1, "alert" },

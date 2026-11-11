@@ -1214,6 +1214,7 @@ L["EXT_NEW_FMT"]                        = "EasyFind %s 有了%s：CurseForge上�
 L["EXT_PAGE_COPY"]                      = "複製下方位址（Ctrl+C）並在瀏覽器中開啟。"
 L["EXT_PAGE_TT"]                        = "點擊取得頁面位址。"
 L["EXT_INSTALLED"]                      = "已安裝"
+L["EXT_OUTDATED_FMT"]                   = "%s %s 版本過舊，與目前 EasyFind 版本不相符。請更新以避免衝突。"
 L["EXT_CARD_CHAT"]                      = "密語、好友、隊伍和頻道的聊天工具。"
 L["EXT_CARD_GPS"]                       = "從你所在位置導航到 EasyFind 找到的任何目標。"
 L["EXT_CARD_QUESTIE"]                   = "在搜尋中查看 Questie 任務，並導航到每一步。"

@@ -94,7 +94,8 @@ ns.AddThemeSurface("notes", L["APP_NOTES"], { addon = "EasyFind_Notes" })
 -- project's slug; bundled = { first, split }: it came inside EasyFind
 -- from the first version until the split one, name its short name.
 -- The tutorial's cards: title, icon, blurb, and games (the clients it
--- runs on, by Caps key; none for every client).
+-- runs on, by Caps key; none for every client). min: the oldest version
+-- of it this EasyFind works with; an older one is told to update.
 local PAGE = "https://www.curseforge.com/wow/addons/"
 local PAGE_LINK = "easyfind:page:"
 local EXTENSIONS_LINK = "easyfind:extensions"
@@ -104,7 +105,7 @@ local TEX = "Interface\\AddOns\\EasyFind\\textures\\"
 local CLASSICS_AND_FOREVER = { "era", "tbc", "mists", "forever" }
 local FIRST_PARTY = {
     { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension",
-      name = L["APP_GPS"], bundled = { "4.0.0", "4.0.2" },
+      name = L["APP_GPS"], bundled = { "4.0.0", "4.0.2" }, min = "1.6.0",
       title = L["APP_GPS"], icon = TEX .. "gps-icon", blurb = L["EXT_CARD_GPS"] },
     { addon = "EasyFind_Notes", project = "EasyFind: Notes Extension", slug = "easyfind-notes-extension",
       name = L["APP_NOTES"], bundled = { "4.0.0", "5.0.0" },
@@ -271,10 +272,25 @@ function ns.TellExtensionGone(addon)
     end
 end
 
+-- An extension of ours older than this EasyFind works with (min on its
+-- entry): a line each session, with its page, until it is updated.
+local function TellOutdated()
+    for _, e in ipairs(FIRST_PARTY) do
+        local v = e.min and C_AddOns.IsAddOnLoaded(e.addon) and C_AddOns.GetAddOnMetadata(e.addon, "Version")
+        if v and ns.CompareVersion(v, e.min) < 0 then
+            print(ns.CHAT_LOGO .. L["EXT_OUTDATED_FMT"]:format(ns.BlueChatLink(PAGE_LINK .. e.slug, e.project), v))
+        end
+    end
+end
+ns.TellOutdatedExtensions = TellOutdated
+
 local noticeWatch = CreateFrame("Frame")
 noticeWatch:Hide()
 noticeWatch:RegisterEvent("PLAYER_LOGIN")
 noticeWatch:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
-    C_Timer.After(10, TellExtensions)
+    C_Timer.After(10, function()
+        TellExtensions()
+        TellOutdated()
+    end)
 end)

@@ -47,10 +47,12 @@ local function Load(installed, caps)
             APP_CHAT = "Chat", APP_GPS = "GPS", APP_NOTES = "Notes",
             EXT_OTHERS_FMT = "others %s.", EXT_NEW_FMT = "new %s: %s.", EXT_PAGE_COPY = "copy it",
             FILTER_EXTENSIONS = "Extensions", EXT_PAGE_TT = "page", EXT_INSTALLED = "have",
+            EXT_OUTDATED_FMT = "%s %s is old.",
         },
         EasyFind = { db = {} },
         C_AddOns = {
             DoesAddOnExist = function(name) return installed and installed[name] ~= nil or false end,
+            IsAddOnLoaded = function(name) return installed and installed[name] ~= nil or false end,
             GetAddOnMetadata = function(name, field)
                 local v = installed and installed[name]
                 return field == "Version" and type(v) == "string" and v or "1.0.0"
@@ -147,6 +149,24 @@ function tests.notesAskedForWithNone_saysWhereToGetIt()
     H.assertTrue(gone ~= nil and gone < load, "told before any load")
     H.assertTrue(modules:find("if ns.OldExtensionCopy and ns.OldExtensionCopy(name) then return false end", 1, true) ~= nil,
         "the old copy is never loadable")
+end
+
+-- An extension of ours older than this EasyFind works with (GPS before
+-- 1.6.0 carried its own creature catalog): a line with its page, each
+-- session, until it is updated.
+function tests.anExtensionTooOldForThisEasyFind_isToldToUpdate()
+    local ns, _, said = Load({ EasyFind_GPS = "1.5.0" })
+    ns.TellOutdatedExtensions()
+    H.assertEq(said[1], "EF " .. GPS .. " 1.5.0 is old.")
+    for _, version in ipairs({ "1.6.0", "1.6.1" }) do
+        local fine, _, quiet = Load({ EasyFind_GPS = version })
+        fine.TellOutdatedExtensions()
+        H.assertEq(#quiet, 0, version)
+    end
+    local none, _, nothing = Load()
+    none.TellOutdatedExtensions()
+    H.assertEq(#nothing, 0, "not installed")
+    H.assertTrue(Read("Core/Extensions.lua"):find("TellExtensions()\n        TellOutdated()", 1, true) ~= nil, "told at login")
 end
 
 -- The [Extensions] link: one menu of every page for this client,

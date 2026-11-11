@@ -1214,6 +1214,7 @@ L["EXT_NEW_FMT"]                        = "EasyFind %s에 %s이(가) 생겼습�
 L["EXT_PAGE_COPY"]                      = "아래 주소를 복사(Ctrl+C)해서 브라우저에서 여세요."
 L["EXT_PAGE_TT"]                        = "클릭하면 페이지 주소가 나옵니다."
 L["EXT_INSTALLED"]                      = "설치됨"
+L["EXT_OUTDATED_FMT"]                   = "%s %s 버전은 현재 EasyFind 버전에 맞지 않습니다. 충돌을 피하려면 업데이트해 주세요."
 L["EXT_CARD_CHAT"]                      = "귓속말, 친구, 파티, 채널을 위한 메신저."
 L["EXT_CARD_GPS"]                       = "EasyFind가 찾은 모든 곳까지 현재 위치에서 길 안내."
 L["EXT_CARD_QUESTIE"]                   = "검색에 나오는 Questie 퀘스트와 단계별 길 안내."
