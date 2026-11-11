@@ -764,6 +764,24 @@ local function PlayerWorld()
     return ci, wp:GetXY()
 end
 
+-- A creature by its id at the spot its search row shows (the nearest to
+-- the player, else the most seen): { name, npcID, displayID, mapID, x, y,
+-- category } or nil. A unit menu's Directions take it as typing the name
+-- and its GPS button would.
+function N.SpotOfID(npcID)
+    if not (npcID and Load()) then return nil end
+    local i = IndexOfID(npcID)
+    if not i then return nil end
+    local pci, px, py = PlayerWorld()
+    local k = BestSpot(i, nil, pci, px, py)
+    local m, x, y
+    if k then m, x, y = SpotPoint(k) end
+    if not m then return nil end
+    local display = Rec.display(i)
+    return { name = Name(i), npcID = Rec.id(i), displayID = display ~= 0 and display or nil,
+             mapID = m, x = x, y = y, category = "npc" }
+end
+
 local function MapName(m)
     local name = N.mapNames[m]
     if name == nil then

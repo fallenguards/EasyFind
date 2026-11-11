@@ -809,6 +809,19 @@ function tests.aJoinedSearchCancelledMidway_leavesNothingHalfMade()
     H.assertEq(rows[1].name, "Rot Hide Mystic")
 end
 
+-- A creature by its id (a unit menu's Directions on an NPC): the spot its
+-- row shows, the one nearest the player.
+function tests.aCreatureById_atTheSpotItsRowShows()
+    local _, N = fresh()
+    local s = N.SpotOfID(6)
+    H.assertEq(s.name, "Kobold Vermin")
+    H.assertEq(s.mapID, 1429, "the player's map, not its other one")
+    H.assertTrue(math.abs(s.x - 0.5) < 0.001 and math.abs(s.y - 0.5) < 0.001)
+    H.assertEq(s.displayID, 327)
+    H.assertEq(s.category, "npc")
+    H.assertNil(N.SpotOfID(424242), "no such creature")
+end
+
 -- A trainer titled after a class is a class trainer, whatever its name;
 -- a cooking trainer is not.
 function tests.classTrainersByTheirTitle()
