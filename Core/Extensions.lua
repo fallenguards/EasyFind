@@ -93,25 +93,51 @@ ns.AddThemeSurface("notes", L["APP_NOTES"], { addon = "EasyFind_Notes" })
 -- them, a click on one gives its page's address. A page waits for its
 -- project's slug; bundled = { first, split }: it came inside EasyFind
 -- from the first version until the split one, name its short name.
+-- The tutorial's cards: title, icon, blurb, and games (the clients it
+-- runs on, by Caps key; none for every client).
 local PAGE = "https://www.curseforge.com/wow/addons/"
 local PAGE_LINK = "easyfind:page:"
 local EXTENSIONS_LINK = "easyfind:extensions"
 local MENU_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
 local FIRST_EXTENSIONS = "4.0.0"
+local TEX = "Interface\\AddOns\\EasyFind\\textures\\"
+local CLASSICS_AND_FOREVER = { "era", "tbc", "mists", "forever" }
 local FIRST_PARTY = {
-    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = "easyfind-chat-extension",
-      name = L["APP_CHAT"], bundled = { "4.0.0", "4.0.2" } },
     { addon = "EasyFind_GPS", project = "EasyFind: GPS Navigation Extension", slug = "easyfind-gps-navigation-extension",
-      name = L["APP_GPS"], bundled = { "4.0.0", "4.0.2" } },
-    { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension" },
-    { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension" },
-    -- slug easyfind-all-the-things-extension once CurseForge approves its project
-    { addon = "EasyFind_ATT", project = "EasyFind: ALL THE THINGS Extension" },
-    { addon = "EasyFind_HandyNotes", project = "EasyFind: HandyNotes Extension", slug = "easyfind-handynotes-extension" },
+      name = L["APP_GPS"], bundled = { "4.0.0", "4.0.2" },
+      title = L["APP_GPS"], icon = TEX .. "gps-icon", blurb = L["EXT_CARD_GPS"] },
     { addon = "EasyFind_Notes", project = "EasyFind: Notes Extension", slug = "easyfind-notes-extension",
-      name = L["APP_NOTES"], bundled = { "4.0.0", "5.0.0" } },
+      name = L["APP_NOTES"], bundled = { "4.0.0", "5.0.0" },
+      title = L["APP_NOTES"], icon = TEX .. "notes-icon", blurb = L["EXT_CARD_NOTES"] },
+    { addon = "EasyFind_Chat", project = "EasyFind: Chat Extension", slug = "easyfind-chat-extension",
+      name = L["APP_CHAT"], bundled = { "4.0.0", "4.0.2" },
+      title = L["APP_CHAT"], icon = TEX .. "ext-chat", blurb = L["EXT_CARD_CHAT"] },
+    { addon = "EasyFind_Questie", project = "EasyFind: Questie Extension", slug = "easyfind-questie-extension",
+      title = "Questie", icon = TEX .. "ext-questie", blurb = L["EXT_CARD_QUESTIE"], games = CLASSICS_AND_FOREVER },
+    { addon = "EasyFind_HandyNotes", project = "EasyFind: HandyNotes Extension", slug = "easyfind-handynotes-extension",
+      title = "HandyNotes", icon = TEX .. "ext-handynotes", blurb = L["EXT_CARD_HANDYNOTES"], games = { "retail", "forever" } },
+    { addon = "EasyFind_Auctionator", project = "EasyFind: Auctionator Extension", slug = "easyfind-auctionator-extension",
+      title = "Auctionator", icon = TEX .. "ext-auctionator", blurb = L["EXT_CARD_AUCTIONATOR"] },
+    { addon = "EasyFind_DungeonJournal", project = "EasyFind: DungeonJournal Extension", slug = "easyfind-dungeonjournal-extension",
+      title = "DungeonJournal", icon = TEX .. "ext-dungeonjournal", blurb = L["EXT_CARD_DUNGEONJOURNAL"], games = { "era", "forever" } },
+    { addon = "EasyFind_ClassicBestiary", project = "EasyFind: Classic Bestiary Extension", slug = "easyfind-classic-bestiary-extension",
+      title = "Classic Bestiary", icon = TEX .. "ext-bestiary", blurb = L["EXT_CARD_BESTIARY"], games = { "era", "forever" } },
+    { addon = "EasyFind_Spoken", project = "EasyFind: Spoken Extension", slug = "easyfind-spoken-extension",
+      title = "Spoken", icon = TEX .. "ext-spoken", blurb = L["EXT_CARD_SPOKEN"], games = { "era", "tbc", "forever" } },
+    { addon = "EasyFind_ATT", project = "EasyFind: ALL THE THINGS Extension", slug = "easyfind-all-the-things-extension",
+      title = "ALL THE THINGS", icon = TEX .. "ext-att", blurb = L["EXT_CARD_ATT"] },
 }
 ns.FirstPartyExtensions = FIRST_PARTY
+
+-- Whether an extension's games take in this client.
+function ns.ExtensionRunsHere(e)
+    if not e.games then return true end
+    local Caps = ns.Caps
+    for _, g in ipairs(e.games) do
+        if Caps and Caps[g] then return true end
+    end
+    return false
+end
 
 -- The copy an older EasyFind came with (its Version in the bundled range),
 -- which a hand-extracted update leaves in place: never loaded or counted.
@@ -186,7 +212,7 @@ end
 function ns.ShowExtensionPages()
     local rows = {}
     for _, e in ipairs(FIRST_PARTY) do
-        if e.slug then
+        if e.slug and ns.ExtensionRunsHere(e) then
             local have = Installed(e.addon)
             rows[#rows + 1] = { text = e.project, icon = have and MENU_CHECK or nil,
                 tooltip = have and L["EXT_INSTALLED"] or L["EXT_PAGE_TT"],

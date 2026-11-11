@@ -26,15 +26,15 @@ end
 
 local inCombat = false
 
--- installed: addon -> true, or the Version its toc says.
-local function Load(installed)
+-- installed: addon -> true, or the Version its toc says; caps: the client.
+local function Load(installed, caps)
     local src = Read("Core/Extensions.lua")
     local s = assert(src:find("local PAGE = ", 1, true), "the notice's start")
     local e = assert(src:find("local noticeWatch", s, true), "its end")
     local said, dialogs, menus = {}, {}, {}
     inCombat = false
     local ns = {
-        version = "5.0.0", CHAT_LOGO = "EF ",
+        version = "5.0.0", CHAT_LOGO = "EF ", Caps = caps or { forever = true },
         CompareVersion = Compare,
         BlueChatLink = function(target, label) return "[" .. label .. "](" .. target .. ")" end,
         ShowThemedDialog = function(opts) dialogs[#dialogs + 1] = opts end,
@@ -80,7 +80,7 @@ function tests.fromTheBundledReleases_whereChatGPSAndNotesWent()
     ns.NoteUpgrade("4.0.1")
     H.assertEq(db.extensionsNoticeFrom, "4.0.1")
     ns.TellExtensions()
-    H.assertEq(said[1], "EF went 5.0.0: Chat, GPS and Notes all. get " .. CHAT .. ", " .. GPS .. " and " .. NOTES
+    H.assertEq(said[1], "EF went 5.0.0: GPS, Notes and Chat all. get " .. GPS .. ", " .. NOTES .. " and " .. CHAT
         .. ". others " .. PAGES .. ".")
     H.assertNil(db.extensionsNoticeFrom, "told once")
     ns.TellExtensions()
@@ -98,7 +98,7 @@ function tests.someAlreadyInstalled_onlyTheRestToGet()
     local ns, _, said = Load({ EasyFind_GPS = true, EasyFind_Notes = true })
     ns.NoteUpgrade("4.0.0")
     ns.TellExtensions()
-    H.assertEq(said[1], "EF went 5.0.0: Chat, GPS and Notes all. get it " .. CHAT .. ". others " .. PAGES .. ".")
+    H.assertEq(said[1], "EF went 5.0.0: GPS, Notes and Chat all. get it " .. CHAT .. ". others " .. PAGES .. ".")
 end
 
 function tests.allInstalled_justTheNews()
@@ -149,19 +149,28 @@ function tests.notesAskedForWithNone_saysWhereToGetIt()
         "the old copy is never loadable")
 end
 
--- The [Extensions] link: one menu of every page, installed ones checked,
--- a row's click the page's address.
+-- The [Extensions] link: one menu of every page for this client,
+-- installed ones checked, a row's click the page's address.
 function tests.theExtensionsLinkListsEveryPage()
     local ns, _, _, dialogs, menus = Load({ EasyFind_GPS = true })
     ns.ShowExtensionPages()
     local rows = menus[1].rows
-    H.assertEq(#rows, 6, "every page with a slug")
-    H.assertEq(rows[2].text, "EasyFind: GPS Navigation Extension")
-    H.assertTrue(rows[2].icon ~= nil, "installed: checked")
-    H.assertNil(rows[3].icon)
+    H.assertEq(#rows, 10, "every page with a slug, on WoW Forever")
+    local order = {}
+    for _, r in ipairs(rows) do order[#order + 1] = (r.text:gsub("^EasyFind: ", ""):gsub(" Extension$", "")) end
+    H.assertEq(table.concat(order, ", "), "GPS Navigation, Notes, Chat, Questie, HandyNotes, Auctionator, "
+        .. "DungeonJournal, Classic Bestiary, Spoken, ALL THE THINGS", "the order the cards show too")
+    H.assertTrue(rows[1].icon ~= nil, "installed: checked")
+    H.assertNil(rows[4].icon)
     H.assertEq(menus[1].opts.iconSide, "left")
-    rows[3].onClick()
+    rows[4].onClick()
     H.assertEq(dialogs[1].editBoxDefault, "https://www.curseforge.com/wow/addons/easyfind-questie-extension")
+
+    local retail, _, _, _, retailMenus = Load(nil, { retail = true })
+    retail.ShowExtensionPages()
+    local names = {}
+    for _, r in ipairs(retailMenus[1].rows) do names[#names + 1] = r.text end
+    H.assertEq(#names, 6, "retail runs no Questie, Spoken, Classic Bestiary or DungeonJournal: " .. table.concat(names, ", "))
 end
 
 function tests.fromTheSplitOn_nothing()

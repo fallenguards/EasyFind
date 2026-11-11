@@ -12,7 +12,6 @@ Wizard.FEATURES_PAGE = 2
 local Utils = ns.Utils
 local L = ns.L
 local SafeAfter = Utils.SafeAfter
-local sformat = Utils.sformat
 
 local CreateFrame   = CreateFrame
 local UIParent      = UIParent
@@ -216,59 +215,40 @@ local USE_TUTORIAL_SLIDES = {
         text = L["TUT_SLIDE_INLINE_SETTINGS"],
     },
 }
--- One deck for the whole app family: a slide (or two) per app, growing as
--- apps land. Calculator keeps its pair; Icon Search adds one; future apps
--- join here when they ship.
--- Each slide names the app it showcases in the deck header ("Apps: X").
-local APPS_TITLE_CALC = sformat(L["TUT_APPS_SLIDE_HEADER"], L["UITREE_CALCULATOR"])
-local APPS_TUTORIAL_SLIDES = {
-    {
-        image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-calculator-visual-hires",
-        texCoord = TutorialTexCoord(908, 420, 1024, 512),
-        w = 454, h = 210,
-        text = L["TUT_FEATURE_CALCULATOR_DESC"],
-        title = APPS_TITLE_CALC,
-    },
-    {
-        image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-calculator-copy-hires",
-        texCoord = TutorialTexCoord(908, 420, 1024, 512),
-        w = 454, h = 210,
-        text = L["TUT_CALC_COPY_DESC"],
-        title = APPS_TITLE_CALC,
-        -- Cursor sitting just right of "Ctrl+C to copy".
-        overlay = {
-            tex = GAUNTLET_CURSOR_TEX,
-            texCoord = GAUNTLET_CURSOR_TEXCOORD,
-            size = 30,
-            ox = 382, oy = 100,
-        },
-    },
-    {
-        image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-iconsearch-hires",
-        texCoord = TutorialTexCoord(908, 420, 1024, 512),
-        w = 454, h = 210,
-        text = L["TUT_SLIDE_ICONSEARCH"],
-        companion = "EasyFind_Icons",
-        title = sformat(L["TUT_APPS_SLIDE_HEADER"], L["ICON_SEARCH_APP"]),
-    },
-    {
-        image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-snippets-hires",
-        texCoord = TutorialTexCoord(908, 420, 1024, 512),
-        w = 454, h = 210,
-        text = L["TUT_SLIDE_SNIPPETS"],
-        companion = "EasyFind_Snippets",
-        title = sformat(L["TUT_APPS_SLIDE_HEADER"], L["FILTER_SNIPPETS"]),
-    },
+-- The Extensions deck: a card per extension, six to a slide. The ones on
+-- CurseForge that run on this client come first, then the ones inside
+-- EasyFind; each slide opens on a line about its kind.
+local CARDS_PER_SLIDE = 6
+local BUILT_IN_CARDS = {
+    { title = L["UITREE_CALCULATOR"], icon = ns.CALCULATOR_ICON_TEX, blurb = L["EXT_CARD_CALCULATOR"] },
+    { title = L["ICON_SEARCH_APP"], icon = ns.ICON_SEARCH_ICON_TEX, blurb = L["EXT_CARD_ICONSEARCH"], caps = "iconSearch" },
+    { title = L["FILTER_SNIPPETS"], icon = ns.SNIPPET_ICON_TEX, blurb = L["EXT_CARD_SNIPPETS"] },
+    { title = L["FILTER_CLIPBOARD"], icon = ns.CLIPBOARD_ICON_TEX, blurb = L["EXT_CARD_CLIPBOARD"] },
+    { title = L["FILTER_QUICKLISTS"], icon = ns.QUICKLIST_ICON_TEX, blurb = L["EXT_CARD_QUICKLISTS"] },
 }
--- A slide about a companion's feature is dropped when that companion is
--- disabled in the AddOns list (the snippets slide).
-for i = #APPS_TUTORIAL_SLIDES, 1, -1 do
-    local slide = APPS_TUTORIAL_SLIDES[i]
-    if slide.companion and ns.IsCompanionLoadable
-       and not ns.IsCompanionLoadable(slide.companion) then
-        table.remove(APPS_TUTORIAL_SLIDES, i)
+
+local function ExtensionSlides()
+    local slides = {}
+    local function Paged(cards, intro)
+        for i = 1, #cards, CARDS_PER_SLIDE do
+            local page = {}
+            for j = i, math.min(i + CARDS_PER_SLIDE - 1, #cards) do page[#page + 1] = cards[j] end
+            slides[#slides + 1] = { cards = page, text = intro }
+        end
     end
+    local onCurseForge = {}
+    for _, e in ipairs(ns.FirstPartyExtensions or {}) do
+        if e.title and e.slug and ns.ExtensionRunsHere(e) then onCurseForge[#onCurseForge + 1] = e end
+    end
+    Paged(onCurseForge, L["TUT_EXT_INTRO"])
+    local builtIn = {}
+    for _, c in ipairs(BUILT_IN_CARDS) do
+        if not (c.caps and ns.Caps and ns.Caps[c.caps] == false) then builtIn[#builtIn + 1] = c end
+    end
+    Paged(builtIn, L["TUT_EXT_BUILTIN_INTRO"])
+    return slides
 end
+local APPS_TUTORIAL_SLIDES = ExtensionSlides()
 
 local MAP_SEARCH_TUTORIAL_SLIDES = {
     {
@@ -813,6 +793,171 @@ function RepaintFeatureTiles()
     end
 end
 
+-- The Extensions deck's cards, laid out like the website's: an icon well,
+-- the name, a short line and a pill saying where the player stands with
+-- it. A card to get grows on hover and gives its download address.
+local CARD_W, CARD_H, CARD_GAP = 156, 132, 10
+local CARD_CHECK = "Interface\\Buttons\\UI-CheckBox-Check"
+
+local function ExtensionCard(parent)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetSize(CARD_W, CARD_H)
+    local card = CreateFrame("Button", nil, holder)
+    card:SetSize(CARD_W, CARD_H)
+    card:SetPoint("CENTER", holder, "CENTER", 0, 0)
+    card:RegisterForClicks("LeftButtonUp")
+    ns.CreateRoundedRectBorder(card)
+    ns.SetRoundedRectBarHeight(card, 10)
+    ns.SetRoundedRectBorderEdgeShown(card, false)
+    card._efNoAutoRetint = true
+    card._efClassicSurface = true
+    card._efClassicStyle = "thin"
+
+    local well = CreateFrame("Frame", nil, card)
+    well:SetSize(38, 38)
+    well:SetPoint("TOP", card, "TOP", 0, -10)
+    ns.CreateRoundedRectBorder(well)
+    ns.SetRoundedRectBorderEdgeShown(well, false)
+    well._efNoAutoRetint = true
+    local icon = well:CreateTexture(nil, "OVERLAY")
+    icon:SetSize(24, 24)
+    icon:SetPoint("CENTER")
+
+    local title = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", well, "BOTTOM", 0, -6)
+    title:SetPoint("LEFT", card, "LEFT", 8, 0)
+    title:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    title:SetJustifyH("CENTER")
+    ApplyInter(title, "semibold", 12)
+    title._efOwnColor = true
+
+    local blurb = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    blurb:SetPoint("TOP", title, "BOTTOM", 0, -3)
+    blurb:SetPoint("LEFT", card, "LEFT", 10, 0)
+    blurb:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    blurb:SetJustifyH("CENTER")
+    blurb:SetJustifyV("TOP")
+    blurb:SetSpacing(1)
+    blurb:SetMaxLines(3)
+    ApplyInter(blurb, "regular", 10)
+    blurb._efOwnColor = true
+
+    local pill = CreateFrame("Frame", nil, card)
+    pill:SetHeight(16)
+    pill:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
+    ns.CreateRoundedRectBorder(pill)
+    ns.SetRoundedRectBorderEdgeShown(pill, false)
+    pill._efNoAutoRetint = true
+    local check = pill:CreateTexture(nil, "OVERLAY")
+    check:SetTexture(CARD_CHECK)
+    check:SetSize(14, 14)
+    local pillText = pill:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ApplyInter(pillText, "semibold", 10)
+    pillText._efOwnColor = true
+
+    local hoverGlow = card:CreateTexture(nil, "ARTWORK", nil, -8)
+    hoverGlow:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    hoverGlow:SetBlendMode("ADD")
+    hoverGlow:SetPoint("TOPLEFT", card, "TOPLEFT", 4, -4)
+    hoverGlow:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -4, 4)
+    hoverGlow:SetAlpha(0.5)
+    hoverGlow:Hide()
+
+    local function Fill(r, g, b, lift)
+        ns.SetRoundedRectBorderFillColor(card, r + (1 - r) * lift, g + (1 - g) * lift, b + (1 - b) * lift, 1)
+    end
+
+    card:SetScript("OnEnter", function(self)
+        if not self.slug then return end
+        self:SetScale(1.04)
+        hoverGlow:SetShown(ns.ClassicLook())
+        local r, g, b = ThemeBandFill()
+        Fill(r, g, b, 0.12)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L["TUT_EXT_LINK_TT"], 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    card:SetScript("OnLeave", function(self)
+        if not self.slug then return end
+        self:SetScale(1.00)
+        hoverGlow:Hide()
+        local r, g, b = ThemeBandFill()
+        Fill(r, g, b, 0)
+        GameTooltip:Hide()
+    end)
+    card:SetScript("OnClick", function(self)
+        if self.slug then ns.ShowExtensionPage(self.slug) end
+    end)
+
+    -- e: an extension of ours on CurseForge (slug) or a built-in card.
+    function holder:Set(e)
+        card:SetScale(1.00)
+        hoverGlow:Hide()
+        local light = ns.ACTIVE_UI_PALETTE and ns.ACTIVE_UI_PALETTE.light
+        if ns.ApplySkin then ns.ApplySkin(card) end
+        local r, g, b = ThemeBandFill()
+        Fill(r, g, b, 0)
+        ns.SetRoundedRectBorderFillColor(well, r * 0.6, g * 0.6, b * 0.6, 1)
+        ns.SetRoundedRectBorderFillColor(pill, r * 0.6, g * 0.6, b * 0.6, 1)
+        icon:SetTexture(e.icon)
+        ns.PaintAppGlyph(icon)
+        title:SetText(e.title)
+        blurb:SetText(e.blurb)
+        if light then
+            title:SetTextColor(1, 1, 1, 1)
+            blurb:SetTextColor(1, 1, 1, 1)
+        else
+            title:SetTextColor(Utils.RGB(TEXT_PRIM, 1))
+            blurb:SetTextColor(Utils.RGB(TEXT_BODY, 1))
+        end
+
+        local have = e.addon and ns.ExtensionInstalled(e.addon)
+        card.slug = (e.addon and not have) and e.slug or nil
+        check:ClearAllPoints()
+        pillText:ClearAllPoints()
+        if have then
+            check:Show()
+            check:SetPoint("LEFT", pill, "LEFT", 5, 0)
+            pillText:SetPoint("LEFT", check, "RIGHT", 1, 0)
+            pillText:SetText(L["EXT_INSTALLED"])
+            pillText:SetTextColor(Utils.RGB(ns.COPIED_COLOR, 1))
+            pill:SetWidth(pillText:GetStringWidth() + 28)
+        else
+            check:Hide()
+            pillText:SetPoint("CENTER", pill, "CENTER", 0, 0)
+            if e.addon then
+                pillText:SetText(L["TUT_EXT_GET"])
+                pillText:SetTextColor(Utils.RGB(ns.LINK_COLOR or { 0.44, 0.84, 1.0 }, 1))
+            else
+                pillText:SetText(L["TUT_EXT_BUILTIN"])
+                pillText:SetTextColor(Utils.RGB(TEXT_DIM, 1))
+            end
+            pill:SetWidth(pillText:GetStringWidth() + 18)
+        end
+        self:Show()
+    end
+    return holder
+end
+
+-- Up to six cards, three to a row, filled per slide.
+local function ExtensionCardGrid(parent)
+    local grid = CreateFrame("Frame", nil, parent)
+    grid:SetSize(CARD_W * 3 + CARD_GAP * 2, CARD_H * 2 + CARD_GAP)
+    local slots = {}
+    for i = 1, 6 do
+        local c = ExtensionCard(grid)
+        local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
+        c:SetPoint("TOPLEFT", grid, "TOPLEFT", col * (CARD_W + CARD_GAP), -row * (CARD_H + CARD_GAP))
+        slots[i] = c
+    end
+    function grid:Fill(cards)
+        for i = 1, #slots do
+            if cards[i] then slots[i]:Set(cards[i]) else slots[i]:Hide() end
+        end
+    end
+    return grid
+end
+
 -- The Map feature tile mirrors the world-map side tab players actually click:
 -- the side-tab silhouette with the gold map pin on it, in the art the client
 -- draws there (see MapSearch/MapTab.lua SIDE_TAB). Rendered at the atlas's native
@@ -980,7 +1125,7 @@ local function BuildPage2(parent)
         hoverRingTex:SetTexture("Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-ring")
         hoverRingTex:Hide()
 
-        local liveDemo
+        local liveDemo, cardGrid
         for _, s in ipairs(slides) do
             if s.live == "searchbar" then
                 liveDemo = BuildSearchBarReplica(d, s.w, s.h)
@@ -1069,7 +1214,17 @@ local function BuildPage2(parent)
                 interSize = 11,
             })
             slideFlow:ClearAllPoints()
-            if slide.live and liveDemo then
+            if cardGrid then cardGrid:Hide() end
+            if slide.cards then
+                image:Hide()
+                if liveDemo then liveDemo:Hide() end
+                slideFlow:SetPoint("TOP", h, "BOTTOM", 0, -10)
+                cardGrid = cardGrid or ExtensionCardGrid(d)
+                cardGrid:ClearAllPoints()
+                cardGrid:SetPoint("TOP", slideFlow, "BOTTOM", 0, -12)
+                cardGrid:Fill(slide.cards)
+                cardGrid:Show()
+            elseif slide.live and liveDemo then
                 image:Hide()
                 liveDemo:Show()
                 slideFlow:SetPoint("TOP", liveDemo, "BOTTOM", 0, -16)

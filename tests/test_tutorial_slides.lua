@@ -12,6 +12,8 @@ local function Read(rel)
 end
 
 local WIZARD = "Apps/Onboarding/TutorialWizard.lua"
+-- A locale line's opening, built so the key checker reads no lookup here.
+local LOCALE_KEY = "L" .. '["%s"]'
 
 -- Each slide table's text: image line to its closing brace at 4 spaces.
 local function Slides(src)
@@ -36,7 +38,7 @@ function tests.everySlidePicture_shipsTracked()
     end
     p:close()
     local slides = Slides(Read(WIZARD))
-    H.assertTrue(#slides > 20, "the slides read: " .. #slides)
+    H.assertTrue(#slides > 15, "the slides read: " .. #slides)
     for _, s in ipairs(slides) do
         H.assertTrue(tracked[s.image], s.image .. " is not a tracked file in Onboarding/Images")
     end
@@ -61,6 +63,46 @@ function tests.theMapTabDeck_endsOnTheGPSExtension()
     H.assertEq(last.text, "TUT_MAP_GPS_DESC")
     H.assertEq(last.image, "tutorial-map-gps-hires")
     H.assertNil(last.caps, "every client")
+end
+
+-- The Extensions deck draws a card per extension of ours on CurseForge:
+-- each needs its title, an icon EasyFind ships and a blurb in enUS.
+function tests.everyExtensionOnCurseForge_hasItsCard()
+    local src = Read("Core/Extensions.lua")
+    local list = assert(src:match("local FIRST_PARTY = {\n(.-)\n}\n"))
+    local enUS = Read("Locales/enUS.lua")
+    local p = assert(io.popen('git -C "' .. H.ADDON_ROOT .. '" ls-files textures'))
+    local tracked = {}
+    for path in p:lines() do tracked[path] = true end
+    p:close()
+    local n = 0
+    local text, starts = "\n" .. list, {}
+    for pos in text:gmatch("()\n    { addon") do starts[#starts + 1] = pos end
+    for i, pos in ipairs(starts) do
+        local entry = text:sub(pos, (starts[i + 1] or #text + 1) - 1)
+        local addon = entry:match('addon = "([%w_]+)"')
+        if entry:find("slug = ") then
+            n = n + 1
+            H.assertTrue(entry:find("title = ") ~= nil, addon .. " has no title")
+            local icon = entry:match('icon = TEX %.%. "([%w%-]+)"')
+            H.assertTrue(icon and tracked["textures/" .. icon .. ".tga"], addon .. "'s icon is not a tracked texture")
+            local blurb = entry:match('blurb = L%["([%w_]+)"%]')
+            H.assertTrue(blurb and enUS:find(LOCALE_KEY:format(blurb), 1, true), addon .. "'s blurb is not in enUS")
+        end
+    end
+    H.assertTrue(n >= 10, "extensions with a page: " .. n)
+end
+
+function tests.theBuiltInCards_haveTheirBlurbs()
+    local src = Read(WIZARD)
+    local enUS = Read("Locales/enUS.lua")
+    local list = assert(src:match("local BUILT_IN_CARDS = {\n(.-)\n}\n"))
+    local n = 0
+    for key in list:gmatch('blurb = L%["([%w_]+)"%]') do
+        n = n + 1
+        H.assertTrue(enUS:find(LOCALE_KEY:format(key), 1, true) ~= nil, key)
+    end
+    H.assertEq(n, 5)
 end
 
 local pass, fail, failures = H.runSuite("TutorialSlides", tests)
