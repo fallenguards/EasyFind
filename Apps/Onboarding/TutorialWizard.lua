@@ -313,6 +313,7 @@ local MAP_SEARCH_TUTORIAL_SLIDES = {
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-map-rares-hires",
+        caps = "retail",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_MAP_RARES_DESC"],
@@ -327,6 +328,7 @@ local MAP_SEARCH_TUTORIAL_SLIDES = {
     },
     {
         image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-map-autotrack-hires",
+        caps = "retail",
         texCoord = TutorialTexCoord(908, 420, 1024, 512),
         w = 454, h = 210,
         text = L["TUT_MAP_AUTOTRACK_DESC"],
@@ -337,6 +339,12 @@ local MAP_SEARCH_TUTORIAL_SLIDES = {
             size = 30,
             ox = 195, oy = 176,
         },
+    },
+    {
+        image = "Interface\\AddOns\\EasyFind\\Onboarding\\Images\\tutorial-map-gps-hires",
+        texCoord = TutorialTexCoord(908, 420, 1024, 512),
+        w = 454, h = 210,
+        text = L["TUT_MAP_GPS_DESC"],
     },
 }
 

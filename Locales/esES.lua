@@ -273,6 +273,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Busca un continente como Rasganorte y
 L["TUT_MAP_HOVER_DESC"]                 = "En el mapa de una ciudad importante, busca y pasa el cursor sobre un punto de interés (maestro, maestro de vuelo, muñecos de entrenamiento...) y su icono se ilumina en el mapa. Al hacer clic se coloca automáticamente un marcador rastreado en tu minimapa."
 L["TUT_MAP_RARES_DESC"]                 = "Los raros se buscan por nombre, o busca 'raros' para ver todos los activos. Al pasar el cursor sobre un resultado, su lugar se ilumina con recuadro y flecha; clic izquierdo en la fila o en el icono del mapa coloca un marcador de rastreo."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "¿Raros sin escribir nada? Abre la rueda de filtros de la pestaña del mapa y activa 'Rastreo auto.': se marcan todos los raros del mapa que estás viendo. Haz clic en un icono marcado para colocar un marcador rastreado en su lugar."
+L["TUT_MAP_GPS_DESC"]                   = "La {C:FFD100}extensión GPS{/C}, gratis en CurseForge, te lleva a todo lo que encuentres: el botón GPS de una fila planea el camino a pie, en ruta de vuelo, barco o portal, paso a paso, y lo dibuja en el mapa. Haz clic derecho en un icono del mapa para ir hasta él."
 L["TUT_BTN_BACK"]                       = "Atrás"
 L["TUT_BTN_BACK_ARROW"]                 = "< Atrás"
 L["TUT_KB_PRESS_KEY"]                   = "Pulsa una tecla…"

@@ -275,6 +275,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Durchsuche einen Kontinent wie Norden
 L["TUT_MAP_HOVER_DESC"]                 = "Suche auf einer Stadtkarte einen Ort von Interesse (Lehrer, Flugmeister, Trainingspuppen...) und fahre mit der Maus darüber: sein Symbol leuchtet direkt auf der Karte auf. Ein Klick setzt automatisch eine verfolgte Markierung auf der Minikarte."
 L["TUT_MAP_RARES_DESC"]                 = "Seltene findest du per Name, oder gib 'Seltene' ein für alle derzeit aktiven. Beim Überfahren eines Ergebnisses leuchtet seine Stelle mit Rahmen und Pfeil auf; Linksklick auf Zeile oder Kartensymbol setzt eine verfolgte Markierung."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "Seltene ganz ohne Tippen? Öffne das Filterzahnrad des Karten-Reiters und aktiviere 'Auto-Verfolgen': alle Seltenen der angezeigten Karte werden markiert. Ein Klick auf ein markiertes Symbol setzt dort eine verfolgte Markierung."
+L["TUT_MAP_GPS_DESC"]                   = "Die {C:FFD100}GPS-Erweiterung{/C}, kostenlos auf CurseForge, führt dich zu allem, was du findest: Die GPS-Schaltfläche einer Zeile plant den Weg zu Fuß, per Flugroute, Schiff oder Portal, Schritt für Schritt, und zeichnet ihn auf die Karte. Rechtsklicke ein Kartensymbol für den Weg dorthin."
 L["TUT_BTN_BACK"]                       = "Zurück"
 L["TUT_BTN_BACK_ARROW"]                 = "< Zurück"
 L["TUT_KB_PRESS_KEY"]                   = "Taste drücken …"

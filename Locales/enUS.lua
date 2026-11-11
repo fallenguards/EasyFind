@@ -302,6 +302,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Search a continent like Northrend and
 L["TUT_MAP_HOVER_DESC"]                 = "On a major city map, search and hover a point of interest (trainer, flight master, training dummies...) and an icon lights up right on the map. Clicking it places a tracked pin on your minimap automatically."
 L["TUT_MAP_RARES_DESC"]                 = "Rares are searchable by name, or search 'rares' for all currently active ones. Hovering a result lights up its map spot with a box and arrow; left click the row or the map icon to place a tracking pin."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "Don't want to type for rares? Open the map tab's filter cog and turn on 'Auto-track' to mark every rare on the map you're viewing. Click a marked icon to place a tracked pin at its spot."
+L["TUT_MAP_GPS_DESC"]                   = "The {C:FFD100}GPS extension{/C}, free on CurseForge, leads you to anything you find: a row's GPS button plans the way on foot, by flight path, boat or portal, step by step, and draws it on the map. Right-click a map pin for directions to it."
 L["TUT_BTN_BACK"]                       = "Back"
 L["TUT_BTN_BACK_ARROW"]                 = "< Back"
 L["TUT_KB_PRESS_KEY"]                   = "Press a key..."

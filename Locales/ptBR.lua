@@ -273,6 +273,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Busque um continente como Nortúndria
 L["TUT_MAP_HOVER_DESC"]                 = "No mapa de uma grande cidade, busque e passe o cursor sobre um ponto de interesse (treinador, mestre de voo, bonecos de treino...) e o ícone se acende direto no mapa. Ao clicar, um marcador rastreado é colocado automaticamente no seu minimapa."
 L["TUT_MAP_RARES_DESC"]                 = "Raros se buscam pelo nome, ou busque 'raros' para ver todos os ativos. Ao passar o cursor sobre um resultado, o local dele se acende com moldura e seta; clique esquerdo na linha ou no ícone do mapa coloca um marcador de rastreamento."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "Raros sem digitar nada? Abra a engrenagem de filtros da aba do mapa e ative 'Rastreio auto.': todos os raros do mapa que você está vendo são marcados. Clique em um ícone marcado para colocar um marcador rastreado no local."
+L["TUT_MAP_GPS_DESC"]                   = "A {C:FFD100}extensão GPS{/C}, grátis no CurseForge, leva você a tudo o que encontrar: o botão GPS de uma linha planeja o caminho a pé, por rota de voo, barco ou portal, passo a passo, e o desenha no mapa. Clique com o botão direito em um ícone do mapa para ir até ele."
 L["TUT_BTN_BACK"]                       = "Voltar"
 L["TUT_BTN_BACK_ARROW"]                 = "< Voltar"
 L["TUT_KB_PRESS_KEY"]                   = "Pressione uma tecla…"

@@ -273,6 +273,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Cerca un continente come Northrend e 
 L["TUT_MAP_HOVER_DESC"]                 = "Sulla mappa di una grande città, cerca e passa il cursore su un punto d'interesse (addestratore, grifomastro, fantocci da allenamento...) e la sua icona si illumina sulla mappa. Un clic posiziona automaticamente un segnalino tracciato sulla minimappa."
 L["TUT_MAP_RARES_DESC"]                 = "I rari si cercano per nome, oppure cerca 'rari' per tutti quelli attivi. Al passaggio su un risultato la sua posizione si illumina con riquadro e freccia; clic sinistro sulla riga o sull'icona della mappa posiziona un segnalino tracciato."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "Rari senza digitare nulla? Apri la rotella dei filtri della scheda mappa e attiva 'Traccia auto.': vengono segnati tutti i rari della mappa che stai guardando. Clicca un'icona segnata per posizionare lì un segnalino tracciato."
+L["TUT_MAP_GPS_DESC"]                   = "L'{C:FFD100}estensione GPS{/C}, gratuita su CurseForge, ti porta a tutto ciò che trovi: il pulsante GPS di una riga pianifica il percorso a piedi, in volo, in nave o tramite portale, passo dopo passo, e lo traccia sulla mappa. Clic destro su un'icona della mappa per il percorso fin lì."
 L["TUT_BTN_BACK"]                       = "Indietro"
 L["TUT_BTN_BACK_ARROW"]                 = "< Indietro"
 L["TUT_KB_PRESS_KEY"]                   = "Premi un tasto…"

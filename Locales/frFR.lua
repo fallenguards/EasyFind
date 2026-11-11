@@ -273,6 +273,7 @@ L["TUT_MAP_TAB_DESC"]                   = "Cherchez un continent comme le Norfen
 L["TUT_MAP_HOVER_DESC"]                 = "Sur la carte d'une grande ville, cherchez puis survolez un point d'intérêt (maître, maître des vents, mannequins d'entraînement...) : son icône s'illumine directement sur la carte. Un clic place automatiquement un marqueur suivi sur votre minicarte."
 L["TUT_MAP_RARES_DESC"]                 = "Les rares se cherchent par nom, ou tapez 'rares' pour tous ceux actuellement actifs. Au survol d'un résultat, son emplacement s'illumine avec cadre et flèche ; un clic gauche sur la ligne ou l'icône de la carte place un marqueur de suivi."
 L["TUT_MAP_AUTOTRACK_DESC"]             = "Des rares sans rien taper ? Ouvrez la roue de filtres de l'onglet carte et activez 'Suivi auto.' : tous les rares de la carte affichée sont marqués. Cliquez sur une icône marquée pour placer un marqueur suivi à son emplacement."
+L["TUT_MAP_GPS_DESC"]                   = "L'{C:FFD100}extension GPS{/C}, gratuite sur CurseForge, vous mène à tout ce que vous trouvez : le bouton GPS d'une ligne planifie le trajet à pied, en vol, en bateau ou par portail, étape par étape, et le trace sur la carte. Clic droit sur une icône de la carte pour l'itinéraire jusqu'à elle."
 L["TUT_BTN_BACK"]                       = "Retour"
 L["TUT_BTN_BACK_ARROW"]                 = "< Retour"
 L["TUT_KB_PRESS_KEY"]                   = "Appuyez sur une touche…"
