@@ -36,7 +36,7 @@ end
 -- BlizzSearch over 40 categories, each layout read costing 1 ms of the fake
 -- clock (the crawl is the walk's real cost; a name read is not).
 local layoutReads = 0
-local function Load(sched, clock)
+local function Load(sched, clock, setup)
     layoutReads = 0
     local env = H.newEnv()
     env._G = env
@@ -61,6 +61,9 @@ local function Load(sched, clock)
     ns.Database.ResetSearchCache = function() end
     ns.Utils.RunSliced = sched.RunSliced
     ns.Utils.SliceCheckpoint = sched.SliceCheckpoint
+    ns.Utils.SliceYield = sched.SliceYield
+    ns.ResultRows.RegisterCustomSetting = function() end
+    if setup then setup(env, ns) end
     env.EasyFind._ns = ns
     H.loadModule("Apps/Settings/BlizzSearch.lua", env, ns)
     return ns, env
@@ -107,6 +110,110 @@ function tests.idleWaiter_keepsTheBackgroundPool()
         H.assertTrue((row.settingsPopulate or 0) <= 2.5 + 1, "frame " .. frame .. " inside the background pool: "
             .. tostring(row.settingsPopulate))
     end
+end
+
+-- Three AceConfig apps of 100 options, each name read costing 0.2 ms.
+local function AceApps(clock, onName)
+    return function(env, ns)
+        local tables = {}
+        for i = 1, 3 do
+            local args = {}
+            for j = 1, 100 do
+                args["opt" .. j] = { type = "toggle", get = function() return true end, set = function() end,
+                    name = function()
+                        clock.ms = clock.ms + 0.2
+                        if onName then onName(ns, i, j) end
+                        return "App " .. i .. " option " .. j
+                    end }
+            end
+            local options = { type = "group", name = "App " .. i, args = args }
+            tables["app" .. i] = function() return options end
+        end
+        local registry = {
+            IterateOptionsTables = function() return pairs(tables) end,
+            GetOptionsTable = function(_, appName) return tables[appName]() end,
+        }
+        env.LibStub = { NewLibrary = function() end, libs = {
+            ["AceConfigRegistry-3.0"] = registry, ["AceConfigDialog-3.0"] = { BlizOptions = {} } } }
+    end
+end
+
+local function FeedNames(ns)
+    local names = {}
+    for _, e in ipairs(ns.Database.uiSearchData) do
+        if e.addon then names[#names + 1] = e.addon .. "|" .. e.name end
+    end
+    table.sort(names)
+    return names
+end
+
+-- Heard at the end, waited on by nobody: the background pool.
+local function RunToEnd(ns, env, NextFrame)
+    local heard = false
+    ns.BlizzOptionsSearch:EnsurePopulatedAsync(function() heard = true end, true)
+    env._clock:advance(0)
+    local frames = 0
+    while not heard and frames < 2000 do
+        NextFrame()
+        frames = frames + 1
+    end
+    return frames
+end
+
+-- The feeds were one 60 ms slice: now they pause inside the Ace walk.
+function tests.aceFeeds_spanFramesInsideThePool()
+    local sched, NextFrame, spent, clock = Scheduler()
+    local ns, env = Load(sched, clock, AceApps(clock))
+    RunToEnd(ns, env, NextFrame)
+    local names = FeedNames(ns)
+    H.assertEq(#names, 300, "every option is a row")
+    for frame, row in pairs(spent) do
+        H.assertTrue((row.settingsPopulate or 0) <= 2.5 + 1, "frame " .. frame .. " inside the background pool: "
+            .. tostring(row.settingsPopulate))
+    end
+    -- The same rows as a pull that never pauses.
+    local sched2, _, _, clock2 = Scheduler()
+    local ns2 = Load(sched2, clock2, AceApps(clock2))
+    ns2.BlizzOptionsSearch:Populate(false)
+    local direct = FeedNames(ns2)
+    H.assertEq(#direct, #names, "the direct pull's row count")
+    for i = 1, #names do H.assertEq(names[i], direct[i], "row " .. i) end
+end
+
+-- A feed that fails after a pause ends alone; the rest still come in.
+function tests.feedError_endsThatFeedAlone()
+    local sched, NextFrame, _, clock = Scheduler()
+    local reported = {}
+    local ns, env = Load(sched, clock, function(env, ns)
+        AceApps(clock)(env, ns)
+        ns.Utils.ErrorHandler = function(err)
+            if tostring(err):find("broken feed", 1, true) then reported[#reported + 1] = err end
+        end
+        ns.settingsFeeds = { Broken = function()
+            clock.ms = clock.ms + 5
+            ns.Utils.SliceCheckpoint()
+            error("broken feed")
+        end }
+    end)
+    RunToEnd(ns, env, NextFrame)
+    H.assertEq(#FeedNames(ns), 300, "the Ace rows came in")
+    H.assertEq(#reported, 1, "the error was reported once")
+end
+
+-- A feed registered while the populate pauses is read in the same pass.
+function tests.feedRegisteredDuringAPause_isRead()
+    local sched, NextFrame, _, clock = Scheduler()
+    local ns, env = Load(sched, clock, AceApps(clock, function(ns, i, j)
+        if i == 2 and j == 50 then
+            ns.settingsFeeds.Late = function() return { { name = "Late row", open = function() end } } end
+        end
+    end))
+    RunToEnd(ns, env, NextFrame)
+    local found = false
+    for _, name in ipairs(FeedNames(ns)) do
+        if name == "Late|Late row" then found = true end
+    end
+    H.assertTrue(found, "the late feed's row is in")
 end
 
 function tests.populateInsideASearchRun_neverYieldsThere()

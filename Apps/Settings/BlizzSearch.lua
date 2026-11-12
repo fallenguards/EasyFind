@@ -3787,8 +3787,43 @@ local function FeedControl(e, control, addon)
 end
 
 local function PullFeed(data, addon, rows)
-    local ok, list = xpcall(rows, Utils.ErrorHandler)
+    -- In the populate's own run the rows get a coroutine of their own:
+    -- resume catches an error as xpcall would, and their walk may pause.
+    local ok, list
+    local outer = coroutine.running()
+    if outer and ownRuns[outer] then
+        local co = coroutine.create(rows)
+        ownRuns[co] = true
+        ok, list = coroutine.resume(co)
+        while ok and coroutine.status(co) == "suspended" do
+            Utils.SliceYield()
+            ok, list = coroutine.resume(co)
+        end
+        if not ok then Utils.ErrorHandler(list) end
+    else
+        ok, list = xpcall(rows, Utils.ErrorHandler)
+    end
     if not ok or type(list) ~= "table" then return false end
+    local made = {}
+    for _, r in ipairs(list) do
+        -- r.step: our own readers' steps (AceConfig); addons give open().
+        local step = type(r.step) == "table" and r.step or type(r.open) == "function" and { open = r.open }
+        if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and step then
+            local nameLower = SearchLower(r.name)
+            local keywords = { "addon", "setting", "option", nameLower, SearchLower(addon) }
+            for _, w in ipairs(type(r.keywords) == "table" and r.keywords or {}) do
+                keywords[#keywords + 1] = SearchLower(tostring(w))
+            end
+            local e = setmetatable({
+                name = r.name, nameLower = nameLower, keywords = keywords,
+                steps = { step }, addon = addon,
+            }, GetSettingsCatMT("AddOn Settings", step.settingsCategory, step.settingCategoryID, FeedPath(addon, r.path)))
+            FeedControl(e, r.control, addon)
+            made[#made + 1] = e
+        end
+        MaybeYieldLiveSettings()
+    end
+    -- The swap with no pause: a pull of this feed may have ended during one.
     local old = feedRows[addon]
     if old then
         local kept = 0
@@ -3807,36 +3842,37 @@ local function PullFeed(data, addon, rows)
         if index then index:NoteCompacted(kept) end
     end
     local mine = {}
-    for _, r in ipairs(list) do
-        -- r.step: our own readers' steps (AceConfig); addons give open().
-        local step = type(r.step) == "table" and r.step or type(r.open) == "function" and { open = r.open }
-        if type(r) == "table" and type(r.name) == "string" and r.name ~= "" and step then
-            local nameLower = SearchLower(r.name)
-            local keywords = { "addon", "setting", "option", nameLower, SearchLower(addon) }
-            for _, w in ipairs(type(r.keywords) == "table" and r.keywords or {}) do
-                keywords[#keywords + 1] = SearchLower(tostring(w))
-            end
-            local e = setmetatable({
-                name = r.name, nameLower = nameLower, keywords = keywords,
-                steps = { step }, addon = addon,
-            }, GetSettingsCatMT("AddOn Settings", step.settingsCategory, step.settingCategoryID, FeedPath(addon, r.path)))
-            FeedControl(e, r.control, addon)
-            mine[e] = true
-            tinsert(data, e)
-            Sink(e)
-        end
+    for i = 1, #made do
+        local e = made[i]
+        mine[e] = true
+        tinsert(data, e)
+        Sink(e)
     end
     feedRows[addon] = mine
     return true
 end
+
+-- One feed at a time, the table read again after each: a feed may
+-- register while the populate pauses.
 local function PushFeedEntries(data, only)
-    local changed = false
-    for addon, rows in pairs(ns.settingsFeeds or {}) do
-        if only and only == addon or not only and not feedRows[addon] then
-            if PullFeed(data, addon, rows) then changed = true end
-        end
+    if only then
+        local rows = ns.settingsFeeds and ns.settingsFeeds[only]
+        return rows and PullFeed(data, only, rows) or false
     end
-    return changed
+    local changed, tried = false, {}
+    while true do
+        local addon
+        for name in pairs(ns.settingsFeeds or {}) do
+            if not feedRows[name] and not tried[name] then
+                addon = name
+                break
+            end
+        end
+        if not addon then return changed end
+        tried[addon] = true
+        if PullFeed(data, addon, ns.settingsFeeds[addon]) then changed = true end
+        MaybeYieldLiveSettings()
+    end
 end
 
 -- A feed registered or changed after the index was built.
@@ -3911,9 +3947,15 @@ do
         return clean ~= "" and clean or nil
     end
 
+    -- Keys first: the walk may pause, and the addon may edit its table then.
     local function Walk(group, options, path, groupPath, names, handler, appName, out)
-        for key, option in pairs(type(group.args) == "table" and group.args or {}) do
+        local args = type(group.args) == "table" and group.args or {}
+        local keys = {}
+        for key in pairs(args) do keys[#keys + 1] = key end
+        for k = 1, #keys do
             if #out >= ACE_MAX then return end
+            local key = keys[k]
+            local option = args[key]
             if type(option) == "table" and option.type then
                 path[#path + 1] = key
                 local h = option.handler or handler
@@ -3943,6 +3985,7 @@ do
                 end
                 path[#path] = nil
             end
+            MaybeYieldLiveSettings()
         end
     end
 
@@ -3976,7 +4019,10 @@ do
         for suffix, libs in pairs(AceLibs()) do
             local registry = libs.registry
             if type(registry.IterateOptionsTables) == "function" then
-                for appName in registry:IterateOptionsTables() do
+                -- Names first: the read may pause, and an addon may register then.
+                local appNames = {}
+                for appName in registry:IterateOptionsTables() do appNames[#appNames + 1] = appName end
+                for _, appName in ipairs(appNames) do
                     local options = AppOptions(registry, appName)
                     if options then
                         local blizz = libs.dialog and libs.dialog.BlizOptions and libs.dialog.BlizOptions[appName]
@@ -3985,6 +4031,7 @@ do
                         byName[display] = byName[display] or {}
                         tinsert(byName[display], { appName = appName, suffix = suffix, options = options, blizz = blizz })
                     end
+                    MaybeYieldLiveSettings()
                 end
             end
         end
