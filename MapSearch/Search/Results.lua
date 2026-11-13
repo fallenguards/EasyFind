@@ -839,6 +839,7 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
     d.mapID = r.mapID or r.zoneMapID or r.entranceMapID or searchMapID
     d.zoneName = r.zoneName or r.pathPrefix
     d.matchNote = r.matchNote
+    d.npcTitle = r.npcTitle
     d.soldName = r.soldName
     d.teachesText = r.teachesText
     d.pathPrefix = r.pathPrefix

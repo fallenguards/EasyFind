@@ -982,8 +982,11 @@ local function Row(i, k)
             end
         end
         local display = Rec.display(i)
+        local title = N.titleName[t]
         poi = { name = Name(i), category = "npc", isStatic = true, npcID = Rec.id(i), catalog = true,
                 displayID = display ~= 0 and display or nil,
+                -- What it is ("Journeyman Enchanter"), for the row's subtext.
+                npcTitle = title and title ~= "" and title or nil,
                 keywords = #keywords > 0 and keywords or nil }
         poi.baseKeywords = poi.keywords
         PreparePOI(poi)

@@ -145,6 +145,8 @@ local function MapKind(data)
     if cat == "zone" and Enum and Enum.UIMapType and data.zoneMapType == Enum.UIMapType.Continent then
         return _G["CONTINENT"]
     end
+    -- A creature with a title is that, not just "NPC".
+    if cat == "npc" and data.npcTitle then return data.npcTitle end
     local g = MAP_KIND_GLOBALS[cat]
     if g and _G[g] then return _G[g] end
     local key = MAP_KIND_STRINGS[cat] or (cat and cat:find("^prof_") and "MAP_KIND_PROF_TRAINER")

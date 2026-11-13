@@ -35,6 +35,19 @@ function tests.mapRows_leadWithTheirKind()
         "MAP_KIND_PROF_TRAINER: Ironforge")
 end
 
+-- A creature with a title says what it is: "ench trainer" listed five
+-- names over "NPC: Undercity" (2026-11-13).
+function tests.aCreatureWithATitle_leadsWithIt()
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Undercity",
+        npcTitle = "Journeyman Enchanter" }), "Journeyman Enchanter: Undercity")
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Undercity",
+        npcTitle = "Journeyman Enchanter", nearYards = 170 }):find("Journeyman Enchanter: Undercity", 1, true) ~= nil, true,
+        "after the distance")
+    ns.L["NPC_SUBTEXT_SELLS_FMT"] = "%s: %s; sells %s"
+    H.assertEq(Text:GetFlatSubtext({ mapSearchResult = true, category = "npc", zoneName = "Undercity",
+        npcTitle = "Trade Supplies", soldName = "Salt" }), "Trade Supplies: Undercity; sells Salt")
+end
+
 -- A weapon master's row names its weapons after its place.
 function tests.weaponMasters_listTheirWeapons()
     ns.L["NPC_SUBTEXT_TEACHES_FMT"] = "%s; teaches %s"
