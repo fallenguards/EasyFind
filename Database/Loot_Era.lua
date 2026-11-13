@@ -50,7 +50,6 @@ ns.STATIC_LOOT = {
     { inst = 48, enc = 2911, boss = "Twilight Lord Kelris", items = { 1155, 6903 }, d = 4939 },
     { inst = 48, enc = 2910, boss = "Aku'mai", items = { 6909, 6910, 6911 }, d = 2837 },
     { inst = 48, enc = 2694, boss = "Baron Aquanis", items = { 16782 }, d = 110 },
-    { inst = 48, enc = 2704, boss = "Gelihast", items = { 6905, 6906 }, d = 1773 },
     { inst = 70, enc = 547, boss = "Revelosh", items = { 9387, 9388, 9389, 9390 }, d = 5945 },
     { inst = 70, enc = 548, boss = "The Lost Dwarves", items = { 9394, 9398, 9399, 9401, 9404 }, d = 5710 },
     { inst = 70, enc = 549, boss = "Ironaya", items = { 9407, 9408, 9409 }, d = 6089 },

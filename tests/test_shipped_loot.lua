@@ -107,7 +107,30 @@ function tests.foreversOwnDungeonsListTheirBosses()
     H.assertEq(byName["Rath'mael"].inst, 2999)
     H.assertNil(byName["Rahuz"], "a test dungeon's boss stays out")
     H.assertTrue(#byName["Edwin VanCleef"].items > 0, "a boss the databases know keeps its drops")
-    H.assertTrue(#all >= 290, "every boss of every placed instance: " .. #all)
+    H.assertTrue(#all >= 263, "every boss of every placed instance: " .. #all)
+end
+
+-- One row per boss: Forever's encounter table kept Season of Discovery
+-- raid copies (Aku'mai three times in "bfd", 2026-11-12), one respelled.
+local SAME_LOOT_TWINS = { ["Guard Slip'kik"] = true }   -- Dire Maul's two guards share model and loot
+
+function tests.eachBossIsListedOncePerInstance()
+    for file, caps in pairs({ ["Loot_Forever.lua"] = { forever = true }, ["Loot_Era.lua"] = { era = true },
+                              ["Loot_TBC.lua"] = { tbc = true } }) do
+        local _, all = LoadLoot(file, caps)
+        local names, faces = {}, {}
+        for _, boss in ipairs(all) do
+            local name = boss.inst .. ":" .. boss.boss:lower():gsub("[^%w]", "")
+            H.assertNil(names[name], file .. ": " .. boss.boss .. " twice in instance " .. boss.inst)
+            names[name] = true
+            -- A respelled copy: the same face and drops (two bosses may share a model).
+            if boss.d and not SAME_LOOT_TWINS[boss.boss] then
+                local copy = boss.inst .. ":" .. boss.d .. ":" .. table.concat(boss.items or {}, ",")
+                H.assertNil(faces[copy], file .. ": " .. boss.boss .. " repeats " .. tostring(faces[copy]))
+                faces[copy] = boss.boss
+            end
+        end
+    end
 end
 
 local pass, fail, failures = H.runSuite("ShippedLoot", tests)
