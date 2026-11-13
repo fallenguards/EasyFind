@@ -42,8 +42,16 @@ corpus[#corpus + 1] = lootEntry
 local bossEntry = { name = "Magmus", nameLower = "magmus", category = "Boss",
     instanceNameLower = "blackrock depths", keywordsLower = { "brd" } }
 corpus[#corpus + 1] = bossEntry
+-- Names with apostrophes, typed without them.
+local jeneuEntry = { name = "Je'neu of the Earthen Ring", nameLower = "je'neu of the earthen ring", category = "Test" }
+corpus[#corpus + 1] = jeneuEntry
+local zfEntry = { name = "Antu'sul", nameLower = "antu'sul", category = "Test", keywordsLower = { "zul'farrak" } }
+corpus[#corpus + 1] = zfEntry
+local phylacteryEntry = { name = "Kel'Thuzad's Phylactery", nameLower = "kel'thuzad's phylactery", category = "Test" }
+corpus[#corpus + 1] = phylacteryEntry
 
 ns.Database = { uiSearchData = corpus }
+H.loadModule("Shared/SearchText.lua", env, ns)
 H.loadModule("Database/SearchIndex.lua", env, ns)
 local SearchIndex = ns.SearchIndex
 
@@ -75,6 +83,18 @@ function tests.candidates_aBossThroughItsInstancesName()
         H.assertTrue(candidateSet({ w })[bossEntry], "a candidate for '" .. w .. "'")
     end
     H.assertTrue(candidateSet({ "blackrock", "depths" })[bossEntry])
+end
+
+-- The scorers try a name without its apostrophes ("jeneu" for Je'neu):
+-- so does the index (2026-11-12).
+function tests.candidates_aNameTypedWithoutItsApostrophes()
+    for _, w in ipairs({ "jeneu", "je'neu", "jen", "earthen" }) do
+        H.assertTrue(candidateSet({ w })[jeneuEntry], "a candidate for '" .. w .. "'")
+    end
+    for _, w in ipairs({ "zulfarrak", "zulf", "antusul" }) do
+        H.assertTrue(candidateSet({ w })[zfEntry], "a candidate for '" .. w .. "'")
+    end
+    H.assertTrue(candidateSet({ "kelthuzad" })[phylacteryEntry], "past what a typo reaches")
 end
 
 function tests.candidates_lootAlwaysIncluded()

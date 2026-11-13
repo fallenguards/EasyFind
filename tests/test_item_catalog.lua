@@ -192,6 +192,24 @@ function tests.synthetic_aTypoInTheFirstWordStillFindsTheName()
     H.assertEq(lucky[1] and lucky[1].data.nameLower, "(lucky) charm", "a query that matches runs no typo pass")
 end
 
+-- A name's apostrophes are optional: "kelthuzad" finds Kel'Thuzad's
+-- items as "kel'thuzad" does (2026-11-12).
+function tests.synthetic_aNameTypedWithoutItsApostrophe()
+    local lines = {}
+    for i, name in ipairs({ "kel'thuzad's phylactery", "kel'thuzad's cowl", "kelp", "zul'gurub idol" }) do
+        lines[i] = ("%s\t%d\t2\t0\t10\t4\t0"):format(name, 2000 + i)
+    end
+    table.sort(lines)
+    local ItemSearch, Score = NewCatalog(table.concat(lines, "\n"))
+    for _, q in ipairs({ "kelthuzad", "kelthu", "kelthuzads cowl" }) do
+        local got = ItemSearch:Search(q, Score) or {}
+        H.assertTrue(got[1] and got[1].data.nameLower:find("^kel'thuzad's") ~= nil, q)
+    end
+    local idol = ItemSearch:Search("zulgurub", Score) or {}
+    H.assertEq(idol[1] and idol[1].data.nameLower, "zul'gurub idol")
+    H.assertEq(#(ItemSearch:Search("kel'thuzad", Score) or {}), 2, "as spelled still")
+end
+
 -- A name led by punctuation starts at its first word for a stopword query.
 function tests.synthetic_quotedNameCountsAsANameStart()
     local ItemSearch, Score = NewCatalog(SynthBlob())

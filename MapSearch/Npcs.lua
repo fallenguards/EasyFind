@@ -809,17 +809,17 @@ local function LineHits(blob, at, n, word, into)
     end
 end
 
--- The names with their spaces out (rothide for Rot Hide), with their line
--- starts: made on the first word typed joined, kept with the catalog. Kept
+-- The names with their spaces and apostrophes out (rothide for Rot Hide,
+-- jeneu for Je'neu), with their line starts: made on the first word typed joined, kept with the catalog. Kept
 -- only once whole: LineStarts yields, and a search cancelled there left the
 -- names without their starts for every later one.
 local function Joined()
     if N.sqAt == nil then
-        local sqLow = (N.low:gsub(" ", ""))
+        local sqLow = (N.low:gsub("[ ']", ""))
         local sqAt = LineStarts(sqLow)
         local sqEnLow, sqEnAt
         if N.enLow then
-            sqEnLow = (N.enLow:gsub(" ", ""))
+            sqEnLow = (N.enLow:gsub("[ ']", ""))
             sqEnAt = LineStarts(sqEnLow)
         end
         N.sqLow, N.sqAt, N.sqEnLow, N.sqEnAt = sqLow, sqAt, sqEnLow, sqEnAt
@@ -828,7 +828,7 @@ local function Joined()
 end
 
 -- A word's line hits in both texts. One that hits nothing as typed is
--- looked for in the names with their spaces out, and set at its line's
+-- looked for in the names with their spaces and apostrophes out, and set at its line's
 -- start when the name begins so, else just inside it.
 local joinedHits = {}
 local function WordHits(word, low, en)

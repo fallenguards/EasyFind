@@ -785,6 +785,19 @@ function tests.aNameTypedWithoutItsSpaceIsFound()
     H.assertEq(#find(append, "hidemys"), 1, "joined inside the name too")
 end
 
+-- "jeneu" found the quest Je'neu of the Earthen Ring but not Je'neu
+-- Sancrea (2026-11-12): a name's apostrophes are optional like its spaces.
+function tests.aNameTypedWithoutItsApostropheIsFound()
+    local list = {
+        { 1, 0, 7 + 16, 0, 0, { 1440, xy(0.5, 0.5), 1 } },
+        { 2, 0, 7 + 16, 0, 0, { 1440, xy(0.6, 0.6), 1 } },
+    }
+    local append = fresh(nil, list, "Je'neu Sancrea\nKel'Thuzad")
+    H.assertEq(find(append, "jeneu")[1].name, "Je'neu Sancrea")
+    H.assertEq(find(append, "je'neu")[1].name, "Je'neu Sancrea", "as spelled still")
+    H.assertEq(find(append, "kelthu")[1].name, "Kel'Thuzad")
+end
+
 -- A search cancelled while the joined names' line starts were being made
 -- (a keystroke landing mid-way) left the names without their starts, and
 -- every later joined word errored in LineAt (2026-11-04).

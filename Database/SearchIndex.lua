@@ -54,6 +54,7 @@ local pairs = pairs
 local tsort = table.sort
 local getmetatable, rawget = getmetatable, rawget
 local SliceCheckpoint = ns.Utils.SliceCheckpoint
+local Unquoted, QuotedOnly = ns.SearchText.Unquoted, ns.SearchText.QuotedOnly
 
 -- Keep in sync with Database/Search.lua's fuzzy thresholds.
 local FUZZY_EDIT1_LEN, FUZZY_EDIT2_LEN = 5, 8
@@ -429,6 +430,13 @@ local function IndexText(e, text, isKeyword)
     end
 end
 
+-- A text, and with apostrophes it again without them: the scorers try
+-- both for a query typed without (Search.lua ScoreName).
+local function IndexTexts(e, text, isKeyword)
+    IndexText(e, text, isKeyword)
+    if sfind(text, "'", 1, true) then IndexText(e, Unquoted(text), isKeyword) end
+end
+
 local function IndexEntry(data)
     -- Idempotent: after a removal compacts uiSearchData, already-indexed
     -- entries shift into the "new" position range; re-adding them would
@@ -476,7 +484,7 @@ local function IndexEntry(data)
     end
     if nameLower then
         m = maskOf(nameLower, m)
-        IndexText(e, nameLower)
+        IndexTexts(e, nameLower)
         if sfind(nameLower, "[\128-\255]") then special[sid] = true end
     end
     kws = kws or data.keywordsLower or data.keywords
@@ -485,7 +493,7 @@ local function IndexEntry(data)
             local kw = kws[k]
             if kw then
                 m = maskOf(kw, m)
-                IndexText(e, kw, true)
+                IndexTexts(e, kw, true)
                 if sfind(kw, "[\128-\255]") then special[sid] = true end
             end
         end
@@ -495,7 +503,7 @@ local function IndexEntry(data)
     local inst = not pc and data.instanceNameLower
     if inst then
         m = maskOf(inst, m)
-        IndexText(e, inst, true)
+        IndexTexts(e, inst, true)
         if sfind(inst, "[\128-\255]") then special[sid] = true end
     end
     -- Corpus stubs never carry these (PackedCorpus specs hold none).
@@ -751,7 +759,8 @@ end
 -- schema when a segment's shape changes: older snapshots then rebuild.
 -- 2: the dictionary ships packed (word offsets, ids by first letter).
 -- 3: positions in two digits under WIDTH2_ROWS rows (snap.width).
-local SEGMENT_SCHEMA = 3
+-- 4: a text with apostrophes indexed without them too ("jeneu").
+local SEGMENT_SCHEMA = 4
 local tinsert = table.insert
 
 function Unprintable3(s, p)
@@ -1190,6 +1199,11 @@ end
 
 -- The texts IndexEntry reads (corpus stubs through transient decodes)
 -- hold w as one run: a plain find per text, far cheaper than scoring.
+local function Holds(text, w)
+    return sfind(text, w, 1, true) ~= nil
+        or (QuotedOnly(text, w) and sfind(Unquoted(text), w, 1, true) ~= nil)
+end
+
 local function HoldsText(sid, w)
     local data = slotEntry[sid]
     local nameLower, kws
@@ -1202,14 +1216,14 @@ local function HoldsText(sid, w)
     else
         nameLower = data.nameLower
     end
-    if nameLower and sfind(nameLower, w, 1, true) then return true end
+    if nameLower and Holds(nameLower, w) then return true end
     kws = kws or data.keywordsLower or data.keywords
     for k = 1, kws and #kws or 0 do
         local kw = kws[k]
-        if kw and sfind(kw, w, 1, true) then return true end
+        if kw and Holds(kw, w) then return true end
     end
     local inst = data.instanceNameLower
-    return inst ~= nil and sfind(inst, w, 1, true) ~= nil
+    return inst ~= nil and Holds(inst, w)
 end
 
 -- Class A: entries holding w's two rarest bigrams, kept only when they hold

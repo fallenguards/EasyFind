@@ -192,6 +192,7 @@ function tests.searchIndex_indexesStubsWithoutHydrating()
     for ri = 1, corpus.count do data[ri] = corpus:StubAt(ri) end
     local idxNs = H.newNs(env)
     idxNs.Database = { uiSearchData = data }
+    H.loadModule("Shared/SearchText.lua", env, idxNs)
     H.loadModule("Database/SearchIndex.lua", env, idxNs)
     local SearchIndex = idxNs.SearchIndex
 

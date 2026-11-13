@@ -26,6 +26,7 @@ local tremove = table.remove
 local slower = SearchText.Normalize
 local stokenize = SearchText.Tokenize
 local isAscii = SearchText.IsAscii
+local Unquoted, QuotedOnly = SearchText.Unquoted, SearchText.QuotedOnly
 local mmin, mmax, mabs, mfloor = Utils.mmin, Utils.mmax, Utils.mabs, Utils.mfloor
 local wipe = wipe
 local rawget = rawget
@@ -712,7 +713,7 @@ Database.QueryAsksFor = QueryAsksFor
 
 -- plain: a name nobody abbreviates (a loot item's), so initials and
 -- vowel-stripped forms do not match it; typos still do.
-function Database:ScoreName(nameLower, query, queryLen, optQueryWords, plain)
+local function ScoreNameAs(nameLower, query, queryLen, optQueryWords, plain)
     if ssub(query, queryLen, queryLen) == " " then
         query = query:match("^(.-)%s+$") or query
         queryLen = #query
@@ -872,11 +873,28 @@ function Database:ScoreName(nameLower, query, queryLen, optQueryWords, plain)
     return score
 end
 
+-- A name with apostrophes also scores without them when the query has
+-- none: "jeneu" finds Je'neu as "je'neu" does.
+function Database:ScoreName(nameLower, query, queryLen, optQueryWords, plain)
+    local score = ScoreNameAs(nameLower, query, queryLen, optQueryWords, plain)
+    if score < EXACT_MATCH_SCORE and QuotedOnly(nameLower, query) then
+        local bare = ScoreNameAs(Unquoted(nameLower), query, queryLen, optQueryWords, plain)
+        if bare > score then score = bare end
+    end
+    return score
+end
+
 -- ScoreName for a name nobody keeps (an item catalog line): its words and
 -- masks are worked out for this call only, so typing caches no item names.
 function Database:ScoreTransientName(nameLower, query, queryLen)
     transientName, transientFilled = nameLower, false
-    local score = self:ScoreName(nameLower, query, queryLen)
+    local score = ScoreNameAs(nameLower, query, queryLen)
+    if score < EXACT_MATCH_SCORE and QuotedOnly(nameLower, query) then
+        local bareName = Unquoted(nameLower)
+        transientName, transientFilled = bareName, false
+        local bare = ScoreNameAs(bareName, query, queryLen)
+        if bare > score then score = bare end
+    end
     transientName = nil
     return score
 end
@@ -920,7 +938,7 @@ end
 
 -- plain: the keywords are a body's own words (a macro's), never an
 -- abbreviation, so a short one typed exactly earns no more than a long one.
-function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords, plain)
+local function ScoreKeywordsAs(keywordsLower, query, queryLen, optQueryWords, plain)
     if not keywordsLower then return 0 end
 
     if ssub(query, queryLen, queryLen) == " " then
@@ -1057,9 +1075,26 @@ function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords, p
     return total
 end
 
+-- Keywords with apostrophes also score without them ("zulfarrak").
+local unquotedKeywords = {}
+function Database:ScoreKeywords(keywordsLower, query, queryLen, optQueryWords, plain)
+    local score = ScoreKeywordsAs(keywordsLower, query, queryLen, optQueryWords, plain)
+    if score >= 100 or not keywordsLower then return score end
+    local quoted = false
+    for ki = 1, #keywordsLower do
+        local kw = keywordsLower[ki]
+        if QuotedOnly(kw, query) then quoted = true kw = Unquoted(kw) end
+        unquotedKeywords[ki] = kw
+    end
+    for ki = #keywordsLower + 1, #unquotedKeywords do unquotedKeywords[ki] = nil end
+    if not quoted then return score end
+    local bare = ScoreKeywordsAs(unquotedKeywords, query, queryLen, optQueryWords, plain)
+    return bare > score and bare or score
+end
+
 -- When the user extends the previous query (e.g. "mou" -> "moun"), only
 -- re-score entries that matched before instead of the full dataset.
-local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
+local function ScoreFieldWordAs(fieldWord, queryWord, queryWordLen)
     if fieldWord == queryWord then return 100 end
     if sfind(fieldWord, queryWord, 1, true) == 1 then return 90 end
     -- The plural rule without building strings: one is the other plus s.
@@ -1086,6 +1121,16 @@ local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
         end
     end
     return 0
+end
+
+-- A word with apostrophes also scores without them ("jeneu", "je'neu").
+local function ScoreSingleFieldWord(fieldWord, queryWord, queryWordLen)
+    local score = ScoreFieldWordAs(fieldWord, queryWord, queryWordLen)
+    if score < 100 and QuotedOnly(fieldWord, queryWord) then
+        local bare = ScoreFieldWordAs(Unquoted(fieldWord), queryWord, queryWordLen)
+        if bare > score then score = bare end
+    end
+    return score
 end
 
 local function ScoreFieldWords(words, queryWord, queryWordLen)

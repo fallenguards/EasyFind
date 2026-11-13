@@ -28,6 +28,25 @@ function tests.keywordTiers_beatTypoNameMatches()
     H.assertEq(Database:ScoreFuzzy("black rat", "brack", 5), 85, "typo name match")
 end
 
+-- A name's apostrophes are optional: "jeneu" scored as a typo of Je'neu
+-- (85) and "kelthu", "guldans" not at all (2026-11-12).
+function tests.apostrophesAreOptional()
+    for _, c in ipairs({ { "je'neu of the earthen ring", "jeneu" }, { "kel'thuzad", "kelthu" },
+                         { "gul'dan's tome", "guldans" }, { "zul'farrak", "zulfarrak" } }) do
+        local typed = c[2]
+        local bare = (c[1]:gsub("'", ""))
+        H.assertEq(Database:ScoreName(c[1], typed, #typed, { typed }),
+            Database:ScoreName(bare, typed, #typed, { typed }), c[1] .. " scores as " .. bare)
+        H.assertTrue(Database:ScoreName(c[1], typed, #typed, { typed }) >= 500, c[1] .. " for " .. typed)
+    end
+    H.assertEq(Database:ScoreName("je'neu of the earthen ring", "je'neu", 6, { "je'neu" }), 500, "as spelled still")
+    H.assertEq(Database:ScoreKeywords({ "zul'farrak" }, "zulfarrak", 9, { "zulfarrak" }),
+        Database:ScoreKeywords({ "zulfarrak" }, "zulfarrak", 9, { "zulfarrak" }), "a keyword too")
+    H.assertTrue(Database:ScoreEntryFields({ nameLower = "je'neu of the earthen ring", keywordsLower = {} },
+        { "jeneu", "earthen" }) >= 180, "each word of a longer query")
+    H.assertTrue(Database:ScoreTransientName("kel'thuzad's phylactery", "kelthuzads", 10) >= 500, "an item catalog name")
+end
+
 -- A tag thousands of rows carry matches only as typed: "potion" is one
 -- swapped pair from "option" and listed every setting in the game once the
 -- list had no cap (2026-11-01).

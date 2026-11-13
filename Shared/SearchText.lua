@@ -129,6 +129,29 @@ function SearchText.Normalize(s)
     return table.concat(out)
 end
 
+-- A text with its apostrophes out, for a query typed without them
+-- ("jeneu" for Je'neu, "kelthu" for Kel'Thuzad); kept, bounded.
+local unquoted, unquotedCount = {}, 0
+function SearchText.Unquoted(s)
+    local v = unquoted[s]
+    if v then return v end
+    v = (s:gsub("'", ""))
+    if unquotedCount >= 4096 then
+        wipe(unquoted)
+        unquotedCount = 0
+    end
+    unquotedCount = unquotedCount + 1
+    unquoted[s] = v
+    return v
+end
+
+-- Whether a row's text could match a query only with its apostrophes out:
+-- it has them, the query none, and it does not hold the query as typed.
+function SearchText.QuotedOnly(text, query)
+    return sfind(text, "'", 1, true) ~= nil and not sfind(query, "'", 1, true)
+        and not sfind(text, query, 1, true)
+end
+
 -- Codepoint -> is this a word-character (letter/digit)?
 -- ASCII 0-9, A-Z, a-z, _ are word characters; Latin-1 Supplement letters
 -- (À-ÿ except multiplication × and division ÷) are too; Latin Extended-A

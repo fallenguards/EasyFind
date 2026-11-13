@@ -433,8 +433,9 @@ end
 -- A typo in the first word, when nothing matched and the word is long
 -- enough for the fuzzy tier: the names starting with its first four
 -- letters (five from seven), or with them after one adjacent swap inside
--- ("lnien", "balck", "ocntrol"), scored by the shared name scorer (one
--- edit, a swap counted as one). Each run capped.
+-- ("lnien", "balck", "ocntrol"), or with an apostrophe after one of them
+-- ("kel'th" for "kelthuzad"), scored by the shared name scorer (one edit,
+-- a swap counted as one; apostrophes optional). Each run capped.
 local TYPO_MIN, TYPO_RUN = 5, 200
 local typoBuf = {}
 
@@ -458,15 +459,24 @@ local function TypoPass(ql, qLen)
         local swapped = ssub(first, 1, i - 1) .. ssub(first, i + 1, i + 1) .. ssub(first, i, i) .. ssub(first, i + 2, P)
         typoBuf[i + 1] = ssub(swapped, 1, P)
     end
-    for i = 1, P + 1 do
+    local runs = P + 1
+    if not sfind(first, "'", 1, true) then
+        for i = 1, P - 1 do
+            runs = runs + 1
+            typoBuf[runs] = ssub(first, 1, i) .. "'" .. ssub(first, i + 1, P)
+        end
+    end
+    for k = #typoBuf, runs + 1, -1 do typoBuf[k] = nil end
+    for i = 1, runs do
         local p = typoBuf[i]
+        local pLen = #p
         local fresh = true
         for j = 1, i - 1 do
             if typoBuf[j] == p then fresh = false end
         end
         if fresh then
-            local L, m = FirstLineFrom(p, P), 0
-            while L and ssub(blob, L, L + P - 1) == p and m < TYPO_RUN do
+            local L, m = FirstLineFrom(p, pLen), 0
+            while L and ssub(blob, L, L + pLen - 1) == p and m < TYPO_RUN do
                 local e = LineEnd(L)
                 Record(L, e, ql, qLen, TypoScore)
                 L = e + 2 <= blobLen and e + 2 or nil
