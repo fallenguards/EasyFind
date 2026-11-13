@@ -279,5 +279,92 @@ function tests.stale_isResidentRowsWhoseSourceChanged_syncOnly()
     H.assertFalse(Database:IsDynamicProviderStale("loot"), "a heavy walk waits for its own request")
 end
 
+-- The stale queue (Database:RefreshStaleProvider): out-of-date providers
+-- read again behind the search, one at a time, none while a search run is
+-- in flight, and the active search run again once when the queue empties.
+local function StaleSetup()
+    local env, ns, Database = setupDatabase()
+    local reads, reruns, running = {}, 0, 0
+    Database.PopulateDynamicMacros = function() reads[#reads + 1] = "macros"; return true end
+    Database.PopulateDynamicTitles = function() reads[#reads + 1] = "titles"; return true end
+    for _, key in ipairs({ "macros", "titles" }) do
+        Database:EnsureDynamicProviderLoaded(key, function() end)
+        Database:MarkDynamicCategoryDirty(key)
+    end
+    for i = #reads, 1, -1 do reads[i] = nil end
+    ns.Search.RefreshActiveSearch = function() reruns = reruns + 1 end
+    -- A search run in flight for the next `running` asks.
+    ns.Search.IsSearchRunning = function()
+        if running > 0 then
+            running = running - 1
+            return true
+        end
+        return false
+    end
+    local function Frames(n)
+        for _ = 1, n do
+            env._clock:advance(0.016)
+            ns.Scheduler:Step(0)
+        end
+    end
+    return Database, reads, Frames, function() return reruns end, function(n) running = n end,
+        function() return running end
+end
+
+function tests.staleQueue_readsEachOnce_thenRerunsOnce()
+    local Database, reads, Frames, Reruns = StaleSetup()
+    Database:RefreshStaleProvider("macros")
+    Database:RefreshStaleProvider("titles")
+    Database:RefreshStaleProvider("macros")
+    H.assertTrue(Database:IsRefreshingStale(), "the queue is being read")
+    H.assertEq(#reads, 0, "nothing read inside the query's own call")
+    -- What a landing leaves (Database/Search.lua QueueActiveSearchRefresh).
+    Database._staleChanged = true
+    Frames(8)
+    H.assertEq(table.concat(reads, " "), "macros titles", "each once, in the order asked")
+    H.assertFalse(Database:IsRefreshingStale(), "the queue is empty")
+    H.assertFalse(Database:IsDynamicProviderStale("macros"), "read again: current")
+    H.assertEq(Reruns(), 1, "the active search runs again once, at the end")
+end
+
+function tests.staleQueue_waitsWhileASearchRunIsInFlight()
+    local Database, reads, Frames, _, SearchRunsFor, AsksLeft = StaleSetup()
+    SearchRunsFor(3)
+    local leftAtRead
+    local read = Database.PopulateDynamicMacros
+    Database.PopulateDynamicMacros = function(...)
+        leftAtRead = AsksLeft()
+        return read(...)
+    end
+    Database:RefreshStaleProvider("macros")
+    Frames(6)
+    H.assertEq(table.concat(reads, " "), "macros", "read once the run ended")
+    H.assertEq(leftAtRead, 0, "no provider lands while the search run is in flight")
+end
+
+function tests.staleQueue_nothingChanged_noRerun()
+    local Database, _, Frames, Reruns = StaleSetup()
+    Database:RefreshStaleProvider("titles")
+    Frames(6)
+    H.assertEq(Reruns(), 0, "no landing marked a change: no rerun")
+end
+
+-- A provider that never answers (its waiters dropped) does not hold the
+-- reruns for good: the queue counts as read two seconds after its last step.
+function tests.staleQueue_aProviderThatNeverAnswers_letsGoAfterTwoSeconds()
+    local env, _, Database = setupDatabase()
+    Database:EnsureDynamicProviderLoaded("macros", function() end)
+    Database:MarkDynamicCategoryDirty("macros")
+    Database:RefreshStaleProvider("macros")
+    env._clock:advance(0.016)
+    H.assertTrue(Database:IsRefreshingStale(), "asked for, its job not yet run")
+    env._clock:advance(2.5)
+    H.assertFalse(Database:IsRefreshingStale(), "no step for two seconds")
+    Database:EnsureDynamicProviderLoaded("titles", function() end)
+    Database:MarkDynamicCategoryDirty("titles")
+    H.assertTrue(Database:RefreshStaleProvider("titles"), "the next ask starts a new run")
+    H.assertTrue(Database:IsRefreshingStale())
+end
+
 local pass, fail, failures = H.runSuite("Database/Dynamic", tests)
 return { pass = pass, fail = fail, failures = failures }

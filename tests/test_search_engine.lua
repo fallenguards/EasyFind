@@ -21,7 +21,13 @@ local function withProviderCapture(loaded, stale)
         return true
     end
     ns.Database.NormalizeSearchQuery = function(_, query) return query end
-    return requested
+    -- Read again behind the paint: no hold, nothing pending.
+    local refreshed = {}
+    ns.Database.RefreshStaleProvider = function(_, key)
+        refreshed[#refreshed + 1] = key
+        return true
+    end
+    return requested, refreshed
 end
 
 function tests.lowNonzeroResultsStillRequestAbilities()
@@ -47,22 +53,66 @@ end
 function tests.staleResidentProviderIsReReadByAnyQuery()
     -- A spell learned after the first search: the ability rows stayed as
     -- read before it until a query carried "spell" or found under four rows.
-    local requested = withProviderCapture(nil, { abilities = true })
+    local requested, refreshed = withProviderCapture(nil, { abilities = true })
     local ctx = Engine:BuildContext("disenchant", nil, { abilities = true })
 
-    Engine:RequestProviders(ctx, function() end, 4)
+    local pending = Engine:RequestProviders(ctx, function() end, 4)
 
-    H.assertEq(requested[1], "abilities", "a stale provider is re-read whatever the result count")
-    H.assertEq(#requested, 1, "only the stale one")
+    H.assertEq(refreshed[1], "abilities", "a stale provider is re-read whatever the result count")
+    H.assertEq(#refreshed, 1, "only the stale one")
+    -- Held for, the first search after any gold or zone change painted
+    -- 659 ms late: six such providers landed under it (2026-11-13).
+    H.assertEq(#requested, 0, "behind the paint: the query holds for none of it")
+    H.assertFalse(pending, "nothing the paint waits on")
+end
+
+function tests.staleCharacterFacts_areReadAgainBehindThePaint()
+    local facts = { charRows = true, charPlayed = true, charSeen = true, charGold = true, charLevel = true }
+    local requested, refreshed = withProviderCapture(nil, facts)
+    local ctx = Engine:BuildContext("stormwind", nil, facts)
+
+    Engine:RequestProviders(ctx, function() end, 12)
+
+    H.assertEq(#refreshed, 5, "each fact provider that is on and out of date")
+    H.assertEq(#requested, 0, "none holds a query that does not name it")
+end
+
+function tests.staleProviderTheQueryAsksFor_holdsThePaint()
+    local stale = { abilities = true, charGold = true }
+    local function Held(text, filters, resultCount, key)
+        local requested, refreshed = withProviderCapture(nil, stale)
+        Engine:RequestProviders(Engine:BuildContext(text, nil, filters), function() end, resultCount)
+        for _, k in ipairs(refreshed) do
+            if k == key then return false end
+        end
+        for _, k in ipairs(requested) do
+            if k == key then return true end
+        end
+        return false
+    end
+    H.assertTrue(Held("spell disenchant", { abilities = true }, 12, "abilities"), "its word in the query")
+    H.assertTrue(Held("disenchant", { abilities = true }, 1, "abilities"), "under four rows found")
+    H.assertTrue(Held("gold", { charGold = true }, 12, "charGold"), "a character fact asked for by its word")
+end
+
+function tests.aProviderNeverLoaded_isStillLoadedUnderTheHold()
+    local requested, refreshed = withProviderCapture()
+    local ctx = Engine:BuildContext("stormwind", nil, { charGold = true })
+
+    Engine:RequestProviders(ctx, function() end, 12)
+
+    H.assertEq(requested[1], "charGold", "on and never read: any query loads it once")
+    H.assertEq(#refreshed, 0)
 end
 
 function tests.staleProviderWithItsFilterOffStaysOut()
-    local requested = withProviderCapture(nil, { abilities = true })
+    local requested, refreshed = withProviderCapture(nil, { abilities = true })
     local ctx = Engine:BuildContext("disenchant", nil, { abilities = false })
 
     Engine:RequestProviders(ctx, function() end, 4)
 
     H.assertEq(#requested, 0, "its filter off: no re-read")
+    H.assertEq(#refreshed, 0, "nor behind the paint")
 end
 
 function tests.explicitAbilityWordRequestsAbilitiesRegardlessOfResultCount()

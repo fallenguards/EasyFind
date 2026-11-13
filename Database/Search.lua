@@ -1312,6 +1312,26 @@ local function RunActiveSearchRefresh()
     end
 end
 
+-- The rerun waits for a batch's end, or the stale re-reads' end unless a
+-- search is in flight over the rows just changed.
+local function QueueActiveSearchRefresh(database)
+    if database._dynamicBatchLoading then
+        database._dynamicBatchChanged = true
+        return
+    end
+    if database.IsRefreshingStale and database:IsRefreshingStale() then
+        local search = ns.Search
+        if not (search and search.IsSearchRunning and search:IsSearchRunning()) then
+            database._staleChanged = true
+            return
+        end
+    end
+    if not searchRefreshPending and Utils.SafeAfter then
+        searchRefreshPending = true
+        Utils.SafeAfter(0, RunActiveSearchRefresh)
+    end
+end
+
 -- A provider appended entries [fromIndex .. #uiSearchData] without removing
 -- any (first load of a category -- the common case while typing). Instead
 -- of nuking the narrowing state, which forces the next keystroke into a
@@ -1330,14 +1350,7 @@ function Database:NoteAppendedEntries(rows)
         local count = #prevCandidates
         for i = 1, #rows do prevCandidates[count + i] = rows[i] end
     end
-    if self._dynamicBatchLoading then
-        self._dynamicBatchChanged = true
-        return
-    end
-    if not searchRefreshPending and Utils.SafeAfter then
-        searchRefreshPending = true
-        Utils.SafeAfter(0, RunActiveSearchRefresh)
-    end
+    QueueActiveSearchRefresh(self)
 end
 
 function Database:ResetSearchCache()
@@ -1351,14 +1364,7 @@ function Database:ResetSearchCache()
     prevSkipKey = ""
     ClearResultCache()
     -- Only the active-search re-run coalesces to the end of the batch.
-    if self._dynamicBatchLoading then
-        self._dynamicBatchChanged = true
-        return
-    end
-    if not searchRefreshPending and Utils.SafeAfter then
-        searchRefreshPending = true
-        Utils.SafeAfter(0, RunActiveSearchRefresh)
-    end
+    QueueActiveSearchRefresh(self)
 end
 
 local resultsBuf = {}

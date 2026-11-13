@@ -477,6 +477,54 @@ function Database:RefreshDynamicCategory(key, onDone)
     return changed
 end
 
+-- Rows resident but out of date, read again behind the search: one provider
+-- at a time, none under a search in flight, one rerun when the queue empties.
+function Database:RefreshStaleProvider(key)
+    local provider = dynamicProviderByKey[key]
+    if not provider then return false end
+    local queue = self._staleQueue or {}
+    self._staleQueue = queue
+    if queue[key] then return true end
+    queue[key] = true
+    queue[#queue + 1] = provider
+    if self:IsRefreshingStale() then return true end
+    -- A run whose provider never answers is replaced by the next one.
+    local run = {}
+    self._staleRun = run
+    local function step()
+        if self._staleRun ~= run then return end
+        self._staleStepAt = GetTime()
+        local search = ns.Search
+        if search and search.IsSearchRunning and search:IsSearchRunning() then
+            Utils.SafeAfter(0, step)
+            return
+        end
+        local nextUp = table.remove(queue, 1)
+        while nextUp and not (nextUp.loaded and nextUp.dirty and not nextUp.asyncFn) do
+            queue[nextUp.key] = nil
+            nextUp = table.remove(queue, 1)
+        end
+        if nextUp then
+            queue[nextUp.key] = nil
+            RunDynamicProvider(self, nextUp, function() Utils.SafeAfter(0, step) end, false)
+            return
+        end
+        self._staleRun = nil
+        if self._staleChanged then
+            self._staleChanged = nil
+            RefreshActiveSearch()
+        end
+    end
+    self._staleStepAt = GetTime()
+    Utils.SafeAfter(0, step)
+    return true
+end
+
+-- The stale queue is being read: a step within the last two seconds.
+function Database:IsRefreshingStale()
+    return self._staleRun ~= nil and GetTime() - (self._staleStepAt or 0) < 2
+end
+
 -- Load the small "eager" providers up front (called on search focus) so they
 -- are searchable by name without the user first typing a category keyword. One
 -- per frame to avoid a single-frame hitch; already-loaded providers are skipped

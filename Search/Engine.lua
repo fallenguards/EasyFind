@@ -334,23 +334,28 @@ function Engine:RequestProviders(ctx, onChanged, resultCount)
             or (spec.teleportTriggers and ns.DUNGEON_TELEPORT_TRIGGERS
                 and self:HasAnyWord(ctx, ns.DUNGEON_TELEPORT_TRIGGERS))
         if viaPill or self:FilterAllows(ctx, key, explicit) then
-            local shouldRequest = explicit
-                or (spec.loadWhenEnabled and ctx.filters and ctx.filters[key] == true)
-                or self:ShouldLoadForLowResults(ctx, spec, resultCount)
-                or (Database and Database.IsDynamicProviderStale and Database:IsDynamicProviderStale(key))
+            -- Wanted: the query itself asks for this provider.
+            local wanted = explicit or self:ShouldLoadForLowResults(ctx, spec, resultCount)
             if spec.heavyQuery and Database and Database.QueryNeedsHeavySearchData then
-                shouldRequest = shouldRequest or Database:QueryNeedsHeavySearchData(ctx.text)
+                wanted = wanted or Database:QueryNeedsHeavySearchData(ctx.text)
             end
             if spec.instanceTriggers and Database and Database.QueryNamesAnInstance then
-                shouldRequest = shouldRequest or Database:QueryNamesAnInstance(ctx.text)
+                wanted = wanted or Database:QueryNamesAnInstance(ctx.text)
             end
+            local stale = Database and Database.IsDynamicProviderStale and Database:IsDynamicProviderStale(key)
+            local shouldRequest = wanted or stale
+                or (spec.loadWhenEnabled and ctx.filters and ctx.filters[key] == true)
             if shouldRequest and gateCategories and not viaPill then
                 local minLen = gateMap[gateCategories[key]]
                 if minLen and gateQueryLen < minLen then
                     shouldRequest = false
                 end
             end
-            if shouldRequest then
+            if shouldRequest and stale and not wanted and Database.RefreshStaleProvider then
+                -- Rows resident, only out of date: read again behind the
+                -- paint. Held for, every query after a gold change was late.
+                Database:RefreshStaleProvider(key)
+            elseif shouldRequest then
                 requested = self:RequestDynamicProvider(key, onChanged) or requested
             end
         end
