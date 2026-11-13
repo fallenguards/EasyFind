@@ -360,6 +360,14 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- An offer row: its filter on, the bar closed like any action's.
+    if data.turnOnFilter then
+        local filterKey = data.turnOnFilter
+        self:FinishResultSelection()
+        ns.Filters:TurnOnFilter(filterKey)
+        return
+    end
+
     -- Catalog item. A click opens where it comes from; the gesture set to
     -- send its link (Shift) picks it onto the cursor in Rows/Interactions.
     -- This path handles Ctrl (try it on in the dressing room) and keyboard

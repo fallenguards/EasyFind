@@ -596,7 +596,7 @@ function Filters:UpdateQuickFilterSuggestions(editBox)
 end
 
 -- A result row's offer ("Turn on the full item catalog"): the filter and
--- those over it on, every open menu resynced, the typed search run again.
+-- those over it on, open menus resynced, its data loaded for the next search.
 function Filters:TurnOnFilter(key)
     local filters = EasyFind.db.uiSearchFilters
     while key do

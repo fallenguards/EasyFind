@@ -633,11 +633,6 @@ function Results:ActivateResultRow(resultRow, source)
     if resultRow.data.quickFilterDef then
         return self:ApplyQuickFilter(resultRow.data.quickFilterDef, "")
     end
-    -- The search stays as typed: it runs again with the filter on.
-    if resultRow.data.turnOnFilter then
-        ns.Filters:TurnOnFilter(resultRow.data.turnOnFilter)
-        return true
-    end
     if resultRow.data.searchCommand then
         -- Capture before dismissing: FinishResultSelection clears the search,
         -- which rebuilds the rows and nils out resultRow.data.

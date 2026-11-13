@@ -417,8 +417,7 @@ local function AppendTail()
 end
 
 -- With the General Catalog off and few or no item rows found: a row that
--- turns it on and searches again. New saves have it on; older ones keep
--- their filters (2026-11-07).
+-- turns it on. New saves have it on; older ones keep their filters.
 local ITEM_CATEGORIES = { Item = true, Bag = true, Bank = true, Warband = true }
 local catalogOffRow
 local function CatalogOffRow()

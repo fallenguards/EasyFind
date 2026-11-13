@@ -2,8 +2,8 @@
 -- (2026-11-07); older saves keep their filters, as the defaults fill only
 -- keys a save lacks. With the catalog
 -- off and few or no item rows found, the list ends with a row that turns
--- it on and runs the typed search again (Search/Query.lua CatalogOffRow,
--- Filters:TurnOnFilter, Results:ActivateResultRow).
+-- it on and closes the bar (Search/Query.lua CatalogOffRow,
+-- Filters:TurnOnFilter, Handlers:SelectResult).
 local H = require("Harness")
 
 local function Source(rel)
@@ -40,11 +40,49 @@ function tests.theOffer_joinsWhenTheCatalogIsOffAndItemRowsAreFew()
     H.assertTrue(src:find('turnOnFilter = "catalog"', 1, true) ~= nil, "the row turns the filter on")
 end
 
-function tests.theOffersClick_turnsTheFilterOnAndSearchesAgain()
-    local src = Source("Search/Results/Navigation.lua")
-    local turn = assert(src:find("if resultRow.data.turnOnFilter then\n        ns.Filters:TurnOnFilter(resultRow.data.turnOnFilter)", 1, true))
-    H.assertTrue(turn < assert(src:find("if resultRow.data.searchCommand then", 1, true)),
-        "before the paths that clear the search")
+-- A mouse click and Enter both end in Handlers:SelectResult: the offer
+-- turns its filter on there. Enter alone knew the row; a click closed
+-- the bar with the catalog still off (2026-11-13). It is no toggle: the
+-- bar closes as after any action, before the filter turns on, so no
+-- search runs under a bar going away.
+function tests.theOffer_turnsTheFilterOnAndClosesTheBar()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.InCombatLockdown = function() return false end
+    ns.ResultGestures = { Blocked = function() return false end }
+    local steps = {}
+    ns.Filters.TurnOnFilter = function(_, key) steps[#steps + 1] = "on:" .. tostring(key) end
+    H.loadModule("Search/Results/Handlers/Selection.lua", env, ns)
+    local Handlers = ns.ResultHandlers
+    Handlers.FinishResultSelection = function() steps[#steps + 1] = "closed" end
+    Handlers:SelectResult({ name = "offer", noLearn = true, turnOnFilter = "catalog" })
+    H.assertEq(table.concat(steps, " "), "closed on:catalog")
+end
+
+-- Enter runs Results:ActivateResultRow, a mouse click the row's PostClick,
+-- and both end in Handlers:SelectResult. A row kind Enter answers before
+-- that call must be one the click path knows too.
+local KEYBOARD_ONLY = {
+    -- Its app entry's run is swapped in by SelectResult (ApplicationEntryID).
+    calculatorLauncher = true,
+}
+
+function tests.everyRowKindEnterAnswers_aClickAnswersToo()
+    local nav = Source("Search/Results/Navigation.lua")
+    local from = assert(nav:find("function Results:ActivateResultRow(", 1, true))
+    local to = assert(nav:find("\nend\n", from, true))
+    local shared = Source("Search/Results/Handlers/Selection.lua")
+    shared = shared:sub((assert(shared:find("function Handlers:SelectResult(", 1, true))))
+    local click = Source("Search/Results/Rows/Interactions.lua")
+    local seen = 0
+    for field in nav:sub(from, to):gmatch("resultRow%.data%.([%a_]+)") do
+        seen = seen + 1
+        if not KEYBOARD_ONLY[field] then
+            H.assertTrue(shared:find("data%." .. field .. "%f[%W]") ~= nil or click:find("data%." .. field .. "%f[%W]") ~= nil,
+                field .. ": Enter answers this row kind, a mouse click does not (put it in Handlers:SelectResult)")
+        end
+    end
+    H.assertTrue(seen >= 8, "the row kinds read off ActivateResultRow: " .. seen)
 end
 
 local function LoadFilters()
