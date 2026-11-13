@@ -300,17 +300,14 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffEasyFind 自帶生物|r\n" ..
-    "    |cff999999-|r 在所有客戶端按名稱、頭銜或所售物品尋找任何生物，無需擴充；地圖搜尋 > NPC 可篩選\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff物品的來源|r\n" ..
-    "    |cff999999-|r 點擊物品列：誰出售（最近的在前）、哪些首領掉落；擴充會加入自己的分區\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff地城列可繼續操作|r\n" ..
-    "    |cff999999-|r 點擊地城用 GPS 擴充導航，Ctrl 查看首領，Shift 開啟地圖；WoW Forever 自有地城也列出首領與掉落\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff右鍵導航|r\n" ..
-    "    |cff999999-|r 搭配 GPS 擴充：右鍵地圖圖示、任務區域，或生物、隊友的頭像即可導航；隊友會被持續跟隨\n" ..
-    "    |cff999999-|r 在列上按 Tab 先停在 GPS 按鈕，Enter 開始導航\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff搜尋|r\n" ..
+    "    |cff999999-|r 名稱中的撇號可以省略：輸入 kelthuzad 可找到 Kel'Thuzad\n" ..
+    "    |cff999999-|r 地城的簡稱可與其他詞一起使用：bfd quest 會列出其任務\n" ..
+    "    |cff999999-|r 生物條目顯示該生物的頭銜，而不只是 NPC\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 導航或地圖搜尋後開啟地圖不再出錯，輸入地城名稱可列出其首領\n"
+    "    |cff999999-|r 切換音效和切換音樂的條目會顯示是否有聲音，並在關閉所有音效時也能使用\n" ..
+    "    |cff999999-|r 開啟完整物品目錄的條目可用滑鼠點擊\n" ..
+    "    |cff999999-|r 在 WoW Forever 中，黑暗深淵、諾姆瑞根和沉沒的神廟的首領只列出一次\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

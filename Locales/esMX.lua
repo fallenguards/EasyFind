@@ -300,17 +300,14 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffCriaturas en el propio EasyFind|r\n" ..
-    "    |cff999999-|r Cada criatura por nombre, título o lo que vende, en todos los clientes, sin extensión; Búsqueda en el mapa > PNJ las filtra\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLas fuentes de un objeto|r\n" ..
-    "    |cff999999-|r Haz clic en una fila de objeto: quién lo vende, el más cercano primero, y qué jefes lo sueltan; las extensiones agregan sus propias secciones\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLas filas de calabozo llevan más lejos|r\n" ..
-    "    |cff999999-|r Haz clic en un calabozo para el camino con la extensión GPS, Ctrl para sus jefes, Mayús para el mapa; los calabozos propios de WoW Forever muestran sus jefes y su botín\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffEl camino con un clic derecho|r\n" ..
-    "    |cff999999-|r Con la extensión GPS: en un ícono del mapa o una zona de misión, o en el retrato de una criatura o de un miembro del grupo, al que luego se sigue\n" ..
-    "    |cff999999-|r Tab en una fila se detiene primero en su botón GPS, y Enter inicia la ruta\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBúsqueda|r\n" ..
+    "    |cff999999-|r Los apóstrofos de un nombre son opcionales: kelthuzad encuentra a Kel'Thuzad\n" ..
+    "    |cff999999-|r El nombre corto de un calabozo vale junto a otras palabras: bfd quest lista sus misiones\n" ..
+    "    |cff999999-|r Las filas de criaturas muestran el título de la criatura en lugar de PNJ\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Abrir el mapa tras una ruta o una búsqueda en el mapa ya no produce errores, y escribir el nombre de un calabozo lista sus jefes\n"
+    "    |cff999999-|r Las filas que activan o desactivan el sonido y la música muestran si se oyen, y funcionan con todo el sonido apagado\n" ..
+    "    |cff999999-|r La fila que activa el catálogo completo de objetos responde a un clic del mouse\n" ..
+    "    |cff999999-|r En WoW Forever, los jefes de Cavernas de Brazanegra, Gnomeregan y el Templo Sumergido aparecen una sola vez\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

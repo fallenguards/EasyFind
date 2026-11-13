@@ -300,17 +300,14 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型菜单"
 L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffEasyFind 自带生物|r\n" ..
-    "    |cff999999-|r 在所有客户端按名称、头衔或所售物品查找任何生物，无需扩展；地图搜索 > NPC 可筛选\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff物品的来源|r\n" ..
-    "    |cff999999-|r 点击物品行：谁出售（最近的在前）、哪些首领掉落；扩展会加入自己的分区\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff副本行可继续操作|r\n" ..
-    "    |cff999999-|r 点击副本用 GPS 扩展导航，Ctrl 查看首领，Shift 打开地图；WoW Forever 自有副本也列出首领和掉落\n" ..
-    "|cffFFD100\226\128\162|r |cffffffff右键导航|r\n" ..
-    "    |cff999999-|r 配合 GPS 扩展：右键地图图标、任务区域，或生物、队友的头像即可导航；队友会被持续跟随\n" ..
-    "    |cff999999-|r 在行上按 Tab 先停在 GPS 按钮，Enter 开始导航\n" ..
+    "|cffFFD100\226\128\162|r |cffffffff搜索|r\n" ..
+    "    |cff999999-|r 名称中的撇号可以省略：输入 kelthuzad 可找到 Kel'Thuzad\n" ..
+    "    |cff999999-|r 地下城的简称可与其他词一起使用：bfd quest 会列出其任务\n" ..
+    "    |cff999999-|r 生物条目显示该生物的头衔，而不只是 NPC\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修复|r\n" ..
-    "    |cff999999-|r 导航或地图搜索后打开地图不再报错，输入副本名称可列出其首领\n"
+    "    |cff999999-|r 切换声音和切换音乐的条目会显示是否有声音，并在关闭所有声音时也能使用\n" ..
+    "    |cff999999-|r 开启完整物品目录的条目可用鼠标点击\n" ..
+    "    |cff999999-|r 在 WoW Forever 中，黑暗深渊、诺莫瑞根和沉没的神庙的首领只列出一次\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"

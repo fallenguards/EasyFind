@@ -300,17 +300,14 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffLes créatures dans EasyFind même|r\n" ..
-    "    |cff999999-|r Chaque créature par son nom, son titre ou ce qu'elle vend, sur tous les clients, sans extension ; Recherche sur la carte > PNJ les filtre\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLes sources d'un objet|r\n" ..
-    "    |cff999999-|r Cliquez sur une ligne d'objet : qui le vend, le plus proche d'abord, et quels boss le laissent tomber ; les extensions ajoutent leurs propres sections\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLes lignes de donjon mènent plus loin|r\n" ..
-    "    |cff999999-|r Cliquez sur un donjon pour l'itinéraire avec l'extension GPS, Ctrl pour ses boss, Maj pour la carte ; les donjons propres à WoW Forever affichent leurs boss et leur butin\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffL'itinéraire d'un clic droit|r\n" ..
-    "    |cff999999-|r Avec l'extension GPS : sur une icône de la carte ou une zone de quête, ou sur le portrait d'une créature ou d'un membre du groupe, qui est alors suivi\n" ..
-    "    |cff999999-|r Tab s'arrête d'abord sur le bouton GPS d'une ligne, et Entrée lance l'itinéraire\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffRecherche|r\n" ..
+    "    |cff999999-|r Les apostrophes d'un nom sont facultatives : kelthuzad trouve Kel'Thuzad\n" ..
+    "    |cff999999-|r Le nom court d'un donjon compte à côté d'autres mots : bfd quest liste ses quêtes\n" ..
+    "    |cff999999-|r Les lignes de créature affichent le titre de la créature à la place de PNJ\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Ouvrir la carte après un itinéraire ou une recherche sur la carte ne provoque plus d'erreur, et taper le nom d'un donjon liste ses boss\n"
+    "    |cff999999-|r Les lignes qui activent ou coupent le son et la musique indiquent s'ils sont audibles, et fonctionnent quand tout le son est coupé\n" ..
+    "    |cff999999-|r La ligne qui active le catalogue complet des objets répond au clic de la souris\n" ..
+    "    |cff999999-|r Sur WoW Forever, les boss des Profondeurs de Brassenoire, de Gnomeregan et du Temple englouti ne sont listés qu'une fois\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

@@ -4,6 +4,24 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.3.1] - 2026-11-13
+
+### Changed
+- **Apostrophes are optional**: "kelthuzad" finds Kel'Thuzad and "jeneu" finds Je'neu Sancrea, in the search bar, the item catalog and the creature rows
+- **A dungeon's short name counts wherever its name does**: "bfd quest" lists what "blackfathom deeps quest" lists, for extensions' rows too
+- **Creature rows say what the creature is**: one with a title shows it under its name, such as "Journeyman Enchanter: Undercity", in place of "NPC"
+
+### Fixed
+- **The first search after looting, a zone change or a gear change** came up late while character and reputation rows were read again under it; they are read again behind the search now
+- **Toggle Sound and Toggle Music**: the checkbox shows whether that sound is heard, and with all sound off a click turns it on instead of doing nothing
+- **Turn on the full item catalog** answers to a mouse click and closes the search window once it is on; before, only Enter turned it on
+- **WoW Forever bosses listed once**: Blackfathom Deeps, Gnomeregan and Sunken Temple no longer list each boss two or three times
+
+### Technical Notes
+- AddOn settings are read in smaller pieces after login, so no single frame carries them all
+
+---
+
 ## [5.3.0] - 2026-11-11
 
 ### Added

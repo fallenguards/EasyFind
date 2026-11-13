@@ -331,17 +331,14 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffCreatures in EasyFind itself|r\n" ..
-    "    |cff999999-|r Every creature by name, title or what it sells, on every client, no extension needed; Map Search > NPCs filters them\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffAn item's sources|r\n" ..
-    "    |cff999999-|r Click an item row: who sells it, nearest first, and which bosses drop it; extensions add sections of their own\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDungeon rows lead on|r\n" ..
-    "    |cff999999-|r Click a dungeon for directions with the GPS extension, Ctrl for its bosses, Shift for the map; WoW Forever's own dungeons list their bosses and drops\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDirections from a right-click|r\n" ..
-    "    |cff999999-|r With the GPS extension: on a map pin or quest area, or on the portrait of a creature or a group member, who is then followed\n" ..
-    "    |cff999999-|r Tab on a row stops on its GPS button, and Enter starts the route\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSearch|r\n" ..
+    "    |cff999999-|r A name's apostrophes are optional: kelthuzad finds Kel'Thuzad\n" ..
+    "    |cff999999-|r A dungeon's short name works beside other words: bfd quest lists its quests\n" ..
+    "    |cff999999-|r Creature rows show the creature's title, such as Journeyman Enchanter, in place of NPC\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Opening the map after a route or a map search no longer raises errors, and typing a dungeon's name lists its bosses\n"
+    "    |cff999999-|r Toggle Sound and Toggle Music show whether sound is on, and work with all sound off\n" ..
+    "    |cff999999-|r Turn on the full item catalog answers to a mouse click\n" ..
+    "    |cff999999-|r On WoW Forever, the bosses of Blackfathom Deeps, Gnomeregan and Sunken Temple are listed once\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

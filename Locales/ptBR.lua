@@ -300,17 +300,14 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffCriaturas no próprio EasyFind|r\n" ..
-    "    |cff999999-|r Toda criatura por nome, título ou pelo que vende, em todos os clientes, sem extensão; Busca no mapa > NPCs as filtra\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffAs fontes de um item|r\n" ..
-    "    |cff999999-|r Clique em uma linha de item: quem o vende, o mais próximo primeiro, e quais chefes o deixam cair; as extensões acrescentam suas próprias seções\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffLinhas de masmorra levam adiante|r\n" ..
-    "    |cff999999-|r Clique em uma masmorra para o caminho com a extensão GPS, Ctrl para seus chefes, Shift para o mapa; as masmorras próprias do WoW Forever mostram seus chefes e saques\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffO caminho com o clique direito|r\n" ..
-    "    |cff999999-|r Com a extensão GPS: em um ícone do mapa ou área de missão, ou no retrato de uma criatura ou de um membro do grupo, que passa a ser seguido\n" ..
-    "    |cff999999-|r Tab em uma linha para primeiro no botão GPS dela, e Enter inicia a rota\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffBusca|r\n" ..
+    "    |cff999999-|r Os apóstrofos de um nome são opcionais: kelthuzad encontra Kel'Thuzad\n" ..
+    "    |cff999999-|r O nome curto de uma masmorra vale junto de outras palavras: bfd quest lista suas missões\n" ..
+    "    |cff999999-|r As linhas de criaturas mostram o título da criatura no lugar de PNJ\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Abrir o mapa depois de uma rota ou de uma busca no mapa não gera mais erros, e digitar o nome de uma masmorra lista seus chefes\n"
+    "    |cff999999-|r As linhas que ligam ou desligam o som e a música mostram se estão audíveis, e funcionam com todo o som desligado\n" ..
+    "    |cff999999-|r A linha que ativa o catálogo completo de itens responde ao clique do mouse\n" ..
+    "    |cff999999-|r No WoW Forever, os chefes de Profundezas Negras, Gnomeregan e Templo Submerso aparecem uma só vez\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

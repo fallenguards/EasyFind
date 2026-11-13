@@ -302,17 +302,14 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffKreaturen in EasyFind selbst|r\n" ..
-    "    |cff999999-|r Jede Kreatur nach Name, Titel oder Warenangebot, auf jedem Client, ohne Erweiterung; Kartensuche > NPCs filtert sie\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDie Quellen eines Gegenstands|r\n" ..
-    "    |cff999999-|r Klicke eine Gegenstandszeile: wer ihn verkauft, der nächste zuerst, und welche Bosse ihn fallen lassen; Erweiterungen fügen eigene Abschnitte hinzu\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDungeon-Zeilen führen weiter|r\n" ..
-    "    |cff999999-|r Klicke einen Dungeon für den Weg mit der GPS-Erweiterung, Strg für seine Bosse, Umschalt für die Karte; die eigenen Dungeons von WoW Forever zeigen ihre Bosse und Beute\n" ..
-    "|cffFFD100\226\128\162|r |cffffffffDer Weg per Rechtsklick|r\n" ..
-    "    |cff999999-|r Mit der GPS-Erweiterung: auf einem Kartensymbol oder Questgebiet, oder auf dem Porträt einer Kreatur oder eines Gruppenmitglieds, dem dann gefolgt wird\n" ..
-    "    |cff999999-|r Tab hält auf einer Zeile zuerst an ihrer GPS-Schaltfläche, und Eingabe startet die Route\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffSuche|r\n" ..
+    "    |cff999999-|r Apostrophe in Namen sind optional: kelthuzad findet Kel'Thuzad\n" ..
+    "    |cff999999-|r Das Kürzel eines Dungeons gilt neben anderen Wörtern: bfd quest zeigt seine Quests\n" ..
+    "    |cff999999-|r Kreaturenzeilen zeigen den Titel der Kreatur statt NSC\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Das Öffnen der Karte nach einer Route oder Kartensuche löst keine Fehler mehr aus, und ein eingegebener Dungeonname zeigt seine Bosse\n"
+    "    |cff999999-|r Die Zeilen zum Umschalten von Ton und Musik zeigen, ob sie zu hören sind, und funktionieren auch, wenn der gesamte Ton aus ist\n" ..
+    "    |cff999999-|r Die Zeile, die den vollständigen Gegenstandskatalog einschaltet, reagiert auf einen Mausklick\n" ..
+    "    |cff999999-|r In WoW Forever werden die Bosse der Tiefschwarzen Grotte, von Gnomeregan und des Versunkenen Tempels nur einmal aufgeführt\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"
