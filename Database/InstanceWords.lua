@@ -86,6 +86,23 @@ function Database.InstanceAbbrs(instLower)
     return INSTANCE_ABBRS[bare] or (tail and INSTANCE_ABBRS[tail]) or (tailBare and INSTANCE_ABBRS[tailBare]) or nil
 end
 
+-- A lower-case word list naming an instance answers to its short names
+-- too: a dungeon's quest row ("blackfathom deeps") to "bfd quest".
+function Database.AddInstanceAbbrs(words)
+    local n = #words
+    for i = 1, n do
+        local abbrs = Database.InstanceAbbrs(words[i])
+        for a = 1, abbrs and #abbrs or 0 do
+            local abbr, have = abbrs[a], false
+            for k = 1, #words do
+                if words[k] == abbr then have = true break end
+            end
+            if not have then words[#words + 1] = abbr end
+        end
+    end
+    return words
+end
+
 -- A boss's wing as players say it, with the instance's shorthand joined
 -- on ("smgy"), by the boss's name in lower case.
 local SM_GY, SM_LIB, SM_ARM, SM_CATH = {"gy", "graveyard", "smgy"}, {"lib", "library", "smlib"},

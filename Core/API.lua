@@ -484,6 +484,7 @@ local function Populate(key, database)
         if row.keywords and not row.keywordsLower then
             local low = {}
             for k = 1, #row.keywords do low[k] = slower(tostring(row.keywords[k])) end
+            if database.AddInstanceAbbrs then database.AddInstanceAbbrs(low) end
             row.keywordsLower = low
         end
         -- A row on a map answers to its place too (MINOR 7): "decor durotar".

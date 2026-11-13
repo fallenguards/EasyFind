@@ -47,6 +47,16 @@ function tests.abbrs_byTheClientsOwnName_prefixAndTheDropped()
     H.assertEq(D.InstanceAbbrs("nowhere"), nil)
 end
 
+-- A row's words naming a dungeon take its short names: "bfd quest" finds
+-- what "blackfathom deeps quest" finds (Forever, 2026-11-12).
+function tests.wordsNamingAnInstance_takeItsShortNames()
+    local D = Load()
+    H.assertEq(table.concat(D.AddInstanceAbbrs({ "blackfathom deeps" }), ","), "blackfathom deeps,bfd")
+    H.assertEq(table.concat(D.AddInstanceAbbrs({ "quest", "dire maul", "deadmines" }), ","),
+        "quest,dire maul,deadmines,dm,vc", "a short name two share comes once")
+    H.assertEq(table.concat(D.AddInstanceAbbrs({ "elwynn forest" }), ","), "elwynn forest")
+end
+
 function tests.queryWords_shorthandsWingsNamesAndBosses()
     local D = Load()
     H.assertTrue(D:QueryNamesAnInstance("sm cloth"))

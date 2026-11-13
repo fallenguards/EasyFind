@@ -81,5 +81,51 @@ function tests.aRowOnAMap_answersToItsPlace_once()
     H.assertNil(replaced.pins[2].keywordsLower, "a row on no map: no words added")
 end
 
+-- The dungeons' short names from Database/InstanceWords.lua.
+local function LoadInstanceWords(ns)
+    ns.SearchText = ns.SearchText or { Normalize = string.lower }
+    local env = setmetatable({ bit = { band = function() return 0 end }, C_Item = {} }, { __index = _G })
+    local f = assert(io.open(H.ADDON_ROOT .. "/Database/InstanceWords.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    assert(load(src, "=InstanceWords.lua", "t", env))("EasyFind", ns)
+end
+
+function tests.aDungeonsMap_answersToItsShortNames()
+    MAPS[221] = { name = "Blackfathom Deeps", mapType = 4, parent = 12 }
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.Enum = { UIMapType = { Cosmic = 0, World = WORLD, Continent = CONTINENT, Zone = ZONE, Dungeon = 4, Micro = MICRO, Orphan = 6 } }
+    env.C_Map = { GetMapInfo = function(id)
+        local m = MAPS[id]
+        return m and { mapID = id, name = m.name, mapType = m.mapType, parentMapID = m.parent or 0 }
+    end }
+    LoadInstanceWords(ns)
+    H.loadModule("Shared/MapUtils.lua", env, ns)
+    H.assertTrue(Has(ns.MapUtils.ZoneWords(221), "bfd"))
+    MAPS[221] = nil
+end
+
+-- A dungeon quest's row names the dungeon as its zone: "bfd quest".
+function tests.anExtensionsRowNamingADungeon_answersToItsShortNames()
+    local env = H.newEnv()
+    env.geterrorhandler = function() return print end
+    env.InCombatLockdown = function() return false end
+    local ns = H.newNs(env)
+    env.EasyFind._ns = ns
+    LoadInstanceWords(ns)
+    ns.MapUtils = { ZoneWords = function() return {} end }
+    local replaced, providers = {}, {}
+    ns.Database.AddDynamicProvider = function(_, p) providers[p.key] = p end
+    ns.Database.ReplaceCategoryEntries = function(_, cat, rows) replaced[cat] = rows return rows ~= nil end
+    local API = env.EasyFind.API
+    API.RegisterExtension({ id = "quests", name = "Quests", icon = 1 })
+    API.RegisterSearchProvider({ key = "quests", label = "Quests", extension = "quests",
+        rows = function() return { { name = "Knowledge in the Deeps", keywords = { "Blackfathom Deeps" } } } end })
+    providers.quests.fn(ns.Database)
+    providers.quests.fn(ns.Database)
+    H.assertEq(table.concat(replaced.quests[1].keywordsLower, ","), "blackfathom deeps,bfd")
+end
+
 local pass, fail, failures = H.runSuite("ZoneWords", tests)
 return { pass = pass, fail = fail, failures = failures }

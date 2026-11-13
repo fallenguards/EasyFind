@@ -314,6 +314,8 @@ function MapUtils.ZoneWords(mapID)
             local name = slower(info.name)
             Add(name)
             for _, abbrev in ipairs(abbrevsOf[name] or {}) do Add(abbrev) end
+            local instAbbrs = ns.Database and ns.Database.InstanceAbbrs and ns.Database.InstanceAbbrs(name)
+            for _, abbrev in ipairs(instAbbrs or {}) do Add(abbrev) end
             local initials = continent and {}
             for word in name:gmatch("%S+") do
                 local letter = initials and word:match("^%a")
