@@ -2081,14 +2081,15 @@ end
 -- Bodies do what the client's Bindings_Standard.xml handlers do, so a
 -- merged row does what pressing the bound key would; each get reads what
 -- its run flips.
-local function BoolCVarGetter(cvar)
+local CVarSwitch = {}
+function CVarSwitch.Getter(cvar)
     return function() return GetCVar and GetCVar(cvar) == "1" end
 end
 
 -- Through the client's setting where one stands for the CVar (its panel
 -- follows), else the CVar itself: autoSelfCast has no setting, its panel
 -- writes the CVar (Settings.SetValue raises on an unknown variable).
-local function CVarToggler(cvar)
+function CVarSwitch.Toggler(cvar)
     return function()
         local setting = Utils.FindSetting(cvar)
         if setting then
@@ -2098,6 +2099,28 @@ local function CVarToggler(cvar)
         else
             return false
         end
+        return true
+    end
+end
+
+-- Heard only while the master switch is on too; the client's own toggle
+-- does nothing with it off, so a click turns it on first, as the
+-- customization screen's mute button does.
+function CVarSwitch.SoundGetter(cvar)
+    return function()
+        return GetCVar and GetCVar("Sound_EnableAllSound") == "1" and GetCVar(cvar) == "1"
+    end
+end
+
+function CVarSwitch.SoundToggler(cvar, toggleName)
+    return function()
+        local toggle = _G[toggleName]
+        if not (toggle and GetCVar and SetCVar) then return end
+        if GetCVar("Sound_EnableAllSound") == "0" then
+            SetCVar("Sound_EnableAllSound", 1)
+            if GetCVar(cvar) == "1" then return true end
+        end
+        toggle()
         return true
     end
 end
@@ -2114,34 +2137,23 @@ local TOGGLE_BINDING_STATE = {
         end,
     },
     TOGGLEMUSIC = {
-        get = BoolCVarGetter("Sound_EnableMusic"),
-        run = function()
-            if Sound_ToggleMusic then
-                Sound_ToggleMusic()
-                return true
-            end
-        end,
+        get = CVarSwitch.SoundGetter("Sound_EnableMusic"),
+        run = CVarSwitch.SoundToggler("Sound_EnableMusic", "Sound_ToggleMusic"),
     },
+    -- Sound_ToggleSound flips the effects with ambience and dialog.
     TOGGLESOUND = {
-        -- Sound_ToggleSound flips the effects (with ambience and dialog),
-        -- never the master switch.
-        get = BoolCVarGetter("Sound_EnableSFX"),
-        run = function()
-            if Sound_ToggleSound then
-                Sound_ToggleSound()
-                return true
-            end
-        end,
+        get = CVarSwitch.SoundGetter("Sound_EnableSFX"),
+        run = CVarSwitch.SoundToggler("Sound_EnableSFX", "Sound_ToggleSound"),
     },
     TOGGLEACTIONBARLOCK = {
-        get = BoolCVarGetter("lockActionBars"),
-        run = CVarToggler("lockActionBars"),
+        get = CVarSwitch.Getter("lockActionBars"),
+        run = CVarSwitch.Toggler("lockActionBars"),
     },
     -- The client's own binding writes lockActionBars here; this flips
     -- self-cast, as the binding's name says.
     TOGGLEAUTOSELFCAST = {
-        get = BoolCVarGetter("autoSelfCast"),
-        run = CVarToggler("autoSelfCast"),
+        get = CVarSwitch.Getter("autoSelfCast"),
+        run = CVarSwitch.Toggler("autoSelfCast"),
     },
     TOGGLE_VOICE_SELF_MUTE = {
         get = function() return C_VoiceChat and C_VoiceChat.IsMuted and C_VoiceChat.IsMuted() end,

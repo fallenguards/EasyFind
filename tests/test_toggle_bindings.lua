@@ -116,19 +116,44 @@ end
 
 local tests = {}
 
+-- Client states a toggle's own switch alone does not show: the master
+-- sound switch off leaves the sound and music bindings doing nothing.
+local STATES = {
+    { "as installed", {} },
+    { "all sound off", { Sound_EnableAllSound = "0" } },
+    { "all sound and effects off", { Sound_EnableAllSound = "0", Sound_EnableSFX = "0", Sound_EnableMusic = "0" } },
+}
+
 function tests.everyCheckboxFlipsWithItsBinding()
-    local Blizz = load()
     local actions = StatefulActions()
     H.assertTrue(#actions >= 10, "the toggles read off the source: " .. #actions)
-    for _, action in ipairs(actions) do
-        H.assertNotNil(CLIENT[action], action .. ": write what the client's binding does into this test's CLIENT and load()")
-        local before = Blizz:GetToggleBindingState(action)
-        H.assertNotNil(before, action .. ": its checkbox reads nothing")
-        H.assertTrue(Blizz:PerformBinding(action), action .. ": the click ran nothing")
-        H.assertEq(Blizz:GetToggleBindingState(action), not before, action .. ": its checkbox reads what the binding does not flip")
-        H.assertTrue(Blizz:PerformBinding(action), action .. ": the second click ran nothing")
-        H.assertEq(Blizz:GetToggleBindingState(action), before, action .. ": a second click flips it back")
+    for _, state in ipairs(STATES) do
+        for _, action in ipairs(actions) do
+            local Blizz, cvars = load()
+            for k, v in pairs(state[2]) do cvars[k] = v end
+            local where = action .. " (" .. state[1] .. ")"
+            H.assertNotNil(CLIENT[action], action .. ": write what the client's binding does into this test's CLIENT and load()")
+            local before = Blizz:GetToggleBindingState(action)
+            H.assertNotNil(before, where .. ": its checkbox reads nothing")
+            H.assertTrue(Blizz:PerformBinding(action), where .. ": the click ran nothing")
+            H.assertEq(Blizz:GetToggleBindingState(action), not before, where .. ": its checkbox reads what the binding does not flip")
+            H.assertTrue(Blizz:PerformBinding(action), where .. ": the second click ran nothing")
+            H.assertEq(Blizz:GetToggleBindingState(action), before, where .. ": a second click flips it back")
+        end
     end
+end
+
+-- The snip of 2026-11-13: effects on, all sound off, the box checked and
+-- a click only printed "All sound is currently disabled".
+function tests.allSoundOff_soundIsUncheckedAndAClickTurnsItOn()
+    local Blizz, cvars = load()
+    cvars.Sound_EnableAllSound = "0"
+    H.assertFalse(Blizz:GetToggleBindingState("TOGGLESOUND"), "nothing heard: unchecked")
+    H.assertFalse(Blizz:GetToggleBindingState("TOGGLEMUSIC"), "no music heard: unchecked")
+    Blizz:PerformBinding("TOGGLESOUND")
+    H.assertEq(cvars.Sound_EnableAllSound, "1")
+    H.assertEq(cvars.Sound_EnableSFX, "1", "effects were on: left on")
+    H.assertTrue(Blizz:GetToggleBindingState("TOGGLESOUND"))
 end
 
 function tests.toggleSoundLeavesTheMasterSwitch()
