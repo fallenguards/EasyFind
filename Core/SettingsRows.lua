@@ -385,13 +385,6 @@ local function GeneralRows()
             Confirm(L["POPUP_RESET_ALL_POSITIONS"], WithOptions(function(options) options:DoResetPositions() end))
         end),
     }
-    -- WoW Forever's login welcome (Core/Main.lua), after the extension tips;
-    -- no such line elsewhere.
-    if ns.Caps and ns.Caps.forever then
-        table.insert(rows, 4, Check(L["OPT_FOREVER_WELCOME"], nil,
-            function() return db.showForeverWelcome ~= false end,
-            function(on) db.showForeverWelcome = on and true or false end))
-    end
     return rows
 end
 
