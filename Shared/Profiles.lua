@@ -66,7 +66,7 @@ local STATE_KEYS = {
     achievementIndex = true, classicRecipes = true, gpsChar = true, gpsHearth = true,
     gpsBoats = true, gpsFlown = true, macroButtons = true, minimapIcon = true,
     chatFramesHidden = true, objectiveTrackerHidden = true, customThemes = true, themeStudioDraft = true,
-    notesInUse = true, chatInUse = true, extensionsNoticeFrom = true,
+    notesInUse = true, chatInUse = true, extensionsNoticeFrom = true, updateHeard = true,
 }
 
 local function IsStateKey(key)

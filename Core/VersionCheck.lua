@@ -3,7 +3,8 @@ local _, ns = ...
 -- Update notice from peers: an addon has no internet, so a newer EasyFind or
 -- extension is heard from a guild or group member who has it. Each one is
 -- said once a session in chat; EasyFind's own also shows under the list.
--- Session state only: a spoofed version decorates one session.
+-- What was heard is kept in the save and said at each login until this
+-- copy is as new; a month unheard forgets it (a spoofed version too).
 --
 -- Wire (locale-neutral), prefix EasyFindVer:
 --   Hello   "1\tH\t<version>[\t<extensions>]"
@@ -26,6 +27,7 @@ local tconcat = table.concat
 local random = math.random
 local pcall = pcall
 local print = print
+local time = time
 
 local VersionCheck = {}
 ns.VersionCheck = VersionCheck
@@ -40,6 +42,12 @@ local EXT_PREFIX = "EasyFind_"
 local EXT_LIST_MAX = 200
 -- Replies spread out: a fixed delay is a burst the size of the guild.
 local REPLY_DELAY_MIN, REPLY_DELAY_MAX = 2, 5
+-- db.updateHeard: { version, heard at } under "EasyFind" and each
+-- extension's short name.
+local CORE = "EasyFind"
+local HEARD_FOR = 30 * 86400
+-- Past the hello's answers, so the newest heard at login is the one said.
+local LOGIN_TELL_DELAY = 8
 
 -- Channels with a real roster; a whisper is unsolicited and dropped.
 local ROSTER_CHANNELS = {
@@ -140,6 +148,45 @@ local function ScheduleTell()
     SafeAfter(1, Tell)
 end
 
+-- A newer version heard goes into the save; heard again, its date moves.
+local function Remember(name, version)
+    local db = EasyFind.db
+    if not db then return end
+    db.updateHeard = db.updateHeard or {}
+    local kept = db.updateHeard[name]
+    if kept and ns.CompareVersion(kept[1], version) >= 0 then
+        kept[2] = time()
+    else
+        db.updateHeard[name] = { version, time() }
+    end
+end
+
+-- What earlier sessions heard: one this copy has caught up with, or a
+-- month old, is dropped; the rest are said again. True when any are.
+local function Recall()
+    local db = EasyFind.db
+    local heard = db and db.updateHeard
+    if type(heard) ~= "table" then return false end
+    local mine, now, any = OwnExtensions(), time(), false
+    for name, kept in pairs(heard) do
+        local version, at = kept[1], kept[2]
+        local have = name == CORE and ns.version or mine[name]
+        if not IsValidVersion(version) or now - (tonumber(at) or 0) >= HEARD_FOR
+           or (have and ns.CompareVersion(version, have) <= 0) then
+            heard[name] = nil
+        elseif name == CORE then
+            if not newestSeen or ns.CompareVersion(version, newestSeen) > 0 then newestSeen = version end
+            any = true
+        elseif have then
+            local newest = newestExt[name]
+            if not newest or ns.CompareVersion(version, newest) > 0 then newestExt[name] = version end
+            any = true
+        end
+    end
+    if next(heard) == nil then db.updateHeard = nil end
+    return any
+end
+
 local function Send(channel, payload)
     if not (channel and C_ChatInfo and C_ChatInfo.SendAddonMessage) then return end
     pcall(C_ChatInfo.SendAddonMessage, PREFIX, payload, channel)
@@ -175,6 +222,7 @@ function VersionCheck:NotePeerVersion(peerVersion, channel)
     if not IsValidVersion(peerVersion) then return false end
     if not IsValidVersion(ns.version) then return false end
     if ns.CompareVersion(peerVersion, ns.version) <= 0 then return false end
+    Remember(CORE, peerVersion)
     if newestSeen and ns.CompareVersion(peerVersion, newestSeen) <= 0 then return false end
     newestSeen = peerVersion
     self:RefreshSurfaces()
@@ -189,10 +237,12 @@ function VersionCheck:NotePeerExtensions(list, channel)
     local any = false
     for short, version in pairs(ParseExts(list)) do
         local have = mine[short]
-        if have and ns.CompareVersion(version, have) > 0
-           and not (newestExt[short] and ns.CompareVersion(version, newestExt[short]) <= 0) then
-            newestExt[short] = version
-            any = true
+        if have and ns.CompareVersion(version, have) > 0 then
+            Remember(short, version)
+            if not (newestExt[short] and ns.CompareVersion(version, newestExt[short]) <= 0) then
+                newestExt[short] = version
+                any = true
+            end
         end
     end
     if any then ScheduleTell() end
@@ -256,6 +306,12 @@ end
 function VersionCheck:Initialize()
     if not (C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix) then return end
 
+    SafeAfter(LOGIN_TELL_DELAY, function()
+        if not Recall() then return end
+        self:RefreshSurfaces()
+        Tell()
+    end)
+
     local frame = CreateFrame("Frame")
     -- Initialize runs inside Core's PLAYER_LOGIN: a frame registered there
     -- never hears that firing, so the hello waits for PLAYER_ENTERING_WORLD.
@@ -306,9 +362,11 @@ function VersionCheck:GetDiagnostics()
     }
 end
 
--- Forgets what was heard and said, and reads the extensions again.
+-- Forgets what was heard and said, the save's too, and reads the
+-- extensions again.
 function VersionCheck:ResetSeen()
     newestSeen = nil
+    if EasyFind.db then EasyFind.db.updateHeard = nil end
     for k in pairs(newestExt) do newestExt[k] = nil end
     for k in pairs(toldExt) do toldExt[k] = nil end
     toldCore, tellPending = false, false

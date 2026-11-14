@@ -209,5 +209,85 @@ function tests.aNewerExtensionIsAnswered()
     H.assertEq(#printed, 0)
 end
 
+-- The next session over the same save: the module read in anew, logged in,
+-- and past the wait its login note takes.
+local function NextLogin()
+    H.loadModule("Core/VersionCheck.lua", env, ns)
+    local nextSession = ns.VersionCheck
+    ns.VersionCheck = VC
+    nextSession:Initialize()
+    env._clock:advance(9)
+    return nextSession
+end
+
+function tests.aNewerVersionHeard_isSaidAgainAtTheNextLogin()
+    reset()
+    VC:NotePeerVersion("3.2.0", "GUILD")
+    env._clock:advance(1.5)
+    H.assertEq(#printed, 1)
+    local nextSession = NextLogin()
+    H.assertEq(#printed, 2, "said again with nobody around")
+    H.assertTrue(printed[2]:find("EasyFind v3.2.0 out, have v3.1.0", 1, true) ~= nil, printed[2])
+    H.assertEq(nextSession:GetAvailableVersion(), "3.2.0", "and shown under the list")
+    env._clock:advance(60)
+    H.assertEq(#printed, 2, "once a session")
+end
+
+function tests.heardAgain_movesItsDate_aLowerOneNeverLowersIt()
+    reset()
+    VC:NotePeerVersion("3.3.0", "GUILD")
+    local first = env.EasyFind.db.updateHeard.EasyFind[2]
+    env._clock:advance(10 * 86400)
+    VC:NotePeerVersion("3.2.0", "PARTY")
+    local kept = env.EasyFind.db.updateHeard.EasyFind
+    H.assertEq(kept[1], "3.3.0")
+    H.assertEq(kept[2], first + 10 * 86400, "a newer copy is still around")
+end
+
+function tests.caughtUp_orAMonthUnheard_forgetsIt()
+    reset()
+    env.EasyFind.db.updateHeard = { EasyFind = { "3.2.0", env.time() } }
+    ns.version = "3.2.0"
+    NextLogin()
+    ns.version = "3.1.0"
+    H.assertEq(#printed, 0, "this copy caught up")
+    H.assertNil(env.EasyFind.db.updateHeard)
+    env.EasyFind.db.updateHeard = { EasyFind = { "3.2.0", env.time() - 31 * 86400 } }
+    NextLogin()
+    H.assertEq(#printed, 0, "a month unheard")
+    H.assertNil(env.EasyFind.db.updateHeard)
+    env.EasyFind.db.updateHeard = { EasyFind = { "3.2.0", env.time() - 29 * 86400 } }
+    NextLogin()
+    H.assertEq(#printed, 1, "still inside the month")
+end
+
+function tests.aRememberedExtension_waitsWhileItIsNotLoaded()
+    reset()
+    env.EasyFind.db.updateHeard = { GPS = { "1.2.0", env.time() } }
+    NextLogin()
+    H.assertEq(#printed, 0, "not loaded this session")
+    H.assertEq(env.EasyFind.db.updateHeard.GPS[1], "1.2.0", "kept for the session that has it")
+    addons[1] = GPS
+    NextLogin()
+    H.assertEq(#printed, 1)
+    H.assertTrue(printed[1]:find("EasyFind [GPS] v1.2.0 out, have v1.1.0", 1, true) ~= nil, printed[1])
+end
+
+function tests.optOut_saysNothingAtLogin_andKeepsWhatWasHeard()
+    reset()
+    VC:NotePeerVersion("3.2.0", "GUILD")
+    env.EasyFind.db.updateNotify = false
+    NextLogin()
+    H.assertEq(#printed, 0)
+    H.assertEq(env.EasyFind.db.updateHeard.EasyFind[1], "3.2.0")
+end
+
+function tests.forgetting_clearsTheSaveToo()
+    reset()
+    VC:NotePeerVersion("3.2.0", "GUILD")
+    VC:ResetSeen()
+    H.assertNil(env.EasyFind.db.updateHeard)
+end
+
 local pass, fail, failures = H.runSuite("VersionCheck", tests)
 return { pass = pass, fail = fail, failures = failures }
