@@ -55,6 +55,14 @@ local function ApplyPickerSearch(popup, searchBox)
     pcall(popup.SetSelectedIconText, popup)
 end
 
+-- Ability names land a moment after the first search: run it again.
+IconSearch:OnNamesReady(function()
+    local popup = _G.MacroPopupFrame
+    if filtered and popup and popup.efSearchBox and popup:IsShown() then
+        ApplyPickerSearch(popup, popup.efSearchBox)
+    end
+end)
+
 local function InstallAccessorOverlay(popup)
     local origGetByIndex = popup.GetIconByIndex
     local origGetNum = popup.GetNumIcons

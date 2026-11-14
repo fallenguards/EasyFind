@@ -4,29 +4,17 @@ local EasyFind = EasyFind
 local ns = EasyFind and EasyFind._ns
 if not ns or select(2, ...).stale then return end
 
--- Icon search data layer (GitHub #22): scans the packed icon blob IN
--- PLACE (the ItemSearch model). The blob stays resident as ONE string;
--- the only built structures are two integer arrays (record name-start
--- and tab positions), so the whole 33k-icon index costs ~1.7MB instead
--- of the ~4MB the old parsed name/id/idString arrays held. Names and
--- IDs decode on demand for the handful of records actually displayed.
---
--- Matching is word-wise so file-name vocabulary meets human vocabulary:
--- every query word must appear in the icon name, and each word also tries
--- its singular form ("swords" sweeps the _sword_ family). The blob name is
--- both the display name and the texture name macro authors copy.
+-- Icon search data layer (GitHub #22). An icon matches by its file name
+-- or by the name of a spell that wears it; both are scanned in place.
 --
 -- Query syntax:
---   word word          every word must match (AND)
+--   word word          every word must match (AND); "swords" tries "sword"
 --   sword/axe          a word with alternatives: either matches
 --   axe, mace 2h       comma splits whole alternative queries
 --   -word              the word must NOT match
 --   inv_sword_*        * and ? make the word a whole-name wildcard match
---   135274 or #135274  FileDataIDs by prefix, narrowing per digit; the
---                      full ID lists first (# = IDs only, no name hits)
---   spell:133 item:6948 achievement:12   the game's own hyperlink types:
---                      the icon that spell/item/achievement uses
---                      (shift-clicking a chat link types these for you)
+--   135274 or #135274  FileDataIDs by prefix, the full ID first (# = IDs only)
+--   spell:133 item:6948 achievement:12   the icon that thing uses
 
 local IconSearch = {}
 ns.IconSearch = IconSearch
@@ -35,70 +23,141 @@ local Utils = ns.Utils
 local sfind, ssub = Utils.sfind, Utils.ssub
 local slower = Utils.slower or string.lower
 local mfloor = Utils.mfloor
+local tconcat = Utils.tconcat or table.concat
 local tonumber = tonumber
 local wipe = wipe
 
--- The resident corpus: the blob string plus two parallel int arrays.
--- offsets[i] = byte position of record i's name; tabs[i] = its tab.
--- Every record ends with "\n" (generator guarantee).
-local blob, blobLen
-local offsets, tabs = {}, {}
-local total = 0
+-- A corpus: "name\t<number>\n" records in one string, two int arrays
+-- (name start, tab) indexing it, and its per-keystroke match stamps.
+local function NewCorpus()
+    return { offsets = {}, tabs = {}, total = 0, mark = {}, hit = {}, matched = {} }
+end
 
-local function EnsureIndex()
-    if total > 0 then return total end
-    if not blob then
-        local b = ns.ICON_SEARCH_BLOB
-        if type(b) ~= "string" then return 0 end
-        blob = b
-        blobLen = #b
-        -- The blob is retained (it IS the database); the field ref clears
-        -- so nothing double-roots it.
-        ns.ICON_SEARCH_BLOB = nil
-    end
-    local pos = 1
-    while pos <= blobLen do
-        local nl = sfind(blob, "\n", pos, true) or (blobLen + 1)
+-- icons: file name and FileDataID, ascending. spells: a spell's name;
+-- iconOf and spellOf give its icon record and spell ID.
+local icons, spells = NewCorpus(), NewCorpus()
+
+local function IndexCorpus(c)
+    local blob = c.blob
+    if c.total > 0 or not blob then return c.total end
+    local len, offsets, tabs = #blob, c.offsets, c.tabs
+    local pos, n = 1, 0
+    while pos <= len do
+        local nl = sfind(blob, "\n", pos, true) or (len + 1)
         local tab = sfind(blob, "\t", pos, true)
         if tab and tab < nl then
-            total = total + 1
-            offsets[total] = pos
-            tabs[total] = tab
+            n = n + 1
+            offsets[n] = pos
+            tabs[n] = tab
         end
         pos = nl + 1
     end
-    return total
+    c.total = n
+    return n
+end
+
+local function EnsureIndex()
+    if not icons.blob then
+        local b = ns.ICON_SEARCH_BLOB
+        if type(b) ~= "string" then return 0 end
+        -- The blob is the database: kept here, the ns field let go.
+        icons.blob = b
+        ns.ICON_SEARCH_BLOB = nil
+    end
+    return IndexCorpus(icons)
+end
+
+local function IconID(rec)
+    local blob = icons.blob
+    return tonumber(ssub(blob, icons.tabs[rec] + 1, (icons.offsets[rec + 1] or (#blob + 2)) - 2))
 end
 
 function IconSearch:GetIcon(index)
-    if not blob or not offsets[index] then return nil end
-    local name = ssub(blob, offsets[index], tabs[index] - 1)
-    local recEnd = (offsets[index + 1] or (blobLen + 2)) - 2
-    local id = tonumber(ssub(blob, tabs[index] + 1, recEnd))
-    return name, id
+    if not icons.offsets[index] then return nil end
+    return ssub(icons.blob, icons.offsets[index], icons.tabs[index] - 1), IconID(index)
 end
 
 function IconSearch:GetTotal()
     return EnsureIndex()
 end
 
--- Record containing byte position p (binary search; ascending scans use
--- moving pointers instead).
-local function RecordOf(p)
-    local lo, hi = 1, total
-    while lo < hi do
-        local mid = mfloor((lo + hi + 1) / 2)
-        if offsets[mid] <= p then lo = mid else hi = mid - 1 end
+-- FileDataID -> record index; the blob's IDs ascend.
+local function IndexOfFileID(fdid)
+    if type(fdid) ~= "number" or EnsureIndex() == 0 then return nil end
+    local lo, hi = 1, icons.total
+    while lo <= hi do
+        local mid = mfloor((lo + hi) / 2)
+        local id = IconID(mid)
+        if id == fdid then return mid end
+        if id < fdid then lo = mid + 1 else hi = mid - 1 end
     end
-    return lo
+    return nil
 end
 
--- FileDataID -> record index, via the blob itself ("\t<id>\n" is unique).
-local function IndexOfFileID(fdid)
-    if not fdid or not blob then return nil end
-    local p = sfind(blob, "\t" .. fdid .. "\n", 1, true)
-    if not p then return nil end
-    return RecordOf(p)
+-- Ability names: the shipped list is spell IDs only and the client names
+-- each, in its own language and with the icon the spell wears there.
+local namesStarted, namesReady = false, false
+local namesListeners = {}
+
+local function BuildSpellNames()
+    local list = ns.ICON_SPELL_IDS
+    local getName = C_Spell and C_Spell.GetSpellName
+    local getIcon = C_Spell and C_Spell.GetSpellTexture
+    if type(list) ~= "string" or not (getName and getIcon) then return end
+    ns.ICON_SPELL_IDS = nil
+    local lines, iconOf, spellOf, seen = {}, {}, {}, {}
+    local n, id, step = 0, 0, 0
+    for gap in list:gmatch("%d+") do
+        id = id + tonumber(gap)
+        step = step + 1
+        if step % 64 == 0 then Utils.SliceCheckpoint() end
+        local name = getName(id)
+        local rec
+        if name and name ~= "" then
+            -- The spell's own icon, not one a talent or form swaps in.
+            local shown, original = getIcon(id)
+            rec = IndexOfFileID(original or shown)
+        end
+        if rec then
+            name = slower(name)
+            local key = name .. "\t" .. rec
+            if not seen[key] then
+                seen[key] = true
+                n = n + 1
+                lines[n] = name
+                iconOf[n] = rec
+                spellOf[n] = id
+            end
+        end
+    end
+    if n == 0 then return end
+    lines[n + 1] = ""
+    spells.blob = tconcat(lines, "\t\n")
+    spells.iconOf, spells.spellOf = iconOf, spellOf
+end
+
+-- A build done inside the filter that started it tells nobody: that
+-- filter already searches the names.
+local function StartSpellNames()
+    if namesStarted then return end
+    namesStarted = true
+    local starting = true
+    Utils.RunSliced(BuildSpellNames, function(ok, err)
+        if not ok then Utils.ErrorHandler(err) end
+        namesReady = true
+        if starting then return end
+        for i = 1, #namesListeners do namesListeners[i]() end
+    end, nil, "iconSpellNames")
+    starting = false
+end
+
+-- fn runs once the ability names can be searched: results change then.
+function IconSearch:OnNamesReady(fn)
+    namesListeners[#namesListeners + 1] = fn
+end
+
+function IconSearch:NamesReady()
+    return namesReady
 end
 
 -- spell:/item:/achievement: -> the FileDataID that thing renders with.
@@ -146,8 +205,8 @@ local numericSeen = {}
 -- order, unlike fuzzy text. Works straight off the blob: an ID starts
 -- right after its record's tab, so "\t<digits>" enumerates prefixes.
 local function CollectIDPrefix(digits, out, seen)
-    EnsureIndex()
-    if not blob then return 0 end
+    if EnsureIndex() == 0 then return 0 end
+    local blob, offsets, total = icons.blob, icons.offsets, icons.total
     local m = 0
     local exactIdx = IndexOfFileID(tonumber(digits))
     if exactIdx then
@@ -233,23 +292,27 @@ local function PrepareQuery(query)
     return branchN
 end
 
--- Per-keystroke evaluation scratch: generation-stamped so nothing wipes.
--- mark[rec] == markBase + t  means rec passed terms 1..t of the branch
--- under evaluation; hitStamp[rec] == hitGen dedupes within one term;
--- matched[rec] == matchGen marks a completed branch. A branch's marks
--- start past the last branch's, so a stale mark never reads as progress.
-local mark, hitStamp, matched = {}, {}, {}
+-- Generation stamps, so nothing wipes per keystroke. In a corpus,
+-- mark[rec] == markBase + t: rec passed terms 1..t of the branch under
+-- evaluation; hit[rec] == hitGen dedupes within one term; matched[rec] ==
+-- matchGen marks a completed branch. A branch's marks start past the last
+-- branch's, so a stale mark never reads as progress.
 local markBase, markTop, hitGen, matchGen = 0, 0, 0, 0
+-- Icon records whose file name hit a negated word, by the branch's base.
+local negated = {}
 
--- Close-boundary release: the offset/tab index (two 33k-slot arrays) and
--- the match scratch (three hashes that grow to one entry per record and
--- keep that capacity) together dwarf the blob. Fresh tables drop the
--- capacity -- wipe() would keep it -- and EnsureIndex rebuilds the index
--- from the retained blob in one pass on the next use.
+-- Fresh tables drop the capacity wipe() keeps; the blob rebuilds the index.
+local function Shed(c)
+    c.offsets, c.tabs, c.total = {}, {}, 0
+    c.mark, c.hit, c.matched = {}, {}, {}
+end
+
+-- Close-boundary release: the indexes and match scratch outweigh the
+-- blobs, which stay.
 function IconSearch:ReleaseMemory()
-    offsets, tabs = {}, {}
-    total = 0
-    mark, hitStamp, matched = {}, {}, {}
+    Shed(icons)
+    Shed(spells)
+    negated = {}
     markBase, markTop, hitGen, matchGen = 0, 0, 0, 0
 end
 
@@ -258,8 +321,10 @@ end
 -- the loop is bounded by the record count, not the occurrence count.
 -- An occurrence inside the id digits fails the tab guard and is skipped.
 -- presenceOnly (negated terms): just stamp hits, no mark advance.
-local function StampWord(word, t, firstTerm, presenceOnly)
-    local wl = #word
+local function StampWord(c, word, t, firstTerm, presenceOnly)
+    local blob, offsets, tabs, total = c.blob, c.offsets, c.tabs, c.total
+    local mark, hit = c.mark, c.hit
+    local blobLen, wl = #blob, #word
     local rec = 1
     local p = sfind(blob, word, 1, true)
     while p do
@@ -267,10 +332,10 @@ local function StampWord(word, t, firstTerm, presenceOnly)
         local nextInit = p + 1
         if p + wl - 1 < tabs[rec] then
             if presenceOnly then
-                hitStamp[rec] = hitGen
-            elseif hitStamp[rec] ~= hitGen
+                hit[rec] = hitGen
+            elseif hit[rec] ~= hitGen
                and (firstTerm or mark[rec] == markBase + (t - 1)) then
-                hitStamp[rec] = hitGen
+                hit[rec] = hitGen
                 mark[rec] = markBase + t
             end
             nextInit = (offsets[rec + 1] or (blobLen + 1))
@@ -282,12 +347,15 @@ end
 
 -- Same for a wildcard alternate: anchored blob patterns ("\n<pat>\t",
 -- plus a "^" form for record 1).
-local function StampPattern(pat, pat1, t, firstTerm, presenceOnly)
+local function StampPattern(c, pat, pat1, t, firstTerm, presenceOnly)
+    local blob, offsets, total = c.blob, c.offsets, c.total
+    local mark, hit = c.mark, c.hit
+    local blobLen = #blob
     if blob:find(pat1) then
         if presenceOnly then
-            hitStamp[1] = hitGen
-        elseif hitStamp[1] ~= hitGen and (firstTerm or mark[1] == markBase + (t - 1)) then
-            hitStamp[1] = hitGen
+            hit[1] = hitGen
+        elseif hit[1] ~= hitGen and (firstTerm or mark[1] == markBase + (t - 1)) then
+            hit[1] = hitGen
             mark[1] = markBase + t
         end
     end
@@ -297,14 +365,54 @@ local function StampPattern(pat, pat1, t, firstTerm, presenceOnly)
         -- p sits on the "\n" BEFORE the record; the record starts at p+1.
         while rec < total and offsets[rec + 1] <= p + 1 do rec = rec + 1 end
         if presenceOnly then
-            hitStamp[rec] = hitGen
-        elseif hitStamp[rec] ~= hitGen and (firstTerm or mark[rec] == markBase + (t - 1)) then
-            hitStamp[rec] = hitGen
+            hit[rec] = hitGen
+        elseif hit[rec] ~= hitGen and (firstTerm or mark[rec] == markBase + (t - 1)) then
+            hit[rec] = hitGen
             mark[rec] = markBase + t
         end
         local nextInit = (offsets[rec + 1] or (blobLen + 2)) - 1
         if nextInit <= p then nextInit = p + 1 end
         p = blob:find(pat, nextInit)
+    end
+end
+
+-- One branch's terms over a corpus: a record passing all of them ends
+-- with mark == markBase + nTerms.
+local function MarkBranch(c, termStart, nTerms, altStart)
+    local count, mark, hit = c.total, c.mark, c.hit
+    local neg = c == icons and negated
+    for t = 1, nTerms do
+        local termIdx = termStart + t - 1
+        hitGen = hitGen + 1
+        if termNeg[termIdx] then
+            -- Stamp raw hits, then advance every UN-hit record.
+            for a = altStart, termEnd[termIdx] do
+                if altIsPat[a] then
+                    StampPattern(c, altText[a], altPat1[a], t, false, true)
+                else
+                    StampWord(c, altText[a], t, false, true)
+                end
+            end
+            for rec = 1, count do
+                if hit[rec] == hitGen then
+                    if neg then neg[rec] = markBase end
+                elseif t == 1 or mark[rec] == markBase + (t - 1) then
+                    mark[rec] = markBase + t
+                end
+            end
+        else
+            for a = altStart, termEnd[termIdx] do
+                if altIsPat[a] then
+                    StampPattern(c, altText[a], altPat1[a], t, t == 1, false)
+                else
+                    StampWord(c, altText[a], t, t == 1, false)
+                    if altPlural[a] then
+                        StampWord(c, altPlural[a], t, t == 1, false)
+                    end
+                end
+            end
+        end
+        altStart = termEnd[termIdx] + 1
     end
 end
 
@@ -314,6 +422,7 @@ function IconSearch:Filter(query, out)
     wipe(out)
     local count = EnsureIndex()
     if count == 0 then return 0 end
+    StartSpellNames()
     query = slower(query or ""):gsub("^%s+", ""):gsub("%s+$", "")
 
     -- spell:/item:/achievement: reference -> exactly that icon.
@@ -351,57 +460,38 @@ function IconSearch:Filter(query, out)
         return count
     end
 
-    -- Term-by-term blob scans stamp records forward through each branch;
-    -- a record completing every term of any branch gets the match stamp.
+    -- A branch runs over the file names, then the spell names: a spell
+    -- passing it brings its icon, unless the icon's own name is negated.
     matchGen = matchGen + 1
+    local spellCount = namesReady and IndexCorpus(spells) or 0
+    local iconMark, iconMatched = icons.mark, icons.matched
     local termStart = 1
     for b = 1, branchN do
         local nTerms = branchEnd[b] - termStart + 1
         markBase = markTop
         markTop = markBase + nTerms
         local altStart = termStart > 1 and (termEnd[termStart - 1] + 1) or 1
-        for t = 1, nTerms do
-            local termIdx = termStart + t - 1
-            hitGen = hitGen + 1
-            if termNeg[termIdx] then
-                -- Stamp raw hits, then advance every UN-hit record.
-                for a = altStart, termEnd[termIdx] do
-                    if altIsPat[a] then
-                        StampPattern(altText[a], altPat1[a], t, false, true)
-                    else
-                        StampWord(altText[a], t, false, true)
-                    end
-                end
-                for rec = 1, count do
-                    if hitStamp[rec] ~= hitGen
-                       and (t == 1 or mark[rec] == markBase + (t - 1)) then
-                        mark[rec] = markBase + t
-                    end
-                end
-            else
-                for a = altStart, termEnd[termIdx] do
-                    if altIsPat[a] then
-                        StampPattern(altText[a], altPat1[a], t, t == 1, false)
-                    else
-                        StampWord(altText[a], t, t == 1, false)
-                        if altPlural[a] then
-                            StampWord(altPlural[a], t, t == 1, false)
-                        end
-                    end
-                end
-            end
-            altStart = termEnd[termIdx] + 1
-        end
+        MarkBranch(icons, termStart, nTerms, altStart)
         for rec = 1, count do
-            if mark[rec] == markBase + nTerms then
-                matched[rec] = matchGen
+            if iconMark[rec] == markTop then
+                iconMatched[rec] = matchGen
+            end
+        end
+        if spellCount > 0 then
+            MarkBranch(spells, termStart, nTerms, altStart)
+            local spellMark, spellMatched, iconOf = spells.mark, spells.matched, spells.iconOf
+            for line = 1, spellCount do
+                if spellMark[line] == markTop and negated[iconOf[line]] ~= markBase then
+                    spellMatched[line] = matchGen
+                    iconMatched[iconOf[line]] = matchGen
+                end
             end
         end
         termStart = branchEnd[b] + 1
     end
 
     for rec = 1, count do
-        if matched[rec] == matchGen and not numericSeen[rec] then
+        if iconMatched[rec] == matchGen and not numericSeen[rec] then
             m = m + 1
             out[m] = rec
         end
@@ -409,10 +499,36 @@ function IconSearch:Filter(query, out)
     return m
 end
 
+-- Names of the spells wearing icon `index`, up to `max`, the last
+-- filter's matches first; a longer list ends in "...".
+local nameScratch = {}
+function IconSearch:GetSpellNames(index, max)
+    local iconOf, spellOf = spells.iconOf, spells.spellOf
+    local getName = C_Spell and C_Spell.GetSpellName
+    if not (iconOf and getName) then return nil end
+    wipe(nameScratch)
+    local matched = spells.matched
+    local n = 0
+    for pass = 1, 2 do
+        for line = 1, #iconOf do
+            if iconOf[line] == index and (matched[line] == matchGen) == (pass == 1) then
+                n = n + 1
+                if n > max then
+                    nameScratch[n] = "..."
+                    return tconcat(nameScratch, ", ")
+                end
+                nameScratch[n] = getName(spellOf[line]) or ""
+            end
+        end
+    end
+    return n > 0 and tconcat(nameScratch, ", ") or nil
+end
+
 -- Debug peek: file-locals invisible to ns walks, exposed for external
 -- diagnostics. Shared references; do not mutate.
 function IconSearch:_DebugPeek()
-    return { blob = blob, offsets = offsets, tabs = tabs }
+    return { blob = icons.blob, offsets = icons.offsets, tabs = icons.tabs,
+        spellBlob = spells.blob, spellOffsets = spells.offsets, iconOf = spells.iconOf }
 end
 
 return IconSearch

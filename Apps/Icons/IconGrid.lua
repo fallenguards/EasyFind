@@ -47,12 +47,15 @@ local menuCell
 -- row list has works identically on cells.
 local navIndex = 0
 
--- Themed hint panel, never GameTooltip: name, FileDataID, and the copy
--- chord that takes the ID straight from the cell.
+-- Themed hint panel, never GameTooltip: name, FileDataID, the spells
+-- wearing the icon, and the copy chord that takes the ID from the cell.
+local SPELL_NAMES_SHOWN = 3
 local function IconTooltip(cellBtn)
     if not cellBtn.iconName then return end
-    ns.ShowHintTooltip(cellBtn, "ANCHOR_RIGHT", cellBtn.iconName,
-        tostring(cellBtn.iconID), L["COPY_HINT"])
+    local body = tostring(cellBtn.iconID)
+    local spellNames = IconSearch:GetSpellNames(cellBtn.iconIndex, SPELL_NAMES_SHOWN)
+    if spellNames then body = body .. "\n" .. spellNames end
+    ns.ShowHintTooltip(cellBtn, "ANCHOR_RIGHT", cellBtn.iconName, body, L["COPY_HINT"])
 end
 
 local function OnCellEnter(cellBtn)
@@ -203,7 +206,7 @@ function Repaint()
         local fIdx = filtered[base + i]
         if fIdx then
             local name, id = IconSearch:GetIcon(fIdx)
-            cellBtn.iconName, cellBtn.iconID = name, id
+            cellBtn.iconName, cellBtn.iconID, cellBtn.iconIndex = name, id, fIdx
             -- The shared row copy reads this: Ctrl+C over the cell copies
             -- the FileDataID.
             cellBtn._efCopyText = tostring(id)
@@ -213,7 +216,7 @@ function Repaint()
                 IconTooltip(cellBtn)
             end
         else
-            cellBtn.iconName, cellBtn.iconID = nil, nil
+            cellBtn.iconName, cellBtn.iconID, cellBtn.iconIndex = nil, nil, nil
             cellBtn._efCopyText = nil
             cellBtn:Hide()
         end
@@ -424,6 +427,17 @@ function Results:ShowIconGrid(query)
     rowOffset = mmax(0, mfloor(resultsFrame.scrollFrame:GetVerticalScroll() / rowH))
     Repaint()
 end
+
+-- Ability names land a moment after the first search: an open grid they
+-- change runs its query again, in place.
+IconSearch:OnNamesReady(function()
+    if not (host and host:IsShown() and lastQuery) then return end
+    local n = IconSearch:Filter(lastQuery, filtered)
+    if n ~= filteredN then
+        filteredN = n
+        Results:ShowIconGrid(lastQuery)
+    end
+end)
 
 -- The grid's handlers for the panel's grid layer (Search/Results/Grids.lua).
 local Grid = {}
