@@ -4,6 +4,20 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.4.0] - Unreleased
+
+### Added
+- **Icon search by ability name**: type an ability's name after `@icons` and its icon comes up, on every client and in the game's language; the macro icon picker's search does the same. An icon's hint lists the abilities that use it
+
+### Changed
+- **No more WoW Forever welcome line**: the chat line at each login and its option under General are gone
+
+### Fixed
+- **Green squares in icon search**: each client lists only the icons it has. The list was retail's, so WoW Forever showed some green squares and the Classic clients mostly green ones; icons only WoW Forever or a Classic client has are listed too
+- **Icon search kept the last search's matches**: after a search of several words, a shorter one could still list the earlier icons
+
+---
+
 ## [5.3.1] - 2026-11-13
 
 ### Changed
