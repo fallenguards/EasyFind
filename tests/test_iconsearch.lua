@@ -126,5 +126,12 @@ function tests.filter_hashExactListsFirst()
     H.assertEq(IconSearch:Filter("spell:133", scratch), 0)
 end
 
+function tests.filter_aNewQueryForgetsTheLast()
+    local three = IconSearch:Filter("inv sword 2h", scratch)
+    H.assertTrue(three > 0)
+    H.assertEq(IconSearch:Filter("zzqxjv", scratch), 0)
+    H.assertEq(IconSearch:Filter("inv sword 2h zzqxjv, zzqxjv", scratch), 0)
+end
+
 local pass, fail, failures = H.runSuite("IconSearch", tests)
 return { pass = pass, fail = fail, failures = failures }

@@ -236,9 +236,10 @@ end
 -- Per-keystroke evaluation scratch: generation-stamped so nothing wipes.
 -- mark[rec] == markBase + t  means rec passed terms 1..t of the branch
 -- under evaluation; hitStamp[rec] == hitGen dedupes within one term;
--- matched[rec] == matchGen marks a completed branch.
+-- matched[rec] == matchGen marks a completed branch. A branch's marks
+-- start past the last branch's, so a stale mark never reads as progress.
 local mark, hitStamp, matched = {}, {}, {}
-local markBase, hitGen, matchGen = 0, 0, 0
+local markBase, markTop, hitGen, matchGen = 0, 0, 0, 0
 
 -- Close-boundary release: the offset/tab index (two 33k-slot arrays) and
 -- the match scratch (three hashes that grow to one entry per record and
@@ -249,7 +250,7 @@ function IconSearch:ReleaseMemory()
     offsets, tabs = {}, {}
     total = 0
     mark, hitStamp, matched = {}, {}, {}
-    markBase, hitGen, matchGen = 0, 0, 0
+    markBase, markTop, hitGen, matchGen = 0, 0, 0, 0
 end
 
 -- Scan the blob for one PLAIN alternate. Ascending occurrences drive a
@@ -356,7 +357,8 @@ function IconSearch:Filter(query, out)
     local termStart = 1
     for b = 1, branchN do
         local nTerms = branchEnd[b] - termStart + 1
-        markBase = markBase + nTerms + 1
+        markBase = markTop
+        markTop = markBase + nTerms
         local altStart = termStart > 1 and (termEnd[termStart - 1] + 1) or 1
         for t = 1, nTerms do
             local termIdx = termStart + t - 1
