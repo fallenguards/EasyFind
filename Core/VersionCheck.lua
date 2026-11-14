@@ -125,18 +125,25 @@ function VersionCheck:IsUpdateAvailable()
     return self:GetAvailableVersion() ~= nil
 end
 
+-- The words around the green name in red: the one line that asks the
+-- player to act. The name's own |r ends the red, so it is set again.
+local RED = "|cFFFF4040"
+local function InRed(text)
+    return RED .. text:gsub("|r", "|r" .. RED, 1) .. "|r"
+end
+
 local function Tell()
     tellPending = false
     if EasyFind.db and EasyFind.db.updateNotify == false then return end
     local L, logo = ns.L, ns.CHAT_LOGO or ""
     if newestSeen and not toldCore then
         toldCore = true
-        print(logo .. sformat(L["UPDATE_CHAT_CORE"], newestSeen, ns.version))
+        print(logo .. InRed(sformat(L["UPDATE_CHAT_CORE"], newestSeen, ns.version)))
     end
     for short, version in pairs(newestExt) do
         if not toldExt[short] then
             toldExt[short] = true
-            print(logo .. sformat(L["UPDATE_CHAT_EXT"], ExtensionTitle(short), version, ownExts[short]))
+            print(logo .. InRed(sformat(L["UPDATE_CHAT_EXT"], ExtensionTitle(short), version, ownExts[short])))
         end
     end
 end

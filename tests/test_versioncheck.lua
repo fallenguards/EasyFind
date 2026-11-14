@@ -282,6 +282,34 @@ function tests.optOut_saysNothingAtLogin_andKeepsWhatWasHeard()
     H.assertEq(env.EasyFind.db.updateHeard.EasyFind[1], "3.2.0")
 end
 
+-- Red around the green name, wherever a language puts the name.
+function tests.theChatLine_isRedAroundTheGreenName()
+    reset()
+    local was = ns.L.UPDATE_CHAT_CORE
+    ns.L.UPDATE_CHAT_CORE = "Out: |cFF00FF00EasyFind v%s|r; you have v%s."
+    VC:NotePeerVersion("3.2.0", "GUILD")
+    env._clock:advance(1.5)
+    ns.L.UPDATE_CHAT_CORE = was
+    H.assertEq(printed[1], "|cFFFF4040Out: |cFF00FF00EasyFind v3.2.0|r|cFFFF4040; you have v3.1.0.|r")
+end
+
+-- Players update through CurseForge: no language sends them elsewhere.
+function tests.theUpdateTexts_nameCurseForgeOnly()
+    for _, locale in ipairs({ "enUS", "deDE", "esES", "esMX", "frFR", "itIT", "koKR", "ptBR", "ruRU", "zhCN", "zhTW" }) do
+        local fh = assert(io.open(H.ADDON_ROOT .. "/Locales/" .. locale .. ".lua", "rb"))
+        local seen = 0
+        for line in fh:lines() do
+            if line:find('^L%["UPDATE_CHAT_') or line:find('^L%["UPDATE_AVAILABLE_SOURCE"%]') then
+                seen = seen + 1
+                H.assertTrue(line:find("CurseForge", 1, true) ~= nil, locale .. ": " .. line)
+                H.assertTrue(line:lower():find("github", 1, true) == nil, locale .. " names GitHub: " .. line)
+            end
+        end
+        fh:close()
+        H.assertEq(seen, 3, locale .. " update texts")
+    end
+end
+
 function tests.forgetting_clearsTheSaveToo()
     reset()
     VC:NotePeerVersion("3.2.0", "GUILD")
