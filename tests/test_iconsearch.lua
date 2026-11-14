@@ -16,30 +16,32 @@ local SPELLS = {
     [118] = { "Zzdelta", 1 },
 }
 
--- A companion read in from scratch. deferNames: the name build waits for
--- the returned run function, as it waits for later frames in game.
-local function freshIconSearch(deferNames)
+-- A companion read in from scratch, as `client` (retail unless named).
+-- deferNames: the name build waits for shipped.runNames, as it waits for
+-- later frames in game.
+local function freshIconSearch(deferNames, client)
     local env = H.newEnv()
     local ns = H.newNs(env)
     -- The whole module ships as the EasyFind_Icons companion, which reads
     -- the parent addon's ns via the EasyFind._ns handshake.
     env.EasyFind._ns = ns
+    ns.Caps = { [client or "retail"] = true }
     env.C_Spell = {
         GetSpellName = function(id) return SPELLS[id] and SPELLS[id][1] end,
         GetSpellTexture = function(id) return SPELLS[id] and SPELLS[id][2] end,
     }
-    local pending
+    local shipped = {}
     if deferNames then
         ns.Utils.RunSliced = function(fn, onDone)
-            pending = function() onDone(pcall(fn)) end
+            shipped.runNames = function() onDone(pcall(fn)) end
         end
     end
     H.loadModule("Apps/Icons/Data.lua", env, ns)
-    local spellIDs = ns.ICON_SPELL_IDS
-    return H.loadModule("Apps/Icons/IconSearch.lua", env, ns), function() pending() end, spellIDs
+    shipped.spellIDs, shipped.clientRuns, shipped.blob = ns.ICON_SPELL_IDS, ns.ICON_CLIENT_RUNS, ns.ICON_SEARCH_BLOB
+    return H.loadModule("Apps/Icons/IconSearch.lua", env, ns), shipped
 end
 
-local IconSearch, _, SPELL_IDS = freshIconSearch()
+local IconSearch, SHIPPED = freshIconSearch()
 
 local tests = {}
 local scratch = {}
@@ -181,9 +183,39 @@ function tests.filter_aNewQueryForgetsTheLast()
     H.assertEq(IconSearch:Filter("inv sword 2h zzqxjv, zzqxjv", scratch), 0)
 end
 
+function tests.clientRuns_coverTheWholeList()
+    local _, records = SHIPPED.blob:gsub("\n", "")
+    for client, runs in pairs(SHIPPED.clientRuns) do
+        local sum = 0
+        for count in runs:gmatch("%d+") do sum = sum + tonumber(count) end
+        H.assertEq(sum, records, client .. "'s runs must add up to the list")
+    end
+end
+
+function tests.client_listsOnlyItsOwnIcons()
+    -- A file a client lacks draws a green square there.
+    local forever = freshIconSearch(false, "forever")
+    local era = freshIconSearch(false, "era")
+    H.assertTrue(forever:GetTotal() < IconSearch:GetTotal(), "Forever lacks some of retail's icons")
+    H.assertTrue(era:GetTotal() > 5000 and era:GetTotal() < forever:GetTotal(), "Era has far fewer")
+    -- inv_bracer_leather_raiddruidethereal_d_01: retail's alone.
+    H.assertEq(IconSearch:Filter("#6986555", scratch), 1)
+    H.assertEq(forever:Filter("#6986555", scratch), 0)
+    H.assertEq(forever:Filter("raiddruidethereal", scratch), 0)
+    -- inv_undeadpaladinmount_c60: Forever's alone.
+    H.assertEq(forever:Filter("#7962162", scratch), 1)
+    H.assertEq(IconSearch:Filter("#7962162", scratch), 0)
+    for _, client in ipairs({ "retail", "forever", "mists", "tbc", "era" }) do
+        local search = freshIconSearch(false, client)
+        H.assertEq(search:Filter("#135274", scratch), 1, client .. " has inv_sword_04")
+        H.assertEq(search:GetIcon(scratch[1]), "inv_sword_04")
+        H.assertEq(search:Filter("deterr", scratch), 1, client .. " finds Deterrence's icon")
+    end
+end
+
 function tests.spellList_namesEveryClassAbility()
     local ids, id = {}, 0
-    for gap in SPELL_IDS:gmatch("%d+") do
+    for gap in SHIPPED.spellIDs:gmatch("%d+") do
         H.assertTrue(tonumber(gap) > 0, "IDs must ascend")
         id = id + tonumber(gap)
         ids[id] = true
@@ -249,12 +281,12 @@ function tests.spellNames_listTheMatchFirst()
 end
 
 function tests.spellNames_arriveLater_andTellTheirListeners()
-    local late, runNames = freshIconSearch(true)
+    local late, shipped = freshIconSearch(true)
     local told = 0
     late:OnNamesReady(function() told = told + 1 end)
     H.assertEq(late:Filter("deterr", scratch), 0)
     H.assertEq(late:NamesReady(), false)
-    runNames()
+    shipped.runNames()
     H.assertEq(told, 1)
     H.assertEq(late:NamesReady(), true)
     H.assertEq(late:Filter("deterr", scratch), 1)

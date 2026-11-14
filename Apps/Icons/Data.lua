@@ -624,14 +624,47 @@ ns.ICON_SPELL_IDS = [[
 1372 7 1351 1 3 1532 580 80 2211 174 2 2 2 19 44 8 204 4 119 308 9 18 1 2 42 227
 ]]
 
--- GENERATED from the game's own client data files
--- (ManifestInterfaceData). Do not hand-edit; regenerate instead.
--- One packed blob, one record per line, tab-separated fields:
---   namelower  fileDataID
--- namelower is the icon file name without extension; it is the
--- search text AND the texture name macro authors copy. The icon
--- itself renders live from the FileDataID. See IconSearch.lua.
--- 33072 icons.
+-- Every client's icons in one list (dev/tools/icon_list.py). A client's
+-- own: record counts over the list, kept and skipped in turn.
+ns.ICON_CLIENT_RUNS = {
+era = [[
+6011 17 1 28 22 4 6 2 1 6 1 13 1 3 130 1 15 1 35 6 8 2 15 1 16 49 5 7 2 30 8 8 9 15 1 22 2 134 1 11
+1 10 2 26 4 21 1 13 1 59 2 212 1 1113 1 1593 3 1 6 2020 1 315 1 2538 1 177 1 5 1 56 3 1917 1 532 1
+2207 1 611 3 1210 1 1685 1 1 1 122 1 153 1 230 1 500 4 188 1 769 1 459 1 375 3 209 1 26 1 4 1 129 1
+785 1 687 1 99 1 593 2 215 4 4 3 252 3 1374 1 1467 1 1744
+]],
+forever = [[
+11536 4 14 1 8554 3 2896 1 1 1 122 1 153 1 230 1 500 2 190 1 1849 1 651 1 753 1 167 7 23 1 99 1 13 8
+400 1 136 1 34 2 1195 1 1 1 16 1 7 1 182 5 373 2 38 32 1 1018 2 447 1 258 1 568 18 256 18 25 47 40
+11 24 9 12 1 10 9 7 9 17 1 4 37 9 17 1 6 9 3 3 1 1 3 9 21 2 10 31 4 61 2 58 1 1 1 3 1 8 2 2 1 1 4 15
+16 22 13 2 2 12 1 3
+]],
+mists = [[
+10080 1 1852 2 7 53 1 17 1 40 3 36 1 111 2 502 1 14 1 11 2 8 1 4 1 2 1 19 3 14 2 18 2 32 1 1 1 20 1
+98 1 891 1 56 1 161 1 694 1 5 1 56 3 1236 1 438 1 241 1 123 1 408 1 779 1 490 1 936 1 324 1 286 3
+620 1 746 1 1528 1 1 1 122 1 153 1 230 1 500 4 188 1 1001 1 842 1 4 1 129 1 437 1 83 1 380 1 32 1
+339 1 167 7 123 1 13 8 400 1 392 1 2 1 3 1 793 2 109 1 51 1 13 1 16 1 1 1 5 1 101 1 20 2 1 1 46 5 5
+5 289 4 1 1 116 2 91 2 30 1 4 1 277 1 303 3 275 2 9 1 500 1 86 1 171 1 447 1 436 1 164 1 204 1 230
+]],
+retail = [[
+20109 3 1290 8 1598 1 1 1 122 1 153 1 230 1 118 5 377 2 190 1 1849 1 651 1 753 1 167 7 23 1 99 1 13
+8 400 1 171 2 1197 1 16 1 7 1 182 5 445 1 58 2 35 1 277 1 303 3 276 1 61 2 1275 18 256 18 24 48 40
+11 24 9 12 1 10 9 7 9 17 1 4 37 9 17 1 6 9 3 3 1 1 3 9 21 2 10 31 4 61 2 58 1 1 1 3 1 8 2 2 1 1 4 15
+16 22 13 2 2 12 1 3
+]],
+tbc = [[
+246 1 22 1 5 1 12 4 79 9 2 10 43 1 50 1 1 1 133 1 1 1 57 3 36 4 118 1 59 2 88 6 1 1 4 1 6 5 4 2 1 1
+112 1 307 8 1 4 4 7 1 1 235 1 132 3 19 10 1 3 89 1 94 1 50 1 6 2 1 1 8 1 1 2 38 4 83 2 74 1 10 1 14
+2 103 1 6 1 58 2 362 4 1 3 3 5 89 12 6 1 4 3 1 1 12 3 63 7 2 3 2 7 59 7 4 4 3 1 1 1 1 8 94 5 103 4 3
+10 20 4 2 5 9 2 12 1 1 5 17 2 23 4 65 4 1 1 3 2 2 8 47 6 458 4 10 174 21 51 1 47 1 4 1 6 1 82 1 997
+1 229 1 1017 1 213 1 1113 1 1593 3 1 6 2020 1 3032 1 5 1 56 3 1917 1 532 1 2207 1 611 3 2896 1 1 1
+122 1 153 1 230 1 502 2 3742 1 3406 1 10 1 2 1 1 1 495 1 1744
+]],
+}
+
+-- One record per line: file name, tab, FileDataID; IDs ascend. The name
+-- is the search text and what a macro author copies.
+-- 33429 icons.
 ns.ICON_SEARCH_BLOB = [[
 ability_ambush	132089
 ability_backstab	132090
@@ -13265,7 +13298,6 @@ inv_bracer_mail_draenorlfr_c_01	973889
 inv_chest_mail_draenorcrafted_d_01_alliance	973890
 inv_chest_mail_draenorcrafted_d_01_horde	973891
 inv_chest_mail_draenorlfr_c_01	973892
-inv_glove_mail_draenorcrafted_d_01_alliance]	973893
 inv_glove_mail_draenorcrafted_d_01_horde	973894
 inv_glove_mail_draenorlfr_c_01	973895
 inv_helm_mail_draenorcrafted_d_01_alliance	973896
@@ -20743,6 +20775,9 @@ inv_misc_dragoncostume_mid_blue	2238387
 inv_misc_dragoncostume_mid_green	2238388
 inv_misc_dragoncostume_tail_blue	2238389
 inv_misc_dragoncostume_tail_green	2238390
+inv_scarab_ivory	2241756
+inv_mace23	2245030
+inv_mace_22	2245099
 inv_tabard_kultiran	2261243
 inv_bow_1h_warfrontsnightelf_d_01	2263236
 inv_misc_2h_babynagafork_a_01	2264901
@@ -22033,6 +22068,14 @@ inv_helm_plate_maldraxxus_d_01	3175290
 inv_pants_plate_maldraxxus_d_01	3175291
 inv_shoulders_plate_maldraxxus_d_01	3175292
 spell_shadow_haunting_grey	3180367
+inv_belt_armor_musician_d_01	3181915
+inv_boot_armor_musician_d_01	3181916
+inv_cape_armor_musician_d_01	3181918
+inv_chest_armor_musician_d_01	3181919
+inv_glove_armor_musician_d_01	3181920
+inv_helm_armor_musician_d_01	3181921
+inv_pant_armor_musician_d_01	3181922
+inv_shoulder_armor_musician_d_01	3181923
 inv_sword_2h_bastionquest_b_01	3186652
 inv_mace_1h_maldraxxusquest_b_01	3188351
 inv_shield_1h_revendreth_d_01	3188641
@@ -23631,7 +23674,9 @@ inv_glove_leather_raidrogueprogenitor_d_01	3865425
 inv_helm_leather_raidrogueprogenitor_d_01	3865427
 inv_pant_leather_raidrogueprogenitor_d_01	3865428
 inv_shoulder_leather_raidrogueprogenitor_d_01	3865430
+spell_nature_wrathofair _totem	3867503
 inv_shield_1h_progenitorraid_d_02	3867785
+inv_axe_31	3873028
 inv_sword_1h_broker2boss_d_01	3880768
 inv_warpstalkermount	3883761
 inv_cape_cloth_raidwarlockprogenitor_d_01	3883810
@@ -23754,6 +23799,7 @@ inv_armor_maldraxxuscosmetic_d_01_helm	3939187
 inv_armor_maldraxxuscosmetic_d_01_pants	3939188
 inv_armor_maldraxxuscosmetic_d_01_shoulders	3939189
 inv_ancientmount	3939983
+inv_warpstalkermountbc	3940790
 inv_mace_1h_questing_b_01	3946764
 inv_cloth_startinggear_a_01_belt	3946767
 inv_cloth_startinggear_a_01_boot	3946768
@@ -23907,6 +23953,7 @@ ability_domination_rune10	4005159
 ability_domination_rune11	4005160
 ability_domination_rune12	4005161
 ability_domination_rune13	4005162
+pvp-arenapoints-icon	4006481
 inv_phoenix2pet	4007138
 inv_phoenix2pet_orange	4007139
 inv_phoenix2pet_red	4007140
@@ -24137,6 +24184,7 @@ inv_shoulder_plate_dragonquest_b_01	4079325
 inv_misc_herb_progherb_01	4080344
 inv_babyfaeriedragon	4080512
 inv_eagle2wind	4080564
+ui_shop_gameupgrades	4082200
 inv_tabard_deathsadvance_b_01	4083292
 inv_polearm_2h_dragonquest_b_02	4093699
 inv_quiver_1h_mawraid_d_01	4093739
@@ -24255,6 +24303,11 @@ inv_shield_1h_dragondungeon_c_02	4186833
 inv_shield_1h_dragonquest_b_02	4187269
 inv_sword_1h_dragondungeon_c_02	4189041
 inv_offhand_1h_dragonquest_b_02	4190918
+inv_cape_special_dragon_d_01_black	4191315
+inv_cape_special_dragon_d_01_blue	4191316
+inv_cape_special_dragon_d_01_bronze	4191317
+inv_cape_special_dragon_d_01_green	4191318
+inv_cape_special_dragon_d_01_red	4191319
 inv_cape_special_dragon_d_02_black	4191332
 inv_cape_special_dragon_d_02_blue	4191333
 inv_cape_special_dragon_d_02_bronze	4191334
@@ -24632,6 +24685,8 @@ inv_progenitor_anima_blue	4335642
 inv_progenitor_anima_green	4335643
 inv_progenitor_anima_purple	4335644
 inv_glaive_1h_dragondungeon_c_01	4335739
+ability_vehicle_liquidpyrite _blue	4344094
+inv_helmet_100.tga	4345183
 ability_warlock_incubus	4352492
 ability_warlock_randomizesuccubusincubus	4352493
 inv_relics_hourglass_02	4352494
@@ -24822,6 +24877,7 @@ inv_turtlemount2_red	4498801
 inv_tuskarrglider	4500249
 inv_knife_1h_primalistraid_d_01	4501128
 inv_polearm_2h_primalistraid_d_01	4501196
+inv_tuskarrgliderwotlk	4501546
 inv_polearm_2h_primalist_d_01	4504433
 inv_shield_1h_lordaeron_d_01	4504543
 inv_leather_ceremonialpantera_c_01_belt	4506486
@@ -26671,6 +26727,7 @@ inv_helm_armor_weldingmask_d_01	4680855
 inv_mace_1h_dragonraid_d_01	4681001
 inv_glaive_1h_dragonraid_d_01	4684832
 inv_firearm_1h_dragonraid_d_01	4686253
+inv_rabbitmountclassic	4687496
 ui_majorfaction_centaur	4687627
 ui_majorfaction_expedition	4687628
 ui_majorfaction_tuskarr	4687629
@@ -27322,6 +27379,7 @@ inv_dreamsabermount_yellow	5100594
 inv_serpentmountgladiator	5114749
 inv_sword_1h_emeralddreamraid_d_01	5116268
 inv_mace_1h_emeralddreamoutdoor_d_02	5139783
+inv_lunardragonmount_classic	5140791
 inv_lunardragonmount	5140802
 ui_majorfaction_niffen	5140835
 ui_majorfaction_shadowflame	5140836
@@ -28075,6 +28133,7 @@ inv_polearm_2h_nerubianraid_d_01	5372152
 inv_axe_1h_undergroundquest_b_02	5372300
 inv_knife_1h_earthendungeon_c_01	5372329
 inv_helm_armor_kobyssangler_d_01	5372523
+inv_wooddragonpet2	5373378
 inv_helm_armor_kobold_d_01	5376385
 inv_helm_armor_fungarian_d_01_purple	5382582
 inv_helm_armor_fungarian_d_01_red	5382583
@@ -28242,6 +28301,13 @@ inv_axe_1h_spring_c_01	5502806
 inv_offhand_1h_nerubianraid_d_01	5502817
 inv_mousehearthstone	5502861
 inv_cape_special_butterfly_c_01	5503430
+inv_belt_armor_twilightcultist_b_01	5505176
+inv_boot_armor_twilightcultist_b_01	5505177
+inv_bracer_armor_twilightcultist_b_01	5505178
+inv_chest_armor_twilightcultist_b_01	5505179
+inv_glove_armor_twilightcultist_b_01	5505180
+inv_helm_armor_twilightcultist_b_01	5505181
+inv_shoulder_armor_twilightcultist_b_01	5505182
 inv_ladybugpet_pink	5505319
 inv_ladybugpet_red	5505320
 inv_ladybugpet_yellow	5505321
@@ -28265,6 +28331,7 @@ inv_shirt_duelist_a_01_purple	5519310
 inv_shirt_duelist_a_01_red	5519311
 inv_shirt_duelist_a_01_scarlet	5519312
 inv_shirt_duelist_a_01_white	5519313
+ability_orangebirdclassic	5519425
 inv_staff_2h_nerubianraid_d_01	5519749
 inv_armor_shouldercape_c_01_shoulder	5520218
 inv_nerubianbeetlelargemount_blue	5520457
@@ -28364,6 +28431,7 @@ inv_sword_2h_plunder_c_01	5581315
 inv_firearm_2h_plunder_c_01	5581325
 inv_sword_1h_plunder_c_01	5581649
 inv_tabard_dragonrider_b_01_green	5588033
+ui_selffound	5588107
 inv_armor_troll_d_01_horde_belt	5607341
 inv_armor_troll_d_01_horde_boot	5607342
 inv_armor_troll_d_01_horde_bracer	5607343
@@ -28377,6 +28445,14 @@ inv_mace_1h_arathoroutdoor_d_02	5607356
 inv_wolfserpentmount2	5607688
 inv_cape_pvp_11season2_d_01	5612273
 inv_tabard_pvp_11season2_d_01	5612274
+inv_treasurecrabpetclassic_blue	5617450
+inv_treasurecrabpetclassic_purple	5617451
+inv_treasurecrabpetclassic_red	5617452
+inv_treasurecrabpetclassic_yellow	5617453
+inv_parrotpiratemountclassic_blue	5617454
+inv_parrotpiratemountclassic_green	5617455
+inv_parrotpiratemountclassic_purple	5617456
+inv_parrotpiratemountclassic_red	5617457
 inv_firebeemount_	5633719
 inv_firebeemount_black	5633720
 inv_firebeemount_grey	5633721
@@ -28777,6 +28853,7 @@ inv_misc_2h_arathor_gardenrake_b_02	5768265
 inv_misc_2h_arathor_gardenshovel_b_01	5768266
 inv_misc_2h_arathor_gardenshovel_b_02	5768267
 inv_mace_2h_goblinraid_d_01	5768515
+inv_snowowlpetclassic_white	5770411
 inv_sword_1h_goblinraid_d_01	5770743
 achievement_zone_azjkahet	5770809
 achievement_zone_hallowfall	5770810
@@ -28948,6 +29025,8 @@ inv_armor_earthenmilitary_d_03_glove	5836987
 inv_armor_earthenmilitary_d_03_helm	5836988
 inv_armor_earthenmilitary_d_03_pant	5836989
 inv_cape_special_wc3human_d_01	5838131
+inv_bracer_leather_olivescale_b_01	5838262
+inv_shoulder_leather_olivescale_b_01	5838263
 inv_knife_1h_outdoorundermine_c_01	5840250
 inv_dreamfawn_ash	5840602
 inv_dreamfawn_frost	5840603
@@ -30145,6 +30224,7 @@ inv_helm_armor_tatteredhoodmasked_b_01	6123442
 inv_yellow_rocketmount5	6123443
 inv_mechadevilsaurmount_yellow	6123444
 inv_felbatgladiatormount_copper	6124221
+inv_foxpetdetectiveclassic	6124234
 inv_mail_raidshamant2_d_01_belt	6124584
 inv_mail_raidshamant2_d_01_boot	6124586
 inv_mail_raidshamant2_d_01_bracer	6124588
@@ -30161,6 +30241,7 @@ inv_goblinshreddermech_black	6124649
 inv_goblinshreddermech_blue	6124650
 inv_goblinshreddermech_green	6124651
 inv_goblinshreddermech_purple	6124652
+inv_lunarsnakepetclassic	6124702
 inv_lunarsnakepet	6124758
 inv_30thgryphonmount_gold	6126079
 inv_goblinflyingmachine_black	6126216
@@ -30168,6 +30249,7 @@ inv_goblinflyingmachine_blue	6126217
 inv_goblinflyingmachine_green	6126218
 inv_goblinflyingmachine_red	6126219
 inv_goblinflyingmachine_yellow	6126220
+inv_30thbatmount_red	6127582
 inv_shield_1h_winterveil_b_01	6127641
 inv_koboldchild_blue	6129765
 inv_koboldchild_purple	6129766
@@ -30350,6 +30432,11 @@ inv_redpandapet_gray	6310497
 inv_redpandapet_orange	6310498
 inv_redpandapet_red	6310499
 inv_redpandapet_violet	6310500
+inv_redpandamountclassic_blue	6310706
+inv_redpandamountclassic_gray	6310707
+inv_redpandamountclassic_orange	6310708
+inv_redpandamountclassic_red	6310709
+inv_redpandamountclassic_violet	6310710
 inv_armor_shoulder_karazhan_c_01	6315785
 inv_voidflyermount_purple	6320429
 inv_voidflyermount_red	6320430
@@ -30795,6 +30882,7 @@ inv_helm_armor_brewfestbarrel_c_01	6716590
 ui_spellbook_onebutton	6718291
 inv_shield_1h_etherealraid_d_01	6718454
 inv_ore_brilliantsilver	6725347
+inv_pvpwarhorse_scarlet	6725876
 inv_bracer_armor_spirithealer_d_01	6727233
 inv_plate_raidpaladinethereal_d_01_belt	6728239
 inv_plate_raidpaladinethereal_d_01_boot	6728240
@@ -30853,6 +30941,8 @@ inv_babydragonhawk_yellow	6739640
 inv_babydragonhawk_black	6739641
 inv_inariusmount	6739959
 achievement_worldevent_dastardlyduos	6740278
+inv_hordezeppelinmountclassic	6750948
+inv_allianceshipmountclassic	6750950
 inv_belt_armor_raincoat_c_01	6755770
 inv_boot_armor_raincoat_c_01	6755771
 inv_helm_armor_raincoat_c_01	6755772
@@ -30888,6 +30978,7 @@ inv_murlocmount_blue	6795720
 inv_cape_special_forsaken_d_02	6795733
 inv_mace_2h_chess_d_01	6796792
 inv_11xp_generic_pandarenboat01	6798850
+inv_shadrakemount	6799143
 inv_bloodelementalmount	6839181
 inv_belt_armor_pandaren_d_01	6839564
 inv_boot_armor_pandaren_d_01	6839565
@@ -31165,6 +31256,7 @@ inv_chest_armor_bloodelfcivilianb_b_01	7014346
 inv_glove_armor_bloodelfcivilianb_b_01	7014347
 inv_helm_armor_bloodelfcivilianb_b_01	7014349
 inv_pant_armor_bloodelfcivilianb_b_01	7014350
+inv_classic_generic_pandarenboat01	7015580
 inv_cape_leather_outdoorethereal_c_01	7015601
 inv_chest _leather_outdoorethereal_c_01	7015607
 inv_glove_leather_outdoorethereal_c_01	7015613
@@ -31468,6 +31560,9 @@ ui_lemixgem_white	7145343
 inv_misc_2h_battlefork_a_01_gold	7148359
 inv_glaive_1h_frost_d_01	7148890
 inv_shoulder_armor_magni_d_02	7148925
+dragonskywallmountpurple1	7150429
+dragonskywallmountpurple2	7150430
+dragonskywallmountsaddlepurple	7150431
 inv_misc_2h_battleknife_a_01	7150432
 inv_misc_1h_soup_b_01_misc_1h_soup_b_01	7150437
 inv_misc_1h_food_c_01	7150690
@@ -31658,6 +31753,7 @@ inv_amanibearmount_wood	7263310
 inv_mace_1h_outdoorvoidelf_c_02	7263448
 inv_cape_special_hextroll_d_01	7264163
 inv_shoulder_armor_hextroll_d_01	7264184
+inv_babymurloc3_emerald	7264939
 inv_shield_1h_demon_c_01	7265335
 inv_1125_remix_hardmode	7266188
 inv_achievement_dungeon_murderrow	7266213
@@ -31743,6 +31839,7 @@ inv_babymanawyrm_white	7301943
 inv_pant_armor_legion_d_01	7301979
 inv_polearm_2h_questbloodelf_b_01	7303256
 inv_warpstalkermount_blue	7307329
+inv_warpstalkermountbc_blue	7307358
 inv_belt_mail_raidevokermidnight_d_01	7307672
 inv_boot_mail_raidevokermidnight_d_01	7307673
 inv_bracer_mail_raidevokermidnight_d_01	7307674
@@ -31804,6 +31901,8 @@ inv_helm_armor_harronirmilitary_d_01_hood	7338833
 inv_10xp_generic_toy_dragonpillartoy01_gold	7345763
 inv_10xp_generic_toy_dragonpillartoy01_green	7345764
 inv_10xp_generic_toy_dragonpillartoy01_blue	7345765
+ui-hud-actionbar-bag	7349174
+ui-hud-actionbar-keyring	7349175
 inv_arcanegolem2mount_green	7349783
 inv_arcanegolem2mount_red	7349784
 inv_arcanegolem2mount_white	7349785
@@ -32957,6 +33056,7 @@ inv_cape_pvp12season2_d_01_blue	7569834
 inv_cape_pvp12season2_d_01_red	7569835
 inv_tabard_pvp12season2_d_01_blue	7569837
 inv_tabard_pvp12season2_d_01_red	7569838
+inv_companionroc	7570145
 inv_mothpet2_yellow	7570980
 inv_mace_2h_ulatek_d_01	7576051
 inv_12_jewelryandtrinkets_desecratedchalice	7578207
@@ -33078,6 +33178,24 @@ inv_helm_leather_raiddruidulatek_d_01	7579164
 inv_pant_leather_raiddruidulatek_d_01	7579165
 inv_robe_leather_raiddruidulatek_d_01	7579166
 inv_shoulder_leather_raiddruidulatek_d_01	7579167
+inv_belt_leather_raidroguehyjalc60_d_01	7583586
+inv_boot_leather_raidroguehyjalc60_d_01	7583587
+inv_bracer_leather_raidroguehyjalc60_d_01	7583588
+inv_cape_leather_raidroguehyjalc60_d_01	7583589
+inv_glove_leather_raidroguehyjalc60_d_01	7583590
+inv_helm_leather_raidroguehyjalc60_d_01	7583591
+inv_pant_leather_raidroguehyjalc60_d_01	7583592
+inv_robe_leather_raidroguehyjalc60_d_01	7583593
+inv_shoulder_leather_raidroguehyjalc60_d_01	7583594
+inv_belt_cloth_raidwarlockhyjalc60_d_01	7583595
+inv_boot_cloth_raidwarlockhyjalc60_d_01	7583596
+inv_bracer_cloth_raidwarlockhyjalc60_d_01	7583597
+inv_cape_cloth_raidwarlockhyjalc60_d_01	7583598
+inv_chest_cloth_raidwarlockhyjalc60_d_01	7583599
+inv_glove_cloth_raidwarlockhyjalc60_d_01	7583600
+inv_helm_cloth_raidwarlockhyjalc60_d_01	7583601
+inv_pant_cloth_raidwarlockhyjalc60_d_01	7583602
+inv_shoulder_cloth_raidwarlockhyjalc60_d_01	7583603
 inv_cape_special_sunwalkertotem_d_01	7636515
 inv_12_dualityphoenix_holy_feather	7636520
 inv_12_dualityphoenix_lightvoid_attack	7636521
@@ -33334,7 +33452,27 @@ inv12_ability_alleria_silverstrikebarrage	7670586
 inv12_ability_alleria_silvervulnerability	7670587
 inv12_ability_alleria_voidstalkersting	7670588
 inv_1205_ability_evoker_massdisintegration	7670589
+inv_belt_cloth_raidmagehyjalc60_d_01	7672591
+inv_boot_cloth_raidmagehyjalc60_d_01	7672592
+inv_bracer_cloth_raidmagehyjalc60_d_01	7672593
+inv_cape_cloth_raidmagehyjalc60_d_01	7672594
+inv_chest_cloth_raidmagehyjalc60_d_01	7672595
+inv_glove_cloth_raidmagehyjalc60_d_01	7672596
+inv_helm_cloth_raidmagehyjalc60_d_01	7672597
+inv_pant_cloth_raidmagehyjalc60_d_01	7672598
+inv_shoulder_cloth_raidmagehyjalc60_d_01	7672599
+inv_belt_mail_raidshamanhyjalc60_d_01	7672666
+inv_boot_mail_raidshamanhyjalc60_d_01	7672667
+inv_bracer_mail_raidshamanhyjalc60_d_01	7672668
+inv_cape_mail_raidshamanhyjalc60_d_01	7672669
+inv_chest_mail_raidshamanhyjalc60_d_01	7672670
+inv_glove_mail_raidshamanhyjalc60_d_01	7672671
+inv_helm_mail_raidshamanhyjalc60_d_01	7672672
+inv_pant_mail_raidshamanhyjalc60_d_01	7672673
+inv_shoulder_mail_raidshamanhyjalc60_d_01	7672674
 inv_glaive_1h_outdooramaniloa_c_01	7672957
+inv_oldgodraymount_blue	7673157
+inv_oldgodraymount_purple	7673158
 inv_sword_1h_outdooramaniloa_c_01	7674098
 inv_axe_1h_outdooramaniloa_c_01	7674304
 inv_belt_leather_raidrogueulatek_d_01	7678393
@@ -33355,6 +33493,55 @@ inv_glove_leather_raiddemonhunterulatek_d_01	7679654
 inv_helm_leather_raiddemonhunterulatek_d_01	7679655
 inv_pant_leather_raiddemonhunterulatek_d_01	7679656
 inv_shoulder_leather_raiddemonhunterulatek_d_01	7679657
+inv_chest_armor_oldgod_d_02	7682074
+inv_quilinmountflying_cn	7693393
+inv_belt_cloth_raidpriesthyjalc60_d_01	7699040
+inv_boot_cloth_raidpriesthyjalc60_d_01	7699041
+inv_bracer_cloth_raidpriesthyjalc60_d_01	7699042
+inv_cape_cloth_raidpriesthyjalc60_d_01	7699043
+inv_glove_cloth_raidpriesthyjalc60_d_01	7699044
+inv_helm_cloth_raidpriesthyjalc60_d_01	7699045
+inv_pant_cloth_raidpriesthyjalc60_d_01	7699046
+inv_robe_cloth_raidpriesthyjalc60_d_01	7699047
+inv_shoulder_l_cloth_raidpriesthyjalc60_d_01	7699048
+inv_shoulder_r_cloth_raidpriesthyjalc60_d_01	7699049
+inv_belt_plate_raidpaladinhyjalc60_d_01	7699050
+inv_boot_plate_raidpaladinhyjalc60_d_01	7699051
+inv_bracer_plate_raidpaladinhyjalc60_d_01	7699052
+inv_cape_plate_raidpaladinhyjalc60_d_01	7699053
+inv_chest_plate_raidpaladinhyjalc60_d_01	7699054
+inv_glove_plate_raidpaladinhyjalc60_d_01	7699055
+inv_helm_plate_raidpaladinhyjalc60_d_01	7699056
+inv_pant_plate_raidpaladinhyjalc60_d_01	7699057
+inv_shoulder_plate_raidpaladinhyjalc60_d_01	7699058
+inv_belt_plate_raidwarriorhyjalc60_d_01	7699244
+inv_boot_plate_raidwarriorhyjalc60_d_01	7699245
+inv_bracer_plate_raidwarriorhyjalc60_d_01	7699246
+inv_cape_plate_raidwarriorhyjalc60_d_01	7699247
+inv_chest_plate_raidwarriorhyjalc60_d_01	7699248
+inv_glove_plate_raidwarriorhyjalc60_d_01	7699249
+inv_helm_plate_raidwarriorhyjalc60_d_01	7699250
+inv_pant_plate_raidwarriorhyjalc60_d_01	7699251
+inv_shoulder_plate_raidwarriorhyjalc60_d_01	7699252
+inv_belt_mail_raidhunterhyjalc60_d_01	7699432
+inv_boot_mail_raidhunterhyjalc60_d_01	7699433
+inv_bracer_mail_raidhunterhyjalc60_d_01	7699434
+inv_cape_mail_raidhunterhyjalc60_d_01	7699435
+inv_chest_mail_raidhunterhyjalc60_d_01	7699436
+inv_glove_mail_raidhunterhyjalc60_d_01	7699437
+inv_helm_mail_raidhunterhyjalc60_d_01	7699438
+inv_pant_mail_raidhunterhyjalc60_d_01	7699439
+inv_shoulder_l_mail_raidhunterhyjalc60_d_01	7699440
+inv_shoulder_r_mail_raidhunterhyjalc60_d_01	7699441
+inv_belt_leather_raiddruidhyjalc60_d_01	7699527
+inv_boot_leather_raiddruidhyjalc60_d_01	7699542
+inv_bracer_leather_raiddruidhyjalc60_d_01	7699543
+inv_cape_leather_raiddruidhyjalc60_d_01	7699544
+inv_glove_leather_raiddruidhyjalc60_d_01	7699545
+inv_helm_leather_raiddruidhyjalc60_d_01	7699561
+inv_pant_leather_raiddruidhyjalc60_d_01	7699562
+inv_robe_leather_raiddruidhyjalc60_d_01	7699563
+inv_shoulder_leather_raiddruidhyjalc60_d_01	7699585
 inv_bow_1h_outdooramaniloa_c_01	7700598
 inv_misc_ selfiecamera_red	7700711
 inv_misc_ selfiecamera_red_camera	7700714
@@ -33377,6 +33564,14 @@ inv_wand_1h_outdooramaniloa_c_01	7703821
 inv_flyingserpentmount	7703890
 inv_misc_red_thumbtack	7704166
 inv_knife_1h_outdooramaniloa_c_01	7704736
+inv_belt_armor_oldgod_d_01	7705384
+inv_boot_armor_oldgod_d_01	7705385
+inv_cape_armor_oldgod_d_01	7705386
+inv_chest_armor_oldgod_d_01	7705387
+inv_glove_armor_oldgod_d_01	7705388
+inv_helm_armor_oldgod_d_01	7705389
+inv_pant_armor_oldgod_d_01	7705390
+inv_shoulder_armor_oldgod_d_01	7705391
 inv_belt_mail_raidshamanulatek_d_01	7705642
 inv_boot_mail_raidshamanulatek_d_01	7705643
 inv_bracer_mail_raidshamanulatek_d_01	7705644
@@ -33387,6 +33582,17 @@ inv_pant_mail_raidshamanulatek_d_01	7705648
 inv_robe_mail_raidshamanulatek_d_01	7705649
 inv_shoulder_mail_raidshamanulatek_d_01	7705650
 inv_sword_2h_outdooramaniloa_c_01	7711675
+inv_belt_armor_dwarfc60_d_02	7711852
+inv_boot_armor_dwarfc60_d_02	7711853
+inv_bracer_armor_dwarfc60_d_02	7711854
+inv_cape_armor_dwarfc60_d_02	7711859
+inv_chest_armor_dwarfc60_d_02	7711860
+inv_glove_armor_dwarfc60_d_02	7711861
+inv_helm_armor_dwarfc60_d_02	7711862
+inv_pant_armor_dwarfc60_d_02	7711863
+inv_shoulder_armor_dwarfc60_d_02	7711864
+inv_cape_special_camping_d_01_green	7711998
+inv_tabard_lordaeronc60_b_01	7713111
 inv_belt_armor_venthyr_d_01	7722275
 inv_boot_armor_venthyr_d_01	7722276
 inv_bracer_armor_venthyr_d_01	7722278
@@ -33411,6 +33617,15 @@ inv_glove_plate_raidpaladinulatek_d_01	7730302
 inv_helm_plate_raidpaladinulatek_d_01	7730303
 inv_pant_plate_raidpaladinulatek_d_01	7730304
 inv_shoulder_plate_raidpaladinulatek_d_01	7730305
+inv_belt_leather_skybornec60_b_01	7731370
+inv_boot_leather_skybornec60_b_01	7731371
+inv_bracer_leather_skybornec60_b_01	7731372
+inv_cape_leather_skybornec60_b_01	7731373
+inv_chest_leather_skybornec60_b_01	7731374
+inv_glove_leather_skybornec60_b_01	7731375
+inv_helm_leather_skybornec60_b_01	7731376
+inv_pant_leather_skybornec60_b_01	7731377
+inv_shoulder_leather_skybornec60_b_01	7731378
 inv_boot_armor_dragononesie_c_01	7731425
 inv_cape_armor_dragononesie_c_01	7731426
 inv_chest_armor_dragononesie_c_01	7731427
@@ -33423,6 +33638,7 @@ inv_chest_armor_dragononesie_c_02	7732844
 inv_glove_armor_dragononesie_c_02	7732845
 inv_helm_armor_dragononesie_c_02	7732846
 inv_pant_armor_dragononesie_c_02	7732847
+inv_undeadpaladinmount	7733521
 inv_121_crest_adventurer	7734054
 inv_121_crest_adventurer_enchanted	7734055
 inv_121_crest_champion	7734056
@@ -33433,6 +33649,15 @@ inv_121_crest_myth	7734060
 inv_121_crest_myth_enchanted	7734061
 inv_121_crest_veteran	7734062
 inv_121_crest_veteran_enchanted	7734063
+inv_belt_leather_skybornec60_b_02	7734168
+inv_boot_leather_skybornec60_b_02	7734169
+inv_bracer_leather_skybornec60_b_02	7734194
+inv_cape_leather_skybornec60_b_02	7734195
+inv_chest_leather_skybornec60_b_02	7734196
+inv_glove_leather_skybornec60_b_02	7734215
+inv_helm_leather_skybornec60_b_02	7734216
+inv_pant_leather_skybornec60_b_02	7734217
+inv_shoulder_leather_skybornec60_b_02	7734240
 inv_axe_1h_ulatek_d_01	7736101
 inv_misc_landrosbox_01	7736246
 inv_windserpent3mount_green	7736461
@@ -33440,6 +33665,15 @@ inv_windserpent3mount_pink	7736462
 inv_windserpent3mount_purple	7736463
 inv_windserpent3mount_white	7736464
 inv_windserpent3mount_yellow	7736465
+inv_belt_mail_skybornec60_b_01	7737711
+inv_boot_mail_skybornec60_b_01	7737712
+inv_bracer_mail_skybornec60_b_01	7737713
+inv_cape_mail_skybornec60_b_01	7737714
+inv_chest_mail_skybornec60_b_01	7737715
+inv_glove_mail_skybornec60_b_01	7737716
+inv_helm_mail_skybornec60_b_01	7737717
+inv_pant_mail_skybornec60_b_01	7737718
+inv_shoulder_mail_skybornec60_b_01	7737719
 inv_belt_plate_raiddeathknightulatek_d_01	7739383
 inv_boot_plate_raiddeathknightulatek_d_01	7739384
 inv_bracer_plate_raiddeathknightulatek_d_01	7739385
@@ -33457,10 +33691,48 @@ inv_glove_armor_summer_d_01	7739693
 inv_helm_armor_summer_d_01	7739694
 inv_pant_armor_summer_d_01	7739697
 inv_shoulder_armor_summer_d_01	7739698
+inv_pachimarapet	7741132
 inv_12xp_mdi_awv_banner01	7745835
 inv_12xp_mdi_awv_banner02	7745836
 inv_12xp_mdi_awv_banner03	7745837
 inv_12xp_mdi_awv_banner04	7745838
+inv_druidbearskyborne_c60_blue	7749888
+inv_druidbearskyborne_c60_gray	7749889
+inv_druidbearskyborne_c60_green	7749890
+inv_druidbearskyborne_c60_white	7749891
+inv_bearskyborne_c60_blue	7749892
+inv_bearskyborne_c60_gray	7749893
+inv_bearskyborne_c60_green	7749894
+inv_bearskyborne_c60_white	7749895
+inv_catskyborne_c60_blue	7749896
+inv_catskyborne_c60_gray	7749897
+inv_catskyborne_c60_green	7749898
+inv_catskyborne_c60_white	7749899
+inv_druidcatskyborne_c60_blue	7749900
+inv_druidcatskyborne_c60_gray	7749901
+inv_druidcatskyborne_c60_green	7749902
+inv_druidcatskyborne_c60_white	7749903
+inv_catskybornemount_c60_blue	7749904
+inv_catskybornemount_c60_gray	7749905
+inv_catskybornemount_c60_green	7749906
+inv_catskybornemount_c60_white	7749907
+inv_druidtravelskyborne_c60_blue	7749908
+inv_druidtravelskyborne_c60_gray	7749909
+inv_druidtravelskyborne_c60_green	7749910
+inv_druidtravelskyborne_c60_white	7749911
+inv_travelskyborne_c60_c60_blue	7749912
+inv_travelskyborne_c60_c60_gray	7749913
+inv_travelskyborne_c60_c60_green	7749914
+inv_travelskyborne_c60_c60_white	7749915
+inv_belt_armor_skybornec60_d_01	7751144
+inv_boot_armor_skybornec60_d_01	7751145
+inv_cape_armor_skybornec60_d_01	7751146
+inv_chest_armor_skybornec60_d_01	7751147
+inv_glove_armor_skybornec60_d_01	7751148
+inv_helm_armor_skybornec60_d_01	7751149
+inv_pant_armor_skybornec60_d_01	7751150
+inv_robe_armor_skybornec60_d_01	7751151
+inv_shoulder_armor_skybornec60_d_01	7751152
 inv_staff_2h_prophuntvoid_d_01	7751465
 inv_belt_armor_badlands_d_01	7751468
 inv_boot_armor_badlands_d_01	7751469
@@ -33470,7 +33742,30 @@ inv_glove_armor_badlands_d_01	7751472
 inv_helm_armor_badlands_d_01	7751473
 inv_pant_armor_badlands_d_01	7751474
 inv_shoulder_armor_badlands_d_01	7751475
+inv_craneskyborneswiftmount_c60_blue	7754704
+inv_craneskyborneswiftmount_c60_gray	7754705
+inv_craneskyborneswiftmount_c60_green	7754706
+inv_craneskyborneswiftmount_c60_white	7754707
+inv_craneskybornemount_c60_blue	7754708
+inv_craneskybornemount_c60_gray	7754709
+inv_craneskybornemount_c60_green	7754714
+inv_craneskybornemount_c60_white	7754724
+inv_belt_cloth_skybornec60_b_01	7758818
+inv_boot_cloth_skybornec60_b_01	7758819
+inv_bracer_cloth_skybornec60_b_01	7758820
+inv_cape_cloth_skybornec60_b_01	7758821
+inv_chest _cloth_skybornec60_b_01	7758822
+inv_glove_cloth_skybornec60_b_01	7758823
+inv_helm_cloth_skybornec60_b_01	7758824
+inv_pant_cloth_skybornec60_b_01	7758825
+inv_shoulder_cloth_skybornec60_b_01	7758826
 inv_staff_2h_outdooramaniloa_c_01	7761089
+inv_c60_skybornetotem_air	7788834
+inv_c60_skybornetotem_earth	7788835
+inv_c60_skybornetotem_fire	7788836
+inv_c60_skybornetotem_water	7788837
+inv_sword_1h_skybornec60_b_01	7789512
+inv_sword_2h_skybornec60_b_01_white	7789738
 inv_helm_mail_raidevokerulatek_d_01	7789849
 inv_pant_mail_raidevokerulatek_d_01	7789850
 inv_shoulder_mail_raidevokerulatek_d_01	7789851
@@ -33480,7 +33775,17 @@ inv_bracer_mail_raidevokerulatek_d_01	7789854
 inv_cape_mail_raidevokerulatek_d_01	7789855
 inv_chest_mail_raidevokerulatek_d_01	7789856
 inv_glove_mail_raidevokerulatek_d_01	7789857
+inv_mace_1h_skybornec60_b_01	7791298
+inv_mace_2h_skybornec60_b_01	7792097
+inv_knife_1h_skybornec60_b_01	7792229
+inv_shoulder_armor_hextroll_d_02_light	7792710
+inv_shoulder_armor_hextroll_d_02	7792711
+inv_shoulder_armor_hextroll_d_02_dark	7792712
+inv_shield_1h_skybornec60_b_01	7793188
 inv_bow_1h_highelf_d_01	7794032
+inv_staff_2h_skybornec60_b_01	7798447
+inv_wand_1h_skybornec60_b_01	7802125
+inv_offhand_1h_skybornec60_b_01	7807161
 inv_belt_cloth_raidmageulatek_d_01	7807649
 inv_boot_cloth_raidmageulatek_d_01	7807651
 inv_bracer_cloth_raidmageulatek_d_01	7807652
@@ -33490,8 +33795,39 @@ inv_helm_cloth_raidmageulatek_d_01	7807656
 inv_pant_cloth_raidmageulatek_d_01	7807657
 inv_robe_cloth_raidmageulatek_d_01	7807659
 inv_shoulder_cloth_raidmageulatek_d_01	7807660
+inv_camelot_camping_campbenefits	7808144
+inv_camelot_camping_campfirenearby	7808147
+inv_camelot_camping_welcomingcampfire	7808148
+inv_bow_1h_skybornec60_b_01	7810733
+inv_belt_armor_skybornec60_a_02	7811632
+inv_craneskyborne_c60_blue	7813745
+inv_craneskyborne_c60_gray	7813746
+inv_craneskyborne_c60_green	7813747
+inv_craneskyborne_c60_white	7813748
+inv_belt_armor_skybornec60_a_01	7813749
+inv_boot_armor_skybornec60_a_01	7813750
+inv_bracer_armor_skybornec60_a_01	7813751
+inv_chest_armor_skybornec60_a_01	7813752
+inv_glove_armor_skybornec60_a_01	7813753
+inv_pant_armor_skybornec60_a_01	7813754
+inv_boot_armor_skybornec60_a_02	7813755
+inv_bracer_armor_skybornec60_a_02	7813756
+inv_chest_armor_skybornec60_a_02	7813757
+inv_glove_armor_skybornec60_a_02	7813758
+inv_pant_armor_skybornec60_a_02	7813759
+inv_helm_armor_wildkingc60_d_01	7813852
 inv_viciouslightbloomboar_blue	7816206
 inv_viciouslightbloomboar_red	7816207
+inv_sword_1h_raidbarrowc60_d_01	7816729
+inv_axe_1h_raidbarrowc60_d_01	7816730
+inv_polearm_2h_raidbarrowc60_d_01	7816731
+inv_hand_1h_raidbarrowc60_d_01	7816732
+inv_mace_2h_raidbarrowc60_d_01	7816733
+inv_wand_1h_raidbarrowc60_d_01	7816757
+inv_staff_2h_raidbarrowc60_d_01	7816758
+inv_axe_2h_raidbarrowc60_d_01	7816778
+inv_bow_1h_raidbarrowc60_d_01	7816779
+inv_sword_2h_raidbarrowc60_d_01	7816780
 inv_anguish_missile	7816851
 inv_anguish_nova	7816854
 inv_121_professions_alchemy_potion_amani_blue	7816859
@@ -33523,6 +33859,10 @@ inv_rocketmount6_blue	7826347
 inv_rocketmount6_green	7826348
 inv_rocketmount6_orange	7826349
 inv_rocketmount6_pink	7826350
+inv_bow_2h_skybornec60_b_01	7826351
+inv_pandacub_c60_black	7831521
+inv_zerglingpet_c60	7831522
+inv_diablofunsized_c60_red	7831523
 inv_springpandamount	7833729
 luckydraw_sha_01	7834744
 inv_polearm_2h_jubilee_d_01	7844626
@@ -33584,6 +33924,8 @@ inv_belt_armor_corehound_c_01	7868940
 inv_boot_armor_corehound_c_01	7868941
 inv_bracer_armor_corehound_c_01	7868942
 inv_cape_armor_corehound_c_01	7868943
+inv_knife_1h_raidbarrowc60_d_01	7869437
+inv_shield_1h_raidbarrowc60_d_01	7869438
 inv_tabard_participationshirt_b_01_horde	7869504
 inv_tabard_participationshirt_b_01_alliance	7869505
 inv_knife_1h_badlands_c_01	7870307
@@ -33633,25 +33975,40 @@ inv_arcanegolempet_red	7881306
 inv_arcanegolempet_white	7881307
 inv_firearm_2h_badlands_c_01	7884331
 inv_knife_1h_zuljin_d_01	7893615
+inv_cape_special_amanitusk_d_01_amani	7893790
+inv_cape_special_amanitusk_d_01_forest	7893791
+inv_cape_special_amanitusk_d_01_ulatek	7893792
 inv_axe_2h_zuljarra_d_01	7895147
 inv_axe_1h_taretha_c_01	7902265
 inv_dragonthronetoy01	7902398
 ui_majorfaction_renown_zuljarrasforces	7903180
 inv_bracelete_armor_bracelet_c_01	7928038
 inv_bracer_armor_bracelet_c_01	7930348
+inv_dwarfbearmount_c60	7931167
 inv_dwarfbearsnowmount	7931300
+inv_dwarfbearsnowmount_c60	7931707
 inv_pigmyowlmount	7931761
+inv_murlocmount_dark	7933423
 inv_broomstickspicewitch	7935945
+inv_kodobeastmount_c60	7936025
 inv_windserpent3mount_skeletal_green	7938194
 inv_windserpent3mount_skeletal_red	7938195
 inv_serpentgolemmount	7939992
 inv_serpentgolemmountnemesis	7939993
+inv_cauldrondrustvarmount	7940961
 inv_axe_1h_sunwalker_d_01_orange	7941015
 inv_axe_2h_sunwalker_d_01_orange	7941016
 inv_mace_1h_crystalrosemace_c_01	7941021
+inv_tabard_darkspearc60	7941048
+inv_tabard_theramorec60	7941049
 inv_sword_2h_sunwalker_d_01_orange	7941092
 inv_sword_1h_sunwalker_d_01_orange	7941093
+inv_tabard_merchantalliancec60	7941108
 inv_cape_special_sunwalkertotem_d_01_orange	7941114
+inv_tabard_merchanthordec60	7941397
+inv_tabard_rivergladesc60_b_01	7941422
+inv_tabard_legacyc60_b_01	7941423
+inv_tabard_raidhyjalc60_b_01_green	7941427
 inv_gianteagle2sunwalkermount_orange	7948243
 inv_knife_1h_toy_b_01	7948302
 inv_belt_armor_sunwalker_d_01_orange	7948307
@@ -33667,6 +34024,22 @@ inv_sword_1h_toy_b_01	7949257
 inv_mothfluffymount_orange	7949372
 inv_darkwellphoenixmount2	7949449
 inv_misc_2h_ulatekfishingpole_d_01	7949493
+character_chestslot_c60	7951136
+character_feetslot_c60	7951137
+character_fingerslot_c60	7951138
+character_handsslot_c60	7951139
+character_headslot_c60	7951140
+character_legsslot_c60	7951141
+character_mainhandslot_c60	7951142
+character_neckslot_c60	7951143
+character_secondaryhandslot_c60	7951144
+character_shirtslot_c60	7951145
+character_shoulderslot_c60	7951146
+character_tabardslot_c60	7951147
+character_trinketslot_c60	7951148
+character_waistslot_c60	7951149
+character_wristslot_c60	7951150
+character_rangedweaponslot_c60	7951190
 inv_helm_armor_mask_b_01	7951594
 inv_axe_1h_rainbow_c_01	7955577
 inv_mace_2h_rainbow_c_01	7955636
@@ -33689,7 +34062,23 @@ inv_121_trinket_raid_ulatek_ritualvessel	7956752
 inv_121_trinket_raid_ulatek_skullidol	7956753
 inv_121_trinket_raid_ulatek_trolltablet	7956755
 inv_121_trinket_raid_ulatek_ulatekclaw	7956757
+inv_shield_1h_raidhyjalc60_d_01	7956963
+inv_wand_1h_raidhyjalc60_d_01	7956964
+inv_mace_1h_raidhyjalc60_d_01	7957558
+inv_mace_2h_raidhyjalc60_d_01	7957559
+inv_knife_1h_raidhyjalc60_d_01	7957585
+inv_hand_1h_raidhyjalc60_d_01	7957629
+inv_polearm_2h_raidhyjalc60_d_01	7957673
+inv_axe_1h_raidhyjalc60_d_01	7957674
+inv_axe_2h_raidhyjalc60_d_01	7957675
+inv_sword_1h_raidhyjalc60_d_01	7957676
+inv_sword_2h_raidhyjalc60_d_01	7957677
+inv_staff_2h_raidhyjalc60_d_01	7957678
+inv_bow_1h_raidhyjalc60_d_01	7957680
 ui_majorfactions_renown_radiantcore	7958109
+inv_wolfhawkventhyrmount_red	7958551
+inv_undeadpaladinmount_c60	7962162
+inv_undeadpaladinmountbasic_c60	7962163
 inv_121_raid_achievement_alchemist	7966618
 inv_121_raid_achievement_brute	7966619
 inv_121_raid_achievement_golems	7966620
@@ -33702,6 +34091,7 @@ inv_shoulder_armor_goldenphoenix_d_01	7976398
 inv_helm_armor_goldenphoenix_d_01	7976399
 inv_cape_armor_goldenphoenix_d_01	7976400
 inv_cape_special_goldenphoenix_d_01	7976401
+ui-hud-actionbar-keyring-disabled	7976758
 inv_catpet_naxx	7977787
 inv_catpet_uldum	7977817
 inv_helm_armor_mask_b_02	7979957

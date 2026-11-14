@@ -56,12 +56,35 @@ local function IndexCorpus(c)
     return n
 end
 
+-- The shipped list is every client's icons, and a file this client lacks
+-- draws a green square: only its own records stay.
+local function OwnIcons(blob)
+    local Caps = ns.Caps
+    local client = Caps.forever and "forever" or Caps.era and "era" or Caps.tbc and "tbc"
+        or Caps.mists and "mists" or "retail"
+    local runs = ns.ICON_CLIENT_RUNS[client]
+    ns.ICON_CLIENT_RUNS = nil
+    local kept, n, pos, keep = {}, 0, 1, true
+    for count in runs:gmatch("%d+") do
+        local stop = pos
+        for _ = 1, tonumber(count) do
+            stop = sfind(blob, "\n", stop, true) + 1
+        end
+        if keep and stop > pos then
+            n = n + 1
+            kept[n] = ssub(blob, pos, stop - 1)
+        end
+        pos, keep = stop, not keep
+    end
+    return tconcat(kept)
+end
+
 local function EnsureIndex()
     if not icons.blob then
         local b = ns.ICON_SEARCH_BLOB
         if type(b) ~= "string" then return 0 end
         -- The blob is the database: kept here, the ns field let go.
-        icons.blob = b
+        icons.blob = OwnIcons(b)
         ns.ICON_SEARCH_BLOB = nil
     end
     return IndexCorpus(icons)
