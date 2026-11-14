@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 11 }
+local API = { VERSION = 1, MINOR = 12 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -48,6 +48,30 @@ local function Run(fn, ...)
     return ok, result
 end
 Extensions.Run = Run
+
+-- A provider's rows in a coroutine of their own: an error is caught as by
+-- Run, and API.SliceCheckpoint inside them pauses the sliced run building
+-- them (no yield can cross an xpcall here).
+local function RunRows(fn)
+    if type(fn) ~= "function" then return false end
+    local co = coroutine.create(fn)
+    while true do
+        local ok, result = coroutine.resume(co)
+        if not ok then
+            -- The rows' own stack, where the client can read a coroutine's.
+            local hasStack, stack = pcall(debugstack, co)
+            Report(tostring(result) .. (hasStack and type(stack) == "string" and ("\n" .. stack) or ""))
+            return false
+        end
+        if coroutine.status(co) == "dead" then return true, result end
+        Utils.SliceYield()
+    end
+end
+
+-- Inside a provider's rows: the frame goes when its share is spent.
+function API.SliceCheckpoint()
+    Utils.SliceCheckpoint()
+end
 
 local function CheckFields(fn, def)
     for k, v in pairs(def) do
@@ -471,13 +495,15 @@ local function Populate(key, database)
     end
     local rows
     if p.rows then
-        local ok, got = Run(p.rows)
+        local ok, got = RunRows(p.rows)
         rows = ok and type(got) == "table" and got or nil
     end
     -- Search matches the lowercased name and words: filled in when a row
     -- does not carry them.
     local scopedName = false
     for i = 1, rows and #rows or 0 do
+        -- Thousands of rows with their places' words: Questie's 5,800 took 48 ms.
+        if i % 64 == 0 then Utils.SliceCheckpoint() end
         local row = rows[i]
         row.category = p.category
         if not row.nameLower and type(row.name) == "string" then row.nameLower = slower(row.name) end

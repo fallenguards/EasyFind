@@ -3857,6 +3857,7 @@ local function PopulateStaticLoot(database)
     local insts = Corpora.StaticInstances()
     local GetName = C_Item and C_Item.GetItemNameByID
     for _, boss in ipairs(ns.STATIC_LOOT) do
+        Utils.SliceCheckpoint()
         local e = insts[boss.inst]
         local inst = { id = boss.inst, name = Corpora.StaticInstanceName(boss.inst, e), isRaid = e and e.raid or false }
         local bossName = Corpora.StaticBossName(boss)

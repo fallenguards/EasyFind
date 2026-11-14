@@ -254,6 +254,8 @@ function API.ShowPlaces(key, row) end
 ---@param mapID number
 ---@return boolean
 function API.OpenMap(mapID) end
+---Inside a provider's rows: lets the frame go when this frame's share is spent, and goes on next frame (MINOR 12). Call it once per item of a long loop; anywhere else it does nothing.
+function API.SliceCheckpoint() end
 ---Shows the search bar focused, with text searched when given.
 ---@param text string?
 ---@return boolean

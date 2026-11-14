@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`; MINOR 11 `RegisterItemSources` and `OpenMap`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`; MINOR 11 `RegisterItemSources` and `OpenMap`; MINOR 12 `SliceCheckpoint`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -138,6 +138,7 @@ EasyFind loads with every character, so an extension is at its best when it cost
 - Put a large extension's work in a load-on-demand addon (see [Load on demand](#load-on-demand)).
 - Run no per-frame code while your window is closed.
 - Mark a provider `eager` only for a small list; a large one waits for its `words`, its filter or its scope (`lazy`).
+- In a `rows` that walks a long list, call `SliceCheckpoint()` once per item (MINOR 12): EasyFind builds rows a few milliseconds a frame, and the call lets the frame go when its share is spent. Anywhere else it does nothing.
 - Call `NotifyOpenChanged` when your window shows or hides, so buttons users placed on screen show it right.
 
 ## Extensions

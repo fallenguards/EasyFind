@@ -310,6 +310,114 @@ function tests.provider_rowsTakeItsCategory()
     H.assertEq(w.replaced.marks[1].category, "marks")
 end
 
+-- The game's Lua cannot yield across an xpcall: this one refuses as it does.
+local function GameXpcall(f, handler, ...)
+    local args = table.pack(...)
+    local co = coroutine.create(function() return f(table.unpack(args, 1, args.n)) end)
+    local res = table.pack(coroutine.resume(co))
+    if not res[1] then return false, handler(res[2]) end
+    if coroutine.status(co) ~= "dead" then
+        return false, handler("attempt to yield across metamethod/C-call boundary")
+    end
+    return true, table.unpack(res, 2, res.n)
+end
+
+-- A sliced run as Utils.RunSliced makes one: checkpoints yield inside it.
+local function SlicedRun(ns, fn)
+    local inRun, pauses = false, 0
+    ns.Utils.SliceCheckpoint = function()
+        if inRun and coroutine.running() then coroutine.yield() end
+    end
+    ns.Utils.SliceYield = function()
+        if not inRun then return false end
+        coroutine.yield()
+        return true
+    end
+    local co = coroutine.create(fn)
+    local ok, result
+    repeat
+        inRun = true
+        ok, result = coroutine.resume(co)
+        inRun = false
+        H.assertTrue(ok, tostring(result))
+        if coroutine.status(co) ~= "dead" then pauses = pauses + 1 end
+    until coroutine.status(co) == "dead"
+    return result, pauses
+end
+
+function tests.provider_rowsPauseTheSlicedRunAtACheckpoint()
+    local env, ns, API, errors = fresh()
+    env.xpcall = GameXpcall
+    local w = wired(ns)
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
+        rows = function()
+            local out = {}
+            for i = 1, 3 do
+                API.SliceCheckpoint()
+                out[i] = { name = "Mark " .. i }
+            end
+            return out
+        end })
+    local ready, pauses = SlicedRun(ns, function() return w.providers.marks.fn(ns.Database) end)
+    H.assertEq(table.concat(errors, " | "), "", "no yield across a protected call")
+    H.assertTrue(ready)
+    H.assertEq(pauses, 3, "a frame let go at each checkpoint")
+    H.assertEq(#w.replaced.marks, 3, "every row")
+end
+
+-- Thousands of rows given their words pause too, after the rows are back.
+function tests.provider_manyRowsPauseWhileTakingTheirWords()
+    local env, ns, API = fresh()
+    env.xpcall = GameXpcall
+    local w = wired(ns)
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
+        rows = function()
+            local out = {}
+            for i = 1, 300 do out[i] = { name = "Mark " .. i, keywords = { "Durotar" } } end
+            return out
+        end })
+    local ready, pauses = SlicedRun(ns, function() return w.providers.marks.fn(ns.Database) end)
+    H.assertTrue(ready)
+    H.assertEq(pauses, 4, "a pause every 64 rows")
+    H.assertEq(#w.replaced.marks, 300)
+    H.assertEq(w.replaced.marks[300].keywordsLower[1], "durotar")
+end
+
+function tests.provider_rowsErrorStaysWithIt_andTheRunGoesOn()
+    local env, ns, API, errors = fresh()
+    env.xpcall = GameXpcall
+    local w = wired(ns)
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
+        rows = function()
+            API.SliceCheckpoint()
+            error("boom")
+        end })
+    local ready = SlicedRun(ns, function() return w.providers.marks.fn(ns.Database) end)
+    H.assertFalse(ready, "no rows: retried later")
+    H.assertEq(#errors, 1)
+    H.assertTrue(errors[1]:find("boom", 1, true) ~= nil, errors[1])
+end
+
+function tests.sliceCheckpoint_outsideARunDoesNothing()
+    local _, ns, API = fresh()
+    SlicedRun(ns, function() end)
+    API.SliceCheckpoint()
+    local rows
+    API.RegisterExtension({ id = "marks", name = "Bookmarks", icon = 1 })
+    local w = wired(ns)
+    API.RegisterSearchProvider({ key = "marks", label = "Bookmarks", extension = "marks",
+        rows = function()
+            API.SliceCheckpoint()
+            rows = { { name = "Home" } }
+            return rows
+        end })
+    H.assertTrue(w.providers.marks.fn(ns.Database), "built whole on the spot")
+    H.assertEq(#w.replaced.marks, 1)
+end
+
 function tests.provider_noRowsYetIsNotReady()
     local _, ns, API = fresh()
     local w = wired(ns)

@@ -498,6 +498,7 @@ function Clipboard:BuildSearchData()
     -- Date dividers only make sense in date order.
     local grouped = sortMode ~= "used"
     for i = 1, #list do
+        Utils.SliceCheckpoint()
         local entry = list[i]
         local name = self:IsKindShown(entry.kind) and RowName(entry) or nil
         if name and name ~= "" then
