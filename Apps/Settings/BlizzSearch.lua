@@ -4413,6 +4413,9 @@ do
         end
     end
     BlizzOptionsSearch.AceApps = Apps   -- dev probe
+    -- Dev probe: the saved rows' state, and the delayed read run now.
+    function BlizzOptionsSearch._DebugPeekAce() return { save = Save, feeds = aceFeeds } end
+    BlizzOptionsSearch._AceRows = Rows
 end
 
 function BlizzOptionsSearch:Populate(includeLiveGameSettings)
