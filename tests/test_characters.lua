@@ -231,6 +231,38 @@ function tests.snapshot_recordsTheCharacter()
     H.assertTrue(p.isCurrent)
 end
 
+-- A logout to the character list reads 0 money (Forever, /efd goldwatch,
+-- 2026-11-14): @alts showed every character left that way with no gold.
+local function Watcher(frames)
+    local watcher
+    for _, f in ipairs(frames) do if f._handlers.OnEvent then watcher = f end end
+    return function(event, ...) watcher._handlers.OnEvent(watcher, event, ...) end
+end
+
+function tests.aLogout_keepsTheMoneyLastRead()
+    local money = 4321
+    local env, ns, frames = World()
+    env.GetMoney = function() return money end
+    local Send = Watcher(frames)
+    ns.CharacterData.Snapshot()
+    money = 5000
+    Send("PLAYER_MONEY")
+    money = 0
+    Send("PLAYER_LOGOUT")
+    H.assertEq(env.EasyFindDB.charProfileCache["Thrall-Realm"].money, 5000, "the money at its last change, not the logout's 0")
+end
+
+function tests.aZeroAnOlderLogoutSaved_givesWayToTheLedger()
+    local db = { charProfileCache = {}, charGold = { ["Jaina-Realm"] = 2495 } }
+    local env, ns = World({ db = db })
+    db.charProfileCacheVer = ns.CHAR_PROFILE_CACHE_VER
+    db.charProfileCache["Jaina-Realm"] = { name = "Jaina", realm = "Realm", class = "MAGE", money = 0, seenAt = 1 }
+    H.assertEq(ns.CharacterData.Get("Jaina-Realm").money, 2495)
+    env.EasyFindDB.charGold["Jaina-Realm"] = nil
+    ns.CharacterData.Invalidate()
+    H.assertEq(ns.CharacterData.Get("Jaina-Realm").money, 0, "a real 0 stays when the ledger knows nothing else")
+end
+
 -- Each worn item's level, for @upgrades: kept while the same item stays
 -- in its slot and the client has it uncached, dropped once it changes.
 function tests.snapshot_keepsEachWornItemsLevel()

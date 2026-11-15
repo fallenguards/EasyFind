@@ -30,7 +30,7 @@ local BASE_RUN_SPEED = 7
 
 -- Per-character gold ledger for the account-wide figure. Only characters
 -- logged in since the addon was installed can be known; each records its
--- gold on login, on every money change, and at logout.
+-- gold on login and on every money change (a logout reads 0).
 local function GoldLedger()
     if type(EasyFindDB) ~= "table" then return nil end
     if type(EasyFindDB.charGold) ~= "table" then EasyFindDB.charGold = {} end
@@ -57,7 +57,6 @@ end
 local goldWatcher = CreateFrame("Frame")
 goldWatcher:RegisterEvent("PLAYER_LOGIN")
 goldWatcher:RegisterEvent("PLAYER_MONEY")
-goldWatcher:RegisterEvent("PLAYER_LOGOUT")
 goldWatcher:SetScript("OnEvent", RecordGold)
 
 local function CoinText(amount)

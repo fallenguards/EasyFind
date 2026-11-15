@@ -169,17 +169,25 @@ end
 -- When this session's first snapshot ran: played time counts from it.
 local sessionStart
 
-function Data.Snapshot()
+-- atLogout: a logout to the character list reads 0 money and no realm
+-- (Forever, /efd goldwatch, 2026-11-14), so only the time is taken then.
+function Data.Snapshot(atLogout)
     local profiles = Profiles()
     if not profiles then return end
     local key = ns.CurrentCharacterKey()
     local p = profiles[key] or {}
     profiles[key] = p
     local now = time()
+    if atLogout then
+        if p.played and sessionStart then p.played = p.played + (now - (p.playedAt or now)) end
+        p.playedAt, p.seenAt = now, now
+        return
+    end
     p.name = ns.PlayerName() or p.name
     p.realm = GetRealmName and GetRealmName() or p.realm
     p.class = select(2, UnitClass("player")) or p.class
-    p.level = UnitLevel and UnitLevel("player") or p.level
+    local level = UnitLevel and UnitLevel("player")
+    if level and level > 0 then p.level = level end
     p.money = GetMoney and GetMoney() or p.money
     local zone = GetRealZoneText and GetRealZoneText()
     if zone and zone ~= "" then p.zone = zone end
@@ -217,6 +225,12 @@ function Data.Changed()
     Data.Invalidate()
     if not (ns.Database and ns.Database.MarkDynamicCategoryDirty) then return end
     for _, key in ipairs(FACT_PROVIDERS) do ns.Database:MarkDynamicCategoryDirty(key) end
+end
+
+function Data.RecordMoney()
+    local profiles = Profiles()
+    local p = profiles and profiles[ns.CurrentCharacterKey()]
+    if p and GetMoney then p.money = GetMoney() end
 end
 
 -- The game's answer to /played (TIME_PLAYED_MSG).
@@ -283,11 +297,13 @@ do
         if event == "BAG_UPDATE_DELAYED" or event == "PLAYERBANKSLOTS_CHANGED" then
             Data.Invalidate()
         elseif event == "PLAYER_LOGOUT" then
-            Data.Snapshot()
+            Data.Snapshot(true)
         elseif event == "TIME_PLAYED_MSG" then
             Data.RecordPlayed(arg1)
             Utils.SafeAfter(0, HearPlayedAgain)
         else
+            -- The money now: a logout soon after would miss the snapshot.
+            if event == "PLAYER_MONEY" then Data.RecordMoney() end
             if event == "PLAYER_ENTERING_WORLD" and not asked then
                 asked = true
                 Utils.SafeAfter(5, Data.AskPlayedQuietly)
@@ -361,7 +377,9 @@ local function BuildList()
             entry.seenAt, entry.ilvl, entry.played, entry.profs = p.seenAt, p.ilvl, p.played, p.profs
             entry.gear, entry.gearLevel = p.gear, p.gearLevel
         end
-        entry.money = entry.money or LedgerMoney(entry.name, entry.realm)
+        -- A 0 an older logout wrote gives way to the ledger's amount.
+        local ledger = LedgerMoney(entry.name, entry.realm)
+        if not entry.money or (entry.money == 0 and ledger and ledger > 0) then entry.money = ledger or entry.money end
         entry.seenAt = entry.seenAt or entry.savedAt
         if entry.isCurrent then
             entry.level = UnitLevel and UnitLevel("player") or entry.level
