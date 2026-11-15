@@ -298,14 +298,15 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffRecherche|r\n" ..
-    "    |cff999999-|r Les apostrophes d'un nom sont facultatives : kelthuzad trouve Kel'Thuzad\n" ..
-    "    |cff999999-|r Le nom court d'un donjon compte à côté d'autres mots : bfd quest liste ses quêtes\n" ..
-    "    |cff999999-|r Les lignes de créature affichent le titre de la créature à la place de PNJ\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
+    "    |cff999999-|r Fabriquez depuis la ligne d'une recette : un objet, un nombre ou tout ce que vous pouvez faire, sans ouvrir la fenêtre du métier\n" ..
+    "    |cff999999-|r Tapez le nom d'une technique après @icons pour trouver son icône ; la recherche du sélecteur d'icônes des macros le fait aussi\n" ..
+    "    |cff999999-|r La recherche sur la carte peut ne placer que le point de passage du jeu (une option), et un clic droit sur le repère retire les deux\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Les lignes qui activent ou coupent le son et la musique indiquent s'ils sont audibles, et fonctionnent quand tout le son est coupé\n" ..
-    "    |cff999999-|r La ligne qui active le catalogue complet des objets répond au clic de la souris\n" ..
-    "    |cff999999-|r Sur WoW Forever, les boss des Profondeurs de Brassenoire, de Gnomeregan et du Temple englouti ne sont listés qu'une fois\n"
+    "    |cff999999-|r Le guide pour un objet de vos sacs mène maintenant à l'objet, pas seulement aux sacs\n" ..
+    "    |cff999999-|r Sur WoW Forever, @alts garde l'or de chaque personnage après sa déconnexion\n" ..
+    "    |cff999999-|r La recherche d'icônes ne liste que les icônes de votre jeu : plus de carrés verts\n" ..
+    "    |cff999999-|r Maj+clic sur un repère de la carte le partage de nouveau après qu'EasyFind a ouvert la carte\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

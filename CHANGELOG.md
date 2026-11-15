@@ -4,17 +4,35 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
-## [5.4.0] - Unreleased
+## [5.4.0] - 2026-11-17
 
 ### Added
+- **Craft from a recipe's row**: hover or select a recipe you know and its row shows Create, Create All with how many you can make, and a count. They craft with the profession window closed. The row shows the item the recipe makes on the right and its profession's icon on the left
+- **WoW Forever's own recipes**: every profession's recipes are found on WoW Forever, First Aid too
+- **Map search: only the game's waypoint**: a Map option places just the game's waypoint for a map result, without EasyFind's own pin. A right-click on EasyFind's pin now clears the game's waypoint with it, even with the map open
+- **A vendor's wares**: hold Shift on a vendor's row to list everything it sells, narrowed by typing
+- **Professions onto the action bar**: Shift+drag a profession's row onto your action bar
 - **Icon search by ability name**: type an ability's name after `@icons` and its icon comes up, on every client and in the game's language; the macro icon picker's search does the same. An icon's hint lists the abilities that use it
+- **Searching...**: while a search's results are still loading, the bottom of the list says so with moving dots, so a slow moment does not look like nothing was found
 
 ### Changed
+- **Distances in the GPS's unit**: with the GPS extension, a place's distance on its row and in its tooltip follows the GPS's unit setting
 - **No more WoW Forever welcome line**: the chat line at each login and its option under General are gone
+- **Update reminder**: once a newer EasyFind is out, chat says so in red at each login until you update, and points to CurseForge
 
 ### Fixed
+- **Show me how for an item in your bags**: it pointed at the bag button and stayed there; once the bags are open it now leads to the item's slot
+- **A recipe missing for its exact name**: after you had picked the bag item of the same name for a search, that search left the recipe out
+- **A row's tooltip blinked** while your bags changed, at every item made
+- **Classic catalogs**: TBC's vendors, flight masters and innkeepers were read as the wrong kinds, and Classic Era and TBC now list the creatures of Molten Core, Blackwing Lair and the Ruins
 - **Green squares in icon search**: each client lists only the icons it has. The list was retail's, so WoW Forever showed some green squares and the Classic clients mostly green ones; icons only WoW Forever or a Classic client has are listed too
 - **Icon search kept the last search's matches**: after a search of several words, a shorter one could still list the earlier icons
+- **@alts showed no gold**: logging out to the character list saved the character's gold as 0 on WoW Forever. Gold is kept at logout now, and characters already showing 0 get their gold back
+- **Shift-click on a map pin to share it**: after EasyFind opened the world map, from a search result or the map tab, the game refused the share with an error naming EasyFind
+
+### Technical Notes
+- Logging in costs less: search rows, addon settings and extensions' rows are built a little at a time instead of in a few long frames, and addon settings found at the last login come back at once, read again shortly after
+- **Extensions API 1.12**: an extension's rows can be built a little at a time, pausing between frames
 
 ---
 

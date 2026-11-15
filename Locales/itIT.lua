@@ -298,14 +298,15 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffRicerca|r\n" ..
-    "    |cff999999-|r Gli apostrofi di un nome sono facoltativi: kelthuzad trova Kel'Thuzad\n" ..
-    "    |cff999999-|r Il nome breve di una spedizione vale accanto ad altre parole: bfd quest elenca le sue missioni\n" ..
-    "    |cff999999-|r Le righe delle creature mostrano il titolo della creatura al posto di PNG\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNovità|r\n" ..
+    "    |cff999999-|r Crea dalla riga di una ricetta: uno, una quantità o tutto ciò che puoi fare, senza aprire la finestra della professione\n" ..
+    "    |cff999999-|r Scrivi il nome di un'abilità dopo @icons per trovarne l'icona; anche la ricerca del selettore di icone delle macro lo fa\n" ..
+    "    |cff999999-|r La ricerca sulla mappa può mettere solo il punto di passaggio del gioco (un'opzione), e un clic destro sul segnaposto li toglie entrambi\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Le righe che attivano o disattivano suono e musica mostrano se si sentono, e funzionano con tutto l'audio spento\n" ..
-    "    |cff999999-|r La riga che attiva il catalogo completo degli oggetti risponde al clic del mouse\n" ..
-    "    |cff999999-|r Su WoW Forever, i boss di Abissi di Fondocupo, Gnomeregan e del Tempio Sommerso sono elencati una sola volta\n"
+    "    |cff999999-|r La guida per un oggetto nelle tue borse ora porta all'oggetto, non solo alle borse\n" ..
+    "    |cff999999-|r Su WoW Forever, @alts conserva l'oro di ogni personaggio dopo che ti sei disconnesso con esso\n" ..
+    "    |cff999999-|r La ricerca delle icone mostra solo le icone presenti nel tuo gioco: niente più quadrati verdi\n" ..
+    "    |cff999999-|r Maiusc+clic su un segnalino della mappa lo condivide di nuovo dopo che EasyFind ha aperto la mappa\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

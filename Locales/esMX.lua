@@ -298,14 +298,15 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffBúsqueda|r\n" ..
-    "    |cff999999-|r Los apóstrofos de un nombre son opcionales: kelthuzad encuentra a Kel'Thuzad\n" ..
-    "    |cff999999-|r El nombre corto de un calabozo vale junto a otras palabras: bfd quest lista sus misiones\n" ..
-    "    |cff999999-|r Las filas de criaturas muestran el título de la criatura en lugar de PNJ\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNovedades|r\n" ..
+    "    |cff999999-|r Fabrica desde la fila de una receta: uno, una cantidad o todo lo que puedas hacer, sin abrir la ventana de la profesión\n" ..
+    "    |cff999999-|r Escribe el nombre de una habilidad después de @icons para encontrar su ícono; la búsqueda del selector de íconos de macros también lo hace\n" ..
+    "    |cff999999-|r La búsqueda en el mapa puede poner solo el punto de ruta del juego (una opción), y un clic derecho en el marcador quita ambos\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Las filas que activan o desactivan el sonido y la música muestran si se oyen, y funcionan con todo el sonido apagado\n" ..
-    "    |cff999999-|r La fila que activa el catálogo completo de objetos responde a un clic del mouse\n" ..
-    "    |cff999999-|r En WoW Forever, los jefes de Cavernas de Brazanegra, Gnomeregan y el Templo Sumergido aparecen una sola vez\n"
+    "    |cff999999-|r La guía de un objeto de tus bolsas ahora lleva al objeto, no solo a las bolsas\n" ..
+    "    |cff999999-|r En WoW Forever, @alts conserva el oro de cada personaje después de cerrar sesión con él\n" ..
+    "    |cff999999-|r La búsqueda de íconos solo muestra los íconos que tiene tu juego, así que ya no hay cuadros verdes\n" ..
+    "    |cff999999-|r Mayús+clic en un marcador del mapa vuelve a compartirlo después de que EasyFind abrió el mapa\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

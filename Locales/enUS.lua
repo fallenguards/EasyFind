@@ -329,14 +329,15 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffSearch|r\n" ..
-    "    |cff999999-|r A name's apostrophes are optional: kelthuzad finds Kel'Thuzad\n" ..
-    "    |cff999999-|r A dungeon's short name works beside other words: bfd quest lists its quests\n" ..
-    "    |cff999999-|r Creature rows show the creature's title, such as Journeyman Enchanter, in place of NPC\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNew|r\n" ..
+    "    |cff999999-|r Craft from a recipe's row: one, a count or all you can make, with the profession window closed\n" ..
+    "    |cff999999-|r Type an ability's name after @icons to find its icon; the macro icon picker's search does it too\n" ..
+    "    |cff999999-|r Map search can place only the game's waypoint (an option), and a right-click on the pin clears both\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Toggle Sound and Toggle Music show whether sound is on, and work with all sound off\n" ..
-    "    |cff999999-|r Turn on the full item catalog answers to a mouse click\n" ..
-    "    |cff999999-|r On WoW Forever, the bosses of Blackfathom Deeps, Gnomeregan and Sunken Temple are listed once\n"
+    "    |cff999999-|r Show me how for an item in your bags now leads to the item, not just the bags\n" ..
+    "    |cff999999-|r On WoW Forever, @alts keeps each character's gold after you log out of it\n" ..
+    "    |cff999999-|r Icon search lists only the icons your game has, so no more green squares\n" ..
+    "    |cff999999-|r Shift-click on a map pin shares it again after EasyFind opened the map\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

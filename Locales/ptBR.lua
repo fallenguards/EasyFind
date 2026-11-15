@@ -298,14 +298,15 @@ L["SHOWME_SAY_MICRO"]                   = "Encaixa no micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo para fechar"
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffBusca|r\n" ..
-    "    |cff999999-|r Os apóstrofos de um nome são opcionais: kelthuzad encontra Kel'Thuzad\n" ..
-    "    |cff999999-|r O nome curto de uma masmorra vale junto de outras palavras: bfd quest lista suas missões\n" ..
-    "    |cff999999-|r As linhas de criaturas mostram o título da criatura no lugar de PNJ\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNovidades|r\n" ..
+    "    |cff999999-|r Crie a partir da linha de uma receita: um, uma quantidade ou tudo o que puder fazer, sem abrir a janela da profissão\n" ..
+    "    |cff999999-|r Digite o nome de uma habilidade depois de @icons para encontrar o ícone dela; a busca do seletor de ícones de macro também faz isso\n" ..
+    "    |cff999999-|r A busca no mapa pode pôr só o ponto de referência do jogo (uma opção), e um clique direito no marcador remove os dois\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r As linhas que ligam ou desligam o som e a música mostram se estão audíveis, e funcionam com todo o som desligado\n" ..
-    "    |cff999999-|r A linha que ativa o catálogo completo de itens responde ao clique do mouse\n" ..
-    "    |cff999999-|r No WoW Forever, os chefes de Profundezas Negras, Gnomeregan e Templo Submerso aparecem uma só vez\n"
+    "    |cff999999-|r O guia de um item nas suas bolsas agora leva ao item, não só às bolsas\n" ..
+    "    |cff999999-|r No WoW Forever, @alts mantém o ouro de cada personagem depois que você sai com ele\n" ..
+    "    |cff999999-|r A busca de ícones mostra só os ícones que o seu jogo tem, sem mais quadrados verdes\n" ..
+    "    |cff999999-|r Shift+clique num marcador do mapa volta a compartilhá-lo depois que o EasyFind abriu o mapa\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

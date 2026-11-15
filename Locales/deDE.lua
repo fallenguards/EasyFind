@@ -300,14 +300,15 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffSuche|r\n" ..
-    "    |cff999999-|r Apostrophe in Namen sind optional: kelthuzad findet Kel'Thuzad\n" ..
-    "    |cff999999-|r Das Kürzel eines Dungeons gilt neben anderen Wörtern: bfd quest zeigt seine Quests\n" ..
-    "    |cff999999-|r Kreaturenzeilen zeigen den Titel der Kreatur statt NSC\n" ..
+    "|cffFFD100\226\128\162|r |cffffffffNeu|r\n" ..
+    "    |cff999999-|r Stelle direkt aus der Zeile eines Rezepts her: eins, eine Anzahl oder alles, was du herstellen kannst, ohne das Berufsfenster zu öffnen\n" ..
+    "    |cff999999-|r Gib nach @icons den Namen einer Fähigkeit ein, um ihr Symbol zu finden; die Suche der Makrosymbol-Auswahl kann das auch\n" ..
+    "    |cff999999-|r Die Kartensuche kann nur den Wegpunkt des Spiels setzen (eine Option), und ein Rechtsklick auf die Markierung entfernt beide\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Die Zeilen zum Umschalten von Ton und Musik zeigen, ob sie zu hören sind, und funktionieren auch, wenn der gesamte Ton aus ist\n" ..
-    "    |cff999999-|r Die Zeile, die den vollständigen Gegenstandskatalog einschaltet, reagiert auf einen Mausklick\n" ..
-    "    |cff999999-|r In WoW Forever werden die Bosse der Tiefschwarzen Grotte, von Gnomeregan und des Versunkenen Tempels nur einmal aufgeführt\n"
+    "    |cff999999-|r Die Anleitung für einen Gegenstand in deinen Taschen führt jetzt zum Gegenstand, nicht nur zu den Taschen\n" ..
+    "    |cff999999-|r In WoW Forever behält @alts das Gold jedes Charakters, nachdem du dich mit ihm ausgeloggt hast\n" ..
+    "    |cff999999-|r Die Symbolsuche zeigt nur Symbole, die dein Spiel hat, also keine grünen Quadrate mehr\n" ..
+    "    |cff999999-|r Umschalt-Klick auf eine Kartenmarkierung teilt sie wieder, nachdem EasyFind die Karte geöffnet hat\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"
