@@ -2584,7 +2584,7 @@ function MapTab:ShowPage(id)
     if not IsMapSearchEnabled() or not pages[id] then return false end
     if not initialized then self:Initialize() end
     if not WorldMapFrame or not WorldMapFrame:IsShown() then
-        if ToggleWorldMap then ToggleWorldMap() end
+        ns.MapSearch.OpenMap()
         if not initialized then self:Initialize() end
     end
     if not panel then return false end
@@ -2601,10 +2601,8 @@ end
 function MapTab:Focus()
     if not IsMapSearchEnabled() then return false end
     if not initialized then self:Initialize() end
-    -- ToggleWorldMap is a global available before Blizzard_WorldMap
-    -- loads; calling it loads the addon and shows the map.
     if not WorldMapFrame or not WorldMapFrame:IsShown() then
-        if ToggleWorldMap then ToggleWorldMap() end
+        ns.MapSearch.OpenMap()
         if not initialized then self:Initialize() end
     end
     -- If init hasn't completed (rare race), ADDON_LOADED at the bottom
@@ -2631,7 +2629,7 @@ function MapTab:OpenWithQuery(query)
     if not IsMapSearchEnabled() then return false end
     if not initialized then self:Initialize() end
     if not WorldMapFrame or not WorldMapFrame:IsShown() then
-        if ToggleWorldMap then ToggleWorldMap() end
+        ns.MapSearch.OpenMap()
         if not initialized then self:Initialize() end
     end
     -- ADDON_LOADED replays this once the panel exists.

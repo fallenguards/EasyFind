@@ -2212,10 +2212,11 @@ local TOGGLE_BINDING_STATE = {
     TOGGLEWORLDMAP = {
         get = function() return WorldMapFrame and WorldMapFrame:IsShown() end,
         run = function()
-            if ToggleWorldMap then
+            if WorldMapFrame and WorldMapFrame:IsShown() and ToggleWorldMap then
                 ToggleWorldMap()
                 return true
             end
+            if ns.MapSearch and ns.MapSearch.OpenMap and ns.MapSearch.OpenMap() then return true end
             -- The map's addon not loaded yet: its button opens it as a click does.
             local button = _G["WorldMapMicroButton"]
             if button then return Utils.ClickButton(button) and true or false end

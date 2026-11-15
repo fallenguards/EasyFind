@@ -115,11 +115,14 @@ function tests.showPlaces_opensTheMapTabOnTheRowWithItsSpots()
     env.C_Map.GetBestMapForUnit = function() return 10 end
     env.C_Map.GetPlayerMapPosition = function() return Vec(0, 0) end
     env.C_Map.GetWorldPosFromMapPos = function(_, v) return 1, Vec(v.x * 100, v.y * 100) end
+    local mapOpened
     env.MapSearch = { ProviderSpots = function(p, row) return Appender().spots(p, row) end,
-                      SelectResult = function(_, data) selected = data end }
+                      SelectResult = function(_, data) selected = data end,
+                      OpenMap = function() mapOpened = true return true end }
     local MapSearch = Chunk("MapSearch/UINavigation.lua", "function MapSearch.NearestSpot", nil, "MapSearch", env)
     H.assertTrue(MapSearch:ShowProviderPlaces(FISH, ROWS[1]))
     H.assertEq(opened, "Mud Snapper", "the map tab searched for the row")
+    H.assertTrue(mapOpened, "the map opened through its door")
     H.assertEq(#selected.allInstances, 3, "its spots pinned together")
     H.assertEq(selected.coordMapID, 10, "the nearest spot's map, should none be on the viewed one")
     H.assertEq(selected.x, 0.2)

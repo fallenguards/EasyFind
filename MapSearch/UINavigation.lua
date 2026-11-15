@@ -31,9 +31,7 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
         -- Open the world map at the target and show a waypoint/zone.
         -- Guide/breadcrumb mode (forceGuide=true) walks parent zones via
         -- breadcrumb arrows; fast mode jumps straight to the entrance.
-        if not WorldMapFrame or not WorldMapFrame:IsShown() then
-            ToggleWorldMap()
-        end
+        MapSearch.OpenMap()
         if forceGuide then
             -- Reuse the MapSearch SelectResult path with directOverride=false
             -- so breadcrumb/teaching mode kicks in (HighlightBreadcrumb...).
@@ -60,12 +58,7 @@ function MapSearch:HandleUISearchClick(data, forceGuide)
                 isLocal = true,
             })
             self:RefreshAllClearButtons()
-            if not WorldMapFrame or not WorldMapFrame:IsShown() then
-                ToggleWorldMap()
-            end
-            if WorldMapFrame and WorldMapFrame:GetMapID() ~= data.mapID then
-                MapSearch.TurnMap(data.mapID)
-            end
+            MapSearch.OpenMap(data.mapID)
             self:ShowWaypointAt(x, y, data.icon, data.category, nil, data.displayID)
             if not forceGuide and EasyFind.db.localMapDirectOpen then
                 self:TrackActivePin()
@@ -108,7 +101,7 @@ function MapSearch:ShowProviderPlaces(p, row)
     data.mapID, data.coordMapID, data.x, data.y = near.mapID, near.mapID, near.x, near.y
     data.step, data.destName = near.step, near.destName
     if ns.MapTab and ns.MapTab.OpenWithQuery then ns.MapTab:OpenWithQuery(row.name) end
-    if not (WorldMapFrame and WorldMapFrame:IsShown()) then ToggleWorldMap() end
+    MapSearch.OpenMap()
     self:SelectResult(data)
     return true
 end

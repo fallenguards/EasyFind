@@ -72,6 +72,26 @@ function MapSearch.TurnMap(mapID)
     end
     return true
 end
+-- Opening is the client's own open too: a bare ToggleWorldMap from addon
+-- code runs the open, the waypoint pin built, in our name, and the pin's
+-- Shift-click share is refused (Questie's open, /efd pinshare, 2026-11-14).
+-- From a click or key the open is inside the call; from a timer, in a fight
+-- or on the classic clients the map stays shut, and the toggle opens it.
+function MapSearch.OpenMap(mapID)
+    if WorldMapFrame and WorldMapFrame:IsShown() then
+        if mapID and WorldMapFrame:GetMapID() ~= mapID then return MapSearch.TurnMap(mapID) end
+        return true
+    end
+    if OpenWorldMap and not InCombatLockdown() then OpenWorldMap(mapID) end
+    if not (WorldMapFrame and WorldMapFrame:IsShown()) and ToggleWorldMap then
+        ToggleWorldMap()
+        if mapID and WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() ~= mapID then
+            MapSearch.TurnMap(mapID)
+        end
+    end
+    return WorldMapFrame ~= nil and WorldMapFrame:IsShown()
+end
+
 fightWatch:SetScript("OnEvent", function(self)
     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
     local mapID = turnAfterFight

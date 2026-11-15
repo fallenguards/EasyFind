@@ -5,6 +5,9 @@
 -- every map key press, the pins' SetPassThroughButtons in a fight, the
 -- waypoint pin's share (Forever, 2026-11-09; /efd mapopen proved the door, and
 -- that the client refuses the open in a fight: the turn waits for its end).
+-- Opening it is the client's open too (MapSearch.OpenMap): a bare
+-- ToggleWorldMap from addon code built the waypoint pin in the addon's name
+-- and its Shift-click share was refused (Forever, 2026-11-15).
 local H = require("Harness")
 
 local function Load(openWorldMap)
@@ -14,10 +17,11 @@ local function Load(openWorldMap)
     local s = assert(src:find("local OpenWorldMap = C_Map.OpenWorldMap", 1, true))
     local at = assert(src:find("fightWatch:SetScript(\"OnEvent\"", s, true))
     local _, e = assert(src:find("\nend%)\r?\n", at))
-    local t = { log = {}, fighting = false, shown = true, events = {} }
+    local t = { log = {}, fighting = false, shown = true, events = {}, mapID = 1411 }
     local map = {}
-    function map:SetMapID(id) t.log[#t.log + 1] = "set " .. id end
+    function map:SetMapID(id) t.log[#t.log + 1] = "set " .. id; t.mapID = id end
     function map:IsShown() return t.shown end
+    function map:GetMapID() return t.mapID end
     local watch = {}
     function watch:RegisterEvent(ev) t.events[ev] = true end
     function watch:UnregisterEvent(ev) t.events[ev] = nil end
@@ -27,7 +31,12 @@ local function Load(openWorldMap)
         WorldMapFrame = map, MapSearch = MapSearch,
         CreateFrame = function() return watch end,
         InCombatLockdown = function() return t.fighting end,
-        C_Map = { OpenWorldMap = openWorldMap and function(id) t.log[#t.log + 1] = "open " .. id end or nil },
+        ToggleWorldMap = function() t.log[#t.log + 1] = "toggle"; t.shown = not t.shown end,
+        -- From a timer the client's open leaves a shut map shut (/efd mapopen).
+        C_Map = { OpenWorldMap = openWorldMap and function(id)
+            t.log[#t.log + 1] = "open " .. tostring(id)
+            if t.shown or not t.noKeyPress then t.shown, t.mapID = true, id or t.mapID end
+        end or nil },
     }, { __index = _G })
     assert(load(src:sub(s, e), "=Navigation.lua TurnMap", "t", env))()
     t.MapSearch = MapSearch
@@ -80,9 +89,70 @@ function tests.aMapClosedDuringTheFight_isLeftAlone()
     H.assertEq(#t.log, 0)
 end
 
+function tests.open_theClientsOwnOpen_onTheMapAskedFor()
+    local t = Load(true)
+    t.shown = false
+    H.assertTrue(t.MapSearch.OpenMap(1458))
+    H.assertEq(table.concat(t.log, ", "), "open 1458")
+    t.log = {}
+    H.assertTrue(t.MapSearch.OpenMap(1458))
+    H.assertEq(#t.log, 0, "open on that map already: nothing")
+end
+
+function tests.open_withNoKeyPressBehindIt_theToggleOpensIt()
+    local t = Load(true)
+    t.shown, t.noKeyPress = false, true
+    H.assertTrue(t.MapSearch.OpenMap(1458))
+    H.assertEq(table.concat(t.log, ", "), "open 1458, toggle, open 1458", "the shut map toggled open, then turned")
+end
+
+function tests.open_inAFight_theToggle_theTurnWaits()
+    local t = Load(true)
+    t.shown, t.fighting = false, true
+    t.MapSearch.OpenMap(1458)
+    H.assertEq(table.concat(t.log, ", "), "toggle")
+    H.assertTrue(t.events.PLAYER_REGEN_ENABLED)
+end
+
+function tests.open_onAClassicClient_theToggleThenTheTurn()
+    local t = Load(false)
+    t.shown = false
+    t.MapSearch.OpenMap(1458)
+    H.assertEq(table.concat(t.log, ", "), "toggle, set 1458")
+end
+
 -- Every turn of the world map goes through the door; the one inside it is
 -- the only bare call.
 local ALLOWED = { ["MapSearch/Navigation.lua:        WorldMapFrame:SetMapID(mapID)"] = true }
+
+-- Every open goes through MapSearch.OpenMap; a toggle stays only as its
+-- fallback and to close an open map.
+local TOGGLES = {
+    ["MapSearch/Navigation.lua:        ToggleWorldMap()"] = true,
+    ["Apps/Settings/BlizzSearch.lua:                ToggleWorldMap()"] = true,
+}
+
+function tests.noBareMapOpensOutsideTheDoor()
+    local p = assert(io.popen('git -C "' .. H.ADDON_ROOT .. '" ls-files "*.lua"'))
+    local bad = {}
+    for path in p:lines() do
+        if not (path:find("^tests/") or path:find("^dev/") or path:find("^API/example/")) then
+            local f = assert(io.open(H.ADDON_ROOT .. "/" .. path, "rb"))
+            local n = 0
+            for line in f:read("*a"):gmatch("([^\n]*)\n?") do
+                n = n + 1
+                line = line:gsub("\r$", "")
+                local code = line:gsub("%-%-.*$", "")
+                if code:find("ToggleWorldMap%s*%(") and not TOGGLES[path .. ":" .. line] then
+                    bad[#bad + 1] = path .. ":" .. n .. ": " .. line:gsub("^%s+", "")
+                end
+            end
+            f:close()
+        end
+    end
+    p:close()
+    H.assertEq(#bad, 0, "open the map through MapSearch.OpenMap:\n  " .. table.concat(bad, "\n  "))
+end
 
 function tests.noBareMapTurnsOutsideTheDoor()
     local p = assert(io.popen('git -C "' .. H.ADDON_ROOT .. '" ls-files "*.lua"'))

@@ -87,6 +87,9 @@ local function load()
     env.ToggleBattlefieldMap = function() env.BattlefieldMapFrame:SetShown(not env.BattlefieldMapFrame:IsShown()) end
     local ns = H.newNs(env)
     ns.Database.uiSearchData = {}
+    -- The map's door (MapSearch/Navigation.lua): the client's open.
+    ns.MapSearch = ns.MapSearch or {}
+    ns.MapSearch.OpenMap = function() env.WorldMapFrame:Show() return true end
     env.EasyFind._ns = ns
     env.EasyFind.ToggleChatFrames = function() env.ChatFrame1:SetShown(not env.ChatFrame1:IsShown()) end
     env.ObjectiveTrackerFrame = Frame(true)
