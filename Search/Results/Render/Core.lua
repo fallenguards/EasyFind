@@ -88,23 +88,84 @@ function Render:RestoreHoveredRow()
     end
 end
 
--- The update-notice row: returns the extra bottom padding the results window
--- must reserve for it, or 0 when there is nothing to announce. Styling runs
--- here rather than in the theme pass because the notice is almost never up,
--- and a SetFont per render is a typing cost worth skipping.
+-- Rows still loading for a typed search: Searching with moving dots,
+-- after a delay so a quick load shows nothing.
+local SEARCHING_AFTER_S = 0.3
+local SEARCHING_TICK_S = 0.35
+local searching = { dots = 1 }
+
+local function RowsOnTheWay()
+    if Search:GetTypedQuery() == "" then return false end
+    local engine, db = ns.SearchEngine, ns.Database
+    return (engine and engine.HasPendingProviders and engine:HasPendingProviders())
+        or (db and db.IsWarmingProviders and db:IsWarmingProviders()) or false
+end
+
+local function SearchingText()
+    local word = _G["SEARCHING"] or "Searching..."
+    word = word:gsub("%.%.%.$", ""):gsub("\226\128\166$", "")
+    return word .. string.rep(".", searching.dots)
+end
+
+local function SearchingTick()
+    local frame = Search:GetResultsFrame()
+    local footer = frame and frame.updateFooter
+    local said = footer and footer.efSearching and frame:IsShown()
+    if not RowsOnTheWay() then
+        searching.ticker:Cancel()
+        searching.ticker, searching.since, searching.waiting = nil, nil, nil
+        if said then Search:RefreshActiveSearch(true) end
+        return
+    end
+    if said then
+        searching.dots = searching.dots % 3 + 1
+        footer.efText = SearchingText()
+        footer:SetText(footer.efText)
+    elseif searching.waiting and GetTime() - searching.since >= SEARCHING_AFTER_S then
+        searching.waiting = nil
+        Search:RefreshActiveSearch(true)
+    end
+end
+
+-- The ticker repaints once when the delay is up, again when rows land.
+function Render:IsSearching()
+    if not RowsOnTheWay() then
+        searching.since, searching.waiting = nil, nil
+        return false
+    end
+    local now = GetTime()
+    searching.since = searching.since or now
+    if not searching.ticker then
+        searching.dots = 1
+        searching.ticker = C_Timer.NewTicker(SEARCHING_TICK_S, SearchingTick)
+    end
+    local say = now - searching.since >= SEARCHING_AFTER_S
+    searching.waiting = not say
+    return say
+end
+
+-- Footer row (Searching, else the update notice); returns its band height.
 function Render:LayoutUpdateFooter(resultsFrame)
     local footer = resultsFrame.updateFooter
     if not footer then return 0 end
     local hover = resultsFrame.updateFooterHover
-    local newer = ns.VersionCheck and ns.VersionCheck:GetAvailableVersion()
-    if not newer then
+    local saySearching = Render:IsSearching()
+    local newer = not saySearching and ns.VersionCheck and ns.VersionCheck:GetAvailableVersion()
+    if not (saySearching or newer) then
+        footer.efSearching = nil
         footer:Hide()
         if hover then hover:Hide() end
         return 0
     end
     local theme = Results:GetActiveTheme()
-    local text = Utils.sformat(ns.L["UPDATE_AVAILABLE_HINT"], newer)
-        .. " " .. ns.L["UPDATE_AVAILABLE_SOURCE"]
+    local text
+    if saySearching then
+        footer.efSearching = true
+        text = SearchingText()
+    else
+        footer.efSearching = nil
+        text = Utils.sformat(ns.L["UPDATE_AVAILABLE_HINT"], newer) .. " " .. ns.L["UPDATE_AVAILABLE_SOURCE"]
+    end
     if footer.efText ~= text then
         footer.efText = text
         footer:SetText(text)
@@ -128,7 +189,10 @@ function Render:LayoutUpdateFooter(resultsFrame)
     local unbounded = footer.GetUnboundedStringWidth or footer.GetStringWidth
     footer.efTruncated = (unbounded(footer) or 0) > (footer:GetWidth() or 0) + 0.5
     local band = (footer:GetStringHeight() or 10) + ns.UPDATE_NOTICE_BOTTOM_PAD + ns.UPDATE_NOTICE_TOP_PAD
-    if hover then
+    -- The hover is the update notice's.
+    if hover and saySearching then
+        hover:Hide()
+    elseif hover then
         -- Covers the rendered text only, so empty footer space to the
         -- right does not raise the tooltip.
         hover:ClearAllPoints()
@@ -634,8 +698,21 @@ function Results:ResetWindow()
     for k = 1, #buttons do buttons[k].rowIndex = nil end
 end
 
+-- Nothing found yet, rows still loading: the Searching line alone.
+function Render:ShowSearchingOnly()
+    self:HideResults()
+    local resultsFrame = Search:GetResultsFrame()
+    if not resultsFrame then return end
+    local theme = Results:GetActiveTheme()
+    local fontScale = EasyFind.db.fontSize or 1.0
+    local padT = mmax(mfloor((theme.resultsPadTop or 0) * fontScale + 0.5), theme.resultsPadTop or 0)
+    local padB = mmax(mfloor((theme.resultsPadBot or 0) * fontScale + 0.5), theme.resultsPadBot or 0)
+    Render:ApplyResultsFrameLayout(resultsFrame, 0, 0, padT, padB, 0, false)
+end
+
 function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
     if not hierarchical or #hierarchical == 0 then
+        if Render:IsSearching() then return self:ShowSearchingOnly() end
         self:HideResults()
         return
     end
@@ -699,6 +776,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
             and last.maxResultsH == maxResultsH
             and last.quickFilterHelp == quickFilterHelp
             and last.frameEdge == frameEdge
+            and last.searching == Render:IsSearching()
             and resultsFrame:IsShown()
         if same then
             for hi = 1, n do
@@ -728,6 +806,7 @@ function Render:ShowHierarchicalResults(hierarchical, preserveScroll)
         last.maxResultsH = maxResultsH
         last.quickFilterHelp = quickFilterHelp
         last.frameEdge = frameEdge
+        last.searching = Render:IsSearching()
         for hi = 1, n do
             local e = hierarchical[hi]
             local stride = (hi - 1) * 3
