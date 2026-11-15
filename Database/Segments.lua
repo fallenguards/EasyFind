@@ -84,10 +84,13 @@ end
 
 local attachGen, attachRun = {}, {}
 
--- The rows in the saved text's order when they are the same rows in
--- another order (two quests of one name listed the other way round), else
--- nil. The index follows the rows it is given; uiSearchData keeps its own.
-local function SavedOrder(savedText, rows, parts)
+-- The saved rows matched to the current ones by their text, in the saved
+-- order: a row gone stands in as a ghost (marked dead once restored), a new
+-- row stays out for the live index to take. ALL THE THINGS' 22,000 quests
+-- came back with a hundred changed (the client names quests late) and were
+-- indexed whole each login, 4.5 s. nil when under MATCH_SHARE matches.
+local MATCH_SHARE = 0.9
+local function SavedAlign(savedText, rows, parts)
     local first, more = {}, {}
     for i = 1, #parts do
         if i % 256 == 0 then Utils.SliceCheckpoint() end
@@ -103,7 +106,7 @@ local function SavedOrder(savedText, rows, parts)
             list[#list + 1] = i
         end
     end
-    local ordered, n, from, len = {}, 0, 1, #savedText
+    local aligned, ghosts, n, matched, from, len = {}, {}, 0, 0, 1, #savedText
     while from <= len + 1 do
         local at = savedText:find("\1", from, true) or (len + 1)
         local part = savedText:sub(from, at - 1)
@@ -113,15 +116,23 @@ local function SavedOrder(savedText, rows, parts)
         else
             local list = more[part]
             i = list and list[#list]
-            if not i then return nil end
-            list[#list] = nil
+            if list then list[#list] = nil end
         end
         n = n + 1
-        ordered[n] = rows[i]
+        if i then
+            aligned[n] = rows[i]
+            matched = matched + 1
+        else
+            local stop = part:find("\3", 1, true)
+            local ghost = { nameLower = stop and part:sub(1, stop - 1) or part }
+            aligned[n] = ghost
+            ghosts[#ghosts + 1] = ghost
+        end
         from = at + 1
         if n % 256 == 0 then Utils.SliceCheckpoint() end
     end
-    return n == #rows and ordered or nil
+    if matched < MATCH_SHARE * n or matched < MATCH_SHARE * #rows then return nil end
+    return aligned, ghosts
 end
 
 -- rows: a source's rows in order, already in uiSearchData. Restored from
@@ -147,12 +158,12 @@ function Segments.Attach(key, rows, settled)
         end
         local text = tconcat(parts, "\1")
         local saved = store[key]
-        -- Same length, other text: perhaps the same rows in another order.
-        if saved and saved.v == VERSION and saved.text ~= text and #saved.text == #text then
-            return text, SavedOrder(saved.text, rows, parts)
+        -- Other text: the same rows in another order, or most of them.
+        if saved and saved.v == VERSION and saved.text ~= text then
+            return text, SavedAlign(saved.text, rows, parts)
         end
         return text
-    end, function(ok, text, ordered)
+    end, function(ok, text, aligned, ghosts)
         if attachGen[key] == gen then attachRun[key] = nil end
         if not ok then
             settled()
@@ -168,7 +179,7 @@ function Segments.Attach(key, rows, settled)
                 store[key] = snap and { v = VERSION, text = text, snap = snap } or nil
             end)
         end
-        if not (saved and saved.v == VERSION and (saved.text == text or ordered)) then
+        if not (saved and saved.v == VERSION and (saved.text == text or aligned)) then
             Build()
             return
         end
@@ -176,7 +187,10 @@ function Segments.Attach(key, rows, settled)
         local tries = 0
         local function Restore()
             if tries > 0 and not Current() then return settled() end
-            if SearchIndex:RestoreSegment(key, saved.snap, ordered or rows) then return settled() end
+            if SearchIndex:RestoreSegment(key, saved.snap, aligned or rows) then
+                for g = 1, ghosts and #ghosts or 0 do SearchIndex:NoteRemoved(ghosts[g]) end
+                return settled()
+            end
             tries = tries + 1
             if tries < RETRIES then Utils.SafeAfter(0, Restore) else Build() end
         end

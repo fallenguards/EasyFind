@@ -140,6 +140,46 @@ function tests.theSameRowsInAnotherOrder_restore()
     H.assertEq(Names(Database2, "keg"), "Brewfest Keg")
 end
 
+-- Most rows the same (an extension's quests, a few named late or gone):
+-- the saved index restores over them, a row gone is no longer found, and
+-- a new or renamed row is found through the live index.
+local function Many(n, renamed, dropped, added)
+    local names = {}
+    for i = 1, n do
+        if i ~= dropped then names[#names + 1] = (i == renamed) and ("Quest renamed " .. i) or ("Quest " .. i) end
+    end
+    if added then names[#names + 1] = "Quest brand new" end
+    return Rows(names)
+end
+
+function tests.mostRowsTheSame_restoresAndIndexesOnlyTheRest()
+    local db = {}
+    local ns1 = Session(db, Many(200))
+    ns1.SearchSegments.Attach("quests", ns1.Database.uiSearchData)
+    local ns2, Database2, builds2, restores2 = Session(RoundTrip(db), Many(200, 7, 150, true))
+    ns2.SearchSegments.Attach("quests", ns2.Database.uiSearchData)
+    H.assertEq(builds2(), 0, "not rebuilt")
+    H.assertEq(restores2(), 1, "restored over the rows that match")
+    H.assertEq(Names(Database2, "renamed"), "Quest renamed 7", "a renamed row found")
+    H.assertEq(Names(Database2, "brand new"), "Quest brand new", "a new row found")
+    H.assertEq(Names(Database2, "quest 150"), "", "a row gone is not found")
+    -- The same answers as an index built over these rows from scratch.
+    local ns3, Database3 = Session({}, Many(200, 7, 150, true))
+    ns3.SearchSegments.Attach("quests", ns3.Database.uiSearchData)
+    for _, q in ipairs({ "quest 1", "quest 7", "quest 20", "renamed", "brand", "quest 199", "q 15", "qst" }) do
+        H.assertEq(Names(Database2, q), Names(Database3, q), "query " .. q)
+    end
+end
+
+function tests.tooManyRowsChanged_rebuilds()
+    local db = {}
+    local ns1 = Session(db, Many(10))
+    ns1.SearchSegments.Attach("quests", ns1.Database.uiSearchData)
+    local ns2, _, builds2 = Session(RoundTrip(db), Many(10, 3, 9, true))
+    ns2.SearchSegments.Attach("quests", ns2.Database.uiSearchData)
+    H.assertEq(builds2(), 1, "8 of 10 the same: under 90%, rebuilt")
+end
+
 function tests.oneRowChanged_stillRebuilds()
     local db = {}
     local ns1 = Session(db, Rows(TOYS))
