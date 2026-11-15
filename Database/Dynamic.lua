@@ -394,9 +394,10 @@ function Database:MarkDynamicProviderLoaded(key)
     local provider = dynamicProviderByKey[key]
     if not provider then return end
     provider.loading = false
-    provider.waiting = nil
     provider.loaded = true
     provider.dirty = false
+    -- Its waiters hear it, or a query's load stays pending for good.
+    NotifyProviderWaiters(provider, true)
 end
 
 function Database:MarkDynamicCategoryDirty(key)

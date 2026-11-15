@@ -154,6 +154,20 @@ function tests.asyncProvider_callsAllWaitersOnCompletion()
     H.assertTrue(Database:IsDynamicProviderLoaded("statistics"))
 end
 
+-- Rows a provider gets another way (the loot cache whole) mark it loaded
+-- mid-load: its waiters are told, so a query's load is not pending for
+-- good (the Searching line up, every keystroke held).
+function tests.markLoaded_midLoad_tellsTheWaiters()
+    local _, _, Database = setupDatabase()
+    Database.PopulateDynamicStatisticsAsync = function() return nil end
+    local got = "uninit"
+    Database:EnsureDynamicProviderLoaded("statistics", function(c) got = c end)
+    H.assertEq(got, "uninit")
+    Database:MarkDynamicProviderLoaded("statistics")
+    H.assertEq(got, true)
+    H.assertTrue(Database:IsDynamicProviderLoaded("statistics"))
+end
+
 function tests.asyncProvider_errorPathNotifiesAllWaitersWithFalse()
     local _, _, Database = setupDatabase()
     local completion
