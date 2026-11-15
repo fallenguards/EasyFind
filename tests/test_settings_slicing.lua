@@ -157,6 +157,9 @@ local function RunToEnd(ns, env, NextFrame)
         NextFrame()
         frames = frames + 1
     end
+    -- The Ace apps' first read waits past the login rush, then runs.
+    env._clock:advance(25)
+    for _ = 1, 2000 do NextFrame() end
     return frames
 end
 
@@ -172,9 +175,11 @@ function tests.aceFeeds_spanFramesInsideThePool()
             .. tostring(row.settingsPopulate))
     end
     -- The same rows as a pull that never pauses.
-    local sched2, _, _, clock2 = Scheduler()
-    local ns2 = Load(sched2, clock2, AceApps(clock2))
+    local sched2, NextFrame2, _, clock2 = Scheduler()
+    local ns2, env2 = Load(sched2, clock2, AceApps(clock2))
     ns2.BlizzOptionsSearch:Populate(false)
+    env2._clock:advance(25)
+    for _ = 1, 2000 do NextFrame2() end
     local direct = FeedNames(ns2)
     H.assertEq(#direct, #names, "the direct pull's row count")
     for i = 1, #names do H.assertEq(names[i], direct[i], "row " .. i) end

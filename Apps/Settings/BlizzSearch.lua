@@ -3815,6 +3815,8 @@ local function PullFeed(data, addon, rows)
     else
         ok, list = xpcall(rows, Utils.ErrorHandler)
     end
+    -- A feed that failed is read again only when asked for by name.
+    if not ok then BlizzOptionsSearch.failedFeeds[addon] = true end
     if not ok or type(list) ~= "table" then return false end
     local made = {}
     for _, r in ipairs(list) do
@@ -3866,6 +3868,7 @@ end
 
 -- One feed at a time, the table read again after each: a feed may
 -- register while the populate pauses.
+BlizzOptionsSearch.failedFeeds = {}
 local function PushFeedEntries(data, only)
     if only then
         local rows = ns.settingsFeeds and ns.settingsFeeds[only]
@@ -3875,7 +3878,7 @@ local function PushFeedEntries(data, only)
     while true do
         local addon
         for name in pairs(ns.settingsFeeds or {}) do
-            if not feedRows[name] and not tried[name] then
+            if not feedRows[name] and not tried[name] and not BlizzOptionsSearch.failedFeeds[name] then
                 addon = name
                 break
             end
@@ -3911,6 +3914,15 @@ do
     local REGISTRY, DIALOG = "AceConfigRegistry-3.0", "AceConfigDialog-3.0"
     local aceFeeds = {}
     local hooked = {}
+    -- Saved rows (EasyFind.db.aceSettingsCache): reading an addon's options
+    -- makes it build them (58 apps, 294 ms cold on a long retail list; one
+    -- builder alone 450 ms). A login with the same addons at the same
+    -- versions reads none; an addon is read again when it registers its
+    -- options anew or its window opens.
+    -- One table: this chunk is at Lua's 200-local limit. Save.liveNow: names
+    -- read live this time over; the first read with nothing saved waits
+    -- coldAfter s past the login rush.
+    local Save = { schema = 1, liveNow = {}, coldAfter = 20, coldRetry = 5 }
 
     -- Registry and dialog pairs by fork suffix ("" or "-ElvUI").
     local function AceLibs()
@@ -4001,6 +4013,159 @@ do
         end
     end
 
+    -- Same build, language, addons on and their versions: the saved rows hold.
+    function Save.Signature()
+        local build = GetBuildInfo and select(2, GetBuildInfo())
+        local versions = {}
+        local C = C_AddOns
+        if C and C.GetNumAddOns and C.GetAddOnMetadata then
+            for i = 1, C.GetNumAddOns() do
+                local ok, v = pcall(C.GetAddOnMetadata, i, "Version")
+                versions[i] = ok and type(v) == "string" and v or ""
+            end
+        end
+        return tconcat({ Save.schema, tostring(build or "?"), (GetLocale and GetLocale()) or "?",
+            AddonSetFingerprint(), tconcat(versions, "\31") }, "\30")
+    end
+
+    -- The session's saved copy, decided once: restored when it matches,
+    -- else a new one the live reads fill.
+    function Save.Get()
+        if Save.cache then return Save.cache end
+        local db = EasyFind and EasyFind.db
+        if not db then return nil end
+        local sig = Save.Signature()
+        local saved = db.aceSettingsCache
+        if type(saved) == "table" and saved.sig == sig and saved.whole and type(saved.names) == "table"
+           and type(saved.rows) == "table" then
+            Save.cache, Save.restored = saved, true
+        else
+            Save.cache, Save.restored = { sig = sig, names = {}, rows = {} }, false
+            db.aceSettingsCache = Save.cache
+        end
+        return Save.cache
+    end
+
+    -- Field 29 parts rows, 30 a row's fields, 31 a list's items, 28 a
+    -- choice's value from its label; a key keeps its type (s or n).
+    function Save.Clean(v) return (tostring(v or ""):gsub("[\28-\31]", "")) end
+    function Save.Split(str, sep)
+        local out = {}
+        if str == "" then return out end
+        local from = 1
+        while true do
+            local at = str:find(sep, from, true)
+            if not at then
+                out[#out + 1] = str:sub(from)
+                return out
+            end
+            out[#out + 1] = str:sub(from, at - 1)
+            from = at + 1
+        end
+    end
+    function Save.KeyList(keys)
+        local out = {}
+        for i = 1, #keys do out[i] = (type(keys[i]) == "number" and "n" or "s") .. Save.Clean(keys[i]) end
+        return tconcat(out, "\31")
+    end
+    function Save.Keys(str)
+        local out = Save.Split(str, "\31")
+        for i = 1, #out do
+            local tag, key = out[i]:sub(1, 1), out[i]:sub(2)
+            out[i] = tag == "n" and tonumber(key) or key
+        end
+        return out
+    end
+    function Save.Names(list)
+        local out = {}
+        for i = 1, #list do out[i] = Save.Clean(list[i]) end
+        return tconcat(out, "\31")
+    end
+    function Save.EncodeChoices(choices)
+        local out = {}
+        for _, c in ipairs(type(choices) == "table" and choices or {}) do
+            local v = c.value
+            local tag = type(v) == "number" and "n" or type(v) == "boolean" and "b" or "s"
+            out[#out + 1] = tag .. Save.Clean(v) .. "\28" .. Save.Clean(c.label)
+        end
+        return tconcat(out, "\31")
+    end
+    function Save.DecodeChoices(str)
+        local out = {}
+        for _, item in ipairs(Save.Split(str, "\31")) do
+            local at = item:find("\28", 1, true)
+            if at then
+                local tag, raw = item:sub(1, 1), item:sub(2, at - 1)
+                local value = raw
+                if tag == "n" then value = tonumber(raw) elseif tag == "b" then value = raw == "true" end
+                out[#out + 1] = { value = value, label = item:sub(at + 1) }
+            end
+        end
+        return out
+    end
+
+    -- A saved row's option, found anew in its app's live table only when
+    -- the row's control is used (the app builds its options then).
+    function Save.LiveOption(appName, suffix, keyPath)
+        local libs = AceLibs()[suffix]
+        if not libs then return nil end
+        local ok, options = pcall(libs.registry.GetOptionsTable, libs.registry, appName, "dialog", "EasyFind-4.0")
+        if not (ok and type(options) == "table") then return nil end
+        local option, handler = options, options.handler
+        for i = 1, #keyPath do
+            option = type(option.args) == "table" and option.args[keyPath[i]] or nil
+            if type(option) ~= "table" then return nil end
+            handler = option.handler or handler
+        end
+        return option, options, handler
+    end
+    function Save.Control(kind, appName, suffix, keyPath, f)
+        local function Call(key, ...)
+            local option, options, handler = Save.LiveOption(appName, suffix, keyPath)
+            if option then return Member(key, option, options, keyPath, appName, handler, ...) end
+        end
+        local control
+        if kind == "toggle" then
+            control = { kind = "check", get = function() return Call("get") end, set = function(v) Call("set", v) end }
+        elseif kind == "range" and tonumber(f[10]) and tonumber(f[11]) then
+            control = { kind = "slider", get = function() return Call("get") end, set = function(v) Call("set", v) end,
+                        min = tonumber(f[10]), max = tonumber(f[11]), step = tonumber(f[12]) or 1 }
+            if f[13] == "1" then
+                control.format = function(n) return string.format("%d%%", math.floor(n * 100 + 0.5)) end
+            end
+        elseif kind == "select" then
+            control = { kind = "choice", get = function() return Call("get") end, set = function(v) Call("set", v) end,
+                        choices = Save.DecodeChoices(f[14] or "") }
+        elseif kind == "execute" then
+            control = { kind = "button", press = function() Call("func") end }
+        end
+        if control and f[9] ~= "" then control.tooltip = f[9] end
+        return control
+    end
+
+    -- A display's saved rows in the shape the live read gives.
+    function Save.Rows(display)
+        local blob, names = Save.cache.rows[display], Save.cache.names[display]
+        local rows = {}
+        for n, line in ipairs(Save.Split(blob, "\29")) do
+            -- One addon's 4,000 rows took 82 ms whole.
+            if n % 64 == 0 then MaybeYieldLiveSettings() end
+            local f = Save.Split(line, "\30")
+            local i = tonumber(f[1])
+            local appName, suffix = names.order[i], names.libs[i]
+            if appName and f[3] and f[3] ~= "" then
+                local keyPath, groupPath = Save.Keys(f[5] or ""), Save.Keys(f[6] or "")
+                rows[#rows + 1] = {
+                    name = f[3], path = Save.Split(f[4] or "", "\31"),
+                    control = Save.Control(f[2], appName, suffix, keyPath, f),
+                    step = { settingsCategory = f[7] ~= "" and f[7] or nil, settingCategoryID = tonumber(f[8]),
+                             aceApp = appName, aceLib = suffix, aceGroup = groupPath, canvasLabel = f[3] },
+                }
+            end
+        end
+        return rows
+    end
+
     -- The Blizzard category hosting a group path (the longest registered
     -- prefix), as the step's settingsCategory and settingCategoryID.
     local function HostCategory(blizz, appName, groupPath)
@@ -4068,14 +4233,14 @@ do
                 control.format = function(n) return string.format("%d%%", math.floor(n * 100 + 0.5)) end
             end
         elseif t == "select" then
-            control = { kind = "choice", get = Get, set = Set, choices = function()
-                local values = Member("values", option, options, path, appName, handler)
-                if type(values) ~= "table" then return nil end
-                local list = {}
+            local list
+            local values = Member("values", option, options, path, appName, handler)
+            if type(values) == "table" then
+                list = {}
                 for value, label in pairs(values) do list[#list + 1] = { value = value, label = tostring(label) } end
                 table.sort(list, function(a, b) return a.label < b.label end)
-                return list
-            end }
+            end
+            control = { kind = "choice", get = Get, set = Set, choices = list }
         elseif t == "execute" then
             control = { kind = "button", press = function() Member("func", option, options, path, appName, handler) end }
         end
@@ -4086,9 +4251,15 @@ do
     -- One name's apps, read alone: reading every app for each name ran
     -- each addon's option builder once per name (54 names on retail).
     local function Rows(display)
-        local rows = {}
+        local cache = Save.Get()
+        if cache and Save.restored and not Save.liveNow[display] and cache.rows[display] and cache.names[display] then
+            return Save.Rows(display)
+        end
+        local rows, saved = {}, {}
         local feed = aceFeeds[display]
         local libsBy = AceLibs()
+        local index = {}
+        for i, appName in ipairs(feed and feed.order or {}) do index[appName] = i end
         for _, appName in ipairs(feed and feed.order or {}) do
             local libs = libsBy[feed.apps[appName]]
             local options = libs and AppOptions(libs.registry, appName)
@@ -4099,26 +4270,60 @@ do
                 Walk(app.options, app.options, {}, {}, {}, app.options.handler, app.appName, found)
                 for _, f in ipairs(found) do
                     local catName, catID = HostCategory(app.blizz, app.appName, f.groupPath)
+                    local control = AceControl(f, app)
                     rows[#rows + 1] = {
-                        name = f.name, path = f.names, control = AceControl(f, app),
+                        name = f.name, path = f.names, control = control,
                         step = { settingsCategory = catName, settingCategoryID = catID, aceApp = app.appName,
                                  aceLib = app.suffix, aceGroup = f.groupPath, canvasLabel = f.name },
                     }
+                    local o = f.option
+                    saved[#saved + 1] = tconcat({ index[appName], Save.Clean(o.type), Save.Clean(f.name), Save.Names(f.names),
+                        Save.KeyList(f.keyPath), Save.KeyList(f.groupPath), Save.Clean(catName), Save.Clean(catID),
+                        Save.Clean(control and control.tooltip), Save.Clean(control and control.min), Save.Clean(control and control.max),
+                        Save.Clean(control and control.step), o.isPercent and "1" or "",
+                        Save.EncodeChoices(control and control.choices) }, "\30")
                 end
             end
+        end
+        if cache and feed then
+            local libs = {}
+            for i, appName in ipairs(feed.order) do libs[i] = feed.apps[appName] end
+            cache.names[display] = { order = { unpack(feed.order) }, libs = libs }
+            cache.rows[display] = tconcat(saved, "\29")
+            -- Whole once every name is in: a save a logout cut short is read again.
+            local whole = true
+            for name in pairs(aceFeeds) do
+                if not cache.rows[name] then whole = false break end
+            end
+            cache.whole = whole or nil
         end
         return rows
     end
 
     local function Refresh(display)
-        CollectAceFeeds()
-        if display then BlizzOptionsSearch:PullSettingsFeed(display) end
+        CollectAceFeeds(true)
+        if not display then return end
+        Save.liveNow[display] = true
+        BlizzOptionsSearch:PullSettingsFeed(display)
+        Save.liveNow[display] = nil
+    end
+    function Save.DisplayOf(appName)
+        for display, feed in pairs(aceFeeds) do
+            if feed.apps[appName] ~= nil then return display end
+        end
     end
     local function HookRegistry(registry)
         if hooked[registry] or type(registry.RegisterOptionsTable) ~= "function" or not hooksecurefunc then return end
         hooked[registry] = true
-        hooksecurefunc(registry, "RegisterOptionsTable", function()
+        hooksecurefunc(registry, "RegisterOptionsTable", function(_, appName)
             SafeAfter(0, function()
+                if Save.restored then
+                    local display = Save.DisplayOf(appName)
+                    -- Not in the save: every app is read again, and saved anew.
+                    if not display then Save.restored = false end
+                    return Refresh(display)
+                end
+                if not Save.coldDone then return end
                 for display, apps in pairs(Apps()) do
                     for _, app in ipairs(apps) do
                         if not aceFeeds[display] or aceFeeds[display].apps[app.appName] == nil then Refresh(display) return end
@@ -4130,15 +4335,68 @@ do
 
     -- Every app's rows under its name, as feeds; an addon's own feed of
     -- the same name wins. Libraries created later are hooked as they come.
-    CollectAceFeeds = function()
+    -- An addon's window opened: its options are built now, so its rows are
+    -- read again from them.
+    function Save.HookDialog(dialog)
+        if not dialog or hooked[dialog] or type(dialog.Open) ~= "function" or not hooksecurefunc then return end
+        hooked[dialog] = true
+        hooksecurefunc(dialog, "Open", function(_, appName)
+            if not Save.restored then return end
+            local display = Save.DisplayOf(appName)
+            if display then SafeAfter(1, function() Refresh(display) end) end
+        end)
+    end
+
+    -- With nothing saved, the read waits Save.coldAfter s, out of combat, unless
+    -- a search is waiting on the settings.
+    function Save.ReadColdLater()
+        if Save.coldScheduled then return end
+        Save.coldScheduled = true
+        local function Try()
+            if InCombatLockdown() then return SafeAfter(Save.coldRetry, Try) end
+            RunBudgetedOptionsWork(function()
+                CollectAceFeeds(true)
+                local data = ns.Database and ns.Database.uiSearchData
+                return data and PushFeedEntries(data) or false
+            end, function(changed)
+                if changed and ns.Database.ResetSearchCache then ns.Database:ResetSearchCache() end
+            end)
+        end
+        SafeAfter(Save.coldAfter, Try)
+    end
+
+    CollectAceFeeds = function(now)
         ns.settingsFeeds = ns.settingsFeeds or {}
-        for _, libs in pairs(AceLibs()) do HookRegistry(libs.registry) end
+        for _, libs in pairs(AceLibs()) do
+            HookRegistry(libs.registry)
+            Save.HookDialog(libs.dialog)
+        end
         if type(LibStub) == "table" and not hooked[LibStub] and hooksecurefunc then
             hooked[LibStub] = true
             hooksecurefunc(LibStub, "NewLibrary", function(_, major)
                 if type(major) == "string" and major:sub(1, #REGISTRY) == REGISTRY then SafeAfter(0, CollectAceFeeds) end
             end)
         end
+        local cache = Save.Get()
+        if cache and Save.restored then
+            for display, names in pairs(cache.names) do
+                local feed = aceFeeds[display]
+                if not feed then
+                    feed = { rows = function() return Rows(display) end }
+                    aceFeeds[display] = feed
+                end
+                feed.apps, feed.order = {}, {}
+                for i, appName in ipairs(names.order or {}) do
+                    feed.order[i] = appName
+                    feed.apps[appName] = names.libs[i]
+                end
+                if ns.settingsFeeds[display] == nil then ns.settingsFeeds[display] = feed.rows end
+            end
+            Save.coldDone = true
+            return
+        end
+        if not now and not Save.coldDone and not optionsPopulateUrgent then return Save.ReadColdLater() end
+        Save.coldDone = true
         -- Each name's apps as read now (app name -> library suffix, in order).
         for _, feed in pairs(aceFeeds) do feed.apps, feed.order = {}, {} end
         for display, apps in pairs(Apps()) do
