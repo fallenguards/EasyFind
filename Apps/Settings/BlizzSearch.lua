@@ -4083,18 +4083,28 @@ do
         return control
     end
 
+    -- One name's apps, read alone: reading every app for each name ran
+    -- each addon's option builder once per name (54 names on retail).
     local function Rows(display)
         local rows = {}
-        for _, app in ipairs(Apps()[display] or {}) do
-            local found = {}
-            Walk(app.options, app.options, {}, {}, {}, app.options.handler, app.appName, found)
-            for _, f in ipairs(found) do
-                local catName, catID = HostCategory(app.blizz, app.appName, f.groupPath)
-                rows[#rows + 1] = {
-                    name = f.name, path = f.names, control = AceControl(f, app),
-                    step = { settingsCategory = catName, settingCategoryID = catID, aceApp = app.appName,
-                             aceLib = app.suffix, aceGroup = f.groupPath, canvasLabel = f.name },
-                }
+        local feed = aceFeeds[display]
+        local libsBy = AceLibs()
+        for _, appName in ipairs(feed and feed.order or {}) do
+            local libs = libsBy[feed.apps[appName]]
+            local options = libs and AppOptions(libs.registry, appName)
+            local app = options and { appName = appName, suffix = feed.apps[appName], options = options,
+                blizz = libs.dialog and libs.dialog.BlizOptions and libs.dialog.BlizOptions[appName] }
+            if app then
+                local found = {}
+                Walk(app.options, app.options, {}, {}, {}, app.options.handler, app.appName, found)
+                for _, f in ipairs(found) do
+                    local catName, catID = HostCategory(app.blizz, app.appName, f.groupPath)
+                    rows[#rows + 1] = {
+                        name = f.name, path = f.names, control = AceControl(f, app),
+                        step = { settingsCategory = catName, settingCategoryID = catID, aceApp = app.appName,
+                                 aceLib = app.suffix, aceGroup = f.groupPath, canvasLabel = f.name },
+                    }
+                end
             end
         end
         return rows
@@ -4129,13 +4139,18 @@ do
                 if type(major) == "string" and major:sub(1, #REGISTRY) == REGISTRY then SafeAfter(0, CollectAceFeeds) end
             end)
         end
+        -- Each name's apps as read now (app name -> library suffix, in order).
+        for _, feed in pairs(aceFeeds) do feed.apps, feed.order = {}, {} end
         for display, apps in pairs(Apps()) do
             local feed = aceFeeds[display]
             if not feed then
-                feed = { apps = {}, rows = function() return Rows(display) end }
+                feed = { apps = {}, order = {}, rows = function() return Rows(display) end }
                 aceFeeds[display] = feed
             end
-            for _, app in ipairs(apps) do feed.apps[app.appName] = true end
+            for _, app in ipairs(apps) do
+                if feed.apps[app.appName] == nil then feed.order[#feed.order + 1] = app.appName end
+                feed.apps[app.appName] = app.suffix
+            end
             if ns.settingsFeeds[display] == nil then ns.settingsFeeds[display] = feed.rows end
         end
     end

@@ -190,5 +190,29 @@ function tests.anAppRegisteredLaterJoinsTheIndex()
     H.assertTrue(RowsOf(ns, "First")["Alpha"] ~= nil, "the first app's rows stay")
 end
 
+-- An addon builds its options when they are read: each name's rows read
+-- its own apps, so one pass reads every app once (on retail, 58 apps read
+-- for each of 54 names ran every builder 54 times).
+function tests.onePassReadsEachAppOnce()
+    local ns, _, registry = Load()
+    local reads = {}
+    local get = registry.GetOptionsTable
+    registry.GetOptionsTable = function(self, appName, ...)
+        reads[appName] = (reads[appName] or 0) + 1
+        return get(self, appName, ...)
+    end
+    for _, name in ipairs({ "Alpha", "Beta", "Gamma" }) do
+        registry:RegisterOptionsTable(name, { type = "group", name = name, args = {
+            on = { type = "toggle", name = name .. " on" },
+        } })
+    end
+    ns.BlizzOptionsSearch:Populate(false)
+    for _, name in ipairs({ "Alpha", "Beta", "Gamma" }) do
+        H.assertTrue(RowsOf(ns, name)[name .. " on"] ~= nil, name .. "'s row")
+        -- Once to name it, once for its rows.
+        H.assertEq(reads[name], 2, name .. " read")
+    end
+end
+
 local pass, fail, failures = H.runSuite("AceOptions", tests)
 return { pass = pass, fail = fail, failures = failures }
