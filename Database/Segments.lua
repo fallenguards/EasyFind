@@ -84,6 +84,46 @@ end
 
 local attachGen, attachRun = {}, {}
 
+-- The rows in the saved text's order when they are the same rows in
+-- another order (two quests of one name listed the other way round), else
+-- nil. The index follows the rows it is given; uiSearchData keeps its own.
+local function SavedOrder(savedText, rows, parts)
+    local first, more = {}, {}
+    for i = 1, #parts do
+        if i % 256 == 0 then Utils.SliceCheckpoint() end
+        local part = parts[i]
+        if first[part] == nil then
+            first[part] = i
+        else
+            local list = more[part]
+            if not list then
+                list = {}
+                more[part] = list
+            end
+            list[#list + 1] = i
+        end
+    end
+    local ordered, n, from, len = {}, 0, 1, #savedText
+    while from <= len + 1 do
+        local at = savedText:find("\1", from, true) or (len + 1)
+        local part = savedText:sub(from, at - 1)
+        local i = first[part]
+        if i then
+            first[part] = false
+        else
+            local list = more[part]
+            i = list and list[#list]
+            if not i then return nil end
+            list[#list] = nil
+        end
+        n = n + 1
+        ordered[n] = rows[i]
+        from = at + 1
+        if n % 256 == 0 then Utils.SliceCheckpoint() end
+    end
+    return n == #rows and ordered or nil
+end
+
 -- rows: a source's rows in order, already in uiSearchData. Restored from
 -- the saved segment when their text matches, else indexed and saved. The
 -- text is read in background slices: rows gone from uiSearchData by then
@@ -105,8 +145,14 @@ function Segments.Attach(key, rows, settled)
             if i % 64 == 0 then Utils.SliceCheckpoint() end
             parts[i] = RowText(rows[i])
         end
-        return tconcat(parts, "\1")
-    end, function(ok, text)
+        local text = tconcat(parts, "\1")
+        local saved = store[key]
+        -- Same length, other text: perhaps the same rows in another order.
+        if saved and saved.v == VERSION and saved.text ~= text and #saved.text == #text then
+            return text, SavedOrder(saved.text, rows, parts)
+        end
+        return text
+    end, function(ok, text, ordered)
         if attachGen[key] == gen then attachRun[key] = nil end
         if not ok then
             settled()
@@ -122,7 +168,7 @@ function Segments.Attach(key, rows, settled)
                 store[key] = snap and { v = VERSION, text = text, snap = snap } or nil
             end)
         end
-        if not (saved and saved.v == VERSION and saved.text == text) then
+        if not (saved and saved.v == VERSION and (saved.text == text or ordered)) then
             Build()
             return
         end
@@ -130,7 +176,7 @@ function Segments.Attach(key, rows, settled)
         local tries = 0
         local function Restore()
             if tries > 0 and not Current() then return settled() end
-            if SearchIndex:RestoreSegment(key, saved.snap, rows) then return settled() end
+            if SearchIndex:RestoreSegment(key, saved.snap, ordered or rows) then return settled() end
             tries = tries + 1
             if tries < RETRIES then Utils.SafeAfter(0, Restore) else Build() end
         end

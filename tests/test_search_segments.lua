@@ -112,6 +112,45 @@ function tests.aChangedNameRebuilds()
     H.assertEq(builds3(), 0, "the rebuilt segment was saved")
 end
 
+-- The same rows in another order (two of one name the other way round, as
+-- an extension's 22,000 quests came back): restored, not rebuilt, and each
+-- row still found by its own words.
+function tests.theSameRowsInAnotherOrder_restore()
+    local db = {}
+    local function Two(order)
+        local rows = Rows({ "Brewfest Keg", "Boom Bot", "Twin", "Twin", "Hearthstone" })
+        rows[3].keywordsLower = { "molten" }
+        rows[4].keywordsLower = { "thunderfury" }
+        if order == "swapped" then rows[3], rows[4] = rows[4], rows[3] end
+        return rows
+    end
+    local ns1 = Session(db, Two())
+    ns1.SearchSegments.Attach("quests", ns1.Database.uiSearchData)
+    local ns2, Database2, builds2, restores2 = Session(RoundTrip(db), Two("swapped"))
+    ns2.SearchSegments.Attach("quests", ns2.Database.uiSearchData)
+    H.assertEq(builds2(), 0, "not rebuilt")
+    H.assertEq(restores2(), 1, "restored")
+    Database2:ResetSearchCache()
+    local function KeywordOf(query)
+        local found = Database2:SearchUI(query) or {}
+        return #found == 1 and found[1].data.keywordsLower[1] or tostring(#found) .. " rows"
+    end
+    H.assertEq(KeywordOf("molten"), "molten", "each row keeps its own words")
+    H.assertEq(KeywordOf("thunderfury"), "thunderfury")
+    H.assertEq(Names(Database2, "keg"), "Brewfest Keg")
+end
+
+function tests.oneRowChanged_stillRebuilds()
+    local db = {}
+    local ns1 = Session(db, Rows(TOYS))
+    ns1.SearchSegments.Attach("toys", ns1.Database.uiSearchData)
+    -- Same length, other text.
+    local ns2, _, builds2 = Session(RoundTrip(db), Rows({ "Hearthstone", "Boom Bot", "Toy Train Set",
+        "Orb of Deceptiom", "Brewfest Keg" }))
+    ns2.SearchSegments.Attach("toys", ns2.Database.uiSearchData)
+    H.assertEq(builds2(), 1)
+end
+
 function tests.aRestoredIndexFindsWhatABuiltOneDoes()
     local db = {}
     local ns1, Database1 = Session(db, Rows(TOYS))
