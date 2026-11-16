@@ -4355,6 +4355,14 @@ local function PageRecipeIDs(profData, pageID)
         ids[#ids + 1] = tonumber(id)
     end
     profData._pageCache[pageID] = ids
+    -- The item each recipe makes, in the same order (Forever ships them).
+    local made = profData.makesByPage and profData.makesByPage[pageID]
+    if made then
+        local items = {}
+        for id in made:gmatch("%d+") do items[#items + 1] = tonumber(id) end
+        profData._makesCache = profData._makesCache or {}
+        profData._makesCache[pageID] = items
+    end
     return ids
 end
 
@@ -4502,6 +4510,8 @@ function Database:PopulateClassicProfessions()
         if off[profName] ~= false then
             local profLower = slower(profName)
             local profIcon = prof.spellID and getTexture and getTexture(prof.spellID) or nil
+            ns.ProfessionGlyphs = ns.ProfessionGlyphs or {}
+            ns.ProfessionGlyphs[profName] = profIcon and { tex = profIcon } or nil
             uiSearchData[#uiSearchData + 1] = {
                 name = profName, nameLower = profLower, icon = profIcon, category = "Profession",
                 keywords = { profLower, "profession" }, keywordsLower = { profLower, "profession" },
@@ -4546,6 +4556,9 @@ function Database:PopulateDynamicProfessions()
             if profName and profName ~= "" and skillLine
                and not (profFilters and profFilters[skillLine] == false) then
                 local nameLower = slower(profName)
+                -- A recipe row's left glyph: its profession's own icon.
+                ns.ProfessionGlyphs = ns.ProfessionGlyphs or {}
+                ns.ProfessionGlyphs[profName] = profIcon and { tex = profIcon } or nil
                 -- The row is a SECURE CAST button armed with the spell ID of
                 -- the profession's SPELLBOOK ITEM -- the same ID dragging
                 -- Blizzard's book button to a bar casts (its buttons index
@@ -4600,6 +4613,7 @@ function Database:PopulateDynamicProfessions()
                 local profData = ns.PROFESSION_RECIPES and ns.PROFESSION_RECIPES[skillLine]
                 if profData and profData.recipesByPage then
                     local getSpell = C_Spell and C_Spell.GetSpellInfo
+                    local getItemIcon = C_Item and C_Item.GetItemIconByID
                     local pfState = EasyFind.db.professionRecipeFilters
                     local showLearned = not (pfState and pfState.learned == false)
                     local showUnlearned = not (pfState and pfState.unlearned == false)
@@ -4629,6 +4643,7 @@ function Database:PopulateDynamicProfessions()
                     for pi = 1, #pageIDsToScan do
                         local pageID = pageIDsToScan[pi]
                         local pageIDs = PageRecipeIDs(profData, pageID)
+                        local made = profData._makesCache and profData._makesCache[pageID]
                         if pageIDs then
                             for ri = 1, #pageIDs do
                                 if ri % 32 == 0 then Utils.SliceCheckpoint() end
@@ -4668,6 +4683,12 @@ function Database:PopulateDynamicProfessions()
                                             rName = info.name
                                             rIcon = rIcon or info.icon
                                         end
+                                    end
+                                    -- The spell's icon is the craft's generic
+                                    -- one on Forever: the made item's instead.
+                                    local item = made and made[ri]
+                                    if item and item > 0 and getItemIcon then
+                                        rIcon = getItemIcon(item) or rIcon
                                     end
                                     if rName and rName ~= "" then
                                         local rNameLower = slower(rName)

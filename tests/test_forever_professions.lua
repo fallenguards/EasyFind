@@ -57,17 +57,54 @@ local function Populate(opts)
         GetProfessionInfo = function() return "First Aid", 135966, 1, 75, 0, 0, 129 end,
         C_SpellBook = { IsSpellKnown = function(id) return id == 3275 end },
         C_Spell = { GetSpellInfo = function(id) return { name = "spell " .. id, iconID = id } end },
+        C_Item = { GetItemIconByID = function(id) return "item " .. id end },
     }, { __index = _G })
     env._G = env
     local Database = {}
     env.Database = Database
     assert(load(src:sub(s, e - 1), "=Main.lua professions", "t", env))()
     Database:PopulateDynamicProfessions()
-    local byRecipe = {}
+    local byRecipe, profRow = {}, nil
     for _, row in ipairs(rows) do
-        if row.professionRecipeID then byRecipe[row.professionRecipeID] = row end
+        if row.professionRecipeID then byRecipe[row.professionRecipeID] = row else profRow = row end
     end
-    return byRecipe, retries
+    return byRecipe, retries, profRow, ns
+end
+
+-- Each Forever recipe ships the item it makes, in its page's order.
+function tests.foreverShipsTheItemEachRecipeMakes()
+    for skillLine, prof in pairs(Data(true)) do
+        for page, ids in pairs(prof.recipesByPage) do
+            local recipes, made = {}, {}
+            for n in ids:gmatch("%d+") do recipes[#recipes + 1] = tonumber(n) end
+            for n in prof.makesByPage[page]:gmatch("%d+") do made[#made + 1] = tonumber(n) end
+            H.assertEq(#made, #recipes, "one per recipe: " .. skillLine)
+            for i, id in ipairs(recipes) do
+                if id == 3275 then H.assertEq(made[i], 1251, "Linen Bandage makes the bandage") end
+                if id == 7418 then H.assertEq(made[i], 0, "an enchant makes no item") end
+            end
+        end
+    end
+    H.assertNil(Data(false)[164].makesByPage, "retail ships none")
+end
+
+-- A recipe row: the item it makes on the right, its profession's icon on
+-- the left. The profession row keeps the profession glyph (2026-11-16).
+function tests.aRecipeRowWearsItsItem_andItsProfessionsIcon()
+    local byRecipe, _, profRow, ns = Populate({})
+    H.assertEq(byRecipe[3275].icon, "item 1251", "the bandage, not the craft's spell icon")
+    local env = H.newEnv()
+    local iconNs = H.newNs(env)
+    iconNs.ResultIcons, iconNs.ProfessionGlyphs = {}, ns.ProfessionGlyphs
+    iconNs.PlayerRepCategoryIcon = function() return {} end
+    iconNs.ART, iconNs.SETTING_ICON, iconNs.REP_CATEGORY_ICONS = {}, {}, {}
+    iconNs.Extensions = { ProviderOf = function() end }
+    H.loadModule("Search/Results/Icons.lua", env, iconNs)
+    local Icons = iconNs.ResultIcons
+    H.assertEq(Icons:GetFlatCategoryIcon(byRecipe[3275]).tex, 135966, "First Aid's own icon")
+    H.assertEq(Icons:GetFlatCategoryIcon(profRow).atlas, "UI-HUD-MicroMenu-Professions-Up", "the profession row")
+    H.assertEq(Icons:GetFlatCategoryIcon({ name = "Linen Bandage", category = "Profession", classicRecipe = true,
+        professionName = "Tailoring" }).atlas, "UI-HUD-MicroMenu-Professions-Up", "no icon known: the glyph")
 end
 
 function tests.foreverRecipesFillTheProfession_learnedOrNot()

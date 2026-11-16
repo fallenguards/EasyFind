@@ -314,7 +314,12 @@ function Icons:GetFlatCategoryIcon(data)
     if data.category == "Menu Bar" and data.buttonFrame then return FLAT_CATEGORY_ICONS.menuBar end
     if data.category == "Currency" then return FLAT_CATEGORY_ICONS.currency end
     if data.category == "Housing" then return FLAT_CATEGORY_ICONS.housing end
-    if data.professionSkillLine then return FLAT_CATEGORY_ICONS.profession end
+    -- A recipe wears its profession's icon; the profession rows, the glyph.
+    if data.professionRecipeID or data.classicRecipe then
+        local glyph = ns.ProfessionGlyphs and ns.ProfessionGlyphs[data.professionName]
+        return glyph or FLAT_CATEGORY_ICONS.profession
+    end
+    if data.professionSkillLine or data.classicProfession then return FLAT_CATEGORY_ICONS.profession end
     if data.statisticID or data.category == "Statistic" then return FLAT_CATEGORY_ICONS.statistic end
     if data.titleID then return FLAT_CATEGORY_ICONS.title end
     if data.gearSetID then return FLAT_CATEGORY_ICONS.gearSet end
