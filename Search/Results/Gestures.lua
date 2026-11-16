@@ -54,6 +54,7 @@ local V = {
     clickDrag    = L["HINT_CLICK_DRAG"],
     sendLink     = L["CTX_SEND_LINK"],
     sources      = L["HINT_SOURCES"],
+    wares        = L["HINT_WARES"],
     bosses       = _G["RAID_BOSSES"] or "Bosses",
 }
 Gestures.V = V

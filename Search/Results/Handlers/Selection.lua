@@ -368,6 +368,13 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- A vendor's Shift lists what it sells, as a boss's lists its drops.
+    if data.mapSearchResult and data.npcID and ns.ResultGestures.Held() == "shift"
+       and ns.ItemSources and ns.ItemSources.WareCount(data) then
+        ns.ItemSources:ShowWares(data)
+        return
+    end
+
     -- Catalog item. A click opens where it comes from; the gesture set to
     -- send its link (Shift) picks it onto the cursor in Rows/Interactions.
     -- This path handles Ctrl (try it on in the dressing room) and keyboard

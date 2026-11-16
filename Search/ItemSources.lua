@@ -165,3 +165,108 @@ function ItemSources:ShowView(view, text)
     for i = n + 1, #entries do entries[i] = nil end
     ns.Results:ShowHierarchicalResults(entries)
 end
+
+-- ==== a vendor's wares =====================================================
+-- What a vendor sells, as a page in the bar the way a boss's Shift lists its
+-- drops: every item the catalog has it selling (Npcs.Wares), armor too, its
+-- name and icon from the client. Typing narrows the rows.
+
+local waresDef = { key = "vendorWares", canonical = "wares", token = "", label = "", nestedParent = true,
+                   categoryLookup = {}, bucketLookup = {} }
+local itemLoads = CreateFrame("Frame")
+local refreshPending = false
+local loadingIDs = {}                   -- the page's items not in yet
+local tsort = table.sort
+
+-- How many items a vendor row's creature sells; nil when none is known.
+function ItemSources.WareCount(data)
+    local Npcs = ns.Npcs
+    return data and data.npcID and Npcs and Npcs.WareCount and Npcs.WareCount(data.npcID) or nil
+end
+
+local function ItemName(id)
+    local name = C_Item.GetItemNameByID(id)
+    if type(name) == "string" and name ~= "" then return name end
+    return nil
+end
+
+-- By name, the ones still loading last; one name's items by id.
+local function WareLess(a, b)
+    if a.loading ~= b.loading then return not a.loading end
+    if a.nameLower ~= b.nameLower then return a.nameLower < b.nameLower end
+    return a.itemID < b.itemID
+end
+
+local function WareRows(npcID)
+    local rows, loading = {}, false
+    wipe(loadingIDs)
+    for _, id in ipairs(ns.Npcs.Wares(npcID) or {}) do
+        local name = ItemName(id)
+        if not name then
+            loading = true
+            loadingIDs[id] = true
+            C_Item.RequestLoadItemDataByID(id)
+        end
+        rows[#rows + 1] = { itemID = id, catalogItem = true, lookupRow = true, category = "Item",
+                            name = name or "", nameLower = name and slower(name) or "", loading = not name or nil,
+                            quality = C_Item.GetItemQualityByID(id) }
+    end
+    tsort(rows, WareLess)
+    return rows, loading
+end
+
+function ItemSources:ShowWares(data)
+    waresDef.vendorWares = { npcID = data.npcID, name = data.name }
+    waresDef.rows = nil
+    waresDef.token = "@" .. data.name
+    waresDef.label = data.name
+    ns.Filters:ApplyQuickFilter(waresDef, "")
+end
+
+function ItemSources:ShowWaresView(view, text)
+    local vendor = view.vendorWares
+    if not vendor then return end
+    if not view.rows then
+        local loading
+        view.rows, loading = WareRows(vendor.npcID)
+        if loading then itemLoads:RegisterEvent("ITEM_DATA_LOAD_RESULT") end
+    end
+    for w = #words, 1, -1 do words[w] = nil end
+    for word in slower(text or ""):gmatch("%S+") do words[#words + 1] = word end
+    local n = 0
+    for _, row in ipairs(view.rows) do
+        if Matches(row) then
+            n = n + 1
+            SetEntry(n, row)
+        end
+    end
+    for i = n + 1, #entries do entries[i] = nil end
+    ns.Results:ShowHierarchicalResults(entries)
+end
+
+-- An item the page waits on is in: named, and the page drawn again once
+-- the burst of answers settles.
+itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
+    if not loadingIDs[itemID] then return end
+    loadingIDs[itemID] = nil
+    local rows = waresDef.rows
+    if not rows then
+        self:UnregisterEvent("ITEM_DATA_LOAD_RESULT")
+        return
+    end
+    for _, row in ipairs(rows) do
+        if row.loading and row.itemID == itemID then
+            local name = ok and ItemName(itemID)
+            row.name, row.nameLower, row.loading = name or "", name and slower(name) or "", nil
+        end
+    end
+    if next(loadingIDs) == nil then self:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end
+    if refreshPending then return end
+    refreshPending = true
+    C_Timer.After(0.3, function()
+        refreshPending = false
+        if waresDef.rows ~= rows then return end
+        tsort(rows, WareLess)
+        if ns.Filters:GetQuickFilter() == waresDef and ns.Search then ns.Search:RefreshActiveSearch(true) end
+    end)
+end)

@@ -394,6 +394,8 @@ function Tooltips:SetMapRowTooltip(tooltip, data)
     if data.spotCount and data.spotCount > 1 then
         tooltip:AddLine(sformat(L["TT_PLACE_SPOTS_FMT"], data.spotCount), 0.8, 0.8, 0.8)
     end
+    local wares = ns.ItemSources and ns.ItemSources.WareCount(data)
+    if wares then tooltip:AddLine(sformat(L["TT_VENDOR_SELLS_FMT"], wares), 1, 0.82, 0) end
     return true
 end
 

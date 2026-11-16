@@ -1541,6 +1541,72 @@ function N.Sellers(out, name)
     return out
 end
 
+-- Every item a vendor sells, armor too (dev/tools/npc_catalog.py
+-- pack_wares): read on the first ask into each vendor's list and where
+-- each list starts; a list's ids are read when asked for.
+local wareList, wareAt, wareText
+
+local function Varint(s, p)
+    local v, mul = 0, 1
+    while true do
+        local b = sbyte(s, p)
+        p = p + 1
+        if b < 128 then return v + b * mul, p end
+        v, mul = v + (b - 128) * mul, mul * 128
+    end
+end
+
+local function LoadWares()
+    if wareList ~= nil then return wareList ~= false end
+    local s = N.data and N.data.wares
+    if not s then
+        wareList = false
+        return false
+    end
+    wareList, wareAt, wareText = {}, {}, s
+    local count, p = Varint(s, 1)
+    local id = 0
+    for _ = 1, count do
+        local d, list
+        d, p = Varint(s, p)
+        list, p = Varint(s, p)
+        id = id + d
+        wareList[id] = list + 1
+    end
+    count, p = Varint(s, p)
+    for k = 1, count do
+        wareAt[k] = p
+        local items
+        items, p = Varint(s, p)
+        for _ = 1, items do p = select(2, Varint(s, p)) end
+    end
+    return true
+end
+
+-- How many items creature npcID sells; nil when none is known.
+function N.WareCount(npcID)
+    if not (npcID and LoadWares()) then return nil end
+    local list = wareList[npcID]
+    return list and (Varint(wareText, wareAt[list])) or nil
+end
+
+-- The item ids creature npcID sells, lowest first; nil when it sells
+-- nothing this catalog knows.
+function N.Wares(npcID)
+    if not (npcID and LoadWares()) then return nil end
+    local list = wareList[npcID]
+    if not list then return nil end
+    local items, p = Varint(wareText, wareAt[list])
+    local out, id = {}, 0
+    for k = 1, items do
+        local d
+        d, p = Varint(wareText, p)
+        id = id + d
+        out[k] = id
+    end
+    return out
+end
+
 -- What the filter menu offers: the creature types by id with the client's
 -- names, and the expansions this catalog holds (-1: unknown), in order.
 function N.FilterChoices()

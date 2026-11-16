@@ -964,5 +964,24 @@ function tests.anOlderGPSWritingOverTheCatalog_leavesEasyFindsRows()
     H.assertTrue(named(find(append, "hogger"), "Hogger") ~= nil, "found in EasyFind's own catalog")
 end
 
+-- Every item a vendor sells (dev/tools/npc_catalog.py pack_wares): vendor
+-- count, per vendor its creature id (delta) and list, list count, per list
+-- its item count and ids (delta). Hogger sells list 1, Brog Hamfist list 0.
+function tests.wares_byCreatureId_armorToo()
+    local _, N = fresh()
+    H.assertNil(N.Wares(448), "no wares field: nothing")
+    N.data.wares = varints({ 2, 448, 1, 1076 - 448, 0, 2, 2, 2589, 3, 3, 25, 2361 - 25, 15000 - 2361 })
+    -- A fresh catalog reads it: the module unpacks once, on the first ask.
+    _, N = fresh()
+    N.data.wares = varints({ 2, 448, 1, 1076 - 448, 0, 2, 2, 2589, 3, 3, 25, 2361 - 25, 15000 - 2361 })
+    H.assertEq(table.concat(N.Wares(1076), ","), "2589,2592")
+    H.assertEq(table.concat(N.Wares(448), ","), "25,2361,15000")
+    H.assertEq(N.WareCount(448), 3)
+    H.assertEq(N.WareCount(1076), 2)
+    H.assertNil(N.Wares(6), "a creature that sells nothing")
+    H.assertNil(N.WareCount(6))
+    H.assertNil(N.Wares(nil))
+end
+
 local pass, fail, failures = H.runSuite("Npcs", tests)
 return { pass = pass, fail = fail, failures = failures }

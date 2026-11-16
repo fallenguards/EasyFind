@@ -97,5 +97,86 @@ function tests.anInstanceHasBossesWhenTheSearchDataHoldsOne()
     H.assertFalse(Sources.InstanceHasBosses(nil))
 end
 
+-- A vendor's wares (Forever, 2026-11-15: Kelm Hargunth's row showed where
+-- he stands, never what he sells): Shift on its row opens a page of every
+-- item it sells, armor too, by name, the ones the client is still loading
+-- last and named as they arrive; typing narrows the rows.
+local function waresWorld()
+    local env = H.newEnv()
+    local shown, applied, frames = nil, nil, {}
+    local ns = H.newNs(env)
+    env.EasyFind = { API = {} }
+    local names = { [100] = "Warsong Gulch Runecloth Bandage", [200] = "Outrider's Bow", [300] = "Sentinel's Leather Pants" }
+    local asked = {}
+    env.C_Item = {
+        GetItemNameByID = function(id) return names[id] end,
+        GetItemQualityByID = function(id) return id == 200 and 3 or 1 end,
+        RequestLoadItemDataByID = function(id) asked[#asked + 1] = id end,
+    }
+    env.CreateFrame = function() local f = H.newFrame() frames[#frames + 1] = f return f end
+    local later = {}
+    env.C_Timer = { After = function(_, fn) later[#later + 1] = fn end }
+    ns.Npcs = {
+        Wares = function(id) return id == 14754 and { 100, 200, 300, 400 } or nil end,
+        WareCount = function(id) return id == 14754 and 4 or nil end,
+    }
+    ns.Filters = { ApplyQuickFilter = function(_, def, text) applied = { def = def, text = text } end,
+                   GetQuickFilter = function() return applied and applied.def end }
+    local refreshed = 0
+    ns.Search = { RefreshActiveSearch = function() refreshed = refreshed + 1 end }
+    ns.Results = { ShowHierarchicalResults = function(_, entries)
+        shown = {}
+        for i = 1, #entries do shown[i] = entries[i].data end
+    end }
+    H.loadModule("Search/ItemSources.lua", env, ns)
+    return {
+        Sources = ns.ItemSources, shown = function() return shown end, applied = function() return applied end,
+        names = names, asked = asked, later = later, refreshed = function() return refreshed end,
+        loads = function() local f = frames[#frames] return function(...) return f:GetScript("OnEvent")(f, ...) end end,
+    }
+end
+
+function tests.aVendorsShift_listsEveryItemItSells()
+    local w = waresWorld()
+    local S = w.Sources
+    local kelm = { name = "Kelm Hargunth", npcID = 14754, mapSearchResult = true }
+    H.assertEq(S.WareCount(kelm), 4)
+    H.assertNil(S.WareCount({ name = "Hogger", npcID = 448 }), "no wares: no page offered")
+    S:ShowWares(kelm)
+    local def = w.applied().def
+    H.assertEq(def.token, "@Kelm Hargunth")
+    H.assertEq(def.vendorWares.npcID, 14754)
+    S:ShowWaresView(def, "")
+    local rows = w.shown()
+    H.assertEq(#rows, 4, "armor too: every item")
+    H.assertEq(rows[1].name, "Outrider's Bow", "by name")
+    H.assertEq(rows[2].name, "Sentinel's Leather Pants")
+    H.assertEq(rows[3].name, "Warsong Gulch Runecloth Bandage")
+    H.assertEq(rows[4].itemID, 400, "the one the client is still loading: last")
+    H.assertTrue(rows[1].catalogItem and rows[1].itemID == 200 and rows[1].quality == 3, "an item row, its quality")
+    H.assertEq(table.concat(w.asked, ","), "400", "the client asked for the unknown one")
+    S:ShowWaresView(def, "bandage")
+    H.assertEq(#w.shown(), 1, "typing narrows")
+    H.assertEq(w.shown()[1].itemID, 100)
+end
+
+function tests.aWareArriving_namesItsRow_othersItemsIgnored()
+    local w = waresWorld()
+    local S = w.Sources
+    S:ShowWares({ name = "Kelm Hargunth", npcID = 14754 })
+    local def = w.applied().def
+    S:ShowWaresView(def, "")
+    local onEvent = w.loads()
+    onEvent("ITEM_DATA_LOAD_RESULT", 999, true)
+    H.assertEq(#w.later, 0, "another addon's item: nothing")
+    w.names[400] = "Advisor's Gnarled Staff"
+    onEvent("ITEM_DATA_LOAD_RESULT", 400, true)
+    H.assertEq(#w.later, 1, "drawn again once the answers settle")
+    w.later[1]()
+    H.assertEq(w.refreshed(), 1)
+    S:ShowWaresView(def, "")
+    H.assertEq(w.shown()[1].name, "Advisor's Gnarled Staff", "named and sorted in")
+end
+
 local pass, fail, failures = H.runSuite("ItemSources", tests)
 return { pass = pass, fail = fail, failures = failures }

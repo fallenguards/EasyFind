@@ -48,6 +48,7 @@ local HINTS = {
     gearSet          = Hint(V.click, V.equipGearSet),
     openMap          = Hint(V.click, V.openMap),
     pinOnMap         = Hint(V.click, V.pinOnMap),
+    pinOrWares       = Hint(V.click, V.pinOnMap, "Shift", V.wares),
     encounter        = Hint(V.click, V.encounter, "Shift", V.loot),
     bossLoot         = Hint(V.click, V.loot),
     settings         = Hint(V.click, V.settings),
@@ -89,6 +90,7 @@ function Handlers:GetActionHint(data)
     if data.gearSetID then return HINTS.gearSet end
     if data.mapSearchResult then
         if data.isZone then return HINTS.openMap end
+        if ns.ItemSources and ns.ItemSources.WareCount(data) then return HINTS.pinOrWares end
         return HINTS.pinOnMap
     end
     if data.encounterID and data.category == "Boss" then
