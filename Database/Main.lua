@@ -4607,6 +4607,13 @@ function Database:PopulateDynamicProfessions()
                     -- page filtered to LEARNED only (a learned recipe proves the
                     -- character has that expansion), so it degrades safely.
                     local ownedPages = ns.KnownExpansionPages and ns.KnownExpansionPages(skillLine)
+                    -- Forever: one page per profession, owned by knowing it.
+                    if not (ownedPages and #ownedPages > 0) and ns.Caps and ns.Caps.forever then
+                        local only = next(profData.recipesByPage)
+                        if only and next(profData.recipesByPage, only) == nil then
+                            ownedPages = { { professionID = only } }
+                        end
+                    end
                     local fallbackLearnedOnly = not (ownedPages and #ownedPages > 0)
                     if fallbackLearnedOnly then pagesUnresolved = true end
                     local pageIDsToScan = {}
