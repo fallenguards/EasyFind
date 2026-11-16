@@ -29,6 +29,7 @@ local SetSuperTrackedVignette = C_SuperTrack and C_SuperTrack.SetSuperTrackedVig
 -- The native waypoint and its arrow, where the client has them; Classic
 -- Era and TBC Anniversary draw only EasyFind's own map pin.
 local WAYPOINTS = SetUserWaypoint ~= nil and C_SuperTrack ~= nil and UiMapPoint ~= nil
+MapSearch.HasGameWaypoint = WAYPOINTS
 local IsOrphanZone = MapUtils.IsOrphanZone
 
 local function PinYAsc(a, b)
@@ -45,6 +46,9 @@ local activePinState = nil
 local routeEndPinned = false
 local efTrackedVignetteGUID = nil
 local efPlacedWaypoint = false
+-- Where EasyFind's game waypoint stands, as the client stored it: an update
+-- that leaves it there (a super-track) keeps it ours.
+local efPoint
 -- True only for the brief window while EasyFind itself is calling
 -- SetUserWaypoint. USER_WAYPOINT_UPDATED fires synchronously inside that call,
 -- so the handler reads this to tell an EasyFind placement from the player
@@ -101,10 +105,11 @@ end)
 
 -- Our waypoint and super-track changes wait out an open world map: one made
 -- under it rebuilds the game's pin in our name, and Shift-click is refused.
+-- A clear goes at once: the next pin still shared (/efd pinopenclear, 2026-11-17).
 local WAYPOINT_WAIT_ORDER = { "clear", "place", "quest", "vignette", "track" }
 local waypointWaits = {}
 function MapSearch.WaypointChange(kind, fn)
-    if WorldMapFrame and WorldMapFrame:IsShown() then
+    if kind ~= "clear" and WorldMapFrame and WorldMapFrame:IsShown() then
         waypointWaits[kind] = fn
         return
     end
@@ -123,18 +128,42 @@ end
 -- Place the native user waypoint on EasyFind's behalf and mark it as ours.
 -- The flags are set BEFORE SetUserWaypoint because it fires the update event
 -- synchronously and the handler reads them during that call.
-local function EFPlaceWaypoint(point)
+local function EFPlaceWaypoint(point, after)
     if not WAYPOINTS then return end
     MapSearch.WaypointChange("place", function()
         efSettingWaypoint = true
         efPlacedWaypoint = true
         SetUserWaypoint(point)
         efSettingWaypoint = false
+        local wp = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+        efPoint = wp and wp.position and { wp.uiMapID, wp.position.x, wp.position.y } or nil
+        if after then after() end
     end)
 end
 
-local function EFPlaceWaypointAt(mapID, x, y)
-    if WAYPOINTS then EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y)) end
+-- The game's waypoint still where EasyFind put it.
+local function StillOurs()
+    local wp = efPoint and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    return wp ~= nil and wp.position ~= nil and wp.uiMapID == efPoint[1]
+        and math.abs(wp.position.x - efPoint[2]) < 0.0005 and math.abs(wp.position.y - efPoint[3]) < 0.0005
+end
+MapSearch._StillOurs = StillOurs   -- tests
+
+-- Our pin marks this waypoint's spot (one of a cluster's too). A GPS step's
+-- waypoint stands elsewhere: its clear between steps leaves the pin.
+local function PinMarks(point)
+    local s = activePinState
+    if not (s and point and s.mapID == point[1]) then return false end
+    local function Near(x, y) return x ~= nil and math.abs(x - point[2]) < 0.001 and math.abs(y - point[3]) < 0.001 end
+    if Near(s.x, s.y) then return true end
+    for _, spot in ipairs(s.instances or {}) do
+        if Near(spot.x, spot.y) then return true end
+    end
+    return false
+end
+
+local function EFPlaceWaypointAt(mapID, x, y, after)
+    if WAYPOINTS then EFPlaceWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y), after) end
 end
 
 local function TrackWaypoint(on)
@@ -160,10 +189,10 @@ end
 -- from the current view without waiting for the map to change. Entrances
 -- previously drew only an overlay pin and placed no waypoint, so their results
 -- could not be tracked at all.
-local function PlaceTrackedWaypoint(mapID, x, y)
+local function PlaceTrackedWaypoint(mapID, x, y, after)
     if not (mapID and x and y) then return end
     if x < 0 or x > 1 or y < 0 or y > 1 then return end
-    EFPlaceWaypointAt(mapID, x, y)
+    EFPlaceWaypointAt(mapID, x, y, after)
     if EasyFind.db.autoTrackPins ~= false then
         TrackWaypoint(true)
     end
@@ -278,9 +307,13 @@ loadingScreenFrame:SetScript("OnEvent", function(_, event, isInitialLogin, isRel
         -- it. This runs before auto-track so a player waypoint is never
         -- super-tracked or (later) auto-cleared as if EasyFind had placed it.
         if WAYPOINTS and not HasUserWaypoint() then
-            efPlacedWaypoint = false
-        elseif event == "USER_WAYPOINT_UPDATED" and not efSettingWaypoint then
-            efPlacedWaypoint = false
+            local gone = efPlacedWaypoint and efPoint
+            efPlacedWaypoint, efPoint = false, nil
+            -- Ours cleared by the player (the game's pin, its tracker): our
+            -- pin on the spot goes with it. Our own clear unowns it first.
+            if gone and PinMarks(gone) then MapSearch:ClearAll() end
+        elseif event == "USER_WAYPOINT_UPDATED" and not efSettingWaypoint and not StillOurs() then
+            efPlacedWaypoint, efPoint = false, nil
         end
 
         -- Keep EasyFind's own waypoint super-tracked (never the player's).
@@ -708,6 +741,29 @@ end
 -- per-surface *MapDirectOpen SavedVariables. Used by the right-click
 -- Guide menu to force breadcrumb/teaching mode regardless of the
 -- user's default left-click setting.
+-- The one spot a result's game waypoint goes to: an instance's entrance, a
+-- cluster's nearest on the viewed map, else the result's own spot.
+local function WaypointSpot(data)
+    local viewed = WorldMapFrame:GetMapID()
+    local ex, ey = data.entranceX or data.x, data.entranceY or data.y
+    if data.isDungeonEntrance and data.entranceMapID and ex and ey then return data.entranceMapID, ex, ey end
+    if data.isZone then return nil end
+    local spots = data.allInstances
+    if spots and #spots > 1 then
+        spots = MapSearch.SpotsOnMap(spots, viewed)
+        local nearest = #spots > 0 and MapSearch:GetNearestInstance(spots, viewed)
+        if nearest and nearest.x then return nearest.mapID or viewed, nearest.x, nearest.y end
+    end
+    local spot = spots and #spots == 1 and spots[1] or data
+    if not (spot.x and spot.y) then return nil end
+    return spot.coordMapID or viewed, spot.x, spot.y
+end
+MapSearch._WaypointSpot = WaypointSpot   -- tests
+
+function MapSearch.WaypointOnly()
+    return WAYPOINTS and EasyFind.db.mapWaypointOnly == true
+end
+
 function MapSearch:SelectResult(data, directOverride)
     if data and data.placeOf then self.ResolvePlace(data) end
     self._previewing = nil
@@ -729,6 +785,26 @@ function MapSearch:SelectResult(data, directOverride)
             self:ClearZoneHighlight()
             MapSearch.TurnMap(data.zoneMapID)
             return
+        end
+
+        -- The game's waypoint alone (an option): no pin of ours to clear after.
+        if MapSearch.WaypointOnly() then
+            local mapID, x, y = WaypointSpot(data)
+            if mapID then
+                self:ClearAll()
+                self:ClearZoneHighlight()
+                if WorldMapFrame:IsShown() and mapID ~= WorldMapFrame:GetMapID() then MapSearch.TurnMap(mapID) end
+                -- Under the open map the waypoint waits for its close: our pin
+                -- stands in till then and goes as the waypoint lands.
+                if WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() == mapID then
+                    self:ShowWaypointAt(x, y, data.icon, data.category, nil, data.displayID)
+                end
+                PlaceTrackedWaypoint(mapID, x, y, function()
+                    activePinState = nil
+                    MapSearch:ClearHighlight()
+                end)
+                return
+            end
         end
 
         local directMode
@@ -1241,7 +1317,7 @@ function MapSearch:ClearAll()
     MapSearch.DropWaypointChange("place")
     -- Only clear Blizzard waypoint if EasyFind placed it
     if efPlacedWaypoint then
-        efPlacedWaypoint = false
+        efPlacedWaypoint, efPoint = false, nil
         TrackWaypoint(false)
         if WAYPOINTS then
             MapSearch.WaypointChange("clear", function() if HasUserWaypoint() then ClearUserWaypoint() end end)

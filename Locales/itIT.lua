@@ -191,6 +191,8 @@ L["OPT_ICON_SIZE_TT"]                   = "Regola la dimensione delle icone dei 
 L["OPT_AUTO_TRACK_RARES_TT"]            = "Le creature rare attive vengono sempre mostrate come segnaposti sulla mappa senza dover cercare."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "Posizionare un segnaposto sulla mappa (Ctrl+Clic) avvia automaticamente il tracciamento del percorso di Blizzard."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "Il tuo segnaposto viene cancellato automaticamente quando Blizzard segnala l'arrivo. Disattiva se preferisci cancellarli manualmente."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "Solo il punto di percorso del gioco"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "Un risultato della mappa piazza solo il punto di percorso del gioco, senza il segnaposto di EasyFind da togliere dopo."
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100Avvio rapido:|r  Usa la scorciatoia di attivazione che hai impostato nel tutorial (vedi {L:tutorial}tutorial{/L} se devi ancora impostarla) o clicca sull'icona della minimappa per aprire la barra di ricerca. Digita nella barra di ricerca per trovare pannelli dell'interfaccia, luoghi sulla mappa e altro. Clicca un risultato per andarci o usare l'oggetto, a seconda di cosa sia. Fai clic destro su un risultato per opzioni aggiuntive."
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100Casella di ricerca:|r\n"

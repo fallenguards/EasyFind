@@ -113,7 +113,7 @@ local UI_RESET_KEYS = {
 -- Restored from ns.DB_DEFAULTS so the reset can never drift from the
 -- first-run defaults (a duplicated copy here once re-enabled auto-track).
 local MAP_RESET_KEYS = {
-    "iconScale", "mapPinStyle", "blinkingPins", "autoPinClear",
+    "iconScale", "mapPinStyle", "blinkingPins", "autoPinClear", "mapWaypointOnly",
     "autoTrackPins", "globalSearchFilters", "localSearchFilters",
     "mapTabFilters", "alwaysShowRares", "mapTabShowRecent",
     "mapTabAutoExpand", "mapTabShowParents", "mapTabRecentCount", "mapTabFontSize",
@@ -211,6 +211,7 @@ local function SyncOptionControls()
     if optionsFrame.blinkingPinsCheckbox then optionsFrame.blinkingPinsCheckbox:SetChecked(EasyFind.db.blinkingPins or false) end
     if optionsFrame.autoTrackPinsCheckbox then optionsFrame.autoTrackPinsCheckbox:SetChecked(EasyFind.db.autoTrackPins ~= false) end
     if optionsFrame.autoPinClearCheckbox then optionsFrame.autoPinClearCheckbox:SetChecked(EasyFind.db.autoPinClear ~= false) end
+    if optionsFrame.waypointOnlyCheckbox then optionsFrame.waypointOnlyCheckbox:SetChecked(EasyFind.db.mapWaypointOnly == true) end
     if optionsFrame.UpdateMapToggleVisual then optionsFrame.UpdateMapToggleVisual() end
 
     if optionsFrame.RetintIndicatorPreviews then optionsFrame.RetintIndicatorPreviews() end
@@ -2903,8 +2904,23 @@ local function BuildMapTab(ctx)
     mapIconSettings:AddControl(autoTrackPinsCheckbox)
     mapIconSettings:AddControl(autoPinClearCheckbox)
 
+    -- The game's waypoint alone, where the client has one (not Era, TBC).
+    local lastCheckbox = autoPinClearCheckbox
+    if ns.MapSearch and ns.MapSearch.HasGameWaypoint then
+        local waypointOnlyCheckbox = CreateCheckbox(mapIconSettings, "MapWaypointOnly", L["OPT_MAP_WAYPOINT_ONLY"],
+            L["OPT_MAP_WAYPOINT_ONLY_TT"], false, GROUP_W)
+        waypointOnlyCheckbox:SetPoint("TOPLEFT", autoPinClearCheckbox, "BOTTOMLEFT", 0, 0)
+        waypointOnlyCheckbox:SetChecked(EasyFind.db.mapWaypointOnly == true)
+        waypointOnlyCheckbox:SetScript("OnClick", function(self)
+            EasyFind.db.mapWaypointOnly = self:GetChecked() or nil
+        end)
+        optionsFrame.waypointOnlyCheckbox = waypointOnlyCheckbox
+        mapIconSettings:AddControl(waypointOnlyCheckbox)
+        lastCheckbox = waypointOnlyCheckbox
+    end
+
     -- The preset rows sit under the run of checkboxes.
-    mapPinStyleRow:SetPoint("TOPLEFT", autoPinClearCheckbox, "BOTTOMLEFT", 0, 0)
+    mapPinStyleRow:SetPoint("TOPLEFT", lastCheckbox, "BOTTOMLEFT", 0, 0)
     mapIconSettings:AddControl(mapPinStyleRow)
     mapIconPresetRow:SetPoint("TOPLEFT", mapPinStyleRow, "BOTTOMLEFT", 0, 0)
     mapIconSettings:AddControl(mapIconPresetRow)

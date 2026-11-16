@@ -191,6 +191,8 @@ L["OPT_ICON_SIZE_TT"]                   = "Ajusta el tamaño de los iconos de re
 L["OPT_AUTO_TRACK_RARES_TT"]            = "Las criaturas raras activas se muestran siempre como marcadores en el mapa sin necesidad de buscar."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "Colocar un marcador de mapa (Ctrl+Clic) inicia automáticamente el seguimiento de ruta de Blizzard."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "Tu marcador se borra automáticamente cuando Blizzard informa de la llegada. Desactívalo si prefieres borrarlos manualmente."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "Solo el punto de ruta del juego"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "Un resultado del mapa coloca solo el punto de ruta del propio juego, sin el marcador de EasyFind que luego hay que quitar."
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100Inicio rápido:|r  Usa el atajo para alternar que configuraste en el tutorial (consulta {L:tutorial}tutorial{/L} si aún necesitas configurarlo) o haz clic en el icono del minimapa para abrir la barra de búsqueda. Escribe en la barra de búsqueda para encontrar paneles de interfaz, lugares del mapa y más. Haz clic en un resultado para ir allí o usar el objeto, según lo que sea. Haz clic derecho en un resultado para opciones adicionales."
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100Cuadro de búsqueda:|r\n"

@@ -114,6 +114,7 @@ local DB_DEFAULTS = {
     mapPinStyle = "glow",
     autoPinClear = true,
     autoTrackPins = true,
+    mapWaypointOnly = false,
     uiResultsAbove = false,
     showResultShortcutHints = true,
     showMinimapButton = true,

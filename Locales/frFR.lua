@@ -191,6 +191,8 @@ L["OPT_ICON_SIZE_TT"]                   = "Ajuste la taille des icônes de résu
 L["OPT_AUTO_TRACK_RARES_TT"]            = "Les créatures rares actives sont toujours affichées comme marqueurs sur la carte sans avoir à chercher."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "Placer un marqueur de carte (Ctrl+Clic) démarre automatiquement le suivi de point de cheminement de Blizzard."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "Votre marqueur est effacé automatiquement quand Blizzard signale l'arrivée. Désactivez si vous préférez les effacer manuellement."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "Point de cheminement du jeu seul"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "Un résultat de carte place seulement le point de cheminement du jeu, sans le marqueur d'EasyFind à effacer ensuite."
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100Démarrage rapide :|r  Utilisez le raccourci d'affichage que vous avez défini dans le tutoriel (voir {L:tutorial}tutoriel{/L} si vous devez encore le configurer) ou cliquez sur l'icône de la minicarte pour ouvrir la barre de recherche. Tapez dans la barre de recherche pour trouver des panneaux d'interface, des lieux sur la carte et plus. Cliquez sur un résultat pour vous y rendre ou utiliser l'objet, selon ce dont il s'agit. Faites un clic droit sur un résultat pour des options supplémentaires."
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100Champ de recherche :|r\n"

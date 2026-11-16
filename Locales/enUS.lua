@@ -211,6 +211,8 @@ L["OPT_ICON_SIZE_TT"]                   = "Adjusts the size of map search result
 L["OPT_AUTO_TRACK_RARES_TT"]            = "When enabled, active rare mobs are always displayed as pins on the world map without needing to search."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "Placing a map pin (Ctrl+Click) automatically starts Blizzard waypoint tracking."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "Your map pin is automatically cleared when Blizzard reports arrival. Disable if you prefer to clear pins manually."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "Game Waypoint Only"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "A map result places only the game's own waypoint, without EasyFind's pin to clear after."
 
 -- Multi-line text blocks
 L["OPT_HOME_QUICKSTART"]                =

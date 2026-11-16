@@ -543,7 +543,7 @@ local function MapRows()
     local function Refresh(method)
         return function() Soon(function() if ns.MapSearch and ns.MapSearch[method] then ns.MapSearch[method](ns.MapSearch) end end) end
     end
-    return {
+    local rows = {
         Check(L["OPT_ENABLE_MAP_MODULE"], L["OPT_ENABLE_MAP_TT"],
             function() return db.enableMapSearch ~= false end, SettingsRows.SetMapEnabled),
         Check(L["OPT_SHOW_RECENT_SEARCHES"], L["OPT_SHOW_RECENT_TT"],
@@ -622,6 +622,18 @@ local function MapRows()
                 if indicator then indicator:SetScale(db.iconScale or 0.8) end
             end),
     }
+    -- The game's waypoint alone, where the client has one (not Era, TBC).
+    if not (ns.MapSearch and ns.MapSearch.HasGameWaypoint == false) then
+        for i, row in ipairs(rows) do
+            if row.name == L["OPT_AUTO_CLEAR_MAP_PINS"] then
+                table.insert(rows, i + 1, Check(L["OPT_MAP_WAYPOINT_ONLY"], L["OPT_MAP_WAYPOINT_ONLY_TT"],
+                    function() return db.mapWaypointOnly == true end,
+                    function(on) db.mapWaypointOnly = on or nil end))
+                break
+            end
+        end
+    end
+    return rows
 end
 
 -- A list tab's tools: clear, export and import its list.

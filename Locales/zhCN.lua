@@ -191,6 +191,8 @@ L["OPT_ICON_SIZE_TT"]                   = "调整世界地图上搜索结果图�
 L["OPT_AUTO_TRACK_RARES_TT"]            = "启用后，无需搜索即可始终在世界地图上以标记显示活跃的稀有怪。"
 L["OPT_AUTO_TRACK_PINS_TT"]             = "放置地图标记（Ctrl+单击）会自动开始暴雪路径点追踪。"
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "当暴雪报告到达时，你的地图标记会自动清除。如果你想手动清除，请禁用此项。"
+L["OPT_MAP_WAYPOINT_ONLY"]              = "仅游戏路径点"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "地图结果只放置游戏自带的路径点，不再有需要事后清除的 EasyFind 标记。"
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100快速开始：|r  使用你在教程中设置的切换快捷键（若尚未设置，请见{L:tutorial}教程{/L}）或单击小地图图标打开搜索栏。在搜索栏中输入即可查找界面面板、地图位置等。单击结果可前往该处，或根据其类型使用该物品。右键单击结果可获得更多选项。"
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100搜索框：|r\n"

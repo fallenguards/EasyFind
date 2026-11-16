@@ -191,6 +191,8 @@ L["OPT_ICON_SIZE_TT"]                   = "세계 지도의 검색 결과 아이
 L["OPT_AUTO_TRACK_RARES_TT"]            = "활성화하면 검색하지 않아도 활동 중인 희귀 몹이 항상 지도에 표식으로 표시됩니다."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "지도 표식을 찍으면(Ctrl+클릭) 블리자드 경로 추적이 자동으로 시작됩니다."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "블리자드가 도착을 알리면 표식이 자동으로 제거됩니다. 직접 제거하려면 끄세요."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "게임 경로 지점만"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "지도 결과가 EasyFind 표식 없이 게임 자체 경로 지점만 찍습니다. 나중에 따로 지울 필요가 없습니다."
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100빠른 시작:|r  튜토리얼에서 설정한 토글 단축키를 사용하거나(아직 설정하지 않았다면 {L:tutorial}튜토리얼{/L} 참고) 미니맵 아이콘을 클릭해 검색창을 여세요. 검색창에 입력해 UI 패널, 지도 장소 등을 찾으세요. 결과를 클릭하면 그곳으로 이동하거나, 항목에 따라 해당 아이템을 사용합니다. 결과를 우클릭하면 추가 옵션이 나옵니다."
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100검색창:|r\n"

@@ -193,6 +193,8 @@ L["OPT_ICON_SIZE_TT"]                   = "Passt die Größe der Kartensuch-Erge
 L["OPT_AUTO_TRACK_RARES_TT"]            = "Aktive seltene Gegner werden ohne Suche dauerhaft als Markierungen auf der Weltkarte angezeigt."
 L["OPT_AUTO_TRACK_PINS_TT"]             = "Das Setzen einer Kartenmarkierung (Strg+Klick) startet automatisch die Blizzard-Wegpunktverfolgung."
 L["OPT_AUTO_PIN_CLEAR_TT"]              = "Deine Kartenmarkierung wird automatisch entfernt, sobald Blizzard die Ankunft meldet. Deaktivieren, um Markierungen manuell zu entfernen."
+L["OPT_MAP_WAYPOINT_ONLY"]              = "Nur Wegpunkt des Spiels"
+L["OPT_MAP_WAYPOINT_ONLY_TT"]           = "Ein Kartenergebnis setzt nur den Wegpunkt des Spiels, ohne die Markierung von EasyFind, die danach entfernt werden muss."
 L["OPT_HOME_QUICKSTART"]                = "|cFFFFD100Schnellstart:|r  Nutze die Tastenbelegung zum Umschalten, die du im Tutorial festgelegt hast (siehe {L:tutorial}Tutorial{/L}, falls du sie noch einstellen musst), oder klicke auf das Minikartensymbol, um die Suchleiste zu öffnen. Tippe in die Suchleiste, um UI-Fenster, Kartenorte und mehr zu finden. Klicke ein Ergebnis an, um dorthin zu navigieren oder den Gegenstand zu nutzen, je nachdem, worum es sich handelt. Rechtsklicke ein Ergebnis für weitere Optionen."
 L["OPT_SHORTCUTS_TEXT"]                 =
     "|cFFFFD100Suchfeld:|r\n"
