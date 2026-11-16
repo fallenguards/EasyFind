@@ -322,6 +322,22 @@ local function CollapsedNodes()
     return Results._collapsedNodes
 end
 
+-- What Shift+drag puts on the cursor. A profession row carries the spell
+-- that opens its window; a classic recipe row carries that spell too, and
+-- is no spell of its own.
+function Rows.CanPickUp(d)
+    if not d then return false end
+    if d.mountID then return Icons:IsMountSummonable(d) end
+    if d.toyItemID then return not d.isToyboxOnly end
+    if d.petID then return true end
+    if d.outfitID or d.macroIndex then return true end
+    if d.spellID then
+        if d.category == "Profession" then return not d.classicRecipe end
+        return d.category == "Ability" and not Icons:IsSpellbookOnlyAbility(d)
+    end
+    return (d.bagID and d.bagSlot) or d.itemID
+end
+
 function Rows.InstallInteractions(resultRow, index)
     EnsureChatHyperlinkTracking()
     EnsureItemDropRouting()
@@ -360,17 +376,7 @@ function Rows.InstallInteractions(resultRow, index)
     local function PickupItemCompat(itemID)
         if pickupItem then pickupItem(itemID) end
     end
-    local function CanPickupRowAction(d)
-        if not d then return false end
-        if d.mountID then return Icons:IsMountSummonable(d) end
-        if d.toyItemID then return not d.isToyboxOnly end
-        if d.petID then return true end
-        if d.outfitID or d.macroIndex then return true end
-        if d.spellID then
-            return d.category == "Ability" and not Icons:IsSpellbookOnlyAbility(d)
-        end
-        return (d.bagID and d.bagSlot) or d.itemID
-    end
+    local CanPickupRowAction = Rows.CanPickUp
     -- Rows whose only action is "put the item on the cursor so it can be
     -- linked": the catalog, plus anything stored where this character cannot
     -- reach it. They share one click/drag behaviour so the player never has to
