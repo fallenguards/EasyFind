@@ -289,6 +289,136 @@ local function OpenProfessionTarget(data)
     OpenPageOrBook(openID)
 end
 
+-- Crafting from a recipe row, as its window's Create. The game crafts only
+-- in an open profession, inside the player's press (EasyFindDev craftquiet).
+local craft = { events = CreateFrame("Frame"), run = CreateFrame("Frame"), open = false }
+
+-- Is the recipe's profession the one open now?
+function Handlers.RecipeProfessionOpen(data)
+    local ts = C_TradeSkillUI
+    if not (craft.open and data and ts.GetBaseProfessionInfo) then return false end
+    local base, child = ts.GetBaseProfessionInfo(), ts.GetChildProfessionInfo and ts.GetChildProfessionInfo()
+    local want, page = data.professionSkillLine, data.professionOpenID or false
+    local function Is(id) return id ~= nil and (id == want or id == page) end
+    return Is(base and base.professionID) or Is(base and base.parentProfessionID) or Is(child and child.professionID)
+end
+
+craft.events:SetScript("OnEvent", function(_, event)
+    craft.open = event == "TRADE_SKILL_SHOW"
+end)
+craft.events:RegisterEvent("TRADE_SKILL_SHOW")
+craft.events:RegisterEvent("TRADE_SKILL_CLOSE")
+
+-- The profession a craft opened: shut, its window back as it was.
+local function EndUnseen()
+    local u = craft.unseen
+    if not u then return end
+    craft.unseen = nil
+    craft.run:UnregisterAllEvents()
+    if craft.open then C_TradeSkillUI.CloseTradeSkill() end
+    local f = u.frame
+    if not f then return end
+    f:SetAlpha(u.alpha)
+    f:ClearAllPoints()
+    for _, p in ipairs(u.points) do f:SetPoint(p[1], p[2], p[3], p[4], p[5]) end
+end
+
+-- A craft the server has not started within 3 s will not start.
+local function AwaitStart(u)
+    u.wait = u.wait + 1
+    local token = u.wait
+    Utils.SafeAfter(3, function()
+        if craft.unseen == u and u.wait == token then EndUnseen() end
+    end)
+end
+
+-- A close before the server takes a craft drops it, and one at a cast's
+-- start drops the rest: the last start shuts it.
+craft.run:SetScript("OnEvent", function(_, event, _, _, spellID)
+    local u = craft.unseen
+    if not u then return end
+    if event ~= "TRADE_SKILL_CLOSE" then
+        if issecretvalue and issecretvalue(spellID) or spellID ~= u.recipeID then return end
+        if event == "UNIT_SPELLCAST_START" then
+            u.left, u.wait = u.left - 1, u.wait + 1
+            if u.left > 0 then return end
+        elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+            return AwaitStart(u)
+        end
+    end
+    EndUnseen()
+end)
+
+-- A closed profession opened inside the press, unseen: alpha 0 and off
+-- screen (at alpha 0 it still takes clicks), as CUIF parks its page.
+local function OpenUnseen(data)
+    EndUnseen()
+    -- Another profession up in its window: the player's, switched in sight.
+    local inSight = craft.open
+    C_TradeSkillUI.OpenTradeSkill(data.professionSkillLine)
+    if not Handlers.RecipeProfessionOpen(data) then return false end
+    if inSight then return true end
+    local f = _G["ProfessionsFrame"]
+    local u = { frame = f, left = 0, wait = 0 }
+    if f then
+        u.alpha, u.points = f:GetAlpha(), {}
+        for i = 1, f:GetNumPoints() do u.points[i] = { f:GetPoint(i) } end
+        f:SetAlpha(0)
+        f:ClearAllPoints()
+        f:SetPoint("TOPLEFT", UIParent, "TOPRIGHT", 6000, 0)
+    end
+    craft.unseen = u
+    local run = craft.run
+    run:RegisterUnitEvent("UNIT_SPELLCAST_START", "player")
+    run:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    run:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", "player")
+    run:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", "player")
+    run:RegisterEvent("TRADE_SKILL_CLOSE")
+    return true
+end
+
+-- How many the bags make: the fewest of any required reagent's lots. nil
+-- when a reagent comes in more than one kind (retail's qualities): which
+-- to spend is the window's choice to make.
+function Handlers.CraftableCount(recipeID)
+    local ts = C_TradeSkillUI
+    local ok, schematic = pcall(ts.GetRecipeSchematic, recipeID, false)
+    local most
+    if ok and type(schematic) == "table" and schematic.reagentSlotSchematics then
+        for _, slot in ipairs(schematic.reagentSlotSchematics) do
+            if slot.required and slot.reagentType == Enum.CraftingReagentType.Basic then
+                if #slot.reagents > 1 then return nil end
+                local reagent = slot.reagents[1]
+                local have = reagent and reagent.itemID and C_Item.GetItemCount(reagent.itemID, false, false, true) or 0
+                local lots = math.floor(have / math.max(1, slot.quantityRequired or 1))
+                most = most and math.min(most, lots) or lots
+            end
+        end
+    end
+    if most then return most end
+    local okCount, count = pcall(ts.GetCraftableCount, recipeID)
+    return okCount and tonumber(count) or 0
+end
+
+-- A learned recipe of the newer profession window, out of a fight.
+function Handlers.CanCraft(data)
+    local recipeID = data and data.professionRecipeID
+    return recipeID ~= nil and C_TradeSkillUI ~= nil and C_TradeSkillUI.CraftRecipe ~= nil
+        and not InCombatLockdown() and C_SpellBook.IsSpellKnown(recipeID) == true
+end
+
+function Handlers:CraftRecipe(data, count)
+    if not Handlers.CanCraft(data) then return end
+    if not Handlers.RecipeProfessionOpen(data) and not OpenUnseen(data) then return end
+    count = math.max(1, count or 1)
+    C_TradeSkillUI.CraftRecipe(data.professionRecipeID, count)
+    local u = craft.unseen
+    if u then
+        u.recipeID, u.left = data.professionRecipeID, count
+        AwaitStart(u)
+    end
+end
+
 -- Where a loot item drops: on retail its boss's journal page, on WoW
 -- Forever directions to the instance (its link into chat when the
 -- instance is not placed). useFast goes straight there; else the guide

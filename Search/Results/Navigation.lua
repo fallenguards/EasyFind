@@ -562,6 +562,7 @@ function Results:UpdateSelectionHighlight(skipRefocus, keepRepeat)
                 Results:SetRowHighlightLocked(resultRow, false)
             end
         end
+        if resultRow.craftGroup then ns.ResultRender.LayoutCraft(resultRow) end
     end
     if sel > 0 then
         if Search:GetSearchFrame().editBox:HasFocus() then

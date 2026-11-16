@@ -472,6 +472,10 @@ local function LayoutRow(owner, resultRow, i, st)
        and not resultRow.isSectionHeader then
         ApplyResultShortcutGutter(resultRow)
     end
+    -- After the gutter: the name's end is final here. Laid before it, the
+    -- controls took the row's edge and the gutter dropped their push until
+    -- the selection pass laid them again (a twitch at every redraw).
+    Render.ApplyCraftControls(resultRow, entry)
     st.yOffset = st.yOffset + actualH
     resultRow:Show()
     Part("gutter")

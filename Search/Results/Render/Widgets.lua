@@ -342,6 +342,205 @@ function Render.SettingsWidget(resultRow, data, entry)
 
 end
 
+-- A learned recipe's craft controls, as its profession window has them:
+-- a count, Create, Create All. Shown on the hovered or selected row, at
+-- the right where the name ended; the name stops short of them.
+local CRAFT_H, CRAFT_GAP, CRAFT_MIN_NAME = 20, 4, 60
+local craft = { shown = {} }
+
+local function RightPoint(region)
+    for i = 1, region:GetNumPoints() do
+        local point, rel, relPoint, x, y = region:GetPoint(i)
+        if point == "RIGHT" then return { rel, relPoint, x, y } end
+    end
+end
+
+-- Where a name ends without the controls: its edge now, unless that is
+-- still their own push (a pass that left the name be), which goes back to
+-- the edge it was pushed from. Taken as the edge, the push stacked: each
+-- redraw slid the name and controls further left.
+local function TakeBack(region, edge, pushed)
+    local now = RightPoint(region)
+    if not (edge and pushed and now and now[1] == pushed[1] and now[2] == pushed[2]
+            and math.abs(now[3] - pushed[3]) < 0.5) then
+        return now
+    end
+    region:SetPoint("RIGHT", edge[1], edge[2], edge[3], edge[4])
+    return edge
+end
+
+local function CraftCount(row)
+    local n = tonumber(row.craftBox:GetText())
+    return n and n > 0 and n or 1
+end
+
+local function Refocus()
+    local frame = ns.Search:GetSearchFrame()
+    local nav = ns.Search:GetNavFrame()
+    if not (frame and frame.editBox) or (nav and nav:IsKeyboardEnabled()) then return end
+    frame.editBox.blockFocus = nil
+    frame.editBox:SetFocus()
+end
+
+local function SelectedRow()
+    local sel = ns.Search:GetSelectedIndex()
+    return sel > 0 and ns.Results:RowFrame(sel) or nil
+end
+
+local function BuildCraft(row)
+    local g = CreateFrame("Frame", nil, row)
+    g:SetFrameLevel(row:GetFrameLevel() + 5)
+    g:SetHeight(CRAFT_H)
+    g:Hide()
+    local minus = ns.CreateModernButton(g, "-", 18, CRAFT_H)
+    minus:SetPoint("LEFT", g, "LEFT", 0, 0)
+    local shell = CreateFrame("Frame", nil, g)
+    shell:SetSize(30, CRAFT_H)
+    shell:SetPoint("LEFT", minus, "RIGHT", 2, 0)
+    local inset = ns.CreateRingedWell(shell, 5)
+    ns.PaintInputWell(shell)
+    local box = CreateFrame("EditBox", nil, inset)
+    box:SetPoint("TOPLEFT", 2, 0)
+    box:SetPoint("BOTTOMRIGHT", -2, 0)
+    box:SetFontObject("GameFontHighlightSmall")
+    box:SetJustifyH("CENTER")
+    box:SetAutoFocus(false)
+    box:SetNumeric(true)
+    box:SetMaxLetters(3)
+    box:SetText("1")
+    local plus = ns.CreateModernButton(g, "+", 18, CRAFT_H)
+    plus:SetPoint("LEFT", shell, "RIGHT", 2, 0)
+    local create = ns.CreateModernButton(g, _G["CREATE_PROFESSION"] or "Create", 60, CRAFT_H)
+    create:SetPoint("LEFT", plus, "RIGHT", CRAFT_GAP, 0)
+    local all = ns.CreateModernButton(g, "", 80, CRAFT_H)
+    all:SetPoint("LEFT", create, "RIGHT", CRAFT_GAP, 0)
+    row.craftGroup, row.craftBox, row.craftCreate, row.craftAll = g, box, create, all
+
+    local function Step(delta)
+        local most = math.max(1, row._craftMost or 1)
+        box:SetText(tostring(math.max(1, math.min(most, CraftCount(row) + delta))))
+    end
+    minus:SetScript("OnClick", function() Step(-1) Refocus() end)
+    plus:SetScript("OnClick", function() Step(1) Refocus() end)
+    create:SetScript("OnClick", function()
+        ns.ResultHandlers:CraftRecipe(row.data, CraftCount(row))
+        Refocus()
+    end)
+    all:SetScript("OnClick", function()
+        ns.ResultHandlers:CraftRecipe(row.data, row._craftMost)
+        Refocus()
+    end)
+    box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    box:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+        ns.ResultHandlers:CraftRecipe(row.data, CraftCount(row))
+        Refocus()
+    end)
+    box:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        Refocus()
+    end)
+    Utils.ReleaseFocusOnOutsideClick(box)
+    local function Recheck() Render.LayoutCraft(row) end
+    for _, control in ipairs({ minus, plus, create, all, box }) do control:HookScript("OnLeave", Recheck) end
+    row:HookScript("OnEnter", Recheck)
+    row:HookScript("OnLeave", Recheck)
+end
+
+craft.events = CreateFrame("Frame")
+craft.events:SetScript("OnEvent", function()
+    for row in pairs(craft.shown) do Render.LayoutCraft(row) end
+end)
+
+-- The hovered control's leave fires inside the hide: a show from there
+-- left the later buttons unseen (EasyFindDev craftrow, 2026-11-17).
+local function HideCraft(row)
+    craft.hiding = true
+    row.craftGroup:Hide()
+    craft.hiding = nil
+    craft.shown[row] = nil
+    if not next(craft.shown) then craft.events:UnregisterEvent("BAG_UPDATE_DELAYED") end
+end
+
+local function Lay(row)
+    local g = row.craftGroup
+    if not (g and row._craftText) then return end
+    local anchor = TakeBack(row.text, row._craftText, row._craftPush) or row._craftText
+    local sub = row._craftSub and (TakeBack(row.pathSubtext, row._craftSub, row._craftSubPush) or row._craftSub)
+    row._craftText, row._craftSub, row._craftPush, row._craftSubPush = anchor, sub, nil, nil
+    local data = row.data
+    local want = row:IsShown() and ns.ResultHandlers.CanCraft(data)
+        and (row:IsMouseOver() or row == SelectedRow() or g:IsMouseOver() or row.craftBox:HasFocus())
+    local most = want and ns.ResultHandlers.CraftableCount(data.professionRecipeID)
+    if most then
+        row._craftMost = most
+        row.craftCreate:SetEnabled(most > 0)
+        row.craftAll:SetEnabled(most > 0)
+        row.craftAll:SetText((_G["PROFESSIONS_CREATE_ALL_FORMAT"] or "%s [%d]")
+            :format(_G["PROFESSIONS_CREATE_ALL"] or "Create All", most))
+        -- The narrowest window keeps a stub of the name; the labels give way.
+        local fixed = 18 + 2 + 30 + 2 + 18 + CRAFT_GAP * 2
+        local room = math.max(80, row:GetWidth() - CRAFT_MIN_NAME - 40 - fixed)
+        ns.FitButtonRow({ row.craftCreate, row.craftAll }, room, CRAFT_GAP, 36)
+        local width = fixed + row.craftCreate:GetWidth() + row.craftAll:GetWidth()
+        g:SetWidth(width)
+        g:ClearAllPoints()
+        g:SetPoint("RIGHT", anchor[1], anchor[2], anchor[3], 0)
+        row.text:SetPoint("RIGHT", anchor[1], anchor[2], anchor[3] - width - 6, anchor[4])
+        row._craftPush = { anchor[1], anchor[2], anchor[3] - width - 6 }
+        if sub then
+            row.pathSubtext:SetPoint("RIGHT", sub[1], sub[2], sub[3] - width - 6, sub[4])
+            row._craftSubPush = { sub[1], sub[2], sub[3] - width - 6 }
+        end
+        if not g:IsShown() then
+            g:Show()
+            craft.shown[row] = true
+            craft.events:RegisterEvent("BAG_UPDATE_DELAYED")
+        end
+    elseif g:IsShown() then
+        HideCraft(row)
+    else
+        return
+    end
+    Render.SetClippedText(row.text, row.text._unclippedText)
+    if row.pathSubtext._unclippedText then Render.SetClippedText(row.pathSubtext, row.pathSubtext._unclippedText) end
+end
+
+-- Show or hide one row's controls by hover, selection and the bags. A
+-- control disabled under the mouse fires its leave inside SetEnabled,
+-- still enabled: a layout from there ran again until the stack overflowed
+-- (Create All's last craft, 2026-11-17). One layout at a time.
+function Render.LayoutCraft(row)
+    if craft.hiding or craft.laying then return end
+    craft.laying = true
+    xpcall(Lay, Utils.ErrorHandler, row)
+    craft.laying = nil
+end
+
+-- At each render: where the name ends with no controls, kept so they
+-- can take that edge and give it back.
+function Render.ApplyCraftControls(resultRow, entry)
+    local data = entry.data
+    local same = resultRow._craftData == data
+    if not same and resultRow.craftBox then resultRow.craftBox:SetText("1") end
+    resultRow._craftData = data
+    local edge = TakeBack(resultRow.text, resultRow._craftText, resultRow._craftPush)
+    local subEdge = TakeBack(resultRow.pathSubtext, resultRow._craftSub, resultRow._craftSubPush)
+    resultRow._craftPush, resultRow._craftSubPush = nil, nil
+    local craftable = data and data.professionRecipeID and not entry.isPathNode and ns.ResultHandlers.CanCraft(data)
+    -- A redraw of the same recipe keeps its controls up: hidden and shown
+    -- under the mouse, a press was lost and the row's tooltip flashed.
+    if resultRow.craftGroup and not (same and craftable) then HideCraft(resultRow) end
+    if not craftable then
+        resultRow._craftText, resultRow._craftSub = nil, nil
+        return
+    end
+    resultRow._craftText = edge
+    resultRow._craftSub = resultRow.pathSubtext:IsShown() and subEdge or nil
+    if not resultRow.craftGroup then BuildCraft(resultRow) end
+    Render.LayoutCraft(resultRow)
+end
+
 function Render.CalculatorRow(self, resultRow, data, state)
     SetClippedText(resultRow.text, "")
     resultRow.amountText:Hide()
