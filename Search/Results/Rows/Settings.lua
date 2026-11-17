@@ -7,6 +7,7 @@ local Rows = ns.ResultRows
 local sformat, unpack = ns.Utils.sformat, ns.Utils.unpack
 local GetActionBarToggles, SetActionBarToggles = GetActionBarToggles, SetActionBarToggles
 local GetActionBarPage = C_ActionBar and C_ActionBar.GetActionBarPage
+local CreateFrame, UIParent, InCombatLockdown = CreateFrame, UIParent, InCombatLockdown
 
 -- Bars 2 to 8 in GetActionBarToggles order. Never written through the
 -- setter: it runs Edit Mode's bar layout in our name (Rows.FlipBarToggle).
@@ -15,6 +16,80 @@ local BAR_TOGGLE_INDEX = {
     PROXY_SHOW_ACTIONBAR_5 = 4, PROXY_SHOW_ACTIONBAR_6 = 5, PROXY_SHOW_ACTIONBAR_7 = 6,
     PROXY_SHOW_ACTIONBAR_8 = 7,
 }
+
+-- Settings the game answers by redrawing unit frames: from our code that
+-- redraw runs in our name and their secret health refuses it (Status Text,
+-- 10 errors, 2026-11-17). Each value is a secure click's /console lines,
+-- the CVars the game's own setter writes (Rows.ArmOptionPad).
+local SECURE_OPTIONS = {
+    PROXY_STATUS_TEXT = {
+        ["1"] = "/console statusTextDisplay NUMERIC\n/console statusText 1",
+        ["2"] = "/console statusTextDisplay PERCENT\n/console statusText 1",
+        ["3"] = "/console statusTextDisplay BOTH\n/console statusText 1",
+        ["4"] = "/console statusTextDisplay NONE\n/console statusText 0",
+    },
+}
+
+function Rows.SecureOptionMacro(variable, value)
+    local macros = SECURE_OPTIONS[variable]
+    return macros and macros[tostring(value)] or nil
+end
+
+-- One secure button laid over the hovered option (a picker row or a row's
+-- arrow), armed with that value's macro, so the player's click writes it in
+-- the game's call. Out of combat only; never left anchored into a fight.
+local optionPad
+local hookedTargets = setmetatable({}, { __mode = "k" })
+
+local function HideOptionPad()
+    if not (optionPad and optionPad:IsShown()) or InCombatLockdown() then return end
+    local target = optionPad.target
+    if target and target.UnlockHighlight then target:UnlockHighlight() end
+    optionPad:Hide()
+    optionPad:ClearAllPoints()
+    optionPad.target, optionPad.after = nil, nil
+end
+Rows.HideOptionPad = HideOptionPad
+
+-- after: run on the click, the value already written.
+function Rows.ArmOptionPad(target, variable, value, after)
+    local macro = Rows.SecureOptionMacro(variable, value)
+    if not macro or InCombatLockdown() then return false end
+    if not optionPad then
+        -- starts shown: hidden at the end of its setup
+        optionPad = CreateFrame("Button", "EasyFindSettingOptionPad", UIParent, "SecureActionButtonTemplate")
+        optionPad:RegisterForClicks("LeftButtonUp")
+        optionPad:SetAttribute("useOnKeyDown", false)
+        optionPad:SetAttribute("type", "macro")
+        optionPad:SetScript("PostClick", function(self)
+            if self.after then self.after() end
+        end)
+        optionPad:SetScript("OnLeave", HideOptionPad)
+        ns.Utils.RegisterClickGuard(optionPad)
+        local combat = CreateFrame("Frame")
+        combat:RegisterEvent("PLAYER_REGEN_DISABLED")
+        combat:SetScript("OnEvent", HideOptionPad)
+        optionPad:Hide()
+    end
+    if not hookedTargets[target] then
+        hookedTargets[target] = true
+        target:HookScript("OnHide", function(self)
+            if optionPad.target == self then HideOptionPad() end
+        end)
+    end
+    if optionPad.target and optionPad.target ~= target and optionPad.target.UnlockHighlight then
+        optionPad.target:UnlockHighlight()
+    end
+    optionPad:ClearAllPoints()
+    optionPad:SetAllPoints(target)
+    optionPad:SetFrameStrata(target:GetFrameStrata())
+    optionPad:SetFrameLevel(target:GetFrameLevel() + 2)
+    optionPad:SetAttribute("macrotext", macro)
+    optionPad.target, optionPad.after = target, after
+    if target.LockHighlight then target:LockHighlight() end
+    optionPad:Show()
+    return true
+end
 
 -- Settings of addon windows (API.RegisterSettingsIndex controls): read and
 -- written through their own functions under a made-up variable name, so
@@ -43,7 +118,7 @@ local function ReadSettingVariable(variable)
 end
 
 local function WriteSettingVariable(variable, value)
-    if BAR_TOGGLE_INDEX[variable] then return false end
+    if BAR_TOGGLE_INDEX[variable] or SECURE_OPTIONS[variable] then return false end
     local custom = customSettings[variable]
     if custom then return (pcall(custom.set, value)) end
     -- Prefer the per-setting object: GetSetting returns nil for variables

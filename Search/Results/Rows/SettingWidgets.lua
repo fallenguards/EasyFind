@@ -508,7 +508,7 @@ function Rows.CreateSettingWidgets(resultRow)
         if not opts or #opts == 0 then return end
         Rows.ToggleInlineSettingDropdown(self, opts,
             function() return Rows:ReadSettingVariable(var) end,
-            function(value) Results:SetSettingDropdownValue(rowData, value) end)
+            function(value, written) Results:SetSettingDropdownValue(rowData, value, written) end, var)
     end)
 
     ddPrev:SetScript("OnClick", function()
@@ -517,6 +517,19 @@ function Rows.CreateSettingWidgets(resultRow)
     ddNext:SetScript("OnClick", function()
         if resultRow.data then Results:CycleSettingDropdown(resultRow.data, 1) end
     end)
+    -- A value only a secure click may write: the option pad over the arrow,
+    -- armed again with the next value after each click.
+    local function ArmArrow(arrow, step)
+        local rowData = resultRow.data
+        local var, value = Results:NextSettingDropdownValue(rowData, step)
+        if not (var and Rows.SecureOptionMacro(var, value)) then return end
+        Rows.ArmOptionPad(arrow, var, value, function()
+            Results:SetSettingDropdownValue(rowData, value, true)
+            if arrow:IsVisible() then ArmArrow(arrow, step) end
+        end)
+    end
+    ddPrev:HookScript("OnEnter", function(self) ArmArrow(self, -1) end)
+    ddNext:HookScript("OnEnter", function(self) ArmArrow(self, 1) end)
 
     ddPrev:HookScript("OnMouseUp", refocusEditbox)
     ddNext:HookScript("OnMouseUp", refocusEditbox)

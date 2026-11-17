@@ -22,6 +22,7 @@ local function GetInlineDropdownPopup()
     -- spec/class flyouts) already use TOOLTIP which sits above this.
     p:SetFrameStrata("DIALOG")
     p:SetFrameLevel(200)
+    ns.Utils.RegisterClickGuard(p)
     p:Hide()
     p:EnableMouse(true)
     p:SetBackdrop({
@@ -45,6 +46,7 @@ local function GetInlineDropdownPopup()
     p:SetScript("OnHide", function(self)
         self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
         EasyFind._inlineDropdownMenuOpen = false
+        Rows.HideOptionPad()
     end)
     inlineDropdownPopup = p
     return p
@@ -74,12 +76,15 @@ local function GetInlineDropdownRow(popup, index)
     return row
 end
 
-local function ShowInlineSettingDropdown(owner, opts, getCurrent, onSelect)
+-- variable: the setting picked for; a value only a secure click may write
+-- (Rows.SecureOptionMacro) is clicked through the option pad.
+local function ShowInlineSettingDropdown(owner, opts, getCurrent, onSelect, variable)
     local popup = GetInlineDropdownPopup()
     popup.owner = owner
     for i = 1, #inlineDropdownRows do
         inlineDropdownRows[i]:Hide()
         inlineDropdownRows[i]:SetScript("OnClick", nil)
+        inlineDropdownRows[i]:SetScript("OnEnter", nil)
     end
     -- Measure longest label so the popup auto-sizes.
     local maxTextW = 0
@@ -117,11 +122,17 @@ local function ShowInlineSettingDropdown(owner, opts, getCurrent, onSelect)
         local checked = cur == opt.value or tostring(cur) == tostring(opt.value)
         row.radio:SetTexture(checked and ns.RADIO_ON_TEX or ns.RADIO_OFF_TEX)
         local optValue = opt.value
-        row:SetScript("OnClick", function()
-            if onSelect then onSelect(optValue) end
+        local function Picked(written)
+            if onSelect then onSelect(optValue, written) end
             EasyFind._popupGraceUntil = GetTime() + 0.2
             popup:Hide()
-        end)
+        end
+        row:SetScript("OnClick", function() Picked(false) end)
+        if variable and Rows.SecureOptionMacro(variable, optValue) then
+            row:SetScript("OnEnter", function(self)
+                Rows.ArmOptionPad(self, variable, optValue, function() Picked(true) end)
+            end)
+        end
         row:Show()
     end
     popup:Show()
@@ -139,11 +150,11 @@ function Rows.HideInlineSettingDropdown()
     return false
 end
 
-function Rows.ToggleInlineSettingDropdown(owner, opts, getCurrent, onSelect)
+function Rows.ToggleInlineSettingDropdown(owner, opts, getCurrent, onSelect, variable)
     if inlineDropdownPopup and inlineDropdownPopup:IsShown()
        and inlineDropdownPopup.owner == owner then
         inlineDropdownPopup:Hide()
         return
     end
-    ShowInlineSettingDropdown(owner, opts, getCurrent, onSelect)
+    ShowInlineSettingDropdown(owner, opts, getCurrent, onSelect, variable)
 end

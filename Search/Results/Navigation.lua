@@ -52,12 +52,10 @@ local function CollapsedNodes()
     return Results._collapsedNodes
 end
 
--- Advance a dropdown setting to its next value inline. Returns true if
--- we found options and applied a new value; false if the variable
--- wasn't enumerable (caller should fall back to opening the panel).
--- direction: +1 next (default), -1 prev. Wraps around at either end.
-function Results:CycleSettingDropdown(data, direction)
-    if not data or not data.settingVariable then return false end
+-- A dropdown setting's variable and the value a step away (+1 next, -1
+-- prev, wrapping); nil when its options are unknown.
+function Results:NextSettingDropdownValue(data, direction)
+    if not data or not data.settingVariable then return nil end
     -- Checkbox+dropdown composites toggle via settingVariable (the cb)
     -- while the dropdown half reads and writes its own variable.
     local var = data.dropdownVariable or data.settingVariable
@@ -66,7 +64,7 @@ function Results:CycleSettingDropdown(data, direction)
         opts = ns.BlizzOptionsSearch.GetOptionsForVariable(var)
         if opts then data.settingOptions = opts end
     end
-    if not opts or #opts == 0 then return false end
+    if not opts or #opts == 0 then return nil end
 
     local curVal = Rows:ReadSettingVariable(var)
 
@@ -81,9 +79,16 @@ function Results:CycleSettingDropdown(data, direction)
     local n = #opts
     local step = direction or 1
     local nextIdx = ((curIdx or 1) - 1 + step) % n + 1
-    local nextVal = opts[nextIdx].value
+    return var, opts[nextIdx].value
+end
 
-    if not Rows:WriteSettingVariable(var, nextVal) then return false end
+-- Advance a dropdown setting to its next value inline. Returns true if
+-- we found options and applied a new value; false if the variable
+-- wasn't enumerable or is written only by a secure click (caller should
+-- fall back to opening the panel).
+function Results:CycleSettingDropdown(data, direction)
+    local var, nextVal = self:NextSettingDropdownValue(data, direction)
+    if not var or not Rows:WriteSettingVariable(var, nextVal) then return false end
 
     Search:RefreshResults()
     if Search:GetSearchFrame() and Search:GetSearchFrame().editBox
@@ -94,9 +99,12 @@ function Results:CycleSettingDropdown(data, direction)
     return true
 end
 
-function Results:SetSettingDropdownValue(data, value)
+-- written: a secure click already wrote it (Rows.ArmOptionPad).
+function Results:SetSettingDropdownValue(data, value, written)
     if not data or not data.settingVariable then return false end
-    if not Rows:WriteSettingVariable(data.dropdownVariable or data.settingVariable, value) then return false end
+    if not written and not Rows:WriteSettingVariable(data.dropdownVariable or data.settingVariable, value) then
+        return false
+    end
     Search:RefreshResults()
     if Search:GetSearchFrame() and Search:GetSearchFrame().editBox
        and not (Search:GetNavFrame() and Search:GetNavFrame():IsKeyboardEnabled()) then
