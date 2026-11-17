@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 12 }
+local API = { VERSION = 1, MINOR = 13 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -933,7 +933,9 @@ end
 
 -- Where an item comes from, as an extension knows it (MINOR 11): its rows
 -- under a heading of its name on the item's sources page (a click on an
--- item row). fn(itemID, name) returns rows, or nothing.
+-- item row). fn(itemID, name) returns rows, or nothing; MINOR 13: or
+-- { sections = { { label, rows, key }, ... } }, rows naming EasyFind's own
+-- ({ creature = id }, { item = id }) or a place ({ spots = { ... } }).
 function API.RegisterItemSources(id, fn)
     if type(id) ~= "string" or id == "" then Fail("RegisterItemSources", "id must be a string") end
     if type(fn) ~= "function" then Fail("RegisterItemSources", "fn must be a function") end

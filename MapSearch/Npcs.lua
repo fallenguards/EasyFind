@@ -1035,6 +1035,23 @@ local function Row(i, k)
     return poi
 end
 
+-- A creature's row by its id at that spot, as its search row shows it,
+-- with nothing a last search left on it (what it sells); nil when the
+-- catalog lacks it.
+function N.RowOfID(npcID)
+    if not (npcID and Load()) then return nil end
+    local i = IndexOfID(npcID)
+    if not i then return nil end
+    local pci, px, py = PlayerWorld()
+    local k = BestSpot(i, nil, pci, px, py)
+    local poi = k and Row(i, k)
+    if not poi then return nil end
+    local row = {}
+    for key, v in pairs(poi) do row[key] = v end
+    row.soldName, row.matchNote, row.scoredAs, row.keywords = nil, nil, nil, poi.baseKeywords
+    return row
+end
+
 -- Whether creature i passes the NPC filters (EasyFind.db.npcFilters):
 -- per facet a table where false leaves that value out, missing keeps it.
 -- type[id], expansion[id] (-1: unknown), role[group], reaction[0 friendly,

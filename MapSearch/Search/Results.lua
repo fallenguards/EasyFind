@@ -875,6 +875,14 @@ local function FillUIRow(d, r, searchMapID, query, showNear)
     end
 end
 
+-- A bar row of its own for a map row given from outside a search (the
+-- item sources page): clicked as any map row is, its GPS included.
+function MapSearch.UIRowOf(r)
+    local d = {}
+    FillUIRow(d, r, r.mapID)
+    return d
+end
+
 -- Each part's ms over the bar's map passes, for the lag probe (it wipes).
 -- Frames the sliced pass sat paused are left out.
 local uiParts = { at = 0 }

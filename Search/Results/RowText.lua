@@ -236,6 +236,8 @@ function Text:GetFlatSubtext(data)
     -- Naming the holders is the whole point of a stored-item result: the item
     -- is not reachable from here, so what the row answers is who has it.
     if data.storedSubtext then return data.storedSubtext end
+    -- A row on an item's sources page: what the source is to the item.
+    if data.sourceNote then return data.sourceNote end
     if data.category == "Ability" and data.treeName and data.treeName ~= "" then
         return sformat(L["SUBTEXT_TREE_ABILITY"], data.treeName)
     end

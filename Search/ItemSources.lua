@@ -12,6 +12,15 @@ local ipairs, type = Utils.ipairs, Utils.type
 local slower, sformat, sfind = Utils.slower, Utils.sformat, Utils.sfind
 
 local added = {}
+local itemLoads = CreateFrame("Frame")
+local refreshPending = false
+local tsort = table.sort
+
+local function ItemName(id)
+    local name = C_Item.GetItemNameByID(id)
+    if type(name) == "string" and name ~= "" then return name end
+    return nil
+end
 
 -- An extension's sources: its rows under a heading of its name.
 function ItemSources.Register(id, label, fn)
@@ -81,18 +90,111 @@ local function Bosses(item, out)
     if item.encounterID then Add(item.encounterID) end
 end
 
+local waiting = {}                      -- the page's items whose names are not in yet
+
+local function MapRow(poi)
+    local MapSearch = ns.MapSearch
+    return MapSearch and MapSearch.UIRowOf and MapSearch.UIRowOf(poi) or poi
+end
+
+local function ItemRow(id, fallback)
+    local name = ItemName(id)
+    if not name then
+        waiting[id] = true
+        C_Item.RequestLoadItemDataByID(id)
+        itemLoads:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+    end
+    name = name or fallback or ""
+    local quality = C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id)
+    return { itemID = id, catalogItem = true, lookupRow = true, category = "Item", name = name,
+             nameLower = slower(name), quality = quality, noPin = true }
+end
+
+-- A place on the map at its spot nearest the player.
+local function PlaceRow(spec)
+    local list, s = {}, spec.spots
+    for k = 1, #s - 2, 3 do
+        if type(s[k]) == "number" then list[#list + 1] = { mapID = s[k], x = s[k + 1], y = s[k + 2] } end
+    end
+    if #list == 0 then return nil end
+    local near = ns.MapSearch and ns.MapSearch.NearestSpot and ns.MapSearch.NearestSpot(list) or list[1]
+    local info = C_Map.GetMapInfo(near.mapID)
+    return MapRow({ name = spec.name, category = spec.kind or "treasure", icon = spec.icon, mapID = near.mapID,
+                    coordMapID = near.mapID, x = near.x, y = near.y, zoneName = info and info.name or nil,
+                    allInstances = list })
+end
+
+-- An extension's row named by what it is (API MINOR 13): { creature = id }
+-- EasyFind's creature row, { item = id } its item row, { spots = { mapID,
+-- x, y, ... } } a place at its nearest spot, { name, note } a line of
+-- text; note is its subtext, name stands in where EasyFind has none.
+-- Any other row stands as given.
+local function Resolve(spec)
+    if type(spec) ~= "table" then return nil end
+    if not (spec.creature or spec.item or spec.spots or spec.note) then return spec end
+    local row
+    if spec.creature then
+        local poi = ns.Npcs and ns.Npcs.RowOfID and ns.Npcs.RowOfID(spec.creature)
+        row = poi and MapRow(poi)
+    elseif spec.item then
+        row = ItemRow(spec.item, spec.name)
+    elseif spec.spots then
+        row = spec.name and PlaceRow(spec)
+    end
+    if row then
+        if spec.label then row.name, row.nameLower = spec.label, slower(spec.label) end
+        if row.mapSearchResult then row.matchNote = spec.note else row.sourceNote = spec.note end
+        return row
+    end
+    if type(spec.name) ~= "string" then return nil end
+    return { name = spec.label or spec.name, icon = spec.icon, category = "Item", sourceNote = spec.note,
+             lookupRow = true, noPin = true, noLearn = true, noMenu = true }
+end
+
+local function AddSection(out, label, rows, key)
+    local list = {}
+    for i = 1, #rows do
+        local row = Resolve(rows[i])
+        if row then list[#list + 1] = row end
+    end
+    if #list == 0 then return end
+    for i = 1, #out do
+        if key and out[i].key == key then
+            for j = 1, #list do out[i].rows[#out[i].rows + 1] = list[j] end
+            return
+        end
+    end
+    out[#out + 1] = { label = label, rows = list, key = key }
+end
+
+-- An extension gives rows under its name, or sections of its own
+-- ({ sections = { { label, rows, key }, ... } }); a section keyed "sold"
+-- or "dropped" joins EasyFind's own.
+local function AddExtension(out, label, given)
+    if type(given) ~= "table" then return end
+    if type(given.sections) ~= "table" then return AddSection(out, label, given) end
+    for _, section in ipairs(given.sections) do
+        if type(section) == "table" and type(section.rows) == "table" then
+            AddSection(out, section.label or label, section.rows, section.key)
+        end
+    end
+end
+
 local function Sections(item)
     local out = {}
     if ns.Npcs and ns.Npcs.Sellers then
         local rows = ns.Npcs.Sellers({}, item.name)
-        if type(rows) == "table" and #rows > 0 then out[#out + 1] = { label = L["SOURCES_SOLD_BY"], rows = rows } end
+        if type(rows) == "table" and #rows > 0 then
+            for i = 1, #rows do rows[i] = MapRow(rows[i]) end
+            out[#out + 1] = { label = L["SOURCES_SOLD_BY"], rows = rows, key = "sold" }
+        end
     end
     local bosses = {}
     Bosses(item, bosses)
-    if #bosses > 0 then out[#out + 1] = { label = L["SOURCES_DROPPED_BY"], rows = bosses } end
+    if #bosses > 0 then out[#out + 1] = { label = L["SOURCES_DROPPED_BY"], rows = bosses, key = "dropped" } end
     for i = 1, #added do
-        local ok, rows = ns.Extensions.Run(added[i].fn, item.itemID, item.name)
-        if ok and type(rows) == "table" and #rows > 0 then out[#out + 1] = { label = added[i].label, rows = rows } end
+        local ok, given = ns.Extensions.Run(added[i].fn, item.itemID, item.name)
+        if ok then AddExtension(out, added[i].label, given) end
     end
     return out
 end
@@ -128,7 +230,8 @@ end
 local function Matches(row)
     if #words == 0 then return true end
     local low = row.nameLower or slower(row.name or "")
-    local note = row.matchNote and slower(row.matchNote)
+    local note = row.matchNote or row.sourceNote
+    note = note and slower(note)
     for w = 1, #words do
         local word = words[w]
         if not (sfind(low, word, 1, true) or (note and sfind(note, word, 1, true))) then return false end
@@ -173,21 +276,12 @@ end
 
 local waresDef = { key = "vendorWares", canonical = "wares", token = "", label = "", nestedParent = true,
                    categoryLookup = {}, bucketLookup = {} }
-local itemLoads = CreateFrame("Frame")
-local refreshPending = false
 local loadingIDs = {}                   -- the page's items not in yet
-local tsort = table.sort
 
 -- How many items a vendor row's creature sells; nil when none is known.
 function ItemSources.WareCount(data)
     local Npcs = ns.Npcs
     return data and data.npcID and Npcs and Npcs.WareCount and Npcs.WareCount(data.npcID) or nil
-end
-
-local function ItemName(id)
-    local name = C_Item.GetItemNameByID(id)
-    if type(name) == "string" and name ~= "" then return name end
-    return nil
 end
 
 -- By name, the ones still loading last; one name's items by id.
@@ -246,27 +340,40 @@ end
 
 -- An item the page waits on is in: named, and the page drawn again once
 -- the burst of answers settles.
-itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
-    if not loadingIDs[itemID] then return end
-    loadingIDs[itemID] = nil
-    local rows = waresDef.rows
-    if not rows then
-        self:UnregisterEvent("ITEM_DATA_LOAD_RESULT")
-        return
-    end
-    for _, row in ipairs(rows) do
-        if row.loading and row.itemID == itemID then
-            local name = ok and ItemName(itemID)
-            row.name, row.nameLower, row.loading = name or "", name and slower(name) or "", nil
+-- The sources page's items named as they arrive.
+local function NameSourceRows(itemID, ok)
+    local sections = def.sections
+    if not sections then return false end
+    local name = ok and ItemName(itemID)
+    if not name then return false end
+    for _, section in ipairs(sections) do
+        for _, row in ipairs(section.rows) do
+            if row.catalogItem and row.itemID == itemID then row.name, row.nameLower = name, slower(name) end
         end
     end
-    if next(loadingIDs) == nil then self:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end
-    if refreshPending then return end
+    return true
+end
+
+itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
+    local sourced = waiting[itemID] and NameSourceRows(itemID, ok)
+    waiting[itemID] = nil
+    local rows = loadingIDs[itemID] and waresDef.rows
+    loadingIDs[itemID] = nil
+    if rows then
+        for _, row in ipairs(rows) do
+            if row.loading and row.itemID == itemID then
+                local name = ok and ItemName(itemID)
+                row.name, row.nameLower, row.loading = name or "", name and slower(name) or "", nil
+            end
+        end
+    end
+    if next(loadingIDs) == nil and next(waiting) == nil then self:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end
+    if not (rows or sourced) or refreshPending then return end
     refreshPending = true
     C_Timer.After(0.3, function()
         refreshPending = false
-        if waresDef.rows ~= rows then return end
-        tsort(rows, WareLess)
-        if ns.Filters:GetQuickFilter() == waresDef and ns.Search then ns.Search:RefreshActiveSearch(true) end
+        local shown = ns.Filters:GetQuickFilter()
+        if shown == waresDef and waresDef.rows then tsort(waresDef.rows, WareLess) end
+        if (shown == waresDef or shown == def) and ns.Search then ns.Search:RefreshActiveSearch(true) end
     end)
 end)

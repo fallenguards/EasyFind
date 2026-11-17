@@ -20,6 +20,11 @@ local function fresh(opts)
     end }
     ns.STATIC_LOOT = opts.loot
     ns.Database.uiSearchData = opts.rows or {}
+    if opts.items then
+        env.C_Item = opts.items
+        env.CreateFrame = function() local f = H.newFrame() opts.frames[#opts.frames + 1] = f return f end
+        env.C_Timer = { After = function(_, fn) opts.later[#opts.later + 1] = fn end }
+    end
     H.loadModule("Search/ItemSources.lua", env, ns)
     return ns.ItemSources, function() return shown end, function() return applied end, ns
 end
@@ -95,6 +100,81 @@ function tests.anInstanceHasBossesWhenTheSearchDataHoldsOne()
     H.assertTrue(Sources.InstanceHasBosses("the deadmines"), "by name, any case")
     H.assertFalse(Sources.InstanceHasBosses("Ruins of Lordaeron"), "no boss rows: none offered")
     H.assertFalse(Sources.InstanceHasBosses(nil))
+end
+
+-- An extension's sections and the rows it names (API MINOR 13): EasyFind
+-- draws its own creature, item and place rows for them, clicked as they
+-- are anywhere; "dropped" joins EasyFind's own Dropped by.
+local function namedWorld(opts)
+    local Sources, shown, _, ns = fresh(opts)
+    ns.Npcs = ns.Npcs or {}
+    ns.Npcs.RowOfID = function(id)
+        if id == 589 then return { name = "Defias Pillager", category = "npc", npcID = 589, mapID = 1436, x = 0.4, y = 0.5 } end
+    end
+    ns.MapSearch = {
+        UIRowOf = function(r) return { name = r.name, nameLower = r.name:lower(), npcID = r.npcID, mapID = r.mapID,
+                                       x = r.x, y = r.y, category = r.category, mapSearchResult = true } end,
+        NearestSpot = function(list) return list[2] end,
+    }
+    return Sources, shown, ns
+end
+
+function tests.anExtensionsSections_nameEasyFindsOwnRows()
+    local Sources, shown = namedWorld({ rows = { boss }, loot = { { inst = 36, enc = 1588, items = { 2589 } } } })
+    Sources.Register("itemsource", "Item Source", function()
+        return { sections = {
+            { key = "dropped", rows = { { creature = 589, note = "12%" }, { creature = 4, name = "Gone Kobold", note = "3%" },
+                                        { creature = 5, note = "no name: left out" },
+                                        { name = "World drop", note = "Creatures of level 30 to 40" } } },
+            { label = "Gathered from", rows = { { spots = { 1429, 0.1, 0.2, 1436, 0.5, 0.6 }, name = "Copper Vein",
+                                                  kind = "treasure", note = "Mining" } } },
+        } }
+    end)
+    Sources:ShowView({ sourcesItem = { itemID = 2589, name = "Linen Cloth" } }, "")
+    local rows = shown()
+    H.assertEq(rows[1].name, "SOURCES_DROPPED_BY")
+    H.assertEq(rows[2].data, boss)
+    H.assertEq(rows[3].data.npcID, 589, "the creature joins EasyFind's own Dropped by")
+    H.assertTrue(rows[3].data.mapSearchResult, "a bar row: clicked as a map row, its GPS too")
+    H.assertEq(rows[3].data.matchNote, "12%")
+    H.assertEq(rows[4].name, "Gone Kobold", "a creature the catalog lacks keeps the extension's name")
+    H.assertEq(rows[4].data.sourceNote, "3%")
+    H.assertTrue(rows[4].data.noPin)
+    H.assertEq(rows[5].name, "World drop", "no creature 5 and no name: left out; a line of text stays")
+    H.assertEq(rows[5].data.sourceNote, "Creatures of level 30 to 40")
+    H.assertTrue(rows[5].data.noPin and rows[5].data.lookupRow)
+    H.assertEq(rows[6].name, "Gathered from")
+    H.assertEq(rows[7].data.name, "Copper Vein")
+    H.assertEq(rows[7].data.mapID, 1436, "the spot nearest the player")
+    H.assertEq(rows[7].data.matchNote, "Mining")
+end
+
+function tests.anItemNamedByID_isEasyFindsItemRow_namedWhenItArrives()
+    local names, asked, frames, later = {}, {}, {}, {}
+    local Sources, shown, ns = namedWorld({ frames = frames, later = later, items = {
+        GetItemNameByID = function(id) return names[id] end, GetItemQualityByID = function() return 2 end,
+        RequestLoadItemDataByID = function(id) asked[#asked + 1] = id end } })
+    local refreshed, page = 0, nil
+    ns.Search = { RefreshActiveSearch = function() refreshed = refreshed + 1 end }
+    ns.Filters.GetQuickFilter = function() return page end
+    Sources.Register("itemsource", "Item Source", function()
+        return { sections = { { label = "Reagent for", rows = { { item = 2581, note = "First Aid 40, 2 needed" } } } } }
+    end)
+    ns.Filters.ApplyQuickFilter = function(_, d) page = d end
+    Sources:Show({ itemID = 2589, name = "Linen Cloth" })
+    Sources:ShowView(page, "")
+    local row = shown()[2].data
+    H.assertTrue(row.catalogItem, "EasyFind's item row: its click opens that item's page")
+    H.assertEq(row.itemID, 2581)
+    H.assertEq(row.sourceNote, "First Aid 40, 2 needed")
+    H.assertEq(asked[1], 2581, "its name asked for")
+    names[2581] = "Heavy Linen Bandage"
+    local loads = frames[1]
+    loads:GetScript("OnEvent")(loads, "ITEM_DATA_LOAD_RESULT", 2581, true)
+    H.assertEq(row.name, "Heavy Linen Bandage", "named as it arrives")
+    H.assertEq(#later, 1, "one redraw once the answers settle")
+    later[1]()
+    H.assertEq(refreshed, 1, "the page drawn again while it is up")
 end
 
 -- A vendor's wares (Forever, 2026-11-15: Kelm Hargunth's row showed where
