@@ -650,6 +650,13 @@ function N.HasID(npcID)
     return IndexOfID(npcID) ~= nil
 end
 
+-- A creature's name in the client's language; nil when the catalog lacks it.
+function N.NameOfID(npcID)
+    if not Load() then return nil end
+    local i = IndexOfID(npcID)
+    return i and Name(i) or nil
+end
+
 -- The words extensions give creatures (EasyFind API MINOR 7 decorator
 -- words: "decor"): the ids holding one with word in it, and whether
 -- creature i holds one.

@@ -1276,6 +1276,14 @@ function API.HasCreature(npcID)
     return type(npcID) == "number" and npcs ~= nil and npcs.HasID ~= nil and npcs.HasID(npcID) == true
 end
 
+-- A creature's name in the client's language, from the loaded catalog
+-- (MINOR 13); nil when the catalog lacks it.
+function API.CreatureName(npcID)
+    local npcs = ns.Npcs
+    if type(npcID) ~= "number" or not (npcs and npcs.NameOfID) then return nil end
+    return npcs.NameOfID(npcID)
+end
+
 -- ==== public: theme and look ===================================================
 
 -- The theme's colors by role; r, g, b, a.

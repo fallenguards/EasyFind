@@ -240,9 +240,9 @@ function API.RefreshSearchProvider(key) end
 function API.RegisterUpgradeJudge(def) end
 ---Takes the extension's judge back (MINOR 10).
 function API.UnregisterUpgradeJudge(extension) end
----Where an item comes from, as your extension knows it (MINOR 11): fn(itemID, name) returns rows (quests that reward it, who sells it), listed under your extension's name on the item's sources page, which a click on an item row opens.
+---Where an item comes from, as your extension knows it (MINOR 11): fn(itemID, name) returns rows (quests that reward it, who sells it), listed under your extension's name on the item's sources page, which a click on an item row opens. MINOR 13: or { sections = { { label, rows, key }, ... } }; a row { creature = id }, { item = id } or { spots = { mapID, x, y, ... }, name } is drawn as EasyFind's own, its note the subtext; key "sold" or "dropped" joins EasyFind's own section.
 ---@param id string Your extension's id.
----@param fn fun(itemID: integer, name: string): EasyFindRow[]|nil
+---@param fn fun(itemID: integer, name: string): EasyFindRow[]|table|nil
 ---@return boolean
 function API.RegisterItemSources(id, fn) end
 ---Your verdicts changed (a drop rated, the gear changed): @upgrades is built again when shown (MINOR 10).
@@ -270,6 +270,9 @@ function API.HasRow(name, mapID) end
 ---Whether the loaded creature catalog has the creature (MINOR 6).
 ---@return boolean
 function API.HasCreature(npcID) end
+---A creature's name in the client's language from the loaded catalog, or nil (MINOR 13).
+---@return string|nil
+function API.CreatureName(npcID) end
 
 -- ==== actions and events ======================================================
 

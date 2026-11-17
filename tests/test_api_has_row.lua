@@ -30,6 +30,7 @@ local function Env()
             return nil
         end,
         HasID = function(id) return id == 448 end,
+        NameOfID = function(id) return id == 448 and "Hogger" or nil end,
     }
     return API, asked, ns
 end
@@ -62,8 +63,12 @@ function tests.hasCreatureAsksTheCatalog_placesAnswerWithoutOne()
     H.assertTrue(API.HasCreature(448))
     H.assertFalse(API.HasCreature(449))
     H.assertFalse(API.HasCreature("448"))
+    H.assertEq(API.CreatureName(448), "Hogger", "its name in the client's language (MINOR 13)")
+    H.assertEq(API.CreatureName(449), nil)
+    H.assertEq(API.CreatureName("448"), nil)
     ns.Npcs = nil
     H.assertFalse(API.HasCreature(448), "no catalog loaded")
+    H.assertEq(API.CreatureName(448), nil)
     H.assertEq(API.HasRow("Hogger", 1429), false, "and no creature row")
     H.assertEq(API.HasRow("Innkeeper", 1429), true, "the places still answer")
 end

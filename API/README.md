@@ -18,7 +18,7 @@ EasyFind.API.VERSION -- 1
 EasyFind.API.MINOR   -- rises when something is added
 ```
 
-`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`; MINOR 11 `RegisterItemSources` and `OpenMap`; MINOR 12 `SliceCheckpoint`; MINOR 13 sections and named rows from `RegisterItemSources`. Check it once at load if you use something added later:
+`VERSION` changes only for a change that would break an extension. MINOR 1 added the `choice` option, a row's `iconDimmed`, a place's `icon`, and the GPS button on rows a `place` leads; MINOR 2 the provider's `iconWell`; MINOR 3 the provider's `places` and `ShowPlaces(key, row)`; MINOR 4 a row's `createRow`, a linked checklist category's `window` and `RegisterRowDecorator`; MINOR 5 a decorator's `select` and `hint`; MINOR 6 a decorator's `aliases`, `browse` and `candidates`, and `HasRow` and `HasCreature`; MINOR 7 a row's `scopedName`, a row's place words from its `mapID`, a decorator's `words`, its `name` candidates and its scope shared with your own provider of the same key, a linked checklist's `adopt` and `drop` and its lines' `name`, `RegisterPriceSource`, `RefreshPrices` and `RegisterAuctionSearch`; MINOR 8 a decorator's `modifiers` and `RedrawRowTooltip`; MINOR 9 `RegisterTrackerPiece`; MINOR 10 `RegisterUpgradeJudge`, `UnregisterUpgradeJudge` and `RefreshUpgrades`; MINOR 11 `RegisterItemSources` and `OpenMap`; MINOR 12 `SliceCheckpoint`; MINOR 13 sections and named rows from `RegisterItemSources`, and `CreatureName`. Check it once at load if you use something added later:
 
 ```lua
 local API = EasyFind and EasyFind.API
@@ -358,6 +358,7 @@ An extension acts on EasyFind's rows and never adds a second row for the same th
 | --- | --- |
 | `HasRow(name, mapID)` | EasyFind's own row for a name on a map: the creature's id when the loaded creature catalog (the GPS extension's) has a creature so named with a spot on the map or the zone holding it, `true` for a recorded place or service row or a shipped instance entrance there, else `false`. Any case. |
 | `HasCreature(npcID)` | Whether the loaded creature catalog has the creature. |
+| `CreatureName(npcID)` | The creature's name in the client's language from the loaded catalog, or nil (MINOR 13). |
 
 ## Linked checklists
 
