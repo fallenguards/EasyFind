@@ -91,6 +91,16 @@ function tests.entryKey_forAchievement()
     H.assertEq(Aliases:GetEntryKey({ achievementID = 6 }), "achievement:6")
 end
 
+-- Forever, 2026-11-17: a pick of the bag item for "heavy linen bandage"
+-- hid the First Aid recipe of the same name from that search (one key,
+-- "ui:Heavy Linen Bandage", for both). A recipe keys by its recipe.
+function tests.entryKey_aRecipeIsNotTheItemItMakes()
+    local recipe = { name = "Heavy Linen Bandage", category = "Profession", professionRecipeID = 3276 }
+    local bag = { name = "Heavy Linen Bandage", category = "Bag" }
+    H.assertEq(Aliases:GetEntryKey(recipe), "recipe:3276")
+    H.assertTrue(Aliases:GetEntryKey(bag) ~= Aliases:GetEntryKey(recipe), "the bag item keys apart")
+end
+
 function tests.findByKey_dispatchesThroughRegisteredResolver()
     -- Rows built per query (achievements, map rows) never live in
     -- uiSearchData: their key prefix must dispatch to a registered

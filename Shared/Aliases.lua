@@ -161,6 +161,9 @@ function Aliases:GetEntryKey(data)
     if data.achievementID then return "achievement:"    .. data.achievementID end
     if data.itemID and data.category == "Loot" then return "loot:" .. data.itemID end
     if data.catalogItem and data.itemID then return "catalogitem:" .. data.itemID end
+    -- A recipe is not the item it makes: by name the two were one key, and a
+    -- pick of the bag item hid the recipe for that search (2026-11-17).
+    if data.professionRecipeID then return "recipe:" .. data.professionRecipeID end
     if data.noteID         then return "note:"           .. data.noteID end
     if data.quicklistID    then return "quicklist:"      .. data.quicklistID end
     if data.category == "Currency" and data.steps then
