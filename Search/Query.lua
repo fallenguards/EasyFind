@@ -127,6 +127,7 @@ end
 local function MapPassStale() mapMemo.valid = false end
 -- end of the map pass memo
 local runRowsOnly = false
+local tipText   -- the text the row tooltips were last cleared for
 
 local searchRefreshQueued = false
 -- Paint hold (see the provider request in OnSearchTextChangedNow): the
@@ -499,8 +500,12 @@ function Search:OnSearchTextChangedNow(text, force)
     end
     -- Treat whitespace-only as empty (pins show on focus, not on blank spaces)
     if text then text = strtrim(text) end
-    -- A rows-only rerun (a chat line) keeps the hovered row's tooltip.
-    if not rowsOnly then Tooltips:ClearResultTooltips() end
+    -- A rows-only rerun (a chat line) keeps the hovered row's tooltip, and
+    -- so does a rerun of the same text (the bags changing under a hovered
+    -- recipe row): the redraw draws it again; hidden here, it blinked out
+    -- while the search ran (2026-11-17, /efd craftrow).
+    if not rowsOnly and text ~= tipText then Tooltips:ClearResultTooltips() end
+    tipText = text
     local quickFilter = self:GetQuickFilter()
     -- @icons owns the whole dropdown: the icon grid renders instead of the
     -- row pipeline, filtered live by whatever follows the token. The grid

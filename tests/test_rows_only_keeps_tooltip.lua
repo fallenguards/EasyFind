@@ -20,8 +20,8 @@ function tests.searchRun_clearsRowTooltips_onlyWhenTheTextRan()
     local body = src:sub(at)
     local call = assert(body:find("Tooltips:ClearResultTooltips()", 1, true))
     local line = body:sub(body:sub(1, call):match(".*()\n") or 1, call + #"Tooltips:ClearResultTooltips()")
-    H.assertTrue(line:find("if not rowsOnly then", 1, true) ~= nil,
-        "ClearResultTooltips must be skipped on a rows-only rerun, got: " .. line)
+    H.assertTrue(line:find("if not rowsOnly and text ~= tipText then", 1, true) ~= nil,
+        "ClearResultTooltips must be skipped on a rows-only rerun and a rerun of the same text, got: " .. line)
 end
 
 function tests.unchangedRender_restoresTheHoveredRow()
