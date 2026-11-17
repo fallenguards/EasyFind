@@ -30,7 +30,7 @@ local function Load()
     local hidden = {}
     local env = setmetatable({
         CreateFrame = function() return Frame() end,
-        HideOurPanel = function(restore) hidden[#hidden + 1] = restore end,
+        HideOurPanel = function() hidden[#hidden + 1] = true end,
         RefreshSelectGlows = function() end,
         Utils = { RGB = function() return 1, 1, 1 end },
         TAB_W = 32, TAB_H = 44, TAB_ICON_SIZE = 16, TAB_ICON_GOLD = {},
@@ -50,8 +50,7 @@ function tests.aClickOnTheQuestsTab_isThePlayersChoice()
     local tab, env, hidden = Load()
     tab.scripts.OnMouseUp(tab, "LeftButton")
     H.assertFalse(env.lastSelectedWasOurs, "the map's next open keeps the quest log")
-    H.assertEq(#hidden, 1, "the panel hides")
-    H.assertTrue(hidden[1], "the quest log's own mode comes back")
+    H.assertEq(#hidden, 1, "the panel hides, the quest log uncovered")
 end
 
 function tests.anotherButton_changesNothing()

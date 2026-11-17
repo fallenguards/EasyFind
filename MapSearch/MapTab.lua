@@ -46,6 +46,9 @@ local function ScaleFont(fs, template, scale)
     if file then fs:SetFont(file, size * scale, flags) end
 end
 local ROW_POOL_RETAIN  = 80
+-- Levels above the quest panel that our search panel covering it sits at.
+local COVER_LEVEL = 110
+local function SwallowWheel() end
 local HEADER_POOL_RETAIN = 40
 local SECTION_POOL_RETAIN = 12
 
@@ -91,17 +94,21 @@ local pages = {}
 local pageOrder = {}
 local extraTabs = {}
 local PlaceTab   -- defined with the tab layout below, used by RegisterPage above it
-local restoringBlizzardDisplayMode = false
 local function IsMapSearchEnabled()
     return not (EasyFind and EasyFind.db and EasyFind.db.enableMapSearch == false)
 end
 function MapTab:IsEnabled()
     return IsMapSearchEnabled()
 end
--- SetDisplayMode(nil) clears qmf.displayMode, leaving Blizzard with no
--- mode to restore on map close+reopen (renders blank sidebar). Stash the
--- prior mode and put it back on hide.
-local prevBlizzardDisplayMode
+-- The quest log's content goes see-through under our panel and its tabs
+-- unchecked; its mode is never written: one set by addon code taints the
+-- map key's next open, refused in a fight (pinshare, 2026-11-15).
+local function CoverClientPanel(qmf, covered)
+    for _, content in ipairs(qmf.ContentFrames) do content:SetAlpha(covered and 0 or 1) end
+    for _, tab in ipairs(qmf.TabButtons or {}) do
+        if tab.SetChecked then tab:SetChecked(not covered and tab.displayMode == qmf.displayMode) end
+    end
+end
 local lastQueryGen = 0
 local pendingSearchTimer
 local pendingSearchFrame
@@ -310,22 +317,9 @@ local function ShowOurPanel(pageID)
     if SidePanel.frame and not SidePanel.Expand() then return end
     selectedIsOurs = true
     lastSelectedWasOurs = true
-    -- Must measure before hiding QuestsFrame so GetLeft/GetRight are live.
     if panel.MeasureBlizzardSearch then panel.MeasureBlizzardSearch() end
-    -- SetDisplayMode(nil) makes QuestMapFrame formally leave its current
-    -- mode. Without this, clicking a Blizzard tab afterwards is a no-op
-    -- (same-mode transition) and the panel stays hidden.
-    if qmf.SetDisplayMode then
-        prevBlizzardDisplayMode = qmf.displayMode
-        local ok, err = pcall(qmf.SetDisplayMode, qmf)
-        if not ok then
-            if qmf.QuestsFrame then qmf.QuestsFrame:Hide() end
-            if qmf.EventsFrame then qmf.EventsFrame:Hide() end
-            if qmf.MapLegend   then qmf.MapLegend:Hide()   end
-            if Utils and Utils.DebugPrint then
-                Utils.DebugPrint("MapTab SetDisplayMode failed: " .. tostring(err))
-            end
-        end
+    if qmf.ContentFrames then
+        CoverClientPanel(qmf, true)
     else
         if qmf.QuestsFrame then qmf.QuestsFrame:Hide() end
         if qmf.EventsFrame then qmf.EventsFrame:Hide() end
@@ -351,14 +345,7 @@ local function ShowOurPanel(pageID)
     end
 end
 
--- restoreBlizzardMode: true only when our panel is going away with no
--- successor tab (map closed, maximized, or map search disabled) -- then
--- Blizzard's sidebar must get its mode back or it reopens blank. Tab
--- switches pass false: a third-party framework tab also leaves
--- qmf.displayMode nil, and restoring Blizzard's mode over it made the
--- framework clear its fresh selection -- the first click on such a tab
--- showed a blank gray panel until a second click (GitHub #24).
-local function HideOurPanel(restoreBlizzardMode)
+local function HideOurPanel()
     if not selectedIsOurs then return end
     selectedIsOurs = false
     if panel then
@@ -367,18 +354,7 @@ local function HideOurPanel(restoreBlizzardMode)
     end
     if SidePanel.frame then SidePanel.Collapse() end
     local qmf = Host()
-    if restoreBlizzardMode
-       and qmf and qmf.SetDisplayMode and qmf.displayMode == nil then
-        -- The quest log's mode as its own tab names it: a frame on retail,
-        -- a number on WoW Forever.
-        local restore = prevBlizzardDisplayMode or (qmf.QuestsTab and qmf.QuestsTab.displayMode) or qmf.QuestsFrame
-        if restore then
-            restoringBlizzardDisplayMode = true
-            pcall(qmf.SetDisplayMode, qmf, restore)
-            restoringBlizzardDisplayMode = false
-        end
-    end
-    prevBlizzardDisplayMode = nil
+    if qmf and qmf.ContentFrames then CoverClientPanel(qmf, false) end
     if ns.MapSearch and ns.MapSearch._previewing then
         if ns.MapSearch.EndHoverPreview then
             ns.MapSearch:EndHoverPreview()
@@ -1973,7 +1949,7 @@ local function CreateBackTab(qmf)
         -- The player's way back to the quest log: the map's next open
         -- keeps it, as a click on one of the game's own tabs does.
         lastSelectedWasOurs = false
-        HideOurPanel(true)
+        HideOurPanel()
         RefreshSelectGlows()
     end)
     tab:SetScript("OnEnter", function(self)
@@ -2127,7 +2103,7 @@ function SidePanel.Build()
         if selectedIsOurs then
             lastSelectedWasOurs = false
             EasyFind.db.mapSidePanelOpen = false
-            HideOurPanel(true)
+            HideOurPanel()
         else
             ShowOurPanel()
         end
@@ -2245,7 +2221,7 @@ function SidePanel.Sync()
     local windowed = IsMapSearchEnabled() and not wmf:IsMaximized()
     SidePanel.toggle:SetShown(windowed)
     if not windowed then
-        HideOurPanel(true)
+        HideOurPanel()
         SidePanel.Collapse()
     elseif lastSelectedWasOurs and wmf:IsShown() and not selectedIsOurs then
         ShowOurPanel()
@@ -2259,7 +2235,16 @@ local function CreatePanel(qmf)
 
     local outer = CreateFrame("Frame", "EasyFindMapSearchOuter", qmf)
     outer:SetAllPoints(anchor)
-    outer:EnableMouse(false)
+    if qmf.ContentFrames then
+        -- Over the quest log it covers, whose path buttons sit at level 100,
+        -- and catching the clicks and wheel its see-through rows would take.
+        outer:SetFrameLevel(qmf:GetFrameLevel() + COVER_LEVEL)
+        outer:EnableMouse(true)
+        outer:EnableMouseWheel(true)
+        outer:SetScript("OnMouseWheel", SwallowWheel)
+    else
+        outer:EnableMouse(false)
+    end
 
     local p = CreateFrame("Frame", "EasyFindMapSearchPanel", outer)
     p:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, -29)
@@ -2750,7 +2735,7 @@ function MapTab:Initialize()
             if panel.outer then panel.outer:Hide() else panel:Hide() end
         end
         if SidePanel.frame then
-            HideOurPanel(true)
+            HideOurPanel()
             SidePanel.Collapse()
             SidePanel.toggle:Hide()
         end
@@ -2775,29 +2760,20 @@ function MapTab:Initialize()
         PlaceTab()
     end
 
-    -- Hook both qmf and the third-party tab framework's SetDisplayMode
-    -- so we catch every tab switch.
-    if qmf.SetDisplayMode then
-        hooksecurefunc(qmf, "SetDisplayMode", function(_, displayMode)
-            if displayMode then
-                if not restoringBlizzardDisplayMode then
-                    lastSelectedWasOurs = false
-                end
-                if selectedIsOurs then HideOurPanel(false) end
-            end
-        end)
+    -- Every tab switch, the game's and a third-party framework's. A click
+    -- on the game's tab of the mode still set returns early; the hook
+    -- still runs and our panel goes.
+    local function OtherTabPicked(_, displayMode)
+        if displayMode then
+            lastSelectedWasOurs = false
+            if selectedIsOurs then HideOurPanel() end
+        end
     end
+    if qmf.SetDisplayMode then hooksecurefunc(qmf, "SetDisplayMode", OtherTabPicked) end
     if LibStub then
         local ok, lwmt = pcall(LibStub, "LibWorldMapTabs", true)
         if ok and lwmt and type(lwmt.SetDisplayMode) == "function" then
-            hooksecurefunc(lwmt, "SetDisplayMode", function(_, displayMode)
-                if displayMode then
-                    if not restoringBlizzardDisplayMode then
-                        lastSelectedWasOurs = false
-                    end
-                    if selectedIsOurs then HideOurPanel(false) end
-                end
-            end)
+            hooksecurefunc(lwmt, "SetDisplayMode", OtherTabPicked)
         end
     end
 
@@ -2869,20 +2845,12 @@ function MapTab:Initialize()
             if shouldRestoreEasyFindTab() then
                 restoreEasyFindTab()
                 SafeAfter(0, restoreEasyFindTab)
-            else
-                SafeAfter(0, function()
-                    local q = Host()
-                    if q and q.SetDisplayMode and q.displayMode == nil and not selectedIsOurs then
-                        local restore = prevBlizzardDisplayMode or (q.QuestsTab and q.QuestsTab.displayMode) or q.QuestsFrame
-                        if restore then pcall(q.SetDisplayMode, q, restore) end
-                    end
-                end)
             end
         end)
         WorldMapFrame:HookScript("OnHide", function()
             if selectedIsOurs then
                 lastSelectedWasOurs = true
-                HideOurPanel(true)
+                HideOurPanel()
             elseif ReleaseMapTabMemory then
                 ReleaseMapTabMemory(true)
             end
@@ -2899,12 +2867,12 @@ function MapTab:Initialize()
             if SidePanel.frame then SidePanel.Sync() return end
             if not tabFrame then return end
             if not IsMapSearchEnabled() then
-                HideOurPanel(true)
+                HideOurPanel()
                 tabFrame:Hide()
                 return
             end
             if WorldMapFrame:IsMaximized() then
-                HideOurPanel(true)
+                HideOurPanel()
                 tabFrame:Hide()
             else
                 tabFrame:Show()
