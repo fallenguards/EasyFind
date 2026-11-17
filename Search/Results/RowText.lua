@@ -213,7 +213,12 @@ function Text:GetFlatSubtext(data)
         local text = MapSubtext(data)
         -- A list of a kind of place (repair, ammo) comes nearest first:
         -- each row says how far, ahead of the rest so it is never cut.
-        if data.nearYards then return sformat(L["GPS_UNIT_YD"], math.floor(data.nearYards + 0.5)) .. ", " .. text end
+        if data.nearYards then
+            -- In the GPS's unit when it is loaded.
+            local yd = math.floor(data.nearYards + 0.5)
+            local far = ns.GPS and ns.GPS.DistanceText and ns.GPS.DistanceText(yd) or sformat(L["GPS_UNIT_YD"], yd)
+            return far .. ", " .. text
+        end
         return text
     end
     if data.mountID then return _G["MOUNT"] or "Mount" end

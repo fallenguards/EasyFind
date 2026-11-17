@@ -389,7 +389,9 @@ function Tooltips:SetMapRowTooltip(tooltip, data)
     end
     local near = data.mapNear
     if near and near < math.huge then
-        tooltip:AddLine(sformat(L["TT_PLACE_AWAY_FMT"], sformat(L["GPS_UNIT_YD"], mfloor(near ^ 0.5 + 0.5))), 0.8, 0.8, 0.8)
+        local yd = mfloor(near ^ 0.5 + 0.5)
+        local far = ns.GPS and ns.GPS.DistanceText and ns.GPS.DistanceText(yd) or sformat(L["GPS_UNIT_YD"], yd)
+        tooltip:AddLine(sformat(L["TT_PLACE_AWAY_FMT"], far), 0.8, 0.8, 0.8)
     end
     if data.spotCount and data.spotCount > 1 then
         tooltip:AddLine(sformat(L["TT_PLACE_SPOTS_FMT"], data.spotCount), 0.8, 0.8, 0.8)
