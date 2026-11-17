@@ -687,6 +687,16 @@ local function HandleGuideButtonFrame(self, step)
                 self:AdvanceStep()
                 return true
             end
+        elseif nextStep and nextStep.containerBag ~= nil then
+            -- The bags open where the item lies: on to its slot (the arrow
+            -- stayed on the bag button, 2026-11-17).
+            for _, loc in ipairs(nextStep.allLocations or { { bag = nextStep.containerBag, slot = nextStep.containerSlot } }) do
+                local slotBtn = self:FindContainerSlotButton(loc.bag, loc.slot)
+                if slotBtn and slotBtn:IsVisible() then
+                    self:AdvanceStep()
+                    return true
+                end
+            end
         elseif not nextStep then
             if canHoverDismiss() and targetFrame:IsMouseOver() then
                 self:Cancel()
