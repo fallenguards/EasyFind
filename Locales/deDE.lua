@@ -300,15 +300,10 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNeu|r\n" ..
-    "    |cff999999-|r Stelle direkt aus der Zeile eines Rezepts her: eins, eine Anzahl oder alles, was du herstellen kannst, ohne das Berufsfenster zu öffnen\n" ..
-    "    |cff999999-|r Gib nach @icons den Namen einer Fähigkeit ein, um ihr Symbol zu finden; die Suche der Makrosymbol-Auswahl kann das auch\n" ..
-    "    |cff999999-|r Die Kartensuche kann nur den Wegpunkt des Spiels setzen (eine Option), und ein Rechtsklick auf die Markierung entfernt beide\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Die Anleitung für einen Gegenstand in deinen Taschen führt jetzt zum Gegenstand, nicht nur zu den Taschen\n" ..
-    "    |cff999999-|r In WoW Forever behält @alts das Gold jedes Charakters, nachdem du dich mit ihm ausgeloggt hast\n" ..
-    "    |cff999999-|r Die Symbolsuche zeigt nur Symbole, die dein Spiel hat, also keine grünen Quadrate mehr\n" ..
-    "    |cff999999-|r Umschalt-Klick auf eine Kartenmarkierung teilt sie wieder, nachdem EasyFind die Karte geöffnet hat\n"
+    "    |cff999999-|r Ein Wert in der Zeile für den Statustext löst in WoW Forever keine Fehler mehr aus\n" ..
+    "    |cff999999-|r Die Karte im Kampf mit ihrer Taste zu öffnen löst nach dem Kartenreiter keinen Fehler mehr aus\n" ..
+    "    |cff999999-|r In WoW Forever wird Morbin Lightbane in Unterstadt gefunden, mit seinem Porträt\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

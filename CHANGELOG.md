@@ -4,6 +4,18 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.4.1] - 2026-11-17
+
+### Fixed
+- **Status Text from its row**: picking Numeric, Percentage, Both or None on the Status Text setting's row threw errors on WoW Forever. Your click now sets it through the game itself, without errors; in a fight the row leaves it as it is
+- **The map key in a fight**: after you used EasyFind's map tab, opening the map with its key during a fight was refused with an error naming EasyFind. The tab now lays its panel over the quest log instead of switching it
+- **Morbin Lightbane**: WoW Forever's Morbin Lightbane in Undercity is found, with his portrait
+
+### Technical Notes
+- **Extensions API 1.13**: an extension can add whole sections to an item's sources page, naming creatures, items and places by their ids, and read a creature's name from EasyFind's catalog (`API.CreatureName`)
+
+---
+
 ## [5.4.0] - 2026-11-17
 
 ### Added

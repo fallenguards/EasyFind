@@ -298,15 +298,10 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNovedades|r\n" ..
-    "    |cff999999-|r Fabrica desde la fila de una receta: uno, una cantidad o todo lo que puedas hacer, sin abrir la ventana de la profesión\n" ..
-    "    |cff999999-|r Escribe el nombre de una habilidad después de @icons para encontrar su ícono; la búsqueda del selector de íconos de macros también lo hace\n" ..
-    "    |cff999999-|r La búsqueda en el mapa puede poner solo el punto de ruta del juego (una opción), y un clic derecho en el marcador quita ambos\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r La guía de un objeto de tus bolsas ahora lleva al objeto, no solo a las bolsas\n" ..
-    "    |cff999999-|r En WoW Forever, @alts conserva el oro de cada personaje después de cerrar sesión con él\n" ..
-    "    |cff999999-|r La búsqueda de íconos solo muestra los íconos que tiene tu juego, así que ya no hay cuadros verdes\n" ..
-    "    |cff999999-|r Mayús+clic en un marcador del mapa vuelve a compartirlo después de que EasyFind abrió el mapa\n"
+    "    |cff999999-|r Elegir un valor en la fila de Texto de estado ya no da errores en WoW Forever\n" ..
+    "    |cff999999-|r Abrir el mapa con su tecla en combate ya no da error después de usar la pestaña del mapa\n" ..
+    "    |cff999999-|r En WoW Forever, Morbin Lightbane en Entrañas aparece en la búsqueda, con su retrato\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

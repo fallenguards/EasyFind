@@ -298,15 +298,10 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
-    "    |cff999999-|r Fabriquez depuis la ligne d'une recette : un objet, un nombre ou tout ce que vous pouvez faire, sans ouvrir la fenêtre du métier\n" ..
-    "    |cff999999-|r Tapez le nom d'une technique après @icons pour trouver son icône ; la recherche du sélecteur d'icônes des macros le fait aussi\n" ..
-    "    |cff999999-|r La recherche sur la carte peut ne placer que le point de passage du jeu (une option), et un clic droit sur le repère retire les deux\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Le guide pour un objet de vos sacs mène maintenant à l'objet, pas seulement aux sacs\n" ..
-    "    |cff999999-|r Sur WoW Forever, @alts garde l'or de chaque personnage après sa déconnexion\n" ..
-    "    |cff999999-|r La recherche d'icônes ne liste que les icônes de votre jeu : plus de carrés verts\n" ..
-    "    |cff999999-|r Maj+clic sur un repère de la carte le partage de nouveau après qu'EasyFind a ouvert la carte\n"
+    "    |cff999999-|r Choisir une valeur sur la ligne Texte d'état ne provoque plus d'erreurs sur WoW Forever\n" ..
+    "    |cff999999-|r Ouvrir la carte avec sa touche en combat ne provoque plus d'erreur après l'onglet de la carte\n" ..
+    "    |cff999999-|r Sur WoW Forever, Morbin Lightbane à Fossoyeuse est trouvé, avec son portrait\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

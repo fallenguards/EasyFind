@@ -329,15 +329,10 @@ L["SHOWME_SAY_MICRO"]                   = "Snaps to the micro menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffffNew|r\n" ..
-    "    |cff999999-|r Craft from a recipe's row: one, a count or all you can make, with the profession window closed\n" ..
-    "    |cff999999-|r Type an ability's name after @icons to find its icon; the macro icon picker's search does it too\n" ..
-    "    |cff999999-|r Map search can place only the game's waypoint (an option), and a right-click on the pin clears both\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Show me how for an item in your bags now leads to the item, not just the bags\n" ..
-    "    |cff999999-|r On WoW Forever, @alts keeps each character's gold after you log out of it\n" ..
-    "    |cff999999-|r Icon search lists only the icons your game has, so no more green squares\n" ..
-    "    |cff999999-|r Shift-click on a map pin shares it again after EasyFind opened the map\n"
+    "    |cff999999-|r Picking a value on the Status Text row no longer throws errors on WoW Forever\n" ..
+    "    |cff999999-|r Opening the map with its key in a fight no longer errors after you used the map tab\n" ..
+    "    |cff999999-|r On WoW Forever, Morbin Lightbane in Undercity is found, with his portrait\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

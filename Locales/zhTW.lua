@@ -298,15 +298,10 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型選單"
 L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
-    "|cffFFD100\226\128\162|r |cffffffff新功能|r\n" ..
-    "    |cff999999-|r 直接在配方列製造：一個、指定數量或能做的全部，不必打開專業視窗\n" ..
-    "    |cff999999-|r 在 @icons 後輸入技能名稱即可找到其圖示；巨集圖示選擇器的搜尋也可以\n" ..
-    "    |cff999999-|r 地圖搜尋可以只放置遊戲的路徑點（一項設定），右鍵點擊標記會同時清除兩者\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r 背包中物品的嚮導現在會指向該物品，而不只是背包\n" ..
-    "    |cff999999-|r 在 WoW Forever 中，角色登出後 @alts 仍保留其金幣\n" ..
-    "    |cff999999-|r 圖示搜尋只列出你的遊戲中有的圖示，不再出現綠色方塊\n" ..
-    "    |cff999999-|r EasyFind 打開地圖後，Shift+點擊地圖標記可以再次分享\n"
+    "    |cff999999-|r 在狀態文字列選擇數值不再於 WoW Forever 中出錯\n" ..
+    "    |cff999999-|r 使用地圖標籤頁後，戰鬥中按鍵打開地圖不再出錯\n" ..
+    "    |cff999999-|r 在 WoW Forever 中可以找到幽暗城的 Morbin Lightbane，並顯示其頭像\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"
