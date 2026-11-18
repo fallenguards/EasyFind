@@ -6774,16 +6774,20 @@ function ns.GetWowheadLink(data)
     else
         sub = WOWHEAD_LOCALE_SUB[GetLocale and GetLocale()] or "www"
     end
+    -- Wowhead's section for this client: its items, quests and creatures are
+    -- the client's own (Forever's thread vendors, GitHub #30).
+    local Caps = ns.Caps or {}
+    local site = "https://" .. sub .. ".wowhead.com/" .. (Caps.forever and "forever/" or Caps.era and "classic/"
+        or Caps.tbc and "tbc/" or Caps.mists and "mop-classic/" or "")
     if listing then
         -- A type-filtered listing (titles): far closer than a site-wide search,
         -- which buries the title among items and quests.
-        return "https://" .. sub .. ".wowhead.com/" .. listing
-            .. "/name:" .. WowheadSearchEncode(query)
+        return site .. listing .. "/name:" .. WowheadSearchEncode(query)
     end
     if query then
-        return "https://" .. sub .. ".wowhead.com/search?q=" .. WowheadSearchEncode(query)
+        return site .. "search?q=" .. WowheadSearchEncode(query)
     end
-    return "https://" .. sub .. ".wowhead.com/" .. kind .. "=" .. id
+    return site .. kind .. "=" .. id
 end
 
 local function ResultItemLink(itemID)
