@@ -6,7 +6,7 @@ local Openers = ns.SearchOpeners
 local Utils = ns.Utils
 
 local ClickButton = Utils.ClickButton
-local select, ipairs = Utils.select, Utils.ipairs
+local select = Utils.select
 local slower = Utils.slower
 local CreateFrame = CreateFrame
 local C_Reputation = C_Reputation
@@ -303,33 +303,15 @@ function Handlers:ToggleCurrencyBackpack(currencyID)
         pcall(C_CurrencyInfo.SetCurrencyBackpack, currencyID, target)
     end
 
-    -- Force the visible backpack token strip to refresh now. The
-    -- SetCurrency* call updates state but doesn't always notify the
-    -- ContainerFrame's token row when the bag is already open, so the
-    -- user sees stale icons until they close and reopen. Call every
-    -- update entry-point we know about; whichever exists in this
-    -- client wins, the rest no-op.
-    local candidates = {
-        _G["BackpackTokenFrame"],
-        _G["BackpackTokenFrame_Update"],
-    }
-    for _, c in ipairs(candidates) do
-        if type(c) == "function" then
-            pcall(c)
-        elseif type(c) == "table" then
-            if c.Update then pcall(c.Update, c) end
-            if c.UpdateTokens then pcall(c.UpdateTokens, c) end
-        end
-    end
-    -- Container frames host the token row in modern bag Search. Iterate
-    -- the standard ContainerFrame1..N looking for an Update method.
-    for i = 1, 13 do
-        local cf = _G["ContainerFrame" .. i]
-        if cf and cf.Update then pcall(cf.Update, cf) end
-        local tokenFrame = cf and cf.tokenFrame
-        if tokenFrame and tokenFrame.Update then
-            pcall(tokenFrame.Update, tokenFrame)
-        end
+    -- The open backpack's currency row, refreshed as the game's own Show
+    -- on Backpack does (the call alone leaves it stale until reopened).
+    -- Never the bag frames: an Update on one not in use ran another
+    -- addon's slot pass over slots it does not have (2026-11-17).
+    local tokens = _G["BackpackTokenFrame"]
+    if type(tokens) == "table" and tokens.Update then
+        pcall(tokens.Update, tokens)
+    elseif type(_G["BackpackTokenFrame_Update"]) == "function" then
+        pcall(_G["BackpackTokenFrame_Update"])
     end
 end
 
