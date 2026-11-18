@@ -220,6 +220,10 @@ local function ShowCellMenu(btn, keyboardMode)
     if link and IsDressableItem and IsDressableItem(cell.itemID) then
         rows[#rows + 1] = { text = L["ITEM_GRID_TRY_ON"], onClick = function() TryOn(cell) end }
     end
+    local item = { itemID = cell.itemID, name = cell.name }
+    if ns.ItemSources and ns.ItemSources.Available(item) then
+        rows[#rows + 1] = { text = L["HINT_SOURCES"], onClick = function() ns.ItemSources:Show(item) end }
+    end
     local wowhead = ns.GetWowheadLink and ns.GetWowheadLink({ itemID = cell.itemID, category = "Item" })
     if wowhead then
         rows[#rows + 1] = { text = L["CTX_WOWHEAD"], icon = ns.LINK_ICON_TEX, chromeIcon = true,

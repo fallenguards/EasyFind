@@ -536,6 +536,10 @@ function Search:OnSearchTextChangedNow(text, force)
         if ns.ItemSources then ns.ItemSources:ShowWaresView(quickFilter, text) end
         return
     end
+    -- "copper ore sources": the other words are searched; the item they
+    -- name shows its sources under the bar.
+    local sourcesOf = not quickFilter and ns.ItemSources and ns.ItemSources.SourcesQuery(text)
+    if sourcesOf then text = sourcesOf end
     if (not text or text == "") and not quickFilter then
         if ns.Database and ns.Database.CancelDynamicWarmup then
             ns.Database:CancelDynamicWarmup()
@@ -1285,6 +1289,14 @@ function Search:OnSearchTextChangedNow(text, force)
     for ri = 1, kept do combined[ri] = topBuf[ri] end
     for ri = #combined, kept + 1, -1 do combined[ri] = nil end
     wipe(topBuf)
+
+    local sourcesItem = sourcesOf and ns.ItemSources.PickItem(combined, sourcesOf)
+    if sourcesItem then
+        ns.ItemSources:ShowTyped(sourcesItem)
+        lastPaintText, lastPaintFilter = nil, nil
+        Mark("render")
+        return
+    end
 
     if mapSplit then ns.MapSearch:SplitUIRowsByZone(combined) end
 

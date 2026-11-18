@@ -258,5 +258,41 @@ function tests.aWareArriving_namesItsRow_othersItemsIgnored()
     H.assertEq(w.shown()[1].name, "Advisor's Gnarled Staff", "named and sorted in")
 end
 
+-- "copper ore sources" typed: the words before a last sources word.
+function tests.aLastSourcesWord_asksForTheOthersSources()
+    local Sources = fresh()
+    H.assertEq(Sources.SourcesQuery("copper ore sources"), "copper ore")
+    H.assertEq(Sources.SourcesQuery("  Copper Ore Source "), "Copper Ore")
+    H.assertNil(Sources.SourcesQuery("sources"), "the word alone names no item")
+    H.assertNil(Sources.SourcesQuery("sources copper ore"), "only the last word asks")
+    H.assertNil(Sources.SourcesQuery("copper ore"))
+    H.assertNil(Sources.SourcesQuery(nil))
+end
+
+function tests.theItemPicked_isTheOneNamedSo_elseTheFirstItem()
+    local Sources = fresh()
+    local quest = { data = { name = "Copper Ore", category = "Quest" } }
+    local bar = { data = { itemID = 2840, name = "Copper Bar", category = "Bag" } }
+    local ore = { data = { itemID = 2770, name = "Copper Ore", category = "Bank" } }
+    H.assertEq(Sources.PickItem({ quest, bar, ore }, "copper ore"), ore.data, "its own name first")
+    H.assertEq(Sources.PickItem({ quest, bar, ore }, "copper"), bar.data, "else the first item row")
+    H.assertNil(Sources.PickItem({ quest }, "copper ore"), "no item row: nothing picked")
+end
+
+function tests.typedSources_showTheItemsRowThenItsSections()
+    local Sources, shown = fresh({ sellers = function(name) return name == "Copper Ore" and { vendor } or {} end })
+    local ore = { itemID = 2770, name = "Copper Ore", category = "Bank" }
+    Sources:ShowTyped(ore)
+    local rows = shown()
+    H.assertEq(#rows, 3)
+    H.assertEq(rows[1].data, ore, "the item it names, its own row")
+    H.assertEq(rows[2].name, "SOURCES_SOLD_BY")
+    H.assertEq(rows[3].data, vendor)
+    Sources:ShowTyped({ itemID = 6948, name = "Hearthstone" })
+    rows = shown()
+    H.assertEq(#rows, 2)
+    H.assertEq(rows[2].name, "SOURCES_NONE", "nothing known: says so under it")
+end
+
 local pass, fail, failures = H.runSuite("ItemSources", tests)
 return { pass = pass, fail = fail, failures = failures }

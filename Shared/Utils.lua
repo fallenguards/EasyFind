@@ -10178,6 +10178,7 @@ function Utils.PinMenuRows(isPinned, onPin, onGuide, onAddAlias, extra)
     if onGuide then
         rows[#rows + 1] = { actionId = "guide", text = L["CTX_GUIDE"], icon = ns.EYE_ICON_TEX, chromeIcon = true, onClick = onGuide }
     end
+    if extra and extra.onSources then rows[#rows + 1] = { text = L["HINT_SOURCES"], onClick = extra.onSources } end
     -- GPS: directions to the row, or a route starting there; the custom
     -- line-art glyph, as Guide's eye.
     if extra and extra.onGPS and extra.onGPSFrom then

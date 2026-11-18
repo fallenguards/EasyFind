@@ -144,5 +144,36 @@ function tests.theMenuShowsChordsAndWhereToBind()
     H.assertEq(byId.alias.tooltipNote, ns.L["ROWACT_BIND_HINT"], "its own tooltip first, the hint under it")
 end
 
+-- Every item's menu opens its sources page: a plain entry, no key to bind.
+function tests.anItemsMenu_offersItsSources()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    env.CreateFont, env.CreateFrame = fakeWidget, fakeWidget
+    env.CreateColor = function(r, g, b, a) return { GetRGBA = function() return r, g, b, a end } end
+    env.UIParent, env.WorldFrame, env.GameTooltip = fakeWidget(), fakeWidget(), fakeWidget()
+    env.hooksecurefunc = function() end
+    env.GameFontNormal = setmetatable({}, { __index = function(_, k)
+        if k == "GetFont" then return function() return "font", 12, "" end end
+        return function() end
+    end })
+    H.loadModule("Shared/Utils.lua", env, ns)
+    env.EasyFind.db = { rowActionKeys = {} }
+    ns.ResultText = { AbbrevBinding = function(_, k) return k end }
+    H.loadModule("Search/Results/RowActions.lua", env, ns)
+    local opened = false
+    local rows = ns.Utils.PinMenuRows(false, function() end, nil, nil, { onSources = function() opened = true end })
+    local sources
+    for _, r in ipairs(rows) do
+        if r.text == ns.L["HINT_SOURCES"] then sources = r end
+    end
+    H.assertNotNil(sources)
+    H.assertNil(sources.actionId)
+    H.assertNil(sources.tooltip, "no bind hint on an entry no key runs")
+    sources.onClick()
+    H.assertTrue(opened)
+    rows = ns.Utils.PinMenuRows(false, function() end, nil, nil, {})
+    for _, r in ipairs(rows) do H.assertFalse(r.text == ns.L["HINT_SOURCES"], "not an item: none") end
+end
+
 local pass, fail, failures = H.runSuite("RowActions", tests)
 return { pass = pass, fail = fail, failures = failures }

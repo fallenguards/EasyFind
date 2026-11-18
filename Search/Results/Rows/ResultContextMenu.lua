@@ -154,6 +154,10 @@ function Rows:ResultMenuModel(row)
         end
         extra.onGPSFrom = function() EasyFind.API.CallAction("gps", "setStart", pinData) end
     end
+    -- Any item's sources page, whatever its click does.
+    if ns.ItemSources and ns.ItemSources.Available(pinData) then
+        extra.onSources = function() ns.ItemSources:Show(pinData) end
+    end
     -- The extension's own rows for its result (RegisterSearchProvider
     -- menu), given in the tile menu's shape, as the cursor menu's rows;
     -- a "menu" row is a flyout of more, its rows a list or a function.

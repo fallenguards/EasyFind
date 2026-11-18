@@ -239,14 +239,11 @@ local function Matches(row)
     return true
 end
 
-function ItemSources:ShowView(view, text)
-    local item = view.sourcesItem
-    if not item then return end
-    if not view.sections then view.sections = Sections(item) end
-    for w = #words, 1, -1 do words[w] = nil end
-    for word in slower(text or ""):gmatch("%S+") do words[#words + 1] = word end
-    local n = 0
-    for _, section in ipairs(view.sections) do
+-- The sections' rows the typed words keep, each section under its heading,
+-- from entry n + 1; "No known source" when none is kept.
+local function Fill(sections, n, itemName)
+    local start = n
+    for _, section in ipairs(sections) do
         local headed = false
         for _, row in ipairs(section.rows) do
             if Matches(row) then
@@ -260,13 +257,63 @@ function ItemSources:ShowView(view, text)
             end
         end
     end
-    if n == 0 then
-        n = 1
-        SetEntry(1, { name = sformat(L["SOURCES_NONE"], item.name), category = "Item", noPin = true, noLearn = true,
+    if n == start then
+        n = n + 1
+        SetEntry(n, { name = sformat(L["SOURCES_NONE"], itemName), category = "Item", noPin = true, noLearn = true,
                       noMenu = true, lookupRow = true })
     end
     for i = n + 1, #entries do entries[i] = nil end
     ns.Results:ShowHierarchicalResults(entries)
+end
+
+function ItemSources:ShowView(view, text)
+    local item = view.sourcesItem
+    if not item then return end
+    if not view.sections then view.sections = Sections(item) end
+    for w = #words, 1, -1 do words[w] = nil end
+    for word in slower(text or ""):gmatch("%S+") do words[#words + 1] = word end
+    Fill(view.sections, 0, item.name)
+end
+
+-- ==== "copper ore sources" typed ===========================================
+-- A last word asking for sources: the other words are searched, and the
+-- item they name shows its page's rows under its own row, the text kept.
+
+local SOURCE_WORDS = { sources = true, source = true }
+SOURCE_WORDS[slower(L["HINT_SOURCES"])] = true
+local TYPED_FRESH = 5                   -- seconds its sections stand while typed
+local typed = { at = 0 }                -- the typed item: itemID, sections, at
+
+-- The words before a last "sources"; nil when the text asks for none.
+function ItemSources.SourcesQuery(text)
+    if type(text) ~= "string" then return nil end
+    local rest, last = text:match("^%s*(.-)%s+(%S+)%s*$")
+    if not (rest and rest ~= "" and SOURCE_WORDS[slower(last)]) then return nil end
+    return rest
+end
+
+-- The item rows' one named exactly so, else the first: { data } entries.
+function ItemSources.PickItem(list, query)
+    local want, first = slower(query), nil
+    for i = 1, #list do
+        local d = list[i] and list[i].data
+        if ItemSources.Available(d) then
+            if (d.nameLower or slower(d.name)) == want then return d end
+            first = first or d
+        end
+    end
+    return first
+end
+
+function ItemSources:ShowTyped(data)
+    local now = GetTime()
+    if typed.itemID ~= data.itemID or now - typed.at > TYPED_FRESH then
+        typed.itemID, typed.at = data.itemID, now
+        typed.sections = Sections({ itemID = data.itemID, name = data.name, encounterID = data.encounterID })
+    end
+    for w = #words, 1, -1 do words[w] = nil end
+    SetEntry(1, data)
+    Fill(typed.sections, 1, data.name)
 end
 
 -- ==== a vendor's wares =====================================================
@@ -340,12 +387,8 @@ end
 
 -- An item the page waits on is in: named, and the page drawn again once
 -- the burst of answers settles.
--- The sources page's items named as they arrive.
-local function NameSourceRows(itemID, ok)
-    local sections = def.sections
-    if not sections then return false end
-    local name = ok and ItemName(itemID)
-    if not name then return false end
+local function NameSourceRows(sections, itemID, name)
+    if not (sections and name) then return false end
     for _, section in ipairs(sections) do
         for _, row in ipairs(section.rows) do
             if row.catalogItem and row.itemID == itemID then row.name, row.nameLower = name, slower(name) end
@@ -354,8 +397,20 @@ local function NameSourceRows(itemID, ok)
     return true
 end
 
+-- The typed sources still under the bar.
+local function TypedUp()
+    local Search = ns.Search
+    local text = typed.sections and Search and Search.GetTypedQuery and Search:GetTypedQuery()
+    return text ~= nil and ItemSources.SourcesQuery(text) ~= nil
+end
+
 itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
-    local sourced = waiting[itemID] and NameSourceRows(itemID, ok)
+    local sourced = false
+    if waiting[itemID] then
+        local name = ok and ItemName(itemID)
+        local onPage = NameSourceRows(def.sections, itemID, name)
+        sourced = NameSourceRows(typed.sections, itemID, name) or onPage
+    end
     waiting[itemID] = nil
     local rows = loadingIDs[itemID] and waresDef.rows
     loadingIDs[itemID] = nil
@@ -374,6 +429,8 @@ itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
         refreshPending = false
         local shown = ns.Filters:GetQuickFilter()
         if shown == waresDef and waresDef.rows then tsort(waresDef.rows, WareLess) end
-        if (shown == waresDef or shown == def) and ns.Search then ns.Search:RefreshActiveSearch(true) end
+        if (shown == waresDef or shown == def or (shown == nil and TypedUp())) and ns.Search then
+            ns.Search:RefreshActiveSearch(true)
+        end
     end)
 end)
