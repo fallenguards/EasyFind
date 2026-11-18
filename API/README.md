@@ -400,7 +400,8 @@ What EasyFind's own extensions offer:
 
 | Extension | Action | |
 | --- | --- | --- |
-| `gps` | `navigate(dest, opts)` | Directions to `dest` = `{ name, mapID, x, y }`, map coordinates 0 to 1. `dest.step` is the last step's own sentence ("Travel to the quest objective") in place of "Travel to name". `opts.popout` opens them in the GPS window. Returns true when a route is planned. |
+| `gps` | `navigate(dest, opts)` | Directions to `dest` = `{ name, mapID, x, y }`, map coordinates 0 to 1. `dest.step` is the last step's own sentence ("Travel to the quest objective") in place of "Travel to name"; `dest.npcName` the creature there, which the Target button targets as you come near; `dest.questMark` (`"offer"` or `"turnin"`) and `dest.questID` the quest it is for; `dest.quietArrival` no arrival sound, for a route another follows on from. `opts.popout` opens them in the GPS window, `opts.quiet` opens nothing. Returns true when a route is planned. |
+| `gps` | `navigateTrip(list, opts)` | GPS 1.9. One route through several places in order, each a `dest` as `navigate` takes, as the GPS window's own stops: its time is the whole trip's, the Target button follows the stop being walked to, and the end is the last. Places it cannot reach are left out. Returns true when a route is planned. |
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |
