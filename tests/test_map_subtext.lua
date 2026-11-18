@@ -15,6 +15,18 @@ local Text = ns.ResultText
 
 local tests = {}
 
+-- Snip 2026-11-17: a gathering node's row read "itemsourceNodes".
+function tests.anExtensionRowWithNoCategory_namesItsProvider_neverItsKey()
+    local byCategory = {
+        itemsourceNodes = { key = "itemsourceNodes", category = "itemsourceNodes", label = "Gathered" },
+        Quest = { key = "attQuests", category = "Quest", label = "Quests" },
+    }
+    ns.Extensions = { ProviderOf = function(d) return byCategory[d.category] end }
+    H.assertEq(Text:GetFlatSubtext({ name = "Copper Vein", category = "itemsourceNodes" }), "Gathered")
+    H.assertEq(Text:GetFlatSubtext({ name = "Hogger", category = "Quest" }), "Quest", "a category it named stands")
+    ns.Extensions = nil
+end
+
 function tests.addonSettingRows_nameTheirAddonThenThePage()
     H.assertEq(Text:GetFlatSubtext({ addon = "EasyFind", path = { "EasyFind Settings", "Search" } }), "EasyFind: Search")
     H.assertEq(Text:GetFlatSubtext({ addon = "TomTom", path = { "TomTom Settings" } }), "TomTom")

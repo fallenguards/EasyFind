@@ -248,6 +248,9 @@ function Text:GetFlatSubtext(data)
     if data.professionRecipeID or data.classicRecipe then
         return data.professionName or data.category or ""
     end
+    -- An extension's row with no category of its own: its provider's name, never its key.
+    local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)
+    if provider and provider.category == provider.key then return provider.label or "" end
     return data.category or ""
 end
 
