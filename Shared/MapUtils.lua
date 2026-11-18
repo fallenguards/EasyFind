@@ -476,7 +476,7 @@ local function ForeverEntrancesForMap(mapID)
                 name = (ok and type(name) == "string" and name ~= "") and name or e.n,
                 position = { x = x, y = y },
                 isRaid = e.raid, instanceMapID = e.id,
-                zoneMapID = e.m, zoneX = e.x, zoneY = e.y,
+                zoneMapID = e.m, zoneX = e.x, zoneY = e.y, doorX = e.dx, doorY = e.dy,
             }
         end
     end

@@ -40,6 +40,19 @@ function tests.continentMap_listsEachInstanceOnce()
     H.assertNil(seen[43], "Wailing Caverns is in Kalimdor")
 end
 
+-- Its map label is on the hill; the GPS walks on down the cave to the portal.
+function tests.anEntranceUnderItsLabel_carriesItsPortal()
+    local ns = fresh(true)
+    local wc, rfk
+    for _, e in ipairs(ns.GetDungeonEntrancesForMap(1413)) do   -- The Barrens
+        if e.instanceMapID == 43 then wc = e elseif e.instanceMapID == 47 then rfk = e end
+    end
+    H.assertEq(wc.zoneX, 0.4599, "the pin stays on its label")
+    H.assertEq(wc.doorX, 0.4769)
+    H.assertEq(wc.doorY, 0.3498)
+    H.assertNil(rfk.doorX, "Razorfen Kraul's spot is its portal already")
+end
+
 function tests.raids_areRaids()
     local ns = fresh(true)
     local list = ns.GetDungeonEntrancesForMap(1445)   -- Dustwallow Marsh

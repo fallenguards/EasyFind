@@ -41,17 +41,18 @@ if not (ns.Caps and ns.Caps.tbc) then return end
 -- Dungeon and raid entrances on TBC Anniversary, which has no encounter
 -- journal: instance map id, English name (the client names it through
 -- GetRealZoneText), raid or not, the zone map and spot, and the spot
--- on the continent map.
+-- on the continent map; dx, dy: its portal on the zone map, where the
+-- spot is the map label over it.
 ns.FOREVER_INSTANCES = {
     { id = 33, n = "Shadowfang Keep", raid = false, players = 10, m = 1421, x = 0.4461, y = 0.6772, ci = 0, wx = -229, wy = 1576, cm = 1415, cx = 0.4073, cy = 0.4201 },
     { id = 34, n = "Stormwind Stockade", raid = false, players = 10, m = 1453, x = 0.3961, y = 0.5388, ci = 0, wx = -8762, wy = 849, cm = 1415, cx = 0.4252, cy = 0.7344 },
     { id = 36, n = "Deadmines", raid = false, players = 10, m = 1436, x = 0.3804, y = 0.7751, ci = 0, wx = -11208, wy = 1685, cm = 1415, cx = 0.4047, cy = 0.8245 },
-    { id = 43, n = "Wailing Caverns", raid = false, players = 10, m = 1413, x = 0.4599, y = 0.3627, ci = 1, wx = -838, wy = -2037, cm = 1414, cx = 0.5191, cy = 0.5559 },
+    { id = 43, n = "Wailing Caverns", raid = false, players = 10, m = 1413, x = 0.4599, y = 0.3627, ci = 1, wx = -838, wy = -2037, dx = 0.4772, dy = 0.3502, cm = 1414, cx = 0.5191, cy = 0.5559 },
     { id = 47, n = "Razorfen Kraul", raid = false, players = 10, m = 1413, x = 0.4223, y = 0.8983, ci = 1, wx = -4457, wy = -1656, cm = 1414, cx = 0.5088, cy = 0.7034 },
     { id = 48, n = "Blackfathom Deeps", raid = false, players = 10, m = 1440, x = 0.1635, y = 0.1094, ci = 1, wx = 4252, wy = 757, cm = 1414, cx = 0.4432, cy = 0.3484 },
-    { id = 70, n = "Uldaman", raid = false, players = 10, m = 1418, x = 0.4423, y = 0.1221, ci = 0, wx = -6092, wy = -3179, cm = 1415, cx = 0.5241, cy = 0.636 },
+    { id = 70, n = "Uldaman", raid = false, players = 10, m = 1418, x = 0.4423, y = 0.1221, ci = 0, wx = -6092, wy = -3179, dx = 0.3519, dy = 0.099, cm = 1415, cx = 0.5241, cy = 0.636 },
     { id = 90, n = "Gnomeregan", raid = false, players = 10, m = 1426, x = 0.1751, y = 0.3911, ci = 0, wx = -5161, wy = 940, cm = 1415, cx = 0.423, cy = 0.6018 },
-    { id = 109, n = "Sunken Temple", raid = false, players = 10, m = 1435, x = 0.7, y = 0.5291, ci = 0, wx = -10430, wy = -3829, cm = 1415, cx = 0.54, cy = 0.7958 },
+    { id = 109, n = "Sunken Temple", raid = false, players = 10, m = 1435, x = 0.7, y = 0.5291, ci = 0, wx = -10430, wy = -3829, dx = 0.7742, dy = 0.3544, cm = 1415, cx = 0.54, cy = 0.7958 },
     { id = 129, n = "Razorfen Downs", raid = false, players = 10, m = 1441, x = 0.4781, y = 0.2386, ci = 1, wx = -4667, wy = -2537, cm = 1414, cx = 0.5327, cy = 0.712 },
     { id = 189, n = "Scarlet Monastery", raid = false, players = 10, m = 1420, x = 0.848, y = 0.3031, ci = 0, wx = 2924, wy = -798, cm = 1415, cx = 0.4656, cy = 0.3039 },
     { id = 209, n = "Zul'Farrak", raid = false, players = 10, m = 1446, x = 0.3871, y = 0.1953, ci = 1, wx = -6773, wy = -2890, cm = 1414, cx = 0.5423, cy = 0.7978 },
@@ -59,12 +60,12 @@ ns.FOREVER_INSTANCES = {
     { id = 229, n = "Blackrock Spire", raid = false, players = 10, m = 1427, x = 0.4106, y = 0.9534, ci = 0, wx = -7518, wy = -1239, cm = 1415, cx = 0.4764, cy = 0.6886 },
     { id = 230, n = "Blackrock Depths", raid = false, players = 5, m = 1428, x = 0.2291, y = 0.0745, ci = 0, wx = -7177, wy = -938, cm = 1415, cx = 0.469, cy = 0.676 },
     { id = 230, n = "Blackrock Depths", raid = false, players = 5, m = 1427, x = 0.2755, y = 0.7238, ci = 0, wx = -7177, wy = -938, cm = 1415, cx = 0.469, cy = 0.676 },
-    { id = 249, n = "Onyxia's Lair", raid = true, players = 40, m = 1445, x = 0.523, y = 0.7614, ci = 1, wx = -4698, wy = -3721, cm = 1414, cx = 0.5649, cy = 0.7132 },
+    { id = 249, n = "Onyxia's Lair", raid = true, players = 40, m = 1445, x = 0.523, y = 0.7614, ci = 1, wx = -4698, wy = -3721, dx = 0.529, dy = 0.7815, cm = 1414, cx = 0.5649, cy = 0.7132 },
     { id = 269, n = "Opening of the Dark Portal", raid = false, players = 5, m = 1446, x = 0.5707, y = 0.631, ci = 1, wx = -8777, wy = -4157, cm = 1414, cx = 0.5767, cy = 0.8795 },
-    { id = 289, n = "Scholomance", raid = false, players = 5, m = 1422, x = 0.6968, y = 0.7341, ci = 0, wx = 1262, wy = -2579, cm = 1415, cx = 0.5093, cy = 0.3652 },
+    { id = 289, n = "Scholomance", raid = false, players = 5, m = 1422, x = 0.6968, y = 0.7341, ci = 0, wx = 1262, wy = -2579, dx = 0.6896, dy = 0.7272, cm = 1415, cx = 0.5093, cy = 0.3652 },
     { id = 309, n = "Zul'Gurub", raid = true, players = 20, m = 1434, x = 0.5418, y = 0.1756, ci = 0, wx = -11916, wy = -1236, cm = 1415, cx = 0.4764, cy = 0.8505 },
     { id = 329, n = "Stratholme", raid = false, players = 5, m = 1423, x = 0.4844, y = 0.2179, ci = 0, wx = 3237, wy = -4061, cm = 1415, cx = 0.5457, cy = 0.2924 },
-    { id = 349, n = "Maraudon", raid = false, players = 10, m = 1443, x = 0.2925, y = 0.6253, ci = 1, wx = -1423, wy = 2918, cm = 1414, cx = 0.3845, cy = 0.5797 },
+    { id = 349, n = "Maraudon", raid = false, players = 10, m = 1443, x = 0.2925, y = 0.6253, ci = 1, wx = -1423, wy = 2918, dx = 0.3594, dy = 0.6458, cm = 1414, cx = 0.3845, cy = 0.5797 },
     { id = 389, n = "Ragefire Chasm", raid = false, players = 10, m = 1454, x = 0.5323, y = 0.4869, ci = 1, wx = 1818, wy = -4427, cm = 1414, cx = 0.5841, cy = 0.4476 },
     { id = 409, n = "Molten Core", raid = true, players = 40, m = 1428, x = 0.263, y = 0.2458, ci = 0, wx = -7511, wy = -1037, cm = 1415, cx = 0.4715, cy = 0.6883 },
     { id = 409, n = "Molten Core", raid = true, players = 40, m = 1427, x = 0.32, y = 0.9486, ci = 0, wx = -7511, wy = -1037, cm = 1415, cx = 0.4715, cy = 0.6883 },
