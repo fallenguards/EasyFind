@@ -25,7 +25,7 @@ function tests.categoryBoost_keepsAHigherNaturalScore()
     local boost = assert(src:find("local natural = wipe(SCRATCH.mapNaturalScore)", 1, true), "the natural scores are gathered")
     local lift = assert(src:find("if own and own > score then score = own end", boost, true), "the band only lifts")
     H.assertTrue(lift - boost < 1200, "the lift sits inside the boost loop")
-    H.assertTrue(src:find("natural[MapRowKey(r.data)] = r.score or 0", 1, true) ~= nil, "keyed like the dedupe")
+    H.assertTrue(src:find("natural[MapRow.Key(r.data)] = r.score or 0", 1, true) ~= nil, "keyed like the dedupe")
 end
 
 function tests.launcherWord_sitsBetweenPrefixAndExactName()

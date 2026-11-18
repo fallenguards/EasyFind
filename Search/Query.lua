@@ -84,10 +84,26 @@ local ITEM_ROW_CATEGORY = { Bag = true, Bank = true, Warband = true, Loot = true
 
 -- Identity of a map row across the pooled copies the map search hands out:
 -- boosted injections record theirs so the same POI is not shown again when
--- the regular map results append below.
-local function MapRowKey(d)
+-- the regular map results append below. One table: the bar's search
+-- function is at Lua's 60 upvalues.
+local MapRow = {}
+function MapRow.Key(d)
     return (d.nameLower or d.name or "") .. "\1" .. tostring(d.mapID or "")
 end
+-- A remembered map pick's row in this search: the same place, whichever
+-- map listed it then (a Kalimdor pick and the Barrens row were two
+-- Wailing Caverns, 2026-11-18).
+function MapRow.SamePlace(learned, mapResults)
+    local name = learned.nameLower or slower(learned.name or "")
+    for ri = 1, mapResults and #mapResults or 0 do
+        local d = mapResults[ri].data
+        if d and d.nameLower == name and d.category == learned.category and d.npcID == learned.npcID then
+            return d
+        end
+    end
+    return nil
+end
+-- end of the map row identity
 -- Re-run the active search after async data changes (provider loads,
 -- item-info arrivals, Database cache resets). A quick-filter browse
 -- ("@outfits") has empty text but still needs the re-search once its
@@ -770,7 +786,7 @@ function Search:OnSearchTextChangedNow(text, force)
                             local wrapped = {}
                             for k, v in pairs(catRows[j]) do wrapped[k] = v end
                             wrapped.query = (hit.alias and hit.alias.text) or text
-                            seenMapRows[MapRowKey(wrapped)] = true
+                            seenMapRows[MapRow.Key(wrapped)] = true
                             tinsert(results, 1, { data = wrapped, score = aliasScore - j, isAlias = true })
                         end
                     end
@@ -778,7 +794,7 @@ function Search:OnSearchTextChangedNow(text, force)
                     local wrapped = {}
                     for k, v in pairs(data) do wrapped[k] = v end
                     wrapped.query = (hit.alias and hit.alias.text) or text
-                    seenMapRows[MapRowKey(wrapped)] = true
+                    seenMapRows[MapRow.Key(wrapped)] = true
                     tinsert(results, 1, { data = wrapped, score = aliasScore, isAlias = true })
                 elseif data and not IsPromoted(promoted, data) then
                     MarkPromoted(promoted, data)
@@ -820,11 +836,11 @@ function Search:OnSearchTextChangedNow(text, force)
             local natural = wipe(SCRATCH.mapNaturalScore)
             for ri = 1, mapResults and #mapResults or 0 do
                 local r = mapResults[ri]
-                if r.data then natural[MapRowKey(r.data)] = r.score or 0 end
+                if r.data then natural[MapRow.Key(r.data)] = r.score or 0 end
             end
             for j = #catRows, 1, -1 do
                 local src = catRows[j]
-                local rowKey = MapRowKey(src)
+                local rowKey = MapRow.Key(src)
                 if not seenMapRows[rowKey] then
                     seenMapRows[rowKey] = true
                     local wrapped = {}
@@ -880,9 +896,8 @@ function Search:OnSearchTextChangedNow(text, force)
                 -- Picked for a kind of place (inn, repair): the nearest of
                 -- its kind among this search's map rows, not the one picked
                 -- somewhere else; none of it here, no boost.
-                local src = learned
+                local src
                 if ns.MapSearch.IsKindQuery and ns.MapSearch:IsKindQuery(text) then
-                    src = nil
                     local best = math.huge
                     for ri = 1, mapResults and #mapResults or 0 do
                         local d = mapResults[ri].data
@@ -891,6 +906,8 @@ function Search:OnSearchTextChangedNow(text, force)
                             if not src or near < best then src, best = d, near end
                         end
                     end
+                else
+                    src = MapRow.SamePlace(learned, mapResults) or learned
                 end
                 if src then
                     local wrapped = {}
@@ -898,7 +915,7 @@ function Search:OnSearchTextChangedNow(text, force)
                     wrapped.query = text
                     -- The pick it stands for, for Forget this pick.
                     wrapped.learnedFrom = learned
-                    seenMapRows[MapRowKey(wrapped)] = true
+                    seenMapRows[MapRow.Key(wrapped)] = true
                     tinsert(results, 1, { data = wrapped, score = LEARNED_SCORE, isAlias = true })
                 end
             elseif LearnedAllowed(learned) and not IsPromoted(promoted, learned) then
@@ -1139,7 +1156,7 @@ function Search:OnSearchTextChangedNow(text, force)
         local decorated = quickFilter and quickFilter.decorator and quickFilter
         for ri = 1, #mapResults do
             local r = mapResults[ri]
-            if not (r.data and ((anyBoosted and boostedMapRows[MapRowKey(r.data)])
+            if not (r.data and ((anyBoosted and boostedMapRows[MapRow.Key(r.data)])
                     or (suppressMapCategory and r.data.category == suppressMapCategory)
                     or (decorated and not self:QuickFilterAllowsData(r.data, decorated)))) then
                 combined[#combined + 1] = r
