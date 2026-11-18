@@ -769,22 +769,25 @@ local function ClearPerQueryResultState(poi)
     poi.allInstances = nil
 end
 
-local function AppendPromotedInstanceResults(self, out, zoneNames)
+local function AppendPromotedInstanceResults(self, out, zoneNames, here)
     local promoted = BuildPromotedInstanceCache(self)
     for i = 1, #promoted do
         local poi = promoted[i]
         ClearPerQueryResultState(poi)
-        if not zoneNames[GetNameLower(poi)] and not zoneNames[GetNameNorm(poi)] then
+        local name = GetNameLower(poi)
+        if not zoneNames[name] and not zoneNames[GetNameNorm(poi)] and not (here and here[name]) then
             out[#out + 1] = poi
         end
     end
 end
 
-local function AppendGlobalInstanceSearchSources(self, out, zoneNames, zoneRows)
+-- here: the lowered names of the entrances already listed from the
+-- player's own zone, which stand for the world's rows of them.
+local function AppendGlobalInstanceSearchSources(self, out, zoneNames, zoneRows, here)
     local instancePOIs = self:GetGlobalInstanceCache()
     SuppressCoveredDungeonZones(zoneRows or out, zoneNames, instancePOIs)
     EnrichZoneSearchResults(zoneRows or out, zoneNames, instancePOIs)
-    AppendPromotedInstanceResults(self, out, zoneNames)
+    AppendPromotedInstanceResults(self, out, zoneNames, here)
 end
 
 -- Legacy PvP vendors live in the faction capitals but are findable from any

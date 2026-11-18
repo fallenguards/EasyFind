@@ -52,6 +52,7 @@ local reuseUIFreshRows = Search.reuseUIFreshRows
 local reuseUIScored = Search.reuseUIScored
 local reuseUICategoryRows = Search.reuseUICategoryRows
 local reuseUICategoryData = Search.reuseUICategoryData
+local reuseUIHereEntrances = {}
 local UI_MAP_RESULT_CAP = Search.UI_MAP_RESULT_CAP
 
 local function RequestUISearchGlobalInstances(self)
@@ -925,8 +926,14 @@ function MapSearch:SearchForUI(query, filters)
     do
         -- Static names stay unmarked: same-named places fold after scoring,
         -- so another zone's weapon master is not hidden behind this zone's.
-        AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, false)
+        local entrances = AppendLocalSearchSources(self, pois, existingNames, nil, searchMapID, false)
         AppendWorldStaticLocations(self, pois, existingNames, searchMapID)
+        -- This zone's entrances stand for the world's rows of them (one
+        -- Wailing Caverns, not one per map listing it).
+        wipe(reuseUIHereEntrances)
+        for i = 1, entrances and #entrances or 0 do
+            reuseUIHereEntrances[GetNameLower(entrances[i])] = true
+        end
     end
     Part("local")
 
@@ -948,7 +955,7 @@ function MapSearch:SearchForUI(query, filters)
         -- Dungeons / raids / delves use a global map walk. The cache is
         -- built in background slices; first search should never do that walk.
         if self.HasGlobalInstanceCache and self:HasGlobalInstanceCache() then
-            AppendGlobalInstanceSearchSources(self, pois, zoneNames, fresh)
+            AppendGlobalInstanceSearchSources(self, pois, zoneNames, fresh, reuseUIHereEntrances)
         else
             RequestUISearchGlobalInstances(self)
         end
