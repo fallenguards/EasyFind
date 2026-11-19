@@ -67,8 +67,8 @@ local dynamicProviders = {
     { key = "gearSets", category = providerCategory["gearSets"],       fn = "PopulateDynamicGearSets", eager = true },
     { key = "skills", category = providerCategory["skills"],          fn = "PopulateDynamicSkills", eager = true },
     { key = "macros", category = providerCategory["macros"],          fn = "PopulateDynamicMacros", eager = true },
-    { key = "abilities", category = providerCategory["abilities"],        fn = "PopulateDynamicAbilities" },
-    { key = "talents", category = providerCategory["talents"],         fn = "PopulateDynamicTalents" },
+    { key = "abilities", category = providerCategory["abilities"],        fn = "PopulateDynamicAbilities", post = "AddSpellWords" },
+    { key = "talents", category = providerCategory["talents"],         fn = "PopulateDynamicTalents", post = "AddSpellWords" },
     { key = "bags", category = providerCategory["bags"],            fn = "PopulateDynamicBags" },
     { key = "bank", category = providerCategory["bank"],            fn = "PopulateDynamicBank" },
     { key = "transmogSets", category = providerCategory["transmogSets"], fn = "PopulateDynamicTransmogSets", asyncFn = "PopulateDynamicTransmogSetsAsync", pre = "SyncTransmogSetFiltersFromUI", keepOnTrim = true },
@@ -261,8 +261,12 @@ local function runProviderJob(database, provider, schedDone)
     -- its walk loops. The one-frame 300-400ms cold walks the bench
     -- convicted become ~4ms slices; providers without checkpoints just
     -- complete in their first slice.
+    -- post: a pass over the rows just made (description words).
     Utils.RunSliced(function()
-        return fn(database)
+        local ready = fn(database)
+        local post = provider.post and database[provider.post]
+        if post and ready ~= false then post(database, provider.category, provider.key) end
+        return ready
     end, function(ok, readyOrErr)
         if ok and readyOrErr == false then
             provider.loaded = false
