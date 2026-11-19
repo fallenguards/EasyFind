@@ -54,6 +54,9 @@ Database/Segments.lua
 Database/Instances_Forever.lua
 Database/Instances_Era.lua [AllowLoadGameType vanilla]
 Database/Instances_TBC.lua [AllowLoadGameType tbc]
+Database/ZoneLevels_Forever.lua [AllowLoadGameType camelot]
+Database/ZoneLevels_Era.lua [AllowLoadGameType vanilla]
+Database/ZoneLevels_TBC.lua [AllowLoadGameType tbc]
 Database/Loot_Forever.lua [AllowLoadGameType camelot]
 Database/Loot_Forever_deDE.lua [AllowLoadGameType camelot] [AllowLoadTextLocale deDE]
 Database/Loot_Forever_esES.lua [AllowLoadGameType camelot] [AllowLoadTextLocale esES]
@@ -234,6 +237,7 @@ Search/Results/ItemGrid.lua
 Search/Characters.lua
 Search/Upgrades.lua
 Search/ItemSources.lua
+Search/LevelPlaces.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua
 MapSearch/Zones/Highlight.lua

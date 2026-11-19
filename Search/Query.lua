@@ -556,6 +556,12 @@ function Search:OnSearchTextChangedNow(text, force)
     -- name shows its sources under the bar.
     local sourcesOf = not quickFilter and ns.ItemSources and ns.ItemSources.SourcesQuery(text)
     if sourcesOf then text = sourcesOf end
+    -- "level 25": the zones and dungeons that fit it (Search/LevelPlaces.lua).
+    local placesLevel = not quickFilter and ns.LevelPlaces and ns.LevelPlaces.Query(text)
+    if placesLevel then
+        ns.LevelPlaces:Show(placesLevel)
+        return
+    end
     if (not text or text == "") and not quickFilter then
         if ns.Database and ns.Database.CancelDynamicWarmup then
             ns.Database:CancelDynamicWarmup()
