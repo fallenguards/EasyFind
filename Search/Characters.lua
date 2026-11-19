@@ -265,6 +265,16 @@ local function CharacterRow(entry, subtext, extra)
     return data
 end
 
+-- Who can make an item, for its sources page: a row per character and
+-- profession, opening the character's page.
+function Characters.CrafterRows(itemID, itemName)
+    local out = {}
+    for _, hit in ipairs(Data.Crafters(itemID, itemName)) do
+        out[#out + 1] = CharacterRow(hit.entry, hit.prof, { sourceNote = hit.prof })
+    end
+    return out
+end
+
 local function AltsPage(list)
     local out = {}
     out[#out + 1] = Row(_G["ITEMS"] or "Items", L["CHAR_ITEMS_ALL"], GLYPH.items, { quickFilterDef = PageDef(nil, "items") })

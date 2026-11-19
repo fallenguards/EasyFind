@@ -4338,6 +4338,7 @@ local function IsRecipeLearned(recipeID)
     end
     return true
 end
+Database.IsRecipeLearned = IsRecipeLearned
 
 -- Decode (and memoize) one expansion page's comma-joined recipe-ID string into
 -- a number array. Only ever called for OWNED pages, so decode cost is bounded
@@ -4365,6 +4366,7 @@ local function PageRecipeIDs(profData, pageID)
     end
     return ids
 end
+Database.PageRecipeIDs = PageRecipeIDs
 
 -- One entry per profession this character knows (GetProfessions covers the two
 -- primaries plus archaeology, fishing, cooking). Selecting a row opens that

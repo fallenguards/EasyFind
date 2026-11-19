@@ -79,6 +79,24 @@ function tests.thePageListsSellersBossesAndTheExtensions()
     H.assertEq(#shown(), 5, "a failing extension adds nothing")
 end
 
+-- Who on the account can make it (2026-11-19).
+function tests.thePageListsTheCharactersWhoCanCraftIt()
+    local Sources, shown, _, ns = fresh({ sellers = function() return { vendor } end })
+    local crafter = { name = "Jaina", category = "Character", searchCommandDesc = "Tailoring", sourceNote = "Tailoring" }
+    ns.Characters = { CrafterRows = function(itemID) return itemID == 2996 and { crafter } or {} end }
+    local view = { sourcesItem = { itemID = 2996, name = "Bolt of Linen Cloth" } }
+    Sources:ShowView(view, "")
+    local rows = shown()
+    H.assertEq(rows[3].name, "SOURCES_CRAFTED_BY", "after who sells it")
+    H.assertTrue(rows[3].header)
+    H.assertEq(rows[4].data, crafter)
+    Sources:ShowView(view, "tailor")
+    H.assertEq(shown()[2].data, crafter, "found by the profession too")
+    view = { sourcesItem = { itemID = 5, name = "Nothing" } }
+    Sources:ShowView(view, "")
+    for _, row in ipairs(shown()) do H.assertTrue(row.name ~= "SOURCES_CRAFTED_BY", "no crafter, no section") end
+end
+
 function tests.noSourceSaysSo()
     local Sources, shown = fresh()
     Sources:ShowView({ sourcesItem = { itemID = 7, name = "Hearthstone" } }, "")

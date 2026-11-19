@@ -192,6 +192,10 @@ local function Sections(item)
     local bosses = {}
     Bosses(item, bosses)
     if #bosses > 0 then out[#out + 1] = { label = L["SOURCES_DROPPED_BY"], rows = bosses, key = "dropped" } end
+    local crafters = ns.Characters and ns.Characters.CrafterRows and ns.Characters.CrafterRows(item.itemID, item.name)
+    if crafters and #crafters > 0 then
+        out[#out + 1] = { label = L["SOURCES_CRAFTED_BY"], rows = crafters, key = "crafted" }
+    end
     for i = 1, #added do
         local ok, given = ns.Extensions.Run(added[i].fn, item.itemID, item.name)
         if ok then AddExtension(out, added[i].label, given) end

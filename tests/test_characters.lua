@@ -778,5 +778,74 @@ function tests.lockouts_anInstanceRowSaysWhoIsSaved()
     H.assertNil(ns.Characters.SavedSubtext("Stratholme"))
 end
 
+-- ==== who can craft an item (2026-11-19) ====================================
+
+local function Crafting(env, ns, learned)
+    env.GetProfessions = function() return 1, nil, nil, nil, 2 end
+    env.GetProfessionInfo = function(i)
+        if i == 1 then return "Tailoring", 1, 150, 300, 0, 0, 197 end
+        if i == 2 then return "Cooking", 1, 80, 300, 0, 0, 185 end
+    end
+    ns.PROFESSION_RECIPES = {
+        [197] = { recipesByPage = { [9] = "10,11,12" }, _makesCache = { [9] = { 100, 101, 102 } } },
+        [185] = { recipesByPage = { [8] = "20,21" } },
+    }
+    ns.Database.IsRecipeLearned = function(id) return learned[id] == true end
+    ns.Database.PageRecipeIDs = function(data, pageID)
+        local ids = {}
+        for id in data.recipesByPage[pageID]:gmatch("%d+") do ids[#ids + 1] = tonumber(id) end
+        return ids
+    end
+    env.C_TradeSkillUI = { GetRecipeSchematic = function(id) return { outputItemID = id + 500 } end }
+end
+
+function tests.crafts_theItemsTheLearnedRecipesMake_perProfession()
+    local env, ns = World()
+    Crafting(env, ns, { [10] = true, [12] = true, [21] = true })
+    ns.CharacterData.Snapshot()
+    local crafts = env.EasyFindDB.charProfileCache["Thrall-Realm"].crafts
+    H.assertEq(crafts.Tailoring, ",100,102,", "the shipped item of each learned recipe, the unlearned one left out")
+    H.assertEq(crafts.Cooking, ",521,", "no shipped item: the recipe's schematic names it")
+end
+
+function tests.crafts_readOncePerSession_thenAsARecipeIsLearned()
+    local env, ns, frames = World()
+    local learned = { [10] = true }
+    Crafting(env, ns, learned)
+    ns.CharacterData.Snapshot()
+    learned[11] = true
+    ns.CharacterData.Snapshot()
+    local p = env.EasyFindDB.charProfileCache["Thrall-Realm"]
+    H.assertEq(p.crafts.Tailoring, ",100,", "a later snapshot does not walk the recipes again")
+    Watcher(frames)("NEW_RECIPE_LEARNED", 11)
+    H.assertEq(p.crafts.Tailoring, ",100,101,", "a recipe learned does")
+end
+
+function tests.crafters_everyCharacterWhoCanMakeTheItem()
+    local db = TwoJainas()
+    db.charProfileCache["Jaina-Realm"].crafts = { Tailoring = ",100,2996,", Enchanting = ",11287," }
+    db.charProfileCache["Bôb-Realm"].crafts = { Tailoring = ",12996," }
+    local _, ns = Pages(db)
+    local hits = ns.CharacterData.Crafters(2996, "Bolt of Linen Cloth")
+    H.assertEq(#hits, 1, "12996 holds 2996 as text, and is another item")
+    H.assertEq(hits[1].entry.name, "Jaina")
+    H.assertEq(hits[1].prof, "Tailoring")
+    local rows = ns.Characters.CrafterRows(2996, "Bolt of Linen Cloth")
+    H.assertEq(rows[1].name, "Jaina")
+    H.assertEq(rows[1].searchCommandDesc, "Tailoring", "the profession under the name")
+    H.assertEq(rows[1].quickFilterDef.charKey, "Jaina-Realm", "a click opens her page")
+    H.assertEq(#ns.Characters.CrafterRows(5, "Nothing"), 0)
+end
+
+function tests.crafters_onTheClassicClients_byTheRecipesName()
+    local db = TwoJainas()
+    db.classicRecipes = { ["Bôb-Realm"] = { ["First Aid"] = { recipes = { ["Linen Bandage"] = 133685 } } } }
+    local _, ns = Pages(db, { classic = true, era = true, Has = function() return false end })
+    local hits = ns.CharacterData.Crafters(1251, "Linen Bandage")
+    H.assertEq(#hits, 1)
+    H.assertEq(hits[1].entry.name, "Bôb")
+    H.assertEq(hits[1].prof, "First Aid")
+end
+
 local pass, fail, failures = H.runSuite("Characters", tests)
 return { pass = pass, fail = fail, failures = failures }

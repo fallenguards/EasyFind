@@ -978,6 +978,7 @@ L["HINT_SOURCES"]                       = "Sources"
 L["HINT_WARES"]                         = "Wares"
 L["SOURCES_SOLD_BY"]                    = "Sold by"
 L["SOURCES_DROPPED_BY"]                 = "Dropped by"
+L["SOURCES_CRAFTED_BY"]                 = "Crafted by"
 L["SOURCES_NONE"]                       = "No known source for %s"
 
 -- =============================================================================

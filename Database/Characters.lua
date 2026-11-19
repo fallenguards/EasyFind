@@ -202,6 +202,85 @@ function Data.RecordLockouts()
     Data.Changed()
 end
 
+-- ==== what the character can craft ==========================================
+
+-- The item a learned recipe makes: Forever ships it beside the recipe,
+-- retail's schematic names it.
+local function MadeItem(recipeID, shipped)
+    if shipped then return shipped end
+    local read = C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic
+    if not read then return nil end
+    local ok, schematic = pcall(read, recipeID, false)
+    return ok and type(schematic) == "table" and schematic.outputItemID or nil
+end
+
+-- { [profession name] = ",itemID,itemID," }: what each profession of the
+-- character makes with the recipes it has learned.
+local function ReadCrafts()
+    local Database, shipped = ns.Database, ns.PROFESSION_RECIPES
+    if not (GetProfessions and GetProfessionInfo and shipped and Database and Database.IsRecipeLearned) then return nil end
+    local out = {}
+    local p1, p2, p3, p4, p5, p6 = GetProfessions()
+    for _, index in ipairs({ p1 or false, p2 or false, p3 or false, p4 or false, p5 or false, p6 or false }) do
+        local name, skillLine
+        if index then
+            local profName, _, _, _, _, _, line = GetProfessionInfo(index)
+            name, skillLine = profName, line
+        end
+        local data = name and skillLine and shipped[skillLine]
+        if data and data.recipesByPage then
+            local items = {}
+            for pageID in pairs(data.recipesByPage) do
+                local ids = Database.PageRecipeIDs(data, pageID) or {}
+                local made = data._makesCache and data._makesCache[pageID]
+                for i = 1, #ids do
+                    if Database.IsRecipeLearned(ids[i]) then
+                        local item = MadeItem(ids[i], made and made[i])
+                        if item and item > 0 then items[#items + 1] = item end
+                    end
+                end
+            end
+            if #items > 0 then out[name] = "," .. table.concat(items, ",") .. "," end
+        end
+    end
+    return out
+end
+
+function Data.RecordCrafts()
+    local profiles = Profiles()
+    local p = profiles and profiles[ns.CurrentCharacterKey()]
+    if not p then return end
+    p.crafts = ReadCrafts() or p.crafts
+end
+
+-- Who can make an item: { { entry, prof } }. The classic clients keep
+-- recipes by name as each profession window showed them, and a recipe
+-- there is named for what it makes.
+function Data.Crafters(itemID, itemName)
+    local out = {}
+    local db = DB()
+    local books = db and ns.Caps and ns.Caps.classic and db.classicRecipes
+    local profiles = Profiles() or {}
+    local needle = itemID and ("," .. itemID .. ",")
+    for _, entry in ipairs(Data.List()) do
+        local crafts = profiles[entry.key] and profiles[entry.key].crafts
+        if type(crafts) == "table" and needle then
+            for prof, items in pairs(crafts) do
+                if type(items) == "string" and sfind(items, needle, 1, true) then out[#out + 1] = { entry = entry, prof = prof } end
+            end
+        end
+        local book = type(books) == "table" and books[entry.key]
+        if type(book) == "table" and itemName then
+            for prof, kept in pairs(book) do
+                if type(kept) == "table" and type(kept.recipes) == "table" and kept.recipes[itemName] then
+                    out[#out + 1] = { entry = entry, prof = prof }
+                end
+            end
+        end
+    end
+    return out
+end
+
 -- When this session's first snapshot ran: played time counts from it.
 local sessionStart
 
@@ -251,6 +330,8 @@ function Data.Snapshot(atLogout)
         if sessionStart then p.played = p.played + (now - (p.playedAt or now)) end
         p.playedAt = now
     end
+    -- Once a session, then as recipes are learned.
+    if not sessionStart then Data.RecordCrafts() end
     sessionStart = sessionStart or now
     Data.Changed()
 end
@@ -328,7 +409,7 @@ do
     for _, event in ipairs({ "PLAYER_MONEY", "PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA",
                              "PLAYER_EQUIPMENT_CHANGED", "SKILL_LINES_CHANGED", "TIME_PLAYED_MSG",
                              "BAG_UPDATE_DELAYED", "PLAYERBANKSLOTS_CHANGED",
-                             "UPDATE_INSTANCE_INFO", "BOSS_KILL" }) do
+                             "UPDATE_INSTANCE_INFO", "BOSS_KILL", "NEW_RECIPE_LEARNED" }) do
         Utils.RegisterEventIfValid(watcher, event)
     end
     watcher:SetScript("OnEvent", function(_, event, arg1)
@@ -338,6 +419,8 @@ do
             Data.RecordLockouts()
         elseif event == "BOSS_KILL" then
             if RequestRaidInfo then Utils.SafeAfter(3, RequestRaidInfo) end
+        elseif event == "NEW_RECIPE_LEARNED" then
+            Data.RecordCrafts()
         elseif event == "PLAYER_LOGOUT" then
             Data.Snapshot(true)
         elseif event == "TIME_PLAYED_MSG" then
