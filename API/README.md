@@ -405,6 +405,9 @@ What EasyFind's own extensions offer:
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setTargets(list)` | GPS 1.9. A guide's creatures under the arrow while set, a Target button each that targets the creature and marks it: `list` = `{ { name, kind }, ... }`, `kind` `"kill"` or `"talk"` for its icon. Shown with or without a route, over the route's own NPC when that is one of them. Nil or an empty list takes them away. |
 | `gps` | `arrowBox([on])` | GPS 1.9. The box under the arrow and the beacon (the GPS setting Arrow text): no argument returns whether it shows; `true` or `false` shows or hides it, and shown again it says what it said before. |
+| `gps` | `deathSkip(on)` | GPS 1.9. While `true` (a guide's step says to die and respawn), a ghost is led to the Spirit Healer beside it (the catalog's, within 200 yards), with its Target button, not back to its corpse; set while a ghost, the one way is swapped for the other. |
+| `gps` | `setStatus(text)` | GPS 1.9. A line under the step in the box under the arrow and the beacon (a guide's grind progress) while set; nil or an empty string takes it away. Shown in every Arrow text mode but Off. |
+| `gps` | `setCircuit(list)` | GPS 1.9. A farm circuit drawn as a closed loop on the world map and the minimap while set: `list` = `{ { mapID, x, y }, ... }`, x and y map fractions, at least three spots on one continent. Nil takes it away. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |
 | `gps` | `destination()` | Where the route goes, `{ name, mapID, x, y }`, or nil without one. |
