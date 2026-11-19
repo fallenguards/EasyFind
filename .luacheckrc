@@ -167,6 +167,11 @@ read_globals = {
     "GetMoney", "GetCoinTextureString", "GetAverageItemLevel",
     "COPPER_PER_SILVER", "COPPER_PER_GOLD",
     "GetInventoryItemDurability", "C_MythicPlus", "C_ChallengeMode",
+    -- Its reset timers and the character's stats.
+    "C_DateAndTime", "GetCombatRatingBonus", "GetCritChance", "GetRangedCritChance", "GetSpellCritChance",
+    "GetHitModifier", "GetSpellHitModifier", "GetSpellBonusDamage", "GetSpellBonusHealing", "GetHaste",
+    "GetMasteryEffect", "GetVersatilityBonus", "UnitArmor", "UnitAttackPower", "UnitRangedAttackPower",
+    "UnitDefense", "UnitStat",
     -- The character pages (Database/Characters.lua, Search/Characters.lua).
     "GetInventoryItemLink", "GetSpellTexture", "RequestTimePlayed", "GetFramesRegisteredForEvent",
     "CLASS_ICON_TCOORDS", "IsDressableItem",

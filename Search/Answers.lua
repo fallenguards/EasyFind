@@ -1,11 +1,8 @@
 local _, ns = ...
 
--- Inline query answers: typing "gold", "ilvl", "keystone", "durability",
--- "bags", "rating", or "speed" pins a live answer row above the normal
--- results (which keep flowing beneath it, same contract as the clock
--- commands). Values re-derive on every keystroke; clicking the row copies
--- the raw value. No data is stored anywhere -- every answer is a live API
--- read.
+-- Inline query answers: typing "gold", "ilvl", "durability", "reset" or a
+-- stat ("crit", "armor") pins a live answer row above the normal results.
+-- Values re-derive on every keystroke; clicking the row copies the value.
 
 local Answers = {}
 ns.Answers = Answers
@@ -25,6 +22,10 @@ local GetUnitSpeed = GetUnitSpeed
 local C_Container = C_Container
 local C_MythicPlus = C_MythicPlus
 local C_ChallengeMode = C_ChallengeMode
+local C_DateAndTime = C_DateAndTime
+local SecondsToTime = SecondsToTime
+local Caps = ns.Caps or {}
+local issecret = _G.issecretvalue or function() return false end
 
 local BASE_RUN_SPEED = 7
 
@@ -197,6 +198,131 @@ local function SpeedValue()
     return sformat("%d%%", mfloor(speed / BASE_RUN_SPEED * 100 + 0.5))
 end
 
+local function Countdown(seconds)
+    return SecondsToTime(seconds < 60 and 60 or seconds, true, false, 2)
+end
+
+-- Time to the daily and the weekly reset.
+local function ResetValue()
+    if not SecondsToTime then return nil end
+    local daily = C_DateAndTime and C_DateAndTime.GetSecondsUntilDailyReset and C_DateAndTime.GetSecondsUntilDailyReset()
+    if not daily and GetQuestResetTime then daily = GetQuestResetTime() end
+    local weekly = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset
+        and C_DateAndTime.GetSecondsUntilWeeklyReset()
+    local text
+    if daily and daily > 0 then text = (_G["DAILY"] or "Daily") .. ": " .. Countdown(daily) end
+    if weekly and weekly > 0 then
+        local week = (_G["WEEKLY"] or "Weekly") .. ": " .. Countdown(weekly)
+        text = text and (text .. ", " .. week) or week
+    end
+    return text
+end
+Answers.ResetValue = ResetValue
+
+-- ==== character stats =======================================================
+
+-- A stat reader gives a format and up to three numbers. In a fight the
+-- game may hand them over secret: no arithmetic or compare touches one,
+-- and it reaches the row only through SetFormattedText.
+local MELEE, RANGED = _G["MELEE"] or "Melee", _G["RANGED"] or "Ranged"
+local SPELL = _G["STAT_CATEGORY_SPELL"] or "Spell"
+local PCT, PCT_MELEE_RANGED_SPELL = "%.2f%%", MELEE .. " %.2f%%, " .. RANGED .. " %.2f%%, " .. SPELL .. " %.2f%%"
+local PCT_MELEE_SPELL = MELEE .. " %.2f%%, " .. SPELL .. " %.2f%%"
+local NUM, NUM_MELEE_RANGED = "%d", MELEE .. " %d, " .. RANGED .. " %d"
+local NUM_DAMAGE_HEALING = (_G["DAMAGE"] or "Damage") .. " %d, " .. (_G["BONUS_HEALING"] or "Bonus Healing") .. " %d"
+
+local function Sum(a, b, c)
+    if issecret(a) or issecret(b) or issecret(c) then return a end
+    return (a or 0) + (b or 0) + (c or 0)
+end
+
+-- The best of the spell schools; a secret one cannot be compared.
+local function BestSchool(read)
+    local best = read(2)
+    if issecret(best) then return best end
+    for school = 3, 7 do
+        local v = read(school)
+        if v and not issecret(v) and (not best or v > best) then best = v end
+    end
+    return best or 0
+end
+
+local function Rating(id)
+    return GetCombatRatingBonus and id and GetCombatRatingBonus(id) or 0
+end
+
+local function CritStat()
+    if not GetCritChance then return nil end
+    return PCT_MELEE_RANGED_SPELL, GetCritChance() or 0, GetRangedCritChance and GetRangedCritChance() or 0,
+        GetSpellCritChance and BestSchool(GetSpellCritChance) or 0
+end
+
+-- Retail has no hit.
+local function HitStat()
+    if Caps.retail or not GetHitModifier then return nil end
+    return PCT_MELEE_SPELL, Sum(GetHitModifier(), Rating(_G["CR_HIT_MELEE"])),
+        Sum(GetSpellHitModifier and GetSpellHitModifier(), Rating(_G["CR_HIT_SPELL"]))
+end
+
+local function SpellPowerStat()
+    if not GetSpellBonusDamage then return nil end
+    local damage = BestSchool(GetSpellBonusDamage)
+    if Caps.retail or not GetSpellBonusHealing then return NUM, damage end
+    return NUM_DAMAGE_HEALING, damage, GetSpellBonusHealing() or 0
+end
+
+local function ArmorStat()
+    if not UnitArmor then return nil end
+    local base, effective = UnitArmor("player")
+    return NUM, effective or base or 0
+end
+
+local function AttackPowerStat()
+    if not UnitAttackPower then return nil end
+    local melee = Sum(UnitAttackPower("player"))
+    if not UnitRangedAttackPower then return NUM, melee end
+    return NUM_MELEE_RANGED, melee, Sum(UnitRangedAttackPower("player"))
+end
+
+local function Chance(name)
+    return function()
+        local read = _G[name]
+        if not read then return nil end
+        return PCT, read() or 0
+    end
+end
+
+-- Era has the call and no such stat.
+local function HasteStat()
+    if Caps.era or not GetHaste then return nil end
+    return PCT, GetHaste() or 0
+end
+
+local function MasteryStat()
+    if not (GetMasteryEffect and (Caps.retail or Caps.mists)) then return nil end
+    return PCT, (GetMasteryEffect()) or 0
+end
+
+local function VersatilityStat()
+    local id = _G["CR_VERSATILITY_DAMAGE_DONE"]
+    if not (Caps.retail and id and GetVersatilityBonus) then return nil end
+    return PCT, Sum(Rating(id), GetVersatilityBonus(id))
+end
+
+-- Era and Anniversary: the skill and what gear adds to it.
+local function DefenseStat()
+    if not (UnitDefense and (Caps.era or Caps.tbc)) then return nil end
+    return NUM, Sum(UnitDefense("player"))
+end
+
+local function Attribute(index)
+    return function()
+        if not UnitStat then return nil end
+        local base, effective = UnitStat("player", index)
+        return NUM, effective or base or 0
+    end
+end
+
 -- One definition per answer: exact-match trigger words (the whole query),
 -- a Blizzard-localized label wherever a certain global exists, and the
 -- live value reader.
@@ -215,13 +341,39 @@ local ANSWERS = {
       labelKey = "ANSWER_BAG_SPACE", value = BagSpaceValue },
     { keys = { "speed", "movement speed", "move speed" },
       label = _G["SPEED"] or "Speed", value = SpeedValue },
+    { keys = { "reset", "resets", "daily reset", "weekly reset", "reset time", "reset timer" },
+      labelKey = "ANSWER_RESETS", value = ResetValue },
+    { keys = { "crit", "crit chance", "critical strike" },
+      label = _G["STAT_CRITICAL_STRIKE"] or "Critical Strike", stat = CritStat },
+    { keys = { "hit", "hit chance" }, label = _G["STAT_HIT_CHANCE"] or "Hit Chance", stat = HitStat },
+    { keys = { "spell power", "spellpower", "spell damage", "bonus healing" },
+      label = _G["STAT_SPELLPOWER"] or "Spell Power", stat = SpellPowerStat },
+    { keys = { "armor", "armour" }, label = _G["ARMOR"] or "Armor", stat = ArmorStat },
+    { keys = { "attack power" }, label = _G["ATTACK_POWER_TOOLTIP"] or "Attack Power", stat = AttackPowerStat },
+    { keys = { "dodge" }, label = _G["STAT_DODGE"] or "Dodge", stat = Chance("GetDodgeChance") },
+    { keys = { "parry" }, label = _G["STAT_PARRY"] or "Parry", stat = Chance("GetParryChance") },
+    { keys = { "block" }, label = _G["STAT_BLOCK"] or "Block", stat = Chance("GetBlockChance") },
+    { keys = { "haste" }, label = _G["STAT_HASTE"] or "Haste", stat = HasteStat },
+    { keys = { "mastery" }, label = _G["STAT_MASTERY"] or "Mastery", stat = MasteryStat },
+    { keys = { "versatility", "vers" }, label = _G["STAT_VERSATILITY"] or "Versatility", stat = VersatilityStat },
+    { keys = { "defense", "defence" }, label = _G["DEFENSE"] or "Defense", stat = DefenseStat },
+    { keys = { "strength" }, label = _G["SPELL_STAT1_NAME"] or "Strength", stat = Attribute(1) },
+    { keys = { "agility" }, label = _G["SPELL_STAT2_NAME"] or "Agility", stat = Attribute(2) },
+    { keys = { "stamina", "stam" }, label = _G["SPELL_STAT3_NAME"] or "Stamina", stat = Attribute(3) },
+    { keys = { "intellect" }, label = _G["SPELL_STAT4_NAME"] or "Intellect", stat = Attribute(4) },
+    { keys = { "spirit" }, label = _G["SPELL_STAT5_NAME"] or "Spirit", stat = Attribute(5) },
 }
 
+-- A stat also answers its name in the client's language.
 local answerByKey = {}
 for i = 1, #ANSWERS do
     local def = ANSWERS[i]
     for k = 1, #def.keys do
         answerByKey[def.keys[k]] = def
+    end
+    if def.stat and def.label then
+        local own = slower(def.label)
+        answerByKey[own] = answerByKey[own] or def
     end
 end
 
@@ -245,11 +397,25 @@ function Answers:GetAnswerEntry(text)
     local query = slower(strtrim(text))
     local def = answerByKey[query]
     if not def then return nil end
-    local value = def.value()
-    if not value then return nil end
+    answerEntry.secretFormat = nil
+    local value
+    if def.stat then
+        local fmt, a, b, c = def.stat()
+        if not fmt then return nil end
+        if issecret(a) or issecret(b) or issecret(c) then
+            local args = answerEntry.secretArgs or {}
+            args[1], args[2], args[3] = a, b, c
+            answerEntry.secretFormat, answerEntry.secretArgs = fmt, args
+        else
+            value = sformat(fmt, a, b, c)
+        end
+    else
+        value = def.value()
+        if not value then return nil end
+    end
     -- What a copy should produce, which is not always what the row shows:
     -- an answer whose display carries textures supplies a plain-text form.
-    answerEntry.copyText = def.copyValue and def.copyValue() or value
+    answerEntry.copyText = value and (def.copyValue and def.copyValue() or value) or nil
     answerEntry.name = def.labelKey and L[def.labelKey] or def.label
     answerEntry.nameLower = query
     answerEntry.searchCommandDesc = value

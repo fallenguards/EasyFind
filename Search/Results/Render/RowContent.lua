@@ -147,6 +147,33 @@ function Render.DecorateRow(resultRow, entry, state)
     slot:Show()
 end
 
+-- A value the game hands over secret (a stat in a fight), on the subtext
+-- line: a font string keeps a secret for good, so one of its own that no
+-- row code reads back or measures.
+function Render.SecretValue(resultRow, entry, state)
+    local data = entry.data
+    local slot = resultRow.secretText
+    if not (data and data.secretFormat and entry.isFlat) then
+        if slot then slot:Hide() end
+        return
+    end
+    if not slot then
+        slot = resultRow:CreateFontString(nil, "OVERLAY", ns.LEAF_FONT)
+        slot:SetJustifyH("LEFT")
+        slot:SetWordWrap(false)
+        slot:SetMaxLines(1)
+        resultRow.secretText = slot
+    end
+    slot:ClearAllPoints()
+    slot:SetPoint("TOPLEFT", resultRow.pathSubtext, "TOPLEFT", 0, 0)
+    slot:SetPoint("RIGHT", resultRow, "RIGHT", -8, 0)
+    Results:SetScaledFont(slot, state.theme.leafFont)
+    slot:SetTextColor(unpack(state.theme.pathColor))
+    local args = data.secretArgs
+    slot:SetFormattedText(data.secretFormat, args[1], args[2], args[3])
+    slot:Show()
+end
+
 local GetButtonIcon = Icons.GetButtonIcon
 local GetFrameArtworkIcon = Icons.GetFrameArtworkIcon
 local IsMenuBarSpecificIconData = Icons.IsMenuBarSpecificIconData

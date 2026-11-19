@@ -60,7 +60,7 @@ local HINTS = {
 -- isn't worth labelling (Search navigation, settings: the row name itself
 -- already tells you what happens).
 function Handlers:GetActionHint(data)
-    if not data then return nil end
+    if not data or data.secretFormat then return nil end
     -- An extension's rows say what their gestures do (RegisterSearchProvider
     -- hint, or the row's own): a sentence, or { click, alt, ctrl, shift }.
     local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)

@@ -198,6 +198,8 @@ function Text:GetFlatSubtext(data)
     -- An addon's setting: the addon, then the page it is on.
     if data.addon then
         local path = data.path
+    -- Its value is drawn apart (Render.SecretValue).
+    if data.secretFormat then return "" end
         local last = path and path[#path]
         if last and #path > 1 and last ~= data.addon then return data.addon .. ": " .. last end
         return data.addon

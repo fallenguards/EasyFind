@@ -1120,6 +1120,7 @@ L["POPUP_FORGET_LEARNED"] = "Forget everything search has learned from your pick
 L["ANSWER_KEYSTONE"]                    = "Keystone"
 L["ANSWER_BAG_SPACE"]                   = "Bag space"
 L["ANSWER_GOLD_FMT"]                    = "%s (account: %s)"
+L["ANSWER_RESETS"]                      = "Resets"
 L["CMD_DESC_CLEAR_CHAT"]                = "Clear the chat window"
 
 -- Sounds and edge colors (Shared/Signals.lua)
