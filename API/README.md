@@ -404,6 +404,7 @@ What EasyFind's own extensions offer:
 | `gps` | `navigateTrip(list, opts)` | GPS 1.9. One route through several places in order, each a `dest` as `navigate` takes, as the GPS window's own stops: its time is the whole trip's, the Target button follows the stop being walked to, and the end is the last. Places it cannot reach are left out. Returns true when a route is planned. |
 | `gps` | `canNavigate(dest)` | Whether the GPS can find a way there. |
 | `gps` | `setTargets(list)` | GPS 1.9. A guide's creatures under the arrow while set, a Target button each that targets the creature and marks it: `list` = `{ { name, kind }, ... }`, `kind` `"kill"` or `"talk"` for its icon. Shown with or without a route, over the route's own NPC when that is one of them. Nil or an empty list takes them away. |
+| `gps` | `arrowBox([on])` | GPS 1.9. The box under the arrow and the beacon (the GPS setting Arrow text): no argument returns whether it shows; `true` or `false` shows or hides it, and shown again it says what it said before. |
 | `gps` | `setStart(dest)` | Plans the next route from there, not from the player. |
 | `gps` | `clear()` | Ends the route. |
 | `gps` | `destination()` | Where the route goes, `{ name, mapID, x, y }`, or nil without one. |
