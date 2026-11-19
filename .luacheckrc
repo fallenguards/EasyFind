@@ -172,6 +172,8 @@ read_globals = {
     "GetHitModifier", "GetSpellHitModifier", "GetSpellBonusDamage", "GetSpellBonusHealing", "GetHaste",
     "GetMasteryEffect", "GetVersatilityBonus", "UnitArmor", "UnitAttackPower", "UnitRangedAttackPower",
     "UnitDefense", "UnitStat",
+    -- Keys and what they cast (Search/Keys.lua).
+    "GetActionInfo", "GetActionText", "GetActionTexture", "GetBindingText", "GetBindingName", "GetMacroSpell",
     -- The character pages (Database/Characters.lua, Search/Characters.lua).
     "GetInventoryItemLink", "GetSpellTexture", "RequestTimePlayed", "GetFramesRegisteredForEvent",
     "CLASS_ICON_TCOORDS", "IsDressableItem",

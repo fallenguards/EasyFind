@@ -190,6 +190,7 @@ Search/Providers/Achievements.lua
 Search/MacroListSearch.lua
 Search/Aliases.lua
 Search/History.lua
+Search/Keys.lua
 Search/Answers.lua
 Search/AppsMenu.lua
 Search/NoteMenus.lua

@@ -299,12 +299,20 @@ function Text:OwnedText(data)
     return alts and sformat(L["SUBTEXT_OWNED_FMT"], alts) or nil
 end
 
--- The subtext a row shows: the flat one, who owns its item, then a
--- decorator's part.
+-- The subtext a row shows: the flat one, who owns its item or the key
+-- that casts it, then a decorator's part.
 function Text:GetShownSubtext(data)
     local subtext = self:GetFlatSubtext(data)
     local owned = data and self:OwnedText(data)
     if owned then subtext = subtext ~= "" and (subtext .. ", " .. owned) or owned end
+    -- An ability on the bars: the key that casts it.
+    if data and data.category == "Ability" and data.spellID and ns.Keys then
+        local key = ns.Keys.SpellKey(data.spellID, data.spellName)
+        if key then
+            local text = sformat(L["SUBTEXT_KEY_FMT"], key)
+            subtext = subtext ~= "" and (subtext .. ", " .. text) or text
+        end
+    end
     local part = data and ns.Extensions and ns.Extensions.DecoratorSubtext and ns.Extensions.DecoratorSubtext(data)
     if not part then return subtext end
     return subtext ~= "" and (subtext .. ", " .. part) or part

@@ -381,6 +381,7 @@ end
 -- category also supplies the proper left icon through the normal renderer.
 -- copyText makes the row a copy row: Ctrl+C over it (or on it, selected)
 -- copies the value; click and Enter arm that chord and keep the results.
+local KEY_GLYPH, boundGlyph = { tex = "Interface\\Icons\\INV_Misc_Key_14" }, {}
 local answerEntry = {
     category = "Statistic",
     noPin = true,
@@ -396,8 +397,18 @@ function Answers:GetAnswerEntry(text)
     if not text then return nil end
     local query = slower(strtrim(text))
     local def = answerByKey[query]
-    if not def then return nil end
-    answerEntry.secretFormat = nil
+    answerEntry.secretFormat, answerEntry.glyph = nil, nil
+    if not def then
+        -- A key typed alone: what it is bound to.
+        local key, bound, icon = nil, nil, nil
+        if ns.Keys then key, bound, icon = ns.Keys.Answer(query) end
+        if not key then return nil end
+        answerEntry.name, answerEntry.nameLower = key, query
+        answerEntry.searchCommandDesc, answerEntry.copyText = bound, bound
+        boundGlyph.tex = icon
+        answerEntry.glyph = icon and boundGlyph or KEY_GLYPH
+        return answerEntry
+    end
     local value
     if def.stat then
         local fmt, a, b, c = def.stat()
