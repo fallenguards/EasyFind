@@ -166,6 +166,42 @@ local function ReadProfessions(previous)
     return out
 end
 
+-- The instances the character is saved to: { n = name, u = when it
+-- resets, d = difficulty, r = raid, id = instance, k = bosses down, of }.
+local function ReadLockouts()
+    if not (GetNumSavedInstances and GetSavedInstanceInfo) then return nil end
+    local out, now = {}, time()
+    for i = 1, GetNumSavedInstances() do
+        local name, _, reset, _, locked, extended, _, isRaid, _, difficulty, bosses, down, _, id = GetSavedInstanceInfo(i)
+        if name and (locked or extended) and reset and reset > 0 then
+            out[#out + 1] = { n = name, u = now + reset, d = difficulty, r = isRaid or nil, id = id, k = down, of = bosses }
+        end
+    end
+    return out
+end
+
+-- A record's lockouts not yet reset, the soonest first.
+local function LockoutLess(a, b) return a.u < b.u end
+local function LiveLockouts(lockouts)
+    if type(lockouts) ~= "table" then return nil end
+    local out, now = {}, time()
+    for _, lock in ipairs(lockouts) do
+        if type(lock) == "table" and lock.n and type(lock.u) == "number" and lock.u > now then out[#out + 1] = lock end
+    end
+    if #out == 0 then return nil end
+    tsort(out, LockoutLess)
+    return out
+end
+
+-- The game's saved-instance list arrives after it is asked for.
+function Data.RecordLockouts()
+    local profiles = Profiles()
+    local p = profiles and profiles[ns.CurrentCharacterKey()]
+    if not p then return end
+    p.lockouts = ReadLockouts() or p.lockouts
+    Data.Changed()
+end
+
 -- When this session's first snapshot ran: played time counts from it.
 local sessionStart
 
@@ -208,6 +244,7 @@ function Data.Snapshot(atLogout)
     end
     p.gearLevel = ReadGearLevels(p.gear, oldLevels)
     p.profs = ReadProfessions(p.profs)
+    p.lockouts = ReadLockouts() or p.lockouts
     -- Played time only moves while logged in: on from the last reading,
     -- never across the time offline.
     if p.played then
@@ -290,12 +327,17 @@ do
     watcher:RegisterEvent("PLAYER_LOGOUT")
     for _, event in ipairs({ "PLAYER_MONEY", "PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA",
                              "PLAYER_EQUIPMENT_CHANGED", "SKILL_LINES_CHANGED", "TIME_PLAYED_MSG",
-                             "BAG_UPDATE_DELAYED", "PLAYERBANKSLOTS_CHANGED" }) do
+                             "BAG_UPDATE_DELAYED", "PLAYERBANKSLOTS_CHANGED",
+                             "UPDATE_INSTANCE_INFO", "BOSS_KILL" }) do
         Utils.RegisterEventIfValid(watcher, event)
     end
     watcher:SetScript("OnEvent", function(_, event, arg1)
         if event == "BAG_UPDATE_DELAYED" or event == "PLAYERBANKSLOTS_CHANGED" then
             Data.Invalidate()
+        elseif event == "UPDATE_INSTANCE_INFO" then
+            Data.RecordLockouts()
+        elseif event == "BOSS_KILL" then
+            if RequestRaidInfo then Utils.SafeAfter(3, RequestRaidInfo) end
         elseif event == "PLAYER_LOGOUT" then
             Data.Snapshot(true)
         elseif event == "TIME_PLAYED_MSG" then
@@ -307,6 +349,7 @@ do
             if event == "PLAYER_ENTERING_WORLD" and not asked then
                 asked = true
                 Utils.SafeAfter(5, Data.AskPlayedQuietly)
+                if RequestRaidInfo then RequestRaidInfo() end
             end
             Soon()
         end
@@ -376,6 +419,7 @@ local function BuildList()
             entry.level, entry.money, entry.zone, entry.subZone = p.level, p.money, p.zone, p.subZone
             entry.seenAt, entry.ilvl, entry.played, entry.profs = p.seenAt, p.ilvl, p.played, p.profs
             entry.gear, entry.gearLevel = p.gear, p.gearLevel
+            entry.lockouts = LiveLockouts(p.lockouts)
         end
         -- A 0 an older logout wrote gives way to the ledger's amount.
         local ledger = LedgerMoney(entry.name, entry.realm)
@@ -386,6 +430,7 @@ local function BuildList()
             entry.money = GetMoney and GetMoney() or entry.money
             entry.zone = GetRealZoneText and GetRealZoneText() or entry.zone
             entry.seenAt = time()
+            entry.lockouts = LiveLockouts(ReadLockouts()) or entry.lockouts
         end
     end
     tsort(out, ListLess)
@@ -401,6 +446,22 @@ function Data.Get(key)
         if entry.key == key then return entry end
     end
     return nil
+end
+
+-- Who is saved to an instance, by its id or its name: { entry, lock }
+-- each, nil when no one is.
+function Data.SavedTo(name, instanceID)
+    local folded = name and Data.Fold(name)
+    local out
+    for _, entry in ipairs(Data.List()) do
+        for _, lock in ipairs(entry.lockouts or {}) do
+            if (instanceID and lock.id == instanceID) or (folded and Data.Fold(lock.n) == folded) then
+                out = out or {}
+                out[#out + 1] = { entry = entry, lock = lock }
+            end
+        end
+    end
+    return out
 end
 
 -- ==== items in the grid's shape =============================================

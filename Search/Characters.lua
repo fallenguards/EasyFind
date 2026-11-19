@@ -27,6 +27,7 @@ local GLYPH = {
     profession = { tex = "Interface\\Icons\\INV_Misc_Note_01" },
     portrait = { portrait = "player" },
     upgrades = { tex = "Interface\\Icons\\Spell_ChargePositive" },
+    lockouts = { tex = "Interface\\Icons\\INV_Misc_Key_03" },
 }
 GLYPH.money = GLYPH.gold
 local HAS_UPGRADES = ns.Caps and ns.Caps.Has and ns.Caps.Has("upgrades")
@@ -183,6 +184,7 @@ local PAGE_KIND = {
     profs = { view = "profs", token = "@professions", words = { "professions", "profs" } },
     money = { view = "money", token = "@money", words = { "money", "gold" } },
     upgrades = { view = "upgrades", token = "@upgrades", words = { "upgrades", "upgrade" } },
+    lockouts = { view = "lockouts", token = "@lockouts", words = { "lockouts", "lockout", "saved" } },
 }
 local PAGE_TITLE = {
     items = function() return _G["ITEMS"] or "Items" end,
@@ -191,6 +193,7 @@ local PAGE_TITLE = {
     profs = function() return _G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"] end,
     money = function() return _G["MONEY"] or "Money" end,
     upgrades = function() return L["FILTER_UPGRADES"] end,
+    lockouts = function() return L["CHAR_LOCKOUTS"] end,
 }
 
 local function PageDef(charDef, kind)
@@ -289,6 +292,14 @@ local function AltsPage(list)
     end
     out[#out + 1] = Row(_G["MONEY"] or "Money", Coins(money), GLYPH.gold,
         { quickFilterDef = PageDef(nil, "money"), copyText = PlainCoins(money) })
+    local saved, locks = 0, 0
+    for _, entry in ipairs(list) do
+        if entry.lockouts then saved, locks = saved + 1, locks + #entry.lockouts end
+    end
+    if saved > 0 then
+        out[#out + 1] = Row(L["CHAR_LOCKOUTS"], sformat(L["CHAR_LOCKOUTS_FMT"], locks, saved), GLYPH.lockouts,
+            { quickFilterDef = PageDef(nil, "lockouts") })
+    end
     if known > 0 then
         local text = Duration(played)
         if known < #list then text = sformat(L["CHAR_PLAYED_SOME_FMT"], text, known, #list) end
@@ -337,6 +348,47 @@ local function ItemsLine(key)
     return sformat(L["CHAR_ITEMS_NO_BANK_FMT"], bags or 0)
 end
 
+-- "Heroic, 3/8, 2 Days": what a lockout holds and when it resets.
+local function LockoutLine(lock)
+    local parts = {}
+    if lock.d and lock.d ~= "" then parts[#parts + 1] = lock.d end
+    if lock.of and lock.of > 0 then parts[#parts + 1] = sformat("%d/%d", lock.k or 0, lock.of) end
+    parts[#parts + 1] = Duration(lock.u - time())
+    return tconcat(parts, ", ")
+end
+
+-- "Molten Core (2 Days), Zul'Gurub (5 Hr)".
+local function LockoutsLine(lockouts)
+    local parts = {}
+    for _, lock in ipairs(lockouts) do
+        parts[#parts + 1] = sformat("%s (%s)", lock.n, Duration(lock.u - time()))
+    end
+    return tconcat(parts, ", ")
+end
+
+-- A row per character and instance it is saved to.
+local function LockoutsPage(list)
+    local out = {}
+    for _, entry in ipairs(list) do
+        for _, lock in ipairs(entry.lockouts or {}) do
+            local line = entry.name .. ": " .. LockoutLine(lock)
+            out[#out + 1] = Row(lock.n, line, Glyph(entry), { copyText = lock.n .. ", " .. line })
+        end
+    end
+    if #out == 0 then out[1] = Row(L["CHAR_LOCKOUTS_NONE"], nil, GLYPH.lockouts) end
+    return out
+end
+
+function Characters.SavedSubtext(name, instanceID)
+    local saved = Data.SavedTo(name, instanceID)
+    if not saved then return nil end
+    local parts = {}
+    for i, hit in ipairs(saved) do
+        parts[i] = sformat("%s (%s)", hit.entry.name, Duration(hit.lock.u - time()))
+    end
+    return sformat(L["SUBTEXT_SAVED_FMT"], tconcat(parts, ", "))
+end
+
 local function CharacterPage(def, entry)
     local out = {}
     out[#out + 1] = Row(_G["ITEMS"] or "Items", ItemsLine(entry.key), GLYPH.items, { quickFilterDef = PageDef(def, "items") })
@@ -349,6 +401,10 @@ local function CharacterPage(def, entry)
     local profs = ProfessionsLine(entry.profs, true)
     if profs then
         out[#out + 1] = CopyRow(_G["TRADE_SKILLS"] or L["CHAR_PROFESSIONS"], profs, GLYPH.profession, profs)
+    end
+    if entry.lockouts then
+        out[#out + 1] = Row(L["CHAR_LOCKOUTS"], LockoutsLine(entry.lockouts), GLYPH.lockouts,
+            { quickFilterDef = PageDef(def, "lockouts") })
     end
     if entry.money then
         out[#out + 1] = CopyRow(_G["MONEY"] or "Money", Coins(entry.money), GLYPH.gold, PlainCoins(entry.money))
@@ -532,6 +588,8 @@ local function PageRows(def)
         page.rows = ProfessionsPage(list)
     elseif def.charView == "money" then
         page.rows = MoneyPage(list)
+    elseif def.charView == "lockouts" then
+        page.rows = LockoutsPage(def.charKey and { Data.Get(def.charKey) } or list)
     elseif def.charView == "upgrades" then
         -- @upgrades alone: the character played now.
         page.rows = ns.Upgrades.Rows(Data.Get(def.charKey or ns.CurrentCharacterKey()))
@@ -554,10 +612,12 @@ local function SubPages(def)
     if def.charView == "list" then
         out[1], out[2], out[3], out[4] = PageDef(nil, "items"), PageDef(nil, "chars"), PageDef(nil, "profs"),
             PageDef(nil, "money")
+        out[5] = PageDef(nil, "lockouts")
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     elseif def.charView == "char" then
         out[1], out[2] = PageDef(def, "items"), PageDef(def, "gear")
         if HAS_UPGRADES then out[3] = PageDef(def, "upgrades") end
+        out[#out + 1] = PageDef(def, "lockouts")
     else
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     end

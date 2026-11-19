@@ -541,7 +541,7 @@ function tests.anAtWordOnAPage_opensThePageUnderIt()
     ns.Filters:ApplyQuickFilter(alts, "")
     ns.Characters:ShowView(alts, "@")
     H.assertEq(shown[1].name, "Items", "a bare @ lists what is under @alts")
-    H.assertEq(#shown, 8, "Items, Characters, Professions, Money, four characters")
+    H.assertEq(#shown, 9, "Items, Characters, Professions, Money, Lockouts, four characters")
     ns.Characters:ShowView(alts, "@ite")
     H.assertEq(#shown, 1)
     H.assertEq(shown[1].data.searchCommandDesc, "@items")
@@ -698,6 +698,84 @@ function tests.characterInfo_aRowPerCharacterForEachFact()
     local played = 0
     for _, r in ipairs(rows) do if r.category == "Character Played" then played = played + 1 end end
     H.assertEq(played, 1, "a repopulate replaces its rows")
+end
+
+-- ==== lockouts (2026-11-19) =================================================
+
+function tests.snapshot_keepsTheInstancesTheCharacterIsSavedTo()
+    local env, ns = World()
+    local saved = {
+        { "Molten Core", 1, 7200, 9, true, false, 0, true, 40, "40 Player", 10, 3, false, 409 },
+        { "Stratholme", 2, 0, 1, false, false, 0, false, 5, "Normal", 0, 0, false, 329 },
+    }
+    env.GetNumSavedInstances = function() return #saved end
+    env.GetSavedInstanceInfo = function(i) return table.unpack(saved[i]) end
+    ns.CharacterData.Snapshot()
+    local locks = env.EasyFindDB.charProfileCache["Thrall-Realm"].lockouts
+    H.assertEq(#locks, 1, "only the one still locked")
+    H.assertEq(locks[1].n, "Molten Core")
+    H.assertEq(locks[1].u, env.time() + 7200, "when it resets, not how long from a login long past")
+    H.assertEq(locks[1].id, 409)
+    H.assertEq(locks[1].k, 3)
+    H.assertEq(locks[1].of, 10)
+    H.assertTrue(locks[1].r)
+end
+
+local function Saved(env)
+    local db = TwoJainas()
+    local now = os.time()
+    db.charProfileCache["Bôb-Realm"].lockouts = {
+        { n = "Molten Core", u = now + 90000, d = "40 Player", r = true, id = 409, k = 3, of = 10 },
+        { n = "Zul'Gurub", u = now - 5, d = "20 Player", r = true, id = 309 },
+    }
+    return db
+end
+
+function tests.lockouts_aPageOnAlts_aRowPerCharacterAndInstance()
+    local env, ns, shown = Pages(Saved())
+    env.time = os.time
+    ns.CharacterData.Invalidate()
+    local alts = ns.Filters:ResolveQuickFilterToken("alts")
+    ns.Characters:ShowView(alts, "")
+    local row
+    for _, e in ipairs(shown) do if e.name == "CHAR_LOCKOUTS" then row = e.data end end
+    H.assertNotNil(row, "a Lockouts row on @alts")
+    ns.Characters:ShowView(row.quickFilterDef, "")
+    H.assertEq(#shown, 1, "the lockout that has reset is gone")
+    H.assertEq(shown[1].name, "Molten Core")
+    local line = shown[1].data.searchCommandDesc
+    H.assertTrue(line:find("Bôb: 40 Player, 3/10, ", 1, true) == 1, "who, the size, the bosses down, the time left: " .. line)
+    H.assertEq(ns.Filters:PillText(row.quickFilterDef), "@alts @lockouts")
+end
+
+function tests.lockouts_aCharactersOwnPage_andNoRowForOneSavedNowhere()
+    local env, ns, shown = Pages(Saved())
+    env.time = os.time
+    ns.CharacterData.Invalidate()
+    local bob = ns.Filters:ResolveQuickFilterToken("bob")
+    ns.Characters:OnApply(bob)
+    ns.Characters:ShowView(bob, "")
+    local row
+    for _, e in ipairs(shown) do if e.name == "CHAR_LOCKOUTS" then row = e.data end end
+    H.assertTrue(row ~= nil and row.searchCommandDesc:find("Molten Core (", 1, true) == 1, "named on his page")
+    ns.Characters:ShowView(row.quickFilterDef, "")
+    H.assertEq(#shown, 1)
+    local jaina = ns.Filters:ResolveQuickFilterToken("jaina-realm")
+    ns.Characters:OnApply(jaina)
+    ns.Characters:ShowView(jaina, "")
+    for _, e in ipairs(shown) do H.assertTrue(e.name ~= "CHAR_LOCKOUTS", "Jaina is saved nowhere") end
+end
+
+function tests.lockouts_anInstanceRowSaysWhoIsSaved()
+    local env, ns = Pages(Saved())
+    env.time = os.time
+    ns.L.SUBTEXT_SAVED_FMT = "Saved: %s"
+    ns.CharacterData.Invalidate()
+    local byID = ns.Characters.SavedSubtext("Geschmolzener Kern", 409)
+    H.assertTrue(byID ~= nil and byID:find("Bôb (", 1, true) ~= nil, "by the instance's id: " .. tostring(byID))
+    H.assertNotNil(ns.Characters.SavedSubtext("molten core"), "or its name, any case")
+    H.assertNil(ns.Characters.SavedSubtext("Zul'Gurub", 309), "a lockout that has reset says nothing")
+    H.assertNil(ns.Characters.SavedSubtext("Stratholme"))
 end
 
 local pass, fail, failures = H.runSuite("Characters", tests)

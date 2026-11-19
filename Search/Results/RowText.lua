@@ -177,12 +177,18 @@ local function MapSubtext(data)
     if data.matchNote then
         return (zone and zone ~= "") and (data.matchNote .. ", " .. zone) or data.matchNote
     end
+    local text = zone or _G["WORLD_MAP"] or "Map"
     if typeLabel and zone and zone ~= "" then
-        return typeLabel .. ": " .. zone
+        text = typeLabel .. ": " .. zone
     elseif typeLabel then
-        return typeLabel
+        text = typeLabel
     end
-    return zone or _G["WORLD_MAP"] or "Map"
+    -- An instance some character is saved to says who, and until when.
+    if (data.category == "dungeon" or data.category == "raid") and ns.Characters and ns.Characters.SavedSubtext then
+        local saved = ns.Characters.SavedSubtext(data.name, data.instanceID)
+        if saved then return text .. ", " .. saved end
+    end
+    return text
 end
 
 function Text:GetFlatSubtext(data)
