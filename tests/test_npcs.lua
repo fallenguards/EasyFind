@@ -439,6 +439,15 @@ function tests.pastTheCapTheNearestGetIn()
     H.assertEq(rows[1].name, "Bea Longername")
 end
 
+-- Under the cap too: an item's few sellers on its sources page came in
+-- name order (Simple Flour from Brill listed one 5,600 yards off first,
+-- the one 23 yards off sixth; GitHub #32, 2026-11-19).
+function tests.underTheCapTheNearestFirstToo()
+    local rows = find(vendors(3), "repair")
+    H.assertEq(#rows, 3)
+    H.assertEq(rows[1].name, "Bea Longername", "beside the player, though its name is the longest")
+end
+
 -- Water and arrows on one shared list, sold by the Kobold Vermin (hostile
 -- to the Alliance) and Brog Hamfist.
 local GOODS = {

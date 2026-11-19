@@ -1532,11 +1532,12 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
         n = kept
         if n == 0 then return false end
     else
-        local capped = n > MAX_ROWS
+        -- Every hit's distance, so equal matches come nearest first: an
+        -- item's few sellers too, which the sources page shows as they come.
         for j = 1, n do
             if j % 256 == 0 then SliceCheckpoint() end
             local i = hits[j]
-            local k = capped and BestSpot(i, set, pci, px, py, r2) or nil
+            local k = BestSpot(i, set, pci, px, py, r2)
             spot[i], near[i] = k, FAR
             if k and pci then
                 local ci, wx, wy = SpotWorld(k)
