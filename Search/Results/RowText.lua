@@ -198,14 +198,14 @@ function Text:GetFlatSubtext(data)
         return L["SUBTEXT_APP"]
     end
     if data.snippetsLauncher then return L["SUBTEXT_SNIPPETS_MENU"] end
+    -- Its value is drawn apart (Render.SecretValue).
+    if data.secretFormat then return "" end
     if data.searchCommandDesc then return data.searchCommandDesc end
     if data.quickFilterAliasText then return data.quickFilterAliasText end
     if data.quickFilterDef then return data.quickFilterDef.label or L["QUICK_FILTER"] end
     -- An addon's setting: the addon, then the page it is on.
     if data.addon then
         local path = data.path
-    -- Its value is drawn apart (Render.SecretValue).
-    if data.secretFormat then return "" end
         local last = path and path[#path]
         if last and #path > 1 and last ~= data.addon then return data.addon .. ": " .. last end
         return data.addon
@@ -262,9 +262,49 @@ function Text:GetFlatSubtext(data)
     return data.category or ""
 end
 
--- The subtext a row shows: the flat one, then a decorator's part.
+-- A stored-item row names its holders already.
+local HOLDER_ROWS = { Bag = true, Bank = true, Warband = true, Gear = true, ["Guild Bank"] = true, Mail = true }
+local altsOwned, ownedStamp = {}, nil
+local GetItemCount = C_Item and C_Item.GetItemCount or _G["GetItemCount"]
+local function OwnerLess(a, b) return a.name < b.name end
+
+-- "Owned: Thrall 5, Jaina 12": who holds an item row's item, bags and
+-- bank. The character played is counted live, the others from their last
+-- scan (ns.StoredItemCounts), their part kept until a scan changes.
+function Text:OwnedText(data)
+    local itemID = data.itemID
+    if not itemID or HOLDER_ROWS[data.category] or data.storedHolders or not ns.StoredItemCounts then return nil end
+    local byChar, stamp = ns.StoredItemCounts(itemID)
+    if stamp ~= ownedStamp then
+        wipe(altsOwned)
+        ownedStamp = stamp
+    end
+    local alts = altsOwned[itemID]
+    if alts == nil then
+        local currentKey, owners = ns.CurrentCharacterKey(), {}
+        for charKey, c in pairs(byChar or {}) do
+            local count = (c.bags or 0) + (c.bank or 0)
+            if charKey ~= currentKey and count > 0 and c.name then owners[#owners + 1] = { name = c.name, count = count } end
+        end
+        table.sort(owners, OwnerLess)
+        for i, owner in ipairs(owners) do owners[i] = owner.name .. " " .. owner.count end
+        alts = #owners > 0 and table.concat(owners, ", ") or false
+        altsOwned[itemID] = alts
+    end
+    local mine = GetItemCount and GetItemCount(itemID, true) or 0
+    if mine > 0 then
+        local own = (ns.PlayerName() or "?") .. " " .. mine
+        return sformat(L["SUBTEXT_OWNED_FMT"], alts and (own .. ", " .. alts) or own)
+    end
+    return alts and sformat(L["SUBTEXT_OWNED_FMT"], alts) or nil
+end
+
+-- The subtext a row shows: the flat one, who owns its item, then a
+-- decorator's part.
 function Text:GetShownSubtext(data)
     local subtext = self:GetFlatSubtext(data)
+    local owned = data and self:OwnedText(data)
+    if owned then subtext = subtext ~= "" and (subtext .. ", " .. owned) or owned end
     local part = data and ns.Extensions and ns.Extensions.DecoratorSubtext and ns.Extensions.DecoratorSubtext(data)
     if not part then return subtext end
     return subtext ~= "" and (subtext .. ", " .. part) or part

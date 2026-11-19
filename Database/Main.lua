@@ -6365,8 +6365,9 @@ function Stored.BankCacheStore()
 end
 
 -- What each character held of an item at its last scan, from the stored bag
--- and bank records: { [charKey] = { name, class, bags, bank } }. The index is
--- rebuilt only when some character's scan time changes.
+-- and bank records: { [charKey] = { name, class, bags, bank } }, then a
+-- stamp that moves when some character's scan time does (the index is
+-- rebuilt only then).
 do
     local index, stamp = {}, nil
     local SOURCES = { { "bagCache", "bagCacheVer", "BAG_CACHE_VER", "bags" }, { "bankCache", "bankCacheVer", "BANK_CACHE_VER", "bank" } }
@@ -6412,7 +6413,7 @@ do
                 end
             end
         end
-        return index[itemID]
+        return index[itemID], stamp
     end
 end
 
