@@ -172,6 +172,8 @@ read_globals = {
     "GetHitModifier", "GetSpellHitModifier", "GetSpellBonusDamage", "GetSpellBonusHealing", "GetHaste",
     "GetMasteryEffect", "GetVersatilityBonus", "UnitArmor", "UnitAttackPower", "UnitRangedAttackPower",
     "UnitDefense", "UnitStat",
+    -- The calendar's holidays (Database/Holidays.lua).
+    "C_Calendar", "FormatShortDate", "Calendar_LoadUI",
     -- Keys and what they cast (Search/Keys.lua).
     "GetActionInfo", "GetActionText", "GetActionTexture", "GetBindingText", "GetBindingName", "GetMacroSpell",
     -- The character pages (Database/Characters.lua, Search/Characters.lua).

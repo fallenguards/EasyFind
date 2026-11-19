@@ -66,6 +66,7 @@ local dynamicProviders = {
     { key = "titles", category = providerCategory["titles"],          fn = "PopulateDynamicTitles", eager = true },
     { key = "gearSets", category = providerCategory["gearSets"],       fn = "PopulateDynamicGearSets", eager = true },
     { key = "skills", category = providerCategory["skills"],          fn = "PopulateDynamicSkills", eager = true },
+    { key = "holidays", category = providerCategory["holidays"],      fn = "PopulateDynamicHolidays", eager = true },
     { key = "macros", category = providerCategory["macros"],          fn = "PopulateDynamicMacros", eager = true },
     { key = "abilities", category = providerCategory["abilities"],        fn = "PopulateDynamicAbilities", post = "AddSpellWords" },
     { key = "talents", category = providerCategory["talents"],         fn = "PopulateDynamicTalents", post = "AddSpellWords" },

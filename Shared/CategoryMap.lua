@@ -43,6 +43,7 @@ local ENTRIES = {
     { key = "titles",          categories = { "Title" } },
     { key = "gearSets",        categories = { "Gear Set" } },
     { key = "skills",          categories = { "Skill" } },
+    { key = "holidays",        categories = { "Holiday" } },
     { key = "commands",        categories = { "Command" } },
     -- extensions is the umbrella gate for the extensions' own results;
     -- each adds its category under it when it registers (EasyFind.API).

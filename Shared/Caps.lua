@@ -411,6 +411,7 @@ local NEEDS = {
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
     reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
     collections = "collectionsUI", titles = "titles", skills = "skills", upgrades = "upgrades",
+    holidays = "calendar",
 }
 Caps.NEEDS = NEEDS
 

@@ -343,6 +343,8 @@ local ANSWERS = {
       label = _G["SPEED"] or "Speed", value = SpeedValue },
     { keys = { "reset", "resets", "daily reset", "weekly reset", "reset time", "reset timer" },
       labelKey = "ANSWER_RESETS", value = ResetValue },
+    { keys = { "next holiday", "next event" }, labelKey = "ANSWER_NEXT_HOLIDAY",
+      value = function() return ns.Holidays and ns.Holidays.Next() end },
     { keys = { "crit", "crit chance", "critical strike" },
       label = _G["STAT_CRITICAL_STRIKE"] or "Critical Strike", stat = CritStat },
     { keys = { "hit", "hit chance" }, label = _G["STAT_HIT_CHANCE"] or "Hit Chance", stat = HitStat },

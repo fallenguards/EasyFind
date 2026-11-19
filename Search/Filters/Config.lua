@@ -213,6 +213,7 @@ local UI_FILTER_OPTIONS = {
           { key = "rares",      label = L["FILTER_RARES"],        dbTable = "uiMapFilters" },
           { key = "npcs",       label = L["FILTER_NPCS"],         dbTable = "uiMapFilters", hasOptions = true },
       } },
+    { key = "holidays",    label = _G["CALENDAR_FILTER_HOLIDAYS"] or L["FILTER_HOLIDAYS"], iconTex = 134939 },
     { key = "housing",     label = _G["HOUSING_SETTINGS_LABEL"] or _G["BINDING_HEADER_HOUSING_SYSTEM"] or "Housing",
       iconAtlas = "UI-HUD-MicroMenu-Housing-Up", hasFlyout = true },
     -- Interact crosshair cursor file, used whole (not a sheet crop).

@@ -568,6 +568,12 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    if data.holidayDay and ns.Holidays then
+        self:FinishResultSelection()
+        ns.Holidays.Open(data)
+        return
+    end
+
     -- Copy rows (quick answers): the click cannot copy, so it arms the
     -- Ctrl+C chord for this row and keeps the results open, like the
     -- calculator card.

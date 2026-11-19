@@ -36,6 +36,8 @@ local EXPECTED = {
     -- MoP's wardrobe: left off until its appearance reads are proven there.
     appearances = {}, transmogSets = {}, outfits = {},
     housing = {}, delves = {}, delve = {}, warband = {}, icons = {},
+    -- The calendar came with Wrath.
+    holidays = { mists = true },
     -- Each ships its own item data (Apps/Items/Data_Era, _TBC, _Mists).
     catalog = { era = true, tbc = true, mists = true },
 }

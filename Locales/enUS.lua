@@ -1128,6 +1128,11 @@ L["ANSWER_KEYSTONE"]                    = "Keystone"
 L["ANSWER_BAG_SPACE"]                   = "Bag space"
 L["ANSWER_GOLD_FMT"]                    = "%s (account: %s)"
 L["ANSWER_RESETS"]                      = "Resets"
+L["ANSWER_NEXT_HOLIDAY"]                = "Next holiday"
+L["HOLIDAY_STARTS_FMT"]                 = "Starts in %s (%s)"
+L["HOLIDAY_ENDS_FMT"]                   = "Now, ends in %s (%s)"
+L["HOLIDAY_ENDS_TODAY"]                 = "Now, ends today"
+L["FILTER_HOLIDAYS"]                    = "Holidays"
 L["CMD_DESC_CLEAR_CHAT"]                = "Clear the chat window"
 
 -- Sounds and edge colors (Shared/Signals.lua)

@@ -201,6 +201,7 @@ function Text:GetFlatSubtext(data)
     -- Its value is drawn apart (Render.SecretValue).
     if data.secretFormat then return "" end
     if data.searchCommandDesc then return data.searchCommandDesc end
+    if data.holidayStart then return ns.Holidays.Line(data) end
     if data.quickFilterAliasText then return data.quickFilterAliasText end
     if data.quickFilterDef then return data.quickFilterDef.label or L["QUICK_FILTER"] end
     -- An addon's setting: the addon, then the page it is on.

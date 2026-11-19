@@ -74,6 +74,8 @@ local PROVIDERS = {
     { key = "titles", words = { "title", "titles" }, loadOnLowResults = true },
     { key = "gearSets", words = { "gearset", "gearsets", "equipment", "equipmentset" }, loadOnLowResults = true },
     { key = "skills", words = { "skill", "skills" }, loadOnLowResults = true },
+    -- Searched by a holiday's own name ("darkmoon"): loaded with the filter on.
+    { key = "holidays", words = { "holiday", "holidays", "event", "events" }, loadWhenEnabled = true },
     { key = "bags", words = { "bag", "bags", "inventory" }, loadOnLowResults = true },
     { key = "bank", words = { "bank", "banked", "vault", "warband" }, loadWhenEnabled = true },
     { key = "transmogSets", words = { "appearance", "appearances", "appset", "appsets", "set", "sets", "tmog", "transmog", "xmog" }, loadOnLowResults = true },

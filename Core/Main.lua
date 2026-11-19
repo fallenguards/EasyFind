@@ -233,6 +233,7 @@ local DB_DEFAULTS = {
         abilities      = true,
         bosses         = true,
         gearSets       = true,
+        holidays       = true,
         skills         = true,
         talents        = true,
         titles         = true,
