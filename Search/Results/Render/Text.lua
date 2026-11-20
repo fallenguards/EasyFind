@@ -156,7 +156,8 @@ function Render.BaseRowText(resultRow, entry, state)
         -- keep their darkened icon as the unusable cue; the name text
         -- always wears the theme color.
         resultRow.text:SetTextColor(unpack(theme.leafColor))
-        SetClippedText(resultRow.text, entry.name)
+        -- In the color the row carries (a class, a recipe's difficulty).
+        SetClippedText(resultRow.text, Render.NameText(entry))
 
         resultRow.pathSubtext:ClearAllPoints()
         resultRow.pathSubtext:SetPoint("TOPLEFT", resultRow.text, "BOTTOMLEFT", 0, -state.stackGap)
