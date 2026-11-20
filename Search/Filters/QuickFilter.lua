@@ -38,12 +38,15 @@ Filters.quickFilterOptions = {
     { key = "abilities",      canonical = "abilities",       label = _G["ABILITIES"] or "Abilities",       categories = { "Ability" }, aliases = { "ab", "ability", "abilities", "spell", "spells" } },
     { key = "achievements",   canonical = "achievements",    label = _G["ACHIEVEMENTS"] or "Achievements",    categories = { "Achievement", "Achievements", "Achievement Category", "Guild Achievements" }, aliases = { "a", "ach", "achievement", "achievements" } },
     { key = "statistics",     canonical = "statistics",      label = _G["STATISTICS"] or "Statistics",      categories = { "Statistic", "Statistics" }, aliases = { "s", "stat", "stats", "statistic", "statistics" } },
-    { key = "items",          canonical = "items",           label = _G["ITEMS"] or "Items",          categories = { "Item", "Bag", "Bank", "Warband" }, aliases = { "i", "item", "items" } },
+    { key = "items",          canonical = "items",           label = _G["ITEMS"] or "Items",          categories = { "Item", "Bag", "Bank", "Warband", "Mail", "Guild Bank" }, aliases = { "i", "item", "items" } },
     { key = "catalog",        canonical = "gen",             label = L["FILTER_GENERAL_CATALOG"],      categories = { "Item" }, aliases = { "cat", "catalog", "general" }, companion = "EasyFind_Items" },
     { key = "icons",          canonical = "icons",           label = L["FILTER_ICONS"],       categories = { "Icon" }, aliases = { "ic", "icon", "icons", "texture", "textures" }, companion = "EasyFind_Icons" },
     -- @bags and @bank: every character's, in the item grid (Search/Characters.lua).
     { key = "bags",           canonical = "bags",            label = _G["HUD_EDIT_MODE_BAGS_LABEL"] or "Bags",            categories = { "Bag" }, aliases = { "b", "bag", "bags" }, charView = "grid", gridKind = "bags" },
     { key = "bank",           canonical = "bank",            label = _G["BANK"] or "Bank",            categories = { "Bank" }, aliases = { "bank", "banked" }, charView = "grid", gridKind = "bank" },
+    -- @mail: every character's mail, soonest gone first (Search/Characters.lua).
+    { key = "mail",           canonical = "mail",            label = _G["MAIL_LABEL"] or "Mail",       categories = { "Mail" }, aliases = { "mail", "mailbox" }, charView = "mail" },
+    { key = "guildBank",      canonical = "guildbank",       label = _G["GUILD_BANK"] or "Guild Bank", categories = { "Guild Bank" }, aliases = { "gb", "gbank", "guildbank", "guild-bank" } },
     -- The warband bank is a separate place from a character's own bank, so it
     -- gets its own token rather than being folded into @bank.
     { key = "warband",        canonical = "warband",         label = ns.WarbandBankLabel and ns.WarbandBankLabel() or "Warband Bank", categories = { "Warband" }, aliases = { "wb", "warband", "warbank" } },

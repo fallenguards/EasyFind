@@ -6372,13 +6372,17 @@ function Stored.BankCacheStore()
     return Stored.StoredCacheStore("bankCache", "bankCacheVer", ns.BANK_CACHE_VER)
 end
 
--- What each character held of an item at its last scan, from the stored bag
--- and bank records: { [charKey] = { name, class, bags, bank } }, then a
+-- What each character held of an item at its last scan, from the stored bag,
+-- bank, mail and guild bank records: { [charKey] = { name, class, bags,
+-- bank, mail, guild } }, then a
 -- stamp that moves when some character's scan time does (the index is
 -- rebuilt only then).
 do
     local index, stamp = {}, nil
-    local SOURCES = { { "bagCache", "bagCacheVer", "BAG_CACHE_VER", "bags" }, { "bankCache", "bankCacheVer", "BANK_CACHE_VER", "bank" } }
+    -- A guild's bank is one more holder, under the guild's own key.
+    local SOURCES = { { "bagCache", "bagCacheVer", "BAG_CACHE_VER", "bags" }, { "bankCache", "bankCacheVer", "BANK_CACHE_VER", "bank" },
+                      { "mailCache", "mailCacheVer", "MAIL_CACHE_VER", "mail" },
+                      { "guildBankCache", "guildBankCacheVer", "GUILD_BANK_CACHE_VER", "guild" } }
 
     local function Stores()
         local db = EasyFind and EasyFind.db
@@ -6414,7 +6418,7 @@ do
                                 index[id] = byChar
                                 local c = byChar[charKey] or { name = record.name, class = record.class, bags = 0, bank = 0 }
                                 byChar[charKey] = c
-                                c[src[4]] = c[src[4]] + (row.count or 1)
+                                c[src[4]] = (c[src[4]] or 0) + (row.count or 1)
                             end
                         end
                     end

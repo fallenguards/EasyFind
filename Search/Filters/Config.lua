@@ -110,6 +110,8 @@ local UI_FILTER_OPTIONS = {
           { key = "catalog", label = L["FILTER_GENERAL_CATALOG"], iconTex = ns.ITEMS_CATEGORY_ICON_TEX, iconCoords = ns.ITEMS_CATEGORY_ICON_COORDS, iconAspect = ns.ITEMS_CATEGORY_ICON_ASPECT, hasOptions = true, companion = "EasyFind_Items" },
           { key = "bags", label = _G["BAGSLOT"] or "Bags", iconAtlas = ns.BAG_ICON_ATLAS, iconTex = ns.BAG_ICON_TEX, hasOptions = true },
           { key = "bank", label = _G["BANK"] or "Bank", iconTex = ns.BANK_CATEGORY_ICON_TEX, iconCoords = ns.BANK_CATEGORY_ICON_COORDS, hasOptions = true },
+          { key = "mail", label = _G["MAIL_LABEL"] or "Mail", iconTex = "Interface\\Icons\\INV_Letter_15" },
+          { key = "guildBank", label = _G["GUILD_BANK"] or "Guild Bank", iconTex = ns.BANK_CATEGORY_ICON_TEX, iconCoords = ns.BANK_CATEGORY_ICON_COORDS },
       } },
     -- Bosses: EJ overview tab icon from texture 522972.
     { key = "bosses",      label = _G["RAID_BOSSES"] or "Bosses",      iconTex = ns.ART.boss.tex,

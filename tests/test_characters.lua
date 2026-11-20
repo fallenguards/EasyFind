@@ -541,7 +541,7 @@ function tests.anAtWordOnAPage_opensThePageUnderIt()
     ns.Filters:ApplyQuickFilter(alts, "")
     ns.Characters:ShowView(alts, "@")
     H.assertEq(shown[1].name, "Items", "a bare @ lists what is under @alts")
-    H.assertEq(#shown, 9, "Items, Characters, Professions, Money, Lockouts, four characters")
+    H.assertEq(#shown, 10, "Items, Characters, Professions, Money, Lockouts, Mail, four characters")
     ns.Characters:ShowView(alts, "@ite")
     H.assertEq(#shown, 1)
     H.assertEq(shown[1].data.searchCommandDesc, "@items")
@@ -845,6 +845,36 @@ function tests.crafters_onTheClassicClients_byTheRecipesName()
     H.assertEq(#hits, 1)
     H.assertEq(hits[1].entry.name, "Bôb")
     H.assertEq(hits[1].prof, "First Aid")
+end
+
+-- ==== the mail page (2026-11-19) ============================================
+
+function tests.mail_aPageOfEveryCharactersMail_theSoonestGoneFirst()
+    local db = TwoJainas()
+    local env, ns, shown = Pages(db)
+    local mail = {
+        ["Jaina-Realm"] = { name = "Jaina", class = "MAGE", money = 500,
+            items = { { itemID = 2589, name = "Linen Cloth", count = 20, expires = 900 } } },
+        ["Bôb-Realm"] = { name = "Bôb", class = "ROGUE", money = 0,
+            items = { { itemID = 2840, name = "Copper Bar", count = 4, expires = 300 } } },
+    }
+    ns.Stores = { Mail = function(key) return mail[key] end, DaysLeft = function(t) return t .. "s" end }
+    ns.L.CHAR_MAIL_ITEMS_FMT = "%d items"
+    local alts = ns.Filters:ResolveQuickFilterToken("alts")
+    ns.Characters:ShowView(alts, "")
+    local row
+    for _, e in ipairs(shown) do if e.name == "Mail" then row = e.data end end
+    H.assertTrue(row ~= nil and row.searchCommandDesc == "2 items", "a Mail row on @alts")
+    ns.Characters:ShowView(row.quickFilterDef, "")
+    H.assertEq(shown[1].name, "Copper Bar", "the one gone soonest first")
+    H.assertEq(shown[1].data.storedSubtext, "Bôb: 4, 300s")
+    H.assertEq(shown[1].data.category, "Mail")
+    H.assertEq(shown[2].name, "Linen Cloth")
+    H.assertEq(shown[3].name, "Jaina", "then the money waiting")
+    H.assertEq(shown[3].data.searchCommandDesc, "500c")
+    ns.Characters:ShowView(row.quickFilterDef, "copper")
+    H.assertEq(#shown, 1, "typing narrows")
+    H.assertTrue(env ~= nil)
 end
 
 local pass, fail, failures = H.runSuite("Characters", tests)

@@ -28,6 +28,7 @@ local GLYPH = {
     portrait = { portrait = "player" },
     upgrades = { tex = "Interface\\Icons\\Spell_ChargePositive" },
     lockouts = { tex = "Interface\\Icons\\INV_Misc_Key_03" },
+    mail = { tex = "Interface\\Icons\\INV_Letter_15" },
 }
 GLYPH.money = GLYPH.gold
 local HAS_UPGRADES = ns.Caps and ns.Caps.Has and ns.Caps.Has("upgrades")
@@ -185,6 +186,7 @@ local PAGE_KIND = {
     money = { view = "money", token = "@money", words = { "money", "gold" } },
     upgrades = { view = "upgrades", token = "@upgrades", words = { "upgrades", "upgrade" } },
     lockouts = { view = "lockouts", token = "@lockouts", words = { "lockouts", "lockout", "saved" } },
+    mail = { view = "mail", token = "@mail", words = { "mail", "mailbox" } },
 }
 local PAGE_TITLE = {
     items = function() return _G["ITEMS"] or "Items" end,
@@ -194,6 +196,7 @@ local PAGE_TITLE = {
     money = function() return _G["MONEY"] or "Money" end,
     upgrades = function() return L["FILTER_UPGRADES"] end,
     lockouts = function() return L["CHAR_LOCKOUTS"] end,
+    mail = function() return _G["MAIL_LABEL"] or "Mail" end,
 }
 
 local function PageDef(charDef, kind)
@@ -310,6 +313,15 @@ local function AltsPage(list)
         out[#out + 1] = Row(L["CHAR_LOCKOUTS"], sformat(L["CHAR_LOCKOUTS_FMT"], locks, saved), GLYPH.lockouts,
             { quickFilterDef = PageDef(nil, "lockouts") })
     end
+    local mailed = 0
+    for _, entry in ipairs(list) do
+        local mail = ns.Stores and ns.Stores.Mail(entry.key)
+        if mail then mailed = mailed + #mail.items end
+    end
+    if mailed > 0 then
+        out[#out + 1] = Row(_G["MAIL_LABEL"] or "Mail", sformat(L["CHAR_MAIL_ITEMS_FMT"], mailed), GLYPH.mail,
+            { quickFilterDef = PageDef(nil, "mail") })
+    end
     if known > 0 then
         local text = Duration(played)
         if known < #list then text = sformat(L["CHAR_PLAYED_SOME_FMT"], text, known, #list) end
@@ -389,6 +401,42 @@ local function LockoutsPage(list)
     return out
 end
 
+-- What sits in each character's mailbox as of its last visit: an item
+-- row each, the soonest gone first, then the money waiting there.
+local function ExpiresLess(a, b) return a.expires < b.expires end
+local function MailPage(list)
+    local Stores, items, money, out = ns.Stores, {}, {}, {}
+    for _, entry in ipairs(list) do
+        local mail = Stores and Stores.Mail(entry.key)
+        for _, item in ipairs(mail and mail.items or {}) do
+            local line = sformat("%s: %d, %s", entry.name, item.count, Stores.DaysLeft(item.expires))
+            local data = ns.Stored.EmitStoredRow({ row = item, total = item.count,
+                holders = { { charKey = entry.key, name = entry.name, class = entry.class, count = item.count } } },
+                "Mail", ITEM_KEYWORDS, true)
+            data.storedSubtext, data.noPin, data.noLearn = line, true, true
+            data.folded = Data.Fold((item.name or "") .. " " .. entry.name)
+            items[#items + 1] = { expires = item.expires, data = data }
+        end
+        if mail and mail.money > 0 then
+            money[#money + 1] = CharacterRow(entry, Coins(mail.money), { copyText = PlainCoins(mail.money) })
+        end
+    end
+    tsort(items, ExpiresLess)
+    for _, item in ipairs(items) do out[#out + 1] = item.data end
+    for _, row in ipairs(money) do out[#out + 1] = row end
+    if #out == 0 then out[1] = Row(L["CHAR_MAIL_NONE"], nil, GLYPH.mail) end
+    return out
+end
+
+-- "12 items, 5g": a mailbox in one line; nil when it holds nothing.
+local function MailLine(mail)
+    if not mail or (#mail.items == 0 and mail.money == 0) then return nil end
+    local parts = {}
+    if #mail.items > 0 then parts[1] = sformat(L["CHAR_MAIL_ITEMS_FMT"], #mail.items) end
+    if mail.money > 0 then parts[#parts + 1] = Coins(mail.money) end
+    return tconcat(parts, ", ")
+end
+
 function Characters.SavedSubtext(name, instanceID)
     local saved = Data.SavedTo(name, instanceID)
     if not saved then return nil end
@@ -415,6 +463,10 @@ local function CharacterPage(def, entry)
     if entry.lockouts then
         out[#out + 1] = Row(L["CHAR_LOCKOUTS"], LockoutsLine(entry.lockouts), GLYPH.lockouts,
             { quickFilterDef = PageDef(def, "lockouts") })
+    end
+    local mailLine = MailLine(ns.Stores and ns.Stores.Mail(entry.key))
+    if mailLine then
+        out[#out + 1] = Row(_G["MAIL_LABEL"] or "Mail", mailLine, GLYPH.mail, { quickFilterDef = PageDef(def, "mail") })
     end
     if entry.money then
         out[#out + 1] = CopyRow(_G["MONEY"] or "Money", Coins(entry.money), GLYPH.gold, PlainCoins(entry.money))
@@ -600,6 +652,8 @@ local function PageRows(def)
         page.rows = MoneyPage(list)
     elseif def.charView == "lockouts" then
         page.rows = LockoutsPage(def.charKey and { Data.Get(def.charKey) } or list)
+    elseif def.charView == "mail" then
+        page.rows = MailPage(def.charKey and { Data.Get(def.charKey) } or list)
     elseif def.charView == "upgrades" then
         -- @upgrades alone: the character played now.
         page.rows = ns.Upgrades.Rows(Data.Get(def.charKey or ns.CurrentCharacterKey()))
@@ -622,12 +676,13 @@ local function SubPages(def)
     if def.charView == "list" then
         out[1], out[2], out[3], out[4] = PageDef(nil, "items"), PageDef(nil, "chars"), PageDef(nil, "profs"),
             PageDef(nil, "money")
-        out[5] = PageDef(nil, "lockouts")
+        out[5], out[6] = PageDef(nil, "lockouts"), PageDef(nil, "mail")
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     elseif def.charView == "char" then
         out[1], out[2] = PageDef(def, "items"), PageDef(def, "gear")
         if HAS_UPGRADES then out[3] = PageDef(def, "upgrades") end
         out[#out + 1] = PageDef(def, "lockouts")
+        out[#out + 1] = PageDef(def, "mail")
     else
         for _, charDef in ipairs(Defs()) do out[#out + 1] = charDef end
     end

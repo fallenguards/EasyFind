@@ -40,6 +40,8 @@ local ENTRIES = {
     { key = "catalog",         parent = "items", categories = { "Item" } },
     { key = "bags",            parent = "items", categories = { "Bag" } },
     { key = "bank",            parent = "items", categories = { "Bank", "Warband" } },
+    { key = "mail",            parent = "items", categories = { "Mail" } },
+    { key = "guildBank",       parent = "items", categories = { "Guild Bank" } },
     { key = "titles",          categories = { "Title" } },
     { key = "gearSets",        categories = { "Gear Set" } },
     { key = "skills",          categories = { "Skill" } },

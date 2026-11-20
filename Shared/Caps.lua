@@ -373,6 +373,8 @@ end
 -- Classic's portrait menu has no Self Highlight entry. The calendar came
 -- with Wrath: Era's and Anniversary's clock opens none, MoP Classic's does.
 Caps.selfHighlight = not classic
+-- Guild banks came with TBC.
+Caps.guildBank = not Caps.era and type(_G["GetNumGuildBankTabs"]) == "function"
 Caps.calendar = not (Caps.era or Caps.tbc)
 -- Era has no titles to pick: a PvP rank shows by the name on its own.
 -- TBC picks one from a dropdown on the character sheet.
@@ -411,7 +413,7 @@ local NEEDS = {
     perks = "perks", macros = "macros", professions = "professions", gearSets = "gearSets",
     reputations = "reputation", catalog = "itemCatalog", icons = "iconSearch",
     collections = "collectionsUI", titles = "titles", skills = "skills", upgrades = "upgrades",
-    holidays = "calendar", skillUps = "professions",
+    holidays = "calendar", skillUps = "professions", guildBank = "guildBank",
 }
 Caps.NEEDS = NEEDS
 

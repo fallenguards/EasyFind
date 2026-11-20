@@ -174,6 +174,10 @@ read_globals = {
     "UnitDefense", "UnitStat",
     -- The calendar's holidays (Database/Holidays.lua).
     "C_Calendar", "FormatShortDate", "Calendar_LoadUI",
+    -- The mailbox and the guild bank (Database/Stores.lua).
+    "GetInboxNumItems", "GetInboxHeaderInfo", "GetInboxItem", "ATTACHMENTS_MAX_RECEIVE", "GetGuildInfo",
+    "GetNumGuildBankTabs", "GetGuildBankTabInfo", "GetGuildBankItemInfo", "GetGuildBankItemLink",
+    "GetCurrentGuildBankTab", "QueryGuildBankTab", "MAX_GUILDBANK_SLOTS_PER_TAB",
     -- Keys and what they cast (Search/Keys.lua).
     "GetActionInfo", "GetActionText", "GetActionTexture", "GetBindingText", "GetBindingName", "GetMacroSpell",
     -- The character pages (Database/Characters.lua, Search/Characters.lua).

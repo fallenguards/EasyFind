@@ -38,6 +38,9 @@ local EXPECTED = {
     housing = {}, delves = {}, delve = {}, warband = {}, icons = {},
     -- The calendar came with Wrath.
     holidays = { mists = true },
+    -- The guild bank came with TBC; the profession window everywhere.
+    guildBank = { tbc = true, mists = true },
+    skillUps = { era = true, tbc = true, mists = true },
     -- Each ships its own item data (Apps/Items/Data_Era, _TBC, _Mists).
     catalog = { era = true, tbc = true, mists = true },
 }
@@ -74,6 +77,7 @@ local function loadCaps(name)
     env.C_CurrencyInfo = { GetCurrencyInfo = function() end }
     env.GetCurrencyListSize = function() return 0 end
     env.GetNumTradeSkills = function() return 0 end
+    env.GetNumGuildBankTabs = function() return 0 end
     env.GetCategoryList = function() return {} end
     if name == "mists" then
         env.CHARACTERFRAME_SUBFRAMES = { "PaperDollFrame", "PetPaperDollFrame", "ReputationFrame", "TokenFrame" }

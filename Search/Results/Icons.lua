@@ -181,6 +181,7 @@ local FLAT_CATEGORY_ICONS = {
     talent        = { atlas = "UI-HUD-MicroMenu-SpecTalents-Up" },
     achievement   = { atlas = "UI-HUD-MicroMenu-Achievements-Up" },
     macro         = { tex = "Interface\\MacroFrame\\MacroFrame-Icon" },
+    mail          = { tex = "Interface\\Icons\\INV_Letter_15" },
     bag           = { atlas = ns.BAG_ICON_ATLAS, tex = ns.BAG_ICON_TEX },
     bank          = { tex = ns.BANK_CATEGORY_ICON_TEX, coords = ns.BANK_CATEGORY_ICON_COORDS },
     loot          = ns.ART.loot,
@@ -304,9 +305,10 @@ function Icons:GetFlatCategoryIcon(data)
     if data.encounterID and data.category == "Boss" then return FLAT_CATEGORY_ICONS.boss end
     if data.macroIndex and data.category == "Macro" then return FLAT_CATEGORY_ICONS.macro end
     if data.category == "Bag" then return FLAT_CATEGORY_ICONS.bag end
-    if data.category == "Bank" or data.category == "Warband" then
+    if data.category == "Bank" or data.category == "Warband" or data.category == "Guild Bank" then
         return FLAT_CATEGORY_ICONS.bank
     end
+    if data.category == "Mail" then return FLAT_CATEGORY_ICONS.mail end
     if data.catalogItem then return FLAT_CATEGORY_ICONS.item end
     if data.itemID and data.category == "Loot" then return FLAT_CATEGORY_ICONS.loot end
     if data.category == "Game Settings" then return FLAT_CATEGORY_ICONS.setting end
