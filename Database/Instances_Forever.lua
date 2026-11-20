@@ -6,7 +6,7 @@
 -- Scholomance: at its map label, 30 yd from the ghost point
 -- Maraudon: at its map label, 12 yd from the ghost point
 -- City of Dalaran: the portal inside the dome's Old Dalaran Ruins (a second stands at 377, 525)
--- Excavation Site: the new cave den in the dig's own subzone (no portal doodad in the files)
+-- Excavation Site: by the dig camp where the new path up from Dun Algaz tops out (the files hold no door)
 -- Ruins of Lordaeron: the portal in the ruins above Undercity
 -- Hall of Thanes: the sealed dwarven tunnel north-east of Ironforge
 -- Announced, not in this build's dungeon list or Map table yet:
@@ -54,7 +54,7 @@ ns.FOREVER_INSTANCES = {
     { id = 531, n = "Ahn'Qiraj Temple", raid = true, players = 40, m = 1451, x = 0.2902, y = 0.927, ci = 1, wx = -8112, wy = 1527, cm = 1414, cx = 0.4223, cy = 0.8524 },
     { id = 533, n = "Naxxramas", raid = true, players = 40, m = 1423, x = 0.3426, y = 0.1948, ci = 0, wx = 3133, wy = -3730, cm = 1415, cx = 0.5605, cy = 0.1847 },
     { id = 2959, n = "City of Dalaran", raid = false, players = 0, m = 1416, x = 0.2169, y = 0.6836, ci = 0, wx = 224, wy = 176, cm = 1415, cx = 0.4495, cy = 0.3086 },
-    { id = 2998, n = "Excavation Site: Wetlands", raid = false, players = 0, m = 1437, x = 0.3826, y = 0.5141, ci = 0, wx = -3565, wy = -1972, cm = 1415, cx = 0.5106, cy = 0.4701 },
+    { id = 2998, n = "Excavation Site: Wetlands", raid = false, players = 0, m = 1437, x = 0.4779, y = 0.5631, ci = 0, wx = -3700, wy = -2366, cm = 1415, cx = 0.5218, cy = 0.4758 },
     { id = 2999, n = "Ruins of Lordaeron", raid = false, players = 0, m = 1420, x = 0.6325, y = 0.675, ci = 0, wx = 1804, wy = 175, cm = 1415, cx = 0.4496, cy = 0.2413 },
     { id = 3065, n = "The Hall of Thanes", raid = false, players = 0, m = 1426, x = 0.6504, y = 0.0892, ci = 0, wx = -4170, wy = -1401, cm = 1415, cx = 0.4943, cy = 0.4959 },
 }
