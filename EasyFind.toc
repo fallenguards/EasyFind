@@ -46,6 +46,7 @@ Database/Main.lua
 Database/Characters.lua
 Database/SpellWords.lua
 Database/Holidays.lua
+Database/SkillUps.lua
 Database/InstanceWords.lua
 Database/SearchIndex.lua
 Database/Search.lua

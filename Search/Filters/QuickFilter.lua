@@ -56,6 +56,8 @@ Filters.quickFilterOptions = {
     { key = "macros",         canonical = "macros",          label = _G["MACROS"] or "Macros",          categories = { "Macro" }, aliases = { "ma", "macro", "macros" } },
     { key = "commands",       canonical = "commands",        label = L["FILTER_COMMANDS"],        categories = { "Command" }, aliases = { "cmd", "cmds", "command", "commands", "slash" } },
     { key = "professions",    canonical = "professions",     label = _G["TRADE_SKILLS"] or "Professions", categories = { "Profession" }, aliases = { "prof", "profs", "profession", "professions" } },
+    -- The learned recipes that still raise a profession (Database/SkillUps.lua).
+    { key = "skillUps",       canonical = "skillups",        label = L["FILTER_SKILL_UPS"], aliases = { "skillup", "skillups", "levelup", "leveling" }, skillUpsView = true },
     { key = "housing",        canonical = "housing",         label = _G["HOUSING_SETTINGS_LABEL"] or _G["BINDING_HEADER_HOUSING_SYSTEM"] or "Housing", categories = { "Housing" }, aliases = { "ho", "house", "housing", "decor" } },
     { key = "collections",    canonical = "collections",     label = _G["COLLECTIONS"] or "Collections",     categories = { "Mount", "Toy", "Pet", "Outfit", "Heirloom", "Appearance Set", "Appearance" }, aliases = { "co", "col", "collection", "collections" } },
     { key = "appearanceItems", canonical = "appearance-items", label = _G["ITEMS"] or "Items", categories = { "Appearance" }, aliases = { "appearance", "appearances", "appearance-item", "appearance-items", "transmog", "tmog", "xmog" } },

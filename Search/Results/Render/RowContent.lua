@@ -14,6 +14,8 @@ function ns.ResultRender.NameText(entry)
     -- The color rides on the provider's data; the flat entry the query
     -- builds carries only the name and a pointer to that data.
     local hex = entry.nameHex or (entry.data and entry.data.nameHex)
+    -- A recipe wears its skill-up color.
+    if not hex and entry.data and ns.SkillUps then hex = ns.SkillUps.Hex(entry.data) end
     if hex and entry.name and entry.name ~= "" then return hex .. entry.name .. "|r" end
     return entry.name
 end

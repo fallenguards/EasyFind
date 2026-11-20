@@ -4417,6 +4417,7 @@ end
 -- events come in either order). Linked windows of other players are skipped.
 -- True when the character's list changed.
 Database.CLASSIC_OPEN_WINDOW_S = 1.5
+Database.CLASSIC_SKILL_LEVEL = { optimal = 0, medium = 1, easy = 2, trivial = 3 }
 
 function Database.ClassicRecipeBook()
     local db = EasyFind and EasyFind.db
@@ -4470,12 +4471,17 @@ function Database:CaptureClassicRecipes(isCraft, isShow)
         book[profName] = prof
         changed = true
     end
+    -- Each recipe's difficulty as the window colors it now (ns.SkillUps).
+    prof.levels = prof.levels or {}
     for i = 1, countFn() or 0 do
         local name, second, third = infoFn(i)
         local kind = isCraft and third or second
-        if name and name ~= "" and kind ~= "header" and not prof.recipes[name] then
-            prof.recipes[name] = (iconFn and iconFn(i)) or true
-            changed = true
+        if name and name ~= "" and kind ~= "header" then
+            if not prof.recipes[name] then
+                prof.recipes[name] = (iconFn and iconFn(i)) or true
+                changed = true
+            end
+            prof.levels[name] = Database.CLASSIC_SKILL_LEVEL[kind] or prof.levels[name]
         end
     end
     if isShow then

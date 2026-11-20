@@ -542,6 +542,11 @@ function Search:OnSearchTextChangedNow(text, force)
         if ns.Characters then ns.Characters:ShowView(quickFilter, text) end
         return
     end
+    -- @skillups: the recipes that still give a point (Database/SkillUps.lua).
+    if quickFilter and quickFilter.skillUpsView then
+        if ns.SkillUps then ns.SkillUps:ShowView(quickFilter, text) end
+        return
+    end
     -- An item's sources page (Search/ItemSources.lua).
     if quickFilter and quickFilter.sourcesItem then
         if ns.ItemSources then ns.ItemSources:ShowView(quickFilter, text) end

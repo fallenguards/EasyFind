@@ -63,7 +63,7 @@ local STATE_KEYS = {
     uiSearchHistory = true, mapTabRecentSearches = true,
     clipboard = true, charGold = true,
     nativeKeybindsImported = true, suggestedKeybindsSeeded = true, suggestedKeybindsApplied = true,
-    achievementIndex = true, classicRecipes = true, gpsChar = true, gpsHearth = true,
+    achievementIndex = true, classicRecipes = true, recipeLevels = true, gpsChar = true, gpsHearth = true,
     gpsBoats = true, gpsFlown = true, macroButtons = true, minimapIcon = true,
     chatFramesHidden = true, objectiveTrackerHidden = true, customThemes = true, themeStudioDraft = true,
     notesInUse = true, chatInUse = true, extensionsNoticeFrom = true, updateHeard = true,

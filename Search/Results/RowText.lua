@@ -306,6 +306,11 @@ function Text:GetShownSubtext(data)
     local subtext = self:GetFlatSubtext(data)
     local owned = data and self:OwnedText(data)
     if owned then subtext = subtext ~= "" and (subtext .. ", " .. owned) or owned end
+    -- On @skillups, a recipe the bags can make now: how many.
+    if data and data.professionRecipeID and ns.SkillUps and ns.SkillUps.OnPage() and ns.ResultHandlers.CanCraft(data) then
+        local count = ns.ResultHandlers.CraftableCount(data.professionRecipeID)
+        if count and count > 0 then subtext = subtext .. ", " .. sformat(L["SUBTEXT_MAKES_FMT"], count) end
+    end
     -- An ability on the bars: the key that casts it.
     if data and data.category == "Ability" and data.spellID and ns.Keys then
         local key = ns.Keys.SpellKey(data.spellID, data.spellName)
