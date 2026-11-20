@@ -72,6 +72,9 @@ Filters.quickFilterOptions = {
     { key = "toys",           canonical = "toys",            label = _G["TOYS"] or "Toys",            categories = { "Toy" }, aliases = { "to", "toy", "toys" } },
     { key = "gearSets",       canonical = "gear-sets",       label = _G["EQUIPMENT_MANAGER"] or "Gear Sets",       categories = { "Gear Set" }, aliases = { "gs", "gearset", "gearsets", "gear-set", "gear-sets", "equipment-set", "equipment-sets" } },
     { key = "skills",         canonical = "skills",          label = _G["SKILLS"] or "Skills",          categories = { "Skill" }, aliases = { "sk", "skill", "skills" } },
+    { key = "social",         canonical = "social",          label = _G["SOCIAL_LABEL"] or "Social", categories = { "Friend", "Guild Member" }, aliases = { "social", "people" } },
+    { key = "friends",        canonical = "friends",         label = _G["FRIENDS"] or "Friends", categories = { "Friend" }, aliases = { "friend", "friends" } },
+    { key = "guildMembers",   canonical = "guild",           label = _G["GUILD"] or "Guild", categories = { "Guild Member" }, aliases = { "guild", "guildie", "guildies" } },
     { key = "holidays",       canonical = "holidays",        label = _G["CALENDAR_FILTER_HOLIDAYS"] or L["FILTER_HOLIDAYS"], categories = { "Holiday" }, aliases = { "holiday", "holidays", "event", "events" } },
     { key = "currencies",     canonical = "currencies",     label = _G["CURRENCY"] or "Currencies",      categories = { "Currency" }, aliases = { "c", "cur", "currency", "currencies" } },
     -- "l" for Loot. "g"/"gear" are kept only because this filter was called

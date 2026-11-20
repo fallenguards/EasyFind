@@ -568,6 +568,14 @@ function Handlers:SelectResult(data, forceGuide)
         return
     end
 
+    -- A person: a whisper, or with Shift an invite.
+    if (data.socialName or data.socialBNet) and ns.Social then
+        local shift = ns.ResultGestures.Held() == "shift"
+        self:FinishResultSelection()
+        ns.Social.Select(data, shift)
+        return
+    end
+
     if data.holidayDay and ns.Holidays then
         self:FinishResultSelection()
         ns.Holidays.Open(data)

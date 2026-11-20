@@ -49,6 +49,8 @@ local HINTS = {
     openMap          = Hint(V.click, V.openMap),
     pinOnMap         = Hint(V.click, V.pinOnMap),
     pinOrWares       = Hint(V.click, V.pinOnMap, "Shift", V.wares),
+    whisperOrInvite  = Hint(V.click, _G["WHISPER"] or "Whisper", "Shift", _G["INVITE"] or "Invite"),
+    whisper          = Hint(V.click, _G["WHISPER"] or "Whisper"),
     encounter        = Hint(V.click, V.encounter, "Shift", V.loot),
     bossLoot         = Hint(V.click, V.loot),
     settings         = Hint(V.click, V.settings),
@@ -61,6 +63,8 @@ local HINTS = {
 -- already tells you what happens).
 function Handlers:GetActionHint(data)
     if not data or data.secretFormat then return nil end
+    if data.socialName then return HINTS.whisperOrInvite end
+    if data.socialBNet then return HINTS.whisper end
     -- An extension's rows say what their gestures do (RegisterSearchProvider
     -- hint, or the row's own): a sentence, or { click, alt, ctrl, shift }.
     local provider = ns.Extensions and ns.Extensions.ProviderOf and ns.Extensions.ProviderOf(data)

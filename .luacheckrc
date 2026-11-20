@@ -178,6 +178,9 @@ read_globals = {
     "GetInboxNumItems", "GetInboxHeaderInfo", "GetInboxItem", "ATTACHMENTS_MAX_RECEIVE", "GetGuildInfo",
     "GetNumGuildBankTabs", "GetGuildBankTabInfo", "GetGuildBankItemInfo", "GetGuildBankItemLink",
     "GetCurrentGuildBankTab", "QueryGuildBankTab", "MAX_GUILDBANK_SLOTS_PER_TAB",
+    -- Friends and guild members (Database/Social.lua).
+    "Ambiguate", "BNGetNumFriends", "C_BattleNet", "C_FriendList", "C_GuildInfo", "C_PartyInfo",
+    "GetGuildRosterInfo", "GetNumGuildMembers", "IsInGuild", "ChatFrameUtil",
     -- Keys and what they cast (Search/Keys.lua).
     "GetActionInfo", "GetActionText", "GetActionTexture", "GetBindingText", "GetBindingName", "GetMacroSpell",
     -- The character pages (Database/Characters.lua, Search/Characters.lua).

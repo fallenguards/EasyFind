@@ -258,6 +258,12 @@ local UI_FILTER_OPTIONS = {
                 onChange = function(v) if Search.ApplyReputationShowLegacy then Search:ApplyReputationShowLegacy(v) end end },
           },
       } },
+    -- The people the game lists: the friends list and the guild roster.
+    { key = "social",      label = _G["SOCIAL_LABEL"] or "Social", iconTex = "Interface\\FriendsFrame\\UI-Toast-FriendOnlineIcon",
+      flyoutSubFilters = {
+          { key = "friends",      label = _G["FRIENDS"] or "Friends", iconTex = "Interface\\FriendsFrame\\UI-Toast-FriendOnlineIcon" },
+          { key = "guildMembers", label = _G["GUILD"] or "Guild",     iconTex = "Interface\\GossipFrame\\TabardGossipIcon" },
+      } },
     -- Talents: leaf icon from the talents atlas spritesheet (4556093),
     -- visually consistent with the in-game talent tree.
     { key = "talents",     label = _G["TALENTS"] or "Talents",     iconAtlas = "UI-HUD-MicroMenu-SpecTalents-Up",

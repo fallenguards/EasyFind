@@ -46,6 +46,10 @@ local ENTRIES = {
     { key = "gearSets",        categories = { "Gear Set" } },
     { key = "skills",          categories = { "Skill" } },
     { key = "holidays",        categories = { "Holiday" } },
+    -- social is the umbrella over the people the game lists.
+    { key = "social",          categories = {} },
+    { key = "friends",         parent = "social", categories = { "Friend" } },
+    { key = "guildMembers",    parent = "social", categories = { "Guild Member" } },
     { key = "commands",        categories = { "Command" } },
     -- extensions is the umbrella gate for the extensions' own results;
     -- each adds its category under it when it registers (EasyFind.API).

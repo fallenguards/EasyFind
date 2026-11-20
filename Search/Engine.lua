@@ -79,6 +79,9 @@ local PROVIDERS = {
     { key = "bags", words = { "bag", "bags", "inventory" }, loadOnLowResults = true },
     { key = "bank", words = { "bank", "banked", "vault", "warband" }, loadWhenEnabled = true },
     { key = "mail", words = { "mail", "mailbox" }, loadWhenEnabled = true },
+    -- People are searched by name: loaded with their filter on.
+    { key = "friends", words = { "friend", "friends" }, loadWhenEnabled = true },
+    { key = "guildMembers", words = { "guildie", "guildies", "member", "members" }, loadWhenEnabled = true },
     { key = "guildBank", words = { "gbank", "guildbank" }, loadWhenEnabled = true },
     { key = "transmogSets", words = { "appearance", "appearances", "appset", "appsets", "set", "sets", "tmog", "transmog", "xmog" }, loadOnLowResults = true },
     { key = "appearanceItems", words = { "appearance", "appearances", "item", "items", "tmog", "transmog", "xmog" }, explicitOnly = true },
