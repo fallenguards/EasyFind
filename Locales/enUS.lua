@@ -1139,6 +1139,8 @@ L["HOLIDAY_STARTS_FMT"]                 = "Starts in %s (%s)"
 L["HOLIDAY_ENDS_FMT"]                   = "Now, ends in %s (%s)"
 L["HOLIDAY_ENDS_TODAY"]                 = "Now, ends today"
 L["FILTER_HOLIDAYS"]                    = "Holidays"
+L["ADDONS_AFTER_RELOAD"]                = "changes at the next reload"
+L["ADDONS_RELOAD_SUB"]                  = "Applies addons switched on or off"
 L["CMD_DESC_CLEAR_CHAT"]                = "Clear the chat window"
 
 -- Sounds and edge colors (Shared/Signals.lua)

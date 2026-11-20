@@ -455,6 +455,7 @@ local function LayoutRow(owner, resultRow, i, st)
     -- make room.
     local hasPendingApply = Render.GetResultPendingApply(data)
     if resultRow.settingApplyExt then
+        if hasPendingApply then resultRow.settingApplyExt:Label(data) end
         resultRow.settingApplyExt:SetShown(hasPendingApply)
     end
 

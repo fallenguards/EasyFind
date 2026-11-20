@@ -213,6 +213,7 @@ local DB_DEFAULTS = {
         collections    = true,
         gameOptions    = true,
         addonOptions   = true,
+        addons         = true,
         mounts         = true,
         toys           = true,
         pets           = true,

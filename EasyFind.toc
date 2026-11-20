@@ -49,6 +49,7 @@ Database/Holidays.lua
 Database/SkillUps.lua
 Database/Stores.lua
 Database/Social.lua
+Database/AddOns.lua
 Database/InstanceWords.lua
 Database/SearchIndex.lua
 Database/Search.lua

@@ -9,6 +9,7 @@ local L = ns.L
 
 local sformat = Utils.sformat
 local mfloor = Utils.mfloor
+local mmax = Utils.mmax
 
 local CreateFrame = CreateFrame
 local GameTooltip = GameTooltip
@@ -576,13 +577,44 @@ function Rows.CreateSettingWidgets(resultRow)
         local dropdown = d.dropdownVariable ~= primary and d.dropdownVariable or nil
         return primary, slider, dropdown
     end
+    -- A custom setting names its own pair (an addon's switch: Cancel and
+    -- Reload UI), each as wide as its text.
+    function applyExt:Label(d)
+        local custom = d and Rows:CustomSetting(d.settingVariable)
+        resetBtn:SetText(custom and custom.revertText or _G["RESET"] or "Reset")
+        applyBtn:SetText(custom and custom.applyText or _G["APPLY"] or "Apply")
+        local resetW, applyW = mmax(58, resetBtn:GetTextWidth() + 20), mmax(58, applyBtn:GetTextWidth() + 20)
+        resetBtn:SetWidth(resetW)
+        applyBtn:SetWidth(applyW)
+        -- The pair centered as one, whatever each one's width.
+        local shift = (resetW - applyW) / 2
+        resetBtn:ClearAllPoints()
+        resetBtn:SetPoint("RIGHT", applyExt, "CENTER", shift - 2, -2)
+        applyBtn:ClearAllPoints()
+        applyBtn:SetPoint("LEFT", applyExt, "CENTER", shift + 2, -2)
+    end
+    local function Custom()
+        return resultRow.data and Rows:CustomSetting(resultRow.data.settingVariable)
+    end
     applyBtn:SetScript("OnClick", function()
+        local custom = Custom()
+        if custom then
+            if custom.apply then custom.apply() end
+            return
+        end
         if not ns.BlizzOptionsSearch or not ns.BlizzOptionsSearch.ApplyVariable then return end
         ns.BlizzOptionsSearch:ApplyVariable(rowVars(resultRow.data))
         Search:RefreshResults()
         RefocusSearchEditBox()
     end)
     resetBtn:SetScript("OnClick", function()
+        local custom = Custom()
+        if custom then
+            if custom.revert then custom.revert() end
+            Search:RefreshResults()
+            RefocusSearchEditBox()
+            return
+        end
         if not ns.BlizzOptionsSearch or not ns.BlizzOptionsSearch.RevertVariable then return end
         local primary, slider, dropdown = rowVars(resultRow.data)
         if primary then ns.BlizzOptionsSearch:RevertVariable(primary) end

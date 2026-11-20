@@ -96,6 +96,9 @@ end
 -- every settings row widget serves them unchanged.
 local customSettings = {}
 function Rows:RegisterCustomSetting(variable, control) customSettings[variable] = control end
+-- A control may stage like the game's Apply settings: pending(), apply(),
+-- revert(), and the pair's labels (applyText, revertText).
+function Rows:CustomSetting(variable) return variable and customSettings[variable] or nil end
 
 local function ReadSettingVariable(variable)
     local custom = customSettings[variable]

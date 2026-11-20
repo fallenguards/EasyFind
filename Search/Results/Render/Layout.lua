@@ -167,6 +167,8 @@ function Render.ApplyPinnedResultPrefix(resultRow, entry)
 end
 
 function Render.GetResultPendingApply(data)
+    local custom = data and ns.ResultRows.CustomSetting and ns.ResultRows:CustomSetting(data.settingVariable)
+    if custom then return custom.pending ~= nil and custom.pending() == true end
     if not (data and data.settingVariable and ns.BlizzOptionsSearch
         and ns.BlizzOptionsSearch.HasPendingChange) then
         return false

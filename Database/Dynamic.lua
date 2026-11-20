@@ -67,6 +67,7 @@ local dynamicProviders = {
     { key = "gearSets", category = providerCategory["gearSets"],       fn = "PopulateDynamicGearSets", eager = true },
     { key = "skills", category = providerCategory["skills"],          fn = "PopulateDynamicSkills", eager = true },
     { key = "holidays", category = providerCategory["holidays"],      fn = "PopulateDynamicHolidays", eager = true },
+    { key = "addons", category = providerCategory["addons"],          fn = "PopulateDynamicAddOns", eager = true },
     { key = "friends", category = providerCategory["friends"],        fn = "PopulateDynamicFriends" },
     { key = "guildMembers", category = providerCategory["guildMembers"], fn = "PopulateDynamicGuildMembers" },
     { key = "macros", category = providerCategory["macros"],          fn = "PopulateDynamicMacros", eager = true },

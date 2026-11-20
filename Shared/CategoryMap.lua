@@ -57,6 +57,7 @@ local ENTRIES = {
     { key = "professions",     categories = { "Profession" } },
     { key = "gameOptions",     parent = "options", categories = { "Game Settings" } },
     { key = "addonOptions",    parent = "options", categories = { "AddOn Settings" } },
+    { key = "addons",          parent = "options", categories = { "AddOn" } },
     { key = "mounts",          parent = "collections", categories = { "Mount" } },
     { key = "toys",            parent = "collections", categories = { "Toy" } },
     { key = "pets",            parent = "collections", categories = { "Pet" } },

@@ -225,6 +225,8 @@ local UI_FILTER_OPTIONS = {
             iconDesaturate = ns.SETTING_ICON.desaturate, companion = "EasyFind_Settings" },
           { key = "addonOptions", label = L["FILTER_ADDON_OPTIONS"], iconAtlas = ns.SETTING_ICON.atlas, iconTex = ns.SETTING_ICON.tex,
             iconColor = { 1.0, 0.78, 0.35 }, companion = "EasyFind_Settings", subFilters = AddonSubFilters },
+          -- Each installed addon, on or off.
+          { key = "addons", label = _G["ADDONS"] or "AddOns", iconTex = ns.EXTENSIONS_ICON_TEX },
       } },
     { key = "professions", label = _G["TRADE_SKILLS"] or "Professions",
       iconAtlas = "UI-HUD-MicroMenu-Professions-Up", hasFlyout = true,

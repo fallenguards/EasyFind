@@ -79,6 +79,7 @@ local PROVIDERS = {
     { key = "bags", words = { "bag", "bags", "inventory" }, loadOnLowResults = true },
     { key = "bank", words = { "bank", "banked", "vault", "warband" }, loadWhenEnabled = true },
     { key = "mail", words = { "mail", "mailbox" }, loadWhenEnabled = true },
+    { key = "addons", words = { "addon", "addons", "enable", "disable" }, loadWhenEnabled = true },
     -- People are searched by name: loaded with their filter on.
     { key = "friends", words = { "friend", "friends" }, loadWhenEnabled = true },
     { key = "guildMembers", words = { "guildie", "guildies", "member", "members" }, loadWhenEnabled = true },
