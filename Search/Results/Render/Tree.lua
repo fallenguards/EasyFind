@@ -90,9 +90,20 @@ function Render.ResultHeader(resultRow, entry, state, depth)
         resultRow.sectionLabelLeft:SetPoint("LEFT", resultRow, "LEFT", 6, 0)
         resultRow.sectionLabelLeft:SetPoint("RIGHT", resultRow.sectionLabelText, "LEFT", -6, 0)
         resultRow.sectionLabelLeft:Show()
+        -- A heading that folds its section (entry.toggle) wears the
+        -- expand / collapse glyph at its right end.
+        local fold = entry.toggle and resultRow.pinToggle
         resultRow.sectionLabelRight:ClearAllPoints()
         resultRow.sectionLabelRight:SetPoint("LEFT", resultRow.sectionLabelText, "RIGHT", 6, 0)
-        resultRow.sectionLabelRight:SetPoint("RIGHT", resultRow, "RIGHT", -6, 0)
+        if fold then
+            fold:ClearAllPoints()
+            fold:SetPoint("RIGHT", resultRow, "RIGHT", -8, 0)
+            ns.SetQuestLogToggle(fold, entry.collapsed == true, theme)
+            fold:Show()
+            resultRow.sectionLabelRight:SetPoint("RIGHT", fold, "LEFT", -6, 0)
+        else
+            resultRow.sectionLabelRight:SetPoint("RIGHT", resultRow, "RIGHT", -6, 0)
+        end
         resultRow.sectionLabelRight:Show()
     elseif theme.showHeaderTab and entry.isPathNode and resultRow.headerTab then
         local tabInset = depth * state.indPx

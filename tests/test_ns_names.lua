@@ -9,7 +9,7 @@ local FROM_EXTENSIONS = { GPS = true, GPSData = true, Notes = true }
 
 -- Generated data and locale tables: no calls in them, megabytes each.
 local SKIP = { "/Database/Npcs", "/Database/Loot", "/Database/ItemData", "/Database/Icon", "/Database/Items_",
-               "/Database/StaticLocations", "/Database/Floors", "/Locales/" }
+               "/Database/StaticLocations", "/Database/Floors", "/Locales/", "/Apps/Sources/Data_" }
 
 local function ShippedFiles()
     local out = {}

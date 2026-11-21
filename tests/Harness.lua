@@ -55,6 +55,7 @@ Harness.TOCS = {
     "Apps/Snippets/EasyFind_Snippets.toc",
     "Apps/Clipboard/EasyFind_Clipboard.toc",
     "Apps/Quicklists/EasyFind_Quicklists.toc",
+    "Apps/Sources/EasyFind_Sources.toc",
 }
 
 -- A toc line's file and its load rules ([AllowLoadGameType camelot]).

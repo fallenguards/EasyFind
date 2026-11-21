@@ -604,7 +604,7 @@ function Rows.InstallInteractions(resultRow, index)
         -- within the double-click window opens it. A key-driven click
         -- (Enter, Alt+number) and modified clicks act at once.
         if d and EasyFind.db.clickSelectsRow and IsMouseButtonDown("LeftButton")
-           and ns.ResultGestures.Held() == "click"
+           and ns.ResultGestures.Held() == "click" and not d.pageAction
            and not (self.isPathNode or self.isPinHeader or self.isSectionHeader) then
             local now = GetTime()
             if self._selectClickAt and now - self._selectClickAt < 0.4 and self._selectClickData == d then
@@ -764,6 +764,13 @@ function Rows.InstallInteractions(resultRow, index)
         if Rows:ActivateSettingResult(self.data, Handlers:IsSourceModifierHeld(self.data)) then return end
 
         if self.isPinHeader then
+            return
+        end
+
+        -- A heading that folds its section.
+        if self.isSectionHeader then
+            local entry = Results:RowEntry(self.rowIndex or 0)
+            if entry and entry.toggle then entry.toggle(entry) end
             return
         end
 

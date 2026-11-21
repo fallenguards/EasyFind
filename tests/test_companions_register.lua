@@ -8,6 +8,7 @@ local H = require("Harness")
 local COMPANIONS = {
     { toc = "Apps/Clipboard/EasyFind_Clipboard.toc", field = "Clipboard" },
     { toc = "Apps/Quicklists/EasyFind_Quicklists.toc", field = "Quicklists" },
+    { toc = "Apps/Sources/EasyFind_Sources.toc", field = "SourceData" },
 }
 
 local tests = {}

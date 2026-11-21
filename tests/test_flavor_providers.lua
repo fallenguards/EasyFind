@@ -53,6 +53,8 @@ local SWITCHES = {
     warbandRep = {},
     -- MoP's journal has Dungeons and Raids only.
     journalTabs = {},
+    -- Where items come from: a data file for Era and TBC (Apps/Sources), none for MoP.
+    sourceData = { era = true, tbc = true },
 }
 
 local function loadCaps(name)

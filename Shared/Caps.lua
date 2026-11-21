@@ -391,6 +391,8 @@ Caps.mapTabStrip = not Caps.classic
 -- icon list is built from retail's files.
 Caps.itemCatalog = true
 Caps.iconSearch = not classic
+-- Where items come from (Apps/Sources/Data_*.lua): built for these three.
+Caps.sourceData = Caps.forever or Caps.era or Caps.tbc or false
 
 -- The loot difficulties each client has: none on Era and Forever, no Raid
 -- Finder on TBC, no Mythic before Warlords.

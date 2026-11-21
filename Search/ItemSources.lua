@@ -1,15 +1,22 @@
 local _, ns = ...
 
--- Where an item comes from, as a page in the bar: who sells it (the GPS
--- extension's vendors, nearest first), which bosses drop it, and what the
--- extensions add (EasyFind.API.RegisterItemSources). A click on an item
--- row opens it (Gestures: sources); typing narrows the rows.
+-- Where an item comes from, as a page in the bar: who sells it (nearest
+-- first), which bosses drop it, this client's source data (EasyFind_Sources,
+-- read in on the first page) and what the extensions add
+-- (EasyFind.API.RegisterItemSources). A click on an item row opens it
+-- (Gestures: sources). Each section shows its first rows and asks before
+-- showing more; a click on its heading folds it. Typing narrows the rows
+-- by name, note, place (westfall, ek) or heading (reagent).
 local ItemSources = {}
 ns.ItemSources = ItemSources
 
 local L, Utils = ns.L, ns.Utils
 local ipairs, type = Utils.ipairs, Utils.type
-local slower, sformat, sfind = Utils.slower, Utils.sformat, Utils.sfind
+local slower, sformat, sfind, mmin = Utils.slower, Utils.sformat, Utils.sfind, Utils.mmin
+
+local FIRST_SHOWN = 8                   -- a section's rows before it asks
+local MORE_STEP = 10                    -- rows each ask adds
+local PLACE_WORD_MIN = 3                -- letters before a typed word may be part of a place's name
 
 local added = {}
 local itemLoads = CreateFrame("Frame")
@@ -196,6 +203,9 @@ local function Sections(item)
     if crafters and #crafters > 0 then
         out[#out + 1] = { label = L["SOURCES_CRAFTED_BY"], rows = crafters, key = "crafted" }
     end
+    local data = ns.RequestSourceData and ns.RequestSourceData() and ns.SourceData
+    local known = data and data.Sections(item.itemID)
+    if known then AddExtension(out, nil, { sections = known }) end
     for i = 1, #added do
         local ok, given = ns.Extensions.Run(added[i].fn, item.itemID, item.name)
         if ok then AddExtension(out, added[i].label, given) end
@@ -214,13 +224,19 @@ local function SetEntry(n, data)
     entries[n] = e
     e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = data.name, 0, false, true, false, true, data
     e.isSectionHeader = false
+    e.section, e.toggle, e.collapsed = nil, nil, nil
 end
 
-local function SetHeader(n, name)
+local ToggleSection
+
+-- A heading folds its section: the list draws the toggle and runs it on a
+-- click or Enter (entry.toggle, entry.collapsed).
+local function SetHeader(n, name, section)
     local e = entries[n] or {}
     entries[n] = e
     e.name, e.depth, e.isPathNode, e.isMatch, e.isPinned, e.isFlat, e.data = name, 0, false, false, false, true, nil
     e.isSectionHeader = true
+    e.section, e.toggle, e.collapsed = section, ToggleSection, section.collapsed == true
 end
 
 function ItemSources:Show(data)
@@ -231,33 +247,122 @@ function ItemSources:Show(data)
     ns.Filters:ApplyQuickFilter(def, "")
 end
 
-local function Matches(row)
+-- A row's place as the words it answers to: its zone, the maps over it
+-- and their short names (westfall, eastern kingdoms, ek), one list per map
+-- it has a spot on.
+local placesOf = setmetatable({}, { __mode = "k" })
+local function PlacesOf(row)
+    local places = placesOf[row]
+    if places == nil then
+        places = false
+        local ZoneWords = ns.MapUtils and ns.MapUtils.ZoneWords
+        if ZoneWords then
+            local spots = row.allInstances
+            if type(spots) == "table" and #spots > 0 then
+                local seen = {}
+                places = {}
+                for i = 1, #spots do
+                    local m = spots[i].mapID
+                    if m and not seen[m] then
+                        seen[m] = true
+                        places[#places + 1] = ZoneWords(m)
+                    end
+                end
+            elseif row.mapID or row.coordMapID then
+                places = { ZoneWords(row.mapID or row.coordMapID) }
+            end
+        end
+        placesOf[row] = places
+    end
+    return places or nil
+end
+
+-- A short name whole (ek), or a part of a longer one (westf).
+local function InPlace(places, word)
+    local part = #word >= PLACE_WORD_MIN
+    for i = 1, #places do
+        local list = places[i]
+        for k = 1, #list do
+            if list[k] == word or (part and sfind(list[k], word, 1, true)) then return true end
+        end
+    end
+    return false
+end
+
+-- Each typed word is in the row's name, its note, its place or its
+-- section's heading.
+local function Matches(row, heading)
     if #words == 0 then return true end
     local low = row.nameLower or slower(row.name or "")
     local note = row.matchNote or row.sourceNote
     note = note and slower(note)
+    local places = PlacesOf(row)
     for w = 1, #words do
         local word = words[w]
-        if not (sfind(low, word, 1, true) or (note and sfind(note, word, 1, true))) then return false end
+        if not (sfind(low, word, 1, true) or (note and sfind(note, word, 1, true))
+                or (heading and sfind(heading, word, 1, true)) or (places and InPlace(places, word))) then
+            return false
+        end
     end
     return true
 end
 
--- The sections' rows the typed words keep, each section under its heading,
--- from entry n + 1; "No known source" when none is kept.
-local function Fill(sections, n, itemName)
+local ShowMore
+local EXPAND_ART = ns.ART and ns.ART.questlog_expand
+local MORE_ICON = EXPAND_ART and { file = EXPAND_ART.tex, coords = EXPAND_ART.coords } or nil
+
+-- The row that asks: "Show 10 more", how many are not shown under it.
+local function MoreRow(section, hidden)
+    local row = section.more
+    if not row then
+        row = { category = "Item", icon = MORE_ICON, lookupRow = true, noPin = true, noLearn = true, noMenu = true,
+                pageAction = ShowMore, section = section }
+        section.more = row
+    end
+    row.name = sformat(L["SOURCES_SHOW_MORE_FMT"], mmin(MORE_STEP, hidden))
+    row.nameLower = slower(row.name)
+    row.sourceNote = hidden > MORE_STEP and sformat(L["SOURCES_NOT_SHOWN_FMT"], hidden) or nil
+    return row
+end
+
+local kept = {}                         -- a section's rows the typed words keep
+local drawn = {}                        -- the last fill: sections, n, itemName, first
+
+-- The sections' rows the typed words keep, each section under its heading
+-- (its count beside it while rows are out of sight), from entry n + 1;
+-- "No known source" when none is kept. keep: the list stays scrolled.
+local function Fill(sections, n, itemName, keep)
+    drawn.sections, drawn.n, drawn.itemName = sections, n, itemName
     local start = n
     for _, section in ipairs(sections) do
-        local headed = false
+        local heading = section.heading
+        if not heading then
+            heading = slower(section.label or "")
+            section.heading = heading
+        end
+        local count = 0
         for _, row in ipairs(section.rows) do
-            if Matches(row) then
-                if not headed then
-                    headed = true
+            if Matches(row, heading) then
+                count = count + 1
+                kept[count] = row
+            end
+        end
+        for i = #kept, count + 1, -1 do kept[i] = nil end
+        if count > 0 then
+            local limit = section.shown or FIRST_SHOWN
+            if count <= limit + 1 then limit = count end
+            local folded = section.collapsed == true
+            n = n + 1
+            SetHeader(n, (folded or count > limit) and sformat("%s (%d)", section.label, count) or section.label, section)
+            if not folded then
+                for i = 1, limit do
                     n = n + 1
-                    SetHeader(n, section.label)
+                    SetEntry(n, kept[i])
                 end
-                n = n + 1
-                SetEntry(n, row)
+                if count > limit then
+                    n = n + 1
+                    SetEntry(n, MoreRow(section, count - limit))
+                end
             end
         end
     end
@@ -267,7 +372,33 @@ local function Fill(sections, n, itemName)
                       noMenu = true, lookupRow = true })
     end
     for i = n + 1, #entries do entries[i] = nil end
-    ns.Results:ShowHierarchicalResults(entries)
+    ns.Results:ShowHierarchicalResults(entries, keep)
+end
+
+-- The page again where it stands, after a fold or a "show more": the
+-- same rows above, the selection where it was.
+local function Refill()
+    if not drawn.sections then return end
+    local Search = ns.Search
+    local selected = Search and Search.GetSelectedIndex and Search:GetSelectedIndex() or 0
+    Fill(drawn.sections, drawn.n, drawn.itemName, true)
+    if selected > 0 then
+        Search:SetSelectedIndex(selected)
+        if ns.Results.UpdateSelectionHighlight then ns.Results:UpdateSelectionHighlight() end
+    end
+end
+
+function ToggleSection(entry)
+    local section = entry.section
+    if not section then return end
+    section.collapsed = not section.collapsed
+    Refill()
+end
+
+function ShowMore(row)
+    local section = row.section
+    section.shown = (section.shown or FIRST_SHOWN) + MORE_STEP
+    Refill()
 end
 
 function ItemSources:ShowView(view, text)
@@ -280,20 +411,32 @@ function ItemSources:ShowView(view, text)
 end
 
 -- ==== "copper ore sources" typed ===========================================
--- A last word asking for sources: the other words are searched, and the
--- item they name shows its page's rows under its own row, the text kept.
+-- The word sources after an item's name: the words before it are searched,
+-- and the item they name shows its page's rows under its own row, the text
+-- kept. Words after it narrow the rows as on the page ("linen cloth
+-- sources reagent", "copper ore sources ek").
 
 local SOURCE_WORDS = { sources = true, source = true }
 SOURCE_WORDS[slower(L["HINT_SOURCES"])] = true
 local TYPED_FRESH = 5                   -- seconds its sections stand while typed
 local typed = { at = 0 }                -- the typed item: itemID, sections, at
 
--- The words before a last "sources"; nil when the text asks for none.
+-- The words before the last "sources", and the ones after it ("" when
+-- none); nil when the text asks for no sources.
 function ItemSources.SourcesQuery(text)
     if type(text) ~= "string" then return nil end
-    local rest, last = text:match("^%s*(.-)%s+(%S+)%s*$")
-    if not (rest and rest ~= "" and SOURCE_WORDS[slower(last)]) then return nil end
-    return rest
+    local low = slower(text)
+    local at, stop, from = nil, nil, 1
+    while true do
+        local s, e = low:find("%S+", from)
+        if not s then break end
+        if s > 1 and SOURCE_WORDS[low:sub(s, e)] then at, stop = s, e end
+        from = e + 1
+    end
+    if not at then return nil end
+    local rest = text:sub(1, at - 1):match("^%s*(.-)%s*$")
+    if rest == "" then return nil end
+    return rest, low:sub(stop + 1):match("^%s*(.-)%s*$")
 end
 
 -- The item rows' one named exactly so, else the first: { data } entries.
@@ -309,13 +452,29 @@ function ItemSources.PickItem(list, query)
     return first
 end
 
+-- A section folded or grown stays so when its rows are read again.
+local function CarryView(old, new)
+    for _, was in ipairs(old or {}) do
+        if was.collapsed or was.shown then
+            for _, now in ipairs(new) do
+                if now.label == was.label then now.collapsed, now.shown = was.collapsed, was.shown end
+            end
+        end
+    end
+end
+
 function ItemSources:ShowTyped(data)
     local now = GetTime()
     if typed.itemID ~= data.itemID or now - typed.at > TYPED_FRESH then
-        typed.itemID, typed.at = data.itemID, now
-        typed.sections = Sections({ itemID = data.itemID, name = data.name, encounterID = data.encounterID })
+        local fresh = Sections({ itemID = data.itemID, name = data.name, encounterID = data.encounterID })
+        if typed.itemID == data.itemID then CarryView(typed.sections, fresh) end
+        typed.itemID, typed.at, typed.sections = data.itemID, now, fresh
     end
     for w = #words, 1, -1 do words[w] = nil end
+    local Search = ns.Search
+    local text = Search and Search.GetTypedQuery and Search:GetTypedQuery()
+    local _, narrow = ItemSources.SourcesQuery(text)
+    for word in (narrow or ""):gmatch("%S+") do words[#words + 1] = word end
     SetEntry(1, data)
     Fill(typed.sections, 1, data.name)
 end

@@ -459,11 +459,13 @@ function Results:MoveSelection(delta, skipRefocus, keepRepeat)
     end
 
     -- Section dividers are not results: step past one in the direction of
-    -- travel. Past the last row the selection stays where it was; past
-    -- the first it goes to the search box (0) as usual.
+    -- travel, unless it folds its section (Enter does). Past the last row
+    -- the selection stays where it was; past the first it goes to the
+    -- search box (0) as usual.
     local step = delta > 0 and 1 or -1
     while newIndex >= 1 and newIndex <= visibleCount
-          and self:RowEntry(newIndex) and self:RowEntry(newIndex).isSectionHeader do
+          and self:RowEntry(newIndex) and self:RowEntry(newIndex).isSectionHeader
+          and not self:RowEntry(newIndex).toggle do
         newIndex = newIndex + step
     end
     if newIndex < 0 then newIndex = 0 end
@@ -633,8 +635,12 @@ end
 
 function Results:ActivateResultRow(resultRow, source)
     if not resultRow or not resultRow:IsShown() then return false end
-    if resultRow.isUnearnedCurrency or resultRow.lockedReason
-       or resultRow.isPinHeader or resultRow.isSectionHeader then
+    if resultRow.isSectionHeader then
+        local entry = self:RowEntry(resultRow.rowIndex or 0)
+        if entry and entry.toggle then entry.toggle(entry) end
+        return true
+    end
+    if resultRow.isUnearnedCurrency or resultRow.lockedReason or resultRow.isPinHeader then
         return true
     end
     if not resultRow.data then return false end

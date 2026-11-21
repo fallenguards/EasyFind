@@ -318,6 +318,18 @@ function ns.RequestItemCatalog(announce)
     return false
 end
 
+-- Where items come from: LoadOnDemand companion (EasyFind_Sources), read
+-- in the first time an item's sources page is built, a fight or not: a
+-- page without it answers "No known source".
+function ns.RequestSourceData()
+    if ns.SourceData then return true end
+    if not ns.Caps.sourceData then return false end
+    LoadCompanion("EasyFind_Sources")
+    if ns.SourceData then return true end
+    WarnCompanion("EasyFind_Sources", "SOURCES_MODULE_DISABLED")
+    return false
+end
+
 -- Options panel: LoadOnDemand companion (EasyFind_Options). Triggers are
 -- every options open (slash, ESC category stub, tutorial link, resets) --
 -- most sessions never pay for the panel at all.
@@ -371,7 +383,7 @@ end
 -- (filter rows, quick filter suggestions, app rows, launchers) hides when
 -- the companion is disabled in the AddOns list, instead of advertising a
 -- feature that can only answer with an error notice.
-local COMPANION_CAP = { EasyFind_Items = "itemCatalog", EasyFind_Icons = "iconSearch" }
+local COMPANION_CAP = { EasyFind_Items = "itemCatalog", EasyFind_Icons = "iconSearch", EasyFind_Sources = "sourceData" }
 function ns.IsCompanionLoadable(name)
     if COMPANION_CAP[name] and ns.Caps[COMPANION_CAP[name]] == false then return false end
     if ns.OldExtensionCopy and ns.OldExtensionCopy(name) then return false end

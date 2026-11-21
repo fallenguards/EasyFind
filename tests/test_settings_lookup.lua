@@ -11,7 +11,7 @@ local TOCS = {
     "Apps/Guide/EasyFind_Guide.toc", "Apps/Icons/EasyFind_Icons.toc", "Apps/Items/EasyFind_Items.toc",
     "Apps/Onboarding/EasyFind_Onboarding.toc", "Apps/Options/EasyFind_Options.toc",
     "Apps/Quicklists/EasyFind_Quicklists.toc", "Apps/Settings/EasyFind_Settings.toc",
-    "Apps/Snippets/EasyFind_Snippets.toc",
+    "Apps/Snippets/EasyFind_Snippets.toc", "Apps/Sources/EasyFind_Sources.toc",
 }
 
 local function Read(path)

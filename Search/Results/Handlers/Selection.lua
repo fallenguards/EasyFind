@@ -470,6 +470,12 @@ function Handlers:SelectResult(data, forceGuide)
     if InCombatLockdown() then return end
     -- A gesture the settings set to nothing on this kind of row.
     if ns.ResultGestures.Blocked(data) then return end
+    -- A row that acts on its own page (a section's "Show 10 more"): the
+    -- page stays, nothing is learned.
+    if data.pageAction then
+        data.pageAction(data)
+        return
+    end
     local useFast = not forceGuide
 
     -- Learn the pick before any branch can clear the typed query. EVERY
