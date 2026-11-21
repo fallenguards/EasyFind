@@ -298,10 +298,24 @@ L["SHOWME_SAY_MICRO"]                   = "S'accroche au micro-menu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer"
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
+    "    |cff999999-|r Amis et membres de guilde sont dans la recherche : clic pour chuchoter, Maj-clic pour inviter\n" ..
+    "    |cff999999-|r D'où vient un objet : Sources dans son menu du clic droit, ou tapez son nom et sources. Butin, récolte, recettes et quêtes sur WoW Forever, Classic Era et TBC\n" ..
+    "    |cff999999-|r Activez et désactivez des addons depuis la barre ou sous @addons, avec Annuler et Recharger l'interface sous celui que vous changez\n" ..
+    "    |cff999999-|r La boîte aux lettres et la banque de guilde se recherchent de partout une fois ouvertes (@mail, @guildbank)\n" ..
+    "    |cff999999-|r La ligne d'un objet indique lesquels de vos personnages le possèdent, et combien\n" ..
+    "    |cff999999-|r Verrouillages de raid et de donjon sur @alts et la page de chaque personnage (@lockouts)\n" ..
+    "    |cff999999-|r Des mots comme étourdir ou interrompre trouvent les techniques qui le font\n" ..
+    "    |cff999999-|r La ligne d'une technique porte sa touche, et une touche tapée seule (shift 3) dit à quoi elle est liée\n" ..
+    "    |cff999999-|r Les fêtes sont des lignes indiquant le temps avant leur début ou leur fin ; next holiday donne la prochaine\n" ..
+    "    |cff999999-|r Tapez level 25 pour les zones, donjons et raids de ce niveau\n" ..
+    "    |cff999999-|r Les recettes apprises portent leur couleur de progression, et @skillups liste celles qui font encore monter la compétence\n" ..
+    "    |cff999999-|r Tapez reset pour les réinitialisations quotidienne et hebdomadaire, ou une statistique (crit, armor) pour votre valeur\n" ..
+    "    |cff999999-|r Les créatures propres à WoW Forever sont trouvées, dont les marchands, maîtres et aubergistes de Zephras Isle\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Choisir une valeur sur la ligne Texte d'état ne provoque plus d'erreurs sur WoW Forever\n" ..
-    "    |cff999999-|r Ouvrir la carte avec sa touche en combat ne provoque plus d'erreur après l'onglet de la carte\n" ..
-    "    |cff999999-|r Sur WoW Forever, Morbin Lightbane à Fossoyeuse est trouvé, avec son portrait\n"
+    "    |cff999999-|r Les liens Wowhead ouvrent la section du site de votre client\n" ..
+    "    |cff999999-|r Les auberges, la banque, l'hôtel des ventes et l'écurie de Zephras Isle sont trouvés et figurent sur sa carte\n" ..
+    "    |cff999999-|r Les maîtres de monte portent leur nom sur WoW Forever, Classic Era et TBC\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

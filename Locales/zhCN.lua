@@ -298,10 +298,24 @@ L["SHOWME_SAY_MICRO"]                   = "吸附到微型菜单"
 L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffff新功能|r\n" ..
+    "    |cff999999-|r 好友和公会成员可以搜索：点击密语，Shift+点击邀请\n" ..
+    "    |cff999999-|r 物品从哪里来：右键菜单中的来源，或输入物品名、空格和来源。在 WoW Forever、Classic Era 和 TBC 中会列出掉落、采集、配方和任务\n" ..
+    "    |cff999999-|r 在搜索栏或 @addons 中开关插件，改动的插件下方有取消和重载界面\n" ..
+    "    |cff999999-|r 邮箱和公会银行打开过一次后可在任何地方搜索（@mail、@guildbank）\n" ..
+    "    |cff999999-|r 物品行会列出你的哪些角色持有它以及数量\n" ..
+    "    |cff999999-|r @alts 和每个角色的页面有团队副本和地下城锁定信息（@lockouts）\n" ..
+    "    |cff999999-|r 输入昏迷、打断等词可找到有该效果的技能\n" ..
+    "    |cff999999-|r 技能行带有它的按键，单独输入一个按键（shift 3）会告诉你它绑定了什么\n" ..
+    "    |cff999999-|r 节日以行的形式列出，并标明距开启或结束的时间；next holiday 给出最近的节日\n" ..
+    "    |cff999999-|r 输入 level 25 可列出适合该等级的区域、地下城和团队副本\n" ..
+    "    |cff999999-|r 已学配方带有技能提升颜色，@skillups 列出仍能提升技能的配方\n" ..
+    "    |cff999999-|r 输入 reset 查看每日和每周重置时间，输入属性（crit、armor）查看你的数值\n" ..
+    "    |cff999999-|r 可以找到 WoW Forever 自有的生物，包括 Zephras Isle 的商人、训练师和旅店老板\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修复|r\n" ..
-    "    |cff999999-|r 在状态文字行选择数值不再在 WoW Forever 中报错\n" ..
-    "    |cff999999-|r 使用地图标签页后，战斗中按键打开地图不再报错\n" ..
-    "    |cff999999-|r 在 WoW Forever 中可以找到幽暗城的 Morbin Lightbane，并显示其头像\n"
+    "    |cff999999-|r Wowhead 链接会打开对应你客户端的网站分区\n" ..
+    "    |cff999999-|r 可以找到 Zephras Isle 的旅店、银行、拍卖行和兽栏，地图上也有标记\n" ..
+    "    |cff999999-|r 在 WoW Forever、Classic Era 和 TBC 中，骑术训练师有了自己的名称\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"

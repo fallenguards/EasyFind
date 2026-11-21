@@ -298,10 +298,24 @@ L["SHOWME_SAY_MICRO"]                   = "Si aggancia al micromenu"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiudere"
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffffNovità|r\n" ..
+    "    |cff999999-|r Amici e membri della gilda sono nella ricerca: clic per sussurrare, Maiusc-clic per invitare\n" ..
+    "    |cff999999-|r Da dove viene un oggetto: Fonti nel suo menu del clic destro, o digita il suo nome e fonti. Bottino, raccolta, ricette e missioni su WoW Forever, Classic Era e TBC\n" ..
+    "    |cff999999-|r Attiva e disattiva gli addon dalla barra o sotto @addons, con Annulla e Ricarica UI sotto quello cambiato\n" ..
+    "    |cff999999-|r La cassetta della posta e la banca di gilda si cercano da ovunque una volta aperte (@mail, @guildbank)\n" ..
+    "    |cff999999-|r La riga di un oggetto dice quali dei tuoi personaggi lo possiedono e quanti ne hanno\n" ..
+    "    |cff999999-|r Blocchi di incursioni e spedizioni su @alts e nella pagina di ogni personaggio (@lockouts)\n" ..
+    "    |cff999999-|r Parole come stordire o interrompere trovano le abilità che lo fanno\n" ..
+    "    |cff999999-|r La riga di un'abilità porta il suo tasto, e un tasto digitato da solo (shift 3) dice a cosa è assegnato\n" ..
+    "    |cff999999-|r Le festività sono righe con il tempo che manca al loro inizio o alla loro fine; next holiday indica la prossima\n" ..
+    "    |cff999999-|r Digita level 25 per le zone, le spedizioni e le incursioni di quel livello\n" ..
+    "    |cff999999-|r Le ricette apprese portano il colore di avanzamento, e @skillups elenca quelle che fanno ancora salire l'abilità\n" ..
+    "    |cff999999-|r Digita reset per il reset giornaliero e settimanale, o una statistica (crit, armor) per il tuo valore\n" ..
+    "    |cff999999-|r Le creature proprie di WoW Forever vengono trovate, tra cui mercanti, istruttori e locandieri di Zephras Isle\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r Scegliere un valore nella riga Testo di stato non provoca più errori su WoW Forever\n" ..
-    "    |cff999999-|r Aprire la mappa con il suo tasto in combattimento non dà più errori dopo aver usato la scheda della mappa\n" ..
-    "    |cff999999-|r Su WoW Forever, Morbin Lightbane a Sepulcria viene trovato, con il suo ritratto\n"
+    "    |cff999999-|r I link di Wowhead aprono la sezione del sito del tuo client\n" ..
+    "    |cff999999-|r Le locande, la banca, la casa d'aste e la stalla di Zephras Isle vengono trovate e sono sulla sua mappa\n" ..
+    "    |cff999999-|r Gli istruttori di equitazione portano il loro nome su WoW Forever, Classic Era e TBC\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

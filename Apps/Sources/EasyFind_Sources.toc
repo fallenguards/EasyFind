@@ -2,7 +2,7 @@
 ## Title: EasyFind [Item Sources]
 ## Notes: Where items come from, for EasyFind's item sources page, loaded on first use
 ## Author: justawower
-## Version: 5.4.1
+## Version: 5.5.0
 ## IconTexture: Interface\AddOns\EasyFind\textures\SpyglassMinimap
 ## Group: EasyFind
 ## Category: UI

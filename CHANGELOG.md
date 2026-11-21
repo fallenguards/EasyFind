@@ -4,6 +4,40 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.5.0] - 2026-11-21
+
+### Added
+- **Friends and guild members in search**: type a name for a row in their class color with level, class and zone, or that they are offline. A click opens a whisper, Shift-click invites
+- **Addons on and off from the bar**: every installed addon is a row with a checkbox, found by its title or folder name and listed under @addons. A click switches it for this character; a switched row gets Cancel and Reload UI under it
+- **The mailbox and the guild bank**: both are remembered once opened, like the bank, and searched from anywhere: Mail and Guild Bank under Items in the filter menu, @mail and @guildbank. A mail row says how many are left and for how long
+- **Who owns an item**: an item's row names each of your characters holding it, with the count across bags, bank, mail and guild bank ("Owned: Thrall 5, Jaina 12")
+- **Where an item comes from**: Sources is on every item's right-click menu, and an item's name with "sources" typed after it ("copper ore sources") lists them under the item. On WoW Forever, Classic Era and TBC the page covers what drops it and how often, the veins, herbs and chests that hold it, what it is skinned, pickpocketed or fished from, the recipe that makes it with its reagents and trainers, and the quests that reward or need it. A long list shows its first rows and a row that shows ten more, a click on a heading folds its section, and a zone, a continent ("ek") or a heading's word ("reagent") typed on the page narrows it
+- **Crafted by**: an item's sources name which of your characters can make it
+- **Raid and dungeon lockouts**: @alts and each character's page have a Lockouts page (@lockouts), and a dungeon or raid row says who is saved to it and for how long
+- **Abilities by what they do**: "stun", "interrupt", "slow" or "dispel" find the abilities that do it, from each spell's own description
+- **Keys both ways**: an ability on your bars shows the key that casts it ("Key: SHIFT-3"), and a key typed alone ("shift 3", "mouse4") answers what it is bound to
+- **Holidays**: each holiday of the next twelve months is a row with how long until it starts or ends. A click opens it in the calendar, "next holiday" answers the soonest, and @holidays lists them
+- **"level 25"**: the word level and a number lists the zones, dungeons and raids that fit it, each with its range
+- **Skill-up colors and @skillups**: a learned recipe wears the game's orange, yellow, green or gray, and @skillups lists the recipes that can still raise the profession
+- **Quick answers**: "reset" answers the time to the daily and weekly reset, and a stat typed alone ("crit", "armor", "spell power") answers your character's number
+- **WoW Forever's own creatures**: 1,954 creatures the classic databases lack, Zephras Isle's vendors, trainers, innkeepers and quest givers among them, with what each vendor sells; and 252 more that share a spawn with another creature
+
+### Changed
+- **Wowhead links open your client's section**: on WoW Forever, Classic Era, TBC and Mists a link or search goes to that client's pages, where it opened retail's
+- **Creatures nearest first**: creatures that match equally are listed nearest first, however few they are
+- **Dungeons in caves carry their portal's spot**: Wailing Caverns, Uldaman, Sunken Temple, Onyxia's Lair, Scholomance and Maraudon, for directions that end at the portal
+
+### Fixed
+- **Keys far down a long list**: Enter, Space, Tab and the right arrow on a row past the first screen of a long list (a vendor's wares, a character's items) acted on another row or on none
+- **Zephras Isle's services**: "innkeeper", "bank", "auction" and "stable" find the isle's own, and its map shows both inns, the bank, the auction house and the stable master
+- **Riding trainers** on WoW Forever, Classic Era and TBC showed a code in place of their name
+- **Excavation Site**: its entrance on the map and the route to it are at the door, at the top of the path from Dun Algaz
+- **Instances listed twice**: a dungeon in your zone showed once for the zone and once for the continent
+- **A place picked before** no longer shows twice when another map lists it too
+- **Show on Backpack** on a currency no longer throws errors with some bag addons
+
+---
+
 ## [5.4.1] - 2026-11-17
 
 ### Fixed

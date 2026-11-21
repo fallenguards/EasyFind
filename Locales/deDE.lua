@@ -300,10 +300,24 @@ L["SHOWME_SAY_MICRO"]                   = "Rastet im Mikromenü ein"
 L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließt"
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffffNeu|r\n" ..
+    "    |cff999999-|r Freunde und Gildenmitglieder sind in der Suche: Klick zum Flüstern, Umschalt-Klick zum Einladen\n" ..
+    "    |cff999999-|r Woher ein Gegenstand kommt: Quellen in seinem Rechtsklickmenü, oder tippe seinen Namen und Quellen. Beute, Sammeln, Rezepte und Quests in WoW Forever, Classic Era und TBC\n" ..
+    "    |cff999999-|r Addons in der Leiste oder unter @addons ein- und ausschalten, mit Abbrechen und UI neu laden unter einem umgeschalteten\n" ..
+    "    |cff999999-|r Briefkasten und Gildenbank werden nach dem ersten Öffnen von überall durchsucht (@mail, @guildbank)\n" ..
+    "    |cff999999-|r Die Zeile eines Gegenstands nennt, welche deiner Charaktere ihn besitzen und wie viele\n" ..
+    "    |cff999999-|r Schlachtzugs- und Dungeon-IDs bei @alts und auf der Seite jedes Charakters (@lockouts)\n" ..
+    "    |cff999999-|r Wörter wie Betäuben oder Unterbrechen finden die Fähigkeiten, die das tun\n" ..
+    "    |cff999999-|r Die Zeile einer Fähigkeit nennt ihre Taste, und eine allein getippte Taste (shift 3) nennt ihre Belegung\n" ..
+    "    |cff999999-|r Feiertage sind Zeilen mit der Zeit bis zu ihrem Beginn oder Ende; next holiday nennt den nächsten\n" ..
+    "    |cff999999-|r level 25 tippen für die Zonen, Dungeons und Schlachtzüge dieser Stufe\n" ..
+    "    |cff999999-|r Gelernte Rezepte tragen ihre Fertigkeitsfarbe, und @skillups listet die, die noch Punkte bringen\n" ..
+    "    |cff999999-|r reset tippen für den täglichen und wöchentlichen Reset, oder einen Wert (crit, armor) für deine Zahl\n" ..
+    "    |cff999999-|r Die eigenen Kreaturen von WoW Forever werden gefunden, darunter Händler, Lehrer und Gastwirte von Zephras Isle\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Ein Wert in der Zeile für den Statustext löst in WoW Forever keine Fehler mehr aus\n" ..
-    "    |cff999999-|r Die Karte im Kampf mit ihrer Taste zu öffnen löst nach dem Kartenreiter keinen Fehler mehr aus\n" ..
-    "    |cff999999-|r In WoW Forever wird Morbin Lightbane in Unterstadt gefunden, mit seinem Porträt\n"
+    "    |cff999999-|r Wowhead-Links öffnen den Bereich der Seite für deinen Client\n" ..
+    "    |cff999999-|r Gasthäuser, Bank, Auktionshaus und Stall von Zephras Isle werden gefunden und stehen auf der Karte\n" ..
+    "    |cff999999-|r Reitlehrer tragen in WoW Forever, Classic Era und TBC ihren Namen\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

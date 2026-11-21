@@ -298,10 +298,24 @@ L["SHOWME_SAY_MICRO"]                   = "Se ajusta al micromenú"
 L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerrar"
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
+    "|cffFFD100\226\128\162|r |cffffffffNovedades|r\n" ..
+    "    |cff999999-|r Amigos y miembros de la hermandad están en la búsqueda: clic para susurrar, Mayús-clic para invitar\n" ..
+    "    |cff999999-|r De dónde sale un objeto: Fuentes en su menú de clic derecho, o escribe su nombre y fuentes. Botín, recolección, recetas y misiones en WoW Forever, Classic Era y TBC\n" ..
+    "    |cff999999-|r Activa y desactiva addons desde la barra o en @addons, con Cancelar y Recargar IU bajo el que cambies\n" ..
+    "    |cff999999-|r El buzón y el banco de hermandad se buscan desde cualquier lugar una vez abiertos (@mail, @guildbank)\n" ..
+    "    |cff999999-|r La fila de un objeto dice cuáles de tus personajes lo tienen y cuántos\n" ..
+    "    |cff999999-|r Registros de banda y mazmorra en @alts y en la página de cada personaje (@lockouts)\n" ..
+    "    |cff999999-|r Palabras como aturdir o interrumpir encuentran las facultades que lo hacen\n" ..
+    "    |cff999999-|r La fila de una facultad lleva su tecla, y una tecla escrita sola (shift 3) dice a qué está asignada\n" ..
+    "    |cff999999-|r Las festividades son filas con el tiempo hasta que empiezan o terminan; next holiday dice la más próxima\n" ..
+    "    |cff999999-|r Escribe level 25 para ver las zonas, mazmorras y bandas de ese nivel\n" ..
+    "    |cff999999-|r Las recetas aprendidas llevan su color de subida de habilidad, y @skillups lista las que aún la suben\n" ..
+    "    |cff999999-|r Escribe reset para el reinicio diario y semanal, o una estadística (crit, armor) para tu valor\n" ..
+    "    |cff999999-|r Se encuentran las criaturas propias de WoW Forever, entre ellas vendedores, instructores y taberneros de Zephras Isle\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Elegir un valor en la fila de Texto de estado ya no da errores en WoW Forever\n" ..
-    "    |cff999999-|r Abrir el mapa con su tecla en combate ya no da error después de usar la pestaña del mapa\n" ..
-    "    |cff999999-|r En WoW Forever, Morbin Lightbane en Entrañas aparece en la búsqueda, con su retrato\n"
+    "    |cff999999-|r Los enlaces de Wowhead abren la sección del sitio de tu cliente\n" ..
+    "    |cff999999-|r Las posadas, el banco, la casa de subastas y el establo de Zephras Isle se encuentran y están en su mapa\n" ..
+    "    |cff999999-|r Los instructores de equitación llevan su nombre en WoW Forever, Classic Era y TBC\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"
