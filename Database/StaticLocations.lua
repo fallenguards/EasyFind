@@ -1,12 +1,12 @@
 local _, ns = ...
 
 -- POI names resolve through per-name L keys (POI_<slug>) at file-load time, so
--- non-enUS clients see their translated label. English is the fallback; if a
--- key is missing the original English literal still shows.
+-- non-enUS clients see their translated label. A name with no key shows as
+-- written: L answers a missing key with the key itself, so it is read raw.
 local L = ns.L
 local function POIName(english)
     local key = "POI_" .. english:upper():gsub("&", "AND"):gsub("[^%w]+", "_"):gsub("^_+", ""):gsub("_+$", "")
-    return L and L[key] or english
+    return L and rawget(L, key) or english
 end
 ns.POIName = POIName
 
