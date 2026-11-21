@@ -695,8 +695,12 @@ function Results:ActivateSelected(source)
     if self:IsGridNavActive() then
         if self:ActivateGridFocus() then return end
     end
-    if Search:GetSelectedIndex() > 0 and Search:GetSelectedIndex() <= MAX_BUTTON_POOL then
-        local resultRow = Search:GetResultButtons()[Search:GetSelectedIndex()]
+    -- The selected row's own frame: a frame's slot in the pool is not its
+    -- row's place once the list has scrolled (Enter far down a long page
+    -- acted on another row, 2026-11-21).
+    local selected = Search:GetSelectedIndex()
+    if selected > 0 then
+        local resultRow = self:RowFrame(selected)
         if resultRow and resultRow:IsShown() then
             if resultRow.isPathNode and Search:GetToggleFocused() then
                 local key = (resultRow.pathNodeName or "") .. "_" .. (resultRow.pathNodeDepth or 0)

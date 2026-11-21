@@ -38,7 +38,10 @@ local function Load()
     local e0 = assert(src:find("function Search:SetGPSKeyFocus(row)", s, true))
     local _, e = assert(src:find("\nend\r?\n", e0))
     local rowA, rowB = { gpsBtn = Button() }, { gpsBtn = Button() }
-    local env = setmetatable({ resultButtons = { rowA, rowB }, selectedIndex = 1, Search = {} }, { __index = _G })
+    -- The selected row is asked of the list, never read from the frame pool by index.
+    local frames = { rowA, rowB }
+    local env = setmetatable({ Results = { RowFrame = function(_, i) return frames[i] end }, selectedIndex = 1, Search = {} },
+        { __index = _G })
     assert(load(src:sub(s, e), "=SearchBar.lua gps focus", "t", env))()
     return env, rowA, rowB
 end

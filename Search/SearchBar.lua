@@ -110,7 +110,7 @@ end
 function Search:GPSKeyFocusRow()
     local row = self._gpsKeyRow
     if not row then return nil end
-    if resultButtons[selectedIndex] ~= row or not (row.gpsBtn and row.gpsBtn:IsShown()) then
+    if Results:RowFrame(selectedIndex) ~= row or not (row.gpsBtn and row.gpsBtn:IsShown()) then
         self:SetGPSKeyFocus(nil)
         return nil
     end
@@ -920,10 +920,12 @@ function Search:CreateSearchFrame()
         -- pinned results are all that's available. A second Enter on
         -- the focused row activates it.
         if selectedIndex == 0 then
+            -- By the list's own rows: a frame's slot in the pool is not its
+            -- row's place once the list has scrolled.
             local target, firstPinned
-            for i = 1, MAX_BUTTON_POOL do
-                local row = resultButtons[i]
-                if not row or not row:IsShown() then break end
+            for i = 1, Results:RowCount() do
+                local row = Results:RowEntry(i)
+                if not row then break end
                 if not row.isPinHeader then
                     if row.isPinned then
                         if not firstPinned then firstPinned = i end
@@ -938,7 +940,7 @@ function Search:CreateSearchFrame()
             selectedIndex = idx
             toggleFocused = false
             Results:UpdateSelectionHighlight()
-            local row = resultButtons[idx]
+            local row = Results:RowFrame(idx)
             if row and row.data and row.data.calculatorResult then
                 Calculator:ArmCalculatorResultFromRow(row, "key")
             end
@@ -1562,7 +1564,7 @@ function Search:CreateSearchFrame()
             end
         else
             if selectedIndex > 0 and not toggleFocused then
-                local row = resultButtons[selectedIndex]
+                local row = Results:RowFrame(selectedIndex)
                 local hasToggle = row and row.isPathNode and (
                     (row.headerTab and row.headerTab:IsShown()) or
                     (row.isPinHeader and row.pinToggle and row.pinToggle:IsShown())
@@ -1602,7 +1604,7 @@ function Search:CreateSearchFrame()
         -- are jump keys and a focused box would take them first.
         if ctrl and key == "C" then
             if selectedIndex > 0 and ns.RowCopy then
-                ns.RowCopy:ArmFor(resultButtons[selectedIndex], IsShiftKeyDown())
+                ns.RowCopy:ArmFor(Results:RowFrame(selectedIndex), IsShiftKeyDown())
                 return
             end
             if Results:ArmGridFocusCopy() then
@@ -1658,7 +1660,7 @@ function Search:CreateSearchFrame()
         -- key here; with a menu open it closes the menu instead (the menu
         -- owns the keyboard then).
         if key == "RIGHT" and selectedIndex > 0 and not toggleFocused then
-            local row = resultButtons[selectedIndex]
+            local row = Results:RowFrame(selectedIndex)
             if row and Rows.ShowResultContextMenu and Rows:ShowResultContextMenu(row, true) then
                 if searchFrame.StopKeyRepeat then searchFrame.StopKeyRepeat() end
             end
@@ -1704,7 +1706,12 @@ function Search:CreateSearchFrame()
             -- be re-selected after the rebuild, letting the user spam
             -- Space to collapse/expand without losing selection.
             if selectedIndex > 0 then
-                local row = resultButtons[selectedIndex]
+                local row = Results:RowFrame(selectedIndex)
+                -- A heading that folds its section: Space as Enter.
+                if row and row.isSectionHeader then
+                    Results:ActivateResultRow(row, "key")
+                    return
+                end
                 if row then
                     local savedPinHeader    = row.isPinHeader
                     local savedPathName     = row.isPathNode and row.pathNodeName
@@ -1760,7 +1767,7 @@ function Search:CreateSearchFrame()
                 end
             end
             if not shift and selectedIndex > 0 and not toggleFocused then
-                local row = resultButtons[selectedIndex]
+                local row = Results:RowFrame(selectedIndex)
                 -- The row's GPS button first, then its menu.
                 if row and row.gpsBtn and row.gpsBtn:IsShown() and not Search:GPSKeyFocusRow() then
                     Search:SetGPSKeyFocus(row)
@@ -1880,7 +1887,7 @@ function Search:CreateSearchFrame()
         -- click). Without this navFrame swallows Enter and the
         -- override binding never sees the key.
         if key == "ENTER" and selectedIndex > 0 and not InCombatLockdown() then
-            local selRow = resultButtons[selectedIndex]
+            local selRow = Results:RowFrame(selectedIndex)
             local rd = selRow and selRow.data
             -- The GPS button focused: Enter is the button's, not the row's.
             if rd and Icons:IsSecureActionResult(rd) and not Search:GPSKeyFocusRow() then
@@ -1909,7 +1916,7 @@ function Search:CreateSearchFrame()
         elseif Calculator:IsCalculatorCopyKey(key) then
             consume = true
         elseif key == "C" and IsControlKeyDown() and ns.RowCopy
-            and ((selectedIndex > 0 and ns.RowCopy:CanCopy(resultButtons[selectedIndex], IsShiftKeyDown()))
+            and ((selectedIndex > 0 and ns.RowCopy:CanCopy(Results:RowFrame(selectedIndex), IsShiftKeyDown()))
                 or (Results:IsGridNavActive())) then
             consume = true
         elseif IsAltKeyDown() and (key == "J" or key == "K" or key == "L" or key == "H") then
@@ -1919,9 +1926,9 @@ function Search:CreateSearchFrame()
             -- toggling the collapse on the focused header. A leaf row
             -- has no toggle, so SPACE means "jump" and must reach the
             -- game.
-            local row = selectedIndex > 0 and resultButtons[selectedIndex]
+            local row = selectedIndex > 0 and Results:RowFrame(selectedIndex)
             local hasToggle = row and (
-                (row.isPinHeader and row.pinToggle and row.pinToggle:IsShown())
+                ((row.isPinHeader or row.isSectionHeader) and row.pinToggle and row.pinToggle:IsShown())
                 or (row.toggleBtn and row.toggleBtn:IsShown()))
             if hasToggle then consume = true end
         end
