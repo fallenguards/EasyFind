@@ -423,6 +423,41 @@ function tests.aServiceWordFindsWhoOffersIt()
     H.assertEq(#find(vendors(3), "rep"), 3, "found while typing")
 end
 
+-- "drink vendor", "water vendor", "mana vendor" (2026-11-22): who sells
+-- drinks, not every seller of food (one flag held both, so the baker beside
+-- the player came first); "mana" alone is still a name's word.
+function tests.drinkWords_findWhoSellsDrinks_notTheBaker()
+    local list, names = {}, {}
+    local VENDOR, INN, FOOD, DRINK = 2, 16, 512, 8192
+    local function add(name, roles, x, y)
+        list[#list + 1] = { #list + 1, 0, 7 + 16 + roles * 256, 0, 0, { 1429, xy(x, y), 1 } }
+        names[#names + 1] = name
+    end
+    add("Baker Ann", VENDOR + FOOD, 0.31, 0.41)
+    add("Barkeep Bo", VENDOR + DRINK, 0.6, 0.6)
+    add("Innkeeper Cy", VENDOR + INN + FOOD + DRINK, 0.8, 0.8)
+    add("Mana Wyrm", 0, 0.31, 0.42)
+    local append, Npcs, env = fresh(nil, list, table.concat(names, "\n"))
+    env.UnitFactionGroup = function() return "Alliance" end
+    for _, query in ipairs({ "drink vendor", "water vendor", "mana vendor", "vendor mana", "drink", "water", "drinks" }) do
+        local rows = find(append, query)
+        H.assertEq(#rows, 2, query .. ": the two who sell drinks")
+        H.assertEq(rows[1].name, "Barkeep Bo", query .. ": the nearer first")
+        H.assertNil(named(rows, "Baker Ann"), query .. ": the baker sells none")
+    end
+    local food = find(append, "food vendor")
+    H.assertEq(#food, 2, "food is the baker's and the innkeeper's")
+    H.assertEq(food[1].name, "Baker Ann")
+    local mana = find(append, "mana")
+    H.assertEq(#mana, 1, "alone, mana is a name's word")
+    H.assertEq(mana[1].name, "Mana Wyrm")
+    H.assertTrue(Npcs.KindQuery("mana vendor"), "a kind asked for")
+    H.assertTrue(Npcs.KindQuery("drink"))
+    H.assertFalse(Npcs.KindQuery("mana"), "no kind without a word for who sells")
+    local kw = table.concat(named(find(append, "drink vendor"), "Barkeep Bo").keywords, ",")
+    H.assertTrue(kw:find("drink", 1, true) ~= nil and kw:find("mana", 1, true) ~= nil, "the map search's words: " .. kw)
+end
+
 function tests.aServiceWordWantsWhoOffersIt_notANameHoldingIt()
     local rows = find(vendors(3, { "Repaired Bomber" }), "repair")
     H.assertNil(named(rows, "Repaired Bomber"), "does not repair, so not for repair")

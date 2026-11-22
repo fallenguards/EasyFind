@@ -33,12 +33,15 @@ local WEAPON = 2        -- Enum.ItemClass.Weapon
 -- the filter offers; a creature with none is "other".
 local ROLE_GROUP = { quest = 1, vendor = 2 + 256, trainer = 4, flight = 8, services = 16 + 32 + 64 + 128 }
 -- Words for what a creature offers, matched as if in its title: English on
--- every client, the client's own beside them. Food, ammo and reagents are
--- what a vendor sells.
+-- every client, the client's own beside them. Food, drink, ammo and
+-- reagents are what a vendor sells. beside: a word read so only next to
+-- one for who sells ("mana vendor"; "mana" alone is a name's word).
 local SERVICES = {
     { bits = 2, en = "vendor vendors merchant seller sell sells buy shop", key = "NPC_WORDS_VENDOR" },
     { bits = 256, en = "repair", key = "NPC_WORDS_REPAIR" },
-    { bits = 512, en = "food drink water", key = "NPC_WORDS_FOOD" },
+    { bits = 512, en = "food", key = "NPC_WORDS_FOOD" },
+    { bits = 8192, en = "drink drinks water", key = "NPC_WORDS_DRINK" },
+    { bits = 8192, en = "mana", key = "NPC_WORDS_MANA", beside = true },
     { bits = 1024, en = "ammo arrows bullets restock", key = "NPC_WORDS_AMMO" },
     { bits = 2048, en = "reagents restock", key = "NPC_WORDS_REAGENTS" },
     { bits = 8, en = "flight", key = "NPC_WORDS_FLIGHT" },
@@ -83,7 +86,7 @@ local N = {
     titleName = {}, titleLow = {}, titleEnglish = {}, titleLowEnglish = {}, classTitle = {},
     spotCi = {}, spotWx = {}, spotWy = {}, planes = {}, mapNames = {},
     pois = setmetatable({}, { __mode = "v" }),
-    hits = {}, top = {}, score = {}, words = {}, wordBits = {}, wordCraft = {}, spot = {}, near = {}, retailEntrance = {},
+    hits = {}, top = {}, score = {}, words = {}, wordBits = {}, wordBeside = {}, wordCraft = {}, spot = {}, near = {}, retailEntrance = {},
     mark = {}, cand = {}, titleHit = {}, gen = 0, hitLow = {}, hitEn = {}, scan = {}, len = {},
     titleAt = "", titleCreatures = "", roleIds = {},
     -- Per query word whether it names a service or title (wordRole) or a
@@ -287,7 +290,7 @@ local function ServiceWords()
         for w in sgmatch(slower(s.en .. " " .. (ns.L[s.key] or "")), "%S+") do
             if not seen[w] then
                 seen[w] = true
-                serviceWords[#serviceWords + 1] = { word = w, bits = s.bits }
+                serviceWords[#serviceWords + 1] = { word = w, bits = s.bits, beside = s.beside }
             end
         end
     end
@@ -1121,22 +1124,22 @@ end
 -- (repair, inn, hunter trainer): a kind of creature asked for, not one.
 function N.KindQuery(query)
     if not Ready() then return false end
-    local any = false
+    local any, sellerAsked, needsSeller = false, false, false
     for word in sgmatch(slower(query), "%S+") do
         if #word < MIN_QUERY then return false end
         local kind = TitleWord(word)
-        if not kind then
-            for _, s in ipairs(ServiceWords()) do
-                if sfind(s.word, word, 1, true) == 1 then
-                    kind = true
-                    break
-                end
+        local plain, beside = false, false
+        for _, s in ipairs(ServiceWords()) do
+            if sfind(s.word, word, 1, true) == 1 then
+                if s.beside then beside = true else plain = true end
+                if band(s.bits, VENDOR) ~= 0 then sellerAsked = true end
             end
         end
-        if not kind then return false end
+        if not (kind or plain or beside) then return false end
+        if beside and not (kind or plain) then needsSeller = true end
         any = true
     end
-    return any
+    return any and (sellerAsked or not needsSeller)
 end
 
 -- Forever's towns (ns.GPSData.binds: each inn by area id), as places a
@@ -1318,7 +1321,9 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         if j and N.itemScore[j] < 2 then j = false end
         if j and N.sellersOnly and not GoodsNamed(j, N.sellersOnly) then j = false end
         local byItem = false
-        if s == 0 and j then s, byItem = N.itemScore[N.bestItem], true end
+        -- Among who offers a service ("mana vendor"), a seller of an item
+        -- named so stands level with them: the nearest first, not it.
+        if s == 0 and j then s, byItem = N.allService and 1 or N.itemScore[N.bestItem], true end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
         if s > 0 and (service or byItem) and mfloor(sbyte(N.rec, 3 * N.n + i) / (horde and 32 or 8)) % 4 == 2 then
@@ -1385,14 +1390,22 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
     for word in sgmatch(slower(query), "%S+") do words[#words + 1] = word end
     if #words == 0 then return false end
     -- A word naming a service: only creatures that will serve the player.
-    local service, allService = false, true
+    local service, allService, sellerAsked = false, true, false
+    local wordBeside = N.wordBeside
     for w = 1, #words do
-        local bits = 0
+        local bits, beside = 0, 0
         if #words[w] >= MIN_QUERY then
             for _, s in ipairs(ServiceWords()) do
-                if sfind(s.word, words[w], 1, true) == 1 then bits = bor(bits, s.bits) end
+                if sfind(s.word, words[w], 1, true) == 1 then
+                    if s.beside then beside = bor(beside, s.bits) else bits = bor(bits, s.bits) end
+                end
             end
         end
+        wordBits[w], wordBeside[w] = bits, beside
+        if band(bits, VENDOR) ~= 0 then sellerAsked = true end
+    end
+    for w = 1, #words do
+        local bits = sellerAsked and bor(wordBits[w], wordBeside[w]) or wordBits[w]
         wordBits[w] = bits
         N.wordCraft[w] = Craftsman(words[w])
         if bits ~= 0 then service = true else allService = false end
