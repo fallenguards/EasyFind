@@ -437,7 +437,11 @@ function tests.drinkWords_findWhoSellsDrinks_notTheBaker()
     add("Barkeep Bo", VENDOR + DRINK, 0.6, 0.6)
     add("Innkeeper Cy", VENDOR + INN + FOOD + DRINK, 0.8, 0.8)
     add("Mana Wyrm", 0, 0.31, 0.42)
-    local append, Npcs, env = fresh(nil, list, table.concat(names, "\n"))
+    -- The baker's fruit holds the word (2026-11-22: a fruit vendor beside
+    -- the player answered "water vendor"); the barkeep's water is a drink.
+    local goods = { types = { 0, 0 }, lists = { { 1 }, { 2 } }, sells = { [1] = 1, [2] = 2 },
+                    names = "Snapvine Watermelon\nRefreshing Spring Water" }
+    local append, Npcs, env = fresh(nil, list, table.concat(names, "\n"), goods)
     env.UnitFactionGroup = function() return "Alliance" end
     for _, query in ipairs({ "drink vendor", "water vendor", "mana vendor", "vendor mana", "drink", "water", "drinks" }) do
         local rows = find(append, query)
@@ -445,6 +449,9 @@ function tests.drinkWords_findWhoSellsDrinks_notTheBaker()
         H.assertEq(rows[1].name, "Barkeep Bo", query .. ": the nearer first")
         H.assertNil(named(rows, "Baker Ann"), query .. ": the baker sells none")
     end
+    H.assertEq(find(append, "watermelon")[1].name, "Baker Ann", "the fruit by its own name: who sells it")
+    H.assertEq(named(find(append, "water vendor"), "Barkeep Bo").matchNote, "Sells Refreshing Spring Water",
+        "a drink seller still says which drink")
     local food = find(append, "food vendor")
     H.assertEq(#food, 2, "food is the baker's and the innkeeper's")
     H.assertEq(food[1].name, "Baker Ann")

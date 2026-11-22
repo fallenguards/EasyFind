@@ -332,6 +332,7 @@ local function Bind()
     N.titleName, N.titleLow, N.classTitle = data.titleName, data.titleLow, data.classTitle or {}
     N.titleEnglish, N.titleLowEnglish = data.titleEnglish or {}, data.titleLowEnglish or {}
     N.sqLow, N.sqAt, N.sqEnLow, N.sqEnAt = nil, nil, nil, nil
+    N.rolesHeld = nil
     N.n = count
 end
 
@@ -409,6 +410,21 @@ end
 -- A query word that could name an item: not a place, not a word for who sells.
 local function GoodsWord(w)
     return not N.wordPlace[w] and band(N.wordBits[w], VENDOR) == 0
+end
+
+-- Every role some creature of this client's catalog carries (retail's
+-- marks no one as selling food or drink).
+local function RolesHeld()
+    local held = N.rolesHeld
+    if held then return held end
+    held = 0
+    local kinds = N.kinds
+    for i = 1, N.n do
+        local _, k2, k3 = sbyte(kinds, i * 3 - 2, i * 3)
+        held = bor(held, k2 + k3 * 256)
+    end
+    N.rolesHeld = held
+    return held
 end
 
 -- Every word of the query in a name (low, or alt in English): 3 when the
@@ -1321,9 +1337,12 @@ local function Keep(set, pci, px, py, r2, goods, f, horde, service)
         if j and N.itemScore[j] < 2 then j = false end
         if j and N.sellersOnly and not GoodsNamed(j, N.sellersOnly) then j = false end
         local byItem = false
-        -- Among who offers a service ("mana vendor"), a seller of an item
-        -- named so stands level with them: the nearest first, not it.
-        if s == 0 and j then s, byItem = N.allService and 1 or N.itemScore[N.bestItem], true end
+        -- Among who offers a service, a seller of an item named so stands
+        -- level with them (the nearest first, not it), and only where the
+        -- catalog marks no one with the service.
+        if s == 0 and j and (not N.allService or N.itemsServe) then
+            s, byItem = N.allService and 1 or N.itemScore[N.bestItem], true
+        end
         if s > 0 and (set or r2) and not Within(i, set, pci, px, py, r2) then s = 0 end
         if s > 0 and f and not Passes(i, f, horde) then s = 0 end
         if s > 0 and (service or byItem) and mfloor(sbyte(N.rec, 3 * N.n + i) / (horde and 32 or 8)) % 4 == 2 then
@@ -1415,6 +1434,16 @@ function N.Append(out, nameSet, query, onlyMap, nearMap, along)
             or (#words[w] >= MIN_QUERY and WordedIDs(words[w]) ~= nil)
     end
     N.allService = service and allService
+    -- A service the catalog marks its sellers with is theirs alone: "water"
+    -- is who sells drinks, never who sells a Snapvine Watermelon. Where it
+    -- marks none (retail's food and drink), an item named so stands in.
+    N.itemsServe = false
+    if N.allService then
+        local held = RolesHeld()
+        for w = 1, #words do
+            if band(wordBits[w], VENDOR) == 0 and band(held, wordBits[w]) == 0 then N.itemsServe = true end
+        end
+    end
     -- Only an item's vendors wanted: no place read, no creature named like it.
     local sellers = N.sellersOnly
     local town, placed = nil, false
