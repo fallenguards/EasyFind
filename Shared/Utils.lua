@@ -2346,7 +2346,7 @@ ns.STAT_CATEGORY_ICON_COORDS = ns.ART.statistic.coords
 -- Deliberately not memoized -- a call before the unit exists would pin a
 -- placeholder for the session.
 function ns.CurrentCharacterKey()
-    return (ns.PlayerName() or "?") .. "-" .. (GetRealmName() or "?")
+    return (ns.PlayerName() or "?") .. "-" .. (ns.RealmName() or "?")
 end
 
 -- The player's name as the game shows it. On Forever, UnitName and
@@ -2361,6 +2361,122 @@ function ns.WhisperName()
     return (UnitName("player"))
 end
 
+-- The realm's name, and what stands in for it. Scoped: the file is at 200 locals.
+do
+    -- The realm this character's slots are filed under, for a session the
+    -- client has no name for it: the one remembered from a session that had
+    -- it, else the only one its slots carry; "" with none or several.
+    local keptRealm, realmSeen = {}, {}
+    local function KeptRealm(name)
+        local kept = keptRealm[name]
+        if kept then return kept end
+        local db = EasyFindDB
+        if type(db) ~= "table" then return "" end
+        if type(db.charRealms) ~= "table" then db.charRealms = {} end
+        kept = db.charRealms[name]
+        if type(kept) ~= "string" or kept == "" then
+            local prefix, several = name .. "-", false
+            kept = nil
+            local function Bare(realm) return (realm:gsub("[%s%-]", "")) end
+            local function Look(t)
+                for key in pairs(t) do
+                    if type(key) == "string" and #key > #prefix and key:sub(1, #prefix) == prefix then
+                        local realm = key:sub(#prefix + 1)
+                        -- The gold ledger files it without its spaces: the same realm.
+                        if not kept then kept = realm
+                        elseif Bare(kept) ~= Bare(realm) then several = true
+                        elseif #realm > #kept then kept = realm end
+                    end
+                end
+            end
+            for _, field in pairs(db) do
+                if type(field) == "table" then
+                    Look(field)
+                    -- A level down too: the bag records (bagCache.chars).
+                    for _, inner in pairs(field) do
+                        if type(inner) == "table" and #inner == 0 then Look(inner) end
+                    end
+                end
+            end
+            kept = (kept and not several) and kept or ""
+            if kept ~= "" then db.charRealms[name] = kept end
+        end
+        keptRealm[name] = kept
+        return kept
+    end
+
+    -- The realm's name. Forever's client answers an empty one in some
+    -- sessions (2026-11-22: a character's slots split in two, its learned
+    -- flight points gone from the route); the realm its slots are filed under
+    -- stands in then. ONE owner: nothing else asks the client for it.
+    function ns.RealmName()
+        local realm = GetRealmName and GetRealmName()
+        local name = ns.PlayerName()
+        if realm == nil or not name then return realm end
+        if realm ~= "" then
+            if not realmSeen[name] and type(EasyFindDB) == "table" then
+                realmSeen[name] = true
+                if type(EasyFindDB.charRealms) ~= "table" then EasyFindDB.charRealms = {} end
+                EasyFindDB.charRealms[name] = realm
+            end
+            return realm
+        end
+        return KeptRealm(name)
+    end
+
+    -- As names carry it after a dash: no spaces, no dashes.
+    function ns.NormalizedRealmName()
+        local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+        if realm and realm ~= "" then return realm end
+        realm = ns.RealmName()
+        return realm and (realm:gsub("[%s%-]", "")) or nil
+    end
+end
+
+-- Slots filed under the empty realm go back into this character's own:
+-- a newer dated record (a bag scan, the route in progress) over an older
+-- one, else what the own slot lacks, a level deep (a set of flight points
+-- gains the new ones).
+function ns.FoldRealmlessSlots(db)
+    local name = ns.PlayerName()
+    local realm = name and ns.RealmName()
+    if not (type(db) == "table" and realm and realm ~= "") then return end
+    local old, new = name .. "-", name .. "-" .. realm
+    local function Has(t) return type(t) == "table" and t[old] ~= nil end
+    if not (Has(db.profileKeys) or Has(db.charProfileCache) or Has(db.gpsChar)) then return end
+    local function Stamp(v) return type(v) == "table" and (tonumber(v.t) or tonumber(v.scannedAt)) or nil end
+    local function Newer(from, into)
+        local at = Stamp(from)
+        return at ~= nil and at > (Stamp(into) or 0)
+    end
+    local function Fold(t, depth)
+        local from = t[old]
+        if from ~= nil then
+            local into = t[new]
+            if into == nil or Newer(from, into) then
+                t[new] = from
+            elseif type(into) == "table" and type(from) == "table" then
+                for k, v in pairs(from) do
+                    local cur = into[k]
+                    if cur == nil or Newer(v, cur) then
+                        into[k] = v
+                    elseif type(cur) == "table" and type(v) == "table" then
+                        for k2, v2 in pairs(v) do
+                            if cur[k2] == nil then cur[k2] = v2 end
+                        end
+                    end
+                end
+            end
+            t[old] = nil
+        end
+        if depth >= 4 then return end
+        for _, v in pairs(t) do
+            if type(v) == "table" and #v == 0 then Fold(v, depth + 1) end
+        end
+    end
+    Fold(db, 0)
+end
+
 -- Forever surnames: per-character slots once keyed by the first name
 -- alone are copied to the full name's key, not moved, since every
 -- character sharing that first name used the old slot.
@@ -2368,7 +2484,7 @@ function ns.MigrateCharacterKeys(db)
     local first, surname = UnitName("player")
     local full = ns.PlayerName()
     if not (db and first and full and full ~= first) then return end
-    local realm = GetRealmName() or "?"
+    local realm = ns.RealmName() or "?"
     local old, new = first .. "-" .. realm, full .. "-" .. realm
     local holders = { db }
     for _, slot in pairs(type(db.profiles) == "table" and db.profiles or {}) do

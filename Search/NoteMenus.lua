@@ -12,9 +12,7 @@ local sformat = string.format
 
 local function Realm(realm)
     if type(realm) == "string" and realm ~= "" and not issecret(realm) then return (realm:gsub("%s", "")) end
-    local own = GetNormalizedRealmName and GetNormalizedRealmName()
-    if not own or own == "" then own = ((GetRealmName and GetRealmName()) or ""):gsub("%s", "") end
-    return own
+    return ns.NormalizedRealmName() or ""
 end
 
 -- First name and realm, no spaces: a Forever surname ("First Surname") is
@@ -62,7 +60,7 @@ local function MenuUnit(contextData)
     local name = contextData.name
     if type(name) ~= "string" or name == "" or issecret(name) then return nil end
     local key = ns.NotesPlayerKey(name, contextData.server)
-    if not key or key == ns.NotesPlayerKey(ns.PlayerName(), GetRealmName()) then return nil end
+    if not key or key == ns.NotesPlayerKey(ns.PlayerName(), ns.RealmName()) then return nil end
     return { type = "player", id = key, name = name:match("^([^%-]+)") or name }
 end
 

@@ -5820,7 +5820,7 @@ end
 function Stored.StoredCharRecord(packed, tabs)
     return {
         name = ns.PlayerName() or "?",
-        realm = GetRealmName() or "?",
+        realm = ns.RealmName() or "?",
         class = select(2, UnitClass("player")),
         scannedAt = time and time() or 0,
         tabs = tabs,

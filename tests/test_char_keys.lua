@@ -6,7 +6,7 @@ local H = require("Harness")
 local function loadKeyCode(client)
     local ns = {}
     H.loadCharKeyCode({
-        pairs = pairs, ipairs = ipairs, type = type, next = next,
+        pairs = pairs, ipairs = ipairs, type = type, next = next, tonumber = tonumber,
         UnitName = function() return client.first, client.second end,
         GetUnitName = function() return client.full end,
         GetRealmName = function() return client.realm end,
@@ -76,6 +76,114 @@ function tests.retail_migrationDoesNothing()
     H.assertEq(db.profileKeys["Bob-Stormrage"], "Main")
     H.assertTrue(db.bagCache.chars["Bob-Stormrage"] ~= nil)
     H.assertEq(client.sv.charGold["Bob-Stormrage"], 1)
+end
+
+-- Forever's client answers an empty realm name in some sessions
+-- (2026-11-22): the character's slots split in two, and a route asked to
+-- learn a flight point filed under the other key.
+local function Realmless(sv)
+    local client = {}
+    for k, v in pairs(FOREVER) do client[k] = v end
+    client.realm, client.sv = "", sv
+    return loadKeyCode(client), client
+end
+
+local OWN, BARE = "Test Addons-Classic Beta PvE 2", "Test Addons-"
+
+function tests.emptyRealm_theKeyStaysTheCharactersOwn()
+    local sv = { profileKeys = { [OWN] = "Main", [BARE] = "Default", ["Other One-Elsewhere"] = "Main" },
+                 bagCache = { chars = { [OWN] = {} } },
+                 -- The gold ledger's shape: the same realm without its spaces.
+                 charGold = { ["Test Addons-ClassicBetaPvE2"] = 5 } }
+    local ns = Realmless(sv)
+    H.assertEq(ns.RealmName(), "Classic Beta PvE 2", "the realm its slots are filed under")
+    H.assertEq(ns.CurrentCharacterKey(), OWN)
+    H.assertEq(sv.charRealms["Test Addons"], "Classic Beta PvE 2", "remembered: no search next time")
+    H.assertEq(ns.NormalizedRealmName(), "ClassicBetaPvE2")
+end
+
+function tests.emptyRealm_rememberedFromASessionThatHadIt()
+    local sv = {}
+    local client = {}
+    for k, v in pairs(FOREVER) do client[k] = v end
+    client.sv = sv
+    H.assertEq(loadKeyCode(client).CurrentCharacterKey(), OWN)
+    H.assertEq(Realmless(sv).CurrentCharacterKey(), OWN, "no slot carries it yet: the session that had it is remembered")
+end
+
+function tests.emptyRealm_nothingKept_theKeyIsBare()
+    H.assertEq(Realmless({ profileKeys = { ["Other One-Elsewhere"] = "Main" } }).CurrentCharacterKey(), BARE)
+end
+
+function tests.emptyRealm_theNameOnTwoRealms_neitherIsTaken()
+    local sv = { profileKeys = { [OWN] = "Main", ["Test Addons-Another Realm"] = "Main" } }
+    H.assertEq(Realmless(sv).CurrentCharacterKey(), BARE)
+end
+
+function tests.slotsFiledUnderNoRealm_goBackIntoTheCharactersOwn()
+    local route = { t = 100, dest = "Blackfathom Deeps" }
+    local scan = { scannedAt = 20 }
+    local db = {
+        profileKeys = { [OWN] = "Main", [BARE] = "Default" },
+        gpsChar = { [OWN] = { flights = { [22] = true, [23] = true }, route = { t = 5 } },
+                    [BARE] = { flights = { [25] = true }, route = route } },
+        gpsHearth = { [BARE] = { m = 1456 } },
+        bagCache = { chars = { [OWN] = { scannedAt = 10 }, [BARE] = scan, ["Other One-Elsewhere"] = {} } },
+        profiles = { Alt = { shortkeysPerChar = { [OWN] = { a = "CTRL-1" }, [BARE] = { a = "CTRL-9", b = "CTRL-2" } } } },
+        rows = { { [BARE] = true } },
+    }
+    local ns = Realmless(db)
+    ns.FoldRealmlessSlots(db)
+    local own = db.gpsChar[OWN]
+    H.assertTrue(own.flights[22] and own.flights[23] and own.flights[25], "every flight point learned, under either key")
+    H.assertEq(own.route, route, "the route in progress: the newer one")
+    H.assertNil(db.gpsChar[BARE], "no second slot left")
+    H.assertEq(db.profileKeys[OWN], "Main", "its own profile pick stands")
+    H.assertNil(db.profileKeys[BARE])
+    H.assertEq(db.gpsHearth[OWN].m, 1456, "kept only under no realm: moved")
+    H.assertEq(db.bagCache.chars[OWN], scan, "the newer bag scan")
+    H.assertNil(db.bagCache.chars[BARE], "no ghost character")
+    H.assertTrue(db.bagCache.chars["Other One-Elsewhere"] ~= nil)
+    local keys = db.profiles.Alt.shortkeysPerChar
+    H.assertEq(keys[OWN].a, "CTRL-1", "its own stands")
+    H.assertEq(keys[OWN].b, "CTRL-2", "what it lacked comes over")
+    H.assertNil(keys[BARE])
+end
+
+function tests.withARealm_andNoBareSlot_nothingIsWalked()
+    local client = {}
+    for k, v in pairs(RETAIL) do client[k] = v end
+    local db = setmetatable({ profileKeys = { ["Bob-Stormrage"] = "Main" } }, { __pairs = function() error("walked") end })
+    client.sv = db
+    loadKeyCode(client).FoldRealmlessSlots(db)
+    H.assertEq(db.profileKeys["Bob-Stormrage"], "Main")
+end
+
+-- The realm's name has one owner (ns.RealmName, ns.NormalizedRealmName):
+-- a file asking the client itself keys its records under no realm in a
+-- session the client has no name for it.
+function tests.noOtherFileAsksTheClientForTheRealm()
+    local p = assert(io.popen('git -C "' .. H.ADDON_ROOT .. '" ls-files "*.lua"'))
+    local offenders, files = {}, 0
+    for path in p:lines() do
+        if not (path:match("^tests/") or path:match("^dev/") or path == "Shared/Utils.lua") then
+            files = files + 1
+            local f = io.open(H.ADDON_ROOT .. "/" .. path, "rb")
+            if f then
+                local n = 0
+                for line in f:lines() do
+                    n = n + 1
+                    if line:find("GetRealmName%s*%(") or line:find("GetNormalizedRealmName%s*%(") then
+                        offenders[#offenders + 1] = path .. ":" .. n
+                    end
+                end
+                f:close()
+            end
+        end
+    end
+    p:close()
+    H.assertTrue(files > 50, "the file list came back")
+    H.assertEq(table.concat(offenders, ", "), "", "use ns.RealmName() or ns.NormalizedRealmName()")
 end
 
 -- On Forever UnitName and UnitFullName drop the surname: the player's name

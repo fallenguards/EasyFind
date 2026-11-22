@@ -299,7 +299,8 @@ function Data.Snapshot(atLogout)
         return
     end
     p.name = ns.PlayerName() or p.name
-    p.realm = GetRealmName and GetRealmName() or p.realm
+    local realm = ns.RealmName()
+    p.realm = (realm and realm ~= "") and realm or p.realm
     p.class = select(2, UnitClass("player")) or p.class
     local level = UnitLevel and UnitLevel("player")
     if level and level > 0 then p.level = level end
@@ -495,7 +496,7 @@ local function BuildList()
     for key, p in pairs(profiles) do Add(key, p) end
     for key, r in pairs(BagRecords() or {}) do Add(key, r) end
     for key, r in pairs(BankRecords() or {}) do Add(key, r) end
-    Add(currentKey, { name = ns.PlayerName(), realm = GetRealmName and GetRealmName(), class = select(2, UnitClass("player")) })
+    Add(currentKey, { name = ns.PlayerName(), realm = ns.RealmName(), class = select(2, UnitClass("player")) })
     for _, entry in ipairs(out) do
         local p = profiles[entry.key]
         if p then

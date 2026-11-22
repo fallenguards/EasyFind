@@ -138,7 +138,7 @@ end
 local function GuildKey()
     local guild = GetGuildInfo and GetGuildInfo("player")
     if not guild or guild == "" then return nil end
-    return "guild:" .. guild .. "-" .. (GetRealmName and GetRealmName() or ""), guild
+    return "guild:" .. guild .. "-" .. (ns.RealmName() or ""), guild
 end
 
 -- The tabs the game has sent: a tab reads empty until it is asked for, so

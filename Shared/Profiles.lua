@@ -61,7 +61,7 @@ local STATE_KEYS = {
     visible = true, tutorialDone = true, spotlightsDone = true, learnedStepLocks = true,
     lastSeenVersion = true, revampedTutorialVersion = true, setupComplete = true,
     uiSearchHistory = true, mapTabRecentSearches = true,
-    clipboard = true, charGold = true,
+    clipboard = true, charGold = true, charRealms = true,
     nativeKeybindsImported = true, suggestedKeybindsSeeded = true, suggestedKeybindsApplied = true,
     achievementIndex = true, classicRecipes = true, recipeLevels = true, gpsChar = true, gpsHearth = true,
     gpsBoats = true, gpsFlown = true, macroButtons = true, minimapIcon = true,
@@ -140,8 +140,8 @@ function Profiles:Suggestions()
     local db = Ready(self)
     if not db then return out end
     local name = ns.PlayerName()
-    local realm = GetRealmName and GetRealmName()
-    local char = (name and realm) and (name .. " - " .. realm) or nil
+    local realm = ns.RealmName()
+    local char = (name and realm and realm ~= "") and (name .. " - " .. realm) or nil
     if char and not db.profiles[char] then out[#out + 1] = char end
     local class = UnitClass and UnitClass("player")
     if class and not db.profiles[class] then out[#out + 1] = class end
@@ -421,6 +421,7 @@ function Profiles:OnInitialize()
     if type(db.profileKeys) ~= "table" then db.profileKeys = {} end
     if type(db.profileSpecs) ~= "table" then db.profileSpecs = {} end
     ns.MigrateCharacterKeys(db)
+    ns.FoldRealmlessSlots(db)
     if type(db.profileActive) ~= "string" then db.profileActive = self.DEFAULT end
     -- One slot carries the live marker; the active name follows it, so a
     -- saved file whose name went stale can never load a marker over the

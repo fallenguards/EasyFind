@@ -42,7 +42,7 @@ end
 -- is the surname on Forever, never the realm.
 local function CharKey()
     local name = ns.PlayerName()
-    local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+    local realm = ns.NormalizedRealmName()
     if not (name and realm and realm ~= "") then return nil end
     return name .. "-" .. realm
 end
