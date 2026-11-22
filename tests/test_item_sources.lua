@@ -20,6 +20,9 @@ local function fresh(opts)
     end }
     ns.STATIC_LOOT = opts.loot
     ns.Database.uiSearchData = opts.rows or {}
+    -- Headings in words, and the zones a typed word names (MapSearch/Zones/Catalog.lua).
+    for key, label in pairs(opts.labels or {}) do rawset(ns.L, key, label) end
+    if opts.zones then ns.MapSearch = { ZonesNamed = function(_, word) return opts.zones[word] and {} or nil end } end
     if opts.items then
         env.C_Item = opts.items
         env.CreateFrame = function() local f = H.newFrame() opts.frames[#opts.frames + 1] = f return f end
@@ -310,6 +313,106 @@ function tests.typedSources_showTheItemsRowThenItsSections()
     rows = shown()
     H.assertEq(#rows, 2)
     H.assertEq(rows[2].name, "SOURCES_NONE", "nothing known: says so under it")
+end
+
+-- No sources word ("linen cloth reagent", "ek linen cloth", 2026-11-21):
+-- words at either end that name a place or start a heading's word, the
+-- rest an item's name. The search asks only after the text as typed found
+-- nothing, and takes a way only when it names an item exactly.
+local LABELS = { SOURCES_REAGENT_FOR = "Reagent for", SOURCES_DROPPED_BY = "Dropped by", SOURCES_SOLD_BY = "Sold by" }
+local ZONES = { ek = true, westfall = true, ["eastern kingdoms"] = true, stormwind = true }
+
+local function implied(extra)
+    local opts = { labels = LABELS, zones = ZONES }
+    for k, v in pairs(extra or {}) do opts[k] = v end
+    return fresh(opts)
+end
+
+-- Every way the text reads, in the order tried: "item | words that narrow".
+local function ways(Sources, text)
+    local out = {}
+    local more = Sources.ImpliedFirst(text)
+    while more do
+        local item, narrow = Sources.ImpliedTry(text)
+        out[#out + 1] = item .. " | " .. narrow
+        more = Sources.ImpliedAfterMiss(text)
+    end
+    return out
+end
+
+function tests.wordsThatNarrow_atEitherEnd_leaveTheItemsName()
+    local Sources = implied()
+    H.assertEq(ways(Sources, "linen cloth reagent")[1], "linen cloth | reagent")
+    H.assertEq(ways(Sources, "Linen Cloth Reag")[1], "linen cloth | reag", "the start of a heading's word, four letters on")
+    H.assertEq(ways(Sources, "ek linen cloth")[1], "linen cloth | ek")
+    H.assertEq(ways(Sources, "linen cloth eastern kingdoms")[1], "linen cloth | eastern kingdoms", "a place of two words")
+    H.assertEq(ways(Sources, "linen cloth westfall dropped")[1], "linen cloth | westfall dropped", "a run of them")
+    H.assertEq(ways(Sources, "ek linen cloth reagent")[3], "linen cloth | ek reagent", "both ends")
+    local stew = ways(Sources, "westfall stew reagent")
+    H.assertEq(stew[1], "westfall stew | reagent", "the end's words first: an item's name may start with a place")
+    H.assertEq(stew[2], "stew reagent | westfall")
+    H.assertEq(stew[3], "stew | westfall reagent")
+    H.assertEq(#stew, 3)
+end
+
+function tests.textWithNoSuchWord_isNotReadSo()
+    local Sources = implied()
+    H.assertFalse(Sources.ImpliedFirst("linen cloth"), "no place, no heading")
+    H.assertFalse(Sources.ImpliedFirst("reagent"), "one word leaves no item beside it")
+    H.assertFalse(Sources.ImpliedFirst("linen cloth for"), "a heading's small word is no sign")
+    H.assertFalse(Sources.ImpliedFirst("linen clohh"), "a slip of the keys")
+    H.assertFalse(Sources.ImpliedFirst("linen cloth rea"), "three letters start too many words")
+    H.assertFalse(Sources.ImpliedFirst(nil))
+    H.assertNil(Sources.ImpliedTry("linen cloth"), "nothing armed")
+    local bare = fresh()
+    H.assertFalse(bare.ImpliedFirst("ek linen cloth"), "no zones known yet: no place words")
+end
+
+function tests.aWay_isTakenOnce_andOnlyForItsOwnText()
+    local Sources = implied()
+    H.assertTrue(Sources.ImpliedFirst("ek linen cloth"))
+    H.assertNil(Sources.ImpliedTry("ek linen clot"), "another text's")
+    H.assertEq(Sources.ImpliedTry("ek linen cloth"), "linen cloth")
+    H.assertNil(Sources.ImpliedTry("ek linen cloth"), "taken")
+    H.assertFalse(Sources.ImpliedAfterMiss("ek linen cloth"), "no other way to read it")
+    H.assertTrue(Sources.ImpliedFirst("ek linen cloth"), "asked again (a refresh): from its first way")
+    H.assertEq(Sources.ImpliedTry("ek linen cloth"), "linen cloth")
+end
+
+function tests.readSo_onlyAnItemNamedExactly_thatKeepsARow()
+    local Sources, shown = implied({ sellers = function(name) return name == "Copper Ore" and { vendor } or {} end })
+    local bar = { data = { itemID = 2840, name = "Copper Bar", category = "Bag" } }
+    local ore = { data = { itemID = 2770, name = "Copper Ore", category = "Bank" } }
+    H.assertNil(Sources.PickItem({ bar }, "copper", true), "no first-row stand-in")
+    H.assertEq(Sources.PickItem({ bar, ore }, "copper ore", true), ore.data)
+    H.assertFalse(Sources:ShowTyped(ore.data, "westfall", true), "nothing of it there")
+    H.assertNil(shown(), "so nothing is drawn")
+    H.assertTrue(Sources:ShowTyped(ore.data, "sold", true))
+    local rows = shown()
+    H.assertEq(#rows, 3)
+    H.assertEq(rows[1].data, ore.data, "the item's own row")
+    H.assertEq(rows[2].name, "Sold by", "the heading the word names")
+    H.assertEq(rows[3].data, vendor)
+    H.assertTrue(Sources:ShowTyped(ore.data, "", true), "an explicit empty narrowing keeps every row")
+end
+
+-- The search's side (Search/Query.lua), read from its source: the text as
+-- typed is searched first, and only a pass the search starts itself reads
+-- it as an item's sources.
+function tests.theSearchAsks_onlyAfterNothingAsTyped_inAPassOfItsOwn()
+    local fh = assert(io.open(H.ADDON_ROOT .. "/Search/Query.lua", "rb"))
+    local src = fh:read("*a")
+    fh:close()
+    local first = assert(src:find("ImpliedFirst%("), "the search asks")
+    local before = src:sub(first - 400, first)
+    H.assertTrue(before:find("#combined == 0", 1, true) ~= nil, "only with no row as typed")
+    H.assertTrue(before:find("not quickFilter", 1, true) ~= nil, "never under a filter's pill")
+    local try = assert(src:find("ImpliedTry%("))
+    H.assertTrue(src:sub(try - 120, try):find("impliedPass", 1, true) ~= nil, "taken only in the pass it started")
+    local _, firsts = src:gsub("ImpliedFirst%(", "")
+    H.assertEq(firsts, 1, "asked in one place")
+    H.assertTrue(src:find("PickItem(combined, sourcesOf, impliedSources)", 1, true) ~= nil, "an exact name only")
+    H.assertTrue(src:find("ShowTyped(sourcesItem, sourcesNarrow, impliedSources)", 1, true) ~= nil, "and a row kept")
 end
 
 local pass, fail, failures = H.runSuite("ItemSources", tests)

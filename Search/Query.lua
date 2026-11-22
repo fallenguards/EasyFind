@@ -459,6 +459,11 @@ Utils.SafeOnUpdate(tailFrame, function(self)
 end)
 
 function Search:OnSearchTextChangedNow(text, force)
+    -- SCRATCH.impliedNext: set for the call a search makes of itself after
+    -- its text as typed found nothing; that pass alone reads the text as
+    -- an item's sources.
+    local impliedPass = SCRATCH.impliedNext
+    SCRATCH.impliedNext = false
     -- The search UI is dormant in combat (the bar hides at combat start
     -- and cannot reopen), and rendering results would resize/show frames
     -- that ancestor secure row buttons -- protected operations. Any stray
@@ -559,7 +564,17 @@ function Search:OnSearchTextChangedNow(text, force)
     end
     -- "copper ore sources": the other words are searched; the item they
     -- name shows its sources under the bar.
-    local sourcesOf = not quickFilter and ns.ItemSources and ns.ItemSources.SourcesQuery(text)
+    local typedText = text
+    local sourcesOf, sourcesNarrow, impliedSources
+    if not quickFilter and ns.ItemSources then
+        sourcesOf, sourcesNarrow = ns.ItemSources.SourcesQuery(text)
+        -- "linen cloth reagent": no sources word, read so by the pass before
+        -- this one after the text as typed found nothing (see the end).
+        if not sourcesOf and impliedPass then
+            sourcesOf, sourcesNarrow = ns.ItemSources.ImpliedTry(text)
+            impliedSources = sourcesOf ~= nil
+        end
+    end
     if sourcesOf then text = sourcesOf end
     -- "level 25": the zones and dungeons that fit it (Search/LevelPlaces.lua).
     local placesLevel = not quickFilter and ns.LevelPlaces and ns.LevelPlaces.Query(text)
@@ -1318,12 +1333,37 @@ function Search:OnSearchTextChangedNow(text, force)
     for ri = #combined, kept + 1, -1 do combined[ri] = nil end
     wipe(topBuf)
 
-    local sourcesItem = sourcesOf and ns.ItemSources.PickItem(combined, sourcesOf)
-    if sourcesItem then
-        ns.ItemSources:ShowTyped(sourcesItem)
+    local sourcesItem = sourcesOf and ns.ItemSources.PickItem(combined, sourcesOf, impliedSources)
+    if sourcesItem and ns.ItemSources:ShowTyped(sourcesItem, sourcesNarrow, impliedSources) then
         lastPaintText, lastPaintFilter = nil, nil
         Mark("render")
         return
+    end
+    -- Nothing as typed: read as an item and words that narrow its sources
+    -- ("linen cloth reagent", "ek linen cloth"), each way a pass of its
+    -- own, taken only when it names an item exactly. None does: nothing,
+    -- as the text as typed found.
+    local readAgain
+    if impliedSources then
+        readAgain = ns.ItemSources.ImpliedAfterMiss(typedText)
+        if not readAgain then
+            -- The item's words are not the text in the bar: no rows,
+            -- nothing remembered as painted.
+            wipe(tail)
+            TrimFlatEntries(0)
+            self:ShowHierarchicalResults(flatEntries)
+            lastPaintText, lastPaintFilter = nil, nil
+            Mark("render")
+            return
+        end
+    elseif #combined == 0 and typedText and not quickFilter and not sourcesOf and not calculatorData
+           and not calculatorLauncher and not answerEntry and ns.ItemSources then
+        readAgain = ns.ItemSources.ImpliedFirst(typedText)
+    end
+    -- The next pass, inside this run: no other search is started.
+    if readAgain then
+        SCRATCH.impliedNext = true
+        return self:OnSearchTextChangedNow(typedText, force)
     end
 
     if mapSplit then ns.MapSearch:SplitUIRowsByZone(combined) end

@@ -5,9 +5,12 @@
 -- score sort, from the bench's direct calls, 2026-10-29).
 local H = require("Harness")
 
--- file -> how many calls of each kind it may hold.
+-- file -> how many calls of each kind it may hold. Query.lua's two search
+-- pass calls: the dispatch's, and the pass a search makes of itself inside
+-- its own run after its text as typed found nothing ("linen cloth
+-- reagent" read as an item's sources).
 local ALLOWED = {
-    ["Search/Query.lua"] = { now = 1, searchUI = 2 },
+    ["Search/Query.lua"] = { now = 2, searchUI = 2 },
 }
 
 local tests = {}

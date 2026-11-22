@@ -21,7 +21,7 @@ local PLACE_WORD_MIN = 3                -- letters before a typed word may be pa
 local added = {}
 local itemLoads = CreateFrame("Frame")
 local refreshPending = false
-local tsort = table.sort
+local tsort, tconcat = table.sort, table.concat
 
 local function ItemName(id)
     local name = C_Item.GetItemNameByID(id)
@@ -439,8 +439,9 @@ function ItemSources.SourcesQuery(text)
     return rest, low:sub(stop + 1):match("^%s*(.-)%s*$")
 end
 
--- The item rows' one named exactly so, else the first: { data } entries.
-function ItemSources.PickItem(list, query)
+-- The item rows' one named exactly so, else the first (none when only an
+-- exact name will do): { data } entries.
+function ItemSources.PickItem(list, query, exactOnly)
     local want, first = slower(query), nil
     for i = 1, #list do
         local d = list[i] and list[i].data
@@ -449,7 +450,110 @@ function ItemSources.PickItem(list, query)
             first = first or d
         end
     end
+    if exactOnly then return nil end
     return first
+end
+
+-- ==== an item and the words that narrow, no "sources" typed ================
+-- "linen cloth reagent", "ek linen cloth": words at either end that name a
+-- place or a heading, the rest an item's name. Tried only after the text
+-- as typed found nothing (Search/Query.lua), each way as a search of the
+-- item's words: the item must be named exactly and keep a row under them.
+
+local HEADING_KEYS = { "SOURCES_SOLD_BY", "SOURCES_DROPPED_BY", "SOURCES_CRAFTED_BY", "SOURCES_GATHERED",
+                       "SOURCES_SKINNED", "SOURCES_FISHED", "SOURCES_PICKPOCKETED", "SOURCES_FOUND_IN",
+                       "SOURCES_CONTAINED", "SOURCES_QUEST_REWARD", "SOURCES_STARTS_QUEST", "SOURCES_TEACHES",
+                       "SOURCES_REAGENT_FOR", "SOURCES_NEEDED_FOR" }
+local HEADING_WORD_MIN = 4              -- letters before a typed word may start a heading's word
+local PEEL_MAX = 3                      -- words an end may give up
+local headingWords
+local peel = {}                         -- the typed words
+-- The ways to read the text: item[i] and narrow[i], n of them, at the one
+-- being tried; armed until the search takes it.
+local implied = { item = {}, narrow = {}, n = 0, at = 0 }
+
+local function HeadingWord(word)
+    if #word < HEADING_WORD_MIN then return false end
+    if not headingWords then
+        headingWords = {}
+        for i = 1, #HEADING_KEYS do
+            for part in slower(L[HEADING_KEYS[i]]):gmatch("%S+") do
+                if #part >= HEADING_WORD_MIN then headingWords[#headingWords + 1] = part end
+            end
+        end
+    end
+    for i = 1, #headingWords do
+        if sfind(headingWords[i], word, 1, true) == 1 then return true end
+    end
+    return false
+end
+
+local function PlaceWord(text)
+    local MapSearch = ns.MapSearch
+    return MapSearch ~= nil and MapSearch.ZonesNamed ~= nil and MapSearch:ZonesNamed(text) ~= nil
+end
+
+-- How many words an end gives up: its run of words that each name a place
+-- or start a heading's word, or more that name a place together ("eastern
+-- kingdoms"). One word at least stays for the item.
+local function Narrowing(n, fromEnd)
+    local singles, best = 0, 0
+    for k = 1, mmin(PEEL_MAX, n - 1) do
+        local word = fromEnd and peel[n - k + 1] or peel[k]
+        if singles == k - 1 and (HeadingWord(word) or PlaceWord(word)) then singles = k end
+        if singles == k then
+            best = k
+        elseif k > 1 then
+            local together = fromEnd and tconcat(peel, " ", n - k + 1, n) or tconcat(peel, " ", 1, k)
+            if PlaceWord(together) then best = k end
+        end
+    end
+    return best
+end
+
+local function AddWay(from, to, n)
+    if from > to then return end
+    local item = tconcat(peel, " ", from, to)
+    for i = 1, implied.n do
+        if implied.item[i] == item then return end
+    end
+    local narrow = from > 1 and tconcat(peel, " ", 1, from - 1) or ""
+    if to < n then narrow = (narrow ~= "" and narrow .. " " or "") .. tconcat(peel, " ", to + 1, n) end
+    implied.n = implied.n + 1
+    implied.item[implied.n], implied.narrow[implied.n] = item, narrow
+end
+
+-- The text as typed found nothing: whether it reads as an item and words
+-- that narrow. True arms the first way for the search's next pass.
+function ItemSources.ImpliedFirst(text)
+    implied.text, implied.n, implied.at, implied.armed = text, 0, 0, false
+    local n = 0
+    for word in slower(text or ""):gmatch("%S+") do
+        n = n + 1
+        peel[n] = word
+    end
+    for i = #peel, n + 1, -1 do peel[i] = nil end
+    if n < 2 then return false end
+    local tail, head = Narrowing(n, true), Narrowing(n, false)
+    if tail > 0 then AddWay(1, n - tail, n) end
+    if head > 0 then AddWay(head + 1, n, n) end
+    if tail > 0 and head > 0 then AddWay(head + 1, n - tail, n) end
+    return ItemSources.ImpliedAfterMiss(text)
+end
+
+-- The way tried named no item, or kept no row: true arms the next.
+function ItemSources.ImpliedAfterMiss(text)
+    if implied.text ~= text or implied.at >= implied.n then return false end
+    implied.at, implied.armed = implied.at + 1, true
+    return true
+end
+
+-- The armed way for this text, taken once: the item's words and the words
+-- that narrow.
+function ItemSources.ImpliedTry(text)
+    if not implied.armed or implied.text ~= text then return nil end
+    implied.armed = false
+    return implied.item[implied.at], implied.narrow[implied.at]
 end
 
 -- A section folded or grown stays so when its rows are read again.
@@ -463,7 +567,25 @@ local function CarryView(old, new)
     end
 end
 
-function ItemSources:ShowTyped(data)
+-- Whether any row stands under the typed words.
+local function Keeps(sections)
+    for _, section in ipairs(sections) do
+        local heading = section.heading
+        if not heading then
+            heading = slower(section.label or "")
+            section.heading = heading
+        end
+        for _, row in ipairs(section.rows) do
+            if Matches(row, heading) then return true end
+        end
+    end
+    return false
+end
+
+-- The item's row and its sections under the bar, the rows narrowed by the
+-- words after "sources", or by the ones given (no "sources" typed).
+-- mustKeep: nothing is shown, and false returned, when no row stands.
+function ItemSources:ShowTyped(data, narrow, mustKeep)
     local now = GetTime()
     if typed.itemID ~= data.itemID or now - typed.at > TYPED_FRESH then
         local fresh = Sections({ itemID = data.itemID, name = data.name, encounterID = data.encounterID })
@@ -473,10 +595,16 @@ function ItemSources:ShowTyped(data)
     for w = #words, 1, -1 do words[w] = nil end
     local Search = ns.Search
     local text = Search and Search.GetTypedQuery and Search:GetTypedQuery()
-    local _, narrow = ItemSources.SourcesQuery(text)
+    if narrow == nil then
+        local _, after = ItemSources.SourcesQuery(text)
+        narrow = after
+    end
     for word in (narrow or ""):gmatch("%S+") do words[#words + 1] = word end
+    if mustKeep and not Keeps(typed.sections) then return false end
+    typed.text = text
     SetEntry(1, data)
     Fill(typed.sections, 1, data.name)
+    return true
 end
 
 -- ==== a vendor's wares =====================================================
@@ -564,7 +692,7 @@ end
 local function TypedUp()
     local Search = ns.Search
     local text = typed.sections and Search and Search.GetTypedQuery and Search:GetTypedQuery()
-    return text ~= nil and ItemSources.SourcesQuery(text) ~= nil
+    return text ~= nil and (text == typed.text or ItemSources.SourcesQuery(text) ~= nil)
 end
 
 itemLoads:SetScript("OnEvent", function(self, _, itemID, ok)
