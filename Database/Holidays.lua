@@ -8,7 +8,7 @@ ns.Holidays = Holidays
 
 local Database, Utils, L = ns.Database, ns.Utils, ns.L
 local sformat, slower = Utils.sformat, Utils.slower
-local C_Calendar, C_DateAndTime = C_Calendar, C_DateAndTime
+local C_Calendar, C_DateAndTime, C_ChatInfo = C_Calendar, C_DateAndTime, C_ChatInfo
 
 local MONTHS_AHEAD = 12
 local CATEGORY = "Holiday"
@@ -25,6 +25,12 @@ local function DateText(date)
     return sformat("%d/%d", date.month, date.monthDay)
 end
 
+-- In a chat lockdown (a boss fight) the calendar's answers are secret and
+-- no compare takes them: it is read once the lockdown ends.
+local function Locked()
+    return C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
+end
+
 local function Days(count)
     return sformat(_G["D_DAYS"] or "%d Days", count)
 end
@@ -39,7 +45,7 @@ function Holidays.Line(row)
     return sformat(L["HOLIDAY_ENDS_FMT"], Days(last - today), DateText(row.holidayEnd))
 end
 
-local listed, asked = {}, false
+local listed, asked, heldByLockdown = {}, false, false
 
 -- The holiday running now that ends first, else the next to start:
 -- "Darkmoon Faire: Starts in 12 Days (12/1)".
@@ -91,6 +97,10 @@ end
 
 -- Every holiday from today on, once each at its next days.
 function Database:PopulateDynamicHolidays()
+    if Locked() then
+        heldByLockdown = true
+        return false
+    end
     Database.RemoveEntriesByCategory(CATEGORY)
     if self.ResetSearchCache then self:ResetSearchCache() end
     wipe(listed)
@@ -129,11 +139,24 @@ function Database:PopulateDynamicHolidays()
     return true
 end
 
+local function ReadAfterLockdown()
+    if heldByLockdown and not Locked() and Database.MarkDynamicCategoryDirty then
+        heldByLockdown = false
+        Database:MarkDynamicCategoryDirty("holidays")
+    end
+end
+
 -- The calendar's first answer brings the rows; a read of its months may
 -- send this news again, so an empty calendar is asked a few times only.
 local watcher, emptyReads = CreateFrame("Frame"), 0
 Utils.RegisterEventIfValid(watcher, "CALENDAR_UPDATE_EVENT_LIST")
-watcher:SetScript("OnEvent", function()
+Utils.RegisterEventIfValid(watcher, "ADDON_RESTRICTION_STATE_CHANGED")
+watcher:SetScript("OnEvent", function(_, event)
+    if event == "ADDON_RESTRICTION_STATE_CHANGED" then
+        -- After the dispatch: no restriction reads active during it.
+        if heldByLockdown then Utils.SafeAfter(0.5, ReadAfterLockdown) end
+        return
+    end
     if #listed > 0 then
         emptyReads = 0
     elseif emptyReads < 4 and Database.MarkDynamicCategoryDirty then
@@ -147,7 +170,7 @@ end)
 -- mark on a selected day alone is faint (2026-11-21).
 function Holidays.Open(row)
     local day = row.holidayDay
-    if not (day and Calendar_LoadUI and Calendar_LoadUI()) or InCombatLockdown() then return end
+    if not (day and Calendar_LoadUI and Calendar_LoadUI()) or InCombatLockdown() or Locked() then return end
     local frame = _G["CalendarFrame"]
     if not frame then return end
     if not frame:IsShown() then ns.SearchOpeners:SecureShowUIPanel(frame) end

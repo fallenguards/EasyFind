@@ -40,6 +40,7 @@ local function World(opts)
         return f
     end
     env.C_DateAndTime = { GetCurrentCalendarTime = function() return { year = 2026, month = 11, monthDay = 19 } end }
+    env.C_ChatInfo = { InChatMessagingLockdown = function() return t.locked == true end }
     local function Month(offset)
         local n = t.shownMonth[1] * 12 + t.shownMonth[2] - 1 + offset
         return math.floor(n / 12), n % 12 + 1
@@ -60,6 +61,8 @@ local function World(opts)
         end,
         GetNumDayEvents = function(offset, day) return #Day(offset, day) end,
         GetDayEvent = function(offset, day, i)
+            -- In a chat lockdown the game's answer is secret: any compare on it throws.
+            if t.locked then error("attempt to compare a secret string value") end
             local e = Day(offset, day)[i]
             return { title = e.title, calendarType = e.type, startTime = Date(e.from), endTime = Date(e.to), iconTexture = 1 }
         end,
@@ -139,6 +142,39 @@ function tests.anEmptyCalendar_isReadAFewTimes_notForEver()
     local watcher = t.frames[1]
     for _ = 1, 20 do watcher._handlers.OnEvent(watcher, "CALENDAR_UPDATE_EVENT_LIST") end
     H.assertEq(#t.dirty, 4)
+end
+
+-- Forever, 2026-11-23: in a boss fight the holiday read threw four times
+-- ("attempt to compare a secret string value").
+function tests.inAChatLockdown_theCalendarWaits_andIsReadWhenItEnds()
+    local ns, t, env = World()
+    t.locked = true
+    H.assertFalse(ns.Database:PopulateDynamicHolidays(), "not read in the lockdown")
+    H.assertEq(#ns.Database.uiSearchData, 0)
+    local watcher = t.frames[1]
+    watcher._handlers.OnEvent(watcher, "ADDON_RESTRICTION_STATE_CHANGED", 5, 2)
+    env._clock:advance(1)
+    H.assertEq(#t.dirty, 0, "another restriction while still locked asks nothing")
+    -- The client still reads the restriction active while it sends the news.
+    watcher._handlers.OnEvent(watcher, "ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+    t.locked = false
+    H.assertEq(#t.dirty, 0, "not inside the event")
+    env._clock:advance(1)
+    H.assertEq(t.dirty[1], "holidays", "its end has the rows made")
+    H.assertTrue(ns.Database:PopulateDynamicHolidays())
+    H.assertEq(#ns.Database.uiSearchData, 4)
+    watcher._handlers.OnEvent(watcher, "ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+    env._clock:advance(1)
+    H.assertEq(#t.dirty, 1, "once")
+end
+
+function tests.rowsMadeBeforeALockdown_stayThroughIt()
+    local ns, t = World()
+    ns.Database:PopulateDynamicHolidays()
+    t.locked = true
+    H.assertFalse(ns.Database:PopulateDynamicHolidays())
+    H.assertEq(#ns.Database.uiSearchData, 4)
+    H.assertEq(ns.Holidays.Next(), "Darkmoon Faire: Starts in 17 Days (12/6)")
 end
 
 function tests.aClientWithoutTheCalendar_hasNoRows()
