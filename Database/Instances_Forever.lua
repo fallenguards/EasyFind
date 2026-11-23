@@ -34,6 +34,7 @@ ns.FOREVER_INSTANCES = {
     { id = 70, n = "Uldaman", raid = false, players = 10, m = 1418, x = 0.4423, y = 0.1221, ci = 0, wx = -6092, wy = -3179, dx = 0.3521, dy = 0.1029, cm = 1415, cx = 0.5449, cy = 0.5778 },
     { id = 90, n = "Gnomeregan", raid = false, players = 10, m = 1426, x = 0.1767, y = 0.3915, ci = 0, wx = -5163, wy = 932, cm = 1415, cx = 0.4281, cy = 0.5382 },
     { id = 109, n = "Sunken Temple", raid = false, players = 20, m = 1435, x = 0.7, y = 0.5291, ci = 0, wx = -10430, wy = -3829, dx = 0.773, dy = 0.3592, cm = 1415, cx = 0.5633, cy = 0.7626 },
+    { id = 129, n = "Razorfen Downs", raid = false, players = 10, m = 1413, x = 0.5091, y = 0.9288, ci = 1, wx = -4663, wy = -2536, cm = 1414, cx = 0.5327, cy = 0.7118 },
     { id = 189, n = "Scarlet Monastery", raid = false, players = 10, m = 1420, x = 0.8508, y = 0.3138, ci = 0, wx = 2892, wy = -811, cm = 1415, cx = 0.4776, cy = 0.1949 },
     { id = 209, n = "Zul'Farrak", raid = false, players = 10, m = 1446, x = 0.3873, y = 0.199, ci = 1, wx = -6791, wy = -2891, cm = 1414, cx = 0.5423, cy = 0.7985 },
     { id = 229, n = "Blackrock Spire", raid = false, players = 10, m = 1428, x = 0.3299, y = 0.2517, ci = 0, wx = -7523, wy = -1233, cm = 1415, cx = 0.4896, cy = 0.6387 },
