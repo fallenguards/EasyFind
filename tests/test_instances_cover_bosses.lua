@@ -48,6 +48,20 @@ function tests.everyBossesInstance_isInTheClientsList()
     end
 end
 
+-- Open since Forever's launch, in its dungeon list with no ghost point: the
+-- doors come from the world files' portals or, where the server spawns the
+-- portal, the point the public guides agree on (2026-11-23).
+function tests.foreversFiveNewDungeons_haveRowsAndBosses()
+    local list, loot = Read("Instances_Forever.lua"), Read("Loot_Forever.lua")
+    for id, name in pairs({ [2970] = "The Drowned City", [2974] = "Blackmaw Hold", [2994] = "Alcaz Prison",
+                            [3001] = "The Shaper's Terrace", [3039] = "Krol'dok Stronghold" }) do
+        H.assertTrue(list:find('{ id = ' .. id .. ', n = "' .. name .. '", raid = false,', 1, true) ~= nil, name .. ": a dungeon row")
+        local bosses = 0
+        for _ in loot:gmatch("inst = " .. id .. ", enc") do bosses = bosses + 1 end
+        H.assertTrue(bosses >= 5, name .. ": its bosses (" .. bosses .. ")")
+    end
+end
+
 function tests.razorfenDowns_isADungeonOnForever()
     local row = Read("Instances_Forever.lua"):match('{ id = 129, n = "Razorfen Downs", raid = (%a+),')
     H.assertEq(row, "false", "a dungeon: its bosses read Dungeon boss, and rfd finds the dungeon itself")
