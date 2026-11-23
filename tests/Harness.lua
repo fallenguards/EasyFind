@@ -200,6 +200,7 @@ local function setupWoWGlobals(env, clock)
     env.IsAltKeyDown = function() return false end
     env.GetTime = function() return clock.now end
     env.time = function() return math.floor(clock.now) end
+    env.GetBuildInfo = function() return "12.1.5", "70961", "Nov 17 2026", 120105 end
 
     env.C_Timer = {
         After = function(delay, fn) clock:after(delay, fn) end,

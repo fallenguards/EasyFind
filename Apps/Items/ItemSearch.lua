@@ -89,6 +89,31 @@ end
 local pendingLoads, attemptedLoads, loadListener, refreshTimer
 local pendingCount = 0
 
+-- Items the server refused to describe: the client tables list them, the
+-- server does not serve them (Season of Discovery's on Forever, content not
+-- open yet), so their rows could only say "Retrieving item information"
+-- (2026-11-23, /efd itemexists). Left out per game build for a few days, so
+-- what the server opens later comes back.
+local REFUSAL_SECONDS = 3 * 86400
+local refusedIDs
+
+local function Refusals()
+    if refusedIDs then return refusedIDs end
+    local db = EasyFind and EasyFind.db
+    local build = select(2, GetBuildInfo())
+    local saved = db and db.itemRefusals
+    if type(saved) ~= "table" or saved.build ~= build or type(saved.ids) ~= "table" then
+        saved = { build = build, ids = {} }
+        if db then db.itemRefusals = saved end
+    end
+    local now = time()
+    for id, at in pairs(saved.ids) do
+        if type(at) ~= "number" or now - at > REFUSAL_SECONDS then saved.ids[id] = nil end
+    end
+    refusedIDs = saved.ids
+    return refusedIDs
+end
+
 local function ScheduleCatalogRefresh()
     if refreshTimer then return end
     refreshTimer = true
@@ -143,8 +168,9 @@ function ItemSearch:NoteUncachedItem(itemID)
                     pendingCount = 0
                     loadListener:UnregisterEvent("ITEM_DATA_LOAD_RESULT")
                 end
-                -- A failed load changes nothing on screen.
-                if success ~= false then ScheduleCatalogRefresh() end
+                -- A refused item leaves the results now and in later searches.
+                if success == false then Refusals()[loadedID] = time() end
+                ScheduleCatalogRefresh()
             end
         end)
     end
@@ -223,7 +249,7 @@ local function Record(rStart, rEnd, ql, qLen, scoreName)
             end
         end
     end
-    if not itemID or seenIDs[itemID] then return end
+    if not itemID or seenIDs[itemID] or refusedIDs[itemID] then return end
     local score = scoreName and scoreName(nameLower, ql, qLen)
     if not (score and score > 0) then return end
     seenIDs[itemID] = true
@@ -491,6 +517,7 @@ function ItemSearch:Search(query, scoreName)
     if not query or #query < MIN_QUERY then return nil end
     if not EnsureBlob() then return nil end
     if not filtersReady then self:RefreshFilters() end
+    Refusals()
     local ql = slower(query)
     local qLen = #ql
     wipe(seenIDs)

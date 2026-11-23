@@ -237,5 +237,49 @@ function tests.shippedCatalog_matchesTheOracle()
     end
 end
 
+-- An item the server refuses to describe leaves the catalog's results:
+-- its row could only say "Retrieving item information" (2026-11-23,
+-- Gutgore Ripper on Forever; /efd itemexists). Per game build, for a few days.
+function tests.anItemTheServerRefuses_leavesTheResults()
+    local env = H.newEnv()
+    local ns = H.newNs(env)
+    ns.Database.uiSearchData = {}
+    ns.Database.IsLootStatSearchWord = function() return false end
+    ns.Database.IsLootSlotSearchWord = function() return false end
+    H.loadModule("Shared/SearchText.lua", env, ns)
+    local Database = H.loadModule("Database/Search.lua", env, ns)
+    env.EasyFind._ns = ns
+    env.EasyFind.db = {}
+    env.C_Item = { GetItemInfoInstant = function() return 1 end, RequestLoadItemDataByID = function() end }
+    env.strtrim = function(str) return (str:gsub("^%s+", ""):gsub("%s+$", "")) end
+    local build, now = "71037", 1000000
+    env.GetBuildInfo = function() return "1.60.1", build end
+    env.time = function() return now end
+    local frames, make = {}, env.CreateFrame
+    env.CreateFrame = function(...)
+        local f = make(...)
+        frames[#frames + 1] = f
+        return f
+    end
+    ns.ITEM_SEARCH_BLOB = "gutgore ripper\t17071\t4\t0\t69\t2\t0\ngutgore ripper\t228267\t4\t0\t71\t2\t0"
+    local ItemSearch = H.loadModule("Apps/Items/ItemSearch.lua", env, ns)
+    local function Score(nameLower, ql, qLen) return Database:ScoreTransientName(nameLower, ql, qLen) end
+    local function IDs()
+        local out = {}
+        for _, e in ipairs(ItemSearch:Search("gutgore", Score) or {}) do out[#out + 1] = e.data.itemID end
+        table.sort(out)
+        return table.concat(out, ",")
+    end
+    H.assertEq(IDs(), "17071,228267", "both, before any answer")
+    ItemSearch:NoteUncachedItem(228267)
+    local listener = frames[#frames]
+    listener:GetScript("OnEvent")(listener, "ITEM_DATA_LOAD_RESULT", 228267, false)
+    H.assertEq(IDs(), "17071", "refused: gone from the results")
+    H.assertEq(type(env.EasyFind.db.itemRefusals.ids[228267]), "number", "kept in the save")
+    ItemSearch:NoteUncachedItem(17071)
+    listener:GetScript("OnEvent")(listener, "ITEM_DATA_LOAD_RESULT", 17071, true)
+    H.assertEq(IDs(), "17071", "an item the server describes stays")
+end
+
 local pass, fail, failures = H.runSuite("ItemCatalog", tests)
 return { pass = pass, fail = fail, failures = failures }

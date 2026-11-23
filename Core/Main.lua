@@ -104,6 +104,7 @@ local DB_DEFAULTS = {
     bossCache = {},
     bossCacheVer = 0,
     statisticCache = {},
+    itemRefusals = {},             -- items the server refused, per game build (Apps/Items)
     statisticCacheVer = 0,
     -- Persisted Blizzard-options search index. Validity is gated by an internal
     -- signature (schema + build + locale + enabled-addon set), so no companion
