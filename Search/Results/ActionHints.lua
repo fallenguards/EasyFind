@@ -91,6 +91,12 @@ function Handlers:GetActionHint(data)
     if data.calculatorResult then return HINTS.copyResult end
     if data.copyText then return HINTS.copyChord end
     if data.quickFilterDef then return HINTS.filterResults end
+    -- A recipe: its profession at it (another's: its item's sources), its mats on Shift.
+    -- One that makes no item (an enchant) and cannot be opened: its mats on the click.
+    if data.professionRecipeID and ns.RecipeMats and ns.RecipeMats.Available(data) then
+        if data.otherProfession and not data.professionMakes then return Hint(V.click, V.mats) end
+        return Hint(V.click, data.otherProfession and V.sources or V.open, "Shift", V.mats)
+    end
     if data.gearSetID then return HINTS.gearSet end
     if data.mapSearchResult then
         if data.isZone then return HINTS.openMap end

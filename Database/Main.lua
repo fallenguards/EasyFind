@@ -4588,6 +4588,84 @@ function Database:HasClassicProfessions()
     return book ~= nil and next(book) ~= nil
 end
 
+-- The professions besides the character's own the Professions filter's
+-- scope lets in, by name as the character records keep them: none
+-- ("mine"), the chosen characters', the whole account's, or nil for every
+-- one ("all", the default).
+function Database.ScopedProfessions()
+    local scope = EasyFind.db.professionScope
+    if scope == "mine" then return {} end
+    if scope ~= "chosen" and scope ~= "account" then return nil end
+    local picked = scope == "chosen" and EasyFind.db.professionScopeChars or nil
+    local out = {}
+    local Data = ns.CharacterData
+    for _, entry in ipairs(Data and Data.List() or {}) do
+        if not entry.isCurrent and (not picked or picked[entry.key]) and type(entry.profs) == "table" then
+            for _, prof in ipairs(entry.profs) do
+                if type(prof.name) == "string" then out[prof.name] = true end
+            end
+        end
+    end
+    return out
+end
+
+-- WoW Forever: the recipes of the professions the character lacks that
+-- the scope lets in, ranked under its own (a player could not look an
+-- enchant up, 2026-11-23). The game's recipe tooltip lists the reagents;
+-- a click shows the made item's sources (Handlers), as the character
+-- cannot craft it; Shift lists the mats (Search/RecipeMats.lua).
+Database.OTHER_PROFESSION_RANK = -60
+-- Whose they are is the scope's alone: Show Unlearned mirrors the game's
+-- own window and is about the character's professions (off, it hid every
+-- enchant from "crusader enchant", /efd recipes, 2026-11-24).
+-- Every profession takes in the character's own too: the recipes Show
+-- Learned/Unlearned kept off its own rows (shown), an unlearned enchant.
+function Database.AddOtherProfessionRecipes(known, shown)
+    local recipes, TS = ns.PROFESSION_RECIPES, C_TradeSkillUI
+    local getSpell = C_Spell and C_Spell.GetSpellInfo
+    local getItemIcon = C_Item and C_Item.GetItemIconByID
+    if not (recipes and TS and TS.GetTradeSkillDisplayName and getSpell) then return false end
+    local profFilters = EasyFind.db.professionFilters
+    local scoped = Database.ScopedProfessions()
+    local added = false
+    for skillLine, profData in pairs(recipes) do
+        local pageID = (not known[skillLine] or not scoped) and not (profFilters and profFilters[skillLine] == false)
+            and profData.recipesByPage and next(profData.recipesByPage)
+        local profName = pageID and TS.GetTradeSkillDisplayName(skillLine)
+        if type(profName) == "string" and profName ~= "" and (not scoped or scoped[profName]) then
+            local profLower = slower(profName)
+            local pageIDs = PageRecipeIDs(profData, pageID)
+            local made = profData._makesCache and profData._makesCache[pageID]
+            for ri = 1, pageIDs and #pageIDs or 0 do
+                if ri % 32 == 0 then Utils.SliceCheckpoint() end
+                local recipeID = pageIDs[ri]
+                local ok, info
+                if not (shown and shown[recipeID]) then ok, info = pcall(getSpell, recipeID) end
+                local name = ok and type(info) == "table" and info.name
+                if name and name ~= "" then
+                    local item = made and made[ri]
+                    if item == 0 then item = nil end
+                    local nameLower = slower(name)
+                    uiSearchData[#uiSearchData + 1] = {
+                        name = name,
+                        nameLower = nameLower,
+                        icon = (item and getItemIcon and getItemIcon(item)) or info.iconID,
+                        category = "Profession",
+                        keywords = { nameLower, profLower },
+                        professionName = profName,
+                        professionRecipeID = recipeID,
+                        professionMakes = item,
+                        otherProfession = true,
+                        scoreBonus = Database.OTHER_PROFESSION_RANK,
+                    }
+                    added = true
+                end
+            end
+        end
+    end
+    return added
+end
+
 function Database:PopulateDynamicProfessions()
     if ns.Caps and ns.Caps.classic then return self:PopulateClassicProfessions() end
     if not (GetProfessions and GetProfessionInfo) then return false end
@@ -4600,10 +4678,12 @@ function Database:PopulateDynamicProfessions()
     local profIndexes = { prof1, prof2, archaeology, fishing, cooking }
     local profFilters = EasyFind.db.professionFilters
     local added = false
+    local known, shown = {}, {}
     for i = 1, 5 do
         local profIndex = profIndexes[i]
         if profIndex then
             local profName, profIcon, _, _, numAbilities, spellOffset, skillLine = GetProfessionInfo(profIndex)
+            if skillLine then known[skillLine] = true end
             if profName and profName ~= "" and skillLine
                and not (profFilters and profFilters[skillLine] == false) then
                 local nameLower = slower(profName)
@@ -4743,6 +4823,7 @@ function Database:PopulateDynamicProfessions()
                                     end
                                     if rName and rName ~= "" then
                                         local rNameLower = slower(rName)
+                                        shown[recipeID] = true
                                         uiSearchData[#uiSearchData + 1] = {
                                             name = rName,
                                             nameLower = rNameLower,
@@ -4762,6 +4843,9 @@ function Database:PopulateDynamicProfessions()
                 end
             end
         end
+    end
+    if ns.Caps and ns.Caps.forever then
+        added = Database.AddOtherProfessionRecipes(known, shown) or added
     end
     -- Pages unknown yet (the trade-skill data is not in right after
     -- login), so only learned recipes were listed, usually none. Retry a

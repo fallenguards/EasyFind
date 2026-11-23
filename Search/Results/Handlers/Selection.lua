@@ -510,6 +510,24 @@ function Handlers:SelectResult(data, forceGuide)
         ns.ItemSources:ShowWares(data)
         return
     end
+    -- A recipe's Shift lists its mats, as a boss's lists its drops.
+    if data.professionRecipeID and ns.ResultGestures.Held() == "shift"
+       and ns.RecipeMats and ns.RecipeMats.Available(data) then
+        ns.RecipeMats:Show(data)
+        return
+    end
+    -- A recipe the character cannot craft: the made item's sources (its
+    -- reagents, who teaches it); an enchant makes none: its mats. A page in
+    -- the bar, so above the dismiss below (the click closed the bar).
+    if data.otherProfession then
+        local item = data.professionMakes
+        if item and ns.ItemSources then
+            ns.ItemSources:Show({ itemID = item, name = C_Item.GetItemNameByID(item) or data.name })
+        elseif not item and ns.RecipeMats and ns.RecipeMats.Available(data) then
+            ns.RecipeMats:Show(data)
+        end
+        return
+    end
 
     -- Catalog item. A click opens where it comes from; the gesture set to
     -- send its link (Shift) picks it onto the cursor in Rows/Interactions.

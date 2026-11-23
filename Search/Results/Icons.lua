@@ -123,7 +123,7 @@ local function IsRightSideIconData(d)
         or d.mapSearchResult
         -- A profession or its recipe: RowContent sets its icon at the right
         -- (the name ran under it, and the craft controls over it, 2026-11-24).
-        or d.professionSkillLine
+        or d.professionSkillLine or d.otherProfession
         -- An extension's row: its own icon at the right, its extension's
         -- glyph at the left (EasyFind.API, a row's icon).
         or ((d.icon or d.iconAtlas) and ns.Extensions and ns.Extensions.ProviderOf(d) ~= nil)

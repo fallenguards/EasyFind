@@ -55,6 +55,7 @@ local V = {
     sendLink     = L["CTX_SEND_LINK"],
     sources      = L["HINT_SOURCES"],
     wares        = L["HINT_WARES"],
+    mats         = L["MATS_REAGENTS"],
     bosses       = _G["RAID_BOSSES"] or "Bosses",
 }
 Gestures.V = V

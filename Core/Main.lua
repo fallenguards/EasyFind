@@ -200,6 +200,10 @@ local DB_DEFAULTS = {
     professionFilters = {},
     skillFilters = {},
     professionRecipeFilters = {},
+    -- Whose professions' recipes show besides this character's own: "mine",
+    -- "chosen" (professionScopeChars), "account" or "all" (Forever).
+    professionScope = "all",
+    professionScopeChars = {},
     professionFiltersPendingPush = false,
     uiSearchFilters = {
         achievements   = true,

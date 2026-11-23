@@ -955,6 +955,8 @@ local function AttachRecipeFilterFlyout(row)
         extraGuards = { sourcesPopup, slotsPopup },
         onShow = function()
             HideSiblingSubmenus(popup)
+            -- A profession the character lacks has no window to filter.
+            if row._noRecipeFilters then return end
             Layout()
             popup:SetScale(EasyFind.db.uiSearchScale or 1.0)
             Utils.OpenFlyoutBeside(popup, row, 4)
@@ -973,14 +975,55 @@ local function AttachRecipeFilterFlyout(row)
     end, row:GetParent())
 end
 
--- Side flyout on the Professions filter row: one checkbox per known
--- profession. Unchecking removes that profession's entries at the provider
+-- The characters a Chosen characters scope can name: every other one of
+-- the account that has a profession recorded.
+local CHARS_SHOWN = 12
+local function OtherCrafters()
+    local out = {}
+    local Data = ns.CharacterData
+    for _, entry in ipairs(Data and Data.List() or {}) do
+        if not entry.isCurrent and type(entry.profs) == "table" and #entry.profs > 0 then out[#out + 1] = entry end
+    end
+    return out
+end
+
+local function ClassColored(name, class)
+    local c = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if not c then return name end
+    return ("|cff%02x%02x%02x%s|r"):format(c.r * 255, c.g * 255, c.b * 255, name)
+end
+
+-- The professions besides the character's own the scope lets in, as
+-- { skillLine, name, icon } (Database.ScopedProfessions; Forever).
+local function OtherScopedProfessions(known)
+    local out = {}
+    local recipes, TS = ns.PROFESSION_RECIPES, C_TradeSkillUI
+    local scoped = ns.Database and ns.Database.ScopedProfessions and ns.Database.ScopedProfessions()
+    if not (recipes and TS and TS.GetTradeSkillDisplayName) then return out end
+    for skillLine in pairs(recipes) do
+        if not known[skillLine] then
+            local name = TS.GetTradeSkillDisplayName(skillLine)
+            if type(name) == "string" and name ~= "" and (not scoped or scoped[name]) then
+                local icon = TS.GetTradeSkillTexture and TS.GetTradeSkillTexture(skillLine)
+                out[#out + 1] = { skillLine = skillLine, name = name, icon = icon }
+            end
+        end
+    end
+    tsort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
+-- Side flyout on the Professions filter row: on Forever first whose
+-- professions' recipes show (this character's, chosen characters', all of
+-- the account's, every profession), then one checkbox per profession shown.
+-- Unchecking removes that profession's entries at the provider
 -- (db.professionFilters[skillLine] = false; missing = on).
 function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
     attachCtx = ctx
     local ROW_H = ctx.rowHeight
     local CHECK = ctx.checkSize
     local PAD = 8
+    local L = ns.L
 
     local root = CreateFrame("Frame", "EasyFindProfessionOptionsPopup", UIParent, "BackdropTemplate")
     root:SetFrameStrata("TOOLTIP")
@@ -988,6 +1031,13 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
     root:EnableMouse(true)
     root:Hide()
     ctx.dropdownGuardFrames[#ctx.dropdownGuardFrames + 1] = root
+
+    local function Refresh()
+        if ns.Database and ns.Database.RefreshDynamicCategory then
+            ns.Database:RefreshDynamicCategory("professions")
+        end
+        Filters:ApplyFilterSelection("professions")
+    end
 
     local pool = {}
     local function GetRow(i)
@@ -1019,10 +1069,7 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
                 local t = EasyFind.db.professionFilters
                 if not t then t = {}; EasyFind.db.professionFilters = t end
                 t[self._skillLine] = Utils.OffOrNil(self:GetChecked())
-                if ns.Database and ns.Database.RefreshDynamicCategory then
-                    ns.Database:RefreshDynamicCategory("professions")
-                end
-                Filters:ApplyFilterSelection("professions")
+                Refresh()
             end)
             -- Recipe filters are retail's (learned, sources, expansion pages).
             if not (ns.Caps and ns.Caps.classic) then AttachRecipeFilterFlyout(r) end
@@ -1031,15 +1078,159 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
         return r
     end
 
-    local function Layout()
-        local profs = KnownProfessions()
+    -- The scope: Forever lists every profession's recipes (Database
+    -- AddOtherProfessionRecipes), so whose show is the player's to pick.
+    local SCOPES = { { "mine", "PROF_SCOPE_MINE" }, { "chosen", "PROF_SCOPE_CHOSEN" },
+                     { "account", "PROF_SCOPE_ACCOUNT" }, { "all", "PROF_SCOPE_ALL" } }
+    local scope = {}
+    local Layout
+    if ns.Caps and ns.Caps.forever then
+        scope.head = root:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        scope.head:SetText(L["PROF_SCOPE_HEADER"])
+        scope.sep = root:CreateTexture(nil, "ARTWORK")
+        scope.sep:SetColorTexture(1, 1, 1, 0.12)
+        scope.sep:SetHeight(1)
+        scope.rows = {}
+        local function Pick(value)
+            EasyFind.db.professionScope = value
+            for _, rr in ipairs(scope.rows) do rr._setChecked(rr._scope == value) end
+            Refresh()
+            Layout()
+        end
+        for i, sc in ipairs(SCOPES) do
+            local rr = CreateFrame("Button", nil, root)
+            rr:SetSize(150, ROW_H)
+            rr:SetHitRectInsets(0, 0, 0, 0)
+            local tex, setChecked = ctx.CreateRadioTexture(rr)
+            tex:SetPoint("LEFT", 2, 0)
+            rr._setChecked, rr._scope = setChecked, sc[1]
+            local fs = rr:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            fs:SetPoint("LEFT", tex, "RIGHT", 6, 0)
+            fs:SetText(L[sc[2]])
+            rr._label = fs
+            Utils.InstallMenuRowHighlight(rr)
+            rr:SetScript("OnClick", function(self) Pick(self._scope) end)
+            scope.rows[i] = rr
+        end
+
+        -- Chosen characters: a checkbox per character, beside its row.
+        local chosenRow = scope.rows[2]
+        local chev = chosenRow:CreateTexture(nil, "OVERLAY")
+        chev:SetAtlas("common-icon-forwardarrow")
+        chev:SetSize(CHECK - 2, CHECK - 2)
+        chev:SetPoint("RIGHT", -4, 0)
+        chev:SetVertexColor(0.85, 0.85, 0.85, 1)
+        chosenRow._chev = chev
+        local chars = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        chars:SetFrameStrata("TOOLTIP")
+        chars:SetFrameLevel(root:GetFrameLevel() + Utils.MENU_LEVEL_STEP)
+        ctx.StylePopup(chars)
+        chars:EnableMouse(true)
+        chars:EnableMouseWheel(true)
+        chars:Hide()
+        ctx.dropdownGuardFrames[#ctx.dropdownGuardFrames + 1] = chars
+        childPopups[#childPopups + 1] = chars
+        Filters.AttachOutsideClickClose(chars)
+        chosenRow._submenuPopup = chars
+        local charRows, list, offset = {}, {}, 0
+        local function CharRow(i)
+            local cr = charRows[i]
+            if cr then return cr end
+            cr = CreateFrame("CheckButton", nil, chars)
+            cr:SetSize(150, ROW_H)
+            cr:SetHitRectInsets(0, 0, 0, 0)
+            Utils.SetCheckboxTextures(cr, CHECK)
+            local fs = cr:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            fs:SetPoint("LEFT", cr:GetNormalTexture(), "RIGHT", 4, 0)
+            fs:SetPoint("RIGHT", -4, 0)
+            fs:SetJustifyH("LEFT")
+            fs:SetWordWrap(false)
+            cr._label = fs
+            Utils.InstallMenuRowHighlight(cr)
+            cr:SetScript("OnClick", function(self)
+                local picked = EasyFind.db.professionScopeChars
+                if type(picked) ~= "table" then picked = {}; EasyFind.db.professionScopeChars = picked end
+                picked[self._key] = self:GetChecked() and true or nil
+                -- Naming a character is choosing them.
+                if EasyFind.db.professionScope ~= "chosen" then Pick("chosen") else Refresh() end
+            end)
+            charRows[i] = cr
+            return cr
+        end
+        local function LayoutChars()
+            local picked = EasyFind.db.professionScopeChars or {}
+            local shown = math.min(#list, CHARS_SHOWN)
+            local contentW = 0
+            for i = 1, shown do
+                local entry = list[i + offset]
+                local cr = CharRow(i)
+                cr._key = entry.key
+                cr._label:SetText(ClassColored(entry.name or entry.key, entry.class))
+                cr:SetChecked(picked[entry.key] == true)
+                cr:ClearAllPoints()
+                cr:SetPoint("TOPLEFT", PAD, -PAD - (i - 1) * ROW_H)
+                cr:Show()
+                local w = Utils.FlyoutRowContentWidth(cr, CHECK + 4, 0, 0)
+                if w > contentW then contentW = w end
+            end
+            for i = shown + 1, #charRows do charRows[i]:Hide() end
+            local w = Utils.FlyoutWidthFor(contentW, PAD)
+            for i = 1, shown do charRows[i]:SetWidth(w - PAD * 2) end
+            chars:SetSize(w, math.max(1, shown) * ROW_H + PAD * 2)
+        end
+        chars:SetScript("OnMouseWheel", function(_, delta)
+            local most = math.max(0, #list - CHARS_SHOWN)
+            local was = offset
+            offset = math.max(0, math.min(most, offset - delta))
+            if offset ~= was then LayoutChars() end
+        end)
+        Utils.AttachHoverPopup(chosenRow, chars, {
+            onShow = function()
+                HideSiblingSubmenus(chars)
+                list, offset = OtherCrafters(), 0
+                if #list == 0 then return end
+                LayoutChars()
+                chars:SetScale(EasyFind.db.uiSearchScale or 1.0)
+                Utils.OpenFlyoutBeside(chars, chosenRow, 4)
+                chars:Show()
+            end,
+        })
+        for _, rr in ipairs(scope.rows) do
+            if rr ~= chosenRow then rr:HookScript("OnEnter", function() chars:Hide() end) end
+        end
+    end
+
+    Layout = function()
         local y, contentW = -PAD, 0
-        for i = 1, #profs do
-            local prof = profs[i]
-            local r = GetRow(i)
+        if scope.rows then
+            scope.head:ClearAllPoints()
+            scope.head:SetPoint("TOPLEFT", PAD + 2, y - 2)
+            y = y - ROW_H
+            local current = EasyFind.db.professionScope or "all"
+            for _, rr in ipairs(scope.rows) do
+                rr._setChecked(rr._scope == current)
+                rr:ClearAllPoints()
+                rr:SetPoint("TOPLEFT", PAD, y)
+                y = y - ROW_H
+                local w = Utils.FlyoutRowContentWidth(rr, CHECK + 6, 0, rr._chev and CHECK - 2 or 0)
+                if w > contentW then contentW = w end
+            end
+            scope.sep:ClearAllPoints()
+            scope.sep:SetPoint("LEFT", root, "LEFT", PAD, 0)
+            scope.sep:SetPoint("RIGHT", root, "RIGHT", -PAD, 0)
+            scope.sep:SetPoint("TOP", root, "TOP", 0, y - 4)
+            y = y - 8
+        end
+        local profs = KnownProfessions()
+        local known, n = {}, 0
+        for i = 1, #profs do known[profs[i].skillLine or 0] = true end
+        local function Add(prof, other)
+            n = n + 1
+            local r = GetRow(n)
             r._skillLine = prof.skillLine
+            r._noRecipeFilters = other
             r._label:SetText(prof.name)
-            r._chev:SetShown(ns.PROFESSION_RECIPES and ns.PROFESSION_RECIPES[prof.skillLine] ~= nil)
+            r._chev:SetShown(not other and ns.PROFESSION_RECIPES and ns.PROFESSION_RECIPES[prof.skillLine] ~= nil)
             r._icon:SetTexture(prof.icon)
             local t = EasyFind.db.professionFilters
             r:SetChecked(not (t and t[prof.skillLine] == false))
@@ -1050,9 +1241,14 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
             local w = Utils.FlyoutRowContentWidth(r, CHECK + 4, CHECK, CHECK - 2)
             if w > contentW then contentW = w end
         end
-        for i = #profs + 1, #pool do pool[i]:Hide() end
+        for i = 1, #profs do Add(profs[i], false) end
+        if scope.rows and (EasyFind.db.professionScope or "all") ~= "mine" then
+            for _, prof in ipairs(OtherScopedProfessions(known)) do Add(prof, true) end
+        end
+        for i = n + 1, #pool do pool[i]:Hide() end
         local w = Utils.FlyoutWidthFor(contentW, PAD)
-        for i = 1, #profs do pool[i]:SetWidth(w - PAD * 2) end
+        for i = 1, n do pool[i]:SetWidth(w - PAD * 2) end
+        for _, rr in ipairs(scope.rows or {}) do rr:SetWidth(w - PAD * 2) end
         root:SetSize(w, -y + PAD)
     end
     root._efSync = Layout
@@ -1071,6 +1267,7 @@ function Filters:AttachProfessionOptionsFlyout(row, dropdown, ctx)
 
     ctx.AddPopupKeyboardNav(root, function()
         local rows = {}
+        for _, rr in ipairs(scope.rows or {}) do rows[#rows + 1] = rr end
         for i = 1, #pool do if pool[i]:IsShown() then rows[#rows + 1] = pool[i] end end
         return rows
     end)
