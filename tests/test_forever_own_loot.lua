@@ -71,5 +71,25 @@ function tests.foreversOwnDrops_carryTheirStatKinds()
     H.assertTrue(kinded * 10 >= own * 7, "most carry a stat kind: " .. kinded .. " of " .. own)
 end
 
+-- Forever's own creatures are in no world database either: what they drop
+-- comes from their own drop tables. Without them an item of Forever's own
+-- that a creature drops read "No known source".
+function tests.foreversOwnItems_nameTheCreaturesThatDropThem()
+    local f = assert(io.open(H.ADDON_ROOT .. "/Apps/Sources/Data_Forever.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    local items = src:sub((src:find("ns.SOURCE_DATA.items = {", 1, true)), (src:find("ns.SOURCE_DATA.recipes", 1, true)))
+    local dropped, ownDroppers = 0, 0
+    for id, line in items:gmatch('%[(%d+)%] = "([^"]*)"') do
+        if tonumber(id) > OWN and (";" .. line):find(";d", 1, true) then dropped = dropped + 1 end
+    end
+    local npcs = src:sub((src:find("ns.SOURCE_DATA.npcs = {", 1, true)))
+    for id in npcs:gmatch("%[(%d+)%] = ") do
+        if tonumber(id) > OWN then ownDroppers = ownDroppers + 1 end
+    end
+    H.assertTrue(dropped >= 400, "items of Forever's own with a creature that drops them: " .. dropped .. " (468 on 2026-11-23)")
+    H.assertTrue(ownDroppers >= 450, "creatures of Forever's own named as a source: " .. ownDroppers .. " (515 on 2026-11-23)")
+end
+
 local pass, fail, failures = H.runSuite("ForeverOwnLoot", tests)
 return { pass = pass, fail = fail, failures = failures }
