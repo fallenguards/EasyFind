@@ -6154,7 +6154,8 @@ function Options:Initialize()
     function optionsFrame:RepaintTheme()
         if self.bgTex then
             ns.StyleWizardPanel(self.bgTex, 1)
-            if ns.ApplyClassicHeader then ns.ApplyClassicHeader(self.bgTex, "EasyFind") end
+            -- No title in the game's settings window, on any theme.
+            if ns.ApplyClassicHeader then ns.ApplyClassicHeader(self.bgTex, not self.paged and "EasyFind" or nil) end
             if self.PlaceFrameEdges then self.PlaceFrameEdges() end
             local theme = Look().theme
             self.bgTex:SetAlpha((theme and theme.lightTheme) and 1 or OPTIONS_PANEL_ALPHA)
@@ -6214,6 +6215,13 @@ function Options:Initialize()
     sidebarIron:SetPoint("TOP", optionsFrame, "TOP", 0, -12)
     sidebarIron:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, 11)
     sidebarIron:SetFrameLevel(sidebar:GetFrameLevel() + 2)
+    -- The rule between the column and the page; none in the game's
+    -- settings window, which has no column.
+    local function ShowColumnRule()
+        local classic = ns.IsClassicChrome()
+        divider:SetShown(not classic and not optionsFrame.paged)
+        sidebarIron:SetShown(classic and not optionsFrame.paged)
+    end
 
     -- The nav column's surface per theme.
     local function RestyleSidebar()
@@ -6247,8 +6255,7 @@ function Options:Initialize()
         divider:SetColorTexture(1, 1, 1, 0.08)
         ns.SetRoundedRectBorderShown(sidebar, not classic)
         HideRoundedBorder(sidebar)
-        divider:SetShown(not classic)
-        sidebarIron:SetShown(classic)
+        ShowColumnRule()
         if optionsFrame.titleText then
             if pal and pal.light then
                 optionsFrame.titleText:SetTextColor(1, 1, 1, 1)
@@ -6292,6 +6299,7 @@ function Options:Initialize()
         for _, btn in ipairs(optionsFrame.resetButtons or {}) do
             btn:SetPoint("BOTTOM", optionsFrame, "BOTTOM", 0, pad)
         end
+        if optionsFrame.PlacePagedStrip then optionsFrame.PlacePagedStrip() end
     end
 
     local contentBorder = CreateFrame("Frame", nil, optionsFrame)
@@ -6513,7 +6521,7 @@ function Options:Initialize()
         if optionsFrame.paged == paged then return end
         optionsFrame.paged = paged
         sidebar:SetShown(not paged)
-        divider:SetShown(not paged)
+        ShowColumnRule()
         pagedTutorial:SetShown(paged)
         local shell = optionsFrame.settingsSearchShell
         contentBorder:ClearAllPoints()
@@ -6521,12 +6529,8 @@ function Options:Initialize()
         if paged then
             contentBorder:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", side, -42)
             contentBorder:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -side, CONTENT_BOTTOM_INSET)
-            pagedTutorial:ClearAllPoints()
-            pagedTutorial:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -side, -12)
             if shell then
                 shell:SetParent(optionsFrame)
-                shell:ClearAllPoints()
-                shell:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", side, -10)
                 shell:SetWidth(SIDEBAR_W + 60)
                 shell:SetFrameLevel(optionsFrame.bgTex:GetFrameLevel() + 2)
             end
@@ -6540,7 +6544,25 @@ function Options:Initialize()
                 shell:SetPoint("RIGHT", sidebar, "RIGHT", -8, 0)
             end
         end
+        optionsFrame.PlacePagedStrip()
         if optionsFrame.PlacePageSearch then optionsFrame.PlacePageSearch() end
+        -- The title plate and the strip follow the layout at once when shown.
+        if optionsFrame:IsShown() then optionsFrame:RepaintTheme() end
+    end
+
+    -- The strip over the page in the game's settings window, clear of the
+    -- Classic border's metal.
+    function optionsFrame.PlacePagedStrip()
+        if not optionsFrame.paged then return end
+        local side = (WINDOW_W - FRAME_W) / 2
+        local top = ns.IsClassicChrome() and CLASSIC_EDGE or 10
+        pagedTutorial:ClearAllPoints()
+        pagedTutorial:SetPoint("TOPRIGHT", optionsFrame, "TOPRIGHT", -side, -top - 2)
+        local shell = optionsFrame.settingsSearchShell
+        if shell then
+            shell:ClearAllPoints()
+            shell:SetPoint("TOPLEFT", optionsFrame, "TOPLEFT", side, -top)
+        end
     end
 
     -- Search this page: left of the X, or left of the Tutorial link in the

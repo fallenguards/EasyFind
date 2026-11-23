@@ -4350,10 +4350,11 @@ end
 -- relaxed pixel snapping, gloss gradient, border ring hidden (its corner
 -- cells band against the gradient fill). The alpha lands on the fill cells;
 -- callers that dim the whole frame instead pass 1.
--- The header plate with a gold title on a classic window, or nothing.
+-- The header plate with a gold title on a classic window, or nothing
+-- (no title: no plate).
 function ns.ApplyClassicHeader(frame, title)
     if not frame then return end
-    local on = ns.IsClassicChrome()
+    local on = ns.IsClassicChrome() and title ~= nil
     if on and not frame._efClassicHeader then
         local header = frame:CreateTexture(nil, "ARTWORK")
         header:SetTexture(ns.CLASSIC_HEADER)
