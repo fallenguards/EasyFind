@@ -13,24 +13,35 @@ API.RegisterExtension({
     keywords = { "icons", "icon search" },
 })
 
--- Notes' settings live in EasyFind's save, so its page needs no load.
-local function BuildNotesSettings(page, kit)
-    local anchor = kit.Title(page, L["APP_NOTES"], L["NOTES_OPT_HINT"])
-    local options = { { "notesHereFilter", "NOTES_OPT_HERE" }, { "notesTooltips", "NOTES_OPT_TOOLTIPS" },
-                      { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" },
-                      { "notesClickHint", "NOTES_OPT_CLICK_HINT" }, { "notesShopOffer", "NOTES_OPT_SHOP_OFFER" },
-                      { "notesPriceLines", "NOTES_OPT_PRICE_LINES" }, { "notesPriceTotal", "NOTES_OPT_PRICE_TOTAL" } }
-    local function Changed()
-        if API.HasAction("notes", "refresh") then API.CallAction("notes", "refresh") end
-        if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged() end
+-- Notes' switches live in EasyFind's save: its page shows them before the
+-- extension loads, and the extension's own page, which takes the page over
+-- when it loads, adds them through ns.NotesSaveSwitches and
+-- ns.NotesSaveSwitchRows (it had lost them, the tooltip hint's too, 2026-11-23).
+local NOTES_SAVE_SWITCHES = { { "notesHereFilter", "NOTES_OPT_HERE" }, { "notesTooltips", "NOTES_OPT_TOOLTIPS" },
+                              { "notesChatNames", "NOTES_OPT_CHAT_NAMES" }, { "notesPlayerMenu", "NOTES_OPT_PLAYER_MENU" },
+                              { "notesClickHint", "NOTES_OPT_CLICK_HINT" }, { "notesShopOffer", "NOTES_OPT_SHOP_OFFER" },
+                              { "notesPriceLines", "NOTES_OPT_PRICE_LINES" }, { "notesPriceTotal", "NOTES_OPT_PRICE_TOTAL" } }
+
+local function NotesSwitchChanged()
+    if API.HasAction("notes", "refresh") then API.CallAction("notes", "refresh") end
+    if ns.Notes and ns.Notes.PricesChanged then ns.Notes.PricesChanged() end
+end
+
+local function NotesSwitchGet(key)
+    return function() return EasyFind.db[key] ~= false end
+end
+
+local function NotesSwitchSet(key)
+    return function(on)
+        EasyFind.db[key] = on
+        NotesSwitchChanged()
     end
-    for i, o in ipairs(options) do
-        local key = o[1]
-        local box = kit.Checkbox(page, L[o[2]], function() return EasyFind.db[key] ~= false end,
-            function(on)
-                EasyFind.db[key] = on
-                Changed()
-            end, L[o[2] .. "_TT"])
+end
+
+-- The switches and the price source under anchor; returns the last control.
+function ns.NotesSaveSwitches(page, kit, anchor)
+    for i, o in ipairs(NOTES_SAVE_SWITCHES) do
+        local box = kit.Checkbox(page, L[o[2]], NotesSwitchGet(o[1]), NotesSwitchSet(o[1]), L[o[2] .. "_TT"])
         box:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -8 or -2)
         anchor = box
     end
@@ -44,11 +55,26 @@ local function BuildNotesSettings(page, kit)
             function() return EasyFind.db.notesPriceSource or any end,
             function(v)
                 if v == any then EasyFind.db.notesPriceSource = nil else EasyFind.db.notesPriceSource = v end
-                Changed()
+                NotesSwitchChanged()
             end, nil, any)
         row:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
         anchor = row
     end
+    return anchor
+end
+
+-- The same switches as the settings search's rows.
+function ns.NotesSaveSwitchRows()
+    local rows = {}
+    for i, o in ipairs(NOTES_SAVE_SWITCHES) do
+        rows[i] = { name = L[o[2]], control = { kind = "check", tooltip = L[o[2] .. "_TT"],
+                    get = NotesSwitchGet(o[1]), set = NotesSwitchSet(o[1]) } }
+    end
+    return rows
+end
+
+local function BuildNotesSettings(page, kit)
+    local anchor = ns.NotesSaveSwitches(page, kit, kit.Title(page, L["APP_NOTES"], L["NOTES_OPT_HINT"]))
     local open = kit.Button(page, L["NOTES_OPT_OPEN"], 140, 22)
     open:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 8, -12)
     open:SetScript("OnClick", function() API.OpenExtension("notes") end)
