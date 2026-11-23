@@ -299,12 +299,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo par
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovidades|r\n" ..
-    "    |cff999999-|r De onde vem um item, digitado do seu jeito: o nome dele com um lugar ou um tipo de fonte, como tecido de linho reagente (WoW Forever, Classic Era e TBC)\n" ..
-    "    |cff999999-|r vendedor bebida, vendedor água e vendedor mana listam quem vende bebidas, os mais próximos primeiro\n" ..
+    "    |cff999999-|r WoW Forever: cinco masmorras novas com seus chefes, seu saque e o caminho até a entrada\n" ..
+    "    |cff999999-|r WoW Forever: os novos saques dos chefes das masmorras clássicas, e de onde vêm os itens próprios do Forever\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r WoW Forever: o perfil, os itens fixados, os atalhos, as bolsas e os pontos de voo de um personagem não somem mais em uma sessão em que o jogo não informa o nome do reino\n" ..
-    "    |cff999999-|r Shift-clique em um vendedor volta a listar as mercadorias dele\n" ..
-    "    |cff999999-|r Os robôs de reagentes e de reparo que os jogadores invocam não são mais encontrados como vendedores\n"
+    "    |cff999999-|r O caminho até os instrutores de sacerdote e mago de Penhasco do Trovão desce aos Poços da Visão\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

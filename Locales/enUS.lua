@@ -330,12 +330,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNew|r\n" ..
-    "    |cff999999-|r Where an item comes from, typed your way: its name with a place or a kind of source, like linen cloth reagent or ek linen cloth (WoW Forever, Classic Era and TBC)\n" ..
-    "    |cff999999-|r drink vendor, water vendor and mana vendor list who sells drinks, nearest first\n" ..
+    "    |cff999999-|r WoW Forever: five new dungeons, The Drowned City, Blackmaw Hold, Alcaz Prison, The Shaper's Terrace and Krol'dok Stronghold, with their bosses, loot and the way to their entrances\n" ..
+    "    |cff999999-|r WoW Forever: the new drops of the classic dungeons' bosses, like Skum's Bucket, and where Forever's own items come from\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r WoW Forever: a character's profile, pins, shortkeys, bags and flight points no longer go missing in a session where the game gives no realm name\n" ..
-    "    |cff999999-|r Shift-click on a vendor lists its wares again\n" ..
-    "    |cff999999-|r Reagent and repair bots that players summon are no longer found as vendors\n"
+    "    |cff999999-|r Directions to Thunder Bluff's priest and mage trainers lead down into the Pools of Vision\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

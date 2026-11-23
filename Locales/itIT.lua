@@ -299,12 +299,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiuder
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovità|r\n" ..
-    "    |cff999999-|r Da dove viene un oggetto, digitato a modo tuo: il suo nome con un luogo o un tipo di fonte, come stoffa di lino reagente (WoW Forever, Classic Era e TBC)\n" ..
-    "    |cff999999-|r venditore bevande, venditore acqua e venditore mana elencano chi vende bevande, i più vicini per primi\n" ..
+    "    |cff999999-|r WoW Forever: cinque nuove spedizioni con i loro boss, il loro bottino e la strada per l'ingresso\n" ..
+    "    |cff999999-|r WoW Forever: i nuovi bottini dei boss delle spedizioni classiche, e da dove vengono gli oggetti propri di Forever\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r WoW Forever: profilo, elementi fissati, scorciatoie, borse e punti di volo di un personaggio non mancano più in una sessione in cui il gioco non dà il nome del reame\n" ..
-    "    |cff999999-|r Maiusc-clic su un mercante elenca di nuovo le sue merci\n" ..
-    "    |cff999999-|r I robot dei reagenti e delle riparazioni evocati dai giocatori non vengono più trovati come mercanti\n"
+    "    |cff999999-|r La strada verso gli istruttori di sacerdoti e maghi di Picco del Tuono scende nelle Pozze della Visione\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

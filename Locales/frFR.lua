@@ -299,12 +299,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
-    "    |cff999999-|r D'où vient un objet, tapé à votre façon : son nom avec un lieu ou un type de source, comme étoffe de lin composant (WoW Forever, Classic Era et TBC)\n" ..
-    "    |cff999999-|r vendeur boisson, vendeur eau et vendeur mana listent qui vend des boissons, les plus proches d'abord\n" ..
+    "    |cff999999-|r WoW Forever : cinq nouveaux donjons avec leurs boss, leur butin et le chemin jusqu'à leur entrée\n" ..
+    "    |cff999999-|r WoW Forever : les nouveaux butins des boss des donjons classiques, et d'où viennent les objets propres à Forever\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r WoW Forever : le profil, les éléments épinglés, les raccourcis, les sacs et les points de vol d'un personnage ne manquent plus dans une session où le jeu ne donne pas de nom de royaume\n" ..
-    "    |cff999999-|r Maj-clic sur un marchand liste de nouveau ses marchandises\n" ..
-    "    |cff999999-|r Les robots de composants et de réparation invoqués par les joueurs ne sont plus trouvés comme marchands\n"
+    "    |cff999999-|r Le chemin vers les maîtres prêtres et mages des Pitons-du-Tonnerre descend dans les Bassins des visions\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

@@ -299,12 +299,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff新功能|r\n" ..
-    "    |cff999999-|r 物品从哪里来，随你怎么输入：物品名加上地点或来源类型，例如 亚麻布 材料（WoW Forever、Classic Era 和 TBC）\n" ..
-    "    |cff999999-|r 输入 饮料 商人、水 商人 或 法力 商人，列出出售饮料的商人，由近到远\n" ..
+    "    |cff999999-|r WoW Forever：五个新地下城及其首领、掉落和前往入口的路线\n" ..
+    "    |cff999999-|r WoW Forever：经典地下城首领的新掉落，以及 Forever 独有物品的来源\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修复|r\n" ..
-    "    |cff999999-|r WoW Forever：在游戏不提供服务器名称的会话中，角色的配置文件、固定项目、快捷键、背包和飞行点不再丢失\n" ..
-    "    |cff999999-|r Shift+点击商人会再次列出其出售物品\n" ..
-    "    |cff999999-|r 玩家召唤的材料机器人和修理机器人不再被当作商人找到\n"
+    "    |cff999999-|r 前往雷霆崖牧师和法师训练师的路线会进入预见之池\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"

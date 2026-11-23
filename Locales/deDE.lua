@@ -301,12 +301,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließ
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNeu|r\n" ..
-    "    |cff999999-|r Woher ein Gegenstand kommt, getippt wie du willst: sein Name mit einem Ort oder einer Art von Quelle, etwa leinenstoff reagenz (WoW Forever, Classic Era und TBC)\n" ..
-    "    |cff999999-|r getränke händler, wasser händler und mana händler listen auf, wer Getränke verkauft, die nächsten zuerst\n" ..
+    "    |cff999999-|r WoW Forever: fünf neue Dungeons mit ihren Bossen, ihrer Beute und dem Weg zu ihren Eingängen\n" ..
+    "    |cff999999-|r WoW Forever: die neuen Beutestücke der klassischen Dungeonbosse, und woher Forevers eigene Gegenstände kommen\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r WoW Forever: Profil, angeheftete Einträge, Kurztasten, Taschen und Flugpunkte eines Charakters fehlen nicht mehr in einer Sitzung, in der das Spiel keinen Realmnamen nennt\n" ..
-    "    |cff999999-|r Umschalt-Klick auf einen Händler listet wieder seine Waren auf\n" ..
-    "    |cff999999-|r Reagenzien- und Reparaturbots, die Spieler beschwören, werden nicht mehr als Händler gefunden\n"
+    "    |cff999999-|r Der Weg zu den Priester- und Magierlehrern in Donnerfels führt hinab in die Teiche der Visionen\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"

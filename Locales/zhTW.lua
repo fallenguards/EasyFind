@@ -299,12 +299,10 @@ L["SHOWME_SAY_TOGGLE"]                  = "點擊開啟，再點關閉"
 L["SHOWME_SAY_REMOVE"]                  = "拖到這裡即可移除"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff新功能|r\n" ..
-    "    |cff999999-|r 物品從哪裡來，隨你怎麼輸入：物品名加上地點或來源類型，例如 亞麻布 材料（WoW Forever、Classic Era 和 TBC）\n" ..
-    "    |cff999999-|r 輸入 飲料 商人、水 商人 或 法力 商人，列出出售飲料的商人，由近到遠\n" ..
+    "    |cff999999-|r WoW Forever：五個新地城及其首領、掉落和前往入口的路線\n" ..
+    "    |cff999999-|r WoW Forever：經典地城首領的新掉落，以及 Forever 獨有物品的來源\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修正|r\n" ..
-    "    |cff999999-|r WoW Forever：在遊戲不提供伺服器名稱的連線階段中，角色的設定檔、釘選項目、快捷鍵、背包和飛行點不再遺失\n" ..
-    "    |cff999999-|r Shift+點擊商人會再次列出其出售物品\n" ..
-    "    |cff999999-|r 玩家召喚的材料機器人和修理機器人不再被當作商人找到\n"
+    "    |cff999999-|r 前往雷霆崖牧師和法師訓練師的路線會進入預見之池\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "新增別名"

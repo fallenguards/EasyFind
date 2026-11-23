@@ -4,6 +4,23 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.7.0] - 2026-11-23
+
+### Added
+- **Five more WoW Forever dungeons**: The Drowned City, Blackmaw Hold, Alcaz Prison, The Shaper's Terrace and Krol'dok Stronghold are found by name, with their bosses and what they drop, and directions lead to their entrances
+- **WoW Forever's own drops**: the items Forever added to the classic dungeons' bosses are in their loot (Skum's Bucket from Skum in Wailing Caverns among them), with ten bosses that were missing
+- **Sources of WoW Forever's own items**: what Forever's new creatures drop and are skinned for is in an item's sources, 476 more items in all
+
+### Changed
+- **Game version 12.1.7**: listed, so the 12.1.7 test realm no longer marks the addon out of date
+
+### Fixed
+- **Razorfen Downs on WoW Forever**: "rfd" finds the dungeon itself, not only its bosses and loot
+- **Places stand on an NPC**: a place made of several NPCs is where one of them stands, so directions to Thunder Bluff's priest and mage trainers lead down into the Pools of Vision
+- **@upgrades on WoW Forever**: Forever's own drops are weighed by their stats too
+
+---
+
 ## [5.6.0] - 2026-11-22
 
 ### Added
