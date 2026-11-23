@@ -299,23 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
-    "    |cff999999-|r Amis et membres de guilde sont dans la recherche : clic pour chuchoter, Maj-clic pour inviter\n" ..
-    "    |cff999999-|r D'où vient un objet : Sources dans son menu du clic droit, ou tapez son nom et sources. Butin, récolte, recettes et quêtes sur WoW Forever, Classic Era et TBC\n" ..
-    "    |cff999999-|r Activez et désactivez des addons depuis la barre ou sous @addons, avec Annuler et Recharger l'interface sous celui que vous changez\n" ..
-    "    |cff999999-|r La boîte aux lettres et la banque de guilde se recherchent de partout une fois ouvertes (@mail, @guildbank)\n" ..
-    "    |cff999999-|r La ligne d'un objet indique lesquels de vos personnages le possèdent, et combien\n" ..
-    "    |cff999999-|r Verrouillages de raid et de donjon sur @alts et la page de chaque personnage (@lockouts)\n" ..
-    "    |cff999999-|r Des mots comme étourdir ou interrompre trouvent les techniques qui le font\n" ..
-    "    |cff999999-|r La ligne d'une technique porte sa touche, et une touche tapée seule (shift 3) dit à quoi elle est liée\n" ..
-    "    |cff999999-|r Les fêtes sont des lignes indiquant le temps avant leur début ou leur fin ; next holiday donne la prochaine\n" ..
-    "    |cff999999-|r Tapez level 25 pour les zones, donjons et raids de ce niveau\n" ..
-    "    |cff999999-|r Les recettes apprises portent leur couleur de progression, et @skillups liste celles qui font encore monter la compétence\n" ..
-    "    |cff999999-|r Tapez reset pour les réinitialisations quotidienne et hebdomadaire, ou une statistique (crit, armor) pour votre valeur\n" ..
-    "    |cff999999-|r Les créatures propres à WoW Forever sont trouvées, dont les marchands, maîtres et aubergistes de Zephras Isle\n" ..
+    "    |cff999999-|r D'où vient un objet, tapé à votre façon : son nom avec un lieu ou un type de source, comme étoffe de lin composant (WoW Forever, Classic Era et TBC)\n" ..
+    "    |cff999999-|r vendeur boisson, vendeur eau et vendeur mana listent qui vend des boissons, les plus proches d'abord\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Les liens Wowhead ouvrent la section du site de votre client\n" ..
-    "    |cff999999-|r Les auberges, la banque, l'hôtel des ventes et l'écurie de Zephras Isle sont trouvés et figurent sur sa carte\n" ..
-    "    |cff999999-|r Les maîtres de monte portent leur nom sur WoW Forever, Classic Era et TBC\n"
+    "    |cff999999-|r WoW Forever : le profil, les éléments épinglés, les raccourcis, les sacs et les points de vol d'un personnage ne manquent plus dans une session où le jeu ne donne pas de nom de royaume\n" ..
+    "    |cff999999-|r Maj-clic sur un marchand liste de nouveau ses marchandises\n" ..
+    "    |cff999999-|r Les robots de composants et de réparation invoqués par les joueurs ne sont plus trouvés comme marchands\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

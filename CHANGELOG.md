@@ -4,6 +4,24 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.6.0] - 2026-11-22
+
+### Added
+- **Item sources, typed your way**: an item's name with a place or a kind of source before or after it lists where it comes from, narrowed to that, with no "sources" typed: "linen cloth reagent", "ek linen cloth" (WoW Forever, Classic Era and TBC)
+- **Who sells drinks**: "drink vendor", "water vendor" and "mana vendor" list the vendors that sell drinks, nearest first, apart from those that sell only food (WoW Forever, Classic Era and TBC)
+- **More creatures on Classic Era and TBC**: 252 and 486 more are found, those that share a spawn point with others
+
+### Fixed
+- **Characters keep their own records**: in a session where WoW Forever gives no realm name, a character read a second, empty set of everything kept per character: profile, pins, shortkeys, bags, learned flight points and hearth. Its realm is kept now, and what such a session filed apart is put back together at the next login
+- **A vendor's wares on Shift**: a Shift-click on a vendor's row lists what it sells again, and on a boss's row its loot. It put an item's link on the cursor and closed the bar
+- **No bots or tents as creatures**: reagent and repair bots, tents, wells and signs that players set down are no longer found standing where one was once seen (WoW Forever)
+- **Zephras Isle's vendors by what they sell**: searches for food, drink, ammo and reagents find them (WoW Forever)
+
+### Technical Notes
+- **Extension API docs**: the GPS extension's `useIcons` and `targetPairs` actions (GPS 1.10)
+
+---
+
 ## [5.5.0] - 2026-11-21
 
 ### Added

@@ -299,23 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerra
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovedades|r\n" ..
-    "    |cff999999-|r Amigos y miembros de la hermandad están en la búsqueda: clic para susurrar, Mayús-clic para invitar\n" ..
-    "    |cff999999-|r De dónde sale un objeto: Fuentes en su menú de clic derecho, o escribe su nombre y fuentes. Botín, recolección, recetas y misiones en WoW Forever, Classic Era y TBC\n" ..
-    "    |cff999999-|r Activa y desactiva addons desde la barra o en @addons, con Cancelar y Recargar IU bajo el que cambies\n" ..
-    "    |cff999999-|r El buzón y el banco de hermandad se buscan desde cualquier lugar una vez abiertos (@mail, @guildbank)\n" ..
-    "    |cff999999-|r La fila de un objeto dice cuáles de tus personajes lo tienen y cuántos\n" ..
-    "    |cff999999-|r Registros de banda y mazmorra en @alts y en la página de cada personaje (@lockouts)\n" ..
-    "    |cff999999-|r Palabras como aturdir o interrumpir encuentran las facultades que lo hacen\n" ..
-    "    |cff999999-|r La fila de una facultad lleva su tecla, y una tecla escrita sola (shift 3) dice a qué está asignada\n" ..
-    "    |cff999999-|r Las festividades son filas con el tiempo hasta que empiezan o terminan; next holiday dice la más próxima\n" ..
-    "    |cff999999-|r Escribe level 25 para ver las zonas, mazmorras y bandas de ese nivel\n" ..
-    "    |cff999999-|r Las recetas aprendidas llevan su color de subida de habilidad, y @skillups lista las que aún la suben\n" ..
-    "    |cff999999-|r Escribe reset para el reinicio diario y semanal, o una estadística (crit, armor) para tu valor\n" ..
-    "    |cff999999-|r Se encuentran las criaturas propias de WoW Forever, entre ellas vendedores, instructores y taberneros de Zephras Isle\n" ..
+    "    |cff999999-|r De dónde sale un objeto, escrito a tu manera: su nombre con un lugar o un tipo de fuente, como paño de lino componente (WoW Forever, Classic Era y TBC)\n" ..
+    "    |cff999999-|r vendedor bebida, vendedor agua y vendedor maná listan quién vende bebidas, los más cercanos primero\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r Los enlaces de Wowhead abren la sección del sitio de tu cliente\n" ..
-    "    |cff999999-|r Las posadas, el banco, la casa de subastas y el establo de Zephras Isle se encuentran y están en su mapa\n" ..
-    "    |cff999999-|r Los instructores de equitación llevan su nombre en WoW Forever, Classic Era y TBC\n"
+    "    |cff999999-|r WoW Forever: el perfil, los elementos fijados, los atajos, las bolsas y los puntos de vuelo de un personaje ya no faltan en una sesión en la que el juego no da nombre de reino\n" ..
+    "    |cff999999-|r Mayús-clic en un vendedor vuelve a listar sus mercancías\n" ..
+    "    |cff999999-|r Los robots de componentes y de reparación que invocan los jugadores ya no se encuentran como vendedores\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

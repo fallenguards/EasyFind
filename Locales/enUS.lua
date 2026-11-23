@@ -330,23 +330,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNew|r\n" ..
-    "    |cff999999-|r Friends and guild members are in search: click to whisper, Shift-click to invite\n" ..
-    "    |cff999999-|r Where an item comes from: Sources on its right-click menu, or type its name and sources. Drops, gathering, recipes and quests on WoW Forever, Classic Era and TBC\n" ..
-    "    |cff999999-|r Turn addons on and off from the bar or under @addons, with Cancel and Reload UI under a switched one\n" ..
-    "    |cff999999-|r The mailbox and the guild bank are searched from anywhere once opened (@mail, @guildbank)\n" ..
-    "    |cff999999-|r An item's row names which of your characters hold it, and how many\n" ..
-    "    |cff999999-|r Raid and dungeon lockouts on @alts and each character's page (@lockouts)\n" ..
-    "    |cff999999-|r Words like stun or interrupt find the abilities that do it\n" ..
-    "    |cff999999-|r An ability's row has its key, and a key typed alone (shift 3) answers what it is bound to\n" ..
-    "    |cff999999-|r Holidays are rows with how long until they begin or end; next holiday answers the soonest\n" ..
-    "    |cff999999-|r Type level 25 for the zones, dungeons and raids that fit that level\n" ..
-    "    |cff999999-|r Learned recipes wear their skill-up color, and @skillups lists the ones that still raise the skill\n" ..
-    "    |cff999999-|r Type reset for the daily and weekly reset, or a stat (crit, armor) for your number\n" ..
-    "    |cff999999-|r WoW Forever's own creatures are found, Zephras Isle's vendors, trainers and innkeepers among them\n" ..
+    "    |cff999999-|r Where an item comes from, typed your way: its name with a place or a kind of source, like linen cloth reagent or ek linen cloth (WoW Forever, Classic Era and TBC)\n" ..
+    "    |cff999999-|r drink vendor, water vendor and mana vendor list who sells drinks, nearest first\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Wowhead links open your client's section of the site\n" ..
-    "    |cff999999-|r Zephras Isle's inns, bank, auction house and stable are found and on its map\n" ..
-    "    |cff999999-|r Riding trainers have their name on WoW Forever, Classic Era and TBC\n"
+    "    |cff999999-|r WoW Forever: a character's profile, pins, shortkeys, bags and flight points no longer go missing in a session where the game gives no realm name\n" ..
+    "    |cff999999-|r Shift-click on a vendor lists its wares again\n" ..
+    "    |cff999999-|r Reagent and repair bots that players summon are no longer found as vendors\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

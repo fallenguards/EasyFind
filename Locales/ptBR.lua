@@ -299,23 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo par
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovidades|r\n" ..
-    "    |cff999999-|r Amigos e membros da guilda estão na busca: clique para sussurrar, Shift-clique para convidar\n" ..
-    "    |cff999999-|r De onde vem um item: Fontes no menu do clique direito, ou digite o nome dele e fontes. Saque, coleta, receitas e missões no WoW Forever, Classic Era e TBC\n" ..
-    "    |cff999999-|r Ative e desative addons pela barra ou em @addons, com Cancelar e Recarregar IU sob o que você mudou\n" ..
-    "    |cff999999-|r A caixa de correio e o banco da guilda são buscados de qualquer lugar depois de abertos (@mail, @guildbank)\n" ..
-    "    |cff999999-|r A linha de um item diz quais dos seus personagens o têm, e quantos\n" ..
-    "    |cff999999-|r Vínculos de raide e masmorra em @alts e na página de cada personagem (@lockouts)\n" ..
-    "    |cff999999-|r Palavras como atordoar ou interromper encontram as habilidades que fazem isso\n" ..
-    "    |cff999999-|r A linha de uma habilidade traz sua tecla, e uma tecla digitada sozinha (shift 3) diz a que está atribuída\n" ..
-    "    |cff999999-|r Os feriados são linhas com o tempo até começarem ou terminarem; next holiday diz o mais próximo\n" ..
-    "    |cff999999-|r Digite level 25 para as zonas, masmorras e raides daquele nível\n" ..
-    "    |cff999999-|r As receitas aprendidas têm a cor de ganho de perícia, e @skillups lista as que ainda a aumentam\n" ..
-    "    |cff999999-|r Digite reset para a reinicialização diária e semanal, ou um atributo (crit, armor) para o seu valor\n" ..
-    "    |cff999999-|r As criaturas próprias do WoW Forever são encontradas, entre elas vendedores, instrutores e estalajadeiros de Zephras Isle\n" ..
+    "    |cff999999-|r De onde vem um item, digitado do seu jeito: o nome dele com um lugar ou um tipo de fonte, como tecido de linho reagente (WoW Forever, Classic Era e TBC)\n" ..
+    "    |cff999999-|r vendedor bebida, vendedor água e vendedor mana listam quem vende bebidas, os mais próximos primeiro\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r Os links do Wowhead abrem a seção do site do seu cliente\n" ..
-    "    |cff999999-|r As estalagens, o banco, a casa de leilões e o estábulo de Zephras Isle são encontrados e estão no mapa\n" ..
-    "    |cff999999-|r Os instrutores de montaria trazem seu nome no WoW Forever, Classic Era e TBC\n"
+    "    |cff999999-|r WoW Forever: o perfil, os itens fixados, os atalhos, as bolsas e os pontos de voo de um personagem não somem mais em uma sessão em que o jogo não informa o nome do reino\n" ..
+    "    |cff999999-|r Shift-clique em um vendedor volta a listar as mercadorias dele\n" ..
+    "    |cff999999-|r Os robôs de reagentes e de reparo que os jogadores invocam não são mais encontrados como vendedores\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"
