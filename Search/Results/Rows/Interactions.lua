@@ -446,6 +446,7 @@ function Rows.InstallInteractions(resultRow, index)
         if button ~= "LeftButton" then return end
         self._pickedUp = nil
         local d = self.data
+        self._pressedData = d
         -- Catalog: the gesture set to send the link (a plain click or drag
         -- by default) picks the item onto the cursor (drop on a chat
         -- channel, or empty world -> /say). This only arms the drag
@@ -500,7 +501,12 @@ function Rows.InstallInteractions(resultRow, index)
         -- engine when the button comes up, which is why this used to need a
         -- drag. Right-click never comes here -- it belongs to the context menu.
         local clicked = self.data
-        if button == "LeftButton" and Handlers:IsLookupRow(clicked)
+        -- A press that put another page under the mouse (a vendor's Shift
+        -- lists its wares, a boss's its loot): its release is no click on
+        -- the row that came up there.
+        local pressed = self._pressedData
+        self._pressedData = nil
+        if button == "LeftButton" and Handlers:IsLookupRow(clicked) and pressed == clicked
            and not self._pickedUp
            and not InCombatLockdown()
            and ns.ResultGestures.Does(clicked, "sendLink") then
