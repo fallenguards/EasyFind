@@ -821,6 +821,28 @@ function tests.crafts_readOncePerSession_thenAsARecipeIsLearned()
     H.assertEq(p.crafts.Tailoring, ",100,101,", "a recipe learned does")
 end
 
+-- A few ms a frame, each recipe's schematic asked once a session: all at
+-- once, a retail crafter's recipes ran past the game's script limit (a
+-- player's report, 2026-11-24). Every lookup here costs 1 ms.
+function tests.crafts_areReadAFewMsAFrame_eachSchematicAskedOnce()
+    local env, ns = World()
+    Crafting(env, ns, { [10] = true, [12] = true, [20] = true, [21] = true })
+    local ms, asked = 0, 0
+    env.debugprofilestop = function() ms = ms + 1 return ms end
+    local read = env.C_TradeSkillUI.GetRecipeSchematic
+    env.C_TradeSkillUI.GetRecipeSchematic = function(id) asked = asked + 1 return read(id) end
+    ns.CharacterData.Snapshot()
+    local p = env.EasyFindDB.charProfileCache["Thrall-Realm"]
+    H.assertNil(p.crafts, "not all in the snapshot's frame")
+    for _ = 1, 10 do env._clock:advance(0) end
+    H.assertEq(p.crafts and p.crafts.Tailoring, ",100,102,", "read on over the next frames")
+    H.assertEq(p.crafts.Cooking, ",520,521,")
+    H.assertEq(asked, 2, "a schematic for each of Cooking's two")
+    ns.CharacterData.RecordCrafts()
+    for _ = 1, 10 do env._clock:advance(0) end
+    H.assertEq(asked, 2, "read again: no schematic asked twice")
+end
+
 function tests.crafters_everyCharacterWhoCanMakeTheItem()
     local db = TwoJainas()
     db.charProfileCache["Jaina-Realm"].crafts = { Tailoring = ",100,2996,", Enchanting = ",11287," }

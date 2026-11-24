@@ -205,21 +205,33 @@ end
 -- ==== what the character can craft ==========================================
 
 -- The item a learned recipe makes: Forever ships it beside the recipe,
--- retail's schematic names it.
+-- retail's schematic names it, asked once a session per recipe.
+local madeOf = {}
 local function MadeItem(recipeID, shipped)
     if shipped then return shipped end
+    local known = madeOf[recipeID]
+    if known ~= nil then return known or nil end
     local read = C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic
-    if not read then return nil end
-    local ok, schematic = pcall(read, recipeID, false)
-    return ok and type(schematic) == "table" and schematic.outputItemID or nil
+    local item
+    if read then
+        local ok, schematic = pcall(read, recipeID, false)
+        item = ok and type(schematic) == "table" and schematic.outputItemID or nil
+    end
+    madeOf[recipeID] = item or false
+    return item
 end
 
--- { [profession name] = ",itemID,itemID," }: what each profession of the
--- character makes with the recipes it has learned.
-local function ReadCrafts()
+-- What each profession of the character makes with the recipes it has
+-- learned, as { [profession name] = ",itemID,itemID," }, read a few ms a
+-- frame: a schematic per recipe, all at once, ran past the game's script
+-- limit on a retail crafter (a player's report, 2026-11-24).
+local CRAFT_SLICE_MS = 4
+local craftJob
+
+local function NewCraftJob()
     local Database, shipped = ns.Database, ns.PROFESSION_RECIPES
     if not (GetProfessions and GetProfessionInfo and shipped and Database and Database.IsRecipeLearned) then return nil end
-    local out = {}
+    local job = { key = ns.CurrentCharacterKey(), profs = {}, out = {}, prof = 1, page = 1, i = 1 }
     local p1, p2, p3, p4, p5, p6 = GetProfessions()
     for _, index in ipairs({ p1 or false, p2 or false, p3 or false, p4 or false, p5 or false, p6 or false }) do
         local name, skillLine
@@ -229,28 +241,63 @@ local function ReadCrafts()
         end
         local data = name and skillLine and shipped[skillLine]
         if data and data.recipesByPage then
-            local items = {}
-            for pageID in pairs(data.recipesByPage) do
-                local ids = Database.PageRecipeIDs(data, pageID) or {}
-                local made = data._makesCache and data._makesCache[pageID]
-                for i = 1, #ids do
-                    if Database.IsRecipeLearned(ids[i]) then
-                        local item = MadeItem(ids[i], made and made[i])
-                        if item and item > 0 then items[#items + 1] = item end
-                    end
-                end
-            end
-            if #items > 0 then out[name] = "," .. table.concat(items, ",") .. "," end
+            local pages = {}
+            for pageID in pairs(data.recipesByPage) do pages[#pages + 1] = pageID end
+            job.profs[#job.profs + 1] = { name = name, data = data, pages = pages, items = {} }
         end
     end
-    return out
+    return job
 end
 
+-- On from where it stopped; true once every profession is read.
+local function StepCrafts(job)
+    local Database, clock = ns.Database, debugprofilestop
+    local stop = clock() + CRAFT_SLICE_MS
+    while job.prof <= #job.profs do
+        local prof = job.profs[job.prof]
+        while job.page <= #prof.pages do
+            local pageID = prof.pages[job.page]
+            local ids = Database.PageRecipeIDs(prof.data, pageID) or {}
+            local made = prof.data._makesCache and prof.data._makesCache[pageID]
+            while job.i <= #ids do
+                local id = ids[job.i]
+                if Database.IsRecipeLearned(id) then
+                    local item = MadeItem(id, made and made[job.i])
+                    if item and item > 0 then prof.items[#prof.items + 1] = item end
+                end
+                job.i = job.i + 1
+                if clock() > stop then return false end
+            end
+            job.page, job.i = job.page + 1, 1
+        end
+        if #prof.items > 0 then job.out[prof.name] = "," .. table.concat(prof.items, ",") .. "," end
+        job.prof, job.page = job.prof + 1, 1
+    end
+    return true
+end
+
+-- Read again while a reading runs (a trainer's recipes, one event each):
+-- once more after it.
 function Data.RecordCrafts()
-    local profiles = Profiles()
-    local p = profiles and profiles[ns.CurrentCharacterKey()]
-    if not p then return end
-    p.crafts = ReadCrafts() or p.crafts
+    if craftJob then
+        craftJob.again = true
+        return
+    end
+    local job = NewCraftJob()
+    if not job then return end
+    craftJob = job
+    local function Step()
+        if not StepCrafts(job) then return Utils.SafeAfter(0, Step) end
+        craftJob = nil
+        local profiles = Profiles()
+        local p = profiles and profiles[job.key]
+        if p then
+            p.crafts = job.out
+            Data.Changed()
+        end
+        if job.again then Data.RecordCrafts() end
+    end
+    Step()
 end
 
 -- Who can make an item: { { entry, prof } }. The classic clients keep

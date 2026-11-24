@@ -199,6 +199,7 @@ local function setupWoWGlobals(env, clock)
     env.IsControlKeyDown = function() return false end
     env.IsAltKeyDown = function() return false end
     env.GetTime = function() return clock.now end
+    env.debugprofilestop = function() return clock.now * 1000 end
     env.time = function() return math.floor(clock.now) end
     env.GetBuildInfo = function() return "12.1.5", "70961", "Nov 17 2026", 120105 end
 
