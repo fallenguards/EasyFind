@@ -594,6 +594,16 @@ function Search:OnSearchTextChangedNow(text, force)
         if ns.RecipeMats then ns.RecipeMats:ShowView(quickFilter, text) end
         return
     end
+    -- A quest's rewards page (Search/QuestRewards.lua).
+    if quickFilter and quickFilter.questRewards then
+        if ns.QuestRewards then ns.QuestRewards:ShowView(quickFilter, text) end
+        return
+    end
+    -- An extension's rows in its order (Search/RowsPage.lua, API.ShowRows).
+    if quickFilter and quickFilter.rowsPage then
+        if ns.RowsPage then ns.RowsPage:ShowView(quickFilter, text) end
+        return
+    end
     -- A vendor's wares page (Search/ItemSources.lua).
     if quickFilter and quickFilter.vendorWares then
         if ns.ItemSources then ns.ItemSources:ShowWaresView(quickFilter, text) end

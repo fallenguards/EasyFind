@@ -264,6 +264,20 @@ function API.OpenSearch(text) end
 ---@param text string?
 ---@return boolean
 function API.ShowScope(key, text) end
+---Whether this client can list a quest's item rewards (Forever, Era, TBC; MINOR 14).
+---@return boolean
+function API.CanShowQuestRewards() end
+---A quest's item rewards as a page in the bar, as a boss's loot (MINOR 14). False where the client has no such data.
+---@param questID integer
+---@param title string
+---@return boolean
+function API.ShowQuestRewards(questID, title) end
+---A page of your provider's rows in the bar, in the order given, its pill named title (MINOR 14).
+---@param key string
+---@param title string
+---@param rows table[]
+---@return boolean
+function API.ShowRows(key, title, rows) end
 ---EasyFind's own row for a name on a map (MINOR 6): the creature's id when the loaded catalog has one so named with a spot on the map or its zone, true for a place or service row there, else false. Any case.
 ---@return integer|boolean
 function API.HasRow(name, mapID) end

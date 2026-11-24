@@ -281,7 +281,8 @@ function tests.theFunnelReadsTheCompanionInOnce_onlyWhereThereIsData()
 end
 
 -- A read at login would cost every player its megabytes: the sources page
--- is the one caller.
+-- and a quest's rewards page, each on the player's own gesture, are the
+-- callers.
 function tests.onlyTheSourcesPageAsksForTheData()
     local callers, seen = {}, {}
     local p = assert(io.popen('grep -rn "RequestSourceData" "' .. H.ADDON_ROOT .. '" --include=*.lua'
@@ -295,7 +296,12 @@ function tests.onlyTheSourcesPageAsksForTheData()
     end
     p:close()
     table.sort(callers)
-    H.assertEq(table.concat(callers, ", "), "Search/ItemSources.lua, Search/Modules.lua")
+    H.assertEq(table.concat(callers, ", "), "Search/ItemSources.lua, Search/Modules.lua, Search/QuestRewards.lua")
+    local rewards = Read("Search/QuestRewards.lua")
+    local show = assert(rewards:find("\nfunction QuestRewards:Show(questID, title)\n", 1, true))
+    local rcall = assert(rewards:find("ns.RequestSourceData()", 1, true))
+    H.assertTrue(rcall > show and rcall < assert(rewards:find("\nend\n", show, true)), "inside its Show, on the gesture")
+    H.assertNil(rewards:find("ns.RequestSourceData()", rcall + 1, true), "and nowhere else")
     local page = Read("Search/ItemSources.lua")
     local s = assert(page:find("\nlocal function Sections(item)\n", 1, true))
     local e = assert(page:find("\nend\n", s, true))

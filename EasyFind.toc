@@ -242,6 +242,8 @@ Search/Characters.lua
 Search/Upgrades.lua
 Search/ItemSources.lua
 Search/RecipeMats.lua
+Search/RowsPage.lua
+Search/QuestRewards.lua
 Search/LevelPlaces.lua
 Guide/DirectOpen.lua
 MapSearch/Main.lua

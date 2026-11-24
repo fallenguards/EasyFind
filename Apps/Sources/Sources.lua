@@ -263,6 +263,28 @@ local function Add(out, label, rows, key)
     if #rows > 0 then out[#out + 1] = { label = label, rows = rows, key = key } end
 end
 
+-- The items a quest rewards: the item lines' quest rewards read the other
+-- way, once (a quest's rewards as a page, as a boss's loot, 2026-11-25).
+local rewardsOf
+function SourceData.QuestRewards(questID)
+    D = D or ns.SOURCE_DATA
+    if not D then return nil end
+    if not rewardsOf then
+        rewardsOf = {}
+        for itemID, s in pairs(D.items) do
+            local q = s:match("^q([%d,]+)") or s:match(";q([%d,]+)")
+            for id in (q or ""):gmatch("%d+") do
+                id = tonumber(id)
+                local list = rewardsOf[id] or {}
+                rewardsOf[id] = list
+                list[#list + 1] = itemID
+            end
+        end
+        for _, list in pairs(rewardsOf) do tsort(list) end
+    end
+    return rewardsOf[questID]
+end
+
 -- Has this client's data anything on the item: a source or a use.
 function SourceData.Has(itemID)
     D = D or ns.SOURCE_DATA

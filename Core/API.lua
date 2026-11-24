@@ -9,7 +9,7 @@ local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
 -- EasyFind.API: what extensions are built on, EasyFind's own included
 -- (API/README.md). VERSION rises only for a change that breaks an extension;
 -- MINOR for an addition.
-local API = { VERSION = 1, MINOR = 13 }
+local API = { VERSION = 1, MINOR = 14 }
 EasyFind.API = API
 
 local Extensions = { byID = {}, order = {} }
@@ -1205,6 +1205,38 @@ function API.ShowScope(key, text)
                 return
             end
         end
+    end)
+    return true
+end
+
+-- A page of a provider's rows in the bar, in the order given, its pill
+-- named title (MINOR 14). A frame later, as ShowScope.
+function API.ShowRows(key, title, rows)
+    local p = Providers.byKey[key]
+    if not (p and type(title) == "string" and type(rows) == "table") then return false end
+    Utils.SafeAfter(0, function()
+        local Search = ns.Search
+        if Search and Search.Show then Search:Show(false) end
+        local frame = Search and Search.GetSearchFrame and Search:GetSearchFrame()
+        if frame and frame:IsShown() and ns.RowsPage then ns.RowsPage:Show(p.category, title, rows) end
+    end)
+    return true
+end
+
+-- A quest's item rewards as a page in the bar, as a boss's loot (MINOR
+-- 14), on the clients whose item sources data has them (Forever, Era,
+-- TBC): false elsewhere.
+function API.CanShowQuestRewards()
+    return ns.Caps ~= nil and ns.Caps.sourceData == true
+end
+
+function API.ShowQuestRewards(questID, title)
+    if not (API.CanShowQuestRewards() and type(questID) == "number" and type(title) == "string") then return false end
+    Utils.SafeAfter(0, function()
+        local Search = ns.Search
+        if Search and Search.Show then Search:Show(false) end
+        local frame = Search and Search.GetSearchFrame and Search:GetSearchFrame()
+        if frame and frame:IsShown() and ns.QuestRewards then ns.QuestRewards:Show(questID, title) end
     end)
     return true
 end
