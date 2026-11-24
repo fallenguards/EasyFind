@@ -52,7 +52,7 @@ local HINTS = {
     whisperOrInvite  = Hint(V.click, _G["WHISPER"] or "Whisper", "Shift", _G["INVITE"] or "Invite"),
     whisper          = Hint(V.click, _G["WHISPER"] or "Whisper"),
     encounter        = Hint(V.click, V.encounter, "Shift", V.loot),
-    bossLoot         = Hint(V.click, V.loot),
+    encounterDoor    = Hint(V.click, V.encounter, "Alt", V.pinOnMap, "Shift", V.loot),
     settings         = Hint(V.click, V.settings),
 }
 
@@ -104,14 +104,18 @@ function Handlers:GetActionHint(data)
         return HINTS.pinOnMap
     end
     if data.encounterID and data.category == "Boss" then
-        if ns.Caps and ns.Caps.journal then return HINTS.encounter end
-        -- No journal: an extension taking the row names its gestures' words;
-        -- the loot listing stands for the ones it leaves out.
+        local door = data.gpsDest and data.gpsDest.mapID and V.pinOnMap
+        if ns.Caps and ns.Caps.journal then return door and HINTS.encounterDoor or HINTS.encounter end
+        -- No journal: an extension taking the row names its gestures'
+        -- words; the door and the loot stand for the ones it leaves out.
+        -- Each deed named once: Shift's loot only when no other gesture has it.
         local words = ns.Extensions and ns.Extensions.DecoratorHint and ns.Extensions.DecoratorHint(data)
-        if not words then return HINTS.bossLoot end
-        local s = Hint(V.click, words.click or V.loot, "Alt", words.alt or V.loot)
-        if words.ctrl then s = s .. " | Ctrl: " .. words.ctrl end
-        return s .. " | Shift: " .. V.loot
+        local click = words and words.click or V.loot
+        local alt = words and words.alt or door
+        local s = alt and Hint(V.click, click, "Alt", alt) or Hint(V.click, click)
+        if words and words.ctrl then s = s .. " | Ctrl: " .. words.ctrl end
+        if click ~= V.loot and alt ~= V.loot then s = s .. " | Shift: " .. V.loot end
+        return s
     end
     if data.settingVariable or data.bindingAction then return HINTS.settings end
     return nil

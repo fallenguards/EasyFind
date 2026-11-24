@@ -362,6 +362,38 @@ local function TrimFlatEntries(n)
     end
 end
 
+-- A row drops only when the row standing in for it is in the same list:
+-- a boss's creature shows as its boss row (same name and model), and with
+-- bosses filtered out, or where no boss row is listed (the map's search),
+-- its own row stays. Every such removal goes here, never at a provider.
+-- On MapRow: the search's run is at its 60 upvalues.
+function MapRow.DropStoodInFor(combined)
+    local bosses, any = SCRATCH.standIns, false
+    for ri = 1, #combined do
+        local d = combined[ri].data
+        if d and d.category == "Boss" and d.encounterID and d.name then
+            -- Under both spellings: the corpus folds names ("gahzranka"),
+            -- a creature row only lowers them.
+            local model, lowered = d.displayID or true, d.name:lower()
+            bosses[d.nameLower or lowered], bosses[lowered] = model, model
+            any = true
+        end
+    end
+    if not any then return end
+    local n = 0
+    for ri = 1, #combined do
+        local entry = combined[ri]
+        local d = entry.data
+        local boss = d and d.npcID and d.mapSearchResult and bosses[d.nameLower]
+        if not (boss and (boss == true or not d.displayID or boss == d.displayID)) then
+            n = n + 1
+            combined[n] = entry
+        end
+    end
+    for ri = #combined, n + 1, -1 do combined[ri] = nil end
+    wipe(bosses)
+end
+
 local function AppendFlat(d, n, lastGroup, mapSplit, pinned)
     -- The history's date groups head its own list only, never plain results.
     local group = (SCRATCH.clipGroups and d.clipGroup) or (mapSplit and d.sectionLabel)
@@ -1290,6 +1322,7 @@ function Search:OnSearchTextChangedNow(text, force)
         end
         if itemRows < 3 then combined[#combined + 1] = { score = 1, data = CatalogOffRow() } end
     end
+    MapRow.DropStoodInFor(combined)
 
     Mark("joins")
     -- Hard cap on visible results: the scoring step already ranks by

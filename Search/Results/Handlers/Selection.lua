@@ -692,20 +692,32 @@ function Handlers:SelectResult(data, forceGuide)
     -- click already ran the command; nothing else for SelectResult to do.
     if data.slashCommand then return end
 
-    -- A boss's Shift lists its gear, on every client.
-    if data.category == "Boss" and data.encounterID and ns.ResultGestures.Held() == "shift" then
-        EasyFind.API.ShowScope("loot", data.name)
-        return
-    end
-    -- A boss on a client with no journal: an extension's journal takes
-    -- the gesture it wants (RegisterRowDecorator select), the rest list
-    -- the boss's loot.
-    if data.category == "Boss" and data.encounterID and not (ns.Caps and ns.Caps.journal) then
-        local gesture = (Handlers:IsSourceModifierHeld(data) and "alt") or (Handlers:IsSourceCtrlHeld(data) and "ctrl") or "click"
-        if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then
+    -- A boss, one deed a gesture (Alt and Shift both listed its loot,
+    -- 2026-11-24): Shift its loot, Alt its dungeon's door on the map, a
+    -- click its journal. With no journal an extension's takes the gestures
+    -- it wants (RegisterRowDecorator select), the loot the click it leaves.
+    if data.category == "Boss" and data.encounterID then
+        local journal = ns.Caps and ns.Caps.journal
+        if ns.ResultGestures.Held() == "shift" then
             EasyFind.API.ShowScope("loot", data.name)
+            return
         end
-        return
+        if Handlers:IsSourceModifierHeld(data) then
+            if not journal and ns.Extensions and ns.Extensions.DecoratorSelect(data, "alt") then return end
+            local door = data.gpsDest
+            if door and door.mapID and ns.MapSearch then
+                ns.MapSearch:HandleUISearchClick({ name = door.name, category = door.category, mapSearchResult = true,
+                    isDungeonEntrance = true, entranceMapID = door.mapID, entranceX = door.x, entranceY = door.y })
+                return
+            end
+        end
+        if not journal then
+            local gesture = Handlers:IsSourceCtrlHeld(data) and "ctrl" or "click"
+            if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then
+                EasyFind.API.ShowScope("loot", data.name)
+            end
+            return
+        end
     end
 
 

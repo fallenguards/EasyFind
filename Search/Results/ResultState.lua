@@ -31,6 +31,8 @@ local SCRATCH = {
     frameOfRow = {},
     -- The candidates past the head of a search, listed a frame later.
     tail = {},
+    -- The rows standing in for others in this list (DropStoodInFor).
+    standIns = {},
 }
 
 Results._cachedHierarchical = nil

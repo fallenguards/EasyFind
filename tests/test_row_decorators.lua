@@ -155,17 +155,19 @@ function tests.theJournalPathsAskIt()
         return src
     end
     local sel = Read("Search/Results/Handlers/Selection.lua")
-    local boss = assert(sel:find('if data.category == "Boss" and data.encounterID and not (ns.Caps and ns.Caps.journal) then', 1, true))
-    H.assertTrue(sel:find('local gesture = (Handlers:IsSourceModifierHeld(data) and "alt") or (Handlers:IsSourceCtrlHeld(data) and "ctrl") or "click"\n        if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then\n            EasyFind.API.ShowScope("loot", data.name)', boss, true) ~= nil,
-        "a boss row's gesture asks the decorators before listing its loot")
+    local boss = assert(sel:find('    if data.category == "Boss" and data.encounterID then\n', 1, true))
+    H.assertTrue(sel:find('if not journal and ns.Extensions and ns.Extensions.DecoratorSelect(data, "alt") then return end', boss, true) ~= nil,
+        "a boss row's Alt asks the decorators before its door")
+    H.assertTrue(sel:find('local gesture = Handlers:IsSourceCtrlHeld(data) and "ctrl" or "click"\n            if not (ns.Extensions and ns.Extensions.DecoratorSelect(data, gesture)) then\n                EasyFind.API.ShowScope("loot", data.name)', boss, true) ~= nil,
+        "a boss row's click and Ctrl ask the decorators before listing its loot")
     local loot = assert(sel:find("function Handlers:OpenLootSource(data, useFast)", 1, true))
     H.assertTrue(sel:find("if ns.Extensions and ns.Extensions.DecoratorSelect(data, held) then return end", loot, true) < sel:find("ns.FOREVER_INSTANCES", loot, true),
         "a loot row's journal gesture asks them before the directions, the gesture told")
     H.assertTrue(Read("Search/Results/Gestures.lua"):find("return words and words[gesture] or V.gps", 1, true) ~= nil, "the loot hint's word for the gesture")
     local hints = Read("Search/Results/ActionHints.lua")
-    H.assertTrue(hints:find('local s = Hint(V.click, words.click or V.loot, "Alt", words.alt or V.loot)', 1, true) ~= nil,
-        "the boss hint: the decorator's words, the loot for the gestures left out")
-    H.assertTrue(hints:find("if not words then return HINTS.bossLoot end", 1, true) ~= nil, "no decorator: as before")
+    H.assertTrue(hints:find('local click = words and words.click or V.loot', 1, true) ~= nil
+        and hints:find('local alt = words and words.alt or door', 1, true) ~= nil,
+        "the boss hint: the decorator's words, the loot and the door for the gestures left out (test_boss_row_gestures)")
     H.assertTrue(Read("API/README.md"):find("| `select` |", 1, true) ~= nil, "documented")
 end
 
