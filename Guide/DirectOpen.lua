@@ -715,12 +715,11 @@ function Guide:DirectOpen(data)
                 local reveal
                 reveal = function()
                     tries = tries + 1
-                    local skillRow = Highlight:RevealSkillRow(skillName, headerName)
+                    local skillRow, label = Highlight:RevealSkillRow(skillName, headerName)
                     if not skillRow then
                         if tries < 6 then Utils.SafeAfter(0.05, reveal) end
                         return
                     end
-                    local label = _G[skillRow:GetParent():GetName() .. "SkillName"]
                     Highlight:HighlightFrame(skillRow, nil, function()
                         return label ~= nil and label:GetText() == skillName
                     end)

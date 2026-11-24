@@ -186,8 +186,10 @@ Caps.professions = rule("ProfessionsPanelDisabled") ~= true
 -- Era and Anniversary keep the API and have no Equipment Manager; MoP
 -- Classic has it in the character window's sidebars.
 Caps.gearSets = C_EquipmentSet ~= nil and (not classic or type(_G["PAPERDOLL_SIDEBARS"]) == "table")
--- The classic character window lists skills (weapons, languages, class skills).
-Caps.skills = classic and type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function"
+-- The character window's Skills tab (weapons, languages, professions): the
+-- classic clients' globals, or Forever's C_SkillInfo (retail's holds only an event).
+Caps.skills = (type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function")
+    or (C_SkillInfo ~= nil and C_SkillInfo.GetNumSkillLines ~= nil and C_SkillInfo.GetSkillLineInfo ~= nil)
 Caps.outfits = Caps.transmog
 Caps.ammo = rule("EnableAmmoSystem") == true
 Caps.campsites = C_WarbandScene ~= nil and not Caps.forever

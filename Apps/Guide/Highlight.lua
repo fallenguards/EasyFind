@@ -1284,7 +1284,7 @@ local function HandleWaitTabFrame(self, step)
 end
 
 local function HandleWaitSkillLine(self, step)
-    local list = _G["SkillFrame"]
+    local list = _G["SkillFrame"] or _G["SkillsFrame"]
     if not (list and list:IsVisible()) then
         self:Cancel()
         return true
@@ -3962,16 +3962,27 @@ function Highlight:GetFactionRowButton(factionID)
     end)
 end
 
--- Classic's skill list is twelve rows over a faux scroll frame: unfolds the
--- skill's header, scrolls it into view and returns its row, or nil.
+-- The Skills tab's list: Classic's frame, or Forever's scroll list.
+local function SkillList()
+    return _G["SkillFrame"] or _G["SkillsFrame"]
+end
+
+local function IsSkillRow(skillName)
+    return function(_, data) return type(data) == "table" and not data.isHeader and data.name == skillName end
+end
+
+-- Unfolds the skill's header and returns its row and the row's name text,
+-- or nil. Classic's list is twelve rows over a faux scroll frame, scrolled
+-- to the skill; Forever's is a scroll list whose rows carry their line, and
+-- a row out of view stays so (no write into the client's list).
 function Highlight:RevealSkillRow(skillName, headerName)
-    local list, scroll = _G["SkillFrame"], _G["SkillListScrollFrame"]
-    if not (list and list:IsVisible() and scroll and GetNumSkillLines) then return nil end
+    local lines, list = ns.SkillLines, SkillList()
+    if not (list and list:IsVisible() and lines and lines.Available()) then return nil end
     local target
     for _ = 1, 2 do
         local headerIndex, headerOpen
-        for i = 1, GetNumSkillLines() do
-            local lineName, isHeader, isExpanded = GetSkillLineInfo(i)
+        for i = 1, lines.Count() do
+            local lineName, isHeader, isExpanded = lines.Line(i)
             if isHeader then
                 if lineName == headerName then headerIndex, headerOpen = i, isExpanded end
             elseif lineName == skillName then
@@ -3980,22 +3991,30 @@ function Highlight:RevealSkillRow(skillName, headerName)
             end
         end
         if target or not headerIndex or headerOpen then break end
-        ExpandSkillHeader(headerIndex)
+        lines.Expand(headerIndex)
     end
     if not target then return nil end
+    if list.ScrollBox then
+        local row = list.ScrollBox:FindFrameByPredicate(IsSkillRow(skillName))
+        local label = row and row.Content and row.Content.Name
+        if not label then return nil end
+        return row, label
+    end
+    local scroll = _G["SkillListScrollFrame"]
+    if not scroll then return nil end
     local rows = SKILLS_TO_DISPLAY or 12
     local offset = FauxScrollFrame_GetOffset(scroll)
     if target <= offset or target > offset + rows then
         local bar = _G["SkillListScrollFrameScrollBar"]
         if not bar then return nil end
-        local top = mmax(0, mmin(target - mceil(rows / 2), GetNumSkillLines() - rows))
+        local top = mmax(0, mmin(target - mceil(rows / 2), lines.Count() - rows))
         bar:SetValue(top * (SKILLFRAME_SKILL_HEIGHT or 15))
         offset = FauxScrollFrame_GetOffset(scroll)
     end
     -- The list redraws a frame after a header unfolds: the row must name the skill.
     local label = _G["SkillRankFrame" .. (target - offset) .. "SkillName"]
     if not (label and label:GetText() == skillName) then return nil end
-    return _G["SkillRankFrame" .. (target - offset) .. "Border"]
+    return _G["SkillRankFrame" .. (target - offset) .. "Border"], label
 end
 
 function Highlight:Cancel()

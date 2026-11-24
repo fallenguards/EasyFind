@@ -2,8 +2,9 @@
 
 local H = require("Harness")
 
-local function Load(numSpecs)
+local function Load(numSpecs, skillInfo)
     local env = H.newEnv()
+    env.C_SkillInfo = skillInfo
     env.UnitClass = function() return "Warrior", "WARRIOR", 1 end
     env.GetNumSpecializationsForClassID = function() return numSpecs end
     env.GetSpecializationInfoForClassID = function() return 71, "Arms" end
@@ -29,6 +30,16 @@ function tests.currencies_onForever()
     local caps = Load(1)
     H.assertTrue(caps.forever, "loaded as Forever")
     H.assertTrue(caps.currencies, "Forever has the currency tab")
+end
+
+-- Forever's character window has the Skills tab, read through C_SkillInfo
+-- (a table a line); retail's C_SkillInfo holds only its event. Forever got no
+-- skill rows (no Mining with its bar) while the switch asked for a classic
+-- client (2026-11-24).
+function tests.skills_onForever_offOnRetail()
+    local forever = Load(1, { GetNumSkillLines = function() return 0 end, GetSkillLineInfo = function() end })
+    H.assertTrue(forever.skills, "Forever lists skills")
+    H.assertFalse(Load(3, {}).skills, "retail has no skill list")
 end
 
 local pass, fail, failures = H.runSuite("Caps", tests)

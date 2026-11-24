@@ -47,23 +47,42 @@ local function loadFlatAnchoring()
     return ns.ResultRender
 end
 
--- The skill reader alone, sliced from the file, over a classic skill list.
-local function loadSkillReader(lines)
+-- The skill list's reader (ns.SkillLines) through the named function,
+-- sliced from the file and run in env.
+local function loadSkillSlice(upTo, env)
     local f = assert(io.open(H.ADDON_ROOT .. "/Database/Main.lua", "rb"))
     local src = f:read("*a")
     f:close()
-    local s = assert(src:find("function Database:PopulateDynamicSkills()", 1, true), "reader not found")
-    local _, e = src:find("\nend\r?\n", s)
-    assert(e, "end of the reader not found")
-    local data, Database = {}, {}
-    local env = setmetatable({
-        Database = Database, uiSearchData = data, slower = string.lower, ns = {},
-        RemoveEntriesByCategory = function() end, GetTime = function() return 0 end,
-        GetNumSkillLines = function() return #lines end,
-        GetSkillLineInfo = function(i) return (rawget(table, "unpack") or unpack)(lines[i]) end,
-    }, { __index = _G })
+    local s = assert(src:find("-- The character window's skill list:", 1, true), "the skill list's reader not found")
+    local at = assert(src:find(upTo, s, true), upTo .. " not found")
+    local _, e = src:find("\nend\r?\n", at)
+    assert(e, "end of " .. upTo .. " not found")
+    env.ns = env.ns or {}
     env._G = env
-    assert(load(src:sub(s, e), "=Main.lua PopulateDynamicSkills", "t", env))()
+    assert(load(src:sub(s, e), "=Main.lua skills", "t", setmetatable(env, { __index = _G })))()
+    return env
+end
+
+-- The skill reader over a classic skill list (the globals), or Forever's
+-- (C_SkillInfo, a table a line).
+local function loadSkillReader(lines, forever)
+    local data, Database = {}, {}
+    local env = { Database = Database, uiSearchData = data, slower = string.lower,
+        RemoveEntriesByCategory = function() end, GetTime = function() return 0 end }
+    if forever then
+        env.C_SkillInfo = {
+            GetNumSkillLines = function() return #lines end,
+            GetSkillLineInfo = function(i)
+                local l = lines[i]
+                return { name = l[1], isHeader = l[2], isCollapsed = not l[3], rank = l[4] or 0,
+                         tempPoints = l[5] or 0, modifier = l[6] or 0, maxRank = l[7] or 0 }
+            end,
+        }
+    else
+        env.GetNumSkillLines = function() return #lines end
+        env.GetSkillLineInfo = function(i) return (rawget(table, "unpack") or unpack)(lines[i]) end
+    end
+    loadSkillSlice("function Database:PopulateDynamicSkills()", env)
     return Database, data
 end
 
@@ -84,19 +103,50 @@ function tests.skillRowsCarryTheirRank()
     H.assertEq(data[2].skillHeader, "Weapon Skills")
 end
 
+-- Forever reads its Skills tab through C_SkillInfo, a table a line: the
+-- same rows with their bars (no Mining row with its bar there until
+-- 2026-11-24).
+function tests.foreverSkillRowsCarryTheirRank()
+    local Database, data = loadSkillReader({
+        { "Professions", true, true },
+        { "Mining", false, nil, 170, 5, 0, 300 },
+        { "Weapon Skills", true, true },
+        { "Swords", false, nil, 290, 0, 10, 300 },
+    }, true)
+    H.assertTrue(Database:PopulateDynamicSkills())
+    H.assertEq(data[1].name, "Mining")
+    H.assertEq(data[1].skillRank, 175, "temporary points count")
+    H.assertEq(data[1].skillMaxRank, 300)
+    H.assertEq(data[2].skillModifier, 10)
+    H.assertEq(data[2].skillHeader, "Weapon Skills")
+end
+
+-- Forever's list gives each profession twice in a row, the same rank both
+-- times: two identical rows showed (2026-11-26, a hunter's Leatherworking).
+-- One row a heading's skill.
+function tests.foreverDoubledLines_oneRowEach()
+    local Database, data = loadSkillReader({
+        { "Professions", true, true },
+        { "Leatherworking", false, nil, 150, 0, 0, 225 },
+        { "Leatherworking", false, nil, 150, 0, 0, 225 },
+        { "Skinning", false, nil, 160, 0, 0, 225 },
+        { "Skinning", false, nil, 160, 0, 0, 225 },
+        { "Weapon Skills", true, true },
+        { "Bows", false, nil, 135, 0, 0, 135 },
+    }, true)
+    H.assertTrue(Database:PopulateDynamicSkills())
+    local names = {}
+    for i, row in ipairs(data) do names[i] = row.name end
+    H.assertEq(table.concat(names, ", "), "Leatherworking, Skinning, Bows")
+end
+
 -- The Skills filter's flyout: the skill list's headings, read as it opens.
 function tests.skillHeadingsAreTheFlyoutsSwitches()
     local lines = { { "Class Skills", true }, { "Arcane", false }, { "Professions", true }, { "Mining", false } }
-    local f = assert(io.open(H.ADDON_ROOT .. "/Database/Main.lua", "rb"))
-    local src = f:read("*a")
-    f:close()
-    local s = assert(src:find("function Database.SkillHeadings()", 1, true))
-    local _, e = src:find("\nend\r?\n", s)
     local Database = {}
-    local env = setmetatable({ Database = Database,
+    loadSkillSlice("function Database.SkillHeadings()", { Database = Database,
         GetNumSkillLines = function() return #lines end,
-        GetSkillLineInfo = function(i) return lines[i][1], lines[i][2] end }, { __index = _G })
-    assert(load(src:sub(s, e), "=Main.lua SkillHeadings", "t", env))()
+        GetSkillLineInfo = function(i) return lines[i][1], lines[i][2] end })
     local list = Database.SkillHeadings()
     H.assertEq(#list, 2)
     H.assertEq(list[1].key, "Class Skills")

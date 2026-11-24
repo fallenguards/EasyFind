@@ -197,7 +197,7 @@ read_globals = {
     "EJ_GetNumLoot", "EJ_GetLootInfoByIndex",
     "HasAction", "PlaceAction", "PickupAction", "ClearCursor", "GetActionCooldown",
     "CursorHasItem", "DeleteCursorItem",
-    "PickupSpell", "PickupItem", "PickupMacro", "C_Spell",
+    "PickupSpell", "PickupItem", "PickupMacro", "C_Spell", "C_SkillInfo",
     "GetCursorInfo", "GetMouseFoci", "GetMouseFocus",
     "SetCursor", "ResetCursor",
     "ACCEPT", "CANCEL", "StaticPopup_Show",

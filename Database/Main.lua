@@ -414,43 +414,86 @@ function Database:PopulateDynamicCurrencies()
     return true
 end
 
+-- The character window's skill list: the classic clients' globals, or
+-- Forever's C_SkillInfo (a table a line, its Skills tab's own reader).
+do
+    local SkillLines = {}
+    ns.SkillLines = SkillLines
+
+    function SkillLines.Available()
+        return (type(GetNumSkillLines) == "function" and type(GetSkillLineInfo) == "function")
+            or (C_SkillInfo ~= nil and C_SkillInfo.GetNumSkillLines ~= nil and C_SkillInfo.GetSkillLineInfo ~= nil)
+    end
+
+    function SkillLines.Count()
+        if type(GetNumSkillLines) == "function" then return GetNumSkillLines() or 0 end
+        return C_SkillInfo and C_SkillInfo.GetNumSkillLines and C_SkillInfo.GetNumSkillLines() or 0
+    end
+
+    -- name, isHeader, isExpanded, rank, tempPoints, modifier, maxRank
+    function SkillLines.Line(i)
+        if type(GetSkillLineInfo) == "function" then
+            local name, isHeader, isExpanded, rank, tempPoints, modifier, maxRank = GetSkillLineInfo(i)
+            return name, isHeader, isExpanded, rank, tempPoints, modifier, maxRank
+        end
+        local info = C_SkillInfo.GetSkillLineInfo(i)
+        if not info then return nil end
+        return info.name, info.isHeader, not info.isCollapsed, info.rank, info.tempPoints, info.modifier, info.maxRank
+    end
+
+    function SkillLines.Expand(i)
+        if type(ExpandSkillHeader) == "function" then return ExpandSkillHeader(i) end
+        C_SkillInfo.ExpandSkillHeader(i)
+    end
+
+    function SkillLines.Collapse(i)
+        if type(CollapseSkillHeader) == "function" then return CollapseSkillHeader(i) end
+        C_SkillInfo.CollapseSkillHeader(i)
+    end
+end
+
 -- The skill list's headings as the Skills filter's switches.
 function Database.SkillHeadings()
-    local out = {}
-    for i = 1, GetNumSkillLines and GetNumSkillLines() or 0 do
-        local name, isHeader = GetSkillLineInfo(i)
+    local SkillLines, out = ns.SkillLines, {}
+    for i = 1, SkillLines.Available() and SkillLines.Count() or 0 do
+        local name, isHeader = SkillLines.Line(i)
         if isHeader and name and name ~= "" then out[#out + 1] = { key = name, label = name } end
     end
     return out
 end
 
--- Classic's skill list (character window, Skills tab): one entry per skill.
+-- The character window's Skills tab (classic clients, Forever): one entry per skill.
 function Database:PopulateDynamicSkills()
-    if not (GetNumSkillLines and GetSkillLineInfo) then return false end
-    if GetNumSkillLines() == 0 then return false end
+    local SkillLines = ns.SkillLines
+    if not SkillLines.Available() then return false end
+    if SkillLines.Count() == 0 then return false end
 
     RemoveEntriesByCategory("Skill")
 
     -- Skills under a folded header are not listed: unfold, read, fold back.
     local folded
-    for i = GetNumSkillLines(), 1, -1 do
-        local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
+    for i = SkillLines.Count(), 1, -1 do
+        local headerName, isHeader, isExpanded = SkillLines.Line(i)
         if isHeader and not isExpanded then
             folded = folded or {}
             folded[headerName] = true
             ns.skillHeadersToggledAt = GetTime()
-            ExpandSkillHeader(i)
+            SkillLines.Expand(i)
         end
     end
 
     local characterLabel = _G["CHARACTER_BUTTON"] or "Character Info"
     local skillsLabel = _G["SKILLS"] or "Skills"
     local header, headerLower
-    for i = 1, GetNumSkillLines() do
-        local skillName, isHeader, _, rank, tempPoints, modifier, maxRank = GetSkillLineInfo(i)
+    -- Forever's list gives each profession twice in a row (2026-11-26): one row a heading's skill.
+    local listed = {}
+    for i = 1, SkillLines.Count() do
+        local skillName, isHeader, _, rank, tempPoints, modifier, maxRank = SkillLines.Line(i)
         if isHeader then
             header, headerLower = skillName, slower(skillName or "")
-        elseif skillName and skillName ~= "" then
+            listed = {}
+        elseif skillName and skillName ~= "" and not listed[skillName] then
+            listed[skillName] = true
             local nameLower = slower(skillName)
             local keywords = { nameLower, "skill", headerLower }
             uiSearchData[#uiSearchData + 1] = {
@@ -477,9 +520,9 @@ function Database:PopulateDynamicSkills()
     end
 
     if folded then
-        for i = GetNumSkillLines(), 1, -1 do
-            local headerName, isHeader, isExpanded = GetSkillLineInfo(i)
-            if isHeader and isExpanded and folded[headerName] then CollapseSkillHeader(i) end
+        for i = SkillLines.Count(), 1, -1 do
+            local headerName, isHeader, isExpanded = SkillLines.Line(i)
+            if isHeader and isExpanded and folded[headerName] then SkillLines.Collapse(i) end
         end
     end
     return true
