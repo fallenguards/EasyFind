@@ -342,10 +342,13 @@ function Render.SettingsWidget(resultRow, data, entry)
 
 end
 
--- A learned recipe's craft controls, as its profession window has them:
--- a count, Create, Create All. Shown on the hovered or selected row, at
--- the right where the name ended; the name stops short of them.
-local CRAFT_H, CRAFT_GAP, CRAFT_MIN_NAME = 20, 4, 60
+-- A learned recipe's craft controls: a count with its arrows inside its
+-- well, Create, All n. Shown on the hovered or selected row, on the name's
+-- line where the name ended; the name stops short of them, the hint line
+-- runs under them. Compact so the name and the hint stay readable (the
+-- window's own five pieces hid both, 2026-11-24).
+local CRAFT_H, CRAFT_GAP, CRAFT_MIN_NAME = 16, 4, 60
+local COUNT_W, ARROW_W = 42, 12
 local craft = { shown = {} }
 
 local function RightPoint(region)
@@ -367,6 +370,18 @@ local function TakeBack(region, edge, pushed)
     end
     region:SetPoint("RIGHT", edge[1], edge[2], edge[3], edge[4])
     return edge
+end
+
+-- How far the name line's middle sits over the row's middle: the name's
+-- bottom stands that gap over it (Layout's stackHalfGap), then half its height.
+local function NameLineMiddle(row)
+    local text, lift = row.text, 0
+    for i = 1, text:GetNumPoints() do
+        local point, _, _, _, y = text:GetPoint(i)
+        if point == "BOTTOMLEFT" then lift = y or 0 end
+    end
+    local h = text.GetStringHeight and text:GetStringHeight() or 0
+    return lift + (h > 0 and h or 12) / 2
 end
 
 local function CraftCount(row)
@@ -392,28 +407,46 @@ local function BuildCraft(row)
     g:SetFrameLevel(row:GetFrameLevel() + 5)
     g:SetHeight(CRAFT_H)
     g:Hide()
-    local minus = ns.CreateModernButton(g, "-", 18, CRAFT_H)
-    minus:SetPoint("LEFT", g, "LEFT", 0, 0)
     local shell = CreateFrame("Frame", nil, g)
-    shell:SetSize(30, CRAFT_H)
-    shell:SetPoint("LEFT", minus, "RIGHT", 2, 0)
+    shell:SetSize(COUNT_W, CRAFT_H)
+    shell:SetPoint("LEFT", g, "LEFT", 0, 0)
     local inset = ns.CreateRingedWell(shell, 5)
     ns.PaintInputWell(shell)
+    -- An arrow at each end of the well: a click there steps the count.
+    local function Arrow(glyph, point)
+        local btn = CreateFrame("Button", nil, shell)
+        btn:SetFrameLevel(inset:GetFrameLevel() + 2)
+        btn:SetPoint("TOP" .. point)
+        btn:SetPoint("BOTTOM" .. point)
+        btn:SetWidth(ARROW_W)
+        local fs = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        fs:SetPoint("CENTER")
+        fs:SetText(glyph)
+        fs:SetTextColor(0.65, 0.65, 0.65)
+        ns.ShadeText(fs)
+        btn:SetScript("OnEnter", function() fs:SetTextColor(1, 1, 1) end)
+        btn:SetScript("OnLeave", function() fs:SetTextColor(0.65, 0.65, 0.65) end)
+        return btn
+    end
+    local minus, plus = Arrow("<", "LEFT"), Arrow(">", "RIGHT")
     local box = CreateFrame("EditBox", nil, inset)
-    box:SetPoint("TOPLEFT", 2, 0)
-    box:SetPoint("BOTTOMRIGHT", -2, 0)
+    box:SetPoint("TOPLEFT", ARROW_W, 0)
+    box:SetPoint("BOTTOMRIGHT", -ARROW_W, 0)
     box:SetFontObject("GameFontHighlightSmall")
     box:SetJustifyH("CENTER")
     box:SetAutoFocus(false)
     box:SetNumeric(true)
     box:SetMaxLetters(3)
     box:SetText("1")
-    local plus = ns.CreateModernButton(g, "+", 18, CRAFT_H)
-    plus:SetPoint("LEFT", shell, "RIGHT", 2, 0)
     local create = ns.CreateModernButton(g, _G["CREATE_PROFESSION"] or "Create", 60, CRAFT_H)
-    create:SetPoint("LEFT", plus, "RIGHT", CRAFT_GAP, 0)
-    local all = ns.CreateModernButton(g, "", 80, CRAFT_H)
+    create:SetPoint("LEFT", shell, "RIGHT", CRAFT_GAP, 0)
+    local all = ns.CreateModernButton(g, "", 50, CRAFT_H)
     all:SetPoint("LEFT", create, "RIGHT", CRAFT_GAP, 0)
+    -- The short label's long form, the window's own words.
+    Utils.AttachDelayedTooltip(all, "ANCHOR_TOP", function()
+        return (_G["PROFESSIONS_CREATE_ALL_FORMAT"] or "%s [%d]")
+            :format(_G["PROFESSIONS_CREATE_ALL"] or "Create All", row._craftMost or 0)
+    end)
     row.craftGroup, row.craftBox, row.craftCreate, row.craftAll = g, box, create, all
 
     local function Step(delta)
@@ -422,6 +455,8 @@ local function BuildCraft(row)
     end
     minus:SetScript("OnClick", function() Step(-1) Refocus() end)
     plus:SetScript("OnClick", function() Step(1) Refocus() end)
+    shell:EnableMouseWheel(true)
+    shell:SetScript("OnMouseWheel", function(_, delta) Step(delta > 0 and 1 or -1) end)
     create:SetScript("OnClick", function()
         ns.ResultHandlers:CraftRecipe(row.data, CraftCount(row))
         Refocus()
@@ -476,22 +511,18 @@ local function Lay(row)
         row._craftMost = most
         row.craftCreate:SetEnabled(most > 0)
         row.craftAll:SetEnabled(most > 0)
-        row.craftAll:SetText((_G["PROFESSIONS_CREATE_ALL_FORMAT"] or "%s [%d]")
-            :format(_G["PROFESSIONS_CREATE_ALL"] or "Create All", most))
+        row.craftAll:SetText((_G["ALL"] or "All") .. " " .. most)
         -- The narrowest window keeps a stub of the name; the labels give way.
-        local fixed = 18 + 2 + 30 + 2 + 18 + CRAFT_GAP * 2
+        local fixed = COUNT_W + CRAFT_GAP * 2
         local room = math.max(80, row:GetWidth() - CRAFT_MIN_NAME - 40 - fixed)
         ns.FitButtonRow({ row.craftCreate, row.craftAll }, room, CRAFT_GAP, 36)
         local width = fixed + row.craftCreate:GetWidth() + row.craftAll:GetWidth()
         g:SetWidth(width)
         g:ClearAllPoints()
-        g:SetPoint("RIGHT", anchor[1], anchor[2], anchor[3], 0)
+        -- On the name's line: its middle, the name's bottom over the row's middle.
+        g:SetPoint("RIGHT", anchor[1], anchor[2], anchor[3], NameLineMiddle(row))
         row.text:SetPoint("RIGHT", anchor[1], anchor[2], anchor[3] - width - 6, anchor[4])
         row._craftPush = { anchor[1], anchor[2], anchor[3] - width - 6 }
-        if sub then
-            row.pathSubtext:SetPoint("RIGHT", sub[1], sub[2], sub[3] - width - 6, sub[4])
-            row._craftSubPush = { sub[1], sub[2], sub[3] - width - 6 }
-        end
         if not g:IsShown() then
             g:Show()
             craft.shown[row] = true

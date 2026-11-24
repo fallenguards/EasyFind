@@ -263,7 +263,7 @@ local function Laid()
     function group:IsMouseOver() return false end
     function group:SetWidth(w) self.width = w end
     function group:ClearAllPoints() end
-    function group:SetPoint(_, _, _, x) self.x = x end
+    function group:SetPoint(_, _, _, x, y) self.x, self.y = x, y end
     local sub = Region(-8)
     sub.shown = false
     local row = { text = Region(-8), pathSubtext = sub, craftGroup = group, data = { professionRecipeID = 2963 },
@@ -285,15 +285,15 @@ function tests.aRedrawWhileHovered_neverPushesTheNameTwice()
     local Render, row, hovered = Laid()
     local entry = { data = row.data }
     Render.ApplyCraftControls(row, entry)
-    H.assertEq(row.text.points[1][4], -239, "hovered: the name stops short of the controls")
+    H.assertEq(row.text.points[1][4], -211, "hovered: the name stops short of the controls")
     H.assertEq(row.craftGroup.x, -8, "the controls end where the name did")
     Render.ApplyCraftControls(row, entry)   -- a redraw that left the name be
-    H.assertEq(row.text.points[1][4], -239, "pushed once, not to -470")
+    H.assertEq(row.text.points[1][4], -211, "pushed once, not to -414")
     H.assertEq(row.craftGroup.x, -8, "the controls stay in the row")
     row.text:SetPoint("RIGHT", "row", "RIGHT", -20, 0)   -- a redraw that laid it again
     Render.ApplyCraftControls(row, entry)
     H.assertEq(row.craftGroup.x, -20, "a new edge is taken")
-    H.assertEq(row.text.points[1][4], -251)
+    H.assertEq(row.text.points[1][4], -223)
     hovered.v = false
     Render.LayoutCraft(row)
     H.assertEq(row.text.points[1][4], -20, "unhovered: the name gets its edge back")
@@ -336,7 +336,7 @@ function tests.aRedrawOfTheSameRecipe_neverHidesTheControls()
     Render.ApplyCraftControls(row, entry)
     H.assertEq(hides, 0, "never hidden by a redraw")
     H.assertTrue(row.craftGroup:IsShown())
-    H.assertEq(row.text.points[1][4], -239, "the name pushed once")
+    H.assertEq(row.text.points[1][4], -211, "the name pushed once")
 end
 
 -- Forever, 2026-11-17, Create All's last craft: "C stack overflow" in
@@ -380,9 +380,40 @@ function tests.theRowControls_areWired()
     H.assertTrue(Source("Search/Results/Navigation.lua"):find("ns.ResultRender.LayoutCraft(resultRow)", 1, true) ~= nil)
     local widgets = Source("Search/Results/Render/Widgets.lua")
     H.assertTrue(widgets:find('_G["CREATE_PROFESSION"]', 1, true) ~= nil, "the game's own Create")
-    H.assertTrue(widgets:find('_G["PROFESSIONS_CREATE_ALL_FORMAT"]', 1, true) ~= nil, "and its Create All [n]")
     H.assertTrue(widgets:find("ns.ResultHandlers:CraftRecipe(row.data, row._craftMost)", 1, true) ~= nil,
         "Create All crafts in its own click")
+end
+
+-- On the name's line, the hint line under them uncut, and left of the
+-- row's own icon (they covered both, 2026-11-24): the controls' middle
+-- over the row's by the name's lift and half its height; the hint keeps
+-- its edge; a profession's or recipe's icon counts as the row's right icon.
+function tests.theControls_sitOnTheNameLine_leftOfTheIcon()
+    local Render, row = Laid()
+    row.text.points[2] = { "BOTTOMLEFT", "row", "LEFT", 4, 1 }
+    function row.text:GetStringHeight() return 14 end
+    row.pathSubtext.shown = true
+    Render.ApplyCraftControls(row, { data = row.data })
+    H.assertEq(row.craftGroup.y, 8, "the name line's middle: its lift 1, half its 14")
+    H.assertEq(row.pathSubtext.points[1][4], -8, "the hint line keeps its edge")
+    local icons = Source("Search/Results/Icons.lua")
+    local rule = icons:match("local function IsRightSideIconData%(d%)(.-)\nend")
+    H.assertTrue(rule ~= nil and rule:find("or d.professionSkillLine", 1, true) ~= nil,
+        "the recipe's icon is the row's right icon: the name, and the controls, stop before it")
+end
+
+-- Compact, so the name and the hint stay readable (2026-11-24): the count's
+-- arrows inside its well and the wheel over it, "All n" with the window's
+-- own "Create All [n]" on its tooltip.
+function tests.theControls_areCompact_andSayWhatTheyDo()
+    local widgets = Source("Search/Results/Render/Widgets.lua")
+    H.assertTrue(widgets:find("local COUNT_W, ARROW_W = 42, 12", 1, true) ~= nil, "one well for the count")
+    H.assertTrue(widgets:find('local minus, plus = Arrow("<", "LEFT"), Arrow(">", "RIGHT")', 1, true) ~= nil,
+        "its arrows inside it")
+    H.assertTrue(widgets:find('shell:SetScript("OnMouseWheel"', 1, true) ~= nil, "the wheel steps it")
+    H.assertTrue(widgets:find('row.craftAll:SetText((_G["ALL"] or "All") .. " " .. most)', 1, true) ~= nil, "All n")
+    H.assertTrue(widgets:find('_G["PROFESSIONS_CREATE_ALL_FORMAT"]', 1, true) ~= nil, "its tooltip: Create All [n]")
+    H.assertTrue(widgets:find("local fixed = COUNT_W + CRAFT_GAP * 2", 1, true) ~= nil, "laid out by its own size")
 end
 
 local pass, fail, failures = H.runSuite("CraftFromResults", tests)
