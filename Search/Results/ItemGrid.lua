@@ -372,7 +372,10 @@ local function PaintCooldown(btn)
     local cell = btn.cell
     local start, duration, enable
     if cell and GetItemCooldown and IsOwn(btn) then start, duration, enable = GetItemCooldown(cell.itemID) end
-    if start and duration and duration > 0 and enable ~= 0 and enable ~= false then
+    -- Secret in a fight: never compared or drawn.
+    if issecretvalue and (issecretvalue(start) or issecretvalue(duration) or issecretvalue(enable)) then
+        btn.cooldown:Clear()
+    elseif start and duration and duration > 0 and enable ~= 0 and enable ~= false then
         btn.cooldown:SetCooldown(start, duration)
     else
         btn.cooldown:Clear()

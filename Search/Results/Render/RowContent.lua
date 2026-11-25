@@ -630,11 +630,13 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             Search:UpdateGearSetSpecBadge(resultRow, data.gearSetSpecIcon)
         end
 
-        -- Cooldown sweep overlay (toys, abilities, outfits)
+        -- Cooldown sweep overlay (toys, abilities, outfits). In a fight the
+        -- numbers can be secret: never compared or drawn then (2026-11-25).
         resultRow.amountText:Hide()
         if data.toyItemID and iconFileID and GetItemCooldown then
             local startTime, duration = GetItemCooldown(data.toyItemID)
-            if startTime and duration and duration > 0 then
+            if startTime and duration and not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration)))
+               and duration > 0 then
                 resultRow.iconCooldown:SetAllPoints(resultRow.icon)
                 resultRow.iconCooldown:SetCooldown(startTime, duration)
                 resultRow.iconCooldown:Show()
@@ -643,7 +645,8 @@ function Render.RowContent(owner, resultRow, entry, state, isInertRow)
             end
         elseif data.spellID and data.category == "Ability" and iconFileID and C_Spell and C_Spell.GetSpellCooldown then
             local cd = C_Spell.GetSpellCooldown(data.spellID)
-            if cd and cd.startTime and cd.duration and cd.duration > 0 then
+            if cd and cd.startTime and cd.duration and not (issecretvalue and (issecretvalue(cd.startTime) or issecretvalue(cd.duration)))
+               and cd.duration > 0 then
                 resultRow.iconCooldown:SetAllPoints(resultRow.icon)
                 resultRow.iconCooldown:SetCooldown(cd.startTime, cd.duration)
                 resultRow.iconCooldown:Show()
