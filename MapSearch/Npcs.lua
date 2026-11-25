@@ -669,6 +669,15 @@ function N.HasID(npcID)
     return IndexOfID(npcID) ~= nil
 end
 
+-- A creature's model, for its face (the GPS's target tiles); nil when the
+-- catalog lacks it or has none.
+function N.DisplayOfID(npcID)
+    if not Load() then return nil end
+    local i = IndexOfID(npcID)
+    local display = i and Rec.display(i)
+    return display and display ~= 0 and display or nil
+end
+
 -- A creature's name in the client's language; nil when the catalog lacks it.
 function N.NameOfID(npcID)
     if not Load() then return nil end
