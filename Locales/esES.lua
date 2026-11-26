@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic para abrir, otro clic para cerra
 L["SHOWME_SAY_REMOVE"]                  = "Arrastra aquí para quitar"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovedades|r\n" ..
-    "    |cff999999-|r WoW Forever: cinco mazmorras nuevas con sus jefes, su botín y el camino a su entrada\n" ..
-    "    |cff999999-|r WoW Forever: los nuevos botines de los jefes de las mazmorras clásicas, y de dónde salen los objetos propios de Forever\n" ..
+    "    |cff999999-|r Shift en una receta muestra sus componentes y cuántos tienes; en WoW Forever se encuentran las recetas de todas las profesiones\n" ..
+    "    |cff999999-|r Alt en un objeto muestra qué personajes tuyos lo tienen y cuántos\n" ..
+    "    |cff999999-|r WoW Forever: Minería, las habilidades con armas y los idiomas son filas con su barra\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorregido|r\n" ..
-    "    |cff999999-|r El camino a los instructores de sacerdotes y magos de Cima del Trueno baja a las Pozas de la Visión\n"
+    "    |cff999999-|r Ya no hay errores de tiempo de reutilización en combate\n" ..
+    "    |cff999999-|r WoW Forever: los objetos de Season of Discovery que nunca cargaban ya no aparecen\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Añadir alias"

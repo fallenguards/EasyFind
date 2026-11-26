@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clique para abrir, clique de novo par
 L["SHOWME_SAY_REMOVE"]                  = "Arraste aqui para remover"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovidades|r\n" ..
-    "    |cff999999-|r WoW Forever: cinco masmorras novas com seus chefes, seu saque e o caminho até a entrada\n" ..
-    "    |cff999999-|r WoW Forever: os novos saques dos chefes das masmorras clássicas, e de onde vêm os itens próprios do Forever\n" ..
+    "    |cff999999-|r Shift em uma receita mostra seus reagentes e quantos você tem; no WoW Forever as receitas de todas as profissões são encontradas\n" ..
+    "    |cff999999-|r Alt em um item mostra quais dos seus personagens o têm, e quantos\n" ..
+    "    |cff999999-|r WoW Forever: Mineração, habilidades com armas e idiomas são linhas com sua barra\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigido|r\n" ..
-    "    |cff999999-|r O caminho até os instrutores de sacerdote e mago de Penhasco do Trovão desce aos Poços da Visão\n"
+    "    |cff999999-|r Sem mais erros de recarga em combate\n" ..
+    "    |cff999999-|r WoW Forever: os itens de Season of Discovery que nunca carregavam sumiram\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Adicionar apelido"

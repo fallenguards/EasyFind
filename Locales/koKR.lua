@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "클릭하면 열리고 다시 클릭�
 L["SHOWME_SAY_REMOVE"]                  = "여기로 드래그하면 제거됩니다"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff새 기능|r\n" ..
-    "    |cff999999-|r WoW Forever: 새 던전 다섯 곳과 그 우두머리, 전리품, 입구까지 가는 길\n" ..
-    "    |cff999999-|r WoW Forever: 클래식 던전 우두머리의 새 전리품과 Forever 고유 아이템의 출처\n" ..
+    "    |cff999999-|r 제조법에서 Shift를 누르면 재료와 보유 수량이 표시되며, WoW Forever에서는 모든 전문 기술의 제조법이 검색됩니다\n" ..
+    "    |cff999999-|r 아이템에서 Alt를 누르면 어느 캐릭터가 몇 개 가지고 있는지 표시됩니다\n" ..
+    "    |cff999999-|r WoW Forever: 채광, 무기 숙련, 언어가 막대와 함께 줄로 표시됩니다\n" ..
     "|cffFFD100\226\128\162|r |cffffffff수정|r\n" ..
-    "    |cff999999-|r 썬더 블러프의 사제 및 마법사 상급자에게 가는 길이 예언의 웅덩이 안으로 이어집니다\n"
+    "    |cff999999-|r 전투 중 재사용 대기시간 오류가 더 이상 발생하지 않습니다\n" ..
+    "    |cff999999-|r WoW Forever: 불러와지지 않던 Season of Discovery 아이템이 사라졌습니다\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "별칭 추가"

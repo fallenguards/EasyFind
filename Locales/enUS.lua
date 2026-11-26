@@ -330,10 +330,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Click to open, click again to close"
 L["SHOWME_SAY_REMOVE"]                  = "Drag here to remove"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNew|r\n" ..
-    "    |cff999999-|r WoW Forever: five new dungeons, The Drowned City, Blackmaw Hold, Alcaz Prison, The Shaper's Terrace and Krol'dok Stronghold, with their bosses, loot and the way to their entrances\n" ..
-    "    |cff999999-|r WoW Forever: the new drops of the classic dungeons' bosses, like Skum's Bucket, and where Forever's own items come from\n" ..
+    "    |cff999999-|r Shift on a recipe lists its reagents and how many you have; on WoW Forever every profession's recipes are found\n" ..
+    "    |cff999999-|r Alt on an item lists which of your characters hold it, and how many\n" ..
+    "    |cff999999-|r WoW Forever: Mining, weapon skills and languages are rows with their bars\n" ..
     "|cffFFD100\226\128\162|r |cffffffffFixed|r\n" ..
-    "    |cff999999-|r Directions to Thunder Bluff's priest and mage trainers lead down into the Pools of Vision\n"
+    "    |cff999999-|r No more cooldown errors in a fight\n" ..
+    "    |cff999999-|r WoW Forever: Season of Discovery items that never loaded are gone\n"
 
 -- =============================================================================
 -- Shared/Utils.lua  --  context menu labels

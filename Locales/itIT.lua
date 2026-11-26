@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic per aprire, di nuovo per chiuder
 L["SHOWME_SAY_REMOVE"]                  = "Trascina qui per rimuovere"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNovità|r\n" ..
-    "    |cff999999-|r WoW Forever: cinque nuove spedizioni con i loro boss, il loro bottino e la strada per l'ingresso\n" ..
-    "    |cff999999-|r WoW Forever: i nuovi bottini dei boss delle spedizioni classiche, e da dove vengono gli oggetti propri di Forever\n" ..
+    "    |cff999999-|r Shift su una ricetta mostra i suoi reagenti e quanti ne hai; in WoW Forever si trovano le ricette di tutte le professioni\n" ..
+    "    |cff999999-|r Alt su un oggetto mostra quali tuoi personaggi lo possiedono, e quanti\n" ..
+    "    |cff999999-|r WoW Forever: Estrazione, le abilità con le armi e le lingue sono righe con la loro barra\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorretto|r\n" ..
-    "    |cff999999-|r La strada verso gli istruttori di sacerdoti e maghi di Picco del Tuono scende nelle Pozze della Visione\n"
+    "    |cff999999-|r Niente più errori del tempo di recupero in combattimento\n" ..
+    "    |cff999999-|r WoW Forever: gli oggetti di Season of Discovery che non si caricavano mai sono spariti\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Aggiungi alias"

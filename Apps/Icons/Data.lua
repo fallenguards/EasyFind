@@ -6,7 +6,7 @@ local ns = EasyFind and EasyFind._ns
 if not ns then return end
 -- This companion's release: read in after an update made while the game
 -- ran, it meets another release's core and stops (the funnel says so).
-if ns.BUILD ~= "5.7.0" then select(2, ...).stale = true return end
+if ns.BUILD ~= "5.8.0" then select(2, ...).stale = true return end
 
 -- Spells a player can learn on any client, by ID: each number is the gap
 -- from the ID before it. The client names them (IconSearch.lua), so an

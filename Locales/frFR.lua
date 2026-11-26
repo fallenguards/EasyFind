@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Clic pour ouvrir, re-clic pour fermer
 L["SHOWME_SAY_REMOVE"]                  = "Glisser ici pour retirer"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNouveautés|r\n" ..
-    "    |cff999999-|r WoW Forever : cinq nouveaux donjons avec leurs boss, leur butin et le chemin jusqu'à leur entrée\n" ..
-    "    |cff999999-|r WoW Forever : les nouveaux butins des boss des donjons classiques, et d'où viennent les objets propres à Forever\n" ..
+    "    |cff999999-|r Shift sur une recette affiche ses composants et combien vous en avez ; dans WoW Forever, les recettes de tous les métiers sont trouvées\n" ..
+    "    |cff999999-|r Alt sur un objet affiche lesquels de vos personnages le possèdent, et combien\n" ..
+    "    |cff999999-|r WoW Forever : Minage, les compétences d'armes et les langues sont des lignes avec leur barre\n" ..
     "|cffFFD100\226\128\162|r |cffffffffCorrigé|r\n" ..
-    "    |cff999999-|r Le chemin vers les maîtres prêtres et mages des Pitons-du-Tonnerre descend dans les Bassins des visions\n"
+    "    |cff999999-|r Plus d'erreurs de temps de recharge en combat\n" ..
+    "    |cff999999-|r WoW Forever : les objets de Season of Discovery qui ne se chargeaient jamais ont disparu\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Ajouter un alias"

@@ -4,6 +4,34 @@ All notable changes to EasyFind will be documented in this file.
 
 ---
 
+## [5.8.0] - 2026-11-26
+
+### Added
+- **Every recipe, with its reagents**: Shift on a recipe row lists what it makes and its reagents, with how many you have, bank included; a reagent's click opens where it comes from. On WoW Forever every profession's recipes are found, ranked under your own, and the Professions filter picks whose recipes show: this character's, chosen characters', all your characters' or every profession (the default). A recipe that makes no item, such as an enchant, lists its reagents on a click
+- **Who has an item**: Alt on an item row lists each of your characters holding it, most first, with how many and where (bags, bank, mail, a guild's bank). A character's row opens their page
+- **Skills on WoW Forever**: Mining, weapon skills and languages are rows with their bars, as on Classic; a click opens the Skills tab with the line lit
+
+### Changed
+- **How many you own**: item rows read "Owned: 40, 28 on alts" in place of every character's name, which ran past the row. Each character's count is on Alt
+- **Reagents on an item's sources page**: a craft's reagents have a Reagents section of their own after who teaches it, worded as on the recipe's page ("Need 3, have 40")
+- **Boss rows, one gesture each**: a click opens the journal, Alt shows the dungeon's entrance on the map and Shift lists the loot. A boss's creature row no longer shows beside its boss row; it stays where bosses are filtered out and in the map's search
+- **Crafting from results**: the count, Create and All sit on the recipe name's line and take less room, so the name, the hint and the recipe's icon stay readable
+
+### Fixed
+- **Cooldown errors in a fight**: the cooldown swipe on toy and ability rows and on the item grid no longer throws an error in a fight
+- **No Season of Discovery on WoW Forever**: 5,806 items that stuck on "Retrieving item information" and 302 recipes that doubled the classic ones are gone, and an item the server refuses leaves the results
+- **Holidays during a chat lockdown**: the calendar is read once the lockdown ends, without an error
+- **Settings inside the game's window, Classic theme**: no bar through the page, no title plate on top, and the search box is clear of the border
+- **Script ran too long on a retail crafter**: what a character can craft is read a little at a time
+- **Map tabs beside Shortest Path Forever's**: EasyFind's map tabs sit under its tab column instead of over it, and the two panels take turns
+- **Dressing Room only for what can be worn**: cloth and other items that cannot be worn no longer offer it
+- **The Notes extension's settings**: its own settings page shows its switches again
+
+### Technical Notes
+- **Extension API 1.14**: ShowRows (a page of an extension's rows in its own order), CanShowQuestRewards and ShowQuestRewards
+
+---
+
 ## [5.7.0] - 2026-11-23
 
 ### Added

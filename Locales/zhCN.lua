@@ -299,10 +299,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "点击打开，再点关闭"
 L["SHOWME_SAY_REMOVE"]                  = "拖到这里即可移除"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffff新功能|r\n" ..
-    "    |cff999999-|r WoW Forever：五个新地下城及其首领、掉落和前往入口的路线\n" ..
-    "    |cff999999-|r WoW Forever：经典地下城首领的新掉落，以及 Forever 独有物品的来源\n" ..
+    "    |cff999999-|r 在配方上按 Shift 会列出所需材料和你拥有的数量；WoW Forever 中可以搜到所有专业的配方\n" ..
+    "    |cff999999-|r 在物品上按 Alt 会列出你的哪些角色拥有它，以及数量\n" ..
+    "    |cff999999-|r WoW Forever：采矿、武器技能和语言会以带进度条的条目显示\n" ..
     "|cffFFD100\226\128\162|r |cffffffff修复|r\n" ..
-    "    |cff999999-|r 前往雷霆崖牧师和法师训练师的路线会进入预见之池\n"
+    "    |cff999999-|r 战斗中不再出现冷却错误\n" ..
+    "    |cff999999-|r WoW Forever：一直无法载入的 Season of Discovery 物品已移除\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "添加别名"

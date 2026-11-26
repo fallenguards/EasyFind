@@ -301,10 +301,12 @@ L["SHOWME_SAY_TOGGLE"]                  = "Klick öffnet, nochmal Klick schließ
 L["SHOWME_SAY_REMOVE"]                  = "Hierher ziehen zum Entfernen"
 L["WHATSNEW_BODY"]                      =
     "|cffFFD100\226\128\162|r |cffffffffNeu|r\n" ..
-    "    |cff999999-|r WoW Forever: fünf neue Dungeons mit ihren Bossen, ihrer Beute und dem Weg zu ihren Eingängen\n" ..
-    "    |cff999999-|r WoW Forever: die neuen Beutestücke der klassischen Dungeonbosse, und woher Forevers eigene Gegenstände kommen\n" ..
+    "    |cff999999-|r Shift auf einem Rezept zeigt seine Reagenzien und wie viele du hast; in WoW Forever werden die Rezepte aller Berufe gefunden\n" ..
+    "    |cff999999-|r Alt auf einem Gegenstand zeigt, welche deiner Charaktere ihn haben, und wie viele\n" ..
+    "    |cff999999-|r WoW Forever: Bergbau, Waffenfertigkeiten und Sprachen sind Zeilen mit ihrem Balken\n" ..
     "|cffFFD100\226\128\162|r |cffffffffBehoben|r\n" ..
-    "    |cff999999-|r Der Weg zu den Priester- und Magierlehrern in Donnerfels führt hinab in die Teiche der Visionen\n"
+    "    |cff999999-|r Keine Abklingzeit-Fehler mehr im Kampf\n" ..
+    "    |cff999999-|r WoW Forever: Gegenstände aus Season of Discovery, die nie geladen wurden, sind weg\n"
 
 -- Context menu
 L["CTX_ADD_ALIAS"]                      = "Alias hinzufügen"
