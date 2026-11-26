@@ -151,6 +151,8 @@ local function Resolve(spec)
     if row then
         if spec.label then row.name, row.nameLower = spec.label, slower(spec.label) end
         if row.mapSearchResult then row.matchNote = spec.note else row.sourceNote = spec.note end
+        -- A note that counts the player's own (a reagent's): Owned adds the alts.
+        if spec.ownCounted then row.ownCounted = true end
         return row
     end
     if type(spec.name) ~= "string" then return nil end
@@ -463,7 +465,7 @@ end
 local HEADING_KEYS = { "SOURCES_SOLD_BY", "SOURCES_DROPPED_BY", "SOURCES_CRAFTED_BY", "SOURCES_GATHERED",
                        "SOURCES_SKINNED", "SOURCES_FISHED", "SOURCES_PICKPOCKETED", "SOURCES_FOUND_IN",
                        "SOURCES_CONTAINED", "SOURCES_QUEST_REWARD", "SOURCES_STARTS_QUEST", "SOURCES_TEACHES",
-                       "SOURCES_REAGENT_FOR", "SOURCES_NEEDED_FOR" }
+                       "SOURCES_REAGENT_FOR", "SOURCES_NEEDED_FOR", "MATS_REAGENTS" }
 local HEADING_WORD_MIN = 4              -- letters before a typed word may start a heading's word
 local PEEL_MAX = 3                      -- words an end may give up
 local headingWords

@@ -24,8 +24,11 @@ local english
 local function English()
     if not english then
         english = {}
-        for key, text in Read("Locales/enUS.lua"):gmatch('\nL%["(SOURCES_[%w_]+)"%]%s*=%s*"([^\n]*)"') do
-            english[key] = text:gsub('\\"', '"')
+        local src = Read("Locales/enUS.lua")
+        for _, prefix in ipairs({ "SOURCES_", "MATS_" }) do
+            for key, text in src:gmatch('\nL%["(' .. prefix .. '[%w_]+)"%]%s*=%s*"([^\n]*)"') do
+                english[key] = text:gsub('\\"', '"')
+            end
         end
     end
     return english
@@ -111,10 +114,17 @@ function tests.silverRod_isCraftedByBlacksmithing_withItsReagentsAndTrainers()
         local r = Recipes(FILE[client])[7818]
         H.assertTrue(r ~= nil and r.rank == 100 and r.trainers ~= "", client .. ": Silver Rod at 100 with trainers")
         local _, Page = Load({ client = client })
-        local rows = Page(SILVER_ROD)["Crafted: Blacksmithing 100"]
+        local page = Page(SILVER_ROD)
+        local rows = page["Crafted: Blacksmithing 100"]
         H.assertNotNil(rows, client .. ": a section for the recipe, its profession and rank")
-        H.assertEq(Find(rows, "item", SILVER_BAR).note, "1 needed")
-        H.assertEq(Find(rows, "item", WEAK_FLUX).note, "2 needed")
+        -- Its reagents a section of their own, worded as on its mats page
+        -- (they sat among the trainers, 2026-11-26).
+        local reagents = page["Reagents"]
+        H.assertNotNil(reagents, client .. ": a Reagents section")
+        H.assertEq(Find(reagents, "item", SILVER_BAR).note, "Need 1, have 0")
+        H.assertEq(Find(reagents, "item", WEAK_FLUX).note, "Need 2, have 0")
+        H.assertTrue(Find(reagents, "item", SILVER_BAR).ownCounted, "the own count said: Owned adds the alts")
+        H.assertNil(Find(rows, "item", SILVER_BAR), "not among the trainers")
         local trainer
         for _, row in ipairs(rows) do
             if row.creature then trainer = row end

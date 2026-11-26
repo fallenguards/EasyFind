@@ -241,9 +241,19 @@ local function ObjectRow(e)
     return row, o.kind
 end
 
+-- A recipe's reagents, a section of their own as on its mats page.
+local function ReagentRows(r)
+    local rows, count = {}, C_Item and C_Item.GetItemCount
+    for _, g in ipairs(r.reagents) do
+        local have = count and count(g[1], true) or 0
+        rows[#rows + 1] = { item = g[1], note = sformat(L["MATS_NEED_HAVE_FMT"], g[2], have), ownCounted = true }
+    end
+    return rows
+end
+
+-- Who teaches a recipe, or how it is learned.
 local function RecipeRows(r)
     local rows = {}
-    for _, g in ipairs(r.reagents) do rows[#rows + 1] = { item = g[1], note = sformat(L["SOURCES_NEEDS_FMT"], g[2]) } end
     for _, t in ipairs(r.trainers) do rows[#rows + 1] = { creature = t, name = D.npcs[t], note = L["SOURCES_TEACHES_RECIPE"] } end
     for _, b in ipairs(r.books) do rows[#rows + 1] = { item = b, note = L["SOURCES_TEACHES_RECIPE"] } end
     if r.auto and #r.trainers == 0 then
@@ -303,7 +313,10 @@ function SourceData.Sections(itemID)
     local out = {}
     for _, e in ipairs(rec.c or NONE) do
         local r = Recipe(e[1])
-        if r then Add(out, sformat(L["SOURCES_CRAFTED_FMT"], RecipeSkill(r)), RecipeRows(r)) end
+        if r then
+            Add(out, sformat(L["SOURCES_CRAFTED_FMT"], RecipeSkill(r)), RecipeRows(r))
+            Add(out, L["MATS_REAGENTS"], ReagentRows(r))
+        end
     end
     local gathered, found, fished = {}, {}, {}
     for _, e in ipairs(rec.o or NONE) do
