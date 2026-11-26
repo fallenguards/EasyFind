@@ -104,6 +104,33 @@ function tests.clothHasNoDressingRoom()
     H.assertNil(G.ActionFor({ catalogItem = true, itemID = 2592, name = "Wool Cloth" }, "ctrl"), "no dressable call: by its slot")
 end
 
+-- Alt on any item: who holds it (Search/Characters.lua), nobody included:
+-- offered only when an alt held some, Alt elsewhere did nothing at all
+-- (2026-11-26, "feel like we need some indication").
+function tests.anItemsAlt_alwaysListsWhoHasIt()
+    local G, _, ns = Load(nil, { IsDressableItemByID = function() return false end })
+    ns.ItemSources = { Available = function() return true end }
+    ns.Characters = {}
+    H.assertEq(G.ActionFor({ catalogItem = true, itemID = 2592 }, "alt"), "holders")
+    H.assertEq(G.Hint({ catalogItem = true, itemID = 2592 }), "HINT_CLICK: HINT_SOURCES | Alt: HINT_HOLDERS | Shift: CTX_SEND_LINK")
+    H.assertEq(G.ActionFor({ catalogItem = true, itemID = 4306 }, "alt"), "holders", "held by nobody: the page says so")
+end
+
+-- An alt's bank row offered Alt (its kind is an item's) but the click
+-- opened the page on catalog rows only: Alt there did nothing (2026-11-26).
+-- The click asks the kind, as the hint does.
+function tests.whoHasIt_opensWhereverItsHintOffersIt()
+    local G, _, ns = Load()
+    ns.Characters = {}
+    H.assertEq(G.KindOf({ storedRemote = true, lookupRow = true, itemID = 4305 }), "catalog")
+    H.assertEq(G.ActionFor({ storedRemote = true, lookupRow = true, itemID = 4305 }, "alt"), "holders")
+    local f = assert(io.open(H.ADDON_ROOT .. "/Search/Results/Handlers/Selection.lua", "rb"))
+    local src = f:read("*a")
+    f:close()
+    H.assertNotNil(src:find('ns.ResultGestures.KindOf(data) == "catalog" and ns.ResultGestures.Does(data, "holders")', 1, true),
+        "Selection opens it by the row's kind")
+end
+
 -- An item's click shows where it comes from; Shift sends its link.
 function tests.anItemOpensItsSourcesAndShiftSendsItsLink()
     local G, _, ns = Load()

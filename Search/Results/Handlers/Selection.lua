@@ -533,6 +533,12 @@ function Handlers:SelectResult(data, forceGuide)
     -- send its link (Shift) picks it onto the cursor in Rows/Interactions.
     -- This path handles Ctrl (try it on in the dressing room) and keyboard
     -- Enter. Never navigates: catalog rows keep the results open.
+    -- Who holds an item, on any row its hint offers it (a bank row of an
+    -- alt's too: Alt there fell through to nothing, 2026-11-26).
+    if ns.ResultGestures.KindOf(data) == "catalog" and ns.ResultGestures.Does(data, "holders") and ns.Characters then
+        ns.Characters.ShowHolders(data)
+        return
+    end
     if data.catalogItem then
         if ns.ResultGestures.Does(data, "sources") and ns.ItemSources then
             ns.ItemSources:Show(data)

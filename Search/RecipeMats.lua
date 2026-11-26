@@ -31,7 +31,8 @@ function RecipeMats.Available(data)
     return data ~= nil and data.professionRecipeID ~= nil and TS ~= nil and TS.GetRecipeSchematic ~= nil
 end
 
-local function ItemRow(id, note)
+-- ownCounted: the note counts the player's own (Owned adds only the alts).
+local function ItemRow(id, note, ownCounted)
     local name = C_Item.GetItemNameByID(id)
     if type(name) ~= "string" or name == "" then
         name = nil
@@ -41,7 +42,7 @@ local function ItemRow(id, note)
     end
     return { itemID = id, catalogItem = true, lookupRow = true, category = "Item", name = name or "",
              nameLower = name and slower(name) or "", quality = C_Item.GetItemQualityByID(id), noPin = true,
-             sourceNote = note }
+             sourceNote = note, ownCounted = ownCounted }
 end
 
 -- How many of the item the character has, bank included.
@@ -70,7 +71,7 @@ local function Build(recipeID)
             for _, r in ipairs(slot.reagents) do
                 if type(r) == "table" and r.itemID then have = have + Have(r.itemID) end
             end
-            page.reagents[#page.reagents + 1] = ItemRow(id, sformat(L["MATS_NEED_HAVE_FMT"], slot.quantityRequired or 1, have))
+            page.reagents[#page.reagents + 1] = ItemRow(id, sformat(L["MATS_NEED_HAVE_FMT"], slot.quantityRequired or 1, have), true)
         end
     end
     return page

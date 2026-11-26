@@ -278,6 +278,71 @@ function Characters.CrafterRows(itemID, itemName)
     return out
 end
 
+-- Who holds an item (Alt on its row): a row per character, most first,
+-- opening its page; the played one counted live; a guild's bank plain.
+local HOLDER_PARTS = { "bags", "bank", "mail", "guild" }
+local function HolderLess(a, b)
+    if a.total ~= b.total then return a.total > b.total end
+    return (a.name or "") < (b.name or "")
+end
+
+local function Holders(itemID)
+    local byChar = ns.StoredItemCounts and ns.StoredItemCounts(itemID)
+    local current, held = ns.CurrentCharacterKey(), {}
+    local mine = byChar and byChar[current]
+    local count = C_Item and C_Item.GetItemCount
+    if count then
+        local bags = count(itemID, false) or 0
+        held[1] = { key = current, name = mine and mine.name or ns.PlayerName(), bags = bags, bank = (count(itemID, true) or bags) - bags,
+                    mail = mine and mine.mail or 0, guild = 0 }
+    end
+    for key, c in pairs(byChar or {}) do
+        if key ~= current then
+            held[#held + 1] = { key = key, name = c.name, bags = c.bags or 0, bank = c.bank or 0, mail = c.mail or 0,
+                                guild = c.guild or 0 }
+        end
+    end
+    local kept = {}
+    for _, h in ipairs(held) do
+        h.total = h.bags + h.bank + h.mail + h.guild
+        if h.total > 0 then kept[#kept + 1] = h end
+    end
+    tsort(kept, HolderLess)
+    return kept
+end
+
+-- Held by none: one line saying so, never an empty page (Alt seemed dead).
+local function NoHolderRow()
+    return Row(L["HOLDERS_NONE"], nil, GLYPH.items, { pageAction = function() end })
+end
+
+function Characters.HolderRows(itemID)
+    local words = { bags = _G["BAGSLOT"] or "Bags", bank = _G["BANK"] or "Bank", mail = _G["MAIL_LABEL"] or "Mail",
+                    guild = _G["GUILD_BANK"] or "Guild Bank" }
+    local entries = {}
+    for _, entry in ipairs(Data.List()) do entries[entry.key] = entry end
+    local out = {}
+    for _, h in ipairs(Holders(itemID)) do
+        local parts = {}
+        for _, part in ipairs(HOLDER_PARTS) do
+            if h[part] > 0 then parts[#parts + 1] = words[part] .. " " .. h[part] end
+        end
+        local line = #parts == 1 and parts[1] or (h.total .. " (" .. tconcat(parts, ", ") .. ")")
+        local entry = entries[h.key]
+        out[#out + 1] = entry and CharacterRow(entry, line) or Row(h.name or "?", line, GLYPH.items)
+    end
+    if #out == 0 then out[1] = NoHolderRow() end
+    -- The item itself at the right of each: what the page is about.
+    local icon = C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(itemID)
+    for _, row in ipairs(out) do row.specificIcon = icon end
+    return out
+end
+
+function Characters.ShowHolders(data)
+    local name = data.name ~= "" and data.name or (C_Item and C_Item.GetItemNameByID(data.itemID)) or ""
+    ns.RowsPage:Show("Character", name, Characters.HolderRows(data.itemID))
+end
+
 local function AltsPage(list)
     local out = {}
     out[#out + 1] = Row(_G["ITEMS"] or "Items", L["CHAR_ITEMS_ALL"], GLYPH.items, { quickFilterDef = PageDef(nil, "items") })

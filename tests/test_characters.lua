@@ -899,5 +899,39 @@ function tests.mail_aPageOfEveryCharactersMail_theSoonestGoneFirst()
     H.assertTrue(env ~= nil)
 end
 
+-- Alt on an item row: who holds it, each with where (2026-11-26: the row
+-- says "28 on alts", "need a way into seeing how many for each alt").
+function tests.holders_eachCharacterMostFirst_thePlayedOneLive()
+    local env, ns = Pages(TwoJainas())
+    ns.PlayerName = function() return "Thrall" end
+    local counts = {
+        ["Jaina-Realm"] = { name = "Jaina", bags = 4, bank = 8 },
+        ["Bôb-Realm"] = { name = "Bôb", bags = 0, bank = 3 },
+        ["Guild-Realm"] = { name = "The Horde", guild = 5 },
+        ["Thrall-Realm"] = { name = "Thrall", bags = 99 },
+    }
+    ns.StoredItemCounts = function(id) return id == 2589 and counts or nil end
+    env.C_Item = { GetItemCount = function(id, withBank)
+        if id ~= 2589 then return 0 end
+        return withBank and 25 or 5
+    end, GetItemIconByID = function(id) return "icon " .. id end }
+    local rows = ns.Characters.HolderRows(2589)
+    local lines = {}
+    for i, row in ipairs(rows) do lines[i] = row.name .. ": " .. row.searchCommandDesc end
+    H.assertEq(table.concat(lines, " | "),
+        "Thrall: 25 (Bags 5, Bank 20) | Jaina: 12 (Bags 4, Bank 8) | The Horde: Guild Bank 5 | Bôb: Bank 3",
+        "most first; the played one the game's count, not the old scan's; one place said alone")
+    H.assertNotNil(rows[2].quickFilterDef, "a character's row opens its page")
+    H.assertNil(rows[3].quickFilterDef, "a guild's bank is no character")
+    -- The item itself at each row's right, so the page says what it lists.
+    for _, row in ipairs(rows) do H.assertEq(row.specificIcon, "icon 2589") end
+    -- Held by nobody: a line saying so, a click on it doing nothing.
+    rows = ns.Characters.HolderRows(4306)
+    H.assertEq(#rows, 1)
+    H.assertEq(rows[1].name, ns.L["HOLDERS_NONE"])
+    H.assertNotNil(rows[1].pageAction, "the page stays on a click")
+    H.assertEq(rows[1].specificIcon, "icon 4306")
+end
+
 local pass, fail, failures = H.runSuite("Characters", tests)
 return { pass = pass, fail = fail, failures = failures }

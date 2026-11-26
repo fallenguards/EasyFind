@@ -268,12 +268,9 @@ end
 local HOLDER_ROWS = { Bag = true, Bank = true, Warband = true, Gear = true, ["Guild Bank"] = true, Mail = true }
 local altsOwned, ownedStamp = {}, nil
 local GetItemCount = C_Item and C_Item.GetItemCount or _G["GetItemCount"]
-local function OwnerLess(a, b) return a.name < b.name end
 
--- "Owned: Thrall 5, Jaina 12": who holds an item row's item: bags, bank
--- and mail, and a guild's bank under the guild's name. The character
--- played is counted live, the others from their last scan
--- (ns.StoredItemCounts), their part kept until a scan changes.
+-- "Owned: 40, 28 on alts": the played character's own live, the others'
+-- summed from their last scans (Alt lists each); ownCounted: alts alone.
 function Text:OwnedText(data)
     local itemID = data.itemID
     if not itemID or HOLDER_ROWS[data.category] or data.storedHolders or not ns.StoredItemCounts then return nil end
@@ -284,24 +281,22 @@ function Text:OwnedText(data)
     end
     local alts = altsOwned[itemID]
     if alts == nil then
-        local currentKey, owners = ns.CurrentCharacterKey(), {}
+        local currentKey = ns.CurrentCharacterKey()
+        alts = 0
         for charKey, c in pairs(byChar or {}) do
-            local count = (c.bags or 0) + (c.bank or 0) + (c.mail or 0) + (c.guild or 0)
-            if charKey ~= currentKey and count > 0 and c.name then owners[#owners + 1] = { name = c.name, count = count } end
+            if charKey ~= currentKey and c.name then
+                alts = alts + (c.bags or 0) + (c.bank or 0) + (c.mail or 0) + (c.guild or 0)
+            end
         end
-        table.sort(owners, OwnerLess)
-        for i, owner in ipairs(owners) do owners[i] = owner.name .. " " .. owner.count end
-        alts = #owners > 0 and table.concat(owners, ", ") or false
         altsOwned[itemID] = alts
     end
+    local onAlts = alts > 0 and sformat(L["SUBTEXT_ON_ALTS_FMT"], alts) or nil
+    if data.ownCounted then return onAlts end
     -- The game counts bags and bank; the mail is from its last visit.
     local me = byChar and byChar[ns.CurrentCharacterKey()]
     local mine = (GetItemCount and GetItemCount(itemID, true) or 0) + (me and me.mail or 0)
-    if mine > 0 then
-        local own = (ns.PlayerName() or "?") .. " " .. mine
-        return sformat(L["SUBTEXT_OWNED_FMT"], alts and (own .. ", " .. alts) or own)
-    end
-    return alts and sformat(L["SUBTEXT_OWNED_FMT"], alts) or nil
+    if mine > 0 then return sformat(L["SUBTEXT_OWNED_FMT"], onAlts and (mine .. ", " .. onAlts) or tostring(mine)) end
+    return onAlts and sformat(L["SUBTEXT_OWNED_FMT"], onAlts) or nil
 end
 
 -- The subtext a row shows: the flat one, who owns its item or the key

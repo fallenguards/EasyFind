@@ -54,6 +54,7 @@ local V = {
     clickDrag    = L["HINT_CLICK_DRAG"],
     sendLink     = L["CTX_SEND_LINK"],
     sources      = L["HINT_SOURCES"],
+    holders      = L["HINT_HOLDERS"],
     wares        = L["HINT_WARES"],
     mats         = L["MATS_REAGENTS"],
     bosses       = _G["RAID_BOSSES"] or "Bosses",
@@ -89,10 +90,10 @@ local KINDS = {
         A("drag", "drag", "shift") } },
     { key = "bag", actions = { A("action", "use", "click", "primary"), A("bags", "bags", "alt", "source"),
         A("dressroom", "dressroom", "ctrl", "preview"), A("drag", "drag", "shift") } },
-    -- An item: where it comes from on a click; Shift sends its link, the
-    -- game's own gesture for one.
-    { key = "catalog", actions = { A("sources", "sources", "click", "primary"), A("dressroom", "dressroom", "ctrl", "preview"),
-        A("sendLink", "sendLink", "shift") } },
+    -- An item: where it comes from on a click, who holds it on Alt; Shift
+    -- sends its link, the game's own gesture for one.
+    { key = "catalog", actions = { A("sources", "sources", "click", "primary"), A("holders", "holders", "alt"),
+        A("dressroom", "dressroom", "ctrl", "preview"), A("sendLink", "sendLink", "shift") } },
     { key = "loot", actions = { A("sources", "sources", "click", "primary"), A("encounter", "encounter", "alt", "source"),
         A("dressroom", "dressroom", "ctrl", "preview"), A("sendLink", "sendLink", "shift") } },
     -- A dungeon or raid: the GPS goes (the map without it), Ctrl lists
@@ -184,6 +185,7 @@ function Gestures.Available(data, kind, action)
         if action == "dressroom" then return actionKind == "equip" end
     end
     if (kind == "catalog" or kind == "loot") and action == "dressroom" then return Dressable(data) end
+    if kind == "catalog" and action == "holders" then return data.itemID ~= nil and ns.Characters ~= nil end
     if kind == "title" then
         if action == "apply" then return not data.titleUnearned end
         return Db and Db.GetTitleSourceAchievement and Db:GetTitleSourceAchievement(data.titleID) ~= nil
