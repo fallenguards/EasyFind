@@ -6,13 +6,14 @@ local H = require("Harness")
 
 local held = {}
 
-local function Load(db)
+-- cItem: the client's item calls (a head piece, no dressable call, unless given).
+local function Load(db, cItem)
     local env = H.newEnv()
     env.IsAltKeyDown = function() return held.alt == true end
     env.IsControlKeyDown = function() return held.ctrl == true end
     env.IsShiftKeyDown = function() return held.shift == true end
     env.EasyFind = { db = db or { resultClicks = {} } }
-    env.C_Item = { GetItemInfoInstant = function() return 1, nil, nil, "INVTYPE_HEAD" end }
+    env.C_Item = cItem or { GetItemInfoInstant = function() return 1, nil, nil, "INVTYPE_HEAD" end }
     local ns = H.newNs(env)
     ns.L = setmetatable({}, { __index = function(_, k) return k end })
     ns.ResultIcons = {
@@ -87,6 +88,20 @@ function tests.shiftStaysTheDragWhereAKindHasOne()
     H.assertEq(G.ActionFor(press, "shift"), "settings", "a kind with no drag takes the Shift choice")
     H.assertEq(G.ShiftChosen(press), "settings")
     H.assertEq(G.Hint(press), "HINT_CLICK: HINT_RUN | Alt: Settings | Shift: Settings")
+end
+
+-- Cloth offered the dressing room (Forever, 2026-11-26: "you can't wear wool
+-- cloth"): its slot reads INVTYPE_NON_EQUIP_IGNORE, not "". The game's own
+-- call decides where there is one; the slot only where there is none.
+function tests.clothHasNoDressingRoom()
+    local wearable = { [2592] = false, [2580] = true }
+    local G, _, ns = Load(nil, { IsDressableItemByID = function(id) return wearable[id] end,
+                                 GetItemInfoInstant = function() return 1, nil, nil, "INVTYPE_HEAD" end })
+    ns.ItemSources = { Available = function() return true end }
+    H.assertEq(G.Hint({ catalogItem = true, itemID = 2592, name = "Wool Cloth" }), "HINT_CLICK: HINT_SOURCES | Shift: CTX_SEND_LINK")
+    H.assertEq(G.ActionFor({ catalogItem = true, itemID = 2580, name = "Reinforced Leather Boots" }, "ctrl"), "dressroom")
+    G = Load(nil, { GetItemInfoInstant = function() return 1, nil, nil, "INVTYPE_NON_EQUIP_IGNORE" end })
+    H.assertNil(G.ActionFor({ catalogItem = true, itemID = 2592, name = "Wool Cloth" }, "ctrl"), "no dressable call: by its slot")
 end
 
 -- An item's click shows where it comes from; Shift sends its link.

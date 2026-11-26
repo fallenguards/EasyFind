@@ -157,9 +157,13 @@ function Gestures.KindOf(data)
     return nil
 end
 
-local NON_DRESSABLE_SLOT = { [""] = true, INVTYPE_BAG = true, INVTYPE_QUIVER = true, INVTYPE_AMMO = true }
+local NON_DRESSABLE_SLOT = { [""] = true, INVTYPE_BAG = true, INVTYPE_QUIVER = true, INVTYPE_AMMO = true,
+                             INVTYPE_NON_EQUIP = true, INVTYPE_NON_EQUIP_IGNORE = true }
+local IsDressableItem = (C_Item and C_Item.IsDressableItemByID) or IsDressableItem
 
+-- The game's own answer; by slot only where it has none (cloth: no slot).
 local function Dressable(data)
+    if IsDressableItem then return IsDressableItem(data.itemID) == true end
     local equipLoc = C_Item and C_Item.GetItemInfoInstant and select(4, C_Item.GetItemInfoInstant(data.itemID))
     return equipLoc ~= nil and not NON_DRESSABLE_SLOT[equipLoc]
 end
