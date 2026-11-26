@@ -17,7 +17,6 @@ local function Sources()
     local env = H.newEnv()
     local ns = H.newNs(env)
     env.EasyFind = { _ns = ns }
-    ns.BUILD = "5.7.0"
     ns.SOURCE_DATA = { items = ITEMS, quests = {} }
     H.loadModule("Apps/Sources/Sources.lua", env, ns)
     return ns.SourceData
