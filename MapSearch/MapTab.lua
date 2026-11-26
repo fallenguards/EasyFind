@@ -94,6 +94,14 @@ local pages = {}
 local pageOrder = {}
 local extraTabs = {}
 local PlaceTab   -- defined with the tab layout below, used by RegisterPage above it
+-- Another addon's tab column (ForeverCore.QuestLogTabs: Shortest Path
+-- Forever's): its tabs, each hooked once; asking while we call into it.
+local column = { tabs = {}, hooked = {}, asking = false }
+local function ColumnAPI()
+    local core = _G["ForeverCore"]
+    local api = type(core) == "table" and core.QuestLogTabs or nil
+    return type(api) == "table" and api or nil
+end
 local function IsMapSearchEnabled()
     return not (EasyFind and EasyFind.db and EasyFind.db.enableMapSearch == false)
 end
@@ -107,6 +115,13 @@ local function CoverClientPanel(qmf, covered)
     for _, content in ipairs(qmf.ContentFrames) do content:SetAlpha(covered and 0 or 1) end
     for _, tab in ipairs(qmf.TabButtons or {}) do
         if tab.SetChecked then tab:SetChecked(not covered and tab.displayMode == qmf.displayMode) end
+    end
+    -- The column's tabs too; its Quests tab back while none of its panels is open.
+    if covered then
+        for _, tab in ipairs(column.tabs) do tab:SetChecked(false) end
+    else
+        local api, quests = ColumnAPI(), _G["ForeverQuestLogQuestsTab"]
+        if api and quests and api.Selected and not api.Selected() then quests:SetChecked(true) end
     end
 end
 local lastQueryGen = 0
@@ -318,6 +333,13 @@ local function ShowOurPanel(pageID)
     selectedIsOurs = true
     lastSelectedWasOurs = true
     if panel.MeasureBlizzardSearch then panel.MeasureBlizzardSearch() end
+    -- A column panel open is put away through the column's own call.
+    local api = ColumnAPI()
+    if api and api.Selected and api.ShowQuests and api.Selected() then
+        column.asking = true
+        pcall(api.ShowQuests)
+        column.asking = false
+    end
     if qmf.ContentFrames then
         CoverClientPanel(qmf, true)
     else
@@ -365,6 +387,29 @@ local function HideOurPanel()
     end
     if ReleaseMapTabMemory then ReleaseMapTabMemory(true) end
     RefreshSelectGlows()
+end
+
+-- A side tab beside the quest log: the game's and a framework's carry a
+-- display mode; a column's are the game's side tab template bare.
+local function IsSideTab(child)
+    if child.displayMode then return child.OnEnter ~= nil end
+    local mixin = _G["SidePanelTabButtonMixin"]
+    return mixin ~= nil and child.SetChecked == mixin.SetChecked
+end
+
+-- A column tab checked by its own addon (its panel or the quest log): ours goes.
+local function ColumnTabChecked(_, checked)
+    if checked and not column.asking and selectedIsOurs then
+        lastSelectedWasOurs = false
+        HideOurPanel()
+    end
+end
+
+local function JoinColumnTab(tab)
+    if column.hooked[tab] then return end
+    column.hooked[tab] = true
+    column.tabs[#column.tabs + 1] = tab
+    hooksecurefunc(tab, "SetChecked", ColumnTabChecked)
 end
 
 local function PromptAlias(data)
@@ -2644,9 +2689,6 @@ function MapTab:OpenWithQuery(query)
     return true
 end
 
--- Anchors our tab below the lowest shown sibling tab on QuestMapFrame.
--- Discovers tabs by the `displayMode` field so it works across Blizzard
--- and third-party tab additions.
 -- The tab's left edge to its art's flat side: the atlas is drawn at its own
 -- size in the middle of the tab, its art 3 of its 51 columns in.
 local function TabArtInset(tab)
@@ -2655,14 +2697,16 @@ local function TabArtInset(tab)
     return (tab:GetWidth() - w) / 2 + w * 3 / 51
 end
 
+-- Our tabs under the lowest shown side tab of the quest log (IsSideTab).
 function PlaceTab()
     if not tabFrame then return end
     local qmf = _G["QuestMapFrame"]
     if not qmf then return end
     local lowest, lowestBottom
     for _, child in ipairs({ qmf:GetChildren() }) do
-        if child ~= tabFrame and not child._efExtraTab and child.displayMode and child.OnEnter and child:IsShown() then
-            local b = child:GetBottom()
+        if child ~= tabFrame and not child._efExtraTab and IsSideTab(child) then
+            if not child.displayMode then JoinColumnTab(child) end
+            local b = child:IsShown() and child:GetBottom()
             if b and (not lowestBottom or b < lowestBottom) then
                 lowest, lowestBottom = child, b
             end
